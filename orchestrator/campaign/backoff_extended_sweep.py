@@ -10,6 +10,7 @@ import os
 import random
 import subprocess
 import sys
+import tempfile
 from contextlib import contextmanager, nullcontext
 from pathlib import Path
 from typing import Mapping, Optional, Sequence
@@ -422,6 +423,7 @@ def t2266_genomes(tag: str) -> list[Genome]:
 
 def _require_condition_gate_before_measurement(
         source_root: str, *, stock_root: str, points: list[Genome], cxx: str,
+        configure_args: Sequence[str] = (),
 ):
     """Bind this driver's concrete BACKOFF_FIXED requests to the family gate."""
     return _require_backoff_condition_gate(
@@ -435,6 +437,7 @@ def _require_condition_gate_before_measurement(
         },
         cxx=cxx,
         use_class="raw-measurement",
+        configure_args=configure_args,
     )
 
 
@@ -875,12 +878,28 @@ def run_workload(
         ) as stock_root:
             with patchharness.applied(patch_path, pin.CURRENT_PIN, ccbench_dir):
                 _assert_backoff_fixed_materialized(ccbench_dir)
-                _require_condition_gate_before_measurement(
-                    ccbench_dir,
-                    stock_root=stock_root,
-                    points=ordered_genomes,
-                    cxx=resolved_cxx,
-                )
+                canonical_ccbench_dir = os.fspath(Path(ccbench_dir).resolve())
+                with tempfile.TemporaryDirectory(
+                        prefix="izanagi-backoff-condition-gate-",
+                ) as fetchcontent_base:
+                    canonical_base = os.fspath(Path(fetchcontent_base).resolve())
+                    buildcache.prepare_masstree_fetchcontent(
+                        ccbench_dir=canonical_ccbench_dir,
+                        fetchcontent_base_dir=canonical_base,
+                        expected_toolchain_manifest=expected_toolchain_manifest,
+                        configure_timeout_s=900,
+                        target_timeout_s=900,
+                        site=site,
+                    )
+                    _require_condition_gate_before_measurement(
+                        canonical_ccbench_dir,
+                        stock_root=stock_root,
+                        points=ordered_genomes,
+                        cxx=resolved_cxx,
+                        configure_args=(
+                            f"-DFETCHCONTENT_BASE_DIR={canonical_base}",
+                        ),
+                    )
                 _prebuild_backoff_binaries(
                     ordered_genomes,
                     contract=contract,
