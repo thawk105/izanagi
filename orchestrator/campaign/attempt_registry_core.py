@@ -30,6 +30,21 @@ _ZERO_SHA256 = "0" * 64
 _CHAIN_KEYS = frozenset({
     "event_index", "previous_event_sha256", "event_sha256",
 })
+ATTEMPT_REGISTRY_PREFIX_PROOF_SCHEMA = (
+    "s8b-floor-attempt-registry-proof/v1"
+)
+ATTEMPT_REGISTRY_PREFIX_REGISTRY_SCHEMA = (
+    "s8b-floor-attempt-registry/v2"
+)
+ATTEMPT_REGISTRY_PREFIX_PROOF_KEYS = frozenset({
+    "schema",
+    "registry_schema",
+    "freeze_sha256",
+    "protocol_sha256",
+    "schedule_sha256",
+    "row_count",
+    "chain_head_sha256",
+})
 _DEFAULT_PROCESS_IDENTITY_KEYS = frozenset({
     "pid", "starttime", "execution_uuid",
 })
@@ -264,6 +279,72 @@ def previous_event_sha256(rows: Sequence[Mapping[str, Any]]) -> str:
             if isinstance(value, str):
                 return value
     return _ZERO_SHA256
+
+
+def validate_attempt_registry_prefix_proof(
+    value: object,
+) -> dict[str, object]:
+    """Validate and normalize one exact v2 attempt-registry prefix proof."""
+
+    if not isinstance(value, Mapping):
+        _fail(
+            "attempt-registry-prefix-proof",
+            "attempt registry prefix proof is not a mapping",
+        )
+    actual_keys = frozenset(value)
+    if actual_keys != ATTEMPT_REGISTRY_PREFIX_PROOF_KEYS:
+        missing = sorted(ATTEMPT_REGISTRY_PREFIX_PROOF_KEYS - actual_keys)
+        unknown = sorted(actual_keys - ATTEMPT_REGISTRY_PREFIX_PROOF_KEYS)
+        _fail(
+            "attempt-registry-prefix-proof",
+            "attempt registry prefix proof key set differs: "
+            f"missing={missing}, unknown={unknown}",
+        )
+    schema = value.get("schema")
+    if schema != ATTEMPT_REGISTRY_PREFIX_PROOF_SCHEMA:
+        _fail(
+            "attempt-registry-prefix-proof",
+            "attempt registry prefix proof schema is unsupported",
+        )
+    registry_schema = value.get("registry_schema")
+    if registry_schema != ATTEMPT_REGISTRY_PREFIX_REGISTRY_SCHEMA:
+        _fail(
+            "attempt-registry-prefix-proof",
+            "attempt registry prefix proof registry_schema is unsupported",
+        )
+    freeze_sha256 = _digest(
+        value.get("freeze_sha256"), label="prefix proof.freeze_sha256",
+    )
+    protocol_sha256 = _digest(
+        value.get("protocol_sha256"), label="prefix proof.protocol_sha256",
+    )
+    schedule_sha256 = _digest(
+        value.get("schedule_sha256"), label="prefix proof.schedule_sha256",
+    )
+    row_count = value.get("row_count")
+    if type(row_count) is not int or row_count < 1:
+        _fail(
+            "attempt-registry-prefix-proof",
+            "attempt registry prefix proof row_count is not a positive integer",
+        )
+    chain_head_sha256 = _digest(
+        value.get("chain_head_sha256"),
+        label="prefix proof.chain_head_sha256",
+    )
+    if chain_head_sha256 == _ZERO_SHA256:
+        _fail(
+            "attempt-registry-prefix-proof",
+            "attempt registry prefix proof chain head is zero",
+        )
+    return {
+        "schema": schema,
+        "registry_schema": registry_schema,
+        "freeze_sha256": freeze_sha256,
+        "protocol_sha256": protocol_sha256,
+        "schedule_sha256": schedule_sha256,
+        "row_count": row_count,
+        "chain_head_sha256": chain_head_sha256,
+    }
 
 
 def capability_digest(

@@ -2435,5 +2435,128 @@ def test_serialize_session_line_uses_spaced_sorted_utf8_json_and_newline() -> No
     )
 
 
+def _attempt_registry_prefix_proof() -> dict[str, object]:
+    return {
+        "schema": core.ATTEMPT_REGISTRY_PREFIX_PROOF_SCHEMA,
+        "registry_schema": core.ATTEMPT_REGISTRY_PREFIX_REGISTRY_SCHEMA,
+        "freeze_sha256": _FREEZE,
+        "protocol_sha256": _PROTOCOL,
+        "schedule_sha256": _SCHEDULE,
+        "row_count": 3,
+        "chain_head_sha256": _REPORT,
+    }
+
+
+def _assert_prefix_proof_rejection(value: object, message: str) -> None:
+    with pytest.raises(core.AttemptRegistryCoreError, match=message):
+        core.validate_attempt_registry_prefix_proof(value)
+
+
+def test_attempt_registry_prefix_proof_accepts_exact_v2_shape() -> None:
+    source = _attempt_registry_prefix_proof()
+    validated = core.validate_attempt_registry_prefix_proof(source)
+    assert type(validated) is dict
+    assert validated == source
+    assert validated is not source
+    assert tuple(validated) == (
+        "schema",
+        "registry_schema",
+        "freeze_sha256",
+        "protocol_sha256",
+        "schedule_sha256",
+        "row_count",
+        "chain_head_sha256",
+    )
+    assert frozenset(validated) == core.ATTEMPT_REGISTRY_PREFIX_PROOF_KEYS
+
+
+def test_attempt_registry_prefix_proof_rejects_missing_key() -> None:
+    proof = _attempt_registry_prefix_proof()
+    del proof["schedule_sha256"]
+    _assert_prefix_proof_rejection(proof, "key set differs")
+
+
+def test_attempt_registry_prefix_proof_rejects_extra_key() -> None:
+    proof = _attempt_registry_prefix_proof()
+    proof["extra"] = "closed"
+    _assert_prefix_proof_rejection(proof, "key set differs")
+
+
+@pytest.mark.parametrize(
+    ("field", "invalid"),
+    (
+        ("schema", None),
+        ("registry_schema", None),
+        ("freeze_sha256", 1),
+        ("protocol_sha256", 1),
+        ("schedule_sha256", 1),
+        ("row_count", "3"),
+        ("chain_head_sha256", 1),
+    ),
+    ids=(
+        "literal-schema-none",
+        "literal-registry-schema-none",
+        "digest-freeze-sha256-int",
+        "digest-protocol-sha256-int",
+        "digest-schedule-sha256-int",
+        "row-count-str",
+        "digest-chain-head-sha256-int",
+    ),
+)
+def test_attempt_registry_prefix_proof_rejects_each_field_type(
+    field: str, invalid: object,
+) -> None:
+    proof = _attempt_registry_prefix_proof()
+    proof[field] = invalid
+    _assert_prefix_proof_rejection(proof, "prefix proof|SHA-256")
+
+
+def test_attempt_registry_prefix_proof_rejects_zero_row_count() -> None:
+    proof = _attempt_registry_prefix_proof()
+    proof["row_count"] = 0
+    _assert_prefix_proof_rejection(proof, "positive integer")
+
+
+def test_attempt_registry_prefix_proof_rejects_bool_row_count() -> None:
+    proof = _attempt_registry_prefix_proof()
+    proof["row_count"] = True
+    _assert_prefix_proof_rejection(proof, "positive integer")
+
+
+@pytest.mark.parametrize(
+    "field",
+    (
+        "freeze_sha256",
+        "protocol_sha256",
+        "schedule_sha256",
+        "chain_head_sha256",
+    ),
+)
+def test_attempt_registry_prefix_proof_rejects_invalid_digest(
+    field: str,
+) -> None:
+    proof = _attempt_registry_prefix_proof()
+    proof[field] = "A" * 64
+    _assert_prefix_proof_rejection(proof, "SHA-256 digest")
+
+
+def test_attempt_registry_prefix_proof_rejects_zero_head() -> None:
+    proof = _attempt_registry_prefix_proof()
+    proof["chain_head_sha256"] = "0" * 64
+    _assert_prefix_proof_rejection(proof, "chain head is zero")
+
+
+def test_attempt_registry_prefix_proof_rejects_wrong_proof_schema() -> None:
+    proof = _attempt_registry_prefix_proof()
+    proof["schema"] = "s8b-floor-attempt-registry-proof/v2"
+    _assert_prefix_proof_rejection(proof, "proof schema is unsupported")
+
+
+def test_attempt_registry_prefix_proof_rejects_wrong_registry_schema() -> None:
+    proof = _attempt_registry_prefix_proof()
+    proof["registry_schema"] = "s8b-floor-attempt-registry/v1"
+    _assert_prefix_proof_rejection(proof, "registry_schema is unsupported")
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main(["-q", str(Path(__file__).resolve())]))

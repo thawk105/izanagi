@@ -184,6 +184,16 @@ def test_floor_campaign_directly_reexports_shared_leaf_objects():
     )
 
 
+def test_result_schema_aliases_and_readable_set_are_exact():
+    assert s8b_floor_contract.LEGACY_RESULT_SCHEMA == "s8b-floor-result/v4"
+    assert s8b_floor_contract.RESULT_SCHEMA is s8b_floor_contract.LEGACY_RESULT_SCHEMA
+    assert s8b_floor_contract.RESULT_SCHEMA_V5 == "s8b-floor-result/v5"
+    assert s8b_floor_contract.READABLE_RESULT_SCHEMAS == frozenset({
+        "s8b-floor-result/v4",
+        "s8b-floor-result/v5",
+    })
+
+
 def test_refreeze_disqualifying_seam_closed_set_is_exact():
     assert s8b_floor_contract.REFREEZE_DISQUALIFYING_SEAM_NAMES == frozenset({
         "measure_fn", "probe_fn", "sleep_fn", "monotonic_fn", "prepare_fn",
@@ -380,6 +390,58 @@ def test_result_v4_key_contract_is_mode_conditional_and_exact():
     with pytest.raises(s8b_floor_contract.FloorContractError, match="available"):
         s8b_floor_contract.result_keys_for_mode(
             "official", perf_preflight=_perf_receipt(available=True),
+        )
+
+    assert s8b_floor_contract._RESULT_KEYS is s8b_floor_contract._RESULT_V4_KEYS
+    unavailable = _perf_receipt(available=False)
+    v4_key_sets = (
+        s8b_floor_contract.result_keys_for_mode(
+            "pilot", schema=s8b_floor_contract.LEGACY_RESULT_SCHEMA,
+        ),
+        s8b_floor_contract.result_keys_for_mode(
+            "pilot", schema=s8b_floor_contract.LEGACY_RESULT_SCHEMA,
+            perf_preflight=unavailable,
+        ),
+        s8b_floor_contract.result_keys_for_mode(
+            "official", schema=s8b_floor_contract.LEGACY_RESULT_SCHEMA,
+        ),
+        s8b_floor_contract.result_keys_for_mode(
+            "official", schema=s8b_floor_contract.LEGACY_RESULT_SCHEMA,
+            perf_preflight=unavailable,
+        ),
+    )
+    for keys in v4_key_sets:
+        assert "attempt_registry" not in keys
+
+    v5_key_sets = (
+        s8b_floor_contract.result_keys_for_mode(
+            "pilot", schema=s8b_floor_contract.RESULT_SCHEMA_V5,
+        ),
+        s8b_floor_contract.result_keys_for_mode(
+            "pilot", schema=s8b_floor_contract.RESULT_SCHEMA_V5,
+            perf_preflight=unavailable,
+        ),
+        s8b_floor_contract.result_keys_for_mode(
+            "official", schema=s8b_floor_contract.RESULT_SCHEMA_V5,
+        ),
+        s8b_floor_contract.result_keys_for_mode(
+            "official", schema=s8b_floor_contract.RESULT_SCHEMA_V5,
+            perf_preflight=unavailable,
+        ),
+    )
+    for v4_keys, v5_keys in zip(v4_key_sets, v5_key_sets):
+        assert v5_keys == v4_keys | {"attempt_registry"}
+    assert s8b_floor_contract._RESULT_V5_KEYS == (
+        s8b_floor_contract._RESULT_V4_KEYS | {"attempt_registry"}
+    )
+    assert s8b_floor_contract.result_keys_for_mode("official") == (
+        s8b_floor_contract.result_keys_for_mode(
+            "official", schema=s8b_floor_contract.LEGACY_RESULT_SCHEMA,
+        )
+    )
+    with pytest.raises(s8b_floor_contract.FloorContractError, match="schema"):
+        s8b_floor_contract.result_keys_for_mode(
+            "official", schema="s8b-floor-result/v6",
         )
 
 

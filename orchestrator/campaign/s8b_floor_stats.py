@@ -36,6 +36,7 @@ Fraction(str) で解釈し、標本値は Fraction(float) で厳密変換する�
 """
 from __future__ import annotations
 
+import hashlib
 import math
 import statistics
 from dataclasses import dataclass, field
@@ -682,7 +683,8 @@ def validate_floor_perf_evidence(
 def verify_floor_artifact(artifact: Mapping, expected_protocol: Mapping,
                           expected_binaries: Optional[Mapping] = None, *,
                           expected_holdout_admission: Mapping,
-                          expected_use_perf: bool) -> list:
+                          expected_use_perf: bool,
+                          expected_attempt_registry: Mapping[str, object] | None = None) -> list:
     """artifact の生 session を再計算し、自己申告値 + 外部 expected_protocol と厳密照合する。
 
     **保証境界 (α-1):** この関数は live admission を保証しない。caller が渡す
@@ -691,7 +693,8 @@ def verify_floor_artifact(artifact: Mapping, expected_protocol: Mapping,
     再計算一致と、(2) artifact.config の自己申告 protocol 値が外部 expected_protocol (凍結値) と
     完全一致すること、および (3) 出現するセル集合が expected_protocol.expected_cells と完全一致
     すること、である。**raw session 自体の真正性 (append-only journal・attempt registry・
-    schedule 突合) は保証しない — それは F7 wave の責務。**
+    schedule 突合) は保証しない — それは F7 wave の責務。v5 の
+    attempt registry prefix は caller が独立 replay した proof と照合する。
 
     binary admission は receipt の実在、exact key、canonical outer SHA、subject と
     record の一致、artifact 内 cross-cell 整合を無条件に検査する。per-cell freeze
@@ -730,9 +733,15 @@ def verify_floor_artifact(artifact: Mapping, expected_protocol: Mapping,
             "expected_use_perf が artifact receipt の再導出値と不一致 "
             f"(caller={expected_use_perf!r}, artifact={derived_use_perf!r})"
         ]
+    artifact_schema = artifact.get("schema")
+    key_schema = (
+        _floor_contract.RESULT_SCHEMA_V5
+        if artifact_schema == _floor_contract.RESULT_SCHEMA_V5
+        else _floor_contract.LEGACY_RESULT_SCHEMA
+    )
     try:
         expected_result_keys = _floor_contract.result_keys_for_mode(
-            artifact.get("mode"), perf_preflight=receipt,
+            artifact.get("mode"), schema=key_schema, perf_preflight=receipt,
         )
     except _floor_contract.FloorContractError as exc:
         return [f"artifact result key 契約が不正: {exc}"]
@@ -740,12 +749,57 @@ def verify_floor_artifact(artifact: Mapping, expected_protocol: Mapping,
         missing = sorted(set(expected_result_keys) - set(artifact))
         extra = sorted(set(artifact) - set(expected_result_keys))
         return [
-            f"artifact result v4 exact key 集合が不一致 (欠落={missing} 余分={extra})"
+            f"artifact result {'v5' if key_schema == _floor_contract.RESULT_SCHEMA_V5 else 'v4'} "
+            f"exact key 集合が不一致 (欠落={missing} 余分={extra})"
         ]
-    if artifact.get("schema") != _floor_contract.RESULT_SCHEMA:
+    if (
+        artifact_schema != _floor_contract.LEGACY_RESULT_SCHEMA
+        and artifact_schema != _floor_contract.RESULT_SCHEMA_V5
+    ):
         return [
             f"artifact.schema が {_floor_contract.RESULT_SCHEMA!r} でない"
         ]
+    if artifact_schema == _floor_contract.LEGACY_RESULT_SCHEMA:
+        if expected_attempt_registry is not None:
+            return ["v4 artifact に expected_attempt_registry を指定できない"]
+    else:
+        from .attempt_registry_core import (
+            AttemptRegistryCoreError,
+            validate_attempt_registry_prefix_proof,
+        )
+
+        try:
+            reported_attempt_registry = validate_attempt_registry_prefix_proof(
+                artifact.get("attempt_registry")
+            )
+        except AttemptRegistryCoreError as exc:
+            return [f"artifact.attempt_registry が不正: {exc}"]
+        if (
+            reported_attempt_registry["freeze_sha256"]
+            != artifact["freeze_sha256"]
+        ):
+            return [
+                "attempt_registry.freeze_sha256 が "
+                "artifact.freeze_sha256 と不一致"
+            ]
+        if (
+            reported_attempt_registry["protocol_sha256"]
+            != artifact["protocol_sha256"]
+        ):
+            return [
+                "attempt_registry.protocol_sha256 が "
+                "artifact.protocol_sha256 と不一致"
+            ]
+        if expected_attempt_registry is None:
+            return ["v5 artifact の expected_attempt_registry が必須"]
+        try:
+            independent_attempt_registry = validate_attempt_registry_prefix_proof(
+                expected_attempt_registry
+            )
+        except AttemptRegistryCoreError as exc:
+            return [f"expected_attempt_registry が不正: {exc}"]
+        if reported_attempt_registry != independent_attempt_registry:
+            return ["attempt_registry が独立 inspector の期待値と不一致"]
     if artifact.get("mode") == "official" and not derived_use_perf:
         try:
             normalized_observation = validate_floor_perf_evidence(
@@ -1075,10 +1129,45 @@ def verify_floor_artifact_with_live_admission(
         raise FloorHoldoutEvidenceError(
             category="mismatch", reason="refreeze-eligibility-mismatch",
         )
+
+    expected_attempt_registry = None
+    if (
+        isinstance(artifact, Mapping)
+        and artifact.get("schema") == _floor_contract.RESULT_SCHEMA_V5
+    ):
+        from . import attempt_registry_core as _attempt_registry_core
+        from . import s8b_attempt_profile as _attempt_profile
+        from . import s8b_attempt_registry as _attempt_registry
+
+        try:
+            reported_attempt_registry = (
+                _attempt_registry_core.validate_attempt_registry_prefix_proof(
+                    artifact.get("attempt_registry")
+                )
+            )
+        except _attempt_registry_core.AttemptRegistryCoreError as exc:
+            return [f"artifact.attempt_registry が不正: {exc}"]
+        expected_binding = _attempt_profile.S8BAttemptBinding(
+            freeze_sha256=freeze_sha256,
+            protocol_sha256=_floor_contract.canonical_protocol_sha256(protocol),
+            schedule_sha256=hashlib.sha256(
+                _attempt_registry_core.canonical_json_bytes(list(schedule))
+            ).hexdigest(),
+        )
+        expected_attempt_registry = (
+            _attempt_registry.inspect_attempt_registry_prefix(
+                Path(repo_root), expected_binding=expected_binding,
+                row_count=reported_attempt_registry["row_count"],
+                chain_head_sha256=(
+                    reported_attempt_registry["chain_head_sha256"]
+                ),
+            )
+        )
     return verify_floor_artifact(
         artifact, expected_protocol, expected_binaries=expected_binaries,
         expected_holdout_admission=inspection,
         expected_use_perf=expected_use_perf,
+        expected_attempt_registry=expected_attempt_registry,
     )
 
 

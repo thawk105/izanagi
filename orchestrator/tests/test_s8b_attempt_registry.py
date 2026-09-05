@@ -3168,5 +3168,540 @@ def test_legacy_terminal_adapter_maps_core_rejection_and_keeps_v1_positive(
     )[-1]["terminal_status"] == "observed"
 
 
+def _prefix_registry_path(
+    repo: Path, binding: profile8b.S8BAttemptBinding,
+) -> Path:
+    root = admission.shared_admission_root(repo)
+    relative = registry._relative_registry_path(
+        binding.freeze_sha256,
+        protocol_sha256=binding.protocol_sha256,
+    )
+    return root.joinpath(*relative.parts)
+
+
+def _assert_prefix_evidence_error(
+    category: str, reason: str, call: Any,
+) -> None:
+    with pytest.raises(admission.FloorHoldoutEvidenceError) as exc_info:
+        call()
+    assert exc_info.value.category == category
+    assert exc_info.value.reason == reason
+
+
+def _advance_v2_prefix(
+    tmp_path: Path, target_row_count: int,
+) -> tuple[
+    dict[str, Any],
+    core.DomainProfile[Any, Any],
+    profile8b.S8BAttemptBinding,
+    profile8b.S8BV2AttemptSlot,
+]:
+    case, profile, binding, slot = _v2_registry_capability_case(tmp_path)
+    reserved: registry.ReservedAttempt | None = None
+    if target_row_count >= 3:
+        reserved = _reserve_v2(case, profile, binding, slot)
+    classified: registry.ClassifiedAttempt | registry.ClassifiedFailure | None = None
+    if target_row_count >= 4:
+        assert reserved is not None
+        classified = _classify(reserved)
+        assert type(classified) is registry.ClassifiedAttempt
+    if target_row_count >= 5:
+        assert type(classified) is registry.ClassifiedAttempt
+        captured = registry.begin_attempt_observation(classified)
+        assert type(captured) is registry.CapturedObservation
+    return case, profile, binding, slot
+
+
+@pytest.mark.parametrize("target_row_count", (1, 3, 4, 5))
+def test_attempt_registry_prefix_capture_and_inspection_accept_reachable_v2_rows(
+    tmp_path: Path, target_row_count: int,
+) -> None:
+    case, _profile_value, binding, _slot_value = _advance_v2_prefix(
+        tmp_path, target_row_count,
+    )
+    proof = registry.capture_attempt_registry_prefix(
+        case["repo_root"], expected_binding=binding,
+    )
+    assert proof["row_count"] == target_row_count
+    assert proof["schema"] == core.ATTEMPT_REGISTRY_PREFIX_PROOF_SCHEMA
+    assert proof["registry_schema"] == (
+        profile8b.S8B_V2_ATTEMPT_REGISTRY_SCHEMA_VERSION
+    )
+    assert proof["freeze_sha256"] == binding.freeze_sha256
+    assert proof["protocol_sha256"] == binding.protocol_sha256
+    assert proof["schedule_sha256"] == binding.schedule_sha256
+    assert frozenset(proof) == core.ATTEMPT_REGISTRY_PREFIX_PROOF_KEYS
+    inspected = registry.inspect_attempt_registry_prefix(
+        case["repo_root"],
+        expected_binding=binding,
+        row_count=target_row_count,
+        chain_head_sha256=str(proof["chain_head_sha256"]),
+    )
+    assert inspected == proof
+    assert inspected is not proof
+
+
+def test_attempt_registry_prefix_inspection_accepts_valid_later_append(
+    tmp_path: Path,
+) -> None:
+    case, profile, binding, slot = _v2_registry_capability_case(tmp_path)
+    reserved = _reserve_v2(case, profile, binding, slot)
+    proof = registry.capture_attempt_registry_prefix(
+        case["repo_root"], expected_binding=binding,
+    )
+    assert proof["row_count"] == 3
+    classified = _classify(reserved)
+    assert type(classified) is registry.ClassifiedAttempt
+    inspected = registry.inspect_attempt_registry_prefix(
+        case["repo_root"],
+        expected_binding=binding,
+        row_count=3,
+        chain_head_sha256=str(proof["chain_head_sha256"]),
+    )
+    assert inspected == proof
+    assert registry.capture_attempt_registry_prefix(
+        case["repo_root"], expected_binding=binding,
+    )["row_count"] == 4
+
+
+@pytest.mark.parametrize("unsafe_kind", ("symlink", "missing-registry"))
+def test_attempt_registry_prefix_ignores_unsafe_sibling_generation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    unsafe_kind: str,
+) -> None:
+    case, _profile_value, binding, _slot_value = _advance_v2_prefix(
+        tmp_path, 3,
+    )
+    proof = registry.capture_attempt_registry_prefix(
+        case["repo_root"], expected_binding=binding,
+    )
+    path = _prefix_registry_path(case["repo_root"], binding)
+    sibling = path.parent.parent / ("e" * 64)
+    if unsafe_kind == "symlink":
+        sibling.symlink_to(tmp_path, target_is_directory=True)
+    else:
+        sibling.mkdir()
+
+    def reject_enumeration(*_args: object, **_kwargs: object) -> object:
+        raise AssertionError("prefix inspection enumerated sibling generations")
+
+    monkeypatch.setattr(
+        registry, "_registry_generation_paths_locked", reject_enumeration,
+    )
+    assert registry.inspect_attempt_registry_prefix(
+        case["repo_root"],
+        expected_binding=binding,
+        row_count=3,
+        chain_head_sha256=str(proof["chain_head_sha256"]),
+    ) == proof
+
+
+def test_attempt_registry_prefix_rejects_malformed_tail_after_n(
+    tmp_path: Path,
+) -> None:
+    case, profile, binding, slot = _v2_registry_capability_case(tmp_path)
+    _reserve_v2(case, profile, binding, slot)
+    proof = registry.capture_attempt_registry_prefix(
+        case["repo_root"], expected_binding=binding,
+    )
+    path = _prefix_registry_path(case["repo_root"], binding)
+    path.write_bytes(path.read_bytes() + b"not-json\n")
+    _assert_prefix_evidence_error(
+        "mismatch",
+        "attempt-registry-replay-invalid",
+        lambda: registry.inspect_attempt_registry_prefix(
+            case["repo_root"],
+            expected_binding=binding,
+            row_count=3,
+            chain_head_sha256=str(proof["chain_head_sha256"]),
+        ),
+    )
+
+
+def test_attempt_registry_prefix_rejects_broken_chain_after_n(
+    tmp_path: Path,
+) -> None:
+    case, profile, binding, slot = _v2_registry_capability_case(tmp_path)
+    reserved = _reserve_v2(case, profile, binding, slot)
+    proof = registry.capture_attempt_registry_prefix(
+        case["repo_root"], expected_binding=binding,
+    )
+    _classify(reserved)
+    path = _prefix_registry_path(case["repo_root"], binding)
+    rows = [json.loads(line) for line in path.read_bytes().splitlines()]
+    rows[3]["previous_event_sha256"] = "e" * 64
+    rows[3]["event_sha256"] = core.event_sha256(rows[3])
+    path.write_bytes(_bytes(tuple(rows)))
+    _assert_prefix_evidence_error(
+        "mismatch",
+        "attempt-registry-replay-invalid",
+        lambda: registry.inspect_attempt_registry_prefix(
+            case["repo_root"],
+            expected_binding=binding,
+            row_count=3,
+            chain_head_sha256=str(proof["chain_head_sha256"]),
+        ),
+    )
+
+
+def _rechain_v2_reservation_rows(
+    rows: list[dict[str, Any]],
+) -> tuple[dict[str, Any], ...]:
+    previous = "0" * 64
+    start_head: str | None = None
+    for row in rows:
+        row["previous_event_sha256"] = previous
+        if row["event"] == "pre-observation-seal":
+            assert start_head is not None
+            row["start_event_sha256"] = start_head
+        row["event_sha256"] = core.event_sha256(row)
+        previous = row["event_sha256"]
+        if row["event"] == "start":
+            start_head = previous
+    return tuple(rows)
+
+
+def test_attempt_registry_prefix_rejects_reported_head_tamper(
+    tmp_path: Path,
+) -> None:
+    case, profile, binding, slot = _v2_registry_capability_case(tmp_path)
+    proof = registry.capture_attempt_registry_prefix(
+        case["repo_root"], expected_binding=binding,
+    )
+    assert proof["row_count"] == 1
+    _reserve_v2(case, profile, binding, slot)
+    path = _prefix_registry_path(case["repo_root"], binding)
+    rows = [json.loads(line) for line in path.read_bytes().splitlines()]
+    rows[0]["max_consumptions_per_budget_key"] += 1
+    rechained = _rechain_v2_reservation_rows(rows)
+    payload = _bytes(rechained)
+    path.write_bytes(payload)
+    rebuilt_profile, rebuilt_binding = (
+        registry._profile_and_binding_for_generation(
+            path=path, genesis=rechained[0],
+        )
+    )
+    assert len(core.load_attempt_registry(
+        payload,
+        profile=rebuilt_profile,
+        expected_binding=rebuilt_binding,
+    )) == 3
+    _assert_prefix_evidence_error(
+        "mismatch",
+        "attempt-registry-prefix-head-mismatch",
+        lambda: registry.inspect_attempt_registry_prefix(
+            case["repo_root"],
+            expected_binding=binding,
+            row_count=1,
+            chain_head_sha256=str(proof["chain_head_sha256"]),
+        ),
+    )
+
+
+def test_attempt_registry_prefix_unrecomputed_prefix_tamper_reaches_chain_gate(
+    tmp_path: Path,
+) -> None:
+    case, profile, binding, slot = _v2_registry_capability_case(tmp_path)
+    _reserve_v2(case, profile, binding, slot)
+    proof = registry.capture_attempt_registry_prefix(
+        case["repo_root"], expected_binding=binding,
+    )
+    path = _prefix_registry_path(case["repo_root"], binding)
+    rows = [json.loads(line) for line in path.read_bytes().splitlines()]
+    rows[1]["started_at"] = "2026-08-25T00:00:09+00:00"
+    payload = _bytes(tuple(rows))
+    path.write_bytes(payload)
+    with pytest.raises(
+        core.AttemptRegistryCoreError,
+        match="event_sha256 differs from its payload",
+    ):
+        core.load_attempt_registry(
+            payload, profile=profile, expected_binding=binding,
+        )
+    _assert_prefix_evidence_error(
+        "mismatch",
+        "attempt-registry-replay-invalid",
+        lambda: registry.inspect_attempt_registry_prefix(
+            case["repo_root"],
+            expected_binding=binding,
+            row_count=3,
+            chain_head_sha256=str(proof["chain_head_sha256"]),
+        ),
+    )
+
+
+def test_attempt_registry_prefix_rejects_n_beyond_live_rows(
+    tmp_path: Path,
+) -> None:
+    case, _profile_value, binding, _slot_value = _advance_v2_prefix(
+        tmp_path, 1,
+    )
+    proof = registry.capture_attempt_registry_prefix(
+        case["repo_root"], expected_binding=binding,
+    )
+    _assert_prefix_evidence_error(
+        "mismatch",
+        "attempt-registry-prefix-too-short",
+        lambda: registry.inspect_attempt_registry_prefix(
+            case["repo_root"],
+            expected_binding=binding,
+            row_count=2,
+            chain_head_sha256=str(proof["chain_head_sha256"]),
+        ),
+    )
+
+
+def test_attempt_registry_prefix_rejects_synthetic_v1_at_generation_path(
+    tmp_path: Path,
+) -> None:
+    repo = _repo(tmp_path / "repo")
+    root = admission.provision_shared_admission_root(repo)
+    legacy = replace(
+        profile8b.make_s8b_domain_profile(
+            max_consumptions_per_budget_key=64,
+            recovery_authority_id=scheduler.AUTHORITY_ID,
+            recovery_authority_policy_sha256=(
+                scheduler.AUTHORITY_POLICY_SHA256
+            ),
+        ),
+        layout=profile8b.S8B_V2_REGISTRY_LAYOUT,
+    )
+    rows = core.create_attempt_registry_genesis(
+        profile=legacy, slots=[_slot()], binding=_BINDING,
+    )
+    path = root.joinpath(*registry._relative_registry_path(
+        _FREEZE, protocol_sha256=_PROTOCOL,
+    ).parts)
+    path.parent.mkdir(parents=True)
+    payload = _bytes(rows)
+    path.write_bytes(payload)
+    replay_profile, replay_binding = registry._profile_and_binding_for_generation(
+        path=path, genesis=rows[0],
+    )
+    assert replay_binding == _BINDING
+    assert core.load_attempt_registry(
+        payload, profile=replay_profile, expected_binding=replay_binding,
+    ) == rows
+    _assert_prefix_evidence_error(
+        "mismatch",
+        "attempt-registry-generation-unsupported",
+        lambda: registry.inspect_attempt_registry_prefix(
+            repo,
+            expected_binding=_BINDING,
+            row_count=1,
+            chain_head_sha256=rows[0]["event_sha256"],
+        ),
+    )
+
+
+@pytest.mark.parametrize(
+    "field", ("freeze_sha256", "protocol_sha256", "schedule_sha256"),
+)
+def test_attempt_registry_prefix_rejects_genesis_binding_substitution(
+    tmp_path: Path, field: str,
+) -> None:
+    """診断 node: binding 拒否 reason の順序 pin。変異観測には使わない。"""
+
+    case, _profile_value, binding, _slot_value = _advance_v2_prefix(
+        tmp_path, 1,
+    )
+    source_path = _prefix_registry_path(case["repo_root"], binding)
+    payload = source_path.read_bytes()
+    rows = [json.loads(line) for line in payload.splitlines()]
+    expected_binding = replace(binding, **{field: "e" * 64})
+    target_path = _prefix_registry_path(case["repo_root"], expected_binding)
+    if target_path != source_path:
+        target_path.parent.mkdir(parents=True)
+        target_path.write_bytes(payload)
+    _assert_prefix_evidence_error(
+        "mismatch",
+        "attempt-registry-binding-mismatch",
+        lambda: registry.inspect_attempt_registry_prefix(
+            case["repo_root"],
+            expected_binding=expected_binding,
+            row_count=1,
+            chain_head_sha256=rows[0]["event_sha256"],
+        ),
+    )
+
+
+def test_attempt_registry_prefix_inspection_is_read_only_by_construction(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    case, profile, binding, slot = _v2_registry_capability_case(tmp_path)
+    _reserve_v2(case, profile, binding, slot)
+    proof = registry.capture_attempt_registry_prefix(
+        case["repo_root"], expected_binding=binding,
+    )
+
+    def reject_write(*_args: object, **_kwargs: object) -> object:
+        raise AssertionError("prefix inspection reached a write helper")
+
+    for target, name in (
+        (admission, "provision_shared_admission_root"),
+        (registry, "_entry_paths"),
+        (admission, "_locked"),
+        (admission, "_fsync_directory"),
+        (registry, "_fsync_directory"),
+        (registry, "_fsync_shared_root_chain"),
+    ):
+        monkeypatch.setattr(target, name, reject_write)
+    assert registry.inspect_attempt_registry_prefix(
+        case["repo_root"],
+        expected_binding=binding,
+        row_count=3,
+        chain_head_sha256=str(proof["chain_head_sha256"]),
+    ) == proof
+
+
+def _regular_file_tree_snapshot(
+    root: Path,
+) -> dict[str, tuple[bytes, int, int]]:
+    result: dict[str, tuple[bytes, int, int]] = {}
+    for path in sorted(root.rglob("*")):
+        metadata = os.lstat(path)
+        if stat.S_ISREG(metadata.st_mode):
+            result[path.relative_to(root).as_posix()] = (
+                path.read_bytes(), metadata.st_ino, metadata.st_mtime_ns,
+            )
+    return result
+
+
+def test_attempt_registry_prefix_inspection_preserves_file_bytes_and_inodes(
+    tmp_path: Path,
+) -> None:
+    case, profile, binding, slot = _v2_registry_capability_case(tmp_path)
+    _reserve_v2(case, profile, binding, slot)
+    proof = registry.capture_attempt_registry_prefix(
+        case["repo_root"], expected_binding=binding,
+    )
+    root = admission.shared_admission_root(case["repo_root"])
+    before = _regular_file_tree_snapshot(root)
+    assert registry.inspect_attempt_registry_prefix(
+        case["repo_root"],
+        expected_binding=binding,
+        row_count=3,
+        chain_head_sha256=str(proof["chain_head_sha256"]),
+    ) == proof
+    assert _regular_file_tree_snapshot(root) == before
+
+
+@pytest.mark.parametrize("missing", ("root", "lock"))
+def test_attempt_registry_prefix_rejects_unavailable_root_without_provisioning(
+    tmp_path: Path, missing: str,
+) -> None:
+    repo = _repo(tmp_path / "repo")
+    root = admission.shared_admission_root(repo)
+    if missing == "lock":
+        root = admission.provision_shared_admission_root(repo)
+        (root / admission._LOCK_NAME).unlink()
+    _assert_prefix_evidence_error(
+        "unverifiable",
+        "attempt-registry-root-unavailable",
+        lambda: registry.inspect_attempt_registry_prefix(
+            repo,
+            expected_binding=_BINDING,
+            row_count=1,
+            chain_head_sha256="e" * 64,
+        ),
+    )
+    if missing == "root":
+        assert not root.exists()
+    else:
+        assert root.is_dir()
+        assert not (root / admission._LOCK_NAME).exists()
+
+
+def test_attempt_registry_prefix_rejects_missing_current_registry_as_unverifiable(
+    tmp_path: Path,
+) -> None:
+    repo = _repo(tmp_path / "repo")
+    admission.provision_shared_admission_root(repo)
+    _assert_prefix_evidence_error(
+        "unverifiable",
+        "attempt-registry-read-unavailable",
+        lambda: registry.inspect_attempt_registry_prefix(
+            repo,
+            expected_binding=_BINDING,
+            row_count=1,
+            chain_head_sha256="e" * 64,
+        ),
+    )
+
+
+def test_attempt_registry_prefix_lower_layers_are_direct_and_mapped(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    case, profile, binding, slot = _v2_registry_capability_case(tmp_path)
+    _reserve_v2(case, profile, binding, slot)
+    proof = registry.capture_attempt_registry_prefix(
+        case["repo_root"], expected_binding=binding,
+    )
+    direct_rows = registry._replay_current_v2_attempt_registry(
+        case["repo_root"], expected_binding=binding,
+    )
+    assert len(direct_rows) == 3
+    assert core.validate_attempt_registry_prefix_proof(proof) == proof
+
+    validator_calls: list[object] = []
+
+    def reject_validator(value: object) -> dict[str, object]:
+        validator_calls.append(value)
+        raise core.AttemptRegistryCoreError(
+            "[test-prefix-validator] lower validator rejected"
+        )
+
+    with monkeypatch.context() as patcher:
+        patcher.setattr(
+            core, "validate_attempt_registry_prefix_proof", reject_validator,
+        )
+        _assert_prefix_evidence_error(
+            "mismatch",
+            "attempt-registry-replay-invalid",
+            lambda: registry.inspect_attempt_registry_prefix(
+                case["repo_root"],
+                expected_binding=binding,
+                row_count=3,
+                chain_head_sha256=str(proof["chain_head_sha256"]),
+            ),
+        )
+    assert len(validator_calls) == 1
+
+    replay_calls: list[profile8b.S8BAttemptBinding] = []
+
+    def reject_replay(
+        _repo_root_value: Path,
+        *,
+        expected_binding: profile8b.S8BAttemptBinding,
+    ) -> core.RegistryRows:
+        replay_calls.append(expected_binding)
+        raise registry.S8BAttemptRegistryError(
+            "[test-prefix-replay] lower replay rejected"
+        )
+
+    with monkeypatch.context() as patcher:
+        patcher.setattr(
+            registry, "_replay_current_v2_attempt_registry", reject_replay,
+        )
+        _assert_prefix_evidence_error(
+            "mismatch",
+            "attempt-registry-replay-invalid",
+            lambda: registry.inspect_attempt_registry_prefix(
+                case["repo_root"],
+                expected_binding=binding,
+                row_count=3,
+                chain_head_sha256=str(proof["chain_head_sha256"]),
+            ),
+        )
+    assert replay_calls == [binding]
+    assert registry.inspect_attempt_registry_prefix(
+        case["repo_root"],
+        expected_binding=binding,
+        row_count=3,
+        chain_head_sha256=str(proof["chain_head_sha256"]),
+    ) == proof
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main(["-q", str(Path(__file__).resolve())]))

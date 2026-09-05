@@ -817,6 +817,237 @@ def _profile_and_binding_for_generation(
     return candidate, binding
 
 
+def _attempt_registry_prefix_proof(
+    *,
+    binding: profile8b.S8BAttemptBinding,
+    row_count: int,
+    chain_head_sha256: str,
+) -> dict[str, object]:
+    try:
+        if type(binding) is not profile8b.S8BAttemptBinding:
+            _fail(
+                "s8b-attempt-registry-prefix",
+                "expected binding type differs",
+            )
+        if (
+            profile8b.S8B_V2_ATTEMPT_REGISTRY_SCHEMA_VERSION
+            != core.ATTEMPT_REGISTRY_PREFIX_REGISTRY_SCHEMA
+        ):
+            _fail(
+                "s8b-attempt-registry-prefix",
+                "proof and profile registry schemas differ",
+            )
+        return core.validate_attempt_registry_prefix_proof({
+            "schema": core.ATTEMPT_REGISTRY_PREFIX_PROOF_SCHEMA,
+            "registry_schema": (
+                core.ATTEMPT_REGISTRY_PREFIX_REGISTRY_SCHEMA
+            ),
+            "freeze_sha256": binding.freeze_sha256,
+            "protocol_sha256": binding.protocol_sha256,
+            "schedule_sha256": binding.schedule_sha256,
+            "row_count": row_count,
+            "chain_head_sha256": chain_head_sha256,
+        })
+    except (core.AttemptRegistryCoreError, S8BAttemptRegistryError) as exc:
+        raise admission.FloorHoldoutEvidenceError(
+            category="mismatch", reason="attempt-registry-replay-invalid",
+        ) from exc
+
+
+def _replay_current_v2_attempt_registry(
+    repo_root: Path,
+    *,
+    expected_binding: profile8b.S8BAttemptBinding,
+) -> core.RegistryRows:
+    """Read and replay only the expected v2 generation without mutation.
+
+    Other generations' budget excess is not inspected here; that remains a
+    writer barrier.  Deletion followed by recreation of the same ledger bytes
+    is not detected (D1533).
+    """
+
+    try:
+        if type(expected_binding) is not profile8b.S8BAttemptBinding:
+            _fail(
+                "s8b-attempt-registry-prefix",
+                "expected binding type differs",
+            )
+        relative = _relative_registry_path(
+            expected_binding.freeze_sha256,
+            protocol_sha256=expected_binding.protocol_sha256,
+        )
+        _sha256(
+            expected_binding.schedule_sha256,
+            label="expected_binding.schedule_sha256",
+        )
+    except S8BAttemptRegistryError as exc:
+        raise admission.FloorHoldoutEvidenceError(
+            category="mismatch", reason="attempt-registry-replay-invalid",
+        ) from exc
+
+    try:
+        root = admission.shared_admission_root(Path(repo_root))
+        root_stat = root.lstat()
+        if root.is_symlink() or not stat.S_ISDIR(root_stat.st_mode):
+            raise admission.HoldoutAdmissionError(
+                "attempt registry root is not a real directory"
+            )
+    except (admission.HoldoutAdmissionError, OSError) as exc:
+        raise admission.FloorHoldoutEvidenceError(
+            category="unverifiable",
+            reason="attempt-registry-root-unavailable",
+        ) from exc
+
+    path = root.joinpath(*relative.parts)
+    try:
+        with admission._locked_readonly(root):
+            try:
+                admission._assert_no_symlink_components(path)
+                path_stat = path.lstat()
+                if path.is_symlink() or not stat.S_ISREG(path_stat.st_mode):
+                    raise admission.HoldoutAdmissionError(
+                        "attempt registry path is not a regular file"
+                    )
+                payload = _read_regular_bytes(path)
+                assert payload is not None
+            except (
+                admission.HoldoutAdmissionError,
+                S8BAttemptRegistryError,
+                OSError,
+            ) as exc:
+                raise admission.FloorHoldoutEvidenceError(
+                    category="unverifiable",
+                    reason="attempt-registry-read-unavailable",
+                ) from exc
+    except admission.FloorHoldoutEvidenceError as exc:
+        if exc.reason == "attempt-registry-read-unavailable":
+            raise
+        raise admission.FloorHoldoutEvidenceError(
+            category="unverifiable",
+            reason="attempt-registry-root-unavailable",
+        ) from exc
+    except OSError as exc:
+        raise admission.FloorHoldoutEvidenceError(
+            category="unverifiable",
+            reason="attempt-registry-root-unavailable",
+        ) from exc
+
+    try:
+        genesis = _peek_registry_genesis(payload)
+    except S8BAttemptRegistryError as exc:
+        raise admission.FloorHoldoutEvidenceError(
+            category="mismatch", reason="attempt-registry-replay-invalid",
+        ) from exc
+    if (
+        genesis.get("schema_version")
+        != profile8b.S8B_V2_ATTEMPT_REGISTRY_SCHEMA_VERSION
+    ):
+        raise admission.FloorHoldoutEvidenceError(
+            category="mismatch",
+            reason="attempt-registry-generation-unsupported",
+        )
+    try:
+        genesis_binding = profile8b.S8B_BINDING_CODEC.parse(
+            genesis, label="attempt registry genesis",
+        )
+    except core.AttemptRegistryCoreError as exc:
+        raise admission.FloorHoldoutEvidenceError(
+            category="mismatch", reason="attempt-registry-replay-invalid",
+        ) from exc
+    if genesis_binding != expected_binding:
+        raise admission.FloorHoldoutEvidenceError(
+            category="mismatch", reason="attempt-registry-binding-mismatch",
+        )
+    try:
+        generation_profile, generation_binding = (
+            _profile_and_binding_for_generation(path=path, genesis=genesis)
+        )
+    except (core.AttemptRegistryCoreError, S8BAttemptRegistryError) as exc:
+        raise admission.FloorHoldoutEvidenceError(
+            category="mismatch", reason="attempt-registry-replay-invalid",
+        ) from exc
+    if generation_binding != genesis_binding:
+        raise admission.FloorHoldoutEvidenceError(
+            category="mismatch", reason="attempt-registry-replay-invalid",
+        )
+    try:
+        return core.load_attempt_registry(
+            payload,
+            profile=generation_profile,
+            expected_binding=expected_binding,
+        )
+    except (core.AttemptRegistryCoreError, S8BAttemptRegistryError) as exc:
+        raise admission.FloorHoldoutEvidenceError(
+            category="mismatch", reason="attempt-registry-replay-invalid",
+        ) from exc
+
+
+def capture_attempt_registry_prefix(
+    repo_root: Path,
+    *,
+    expected_binding: profile8b.S8BAttemptBinding,
+) -> dict[str, object]:
+    """Capture the current prefix identity after a full read-only replay.
+
+    This does not inspect other generations for freeze-wide budget excess;
+    that is a writer barrier.  It also does not detect ledger deletion followed
+    by recreation of the same bytes (D1533).
+    """
+
+    try:
+        rows = _replay_current_v2_attempt_registry(
+            Path(repo_root), expected_binding=expected_binding,
+        )
+    except (core.AttemptRegistryCoreError, S8BAttemptRegistryError) as exc:
+        raise admission.FloorHoldoutEvidenceError(
+            category="mismatch", reason="attempt-registry-replay-invalid",
+        ) from exc
+    return _attempt_registry_prefix_proof(
+        binding=expected_binding,
+        row_count=len(rows),
+        chain_head_sha256=rows[-1]["event_sha256"],
+    )
+
+
+def inspect_attempt_registry_prefix(
+    repo_root: Path,
+    *,
+    expected_binding: profile8b.S8BAttemptBinding,
+    row_count: int,
+    chain_head_sha256: str,
+) -> dict[str, object]:
+    """Verify a reported prefix against a fully replayed live generation.
+
+    This does not inspect other generations for freeze-wide budget excess;
+    that is a writer barrier.  It also does not detect ledger deletion followed
+    by recreation of the same bytes (D1533).
+    """
+
+    proof = _attempt_registry_prefix_proof(
+        binding=expected_binding,
+        row_count=row_count,
+        chain_head_sha256=chain_head_sha256,
+    )
+    try:
+        rows = _replay_current_v2_attempt_registry(
+            Path(repo_root), expected_binding=expected_binding,
+        )
+    except (core.AttemptRegistryCoreError, S8BAttemptRegistryError) as exc:
+        raise admission.FloorHoldoutEvidenceError(
+            category="mismatch", reason="attempt-registry-replay-invalid",
+        ) from exc
+    if len(rows) < row_count:
+        raise admission.FloorHoldoutEvidenceError(
+            category="mismatch", reason="attempt-registry-prefix-too-short",
+        )
+    if rows[row_count - 1]["event_sha256"] != chain_head_sha256:
+        raise admission.FloorHoldoutEvidenceError(
+            category="mismatch",
+            reason="attempt-registry-prefix-head-mismatch",
+        )
+    return proof
+
+
 def _canonical_line_bytes(value: Mapping[str, Any]) -> bytes:
     return core.canonical_json_bytes(dict(value)) + b"\n"
 

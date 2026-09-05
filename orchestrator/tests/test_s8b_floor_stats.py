@@ -50,13 +50,19 @@ from orchestrator.campaign.s8b_floor_stats import (  # noqa: E402
     verify_floor_artifact_with_live_admission,
 )
 from orchestrator.calibrator import perf_preflight  # noqa: E402
+from orchestrator.campaign import attempt_registry_core  # noqa: E402
+from orchestrator.campaign import s8b_attempt_profile  # noqa: E402
+from orchestrator.campaign import s8b_attempt_registry  # noqa: E402
 from orchestrator.campaign import s8b_binary_admission  # noqa: E402
+from orchestrator.campaign import s8b_floor_contract  # noqa: E402
 from orchestrator.campaign import s8b_holdout_admission  # noqa: E402
 from orchestrator.campaign.build_admission import (  # noqa: E402
     GeneratorId, ReviewId, build_run_context, derive_build_admission,
 )
 from orchestrator.campaign.s8b_materialization import reviewed_source_capability  # noqa: E402
 from orchestrator.campaign.source_digest import SOURCE_EVIDENCE_SCHEMA, SourceEvidence  # noqa: E402
+from orchestrator.tests import test_s8b_attempt_registry as registry_cases  # noqa: E402
+from orchestrator.tests import test_s8b_holdout_admission as admission_cases  # noqa: E402
 from orchestrator.tests.s8b_floor_evidence_fixture import (  # noqa: E402
     expected_portable_sort_swo_pass_receipt,
 )
@@ -612,6 +618,596 @@ def _honest_artifact():
                 "session_cv_max": "0.10", "cell_cv_max": "0.15",
                 "expected_cells": {holdout: [stock_cfg, va, vb]}}
     return artifact, expected, holdout, stock_cell, va_cell, va
+
+
+def _attempt_registry_proof(artifact) -> dict[str, object]:
+    return {
+        "schema": attempt_registry_core.ATTEMPT_REGISTRY_PREFIX_PROOF_SCHEMA,
+        "registry_schema": (
+            attempt_registry_core.ATTEMPT_REGISTRY_PREFIX_REGISTRY_SCHEMA
+        ),
+        "freeze_sha256": artifact["freeze_sha256"],
+        "protocol_sha256": artifact["protocol_sha256"],
+        "schedule_sha256": "6" * 64,
+        "row_count": 3,
+        "chain_head_sha256": "7" * 64,
+    }
+
+
+def _v5_artifact():
+    artifact, expected, *rest = _honest_artifact()
+    proof = _attempt_registry_proof(artifact)
+    assert attempt_registry_core.validate_attempt_registry_prefix_proof(
+        proof
+    ) == proof
+    artifact["schema"] = s8b_floor_contract.RESULT_SCHEMA_V5
+    artifact["attempt_registry"] = copy.deepcopy(proof)
+    return artifact, expected, proof, rest
+
+
+def _assert_v5_control_gates_accept(
+    artifact, expected, proof,
+) -> dict[str, object]:
+    independent = copy.deepcopy(proof)
+    assert independent is not proof
+    assert _verify_floor_artifact(
+        artifact,
+        expected,
+        expected_holdout_admission=artifact["holdout_admission"],
+        expected_use_perf=True,
+        expected_attempt_registry=independent,
+    ) == []
+    return independent
+
+
+def test_pure_verifier_accepts_v5_with_independent_prefix_proof(monkeypatch):
+    artifact, expected, proof, _ = _v5_artifact()
+    production_validator = (
+        attempt_registry_core.validate_attempt_registry_prefix_proof
+    )
+    assert production_validator(proof) == proof
+    for field, invalid in (
+        ("row_count", True),
+        ("chain_head_sha256", "0" * 64),
+        ("schema", "s8b-floor-attempt-registry-proof/wrong"),
+    ):
+        malformed = copy.deepcopy(proof)
+        malformed[field] = invalid
+        with pytest.raises(attempt_registry_core.AttemptRegistryCoreError):
+            production_validator(malformed)
+
+    validator_calls = []
+
+    def validator_spy(value):
+        validator_calls.append(value)
+        return production_validator(value)
+
+    monkeypatch.setattr(
+        attempt_registry_core,
+        "validate_attempt_registry_prefix_proof",
+        validator_spy,
+    )
+    independent = _assert_v5_control_gates_accept(artifact, expected, proof)
+    assert len(validator_calls) == 2
+    assert validator_calls[0] is artifact["attempt_registry"]
+    assert validator_calls[1] is independent
+
+
+def test_pure_verifier_rejects_v4_attempt_registry_as_extra_key():
+    artifact, expected, *_ = _honest_artifact()
+    assert verify_floor_artifact(artifact, expected) == []
+    artifact["attempt_registry"] = _attempt_registry_proof(artifact)
+    errors = verify_floor_artifact(artifact, expected)
+    assert errors == [
+        "artifact result v4 exact key 集合が不一致 "
+        "(欠落=[] 余分=['attempt_registry'])"
+    ]
+
+
+def test_pure_verifier_rejects_v4_expected_attempt_registry():
+    artifact, expected, *_ = _honest_artifact()
+    assert verify_floor_artifact(artifact, expected) == []
+    errors = _verify_floor_artifact(
+        artifact,
+        expected,
+        expected_holdout_admission=artifact["holdout_admission"],
+        expected_use_perf=True,
+        expected_attempt_registry=_attempt_registry_proof(artifact),
+    )
+    assert errors == ["v4 artifact に expected_attempt_registry を指定できない"]
+
+
+def test_pure_verifier_rejects_v5_without_expected_attempt_registry():
+    artifact, expected, proof, _ = _v5_artifact()
+    _assert_v5_control_gates_accept(artifact, expected, proof)
+    errors = _verify_floor_artifact(
+        artifact,
+        expected,
+        expected_holdout_admission=artifact["holdout_admission"],
+        expected_use_perf=True,
+        expected_attempt_registry=None,
+    )
+    assert errors == ["v5 artifact の expected_attempt_registry が必須"]
+
+
+def test_v5_rejects_missing_attempt_registry_proof():
+    artifact, expected, proof, _ = _v5_artifact()
+    _assert_v5_control_gates_accept(artifact, expected, proof)
+    del artifact["attempt_registry"]
+    errors = _verify_floor_artifact(
+        artifact,
+        expected,
+        expected_holdout_admission=artifact["holdout_admission"],
+        expected_use_perf=True,
+        expected_attempt_registry=proof,
+    )
+    assert errors == [
+        "artifact result v5 exact key 集合が不一致 "
+        "(欠落=['attempt_registry'] 余分=[])"
+    ]
+
+
+def test_v5_rejects_reported_prefix_head_tamper():
+    artifact, expected, proof, _ = _v5_artifact()
+    _assert_v5_control_gates_accept(artifact, expected, proof)
+    artifact["attempt_registry"]["chain_head_sha256"] = "8" * 64
+    errors = _verify_floor_artifact(
+        artifact,
+        expected,
+        expected_holdout_admission=artifact["holdout_admission"],
+        expected_use_perf=True,
+        expected_attempt_registry=proof,
+    )
+    assert errors == ["attempt_registry が独立 inspector の期待値と不一致"]
+
+
+def test_v5_rejects_artifact_header_freeze_tamper():
+    artifact, expected, proof, _ = _v5_artifact()
+    _assert_v5_control_gates_accept(artifact, expected, proof)
+    artifact["freeze_sha256"] = "8" * 64
+    errors = _verify_floor_artifact(
+        artifact,
+        expected,
+        expected_holdout_admission=artifact["holdout_admission"],
+        expected_use_perf=True,
+        expected_attempt_registry=proof,
+    )
+    assert errors == [
+        "attempt_registry.freeze_sha256 が artifact.freeze_sha256 と不一致"
+    ]
+
+
+def test_v5_rejects_artifact_header_protocol_tamper():
+    artifact, expected, proof, _ = _v5_artifact()
+    _assert_v5_control_gates_accept(artifact, expected, proof)
+    artifact["protocol_sha256"] = "8" * 64
+    errors = _verify_floor_artifact(
+        artifact,
+        expected,
+        expected_holdout_admission=artifact["holdout_admission"],
+        expected_use_perf=True,
+        expected_attempt_registry=proof,
+    )
+    assert errors == [
+        "attempt_registry.protocol_sha256 が artifact.protocol_sha256 と不一致"
+    ]
+
+
+@pytest.mark.parametrize("field", ["freeze", "protocol", "schedule"])
+def test_v5_rejects_proof_binding_mismatch(field):
+    """freeze/protocol は診断 node。reason 順序 pin で変異観測には使わない。"""
+
+    artifact, expected, proof, _ = _v5_artifact()
+    _assert_v5_control_gates_accept(artifact, expected, proof)
+    artifact["attempt_registry"][f"{field}_sha256"] = "8" * 64
+    errors = _verify_floor_artifact(
+        artifact,
+        expected,
+        expected_holdout_admission=artifact["holdout_admission"],
+        expected_use_perf=True,
+        expected_attempt_registry=proof,
+    )
+    if field in {"freeze", "protocol"}:
+        assert errors == [
+            f"attempt_registry.{field}_sha256 が "
+            f"artifact.{field}_sha256 と不一致"
+        ]
+    else:
+        assert errors == ["attempt_registry が独立 inspector の期待値と不一致"]
+
+
+def test_live_v4_does_not_call_attempt_registry_inspector(tmp_path, monkeypatch):
+    artifact, expected, *_ = _honest_artifact()
+    valid_proof = _attempt_registry_proof(artifact)
+    production_validator = (
+        attempt_registry_core.validate_attempt_registry_prefix_proof
+    )
+    validator_calls = []
+
+    def accept_absent_proof(value):
+        validator_calls.append(value)
+        if value is None:
+            return copy.deepcopy(valid_proof)
+        return production_validator(value)
+
+    monkeypatch.setattr(
+        attempt_registry_core,
+        "validate_attempt_registry_prefix_proof",
+        accept_absent_proof,
+    )
+    monkeypatch.setattr(
+        s8b_attempt_registry,
+        "inspect_attempt_registry_prefix",
+        lambda *_args, **_kwargs: pytest.fail(
+            "v4 must not inspect the attempt registry"
+        ),
+    )
+    monkeypatch.setattr(
+        s8b_holdout_admission,
+        "inspect_floor_holdout_admission_evidence",
+        lambda **_kwargs: s8b_holdout_admission.FloorHoldoutEvidenceInspection(
+            artifact["holdout_admission"], derived_eligible_for_refreeze=True,
+        ),
+    )
+    assert verify_floor_artifact_with_live_admission(
+        artifact,
+        expected,
+        repo_root=tmp_path,
+        protocol={},
+        verified_freeze_document={},
+        freeze_sha256=artifact["freeze_sha256"],
+        manifest_sha256=artifact["manifest_sha256"],
+        campaign_run_id="run",
+        run_relpath="env/test/run",
+        mode="official",
+        cells=[],
+        schedule=[],
+        sessions=[],
+        expected_use_perf=True,
+    ) == []
+    assert validator_calls == []
+
+
+def test_live_v5_absent_proof_validator_seam_is_reachable(
+        tmp_path, monkeypatch):
+    artifact, expected, proof, _ = _v5_artifact()
+    artifact["attempt_registry"] = None
+    production_validator = (
+        attempt_registry_core.validate_attempt_registry_prefix_proof
+    )
+    validator_calls = []
+
+    def accept_absent_proof(value):
+        validator_calls.append(value)
+        if value is None:
+            return copy.deepcopy(proof)
+        return production_validator(value)
+
+    inspector_calls = []
+
+    def fake_inspector(*_args, **_kwargs):
+        inspector_calls.append(_kwargs)
+        return copy.deepcopy(proof)
+
+    monkeypatch.setattr(
+        attempt_registry_core,
+        "validate_attempt_registry_prefix_proof",
+        accept_absent_proof,
+    )
+    monkeypatch.setattr(
+        s8b_attempt_registry,
+        "inspect_attempt_registry_prefix",
+        fake_inspector,
+    )
+    monkeypatch.setattr(
+        s8b_holdout_admission,
+        "inspect_floor_holdout_admission_evidence",
+        lambda **_kwargs: s8b_holdout_admission.FloorHoldoutEvidenceInspection(
+            artifact["holdout_admission"], derived_eligible_for_refreeze=True,
+        ),
+    )
+
+    assert verify_floor_artifact_with_live_admission(
+        artifact,
+        expected,
+        repo_root=tmp_path,
+        protocol={},
+        verified_freeze_document={},
+        freeze_sha256=artifact["freeze_sha256"],
+        manifest_sha256=artifact["manifest_sha256"],
+        campaign_run_id="run",
+        run_relpath="env/test/run",
+        mode="official",
+        cells=[],
+        schedule=[],
+        sessions=[],
+        expected_use_perf=True,
+    ) == []
+    assert len(inspector_calls) == 1
+    assert validator_calls[:2] == [None, None]
+    assert len(validator_calls) == 3
+    assert validator_calls[2] == proof
+
+
+def test_live_v5_calls_inspector_and_compares_reported_to_independent_proof(
+        tmp_path, monkeypatch):
+    artifact, expected, proof, _ = _v5_artifact()
+    _assert_v5_control_gates_accept(artifact, expected, proof)
+    protocol = {"external": "protocol"}
+    schedule = [{"seq": 4, "cell_id": "synthetic"}]
+    external_freeze_sha256 = "9" * 64
+    external_protocol_sha256 = "8" * 64
+    expected_schedule_sha256 = hashlib.sha256(
+        _canonical_bytes(list(schedule))
+    ).hexdigest()
+    calls = []
+
+    def fake_canonical_protocol_sha256(value):
+        assert value is protocol
+        return external_protocol_sha256
+
+    def fake_inspector(
+            repo_root, *, expected_binding, row_count, chain_head_sha256):
+        calls.append({
+            "repo_root": repo_root,
+            "expected_binding": expected_binding,
+            "row_count": row_count,
+            "chain_head_sha256": chain_head_sha256,
+        })
+        independent = copy.deepcopy(proof)
+        independent.update({
+            "freeze_sha256": expected_binding.freeze_sha256,
+            "protocol_sha256": expected_binding.protocol_sha256,
+            "schedule_sha256": expected_binding.schedule_sha256,
+        })
+        return independent
+
+    monkeypatch.setattr(
+        s8b_floor_contract,
+        "canonical_protocol_sha256",
+        fake_canonical_protocol_sha256,
+    )
+    monkeypatch.setattr(
+        s8b_attempt_registry,
+        "inspect_attempt_registry_prefix",
+        fake_inspector,
+    )
+    monkeypatch.setattr(
+        s8b_holdout_admission,
+        "inspect_floor_holdout_admission_evidence",
+        lambda **_kwargs: s8b_holdout_admission.FloorHoldoutEvidenceInspection(
+            artifact["holdout_admission"], derived_eligible_for_refreeze=True,
+        ),
+    )
+
+    errors = verify_floor_artifact_with_live_admission(
+        artifact,
+        expected,
+        repo_root=tmp_path,
+        protocol=protocol,
+        verified_freeze_document={},
+        freeze_sha256=external_freeze_sha256,
+        manifest_sha256=artifact["manifest_sha256"],
+        campaign_run_id="external-run",
+        run_relpath="env/test/external-run",
+        mode="official",
+        cells=[],
+        schedule=schedule,
+        sessions=[],
+        expected_use_perf=True,
+    )
+
+    assert errors == ["attempt_registry が独立 inspector の期待値と不一致"]
+    accepted = copy.deepcopy(artifact)
+    accepted["freeze_sha256"] = external_freeze_sha256
+    accepted["protocol_sha256"] = external_protocol_sha256
+    accepted["attempt_registry"].update({
+        "freeze_sha256": external_freeze_sha256,
+        "protocol_sha256": external_protocol_sha256,
+        "schedule_sha256": expected_schedule_sha256,
+    })
+    assert verify_floor_artifact_with_live_admission(
+        accepted,
+        expected,
+        repo_root=tmp_path,
+        protocol=protocol,
+        verified_freeze_document={},
+        freeze_sha256=external_freeze_sha256,
+        manifest_sha256=accepted["manifest_sha256"],
+        campaign_run_id="external-run",
+        run_relpath="env/test/external-run",
+        mode="official",
+        cells=[],
+        schedule=schedule,
+        sessions=[],
+        expected_use_perf=True,
+    ) == []
+
+    assert len(calls) == 2
+    assert calls[0] == {
+        "repo_root": tmp_path,
+        "expected_binding": s8b_attempt_profile.S8BAttemptBinding(
+            freeze_sha256=external_freeze_sha256,
+            protocol_sha256=external_protocol_sha256,
+            schedule_sha256=expected_schedule_sha256,
+        ),
+        "row_count": proof["row_count"],
+        "chain_head_sha256": proof["chain_head_sha256"],
+    }
+    assert calls[1] == calls[0]
+
+
+def _create_reserved_v2_generation(case):
+    generation_claim = s8b_holdout_admission._read_canonical_document(
+        case["claim_path"]
+    )
+    generation_key = generation_claim["key"]
+    schedule = list(case["state"].schedule)
+    binding = s8b_attempt_profile.S8BAttemptBinding(
+        freeze_sha256=str(generation_key["freeze_sha256"]),
+        protocol_sha256=str(generation_claim["protocol_sha256"]),
+        schedule_sha256=hashlib.sha256(
+            attempt_registry_core.canonical_json_bytes(schedule)
+        ).hexdigest(),
+    )
+    identity = {
+        "freeze_holdout_key": str(case["marker"]["freeze_holdout_key"]),
+        "configuration_id": str(case["marker"]["configuration_id"]),
+        "repetition": int(case["use_kwargs"]["repetition"]),
+        "measurement_ordinal": int(case["use_kwargs"]["attempt_ordinal"]),
+        "attempt_ordinal": 0,
+    }
+    slot = s8b_attempt_profile.S8BV2AttemptSlot(
+        **identity,
+        schedule_row_sha256=hashlib.sha256(
+            attempt_registry_core.canonical_json_bytes(identity)
+        ).hexdigest(),
+    )
+    profile = registry_cases._v2_authority_profile()
+    s8b_attempt_registry.create_attempt_registry(
+        case["repo_root"], profile=profile, slots=[slot], binding=binding,
+    )
+    registry_cases._reserve_v2(case, profile, binding, slot)
+    proof = s8b_attempt_registry.capture_attempt_registry_prefix(
+        case["repo_root"], expected_binding=binding,
+    )
+    assert proof["row_count"] == 3
+    protocol = json.loads(
+        (case["repo_root"] / "output/s8b-freeze/floor_protocol.json").read_bytes()
+    )
+    assert s8b_floor_contract.canonical_protocol_sha256(protocol) == (
+        binding.protocol_sha256
+    )
+    return binding, proof, protocol, schedule
+
+
+def _issued_cell_for_campaign_identity(root, protocol, freeze, *, run_id):
+    cells, schedule = admission_cases._cells_and_schedule(protocol, freeze)
+    reservation = admission_cases._reserve(
+        root, protocol, freeze, run_id=run_id,
+    )
+    admitted = s8b_holdout_admission.finalize_floor_holdout_admissions(
+        reservation
+    )
+    cell = cells[0]
+    seq = next(
+        row["seq"] for row in schedule if row["cell_id"] == cell["cell_id"]
+    )
+    attempt_id = f"{cell['cell_id']}::seq{seq}"
+    run_dir = root / (
+        f"out/env/{protocol['env_tag']}/calibration/s8b-floor-pilot/{run_id}"
+    )
+    (run_dir / "journal.jsonl").write_text(json.dumps({
+        "event": "session-start",
+        "seq": seq,
+        "round": next(row["round"] for row in schedule if row["seq"] == seq),
+        "kind": "planned",
+        "cell_id": cell["cell_id"],
+        "attempt_id": attempt_id,
+        "trigger": None,
+    }, sort_keys=True) + "\n", encoding="utf-8")
+    manifest_sha256 = hashlib.sha256(
+        (run_dir / "manifest.json").read_bytes()
+    ).hexdigest()
+    return (
+        root, protocol, cell, admitted[cell["cell_id"]], attempt_id,
+        manifest_sha256,
+    )
+
+
+def test_live_v5_real_registry_rejects_reported_other_generation(
+        tmp_path, monkeypatch):
+    case_a_root = tmp_path / "a"
+    case_a_root.mkdir()
+    case_a = admission_cases._consumed_marker_capability_case(case_a_root)
+    repo_a = case_a["repo_root"]
+    linked = tmp_path / "linked"
+    admission_cases._git(
+        repo_a, "worktree", "add", "--detach", str(linked), "HEAD",
+    )
+    protocol_b, freeze_b = admission_cases._fixture_documents("seed-b")
+    admission_cases._write_fixed_documents(linked, protocol_b, freeze_b)
+    admission_cases._git(linked, "add", "output/s8b-freeze")
+    admission_cases._git(
+        linked,
+        "-c", "user.name=fixture",
+        "-c", "user.email=f@example.invalid",
+        "commit", "-m", "fixture generation b",
+    )
+    with monkeypatch.context() as patcher:
+        patcher.setattr(
+            admission_cases,
+            "_issued_cell",
+            lambda _path: _issued_cell_for_campaign_identity(
+                linked, protocol_b, freeze_b, run_id="run-b",
+            ),
+        )
+        case_b = admission_cases._consumed_marker_capability_case(
+            tmp_path / "b"
+        )
+
+    assert case_a["marker"]["campaign_run_id"] == "run-a"
+    assert case_b["marker"]["campaign_run_id"] == "run-b"
+    assert case_a["claim_path"].parent == case_b["claim_path"].parent
+    assert case_a["claim_path"] != case_b["claim_path"]
+    assert case_a["claim_path"].is_file()
+    assert case_b["claim_path"].is_file()
+    assert s8b_holdout_admission.shared_admission_root(repo_a) == (
+        s8b_holdout_admission.shared_admission_root(linked)
+    )
+    binding_a, proof_a, protocol_a, schedule_a = (
+        _create_reserved_v2_generation(case_a)
+    )
+    binding_b, proof_b, _protocol_b, _schedule_b = (
+        _create_reserved_v2_generation(case_b)
+    )
+    assert binding_a.freeze_sha256 == binding_b.freeze_sha256
+    assert binding_a.protocol_sha256 != binding_b.protocol_sha256
+    assert proof_a["chain_head_sha256"] != proof_b["chain_head_sha256"]
+
+    artifact_b, expected, *_ = _honest_artifact()
+    artifact_b["schema"] = s8b_floor_contract.RESULT_SCHEMA_V5
+    artifact_b["freeze_sha256"] = binding_b.freeze_sha256
+    artifact_b["protocol_sha256"] = binding_b.protocol_sha256
+    artifact_b["attempt_registry"] = copy.deepcopy(proof_b)
+    monkeypatch.setattr(
+        s8b_holdout_admission,
+        "inspect_floor_holdout_admission_evidence",
+        lambda **_kwargs: s8b_holdout_admission.FloorHoldoutEvidenceInspection(
+            artifact_b["holdout_admission"],
+            derived_eligible_for_refreeze=True,
+        ),
+    )
+    live_kwargs = {
+        "repo_root": repo_a,
+        "protocol": protocol_a,
+        "verified_freeze_document": freeze_b,
+        "freeze_sha256": binding_a.freeze_sha256,
+        "manifest_sha256": artifact_b["manifest_sha256"],
+        "campaign_run_id": "external-run",
+        "run_relpath": "env/test/external-run",
+        "mode": "official",
+        "cells": [],
+        "schedule": schedule_a,
+        "sessions": [],
+        "expected_use_perf": True,
+    }
+    with pytest.raises(
+        s8b_holdout_admission.FloorHoldoutEvidenceError,
+    ) as exc_info:
+        verify_floor_artifact_with_live_admission(
+            artifact_b, expected, **live_kwargs,
+        )
+    assert exc_info.value.category == "mismatch"
+    assert exc_info.value.reason == "attempt-registry-prefix-head-mismatch"
+
+    artifact_a = copy.deepcopy(artifact_b)
+    artifact_a["freeze_sha256"] = binding_a.freeze_sha256
+    artifact_a["protocol_sha256"] = binding_a.protocol_sha256
+    artifact_a["attempt_registry"] = copy.deepcopy(proof_a)
+    assert verify_floor_artifact_with_live_admission(
+        artifact_a, expected, **live_kwargs,
+    ) == []
 
 
 def test_verify_accepts_consistent_artifact():
