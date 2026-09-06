@@ -18663,6 +18663,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   本件である。`main_before == main_after` で main は無傷なので、受入をやり直せば進める。
   一斉着地の直後 (他 wave の land が並ぶ時間帯) が窓である。
 
+
+- **再発: 2026-09-07** — 同じ `registered worktree path cannot be resolved` が `[Errno 2] No such file or directory: '/scr'` で出た。path は a5 second boot の bench job 2 本 (979578/979579) が計算ノードのローカル scratch `/scr/<jobid>-a5-second-boot-<workload>/job-repo` に `git worktree add --detach` した登録で、login node からは job が走る間 (上限 7200 秒) ずっと解決できない (`git worktree list` は `prunable` と表示する)。job は EXIT trap で `worktree remove --force` + `prune` するので job 終了で消えるが、その間は repo 全体の land が `rc=31` / `retryable_same_request=false` で塞がる。一時エラーの種類が EINTR から「別ホストにしか存在しない path」へ広がっただけで、機序 (全登録 path の strict 解決 + OSError 一律非再試行) は同じ。本 wave は受入 (child-green、20834 passed) を捨てて job 終了後に取り直した。running 中の job の登録を login 側から prune してはいけない (job 側の git が壊れる)。
 ### F673. brief が「守るべき性質」と「現に成立している性質」を混同し、存在しない不変条件を根拠に暫定裁定した [誤前提]
 
 - 事象: 親は段 1 brief の不変条件へ「受理の根拠は完全に読み切った、矛盾のない 1 枚の scan」と書き、
