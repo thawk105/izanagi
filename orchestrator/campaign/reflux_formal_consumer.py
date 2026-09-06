@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import re
 import threading
 from dataclasses import dataclass, field
@@ -30,6 +31,7 @@ from types import MappingProxyType
 from typing import Mapping, Sequence, TypeAlias
 
 from . import reflux_origin_ledger as ledger
+from . import trigger_gate_binding
 from .reflux_origin_artifacts import (
     ArtifactError,
     canonical_json_bytes,
@@ -47,6 +49,7 @@ from .reflux_origin_topology import (
     VALIDATION_MASK_COUNT,
     canonical_recovery_envelope_bytes,
 )
+from .reflux_ir import TriggerGateIR, encode_wire
 from .reflux_result_evidence import (
     ResolvedResultEvidence,
     ResultEvidenceError,
@@ -59,6 +62,7 @@ from .reflux_source_closure import (
     ValidatedSourceClosure,
     assert_issued_validated_source_closure,
 )
+from .wal import TRIGGER_BINDING_COMMITMENT_KEY, TRIGGER_BINDING_PAYLOAD_KEY
 
 
 __all__ = [
@@ -720,12 +724,44 @@ def _validate_execution_provenance_bindings(
 
 
 def _wal_trigger(records: Sequence[dict]) -> object:
-    bindings = [
-        record.get("trigger_binding")
+    stage_records = [
+        record
         for record in records
-        if record.get("kind") == "TriggerGateBinding"
+        if record.get("stage") == trigger_gate_binding.WAL_RECORD_STAGE
     ]
-    return bindings[0] if len(bindings) == 1 else None
+    if len(stage_records) != 1:
+        return None
+
+    record = stage_records[0]
+    if set(record) != {"variant", "stage", "env_tag", "ts", "payload"}:
+        return None
+    if type(record["variant"]) is not str or type(record["env_tag"]) is not str:
+        return None
+    ts = record["ts"]
+    if type(ts) not in (int, float) or (
+        type(ts) is float and not math.isfinite(ts)
+    ):
+        return None
+    payload = record["payload"]
+    if type(payload) is not dict or set(payload) != {
+        "build_attempt_id",
+        TRIGGER_BINDING_PAYLOAD_KEY,
+    }:
+        return None
+
+    try:
+        binding = trigger_gate_binding.validate_record(
+            payload[TRIGGER_BINDING_PAYLOAD_KEY],
+            require_source=False,
+        )
+    except trigger_gate_binding.TriggerGateBindingError:
+        return None
+
+    return {
+        "mask": binding.mask,
+        "candidate_wire": encode_wire(TriggerGateIR(binding.mask)),
+        TRIGGER_BINDING_COMMITMENT_KEY: trigger_gate_binding.commitment(binding),
+    }
 
 
 def _validate_bijection(
