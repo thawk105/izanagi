@@ -25,7 +25,12 @@ title: [T-2301] A-1 の submit --study-id から既定 study を外し、[T-2272
 - **親の検査。** 焦点走 3 走直列 (paired 182 / job_contract 139 / consumer 集合 1007 passed + 4 skipped)、commit 後に
   provenance 全史監査 (8242 件、新規違反なし) と headline 検査 (35 passed)。`check_docs.py` 違反なし。
 - **変異。** 事前登録 4 件 (M1・M2 KILLED 期待、M3 は構造 pin、M4 等価)。probe は 4 件走行、baseline PASSED。M1/M2/M3 は MISMATCH (SURVIVED 期待に対し、事前登録した node と完全一致の赤)、M4 SURVIVED。冗長 gate 0 件。本走は baseline PASSED。KILLED 3/3 (M1・M2・M3、期待 node と完全一致)、M4 (等価) SURVIVED、MISMATCH 0。M3 は挙動不変 (case が未設定 env を先に拒否) なので kill に数えず diagnostic sensitivity pin として別枠。runner argv は変更した test file 2 本、実測 1 走約 37 秒 (見積り 150 秒)。
-- **受入全走。** 記録 commit の後に投入する (結果は受入後の追記 commit に書く)。
+- **受入全走と land。** attempt 1 は `queue-wait-timeout` (既定 900 s) で shard が落ち 0 件実走、attempt 2 は D612 上書きでも
+  `preclaim-history-provenance` の監査 dispatch が queue 待ちで落ちた (どちらも infra、赤 0 件)。attempt 3 は child-green
+  (20834 passed / 68 skipped、tested main 103c32e30 / tested tip c59bfb5f5)。land は main 46b387dc2 を固定 SHA で前方 merge した上で
+  投入したが、a5 second boot の bench job が計算ノード `/scr` に登録した worktree を fold gate が解決できず `rc=31`
+  (`retryable_same_request=false`、F672 の再発) で止まった。job 終了を待って受入を取り直し、その receipt で land した
+  (取り直しの結果は本 fragment の追記 commit に書く)。
 - **scope 外の real 所見 (実装せず):** `complete --study-id` (driver `_parser()`) と `run_complete` の `getattr` 退避、内部
   `load_policy(study_id=STUDY_ID)` に同じ既定が残る。D1619 の文言は submit だけなので触っていない。`complete` の既定で
   失うのは bench 時間ではなく attempt の照合先 (別 study の attempt root に対して legacy policy で検査して拒否される) で、

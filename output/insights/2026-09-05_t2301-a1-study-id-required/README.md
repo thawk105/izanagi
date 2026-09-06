@@ -78,3 +78,15 @@ M4 は docstring だけを変える等価変異で、harness が SURVIVED を報
 - `verbatim/ruling-stage4.md` — 段 4 裁定と変異の事前登録
 - `verbatim/author-1-prompt.md` / `verbatim/author-1-report.md` — 実装子の prompt と報告
 - `mutation-probe-spec.json` / `mutation-probe-report.json` / `mutation-main-spec.json` / `mutation-main-report.json`
+
+## 7. 受入と land (2026-09-05〜07)
+
+- 受入 attempt 1 (09-05 20:33 JST): rc=70 `dispatch-attestation-missing`。shard-1 が `queue-wait-timeout` (既定 900 s) で落ち、launcher が
+  shard-0/2 を SIGTERM。テスト 0 件実走。attempt 2 (20:58): D612 の 3600/600 上書きを export しても `preclaim-history-provenance`
+  の監査 dispatch は上書きが効かない経路で queue 待ちに落ちた。孤児 hold (978666.nqsv) を job 不在確認の後に 2 file とも撤去。
+- attempt 3 (連結 loop): child-green、20834 passed / 68 skipped。receipt `acceptance-receipt-3.json` (tested main 103c32e30、
+  tested tip c59bfb5f5)。
+- land (09-07 02:18 JST): main 46b387dc2 を固定 SHA で前方 merge (2353c5177、integrator trailer) して `--landing-wave-tip-sha` で投入。
+  `rc=31 fold-gate-failed`: `registered worktree path cannot be resolved: [Errno 2] … '/scr'`。原因は a5 second boot の bench job
+  (979578/979579、02:19 開始、上限 7200 s) が計算ノードの `/scr` に作った detached worktree の登録で、login node からは解決できない。
+  `retryable_same_request=false` なので同じ receipt は使わず、job 終了後に受入を取り直した (F672 再発、failures fragment seq 1)。
