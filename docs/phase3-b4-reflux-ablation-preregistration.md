@@ -155,7 +155,7 @@ D39 残存リスク (b) が求める「off が rejection を一切見ないこ�
 
 |欄|値|
 |---|---|
-|対象 driver と軸|未記入|
+|対象 driver と軸|base (silo-backoff-magnitude); evidence_set=t2341-eligibility; base.json sha256=d282c246e0b4f4d2542d28dd15850bbff650a8fc018e617bcd7ecec4be9ef237; sort.json sha256=9008aaace2bf1b9a2be508d068dcaac1222487041554b9cf540325f6132e3d72; trigger.json sha256=eb7f7cf1f48e0d7d65620932a7a26a42e0bec8bebb21bc7a9768f9e4635518f2; 記入者 = レビュー者 = thawk105 (D1266、D1638)|
 |赤 precursor の母集合 (workload・赤形状・初期 proposal)|未記入|
 |アームあたり block 数 n と検定単位|n = 201、検定単位 = block|
 |primary outcome の演算定義 (純関数)|未記入|
