@@ -1,0 +1,56 @@
+{
+  "schema_version": "between-run-noise-floor/v1",
+  "workload": {
+    "ycsb_zipf_skew": "0.9",
+    "ycsb_rratio": "50",
+    "ycsb_rmw": "0"
+  },
+  "genome": "silo|BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+  "records": 1000000,
+  "threads": 48,
+  "clocks_per_us": 2100,
+  "abort_rate": 0.6834,
+  "run_cmd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1942-between-run-floor-wl/submit-tree-balanced/external/ccbench/build-variants/silo_155bb9df86_t0/cc/silo/ycsb_silo.exe -thread_num=48 -ycsb_tuple_num=1000000 -extime=3 -clocks_per_us=2100 -ycsb_zipf_skew=0.9 -ycsb_rratio=50 -ycsb_rmw=0",
+  "within_run": {
+    "reps": 10,
+    "cv": 0.011788508463568742,
+    "median": 3834563.0,
+    "mean": 3828813.5,
+    "stdev": 45136.000350176255,
+    "throughputs": [
+      3706388.0,
+      3867710.0,
+      3834222.0,
+      3826196.0,
+      3832477.0,
+      3834904.0,
+      3854599.0,
+      3844867.0,
+      3857536.0,
+      3829236.0
+    ],
+    "high_variance": false
+  },
+  "between_run": {
+    "sessions": 8,
+    "reps_per_session": 5,
+    "cv": 0.00725042525457718,
+    "median": 3796356.5,
+    "mean": 3798998.0,
+    "stdev": 27544.3510412882,
+    "session_throughputs": [
+      3834702.0,
+      3839047.0,
+      3798924.0,
+      3761214.0,
+      3807086.0,
+      3772259.0,
+      3793789.0,
+      3784963.0
+    ],
+    "high_variance": false,
+    "notes": [
+      "between-run CV 0.73% = 8 独立セッションの session-median の散らばり。settle は admission (独立性でない) ため cold-boot/温度ドリフト未含 = 下限。high-abort genome はこれを上回りうる → cross-campaign データと突き合わせ保守側に採れ"
+    ]
+  }
+}

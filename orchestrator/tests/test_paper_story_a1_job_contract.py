@@ -1205,9 +1205,8 @@ PY
 
 def test_job_body_contains_all_m12_gates_and_no_submitter() -> None:
     source = JOB.read_text(encoding="utf-8")
-    assert source.count(
-        'EXPECTED_STUDY_ID="paper-story-a1-20260826-sized-v1"'
-    ) == 1
+    assert 'EXPECTED_STUDY_ID="paper-story-a1-20260826-sized-v1"' not in source
+    assert source.count('EXPECTED_STUDY_ID="$REQUESTED_STUDY_ID"') == 3
     assert source.count(
         'POLICY_RELATIVE="orchestrator/campaign/paper_story_a1_paired.v2.json"'
     ) == 1
@@ -1288,7 +1287,7 @@ def test_job_body_dispatches_legacy_pilot_and_future_sized_studies() -> None:
     Rejection: the terminal consumer may not re-select by enumerating study IDs.
     """
     source = JOB.read_text(encoding="utf-8")
-    assert source.count("paper-story-a1-20260826-sized-v1") == 2
+    assert source.count("paper-story-a1-20260826-sized-v1") == 1
     assert source.count("paper-story-a1-20260901-balanced5-pilot-v1") == 1
     assert source.count("paper-story-a1-20260901-balanced5-sized-v1") == 1
     assert source.count(
@@ -1536,6 +1535,20 @@ def test_production_job_subprocess_rejects_dirty_before_creating_roots(
     completed, stderr = _run_shell_job(environment)
     assert completed.returncode == 2
     assert "working tree is dirty" in stderr
+    assert not attempt.exists()
+
+
+def test_production_job_rejects_missing_study_id_before_creating_roots(
+    tmp_path: Path,
+) -> None:
+    """Acceptance: an explicit supported study ID can reach later job gates.
+    Rejection: a missing study ID fails closed before creating the attempt root.
+    """
+    environment, attempt, _ = _shell_fixture(tmp_path)
+    environment.pop("IZANAGI_A1_STUDY_ID")
+    completed, stderr = _run_shell_job(environment)
+    assert completed.returncode == 2
+    assert "study ID differs" in stderr
     assert not attempt.exists()
 
 
@@ -2014,6 +2027,7 @@ def test_m1_submission_receipt_is_complete_before_final_path_is_visible(
 
     monkeypatch.setattr(paired, "_renameat2_directory", inspect_publish)
     assert paired.run_submit(SimpleNamespace(
+        study_id=paired.STUDY_ID,
         expected_head=head, attempt_root=str(attempt),
     )) == 0
     assert len(publish_boundaries) == 1
@@ -2051,6 +2065,7 @@ def test_m3_submit_rejects_existing_completion_before_intent_and_qsub(
     _stub_successful_submit(monkeypatch, qsub_calls)
     with pytest.raises(paired.PaperStoryError, match="completion receipt already exists"):
         paired.run_submit(SimpleNamespace(
+            study_id=paired.STUDY_ID,
             expected_head=head, attempt_root=str(attempt),
         ))
     assert not paired._attempt_intent_path(attempt).exists()
@@ -2058,6 +2073,7 @@ def test_m3_submit_rejects_existing_completion_before_intent_and_qsub(
 
     clean = attempt.with_name("clean-completion-positive")
     assert paired.run_submit(SimpleNamespace(
+        study_id=paired.STUDY_ID,
         expected_head=head, attempt_root=str(clean),
     )) == 0
     assert len(qsub_calls) == 1
@@ -2076,6 +2092,7 @@ def test_m4_submit_rejects_existing_stdout_before_intent_and_qsub(
     _stub_successful_submit(monkeypatch, qsub_calls)
     with pytest.raises(paired.PaperStoryError, match="stdout already exists"):
         paired.run_submit(SimpleNamespace(
+            study_id=paired.STUDY_ID,
             expected_head=head, attempt_root=str(attempt),
         ))
     assert not paired._attempt_intent_path(attempt).exists()
@@ -2083,6 +2100,7 @@ def test_m4_submit_rejects_existing_stdout_before_intent_and_qsub(
 
     clean = attempt.with_name("clean-stdout-positive")
     assert paired.run_submit(SimpleNamespace(
+        study_id=paired.STUDY_ID,
         expected_head=head, attempt_root=str(clean),
     )) == 0
     assert len(qsub_calls) == 1
@@ -2101,6 +2119,7 @@ def test_m5_submit_rejects_existing_stderr_before_intent_and_qsub(
     _stub_successful_submit(monkeypatch, qsub_calls)
     with pytest.raises(paired.PaperStoryError, match="stderr already exists"):
         paired.run_submit(SimpleNamespace(
+            study_id=paired.STUDY_ID,
             expected_head=head, attempt_root=str(attempt),
         ))
     assert not paired._attempt_intent_path(attempt).exists()
@@ -2108,6 +2127,7 @@ def test_m5_submit_rejects_existing_stderr_before_intent_and_qsub(
 
     clean = attempt.with_name("clean-stderr-positive")
     assert paired.run_submit(SimpleNamespace(
+        study_id=paired.STUDY_ID,
         expected_head=head, attempt_root=str(clean),
     )) == 0
     assert len(qsub_calls) == 1
@@ -2126,6 +2146,7 @@ def test_m6_submit_accepts_clean_evidence_namespace(
     _stub_successful_submit(monkeypatch, qsub_calls)
 
     assert paired.run_submit(SimpleNamespace(
+        study_id=paired.STUDY_ID,
         expected_head=head, attempt_root=str(attempt),
     )) == 0
     assert len(qsub_calls) == 1
@@ -2148,6 +2169,7 @@ def test_m7_submit_creates_missing_durable_base(
     _stub_successful_submit(monkeypatch, qsub_calls)
 
     assert paired.run_submit(SimpleNamespace(
+        study_id=paired.STUDY_ID,
         expected_head=head, attempt_root=str(attempt),
     )) == 0
     assert attempt.parent.is_dir()
@@ -2246,6 +2268,7 @@ def test_submit_rejects_foreign_staging_before_intent_and_qsub(
         paired.PaperStoryError, match="submission receipt staging already exists",
     ):
         paired.run_submit(SimpleNamespace(
+            study_id=paired.STUDY_ID,
             expected_head=head, attempt_root=str(attempt),
         ))
     assert not paired._attempt_intent_path(attempt).exists()
@@ -2253,6 +2276,7 @@ def test_submit_rejects_foreign_staging_before_intent_and_qsub(
 
     staging.unlink()
     assert paired.run_submit(SimpleNamespace(
+        study_id=paired.STUDY_ID,
         expected_head=head, attempt_root=str(attempt),
     )) == 0
     assert len(qsub_calls) == 1
@@ -2276,6 +2300,7 @@ def test_submit_accepts_clean_evidence_and_staging_namespace(
     _stub_successful_submit(monkeypatch, qsub_calls)
 
     assert paired.run_submit(SimpleNamespace(
+        study_id=paired.STUDY_ID,
         expected_head=head, attempt_root=str(attempt),
     )) == 0
     assert len(qsub_calls) == 1
@@ -2304,6 +2329,7 @@ def test_submit_accepts_name_max_submission_basename(
     _stub_successful_submit(monkeypatch, qsub_calls)
 
     assert paired.run_submit(SimpleNamespace(
+        study_id=paired.STUDY_ID,
         expected_head=head, attempt_root=str(attempt),
     )) == 0
     assert len(qsub_calls) == 1
@@ -2336,6 +2362,7 @@ def test_submit_create_only_intent_precedes_qsub_and_receipt(
         },
     )
     assert paired.run_submit(SimpleNamespace(
+        study_id=paired.STUDY_ID,
         expected_head=head, attempt_root=str(attempt),
     )) == 0
     intent = json.loads(paired._attempt_intent_path(attempt).read_bytes())
@@ -2378,6 +2405,7 @@ def test_submit_runs_real_qsub_call_from_repository_root(
 
     monkeypatch.setattr(paired.subprocess, "run", run)
     assert paired.run_submit(SimpleNamespace(
+        study_id=paired.STUDY_ID,
         expected_head=head, attempt_root=str(attempt),
     )) == 0
     qsub_call = next(item for item in calls if item[0][0] == "qsub")
@@ -2418,6 +2446,7 @@ def test_m_nc09_intent_without_submission_never_repeats_qsub(
     )
     with pytest.raises(paired.PaperStoryError, match="indeterminate"):
         paired.run_submit(SimpleNamespace(
+            study_id=paired.STUDY_ID,
             expected_head=head, attempt_root=str(attempt),
         ))
     assert calls == []
@@ -2445,6 +2474,7 @@ def test_m_nc01_submit_rejects_marker_drift_before_intent_and_qsub(
     )
     with pytest.raises(paired.PaperStoryError, match="marker differs before submit"):
         paired.run_submit(SimpleNamespace(
+            study_id=paired.STUDY_ID,
             expected_head=head, attempt_root=str(attempt),
         ))
     assert qsub_calls == []

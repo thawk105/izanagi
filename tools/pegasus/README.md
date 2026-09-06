@@ -29,6 +29,7 @@ rr80/rr20 の certification・計測・collector・登録は、**dev-wave が所
 |---|---|---|
 | `tools/pegasus/collect_receipt.py` | `compute-only` | `unknown` |
 | `tools/pegasus/fetch_third_party.py` | `login-direct` | `local-ok` |
+| `tools/pegasus/p3_s4_loop_pegasus.sh` | `qsub-job-body` | `dispatch-required` |
 | `tools/pegasus/smoke_probe.sh` | `qsub-job-body` | `dispatch-required` |
 | `tools/pegasus/submit_certify.sh` | `login-direct` | `local-ok` |
 | `tools/pegasus/submit_floor.sh` | `login-direct` | `local-ok` |
@@ -296,3 +297,46 @@ python3 tools/pegasus/fetch_third_party.py verify-deps  # policy の gflags/glog
 - **この CLI は任意の operator preflight であり、取得の権威ではない。** 最終判定は
   `submit_silo_ladder_rung1.sh` と `silo_ladder_rung1.sh` の pin/clean 検査のままで、
   取得経路は submit receipt にも evidence にも値として現れない。
+
+## 7. P3 段 4 loop の job body を投入する (2026-09-05 実装、[T-2232]、計算ノードでは未実測)
+
+`tools/pegasus/p3_s4_loop_pegasus.sh` は親が直接 `qsub` する compute-only の job body であり、
+投入器ではない (A-1 `paper_story_a1_paired.sh` と同じ型)。job body の義務は次のとおりで、
+契約は `orchestrator/tests/test_p3_s4_loop_job_contract.py` が固定する。
+
+- `bnode` 以外の host、必須環境変数の欠落、repo 内の evidence root、`.claude/worktrees/` /
+  `.codex/worktrees/` 配下の checkout は rc=2 で拒否する
+- `python3.10` を解決し、`python3` → 3.10 の shim (interpreter のみ) を PATH 先頭に置く。
+  `cmake` / compiler の wrapper・launcher・`CMAKE_PREFIX_PATH` は置かない (F813、D1517)
+- expected HEAD、superproject の tracked clean (submodule 除外)、CCBench の `p3_s4_loop.PIN` 一致を検査する
+- `qstat -f` から reservation 束縛 (`IZANAGI_RESERVATION_*`) を組み、`<REPO_ROOT>/output/env/pegasus/claims`
+  を provisioning する
+- hydrate 済み third-party source 3 本を `/scr` の scratch へ複製し、masstree の `config.h` を
+  `buildcache.prepare_masstree_fetchcontent` で事前構築して receipt に束縛する。**現行の
+  `p3_s4_loop.py` にはこの成果を消費する seam が無く**、loop 本体の build は proxy 経由の
+  FetchContent clone に依存する (消費配線は後続 wave)
+- `p3_s4_loop` を `--allow-coder-derived-build --isolate-worktree` で起動する。
+  `IZANAGI_S4_PROPOSAL_PATH` があれば `--run-iteration`、無ければ fixture `--value`
+
+投入は login node から次の形で行う。`REPO_ROOT` は固定 SHA の専用 checkout (primary worktree や
+`.claude/worktrees/` 配下は不可)、`THIRDPARTY_SOURCE_ROOT` は §6 の `hydrate` 出力 JSON の
+`.source_root`、`EVIDENCE_ROOT` はどの repository の配下でもない場所とする。同じ attempt directory は
+再利用しない。`-o` / `-e` を省くと標準出力・標準エラーが投入時 directory へ落ちて作業ツリーを汚す。
+
+```bash
+# admission-site: qsub-job-body
+REPO_ROOT=/absolute/path/to/dedicated-checkout
+EXPECTED_HEAD=$(git -C "$REPO_ROOT" rev-parse HEAD)
+THIRDPARTY_SOURCE_ROOT=/absolute/path/from-hydrate-source_root
+EVIDENCE_ROOT=/absolute/path/outside-all-repositories
+ATTEMPT=unique-attempt-id
+mkdir -m 0700 "$EVIDENCE_ROOT/$ATTEMPT"
+qsub -v IZANAGI_S4_REPO_ROOT="$REPO_ROOT",IZANAGI_S4_EXPECTED_HEAD="$EXPECTED_HEAD",IZANAGI_S4_EVIDENCE_ROOT="$EVIDENCE_ROOT/$ATTEMPT",IZANAGI_S4_THIRDPARTY_SOURCE_ROOT="$THIRDPARTY_SOURCE_ROOT" -o "$EVIDENCE_ROOT/$ATTEMPT/job.stdout" -e "$EVIDENCE_ROOT/$ATTEMPT/job.stderr" tools/pegasus/p3_s4_loop_pegasus.sh
+```
+
+実 proposal を渡すときだけ `-v` の値へ `IZANAGI_S4_PROPOSAL_PATH=/absolute/path/to/proposal.json` を
+足す。fixture 経路は `IZANAGI_S4_FIXTURE_VALUE` 無指定時に 20 を使う。
+
+**未実測のもの (F660)。** 本 job body は main 着地後にしか投入できないため、計算ノードでの動作
+(proxy 経由の FetchContent clone、attestation の exact 照合、walltime 03:00:00 の充足) は測っていない。
+一次資料は `output/insights/2026-09-05_t2232-s4-loop-pegasus-job-script/README.md`。
