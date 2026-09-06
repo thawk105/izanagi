@@ -1,0 +1,123 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 300,
+  "timeout_seconds": 3600,
+  "hang_timeout_seconds": 3600,
+  "mutations": [
+    {
+      "id": "MUT-T2320-M1-HELPER-DROPS-CONFIGURE-ARGS",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_sweep.py",
+          "old": "        source_root, stock_root=stock_root, configure_args=configure_args,\n",
+          "new": "        source_root, stock_root=stock_root,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_sweep.py::test_real_family_helper_admits_effective_define_and_recomputes_file_digest"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MUT-T2320-M2-SWEEP-DROPS-PREPARE",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_sweep.py",
+          "old": "                buildcache.prepare_masstree_fetchcontent(\n                    ccbench_dir=canonical_ccbench_dir,\n                    fetchcontent_base_dir=canonical_base,\n                    expected_toolchain_manifest=expected_toolchain_manifest,\n                    configure_timeout_s=900,\n                    target_timeout_s=900,\n                    site=site,\n                )\n                _require_backoff_condition_gate(\n",
+          "new": "                _require_backoff_condition_gate(\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_sweep.py::test_run_workload_gates_the_prepared_patched_tree_with_fetchcontent_base",
+        "orchestrator/tests/test_backoff_sweep.py::test_run_workload_prepares_masstree_once_before_condition_gate",
+        "orchestrator/tests/test_backoff_sweep.py::test_sweep_condition_gate_dominates_screened_and_direct_campaign_paths"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MUT-T2320-M3-SWEEP-GATE-EMPTY-CONFIGURE-ARGS",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_sweep.py",
+          "old": "                    configure_args=(\n                        f\"-DFETCHCONTENT_BASE_DIR={canonical_base}\",\n                    ),\n                )\n",
+          "new": "                    configure_args=(),\n                )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_sweep.py::test_run_workload_gates_the_prepared_patched_tree_with_fetchcontent_base"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MUT-T2320-M4-SWEEP-GATE-STOCK-ROOT",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_sweep.py",
+          "old": "                _require_backoff_condition_gate(\n                    canonical_ccbench_dir,\n                    stock_root=stock_root,\n",
+          "new": "                _require_backoff_condition_gate(\n                    stock_root,\n                    stock_root=stock_root,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_sweep.py::test_run_workload_gates_the_prepared_patched_tree_with_fetchcontent_base"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MUT-T2320-M5-EXT-WRAPPER-DROPS-FORWARDING",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "old": "        cxx=cxx,\n        use_class=\"raw-measurement\",\n        configure_args=configure_args,\n    )\n",
+          "new": "        cxx=cxx,\n        use_class=\"raw-measurement\",\n    )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_extended_gate_wrapper_forwards_configure_args"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MUT-T2320-M6-EXT-GATE-BEFORE-PREPARE",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "old": "                    buildcache.prepare_masstree_fetchcontent(\n                        ccbench_dir=canonical_ccbench_dir,\n                        fetchcontent_base_dir=canonical_base,\n                        expected_toolchain_manifest=expected_toolchain_manifest,\n                        configure_timeout_s=900,\n                        target_timeout_s=900,\n                        site=site,\n                    )\n                    _require_condition_gate_before_measurement(\n                        canonical_ccbench_dir,\n                        stock_root=stock_root,\n                        points=ordered_genomes,\n                        cxx=resolved_cxx,\n                        configure_args=(\n                            f\"-DFETCHCONTENT_BASE_DIR={canonical_base}\",\n                        ),\n                    )\n",
+          "new": "                    _require_condition_gate_before_measurement(\n                        canonical_ccbench_dir,\n                        stock_root=stock_root,\n                        points=ordered_genomes,\n                        cxx=resolved_cxx,\n                        configure_args=(\n                            f\"-DFETCHCONTENT_BASE_DIR={canonical_base}\",\n                        ),\n                    )\n                    buildcache.prepare_masstree_fetchcontent(\n                        ccbench_dir=canonical_ccbench_dir,\n                        fetchcontent_base_dir=canonical_base,\n                        expected_toolchain_manifest=expected_toolchain_manifest,\n                        configure_timeout_s=900,\n                        target_timeout_s=900,\n                        site=site,\n                    )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_mu13_run_path_uses_the_calibration_bound_records"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MUT-T2320-M7-EXT-DROPS-PREPARE",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "old": "                    buildcache.prepare_masstree_fetchcontent(\n                        ccbench_dir=canonical_ccbench_dir,\n                        fetchcontent_base_dir=canonical_base,\n                        expected_toolchain_manifest=expected_toolchain_manifest,\n                        configure_timeout_s=900,\n                        target_timeout_s=900,\n                        site=site,\n                    )\n                    _require_condition_gate_before_measurement(\n",
+          "new": "                    _require_condition_gate_before_measurement(\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_extended_run_path_prepares_and_gates_the_same_patched_tree",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_mu13_run_path_uses_the_calibration_bound_records"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

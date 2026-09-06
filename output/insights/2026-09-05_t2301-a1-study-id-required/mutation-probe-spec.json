@@ -1,0 +1,64 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 150,
+  "timeout_seconds": 1200,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "M1-submit-study-id-default-restored",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "    submit.add_argument(\"--study-id\", required=True)\n",
+          "new": "    submit.add_argument(\"--study-id\", default=STUDY_ID)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-run-submit-getattr-fallback",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "    study_id = args.study_id\n    policy, _policy_sha = _load_policy_for_study(study_id)\n    _require_policy_ready_for_execution(policy)\n    _assert_submit_a1_noncertifying_markers(policy)\n",
+          "new": "    study_id = getattr(args, \"study_id\", STUDY_ID)\n    policy, _policy_sha = _load_policy_for_study(study_id)\n    _require_policy_ready_for_execution(policy)\n    _assert_submit_a1_noncertifying_markers(policy)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-job-body-default-assignment-reinserted",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/pegasus/paper_story_a1_paired.sh",
+          "old": "REQUESTED_STUDY_ID=${IZANAGI_A1_STUDY_ID:-}\n",
+          "new": "EXPECTED_STUDY_ID=\"paper-story-a1-20260826-sized-v1\"\nREQUESTED_STUDY_ID=${IZANAGI_A1_STUDY_ID:-}\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-equivalent-docstring",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "    \"\"\"Create an intent before direct qsub, then publish one submission receipt.\"\"\"\n",
+          "new": "    \"\"\"Create an intent before direct qsub, then publish one submission receipt (equivalent).\"\"\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
