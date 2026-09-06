@@ -84,7 +84,9 @@ from orchestrator.tests.test_masstree_archive_projection import (  # noqa: E402
 )
 from orchestrator.calibrator import perf_preflight as calibrator_perf_preflight  # noqa: E402
 from orchestrator.calibrator import runner as calibrator_runner  # noqa: E402
+from orchestrator.tests import output_snapshot_ignores as output_snapshots  # noqa: E402
 from orchestrator.tests.output_snapshot_ignores import (  # noqa: E402
+    git_indexed_output_snapshot,
     git_ignored_output_prefixes,
     git_ignored_output_snapshot_rules,
     is_git_ignored_output_path,
@@ -1690,33 +1692,20 @@ def _digest(abspath: str) -> str:
 
 # 32-worker 実測の file wall は base 42.19s / 4 thread 51.57s / 1 thread 41.78s。
 # critical path も 39.34s → 48.9s → 39.19s であり、disk 競合下では逐次 digest が最速だった。
-def _real_output_snapshot(output: Path = ROOT / "output") -> tuple:
+def _real_output_snapshot(
+        output: Path = ROOT / "output", *, repo_root: Path = ROOT,
+) -> tuple:
     """実 repo の Git-visible な output/ を統合テストが変えないことを固定する。
 
     旧実装との等価性は、安定しており、root と全 directory が読める通常 POSIX tree
     を定義域とする。
     """
-    if not output.exists():
-        return ()
-    ignored_prefixes, _ignored_ancestors = git_ignored_output_snapshot_rules(ROOT)
-    entries = [
-        entry for entry in _walk_entries(output)
-        if not is_git_ignored_output_path(entry[1], ignored_prefixes)
-    ]
-    files = [(rel, abspath) for kind, rel, abspath in entries if kind == "file"]
-    digest_by_rel = {}
-    for rel, abspath in files:
-        digest_by_rel[rel] = _digest(abspath)
-    snapshot = []
-    for kind, rel, abspath in entries:
-        if kind == "symlink":
-            snapshot.append(("symlink", rel, Path(abspath).readlink().as_posix()))
-        elif kind == "file":
-            snapshot.append(("file", rel, digest_by_rel[rel]))
-        else:
-            snapshot.append(("dir", rel))
-    snapshot.sort(key=lambda row: row[1])
-    return tuple(snapshot)
+    return git_indexed_output_snapshot(
+        output,
+        repo_root,
+        walk_entries=_walk_entries,
+        digest_file=_digest,
+    )
 
 
 def _real_output_snapshot_reference(output: Path = ROOT / "output") -> tuple:
@@ -1755,6 +1744,289 @@ def test_real_output_snapshot_matches_reference_and_is_deterministic(tmp_path):
     actual = _real_output_snapshot(output)
     assert actual == _real_output_snapshot_reference(output)
     assert actual == tuple(sorted(actual, key=lambda row: row[1]))
+
+
+def test_real_output_snapshot_git_index_fast_path_matches_reference(tmp_path):
+    repo = tmp_path / "indexed-output-repo"
+    output = repo / "output"
+    nested = output / "nested"
+    nested.mkdir(parents=True)
+    tracked = nested / "tracked.bin"
+    original_payload = b"tracked-alpha"
+    changed_payload = b"tracked-bravo"
+    assert len(original_payload) == len(changed_payload)
+    tracked.write_bytes(original_payload)
+    (output / "tracked-empty").write_bytes(b"")
+    (output / "tracked-link").symlink_to("nested/tracked.bin")
+    subprocess.run(
+        ["git", "init", "-q"], cwd=repo, check=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    subprocess.run(
+        ["git", "add", "--", "output"], cwd=repo, check=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    subprocess.run(
+        [
+            "git", "-c", "user.email=snapshot@example.invalid",
+            "-c", "user.name=Snapshot Test", "commit", "-q", "-m",
+            "tracked output fixture",
+        ],
+        cwd=repo, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+
+    def assert_matches_reference_twice() -> tuple:
+        expected = _real_output_snapshot_reference(output)
+        first = _real_output_snapshot(output, repo_root=repo)
+        second = _real_output_snapshot(output, repo_root=repo)
+        assert first == second == expected
+        return first
+
+    expected_baseline = _real_output_snapshot_reference(output)
+    baseline = _real_output_snapshot(output, repo_root=repo)
+    assert baseline == expected_baseline
+    with mock.patch.object(
+            sys.modules[__name__], "_digest", wraps=_digest,
+            ) as digest_spy:
+        cached = _real_output_snapshot(output, repo_root=repo)
+    assert cached == expected_baseline
+    digest_spy.assert_not_called()
+
+    tracked.write_bytes(changed_payload)
+    changed = assert_matches_reference_twice()
+    assert changed != baseline
+
+    tracked.write_bytes(original_payload)
+    restored = assert_matches_reference_twice()
+    assert restored == baseline
+
+    untracked = output / "untracked.bin"
+    untracked.write_bytes(b"untracked payload")
+    with_untracked = assert_matches_reference_twice()
+    assert with_untracked != restored
+    assert any(row[1] == "untracked.bin" for row in with_untracked)
+
+    empty_directory = output / "untracked-empty-directory"
+    empty_directory.mkdir()
+    with_empty_directory = assert_matches_reference_twice()
+    assert with_empty_directory != with_untracked
+    assert ("dir", "untracked-empty-directory") in with_empty_directory
+
+
+def test_real_output_snapshot_git_index_cache_performance_model(tmp_path):
+    negative_root_attributes = (
+        b"orchestrator/tests/fixtures/**/trace_*.log -text\n"
+    )
+
+    def make_repo(
+            name: str, *, root_attributes: bytes = negative_root_attributes,
+            subtree_attributes: bool = False,
+            index_flag: str | None = None,
+            autocrlf: str | None = None,
+    ) -> tuple[Path, Path, list[tuple[str, str, str]]]:
+        repo = tmp_path / name
+        output = repo / "output"
+        (output / "nested").mkdir(parents=True)
+        paths = [
+            output / "shared-a.bin",
+            output / "shared-b.bin",
+            output / "nested" / "distinct.bin",
+        ]
+        paths[0].write_bytes(b"shared payload\n")
+        paths[1].write_bytes(b"shared payload\n")
+        paths[2].write_bytes(b"distinct payload\n")
+        (repo / ".gitattributes").write_bytes(root_attributes)
+        if subtree_attributes:
+            subtree_rule = output / "nested" / ".gitattributes"
+            subtree_rule.write_bytes(b"*.bin -text\n")
+            paths.append(subtree_rule)
+
+        subprocess.run(
+            ["git", "init", "-q"], cwd=repo, check=True,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+        subprocess.run(
+            ["git", "add", "--", ".gitattributes", "output"],
+            cwd=repo, check=True, stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        subprocess.run(
+            [
+                "git", "-c", "user.email=snapshot@example.invalid",
+                "-c", "user.name=Snapshot Test", "commit", "-q", "-m",
+                "synthetic indexed output",
+            ],
+            cwd=repo, check=True, stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        if index_flag is not None:
+            subprocess.run(
+                [
+                    "git", "update-index", f"--{index_flag}", "--",
+                    "output/shared-a.bin",
+                ],
+                cwd=repo, check=True, stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+        if autocrlf is not None:
+            subprocess.run(
+                ["git", "config", "core.autocrlf", autocrlf],
+                cwd=repo, check=True, stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+        entries = [
+            (
+                "file",
+                path.relative_to(output).as_posix(),
+                os.fspath(path),
+            )
+            for path in paths
+        ]
+        return repo, output, entries
+
+    def snapshot(
+            repo: Path, output: Path, entries: list[tuple[str, str, str]],
+    ) -> tuple[tuple[object, ...], ...]:
+        def synthetic_walk(requested: Path) -> list[tuple[str, str, str]]:
+            assert requested == output
+            return list(entries)
+
+        return git_indexed_output_snapshot(
+            output, repo, walk_entries=synthetic_walk,
+        )
+
+    def snapshot_git_launch_counts(git_spy) -> tuple[int, int]:
+        commands = [call.args[1] for call in git_spy.call_args_list]
+        return (
+            sum(
+                command[1:4] == ("ls-files", "-s", "-v")
+                for command in commands
+            ),
+            sum(command[1:2] == ("status",) for command in commands),
+        )
+
+    cache = output_snapshots._INDEX_BLOB_SHA256_CACHE
+    cache.clear()
+    try:
+        repo, output, entries = make_repo("fast-path", autocrlf="false")
+        observed_reasons: list[tuple[str, ...]] = []
+        observed_indexes = []
+        real_index = output_snapshots._index_blobs_for_output
+
+        def capture_index(*args, **kwargs):
+            result = real_index(*args, **kwargs)
+            observed_indexes.append(result)
+            observed_reasons.append(result.fallback_reasons)
+            return result
+
+        with (
+                mock.patch.object(
+                    output_snapshots, "_index_blobs_for_output",
+                    side_effect=capture_index,
+                ) as index_spy,
+                mock.patch.object(
+                    output_snapshots, "_status_paths_for_output",
+                    wraps=output_snapshots._status_paths_for_output,
+                ) as status_spy,
+                mock.patch.object(
+                    output_snapshots, "_run_git_bytes",
+                    wraps=output_snapshots._run_git_bytes,
+                ) as git_spy,
+                mock.patch.object(
+                    output_snapshots, "_sha256_file",
+                    wraps=output_snapshots._sha256_file,
+                ) as digest_spy,
+        ):
+            first = snapshot(repo, output, entries)
+            assert digest_spy.call_count == len(entries)
+            second = snapshot(repo, output, entries)
+            assert second == first
+            assert digest_spy.call_count == len(entries)
+            cache.clear()
+            restarted = snapshot(repo, output, entries)
+            assert restarted == first
+            assert digest_spy.call_count == 2 * len(entries)
+        assert index_spy.call_count == 3
+        assert status_spy.call_count == 3
+        assert snapshot_git_launch_counts(git_spy) == (3, 3)
+        assert observed_reasons == [(), (), ()]
+        assert len(entries) == 3
+        assert len({
+            entry[1] for entry in observed_indexes[0].blobs.values()
+        }) == 2
+
+        fallback_cases = (
+            ("assume-unchanged", {"index_flag": "assume-unchanged"}),
+            ("skip-worktree", {"index_flag": "skip-worktree"}),
+            ("subtree-gitattributes", {"subtree_attributes": True}),
+            ("core.autocrlf", {"autocrlf": "true"}),
+            (
+                "root-gitattributes-conversion",
+                {"root_attributes": b"output/** text\n"},
+            ),
+        )
+        for expected_reason, options in fallback_cases:
+            cache.clear()
+            repo, output, entries = make_repo(expected_reason, **options)
+            observed_reasons = []
+            real_index = output_snapshots._index_blobs_for_output
+
+            def capture_fallback_index(*args, **kwargs):
+                result = real_index(*args, **kwargs)
+                observed_reasons.append(result.fallback_reasons)
+                return result
+
+            with (
+                    mock.patch.object(
+                        output_snapshots, "_index_blobs_for_output",
+                        side_effect=capture_fallback_index,
+                    ) as index_spy,
+                    mock.patch.object(
+                        output_snapshots, "_status_paths_for_output",
+                        wraps=output_snapshots._status_paths_for_output,
+                    ) as status_spy,
+                    mock.patch.object(
+                        output_snapshots, "_run_git_bytes",
+                        wraps=output_snapshots._run_git_bytes,
+                    ) as git_spy,
+                    mock.patch.object(
+                        output_snapshots, "_sha256_file",
+                        wraps=output_snapshots._sha256_file,
+                    ) as digest_spy,
+            ):
+                first = snapshot(repo, output, entries)
+                if expected_reason in {"assume-unchanged", "skip-worktree"}:
+                    Path(entries[0][2]).write_bytes(b"mutate payload\n")
+                second = snapshot(repo, output, entries)
+            if expected_reason in {"assume-unchanged", "skip-worktree"}:
+                assert second != first
+            else:
+                assert second == first
+            assert digest_spy.call_count == 2 * len(entries)
+            assert index_spy.call_count == 2
+            assert status_spy.call_count == 2
+            assert snapshot_git_launch_counts(git_spy) == (2, 2)
+            assert all(
+                expected_reason in reasons for reasons in observed_reasons
+            )
+    finally:
+        cache.clear()
+
+
+def test_git_snapshot_nul_parsers_fail_closed():
+    malformed_outputs = (
+        (
+            ("git", "ls-files", "-s", "-v", "-z"),
+            b"H 100644 deadbeef 0\toutput/truncated",
+        ),
+        (
+            ("git", "status", "--porcelain=v1", "-z"),
+            b" M output/truncated",
+        ),
+    )
+    for command, stdout in malformed_outputs:
+        with pytest.raises(AssertionError, match="末尾 NUL"):
+            output_snapshots._nul_terminated_records(command, stdout)
 
 
 def test_real_output_snapshot_detects_git_visible_real_output_changes(tmp_path):
