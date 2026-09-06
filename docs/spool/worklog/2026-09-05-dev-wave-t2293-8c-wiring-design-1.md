@@ -42,6 +42,11 @@ title: [T-2293] 8c 結線の設計 wave — V-8 (a) が実行形を持たない�
   model call 35〜57。local main は wave 中に 97ee3cd3a → b152eec77 (D1644〜D1649、本件に無関係) へ進み、docs 編集前に ff で取り込んだ。
 - 段 8 の改善候補: 隔離 worktree の guard は他 worktree での VCS 実行を拒否するので、稼働 wave の未 commit 差分は branch tip の
   blob hash と作業木 file の照合で見た (worktree-discipline の memory へ)。docs / reference の変更は不要。
+- **段 9 (2026-09-07):** 受入は 3 回目 (9/5 22:02) で child-green (1・2 回目は queue 待ち timeout の rc=70、非帰属)。
+  main が動いていないのに land 1 回目 (9/7 02:19) が `rc=31 fold-gate-failed`、`retryable_same_request=false` で落ちた。
+  原因は別 wave の A-5 sweep job (979578 / 979579、RUN) が計算ノード scratch `/scr/…/job-repo` を共有 repo の worktree として
+  登録していたこと (`{{F:compute-scratch-worktree-registration-blocks-land}}`)。稼働中の登録は相手の job を壊すので触らず、
+  job 終了を待ち (残骸が残れば `/scr/` の登録だけを prune)、受入を取り直して land した。
 
 ## 次の一手差分
 
@@ -52,3 +57,12 @@ title: [T-2293] 8c 結線の設計 wave — V-8 (a) が実行形を持たない�
   決定的に導出、33 個) の 2 層。裁定 R1 (envelope digest の束縛先)、R2 (origin cell の completion 権威)、R3 (provenance schema 世代)、
   R4 (受理集合が動く 3 写像の確認) を /rulings で提示する。実装 wave は t524 着地後、V-7 と R1〜R4 の裁定後に起票する。
   base: 59bca1a9d84b9d8578ad85d261f4a077710149ba8f4f107c0b8070a0ea1d63ae
+
+### 新規
+
+- {{T:land-skip-compute-scratch-worktree}} **P1・新規**: 計算ノード job が共有 repo へ登録する scratch worktree
+  (`tools/pegasus/a5_second_boot_backoff_sweep.sh` の `worktree add --detach "$TMPDIR/job-repo"`) が、job 稼働中
+  (最大 2 時間) 全 wave の land を `rc=31` で塞ぐ ({{F:compute-scratch-worktree-registration-blocks-land}})。
+  `tools/dev_wave_land.py` の `_registered_worktree_paths` が prunable (path 不在) の登録を非接触検査から除くか、
+  job script が job 専用 clone を使うかを Codex author で入れる。正例 (login 上の登録は従来どおり) と負例
+  (`/scr/` 登録があっても land が進む、ただし実在する他 worktree の dirt は今までどおり拒否) を test に固定する。
