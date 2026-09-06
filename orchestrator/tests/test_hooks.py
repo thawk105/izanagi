@@ -2587,6 +2587,7 @@ _PEGASUS_EXPECTED_CLASSES = {
     "tools/pegasus/make_acquisition_receipt.py": "dispatch-required",
     "tools/pegasus/mocc_trace_pilot.sh": "dispatch-required",
     "tools/pegasus/oracle_n_pilot.sh": "dispatch-required",
+    "tools/pegasus/p3_s4_loop_pegasus.sh": "dispatch-required",
     "tools/pegasus/paper_story_a1_paired.sh": "dispatch-required",
     "tools/pegasus/paper_story_a2_certification.sh": "dispatch-required",
     "tools/pegasus/probes/t139_positive_control_probe.pbs": "unknown",
@@ -2738,6 +2739,12 @@ _PEGASUS_EXPECTED_ENTRIES = {
     "tools/pegasus/oracle_n_pilot.sh": {
         "class": "dispatch-required",
         "reason": "PBS oracle n pilot job body",
+        "primary_gate": "PBS allocation and job-body site preflight",
+        "evidence": "static job-body classification"
+    },
+    "tools/pegasus/p3_s4_loop_pegasus.sh": {
+        "class": "dispatch-required",
+        "reason": "PBS P3 stage 4 loop build, verification, and benchmark job body",
         "primary_gate": "PBS allocation and job-body site preflight",
         "evidence": "static job-body classification"
     },

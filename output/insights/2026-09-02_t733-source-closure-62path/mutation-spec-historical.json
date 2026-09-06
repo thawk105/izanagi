@@ -1,0 +1,57 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 900,
+ "timeout_seconds": 7200,
+ "hang_timeout_seconds": 900,
+ "mutations": [
+  {
+   "id": "M06",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/campaign_lock.py",
+     "old": "    expected_wire_order = tuple(sorted(PRE_T733_CONTRACT_LOADER_RELATIVE_PATHS))\n    if (type(blob_sha256s) is not dict\n            or tuple(blob_sha256s) != expected_wire_order):\n",
+     "new": "    expected_wire_order = tuple(sorted(PRE_T733_CONTRACT_LOADER_RELATIVE_PATHS))\n    if (type(blob_sha256s) is not dict\n            or len(blob_sha256s) != len(expected_wire_order)):\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_artifact_admission.py::test_unknown_pre_t733_grammar_is_rejected_for_both_read_purposes[same-count-replacement]",
+    "orchestrator/tests/test_campaign_lock_codec.py::test_historical_decoder_rejects_unknown_blob_map_grammars[same-count-replacement]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M07",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/artifact_admission.py",
+     "old": "    _validate_read_purpose(purpose)\n    if purpose is CampaignReadPurpose.HISTORICAL_RAW:\n        return _decode_historical_campaign_lock(lock_raw)\n    return _decode_campaign_lock(lock_raw)\n",
+     "new": "    _validate_read_purpose(purpose)\n    try:\n        return _decode_campaign_lock(lock_raw)\n    except ArtifactAdmissionError:\n        return _decode_historical_campaign_lock(lock_raw)\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_artifact_admission.py::test_p4_same_pre_t733_exact_24_bytes_are_rejected_for_certified_use"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M08",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/contract_loader_binding.py",
+     "old": "            hashlib.sha256(blob).hexdigest()\n            != contract_loader_blob_sha256s[relative]\n        ):\n",
+     "new": "            False\n        ):\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_artifact_admission.py::test_pre_t733_historical_decode_rejects_recorded_commit_blob_mismatch"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

@@ -3218,7 +3218,7 @@ def _run_submit_v3(
 def run_submit(args) -> int:
     """Create an intent before direct qsub, then publish one submission receipt."""
     repo_root = _repo_root().resolve(strict=True)
-    study_id = getattr(args, "study_id", STUDY_ID)
+    study_id = args.study_id
     policy, _policy_sha = _load_policy_for_study(study_id)
     _require_policy_ready_for_execution(policy)
     _assert_submit_a1_noncertifying_markers(policy)
@@ -8585,7 +8585,7 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="mode", required=True)
     submit = sub.add_parser("submit")
-    submit.add_argument("--study-id", default=STUDY_ID)
+    submit.add_argument("--study-id", required=True)
     submit.add_argument("--expected-head", required=True)
     submit.add_argument("--attempt-root", required=True)
     measure = sub.add_parser("measure")

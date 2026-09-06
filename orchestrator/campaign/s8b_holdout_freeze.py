@@ -49,7 +49,7 @@ FLOOR_PROTOCOL_REL = "output/s8b-freeze/floor_protocol.json"
 V2_CANDIDATE_REL = "output/s8b-freeze-candidates/holdout_freeze.v2.g1.json"
 BUDGET_APPROVAL_REL = "output/s8b-freeze-budget-approvals/g1.json"
 BUDGET_APPROVAL_SCOPE = "s8b-holdout-freeze/v2:g1-budget"
-BUDGET_APPROVAL_SHA256: Optional[str] = None
+BUDGET_APPROVAL_SHA256: Optional[str] = "05d4d778826d7f0d93bdfbbd9e8c3ea09711b6c268bfba9086927bdc92f6549d"
 _FLOOR_SELECTION_RULE_VERSION = "earliest-eligible-official-run-id/v1"
 V2_ADDED_KEYS = frozenset({
     "generation_number", "supersedes_sha256", "env_tag",
