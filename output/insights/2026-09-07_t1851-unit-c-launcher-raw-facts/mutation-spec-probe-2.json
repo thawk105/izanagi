@@ -1,0 +1,176 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 120,
+ "timeout_seconds": 14400,
+ "hang_timeout_seconds": 900,
+ "mutations": [
+  {
+   "id": "M1",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+     "old": "    if probe_before[\"competing\"] is not True:\n        try:\n            captured = _capture(\n",
+     "new": "    if True:\n        try:\n            captured = _capture(\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M2",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+     "old": "    opened_measurement: object | None = None\n    if failure is None:\n        try:\n            opened_measurement = durable.open()\n        except Exception as exc:  # output-derived failures still terminalize\n            failure = _failure_evidence(\"open\", exc)\n    repetition_evidence: tuple[Mapping[str, object], ...] = ()\n    if failure is None:\n        repetition_evidence = tuple(dict(item) for item in private_rep_sink)\n",
+     "new": "    opened_measurement: object | None = None\n    repetition_evidence: tuple[Mapping[str, object], ...] = ()\n    if failure is None:\n        repetition_evidence = tuple(dict(item) for item in private_rep_sink)\n    if failure is None:\n        try:\n            opened_measurement = durable.open()\n        except Exception as exc:  # output-derived failures still terminalize\n            failure = _failure_evidence(\"open\", exc)\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M3",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+     "old": "        getattr(reservation.profile, \"schema\", None) is profile8b.S8B_V2_SCHEMA_PROFILE\n        or reservation.consumption_marker is not None\n",
+     "new": "        False\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M4",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+     "old": "        classification_authority=_CLASSIFICATION_AUTHORITY,\n",
+     "new": "        classification_authority=ClassificationAuthority(authority_id=\"caller-selected\", authority_policy_sha256=\"0\" * 64),\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M5",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+     "old": "    if actual_protocol_sha256 != bound_protocol_sha256:\n",
+     "new": "    if False and actual_protocol_sha256 != bound_protocol_sha256:\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M6",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+     "old": "        or capture_use_perf is not expected_use_perf\n",
+     "new": "        or False\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M7",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+     "old": "        probe_before[\"competing\"] is True\n        or (probe_after is not None and probe_after[\"competing\"] is True)\n",
+     "new": "        (probe_after is not None and probe_after[\"competing\"] is True)\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M8",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+     "old": "        \"probe_before\": _post_probe(probe_before),\n",
+     "new": "        \"probe_before\": None,\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M9",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+     "old": "    if set(result) != {\"rc\", \"stdout\", \"stderr\", \"competing\"}:\n",
+     "new": "    if not {\"rc\", \"stdout\", \"stderr\", \"competing\"} <= set(result):\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M10",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+     "old": "        except (RuntimeError, subprocess.TimeoutExpired, OSError) as exc:\n            failure = _failure_evidence(\"capture\", exc)\n",
+     "new": "        except (RuntimeError, subprocess.TimeoutExpired, OSError) as exc:\n            raise\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M11",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+     "old": "    if type(capture_reps) is not int or capture_reps != reps_expected:\n",
+     "new": "    if type(capture_reps) is not int:\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M12",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+     "old": "    if failure is None:\n        repetition_evidence = tuple(dict(item) for item in private_rep_sink)\n",
+     "new": "    if True:\n        repetition_evidence = tuple(dict(item) for item in private_rep_sink)\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}

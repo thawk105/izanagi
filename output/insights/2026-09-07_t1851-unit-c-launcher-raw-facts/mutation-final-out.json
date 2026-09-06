@@ -1,0 +1,928 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1851-unit-a/output/pegasus-dispatch/4c34564b599cd0326c32bb2d79874b64/izdw-4c34564b59.o979838",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1851-unit-a/output/pegasus-dispatch/4c34564b599cd0326c32bb2d79874b64/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 96%]\n...                                                                      [100%]\n75 passed in 32.09s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "3cc774898ff454b0d16f6e5c4914cf3e82fe27f3d152bd0168c89c8d714aca0d"
+    },
+    "artifact_error": null,
+    "collection_sha256": "85e49c34ba569449f08b3b195fd4df45859cc37e2db17cd7ac1f20a6cf724a3a",
+    "duration_s": 53.455,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "b6a4f4f79f76f197603ec85b2f4109ce0ff0603039dff279e91512180c79beb6",
+    "repo_head": "35ba02e1a290f50472f6f79402e8be5f039eb7f4",
+    "runner_sha256": "7492e53e696d8fda13f3a87e53b91a864eb2c1da49dc1e4ed8e44d774e8b39bc",
+    "spec_sha256": "e2eefcaea3590383c35f598d62919a340e587c541f99caceb0662f58b41757b0",
+    "status": "PASSED",
+    "test_output_sha256": "3cc774898ff454b0d16f6e5c4914cf3e82fe27f3d152bd0168c89c8d714aca0d",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "aed671bce9fcd922f437d6f49c745e858a78270ea49128a894a376b084f8b1cb"
+  },
+  "date": "2026-09-06T18:15:37.244323+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1851-unit-a/output/pegasus-dispatch/4f74a39d411e4b43137e95c48f726b39/izdw-4f74a39d41.o979841",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1851-unit-a/output/pegasus-dispatch/4f74a39d411e4b43137e95c48f726b39/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...................................................F.................... [ 96%]\n...                                                                      [100%]\n=================================== FAILURES ===================================\n___________ test_pre_probe_competition_terminalizes_without_capture ____________\n[gw22] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_pre_probe_competition_terminalizes_without_capture() -> None:\n        events: list[str] = []\n        registry = _RecorderRegistry(events)\n        probe_calls = 0\n    \n        def probe() -> dict[str, object]:\n            nonlocal probe_calls\n            probe_calls += 1\n            events.append(\"probe\")\n            return _probe(competing=True)\n    \n        def build(opened: launcher.OpenedFloorAttempt) -> launcher.FloorAttemptTerminal:\n            events.append(\"build-terminal\")\n            assert opened.measurement is None\n            assert opened.failure is None\n            assert opened.probe_after is None\n            assert opened.launch_failures == ()\n            assert opened.repetition_evidence == ()\n            return _terminal(opened)\n    \n>       result = launcher._launch_floor_attempt_for_test(\n            _reservation(), _genesis(), _measurement(),\n            post_probe=probe,\n            classified_at=lambda: \"2026-08-26T00:00:01+00:00\",\n            terminal_builder=build,\n            registry=registry,\n            capture_measure_point=lambda *_args, **_kwargs: pytest.fail(\n                \"capture must not run\"\n            ),\n        )\n\norchestrator/tests/test_s8b_floor_attempt_launcher.py:791: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/s8b_floor_attempt_launcher.py:896: in _launch_floor_attempt_for_test\n    return _launch_floor_attempt(\norchestrator/campaign/s8b_floor_attempt_launcher.py:771: in _launch_floor_attempt\n    captured = _capture(\norchestrator/campaign/s8b_floor_attempt_launcher.py:609: in _capture\n    return dependencies.capture_measure_point(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\n_args = ('/tmp/ycsb_test.exe', 1000, 4, 2400)\n_kwargs = {'extime': 3, 'reps': 3, 'use_perf': True, 'rep_observations': []}\n\n>       capture_measure_point=lambda *_args, **_kwargs: pytest.fail(\n            \"capture must not run\"\n        ),\n    )\nE   Failed: capture must not run\n\norchestrator/tests/test_s8b_floor_attempt_launcher.py:797: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_pre_probe_competition_terminalizes_without_capture\n1 failed, 74 passed in 32.17s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_pre_probe_competition_terminalizes_without_capture\" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=2150 retained_bytes=2150 omitted_bytes=0 rendered_excerpt_bytes=2257 sha256=e368bcf5869ef42093c6d05ce21c87d08d50059efeb682c7496f1ad94fdcc085\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw22] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_pre_probe_competition_terminalizes_without_capture() -> None:\n>         events: list[str] = []\n>         registry = _RecorderRegistry(events)\n>         probe_calls = 0\n>     \n>         def probe() -> dict[str, object]:\n>             nonlocal probe_calls\n>             probe_calls += 1\n>             events.append(\"probe\")\n>             return _probe(competing=True)\n>     \n>         def build(opened: launcher.OpenedFloorAttempt) -> launcher.FloorAttemptTerminal:\n>             events.append(\"build-terminal\")\n>             assert opened.measurement is None\n>             assert opened.failure is None\n>             assert opened.probe_after is None\n>             assert opened.launch_failures == ()\n>             assert opened.repetition_evidence == ()\n>             return _terminal(opened)\n>     \n> >       result = launcher._launch_floor_attempt_for_test(\n>             _reservation(), _genesis(), _measurement(),\n>             post_probe=probe,\n>             classified_at=lambda: \"2026-08-26T00:00:01+00:00\",\n>             terminal_builder=build,\n>             registry=registry,\n>             capture_measure_point=lambda *_args, **_kwargs: pytest.fail(\n>                 \"capture must not run\"\n>             ),\n>         )\n> \n> orchestrator/tests/test_s8b_floor_attempt_launcher.py:791: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/s8b_floor_attempt_launcher.py:896: in _launch_floor_attempt_for_test\n>     return _launch_floor_attempt(\n> orchestrator/campaign/s8b_floor_attempt_launcher.py:771: in _launch_floor_attempt\n>     captured = _capture(\n> orchestrator/campaign/s8b_floor_attempt_launcher.py:609: in _capture\n>     return dependencies.capture_measure_point(\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> _args = ('/tmp/ycsb_test.exe', 1000, 4, 2400)\n> _kwargs = {'extime': 3, 'reps': 3, 'use_perf': True, 'rep_observations': []}\n> \n> >       capture_measure_point=lambda *_args, **_kwargs: pytest.fail(\n>             \"capture must not run\"\n>         ),\n>     )\n> E   Failed: capture must not run\n> \n> orchestrator/tests/test_s8b_floor_attempt_launcher.py:797: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2150 retained_bytes=2150 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2995 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "52e307e5f8a5fb5fc0bd8bcbad68cb4c31a4ab7d161215bb4c9fbfe968b9d834"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "85e49c34ba569449f08b3b195fd4df45859cc37e2db17cd7ac1f20a6cf724a3a",
+      "duration_s": 57.748,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_pre_probe_competition_terminalizes_without_capture"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_pre_probe_competition_terminalizes_without_capture"
+      ],
+      "hang_risk": false,
+      "id": "M1",
+      "injection_diff_sha256": "b64263c06ac9e00cdda975787d5ec450c6820659f5197a2fca62ff5f433a55fc",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "d3841ec55ad2f508752ed4779801926b7494f8a0b0d357bb3b8043c135af025a",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+          "new": "    if True:\n        try:\n            captured = _capture(\n",
+          "old": "    if probe_before[\"competing\"] is not True:\n        try:\n            captured = _capture(\n"
+        }
+      ],
+      "repo_head": "35ba02e1a290f50472f6f79402e8be5f039eb7f4",
+      "runner_sha256": "7492e53e696d8fda13f3a87e53b91a864eb2c1da49dc1e4ed8e44d774e8b39bc",
+      "spec_sha256": "e2eefcaea3590383c35f598d62919a340e587c541f99caceb0662f58b41757b0",
+      "status": "KILLED",
+      "test_output_sha256": "52e307e5f8a5fb5fc0bd8bcbad68cb4c31a4ab7d161215bb4c9fbfe968b9d834",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "aed671bce9fcd922f437d6f49c745e858a78270ea49128a894a376b084f8b1cb"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1851-unit-a/output/pegasus-dispatch/ab0043d813faef30ef707792a2ee3c87/izdw-ab0043d813.o979846",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1851-unit-a/output/pegasus-dispatch/ab0043d813faef30ef707792a2ee3c87/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...................................................F.................... [ 96%]\n...                                                                      [100%]\n=================================== FAILURES ===================================\n____________ test_private_rep_sink_snapshot_occurs_after_token_open ____________\n[gw23] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_private_rep_sink_snapshot_occurs_after_token_open() -> None:\n        events: list[str] = []\n        token = _Token(events)\n    \n        def capture(*_args: object, **kwargs: object) -> _Token:\n            assert token.opened is False and token._rep_sink is None\n            _bind_sink(token, kwargs)\n            assert token._rep_sink == []\n            return token\n    \n        def build(opened: launcher.OpenedFloorAttempt) -> launcher.FloorAttemptTerminal:\n            assert token.opened is True and opened.measurement is token\n            assert opened.repetition_evidence == (\n                {\n                    \"rep_index\": 0, \"returncode\": 0, \"counter_status\": \"available\",\n                    \"missing_perf_events\": [], \"perf_raw\": {}, \"throughput\": 101.0,\n                },\n                {\n                    \"rep_index\": 1, \"returncode\": 0, \"counter_status\": \"available\",\n                    \"missing_perf_events\": [], \"perf_raw\": {}, \"throughput\": 102.0,\n                },\n                {\n                    \"rep_index\": 2, \"returncode\": 0, \"counter_status\": \"available\",\n                    \"missing_perf_events\": [], \"perf_raw\": {}, \"throughput\": 103.0,\n                },\n            )\n            assert token.rep_observations == [{\"source\": \"public measurement view\"}]\n            assert (opened.expected_use_perf, opened.reps_expected) == (True, 3)\n            return _terminal(opened)\n    \n>       result = launcher._launch_floor_attempt_for_test(\n            _reservation(), _genesis(), _measurement(), post_probe=_probe,\n            classified_at=lambda: \"2026-08-26T00:00:01+00:00\",\n            terminal_builder=build, registry=_RecorderRegistry(events),\n            capture_measure_point=capture,\n        )\n\norchestrator/tests/test_s8b_floor_attempt_launcher.py:842: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/s8b_floor_attempt_launcher.py:896: in _launch_floor_attempt_for_test\n    return _launch_floor_attempt(\norchestrator/campaign/s8b_floor_attempt_launcher.py:830: in _launch_floor_attempt\n    terminal = terminal_builder(opened)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nopened = OpenedFloorAttempt(measurement=<test_s8b_floor_attempt_launcher._Token object at 0x15124e67edd0>, failure=None, probe_...2ac7112387c54dad0bf869d99a4d26299d61709e2c225df41daa', repetition_evidence=(), expected_use_perf=True, reps_expected=3)\n\n    def build(opened: launcher.OpenedFloorAttempt) -> launcher.FloorAttemptTerminal:\n        assert token.opened is True and opened.measurement is token\n>       assert opened.repetition_evidence == (\n            {\n                \"rep_index\": 0, \"returncode\": 0, \"counter_status\": \"available\",\n                \"missing_perf_events\": [], \"perf_raw\": {}, \"throughput\": 101.0,\n            },\n            {\n                \"rep_index\": 1, \"returncode\": 0, \"counter_status\": \"available\",\n                \"missing_perf_events\": [], \"perf_raw\": {}, \"throughput\": 102.0,\n            },\n            {\n                \"rep_index\": 2, \"returncode\": 0, \"counter_status\": \"available\",\n                \"missing_perf_events\": [], \"perf_raw\": {}, \"throughput\": 103.0,\n            },\n        )\nE       AssertionError: assert () == ({'rep_index'...ts': [], ...})\nE         \nE         Right contains 3 more items, first extra item: {'rep_index': 0, 'returncode': 0, 'counter_status': 'available', 'missing_perf_events': [], ...}\nE         Use -v to get more diff\n\norchestrator/tests/test_s8b_floor_attempt_launcher.py:824: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_private_rep_sink_snapshot_occurs_after_token_open\n1 failed, 74 passed in 32.11s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_private_rep_sink_snapshot_occurs_after_token_open\" nodeid_bytes=109 nodeid_omitted_bytes=0 source_bytes=3642 retained_bytes=3642 omitted_bytes=0 rendered_excerpt_bytes=3785 sha256=33f8db5f0b2ba881343da165d9619296fd1e6ac17ed02531ab5fcef932012a31\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw23] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_private_rep_sink_snapshot_occurs_after_token_open() -> None:\n>         events: list[str] = []\n>         token = _Token(events)\n>     \n>         def capture(*_args: object, **kwargs: object) -> _Token:\n>             assert token.opened is False and token._rep_sink is None\n>             _bind_sink(token, kwargs)\n>             assert token._rep_sink == []\n>             return token\n>     \n>         def build(opened: launcher.OpenedFloorAttempt) -> launcher.FloorAttemptTerminal:\n>             assert token.opened is True and opened.measurement is token\n>             assert opened.repetition_evidence == (\n>                 {\n>                     \"rep_index\": 0, \"returncode\": 0, \"counter_status\": \"available\",\n>                     \"missing_perf_events\": [], \"perf_raw\": {}, \"throughput\": 101.0,\n>                 },\n>                 {\n>                     \"rep_index\": 1, \"returncode\": 0, \"counter_status\": \"available\",\n>                     \"missing_perf_events\": [], \"perf_raw\": {}, \"throughput\": 102.0,\n>                 },\n>                 {\n>                     \"rep_index\": 2, \"returncode\": 0, \"counter_status\": \"available\",\n>                     \"missing_perf_events\": [], \"perf_raw\": {}, \"throughput\": 103.0,\n>                 },\n>             )\n>             assert token.rep_observations == [{\"source\": \"public measurement view\"}]\n>             assert (opened.expected_use_perf, opened.reps_expected) == (True, 3)\n>             return _terminal(opened)\n>     \n> >       result = launcher._launch_floor_attempt_for_test(\n>             _reservation(), _genesis(), _measurement(), post_probe=_probe,\n>             classified_at=lambda: \"2026-08-26T00:00:01+00:00\",\n>             terminal_builder=build, registry=_RecorderRegistry(events),\n>             capture_measure_point=capture,\n>         )\n> \n> orchestrator/tests/test_s8b_floor_attempt_launcher.py:842: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/s8b_floor_attempt_launcher.py:896: in _launch_floor_attempt_for_test\n>     return _launch_floor_attempt(\n> orchestrator/campaign/s8b_floor_attempt_launcher.py:830: in _launch_floor_attempt\n>     terminal = terminal_builder(opened)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> opened = OpenedFloorAttempt(measurement=<test_s8b_floor_attempt_launcher._Token object at 0x15124e67edd0>, failure=None, probe_...2ac7112387c54dad0bf869d99a4d26299d61709e2c225df41daa', repetition_evidence=(), expected_use_perf=True, reps_expected=3)\n> \n>     def build(opened: launcher.OpenedFloorAttempt) -> launcher.FloorAttemptTerminal:\n>         assert token.opened is True and opened.measurement is token\n> >       assert opened.repetition_evidence == (\n>             {\n>                 \"rep_index\": 0, \"returncode\": 0, \"counter_status\": \"available\",\n>                 \"missing_perf_events\": [], \"perf_raw\": {}, \"throughput\": 101.0,\n>             },\n>             {\n>                 \"rep_index\": 1, \"returncode\": 0, \"counter_status\": \"available\",\n>                 \"missing_perf_events\": [], \"perf_raw\": {}, \"throughput\": 102.0,\n>             },\n>             {\n>                 \"rep_index\": 2, \"returncode\": 0, \"counter_status\": \"available\",\n>                 \"missing_perf_events\": [], \"perf_raw\": {}, \"throughput\": 103.0,\n>             },\n>         )\n> E       AssertionError: assert () == ({'rep_index'...ts': [], ...})\n> E         \n> E         Right contains 3 more items, first extra item: {'rep_index': 0, 'returncode': 0, 'counter_status': 'available', 'missing_perf_events': [], ...}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_s8b_floor_attempt_launcher.py:824: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=3642 retained_bytes=3642 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4522 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "f3a0cc2335663dd29064f03faba8b714d9277c4e584c8158839262973b862a51"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "85e49c34ba569449f08b3b195fd4df45859cc37e2db17cd7ac1f20a6cf724a3a",
+      "duration_s": 52.993,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_private_rep_sink_snapshot_occurs_after_token_open"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_private_rep_sink_snapshot_occurs_after_token_open"
+      ],
+      "hang_risk": false,
+      "id": "M2",
+      "injection_diff_sha256": "46679020ef8d5ba9549434819056766ce21aec170109ffd8d8e2de2259b96e45",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "d14670a4951a593674e0ac96a33091944fdc7fc18f043b951ce77f8016fa3008",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+          "new": "    opened_measurement: object | None = None\n    repetition_evidence: tuple[Mapping[str, object], ...] = ()\n    if failure is None:\n        repetition_evidence = tuple(dict(item) for item in private_rep_sink)\n    if failure is None:\n        try:\n            opened_measurement = durable.open()\n        except Exception as exc:  # output-derived failures still terminalize\n            failure = _failure_evidence(\"open\", exc)\n",
+          "old": "    opened_measurement: object | None = None\n    if failure is None:\n        try:\n            opened_measurement = durable.open()\n        except Exception as exc:  # output-derived failures still terminalize\n            failure = _failure_evidence(\"open\", exc)\n    repetition_evidence: tuple[Mapping[str, object], ...] = ()\n    if failure is None:\n        repetition_evidence = tuple(dict(item) for item in private_rep_sink)\n"
+        }
+      ],
+      "repo_head": "35ba02e1a290f50472f6f79402e8be5f039eb7f4",
+      "runner_sha256": "7492e53e696d8fda13f3a87e53b91a864eb2c1da49dc1e4ed8e44d774e8b39bc",
+      "spec_sha256": "e2eefcaea3590383c35f598d62919a340e587c541f99caceb0662f58b41757b0",
+      "status": "KILLED",
+      "test_output_sha256": "f3a0cc2335663dd29064f03faba8b714d9277c4e584c8158839262973b862a51",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "aed671bce9fcd922f437d6f49c745e858a78270ea49128a894a376b084f8b1cb"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1851-unit-a/output/pegasus-dispatch/7be9f2cc8c87ebe4e471e6e0cfbad1c3/izdw-7be9f2cc8c.o979849",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1851-unit-a/output/pegasus-dispatch/7be9f2cc8c87ebe4e471e6e0cfbad1c3/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..........................................................F............. [ 96%]\n...                                                                      [100%]\n=================================== FAILURES ===================================\n_________ test_v2_profile_is_rejected_before_any_registry_side_effect __________\n[gw25] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_v2_profile_is_rejected_before_any_registry_side_effect() -> None:\n        class _V2Profile(_Profile):\n            schema = s8b_attempt_profile.S8B_V2_SCHEMA_PROFILE\n    \n        events: list[str] = []\n        registry = _RecorderRegistry(events)\n        reservations = (\n            replace(_reservation(), profile=_V2Profile()),\n            replace(_reservation(), consumption_marker=object()),\n        )\n        for reservation in reservations:\n            with pytest.raises(\n                launcher.FloorAttemptLauncherError,\n                match=r\"^\\[s8b-launcher-v2-terminal\\]\",\n            ):\n>               launcher._launch_floor_attempt_for_test(\n                    reservation, _genesis(), _measurement(), post_probe=pytest.fail,\n                    classified_at=lambda: \"2026-08-26T00:00:01+00:00\",\n                    terminal_builder=pytest.fail, registry=registry,\n                    capture_measure_point=pytest.fail,\n                )\n\norchestrator/tests/test_s8b_floor_attempt_launcher.py:907: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/s8b_floor_attempt_launcher.py:895: in _launch_floor_attempt_for_test\n    return _launch_floor_attempt(\norchestrator/campaign/s8b_floor_attempt_launcher.py:762: in _launch_floor_attempt\n    probe_before = post_probe_reader(post_probe_capability)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncapability = FloorPostProbeCapability()\n\n    def _post_probe_for_test(\n        capability: FloorPostProbeCapability,\n    ) -> dict[str, object]:\n        if (\n            type(capability) is not FloorPostProbeCapability\n            or capability._seal is not _POST_PROBE_CAPABILITY_SEAL\n            or not callable(capability._probe)\n        ):\n            raise FloorAttemptLauncherError(\"test post-probe capability is invalid\")\n>       return _post_probe(capability._probe())\nE       Failed\n\norchestrator/campaign/s8b_floor_attempt_launcher.py:358: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_v2_profile_is_rejected_before_any_registry_side_effect\n1 failed, 74 passed in 32.05s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_v2_profile_is_rejected_before_any_registry_side_effect\" nodeid_bytes=114 nodeid_omitted_bytes=0 source_bytes=2065 retained_bytes=2065 omitted_bytes=0 rendered_excerpt_bytes=2166 sha256=2a9e37b6a2f03df5de219bac73ca9df0c0d44b675f64987a9015b578a3f7c295\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw25] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_v2_profile_is_rejected_before_any_registry_side_effect() -> None:\n>         class _V2Profile(_Profile):\n>             schema = s8b_attempt_profile.S8B_V2_SCHEMA_PROFILE\n>     \n>         events: list[str] = []\n>         registry = _RecorderRegistry(events)\n>         reservations = (\n>             replace(_reservation(), profile=_V2Profile()),\n>             replace(_reservation(), consumption_marker=object()),\n>         )\n>         for reservation in reservations:\n>             with pytest.raises(\n>                 launcher.FloorAttemptLauncherError,\n>                 match=r\"^\\x5c[s8b-launcher-v2-terminal\\x5c]\",\n>             ):\n> >               launcher._launch_floor_attempt_for_test(\n>                     reservation, _genesis(), _measurement(), post_probe=pytest.fail,\n>                     classified_at=lambda: \"2026-08-26T00:00:01+00:00\",\n>                     terminal_builder=pytest.fail, registry=registry,\n>                     capture_measure_point=pytest.fail,\n>                 )\n> \n> orchestrator/tests/test_s8b_floor_attempt_launcher.py:907: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/s8b_floor_attempt_launcher.py:895: in _launch_floor_attempt_for_test\n>     return _launch_floor_attempt(\n> orchestrator/campaign/s8b_floor_attempt_launcher.py:762: in _launch_floor_attempt\n>     probe_before = post_probe_reader(post_probe_capability)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> capability = FloorPostProbeCapability()\n> \n>     def _post_probe_for_test(\n>         capability: FloorPostProbeCapability,\n>     ) -> dict[str, object]:\n>         if (\n>             type(capability) is not FloorPostProbeCapability\n>             or capability._seal is not _POST_PROBE_CAPABILITY_SEAL\n>             or not callable(capability._probe)\n>         ):\n>             raise FloorAttemptLauncherError(\"test post-probe capability is invalid\")\n> >       return _post_probe(capability._probe())\n> E       Failed\n> \n> orchestrator/campaign/s8b_floor_attempt_launcher.py:358: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2065 retained_bytes=2065 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2908 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "7d6962f88fbbf1176e616890296ac6ed91b909861344c6c525c2666a50fb2c1b"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "85e49c34ba569449f08b3b195fd4df45859cc37e2db17cd7ac1f20a6cf724a3a",
+      "duration_s": 52.676,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_v2_profile_is_rejected_before_any_registry_side_effect"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_v2_profile_is_rejected_before_any_registry_side_effect"
+      ],
+      "hang_risk": false,
+      "id": "M3",
+      "injection_diff_sha256": "c132902fc4aee736f06df2b0d4889ab53539d986554fb2989b175bfcbea15c0f",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "da75fca9bb067abd7e672cd15c9d74d770f1e34bd65be16fd2a424a02d479f01",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+          "new": "        False\n",
+          "old": "        getattr(reservation.profile, \"schema\", None) is profile8b.S8B_V2_SCHEMA_PROFILE\n        or reservation.consumption_marker is not None\n"
+        }
+      ],
+      "repo_head": "35ba02e1a290f50472f6f79402e8be5f039eb7f4",
+      "runner_sha256": "7492e53e696d8fda13f3a87e53b91a864eb2c1da49dc1e4ed8e44d774e8b39bc",
+      "spec_sha256": "e2eefcaea3590383c35f598d62919a340e587c541f99caceb0662f58b41757b0",
+      "status": "KILLED",
+      "test_output_sha256": "7d6962f88fbbf1176e616890296ac6ed91b909861344c6c525c2666a50fb2c1b",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "aed671bce9fcd922f437d6f49c745e858a78270ea49128a894a376b084f8b1cb"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1851-unit-a/output/pegasus-dispatch/4717f602fcbd6031870686bf07ae0117/izdw-4717f602fc.o979851",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1851-unit-a/output/pegasus-dispatch/4717f602fcbd6031870686bf07ae0117/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...................................................F.................... [ 96%]\n...                                                                      [100%]\n=================================== FAILURES ===================================\n_______________ test_certified_api_owns_classification_authority _______________\n[gw26] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1500b47c2a10>\n\n    def test_certified_api_owns_classification_authority(\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        assert \"classification_authority\" not in inspect.signature(\n            launcher.launch_floor_attempt\n        ).parameters\n        events: list[str] = []\n        registry = _RecorderRegistry(events)\n        token = _Token(events)\n    \n        monkeypatch.setattr(\n            launcher, \"_PRODUCTION_DEPENDENCIES\",\n            launcher._LauncherDependencies(registry, _capture_token(token)),\n        )\n        monkeypatch.setattr(launcher, \"_owned_post_probe\", _probe)\n        launcher.launch_floor_attempt(\n            _reservation(), _genesis(), _measurement(),\n            post_probe=launcher.floor_post_probe_capability(),\n            classified_at=lambda: \"2026-08-26T00:00:01+00:00\",\n            terminal_builder=_terminal,\n        )\n        authority = launcher._CLASSIFICATION_AUTHORITY\n        assert authority.authority_id == (\n            \"s8b-floor-attempt-launcher/pre-output-classification/v1\"\n        )\n        assert launcher._CLASSIFICATION_POLICY == {\n            \"schema\": \"s8b-floor-pre-output-classification/v1\",\n            \"precedence\": [\"competing_process\", \"launch_failure\"],\n            \"probe_argv\": [\"pgrep\", \"-af\", r\"ycsb_.*\\.exe\"],\n            \"probe_timeout_s\": 120.0,\n        }\n>       assert registry.classification_kwargs[\"authority_id\"] == authority.authority_id\nE       AssertionError: assert 'caller-selected' == 's8b-floor-at...sification/v1'\nE         \nE         - s8b-floor-attempt-launcher/pre-output-classification/v1\nE         + caller-selected\n\norchestrator/tests/test_s8b_floor_attempt_launcher.py:948: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_certified_api_owns_classification_authority\n1 failed, 74 passed in 31.75s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_certified_api_owns_classification_authority\" nodeid_bytes=103 nodeid_omitted_bytes=0 source_bytes=1805 retained_bytes=1805 omitted_bytes=0 rendered_excerpt_bytes=1893 sha256=2fdb469fa47c617f98f1371610510554e73fa553b349f1a1aaa1a4439b54b83e\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw26] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1500b47c2a10>\n> \n>     def test_certified_api_owns_classification_authority(\n>         monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         assert \"classification_authority\" not in inspect.signature(\n>             launcher.launch_floor_attempt\n>         ).parameters\n>         events: list[str] = []\n>         registry = _RecorderRegistry(events)\n>         token = _Token(events)\n>     \n>         monkeypatch.setattr(\n>             launcher, \"_PRODUCTION_DEPENDENCIES\",\n>             launcher._LauncherDependencies(registry, _capture_token(token)),\n>         )\n>         monkeypatch.setattr(launcher, \"_owned_post_probe\", _probe)\n>         launcher.launch_floor_attempt(\n>             _reservation(), _genesis(), _measurement(),\n>             post_probe=launcher.floor_post_probe_capability(),\n>             classified_at=lambda: \"2026-08-26T00:00:01+00:00\",\n>             terminal_builder=_terminal,\n>         )\n>         authority = launcher._CLASSIFICATION_AUTHORITY\n>         assert authority.authority_id == (\n>             \"s8b-floor-attempt-launcher/pre-output-classification/v1\"\n>         )\n>         assert launcher._CLASSIFICATION_POLICY == {\n>             \"schema\": \"s8b-floor-pre-output-classification/v1\",\n>             \"precedence\": [\"competing_process\", \"launch_failure\"],\n>             \"probe_argv\": [\"pgrep\", \"-af\", r\"ycsb_.*\\x5c.exe\"],\n>             \"probe_timeout_s\": 120.0,\n>         }\n> >       assert registry.classification_kwargs[\"authority_id\"] == authority.authority_id\n> E       AssertionError: assert 'caller-selected' == 's8b-floor-at...sification/v1'\n> E         \n> E         - s8b-floor-attempt-launcher/pre-output-classification/v1\n> E         + caller-selected\n> \n> orchestrator/tests/test_s8b_floor_attempt_launcher.py:948: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1805 retained_bytes=1805 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2624 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "8f449451b87eca11f2a2e9a7f2b17fc06e17f7634bb9eef27ad48df5340dc8b6"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "85e49c34ba569449f08b3b195fd4df45859cc37e2db17cd7ac1f20a6cf724a3a",
+      "duration_s": 52.727,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_certified_api_owns_classification_authority"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_certified_api_owns_classification_authority"
+      ],
+      "hang_risk": false,
+      "id": "M4",
+      "injection_diff_sha256": "faffa2b37d863b5ef770576163b5b6c66b1dd1b3188a3067a1d50d31e3414c34",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "927686d2d05204af5d0b3e647c6c11cfe64043b8c0b5d19d2b2a84fd2f63a610",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+          "new": "        classification_authority=ClassificationAuthority(authority_id=\"caller-selected\", authority_policy_sha256=\"0\" * 64),\n",
+          "old": "        classification_authority=_CLASSIFICATION_AUTHORITY,\n"
+        }
+      ],
+      "repo_head": "35ba02e1a290f50472f6f79402e8be5f039eb7f4",
+      "runner_sha256": "7492e53e696d8fda13f3a87e53b91a864eb2c1da49dc1e4ed8e44d774e8b39bc",
+      "spec_sha256": "e2eefcaea3590383c35f598d62919a340e587c541f99caceb0662f58b41757b0",
+      "status": "KILLED",
+      "test_output_sha256": "8f449451b87eca11f2a2e9a7f2b17fc06e17f7634bb9eef27ad48df5340dc8b6",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "aed671bce9fcd922f437d6f49c745e858a78270ea49128a894a376b084f8b1cb"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1851-unit-a/output/pegasus-dispatch/11108081fd1e5bf5c0a352ccbe42f909/izdw-11108081fd.o979852",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1851-unit-a/output/pegasus-dispatch/11108081fd1e5bf5c0a352ccbe42f909/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n....................................................F................... [ 96%]\n...                                                                      [100%]\n=================================== FAILURES ===================================\n____________ test_reservation_rejects_protocol_not_bound_to_binding ____________\n[gw27] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_reservation_rejects_protocol_not_bound_to_binding() -> None:\n        policy = launcher._checked_reservation_policy(_reservation(), _measurement())\n        assert policy.capture_keyword_arguments == _measurement().keyword_arguments\n        reservation = replace(\n            _reservation(), protocol={\"reps\": 3, \"session_cv_max\": \"0.10\"},\n        )\n>       with pytest.raises(\n            launcher.FloorAttemptLauncherError, match=\"not bound\",\n        ):\nE       Failed: DID NOT RAISE FloorAttemptLauncherError\n\norchestrator/tests/test_s8b_floor_attempt_launcher.py:964: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_reservation_rejects_protocol_not_bound_to_binding\n1 failed, 74 passed in 32.14s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_reservation_rejects_protocol_not_bound_to_binding\" nodeid_bytes=109 nodeid_omitted_bytes=0 source_bytes=637 retained_bytes=637 omitted_bytes=0 rendered_excerpt_bytes=666 sha256=bf1ac28cdf854da5b9d735b32a49243e854a3d13156ff66523b0fd13483b29ea\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw27] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_reservation_rejects_protocol_not_bound_to_binding() -> None:\n>         policy = launcher._checked_reservation_policy(_reservation(), _measurement())\n>         assert policy.capture_keyword_arguments == _measurement().keyword_arguments\n>         reservation = replace(\n>             _reservation(), protocol={\"reps\": 3, \"session_cv_max\": \"0.10\"},\n>         )\n> >       with pytest.raises(\n>             launcher.FloorAttemptLauncherError, match=\"not bound\",\n>         ):\n> E       Failed: DID NOT RAISE FloorAttemptLauncherError\n> \n> orchestrator/tests/test_s8b_floor_attempt_launcher.py:964: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=637 retained_bytes=637 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1398 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "00e6f9272a0ae1b1989695911c4730b12f73ff785f406cd42ac2847012d7b028"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "85e49c34ba569449f08b3b195fd4df45859cc37e2db17cd7ac1f20a6cf724a3a",
+      "duration_s": 52.761,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_reservation_rejects_protocol_not_bound_to_binding"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_reservation_rejects_protocol_not_bound_to_binding"
+      ],
+      "hang_risk": false,
+      "id": "M5",
+      "injection_diff_sha256": "b68a7bf5ba7b82faa0f85358e06db295d6595836c3066c4371751a350d9b8f82",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "3db40971c909eebc994a61bc953203ffe0a2e8bc17958d01b758f5b3c75b46ef",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+          "new": "    if False and actual_protocol_sha256 != bound_protocol_sha256:\n",
+          "old": "    if actual_protocol_sha256 != bound_protocol_sha256:\n"
+        }
+      ],
+      "repo_head": "35ba02e1a290f50472f6f79402e8be5f039eb7f4",
+      "runner_sha256": "7492e53e696d8fda13f3a87e53b91a864eb2c1da49dc1e4ed8e44d774e8b39bc",
+      "spec_sha256": "e2eefcaea3590383c35f598d62919a340e587c541f99caceb0662f58b41757b0",
+      "status": "KILLED",
+      "test_output_sha256": "00e6f9272a0ae1b1989695911c4730b12f73ff785f406cd42ac2847012d7b028",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "aed671bce9fcd922f437d6f49c745e858a78270ea49128a894a376b084f8b1cb"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1851-unit-a/output/pegasus-dispatch/49040d462e338344a9bffd2955f40fd8/izdw-49040d462e.o979854",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1851-unit-a/output/pegasus-dispatch/49040d462e338344a9bffd2955f40fd8/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n....................................................F................... [ 96%]\n...                                                                      [100%]\n=================================== FAILURES ===================================\n__________________ test_use_perf_must_be_derived_from_receipt __________________\n[gw28] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_use_perf_must_be_derived_from_receipt() -> None:\n        policy = launcher._checked_reservation_policy(_reservation(), _measurement())\n        assert policy.expected_use_perf is True\n        reservation = replace(\n            _reservation(), perf_preflight_receipt=_unavailable_receipt(),\n        )\n>       with pytest.raises(\n            launcher.FloorAttemptLauncherError, match=\"use_perf differs\",\n        ):\nE       Failed: DID NOT RAISE FloorAttemptLauncherError\n\norchestrator/tests/test_s8b_floor_attempt_launcher.py:976: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_use_perf_must_be_derived_from_receipt\n1 failed, 74 passed in 31.91s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_use_perf_must_be_derived_from_receipt\" nodeid_bytes=97 nodeid_omitted_bytes=0 source_bytes=595 retained_bytes=595 omitted_bytes=0 rendered_excerpt_bytes=624 sha256=640812e5719ecf4eb2a43469030692fb603a2ebe1dad93b49ae8a2e96c2f9a9e\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw28] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_use_perf_must_be_derived_from_receipt() -> None:\n>         policy = launcher._checked_reservation_policy(_reservation(), _measurement())\n>         assert policy.expected_use_perf is True\n>         reservation = replace(\n>             _reservation(), perf_preflight_receipt=_unavailable_receipt(),\n>         )\n> >       with pytest.raises(\n>             launcher.FloorAttemptLauncherError, match=\"use_perf differs\",\n>         ):\n> E       Failed: DID NOT RAISE FloorAttemptLauncherError\n> \n> orchestrator/tests/test_s8b_floor_attempt_launcher.py:976: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=595 retained_bytes=595 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1343 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "195b5f44cf375915df266b2fc2897828cdfcc378b6ae2a1a3c9a9dd49953d048"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "85e49c34ba569449f08b3b195fd4df45859cc37e2db17cd7ac1f20a6cf724a3a",
+      "duration_s": 52.673,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_use_perf_must_be_derived_from_receipt"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_use_perf_must_be_derived_from_receipt"
+      ],
+      "hang_risk": false,
+      "id": "M6",
+      "injection_diff_sha256": "5d5e8356f83a81f9d3d7351134eecc277c75fda241e55daa3d85ef9f8c5a65d8",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "f6053256ad43638798ec496d2f6a647bf41a83a63e5eee628cb02f0fcea210c6",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+          "new": "        or False\n",
+          "old": "        or capture_use_perf is not expected_use_perf\n"
+        }
+      ],
+      "repo_head": "35ba02e1a290f50472f6f79402e8be5f039eb7f4",
+      "runner_sha256": "7492e53e696d8fda13f3a87e53b91a864eb2c1da49dc1e4ed8e44d774e8b39bc",
+      "spec_sha256": "e2eefcaea3590383c35f598d62919a340e587c541f99caceb0662f58b41757b0",
+      "status": "KILLED",
+      "test_output_sha256": "195b5f44cf375915df266b2fc2897828cdfcc378b6ae2a1a3c9a9dd49953d048",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "aed671bce9fcd922f437d6f49c745e858a78270ea49128a894a376b084f8b1cb"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1851-unit-a/output/pegasus-dispatch/d9c425434bff2fd0a7ae60a173018ea0/izdw-d9c425434b.o979856",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1851-unit-a/output/pegasus-dispatch/d9c425434bff2fd0a7ae60a173018ea0/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..................................................FF.................... [ 96%]\n...                                                                      [100%]\n=================================== FAILURES ===================================\n______________ test_pre_probe_competition_classifies_as_competing ______________\n[gw34] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_pre_probe_competition_classifies_as_competing() -> None:\n        launch_failure = calibrator_runner.MeasurementLaunchFailure(\"OSError\", 5, \"failed\")\n        competing = launcher.POST_PROBE_COMPETING_REASON\n        launch = launcher.MEASUREMENT_LAUNCH_FAILURE_REASON\n        cases = (\n            (_probe(competing=True), _probe(), (), None, competing),\n            (_probe(), _probe(competing=True), (), None, competing),\n            (_probe(), _probe(), (launch_failure,), None, launch),\n            (_probe(), _probe(), (), {\"stage\": \"capture\"}, launch),\n            (_probe(), _probe(), (), None, None),\n        )\n        for before, after, failures, failure, expected in cases:\n>           assert launcher._pre_observation_failure_reason(\n                probe_before=before, probe_after=after,\n                launch_failures=failures, failure=failure,\n            ) == expected\nE           AssertionError: assert None == 'competing_process'\nE            +  where None = <function _pre_observation_failure_reason at 0x147b2b4af490>(probe_before={'rc': 0, 'stdout': '999 ycsb_other.exe\\n', 'stderr': '', 'competing': True}, probe_after={'rc': 1, 'stdout': '', 'stderr': '', 'competing': False}, launch_failures=(), failure=None)\nE            +    where <function _pre_observation_failure_reason at 0x147b2b4af490> = launcher._pre_observation_failure_reason\n\norchestrator/tests/test_s8b_floor_attempt_launcher.py:1029: AssertionError\n___________ test_pre_probe_competition_terminalizes_without_capture ____________\n[gw22] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_pre_probe_competition_terminalizes_without_capture() -> None:\n        events: list[str] = []\n        registry = _RecorderRegistry(events)\n        probe_calls = 0\n    \n        def probe() -> dict[str, object]:\n            nonlocal probe_calls\n            probe_calls += 1\n            events.append(\"probe\")\n            return _probe(competing=True)\n    \n        def build(opened: launcher.OpenedFloorAttempt) -> launcher.FloorAttemptTerminal:\n            events.append(\"build-terminal\")\n            assert opened.measurement is None\n            assert opened.failure is None\n            assert opened.probe_after is None\n            assert opened.launch_failures == ()\n            assert opened.repetition_evidence == ()\n            return _terminal(opened)\n    \n        result = launcher._launch_floor_attempt_for_test(\n            _reservation(), _genesis(), _measurement(),\n            post_probe=probe,\n            classified_at=lambda: \"2026-08-26T00:00:01+00:00\",\n            terminal_builder=build,\n            registry=registry,\n            capture_measure_point=lambda *_args, **_kwargs: pytest.fail(\n                \"capture must not run\"\n            ),\n        )\n    \n        assert probe_calls == 1\n>       assert events == [\n            \"reserve\", \"probe\", \"classify\", \"build-terminal\",\n            \"observe-failure\", \"terminal\",\n        ]\nE       AssertionError: assert ['reserve', '...', 'terminal'] == ['reserve', '...', 'terminal']\nE         \nE         At index 4 diff: 'observe-success' != 'observe-failure'\nE         Use -v to get more diff\n\norchestrator/tests/test_s8b_floor_attempt_launcher.py:803: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_pre_probe_competition_classifies_as_competing\nFAILED orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_pre_probe_competition_terminalizes_without_capture\n2 failed, 73 passed in 31.90s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_pre_probe_competition_terminalizes_without_capture\" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=1694 retained_bytes=1694 omitted_bytes=0 rendered_excerpt_bytes=1783 sha256=0e3b180bb379840b33071d9e1ffaa646e9516d5672b1d989fad9f9077ae5848e\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw22] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_pre_probe_competition_terminalizes_without_capture() -> None:\n>         events: list[str] = []\n>         registry = _RecorderRegistry(events)\n>         probe_calls = 0\n>     \n>         def probe() -> dict[str, object]:\n>             nonlocal probe_calls\n>             probe_calls += 1\n>             events.append(\"probe\")\n>             return _probe(competing=True)\n>     \n>         def build(opened: launcher.OpenedFloorAttempt) -> launcher.FloorAttemptTerminal:\n>             events.append(\"build-terminal\")\n>             assert opened.measurement is None\n>             assert opened.failure is None\n>             assert opened.probe_after is None\n>             assert opened.launch_failures == ()\n>             assert opened.repetition_evidence == ()\n>             return _terminal(opened)\n>     \n>         result = launcher._launch_floor_attempt_for_test(\n>             _reservation(), _genesis(), _measurement(),\n>             post_probe=probe,\n>             classified_at=lambda: \"2026-08-26T00:00:01+00:00\",\n>             terminal_builder=build,\n>             registry=registry,\n>             capture_measure_point=lambda *_args, **_kwargs: pytest.fail(\n>                 \"capture must not run\"\n>             ),\n>         )\n>     \n>         assert probe_calls == 1\n> >       assert events == [\n>             \"reserve\", \"probe\", \"classify\", \"build-terminal\",\n>             \"observe-failure\", \"terminal\",\n>         ]\n> E       AssertionError: assert ['reserve', '...', 'terminal'] == ['reserve', '...', 'terminal']\n> E         \n> E         At index 4 diff: 'observe-success' != 'observe-failure'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_s8b_floor_attempt_launcher.py:803: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_pre_probe_competition_classifies_as_competing\" nodeid_bytes=105 nodeid_omitted_bytes=0 source_bytes=1497 retained_bytes=1497 omitted_bytes=0 rendered_excerpt_bytes=1547 sha256=c70b85d77654ed7c97680aa051d5781cc37ad30e852e89226ddd342a56f60b84\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw34] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_pre_probe_competition_classifies_as_competing() -> None:\n>         launch_failure = calibrator_runner.MeasurementLaunchFailure(\"OSError\", 5, \"failed\")\n>         competing = launcher.POST_PROBE_COMPETING_REASON\n>         launch = launcher.MEASUREMENT_LAUNCH_FAILURE_REASON\n>         cases = (\n>             (_probe(competing=True), _probe(), (), None, competing),\n>             (_probe(), _probe(competing=True), (), None, competing),\n>             (_probe(), _probe(), (launch_failure,), None, launch),\n>             (_probe(), _probe(), (), {\"stage\": \"capture\"}, launch),\n>             (_probe(), _probe(), (), None, None),\n>         )\n>         for before, after, failures, failure, expected in cases:\n> >           assert launcher._pre_observation_failure_reason(\n>                 probe_before=before, probe_after=after,\n>                 launch_failures=failures, failure=failure,\n>             ) == expected\n> E           AssertionError: assert None == 'competing_process'\n> E            +  where None = <function _pre_observation_failure_reason at 0x147b2b4af490>(probe_before={'rc': 0, 'stdout': '999 ycsb_other.exe\\x5cn', 'stderr': '', 'competing': True}, probe_after={'rc': 1, 'stdout': '', 'stderr': '', 'competing': False}, launch_failures=(), failure=None)\n> E            +    where <function _pre_observation_failure_reason at 0x147b2b4af490> = launcher._pre_observation_failure_reason\n> \n> orchestrator/tests/test_s8b_floor_attempt_launcher.py:1029: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=3191 retained_bytes=3191 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4514 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "9da32bbdce1b38e3443c81a2835b7e05aa26164ab43b37bf52e7f615a9ca4221"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "85e49c34ba569449f08b3b195fd4df45859cc37e2db17cd7ac1f20a6cf724a3a",
+      "duration_s": 52.66,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_pre_probe_competition_classifies_as_competing",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_pre_probe_competition_terminalizes_without_capture"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_pre_probe_competition_classifies_as_competing",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_pre_probe_competition_terminalizes_without_capture"
+      ],
+      "hang_risk": false,
+      "id": "M7",
+      "injection_diff_sha256": "e25afcbbef772025cbb9f92f6375213376a043987ab1f4fb2f702eaaa617b039",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "3d1512a7eda3ae6a4104740923b98cc8ad858b5aca83f7e356dd81db1dea7d09",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+          "new": "        (probe_after is not None and probe_after[\"competing\"] is True)\n",
+          "old": "        probe_before[\"competing\"] is True\n        or (probe_after is not None and probe_after[\"competing\"] is True)\n"
+        }
+      ],
+      "repo_head": "35ba02e1a290f50472f6f79402e8be5f039eb7f4",
+      "runner_sha256": "7492e53e696d8fda13f3a87e53b91a864eb2c1da49dc1e4ed8e44d774e8b39bc",
+      "spec_sha256": "e2eefcaea3590383c35f598d62919a340e587c541f99caceb0662f58b41757b0",
+      "status": "KILLED",
+      "test_output_sha256": "9da32bbdce1b38e3443c81a2835b7e05aa26164ab43b37bf52e7f615a9ca4221",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "aed671bce9fcd922f437d6f49c745e858a78270ea49128a894a376b084f8b1cb"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1851-unit-a/output/pegasus-dispatch/6653d583cbd26161f262d12ff6a18474/izdw-6653d583cb.o979857",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1851-unit-a/output/pegasus-dispatch/6653d583cbd26161f262d12ff6a18474/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n....................................................F................... [ 96%]\n...                                                                      [100%]\n=================================== FAILURES ===================================\n_______________ test_external_evidence_digest_binds_both_probes ________________\n[gw35] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_external_evidence_digest_binds_both_probes() -> None:\n        before = _probe()\n        launch_failure = calibrator_runner.MeasurementLaunchFailure(\"OSError\", 5, \"launch failed\")\n        capture_failure = {\n            \"stage\": \"capture\", \"exception_type\": \"OSError\",\n            \"errno\": 5, \"message\": \"capture failed\",\n        }\n        payload = {\n            \"schema_version\": \"s8b-floor-pre-output-evidence/v2\",\n            \"probe_before\": before, \"probe_after\": None,\n            \"launch_failures\": [{\n                \"exception_type\": \"OSError\", \"errno\": 5, \"message\": \"launch failed\",\n            }],\n            \"capture_failure\": capture_failure,\n        }\n        common = {\"launch_failures\": (launch_failure,), \"capture_failure\": capture_failure}\n        digest = launcher._external_evidence_sha256(\n            probe_before=before, probe_after=None, **common,\n        )\n        expected = attempt_registry_core.canonical_json_bytes(payload)\n>       assert digest == hashlib.sha256(expected).hexdigest()\nE       AssertionError: assert 'b3a336e70037...3a7ed8d8fe4af' == '5efca4f8962d...7768214d2428e'\nE         \nE         - 5efca4f8962d1c407ade3aaaed819e2670ee72c1a42bfcac1cf7768214d2428e\nE         + b3a336e7003782c963e78b262e80c7dd97d8a07c825fcb11ff93a7ed8d8fe4af\n\norchestrator/tests/test_s8b_floor_attempt_launcher.py:1055: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_external_evidence_digest_binds_both_probes\n1 failed, 74 passed in 32.44s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_external_evidence_digest_binds_both_probes\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=1413 retained_bytes=1413 omitted_bytes=0 rendered_excerpt_bytes=1472 sha256=c72d7cf13aa52c04fca112015fd1f630eeb6d193d89a41178ce52f4a51e065d8\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw35] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_external_evidence_digest_binds_both_probes() -> None:\n>         before = _probe()\n>         launch_failure = calibrator_runner.MeasurementLaunchFailure(\"OSError\", 5, \"launch failed\")\n>         capture_failure = {\n>             \"stage\": \"capture\", \"exception_type\": \"OSError\",\n>             \"errno\": 5, \"message\": \"capture failed\",\n>         }\n>         payload = {\n>             \"schema_version\": \"s8b-floor-pre-output-evidence/v2\",\n>             \"probe_before\": before, \"probe_after\": None,\n>             \"launch_failures\": [{\n>                 \"exception_type\": \"OSError\", \"errno\": 5, \"message\": \"launch failed\",\n>             }],\n>             \"capture_failure\": capture_failure,\n>         }\n>         common = {\"launch_failures\": (launch_failure,), \"capture_failure\": capture_failure}\n>         digest = launcher._external_evidence_sha256(\n>             probe_before=before, probe_after=None, **common,\n>         )\n>         expected = attempt_registry_core.canonical_json_bytes(payload)\n> >       assert digest == hashlib.sha256(expected).hexdigest()\n> E       AssertionError: assert 'b3a336e70037...3a7ed8d8fe4af' == '5efca4f8962d...7768214d2428e'\n> E         \n> E         - 5efca4f8962d1c407ade3aaaed819e2670ee72c1a42bfcac1cf7768214d2428e\n> E         + b3a336e7003782c963e78b262e80c7dd97d8a07c825fcb11ff93a7ed8d8fe4af\n> \n> orchestrator/tests/test_s8b_floor_attempt_launcher.py:1055: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1413 retained_bytes=1413 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2202 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "2456cbc52ac80aa634f709dd85fc225204d4bb22b2c8083d6156dc892dd3fded"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "85e49c34ba569449f08b3b195fd4df45859cc37e2db17cd7ac1f20a6cf724a3a",
+      "duration_s": 57.74,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_external_evidence_digest_binds_both_probes"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_external_evidence_digest_binds_both_probes"
+      ],
+      "hang_risk": false,
+      "id": "M8",
+      "injection_diff_sha256": "629793a2350af91a093f36fc8bfacd7cf2f243b4ba29730ffd005f4518530182",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c8caa026fe65de822c86e255044aff5dcaaf1f29041c238601526c0750e77212",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+          "new": "        \"probe_before\": None,\n",
+          "old": "        \"probe_before\": _post_probe(probe_before),\n"
+        }
+      ],
+      "repo_head": "35ba02e1a290f50472f6f79402e8be5f039eb7f4",
+      "runner_sha256": "7492e53e696d8fda13f3a87e53b91a864eb2c1da49dc1e4ed8e44d774e8b39bc",
+      "spec_sha256": "e2eefcaea3590383c35f598d62919a340e587c541f99caceb0662f58b41757b0",
+      "status": "KILLED",
+      "test_output_sha256": "2456cbc52ac80aa634f709dd85fc225204d4bb22b2c8083d6156dc892dd3fded",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "aed671bce9fcd922f437d6f49c745e858a78270ea49128a894a376b084f8b1cb"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1851-unit-a/output/pegasus-dispatch/67670f184adef6b8c40c96a123ee42c7/izdw-67670f184a.o979858",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1851-unit-a/output/pegasus-dispatch/67670f184adef6b8c40c96a123ee42c7/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n....................................................F................... [ 96%]\n...                                                                      [100%]\n=================================== FAILURES ===================================\n____________________ test_probe_result_requires_exact_keys _____________________\n[gw36] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_probe_result_requires_exact_keys() -> None:\n        assert launcher._post_probe(_probe()) == _probe()\n        invalid_results = (\n            ({**_probe(), \"unexpected\": \"value\"}, \"exact four-key\"),\n            ({key: value for key, value in _probe().items() if key != \"rc\"},\n             \"exact four-key\"),\n            ({**_probe(), \"rc\": True}, \"exact field types\"),\n            ({**_probe(), \"stdout\": 1}, \"exact field types\"),\n        )\n        for result, message in invalid_results:\n>           with pytest.raises(launcher.FloorAttemptLauncherError, match=message):\nE           Failed: DID NOT RAISE FloorAttemptLauncherError\n\norchestrator/tests/test_s8b_floor_attempt_launcher.py:1078: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_probe_result_requires_exact_keys\n1 failed, 74 passed in 32.46s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_probe_result_requires_exact_keys\" nodeid_bytes=92 nodeid_omitted_bytes=0 source_bytes=760 retained_bytes=760 omitted_bytes=0 rendered_excerpt_bytes=793 sha256=2d75673ce00248341a6b3b9879ec78d31dd025825918674a957b68f62c205bd8\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw36] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_probe_result_requires_exact_keys() -> None:\n>         assert launcher._post_probe(_probe()) == _probe()\n>         invalid_results = (\n>             ({**_probe(), \"unexpected\": \"value\"}, \"exact four-key\"),\n>             ({key: value for key, value in _probe().items() if key != \"rc\"},\n>              \"exact four-key\"),\n>             ({**_probe(), \"rc\": True}, \"exact field types\"),\n>             ({**_probe(), \"stdout\": 1}, \"exact field types\"),\n>         )\n>         for result, message in invalid_results:\n> >           with pytest.raises(launcher.FloorAttemptLauncherError, match=message):\n> E           Failed: DID NOT RAISE FloorAttemptLauncherError\n> \n> orchestrator/tests/test_s8b_floor_attempt_launcher.py:1078: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=760 retained_bytes=760 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1507 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "878216c55b561c319e10760ddb799e57e0ecb82b8d577984fd7d3f91c19e7307"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "85e49c34ba569449f08b3b195fd4df45859cc37e2db17cd7ac1f20a6cf724a3a",
+      "duration_s": 57.762,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_probe_result_requires_exact_keys"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_probe_result_requires_exact_keys"
+      ],
+      "hang_risk": false,
+      "id": "M9",
+      "injection_diff_sha256": "0acc2688660a26341a34d35c296aa4cd64be14282b70b40446940411be6025c9",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "be310d7b16ffe974a57d50f43c012743f962c43962a12111e8cd1ba1d2ba3d5e",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+          "new": "    if not {\"rc\", \"stdout\", \"stderr\", \"competing\"} <= set(result):\n",
+          "old": "    if set(result) != {\"rc\", \"stdout\", \"stderr\", \"competing\"}:\n"
+        }
+      ],
+      "repo_head": "35ba02e1a290f50472f6f79402e8be5f039eb7f4",
+      "runner_sha256": "7492e53e696d8fda13f3a87e53b91a864eb2c1da49dc1e4ed8e44d774e8b39bc",
+      "spec_sha256": "e2eefcaea3590383c35f598d62919a340e587c541f99caceb0662f58b41757b0",
+      "status": "KILLED",
+      "test_output_sha256": "878216c55b561c319e10760ddb799e57e0ecb82b8d577984fd7d3f91c19e7307",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "aed671bce9fcd922f437d6f49c745e858a78270ea49128a894a376b084f8b1cb"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1851-unit-a/output/pegasus-dispatch/dadb2e0835b02c52899b9b8121167076/izdw-dadb2e0835.o979859",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1851-unit-a/output/pegasus-dispatch/dadb2e0835b02c52899b9b8121167076/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n............................................................F........... [ 96%]\n...                                                                      [100%]\n=================================== FAILURES ===================================\n____________ test_capture_exception_terminalizes_with_stage_capture ____________\n[gw37] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_capture_exception_terminalizes_with_stage_capture() -> None:\n        events: list[str] = []\n        registry = _RecorderRegistry(events)\n    \n        def capture(*_args: object, **kwargs: object) -> object:\n            assert type(kwargs[\"rep_observations\"]) is list\n            events.append(\"capture\")\n            raise OSError(5, \"capture failed\")\n    \n        def build(opened: launcher.OpenedFloorAttempt) -> launcher.FloorAttemptTerminal:\n            events.append(\"build-terminal\")\n            assert opened.failure == {\n                \"stage\": \"capture\",\n                \"exception_type\": \"OSError\",\n                \"errno\": 5,\n                \"message\": \"[Errno 5] capture failed\",\n            }\n            assert opened.measurement is None\n            assert opened.repetition_evidence == ()\n            return _terminal(opened)\n    \n>       result = launcher._launch_floor_attempt_for_test(\n            _reservation(), _genesis(), _measurement(),\n            post_probe=lambda: (events.append(\"probe\") or _probe()),\n            classified_at=lambda: \"2026-08-26T00:00:01+00:00\",\n            terminal_builder=build, registry=registry,\n            capture_measure_point=capture,\n        )\n\norchestrator/tests/test_s8b_floor_attempt_launcher.py:1103: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/s8b_floor_attempt_launcher.py:896: in _launch_floor_attempt_for_test\n    return _launch_floor_attempt(\norchestrator/campaign/s8b_floor_attempt_launcher.py:771: in _launch_floor_attempt\n    captured = _capture(\norchestrator/campaign/s8b_floor_attempt_launcher.py:609: in _capture\n    return dependencies.capture_measure_point(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\n_args = ('/tmp/ycsb_test.exe', 1000, 4, 2400)\nkwargs = {'extime': 3, 'reps': 3, 'use_perf': True, 'rep_observations': []}\n\n    def capture(*_args: object, **kwargs: object) -> object:\n        assert type(kwargs[\"rep_observations\"]) is list\n        events.append(\"capture\")\n>       raise OSError(5, \"capture failed\")\nE       OSError: [Errno 5] capture failed\n\norchestrator/tests/test_s8b_floor_attempt_launcher.py:1089: OSError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_capture_exception_terminalizes_with_stage_capture\n1 failed, 74 passed in 31.91s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_capture_exception_terminalizes_with_stage_capture\" nodeid_bytes=109 nodeid_omitted_bytes=0 source_bytes=2260 retained_bytes=2260 omitted_bytes=0 rendered_excerpt_bytes=2363 sha256=acc7e4e71474472e05fcc27b1c1aad3be8d257f64c7ab12f0a20b52faf7b4614\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw37] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_capture_exception_terminalizes_with_stage_capture() -> None:\n>         events: list[str] = []\n>         registry = _RecorderRegistry(events)\n>     \n>         def capture(*_args: object, **kwargs: object) -> object:\n>             assert type(kwargs[\"rep_observations\"]) is list\n>             events.append(\"capture\")\n>             raise OSError(5, \"capture failed\")\n>     \n>         def build(opened: launcher.OpenedFloorAttempt) -> launcher.FloorAttemptTerminal:\n>             events.append(\"build-terminal\")\n>             assert opened.failure == {\n>                 \"stage\": \"capture\",\n>                 \"exception_type\": \"OSError\",\n>                 \"errno\": 5,\n>                 \"message\": \"[Errno 5] capture failed\",\n>             }\n>             assert opened.measurement is None\n>             assert opened.repetition_evidence == ()\n>             return _terminal(opened)\n>     \n> >       result = launcher._launch_floor_attempt_for_test(\n>             _reservation(), _genesis(), _measurement(),\n>             post_probe=lambda: (events.append(\"probe\") or _probe()),\n>             classified_at=lambda: \"2026-08-26T00:00:01+00:00\",\n>             terminal_builder=build, registry=registry,\n>             capture_measure_point=capture,\n>         )\n> \n> orchestrator/tests/test_s8b_floor_attempt_launcher.py:1103: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/s8b_floor_attempt_launcher.py:896: in _launch_floor_attempt_for_test\n>     return _launch_floor_attempt(\n> orchestrator/campaign/s8b_floor_attempt_launcher.py:771: in _launch_floor_attempt\n>     captured = _capture(\n> orchestrator/campaign/s8b_floor_attempt_launcher.py:609: in _capture\n>     return dependencies.capture_measure_point(\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> _args = ('/tmp/ycsb_test.exe', 1000, 4, 2400)\n> kwargs = {'extime': 3, 'reps': 3, 'use_perf': True, 'rep_observations': []}\n> \n>     def capture(*_args: object, **kwargs: object) -> object:\n>         assert type(kwargs[\"rep_observations\"]) is list\n>         events.append(\"capture\")\n> >       raise OSError(5, \"capture failed\")\n> E       OSError: [Errno 5] capture failed\n> \n> orchestrator/tests/test_s8b_floor_attempt_launcher.py:1089: OSError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2260 retained_bytes=2260 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3100 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "b490e3888e822340d92afe067bdc4822d4c195c2cc7c35d1db9f278709d6ca98"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "85e49c34ba569449f08b3b195fd4df45859cc37e2db17cd7ac1f20a6cf724a3a",
+      "duration_s": 57.725,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_capture_exception_terminalizes_with_stage_capture"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_capture_exception_terminalizes_with_stage_capture"
+      ],
+      "hang_risk": false,
+      "id": "M10",
+      "injection_diff_sha256": "f0e3242ff4c39fb3ec15a989e6893403e47659c836778add62e2dea8644a4f07",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e877ba58f55cf56d8d8508d20d1ae0f44bf530128be981ea967d119479d131c2",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+          "new": "        except (RuntimeError, subprocess.TimeoutExpired, OSError) as exc:\n            raise\n",
+          "old": "        except (RuntimeError, subprocess.TimeoutExpired, OSError) as exc:\n            failure = _failure_evidence(\"capture\", exc)\n"
+        }
+      ],
+      "repo_head": "35ba02e1a290f50472f6f79402e8be5f039eb7f4",
+      "runner_sha256": "7492e53e696d8fda13f3a87e53b91a864eb2c1da49dc1e4ed8e44d774e8b39bc",
+      "spec_sha256": "e2eefcaea3590383c35f598d62919a340e587c541f99caceb0662f58b41757b0",
+      "status": "KILLED",
+      "test_output_sha256": "b490e3888e822340d92afe067bdc4822d4c195c2cc7c35d1db9f278709d6ca98",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "aed671bce9fcd922f437d6f49c745e858a78270ea49128a894a376b084f8b1cb"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1851-unit-a/output/pegasus-dispatch/bbea7bb43e3a7a4d5df7a18584e741fb/izdw-bbea7bb43e.o979860",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1851-unit-a/output/pegasus-dispatch/bbea7bb43e3a7a4d5df7a18584e741fb/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n....................................................F................... [ 96%]\n...                                                                      [100%]\n=================================== FAILURES ===================================\n_____________ test_reservation_rejects_reps_not_equal_to_protocol ______________\n[gw38] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_reservation_rejects_reps_not_equal_to_protocol() -> None:\n        policy = launcher._checked_reservation_policy(_reservation(), _measurement())\n        assert policy.reps_expected == 3\n        measurement = replace(\n            _measurement(),\n            keyword_arguments={\"extime\": 3, \"reps\": 2, \"use_perf\": True},\n        )\n>       with pytest.raises(\n            launcher.FloorAttemptLauncherError, match=\"reps differs\",\n        ):\nE       Failed: DID NOT RAISE FloorAttemptLauncherError\n\norchestrator/tests/test_s8b_floor_attempt_launcher.py:1126: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_reservation_rejects_reps_not_equal_to_protocol\n1 failed, 74 passed in 32.14s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_reservation_rejects_reps_not_equal_to_protocol\" nodeid_bytes=106 nodeid_omitted_bytes=0 source_bytes=621 retained_bytes=621 omitted_bytes=0 rendered_excerpt_bytes=652 sha256=41b331b4dc38df5c424c3c09d2438a46d21e548e69faccd9dd380f224b334883\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw38] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_reservation_rejects_reps_not_equal_to_protocol() -> None:\n>         policy = launcher._checked_reservation_policy(_reservation(), _measurement())\n>         assert policy.reps_expected == 3\n>         measurement = replace(\n>             _measurement(),\n>             keyword_arguments={\"extime\": 3, \"reps\": 2, \"use_perf\": True},\n>         )\n> >       with pytest.raises(\n>             launcher.FloorAttemptLauncherError, match=\"reps differs\",\n>         ):\n> E       Failed: DID NOT RAISE FloorAttemptLauncherError\n> \n> orchestrator/tests/test_s8b_floor_attempt_launcher.py:1126: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=621 retained_bytes=621 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1381 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "ec82c1648e208b7896f121e0040df0723639721acf39d785f43a371f8ad48a51"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "85e49c34ba569449f08b3b195fd4df45859cc37e2db17cd7ac1f20a6cf724a3a",
+      "duration_s": 57.746,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_reservation_rejects_reps_not_equal_to_protocol"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_reservation_rejects_reps_not_equal_to_protocol"
+      ],
+      "hang_risk": false,
+      "id": "M11",
+      "injection_diff_sha256": "92bc40a0da791341a8ddea1ffd144649d1a7e1d895cb2ecc261581ce8279e81e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "adb2217e13253b17f39b7f5a2b1f8dfef9a73a8ba2eb5ad8855f2043f17407ef",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+          "new": "    if type(capture_reps) is not int:\n",
+          "old": "    if type(capture_reps) is not int or capture_reps != reps_expected:\n"
+        }
+      ],
+      "repo_head": "35ba02e1a290f50472f6f79402e8be5f039eb7f4",
+      "runner_sha256": "7492e53e696d8fda13f3a87e53b91a864eb2c1da49dc1e4ed8e44d774e8b39bc",
+      "spec_sha256": "e2eefcaea3590383c35f598d62919a340e587c541f99caceb0662f58b41757b0",
+      "status": "KILLED",
+      "test_output_sha256": "ec82c1648e208b7896f121e0040df0723639721acf39d785f43a371f8ad48a51",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "aed671bce9fcd922f437d6f49c745e858a78270ea49128a894a376b084f8b1cb"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1851-unit-a/output/pegasus-dispatch/1f75c23c2d1fed0fef3460e9f69835f3/izdw-1f75c23c2d.o979861",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1851-unit-a/output/pegasus-dispatch/1f75c23c2d1fed0fef3460e9f69835f3/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n....................................................F................... [ 96%]\n...                                                                      [100%]\n=================================== FAILURES ===================================\n______________ test_open_failure_yields_empty_repetition_evidence ______________\n[gw39] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_open_failure_yields_empty_repetition_evidence() -> None:\n        events: list[str] = []\n        registry = _RecorderRegistry(events)\n        token = _Token(events, open_error=RuntimeError(\"open failed\"))\n    \n        result = launcher._launch_floor_attempt_for_test(\n            _reservation(), _genesis(), _measurement(), post_probe=_probe,\n            classified_at=lambda: \"2026-08-26T00:00:01+00:00\",\n            terminal_builder=_terminal, registry=registry,\n            capture_measure_point=_capture_token(token),\n        )\n        assert token._rep_sink\n        assert result.opened.failure is not None\n        assert result.opened.failure[\"stage\"] == \"open\"\n>       assert result.opened.repetition_evidence == ()\nE       AssertionError: assert ({'rep_index'...ts': [], ...}) == ()\nE         \nE         Left contains 3 more items, first extra item: {'rep_index': 0, 'returncode': 0, 'counter_status': 'available', 'missing_perf_events': [], ...}\nE         Use -v to get more diff\n\norchestrator/tests/test_s8b_floor_attempt_launcher.py:1146: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_open_failure_yields_empty_repetition_evidence\n1 failed, 74 passed in 31.90s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_open_failure_yields_empty_repetition_evidence\" nodeid_bytes=105 nodeid_omitted_bytes=0 source_bytes=1124 retained_bytes=1124 omitted_bytes=0 rendered_excerpt_bytes=1171 sha256=f421a1e528ecdaf30c492318587f8b769ba045ce315ecfdd18ace7349cf373b3\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw39] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_open_failure_yields_empty_repetition_evidence() -> None:\n>         events: list[str] = []\n>         registry = _RecorderRegistry(events)\n>         token = _Token(events, open_error=RuntimeError(\"open failed\"))\n>     \n>         result = launcher._launch_floor_attempt_for_test(\n>             _reservation(), _genesis(), _measurement(), post_probe=_probe,\n>             classified_at=lambda: \"2026-08-26T00:00:01+00:00\",\n>             terminal_builder=_terminal, registry=registry,\n>             capture_measure_point=_capture_token(token),\n>         )\n>         assert token._rep_sink\n>         assert result.opened.failure is not None\n>         assert result.opened.failure[\"stage\"] == \"open\"\n> >       assert result.opened.repetition_evidence == ()\n> E       AssertionError: assert ({'rep_index'...ts': [], ...}) == ()\n> E         \n> E         Left contains 3 more items, first extra item: {'rep_index': 0, 'returncode': 0, 'counter_status': 'available', 'missing_perf_events': [], ...}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_s8b_floor_attempt_launcher.py:1146: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1124 retained_bytes=1124 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1904 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "0d6f88390ac92db3a4789bb28ceab57a7a0edb50881a19d6b51ddfa6d6c4e19e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "85e49c34ba569449f08b3b195fd4df45859cc37e2db17cd7ac1f20a6cf724a3a",
+      "duration_s": 57.67,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_open_failure_yields_empty_repetition_evidence"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_open_failure_yields_empty_repetition_evidence"
+      ],
+      "hang_risk": false,
+      "id": "M12",
+      "injection_diff_sha256": "26a6a860f9149f73f596e332beb5df9401dc8d3b76be7dc30f552f60522d5842",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "6b6f53f72350afa47e01ae5542a0af07bfdcee9188aa8b7ac40196d02126fa2e",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+          "new": "    if True:\n        repetition_evidence = tuple(dict(item) for item in private_rep_sink)\n",
+          "old": "    if failure is None:\n        repetition_evidence = tuple(dict(item) for item in private_rep_sink)\n"
+        }
+      ],
+      "repo_head": "35ba02e1a290f50472f6f79402e8be5f039eb7f4",
+      "runner_sha256": "7492e53e696d8fda13f3a87e53b91a864eb2c1da49dc1e4ed8e44d774e8b39bc",
+      "spec_sha256": "e2eefcaea3590383c35f598d62919a340e587c541f99caceb0662f58b41757b0",
+      "status": "KILLED",
+      "test_output_sha256": "0d6f88390ac92db3a4789bb28ceab57a7a0edb50881a19d6b51ddfa6d6c4e19e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "aed671bce9fcd922f437d6f49c745e858a78270ea49128a894a376b084f8b1cb"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1851-unit-a/output/pegasus-dispatch/092369d42940568f9e282b38678587aa/izdw-092369d429.o979836",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1851-unit-a/output/pegasus-dispatch/092369d42940568f9e282b38678587aa/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_mut_t1668_seal_order_and_reason_precedence_use_recorder_fake[post-probe-precedes-launch-failure]\norchestrator/tests/test_s8b_floor_attempt_launcher.py::test_mut_t1668_seal_order_and_reason_precedence_use_recorder_fake[launch-failure]\norchestrator/tests/test_s8b_floor_attempt_launcher.py::test_mut_t1668_seal_order_and_reason_precedence_use_recorder_fake[no-pre-output-reason]\norchestrator/tests/test_s8b_floor_attempt_launcher.py::test_open_error_still_observes_and_terminalizes_after_classification\norchestrator/tests/test_s8b_floor_attempt_launcher.py::test_empty_output_cannot_reach_observation_or_terminal\norchestrator/tests/test_s8b_floor_attempt_launcher.py::test_existing_genesis_replays_all_rows_and_rejects_a_different_slot_set\norchestrator/tests/test_s8b_floor_attempt_launcher.py::test_real_adapter_creates_and_exactly_reuses_complete_genesis\norchestrator/tests/test_s8b_floor_attempt_launcher.py::test_certified_measurement_keywords_reject_result_leak_surfaces[keyword_arguments0]\norchestrator/tests/test_s8b_floor_attempt_launcher.py::test_certified_measurement_keywords_reject_result_leak_surfaces[keyword_arguments1]\norchestrator/tests/test_s8b_floor_attempt_launcher.py::test_certified_measurement_keywords_reject_result_leak_surfaces[keyword_arguments2]\norchestrator/tests/test_s8b_floor_attempt_launcher.py::test_certified_measurement_keywords_reject_result_leak_surfaces[keyword_arguments3]\norchestrator/tests/test_s8b_floor_attempt_launcher.py::test_pre_probe_competition_terminalizes_without_capture\norchestrator/tests/test_s8b_floor_attempt_launcher.py::test_private_rep_sink_snapshot_occurs_after_token_open\norchestrator/tests/test_s8b_floor_attempt_launcher.py::test_capture_uses_checked_kwargs_snapshot_after_source_mapping_mutates\norchestrator/tests/test_s8b_floor_attempt_launcher.py::test_v2_profile_is_rejected_before_any_registry_side_effect\norchestrator/tests/test_s8b_floor_attempt_launcher.py::test_certified_api_owns_classification_authority\norchestrator/tests/test_s8b_floor_attempt_launcher.py::test_reservation_rejects_protocol_not_bound_to_binding\norchestrator/tests/test_s8b_floor_attempt_launcher.py::test_use_perf_must_be_derived_from_receipt\norchestrator/tests/test_s8b_floor_attempt_launcher.py::test_reservation_policy_rejects_each_untrusted_selector[reservation0-mode]\norchestrator/tests/test_s8b_floor_attempt_launcher.py::test_reservation_policy_rejects_each_untrusted_selector[reservation1-official]\norchestrator/tests/test_s8b_floor_attempt_launcher.py::test_reservation_policy_rejects_each_untrusted_selector[reservation2-^reservation policy contains a callable$]\norchestrator/tests/test_s8b_floor_attempt_launcher.py::test_reservation_policy_rejects_each_untrusted_selector[reservation3-^reservation policy contains a callable$]\norchestrator/tests/test_s8b_floor_attempt_launcher.py::test_reserve_forwards_consumption_marker_to_adapter\norchestrator/tests/test_s8b_floor_attempt_launcher.py::test_pre_probe_competition_classifies_as_competing\norchestrator/tests/test_s8b_floor_attempt_launcher.py::test_external_evidence_digest_binds_both_probes\norchestrator/tests/test_s8b_floor_attempt_launcher.py::test_probe_result_requires_exact_keys\norchestrator/tests/test_s8b_floor_attempt_launcher.py::test_capture_exception_terminalizes_with_stage_capture\norchestrator/tests/test_s8b_floor_attempt_launcher.py::test_reservation_rejects_reps_not_equal_to_protocol\norchestrator/tests/test_s8b_floor_attempt_launcher.py::test_open_failure_yields_empty_repetition_evidence\norchestrator/tests/test_s8b_floor_attempt_launcher.py::test_open_failure_cannot_be_reported_as_observed\norchestrator/tests/test_s8b_floor_attempt_launcher.py::test_certified_api_rejects_a_caller_callable_post_probe_without_effects\norchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_process_launch_inventory_is_recursive_and_exact\norchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_matches_condition_gate_registry\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_has_no_unreviewed_ungated_member\norchestrator/tests/test_ccbench_spawn_sites.py::test_production_build_sinks_include_certify_calibration_script\norchestrator/tests/test_ccbench_spawn_sites.py::test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink\norchestrator/tests/test_ccbench_spawn_sites.py::test_deferred_gate_ledger_does_not_match_a_new_sink_in_the_same_file\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_synthetic_member_without_gate\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_gate_with_only_one_arm\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_does_not_defer_unlisted_member\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_requires_gate_to_dominate_each_sink\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_name_checked_campaign_value\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_tuple_field_copy_checked_value\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_branch_local_returned_evidence\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_returned_evidence_after_sink\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_rebound_checked_name\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_loop_rebound_checked_name\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_unchecked_conditional_alias\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_short_circuit_returned_evidence\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_same_named_method_as_evidence\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_locally_defined_helper_shadow\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_helper_argument_shadow\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_default_walrus_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_match_guard_walrus_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_same_expression_walrus_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_nested_default\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_read_only_match_guard\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_class_global_helper_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_called_nonlocal_checked_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_star_import_after_helper_import\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_lambda_default_walrus_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_match_exit\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_next_case\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_global_and_nonlocal\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_marks_ungated_with_bindings_unresolved\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_marks_opaque_nonlexical_cell_unresolved\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_does_not_reuse_gate_for_another_macro\norchestrator/tests/test_ccbench_spawn_sites.py::test_calibration_capability_issuer_has_one_certify_call_site\norchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_ccbench_measurement_launches_use_bounded_sites\norchestrator/tests/test_ccbench_spawn_sites.py::test_process_inventory_catches_nested_exe_attribute_and_hardcoded_shapes\norchestrator/tests/test_ccbench_spawn_sites.py::test_exact_anchor_exclusion_keeps_an_unreviewed_launch_visible\norchestrator/tests/test_ccbench_spawn_sites.py::test_direct_spawn_allowlist_constants_cannot_reach_protected_ratios\norchestrator/tests/test_ccbench_spawn_sites.py::test_backoff_profile_public_path_rejects_protected_ratio_before_build[20]\norchestrator/tests/test_ccbench_spawn_sites.py::test_backoff_profile_public_path_rejects_protected_ratio_before_build[80]\n\n75 tests collected in 0.90s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "1857689a5365829f8d1427b67c569baa643e3d3edbf351f5073329f28af22d5c"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_mut_t1668_seal_order_and_reason_precedence_use_recorder_fake[post-probe-precedes-launch-failure]",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_mut_t1668_seal_order_and_reason_precedence_use_recorder_fake[launch-failure]",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_mut_t1668_seal_order_and_reason_precedence_use_recorder_fake[no-pre-output-reason]",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_open_error_still_observes_and_terminalizes_after_classification",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_empty_output_cannot_reach_observation_or_terminal",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_existing_genesis_replays_all_rows_and_rejects_a_different_slot_set",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_real_adapter_creates_and_exactly_reuses_complete_genesis",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_certified_measurement_keywords_reject_result_leak_surfaces[keyword_arguments0]",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_certified_measurement_keywords_reject_result_leak_surfaces[keyword_arguments1]",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_certified_measurement_keywords_reject_result_leak_surfaces[keyword_arguments2]",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_certified_measurement_keywords_reject_result_leak_surfaces[keyword_arguments3]",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_pre_probe_competition_terminalizes_without_capture",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_private_rep_sink_snapshot_occurs_after_token_open",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_capture_uses_checked_kwargs_snapshot_after_source_mapping_mutates",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_v2_profile_is_rejected_before_any_registry_side_effect",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_certified_api_owns_classification_authority",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_reservation_rejects_protocol_not_bound_to_binding",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_use_perf_must_be_derived_from_receipt",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_reservation_policy_rejects_each_untrusted_selector[reservation0-mode]",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_reservation_policy_rejects_each_untrusted_selector[reservation1-official]",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_reservation_policy_rejects_each_untrusted_selector[reservation2-^reservation policy contains a callable$]",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_reservation_policy_rejects_each_untrusted_selector[reservation3-^reservation policy contains a callable$]",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_reserve_forwards_consumption_marker_to_adapter",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_pre_probe_competition_classifies_as_competing",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_external_evidence_digest_binds_both_probes",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_probe_result_requires_exact_keys",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_capture_exception_terminalizes_with_stage_capture",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_reservation_rejects_reps_not_equal_to_protocol",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_open_failure_yields_empty_repetition_evidence",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_open_failure_cannot_be_reported_as_observed",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_certified_api_rejects_a_caller_callable_post_probe_without_effects",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_process_launch_inventory_is_recursive_and_exact",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_matches_condition_gate_registry",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_has_no_unreviewed_ungated_member",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_production_build_sinks_include_certify_calibration_script",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_deferred_gate_ledger_does_not_match_a_new_sink_in_the_same_file",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_synthetic_member_without_gate",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_gate_with_only_one_arm",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_does_not_defer_unlisted_member",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_requires_gate_to_dominate_each_sink",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_name_checked_campaign_value",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_tuple_field_copy_checked_value",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_branch_local_returned_evidence",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_returned_evidence_after_sink",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_rebound_checked_name",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_loop_rebound_checked_name",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_unchecked_conditional_alias",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_short_circuit_returned_evidence",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_same_named_method_as_evidence",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_locally_defined_helper_shadow",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_helper_argument_shadow",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_default_walrus_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_match_guard_walrus_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_same_expression_walrus_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_nested_default",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_read_only_match_guard",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_class_global_helper_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_called_nonlocal_checked_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_star_import_after_helper_import",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_lambda_default_walrus_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_match_exit",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_next_case",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_global_and_nonlocal",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_marks_ungated_with_bindings_unresolved",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_marks_opaque_nonlexical_cell_unresolved",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_does_not_reuse_gate_for_another_macro",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_calibration_capability_issuer_has_one_certify_call_site",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_ccbench_measurement_launches_use_bounded_sites",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_process_inventory_catches_nested_exe_attribute_and_hardcoded_shapes",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_exact_anchor_exclusion_keeps_an_unreviewed_launch_visible",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_direct_spawn_allowlist_constants_cannot_reach_protected_ratios",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_backoff_profile_public_path_rejects_protected_ratio_before_build[20]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_backoff_profile_public_path_rejects_protected_ratio_before_build[80]"
+      ],
+      "duration_s": 21.862,
+      "rc": 0,
+      "repo_head": "35ba02e1a290f50472f6f79402e8be5f039eb7f4",
+      "runner_sha256": "7492e53e696d8fda13f3a87e53b91a864eb2c1da49dc1e4ed8e44d774e8b39bc",
+      "spec_sha256": "e2eefcaea3590383c35f598d62919a340e587c541f99caceb0662f58b41757b0",
+      "status": "PASSED",
+      "tool_sha256": "aed671bce9fcd922f437d6f49c745e858a78270ea49128a894a376b084f8b1cb"
+    },
+    "hang_timeout_seconds": 900.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_pre_probe_competition_terminalizes_without_capture"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "b64263c06ac9e00cdda975787d5ec450c6820659f5197a2fca62ff5f433a55fc",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+            "new": "    if True:\n        try:\n            captured = _capture(\n",
+            "old": "    if probe_before[\"competing\"] is not True:\n        try:\n            captured = _capture(\n"
+          }
+        ]
+      },
+      "M10": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_capture_exception_terminalizes_with_stage_capture"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f0e3242ff4c39fb3ec15a989e6893403e47659c836778add62e2dea8644a4f07",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+            "new": "        except (RuntimeError, subprocess.TimeoutExpired, OSError) as exc:\n            raise\n",
+            "old": "        except (RuntimeError, subprocess.TimeoutExpired, OSError) as exc:\n            failure = _failure_evidence(\"capture\", exc)\n"
+          }
+        ]
+      },
+      "M11": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_reservation_rejects_reps_not_equal_to_protocol"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "92bc40a0da791341a8ddea1ffd144649d1a7e1d895cb2ecc261581ce8279e81e",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+            "new": "    if type(capture_reps) is not int:\n",
+            "old": "    if type(capture_reps) is not int or capture_reps != reps_expected:\n"
+          }
+        ]
+      },
+      "M12": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_open_failure_yields_empty_repetition_evidence"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "26a6a860f9149f73f596e332beb5df9401dc8d3b76be7dc30f552f60522d5842",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+            "new": "    if True:\n        repetition_evidence = tuple(dict(item) for item in private_rep_sink)\n",
+            "old": "    if failure is None:\n        repetition_evidence = tuple(dict(item) for item in private_rep_sink)\n"
+          }
+        ]
+      },
+      "M2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_private_rep_sink_snapshot_occurs_after_token_open"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "46679020ef8d5ba9549434819056766ce21aec170109ffd8d8e2de2259b96e45",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+            "new": "    opened_measurement: object | None = None\n    repetition_evidence: tuple[Mapping[str, object], ...] = ()\n    if failure is None:\n        repetition_evidence = tuple(dict(item) for item in private_rep_sink)\n    if failure is None:\n        try:\n            opened_measurement = durable.open()\n        except Exception as exc:  # output-derived failures still terminalize\n            failure = _failure_evidence(\"open\", exc)\n",
+            "old": "    opened_measurement: object | None = None\n    if failure is None:\n        try:\n            opened_measurement = durable.open()\n        except Exception as exc:  # output-derived failures still terminalize\n            failure = _failure_evidence(\"open\", exc)\n    repetition_evidence: tuple[Mapping[str, object], ...] = ()\n    if failure is None:\n        repetition_evidence = tuple(dict(item) for item in private_rep_sink)\n"
+          }
+        ]
+      },
+      "M3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_v2_profile_is_rejected_before_any_registry_side_effect"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "c132902fc4aee736f06df2b0d4889ab53539d986554fb2989b175bfcbea15c0f",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+            "new": "        False\n",
+            "old": "        getattr(reservation.profile, \"schema\", None) is profile8b.S8B_V2_SCHEMA_PROFILE\n        or reservation.consumption_marker is not None\n"
+          }
+        ]
+      },
+      "M4": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_certified_api_owns_classification_authority"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "faffa2b37d863b5ef770576163b5b6c66b1dd1b3188a3067a1d50d31e3414c34",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+            "new": "        classification_authority=ClassificationAuthority(authority_id=\"caller-selected\", authority_policy_sha256=\"0\" * 64),\n",
+            "old": "        classification_authority=_CLASSIFICATION_AUTHORITY,\n"
+          }
+        ]
+      },
+      "M5": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_reservation_rejects_protocol_not_bound_to_binding"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "b68a7bf5ba7b82faa0f85358e06db295d6595836c3066c4371751a350d9b8f82",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+            "new": "    if False and actual_protocol_sha256 != bound_protocol_sha256:\n",
+            "old": "    if actual_protocol_sha256 != bound_protocol_sha256:\n"
+          }
+        ]
+      },
+      "M6": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_use_perf_must_be_derived_from_receipt"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "5d5e8356f83a81f9d3d7351134eecc277c75fda241e55daa3d85ef9f8c5a65d8",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+            "new": "        or False\n",
+            "old": "        or capture_use_perf is not expected_use_perf\n"
+          }
+        ]
+      },
+      "M7": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_pre_probe_competition_classifies_as_competing",
+          "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_pre_probe_competition_terminalizes_without_capture"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "e25afcbbef772025cbb9f92f6375213376a043987ab1f4fb2f702eaaa617b039",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+            "new": "        (probe_after is not None and probe_after[\"competing\"] is True)\n",
+            "old": "        probe_before[\"competing\"] is True\n        or (probe_after is not None and probe_after[\"competing\"] is True)\n"
+          }
+        ]
+      },
+      "M8": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_external_evidence_digest_binds_both_probes"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "629793a2350af91a093f36fc8bfacd7cf2f243b4ba29730ffd005f4518530182",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+            "new": "        \"probe_before\": None,\n",
+            "old": "        \"probe_before\": _post_probe(probe_before),\n"
+          }
+        ]
+      },
+      "M9": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_probe_result_requires_exact_keys"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "0acc2688660a26341a34d35c296aa4cd64be14282b70b40446940411be6025c9",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+            "new": "    if not {\"rc\", \"stdout\", \"stderr\", \"competing\"} <= set(result):\n",
+            "old": "    if set(result) != {\"rc\", \"stdout\", \"stderr\", \"competing\"}:\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "b6a4f4f79f76f197603ec85b2f4109ce0ff0603039dff279e91512180c79beb6",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_s8b_floor_attempt_launcher.py",
+      "orchestrator/tests/test_ccbench_spawn_sites.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 14400.0
+  },
+  "repo_head": "35ba02e1a290f50472f6f79402e8be5f039eb7f4",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_s8b_floor_attempt_launcher.py",
+      "orchestrator/tests/test_ccbench_spawn_sites.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1851-unit-a/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1851-unit-a/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "56f135d89294181fe56f6d3a5672df9b26194dea",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "7492e53e696d8fda13f3a87e53b91a864eb2c1da49dc1e4ed8e44d774e8b39bc",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "e2eefcaea3590383c35f598d62919a340e587c541f99caceb0662f58b41757b0",
+  "summary": {
+    "KILLED": 12,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 12,
+    "matching": 12,
+    "recorded": 12,
+    "registered": 12
+  },
+  "tool_identity": {
+    "head_blob_sha256": "900a6500b112faec9702a147242427d6cc2ebcad1029149a689ff5999d5f5ab9",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1851-unit-a/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "900a6500b112faec9702a147242427d6cc2ebcad1029149a689ff5999d5f5ab9"
+  },
+  "tool_sha256": "aed671bce9fcd922f437d6f49c745e858a78270ea49128a894a376b084f8b1cb",
+  "updated_at": "2026-09-06T18:28:22.817543+00:00"
+}
