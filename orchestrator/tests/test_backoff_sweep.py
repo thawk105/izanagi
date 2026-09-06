@@ -20,6 +20,9 @@ from orchestrator.campaign.durable_root import DurableRootPolicy
 
 
 def _stub_run_workload_dependencies(monkeypatch, captured):
+    captured.setdefault("events", [])
+    captured.setdefault("masstree_prepare_calls", [])
+    captured.setdefault("condition_gate_calls", [])
     contract = SimpleNamespace(
         env_tag="test-env",
         clocks_per_us=123,
@@ -83,10 +86,26 @@ def _stub_run_workload_dependencies(monkeypatch, captured):
 
     monkeypatch.setattr(backoff_sweep.patchharness, "checkout", checkout)
     monkeypatch.setattr(backoff_sweep.patchharness, "applied", applied)
+
+    def prepare_masstree_fetchcontent(**kwargs):
+        captured.setdefault("events", []).append("prepare_masstree_fetchcontent")
+        captured.setdefault("masstree_prepare_calls", []).append(kwargs)
+
+    monkeypatch.setattr(
+        backoff_sweep.buildcache,
+        "prepare_masstree_fetchcontent",
+        prepare_masstree_fetchcontent,
+    )
+
+    def require_condition_gate(*args, **kwargs):
+        captured.setdefault("events", []).append("condition_gate")
+        captured.setdefault("condition_gate_calls", []).append((args, kwargs))
+        return object()
+
     monkeypatch.setattr(
         backoff_sweep,
         "_require_backoff_condition_gate",
-        lambda *_args, **_kwargs: object(),
+        require_condition_gate,
     )
     monkeypatch.setattr(
         backoff_sweep.buildcache, "_ccbench_dir", lambda: "/ccbench",
@@ -125,6 +144,7 @@ def _independent_replay_digest(record) -> str:
 
 def test_real_family_helper_admits_effective_define_and_recomputes_file_digest():
     """A real owner-TU byte difference admits the raw build request."""
+    configure_arg = "-DCMAKE_VERBOSE_MAKEFILE=ON"
     run = backoff_sweep._require_backoff_condition_gate(
         str(_condition_fixture("supplied")),
         stock_root=None,
@@ -132,6 +152,7 @@ def test_real_family_helper_admits_effective_define_and_recomputes_file_digest()
         macro_values={"BACKOFF_FIXED": (5,)},
         cxx=_available_executable("g++-13", "g++-12", "g++"),
         cmake=_available_executable("cmake"),
+        configure_args=(configure_arg,),
     )
 
     supply = run.supply_records[0]
@@ -139,6 +160,8 @@ def test_real_family_helper_admits_effective_define_and_recomputes_file_digest()
     assert (supply.terminal_status, supply.reason_code) == (
         "green", "requested-default-preprocess-different",
     )
+    assert configure_arg in supply.evidence["requested_configure_argv"]
+    assert configure_arg in supply.evidence["control_configure_argv"]
     assert _independent_replay_digest(supply) == supply.evidence["requested_digest"]
     assert run.meaning_records[0].terminal_status == "unestablished"
 
@@ -201,11 +224,60 @@ def test_sweep_condition_gate_dominates_screened_and_direct_campaign_paths():
     source = inspect.getsource(backoff_sweep.run_workload)
     checkout = source.index("with patchharness.checkout")
     patch = source.index("with patchharness.applied")
+    prepare = source.index("prepare_masstree_fetchcontent")
     gate = source.index("_require_backoff_condition_gate")
     screened = source.index("_run_screened_workload")
     direct = source.index("run_campaign(")
-    assert checkout < patch < gate < screened
-    assert checkout < patch < gate < direct
+    assert checkout < patch < prepare < gate < screened
+    assert checkout < patch < prepare < gate < direct
+
+
+def test_run_workload_prepares_masstree_once_before_condition_gate(monkeypatch):
+    captured = {}
+    _stub_run_workload_dependencies(monkeypatch, captured)
+
+    backoff_sweep.run_workload(
+        "read-heavy",
+        {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "95", "ycsb_rmw": "0"},
+        log=lambda _message: None,
+    )
+
+    assert len(captured["masstree_prepare_calls"]) == 1
+    assert captured["events"] == [
+        "prepare_masstree_fetchcontent", "condition_gate",
+    ]
+    prepare = captured["masstree_prepare_calls"][0]
+    assert prepare["expected_toolchain_manifest"] == {"cc": "cc", "cxx": "cxx"}
+    assert prepare["configure_timeout_s"] == 900
+    assert prepare["target_timeout_s"] == 900
+    assert prepare["site"] == "test-site"
+    assert "dependency_prefix" not in prepare
+
+
+def test_run_workload_gates_the_prepared_patched_tree_with_fetchcontent_base(
+        monkeypatch):
+    captured = {}
+    _stub_run_workload_dependencies(monkeypatch, captured)
+
+    backoff_sweep.run_workload(
+        "read-heavy",
+        {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "95", "ycsb_rmw": "0"},
+        log=lambda _message: None,
+    )
+
+    prepare = captured["masstree_prepare_calls"][0]
+    gate_args, gate_kwargs = captured["condition_gate_calls"][0]
+    canonical_base = prepare["fetchcontent_base_dir"]
+    assert gate_kwargs["configure_args"] == (
+        f"-DFETCHCONTENT_BASE_DIR={canonical_base}",
+    )
+    prepared_root = Path(prepare["ccbench_dir"]).resolve()
+    gated_root = Path(gate_args[0]).resolve()
+    patched_root = Path(backoff_sweep.buildcache._ccbench_dir()).resolve()
+    assert prepared_root == gated_root == patched_root
+    assert gated_root != Path(gate_kwargs["stock_root"]).resolve()
+    assert Path(canonical_base).is_absolute()
+    assert os.path.realpath(canonical_base) == os.path.abspath(canonical_base)
 
 
 def test_official_output_root_policy_is_passed_to_run_campaign(monkeypatch, tmp_path):
