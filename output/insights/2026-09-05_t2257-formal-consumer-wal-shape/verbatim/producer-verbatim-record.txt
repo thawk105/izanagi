@@ -1,0 +1,5 @@
+wal_file: /home/SFC/tanab/.claude/jobs/f315588e/tmp/t2257-probe-8s1n_jc3/campaign/runs/wal.jsonl
+LINE: {"variant":"probe-v","stage":"trigger_binding","env_tag":"probe-env","ts":1788580452.4215896,"payload":{"build_attempt_id":"probe-attempt-0001","trigger_gate_binding":{"schema_version":"izanagi-trigger-gate-binding/v1","ir_schema":"izanagi-trigger-gate-ir/v1","mask":7,"predicate_sha256":"9d6971707fdc3448fa20a707ba89f853df49705c6a8bdcd05068305b87cf3d56","nonce":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","source":null}}}
+LINE: {"variant":"probe-v","stage":"build_start","env_tag":"probe-env","ts":1788580452.4419234,"payload":{"build_attempt_id":"probe-attempt-0001","trigger_gate_binding_commitment":"3971d4e14424e4d13bd63fc709a993ee12d8dfe13e072ce9960c9e51fa0b7029"}}
+commitment: 3971d4e14424e4d13bd63fc709a993ee12d8dfe13e072ce9960c9e51fa0b7029 True
+parsed: [('trigger_binding', ['build_attempt_id', 'trigger_gate_binding']), ('build_start', ['build_attempt_id', 'trigger_gate_binding_commitment'])] [] False

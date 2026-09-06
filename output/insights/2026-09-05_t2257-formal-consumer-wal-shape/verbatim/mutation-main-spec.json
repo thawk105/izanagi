@@ -1,0 +1,271 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 1500,
+  "hang_timeout_seconds": 1500,
+  "mutations": [
+    {
+      "id": "M1-legacy-root-shape-fallback",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc05c_rejects_legacy_root_trigger_binding_shape"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "old": "    if len(stage_records) != 1:\n        return None\n\n    record = stage_records[0]\n",
+          "new": "    if len(stage_records) != 1:\n        legacy = [\n            record.get(\"trigger_binding\")\n            for record in records\n            if record.get(\"kind\") == \"TriggerGateBinding\"\n        ]\n        return legacy[0] if len(legacy) == 1 else None\n\n    record = stage_records[0]\n"
+        }
+      ]
+    },
+    {
+      "id": "M2-select-by-payload-key-not-stage",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc05c_rejects_duplicate_trigger_stages_with_invalid_second_payload",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc05c_rejects_trigger_payload_under_non_trigger_stage"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "old": "        if record.get(\"stage\") == trigger_gate_binding.WAL_RECORD_STAGE\n",
+          "new": "        if type(record.get(\"payload\")) is dict\n        and TRIGGER_BINDING_PAYLOAD_KEY in record[\"payload\"]\n"
+        }
+      ]
+    },
+    {
+      "id": "M3-drop-mask-compare",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc05c_rejects_ledger_mask_only_mismatch"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "old": "        _require(\n            FormalReasonCode.FC05C,\n            _wal_trigger(resolved_item.ordered_wal.records)\n            == item.record[\"trigger_binding\"],\n        )\n",
+          "new": "        projected = _wal_trigger(resolved_item.ordered_wal.records)\n        expected = item.record[\"trigger_binding\"]\n        _require(\n            FormalReasonCode.FC05C,\n            projected is not None\n            and {k: v for k, v in projected.items() if k != \"mask\"}\n            == {k: v for k, v in expected.items() if k != \"mask\"},\n        )\n"
+        }
+      ]
+    },
+    {
+      "id": "M4-drop-commitment-compare",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc05c_rejects_ledger_commitment_only_mismatch",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc05c_rejects_source_only_mismatch",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc05c_rejects_wal_trigger_binding_mismatch"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "old": "        _require(\n            FormalReasonCode.FC05C,\n            _wal_trigger(resolved_item.ordered_wal.records)\n            == item.record[\"trigger_binding\"],\n        )\n",
+          "new": "        projected = _wal_trigger(resolved_item.ordered_wal.records)\n        expected = item.record[\"trigger_binding\"]\n        _require(\n            FormalReasonCode.FC05C,\n            projected is not None\n            and {k: v for k, v in projected.items() if k != TRIGGER_BINDING_COMMITMENT_KEY}\n            == {k: v for k, v in expected.items() if k != TRIGGER_BINDING_COMMITMENT_KEY},\n        )\n"
+        }
+      ]
+    },
+    {
+      "id": "M5-first-of-many-stage-records",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc05c_rejects_duplicate_trigger_stages_with_invalid_second_payload",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc05c_rejects_duplicate_valid_trigger_stages"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "old": "    if len(stage_records) != 1:\n        return None\n\n    record = stage_records[0]\n",
+          "new": "    if len(stage_records) < 1:\n        return None\n\n    record = stage_records[0]\n"
+        }
+      ]
+    },
+    {
+      "id": "M6-reverse-wire-bit-order",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_origin_public_path_preserves_capability_identity_and_projects_terminal",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_exact_fixture_contract_reaches_only_p6_unavailable",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc06_rejects_missing_source_base_with_33_rows_preserved",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc06_rejects_validation_mask_set_mismatch",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc06_rejects_validation_order_mismatch",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc07_rejects_accepted_verify_config_order_mismatch",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc07_rejects_accepted_without_terminal_commit",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc07_rejects_rejected_without_single_candidate_witness",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc09_rejects_kmax_excess",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc09_rejects_query_floor_mismatch",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc10_rejects_origin_containing_all_tombstone_batch",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_live_producer_trigger_with_source_reaches_only_p6_unavailable",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_live_producer_trigger_without_source_reaches_only_p6_unavailable",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_receipt_exact_operation_replay_returns_cached_decision",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_receipt_has_exact_keys_independent_canonical_bytes_and_no_self_digest",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_receipt_rejects_wrong_input_state_commitment",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_receipt_rejects_wrong_terminal_payload_digest",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_receipt_same_operation_different_payload_is_rejected",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_terminal_projection_is_one_nested_key_with_closed_reason",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_verbatim_producer_records_with_only_attempt_transplanted_reach_p6"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "old": "        \"candidate_wire\": encode_wire(TriggerGateIR(binding.mask)),\n",
+          "new": "        \"candidate_wire\": encode_wire(TriggerGateIR(binding.mask))[::-1],\n"
+        }
+      ]
+    },
+    {
+      "id": "M7-skip-validate-record",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc05c_rejects_raw_trigger_binding_extra_key"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "old": "    try:\n        binding = trigger_gate_binding.validate_record(\n            payload[TRIGGER_BINDING_PAYLOAD_KEY],\n            require_source=False,\n        )\n    except trigger_gate_binding.TriggerGateBindingError:\n        return None\n",
+          "new": "    raw = payload[TRIGGER_BINDING_PAYLOAD_KEY]\n    if type(raw) is not dict:\n        return None\n    try:\n        raw_source = raw.get(\"source\")\n        binding = trigger_gate_binding.TriggerGateBinding(\n            mask=raw.get(\"mask\"),\n            predicate_sha256=raw.get(\"predicate_sha256\"),\n            nonce=raw.get(\"nonce\"),\n            source=None\n            if raw_source is None\n            else trigger_gate_binding.SourceBinding(\n                src_token=raw_source.get(\"src_token\"),\n                source_bytes_sha256=raw_source.get(\"source_bytes_sha256\"),\n            ),\n        )\n    except (trigger_gate_binding.TriggerGateBindingError, AttributeError, TypeError):\n        return None\n"
+        }
+      ]
+    },
+    {
+      "id": "M8-count-only-payload-bearing-stage-records",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc05c_rejects_duplicate_trigger_stages_with_invalid_second_payload"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "old": "        if record.get(\"stage\") == trigger_gate_binding.WAL_RECORD_STAGE\n",
+          "new": "        if record.get(\"stage\") == trigger_gate_binding.WAL_RECORD_STAGE\n        and type(record.get(\"payload\")) is dict\n        and TRIGGER_BINDING_PAYLOAD_KEY in record[\"payload\"]\n"
+        }
+      ]
+    },
+    {
+      "id": "M9-drop-outer-key-closure",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc05c_rejects_root_attempt_shadow"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "old": "    if set(record) != {\"variant\", \"stage\", \"env_tag\", \"ts\", \"payload\"}:\n        return None\n",
+          "new": "    record = dict(record)\n"
+        }
+      ]
+    },
+    {
+      "id": "M10-drop-payload-key-closure",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc05c_rejects_trigger_payload_extra_key"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "old": "    if type(payload) is not dict or set(payload) != {\n        \"build_attempt_id\",\n        TRIGGER_BINDING_PAYLOAD_KEY,\n    }:\n        return None\n",
+          "new": "    if type(payload) is not dict or TRIGGER_BINDING_PAYLOAD_KEY not in payload:\n        return None\n"
+        }
+      ]
+    },
+    {
+      "id": "M11-reject-non-null-source",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_live_producer_trigger_with_source_reaches_only_p6_unavailable"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "old": "    except trigger_gate_binding.TriggerGateBindingError:\n        return None\n\n    return {\n",
+          "new": "    except trigger_gate_binding.TriggerGateBindingError:\n        return None\n    if binding.source is not None:\n        return None\n\n    return {\n"
+        }
+      ]
+    },
+    {
+      "id": "M12-equivalent-count-predicate",
+      "category": "positive",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "old": "    if len(stage_records) != 1:\n        return None\n\n    record = stage_records[0]\n",
+          "new": "    if not len(stage_records) == 1:\n        return None\n\n    record = stage_records[0]\n"
+        }
+      ]
+    },
+    {
+      "id": "M13-drop-outer-type-checks",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc05c_rejects_boolean_trigger_timestamp",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc05c_rejects_integer_trigger_variant",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc05c_rejects_string_trigger_timestamp"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "old": "    if type(record[\"variant\"]) is not str or type(record[\"env_tag\"]) is not str:\n        return None\n    ts = record[\"ts\"]\n    if type(ts) not in (int, float) or (\n        type(ts) is float and not math.isfinite(ts)\n    ):\n        return None\n",
+          "new": "    ts = record[\"ts\"]\n"
+        }
+      ]
+    },
+    {
+      "id": "M14-allow-bool-ts",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc05c_rejects_boolean_trigger_timestamp"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "old": "    if type(ts) not in (int, float) or (\n",
+          "new": "    if not isinstance(ts, (int, float)) or (\n"
+        }
+      ]
+    },
+    {
+      "id": "M15-allow-str-ts",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc05c_rejects_string_trigger_timestamp"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "old": "    if type(ts) not in (int, float) or (\n",
+          "new": "    if type(ts) not in (int, float, str) or (\n"
+        }
+      ]
+    }
+  ]
+}
