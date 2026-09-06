@@ -1,0 +1,100 @@
+{
+  "schema": "izanagi-p3-b4-eligibility-verdict/v1",
+  "task": "T-2341",
+  "preregistration_section": "5.1.0",
+  "freeze_commit": "c2fb53c2ed56c1d38152788910750f0d497d3870",
+  "fill_commit": "4267e803747641a4b9d4a50d31b1673cad9ce623",
+  "evidence_set_id": "t2341-eligibility",
+  "decision_rule": "first passing candidate in the frozen enumeration order base -> sort -> trigger; none passing -> leave the cell unfilled",
+  "enumeration_order": [
+    "base",
+    "sort",
+    "trigger"
+  ],
+  "candidates": [
+    {
+      "driver": "base",
+      "axis_expected": "silo-backoff-magnitude",
+      "axis_recorded": "silo-backoff-magnitude",
+      "evidence_relpath": "output/insights/2026-08-27_t1769-b4-wiring-probe/t2341-eligibility/base.json",
+      "evidence_sha256": "d282c246e0b4f4d2542d28dd15850bbff650a8fc018e617bcd7ecec4be9ef237",
+      "repository_head": "c2fb53c2ed56c1d38152788910750f0d497d3870",
+      "site_projected_cfg": null,
+      "dispatch_request_id": "979619.nqsv",
+      "dispatch_receipt_relpath": "output/insights/2026-09-05_t2341-b4-floor-driver-d1641/dispatch-receipts/base-979619.receipt.json",
+      "compute_marker_valid": true,
+      "compute_hostname": "bnode025",
+      "child_rc": 0,
+      "checks": {
+        "a_rc0_json_sidecar_hash": true,
+        "b_run_fields_exact": true,
+        "c_head_descends_from_freeze_commit": true,
+        "d_result_passed_and_rule": true,
+        "e_site_projected_cfg_measured_on_compute": true
+      },
+      "passed": true
+    },
+    {
+      "driver": "sort",
+      "axis_expected": "silo-writeset-sort",
+      "axis_recorded": "silo-writeset-sort",
+      "evidence_relpath": "output/insights/2026-08-27_t1769-b4-wiring-probe/t2341-eligibility/sort.json",
+      "evidence_sha256": "9008aaace2bf1b9a2be508d068dcaac1222487041554b9cf540325f6132e3d72",
+      "repository_head": "c2fb53c2ed56c1d38152788910750f0d497d3870",
+      "site_projected_cfg": null,
+      "dispatch_request_id": "979621.nqsv",
+      "dispatch_receipt_relpath": "output/insights/2026-09-05_t2341-b4-floor-driver-d1641/dispatch-receipts/sort-979621.receipt.json",
+      "compute_marker_valid": true,
+      "compute_hostname": "bnode025",
+      "child_rc": 0,
+      "checks": {
+        "a_rc0_json_sidecar_hash": true,
+        "b_run_fields_exact": true,
+        "c_head_descends_from_freeze_commit": true,
+        "d_result_passed_and_rule": true,
+        "e_site_projected_cfg_measured_on_compute": true
+      },
+      "passed": true
+    },
+    {
+      "driver": "trigger",
+      "axis_expected": "silo-backoff-trigger-gating",
+      "axis_recorded": "silo-backoff-trigger-gating",
+      "evidence_relpath": "output/insights/2026-08-27_t1769-b4-wiring-probe/t2341-eligibility/trigger.json",
+      "evidence_sha256": "eb7f7cf1f48e0d7d65620932a7a26a42e0bec8bebb21bc7a9768f9e4635518f2",
+      "repository_head": "c2fb53c2ed56c1d38152788910750f0d497d3870",
+      "site_projected_cfg": {
+        "status": "measured",
+        "site": "PEGASUS_COMPUTE"
+      },
+      "dispatch_request_id": "979625.nqsv",
+      "dispatch_receipt_relpath": "output/insights/2026-09-05_t2341-b4-floor-driver-d1641/dispatch-receipts/trigger-979625.receipt.json",
+      "compute_marker_valid": true,
+      "compute_hostname": "bnode065",
+      "child_rc": 0,
+      "checks": {
+        "a_rc0_json_sidecar_hash": true,
+        "b_run_fields_exact": true,
+        "c_head_descends_from_freeze_commit": true,
+        "d_result_passed_and_rule": true,
+        "e_site_projected_cfg_measured_on_compute": true
+      },
+      "passed": true
+    }
+  ],
+  "passing_drivers": [
+    "base",
+    "sort",
+    "trigger"
+  ],
+  "selected_driver": "base",
+  "selected_axis": "silo-backoff-magnitude",
+  "recorded_by": "thawk105",
+  "reviewed_by": "thawk105",
+  "operated_by": "ai-under-d1638-delegation",
+  "not_proven": [
+    "証拠が結果を見る前に凍結されたことを bytes 級で証明しない (凍結は §5.1.0 の commit 順序で担保する)。",
+    "probe の 4 検査が配線の十分条件であることを証明しない。probe が測るのは配線の到達性と identity 射影である。",
+    "base / sort の証拠は実行 site を記録しない。site の根拠は dispatch receipt の compute marker である。"
+  ]
+}
