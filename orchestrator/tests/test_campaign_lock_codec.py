@@ -56,6 +56,16 @@ def _v2_value() -> dict[str, object]:
     }
 
 
+def _pre_t733_v2_value() -> dict[str, object]:
+    value = _v2_value()
+    blobs = value["authority"]["contract_loader_blob_sha256s"]
+    value["authority"]["contract_loader_blob_sha256s"] = {
+        path: blobs[path]
+        for path in campaign_lock.PRE_T733_CONTRACT_LOADER_RELATIVE_PATHS
+    }
+    return value
+
+
 def _non_certifying_common() -> dict[str, object]:
     return {
         "mode": "registered-formal-non-certifying",
@@ -134,6 +144,75 @@ def test_v2_exact_shape_and_canonical_encoding() -> None:
     assert decoded.identity_preimage == _canonical(_identity())
     assert decoded.authority is not None
     assert decoded.authority.activation_serial == 1
+
+
+def test_pre_t733_exact_24_uses_dedicated_historical_decoder_type() -> None:
+    text = _canonical(_pre_t733_v2_value())
+
+    decoded = campaign_lock.decode_historical_campaign_lock(text)
+
+    assert type(decoded) is campaign_lock.DecodedHistoricalCampaignLock
+    assert not isinstance(decoded, campaign_lock.DecodedCampaignLock)
+    assert decoded.authority is not None
+    assert (
+        decoded.authority.recorded_contract_loader_relative_paths
+        == campaign_lock.PRE_T733_CONTRACT_LOADER_RELATIVE_PATHS
+    )
+    assert tuple(decoded.authority.contract_loader_blob_sha256s) == (
+        campaign_lock.PRE_T733_CONTRACT_LOADER_RELATIVE_PATHS
+    )
+    with pytest.raises(ident.IdentityMismatch, match="exact v2 campaign.lock"):
+        ident.verify_recorded_activation_tuple(decoded)  # type: ignore[arg-type]
+
+
+def test_pre_t733_exact_24_remains_rejected_by_normal_decoder() -> None:
+    text = _canonical(_pre_t733_v2_value())
+
+    with pytest.raises(
+        campaign_lock.CampaignLockCodecError,
+        match="contract_loader_blob_sha256s の exact key",
+    ):
+        campaign_lock.decode_campaign_lock(text)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ["subset", "superset", "same-count-replacement"],
+)
+def test_historical_decoder_rejects_unknown_blob_map_grammars(
+        mutation: str,
+) -> None:
+    value = _pre_t733_v2_value()
+    blobs = value["authority"]["contract_loader_blob_sha256s"]
+    if mutation in {"subset", "same-count-replacement"}:
+        blobs.pop(campaign_lock.PRE_T733_CONTRACT_LOADER_RELATIVE_PATHS[-1])
+    if mutation in {"superset", "same-count-replacement"}:
+        extra = campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS[24]
+        blobs[extra] = "f" * 64
+
+    with pytest.raises(
+        campaign_lock.CampaignLockCodecError,
+        match="歴史 grammar",
+    ):
+        campaign_lock.decode_historical_campaign_lock(_canonical(value))
+
+
+def test_historical_decoder_rejects_reordered_blob_map_wire_keys() -> None:
+    value = json.loads(_canonical(_pre_t733_v2_value()))
+    blobs = value["authority"]["contract_loader_blob_sha256s"]
+    paths = tuple(blobs)
+    reordered = {
+        path: blobs[path]
+        for path in (paths[1], paths[0], *paths[2:])
+    }
+    value["authority"]["contract_loader_blob_sha256s"] = reordered
+    noncanonical = json.dumps(
+        value, sort_keys=False, separators=(",", ":"), ensure_ascii=False,
+        allow_nan=False,
+    )
+
+    with pytest.raises(campaign_lock.CampaignLockCodecError):
+        campaign_lock.decode_historical_campaign_lock(noncanonical)
 
 
 @pytest.mark.parametrize(
