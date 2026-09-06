@@ -76,13 +76,15 @@ CURRENT_E0_EPOCH = {
     "state": "E0",
     "reason_code": "v1-authority-absent",
     "identity_scope": (
-        "enforcement source closure (exact 24 path; witness gate、S8C 判定器、"
-        "receipt 発行・検証面を含む)"
+        "enforcement source closure (curated exact 62 path; 2026-09-01 の静的 import "
+        "発見集合 131 module のうち、既存 24、明示 import 先 36、実行時 package 初期化 "
+        "2 を収載; source-import 推移閉包ではない)"
     ),
     "excluded_scope": (
-        "verifier package のうち orchestrator/verifier/__main__.py と "
-        "orchestrator/verifier/cli.py、および package 外の orchestrator/verify.py の "
-        "implementation bytes は束縛しない"
+        "同発見集合の未収載 69 module、orchestrator/verifier/__main__.py、"
+        "orchestrator/verifier/cli.py、package 外の orchestrator/verify.py、および "
+        "data/schema、生成物、subprocess、外部 command/Git、toolchain、binary、動的 "
+        "import を含む非 import 委譲は本 map の外であり、完全性を主張しない"
     ),
 }
 FROZEN_E0_EPOCH = {

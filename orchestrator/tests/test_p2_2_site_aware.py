@@ -383,6 +383,7 @@ def test_backoff_sweep_screening_reuses_one_resolved_runtime(
     calibration_calls = []
     compiler_observations = []
     prepare_calls = []
+    masstree_prepare_calls = []
     evaluate_calls = []
     screening_receipt = {"schema": "fixture-screening-receipt"}
     screening_verified_calibration = object()
@@ -435,6 +436,11 @@ def test_backoff_sweep_screening_reuses_one_resolved_runtime(
         backoff_sweep.buildcache,
         "observed_toolchain_manifest",
         lambda cc, cxx: compiler_observations.append((cc, cxx)) or manifest,
+    )
+    monkeypatch.setattr(
+        backoff_sweep.buildcache,
+        "prepare_masstree_fetchcontent",
+        lambda **kwargs: masstree_prepare_calls.append(kwargs),
     )
     monkeypatch.setattr(
         backoff_sweep.source_digest,
@@ -494,6 +500,10 @@ def test_backoff_sweep_screening_reuses_one_resolved_runtime(
     assert prepare_kwargs["execution_receipt"] is screening_receipt
     assert prepare_kwargs["verified_calibration"] is screening_verified_calibration
     assert prepare_kwargs["authorization_contract"].contract == expected
+    assert len(masstree_prepare_calls) == 1
+    masstree_prepare = masstree_prepare_calls[0]
+    assert Path(masstree_prepare["ccbench_dir"]).resolve() == patched_root.resolve()
+    assert Path(masstree_prepare["fetchcontent_base_dir"]).is_absolute()
     assert len(evaluate_calls) == 2
     for args, kwargs in evaluate_calls:
         assert args[4:6] == (expected.env_tag, expected.clocks_per_us)

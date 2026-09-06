@@ -22,6 +22,7 @@ import argparse
 import hashlib
 import os
 import sys
+import tempfile
 from dataclasses import dataclass
 from typing import Mapping, Optional, Sequence
 from pathlib import Path
@@ -88,6 +89,7 @@ def _require_backoff_condition_gate(
         source_root: str, *, stock_root: Optional[str], driver_id: str,
         macro_values: Mapping[str, Sequence[int]], cxx: str,
         cmake: str = "cmake", use_class: str = "raw-measurement",
+        configure_args: Sequence[str] = (),
 ) -> _BackoffConditionGateRun:
     """Run both condition-gate arms for every concrete driver request."""
     unsupported = set(macro_values).difference(condition_meaning_gate.DEFINE_SPECS)
@@ -103,7 +105,7 @@ def _require_backoff_condition_gate(
             f"{sorted(unknown_defaults)!r}"
         )
     captured = condition_meaning_gate.capture_define_inputs(
-        source_root, stock_root=stock_root,
+        source_root, stock_root=stock_root, configure_args=configure_args,
     )
     requests = []
     for macro, values in macro_values.items():
@@ -360,18 +362,34 @@ def run_workload(tag: str, workload: dict, log=print, *,
     )
     with patchharness.checkout(CCBENCH_COMMIT, base_dir=ccbench_dir) as stock_root:
         with patchharness.applied(patch_path, CCBENCH_COMMIT, ccbench_dir):
-            _require_backoff_condition_gate(
-                ccbench_dir,
-                stock_root=stock_root,
-                driver_id="orchestrator/campaign/backoff_sweep.py",
-                macro_values={
-                    "BACKOFF_FIXED": tuple(
-                        genome.flags["BACKOFF_FIXED"] for genome in gs
+            canonical_ccbench_dir = os.fspath(Path(ccbench_dir).resolve())
+            with tempfile.TemporaryDirectory(
+                    prefix="izanagi-backoff-condition-gate-",
+            ) as fetchcontent_base:
+                canonical_base = os.fspath(Path(fetchcontent_base).resolve())
+                buildcache.prepare_masstree_fetchcontent(
+                    ccbench_dir=canonical_ccbench_dir,
+                    fetchcontent_base_dir=canonical_base,
+                    expected_toolchain_manifest=expected_toolchain_manifest,
+                    configure_timeout_s=900,
+                    target_timeout_s=900,
+                    site=site,
+                )
+                _require_backoff_condition_gate(
+                    canonical_ccbench_dir,
+                    stock_root=stock_root,
+                    driver_id="orchestrator/campaign/backoff_sweep.py",
+                    macro_values={
+                        "BACKOFF_FIXED": tuple(
+                            genome.flags["BACKOFF_FIXED"] for genome in gs
+                        ),
+                    },
+                    cxx=resolved_cxx,
+                    use_class="raw-measurement",
+                    configure_args=(
+                        f"-DFETCHCONTENT_BASE_DIR={canonical_base}",
                     ),
-                },
-                cxx=resolved_cxx,
-                use_class="raw-measurement",
-            )
+                )
             if screening_enabled:
                 s = _run_screened_workload(
                     cfg, gs, perf, workload, calibration_dir, log,
