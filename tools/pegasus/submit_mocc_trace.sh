@@ -82,8 +82,12 @@ def reject_duplicate_keys(pairs):
     return document
 
 
+def _reject_non_finite(value):
+    raise ValueError(f"non-finite JSON constant: {value}")
+
+
 path = sys.argv[1]
-fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
 try:
     info = os.fstat(fd)
     if not stat.S_ISREG(info.st_mode):
@@ -94,7 +98,11 @@ try:
 finally:
     if fd >= 0:
         os.close(fd)
-policy = json.loads(raw.decode("utf-8"), object_pairs_hook=reject_duplicate_keys)
+policy = json.loads(
+    raw.decode("utf-8"),
+    object_pairs_hook=reject_duplicate_keys,
+    parse_constant=_reject_non_finite,
+)
 trace = policy["mocc_trace"]
 workload = trace["workload"]
 expected_compilers = policy["expected_compiler_version_body_sha256"]
@@ -287,7 +295,7 @@ import os
 import stat
 import sys
 
-fd = os.open(sys.argv[1], os.O_RDONLY | os.O_NOFOLLOW)
+fd = os.open(sys.argv[1], os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
 try:
     info = os.fstat(fd)
     if not stat.S_ISREG(info.st_mode):
@@ -378,7 +386,7 @@ qsub_cmd=(
 python3 - "$SUBMISSION_DIR" "$SOURCE_COMMIT" "$JOB_SCRIPT" "$JOB_SCRIPT_SHA256" \
   "$SUBMIT_EPOCH" "$NONCE" "$PROJECT" "$QUEUE" "$NODES" "$WALLTIME_S" \
   "$FINALIZE_RESERVE_S" "$EXPECTED_CPU" "$EXPECTED_CORES" "$BASE_OID" "$NEW_OID" \
-  "$CMAKE_TARGET" "$WORKLOAD_JSON" "$POLICY" "$PILOT_WALLTIME" \
+  "$CMAKE_TARGET" "$WORKLOAD_JSON" "$POLICY" \
   "$POLICY_RAW_SHA256" "$EXPECTED_COMPILER_VERSION_BODY_SHA256_JSON" \
   "$MOCC_TRACE_JSON" "$TRACE_MODE" "$DRY_RUN" \
   "$T1943_G2" "${qsub_cmd[@]}" <<'PY'
@@ -390,10 +398,18 @@ import sys
 
 (root, source_commit, script, script_sha, submit_epoch, nonce, project, queue,
  nodes, walltime_s, reserve_s, expected_cpu, expected_cores, base_oid, new_oid,
- cmake_target, workload_json, policy_path, pilot_walltime, policy_raw_sha,
+ cmake_target, workload_json, policy_path, policy_raw_sha,
  expected_compilers_json, initial_mocc_trace_json, trace_mode, dry_run,
  t1943_g2, *qsub_argv) = sys.argv[1:]
-policy_fd = os.open(policy_path, os.O_RDONLY | os.O_NOFOLLOW)
+
+
+def _reject_non_finite(value):
+    raise ValueError(f"non-finite JSON constant: {value}")
+
+
+policy_fd = os.open(
+    policy_path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK
+)
 try:
     policy_info = os.fstat(policy_fd)
     if not stat.S_ISREG(policy_info.st_mode):
@@ -406,14 +422,20 @@ finally:
         os.close(policy_fd)
 if hashlib.sha256(policy_bytes).hexdigest() != policy_raw_sha:
     raise SystemExit("Mocc trace policy changed before pre-submit receipt")
-policy = json.loads(policy_bytes.decode("utf-8"))
+policy = json.loads(
+    policy_bytes.decode("utf-8"), parse_constant=_reject_non_finite
+)
 mocc_trace = dict(policy["mocc_trace"])
-if mocc_trace != json.loads(initial_mocc_trace_json):
+if mocc_trace != json.loads(
+    initial_mocc_trace_json, parse_constant=_reject_non_finite
+):
     raise SystemExit("Mocc trace policy projection changed before pre-submit receipt")
 mocc_trace["trace_mode"] = int(trace_mode)
 if int(t1943_g2):
     mocc_trace["t1943_g2_discriminator"] = True
-mocc_trace["workload"] = json.loads(workload_json)
+mocc_trace["workload"] = json.loads(
+    workload_json, parse_constant=_reject_non_finite
+)
 mocc_trace["workload_note"] = (
     "parent-selected pilot workload; not a reproduction of historical T-816 measurements"
 )
@@ -449,13 +471,13 @@ payload = {
     },
     "policy": {
         "path": os.path.relpath(policy_path, os.path.dirname(os.path.dirname(os.path.dirname(root)))),
-        "pilot_walltime": pilot_walltime,
+        "pilot_walltime": policy["pilot_walltime"],
         "pilot_walltime_s": int(policy["pilot_walltime_s"]),
         "expected_cpu_model": expected_cpu,
         "expected_physical_cores": int(expected_cores),
         "raw_sha256": policy_raw_sha,
         "expected_compiler_version_body_sha256": json.loads(
-            expected_compilers_json
+            expected_compilers_json, parse_constant=_reject_non_finite
         ),
     },
     "mocc_trace": mocc_trace,

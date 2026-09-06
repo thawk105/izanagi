@@ -810,7 +810,13 @@ def reject_duplicate_keys(pairs):
     return document
 
 
-policy_fd = os.open(sys.argv[1], os.O_RDONLY | os.O_NOFOLLOW)
+def _reject_non_finite(value):
+    raise ValueError(f"non-finite JSON constant: {value}")
+
+
+policy_fd = os.open(
+    sys.argv[1], os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK
+)
 try:
     policy_info = os.fstat(policy_fd)
     if not stat.S_ISREG(policy_info.st_mode):
@@ -822,7 +828,9 @@ finally:
     if policy_fd >= 0:
         os.close(policy_fd)
 policy = json.loads(
-    policy_bytes.decode("utf-8"), object_pairs_hook=reject_duplicate_keys
+    policy_bytes.decode("utf-8"),
+    object_pairs_hook=reject_duplicate_keys,
+    parse_constant=_reject_non_finite,
 )
 trace = policy["mocc_trace"]
 workload = trace["workload"]
@@ -1118,9 +1126,13 @@ def reject_duplicate_keys(pairs):
     return document
 
 
+def _reject_non_finite(value):
+    raise ValueError(f"non-finite JSON constant: {value}")
+
+
 def read_policy_bytes(path):
     try:
-        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
     except OSError as exc:
         raise ValueError("policy cannot be opened without following") from exc
     try:
@@ -1137,7 +1149,7 @@ def read_policy_bytes(path):
 
 def read_receipt_bytes(path):
     try:
-        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
     except OSError as exc:
         raise ValueError(
             "pinned submit receipt cannot be opened without following"
@@ -1157,7 +1169,9 @@ def read_receipt_bytes(path):
 def parse_document(raw, label):
     try:
         value = json.loads(
-            raw.decode("utf-8"), object_pairs_hook=reject_duplicate_keys
+            raw.decode("utf-8"),
+            object_pairs_hook=reject_duplicate_keys,
+            parse_constant=_reject_non_finite,
         )
     except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
         raise ValueError(f"{label} is not strict duplicate-free JSON") from exc
@@ -1199,7 +1213,9 @@ try:
     try:
         shell_mapping = require_mapping(
             json.loads(
-                shell_mapping_json, object_pairs_hook=reject_duplicate_keys
+                shell_mapping_json,
+                object_pairs_hook=reject_duplicate_keys,
+                parse_constant=_reject_non_finite,
             ),
             "early policy compiler mapping",
         )
@@ -2394,6 +2410,10 @@ def reject_duplicate_keys(pairs):
     return document
 
 
+def _reject_non_finite(value):
+    raise ValueError(f"non-finite JSON constant: {value}")
+
+
 def require_sha(value, label):
     if (
         type(value) is not str
@@ -2413,7 +2433,9 @@ def require_mapping(value, label):
 
 
 try:
-    receipt_fd = os.open(receipt_path, os.O_RDONLY | os.O_NOFOLLOW)
+    receipt_fd = os.open(
+        receipt_path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK
+    )
     try:
         receipt_info = os.fstat(receipt_fd)
         if not stat.S_ISREG(receipt_info.st_mode):
@@ -2427,7 +2449,9 @@ try:
     if hashlib.sha256(receipt_bytes).hexdigest() != pinned_sha:
         raise ValueError("pinned submit receipt digest differs at finalization")
     receipt = json.loads(
-        receipt_bytes.decode("utf-8"), object_pairs_hook=reject_duplicate_keys
+        receipt_bytes.decode("utf-8"),
+        object_pairs_hook=reject_duplicate_keys,
+        parse_constant=_reject_non_finite,
     )
     if not isinstance(receipt, dict):
         raise ValueError("pinned submit receipt top level is not an object")
@@ -2441,7 +2465,9 @@ try:
         raise ValueError("bound policy raw sha differs at finalization")
     shell_mapping = require_mapping(
         json.loads(
-            shell_mapping_json, object_pairs_hook=reject_duplicate_keys
+            shell_mapping_json,
+            object_pairs_hook=reject_duplicate_keys,
+            parse_constant=_reject_non_finite,
         ),
         "bound policy compiler mapping",
     )

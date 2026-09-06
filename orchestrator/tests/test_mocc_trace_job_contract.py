@@ -110,6 +110,80 @@ def _fake_git(
     )
 
 
+def _policy_bytes_with_non_finite_top_level() -> bytes:
+    document = json.loads(POLICY.read_text(encoding="utf-8"))
+    document["unreferenced_non_finite"] = float("nan")
+    return (
+        json.dumps(
+            document,
+            ensure_ascii=False,
+            sort_keys=True,
+            indent=2,
+            allow_nan=True,
+        )
+        + "\n"
+    ).encode("utf-8")
+
+
+def _run_mocc_trace_submit_with_policy(
+    tmp_path: Path,
+    policy_bytes: bytes,
+    *,
+    replace_policy_with_writerless_fifo: bool = False,
+) -> tuple[subprocess.CompletedProcess[str], Path, Path]:
+    repo_root = tmp_path / "repo"
+    policy_path = repo_root / "tools/pegasus/mocc_trace_v1_policy.json"
+    policy_path.parent.mkdir(parents=True)
+    policy_path.write_bytes(policy_bytes)
+    (repo_root / "external/ccbench").mkdir(parents=True)
+    attempts_root = tmp_path / "attempts"
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    _fake_git(bin_dir, "7" * 40)
+
+    if replace_policy_with_writerless_fifo:
+        real_python = shutil.which("python3")
+        assert real_python is not None
+        swap_marker = tmp_path / "policy-swapped"
+        saved_policy = tmp_path / "saved-policy.json"
+        _make_executable(
+            bin_dir / "python3",
+            f"""
+            #!/bin/bash
+            if [[ ! -e {shlex.quote(str(swap_marker))} && "$#" -ge 2 &&
+                  "$1" == "-" && "$2" == {shlex.quote(str(policy_path))} ]]; then
+              : >{shlex.quote(str(swap_marker))}
+              mv {shlex.quote(str(policy_path))} {shlex.quote(str(saved_policy))}
+              mkfifo {shlex.quote(str(policy_path))}
+            fi
+            exec {shlex.quote(real_python)} "$@"
+            """,
+        )
+
+    environment = os.environ.copy()
+    environment["PATH"] = os.pathsep.join((str(bin_dir), environment["PATH"]))
+    result = subprocess.run(
+        [
+            "bash",
+            str(SUBMITTER),
+            "--dry-run",
+            "--repo-root",
+            str(repo_root),
+            "--attempts-root",
+            str(attempts_root),
+            "--job-script",
+            str(PILOT),
+        ],
+        cwd=REPO_ROOT,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=10,
+    )
+    return result, attempts_root, policy_path
+
+
 def _pilot_policy_parser_source() -> str:
     source = PILOT.read_text(encoding="utf-8")
     prefix = 'readarray -t policy_values < <(python3 - "$POLICY" <<\'PY\'\n'
@@ -160,6 +234,65 @@ def test_mocc_trace_policy_parser_emits_18_values_and_rejects_duplicates(
     )
     assert rejected.returncode != 0
     assert "duplicate JSON key: expected_cpu_model" in rejected.stderr
+
+
+def test_mocc_trace_submit_rejects_writerless_fifo_policy_without_blocking(
+    tmp_path: Path,
+) -> None:
+    result, attempts_root, policy_path = _run_mocc_trace_submit_with_policy(
+        tmp_path,
+        POLICY.read_bytes(),
+        replace_policy_with_writerless_fifo=True,
+    )
+    assert result.returncode == 2, result.stderr
+    assert stat.S_ISFIFO(policy_path.stat().st_mode)
+    assert not (attempts_root / "submissions").exists()
+
+
+def test_mocc_trace_submit_rejects_non_finite_policy(tmp_path: Path) -> None:
+    result, attempts_root, _ = _run_mocc_trace_submit_with_policy(
+        tmp_path, _policy_bytes_with_non_finite_top_level()
+    )
+    assert result.returncode == 2, result.stderr
+    assert "Mocc trace policy parse failed" in result.stderr
+    assert not (attempts_root / "submissions").exists()
+
+
+def test_mocc_trace_submit_preserves_policy_pilot_walltime_type(
+    tmp_path: Path,
+) -> None:
+    policy = json.loads(POLICY.read_text(encoding="utf-8"))
+    policy["pilot_walltime"] = 37
+    policy_bytes = (
+        json.dumps(policy, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
+    ).encode("utf-8")
+    result, attempts_root, _ = _run_mocc_trace_submit_with_policy(
+        tmp_path, policy_bytes
+    )
+    assert result.returncode == 0, result.stderr
+    submission_dirs = list((attempts_root / "submissions").iterdir())
+    assert len(submission_dirs) == 1
+    pre_submit = _load_json(submission_dirs[0] / "pre-submit.json")
+    submit_receipt = _load_json(submission_dirs[0] / "submit-receipt.json")
+    assert type(pre_submit["policy"]["pilot_walltime"]) is int
+    assert pre_submit["policy"]["pilot_walltime"] == 37
+    assert submit_receipt["policy"]["pilot_walltime"] == 37
+
+
+def test_mocc_trace_policy_parser_rejects_non_finite_policy(tmp_path: Path) -> None:
+    parser = tmp_path / "policy_parser.py"
+    parser.write_text(_pilot_policy_parser_source(), encoding="utf-8")
+    policy_path = tmp_path / "non-finite-policy.json"
+    policy_path.write_bytes(_policy_bytes_with_non_finite_top_level())
+    result = subprocess.run(
+        [sys.executable, str(parser), str(policy_path)],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=10,
+    )
+    assert result.returncode != 0
+    assert "non-finite JSON constant: NaN" in result.stderr
 
 
 def _compiler_gate_fragment() -> str:
@@ -2056,6 +2189,7 @@ def _policy_binding_receipt_bytes(
     exported_sha: str,
     *,
     duplicate_policy_key: bool = False,
+    non_finite_top_level: bool = False,
 ) -> bytes:
     policy = {
         "raw_sha256": policy_sha,
@@ -2073,8 +2207,12 @@ def _policy_binding_receipt_bytes(
             ]
         },
     }
+    if non_finite_top_level:
+        document["unreferenced_non_finite"] = float("nan")
     if not duplicate_policy_key:
-        return (json.dumps(document, sort_keys=True) + "\n").encode("utf-8")
+        return (
+            json.dumps(document, sort_keys=True, allow_nan=True) + "\n"
+        ).encode("utf-8")
     encoded_policy = json.dumps(policy, sort_keys=True)
     return (
         "{"
@@ -2165,15 +2303,20 @@ def _run_mocc_trace_policy_binding(
                 f"{shlex.quote(str(policy_path))}",
             )
         )
-    elif policy_kind == "fifo":
-        replace_policy = "\n".join(
-            (
-                f"rm {shlex.quote(str(policy_path))}",
-                f"mkfifo {shlex.quote(str(policy_path))}",
-                f"(cat {shlex.quote(str(live_policy_path))} >"
-                f"{shlex.quote(str(policy_path))}) &",
+    elif policy_kind in {"fifo", "writerless_fifo"}:
+        replace_policy_lines = [
+            f"rm {shlex.quote(str(policy_path))}",
+            f"mkfifo {shlex.quote(str(policy_path))}",
+        ]
+        if policy_kind == "fifo":
+            replace_policy_lines.extend(
+                (
+                    f"cat {shlex.quote(str(live_policy_path))} >"
+                    f"{shlex.quote(str(policy_path))} &",
+                    'BACKGROUND_PIDS+=("$!")',
+                )
             )
-        )
+        replace_policy = "\n".join(replace_policy_lines)
     else:
         raise AssertionError(policy_kind)
 
@@ -2192,15 +2335,17 @@ def _run_mocc_trace_policy_binding(
                     '"$ATTEMPT_RECEIPT"',
                 )
             )
-        elif receipt_kind == "fifo":
-            replace_receipt = "\n".join(
-                (
-                    common,
-                    'mkfifo "$ATTEMPT_RECEIPT"',
-                    f"(cat {shlex.quote(str(saved_receipt))} >"
-                    '"$ATTEMPT_RECEIPT") &',
+        elif receipt_kind in {"fifo", "writerless_fifo"}:
+            replace_receipt_lines = [common, 'mkfifo "$ATTEMPT_RECEIPT"']
+            if receipt_kind == "fifo":
+                replace_receipt_lines.extend(
+                    (
+                        f"cat {shlex.quote(str(saved_receipt))} >"
+                        '"$ATTEMPT_RECEIPT" &',
+                        'BACKGROUND_PIDS+=("$!")',
+                    )
                 )
-            )
+            replace_receipt = "\n".join(replace_receipt_lines)
         else:
             raise AssertionError(receipt_kind)
 
@@ -2226,7 +2371,7 @@ def _run_mocc_trace_policy_binding(
         "JUDGMENT_POST_SHA": "",
         "FAILURE_PATH": str(failure_path),
     }
-    prefix = ["set -Eeuo pipefail"]
+    prefix = ["set -Eeuo pipefail", "BACKGROUND_PIDS=()"]
     prefix.extend(
         f"{name}={shlex.quote(value)}" for name, value in variables.items()
     )
@@ -2235,6 +2380,14 @@ def _run_mocc_trace_policy_binding(
             "write_failure() {",
             "  printf '%s|%s|%s\\n' \"$1\" \"$2\" \"$3\" >\"$FAILURE_PATH\"",
             "}",
+            "cleanup_background() {",
+            "  local pid",
+            '  for pid in "${BACKGROUND_PIDS[@]}"; do',
+            '    kill "$pid" 2>/dev/null || true',
+            '    wait "$pid" 2>/dev/null || true',
+            "  done",
+            "}",
+            "trap cleanup_background EXIT",
         )
     )
     script = "\n".join(
@@ -2424,6 +2577,26 @@ def test_mocc_trace_policy_binding_rejects_non_regular_policy(
     _assert_policy_binding_rejected(result, failure_path)
 
 
+@pytest.mark.parametrize(
+    ("policy_kind", "receipt_kind"),
+    (
+        ("writerless_fifo", "regular"),
+        ("regular", "writerless_fifo"),
+    ),
+)
+def test_mocc_trace_policy_binding_rejects_writerless_fifo_without_blocking(
+    tmp_path: Path,
+    policy_kind: str,
+    receipt_kind: str,
+) -> None:
+    result, _, failure_path, _ = _run_mocc_trace_policy_binding(
+        tmp_path,
+        policy_kind=policy_kind,
+        receipt_kind=receipt_kind,
+    )
+    _assert_policy_binding_rejected(result, failure_path)
+
+
 @pytest.mark.parametrize("receipt_kind", ("symlink", "fifo"))
 def test_mocc_trace_policy_binding_rejects_symlink_or_non_regular_receipt_after_pin(
     tmp_path: Path, receipt_kind: str,
@@ -2431,6 +2604,37 @@ def test_mocc_trace_policy_binding_rejects_symlink_or_non_regular_receipt_after_
     result, _, failure_path, _ = _run_mocc_trace_policy_binding(
         tmp_path, receipt_kind=receipt_kind
     )
+    _assert_policy_binding_rejected(result, failure_path)
+
+
+@pytest.mark.parametrize("surface", ("policy", "receipt"))
+def test_mocc_trace_policy_binding_rejects_non_finite_json(
+    tmp_path: Path,
+    surface: str,
+) -> None:
+    live_policy_bytes = _policy_bytes_with_non_finite_top_level()
+    if surface == "policy":
+        result, _, failure_path, _ = _run_mocc_trace_policy_binding(
+            tmp_path,
+            initial_policy_bytes=POLICY.read_bytes(),
+            live_policy_bytes=live_policy_bytes,
+            rebind_parsed_sha_to_live=True,
+        )
+    else:
+        live_sha = hashlib.sha256(POLICY.read_bytes()).hexdigest()
+        mapping = json.loads(POLICY.read_text(encoding="utf-8"))[
+            "expected_compiler_version_body_sha256"
+        ]
+        receipt_bytes = _policy_binding_receipt_bytes(
+            live_sha,
+            mapping,
+            live_sha,
+            non_finite_top_level=True,
+        )
+        result, _, failure_path, _ = _run_mocc_trace_policy_binding(
+            tmp_path,
+            receipt_bytes=receipt_bytes,
+        )
     _assert_policy_binding_rejected(result, failure_path)
 
 
@@ -2508,12 +2712,42 @@ def test_mocc_trace_policy_binding_gate_order_and_markers() -> None:
     assert {marker: source.count(marker) for marker in markers} == {
         marker: 1 for marker in markers
     }
-    receipt_pin = source.index("# END T2195 SUBMIT RECEIPT PIN")
+    parse_begin = source.index("# BEGIN T2195 POLICY PARSE")
+    parse_end = source.index("# END T2195 POLICY PARSE")
+    receipt_pin_begin = source.index("# BEGIN T2195 SUBMIT RECEIPT PIN")
+    receipt_pin_end = source.index("# END T2195 SUBMIT RECEIPT PIN")
     judgment = source.index("if ! initialize_judgment_source_state; then")
     binding_begin = source.index("# BEGIN T2195 POLICY BINDING GATE")
     binding_end = source.index("# END T2195 POLICY BINDING GATE")
     compiler = source.index("# BEGIN T1718 COMPILER VERSION BODY GATE")
-    assert receipt_pin < judgment < binding_begin < binding_end < compiler
+    finalization_begin = source.index("# BEGIN T2195 POLICY FINALIZATION CHECK")
+    finalization_end = source.index("# END T2195 POLICY FINALIZATION CHECK")
+    receipt_writer = source.index("RECEIPT_WRITER_SHA=$(python3 -")
+    assert (
+        parse_begin
+        < parse_end
+        < receipt_pin_begin
+        < receipt_pin_end
+        < judgment
+        < binding_begin
+        < binding_end
+        < compiler
+        < finalization_begin
+        < finalization_end
+        < receipt_writer
+    )
+
+
+def test_mocc_trace_policy_binding_values_are_not_reassigned_before_finalization(
+) -> None:
+    source = PILOT.read_text(encoding="utf-8")
+    binding_end_marker = "# END T2195 POLICY BINDING GATE"
+    finalization_begin_marker = "# BEGIN T2195 POLICY FINALIZATION CHECK"
+    start = source.index(binding_end_marker) + len(binding_end_marker)
+    end = source.index(finalization_begin_marker, start)
+    between = source[start:end]
+    assert "POLICY_RAW_SHA256=" not in between
+    assert "EXPECTED_COMPILER_VERSION_BODY_SHA256_JSON=" not in between
 
 
 def _make_judgment_git_stub(
@@ -2895,6 +3129,7 @@ def _run_mocc_trace_finalization(
     tamper_manifest_leaf_after_discriminator: str | None = None,
     current_script_sha: str = "fixture-script-sha",
     post_gate_policy_state: str | None = None,
+    receipt_kind: str = "regular",
 ) -> tuple[subprocess.CompletedProcess[str], Path, bytes]:
     attempt_dir = tmp_path / "attempt"
     attempt_dir.mkdir(parents=True)
@@ -3382,6 +3617,11 @@ def _run_mocc_trace_finalization(
             tamper + job_writer_marker,
             1,
         )
+    if receipt_kind == "writerless_fifo":
+        submit_receipt_path.unlink()
+        os.mkfifo(submit_receipt_path)
+    elif receipt_kind != "regular":
+        raise AssertionError(receipt_kind)
     result = subprocess.run(
         [
             "/bin/bash",
@@ -3392,6 +3632,7 @@ def _run_mocc_trace_finalization(
         capture_output=True,
         text=True,
         check=False,
+        timeout=10,
     )
     return result, attempt_dir, report_bytes
 
@@ -3440,6 +3681,18 @@ def test_mocc_trace_finalization_rejects_raw_sha_changed_after_gate(
     failure = (attempt_dir / "fragment-failure.txt").read_text(encoding="utf-8")
     assert failure.startswith("2|policy_binding|")
     assert "at finalization" in failure
+
+
+def test_mocc_trace_finalization_rejects_writerless_fifo_receipt_without_blocking(
+    tmp_path: Path,
+) -> None:
+    result, attempt_dir, _ = _run_mocc_trace_finalization(
+        tmp_path, receipt_kind="writerless_fifo"
+    )
+    assert result.returncode == 2, result.stderr
+    assert not (attempt_dir / "mocc-trace-pilot-receipt.json").exists()
+    failure = (attempt_dir / "fragment-failure.txt").read_text(encoding="utf-8")
+    assert failure.startswith("2|policy_binding|")
 
 
 def _mocc_trace_artifact_manifest_fragment(*, write_manifest: bool) -> str:
