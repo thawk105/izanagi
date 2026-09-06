@@ -1068,6 +1068,14 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
   D1586) を維持する。2026-08-12 の粗い provenance 方針に従う。
   再訪条件 = 未承認の CMake による測定が実害を出した 1 件。
 
+- [T-2328] `BUILD_START` payload への平文契約 ID 再掲 — 理由: D1680 の
+  照合で、per-attempt 単独監査の実需が未観測と確認した。campaign.lock との併読で契約 ID は得られ、
+  成果物影響は監査の手間だけで certified 値・受理集合・参照は変わらない。再訪条件 = campaign.lock を
+  併読できない状況で per-attempt 監査が実際に要求されたとき。
+- [T-2345] 旧 grammar 8 / 12 / 14 / 25 / 27 の歴史 decoder への追加収載 — 理由: D1653 が「収載する grammar は
+  実在 corpus が確認できたものだけ」と定めており、当該 5 grammar の実在成果物は未観測で条件が成立しない。
+  該当 grammar の成果物が現れるまで何も読めなくならない。再訪条件 = 当該 grammar の成果物を 1 件観測したとき。
+
 ### 研究・計測系
 
 - [T-021] **balanced での backoff profile 対照** (B-011, 出所 `docs/phase3.md`) — balanced を凍結機序 profile に含め qualifying rr50 成果物が無い時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。

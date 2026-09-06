@@ -16,6 +16,9 @@ from orchestrator.campaign import reflux_origin_binding as B
 from orchestrator.campaign import reflux_origin_ledger as L
 from orchestrator.campaign import reflux_origin_topology as T
 from orchestrator.campaign import reflux_source_closure as S
+from orchestrator.campaign import trigger_gate_binding as G
+from orchestrator.campaign import wal as W
+from orchestrator.campaign.layout import CampaignLayout
 from orchestrator.tests import reflux_origin_fixture_builder as F
 
 
@@ -35,6 +38,22 @@ WAVE_PRODUCTION_FILES = (
     "wal.py",
     "s8b_descriptor.py",
     "s8c_arm_inputs.py",
+)
+_PRODUCER_VERBATIM_TRIGGER = (
+    '{"variant":"probe-v","stage":"trigger_binding","env_tag":"probe-env",'
+    '"ts":1788580452.4215896,"payload":{"build_attempt_id":'
+    '"probe-attempt-0001","trigger_gate_binding":{"schema_version":'
+    '"izanagi-trigger-gate-binding/v1","ir_schema":"izanagi-trigger-gate-ir/v1",'
+    '"mask":7,"predicate_sha256":'
+    '"9d6971707fdc3448fa20a707ba89f853df49705c6a8bdcd05068305b87cf3d56",'
+    '"nonce":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",'
+    '"source":null}}}'
+)
+_PRODUCER_VERBATIM_BUILD_START = (
+    '{"variant":"probe-v","stage":"build_start","env_tag":"probe-env",'
+    '"ts":1788580452.4419234,"payload":{"build_attempt_id":'
+    '"probe-attempt-0001","trigger_gate_binding_commitment":'
+    '"3971d4e14424e4d13bd63fc709a993ee12d8dfe13e072ce9960c9e51fa0b7029"}}'
 )
 
 
@@ -287,7 +306,12 @@ def _rewrite_wal(case: _Case, index: int, records: list[dict], *, attempt: str |
     projection = json.loads(projection_path.read_bytes())
     selected_attempt = attempt or record["physical_result"]["build_attempt_id"]
     for wal_record in records:
-        wal_record["build_attempt_id"] = selected_attempt
+        if "build_attempt_id" in wal_record:
+            wal_record["build_attempt_id"] = selected_attempt
+            continue
+        payload = wal_record.get("payload")
+        if type(payload) is dict and "build_attempt_id" in payload:
+            payload["build_attempt_id"] = selected_attempt
     source_raw = _canonical(records)
     source_path = case.fixture.evidence_root / projection["source_wal_ref"]["path"]
     source_path.write_bytes(source_raw)
@@ -313,6 +337,68 @@ def _rewrite_provenance(case: _Case, index: int, provenance: dict) -> None:
     provenance_path.write_bytes(raw)
     record["evidence"]["execution_provenance_ref"]["sha256"] = _digest(raw)
     _set_record(case, index, record)
+
+
+def _projection_records(case: _Case, index: int) -> list[dict]:
+    projection_path = case.fixture.evidence_root / case.records[index]["evidence"][
+        "ordered_wal_ref"
+    ]["path"]
+    return copy.deepcopy(json.loads(projection_path.read_bytes())["records"])
+
+
+def _wire(mask: int) -> str:
+    return "".join("1" if mask & (1 << bit) else "0" for bit in range(5))
+
+
+def _binding_projection(binding: G.TriggerGateBinding) -> dict:
+    return {
+        "mask": binding.mask,
+        "candidate_wire": _wire(binding.mask),
+        "trigger_gate_binding_commitment": G.commitment(binding),
+    }
+
+
+def _replace_case_trigger_binding(
+    case: _Case,
+    index: int,
+    trigger_binding: dict,
+) -> None:
+    record = copy.deepcopy(case.records[index])
+    record["trigger_binding"] = copy.deepcopy(trigger_binding)
+    _set_record(case, index, record)
+    _set_member(
+        case,
+        index,
+        candidate_bytes=trigger_binding["candidate_wire"].encode("ascii"),
+    )
+    provenance_path = (
+        case.fixture.evidence_root
+        / case.records[index]["evidence"]["execution_provenance_ref"]["path"]
+    )
+    provenance = json.loads(provenance_path.read_bytes())
+    provenance["trigger_binding"] = copy.deepcopy(trigger_binding)
+    _rewrite_provenance(case, index, provenance)
+
+
+def _live_trigger_record(
+    case: _Case,
+    index: int,
+    binding: G.TriggerGateBinding,
+    label: str,
+) -> tuple[dict, str]:
+    root = case.fixture.root / label
+    layout = CampaignLayout(root=str(root)).ensure()
+    attempt = case.records[index]["physical_result"]["build_attempt_id"]
+    commitment = W.log_trigger_binding(
+        layout,
+        "fixture-v",
+        "fixture-env",
+        attempt,
+        binding,
+    )
+    lines = (root / "runs" / "wal.jsonl").read_text(encoding="utf-8").splitlines()
+    assert len(lines) == 1
+    return json.loads(lines[0]), commitment
 
 
 def _evaluate(case: _Case, **overrides) -> C.FormalConsumerResult:
@@ -523,11 +609,194 @@ def test_fc05b_rejects_overlapping_resolved_wal_range(case: _Case) -> None:
 
 
 def test_fc05c_rejects_wal_trigger_binding_mismatch(case: _Case) -> None:
-    projection_path = case.fixture.evidence_root / case.records[0]["evidence"][
-        "ordered_wal_ref"
-    ]["path"]
-    wal = copy.deepcopy(json.loads(projection_path.read_bytes())["records"])
-    wal[0]["trigger_binding"]["mask"] = 31
+    wal = _projection_records(case, 0)
+    wal[0]["payload"]["trigger_gate_binding"]["nonce"] = "f" * 64
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC05C)
+
+
+def test_live_producer_trigger_without_source_reaches_only_p6_unavailable(
+    case: _Case,
+) -> None:
+    binding = G.TriggerGateBinding(
+        mask=7,
+        predicate_sha256=G.expected_predicate_sha256(7),
+        nonce="a" * 64,
+        source=None,
+    )
+    trigger, commitment = _live_trigger_record(case, 0, binding, "producer-p1")
+    assert commitment == case.records[0]["trigger_binding"][
+        "trigger_gate_binding_commitment"
+    ]
+    terminal = _projection_records(case, 0)[-1]
+    _rewrite_wal(case, 0, [trigger, terminal])
+
+    result = _evaluate(case)
+    assert type(result) is C.P6Unavailable
+    assert result.reason_code is C.FormalReasonCode.P6_UNAVAILABLE
+
+
+def test_live_producer_trigger_with_source_reaches_only_p6_unavailable(
+    case: _Case,
+) -> None:
+    index = 19
+    binding = G.TriggerGateBinding(
+        mask=18,
+        predicate_sha256=G.expected_predicate_sha256(18),
+        nonce="b" * 64,
+        source=G.SourceBinding(
+            src_token="fixture-src",
+            source_bytes_sha256="c" * 64,
+        ),
+    )
+    projected = _binding_projection(binding)
+    _replace_case_trigger_binding(case, index, projected)
+    trigger, commitment = _live_trigger_record(case, index, binding, "producer-p2")
+    assert commitment == projected["trigger_gate_binding_commitment"]
+    terminal = _projection_records(case, index)[-1]
+    _rewrite_wal(case, index, [trigger, terminal])
+
+    result = _evaluate(case)
+    assert type(result) is C.P6Unavailable
+    assert result.reason_code is C.FormalReasonCode.P6_UNAVAILABLE
+
+
+def test_verbatim_producer_records_with_only_attempt_transplanted_reach_p6(
+    case: _Case,
+) -> None:
+    """The consumer reads only the trigger.
+
+    This test independently pins build_start's commitment.
+    """
+
+    trigger = json.loads(_PRODUCER_VERBATIM_TRIGGER)
+    build_start = json.loads(_PRODUCER_VERBATIM_BUILD_START)
+    terminal = _projection_records(case, 0)[-1]
+    _rewrite_wal(case, 0, [trigger, build_start, terminal])
+
+    projected = C._wal_trigger([trigger, build_start, terminal])
+    assert type(projected) is dict
+    assert projected["trigger_gate_binding_commitment"] == build_start["payload"][
+        "trigger_gate_binding_commitment"
+    ]
+    assert projected["trigger_gate_binding_commitment"] == (
+        "3971d4e14424e4d13bd63fc709a993ee12d8dfe13e072ce9960c9e51fa0b7029"
+    )
+    result = _evaluate(case)
+    assert type(result) is C.P6Unavailable
+    assert result.reason_code is C.FormalReasonCode.P6_UNAVAILABLE
+
+
+def test_fc05c_rejects_legacy_root_trigger_binding_shape(case: _Case) -> None:
+    terminal = _projection_records(case, 0)[-1]
+    legacy = {
+        "kind": "TriggerGateBinding",
+        "build_attempt_id": "placeholder",
+        "trigger_binding": copy.deepcopy(case.records[0]["trigger_binding"]),
+    }
+    _rewrite_wal(case, 0, [legacy, terminal])
+    _assert_reason(case, C.FormalReasonCode.FC05C)
+
+
+def test_fc05c_rejects_trigger_payload_under_non_trigger_stage(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    wal[0]["stage"] = "build_start"
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC05C)
+
+
+def test_fc05c_rejects_duplicate_valid_trigger_stages(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    wal.insert(1, copy.deepcopy(wal[0]))
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC05C)
+
+
+def test_fc05c_rejects_duplicate_trigger_stages_with_invalid_second_payload(
+    case: _Case,
+) -> None:
+    wal = _projection_records(case, 0)
+    invalid = copy.deepcopy(wal[0])
+    invalid["payload"] = {"build_attempt_id": "placeholder"}
+    wal.insert(1, invalid)
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC05C)
+
+
+def test_fc05c_rejects_raw_trigger_binding_extra_key(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    wal[0]["payload"]["trigger_gate_binding"]["extra"] = 1
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC05C)
+
+
+def test_fc05c_rejects_trigger_payload_extra_key(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    wal[0]["payload"]["extra"] = 1
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC05C)
+
+
+def test_fc05c_rejects_root_attempt_shadow(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    attempt = case.records[0]["physical_result"]["build_attempt_id"]
+    wal[0]["build_attempt_id"] = attempt
+    wal[0]["payload"]["build_attempt_id"] = "fixture-shadow-attempt"
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC05C)
+
+
+def test_fc05c_rejects_ledger_mask_only_mismatch(case: _Case) -> None:
+    changed = copy.deepcopy(case.records[0]["trigger_binding"])
+    changed["mask"] = 31
+    _replace_case_trigger_binding(case, 0, changed)
+    _assert_reason(case, C.FormalReasonCode.FC05C)
+
+
+def test_fc05c_rejects_ledger_commitment_only_mismatch(case: _Case) -> None:
+    changed = copy.deepcopy(case.records[0]["trigger_binding"])
+    changed["trigger_gate_binding_commitment"] = "e" * 64
+    _replace_case_trigger_binding(case, 0, changed)
+    _assert_reason(case, C.FormalReasonCode.FC05C)
+
+
+def test_fc05c_rejects_source_only_mismatch(case: _Case) -> None:
+    index = 19
+    binding = G.TriggerGateBinding(
+        mask=18,
+        predicate_sha256=G.expected_predicate_sha256(18),
+        nonce="b" * 64,
+        source=G.SourceBinding(
+            src_token="fixture-src",
+            source_bytes_sha256="c" * 64,
+        ),
+    )
+    projected = _binding_projection(binding)
+    _replace_case_trigger_binding(case, index, projected)
+    trigger, _ = _live_trigger_record(case, index, binding, "producer-n10")
+    trigger["payload"]["trigger_gate_binding"]["source"] = None
+    terminal = _projection_records(case, index)[-1]
+    _rewrite_wal(case, index, [trigger, terminal])
+    _assert_reason(case, C.FormalReasonCode.FC05C)
+
+
+def test_fc05c_rejects_boolean_trigger_timestamp(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    wal[0]["ts"] = True
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC05C)
+
+
+def test_fc05c_rejects_string_trigger_timestamp(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    wal[0]["ts"] = "1788580082.583126"
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC05C)
+
+
+def test_fc05c_rejects_integer_trigger_variant(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    wal[0]["variant"] = 1
     _rewrite_wal(case, 0, wal)
     _assert_reason(case, C.FormalReasonCode.FC05C)
 
@@ -546,9 +815,11 @@ def test_fc06_rejects_validation_mask_set_mismatch(case: _Case) -> None:
         1,
         candidate_bytes=record["trigger_binding"]["candidate_wire"].encode("ascii"),
     )
-    projection_path = case.fixture.evidence_root / record["evidence"]["ordered_wal_ref"]["path"]
-    wal = copy.deepcopy(json.loads(projection_path.read_bytes())["records"])
-    wal[0]["trigger_binding"] = copy.deepcopy(record["trigger_binding"])
+    wal = _projection_records(case, 1)
+    donor_wal = _projection_records(case, 2)
+    wal[0]["payload"]["trigger_gate_binding"] = copy.deepcopy(
+        donor_wal[0]["payload"]["trigger_gate_binding"]
+    )
     _rewrite_wal(case, 1, wal)
     provenance_path = (
         case.fixture.evidence_root
@@ -586,12 +857,9 @@ def test_fc07_rejects_accepted_verify_config_order_mismatch(case: _Case) -> None
     record["physical_result"]["constraint_sha256"] = None
     _set_record(case, 0, record)
     _set_member(case, 0, outcome="accepted", constraint_sha256=None)
+    trigger = _projection_records(case, 0)[0]
     wal = [
-        {
-            "kind": "TriggerGateBinding",
-            "build_attempt_id": "placeholder",
-            "trigger_binding": copy.deepcopy(record["trigger_binding"]),
-        },
+        trigger,
         {
             "kind": "commit",
             "build_attempt_id": "placeholder",

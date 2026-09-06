@@ -1,0 +1,11 @@
+# T-2266 static backoff tail: balanced
+# columns: backoff_us throughput_tps abort_rate latency_ns cv
+# provenance: {"campaign":"t2266-backoff-static-tail-silo-balanced-sweep-0ffee20c","claim_scope":"descriptive_backoff_shape_only","correctness_verified":true,"performance_certified":false,"realized_us":[150,200,300,500,750,999],"requested_us":[150,200,300,500,750,1000],"run_kind":"t2266-tail","source_measurement":"trace_disabled","unrealized":[{"backoff_us":1000,"reason":"F718 \u2014 \u73fe\u7b26\u53f7\u5316\u3067\u306f\u5546 1\u30fb\u632f\u5e45 0 \u3068\u306a\u308a\u56fa\u5b9a 0 \u3078\u5fa9\u53f7\u3055\u308c\u308b"}],"workload":"balanced"}
+# build command: orchestrator/campaign/backoff_extended_sweep.py
+# reproduce data: python -m orchestrator.campaign.backoff_extended_sweep balanced --run-kind t2266-tail
+150 1587298.0 0.1454 30240.0683 0.0012755805201002705
+200 1410438.0 0.1281 34031.9816 0.0017647487024976022
+300 1194246.0 0.1061 40192.7241 0.0020963571660204726
+500 961049.0 0.0833 49945.4242 0.006165353672440058
+750 813521.0 0.0678 59002.7793 0.003840080176362558
+999 720518.0 0.0586 66618.7382 0.0034797947815626545
