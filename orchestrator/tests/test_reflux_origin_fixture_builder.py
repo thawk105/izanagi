@@ -318,6 +318,21 @@ def test_fixture_repository_writes_33_consistent_create_only_records(
         projection_raw = projection_path.read_bytes()
         assert hashlib.sha256(projection_raw).hexdigest() == wal_ref["sha256"]
         projection = json.loads(projection_raw)
+        trigger = projection["records"][0]
+        assert set(trigger) == {"variant", "stage", "env_tag", "ts", "payload"}
+        assert trigger["stage"] == "trigger_binding"
+        assert set(trigger["payload"]) == {
+            "build_attempt_id",
+            "trigger_gate_binding",
+        }
+        assert set(trigger["payload"]["trigger_gate_binding"]) == {
+            "schema_version",
+            "ir_schema",
+            "mask",
+            "predicate_sha256",
+            "nonce",
+            "source",
+        }
         source_ref = projection["source_wal_ref"]
         source_raw = (repository.root / source_ref["path"]).read_bytes()
         assert hashlib.sha256(source_raw).hexdigest() == source_ref["sha256"]
