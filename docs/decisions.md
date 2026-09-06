@@ -50720,3 +50720,208 @@ decode できなくなる旧 grammar の campaign lock は、**`HISTORICAL_RAW` 
 **却下した選択肢:**
 - **期待一覧へ私有 helper を登録する** — 検査を恒真化する。
 - **検査の exact 比較をやめる** — 同じ理由でより広く壊す。
+
+## D1655. V-8 (a) は論理 campaign と物理 campaign run の 2 層 identity で実行形を持たせる — 物理 identity は slot capability digest と query ordinal から決定的に導き、formal consumer は campaign.lock から再導出する (2026-09-07)
+
+**決定 (設計、D1616 の解消案):** 8c 結線設計 §11 V-8 (a) 「1 query ordinal = 1 campaign run」の実行形を次で与える。
+実装はしない。詳細は `docs/phase3-8c-wiring-design.md` の追記 (2026-09-05) 節。
+
+1. **論理 campaign** (`binding.campaign_id` = `PreparedCampaignIdentity.campaign_id` = `OriginBindingCapability.campaign_id` =
+   attempt slot の `campaign_id`) は 1 trial に 1 つの**座標**のまま変えない。capability は `campaign_id` を 1 つしか持たなくてよい。
+2. **物理 campaign run** は query ordinal ごとに 1 つ (33)。`search_config["origin_campaign_run"] =
+   {"attempt_capability_sha256": <AttemptSlotCapability.capability_digest_sha256>, "query_ordinal": q}` を足した cfg から
+   `ident.campaign_id` で導き、`run_plan.members[q].planned_campaign_run_identity` を正本にする。claim / layout / WAL / `done` 集合が
+   すべて q 別になる。時刻・PID・乱数を含まず、同一 slot への再入は同 identity (claim / resume gate で fail-closed)、
+   別 attempt は別 identity。
+3. 順序は capability 発行 → slot 予約 → 33 identity 導出 → envelope create-only → envelope digest の durable 束縛 → observation 開始 →
+   executor。§8 の「run plan digest を capability へ束縛」は循環するため撤回し、参照は envelope → capability の一方向にする。
+4. `execution-provenance` に `campaign_run_identity` を足し、FC03 の論理 3 項等式は残す。formal consumer は各物理 run の
+   `campaign.lock` を decode して物理 identity と論理 campaign を再導出し、envelope を disk から再読し、WAL ref をその layout 配下に
+   束縛する。provenance の文字列同士の比較を物理束縛としない。
+5. origin topology mode は単一 layout 作成より前で分岐し generation loop に入らない。同一 process で捕捉した失敗だけ tombstone suffix、
+   process crash は非終端 (§7.5)。
+6. originless の bytes と受理集合は不変。t524 の attempt slot の `campaign_id` は論理値のまま、s8b (t1851) は変更 0。
+
+**理由:**
+- 33 行で変わるのは genome でなく trigger wire で、source 行と同 mask の validation 行は同 wire になるため、wire では識別できず
+  ordinal だけが衝突しない。
+- Pegasus (`allow_resume=False`) では同 identity の 2 run 目を claim より先に `_assert_resume_allowed` が拒否し、同 layout の WAL が
+  `done` seed で同 variant を skip する。claim だけ通しても解消にならず、layout と WAL も分ける必要がある。
+- D1190 (s8b) の同型 — 効果 key は座標、測定世代は run ごとに決定的 — を 8c に写すと「論理 campaign = 座標、物理 run = slot 世代 + q」
+  になる。論理 cfg と q だけでは同 trial の別 attempt の 33 run が同 identity になり過去 WAL を流用できる (敵対レンズが実証)。
+- `trial` 文字列の接尾辞は generic な `CampaignConfig.trial` 名前空間と構文分離できない。structured な `search_config` key は
+  D75 (完全修飾) を満たし、completeness の origin 分岐はどちらの seam でも要るので費用は同じ。
+- provenance の文字列比較だけでは §10 が却下した issuer 文字列型の恒真化で、別 trial の 33 WAL を流用し provenance だけ書き換えれば
+  通る。`campaign.lock` は loop が実際に使った preimage を持つので、そこからの再導出が物理束縛になる。
+- envelope は capability digest を含み、capability は envelope より前に発行されるため、双方向の digest 束縛は循環する。
+
+**却下した選択肢:**
+- claim に release / per-attempt key を足す — 拒否分岐の弱体化。
+- identity に trigger wire を入れる — source 行と同 mask の validation 行で衝突する。
+- `generations` を 33 にする — manifest は 2 を exact 要求し、generation は物理 run の単位ではない。
+- 時刻・PID・乱数で identity を分ける — D1190 が却下した乱数発行と同型。
+- 論理 cfg と q だけから物理 identity を作る (段 2 plan の案) — 別 attempt の流用穴。
+- capability に 33 identity を足す / 33 capability を発行する — envelope との二重化、33 origin への分裂。
+- FC03 の `execution_provenance.campaign_id` を物理値に置き換える — 3 項等式を崩し別 trial の流用穴を開ける。
+- 「33 layout が実在する」だけで物理実行を認める — 事前登録が恒真になる。
+
+**本決定が決めないもの:** envelope digest の durable な束縛先、origin cell の completion 権威、`execution-provenance` の schema 世代、
+受理集合が動く 3 写像の確認 (裁定パッケージ R1〜R4)。ledger producer の状態機械・witness normalizer・material report renderer
+(§9 の未存在層)。V-6 / V-9 / V-10。発行 3 条件 0/3 と結線実装 wave の起票制限は不変。
+
+## D1656. 認証 probe の既発行 group receipt 再検証と trace 削除の閉包は直さず、非保証として明記する (2026-09-07)
+
+**決定 (ユーザー裁定、追認):** `tools/pegasus/probes/t2187_adaptive_const_probe.py` の `--mode certify` が、
+既発行の group receipt を再検証するとき行の `trace_dir` を結果 JSON の `trace_directory` や正規の root と
+照合せず、receipt の文字列をそのまま `shutil.rmtree` する件 (T-2343、動的 backoff wave の段 6 レビュー A の
+所見) は、**本決定では直さない**。当該 insight と probe の docstring に「再検証は identity・行数・各行の
+sha256 と file bytes の一致までを照合し、trace_dir の所在は照合しない。削除は認証後の raw trace に限る」を
+非保証として明記する。再訪条件は、T-2189 の機構で 2 回目以降の認証走行 (D1643 の 24 request) を投入する
+とき、または誤削除の実例 1 件。
+
+**理由:**
+- certified 値と受理集合は変わらない。再検証は receipt の identity 各欄・24 行・各行の sha256 と file bytes の
+  一致を照合しており、削除されるのは認証後の raw trace だけである (親が現物で確認)。
+- 実害の観測が無く、研究最優先・防御的堅牢化は既定で見送りの方針 (D1622 と同じ向き) に沿う。
+- 別系統モデルの相談 (A) は同意した。相談 (B) は「AI 側で閉じられる」と判定したが、worklog の項が
+  ユーザー裁定待ちと明記していたため追認項として提示した。
+
+**却下した選択肢:**
+- Codex author で最小修正 (新規発行と既存検証を別戻り値にし、削除は正規 root の子・非 symlink・
+  結果 JSON の記載一致に限る) — 正しさ側の利得が無く、認証走行の予定が無い今は wave を 1 本増やすだけ。
+
+## D1657. backoff の条件関門と測定 build の間で第三者生成 header の閉包は束縛しない (2026-09-07)
+
+**決定 (ユーザー裁定、追認):** `backoff_sweep.py` の条件関門 (`_require_backoff_condition_gate`) が一時 base に
+生成する masstree `config.h` と、後続の測定 build が生成する `config.h` は別物であり、compiler 入力の閉包までは
+一致しない。この差を hash 一致の gate で束縛する案は**採らない**。A-2 経路にも同じ限界があり、insight と A-2 の
+設計に限界として明記する。
+
+**理由:**
+- A-2 の不変条件「検査した木と build する木を一致させる」が指すのは patch 済み source 木の一致であって、
+  同一 pin・同一 toolchain から生成される第三者 header は backoff の供給と意味に関与しない。
+- D1600 (承認済み CMake の登録簿は作らず identity は記録に留める) と D1648 (compiler の identity は契約閉包に
+  含めない) と同じ向きである。新規 gate と一般化はユーザーが scope 外と定めた領域にあたる。
+- 別系統モデルの相談 (A) は同意した。
+
+**却下した選択肢:**
+- 関門と build の両方で第三者 header の sha256 を取り一致を要求する gate を新設する — 仮想リスク向けの
+  gate であり、受理集合を動かさずに検査項目だけを増やす。
+
+## D1658. B-10 job の HEAD 束縛は運用制約で閉じ、恒久修正は入れない (2026-09-07)
+
+**決定 (ユーザー裁定):** B-10 の job 本体 (`tools/pegasus/b10_backoff_grid.sh`) が投入元 worktree の生きた木で
+driver を走らせ HEAD を束縛しない件は、**運用制約で閉じる**。投入から全 job 終了まで worktree の HEAD と
+tracked bytes を変えず (commit・変異・fix を投入前に終える)、投入時と各 job 終了時の HEAD と
+`git status --porcelain` を insight に記録する。A-5 と同形の恒久修正 (期待する HEAD の照合と切り離した
+`JOB_REPO`) は入れない。再訪条件は、投入中に HEAD が変わった実例 1 件。
+
+**理由:**
+- 実害の観測が無く、防御的堅牢化にあたる (T-1558 の見送りと同型)。
+- job script は `tools/pegasus/admission_registry.json` に pin されており、恒久修正は登録簿更新と新しい
+  Pegasus 実行体を伴う。F660 により実行体は main に着地するまで wave から起動できず、残る正式投入
+  (read-heavy、D1617 / D1627) を遅らせる。
+- 論文主張に要る provenance は粗い水準で足り、途中で木を変えられるのは wave 親だけである。
+- 別系統モデルの相談 (A) は反対し「投入時と終了時の記録では途中の変更と復元を検出できない。正式走の前に
+  入れるべき」と推した。指摘は事実だが、上記の理由で推奨は変えず、ユーザーが推奨どおりと裁定した。
+
+**却下した選択肢:**
+- 別 wave で恒久修正を入れてから read-heavy を投入する — 投入が新実行体の main 着地を待つことになる。
+
+## D1659. v5 proof の prefix inspector は世代 1 つだけを読み、検証時に freeze 全体の予算超過を再導出しない (2026-09-07)
+
+**決定 (ユーザー裁定、追認):** 稼働 branch `worktree-dev-wave-t1851-unit-a` の親裁定 (同 branch の decisions
+fragment、unit-a-10) を追認する。v5 proof を検証する read-only の prefix inspector は expected binding が指す
+世代 1 つだけを読み、兄弟世代を列挙せず、freeze 全体の予算超過 (D1340 の横断 replay) を検証時に再導出する
+gate を置かない。非保証は docstring と README に明記する (D1533 の形)。
+
+**理由:**
+- D1337 が定める proof の identity は世代別台帳の先頭 N 行であり、予算は D1340 のとおり書き手が世代を横断
+  して数える。検証側の再計算はどの確定裁定も要求していない (DW-G05、規律 5)。
+- 兄弟世代の列挙は、無関係な世代の破損や未完成 directory で正当な prefix を拒否し、後続 append で certified
+  成果物を参照不能にしないという D1337 の目的に反する (段 3 レンズ B)。
+- 別系統モデルの相談 (A) は同意した。
+
+**却下した選択肢:**
+- 検証時に他世代を全 replay して freeze 全体の予算超過を拒否する — 確定裁定の要求外で、書き手の防壁と
+  二重になる。必要性は未実測。
+
+## D1660. 旧世代 token に capability を発行する入口は作らず、旧世代の受理を前向きに廃止する (2026-09-07)
+
+**決定 (ユーザー裁定):** 試行台帳の世代を切り替えた後、旧世代で発行された token は発行者 state へ登録されず
+capability を発行できない (T-1851 系 B1 wave の所見)。これに対し、旧世代の受理を保存する再検証入口は
+**設けず**、旧世代の受理を**前向きに廃止する**。受理集合は狭まる方向にしか動かない。
+
+**理由:**
+- D1629 (seam basis を変える変更を跨ぐ resume は認めず、新しい世代 ID での再投入を既定とし、移行や backfill
+  の機構を新設しない) と同じ向きである。
+- 新しい入口は受理面と入口の数を同時に増やし、発火しない境界を 1 本足す危険がある (D1599 の理由)。
+- 別系統モデルの相談 (A) は同意した (再投入の方が小さい)。
+
+**却下した選択肢:**
+- 旧世代 token の再検証入口を設ける — 単位 A に実装が増え、受理面が広がる。
+
+## D1661. journal の TOCTOU 窓は閉じず、非保証の明記を維持する (2026-09-07)
+
+**決定 (ユーザー裁定):** 試行の反復番号と順序の権威である journal の書き手が admission root lock に参加しない
+隙間 (T-1851 系 B1 wave の所見、A1' と unit-a-10 が非保証として明記) は、**本決定では閉じない**。再訪条件は、
+journal の反復番号衝突または重複の実例 1 件。
+
+**理由:**
+- 実害の観測が無く、プロトタイプ基準では防御的堅牢化にあたる (D1622 と同じ向き)。
+- T-1851 系は 6 段を 1 commit で land する長い鎖の途中で、次段の単位 C (起動層の実際の呼び手を台帳へ繋ぐ)
+  が主経路である。今 scope を足すより C を先に通す。
+- 別系統モデルの相談 (A) は反対し「既存 lock への参加は局所修正で、正しさ gate を発行時点で閉じられる」と
+  推した。局所修正という指摘は妥当だが、上記の理由で推奨は変えず、ユーザーが推奨どおりと裁定した。
+  閉じる場合は単位 C か D2 へ同梱する形が自然である。
+
+**却下した選択肢:**
+- journal の書き手を既存の admission root lock に参加させて今閉じる — 主経路の単位 C を遅らせる。
+
+## D1662. rulings の別系統相談には過剰実装・過剰防壁を避ける基準を投げ文へ逐語で渡し、相談の推奨も同じ基準で評価し直す (2026-09-07)
+
+**決定 (ユーザー裁定):** `/rulings` が別系統モデル (Claude と Codex の相互) へ諮るとき、command の作法節が
+rulings 自身の推奨に課す基準 (確定した主目的・scope の本体実装と足りる既存機構・局所修正を優先し、超える
+追加実装・防壁は明示要求内か、現目的・実在欠陥・受入要件に必要で既存策の不足を資料や実測で確認できる場合
+だけ推奨する) を、**(A) 推奨の当否と (B) 索引漏れの両方の投げ文へ逐語で渡す**。相談が返した推奨も同じ基準で
+評価し直し、基準を満たさない堅牢化の推奨は採らない。Claude 側の `.claude/commands/rulings.md` と Codex 側の
+`.agents/skills/rulings/SKILL.md` に同じ義務を置く。
+
+**理由:**
+- 第 10 回 (2026-09-05) で、親が memory から補って基準を書いた (A) の投げ文でも相談は 2 件で堅牢化側を推し、
+  基準を書かなかった (B) は分類の根拠に D205 を使った。基準が skill の定義でなく実行者の記憶に依存していた。
+- ユーザーは「rulings の Claude セッションも相談相手の Codex も、過剰実装・過剰ガードレールを避けることを
+  絶対に忘れてはならない」と裁定した。
+- 相談の推奨を無条件に採ると、研究最優先・プロトタイプ基準の方針 (D1622) が相談経由で迂回される。
+
+**却下した選択肢:**
+- 実行者の memory に任せる — 定義に無い義務は session や model が変わると落ちる。
+- 相談を省く — 既裁定の誤引用や索引漏れの検出実績があり、相談自体は有効である。
+
+## D1663. 段 4 loop の Pegasus job body は compute-only とし、third-party は scratch 複製で事前構築する (2026-09-07)
+
+**決定:** `tools/pegasus/p3_s4_loop_pegasus.sh` は親が直接 `qsub` する compute-only の job body であり、
+投入器を持たない。入力は環境変数 (`IZANAGI_S4_REPO_ROOT` / `IZANAGI_S4_EXPECTED_HEAD` /
+`IZANAGI_S4_EVIDENCE_ROOT` / `IZANAGI_S4_THIRDPARTY_SOURCE_ROOT`、任意で proposal path と fixture 値)
+だけとし、raw qsub の `-o` / `-e` は evidence root (repo 外) へ向ける。job body は host gate を
+PATH sanitize より前に置き、`/.claude/worktrees/` `/.codex/worktrees/` を含む REPO_ROOT と repo 配下の
+evidence root を rc=2 で拒否し、`python3.10` exact の shim (`python3` のみ) を PATH 先頭に置く。
+masstree の `config.h` は hydrate 済み source を scratch へ `cp -a` した複製に対して
+`buildcache.prepare_masstree_fetchcontent` で事前構築し、receipt を create-only で残す。
+`git status` による clean 検査は 3 箇所とも rc を明示検査し、失敗は clean ではなく rc=2 とする。
+登録簿 class は `dispatch-required`、証拠は `static job-body classification`。
+
+**理由:**
+- F813: PATH の CMake wrapper で third-party を注入すると build identity が壊れる。FetchContent の
+  準備を job 内で行えば注入が要らない。
+- hydrate 済み source root の中で configure すると durable な staged source が汚れる
+  (`ThirdParty.cmake` が `config.h` と archive を source 側に生成する)。複製先だけを汚す。
+- `pegasus` 契約は `single_process=True` で reservation 束縛と claim root を build 前に要求する。
+  A-2 と同じ形で束縛すれば driver 側の変更が要らない。
+- `[[ -n "$(git status ...)" ]]` は失敗を clean と読む。fail-closed でなければ汚れた tree で計測が走る。
+
+**却下した選択肢:**
+- 投入器 (submitter) を同梱する — A-1 型の投入器は登録簿 class が変わり、job body の静的分類が崩れる。
+- PATH に CMake wrapper を置いて third-party を差し込む — F813 の再発。
+- hydrate root で直接 configure し、後で `git checkout` で戻す — 失敗時に汚れが残り、identity が壊れる。
+- attestation の exact 照合をこの wave で先回りする — 未実測の障害であり、ユーザー指示で scope 外。
