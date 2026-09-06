@@ -17,6 +17,30 @@ JOB = REPO / "tools/pegasus/p3_s4_loop_pegasus.sh"
 REGISTRY = REPO / "tools/pegasus/admission_registry.json"
 README = REPO / "tools/pegasus/README.md"
 
+SUPERPROJECT_STATUS_GATE = (
+    "if ! superproject_status=$(git status --porcelain --untracked-files=no \\\n"
+    "  --ignore-submodules=all); then\n"
+    '  refuse "cannot inspect superproject tracked status"\n'
+    "fi\n"
+    '[[ -z "$superproject_status" ]] || \\\n'
+    '  refuse "superproject tracked worktree is not clean"'
+)
+CCBENCH_STATUS_GATE = (
+    'if ! ccbench_status=$(git -C "$ccbench_dir" status --porcelain \\\n'
+    "  --untracked-files=no); then\n"
+    '  refuse "cannot inspect CCBench tracked status"\n'
+    "fi\n"
+    '[[ -z "$ccbench_status" ]] || refuse "CCBench source tree is not clean"'
+)
+THIRDPARTY_STATUS_GATE = (
+    'if ! source_status=$(git -C "$source" status --porcelain \\\n'
+    "    --untracked-files=no); then\n"
+    '    refuse "cannot inspect third-party source tracked status: $source_name"\n'
+    "  fi\n"
+    '  [[ -z "$source_status" ]] || \\\n'
+    '    refuse "third-party source tree is not clean: $source_name"'
+)
+
 
 def _shell_body_without_heredocs(source: str) -> str:
     output = []
@@ -36,6 +60,14 @@ def _shell_body_without_heredocs(source: str) -> str:
     if delimiter is not None:
         raise AssertionError("unterminated shell heredoc")
     return "".join(output)
+
+
+def _shell_executable_surface(source: str) -> str:
+    body = _shell_body_without_heredocs(source)
+    return "".join(
+        line for line in body.splitlines(keepends=True)
+        if re.match(r"^\s*#", line) is None
+    )
 
 
 def _shell_submitter_violations(source: str) -> list[str]:
@@ -142,6 +174,7 @@ def _assert_static_job_contract(source: str) -> None:
         "bootstrap-path": (
             'export PATH="/usr/bin:/bin:/opt/nec/nqsv/bin:/system/tool/bin"'
         ),
+        "git-optional-locks": "export GIT_OPTIONAL_LOCKS=0",
         "http-proxy": 'export http_proxy="http://10.120.96.1:8080"',
         "https-proxy": 'export https_proxy="http://10.120.96.1:8080"',
         "no-user-site": "export PYTHONNOUSERSITE=1",
@@ -176,9 +209,7 @@ def _assert_static_job_contract(source: str) -> None:
             '${#shim_entries[@]} -ne 1 || "${shim_entries[0]##*/}" != python3'
         ),
         "expected-head": '"$observed_head" != "$IZANAGI_S4_EXPECTED_HEAD"',
-        "clean-tree": (
-            "git status --porcelain --untracked-files=no --ignore-submodules=all"
-        ),
+        "clean-tree": SUPERPROJECT_STATUS_GATE,
         "campaign-pin-import": (
             "'from orchestrator.campaign.p3_s4_loop import PIN; print(PIN)'"
         ),
@@ -189,9 +220,8 @@ def _assert_static_job_contract(source: str) -> None:
             '"$ccbench_full_head" != "$resolved_campaign_pin"'
         ),
         "campaign-pin-prefix": '"$ccbench_full_head" != "$campaign_pin"*',
-        "ccbench-clean": (
-            'git -C "$ccbench_dir" status --porcelain --untracked-files=no'
-        ),
+        "ccbench-clean": CCBENCH_STATUS_GATE,
+        "qstat-jobid": 'qstat_jobid=${PBS_JOBID#0:}',
         "scheduler-observation": 'qstat -f "$qstat_jobid"',
         "reservation-job-id": 'export IZANAGI_RESERVATION_JOB_ID="$PBS_JOBID"',
         "reservation-requested": (
@@ -217,9 +247,7 @@ def _assert_static_job_contract(source: str) -> None:
         "reservation-create-only": 'with open(destination, "x", encoding="utf-8")',
         "claim-root": 'mkdir -p -m 0700 -- "$claim_root"',
         "source-head": "git -C \"$source\" rev-parse --verify 'HEAD^{commit}'",
-        "source-clean": (
-            'git -C "$source" status --porcelain --untracked-files=no'
-        ),
+        "source-clean": THIRDPARTY_STATUS_GATE,
         "prebuild-scratch-copy": 'cp -a "$source"/. "$destination"/',
         "prebuild-masstree-copy-root": (
             "masstree_source_dir=$prebuild_source_root/masstree"
@@ -307,8 +335,8 @@ def test_job_body_static_contract() -> None:
     _assert_static_job_contract(JOB.read_text(encoding="utf-8"))
 
 
-def test_static_contract_orders_all_job_stages() -> None:
-    source = JOB.read_text(encoding="utf-8")
+def _assert_static_job_stage_order(source: str) -> None:
+    surface = _shell_executable_surface(source)
     markers = (
         "required_env=(",
         "host=$(hostname",
@@ -320,16 +348,34 @@ def test_static_contract_orders_all_job_stages() -> None:
         "\nresolve_python\n",
         'shim_dir=$scratch/python-shim',
         "observed_head=$(git rev-parse HEAD)",
-        "campaign_pin=$(",
+        "\ncampaign_pin=$(\n",
         "qstat_jobid=",
         'claim_root="$repo/output/env/',
         "prebuild_source_root=",
-        "prepared = buildcache.prepare_masstree_fetchcontent(",
-        'with open(receipt_path, "x", encoding="utf-8")',
-        '"$PY" -B -m orchestrator.campaign.p3_s4_loop',
+        '"$PY" - "$prebuild_receipt"',
+        'sync "$prebuild_receipt"',
+        'if [[ -n "${IZANAGI_S4_PROPOSAL_PATH:-}" ]]',
     )
-    positions = [source.index(marker) for marker in markers]
+    counts = {marker: surface.count(marker) for marker in markers}
+    assert all(count == 1 for count in counts.values()), counts
+    positions = [surface.index(marker) for marker in markers]
     assert positions == sorted(positions), list(zip(markers, positions))
+
+
+def test_static_contract_orders_all_job_stages() -> None:
+    _assert_static_job_stage_order(JOB.read_text(encoding="utf-8"))
+
+
+def test_dead_comment_cannot_mask_a_late_exit_trap() -> None:
+    source = JOB.read_text(encoding="utf-8")
+    mutant = source.replace("trap finish EXIT", "# trap finish EXIT", 1)
+    mutant = mutant.replace(
+        "\nresolve_python\n",
+        "\nresolve_python\ntrap finish EXIT\n",
+        1,
+    )
+    with pytest.raises(AssertionError):
+        _assert_static_job_stage_order(mutant)
 
 
 def test_gate_refusals_share_the_fixed_rc2_boundary() -> None:
@@ -338,6 +384,7 @@ def test_gate_refusals_share_the_fixed_rc2_boundary() -> None:
     for message in (
         "missing required environment: $name",
         "P3 S4 loop job body is compute-only",
+        "repository root must not be inside an AI worktree container",
         "evidence root resolves inside a repository",
         "compute result already exists",
         "Python 3.10 capable of importing the P3 S4 loop is required",
@@ -363,8 +410,8 @@ def test_gate_refusals_share_the_fixed_rc2_boundary() -> None:
         ),
         (
             "clean-tree",
-            "git status --porcelain --untracked-files=no --ignore-submodules=all",
-            "printf ''",
+            SUPERPROJECT_STATUS_GATE,
+            "true # superproject status gate removed",
         ),
         (
             "campaign-pin-import",
@@ -399,13 +446,18 @@ def test_gate_refusals_share_the_fixed_rc2_boundary() -> None:
             'mkdir -p -m 0700 -- "$claim_root"',
             'true # claim root provisioning removed',
         ),
+        (
+            "qstat-jobid",
+            'qstat_jobid=${PBS_JOBID#0:}',
+            "qstat_jobid=$PBS_JOBID",
+        ),
     ),
 )
 def test_registered_fragment_mutants_have_one_static_failure(
     label: str, fragment: str, replacement: str
 ) -> None:
     source = JOB.read_text(encoding="utf-8")
-    assert source.count(fragment) == 1
+    assert source.count(fragment) <= 1
     mutant = source.replace(fragment, replacement, 1)
     with pytest.raises(AssertionError) as error:
         _assert_static_job_contract(mutant)
@@ -593,15 +645,29 @@ def test_pbs_jobid_path_sanitization_is_load_bearing() -> None:
     assert 'scratch=$scratch_base/${PBS_JOBID}' not in source
     mutant = source.replace(fragment, 'pbs_jobid_path_component=$PBS_JOBID', 1)
     assert fragment not in mutant
-    completed = subprocess.run(
-        ["bash", "-c", (
-            'PBS_JOBID="0:945411.nqsv"; '
-            'pbs_jobid_path_component=${PBS_JOBID//:/_}; '
-            'printf "%s\\n" "$pbs_jobid_path_component"'
-        )],
-        capture_output=True, text=True, check=True,
-    )
-    assert completed.stdout == "0_945411.nqsv\n"
+    production_lines = [
+        line.strip()
+        for line in _shell_executable_surface(source).splitlines()
+        if line.lstrip().startswith("pbs_jobid_path_component=")
+    ]
+    mutant_lines = [
+        line.strip()
+        for line in _shell_executable_surface(mutant).splitlines()
+        if line.lstrip().startswith("pbs_jobid_path_component=")
+    ]
+    assert len(production_lines) == len(mutant_lines) == 1
+    outputs = []
+    for assignment in (production_lines[0], mutant_lines[0]):
+        completed = subprocess.run(
+            ["bash", "-c", (
+                'PBS_JOBID="0:945411.nqsv"; '
+                f"{assignment}; "
+                'printf "%s\\n" "$pbs_jobid_path_component"'
+            )],
+            capture_output=True, text=True, check=True,
+        )
+        outputs.append(completed.stdout)
+    assert outputs == ["0_945411.nqsv\n", "0:945411.nqsv\n"]
 
 
 def test_login_host_refuses_before_sanitize_or_sentinels(tmp_path: Path) -> None:
@@ -647,6 +713,171 @@ def test_login_host_refuses_before_sanitize_or_sentinels(tmp_path: Path) -> None
     )
     assert completed.returncode == 2
     assert "P3 S4 loop job body is compute-only" in completed.stderr
+    assert hostname_marker.is_file()
+    assert not any(marker.exists() for marker in sentinel_markers)
+    assert not (evidence_root / "compute-result.json").exists()
+    assert not (evidence_root / "reservation.json").exists()
+    assert not (evidence_root / "masstree-prebuild-receipt.json").exists()
+    assert not (Path("/scr") / fake_user / "p3-s4-loop-pegasus").exists()
+
+
+def test_superproject_status_failure_is_fail_closed(tmp_path: Path) -> None:
+    binary_dir = tmp_path / "bin"
+    git_stub_dir = tmp_path / "git-bin"
+    repo_root = tmp_path / "repo"
+    evidence_root = tmp_path / "evidence"
+    thirdparty_root = tmp_path / "thirdparty"
+    for path in (
+        binary_dir, git_stub_dir, repo_root, evidence_root, thirdparty_root
+    ):
+        path.mkdir()
+    (repo_root / "orchestrator").symlink_to(
+        REPO / "orchestrator", target_is_directory=True
+    )
+
+    hostname_marker = tmp_path / "hostname-called"
+    _write_executable(
+        binary_dir / "hostname",
+        "#!/bin/bash\n"
+        f"touch {shlex.quote(str(hostname_marker))}\n"
+        "printf '%s\\n' bnode001\n",
+    )
+    sentinel_markers = []
+    for name in ("qstat", "cmake", "python3.10"):
+        marker = tmp_path / f"{name}-called"
+        sentinel_markers.append(marker)
+        _write_executable(
+            binary_dir / name,
+            "#!/bin/bash\n"
+            f"touch {shlex.quote(str(marker))}\n"
+            "exit 99\n",
+        )
+
+    expected_head = "a" * 40
+    git_common_dir = repo_root / ".git"
+    git_status_marker = tmp_path / "git-status-called"
+    unexpected_git_marker = tmp_path / "unexpected-git-called"
+    _write_executable(
+        git_stub_dir / "git",
+        "#!/bin/bash\n"
+        "case \"$*\" in\n"
+        "  *\"rev-parse --path-format=absolute --git-common-dir\"*)\n"
+        f"    printf '%s\\n' {shlex.quote(str(git_common_dir))}; exit 0 ;;\n"
+        "  *\"rev-parse HEAD\"*)\n"
+        f"    printf '%s\\n' {expected_head}; exit 0 ;;\n"
+        "  *\"status --porcelain --untracked-files=no --ignore-submodules=all\"*)\n"
+        f"    touch {shlex.quote(str(git_status_marker))}; exit 1 ;;\n"
+        "  *)\n"
+        f"    touch {shlex.quote(str(unexpected_git_marker))}; exit 99 ;;\n"
+        "esac\n",
+    )
+
+    source = JOB.read_text(encoding="utf-8")
+    bootstrap_anchor = (
+        'export PATH="/usr/bin:/bin:/opt/nec/nqsv/bin:/system/tool/bin"'
+    )
+    final_path_anchor = 'SANITIZED_PATH="$shim_dir:/usr/bin:/bin"'
+    scratch_anchor = "scratch_base=/scr/$USER/p3-s4-loop-pegasus"
+    assert source.count(bootstrap_anchor) == 1
+    assert source.count(final_path_anchor) == 1
+    assert source.count(scratch_anchor) == 1
+    fixture_job = tmp_path / JOB.name
+    _write_executable(
+        fixture_job,
+        source.replace(
+            bootstrap_anchor,
+            "export PATH=" + shlex.quote(
+                str(git_stub_dir)
+                + ":/usr/bin:/bin:/opt/nec/nqsv/bin:/system/tool/bin"
+            ),
+            1,
+        ).replace(
+            final_path_anchor,
+            'SANITIZED_PATH="$shim_dir:' + str(git_stub_dir) + ':/usr/bin:/bin"',
+            1,
+        ).replace(
+            scratch_anchor,
+            f"scratch_base={shlex.quote(str(tmp_path / 'scratch-base'))}",
+            1,
+        ),
+    )
+    fake_user = f"p3-s4-status-contract-{os.getpid()}-{tmp_path.name}"
+    environment = dict(os.environ)
+    environment.update({
+        "PATH": str(binary_dir) + os.pathsep + environment["PATH"],
+        "USER": fake_user,
+        "PBS_JOBID": "0:945411.nqsv",
+        "PBS_NODEFILE": str(tmp_path / "nodefile"),
+        "PBS_O_WORKDIR": str(repo_root),
+        "IZANAGI_S4_REPO_ROOT": str(repo_root),
+        "IZANAGI_S4_EXPECTED_HEAD": expected_head,
+        "IZANAGI_S4_EVIDENCE_ROOT": str(evidence_root),
+        "IZANAGI_S4_THIRDPARTY_SOURCE_ROOT": str(thirdparty_root),
+    })
+    completed = subprocess.run(
+        [str(fixture_job)], cwd=REPO, env=environment,
+        capture_output=True, text=True, check=False,
+    )
+    assert completed.returncode == 2
+    assert "cannot inspect superproject tracked status" in completed.stderr
+    assert hostname_marker.is_file()
+    assert git_status_marker.is_file()
+    assert not unexpected_git_marker.exists()
+    assert not any(marker.exists() for marker in sentinel_markers)
+
+
+def test_worktree_container_refuses_before_sentinels_or_artifacts(
+    tmp_path: Path,
+) -> None:
+    binary_dir = tmp_path / "bin"
+    repo_root = tmp_path / ".claude/worktrees/probe"
+    evidence_root = tmp_path / "evidence"
+    thirdparty_root = tmp_path / "thirdparty"
+    binary_dir.mkdir()
+    repo_root.mkdir(parents=True)
+    evidence_root.mkdir()
+    thirdparty_root.mkdir()
+
+    hostname_marker = tmp_path / "hostname-called"
+    _write_executable(
+        binary_dir / "hostname",
+        "#!/bin/bash\n"
+        f"touch {shlex.quote(str(hostname_marker))}\n"
+        "printf '%s\\n' bnode001\n",
+    )
+    sentinel_markers = []
+    for name in ("git", "cmake", "python3.10", "qstat"):
+        marker = tmp_path / f"{name}-called"
+        sentinel_markers.append(marker)
+        _write_executable(
+            binary_dir / name,
+            "#!/bin/bash\n"
+            f"touch {shlex.quote(str(marker))}\n"
+            "exit 99\n",
+        )
+
+    fake_user = f"p3-s4-worktree-contract-{os.getpid()}-{tmp_path.name}"
+    environment = dict(os.environ)
+    environment.update({
+        "PATH": str(binary_dir) + os.pathsep + environment["PATH"],
+        "USER": fake_user,
+        "PBS_JOBID": "0:945411.nqsv",
+        "PBS_NODEFILE": str(tmp_path / "nodefile"),
+        "PBS_O_WORKDIR": str(repo_root),
+        "IZANAGI_S4_REPO_ROOT": str(repo_root),
+        "IZANAGI_S4_EXPECTED_HEAD": "1" * 40,
+        "IZANAGI_S4_EVIDENCE_ROOT": str(evidence_root),
+        "IZANAGI_S4_THIRDPARTY_SOURCE_ROOT": str(thirdparty_root),
+    })
+    completed = subprocess.run(
+        [str(JOB)], cwd=REPO, env=environment,
+        capture_output=True, text=True, check=False,
+    )
+    assert completed.returncode == 2
+    assert (
+        "repository root must not be inside an AI worktree container"
+        in completed.stderr
+    )
     assert hostname_marker.is_file()
     assert not any(marker.exists() for marker in sentinel_markers)
     assert not (evidence_root / "compute-result.json").exists()

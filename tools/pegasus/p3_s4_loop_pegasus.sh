@@ -45,6 +45,7 @@ while IFS= read -r env_name; do
 done < <(compgen -e)
 
 export PATH="/usr/bin:/bin:/opt/nec/nqsv/bin:/system/tool/bin"
+export GIT_OPTIONAL_LOCKS=0
 export http_proxy="http://10.120.96.1:8080"
 export https_proxy="http://10.120.96.1:8080"
 export PYTHONNOUSERSITE=1
@@ -171,9 +172,12 @@ observed_head=$(git rev-parse HEAD) || refuse "repository HEAD cannot be resolve
 if [[ "$observed_head" != "$IZANAGI_S4_EXPECTED_HEAD" ]]; then
   refuse "expected HEAD mismatch"
 fi
-if [[ -n "$(git status --porcelain --untracked-files=no --ignore-submodules=all)" ]]; then
-  refuse "superproject tracked worktree is not clean"
+if ! superproject_status=$(git status --porcelain --untracked-files=no \
+  --ignore-submodules=all); then
+  refuse "cannot inspect superproject tracked status"
 fi
+[[ -z "$superproject_status" ]] || \
+  refuse "superproject tracked worktree is not clean"
 
 ccbench_dir=$repo/external/ccbench
 if [[ ! -d "$ccbench_dir" || -L "$ccbench_dir" ]]; then
@@ -201,9 +205,11 @@ if [[ ! "$ccbench_full_head" =~ ^[0-9a-f]{40}$ \
    || "$ccbench_full_head" != "$campaign_pin"* ]]; then
   refuse "CCBench P3 S4 campaign pin mismatch"
 fi
-if [[ -n "$(git -C "$ccbench_dir" status --porcelain --untracked-files=no)" ]]; then
-  refuse "CCBench source tree is not clean"
+if ! ccbench_status=$(git -C "$ccbench_dir" status --porcelain \
+  --untracked-files=no); then
+  refuse "cannot inspect CCBench tracked status"
 fi
+[[ -z "$ccbench_status" ]] || refuse "CCBench source tree is not clean"
 
 qstat_jobid=${PBS_JOBID#0:}
 allocation_qstat_stdout=$evidence_root/allocation-qstat.stdout
@@ -330,9 +336,12 @@ for source_name in masstree mimalloc googletest; do
   if [[ ! "$source_head" =~ ^[0-9a-f]{40}$ ]]; then
     refuse "third-party source HEAD is not a full commit: $source_name"
   fi
-  if [[ -n "$(git -C "$source" status --porcelain --untracked-files=no)" ]]; then
-    refuse "third-party source tree is not clean: $source_name"
+  if ! source_status=$(git -C "$source" status --porcelain \
+    --untracked-files=no); then
+    refuse "cannot inspect third-party source tracked status: $source_name"
   fi
+  [[ -z "$source_status" ]] || \
+    refuse "third-party source tree is not clean: $source_name"
   mkdir -m 0700 -- "$destination"
   cp -a "$source"/. "$destination"/
   case "$source_name" in
