@@ -46,6 +46,21 @@ perf closure test +15)。commit 後の全史 provenance は rc=0、**8,272 件�
   **12/12 KILLED、`matching=12`**、harness rc=0、`repo_head=35ba02e1a`。各変異 52.7〜57.8 s (dispatch 込み)。
   `mutation-final-out.json` が台帳。probe と本走で観測 node の集合は一致した。
 
-## 受入全走
+## 受入全走 (tested tip = 記録 commit `6194d4840`)
 
-(記録 commit 後に投入。実測前に欄を作らない)
+- **attempt 1 (06:54〜07:58 JST、64 分)**: 子は緑 — `raw_child_rc=0` / `normalized_child_rc=0` /
+  `reason=child-verdict`、**21,039 passed / 68 skipped** (collected 21,107)。post-claim merge は
+  `6f2a89818` (local main `425060bab`)。しかし receipt は発行されなかった:
+  `stage=acceptance-receipt rc=70 reason=receipt-lease-check`、`state=held`。
+  claim 時の main は `425060bab`、receipt 時の main は `9f093b61` で、走行が **lease の TTL 2,400 秒**
+  (`_LEASE_TTL_SECONDS`) を超えたため lease が別 session (holder `3109466d80fe`、07:46) へ移っていた。
+  テストの赤ではない。login 側の collection に約 3 分、shard 3 本の実行に約 60 分かかっている
+  (`gen_S` は QUE 0 / RUN 49 で queue 待ちではなく、実行の並びによる)。
+- **attempt 2 (08:01〜09:0x JST)**: 別 session が lease を保持している状態で投入した。DW-O27 (D662) の
+  とおり `held` でも待たず wave digest の疑似 holder で走り、この経路は receipt 発行時の lease 再確認を
+  行わない。結果は **rc=0、`verdict: child-green`、21,043 passed / 68 skipped** (collected 21,111)。
+  receipt は `dev-wave-acceptance-receipt/v5`、`tested_main=9f093b612`、`tested_tip=061ecb1b1`、
+  `red_nodeids` / `flake_nodeids` は空、pre / post fingerprint は一致 (`diff_bytes=0`、`status_bytes=0`)、
+  `lease was not acquired` (fencing token は無い、既知の限界)。post-claim merge は `061ecb1b1`
+  (local main `9f093b612`)。attempt 1 の tip との差は main 側 3 commit の取り込みだけで、実装面の
+  差分は同じ bytes である。

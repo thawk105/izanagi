@@ -3,7 +3,9 @@
 2026-09-07。branch `worktree-dev-wave-t1851-unit-a`。**land していない (D1341)。**
 
 - 継承 tip: `9f64a3d44` (B2 / D1 の記録 + 段 8)
-- 本 wave の commit: `04f06d032` (local main `97ee3cd3a` の取り込み、integrator)、`35ba02e1a` (実装)、記録 commit、受入の post-claim merge、受入結果の追記 commit
+- 本 wave の commit: `04f06d032` (local main `97ee3cd3a` の取り込み、integrator)、`35ba02e1a` (実装)、
+  `6194d4840` (記録)、`6f2a89818` / `1780d360a` / `061ecb1b1` (受入 2 走の post-claim merge、local main
+  `425060bab` → `9f093b612`)、受入結果の追記 commit
 - 実装面の差分: 3 file、+827 / −78 (production 1 file +245 / −37、test 2 file +582 / −41)。codex 子: plan 1、レンズ 2、author 1、review 2、fix 3、再 review 2 = 11 本 (review 1 回目の 2 本は親の argv ミスで未起動、receipt なし)
 - 逐語: `verbatim/s2-plan.md`、`verbatim/s3-lens-a.md`、`verbatim/s3-lens-b.md`、`verbatim/s5-launcher.md`、`verbatim/s6-review-a.md`、`verbatim/s6-review-b.md`、
   `verbatim/s6-fix1.md`、`verbatim/s6-fix2.md`、`verbatim/s6-rereview.md`、`verbatim/s6-fix3.md`、`verbatim/s6-rereview-2.md`。
@@ -85,7 +87,15 @@ checkout `35ba02e1a`、`tools/mutation_harness.py` (dispatch、`--detached`)、r
 
 ## 6. 検査の実測
 
-`parent-measurements.md` が一次資料。(受入全走の実測後に記入する)
+`parent-measurements.md` が一次資料。要点: 焦点走 38 file は fix3 統合後 4,736 passed / rc=0。
+全史 provenance は実装 commit 後 8,272 件・新規違反なし。変異は 12/12 KILLED。
+受入全走は 2 走した。**attempt 1 は子が緑 (21,039 passed / 68 skipped) だったが receipt が出なかった** —
+shard 3 本の queue 待ちが 3,291 / 3,403 / 3,409 秒あり、走行が lease の TTL 2,400 秒を超えて
+`receipt-lease-check` (`state=held`) で止まったためである。テストの赤ではない。D612 / D619 が予見していた
+opt-in 上書きの latent risk の初回顕在化として台帳へ書いた。**attempt 2 は rc=0、`verdict: child-green`、
+21,043 passed / 68 skipped**、receipt は `tested_main=9f093b612` / `tested_tip=061ecb1b1`、
+red / flake 空、fingerprint 一致。lease は別 session が保持していたため未取得のまま publish された
+(DW-O27 の疑似 holder 経路)。
 
 ## 7. 閉じていない窓
 
