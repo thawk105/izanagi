@@ -1,0 +1,48 @@
+Traceback (most recent call last):
+  File "/scr/0_979579.nqsv-a5-second-boot-balanced/job-repo/orchestrator/campaign/patchharness.py", line 372, in checkout
+    yield path
+  File "/scr/0_979579.nqsv-a5-second-boot-balanced/job-repo/orchestrator/campaign/backoff_sweep.py", line 364, in run_workload
+    with patchharness.applied(patch_path, CCBENCH_COMMIT, ccbench_dir):
+  File "/usr/lib/python3.10/contextlib.py", line 142, in __exit__
+    next(self.gen)
+  File "/scr/0_979579.nqsv-a5-second-boot-balanced/job-repo/orchestrator/campaign/patchharness.py", line 263, in applied
+    revert_worktree(sub, files)
+  File "/scr/0_979579.nqsv-a5-second-boot-balanced/job-repo/orchestrator/campaign/patchharness.py", line 224, in revert_worktree
+    raise RuntimeError(
+RuntimeError: patchharness: revert (git checkout -- .) 失敗 (rc=128) — working-tree が汚染されたまま。人間が復旧すること。
+  fatal: not a git repository: /work/1/SFC/tanab/izanagi/.git/worktrees/submit-tree2/modules/external/ccbench/worktrees/ccbench
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/scr/0_979579.nqsv-a5-second-boot-balanced/job-repo/orchestrator/campaign/backoff_sweep.py", line 475, in <module>
+    sys.exit(main(sys.argv))
+  File "/scr/0_979579.nqsv-a5-second-boot-balanced/job-repo/orchestrator/campaign/backoff_sweep.py", line 451, in main
+    summaries = [(tag, run_workload(
+  File "/scr/0_979579.nqsv-a5-second-boot-balanced/job-repo/orchestrator/campaign/backoff_sweep.py", line 451, in <listcomp>
+    summaries = [(tag, run_workload(
+  File "/scr/0_979579.nqsv-a5-second-boot-balanced/job-repo/orchestrator/campaign/backoff_sweep.py", line 363, in run_workload
+    with patchharness.checkout(CCBENCH_COMMIT, base_dir=ccbench_dir) as stock_root:
+  File "/usr/lib/python3.10/contextlib.py", line 153, in __exit__
+    self.gen.throw(typ, value, traceback)
+  File "/scr/0_979579.nqsv-a5-second-boot-balanced/job-repo/orchestrator/campaign/patchharness.py", line 379, in checkout
+    remaining = {os.path.realpath(p) for p in _worktree_paths(base)}
+  File "/scr/0_979579.nqsv-a5-second-boot-balanced/job-repo/orchestrator/campaign/patchharness.py", line 338, in _worktree_paths
+    raise RuntimeError(
+RuntimeError: patchharness: git worktree list 失敗 (rc=128) → fails-closed。
+  fatal: not a git repository: /work/1/SFC/tanab/izanagi/.git/worktrees/submit-tree2/modules/external/ccbench/worktrees/ccbench
+
+============================================================
+Request ID:             979579.nqsv
+Request Name:           a5_second_boot_backoff_sweep.sh
+Queue:                  gen_S@nqsv
+Number of Jobs:         1
+User Name:              tanab
+Group Name:             SFC
+Created Request Time:   Mon Sep  7 02:19:22 2026
+Started Request Time:   Mon Sep  7 02:19:30 2026
+Ended Request Time:     Mon Sep  7 02:31:26 2026
+Resources Information:
+  Elapse:               721S
+  Remaining Elapse:     6479S
+============================================================

@@ -1,0 +1,1 @@
+{"approved_at":"2026-09-05T04:03:58Z","approver":"thawk105","budget":{"oracle_shared":true,"per_holdout_bench_s":{"rr20":1200,"rr80":1200},"total_bench_s":2400},"scope":"s8b-holdout-freeze/v2:g1-budget"}

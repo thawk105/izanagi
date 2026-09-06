@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""歴史名 ``contract_loader_*`` が表す exact 24 path closure の binding。"""
+"""歴史名 ``contract_loader_*`` が表す exact 62 path closure の binding。"""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -54,10 +54,10 @@ class ContractLoaderBindingError(Exception):
 
 @dataclass(frozen=True)
 class ContractLoaderBinding:
-    """記録 commit と enforcement source closure 24 path の SHA-256。
+    """記録 commit と enforcement source closure 62 path の SHA-256。
 
     ``contract_loader_*`` 識別子は歴史的名称であり、値は loader 2 path では
-    なく enforcement source closure 24 path を表す。
+    なく enforcement source closure 62 path を表す。
     """
 
     contract_loader_commit: str
@@ -396,6 +396,25 @@ def verify_committed_contract_loader_binding(
     for relative in CONTRACT_LOADER_RELATIVE_PATHS:
         blob = _blob(root, binding.contract_loader_commit, relative)
         if hashlib.sha256(blob).hexdigest() != binding.contract_loader_blob_sha256s[relative]:
+            raise ContractLoaderBindingError(
+                f"contract-loader-blob-mismatch: 記録 digest と commit blob が不一致: {relative}"
+            )
+
+
+def verify_committed_contract_loader_blobs(
+        contract_loader_commit: str,
+        contract_loader_blob_sha256s: Mapping[str, str],
+        relative_paths: tuple[str, ...],
+) -> None:
+    """明示された ordered path 全体の記録 commit blob を digest 照合する。"""
+    root = _validated_root()
+    _require_commit(root, contract_loader_commit)
+    for relative in relative_paths:
+        blob = _blob(root, contract_loader_commit, relative)
+        if (
+            hashlib.sha256(blob).hexdigest()
+            != contract_loader_blob_sha256s[relative]
+        ):
             raise ContractLoaderBindingError(
                 f"contract-loader-blob-mismatch: 記録 digest と commit blob が不一致: {relative}"
             )

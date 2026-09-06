@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 import sys
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -83,6 +84,7 @@ def test_campaign_resolves_once_and_forwards_expected_toolchain(
     manifest = _manifest()
     observed = []
     captured = []
+    masstree_prepare_calls = []
     expected_compilers = ("site-cc", "site-cxx")
     if runner == "backoff":
         resolved = condition_gate_compilers()
@@ -104,6 +106,11 @@ def test_campaign_resolves_once_and_forwards_expected_toolchain(
         monkeypatch.setattr(
             module.patchharness, "applied",
             lambda *_args, **_kwargs: contextlib.nullcontext(),
+        )
+        monkeypatch.setattr(
+            module.buildcache,
+            "prepare_masstree_fetchcontent",
+            lambda **kwargs: masstree_prepare_calls.append(kwargs),
         )
 
     monkeypatch.setattr(module, "_assert_single_tenant", lambda: None)
@@ -156,6 +163,11 @@ def test_campaign_resolves_once_and_forwards_expected_toolchain(
     assert kwargs["env_contract"] == expected_contract
     assert kwargs["expected_toolchain_manifest"] is manifest
     assert kwargs["declared_use_class"] == "official"
+    if runner == "backoff":
+        assert len(masstree_prepare_calls) == 1
+        prepare = masstree_prepare_calls[0]
+        assert Path(prepare["ccbench_dir"]).resolve() == patched_root.resolve()
+        assert Path(prepare["fetchcontent_base_dir"]).is_absolute()
 
 
 def test_screened_workload_forwards_expected_toolchain_to_baseline_and_candidate(
@@ -167,6 +179,7 @@ def test_screened_workload_forwards_expected_toolchain_to_baseline_and_candidate
     calls = []
     source_calls = []
     prepare_calls = []
+    masstree_prepare_calls = []
     compilers = condition_gate_compilers()
     if compilers is None:
         pytest.skip("condition gate fixture requires real compilers and CMake")
@@ -201,6 +214,11 @@ def test_screened_workload_forwards_expected_toolchain_to_baseline_and_candidate
     monkeypatch.setattr(
         backoff_sweep.buildcache, "observed_toolchain_manifest",
         lambda cc, cxx: observed.append((cc, cxx)) or manifest,
+    )
+    monkeypatch.setattr(
+        backoff_sweep.buildcache,
+        "prepare_masstree_fetchcontent",
+        lambda **kwargs: masstree_prepare_calls.append(kwargs),
     )
 
     def fake_source_resolve(_genome, _commit, *, cxx):
@@ -283,6 +301,10 @@ def test_screened_workload_forwards_expected_toolchain_to_baseline_and_candidate
     assert calls[1][1]["expected_toolchain_manifest"] is manifest
     assert calls[0][1]["screening"] is None
     assert calls[1][1]["screening"].name == "screening"
+    assert len(masstree_prepare_calls) == 1
+    prepare = masstree_prepare_calls[0]
+    assert Path(prepare["ccbench_dir"]).resolve() == patched_root.resolve()
+    assert Path(prepare["fetchcontent_base_dir"]).is_absolute()
 
 
 def test_run_campaign_forwards_expected_toolchain_to_evaluate_for_each_genome(

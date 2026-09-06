@@ -4025,6 +4025,47 @@ def test_f1_first_submit_has_no_prior_attempt_and_is_accepted_M8(
     )
 
 
+def test_submit_parser_rejects_missing_study_id_M1() -> None:
+    """Acceptance: submit remains available when a study ID is explicit.
+    Rejection: omitting --study-id fails argument parsing with exit code 2.
+    """
+    with pytest.raises(SystemExit) as exc_info:
+        paired._parser().parse_args([
+            "submit",
+            "--expected-head", "a" * 40,
+            "--attempt-root", "/x",
+        ])
+    assert exc_info.value.code == 2
+
+
+def test_submit_parser_accepts_each_explicit_study_id() -> None:
+    """Acceptance: every supported study ID can be selected explicitly.
+    Rejection: the required option must not narrow its parse-time value set.
+    """
+    parser = paired._parser()
+    for study_id in (
+        paired.STUDY_ID,
+        paired.V3_PILOT_STUDY_ID,
+        paired.V3_SIZED_STUDY_ID,
+    ):
+        parsed = parser.parse_args([
+            "submit",
+            "--study-id", study_id,
+            "--expected-head", "a" * 40,
+            "--attempt-root", "/x",
+        ])
+        assert parsed.study_id == study_id
+
+
+def test_run_submit_rejects_missing_study_id_attribute_M2() -> None:
+    """Acceptance: run_submit consumes an explicitly supplied study_id attribute.
+    Rejection: a missing attribute fails before policy loading without a fallback.
+    """
+    args = SimpleNamespace(expected_head="a" * 40, attempt_root="/x")
+    with pytest.raises(AttributeError, match="study_id"):
+        paired.run_submit(args)
+
+
 def test_f3_v2_measure_rejects_explicit_workload_selector_M10() -> None:
     with pytest.raises(
         paired.PaperStoryError, match=r"v2 measure does not accept --workload",
