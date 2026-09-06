@@ -96,6 +96,27 @@
 
 `DW-M03` に従い M2 / M7 の追加 node は冗長 gate として記録する (赤理由はそれぞれ 1 つ)。
 
+### 2.1 補遺 1 の変異 (M8 / M9、`mutation/probe2-*` と `mutation/main2-*`)
+
+補遺 1 の修正 (§6.3) に対しても probe → 本走を回した。runner は
+`python3 tools/run_tests.py --force-dispatch orchestrator/tests/test_backoff_extended_sweep.py -q -rf -p no:cacheprovider`。
+
+- baseline PASSED、**2/2 KILLED**、MISMATCH 0、SURVIVED 0、TIMEOUT 0、期待 node 2 件完全一致
+- `repo_head` = `0943b730a59b0d3aed69152f22b5c3468cb2bf06`
+- 本走 spec sha256 = `cd5c7ae5e9c38a8a931428199dd9cc9758f274e9c0d90bcdab740c81af8f3066`
+- runner sha256 = `97476de5aee6b4ad3604ee99db1a6d8f540b84c6c3fc37afbfaaec35d265804f`、
+  tool sha256 = `c4b7f3cf951280f3633807228646fe8460d5fc99f172fc108e8d6c62d459f669`
+
+| ID | 変異 | 検出 test | 観測 |
+|---|---|---|---|
+| M8 | `reps_for` の突合を修正前の list-vs-tuple へ戻す | `test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep` | 1 node (登録どおり) |
+| M9 | `leading_indicators` の型検査を `is not dict` へ戻す | 同上 | 1 node (登録どおり) |
+
+冗長 gate は無い。両変異とも同じ 1 本の test が単独で赤にする。
+probe は 3 回起動し直している (1 回目は spec の `category` が閉集合外、2 回目は未追跡の記録 file、
+3 回目は queue 混雑による dispatch の `rc=16`)。いずれも harness の起動段で止まっており、
+変異結果の解釈には影響しない。
+
 ## 3. 生死確認 (計算ノード、`liveness/`)
 
 login node は `require_heavy_work_site` が prepare を拒否するので、`tools/pegasus/dispatch_compute.py --task generic`
