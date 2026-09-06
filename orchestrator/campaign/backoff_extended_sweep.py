@@ -13,6 +13,7 @@ import sys
 import tempfile
 from contextlib import contextmanager, nullcontext
 from pathlib import Path
+from types import MappingProxyType
 from typing import Mapping, Optional, Sequence
 
 if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
@@ -597,9 +598,13 @@ class _T2266RepCapture:
     def reps_for(self, bench: Mapping[str, object]) -> list[dict[str, object]]:
         run_cmd = bench.get("run_cmd")
         tps = bench.get("tps")
+        normalized_tps = tuple(tps) if type(tps) in {list, tuple} else None
         matches = [
             item for item in self.rounds
-            if item["run_cmd"] == run_cmd and item["throughput_tps"] == tps
+            if (
+                item["run_cmd"] == run_cmd
+                and tuple(item["throughput_tps"]) == normalized_tps
+            )
         ]
         if not matches:
             raise RuntimeError("T-2266 adopted bench round lacks rep capture")
@@ -683,7 +688,7 @@ def _load_t2266_report_points(
                 "T-2266 report requires finite throughput and abort rate per rep"
             )
         indicators = bench.get("leading_indicators")
-        if type(indicators) is not dict:
+        if type(indicators) not in {dict, MappingProxyType}:
             raise RuntimeError("T-2266 committed bench lacks leading indicators")
         correctness_verified = bool(state.committed_verify) and all(
             record.payload.get("certified") is True

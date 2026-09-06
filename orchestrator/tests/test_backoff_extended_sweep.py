@@ -10,7 +10,7 @@ import subprocess
 import sys
 from contextlib import contextmanager
 from pathlib import Path
-from types import SimpleNamespace
+from types import MappingProxyType, SimpleNamespace
 
 import pytest
 
@@ -257,9 +257,10 @@ def _t2266_certified_view(tmp_path: Path, capture: M._T2266RepCapture):
     epoch = artifact_admission.CampaignVerifierEpoch(
         f"E1:{digest}", "E1", "recorded-closure",
     )
+    immutable_records = artifact_admission._immutable_records(tuple(records))
     return artifact_admission.CertifiedCampaignView(
         layout=artifact_admission.CampaignLayout(str(root)),
-        records=tuple(records),
+        records=immutable_records,
         decision=decision,
         campaign_verifier_epoch=epoch,
         persisted_certified_commit_count=8,
@@ -359,6 +360,17 @@ def test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep(
         for point_index in range(8):
             expected_abort_rates.append(_measure_t2266_round(capture, point_index))
     view = _t2266_certified_view(tmp_path, capture)
+    bench_payloads = [
+        record.payload
+        for record in view.records
+        if record.stage == M.wal.STAGE_BENCH_DONE
+    ]
+    assert len(bench_payloads) == 8
+    assert all(type(payload["tps"]) is tuple for payload in bench_payloads)
+    assert all(
+        type(payload["leading_indicators"]) is MappingProxyType
+        for payload in bench_payloads
+    )
 
     def discover(slug, search_tag, output_root, *, purpose):
         assert slug == "t2266-backoff-static-tail-silo-balanced"
@@ -384,6 +396,9 @@ def test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep(
     assert len(document["points"]) == 8
     for point_index, point in enumerate(document["points"]):
         assert len(point["reps"]) == p2_2.REPS
+        assert point["throughput_tps_reps"] == (
+            capture.rounds[point_index]["throughput_tps"]
+        )
         assert point["throughput_tps_reps"] == [
             rep["throughput_tps"] for rep in point["reps"]
         ]
