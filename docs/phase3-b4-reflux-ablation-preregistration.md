@@ -189,6 +189,7 @@ D39 残存リスク (b) が求める「off が rejection を一切見ないこ�
   候補集合・各 exact command・証拠 path と hash・0 件/複数件の決定規則・記入者・レビュー者を
   人間の指名を含む別 commit で先に freeze しない限り、対象 driver と軸を記入しない。
   (i) と (ii) は実走開始前に完了させ、実走開始後は差し替えない。**
+  **(i) の固定は §5.1.0 に置く (2026-09-05、D1641 の委任)。**
 - **赤 precursor の母集合**: B-4 の出力を見る前に freeze する。赤が出なかった block も
   除外・差替えせず「treatment 未発火」として全件報告する (§7)。
   **母集合を決める適格性述語・順序・選択関数・完全性要件は §5.1.1 で凍結済みである。**
@@ -253,6 +254,54 @@ D39 残存リスク (b) が求める「off が rejection を一切見ないこ�
   **この欄は計測に依存しないので、計測待ちを空欄の理由にしない。** 指名がないまま実走しない。
 - **開始時刻**: timezone 付きの**予定**開始時刻を記入し、「この時刻より前に実走を開始しない」と読む。
   実際の開始時刻は実走成果物側に別途記録し、**本欄を後から実測値へ書き換えない。**
+
+#### 5.1.0 「対象 driver と軸」の (i) 凍結 (2026-09-05、D1641 / D1266 / D1638)
+
+本小節は §5.1 (i) の項目だけを固定する。番号が 5.1.1 より若いのは、5.1.1 の bytes を
+`orchestrator/tests/test_p3_b4_analysis_prereg_consumer.py` が「5.1.1 の見出しから §6 まで」の範囲で
+pin しており、その範囲に小節を挿し込めないためである。(ii) の実行と (iii) の記入は本小節を含む commit の
+**後続 commit** で行い、本小節の内容は (ii) の実行後に差し替えない。本小節は §5 の値セルを変えず、
+発効版ではない。**本小節を読む機械検査は無い** — `orchestrator/campaign/p3_b4_admission_record.py` は
+§5 の値セルが非空で sentinel を含まないことだけを見る。以下の規則の履行は記入 commit と insight に人が書く。
+
+- **候補 (driver, 軸) の対 (exact 3、列挙順が優先順):**
+  `base = silo-backoff-magnitude`、`sort = silo-writeset-sort`、`trigger = silo-backoff-trigger-gating`。
+  driver 名は `orchestrator/campaign/p3_b4_wiring_probe.py` の `_DRIVER_MODULES` と
+  `orchestrator/campaign/p3_b4_admission_record.py` の `B4_PROJECTION_DRIVER_KINDS` の共通部分で、
+  両者が exact 3 で一致しなければ (ii) を開始しない。軸は各 driver module の `MARKER_ID` であり、
+  probe が証拠の `run.axis` へ機械記録する値と上の対が exact 一致しなければ不合格とする。
+- **適格性を測る sanctioned CLI command (driver ごとに exact 1 回、別 process):**
+  `python3 tools/pegasus/dispatch_compute.py --task generic -- python3 -m orchestrator.campaign.p3_b4_wiring_probe --driver base --evidence-set-id t2341-eligibility`
+  (`sort`、`trigger` は `--driver` だけを替えた同形。dispatch 側の運用 flag (`--walltime`、
+  `--queue-wait-timeout`、`--overall-grace`) は `--` より前に足してよく、`--` より後の probe argv は exact)。
+  実行 site は Pegasus 計算ノード (gen_S)、cwd は repository root、env は dispatch の clean 既定。
+  **前提:** 本小節の commit が実行時 HEAD の祖先であること、3 driver 分の証拠 target (JSON と sidecar) が
+  いずれも不存在であること、3 command を同じ HEAD から投入すること。login node で得た証拠は採用しない。
+  infra 失敗 (dispatch rc=16 等) は「不合格 0 件」ではなく手続き未完了として停止し、証拠を作らない。
+- **証拠の保存先と hash:** `output/insights/2026-08-27_t1769-b4-wiring-probe/t2341-eligibility/` 直下の
+  `<driver>.json` と detached sidecar `<driver>.json.sha256` (probe が同時に書く)。sidecar は
+  `<64 桁小文字 hex><空白 2 つ><driver>.json` の 1 行で、値は JSON bytes の sha256。CLI は既存 target を
+  拒否するため、同じ evidence-set-id では再走できない (1 回性)。**合否を問わず 3 driver 分の JSON と
+  sidecar を削除・改名せず tracked にする。** base / sort の証拠は site を記録しないので、3 件の dispatch
+  receipt (request ID と compute marker を含む) を insight に tracked にし、記入 commit の message から参照する。
+- **合格述語 (すべて満たすときだけ合格。部分点は無い):**
+  (a) command が rc=0 で終わり、JSON と sidecar が実在し、sidecar の値が JSON bytes の sha256 と一致する。
+  (b) `run.driver` と `run.axis` が上の対と exact 一致し、`run.evidence_set_id` が `t2341-eligibility`、
+  `run.argv` が `["--driver", "<driver>", "--evidence-set-id", "t2341-eligibility"]` と exact 一致する。
+  (c) `source.repository_head` が本小節の commit を祖先に含む。
+  (d) `result.passed` が `true`、`result.pass_rule` が
+  `all-four-checks-and-zero-interdiction-or-protected-root-violations`。
+  (e) `checks.campaign_identity.site_projected_cfg` が `null` でない driver (現行では trigger) について、
+  その `status` が `measured` かつ `site` が Pegasus 計算ノード。
+- **決定規則 (証拠を見る前に固定し、結果を見た後で変えない):** 3 候補すべてを判定した後、合格集合から
+  列挙順 `base → sort → trigger` の最初の 1 件を選ぶ。合格 0 件なら「対象 driver と軸」欄は `未記入` の
+  まま残し、insight に 3 件の証拠 path と不合格理由を列挙して実走へ進まない。
+- **記入の形 (§5 の値セル 1 行。3 候補すべての証拠を束縛する):**
+  `<driver> (<軸>); evidence_set=t2341-eligibility; base.json sha256=<64hex>; sort.json sha256=<64hex>; trigger.json sha256=<64hex>; 記入者 = レビュー者 = thawk105 (D1266、D1638)`。
+  path root は上の保存先に固定する。
+- **記入者とレビュー者:** いずれも `thawk105` (D1266)。レビュー者は独立検査者ではなく、記入内容が本小節と
+  §5.1 (ii)(iii) を満たすことの確認責任者である。操作は D1638 の委任により AI が `thawk105` 名義で行い、
+  記入 commit の message に本小節の commit hash と採用した証拠の sha256 を書く。
 
 #### 5.1.1 分析契約の一括凍結 (D1082)
 
