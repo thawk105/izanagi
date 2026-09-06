@@ -2,7 +2,7 @@
 """Trusted launch seam for one 8b floor measurement attempt.
 
 The floor campaign supplies immutable reservation inputs, the complete closed
-slot set, measurement arguments, a launcher-issued post-probe capability, and
+slot set, measurement arguments, a launcher-issued probe capability, and
 a terminal builder.  It never receives the sealed measurement token.  This
 module alone owns that token and connects the floor path to
 :mod:`s8b_attempt_registry`.
@@ -17,18 +17,26 @@ from pathlib import Path
 import subprocess
 from typing import Any
 
+from orchestrator.calibrator.perf_preflight import use_perf_from_receipt
 from orchestrator.calibrator import runner as calibrator_runner
 
 from . import s8b_attempt_registry as attempt_registry
+from . import s8b_attempt_profile as profile8b
+from .s8b_floor_contract import canonical_protocol_sha256
 
 
 POST_PROBE_COMPETING_REASON = "competing_process"
 MEASUREMENT_LAUNCH_FAILURE_REASON = "launch_failure"
-_PRE_OUTPUT_EVIDENCE_SCHEMA = "s8b-floor-pre-output-evidence/v1"
+_PRE_OUTPUT_EVIDENCE_SCHEMA = "s8b-floor-pre-output-evidence/v2"
 
 _POST_PROBE_ARGV = ("pgrep", "-af", r"ycsb_.*\.exe")
 _POST_PROBE_TIMEOUT_S = 120.0
 _POST_PROBE_CAPABILITY_SEAL = object()
+_CLASSIFICATION_POLICY = {
+    "schema": "s8b-floor-pre-output-classification/v1",
+    "precedence": ["competing_process", "launch_failure"],
+    "probe_argv": list(_POST_PROBE_ARGV), "probe_timeout_s": _POST_PROBE_TIMEOUT_S,
+}
 _CERTIFIED_MEASUREMENT_KEYWORDS = frozenset({
     "extime",
     "reps",
@@ -57,7 +65,11 @@ class FloorAttemptReservation:
     repo_root: Path
     profile: object
     binding: object
-    slot_id: tuple[str, str, int, int]
+    slot_id: tuple[str, str, int, int] | tuple[str, str, int, int, int]
+    protocol: Mapping[str, object]
+    mode: str
+    perf_preflight_receipt: Mapping[str, object] | None
+    consumption_marker: object | None
     run_start_receipt_sha256: str
     process_identity: Mapping[str, Any]
     started_at: str
@@ -94,7 +106,7 @@ class FloorMeasurementCapture:
 
 @dataclass(frozen=True, slots=True, init=False)
 class FloorPostProbeCapability:
-    """Launcher-issued capability for its fixed post-measurement probe."""
+    """Launcher-issued capability for its fixed pre/post measurement probe."""
 
     _probe: Callable[[], Mapping[str, object]] = field(
         repr=False, compare=False
@@ -115,11 +127,15 @@ class OpenedFloorAttempt:
     """Post-classification data made available to the terminal builder."""
 
     measurement: object | None
-    open_error: Exception | None
-    post_probe: Mapping[str, object]
+    failure: Mapping[str, object] | None
+    probe_before: Mapping[str, object]
+    probe_after: Mapping[str, object] | None
     launch_failures: tuple[object, ...]
     pre_observation_failure_reason: str | None
     external_evidence_sha256: str
+    repetition_evidence: tuple[Mapping[str, object], ...]
+    expected_use_perf: bool
+    reps_expected: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -153,6 +169,13 @@ class FloorAttemptLaunchResult:
 class _LauncherDependencies:
     registry: object
     capture_measure_point: Callable[..., object]
+
+
+@dataclass(frozen=True, slots=True)
+class _ReservationPolicy:
+    expected_use_perf: bool
+    reps_expected: int
+    capture_keyword_arguments: dict[str, object]
 
 
 _PRODUCTION_DEPENDENCIES = _LauncherDependencies(
@@ -191,7 +214,7 @@ class _DurablyClassifiedMeasurement:
 
     __slots__ = ("__captured", "__classification")
 
-    def __init__(self, captured: object, classification: object) -> None:
+    def __init__(self, captured: object | None, classification: object) -> None:
         self.__captured = captured
         self.__classification = classification
 
@@ -199,7 +222,9 @@ class _DurablyClassifiedMeasurement:
     def classification(self) -> object:
         return self.__classification
 
-    def open(self) -> object:
+    def open(self) -> object | None:
+        if self.__captured is None:
+            return None
         opener = getattr(self.__captured, "open", None)
         if not callable(opener):
             raise FloorAttemptLauncherError(
@@ -223,20 +248,35 @@ def _canonical_json_bytes(value: object, *, label: str) -> bytes:
         ) from exc
 
 
+_CLASSIFICATION_AUTHORITY = ClassificationAuthority(
+    authority_id="s8b-floor-attempt-launcher/pre-output-classification/v1",
+    authority_policy_sha256=hashlib.sha256(_canonical_json_bytes(_CLASSIFICATION_POLICY, label="classification policy")).hexdigest(),
+)
+
+
 def _post_probe(value: object) -> dict[str, object]:
     if not isinstance(value, Mapping):
         raise FloorAttemptLauncherError("post-probe result is not a mapping")
     result = dict(value)
-    if type(result.get("competing")) is not bool:
+    if set(result) != {"rc", "stdout", "stderr", "competing"}:
         raise FloorAttemptLauncherError(
-            "post-probe result requires an exact boolean competing field"
+            "post-probe result requires the exact four-key schema"
+        )
+    if (
+        type(result["rc"]) is not int
+        or type(result["stdout"]) is not str
+        or type(result["stderr"]) is not str
+        or type(result["competing"]) is not bool
+    ):
+        raise FloorAttemptLauncherError(
+            "post-probe result has invalid exact field types"
         )
     _canonical_json_bytes(result, label="post-probe result")
     return result
 
 
 def _owned_post_probe() -> Mapping[str, object]:
-    """Run the launcher's fixed post-measurement competition probe."""
+    """Run the launcher's fixed pre/post measurement competition probe."""
     try:
         raw = subprocess.run(
             list(_POST_PROBE_ARGV),
@@ -359,16 +399,34 @@ def _captured_launch_failures(captured: object) -> tuple[object, ...]:
     return failures
 
 
+def _failure_evidence(stage: str, failure: BaseException) -> dict[str, object]:
+    error_number = getattr(failure, "errno", None)
+    if type(error_number) is not int:
+        error_number = None
+    return {
+        "stage": stage,
+        "exception_type": type(failure).__name__,
+        "errno": error_number,
+        "message": str(failure),
+    }
+
+
 def _external_evidence_sha256(
-    *, post_probe: Mapping[str, object], launch_failures: tuple[object, ...],
+    *,
+    probe_before: Mapping[str, object],
+    probe_after: Mapping[str, object] | None,
+    launch_failures: tuple[object, ...],
+    capture_failure: Mapping[str, object] | None,
 ) -> str:
     payload = {
         "schema_version": _PRE_OUTPUT_EVIDENCE_SCHEMA,
-        "post_probe": dict(post_probe),
+        "probe_before": _post_probe(probe_before),
+        "probe_after": None if probe_after is None else _post_probe(probe_after),
         "launch_failures": [
             _launch_failure_evidence(failure)
             for failure in launch_failures
         ],
+        "capture_failure": None if capture_failure is None else dict(capture_failure),
     }
     return hashlib.sha256(
         _canonical_json_bytes(payload, label="pre-output evidence")
@@ -376,11 +434,20 @@ def _external_evidence_sha256(
 
 
 def _pre_observation_failure_reason(
-    *, post_probe: Mapping[str, object], launch_failures: tuple[object, ...],
+    *,
+    probe_before: Mapping[str, object],
+    probe_after: Mapping[str, object] | None,
+    launch_failures: tuple[object, ...],
+    failure: Mapping[str, object] | None,
 ) -> str | None:
-    if post_probe["competing"] is True:
+    if (
+        probe_before["competing"] is True
+        or (probe_after is not None and probe_after["competing"] is True)
+    ):
         return POST_PROBE_COMPETING_REASON
-    if launch_failures:
+    if launch_failures or (
+        failure is not None and failure.get("stage") == "capture"
+    ):
         return MEASUREMENT_LAUNCH_FAILURE_REASON
     return None
 
@@ -423,15 +490,122 @@ def _checked_measurement_keyword_arguments(
         raise FloorAttemptLauncherError(
             "measurement keyword arguments contain a callable"
         )
-    return keyword_arguments
+    return {
+        key: _snapshot_keyword_argument(value)
+        for key, value in keyword_arguments.items()
+    }
+
+
+def _snapshot_keyword_argument(value: object) -> object:
+    """Detach one mutable container layer while retaining opaque identities."""
+    if isinstance(value, Mapping):
+        return dict(value)
+    if isinstance(value, (list, tuple)):
+        return tuple(value)
+    return value
+
+
+def _checked_reservation_policy(
+    reservation: FloorAttemptReservation,
+    measurement: FloorMeasurementCapture,
+) -> _ReservationPolicy:
+    """Validate policy before effects and retain the exact capture kwargs copy.
+
+    A non-None marker is rejected by the preceding v2 gate, so marker content
+    never reaches the nested-callable inspection below.
+    """
+    if type(reservation) is not FloorAttemptReservation:
+        raise FloorAttemptLauncherError(
+            "reservation request has an invalid type"
+        )
+    if (
+        getattr(reservation.profile, "schema", None) is profile8b.S8B_V2_SCHEMA_PROFILE
+        or reservation.consumption_marker is not None
+    ):
+        raise FloorAttemptLauncherError(
+            "[s8b-launcher-v2-terminal] v2 attempts require the sealed "
+            "terminal evidence API"
+        )
+    if (
+        _contains_callable(reservation.protocol)
+        or _contains_callable(reservation.perf_preflight_receipt)
+    ):
+        raise FloorAttemptLauncherError(
+            "reservation policy contains a callable"
+        )
+    if not isinstance(reservation.protocol, Mapping):
+        raise FloorAttemptLauncherError("reservation protocol is not a mapping")
+    if type(reservation.mode) is not str or reservation.mode not in {"pilot", "official"}:
+        raise FloorAttemptLauncherError(
+            "reservation mode must be pilot or official"
+        )
+    if (
+        reservation.perf_preflight_receipt is not None and
+        not isinstance(reservation.perf_preflight_receipt, Mapping)
+    ):
+        raise FloorAttemptLauncherError(
+            "perf preflight receipt is not a mapping"
+        )
+    try:
+        bound_protocol_sha256 = reservation.binding.protocol_sha256
+        actual_protocol_sha256 = canonical_protocol_sha256(reservation.protocol)
+    except (AttributeError, TypeError, ValueError, RuntimeError) as exc:
+        raise FloorAttemptLauncherError(
+            "reservation protocol binding is invalid"
+        ) from exc
+    if actual_protocol_sha256 != bound_protocol_sha256:
+        raise FloorAttemptLauncherError(
+            "reservation protocol is not bound to binding.protocol_sha256"
+        )
+    reps_expected = reservation.protocol.get("reps")
+    if type(reps_expected) is not int or reps_expected <= 0:
+        raise FloorAttemptLauncherError(
+            "reservation protocol.reps is not a positive exact integer"
+        )
+    try:
+        expected_use_perf = use_perf_from_receipt(
+            reservation.perf_preflight_receipt
+        )
+    except (TypeError, ValueError) as exc:
+        raise FloorAttemptLauncherError(
+            "perf preflight receipt is invalid"
+        ) from exc
+    if (
+        reservation.mode == "official" and
+        reservation.perf_preflight_receipt is not None and expected_use_perf
+    ):
+        raise FloorAttemptLauncherError(
+            "official mode cannot use an available perf preflight receipt"
+        )
+    keyword_arguments = _checked_measurement_keyword_arguments(measurement)
+    capture_use_perf = keyword_arguments.get("use_perf", True)
+    if (
+        type(capture_use_perf) is not bool
+        or capture_use_perf is not expected_use_perf
+    ):
+        raise FloorAttemptLauncherError(
+            "capture use_perf differs from the perf preflight receipt"
+        )
+    capture_reps = keyword_arguments.get("reps", 5)
+    if type(capture_reps) is not int or capture_reps != reps_expected:
+        raise FloorAttemptLauncherError(
+            "capture reps differs from reservation protocol.reps"
+        )
+    return _ReservationPolicy(
+        expected_use_perf=expected_use_perf,
+        reps_expected=reps_expected,
+        capture_keyword_arguments=keyword_arguments,
+    )
 
 
 def _capture(
     request: FloorMeasurementCapture,
     *,
+    keyword_arguments: dict[str, object],
+    rep_observations: list[dict[str, object]],
     dependencies: _LauncherDependencies,
 ) -> object:
-    keyword_arguments = _checked_measurement_keyword_arguments(request)
+    keyword_arguments["rep_observations"] = rep_observations
     return dependencies.capture_measure_point(
         request.binary,
         request.records,
@@ -466,6 +640,7 @@ def _reserve(
         run_relpath=request.run_relpath,
         cell_id=request.cell_id,
         deferred_output_reader=output.read,
+        consumption_marker=request.consumption_marker,
     )
 
 
@@ -559,12 +734,12 @@ def _launch_floor_attempt(
     terminal_builder: Callable[[OpenedFloorAttempt], FloorAttemptTerminal],
     dependencies: _LauncherDependencies,
 ) -> FloorAttemptLaunchResult:
-    """Reserve, capture, seal classification, open, observe, and terminalize.
+    """Reserve, probe, capture, classify, open, observe, and terminalize.
 
     ``capture_measure_point`` is invoked only inside this function.  Its token
     remains owned here, is wrapped in a private capability only after
     ``classify_attempt`` returns, and is never returned or passed to the
-    campaign.  The post-probe reason precedence is competing process, launch
+    campaign.  The probe reason precedence is competing process, launch
     failure, then no pre-output reason.
     """
 
@@ -576,8 +751,7 @@ def _launch_floor_attempt(
         raise FloorAttemptLauncherError("classified_at is not callable")
     if not callable(terminal_builder):
         raise FloorAttemptLauncherError("terminal_builder is not callable")
-    # Reject unreviewed result surfaces before registry or process effects.
-    _checked_measurement_keyword_arguments(measurement)
+    policy = _checked_reservation_policy(reservation, measurement)
 
     output = _OwnedRawOutput()
     _ensure_registry_genesis(
@@ -586,16 +760,37 @@ def _launch_floor_attempt(
     reserved = _reserve(
         reservation, output=output, dependencies=dependencies,
     )
-    captured = _capture(measurement, dependencies=dependencies)
-    probe_result = post_probe_reader(post_probe_capability)
-    launch_failures = _captured_launch_failures(captured)
+    probe_before = post_probe_reader(post_probe_capability)
+    probe_after: Mapping[str, object] | None = None
+    captured: object | None = None
+    failure: Mapping[str, object] | None = None
+    launch_failures: tuple[object, ...] = ()
+    private_rep_sink: list[dict[str, object]] = []
+    if probe_before["competing"] is not True:
+        try:
+            captured = _capture(
+                measurement,
+                keyword_arguments=policy.capture_keyword_arguments,
+                rep_observations=private_rep_sink,
+                dependencies=dependencies,
+            )
+        except (RuntimeError, subprocess.TimeoutExpired, OSError) as exc:
+            failure = _failure_evidence("capture", exc)
+        finally:
+            probe_after = post_probe_reader(post_probe_capability)
+        if captured is not None:
+            launch_failures = _captured_launch_failures(captured)
     reason = _pre_observation_failure_reason(
-        post_probe=probe_result,
+        probe_before=probe_before,
+        probe_after=probe_after,
         launch_failures=launch_failures,
+        failure=failure,
     )
     evidence_sha256 = _external_evidence_sha256(
-        post_probe=probe_result,
+        probe_before=probe_before,
+        probe_after=probe_after,
         launch_failures=launch_failures,
+        capture_failure=failure,
     )
     registry = dependencies.registry
     classification = registry.classify_attempt(
@@ -612,23 +807,35 @@ def _launch_floor_attempt(
     del captured
 
     opened_measurement: object | None = None
-    open_error: Exception | None = None
-    try:
-        opened_measurement = durable.open()
-    except Exception as exc:  # output-derived failures still terminalize
-        open_error = exc
+    if failure is None:
+        try:
+            opened_measurement = durable.open()
+        except Exception as exc:  # output-derived failures still terminalize
+            failure = _failure_evidence("open", exc)
+    repetition_evidence: tuple[Mapping[str, object], ...] = ()
+    if failure is None:
+        repetition_evidence = tuple(dict(item) for item in private_rep_sink)
     opened = OpenedFloorAttempt(
         measurement=opened_measurement,
-        open_error=open_error,
-        post_probe=probe_result,
+        failure=failure,
+        probe_before=probe_before,
+        probe_after=probe_after,
         launch_failures=launch_failures,
         pre_observation_failure_reason=reason,
         external_evidence_sha256=evidence_sha256,
+        repetition_evidence=repetition_evidence,
+        expected_use_perf=policy.expected_use_perf,
+        reps_expected=policy.reps_expected,
     )
     terminal = terminal_builder(opened)
     if type(terminal) is not FloorAttemptTerminal:
         raise FloorAttemptLauncherError(
             "terminal_builder returned an invalid type"
+        )
+    if opened.failure is not None and terminal.terminal_status == "observed":
+        raise FloorAttemptLauncherError(
+            "[s8b-launcher-terminal] observed terminal contradicts a capture "
+            "or open failure"
         )
     output.seal(terminal.raw_output_bytes)
     observation = _begin_observation(
@@ -651,7 +858,6 @@ def launch_floor_attempt(
     measurement: FloorMeasurementCapture,
     *,
     post_probe: FloorPostProbeCapability,
-    classification_authority: ClassificationAuthority,
     classified_at: Callable[[], str],
     terminal_builder: Callable[[OpenedFloorAttempt], FloorAttemptTerminal],
 ) -> FloorAttemptLaunchResult:
@@ -663,7 +869,7 @@ def launch_floor_attempt(
         measurement,
         post_probe_capability=post_probe,
         post_probe_reader=_post_probe_from_capability,
-        classification_authority=classification_authority,
+        classification_authority=_CLASSIFICATION_AUTHORITY,
         classified_at=classified_at,
         terminal_builder=terminal_builder,
         dependencies=_PRODUCTION_DEPENDENCIES,
@@ -676,11 +882,13 @@ def _launch_floor_attempt_for_test(
     measurement: FloorMeasurementCapture,
     *,
     post_probe: Callable[[], Mapping[str, object]],
-    classification_authority: ClassificationAuthority,
     classified_at: Callable[[], str],
     terminal_builder: Callable[[OpenedFloorAttempt], FloorAttemptTerminal],
     registry: object,
     capture_measure_point: Callable[..., object],
+    classification_authority: ClassificationAuthority = (
+        _CLASSIFICATION_AUTHORITY
+    ),
 ) -> FloorAttemptLaunchResult:
     """Test-only dependency injection, separate from the certified API."""
     if not callable(post_probe) or not callable(capture_measure_point):
