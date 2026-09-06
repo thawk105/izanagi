@@ -1,0 +1,19 @@
+{
+  "artifacts": {
+    "campaigns/t2266-backoff-static-tail-silo-read-heavy-sweep-7e90afbe/campaign.lock": "cd88dceb14798ab681dc4cdb4a40530b2521e1ad10c6fac5a93153bd4ab145b4",
+    "campaigns/t2266-backoff-static-tail-silo-read-heavy-sweep-7e90afbe/reports/t2266-backoff-static-tail-read-heavy.dat": "29c6eafe0cb75ac8f5789e71d28ad838b1643c810493db247526336bfc077b5b",
+    "campaigns/t2266-backoff-static-tail-silo-read-heavy-sweep-7e90afbe/reports/t2266-backoff-static-tail-read-heavy.json": "66bc31956766b030e54add0788b50d9409647b7454a7d79557abc7affef40da0",
+    "campaigns/t2266-backoff-static-tail-silo-read-heavy-sweep-7e90afbe/runs/wal.jsonl": "940405bd3fcf6a5290581485b483443a71b17bea3d76db450cf7723c1d0af6db"
+  },
+  "build_network": {
+    "dependency_revisions": "sha-pinned",
+    "external_fetch_via_proxy": true
+  },
+  "campaign_id": "t2266-backoff-static-tail-silo-read-heavy-sweep-7e90afbe",
+  "freeze_trees_sha256": "c405c742f60e19b4f96b4fa9922f9bfe37ebd23389ed4598d707bfeb09abf2f3",
+  "pbs_jobid": "0:979845.nqsv",
+  "run_kind": "t2266-tail",
+  "schema_version": "b10-backoff-grid-job-complete/v1",
+  "status": "complete",
+  "workload": "read-heavy"
+}
