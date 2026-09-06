@@ -1,0 +1,358 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 120,
+ "timeout_seconds": 3600,
+ "hang_timeout_seconds": 900,
+ "mutations": [
+  {
+   "id": "M1-submit-receipt-reserialized-sha",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/submit_mocc_trace.sh",
+     "old": "        \"expected_physical_cores\": int(expected_cores),\n        \"raw_sha256\": policy_raw_sha,\n",
+     "new": "        \"expected_physical_cores\": int(expected_cores),\n        \"raw_sha256\": hashlib.sha256(json.dumps(policy, sort_keys=True).encode(\"utf-8\")).hexdigest(),\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_submit_dry_run_contract"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M2-submit-drop-post-clean-rehash",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/submit_mocc_trace.sh",
+     "old": "if [[ \"$POLICY_POST_CLEAN_SHA256\" != \"$POLICY_RAW_SHA256\" ]]; then\n  echo \"Mocc trace policy changed between initial parse and clean-tree gate\" >&2\n",
+     "new": "if false; then\n  echo \"Mocc trace policy changed between initial parse and clean-tree gate\" >&2\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_submit_rejects_policy_change_between_parse_and_clean_gate"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M3-submit-drop-raw-sha-field",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/submit_mocc_trace.sh",
+     "old": "        \"expected_physical_cores\": int(expected_cores),\n        \"raw_sha256\": policy_raw_sha,\n",
+     "new": "        \"expected_physical_cores\": int(expected_cores),\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_submit_dry_run_contract"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M4-submit-drop-qsub-export",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/submit_mocc_trace.sh",
+     "old": "IZANAGI_MOCC_TRACE_ATTEMPTS_ROOT=$ATTEMPTS_ROOT,IZANAGI_MOCC_POLICY_RAW_SHA256=$POLICY_RAW_SHA256\"\n",
+     "new": "IZANAGI_MOCC_TRACE_ATTEMPTS_ROOT=$ATTEMPTS_ROOT\"\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_submit_dry_run_contract"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M5-gate-drop-live-vs-receipt-sha",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/mocc_trace_pilot.sh",
+     "old": "    if live_policy_sha != receipt_policy_sha:\n        raise ValueError(\"live policy raw sha differs from submit receipt\")\n",
+     "new": "    if False:\n        raise ValueError(\"live policy raw sha differs from submit receipt\")\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_submit_raw_sha_mismatch"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M6-gate-drop-live-vs-shell-mapping",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/mocc_trace_pilot.sh",
+     "old": "    if live_mapping != shell_mapping:\n        raise ValueError(\"live policy compiler mapping differs from early parse\")\n",
+     "new": "    if False:\n        raise ValueError(\"live policy compiler mapping differs from early parse\")\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_parse_restore_clean_attack"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M7-gate-drop-live-vs-receipt-mapping",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/mocc_trace_pilot.sh",
+     "old": "    if live_mapping != receipt_mapping:\n        raise ValueError(\"live policy compiler mapping differs from submit receipt\")\n",
+     "new": "    if False:\n        raise ValueError(\"live policy compiler mapping differs from submit receipt\")\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_submit_mapping_tamper"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M8-gate-drop-live-vs-env-sha",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/mocc_trace_pilot.sh",
+     "old": "    if live_policy_sha != exported_policy_sha:\n        raise ValueError(\"live policy raw sha differs from qsub environment\")\n",
+     "new": "    if False:\n        raise ValueError(\"live policy raw sha differs from qsub environment\")\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_env_binding_mismatch"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M9-gate-policy-drop-nofollow",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/mocc_trace_pilot.sh",
+     "old": "        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)\n    except OSError as exc:\n        raise ValueError(\"policy cannot be opened without following\") from exc\n",
+     "new": "        fd = os.open(path, os.O_RDONLY | os.O_NONBLOCK)\n    except OSError as exc:\n        raise ValueError(\"policy cannot be opened without following\") from exc\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_symlink_policy"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": true
+  },
+  {
+   "id": "M10-gate-policy-drop-isreg",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/mocc_trace_pilot.sh",
+     "old": "        if not stat.S_ISREG(info.st_mode):\n            raise ValueError(\"policy is not a regular file\")\n",
+     "new": "        if False:\n            raise ValueError(\"policy is not a regular file\")\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": true
+  },
+  {
+   "id": "M11a-gate-receipt-drop-nofollow",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/mocc_trace_pilot.sh",
+     "old": "        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)\n    except OSError as exc:\n        raise ValueError(\n            \"pinned submit receipt cannot be opened without following\"\n",
+     "new": "        fd = os.open(path, os.O_RDONLY | os.O_NONBLOCK)\n    except OSError as exc:\n        raise ValueError(\n            \"pinned submit receipt cannot be opened without following\"\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_symlink_or_non_regular_receipt_after_pin[symlink]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": true
+  },
+  {
+   "id": "M11b-gate-receipt-drop-isreg",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/mocc_trace_pilot.sh",
+     "old": "        if not stat.S_ISREG(info.st_mode):\n            raise ValueError(\"pinned submit receipt is not a regular file\")\n",
+     "new": "        if False:\n            raise ValueError(\"pinned submit receipt is not a regular file\")\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": true
+  },
+  {
+   "id": "M13a-final-drop-mapping-recheck",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/mocc_trace_pilot.sh",
+     "old": "        raise ValueError(\"bound policy compiler mapping differs at finalization\")\n",
+     "new": "        pass\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_finalization_rejects_mapping_changed_after_gate"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M13b-final-drop-raw-sha-recheck",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/mocc_trace_pilot.sh",
+     "old": "        raise ValueError(\"bound policy raw sha differs at finalization\")\n",
+     "new": "        pass\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_finalization_rejects_raw_sha_changed_after_gate"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M14-final-drop-policy-payload",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/mocc_trace_pilot.sh",
+     "old": "    \"policy\": {\n        \"repo_path\": \"tools/pegasus/mocc_trace_v1_policy.json\",\n        \"raw_sha256\": policy_raw_sha,\n        \"expected_compiler_version_body_sha256\": json.loads(\n            expected_compiler_mapping_json\n        ),\n    },\n    \"source\": {\n",
+     "new": "    \"source\": {\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_finalization_records_bound_policy"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M15-gate-drop-live-vs-early-sha",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/mocc_trace_pilot.sh",
+     "old": "    if live_policy_sha != parsed_policy_sha:\n        raise ValueError(\"live policy raw sha differs from early parse\")\n",
+     "new": "    if False:\n        raise ValueError(\"live policy raw sha differs from early parse\")\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_parse_restore_clean_attack_raw"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M16-gate-drop-repo-path-check",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/mocc_trace_pilot.sh",
+     "old": "    if os.path.relpath(policy_path, repo_root) != (\n        \"tools/pegasus/mocc_trace_v1_policy.json\"\n    ):\n",
+     "new": "    if False and os.path.relpath(policy_path, repo_root) != (\n        \"tools/pegasus/mocc_trace_v1_policy.json\"\n    ):\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_noncanonical_policy_repo_path"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M17-gate-drop-argv-export-check",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/mocc_trace_pilot.sh",
+     "old": "    if raw_exports != [prefix + exported_policy_sha]:\n        raise ValueError(\"submit receipt policy raw sha export differs\")\n",
+     "new": "    if False:\n        raise ValueError(\"submit receipt policy raw sha export differs\")\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_submit_raw_sha_export_tamper"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "P1-gate-overreject-mapping",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "tools/pegasus/mocc_trace_pilot.sh",
+     "old": "    if live_mapping != receipt_mapping:\n        raise ValueError(\"live policy compiler mapping differs from submit receipt\")\n",
+     "new": "    if live_mapping == receipt_mapping:\n        raise ValueError(\"live policy compiler mapping differs from submit receipt\")\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_finalization_rejects_mapping_changed_after_gate",
+    "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_finalization_rejects_raw_sha_changed_after_gate",
+    "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_accepts_unchanged_policy",
+    "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_submit_mapping_tamper"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "E1-gate-equivalent-raise-form",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "tools/pegasus/mocc_trace_pilot.sh",
+     "old": "except (OSError, ValueError) as exc:\n    raise SystemExit(str(exc)) from exc\n\nprint(live_policy_sha)\n",
+     "new": "except (OSError, ValueError) as exc:\n    raise SystemExit(str(exc))\n\nprint(live_policy_sha)\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M18-gate-policy-drop-nonblock",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/mocc_trace_pilot.sh",
+     "old": "        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)\n    except OSError as exc:\n        raise ValueError(\"policy cannot be opened without following\") from exc\n",
+     "new": "        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)\n    except OSError as exc:\n        raise ValueError(\"policy cannot be opened without following\") from exc\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_writerless_fifo_without_blocking[writerless_fifo-regular]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": true
+  },
+  {
+   "id": "M19-gate-drop-parse-constant",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/mocc_trace_pilot.sh",
+     "old": "        value = json.loads(\n            raw.decode(\"utf-8\"),\n            object_pairs_hook=reject_duplicate_keys,\n            parse_constant=_reject_non_finite,\n        )\n    except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:\n",
+     "new": "        value = json.loads(\n            raw.decode(\"utf-8\"),\n            object_pairs_hook=reject_duplicate_keys,\n        )\n    except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_non_finite_json[policy]",
+    "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_non_finite_json[receipt]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}
