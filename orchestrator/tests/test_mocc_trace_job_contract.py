@@ -10,6 +10,7 @@ import json
 import os
 from pathlib import Path
 import re
+import signal
 import shlex
 import stat
 import subprocess
@@ -40,6 +41,36 @@ FIXTURE_COMPILER_BODY_SHA256 = (
 def _make_executable(path: Path, contents: str) -> None:
     path.write_text(textwrap.dedent(contents).lstrip(), encoding="utf-8")
     path.chmod(path.stat().st_mode | stat.S_IXUSR)
+
+
+def _run_in_process_group(
+    args: list[str],
+    *,
+    cwd: Path,
+    env: dict[str, str] | None = None,
+    timeout: float,
+) -> subprocess.CompletedProcess[str]:
+    process = subprocess.Popen(
+        args,
+        cwd=cwd,
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        start_new_session=True,
+    )
+    try:
+        stdout, stderr = process.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        process.communicate()
+        raise
+    return subprocess.CompletedProcess(
+        process.args, process.returncode, stdout, stderr
+    )
 
 
 def test_mocc_trace_pilot_shell_syntax() -> None:
@@ -162,7 +193,7 @@ def _run_mocc_trace_submit_with_policy(
 
     environment = os.environ.copy()
     environment["PATH"] = os.pathsep.join((str(bin_dir), environment["PATH"]))
-    result = subprocess.run(
+    result = _run_in_process_group(
         [
             "bash",
             str(SUBMITTER),
@@ -176,9 +207,6 @@ def _run_mocc_trace_submit_with_policy(
         ],
         cwd=REPO_ROOT,
         env=environment,
-        capture_output=True,
-        text=True,
-        check=False,
         timeout=10,
     )
     return result, attempts_root, policy_path
@@ -2408,13 +2436,10 @@ def _run_mocc_trace_policy_binding(
     )
     environment = os.environ.copy()
     environment["PATH"] = os.pathsep.join((str(bin_dir), environment["PATH"]))
-    result = subprocess.run(
+    result = _run_in_process_group(
         ["/bin/bash", "-c", script],
         cwd=REPO_ROOT,
         env=environment,
-        capture_output=True,
-        text=True,
-        check=False,
         timeout=10,
     )
     return result, attempt_dir, failure_path, bound_sha_path
@@ -3622,16 +3647,13 @@ def _run_mocc_trace_finalization(
         os.mkfifo(submit_receipt_path)
     elif receipt_kind != "regular":
         raise AssertionError(receipt_kind)
-    result = subprocess.run(
+    result = _run_in_process_group(
         [
             "/bin/bash",
             "-c",
             "\n".join(prefix_lines) + policy_gate_prefix + fragment,
         ],
         cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-        check=False,
         timeout=10,
     )
     return result, attempt_dir, report_bytes
