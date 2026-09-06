@@ -1,0 +1,237 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+          "old": "if [[ ! \"$host\" =~ ^bnode[0-9]+([.].*)?$ ]]; then\n",
+          "new": "if [[ ! \"$host\" =~ ^(bnode|pegasus)[0-9]+([.].*)?$ ]]; then\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+          "old": "if [[ \"$observed_head\" != \"$IZANAGI_S4_EXPECTED_HEAD\" ]]; then\n",
+          "new": "if [[ \"$observed_head\" != \"\" ]]; then\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+          "old": "if [[ -n \"$(git status --porcelain --untracked-files=no --ignore-submodules=all)\" ]]; then\n",
+          "new": "if [[ -n \"$(printf '')\" ]]; then\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+          "old": "'from orchestrator.campaign.p3_s4_loop import PIN; print(PIN)'\n",
+          "new": "'from orchestrator.campaign.pin import CURRENT_PIN; print(CURRENT_PIN)'\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+          "old": "pbs_jobid_path_component=${PBS_JOBID//:/_}\n",
+          "new": "pbs_jobid_path_component=$PBS_JOBID\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+          "old": "if [[ \"$evidence_root\" == \"$repo\" || \"$evidence_root\" == \"$repo/\"* \\\n   || \"$evidence_root\" == \"$git_common_repo\" \\\n   || \"$evidence_root\" == \"$git_common_repo/\"* ]]; then\n",
+          "new": "if [[ \"$evidence_root\" == \"/impossible\" ]]; then\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+          "old": "SANITIZED_PATH=\"$shim_dir:/usr/bin:/bin\"\n",
+          "new": "SANITIZED_PATH=\"$PATH\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+          "old": "mkdir -m 0700 -- \"$shim_dir\"\n",
+          "new": "mkdir -m 0700 -- \"$shim_dir\"\nln -s -- /usr/bin/cmake \"$shim_dir/cmake\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+          "old": "  cp -a \"$source\"/. \"$destination\"/\n",
+          "new": "  rmdir -- \"$destination\"\n  ln -s -- \"$source\" \"$destination\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+          "old": "with open(receipt_path, \"x\", encoding=\"utf-8\") as stream:\n",
+          "new": "with open(receipt_path, \"w\", encoding=\"utf-8\") as stream:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+          "old": "    --allow-coder-derived-build \\\n    --isolate-worktree \\\n    --run-iteration",
+          "new": "    --no-build \\\n    --isolate-worktree \\\n    --run-iteration"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M12",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+          "old": "cd \"$repo\"\nif [[ ! \"$IZANAGI_S4_EXPECTED_HEAD\" =~ ^[0-9a-f]{40}$ ]]; then\n",
+          "new": "cd \"$repo\"\nqsub job.sh\nif [[ ! \"$IZANAGI_S4_EXPECTED_HEAD\" =~ ^[0-9a-f]{40}$ ]]; then\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M13",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/admission_registry.json",
+          "old": "    \"tools/pegasus/p3_s4_loop_pegasus.sh\": {\n      \"class\": \"dispatch-required\",\n",
+          "new": "    \"tools/pegasus/p3_s4_loop_pegasus.sh\": {\n      \"class\": \"local-ok\",\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M14",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+          "old": "host=$(hostname 2>/dev/null || true)\nif [[ ! \"$host\" =~ ^bnode[0-9]+([.].*)?$ ]]; then\n  refuse \"P3 S4 loop job body is compute-only\"\nfi\n\nunset CC CXX CPP CFLAGS CXXFLAGS CPPFLAGS LDFLAGS\n",
+          "new": "unset CC CXX CPP CFLAGS CXXFLAGS CPPFLAGS LDFLAGS\n"
+        },
+        {
+          "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+          "old": "export PATH=\"/usr/bin:/bin:/opt/nec/nqsv/bin:/system/tool/bin\"\n",
+          "new": "export PATH=\"/usr/bin:/bin:/opt/nec/nqsv/bin:/system/tool/bin\"\nhost=$(hostname 2>/dev/null || true)\nif [[ ! \"$host\" =~ ^bnode[0-9]+([.].*)?$ ]]; then\n  refuse \"P3 S4 loop job body is compute-only\"\nfi\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M15",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+          "old": "export IZANAGI_RESERVATION_DEADLINE_EPOCH=\"$deadline_epoch\"\n",
+          "new": "true # deadline export removed\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M16",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+          "old": "mkdir -p -m 0700 -- \"$claim_root\"\n",
+          "new": "true # claim root provisioning removed\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
