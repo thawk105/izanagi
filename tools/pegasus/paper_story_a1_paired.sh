@@ -34,11 +34,11 @@ refuse() {
   exit 2
 }
 
-EXPECTED_STUDY_ID="paper-story-a1-20260826-sized-v1"
 REQUESTED_STUDY_ID=${IZANAGI_A1_STUDY_ID:-}
 V3_STUDY=0
 case "$REQUESTED_STUDY_ID" in
   paper-story-a1-20260826-sized-v1)
+    EXPECTED_STUDY_ID="$REQUESTED_STUDY_ID"
     POLICY_RELATIVE="orchestrator/campaign/paper_story_a1_paired.v2.json"
     ;;
   paper-story-a1-20260901-balanced5-pilot-v1)

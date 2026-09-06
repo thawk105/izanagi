@@ -18663,6 +18663,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   本件である。`main_before == main_after` で main は無傷なので、受入をやり直せば進める。
   一斉着地の直後 (他 wave の land が並ぶ時間帯) が窓である。
 
+
+- **再発: 2026-09-07** — 同じ `registered worktree path cannot be resolved` が `[Errno 2] No such file or directory: '/scr'` で出た。path は a5 second boot の bench job 2 本 (979578/979579) が計算ノードのローカル scratch `/scr/<jobid>-a5-second-boot-<workload>/job-repo` に `git worktree add --detach` した登録で、login node からは job が走る間 (上限 7200 秒) ずっと解決できない (`git worktree list` は `prunable` と表示する)。job は EXIT trap で `worktree remove --force` + `prune` するので job 終了で消えるが、その間は repo 全体の land が `rc=31` / `retryable_same_request=false` で塞がる。一時エラーの種類が EINTR から「別ホストにしか存在しない path」へ広がっただけで、機序 (全登録 path の strict 解決 + OSError 一律非再試行) は同じ。本 wave は受入 (child-green、20834 passed) を捨てて job 終了後に取り直した。running 中の job の登録を login 側から prune してはいけない (job 側の git が壊れる)。
 ### F673. brief が「守るべき性質」と「現に成立している性質」を混同し、存在しない不変条件を根拠に暫定裁定した [誤前提]
 
 - 事象: 親は段 1 brief の不変条件へ「受理の根拠は完全に読み切った、矛盾のない 1 枚の scan」と書き、
@@ -22071,6 +22073,13 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 測定 job の meta に対象 file の mtime と `git status --porcelain` を記録し、job 開始時刻より新しい mtime を
   汚染として報告する (本 wave の `measure/run_c.py` は HEAD だけを記録しており、これが取り逃した)。
 
+
+- **再発: 2026-09-05** — 逆向きの同型。親が A-1 pilot を投入した固定 checkout (job の `PBS_O_WORKDIR`) へ、
+  request が待ち行列にいる間に本 wave の spool fragment (untracked) を書いた。1 分後に開始した job body の
+  preflight が `working tree is dirty` で 7 秒で終了し、group receipt の 60 秒待ち経路は観測できなかった
+  (`output/insights/2026-09-05_t2074-a1-pilot-run/README.md` §7)。測定は §4 の欠陥で既に失われていた。
+  対処: 投入専用 worktree と記録用 worktree を同じ SHA で分け、3 job の preflight 通過まで投入元を触らない
+  (memory `nqsv-qstat-f-format-and-a1-driver-regex`)。
 ### F850. 同名 wave の並行起動で、後発 session が共有 artifact root を退避し先発の段 2 子を全損させた [手順漏れ] [セッション死・救出]
 
 - 事象: 同じ [T-1905] 試し打ち wave が 2 つの背景 session で同時に起動した。後発 session は
@@ -22114,3 +22123,25 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `git worktree list --porcelain` の prunable 行が `/scr/` だけであることを確かめて prune し、受入を取り直す。
 - 再発検知: land の `status=fold-gate-failed` の本文が `[Errno 2]` かつ path が `/scr/` で始まる。
   land 直前の `git worktree list` に `/scr/` 登録があれば本型の予兆。
+
+### F852. A-1 driver の scheduler 可視性判定を実機の `qstat -f` 書式で一度も通さないまま投入 gate に置き、v3 pilot の初回投入が bench 前に失敗した [テスト代表性] [手順漏れ]
+
+- 事象: 2026-09-05 13:12 JST、A-1 pilot (study `paper-story-a1-20260901-balanced5-pilot-v1`) の
+  `submit` が write-heavy の qsub を受理させた直後に `qsub request identity/visibility is
+  indeterminate` で rc=2 になった。balanced / read-heavy は未投入、attempt-0001 は
+  `scheduler-or-infrastructure-failure-before-bench` の failure receipt だけを残した。
+- 根本原因: `orchestrator/campaign/paper_story_a1_paired.py` の `_observe_qstat_visibility` が
+  PBS-Pro 型の `job_state = Q` / `queue = gen_S` を前提にした正規表現で `qstat -f` を読むが、
+  この機体の NQSV は `Current State = Queued` と `Queue = gen_S@nqsv (Execution Queue)` を出す。
+  両方とも一致せず、投入は環境によらず決定的に落ちる。この関数は dd6ec73b9 (2026-08-29、Codex
+  author) が導入し、以後 v2 / v3 のどの study でも実機で通っていない (8/25 の v2 受領証は
+  それ以前の投入器が作った)。テスト fixture は `job_state = F` / `exit_status = 0` の PBS-Pro 型で、
+  実機の書式を代表していない。同じ repo の `tools/pegasus/dispatch_compute.py` は
+  `Current State` を解釈する実証済みの parser を持つが、A-1 driver はそれを使っていない。
+- 恒久対応: memory `nqsv-qstat-f-format-and-a1-driver-regex` (実機書式の逐語と、投入 gate の
+  parser は dispatch_compute の実証済み実装へ揃えるという規律)。修正は
+  [T-2349] (Codex author) が持ち、実機 `qstat -f` の逐語を fixture に
+  した正例・負例を同じ commit で足す。
+- 再発検知: 投入 gate に scheduler 出力の parser を足す wave は、段 1 で `qstat -f` の実出力を
+  login node で 1 回取り、fixture の書式と突き合わせる (DW-S01 の「別 program 起動物の実在棚卸し」の
+  対象に scheduler 出力の書式を含める)。
