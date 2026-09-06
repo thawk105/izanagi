@@ -1,0 +1,89 @@
+#!/usr/bin/env python3
+"""窓 2 の leaf 駆動 loop (使い捨て、repo 外)。cwd は登録 commit を detach した木。
+重複除去は bundle の証拠 (pages / ledgers / checkpoint の second_pass) で行い、台帳 (jsonl) は記録専用。
+残量は起動と起動の間に runtime.json から読み、STOP_REMAINING を切ったら新規起動しない。
+判定は rc でなく stdout JSON の state。"""
+import datetime, json, pathlib, subprocess, sys
+
+TREE = "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2090-openalex-window2/fetch-tree"
+JOB = pathlib.Path("/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2090-openalex-window2")
+BUNDLE = pathlib.Path("/work/1/SFC/tanab/axis1-bundles/2026-09-03-t2090-openalex/bundle")
+REG = "4ec3eba04354f9ba86117a2dd488c72d007045e6"
+CAT = "docs/related-work/claim-survey/2026-09-02-axis1-search-catalog.json"
+RUN_ID = "t2090-openalex-20260903"
+EXCLUDE = {"AX1-20260902-E1-Q1@openalex", "AX1-20260902-E1-Q4@openalex", "AX1-20260902-E1-Q5@openalex"}
+STOP_REMAINING = 200
+STOP_STATES = {"paused_quota", "quota_reserve"}
+LEDGER = JOB / "artifacts" / "fetch-window2.jsonl"
+DRY = "--dry-run" in sys.argv
+BASE = ["python3", "tools/run_axis1_search.py", "--registration-commit", REG, "--catalog", CAT,
+        "--bundle", str(BUNDLE), "--run-id", RUN_ID]
+
+
+def remaining():
+    return json.load(open(BUNDLE / "state" / "runtime.json"))["quota"]["openalex"]["remaining"]
+
+
+def plan():
+    tasks = []
+    for i in range(1, 9):
+        ck = BUNDLE / "checkpoints" / f"{i:06d}.json"
+        d = json.load(open(ck))
+        qid = d["query_id"]
+        if d["resume_action"] != "start_independent_pass" or d["second_pass"]["state"] != "not_started":
+            continue  # 2 走目が既に始まっている
+        if list((BUNDLE / "ledgers").glob(f"{qid}.pass2.*")):
+            continue  # 2 走目の台帳が既にある
+        tasks.append((f"ckpt:{ck.name}", d["canonical_runner_argv"], qid))
+    for line in open(JOB / "materials" / "leaf-order-window1.txt"):
+        qid = line.strip()
+        if not qid or qid in EXCLUDE:
+            continue
+        if (BUNDLE / "pages" / f"{qid}_p0.a01.json").exists():
+            continue  # 初回取得の証拠が bundle にある
+        tasks.append((qid, BASE + ["--query-id", qid], qid))
+    return tasks
+
+
+def already_in_ledger(key):
+    if not LEDGER.exists():
+        return False
+    return any(json.loads(l)["key"] == key for l in open(LEDGER) if l.strip())
+
+
+def main():
+    tasks = plan()
+    print(f"planned {len(tasks)} launches; remaining_now={remaining()}", flush=True)
+    for key, argv, qid in tasks:
+        if DRY:
+            print("DRY", key, flush=True)
+            continue
+        if already_in_ledger(key):
+            print("SKIP (ledger)", key, flush=True)
+            continue
+        rem = remaining()
+        if rem < STOP_REMAINING:
+            print(f"STOP remaining={rem} < {STOP_REMAINING} before {key}", flush=True)
+            return 0
+        started = datetime.datetime.now().astimezone().isoformat()
+        p = subprocess.run(argv, cwd=TREE, capture_output=True, text=True)
+        try:
+            res = json.loads(p.stdout)
+        except Exception:
+            res = None
+        row = {"key": key, "qid": qid, "rc": p.returncode, "remaining_before": rem, "started_at": started,
+               "result": res, "stderr_tail": p.stderr[-800:] if p.stderr else ""}
+        with open(LEDGER, "a") as f:
+            f.write(json.dumps(row, ensure_ascii=False) + "\n")
+        state = res.get("state") if isinstance(res, dict) else None
+        print(f"{key} state={state} reason={res.get('reason_code') if res else None} rc={p.returncode} "
+              f"requests={res.get('request_count') if res else None}", flush=True)
+        if state is None or state in STOP_STATES:
+            print(f"STOP state={state} (fail-closed)", flush=True)
+            return 1
+    print("ALL PLANNED LAUNCHES DONE", flush=True)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
