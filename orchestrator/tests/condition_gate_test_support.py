@@ -4,6 +4,8 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
+from orchestrator.campaign.condition_meaning_gate import DEFINE_SPECS, DefineSpec
+
 
 _FIXTURE_ROOT = (
     Path(__file__).resolve().parent
@@ -140,19 +142,35 @@ def condition_gate_compilers() -> tuple[str, str] | None:
     return cc, cxx
 
 
-def install_condition_gate_build_fixture(source_root: str | Path) -> Path:
+def install_condition_gate_build_fixture(
+    source_root: str | Path,
+    *,
+    define_spec: DefineSpec | None = None,
+) -> Path:
     """Install a real target and cache-to-owner-TU define graph.
 
-    A caller may create ``cc/silo/transaction.cc`` or ``include/backoff.hh``
-    first. Those materialized driver sources are preserved. Missing source
-    files are copied from Unit 1's supplied fixture.
+    A caller may create the selected ``DefineSpec.owner_tus[0]`` or
+    ``include/backoff.hh`` first. Those materialized driver sources are
+    preserved. Missing Silo fixture files retain the existing default path.
     """
     root = Path(source_root)
+    spec = DEFINE_SPECS["BACKOFF_FIXED"] if define_spec is None else define_spec
+    if type(spec) is not DefineSpec or len(spec.owner_tus) != 1:
+        raise ValueError("condition gate fixture requires one exact owner TU")
+    owner_rel = spec.owner_tus[0]
     (root / "cmake").mkdir(parents=True, exist_ok=True)
     (root / "cc" / "silo").mkdir(parents=True, exist_ok=True)
+    (root / owner_rel).parent.mkdir(parents=True, exist_ok=True)
     (root / "include").mkdir(parents=True, exist_ok=True)
 
     shutil.copy2(_FIXTURE_ROOT / "CMakeLists.txt", root / "CMakeLists.txt")
+    if spec.target != "ycsb_silo.exe":
+        with (root / "CMakeLists.txt").open("a", encoding="utf-8") as stream:
+            stream.write(
+                f"add_executable({spec.target} {owner_rel})\n"
+                f"target_compile_definitions({spec.target} PRIVATE "
+                "${condition_gate_defines})\n"
+            )
     shutil.copy2(
         _FIXTURE_ROOT / "cc" / "silo" / "CMakeLists.txt",
         root / "cc" / "silo" / "CMakeLists.txt",
@@ -161,10 +179,10 @@ def install_condition_gate_build_fixture(source_root: str | Path) -> Path:
         _OPTIONS, encoding="utf-8",
     )
 
-    owner = root / "cc" / "silo" / "transaction.cc"
-    if not owner.exists():
+    silo_owner = root / "cc" / "silo" / "transaction.cc"
+    if not silo_owner.exists():
         shutil.copy2(
-            _FIXTURE_ROOT / "cc" / "silo" / "transaction.cc", owner,
+            _FIXTURE_ROOT / "cc" / "silo" / "transaction.cc", silo_owner,
         )
     backoff = root / "include" / "backoff.hh"
     if not backoff.exists():

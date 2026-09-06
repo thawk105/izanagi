@@ -1,0 +1,15 @@
+diff --git a/cc/mocc/transaction.cc b/cc/mocc/transaction.cc
+--- a/cc/mocc/transaction.cc
++++ b/cc/mocc/transaction.cc
+@@ -997,6 +997,11 @@ bool TxExecutor::validation() {
+ #endif
+ #line 990
+   sort(write_set_.begin(), write_set_.end());
++#if IZANAGI_BREAK_MOCC_PERMUTATION
++  // Deliberately lose one write after the pre-sort snapshot.
++  if (!write_set_.empty()) write_set_.pop_back();
++#endif
++#line 991
+ #if TRACE
+   {
+     bool izanagi_perm_ok = (write_set_.size() == izanagi_pre_sort_size);
