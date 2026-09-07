@@ -1,0 +1,199 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 400,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 2100,
+  "mutations": [
+    {
+      "id": "t2396.m01a-published-cleanup-tolerates-missing-destination",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_published_receipt_cleanup_preserves_same_inode_after_destination_move",
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_published_receipt_cleanup_preserves_staging_when_destination_disappears"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "        except FileNotFoundError:\n            raise PaperStoryError(\n                \"published receipt destination is missing during staging cleanup\"\n            ) from None",
+          "new": "        except FileNotFoundError:\n            return"
+        }
+      ]
+    },
+    {
+      "id": "t2396.m01b-published-cleanup-skips-destination-identity",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_published_receipt_cleanup_requires_destination_identity"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "            raise PaperStoryError(\n                \"published receipt destination identity differs during staging cleanup\"\n            )",
+          "new": "            pass"
+        }
+      ]
+    },
+    {
+      "id": "t2396.m02-staging-cleanup-skips-identity-check",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_submission_receipt_cleanup_preserves_replaced_staging"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "        raise PaperStoryError(\"receipt staging cleanup identity differs\")",
+          "new": "        pass"
+        }
+      ]
+    },
+    {
+      "id": "t2396.m03-publish-drops-destination-directory-fsync",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_receipt_publish_orders_link_fsync_unlink_fsync"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "        published = True\n        _fsync_directory(path.parent)",
+          "new": "        published = True"
+        }
+      ]
+    },
+    {
+      "id": "t2396.m04-completion-wrapper-uses-submission-staging-kind",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_complete_only_issues_completion_receipt_without_materialize",
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_completion_receipt_publish_boundary_and_no_replace",
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_v3_complete_publishes_canonical_group_receipt_through_link_boundary"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "    _publish_receipt(path, value, receipt_kind=\"completion\")",
+          "new": "    _publish_receipt(path, value, receipt_kind=\"submission\")"
+        }
+      ]
+    },
+    {
+      "id": "t2396.m05-publish-degrades-to-os-replace",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_complete_only_issues_completion_receipt_without_materialize",
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_completion_receipt_publish_boundary_and_no_replace",
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_m1_submission_receipt_is_complete_before_final_path_is_visible",
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_m2_submission_receipt_publish_is_no_replace",
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_published_receipt_cleanup_preserves_same_inode_after_destination_move",
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_published_receipt_cleanup_preserves_staging_when_destination_disappears",
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_published_receipt_cleanup_requires_destination_identity",
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_receipt_publish_orders_link_fsync_unlink_fsync",
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_submission_receipt_cleanup_preserves_replaced_staging",
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_submission_receipt_link_failure_removes_owned_staging[file-exists]",
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_submission_receipt_link_failure_removes_owned_staging[other-oserror]",
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_v3_complete_publishes_canonical_group_receipt_through_link_boundary",
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_v3_published_cleanup_failure_does_not_write_failure_receipt"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "            os.link(staging, path, follow_symlinks=False)",
+          "new": "            os.replace(staging, path)"
+        }
+      ]
+    },
+    {
+      "id": "t2396.m06-completion-only-check-then-replace",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_complete_only_issues_completion_receipt_without_materialize",
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_completion_receipt_publish_boundary_and_no_replace",
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_v3_complete_publishes_canonical_group_receipt_through_link_boundary"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "def _publish_completion_receipt(path: Path, value: object) -> None:\n    _publish_receipt(path, value, receipt_kind=\"completion\")",
+          "new": "def _publish_completion_receipt(path: Path, value: object) -> None:\n    if os.path.lexists(path):\n        raise PaperStoryError(\n            \"no-replace completion receipt publish failed: File exists\"\n        )\n    staging = _receipt_staging_path(path, receipt_kind=\"completion\")\n    _exclusive_write_bytes(staging, _canonical_json_bytes(value))\n    os.replace(staging, path)\n    _fsync_directory(path.parent)"
+        }
+      ]
+    },
+    {
+      "id": "t2396.m07-publish-swallows-file-exists",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_completion_receipt_publish_boundary_and_no_replace",
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_m2_submission_receipt_publish_is_no_replace",
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_submission_receipt_link_failure_removes_owned_staging[file-exists]"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "        except FileExistsError as exc:\n            raise PaperStoryError(\n                f\"no-replace {receipt_kind} receipt publish failed: {exc.strerror}\"\n            ) from exc",
+          "new": "        except FileExistsError:\n            pass"
+        }
+      ]
+    },
+    {
+      "id": "t2396.m08-staging-is-never-unlinked",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_complete_only_issues_completion_receipt_without_materialize",
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_completion_receipt_publish_boundary_and_no_replace",
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_m1_submission_receipt_is_complete_before_final_path_is_visible",
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_m2_submission_receipt_publish_is_no_replace",
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_published_receipt_cleanup_preserves_same_inode_after_destination_move",
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_receipt_publish_orders_link_fsync_unlink_fsync",
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_submission_receipt_link_failure_removes_owned_staging[file-exists]",
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_submission_receipt_link_failure_removes_owned_staging[other-oserror]",
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_submit_accepts_clean_evidence_and_staging_namespace",
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_submit_accepts_name_max_submission_basename",
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_v3_complete_publishes_canonical_group_receipt_through_link_boundary"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "        os.unlink(staging)\n        _fsync_directory(staging.parent)",
+          "new": "        _fsync_directory(staging.parent)"
+        }
+      ]
+    },
+    {
+      "id": "t2396.m09-published-cleanup-error-loses-its-class",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_published_receipt_cleanup_preserves_same_inode_after_destination_move",
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_published_receipt_cleanup_preserves_staging_when_destination_disappears",
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_v3_published_cleanup_failure_does_not_write_failure_receipt"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "                raise _PublishedReceiptCleanupError(\n                    f\"receipt is already published; {exc}\"\n                ) from exc",
+          "new": "                raise PaperStoryError(\n                    f\"receipt is already published; {exc}\"\n                ) from exc"
+        }
+      ]
+    }
+  ]
+}
