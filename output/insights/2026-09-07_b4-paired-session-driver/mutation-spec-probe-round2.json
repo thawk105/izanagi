@@ -1,0 +1,36 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "MUT-B4PAIR-06B-EXACT-TWO-MEASUREMENTS-FINALIZE",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "    if len(record[\"measurements\"]) != len(_MEASUREMENT_ROLES):\n        raise FloorPairBindingError(f\"{label} measurement が exact 2 件でない\")\n",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "id": "MUT-B4PAIR-08-PROBE-THREE-COMPLETE",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "    if pre_probe is None or mid_probe is None or post_probe is None:\n        raise FloorPairBindingError(f\"{label} probe 3 件が不完備\")\n",
+          "new": ""
+        }
+      ]
+    }
+  ]
+}

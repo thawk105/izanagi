@@ -1,0 +1,4221 @@
+{
+  "analysis_version": "izanagi-backoff-counterfactual-analysis/v1",
+  "inputs": [
+    {
+      "path": "/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/trace/t2265-itt/stage2-rep0-0_981402.nqsv.json",
+      "sha256": "292b194c9c454d756dd836335195d5b53777f4524ee58bcb5ed74ff0cb8e7713"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/trace/t2265-itt/stage2-rep0-0_981411.nqsv.json",
+      "sha256": "f95e0198ee919dc87ee0a6b928639acc6c361d79646c27009a6e05c856ab1687"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/trace/t2265-itt/stage2-rep0-0_981417.nqsv.json",
+      "sha256": "622d2e0013c8f456ff73f24dc4d10e165b1fc680439f901ce86c4e68754b5f36"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/trace/t2265-itt/stage2-rep0-0_981424.nqsv.json",
+      "sha256": "196caa22c1b2ed277103222c978798e93a031275cda07e3592e8a129e20539c8"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/trace/t2265-itt/stage2-rep0-0_981429.nqsv.json",
+      "sha256": "383268d5c422ac4bd9473870a10f2e9822a48b64a5dae0b8c0beca5ff322d994"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/trace/t2265-itt/stage2-rep0-0_981432.nqsv.json",
+      "sha256": "59cd4f99fab60eeb11a1d8bcacf476b865f167ee79d579de0008378a6bac3f4a"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/trace/t2265-itt/stage2-rep0-0_981442.nqsv.json",
+      "sha256": "b35a9b0c435c2e5bc565a500525e20396bacf3178d71e118f35c058e87b21a88"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/trace/t2265-itt/stage2-rep0-0_981444.nqsv.json",
+      "sha256": "0d0ad447b4729458042d38d71fab8b54215c2e650997806e302e8f12af43c336"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/trace/t2265-itt/stage2-rep0-0_981468.nqsv.json",
+      "sha256": "4229ad73428bb1a692306c24e4d0ffc85c794f916ef01973cab1b106743c200a"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/trace/t2265-itt/stage2-rep0-0_981488.nqsv.json",
+      "sha256": "fadcc2d2730203f3ce294cdafbde2b89ca7951bc33000b9aec5289b00d762b5a"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/trace/t2265-itt/stage2-rep0-0_981493.nqsv.json",
+      "sha256": "357d3ef985642b63a46c1f847f659eac43c9ae722cf8b9bb6bc05e993978824f"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/trace/t2265-itt/stage2-rep0-0_981503.nqsv.json",
+      "sha256": "e43cea32e59bc67d1a00e5d1aba0324df9f24e57af20bcef3dc49219b9bdfddd"
+    }
+  ],
+  "preregistration": {
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2265-backoff-itt/docs/backoff-counterfactual-preregistration.md",
+    "sha256": "ee7617f57bf6816fd8bfb42b5830926be1174ebcca617ed122c3fbca62f127a6"
+  },
+  "primary": {
+    "assignment_rate_all_events": [
+      {
+        "assignment_rate_all_events": 0.5243243243243243,
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          1606918558588661,
+          "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+        ]
+      },
+      {
+        "assignment_rate_all_events": 0.46567164179104475,
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          781552995023334429,
+          "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+        ]
+      },
+      {
+        "assignment_rate_all_events": 0.49747899159663866,
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          1227967287010452276,
+          "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+        ]
+      },
+      {
+        "assignment_rate_all_events": 0.47690014903129657,
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          2057459156086657874,
+          "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+        ]
+      },
+      {
+        "assignment_rate_all_events": 0.5074626865671642,
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          2171878327641984105,
+          "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+        ]
+      },
+      {
+        "assignment_rate_all_events": 0.4713855421686747,
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          2410271300384854639,
+          "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+        ]
+      },
+      {
+        "assignment_rate_all_events": 0.46511627906976744,
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          5470969369189575692,
+          "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+        ]
+      },
+      {
+        "assignment_rate_all_events": 0.48366013071895425,
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          5744733223455690259,
+          "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+        ]
+      },
+      {
+        "assignment_rate_all_events": 0.5056179775280899,
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          11135758292722279839,
+          "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+        ]
+      },
+      {
+        "assignment_rate_all_events": 0.516295025728988,
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          13467815584134101060,
+          "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+        ]
+      },
+      {
+        "assignment_rate_all_events": 0.5032258064516129,
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          13576760736062537317,
+          "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+        ]
+      },
+      {
+        "assignment_rate_all_events": 0.5260586319218241,
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          16736322205931003081,
+          "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+        ]
+      }
+    ],
+    "ci90": null,
+    "ci95": null,
+    "cluster_count": 12,
+    "cluster_sd": null,
+    "cluster_variance": null,
+    "confirmatory_complete": false,
+    "decision": "inconclusive",
+    "effect_percent": null,
+    "equivalence_margin_log": 0.02955880224154443,
+    "equivalence_region_percent": {
+      "lower": -2.9126213592233037,
+      "upper": 3.0000000000000027
+    },
+    "inverted_practical_superiority": null,
+    "reasons": [
+      "window_commits_zero"
+    ],
+    "recommended_practical_superiority": null,
+    "run_estimates": [
+      {
+        "assigned_forward": 264,
+        "assigned_invert": 290,
+        "assigned_invert_rate": 0.5234657039711191,
+        "effect_percent": null,
+        "estimate_log": null,
+        "reason": "window_commits_zero",
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          1606918558588661,
+          "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+        ]
+      },
+      {
+        "assigned_forward": 358,
+        "assigned_invert": 311,
+        "assigned_invert_rate": 0.4648729446935725,
+        "effect_percent": null,
+        "estimate_log": null,
+        "reason": "window_commits_zero",
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          781552995023334429,
+          "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+        ]
+      },
+      {
+        "assigned_forward": 299,
+        "assigned_invert": 295,
+        "assigned_invert_rate": 0.49663299663299665,
+        "effect_percent": null,
+        "estimate_log": null,
+        "reason": "window_commits_zero",
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          1227967287010452276,
+          "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+        ]
+      },
+      {
+        "assigned_forward": 350,
+        "assigned_invert": 320,
+        "assigned_invert_rate": 0.47761194029850745,
+        "effect_percent": null,
+        "estimate_log": null,
+        "reason": "window_commits_zero",
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          2057459156086657874,
+          "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+        ]
+      },
+      {
+        "assigned_forward": 296,
+        "assigned_invert": 306,
+        "assigned_invert_rate": 0.5083056478405316,
+        "effect_percent": 1.4598356763480673,
+        "estimate_log": 0.014492826558642969,
+        "reason": null,
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          2171878327641984105,
+          "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+        ]
+      },
+      {
+        "assigned_forward": 351,
+        "assigned_invert": 312,
+        "assigned_invert_rate": 0.47058823529411764,
+        "effect_percent": 7.741646371775633,
+        "estimate_log": 0.07456601211817308,
+        "reason": null,
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          2410271300384854639,
+          "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+        ]
+      },
+      {
+        "assigned_forward": 344,
+        "assigned_invert": 300,
+        "assigned_invert_rate": 0.4658385093167702,
+        "effect_percent": null,
+        "estimate_log": null,
+        "reason": "window_commits_zero",
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          5470969369189575692,
+          "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+        ]
+      },
+      {
+        "assigned_forward": 316,
+        "assigned_invert": 295,
+        "assigned_invert_rate": 0.4828150572831424,
+        "effect_percent": null,
+        "estimate_log": null,
+        "reason": "window_commits_zero",
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          5744733223455690259,
+          "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+        ]
+      },
+      {
+        "assigned_forward": 308,
+        "assigned_invert": 314,
+        "assigned_invert_rate": 0.5048231511254019,
+        "effect_percent": 5.58143795012255,
+        "estimate_log": 0.05431239284600861,
+        "reason": null,
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          11135758292722279839,
+          "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+        ]
+      },
+      {
+        "assigned_forward": 281,
+        "assigned_invert": 301,
+        "assigned_invert_rate": 0.5171821305841925,
+        "effect_percent": null,
+        "estimate_log": null,
+        "reason": "window_commits_zero",
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          13467815584134101060,
+          "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+        ]
+      },
+      {
+        "assigned_forward": 307,
+        "assigned_invert": 312,
+        "assigned_invert_rate": 0.5040387722132472,
+        "effect_percent": 11.180865117297857,
+        "estimate_log": 0.10598810473827572,
+        "reason": null,
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          13576760736062537317,
+          "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+        ]
+      },
+      {
+        "assigned_forward": 290,
+        "assigned_invert": 323,
+        "assigned_invert_rate": 0.5269168026101142,
+        "effect_percent": null,
+        "estimate_log": null,
+        "reason": "window_commits_zero",
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          16736322205931003081,
+          "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+        ]
+      }
+    ],
+    "standard_error": null,
+    "stratum": {
+      "cell_literal": "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+      "threads": 48,
+      "workload": "write-heavy"
+    },
+    "theta_log": null,
+    "tost_equivalent": null
+  },
+  "secondary": {
+    "both_actions_feasible": [
+      {
+        "details": {
+          "assignment_rate_all_events": [
+            {
+              "assignment_rate_all_events": 0.5243243243243243,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.46567164179104475,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.49747899159663866,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.47690014903129657,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5074626865671642,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.4713855421686747,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.46511627906976744,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.48366013071895425,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5056179775280899,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.516295025728988,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5032258064516129,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5260586319218241,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ]
+            }
+          ],
+          "ci90": null,
+          "ci95": null,
+          "cluster_count": 12,
+          "cluster_sd": null,
+          "cluster_variance": null,
+          "confirmatory_complete": false,
+          "effect_percent": null,
+          "reasons": [
+            "window_commits_zero"
+          ],
+          "run_estimates": [
+            {
+              "assigned_forward": 2,
+              "assigned_invert": 1,
+              "assigned_invert_rate": 0.3333333333333333,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ]
+            },
+            {
+              "assigned_forward": 38,
+              "assigned_invert": 24,
+              "assigned_invert_rate": 0.3870967741935484,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ]
+            },
+            {
+              "assigned_forward": 28,
+              "assigned_invert": 28,
+              "assigned_invert_rate": 0.5,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ]
+            },
+            {
+              "assigned_forward": 41,
+              "assigned_invert": 37,
+              "assigned_invert_rate": 0.47435897435897434,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ]
+            },
+            {
+              "assigned_forward": 8,
+              "assigned_invert": 17,
+              "assigned_invert_rate": 0.68,
+              "effect_percent": -26.694368389851597,
+              "estimate_log": -0.31053275044033835,
+              "reason": null,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ]
+            },
+            {
+              "assigned_forward": 20,
+              "assigned_invert": 23,
+              "assigned_invert_rate": 0.5348837209302325,
+              "effect_percent": 71.95188138402872,
+              "estimate_log": 0.5420444922902202,
+              "reason": null,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ]
+            },
+            {
+              "assigned_forward": 66,
+              "assigned_invert": 62,
+              "assigned_invert_rate": 0.484375,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ]
+            },
+            {
+              "assigned_forward": 19,
+              "assigned_invert": 17,
+              "assigned_invert_rate": 0.4722222222222222,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ]
+            },
+            {
+              "assigned_forward": 36,
+              "assigned_invert": 35,
+              "assigned_invert_rate": 0.49295774647887325,
+              "effect_percent": 6.881123936334528,
+              "estimate_log": 0.06654703961634625,
+              "reason": null,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ]
+            },
+            {
+              "assigned_forward": 0,
+              "assigned_invert": 1,
+              "assigned_invert_rate": 1.0,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ]
+            },
+            {
+              "assigned_forward": 37,
+              "assigned_invert": 46,
+              "assigned_invert_rate": 0.5542168674698795,
+              "effect_percent": 50.59099244697517,
+              "estimate_log": 0.4093973164798835,
+              "reason": null,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ]
+            },
+            {
+              "assigned_forward": 31,
+              "assigned_invert": 45,
+              "assigned_invert_rate": 0.5921052631578947,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ]
+            }
+          ],
+          "standard_error": null,
+          "theta_log": null
+        },
+        "effect_percent": null,
+        "estimate_log": null,
+        "level": 0,
+        "reason": "window_commits_zero"
+      },
+      {
+        "details": {
+          "assignment_rate_all_events": [
+            {
+              "assignment_rate_all_events": 0.5243243243243243,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.46567164179104475,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.49747899159663866,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.47690014903129657,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5074626865671642,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.4713855421686747,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.46511627906976744,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.48366013071895425,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5056179775280899,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.516295025728988,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5032258064516129,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5260586319218241,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ]
+            }
+          ],
+          "ci90": null,
+          "ci95": null,
+          "cluster_count": 12,
+          "cluster_sd": null,
+          "cluster_variance": null,
+          "confirmatory_complete": false,
+          "effect_percent": null,
+          "reasons": [
+            "window_commits_zero"
+          ],
+          "run_estimates": [
+            {
+              "assigned_forward": 262,
+              "assigned_invert": 289,
+              "assigned_invert_rate": 0.5245009074410163,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ]
+            },
+            {
+              "assigned_forward": 320,
+              "assigned_invert": 287,
+              "assigned_invert_rate": 0.4728171334431631,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ]
+            },
+            {
+              "assigned_forward": 271,
+              "assigned_invert": 267,
+              "assigned_invert_rate": 0.4962825278810409,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ]
+            },
+            {
+              "assigned_forward": 309,
+              "assigned_invert": 283,
+              "assigned_invert_rate": 0.4780405405405405,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ]
+            },
+            {
+              "assigned_forward": 288,
+              "assigned_invert": 289,
+              "assigned_invert_rate": 0.5008665511265165,
+              "effect_percent": 4.101720576156149,
+              "estimate_log": 0.04019831760533299,
+              "reason": null,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ]
+            },
+            {
+              "assigned_forward": 331,
+              "assigned_invert": 289,
+              "assigned_invert_rate": 0.4661290322580645,
+              "effect_percent": 4.758993288561224,
+              "estimate_log": 0.04649222391224547,
+              "reason": null,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ]
+            },
+            {
+              "assigned_forward": 278,
+              "assigned_invert": 238,
+              "assigned_invert_rate": 0.46124031007751937,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ]
+            },
+            {
+              "assigned_forward": 297,
+              "assigned_invert": 278,
+              "assigned_invert_rate": 0.4834782608695652,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ]
+            },
+            {
+              "assigned_forward": 272,
+              "assigned_invert": 279,
+              "assigned_invert_rate": 0.5063520871143375,
+              "effect_percent": 5.308377465070444,
+              "estimate_log": 0.051722788060106537,
+              "reason": null,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ]
+            },
+            {
+              "assigned_forward": 281,
+              "assigned_invert": 300,
+              "assigned_invert_rate": 0.5163511187607573,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ]
+            },
+            {
+              "assigned_forward": 270,
+              "assigned_invert": 266,
+              "assigned_invert_rate": 0.4962686567164179,
+              "effect_percent": 6.782571006762808,
+              "estimate_log": 0.06562453440003291,
+              "reason": null,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ]
+            },
+            {
+              "assigned_forward": 259,
+              "assigned_invert": 278,
+              "assigned_invert_rate": 0.5176908752327747,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ]
+            }
+          ],
+          "standard_error": null,
+          "theta_log": null
+        },
+        "effect_percent": null,
+        "estimate_log": null,
+        "level": 1,
+        "reason": "window_commits_zero"
+      }
+    ],
+    "recommended_delta_sign": [
+      {
+        "details": {
+          "assignment_rate_all_events": [
+            {
+              "assignment_rate_all_events": 0.5243243243243243,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.46567164179104475,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.49747899159663866,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.47690014903129657,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5074626865671642,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.4713855421686747,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.46511627906976744,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.48366013071895425,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5056179775280899,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.516295025728988,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5032258064516129,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5260586319218241,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ]
+            }
+          ],
+          "ci90": null,
+          "ci95": null,
+          "cluster_count": 12,
+          "cluster_sd": null,
+          "cluster_variance": null,
+          "confirmatory_complete": false,
+          "effect_percent": null,
+          "reasons": [
+            "window_commits_zero"
+          ],
+          "run_estimates": [
+            {
+              "assigned_forward": 176,
+              "assigned_invert": 217,
+              "assigned_invert_rate": 0.5521628498727735,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ]
+            },
+            {
+              "assigned_forward": 261,
+              "assigned_invert": 240,
+              "assigned_invert_rate": 0.47904191616766467,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ]
+            },
+            {
+              "assigned_forward": 224,
+              "assigned_invert": 223,
+              "assigned_invert_rate": 0.4988814317673378,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ]
+            },
+            {
+              "assigned_forward": 238,
+              "assigned_invert": 211,
+              "assigned_invert_rate": 0.46993318485523383,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ]
+            },
+            {
+              "assigned_forward": 221,
+              "assigned_invert": 236,
+              "assigned_invert_rate": 0.5164113785557987,
+              "effect_percent": 4.124584148084798,
+              "estimate_log": 0.04041792071504395,
+              "reason": null,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ]
+            },
+            {
+              "assigned_forward": 253,
+              "assigned_invert": 228,
+              "assigned_invert_rate": 0.47401247401247404,
+              "effect_percent": 7.534582697555613,
+              "estimate_log": 0.07264230935757825,
+              "reason": null,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ]
+            },
+            {
+              "assigned_forward": 201,
+              "assigned_invert": 164,
+              "assigned_invert_rate": 0.44931506849315067,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ]
+            },
+            {
+              "assigned_forward": 235,
+              "assigned_invert": 212,
+              "assigned_invert_rate": 0.4742729306487696,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ]
+            },
+            {
+              "assigned_forward": 218,
+              "assigned_invert": 205,
+              "assigned_invert_rate": 0.4846335697399527,
+              "effect_percent": 0.6046148462837843,
+              "estimate_log": 0.006027943848900185,
+              "reason": null,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ]
+            },
+            {
+              "assigned_forward": 228,
+              "assigned_invert": 252,
+              "assigned_invert_rate": 0.525,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ]
+            },
+            {
+              "assigned_forward": 211,
+              "assigned_invert": 210,
+              "assigned_invert_rate": 0.498812351543943,
+              "effect_percent": 7.695224967327048,
+              "estimate_log": 0.07413506076914461,
+              "reason": null,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ]
+            },
+            {
+              "assigned_forward": 192,
+              "assigned_invert": 198,
+              "assigned_invert_rate": 0.5076923076923077,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ]
+            }
+          ],
+          "standard_error": null,
+          "theta_log": null
+        },
+        "effect_percent": null,
+        "estimate_log": null,
+        "level": -1,
+        "reason": "window_commits_zero"
+      },
+      {
+        "details": {
+          "assignment_rate_all_events": [
+            {
+              "assignment_rate_all_events": 0.5243243243243243,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.46567164179104475,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.49747899159663866,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.47690014903129657,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5074626865671642,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.4713855421686747,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.46511627906976744,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.48366013071895425,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5056179775280899,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.516295025728988,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5032258064516129,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5260586319218241,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ]
+            }
+          ],
+          "ci90": null,
+          "ci95": null,
+          "cluster_count": 12,
+          "cluster_sd": null,
+          "cluster_variance": null,
+          "confirmatory_complete": false,
+          "effect_percent": null,
+          "reasons": [
+            "missing_assignment_arm",
+            "window_commits_zero"
+          ],
+          "run_estimates": [
+            {
+              "assigned_forward": 0,
+              "assigned_invert": 0,
+              "assigned_invert_rate": null,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ]
+            },
+            {
+              "assigned_forward": 0,
+              "assigned_invert": 0,
+              "assigned_invert_rate": null,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ]
+            },
+            {
+              "assigned_forward": 0,
+              "assigned_invert": 0,
+              "assigned_invert_rate": null,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ]
+            },
+            {
+              "assigned_forward": 0,
+              "assigned_invert": 0,
+              "assigned_invert_rate": null,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ]
+            },
+            {
+              "assigned_forward": 0,
+              "assigned_invert": 0,
+              "assigned_invert_rate": null,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "missing_assignment_arm",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ]
+            },
+            {
+              "assigned_forward": 0,
+              "assigned_invert": 0,
+              "assigned_invert_rate": null,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "missing_assignment_arm",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ]
+            },
+            {
+              "assigned_forward": 0,
+              "assigned_invert": 0,
+              "assigned_invert_rate": null,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ]
+            },
+            {
+              "assigned_forward": 0,
+              "assigned_invert": 0,
+              "assigned_invert_rate": null,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ]
+            },
+            {
+              "assigned_forward": 0,
+              "assigned_invert": 0,
+              "assigned_invert_rate": null,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "missing_assignment_arm",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ]
+            },
+            {
+              "assigned_forward": 0,
+              "assigned_invert": 0,
+              "assigned_invert_rate": null,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ]
+            },
+            {
+              "assigned_forward": 0,
+              "assigned_invert": 0,
+              "assigned_invert_rate": null,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "missing_assignment_arm",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ]
+            },
+            {
+              "assigned_forward": 0,
+              "assigned_invert": 0,
+              "assigned_invert_rate": null,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ]
+            }
+          ],
+          "standard_error": null,
+          "theta_log": null
+        },
+        "effect_percent": null,
+        "estimate_log": null,
+        "level": 0,
+        "reason": "missing_assignment_arm;window_commits_zero"
+      },
+      {
+        "details": {
+          "assignment_rate_all_events": [
+            {
+              "assignment_rate_all_events": 0.5243243243243243,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.46567164179104475,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.49747899159663866,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.47690014903129657,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5074626865671642,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.4713855421686747,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.46511627906976744,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.48366013071895425,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5056179775280899,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.516295025728988,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5032258064516129,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5260586319218241,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ]
+            }
+          ],
+          "ci90": null,
+          "ci95": null,
+          "cluster_count": 12,
+          "cluster_sd": null,
+          "cluster_variance": null,
+          "confirmatory_complete": false,
+          "effect_percent": null,
+          "reasons": [
+            "window_commits_zero"
+          ],
+          "run_estimates": [
+            {
+              "assigned_forward": 88,
+              "assigned_invert": 73,
+              "assigned_invert_rate": 0.453416149068323,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ]
+            },
+            {
+              "assigned_forward": 97,
+              "assigned_invert": 71,
+              "assigned_invert_rate": 0.4226190476190476,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ]
+            },
+            {
+              "assigned_forward": 75,
+              "assigned_invert": 72,
+              "assigned_invert_rate": 0.4897959183673469,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ]
+            },
+            {
+              "assigned_forward": 112,
+              "assigned_invert": 109,
+              "assigned_invert_rate": 0.49321266968325794,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ]
+            },
+            {
+              "assigned_forward": 75,
+              "assigned_invert": 70,
+              "assigned_invert_rate": 0.4827586206896552,
+              "effect_percent": -7.088345363594008,
+              "estimate_log": -0.07352109446959808,
+              "reason": null,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ]
+            },
+            {
+              "assigned_forward": 98,
+              "assigned_invert": 84,
+              "assigned_invert_rate": 0.46153846153846156,
+              "effect_percent": 8.389985643956194,
+              "estimate_log": 0.0805655153915115,
+              "reason": null,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ]
+            },
+            {
+              "assigned_forward": 143,
+              "assigned_invert": 136,
+              "assigned_invert_rate": 0.4874551971326165,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ]
+            },
+            {
+              "assigned_forward": 81,
+              "assigned_invert": 83,
+              "assigned_invert_rate": 0.5060975609756098,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ]
+            },
+            {
+              "assigned_forward": 90,
+              "assigned_invert": 109,
+              "assigned_invert_rate": 0.5477386934673367,
+              "effect_percent": 16.898956625352284,
+              "estimate_log": 0.15613975708955502,
+              "reason": null,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ]
+            },
+            {
+              "assigned_forward": 53,
+              "assigned_invert": 49,
+              "assigned_invert_rate": 0.4803921568627451,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ]
+            },
+            {
+              "assigned_forward": 96,
+              "assigned_invert": 102,
+              "assigned_invert_rate": 0.5151515151515151,
+              "effect_percent": 18.847957559192064,
+              "estimate_log": 0.17267482264051087,
+              "reason": null,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ]
+            },
+            {
+              "assigned_forward": 98,
+              "assigned_invert": 125,
+              "assigned_invert_rate": 0.5605381165919282,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ]
+            }
+          ],
+          "standard_error": null,
+          "theta_log": null
+        },
+        "effect_percent": null,
+        "estimate_log": null,
+        "level": 1,
+        "reason": "window_commits_zero"
+      }
+    ],
+    "time_block": [
+      {
+        "block": 1,
+        "details": {
+          "assignment_rate_all_events": [
+            {
+              "assignment_rate_all_events": 0.5243243243243243,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.46567164179104475,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.49747899159663866,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.47690014903129657,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5074626865671642,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.4713855421686747,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.46511627906976744,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.48366013071895425,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5056179775280899,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.516295025728988,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5032258064516129,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5260586319218241,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ]
+            }
+          ],
+          "ci90": null,
+          "ci95": null,
+          "cluster_count": 12,
+          "cluster_sd": null,
+          "cluster_variance": null,
+          "confirmatory_complete": false,
+          "effect_percent": null,
+          "reasons": [
+            "window_commits_zero"
+          ],
+          "run_estimates": [
+            {
+              "assigned_forward": 60,
+              "assigned_invert": 79,
+              "assigned_invert_rate": 0.5683453237410072,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ]
+            },
+            {
+              "assigned_forward": 87,
+              "assigned_invert": 81,
+              "assigned_invert_rate": 0.48214285714285715,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ]
+            },
+            {
+              "assigned_forward": 74,
+              "assigned_invert": 75,
+              "assigned_invert_rate": 0.5033557046979866,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ]
+            },
+            {
+              "assigned_forward": 90,
+              "assigned_invert": 78,
+              "assigned_invert_rate": 0.4642857142857143,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ]
+            },
+            {
+              "assigned_forward": 72,
+              "assigned_invert": 79,
+              "assigned_invert_rate": 0.5231788079470199,
+              "effect_percent": -7.1569765860237196,
+              "estimate_log": -0.07426003925713169,
+              "reason": null,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ]
+            },
+            {
+              "assigned_forward": 87,
+              "assigned_invert": 79,
+              "assigned_invert_rate": 0.4759036144578313,
+              "effect_percent": 16.265795734930702,
+              "estimate_log": 0.150708726538618,
+              "reason": null,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ]
+            },
+            {
+              "assigned_forward": 89,
+              "assigned_invert": 72,
+              "assigned_invert_rate": 0.4472049689440994,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ]
+            },
+            {
+              "assigned_forward": 75,
+              "assigned_invert": 78,
+              "assigned_invert_rate": 0.5098039215686274,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ]
+            },
+            {
+              "assigned_forward": 90,
+              "assigned_invert": 66,
+              "assigned_invert_rate": 0.4230769230769231,
+              "effect_percent": 7.665658400545458,
+              "estimate_log": 0.07386048382179022,
+              "reason": null,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ]
+            },
+            {
+              "assigned_forward": 69,
+              "assigned_invert": 77,
+              "assigned_invert_rate": 0.5273972602739726,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ]
+            },
+            {
+              "assigned_forward": 78,
+              "assigned_invert": 77,
+              "assigned_invert_rate": 0.4967741935483871,
+              "effect_percent": 23.585605960137887,
+              "estimate_log": 0.21176389562071019,
+              "reason": null,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ]
+            },
+            {
+              "assigned_forward": 66,
+              "assigned_invert": 88,
+              "assigned_invert_rate": 0.5714285714285714,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ]
+            }
+          ],
+          "standard_error": null,
+          "theta_log": null
+        },
+        "effect_percent": null,
+        "estimate_log": null,
+        "reason": "window_commits_zero"
+      },
+      {
+        "block": 2,
+        "details": {
+          "assignment_rate_all_events": [
+            {
+              "assignment_rate_all_events": 0.5243243243243243,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.46567164179104475,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.49747899159663866,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.47690014903129657,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5074626865671642,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.4713855421686747,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.46511627906976744,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.48366013071895425,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5056179775280899,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.516295025728988,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5032258064516129,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5260586319218241,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ]
+            }
+          ],
+          "ci90": null,
+          "ci95": null,
+          "cluster_count": 12,
+          "cluster_sd": null,
+          "cluster_variance": null,
+          "confirmatory_complete": false,
+          "effect_percent": null,
+          "reasons": [
+            "window_commits_zero"
+          ],
+          "run_estimates": [
+            {
+              "assigned_forward": 67,
+              "assigned_invert": 71,
+              "assigned_invert_rate": 0.5144927536231884,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ]
+            },
+            {
+              "assigned_forward": 90,
+              "assigned_invert": 77,
+              "assigned_invert_rate": 0.46107784431137727,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ]
+            },
+            {
+              "assigned_forward": 73,
+              "assigned_invert": 75,
+              "assigned_invert_rate": 0.5067567567567568,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ]
+            },
+            {
+              "assigned_forward": 88,
+              "assigned_invert": 79,
+              "assigned_invert_rate": 0.47305389221556887,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ]
+            },
+            {
+              "assigned_forward": 80,
+              "assigned_invert": 70,
+              "assigned_invert_rate": 0.4666666666666667,
+              "effect_percent": 9.828543349407818,
+              "estimate_log": 0.09375026694908492,
+              "reason": null,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ]
+            },
+            {
+              "assigned_forward": 88,
+              "assigned_invert": 78,
+              "assigned_invert_rate": 0.46987951807228917,
+              "effect_percent": 2.851833543337362,
+              "estimate_log": 0.028119257305760013,
+              "reason": null,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ]
+            },
+            {
+              "assigned_forward": 87,
+              "assigned_invert": 74,
+              "assigned_invert_rate": 0.45962732919254656,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ]
+            },
+            {
+              "assigned_forward": 79,
+              "assigned_invert": 74,
+              "assigned_invert_rate": 0.48366013071895425,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ]
+            },
+            {
+              "assigned_forward": 71,
+              "assigned_invert": 84,
+              "assigned_invert_rate": 0.5419354838709678,
+              "effect_percent": 7.0333196215483,
+              "estimate_log": 0.06796999833164422,
+              "reason": null,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ]
+            },
+            {
+              "assigned_forward": 70,
+              "assigned_invert": 75,
+              "assigned_invert_rate": 0.5172413793103449,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ]
+            },
+            {
+              "assigned_forward": 74,
+              "assigned_invert": 81,
+              "assigned_invert_rate": 0.5225806451612903,
+              "effect_percent": 8.220484104586978,
+              "estimate_log": 0.0790004795540177,
+              "reason": null,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ]
+            },
+            {
+              "assigned_forward": 63,
+              "assigned_invert": 90,
+              "assigned_invert_rate": 0.5882352941176471,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ]
+            }
+          ],
+          "standard_error": null,
+          "theta_log": null
+        },
+        "effect_percent": null,
+        "estimate_log": null,
+        "reason": "window_commits_zero"
+      },
+      {
+        "block": 3,
+        "details": {
+          "assignment_rate_all_events": [
+            {
+              "assignment_rate_all_events": 0.5243243243243243,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.46567164179104475,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.49747899159663866,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.47690014903129657,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5074626865671642,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.4713855421686747,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.46511627906976744,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.48366013071895425,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5056179775280899,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.516295025728988,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5032258064516129,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5260586319218241,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ]
+            }
+          ],
+          "ci90": null,
+          "ci95": null,
+          "cluster_count": 12,
+          "cluster_sd": null,
+          "cluster_variance": null,
+          "confirmatory_complete": false,
+          "effect_percent": null,
+          "reasons": [
+            "window_commits_zero"
+          ],
+          "run_estimates": [
+            {
+              "assigned_forward": 72,
+              "assigned_invert": 67,
+              "assigned_invert_rate": 0.48201438848920863,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ]
+            },
+            {
+              "assigned_forward": 91,
+              "assigned_invert": 76,
+              "assigned_invert_rate": 0.4550898203592814,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ]
+            },
+            {
+              "assigned_forward": 77,
+              "assigned_invert": 72,
+              "assigned_invert_rate": 0.48322147651006714,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ]
+            },
+            {
+              "assigned_forward": 89,
+              "assigned_invert": 79,
+              "assigned_invert_rate": 0.47023809523809523,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ]
+            },
+            {
+              "assigned_forward": 69,
+              "assigned_invert": 82,
+              "assigned_invert_rate": 0.543046357615894,
+              "effect_percent": 3.851275063062455,
+              "estimate_log": 0.03778964218896448,
+              "reason": null,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ]
+            },
+            {
+              "assigned_forward": 96,
+              "assigned_invert": 70,
+              "assigned_invert_rate": 0.42168674698795183,
+              "effect_percent": 7.1637113255838685,
+              "estimate_log": 0.06918749158601409,
+              "reason": null,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ]
+            },
+            {
+              "assigned_forward": 81,
+              "assigned_invert": 80,
+              "assigned_invert_rate": 0.4968944099378882,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ]
+            },
+            {
+              "assigned_forward": 71,
+              "assigned_invert": 82,
+              "assigned_invert_rate": 0.5359477124183006,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ]
+            },
+            {
+              "assigned_forward": 74,
+              "assigned_invert": 82,
+              "assigned_invert_rate": 0.5256410256410257,
+              "effect_percent": 3.3933447650172637,
+              "estimate_log": 0.03337041004009991,
+              "reason": null,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ]
+            },
+            {
+              "assigned_forward": 77,
+              "assigned_invert": 69,
+              "assigned_invert_rate": 0.4726027397260274,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ]
+            },
+            {
+              "assigned_forward": 79,
+              "assigned_invert": 76,
+              "assigned_invert_rate": 0.49032258064516127,
+              "effect_percent": 12.299147560490537,
+              "estimate_log": 0.11599608499277272,
+              "reason": null,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ]
+            },
+            {
+              "assigned_forward": 73,
+              "assigned_invert": 80,
+              "assigned_invert_rate": 0.5228758169934641,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ]
+            }
+          ],
+          "standard_error": null,
+          "theta_log": null
+        },
+        "effect_percent": null,
+        "estimate_log": null,
+        "reason": "window_commits_zero"
+      },
+      {
+        "block": 4,
+        "details": {
+          "assignment_rate_all_events": [
+            {
+              "assignment_rate_all_events": 0.5243243243243243,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.46567164179104475,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.49747899159663866,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.47690014903129657,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5074626865671642,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.4713855421686747,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.46511627906976744,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.48366013071895425,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5056179775280899,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.516295025728988,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5032258064516129,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5260586319218241,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ]
+            }
+          ],
+          "ci90": null,
+          "ci95": null,
+          "cluster_count": 12,
+          "cluster_sd": null,
+          "cluster_variance": null,
+          "confirmatory_complete": false,
+          "effect_percent": null,
+          "reasons": [
+            "window_commits_zero"
+          ],
+          "run_estimates": [
+            {
+              "assigned_forward": 65,
+              "assigned_invert": 73,
+              "assigned_invert_rate": 0.5289855072463768,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ]
+            },
+            {
+              "assigned_forward": 90,
+              "assigned_invert": 77,
+              "assigned_invert_rate": 0.46107784431137727,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ]
+            },
+            {
+              "assigned_forward": 75,
+              "assigned_invert": 73,
+              "assigned_invert_rate": 0.49324324324324326,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ]
+            },
+            {
+              "assigned_forward": 83,
+              "assigned_invert": 84,
+              "assigned_invert_rate": 0.5029940119760479,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ]
+            },
+            {
+              "assigned_forward": 75,
+              "assigned_invert": 75,
+              "assigned_invert_rate": 0.5,
+              "effect_percent": 0.5206760414923308,
+              "estimate_log": 0.005193252107306048,
+              "reason": null,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ]
+            },
+            {
+              "assigned_forward": 80,
+              "assigned_invert": 85,
+              "assigned_invert_rate": 0.5151515151515151,
+              "effect_percent": 5.342647141965313,
+              "estimate_log": 0.05204815725554367,
+              "reason": null,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ]
+            },
+            {
+              "assigned_forward": 87,
+              "assigned_invert": 74,
+              "assigned_invert_rate": 0.45962732919254656,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ]
+            },
+            {
+              "assigned_forward": 91,
+              "assigned_invert": 61,
+              "assigned_invert_rate": 0.40131578947368424,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ]
+            },
+            {
+              "assigned_forward": 73,
+              "assigned_invert": 82,
+              "assigned_invert_rate": 0.5290322580645161,
+              "effect_percent": 3.3319916244249117,
+              "estimate_log": 0.03277683845893546,
+              "reason": null,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ]
+            },
+            {
+              "assigned_forward": 65,
+              "assigned_invert": 80,
+              "assigned_invert_rate": 0.5517241379310345,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ]
+            },
+            {
+              "assigned_forward": 76,
+              "assigned_invert": 78,
+              "assigned_invert_rate": 0.5064935064935064,
+              "effect_percent": 1.4933218046787626,
+              "estimate_log": 0.014822815301367424,
+              "reason": null,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ]
+            },
+            {
+              "assigned_forward": 88,
+              "assigned_invert": 65,
+              "assigned_invert_rate": 0.42483660130718953,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ]
+            }
+          ],
+          "standard_error": null,
+          "theta_log": null
+        },
+        "effect_percent": null,
+        "estimate_log": null,
+        "reason": "window_commits_zero"
+      }
+    ],
+    "workload_threads": [
+      {
+        "details": {
+          "assignment_rate_all_events": [
+            {
+              "assignment_rate_all_events": 0.522887323943662,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.46616541353383456,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5056726094003241,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.47487844408427876,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5058626465661642,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.46885245901639344,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.46614173228346456,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5051546391752577,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5067178502879078,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5138888888888888,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5435684647302904,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ]
+            }
+          ],
+          "ci90": null,
+          "ci95": null,
+          "cluster_count": 12,
+          "cluster_sd": null,
+          "cluster_variance": null,
+          "confirmatory_complete": false,
+          "effect_percent": null,
+          "reasons": [
+            "window_commits_zero"
+          ],
+          "run_estimates": [
+            {
+              "assigned_forward": 270,
+              "assigned_invert": 297,
+              "assigned_invert_rate": 0.5238095238095238,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ]
+            },
+            {
+              "assigned_forward": 354,
+              "assigned_invert": 310,
+              "assigned_invert_rate": 0.46686746987951805,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ]
+            },
+            {
+              "assigned_forward": 305,
+              "assigned_invert": 311,
+              "assigned_invert_rate": 0.5048701298701299,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ]
+            },
+            {
+              "assigned_forward": 324,
+              "assigned_invert": 292,
+              "assigned_invert_rate": 0.474025974025974,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ]
+            },
+            {
+              "assigned_forward": 294,
+              "assigned_invert": 302,
+              "assigned_invert_rate": 0.5067114093959731,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ]
+            },
+            {
+              "assigned_forward": 323,
+              "assigned_invert": 286,
+              "assigned_invert_rate": 0.4696223316912972,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ]
+            },
+            {
+              "assigned_forward": 339,
+              "assigned_invert": 295,
+              "assigned_invert_rate": 0.46529968454258674,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ]
+            },
+            {
+              "assigned_forward": 239,
+              "assigned_invert": 245,
+              "assigned_invert_rate": 0.506198347107438,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ]
+            },
+            {
+              "assigned_forward": 256,
+              "assigned_invert": 264,
+              "assigned_invert_rate": 0.5076923076923077,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ]
+            },
+            {
+              "assigned_forward": 279,
+              "assigned_invert": 296,
+              "assigned_invert_rate": 0.5147826086956522,
+              "effect_percent": 7.044246708857073,
+              "estimate_log": 0.06807208364124082,
+              "reason": null,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ]
+            },
+            {
+              "assigned_forward": 296,
+              "assigned_invert": 295,
+              "assigned_invert_rate": 0.49915397631133673,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ]
+            },
+            {
+              "assigned_forward": 220,
+              "assigned_invert": 261,
+              "assigned_invert_rate": 0.5426195426195426,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ]
+            }
+          ],
+          "standard_error": null,
+          "theta_log": null
+        },
+        "effect_percent": null,
+        "estimate_log": null,
+        "reason": "window_commits_zero",
+        "threads": 24,
+        "workload": "write-heavy"
+      },
+      {
+        "details": {
+          "assignment_rate_all_events": [
+            {
+              "assignment_rate_all_events": 0.5242165242165242,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.46875,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5051546391752577,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.4738562091503268,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5073068893528184,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.4618320610687023,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.46500777604976673,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5046948356807511,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.49786324786324787,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5055679287305123,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5103734439834025,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5867768595041323,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ]
+            }
+          ],
+          "ci90": null,
+          "ci95": null,
+          "cluster_count": 12,
+          "cluster_sd": null,
+          "cluster_variance": null,
+          "confirmatory_complete": false,
+          "effect_percent": null,
+          "reasons": [
+            "window_commits_zero"
+          ],
+          "run_estimates": [
+            {
+              "assigned_forward": 167,
+              "assigned_invert": 183,
+              "assigned_invert_rate": 0.5228571428571429,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ]
+            },
+            {
+              "assigned_forward": 339,
+              "assigned_invert": 300,
+              "assigned_invert_rate": 0.4694835680751174,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ]
+            },
+            {
+              "assigned_forward": 240,
+              "assigned_invert": 244,
+              "assigned_invert_rate": 0.5041322314049587,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ]
+            },
+            {
+              "assigned_forward": 321,
+              "assigned_invert": 290,
+              "assigned_invert_rate": 0.4746317512274959,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ]
+            },
+            {
+              "assigned_forward": 235,
+              "assigned_invert": 243,
+              "assigned_invert_rate": 0.5083682008368201,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ]
+            },
+            {
+              "assigned_forward": 282,
+              "assigned_invert": 241,
+              "assigned_invert_rate": 0.4608030592734226,
+              "effect_percent": 15.684176391910395,
+              "estimate_log": 0.14569367474361256,
+              "reason": null,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ]
+            },
+            {
+              "assigned_forward": 343,
+              "assigned_invert": 299,
+              "assigned_invert_rate": 0.4657320872274143,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ]
+            },
+            {
+              "assigned_forward": 211,
+              "assigned_invert": 214,
+              "assigned_invert_rate": 0.5035294117647059,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ]
+            },
+            {
+              "assigned_forward": 235,
+              "assigned_invert": 232,
+              "assigned_invert_rate": 0.49678800856531047,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ]
+            },
+            {
+              "assigned_forward": 221,
+              "assigned_invert": 227,
+              "assigned_invert_rate": 0.5066964285714286,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ]
+            },
+            {
+              "assigned_forward": 236,
+              "assigned_invert": 245,
+              "assigned_invert_rate": 0.5093555093555093,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ]
+            },
+            {
+              "assigned_forward": 150,
+              "assigned_invert": 212,
+              "assigned_invert_rate": 0.585635359116022,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ]
+            }
+          ],
+          "standard_error": null,
+          "theta_log": null
+        },
+        "effect_percent": null,
+        "estimate_log": null,
+        "reason": "window_commits_zero",
+        "threads": 24,
+        "workload": "balanced"
+      },
+      {
+        "details": {
+          "assignment_rate_all_events": [
+            {
+              "assignment_rate_all_events": 0.5304212168486739,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.4811320754716981,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5055292259083728,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.489769820971867,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5090609555189456,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.474964234620887,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.48157894736842105,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.48497854077253216,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5038880248833593,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5160202360876898,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5039619651347068,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5115646258503401,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ]
+            }
+          ],
+          "ci90": null,
+          "ci95": null,
+          "cluster_count": 12,
+          "cluster_sd": null,
+          "cluster_variance": null,
+          "confirmatory_complete": false,
+          "effect_percent": null,
+          "reasons": [
+            "window_commits_zero"
+          ],
+          "run_estimates": [
+            {
+              "assigned_forward": 301,
+              "assigned_invert": 339,
+              "assigned_invert_rate": 0.5296875,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ]
+            },
+            {
+              "assigned_forward": 384,
+              "assigned_invert": 357,
+              "assigned_invert_rate": 0.4817813765182186,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ]
+            },
+            {
+              "assigned_forward": 313,
+              "assigned_invert": 319,
+              "assigned_invert_rate": 0.504746835443038,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ]
+            },
+            {
+              "assigned_forward": 398,
+              "assigned_invert": 383,
+              "assigned_invert_rate": 0.49039692701664533,
+              "effect_percent": 9.502456479140715,
+              "estimate_log": 0.0907767966162933,
+              "reason": null,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ]
+            },
+            {
+              "assigned_forward": 298,
+              "assigned_invert": 308,
+              "assigned_invert_rate": 0.5082508250825083,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ]
+            },
+            {
+              "assigned_forward": 366,
+              "assigned_invert": 332,
+              "assigned_invert_rate": 0.47564469914040114,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ]
+            },
+            {
+              "assigned_forward": 394,
+              "assigned_invert": 365,
+              "assigned_invert_rate": 0.48089591567852435,
+              "effect_percent": 9.896713340365002,
+              "estimate_log": 0.09437076906314715,
+              "reason": null,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ]
+            },
+            {
+              "assigned_forward": 359,
+              "assigned_invert": 339,
+              "assigned_invert_rate": 0.48567335243553006,
+              "effect_percent": 9.78094009074419,
+              "estimate_log": 0.09331674050329128,
+              "reason": null,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ]
+            },
+            {
+              "assigned_forward": 319,
+              "assigned_invert": 323,
+              "assigned_invert_rate": 0.5031152647975078,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ]
+            },
+            {
+              "assigned_forward": 287,
+              "assigned_invert": 305,
+              "assigned_invert_rate": 0.5152027027027027,
+              "effect_percent": 4.7191581785889465,
+              "estimate_log": 0.046111896797713915,
+              "reason": null,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ]
+            },
+            {
+              "assigned_forward": 313,
+              "assigned_invert": 317,
+              "assigned_invert_rate": 0.5031746031746032,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ]
+            },
+            {
+              "assigned_forward": 359,
+              "assigned_invert": 375,
+              "assigned_invert_rate": 0.510899182561308,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ]
+            }
+          ],
+          "standard_error": null,
+          "theta_log": null
+        },
+        "effect_percent": null,
+        "estimate_log": null,
+        "reason": "window_commits_zero",
+        "threads": 48,
+        "workload": "balanced"
+      },
+      {
+        "details": {
+          "assignment_rate_all_events": [
+            {
+              "assignment_rate_all_events": 0.521594684385382,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.4753914988814318,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.48451327433628316,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.4972972972972973,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5075528700906344,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.49291166848418755,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.4842105263157895,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.48401162790697677,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5067484662576687,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5064935064935064,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5086321381142098,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.521079258010118,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ]
+            }
+          ],
+          "ci90": null,
+          "ci95": null,
+          "cluster_count": 12,
+          "cluster_sd": null,
+          "cluster_variance": null,
+          "confirmatory_complete": false,
+          "effect_percent": null,
+          "reasons": [
+            "window_commits_zero"
+          ],
+          "run_estimates": [
+            {
+              "assigned_forward": 287,
+              "assigned_invert": 314,
+              "assigned_invert_rate": 0.5224625623960066,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ]
+            },
+            {
+              "assigned_forward": 468,
+              "assigned_invert": 425,
+              "assigned_invert_rate": 0.47592385218365063,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ]
+            },
+            {
+              "assigned_forward": 465,
+              "assigned_invert": 438,
+              "assigned_invert_rate": 0.4850498338870432,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ]
+            },
+            {
+              "assigned_forward": 464,
+              "assigned_invert": 460,
+              "assigned_invert_rate": 0.49783549783549785,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ]
+            },
+            {
+              "assigned_forward": 326,
+              "assigned_invert": 335,
+              "assigned_invert_rate": 0.5068078668683812,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ]
+            },
+            {
+              "assigned_forward": 465,
+              "assigned_invert": 451,
+              "assigned_invert_rate": 0.4923580786026201,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ]
+            },
+            {
+              "assigned_forward": 489,
+              "assigned_invert": 460,
+              "assigned_invert_rate": 0.48472075869336145,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ]
+            },
+            {
+              "assigned_forward": 355,
+              "assigned_invert": 332,
+              "assigned_invert_rate": 0.48326055312954874,
+              "effect_percent": 5.280690306711254,
+              "estimate_log": 0.051459838432078124,
+              "reason": null,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ]
+            },
+            {
+              "assigned_forward": 401,
+              "assigned_invert": 413,
+              "assigned_invert_rate": 0.5073710073710074,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ]
+            },
+            {
+              "assigned_forward": 379,
+              "assigned_invert": 390,
+              "assigned_invert_rate": 0.5071521456436932,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ]
+            },
+            {
+              "assigned_forward": 370,
+              "assigned_invert": 382,
+              "assigned_invert_rate": 0.5079787234042553,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ]
+            },
+            {
+              "assigned_forward": 283,
+              "assigned_invert": 309,
+              "assigned_invert_rate": 0.5219594594594594,
+              "effect_percent": -2.35648435720669,
+              "estimate_log": -0.02384693493790797,
+              "reason": null,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ]
+            }
+          ],
+          "standard_error": null,
+          "theta_log": null
+        },
+        "effect_percent": null,
+        "estimate_log": null,
+        "reason": "window_commits_zero",
+        "threads": 24,
+        "workload": "read-heavy"
+      },
+      {
+        "details": {
+          "assignment_rate_all_events": [
+            {
+              "assignment_rate_all_events": 0.5169569202566453,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.47920277296360486,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.4854202401372213,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5077720207253886,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5017513134851138,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5013525698827773,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.4771748492678725,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.4991394148020654,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5034662045060658,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.4908933217692975,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5090595340811044,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ]
+            },
+            {
+              "assignment_rate_all_events": 0.5142364106988784,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ]
+            }
+          ],
+          "ci90": null,
+          "ci95": null,
+          "cluster_count": 12,
+          "cluster_sd": null,
+          "cluster_variance": null,
+          "confirmatory_complete": false,
+          "effect_percent": null,
+          "reasons": [
+            "window_commits_zero"
+          ],
+          "run_estimates": [
+            {
+              "assigned_forward": 527,
+              "assigned_invert": 563,
+              "assigned_invert_rate": 0.5165137614678899,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ]
+            },
+            {
+              "assigned_forward": 601,
+              "assigned_invert": 552,
+              "assigned_invert_rate": 0.4787510841283608,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ]
+            },
+            {
+              "assigned_forward": 599,
+              "assigned_invert": 566,
+              "assigned_invert_rate": 0.4858369098712446,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ]
+            },
+            {
+              "assigned_forward": 570,
+              "assigned_invert": 587,
+              "assigned_invert_rate": 0.5073465859982714,
+              "effect_percent": 7.76825340974634,
+              "estimate_log": 0.07481293384318773,
+              "reason": null,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ]
+            },
+            {
+              "assigned_forward": 568,
+              "assigned_invert": 573,
+              "assigned_invert_rate": 0.5021910604732691,
+              "effect_percent": 1.6150951136734017,
+              "estimate_log": 0.01602191207375178,
+              "reason": null,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ]
+            },
+            {
+              "assigned_forward": 552,
+              "assigned_invert": 556,
+              "assigned_invert_rate": 0.5018050541516246,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ]
+            },
+            {
+              "assigned_forward": 606,
+              "assigned_invert": 554,
+              "assigned_invert_rate": 0.47758620689655173,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ]
+            },
+            {
+              "assigned_forward": 582,
+              "assigned_invert": 579,
+              "assigned_invert_rate": 0.49870801033591733,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ]
+            },
+            {
+              "assigned_forward": 573,
+              "assigned_invert": 580,
+              "assigned_invert_rate": 0.5030355594102341,
+              "effect_percent": 6.333752170085968,
+              "estimate_log": 0.06141256702451585,
+              "reason": null,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ]
+            },
+            {
+              "assigned_forward": 586,
+              "assigned_invert": 566,
+              "assigned_invert_rate": 0.4913194444444444,
+              "effect_percent": 2.2158041280706415,
+              "estimate_log": 0.02191611904401368,
+              "reason": null,
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ]
+            },
+            {
+              "assigned_forward": 569,
+              "assigned_invert": 589,
+              "assigned_invert_rate": 0.5086355785837651,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ]
+            },
+            {
+              "assigned_forward": 563,
+              "assigned_invert": 595,
+              "assigned_invert_rate": 0.5138169257340242,
+              "effect_percent": null,
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ]
+            }
+          ],
+          "standard_error": null,
+          "theta_log": null
+        },
+        "effect_percent": null,
+        "estimate_log": null,
+        "reason": "window_commits_zero",
+        "threads": 48,
+        "workload": "read-heavy"
+      }
+    ]
+  }
+}

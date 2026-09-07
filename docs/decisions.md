@@ -52849,3 +52849,243 @@ CCBench 側の `find_package` を緩めることでも、計算ノードへ syst
 
 **保証しないこと:** 供給経路を足せば job body が最後まで通ることは**実測していない**。
 attestation の exact 照合と driver 本走は依然として未到達である。
+
+## D1738. trace0 の FetchContent 文法は ordered 4-prefix の 1 key で表す (2026-09-07)
+
+**決定:** D1693 が命じた「`trace0_cmake_argv.configure` へ FetchContent の枠を厳密な期待値として
+足す」を、**`fetchcontent_path_argument_prefixes` という順序付き 4 要素の literal 配列 1 key**で
+実装する。prefix と依存名を別 key に分けて再合成する案は採らない。
+`_exact_trace0_configure_argv` は `(dependency_prefix_argument, *fetchcontent_path_argument_prefixes)`
+の 5 本を tail の先頭から**位置で**切り出し、各 token の prefix 一致と値の非空、FetchContent 4 本の
+正規絶対 path と NUL 不在を検査したうえで、最終判定は `list(argv) != expected` の全一致のまま維持する。
+
+**理由:**
+
+- policy の 1 要素と producer が出す 1 token が一対一に対応し、prefix と依存名の連結という
+  非一意な再合成を経ない。異なる policy 表現が同じ token 言語を表す曖昧さが小さい。
+- 受理言語の証明力そのものは分割案と同等である。producer 側の定数と policy の片方だけを変えれば
+  最終の全 argv 一致がどちらの案でも拒否し、両方同時に変えればどちらの案でも新しい protocol hash を伴う。
+  **「1 key の方が厳密に強い」とは言えない**ので、採用理由は曖昧さの少なさに限る。
+- 位置切り出しは、旧実装の「tail 全体から dependency prefix を内容で 1 本だけ拾う」より狭い。
+  2 本目の dependency prefix、順序違い、空値、相対 path はいずれも拒否される。
+
+**却下した選択肢:**
+
+- prefix・依存名・順序を 3 key に分ける — 再合成が非一意で、同じ言語を表す policy 表現が複数生まれる。
+- 文法を緩めて余分 token を許す — D1693 が却下済み。閉じた文法の証明力を落とす (絶対規律 2)。
+
+## D1739. 認証器が受理する path token の値域は producer が生成できる集合に揃える (2026-09-07)
+
+**決定:** `_exact_trace0_configure_argv` が FetchContent の 4 path token について課す条件を、
+「非空かつ絶対」から「**非空・絶対・lexically canonical・NUL を含まない**」へ狭める。
+判定には同 file の既存 helper `_lexical_absolute_path` を使い、NUL 拒否だけを呼び出し側で足す。
+helper 自体の意味は変えず、CCBench source root など既存の呼び手の挙動は不変とする。
+
+**理由:**
+
+- producer (`buildcache._canonical_fetchcontent_source_dir` / `_canonical_fetchcontent_base`) は
+  NUL・非絶対・非 canonical をいずれも拒否する。**producer が生成できない argv を証拠として
+  受理してはならない。** 従来は `/../` や NUL 入りの値が認証器を通り、対応する raw evidence が
+  cells と effects を持つ positive report として参照されうる状態だった。
+- 認証器は別の機体・別の時点で走るため producer と同じ実 path 解決はできない。
+  lexical な canonical 性が実行可能な最も近い対応物である。
+- これは受理集合を**狭める**変更であり、絶対規律 2 の方向と一致する。
+
+**却下した選択肢:**
+
+- `_lexical_absolute_path` 自体へ NUL 拒否を入れる — 既存の呼び手の受理集合まで動かす。
+  本 wave の scope 外であり、必要なら別件として扱う。
+
+## D1740. 認証経路が受け取る依存の配置は hydrate の実出力形とし、`-src` への変換は job body が行う (2026-09-07)
+
+**決定:** 認証経路の `--third-party-source-root` が受け取る配置を、
+`tools/pegasus/fetch_third_party.py` の `hydrate` が実際に作る `<root>/<name>`
+(masstree / mimalloc / googletest、末尾 `-src` なし) とする。build が要求する
+`<base>/<name>-src` への変換は**計算ノードの job body が job-local scratch で行う**。
+
+**理由:**
+
+- `<name>-src` を作る主体は既存の投入器 shell と job body だけであり、供給 helper は作らない。
+  入力契約を `<name>-src` にすると、その配置を誰が作るのかが設計から欠落し、
+  人手の一回限りの手順が発火条件になる (`DW-G04` に反する)。
+- 変換を job body へ置く形は既存 2 driver に前例がある。同じ file の既存 dependency prefix の
+  扱いとも同型で、新しい供給機構も運用手順の変更も要らない。
+- staged 依存の pin・clean・Git top-level 検査は変換後の job-local copy に対して走るため、
+  検証の強さは落ちない。
+
+**却下した選択肢:**
+
+- 入力を `<name>-src` 配置にする — その配置の生成者が居ない。
+- 投入器側で変換する — job-local scratch のほうが repo 外・job 単位で隔離され、
+  同じ file 内の既存手順と対称になる。
+
+## D1741. 認証プロトコル同一性の射程は policy document までであることを明記し、gate は増やさない (2026-09-07)
+
+**決定:** `protocol_sha256` が束縛するのは policy document であって、Python 側の判定式や
+qsub 環境変数の exact 集合ではない、という事実を**記録として明記するに留める**。
+同一性を実装側の code identity まで広げる gate は本 wave では作らない。
+
+**理由:**
+
+- 同じ `protocol_sha256` のまま実装側の述語を書き換えれば受理は動く。これは事実だが、
+  本 wave が作った欠陥ではなく認証プロトコル同一性の既存の射程である。
+- `CLAUDE.md` 絶対規律 7 は「repo 内の挙動検査は gate と検査を同じ主体が変更できる限り
+  意図的な弱体化への完全な防壁ではない。**この限界は主張せず明記する**」と定める。
+  明記が規律の求める対応であり、新しい gate は求められていない。
+- 要求外の仮想リスクで gate・検査・台帳を足さないという `DW-G05` の scope 規律にも一致する。
+
+**却下した選択肢:**
+
+- code identity gate を新設する — 主目的の外。必要なら独立の裁定として扱う。
+- 限界を記録しない — 次に protocol hash を読む者が、実装の同一性まで担保されていると誤読する。
+
+## D1742. B-4 の「1 つの低水準 session」は admission probe に挟まれた 1 区間とする (2026-09-08)
+
+**決定:** D1699 が命じる「candidate と reference を 1 つの低水準 session で測る」の実体を、
+**admission probe に挟まれた 1 区間**とする。1 pair-sample を独立した 2 つの side session とし、
+各 side session は 1 区間の中で候補と参照を各 1 回測る。
+`D = abs((median(candidate_1)/median(reference_1) - 1) - (median(candidate_2)/median(reference_2) - 1))`
+とし、分母を side ごとに分ける。reference の測定は pair-sample あたり exact 2 件とする。
+
+**理由:**
+
+- `runner.measure_point` は `reps` 回の loop を回し**各 rep を別 process として spawn する**
+  (`orchestrator/calibrator/runner.py:1122`、docstring も明記)。したがってこの repo で
+  「1 低水準 session」が「1 process」を意味したことは一度も無く、現行の 1 role session ですら
+  5 process の spawn 群である。「2 呼び出しは 1 session でない」という基準を適用すると
+  「現行 driver には低水準 session が 1 つも存在しない」ことになり背理となる。
+- D1699 が却下したのは**別々の session で測ったもの**を組だから同一と呼ぶ読み替えである。
+  本決定は別々の session を作らず 1 区間 1 record へ統合するので、呼び名の変更ではなく
+  実行構造の変更である。
+- 低水準 API は binary を 1 個しか取らない (`measure_point` も `capture_measure_point` も同じ)。
+  1 呼び出しで 2 binary を測る形は現行 API では構成できない。
+
+**却下した選択肢:**
+
+- 2 呼び出しを 1 session と呼ぶのは D1699 の再読み替えだとして実装を止める — 上の背理により、
+  同じ基準が現行 driver の session 概念そのものを否定してしまう。
+- runner へ対測定 API を足す — runner は全 campaign が使う共有の測定権威であり、
+  本 wave の変更面 (driver とその test の 2 file) を超える。上の背理により必要でもない。
+
+**残余として認めた点:** 区間内で候補の全 rep が参照の全 rep に先行するため、区間内ドリフトは
+相殺されない。rep 単位で交互に測ればより強く相殺できるが、D1699 は要求しておらず、
+D1641 §11.1 が測定手順の決定主体をユーザーに置いているため実装せずユーザー手番へ返す。
+
+## D1743. session を 3 本から 2 本へ減らす際に中間 probe を残す (2026-09-08)
+
+**決定:** side session の区間を `事前 probe -> 測定 -> 中間 probe -> 測定 -> 事後 probe` とし、
+**3 つの probe がすべて clear のときだけ** complete とする。
+
+**理由:**
+
+- 3 session を 2 session へ減らすと probe 対が pair-sample あたり 3 対から 2 対へ減り、
+  **競合を検出できない窓が広がる。** 現行なら候補と参照の境界で検出できた競合を取り逃す。
+  これは既存の正しさゲートの弱体化であり規律 2 が禁じる。
+- 中間 probe を残すと probe 総数は pair-sample あたり 6 個のままである
+  (2 session x 3 probe = 6、変更前は 3 session x 2 probe = 6)。**検出力を維持するだけで
+  新しい gate を足していない。** 既存の probe 呼び出し点を使うので subprocess 起動点の
+  固定台帳にも影響しない。
+- 中間 probe が clear でなければ 2 回目の測定を実行しない。実行時と finalizer の再導出の
+  両方で発火することを変異走行で確認した。
+
+**却下した選択肢:**
+
+- 中間 probe を置かず「証明していないこと」へ未検出窓の拡大を書くだけにする —
+  記述は弱体化を閉じない。既存の検出力を落とす変更になる。
+
+## D1744. 凍結項目の一致検査が束縛する範囲を明記する (2026-09-08)
+
+**決定:** reference の個数と D の式を spec の `statistics` へ必須 field として置き、
+loader が module 定数との exact 一致を要求する。あわせて、この検査が束縛するのは
+**同一 revision 内の自己整合**だけであり、定数が裁定値であることは証明しないことを
+driver の「証明していないこと」へ明記する。
+
+**理由:**
+
+- 定数・spec・実装・テストを同じ commit で同期して変えれば、この検査は赤にならない。
+  束縛しているのは「走行と事前登録済み spec の対応」であって「コードと裁定の対応」ではない。
+  独立な pin も freeze receipt も無い。
+- 謳っていない保証を謳わないのは T-2166 が採った形と同じである。新しい受領証や台帳を建てず、
+  証明していないことを明記する方向で閉じる。
+- 値の意味が変わるため spec / plan / window / summary の 4 schema を上げる。同じ識別子で
+  意味の違う床値が流れると consumer が版を見分けられない。`candidate_floor` の field 名・
+  値域・`status` の語彙は据え置く。
+
+**却下した選択肢:**
+
+- 凍結を事前登録文書側へ置く — `p3_b4_admission_record.py` の `_SECTION5_LABELS` が
+  §5 の表を exact 10 label / 12 行に固定しており、欄を足す設計は実走前 admission を必ず赤にする。
+  D1699 自身も §5 の値セルは sentinel のままだと述べている。
+- 「凍結した」とだけ書き限界を書かない — 恒真に近い検査を保証として提示することになる。
+
+## D1745. lifecycle loader は起点束縛の必要十分条件を強制できないので、実在する層で強制する (2026-09-08)
+
+**決定:** lifecycle start 行の `origin_run_plan_sha256` と `launch_admission.origin_binding` の
+必要十分条件は、launch admission が実在する層 — 書き手 (`record_trial_start_once`)、
+terminal (`record_trial_terminal`)、acceptance — で強制する。**loader は自分が見えるものだけを
+検査する** (key 集合の 2 択、digest の形式、start 行の起点主張と terminal の projection の対応)。
+
+D1667 が裁定した「起点専用 optional key」の範囲を超えて、start 行へ launch admission の
+record 全体を載せることはしない。
+
+**理由:**
+- `_load_lifecycle_rows` は lifecycle 台帳の bytes だけを受け取る。start 行が持つのは
+  `launch_admission_sha256` (digest) であって record 本体ではない。digest からは
+  `origin_binding` の有無を判定できない。したがって loader は新しい情報なしには iff を強制できない。
+- record 全体を載せる案は、D1667 が認めた optional key 1 本の範囲を超える未裁定の wire 拡張である。
+  同じ record が digest と実体の 2 か所に載り、永久に整合を保つ義務が生じる。
+- 2026-08-12 のユーザー方針 (研究最優先・プロトタイプ基準) に照らすと、手で改竄した台帳行への
+  防御のために wire を広げる投資は現時点の根拠を欠く。
+
+**却下した選択肢:**
+- start 行へ `launch_admission` record 全体を載せる — 未裁定の wire 拡張であり、
+  同じ record の二重化を招く。
+- `origin_terminal_projection` の有無を `origin_binding` の代理にする — 代理は推測であり、
+  start-only の台帳では判定できない。
+
+**保証しないこと:** loader 単体では、手で書いた start 行の起点主張が本物かを判定できない。
+偽の start-only 行は trial ID を占有し、正式な再入を拒否させうる。最終 acceptance はこれを
+拒否するので、certified 選択と材料レポートの値には到達しない。この限界を塞いだと書いてはならない。
+
+## D1746. 起点試行の失敗終端は projection 無しで許す (2026-09-08)
+
+**決定:** `terminal_status` が `indeterminate` または `partial` で、かつ非空の `failure_reason` を
+持つときに限り、起点試行が **projection 無しの base terminal 形**で終端できるようにする。
+`complete` は従来どおり projection を必須とする。loader の start ↔ terminal 対応にも、
+失敗 status のときだけ同じ緩和を適用する。
+
+**理由:**
+- 受入要件 11 の順序是正で lifecycle start が observation 開始より前へ移った結果、
+  observation 開始後の失敗が terminal を書けなくなった。`record_trial_terminal` は
+  origin binding と projection の有無が食い違う terminal を拒否するためである。
+- 塞がないと、試行台帳に「開始だけあって終端がない」行が残る。その行は再試行を阻止しながら
+  acceptance も成立させないので、slot が死んだまま残る。
+- 緩和は失敗 status に限られ、成功終端の受理集合は 1 つも動かない。
+
+**却下した選択肢:**
+- 順序を元に戻す — D1667 が envelope digest を start 行へ束縛すると裁定したので、
+  start は envelope の後・observation の前でなければならない。
+- 失敗時に非永続の partial dict だけを返す — 台帳には何も残らず、
+  「開始だけあって終端がない」行がそのまま残る。
+
+## D1747. 起点 consumer は錠前の場所を計算し、呼び手に申告させない (2026-09-08)
+
+**決定:** formal consumer は `exploration_campaign_layout(planned_campaign_run_identity,
+campaign_output_root)` で canonical な layout root を**計算**し、その配下の `campaign.lock` を
+読んで物理 identity と論理 campaign を再導出する。`result-evidence` の schema に
+content-addressed ref を足すことはしない。
+
+**理由:**
+- 設計文書 §D は錠前を content-addressed ref で解決する形を書いていたが、
+  `result-evidence/v1` は exact 9 key で ref が 2 本しかなく、3 本目を足すと
+  R1〜R4 のいずれの裁定にも含まれない schema 変更になる。
+- 計算で導く形は呼び手に場所を申告させないので、**content-addressed ref 案より受理集合が狭い。**
+  「plan identity と整合する錠前と WAL を、計算どおりでない directory に後置した入力」も拒否できる。
+- schema の bytes も受理集合も変えずに済む。
+
+**却下した選択肢:**
+- `result-evidence` に `campaign_lock_ref` を足す — 未裁定の schema 変更であり、
+  しかも呼び手の申告を信じる分だけ受理集合が広い。
+
+**保証しないこと:** 実行後に、計算どおりの canonical root へ整合した錠前と WAL を後置した入力は
+拒否できない。D1674 が明記した trusted-writer 運用前提の外側であり、この限界は狭めていない。
