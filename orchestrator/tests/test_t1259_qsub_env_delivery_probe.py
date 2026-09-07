@@ -537,6 +537,67 @@ def test_submission_source_digests_are_bound_to_runtime_bytes(
     assert any("sha256" in error or "PBS bytes" in error for error in result["errors"])
 
 
+def test_r1_manifest_rejects_approval_that_does_not_equal_nonce(
+    tmp_path: Path,
+) -> None:
+    evidence = tmp_path / "evidence"
+    evidence.mkdir()
+    document, _ = _manifest(evidence, "R1")
+    approval_row = next(
+        row for row in document["ordered_explicit_env"]
+        if row["name"] == APPROVAL
+    )
+    approval_row["value"] = HEX_B
+    approval_row["value_byte_length"] = len(HEX_B.encode("utf-8"))
+    export_spec = ",".join(
+        f"{row['name']}={row['value']}"
+        for row in document["ordered_explicit_env"]
+    )
+    document["qsub_v_exact"] = export_spec
+    document["qsub_v_byte_length"] = len(export_spec.encode("utf-8"))
+    manifest_path = evidence / SUBMISSION_MANIFEST_NAME
+    manifest_path.write_text(
+        json.dumps(document, sort_keys=True) + "\n", encoding="utf-8"
+    )
+
+    with pytest.raises(
+        probe.ProbeError,
+        match="R1 approval is not exactly bound to its nonce",
+    ):
+        probe._validate_submission_manifest(
+            manifest_path,
+            evidence_dir=evidence,
+            repo_snapshot=probe._repo_snapshot(REPO_ROOT),
+            executing_pbs_sha256=EXECUTING_PBS_SHA256,
+        )
+
+
+def test_r3_manifest_rejects_nonliteral_ambient_approval(
+    tmp_path: Path,
+) -> None:
+    evidence = tmp_path / "evidence"
+    evidence.mkdir()
+    document, _ = _manifest(evidence, "R3")
+    document["qsub_caller_environment"][APPROVAL] = _state(
+        "different-ambient-approval"
+    )
+    manifest_path = evidence / SUBMISSION_MANIFEST_NAME
+    manifest_path.write_text(
+        json.dumps(document, sort_keys=True) + "\n", encoding="utf-8"
+    )
+
+    with pytest.raises(
+        probe.ProbeError,
+        match="R3 qsub caller did not carry the fixed mismatching approval literal",
+    ):
+        probe._validate_submission_manifest(
+            manifest_path,
+            evidence_dir=evidence,
+            repo_snapshot=probe._repo_snapshot(REPO_ROOT),
+            executing_pbs_sha256=EXECUTING_PBS_SHA256,
+        )
+
+
 @pytest.mark.parametrize(
     ("snapshot_field", "bad_value"),
     [
@@ -633,6 +694,50 @@ def test_r2_timeout_is_not_accepted_as_refusal(
     assert observed["timed_out"] is True
     assert observed["returncode"] is None
     assert observed["accepted_as_expected_refusal"] is False
+
+
+def test_r2_driver_argv_with_extra_tail_is_rejected_by_exact_contract(
+    tmp_path: Path,
+) -> None:
+    expected_argv = (
+        sys.executable,
+        "-I",
+        "-B",
+        str(REPO_ROOT / CAMPAIGN_PATH),
+        "--mode",
+        "official",
+        "--protocol",
+        str(tmp_path / "protocol-loader-must-not-run.json"),
+    )
+    argv = [*expected_argv, "--resume", str(tmp_path / "unexpected-resume.json")]
+
+    with pytest.raises(
+        probe.ProbeError,
+        match="R2 unapproved driver argv differs from the fixed contract",
+    ):
+        probe._validated_unapproved_driver_environment(argv, expected_argv)
+
+
+def test_r2_driver_argv_with_approval_flag_is_rejected_after_exact_match(
+    tmp_path: Path,
+) -> None:
+    argv = (
+        sys.executable,
+        "-I",
+        "-B",
+        str(REPO_ROOT / CAMPAIGN_PATH),
+        "--mode",
+        "official",
+        "--protocol",
+        str(tmp_path / "protocol-loader-must-not-run.json"),
+        "--confirm-official-floor-run",
+    )
+
+    with pytest.raises(
+        probe.ProbeError,
+        match="R2 unapproved driver argv unexpectedly carries approval",
+    ):
+        probe._validated_unapproved_driver_environment(argv, argv)
 
 
 @pytest.mark.parametrize(
@@ -788,13 +893,21 @@ def test_pbs_contract_runs_observer_through_single_result_call_block() -> None:
     pbs = (REPO_ROOT / PBS_PATH).read_text(encoding="utf-8")
     observer_call = _marked_block(pbs, "PBS OBSERVER CALL")
     result_functions = _marked_block(pbs, "PBS RESULT FUNCTIONS")
+    initialization = _marked_block(pbs, "PBS SHELL INITIALIZATION")
 
     assert "#PBS -q gen_S" in pbs
     assert "#PBS -b 1" in pbs
     assert "#PBS -l elapstim_req=00:10:00" in pbs
     assert pbs.count('#   qsub -o "$ATTEMPT_ROOT/') == 3
+    assert pbs.index("RESULT_PREFIX=") < pbs.index("ulimit -c 0")
+    assert pbs.index("trap 'fail_pbs unhandled-shell-error' ERR") < pbs.index(
+        "ulimit -c 0"
+    )
     assert pbs.index("export GIT_OPTIONAL_LOCKS=0") < pbs.index("set -Eeuo pipefail")
-    assert pbs.index("ulimit -c 0 || exit 2") < pbs.index("set -Eeuo pipefail")
+    assert pbs.index("ulimit -c 0 || fail_pbs core-dump-disable-failed") < pbs.index(
+        "set -Eeuo pipefail"
+    )
+    assert "ulimit -c 0 || fail_pbs core-dump-disable-failed" in initialization
     assert "^bnode[0-9]+" in pbs
     assert 'cd "$TMPDIR"' in pbs
     assert pbs.index('cd "$TMPDIR"') < pbs.index("# BEGIN T1259 PBS OBSERVER CALL")
@@ -808,6 +921,34 @@ def test_pbs_contract_runs_observer_through_single_result_call_block() -> None:
     assert 'if ! validate_observer_stdout "$output_path"; then' in result_functions
     assert 'printf \'%s\\n\' "$result_line"' in result_functions
     assert "set +e" not in observer_call
+
+
+def test_pbs_early_ulimit_failure_emits_one_prefixed_result() -> None:
+    pbs = (REPO_ROOT / PBS_PATH).read_text(encoding="utf-8")
+    functions = _marked_block(pbs, "PBS RESULT FUNCTIONS")
+    initialization = _marked_block(pbs, "PBS SHELL INITIALIZATION")
+    harness = f"""
+{functions}
+ulimit() {{ return 9; }}
+{initialization}
+printf 'unreachable\\n'
+"""
+
+    completed = subprocess.run(
+        ["bash", "-c", harness],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 2
+    assert completed.stderr == ""
+    lines = completed.stdout.splitlines()
+    assert len(lines) == 1
+    assert lines[0].startswith(RESULT_PREFIX)
+    payload = json.loads(lines[0][len(RESULT_PREFIX):])
+    assert payload["ok"] is False
+    assert payload["errors"] == ["pbs-shell:core-dump-disable-failed"]
 
 
 def test_pbs_preserves_one_valid_negative_observer_result(tmp_path: Path) -> None:
@@ -892,6 +1033,8 @@ def test_submitter_has_exact_three_request_design_and_create_only_witnesses() ->
     assert 'qstat "$scheduler_request_id" \\' in request_function
     assert "line.startswith(scheduler_id)" in request_receipt_writer
     assert 'fields[1].startswith(expected_job_name_prefix)' in request_receipt_writer
+    assert "observed_owner == expected_owner" in request_receipt_writer
+    assert "observed_state in accepted_states" in request_receipt_writer
     assert "write_request_receipt" in request_function
     assert 'with target.open("x"' in manifest_writer
     assert 'with target.open("x"' in group_intent_writer
@@ -964,10 +1107,16 @@ def test_submitter_preflight_parses_gen_s_semantic_state(
     ("qstat_rc", "qstat_body", "expected_rc", "expected_visible"),
     [
         (0, "12345.nqsv izanagi- owner gen_S RUN\n", 0, True),
+        (0, "12345.nqsv izanagi- owner gen_S QUE\n", 0, True),
         (0, "Request ID Name User Queue STT\n", 5, False),
         (1, "12345.nqsv izanagi- owner gen_S RUN\n", 5, True),
     ],
-    ids=["visible-eight-char-name", "rc-zero-but-absent", "body-present-rc-failed"],
+    ids=[
+        "visible-eight-char-name",
+        "visible-eight-char-name-queued",
+        "rc-zero-but-absent",
+        "body-present-rc-failed",
+    ],
 )
 def test_request_receipt_binds_qstat_body_visibility(
     tmp_path: Path,
@@ -1004,6 +1153,7 @@ def test_request_receipt_binds_qstat_body_visibility(
             "12345.nqsv",
             "2026-09-08T00:00:00Z",
             str(qstat_rc),
+            "owner",
         ],
         input=code,
         capture_output=True,
@@ -1015,6 +1165,74 @@ def test_request_receipt_binds_qstat_body_visibility(
     document = json.loads(receipt.read_text(encoding="utf-8"))
     assert document["qstat_visibility"]["request_line_visible"] is expected_visible
     assert document["qstat_visibility"]["accepted"] is (expected_rc == 0)
+
+
+@pytest.mark.parametrize(
+    ("qstat_body", "rejected_field", "observed_value"),
+    [
+        (
+            "12345.nqsv izanagi- different-owner gen_S RUN\n",
+            "owner_matches",
+            "different-owner",
+        ),
+        ("12345.nqsv izanagi- owner gen_S HLD\n", "state_accepted", "HLD"),
+    ],
+    ids=["different-owner", "non-active-state"],
+)
+def test_request_receipt_rejects_wrong_owner_or_non_active_state(
+    tmp_path: Path,
+    qstat_body: str,
+    rejected_field: str,
+    observed_value: str,
+) -> None:
+    submitter = (REPO_ROOT / SUBMITTER_TEXT_PATH).read_text(encoding="utf-8")
+    function_block = _shell_function_body(
+        submitter, "write_request_receipt", "submit_request"
+    )
+    code = _heredoc_python(function_block)
+    manifest = tmp_path / SUBMISSION_MANIFEST_NAME
+    receipt = tmp_path / "qsub-request.json"
+    qstat_stdout = tmp_path / "qstat-after-submit.stdout"
+    qstat_stderr = tmp_path / "qstat-after-submit.stderr"
+    manifest.write_text("{}\n", encoding="utf-8")
+    qstat_stdout.write_text(qstat_body, encoding="utf-8")
+    qstat_stderr.write_text("", encoding="utf-8")
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-I",
+            "-B",
+            "-",
+            str(manifest),
+            str(receipt),
+            str(qstat_stdout),
+            str(qstat_stderr),
+            "R1",
+            "with-explicit-approval",
+            "12345.nqsv",
+            "2026-09-08T00:00:00Z",
+            "0",
+            "owner",
+        ],
+        input=code,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert completed.returncode == 5
+    document = json.loads(receipt.read_text(encoding="utf-8"))
+    visibility = document["qstat_visibility"]
+    assert visibility["request_line_visible"] is True
+    assert visibility["accepted"] is False
+    assert visibility[rejected_field] is False
+    observed_field = (
+        "observed_owner"
+        if rejected_field == "owner_matches"
+        else "observed_state"
+    )
+    assert visibility[observed_field] == observed_value
 
 
 def test_group_intent_is_create_only_and_has_no_completion_fields(

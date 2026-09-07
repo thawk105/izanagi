@@ -206,6 +206,14 @@ if [[ -z "$PY" ]]; then
   echo "Python 3.10 or newer is required" >&2
   exit 2
 fi
+SUBMITTER_OWNER=$(id -un) || {
+  echo "cannot determine submitter owner" >&2
+  exit 2
+}
+if [[ -z "$SUBMITTER_OWNER" || "$SUBMITTER_OWNER" =~ [[:space:]] ]]; then
+  echo "submitter owner has an unsafe shape" >&2
+  exit 2
+fi
 
 mkdir -m 700 -- "$ATTEMPT_ROOT"
 ATTEMPT_STARTED_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)
@@ -500,7 +508,7 @@ write_request_receipt() {
     "$evidence_dir/qstat-after-submit.stdout" \
     "$evidence_dir/qstat-after-submit.stderr" \
     "$request_id" "$request_label" "$scheduler_request_id" \
-    "$submitted_utc" "$qstat_rc" <<'PY'
+    "$submitted_utc" "$qstat_rc" "$SUBMITTER_OWNER" <<'PY'
 import hashlib
 import json
 import os
@@ -517,6 +525,7 @@ from pathlib import Path
 scheduler_id,
 submitted_utc,
 qstat_rc_text,
+expected_owner,
 ) = sys.argv[1:]
 import re
 if re.fullmatch(r"([0-9]+:)?[A-Za-z0-9._-]+", scheduler_id) is None:
@@ -526,6 +535,7 @@ qstat_stdout = Path(qstat_stdout_text)
 qstat_stderr = Path(qstat_stderr_text)
 qstat_rc = int(qstat_rc_text)
 expected_job_name_prefix = "izanagi-"
+accepted_states = ("QUE", "RUN")
 matched_lines = []
 for line in qstat_stdout.read_text(encoding="utf-8", errors="replace").splitlines():
     fields = line.split()
@@ -534,7 +544,12 @@ for line in qstat_stdout.read_text(encoding="utf-8", errors="replace").splitline
             and fields[1].startswith(expected_job_name_prefix)):
         matched_lines.append(line)
 line_visible = len(matched_lines) == 1
-accepted = qstat_rc == 0 and line_visible
+visible_fields = matched_lines[0].split() if line_visible else []
+observed_owner = visible_fields[2] if len(visible_fields) >= 3 else None
+observed_state = visible_fields[4] if len(visible_fields) >= 5 else None
+owner_matches = observed_owner == expected_owner
+state_accepted = observed_state in accepted_states
+accepted = qstat_rc == 0 and line_visible and owner_matches and state_accepted
 document = {
     "schema_version": "izanagi-t1259-qsub-request/v1",
     "authority": "diagnostic-only",
@@ -552,6 +567,12 @@ document = {
         "request_id_at_line_start": line_visible,
         "expected_job_name_prefix": expected_job_name_prefix,
         "job_name_prefix_matches": line_visible,
+        "expected_owner": expected_owner,
+        "observed_owner": observed_owner,
+        "owner_matches": owner_matches,
+        "accepted_states": list(accepted_states),
+        "observed_state": observed_state,
+        "state_accepted": state_accepted,
         "returncode": qstat_rc,
         "stdout_path": qstat_stdout.name,
         "stdout_sha256": hashlib.sha256(qstat_stdout.read_bytes()).hexdigest(),
@@ -670,7 +691,7 @@ PY
   if ! write_request_receipt \
       "$evidence_dir" "$request_id" "$request_label" \
       "$scheduler_request_id" "$submitted_utc" "$qstat_rc"; then
-    echo "$request_id qsub request is not visible in qstat body; evidence=$evidence_dir" >&2
+    echo "$request_id qsub request is not accepted from qstat body; evidence=$evidence_dir" >&2
     exit 5
   fi
 )

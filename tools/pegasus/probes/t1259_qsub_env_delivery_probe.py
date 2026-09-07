@@ -455,6 +455,20 @@ def _scratch_entries(path: Path) -> list[str]:
     return sorted(entry.name for entry in path.iterdir())
 
 
+def _validated_unapproved_driver_environment(
+    argv: Sequence[str], expected_argv: tuple[str, ...]
+) -> dict[str, str]:
+    """Reject any R2 argv outside the exact unapproved driver contract."""
+    if tuple(argv) != expected_argv:
+        raise ProbeError("R2 unapproved driver argv differs from the fixed contract")
+    if "--confirm-official-floor-run" in argv:
+        raise ProbeError("R2 unapproved driver argv unexpectedly carries approval")
+    environment = dict(os.environ)
+    environment["GIT_OPTIONAL_LOCKS"] = "0"
+    environment["PYTHONDONTWRITEBYTECODE"] = "1"
+    return environment
+
+
 def _unapproved_driver_observation(
     *,
     repo_root: Path,
@@ -490,13 +504,7 @@ def _unapproved_driver_observation(
         "--protocol",
         os.fspath(protocol),
     )
-    if tuple(argv) != expected_argv:
-        raise ProbeError("R2 unapproved driver argv differs from the fixed contract")
-    if "--confirm-official-floor-run" in argv:
-        raise ProbeError("R2 unapproved driver argv unexpectedly carries approval")
-    environment = dict(os.environ)
-    environment["GIT_OPTIONAL_LOCKS"] = "0"
-    environment["PYTHONDONTWRITEBYTECODE"] = "1"
+    environment = _validated_unapproved_driver_environment(argv, expected_argv)
     try:
         completed = subprocess.run(
             argv,

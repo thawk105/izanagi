@@ -22,11 +22,6 @@
 #     -v "IZANAGI_SUBMISSION_NONCE=$R3_NONCE,IZANAGI_FLOOR_JOB_EVIDENCE_ROOT=$ATTEMPT_ROOT/r3-ambient-approval-only" \
 #     tools/pegasus/probes/t1259_qsub_env_delivery_probe.pbs
 
-export GIT_OPTIONAL_LOCKS=0
-ulimit -c 0 || exit 2
-set -Eeuo pipefail
-umask 077
-
 # BEGIN T1259 PBS RESULT FUNCTIONS
 RESULT_PREFIX='T1259_QSUB_ENV_DELIVERY_RESULT '
 RESULT_EMITTED=0
@@ -84,6 +79,13 @@ fail_pbs() {
 }
 trap 'fail_pbs unhandled-shell-error' ERR
 # END T1259 PBS RESULT FUNCTIONS
+
+# BEGIN T1259 PBS SHELL INITIALIZATION
+export GIT_OPTIONAL_LOCKS=0
+ulimit -c 0 || fail_pbs core-dump-disable-failed
+set -Eeuo pipefail
+umask 077
+# END T1259 PBS SHELL INITIALIZATION
 
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR
 unset GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
