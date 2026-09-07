@@ -7349,6 +7349,9 @@ def test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted():
         "patches/broken-silo-write-intent-forge.patch",
         "patches/broken-silo-write-intent-opswap.patch",
         "patches/broken-silo-write-intent-ptrswap.patch",
+        "patches/broken-mocc-lockskip-validation.patch",  # condition-gate control, not a ledger ability probe
+        "patches/broken-mocc-permutation-erase.patch",  # condition-gate control, not a ledger ability probe
+        "patches/broken-mocc-early-unlock.patch",  # condition-gate control, not a ledger ability probe
         "patches/instr-silo-backoff-trigger-gating-tally.patch",
     }
     unregistered = {}

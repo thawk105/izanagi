@@ -1,0 +1,339 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 180,
+  "timeout_seconds": 1500,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "M1-p-block-if-one",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/instr-mocc-lock-coverage.patch",
+          "old": "+#if TRACE\n+  {\n+    bool izanagi_perm_ok = (write_set_.size() == izanagi_pre_sort_size);\n",
+          "new": "+#if 1\n+  {\n+    bool izanagi_perm_ok = (write_set_.size() == izanagi_pre_sort_size);\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_proof_surface.py::test_broken_mocc_patches_have_unique_production_condition_witnesses",
+        "orchestrator/tests/test_mocc_proof_surface.py::test_broken_mocc_permutation_patch_pops_between_sort_and_trace_check",
+        "orchestrator/tests/test_mocc_proof_surface.py::test_compute_positive_control_json_is_all_pass_and_bound",
+        "orchestrator/tests/test_mocc_proof_surface.py::test_instr_patch_keeps_trace0_preprocess_identical",
+        "orchestrator/tests/test_mocc_proof_surface.py::test_mocc_clean_fixture_is_certified_with_patched_snapshot",
+        "orchestrator/tests/test_mocc_proof_surface.py::test_mocc_x_p_proof_surfaces_are_present_only_after_instr_patch"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-entry-reason-renamed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/instr-mocc-lock-coverage.patch",
+          "old": "+          \"not-locked-at-entry\");\n",
+          "new": "+          \"not-locked\");\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_proof_surface.py::test_broken_mocc_early_unlock_patch_unlocks_after_entry_and_relocks_before_publish",
+        "orchestrator/tests/test_mocc_proof_surface.py::test_compute_positive_control_json_is_all_pass_and_bound",
+        "orchestrator/tests/test_mocc_proof_surface.py::test_instr_patch_names_cll_lock_pointer_predicate"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-cll-lock-pointer-dropped",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/instr-mocc-lock-coverage.patch",
+          "old": "+      if (lock_element.key_ == we.rcdptr_ && lock_element.mode_ &&\n+          lock_element.lock_ == &we.rcdptr_->rwlock_) {\n",
+          "new": "+      if (lock_element.key_ == we.rcdptr_ && lock_element.mode_ &&\n+          true) {\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_proof_surface.py::test_compute_positive_control_json_is_all_pass_and_bound",
+        "orchestrator/tests/test_mocc_proof_surface.py::test_instr_patch_names_cll_lock_pointer_predicate"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-line-directive-off-by-one",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/instr-mocc-lock-coverage.patch",
+          "old": "+#line 1169\n",
+          "new": "+#line 1170\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_proof_surface.py::test_compute_positive_control_json_is_all_pass_and_bound",
+        "orchestrator/tests/test_mocc_proof_surface.py::test_instr_patch_keeps_trace0_preprocess_identical",
+        "orchestrator/tests/test_mocc_proof_surface.py::test_mocc_x_p_proof_surfaces_are_present_only_after_instr_patch"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-definespec-entry-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "    \"IZANAGI_BREAK_MOCC_LOCK_COVERAGE\": DefineSpec(\n        ROUTE_CMAKE_CXX_FLAGS, _MOCC_OWNER, \"ycsb_mocc.exe\",\n        \"patches/broken-mocc-lockskip-validation.patch\",\n    ),\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_matches_condition_gate_registry",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_MOCC_LOCK_COVERAGE]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_v1_domain_and_claim_boundaries_are_exact"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-lockskip-ifdef",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/broken-mocc-lockskip-validation.patch",
+          "old": "+#if IZANAGI_BREAK_MOCC_LOCK_COVERAGE\n",
+          "new": "+#ifdef IZANAGI_BREAK_MOCC_LOCK_COVERAGE\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches",
+        "orchestrator/tests/test_mocc_proof_surface.py::test_broken_mocc_lockskip_patch_guards_validation_lock",
+        "orchestrator/tests/test_mocc_proof_surface.py::test_broken_mocc_patches_have_unique_production_condition_witnesses",
+        "orchestrator/tests/test_mocc_proof_surface.py::test_compute_positive_control_json_is_all_pass_and_bound"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8-fixture-x-line-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/fixtures/m3_mocc_lock_coverage/trace_0.log",
+          "old": "X 0 0000000000000001 not-locked-at-entry\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_proof_surface.py::test_mocc_x_fixture_routes_to_lock_coverage_indeterminate"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9-check-key-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s3_mocc_lock_coverage.py",
+          "old": "    \"stock_high_non_insert_writes_positive\",\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_proof_surface.py::test_compute_positive_control_json_is_all_pass_and_bound",
+        "orchestrator/tests/test_mocc_proof_surface.py::test_driver_check_keys_are_exact",
+        "orchestrator/tests/test_mocc_proof_surface.py::test_driver_compute_checks_is_input_derived_per_key"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10-verify-protocol-dropped",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s3_mocc_lock_coverage.py",
+          "old": "        \"--protocol\", \"mocc\", \"--ccbench-root\", os.fspath(ccbench_root),\n",
+          "new": "        \"--ccbench-root\", os.fspath(ccbench_root),\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_proof_surface.py::test_driver_verify_passes_mocc_protocol_and_given_root"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11-materializer-entry-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/materializer_admission.py",
+          "old": "    \"orchestrator.campaign.s3_mocc_lock_coverage._build_variant\":\n        MaterializerRegistration(\n            NON_ADMISSIBLE,\n            \"trace-only mocc lock/permutation controls used to prove the verifier has teeth\",\n        ),\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_build_authority_cli.py::test_python_ccbench_manual_materializers_are_explicitly_non_admissible",
+        "orchestrator/tests/test_p3_build_authority_cli.py::test_single_registry_has_typed_compatible_projections"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M12-early-relock-dropped",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/broken-mocc-early-unlock.patch",
+          "old": "+    if ((*itr).op_ != OpType::INSERT) (*itr).rcdptr_->rwlock_.w_lock();\n",
+          "new": "+    if ((*itr).op_ != OpType::INSERT) (void)(*itr).rcdptr_;\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_proof_surface.py::test_broken_mocc_early_unlock_patch_unlocks_after_entry_and_relocks_before_publish",
+        "orchestrator/tests/test_mocc_proof_surface.py::test_compute_positive_control_json_is_all_pass_and_bound"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M13-fixture-p-line-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/fixtures/m4_mocc_permutation/trace_0.log",
+          "old": "P size-changed\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_proof_surface.py::test_mocc_p_fixture_routes_to_permutation_indeterminate"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M14-entry-predicate-false",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/instr-mocc-lock-coverage.patch",
+          "old": "+    if (!izanagi_cll_has_writer ||\n+        we.rcdptr_->rwlock_.ldAcqCounter() != W_LOCKED) {\n",
+          "new": "+    if (!izanagi_cll_has_writer ||\n+        false) {\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_proof_surface.py::test_compute_positive_control_json_is_all_pass_and_bound",
+        "orchestrator/tests/test_mocc_proof_surface.py::test_instr_patch_names_cll_lock_pointer_predicate"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M15-early-directive-duplicated",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/broken-mocc-early-unlock.patch",
+          "old": "+#else\n+static constexpr bool izanagi_break_mocc_early_unlock = false;\n",
+          "new": "+#endif\n+#if IZANAGI_BREAK_MOCC_EARLY_UNLOCK\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches",
+        "orchestrator/tests/test_mocc_proof_surface.py::test_broken_mocc_early_unlock_patch_unlocks_after_entry_and_relocks_before_publish",
+        "orchestrator/tests/test_mocc_proof_surface.py::test_broken_mocc_patches_have_unique_production_condition_witnesses",
+        "orchestrator/tests/test_mocc_proof_surface.py::test_compute_positive_control_json_is_all_pass_and_bound"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M16-check-formula-constant",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s3_mocc_lock_coverage.py",
+          "old": "        \"trace0_text_identical\": trace0[\"text_identical\"],\n",
+          "new": "        \"trace0_text_identical\": True,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_proof_surface.py::test_driver_compute_checks_is_input_derived_per_key"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M17-toolchain-mismatch-raise-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s3_mocc_lock_coverage.py",
+          "old": "        if observed != expected[role]:\n            raise RuntimeError(\n",
+          "new": "        if False:\n            raise RuntimeError(\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_proof_surface.py::test_driver_resolve_toolchain_accepts_bound_versions_and_fails_closed"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M18-update-retention-false-and",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/instr-mocc-lock-coverage.patch",
+          "old": "           izanagi_mocc_g2_stamp((*itr).body_, izanagi_txid);\n+        if ((*itr).rcdptr_->rwlock_.ldAcqCounter() != W_LOCKED)\n",
+          "new": "           izanagi_mocc_g2_stamp((*itr).body_, izanagi_txid);\n+        if (false && (*itr).rcdptr_->rwlock_.ldAcqCounter() != W_LOCKED)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_proof_surface.py::test_compute_positive_control_json_is_all_pass_and_bound",
+        "orchestrator/tests/test_mocc_proof_surface.py::test_mocc_x_p_proof_surfaces_are_present_only_after_instr_patch"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M19-entry-cll-writer-init-true",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/instr-mocc-lock-coverage.patch",
+          "old": "+    bool izanagi_cll_has_writer = false;\n",
+          "new": "+    bool izanagi_cll_has_writer = true;\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_proof_surface.py::test_compute_positive_control_json_is_all_pass_and_bound",
+        "orchestrator/tests/test_mocc_proof_surface.py::test_instr_patch_names_cll_lock_pointer_predicate"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M20-p-emitter-false-and",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/instr-mocc-lock-coverage.patch",
+          "old": "+    if (!izanagi_perm_ok) {\n",
+          "new": "+    if (false && !izanagi_perm_ok) {\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_proof_surface.py::test_compute_positive_control_json_is_all_pass_and_bound",
+        "orchestrator/tests/test_mocc_proof_surface.py::test_mocc_x_p_proof_surfaces_are_present_only_after_instr_patch"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

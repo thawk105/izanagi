@@ -1,0 +1,822 @@
+{
+ "M1-p-block-if-one": {
+  "touched": [
+   "patches/instr-mocc-lock-coverage.patch"
+  ],
+  "harness": {
+   "orchestrator/tests/test_mocc_proof_surface.py": {
+    "rc": 1,
+    "seconds": 2.0,
+    "nodes": [
+     "orchestrator/tests/test_mocc_proof_surface.py::test_broken_mocc_patches_have_unique_production_condition_witnesses",
+     "orchestrator/tests/test_mocc_proof_surface.py::test_broken_mocc_permutation_patch_pops_between_sort_and_trace_check",
+     "orchestrator/tests/test_mocc_proof_surface.py::test_compute_positive_control_json_is_all_pass_and_bound",
+     "orchestrator/tests/test_mocc_proof_surface.py::test_instr_patch_keeps_trace0_preprocess_identical",
+     "orchestrator/tests/test_mocc_proof_surface.py::test_mocc_clean_fixture_is_certified_with_patched_snapshot",
+     "orchestrator/tests/test_mocc_proof_surface.py::test_mocc_x_p_proof_surfaces_are_present_only_after_instr_patch"
+    ]
+   },
+   "orchestrator/tests/test_condition_meaning_gate.py": {
+    "rc": 0,
+    "seconds": 19.4,
+    "nodes": []
+   },
+   "orchestrator/tests/test_ccbench_spawn_sites.py": {
+    "rc": 0,
+    "seconds": 63.5,
+    "nodes": []
+   },
+   "orchestrator/tests/test_p3_build_authority_cli.py": {
+    "rc": 0,
+    "seconds": 21.3,
+    "nodes": []
+   },
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 0,
+    "seconds": 1.6,
+    "nodes": []
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_mocc_proof_surface.py::test_broken_mocc_patches_have_unique_production_condition_witnesses",
+   "orchestrator/tests/test_mocc_proof_surface.py::test_broken_mocc_permutation_patch_pops_between_sort_and_trace_check",
+   "orchestrator/tests/test_mocc_proof_surface.py::test_compute_positive_control_json_is_all_pass_and_bound",
+   "orchestrator/tests/test_mocc_proof_surface.py::test_instr_patch_keeps_trace0_preprocess_identical",
+   "orchestrator/tests/test_mocc_proof_surface.py::test_mocc_clean_fixture_is_certified_with_patched_snapshot",
+   "orchestrator/tests/test_mocc_proof_surface.py::test_mocc_x_p_proof_surfaces_are_present_only_after_instr_patch"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_mocc_proof_surface.py"
+  ]
+ },
+ "M2-entry-reason-renamed": {
+  "touched": [
+   "patches/instr-mocc-lock-coverage.patch"
+  ],
+  "harness": {
+   "orchestrator/tests/test_mocc_proof_surface.py": {
+    "rc": 1,
+    "seconds": 2.0,
+    "nodes": [
+     "orchestrator/tests/test_mocc_proof_surface.py::test_broken_mocc_early_unlock_patch_unlocks_after_entry_and_relocks_before_publish",
+     "orchestrator/tests/test_mocc_proof_surface.py::test_compute_positive_control_json_is_all_pass_and_bound",
+     "orchestrator/tests/test_mocc_proof_surface.py::test_instr_patch_names_cll_lock_pointer_predicate"
+    ]
+   },
+   "orchestrator/tests/test_condition_meaning_gate.py": {
+    "rc": 0,
+    "seconds": 19.5,
+    "nodes": []
+   },
+   "orchestrator/tests/test_ccbench_spawn_sites.py": {
+    "rc": 0,
+    "seconds": 66.7,
+    "nodes": []
+   },
+   "orchestrator/tests/test_p3_build_authority_cli.py": {
+    "rc": 0,
+    "seconds": 22.1,
+    "nodes": []
+   },
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 0,
+    "seconds": 1.9,
+    "nodes": []
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_mocc_proof_surface.py::test_broken_mocc_early_unlock_patch_unlocks_after_entry_and_relocks_before_publish",
+   "orchestrator/tests/test_mocc_proof_surface.py::test_compute_positive_control_json_is_all_pass_and_bound",
+   "orchestrator/tests/test_mocc_proof_surface.py::test_instr_patch_names_cll_lock_pointer_predicate"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_mocc_proof_surface.py"
+  ]
+ },
+ "M4-line-directive-off-by-one": {
+  "touched": [
+   "patches/instr-mocc-lock-coverage.patch"
+  ],
+  "harness": {
+   "orchestrator/tests/test_mocc_proof_surface.py": {
+    "rc": 1,
+    "seconds": 1.0,
+    "nodes": [
+     "orchestrator/tests/test_mocc_proof_surface.py::test_compute_positive_control_json_is_all_pass_and_bound",
+     "orchestrator/tests/test_mocc_proof_surface.py::test_instr_patch_keeps_trace0_preprocess_identical",
+     "orchestrator/tests/test_mocc_proof_surface.py::test_mocc_x_p_proof_surfaces_are_present_only_after_instr_patch"
+    ]
+   },
+   "orchestrator/tests/test_condition_meaning_gate.py": {
+    "rc": 0,
+    "seconds": 19.0,
+    "nodes": []
+   },
+   "orchestrator/tests/test_ccbench_spawn_sites.py": {
+    "rc": 0,
+    "seconds": 62.0,
+    "nodes": []
+   },
+   "orchestrator/tests/test_p3_build_authority_cli.py": {
+    "rc": 0,
+    "seconds": 17.3,
+    "nodes": []
+   },
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 0,
+    "seconds": 1.5,
+    "nodes": []
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_mocc_proof_surface.py::test_compute_positive_control_json_is_all_pass_and_bound",
+   "orchestrator/tests/test_mocc_proof_surface.py::test_instr_patch_keeps_trace0_preprocess_identical",
+   "orchestrator/tests/test_mocc_proof_surface.py::test_mocc_x_p_proof_surfaces_are_present_only_after_instr_patch"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_mocc_proof_surface.py"
+  ]
+ },
+ "M5-definespec-entry-removed": {
+  "touched": [
+   "orchestrator/campaign/condition_meaning_gate.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_mocc_proof_surface.py": {
+    "rc": 0,
+    "seconds": 1.1,
+    "nodes": []
+   },
+   "orchestrator/tests/test_condition_meaning_gate.py": {
+    "rc": 1,
+    "seconds": 18.5,
+    "nodes": [
+     "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches",
+     "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_MOCC_LOCK_COVERAGE]",
+     "orchestrator/tests/test_condition_meaning_gate.py::test_v1_domain_and_claim_boundaries_are_exact"
+    ]
+   },
+   "orchestrator/tests/test_ccbench_spawn_sites.py": {
+    "rc": 1,
+    "seconds": 62.6,
+    "nodes": [
+     "orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_matches_condition_gate_registry"
+    ]
+   },
+   "orchestrator/tests/test_p3_build_authority_cli.py": {
+    "rc": 0,
+    "seconds": 18.7,
+    "nodes": []
+   },
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 0,
+    "seconds": 1.4,
+    "nodes": []
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_matches_condition_gate_registry",
+   "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches",
+   "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_MOCC_LOCK_COVERAGE]",
+   "orchestrator/tests/test_condition_meaning_gate.py::test_v1_domain_and_claim_boundaries_are_exact"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_condition_meaning_gate.py",
+   "orchestrator/tests/test_ccbench_spawn_sites.py"
+  ]
+ },
+ "M6-lockskip-ifdef": {
+  "touched": [
+   "patches/broken-mocc-lockskip-validation.patch"
+  ],
+  "harness": {
+   "orchestrator/tests/test_mocc_proof_surface.py": {
+    "rc": 1,
+    "seconds": 1.0,
+    "nodes": [
+     "orchestrator/tests/test_mocc_proof_surface.py::test_broken_mocc_lockskip_patch_guards_validation_lock",
+     "orchestrator/tests/test_mocc_proof_surface.py::test_broken_mocc_patches_have_unique_production_condition_witnesses",
+     "orchestrator/tests/test_mocc_proof_surface.py::test_compute_positive_control_json_is_all_pass_and_bound"
+    ]
+   },
+   "orchestrator/tests/test_condition_meaning_gate.py": {
+    "rc": 1,
+    "seconds": 18.6,
+    "nodes": [
+     "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches"
+    ]
+   },
+   "orchestrator/tests/test_ccbench_spawn_sites.py": {
+    "rc": 0,
+    "seconds": 61.3,
+    "nodes": []
+   },
+   "orchestrator/tests/test_p3_build_authority_cli.py": {
+    "rc": 0,
+    "seconds": 17.9,
+    "nodes": []
+   },
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 0,
+    "seconds": 1.5,
+    "nodes": []
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches",
+   "orchestrator/tests/test_mocc_proof_surface.py::test_broken_mocc_lockskip_patch_guards_validation_lock",
+   "orchestrator/tests/test_mocc_proof_surface.py::test_broken_mocc_patches_have_unique_production_condition_witnesses",
+   "orchestrator/tests/test_mocc_proof_surface.py::test_compute_positive_control_json_is_all_pass_and_bound"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_mocc_proof_surface.py",
+   "orchestrator/tests/test_condition_meaning_gate.py"
+  ]
+ },
+ "M8-fixture-x-line-removed": {
+  "touched": [
+   "orchestrator/tests/fixtures/m3_mocc_lock_coverage/trace_0.log"
+  ],
+  "harness": {
+   "orchestrator/tests/test_mocc_proof_surface.py": {
+    "rc": 1,
+    "seconds": 1.1,
+    "nodes": [
+     "orchestrator/tests/test_mocc_proof_surface.py::test_mocc_x_fixture_routes_to_lock_coverage_indeterminate"
+    ]
+   },
+   "orchestrator/tests/test_condition_meaning_gate.py": {
+    "rc": 0,
+    "seconds": 20.7,
+    "nodes": []
+   },
+   "orchestrator/tests/test_ccbench_spawn_sites.py": {
+    "rc": 0,
+    "seconds": 86.7,
+    "nodes": []
+   },
+   "orchestrator/tests/test_p3_build_authority_cli.py": {
+    "rc": 0,
+    "seconds": 25.0,
+    "nodes": []
+   },
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 0,
+    "seconds": 2.2,
+    "nodes": []
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_mocc_proof_surface.py::test_mocc_x_fixture_routes_to_lock_coverage_indeterminate"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_mocc_proof_surface.py"
+  ]
+ },
+ "M9-check-key-removed": {
+  "touched": [
+   "orchestrator/campaign/s3_mocc_lock_coverage.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_mocc_proof_surface.py": {
+    "rc": 1,
+    "seconds": 1.1,
+    "nodes": [
+     "orchestrator/tests/test_mocc_proof_surface.py::test_compute_positive_control_json_is_all_pass_and_bound",
+     "orchestrator/tests/test_mocc_proof_surface.py::test_driver_check_keys_are_exact",
+     "orchestrator/tests/test_mocc_proof_surface.py::test_driver_compute_checks_is_input_derived_per_key"
+    ]
+   },
+   "orchestrator/tests/test_condition_meaning_gate.py": {
+    "rc": 0,
+    "seconds": 19.5,
+    "nodes": []
+   },
+   "orchestrator/tests/test_ccbench_spawn_sites.py": {
+    "rc": 0,
+    "seconds": 61.7,
+    "nodes": []
+   },
+   "orchestrator/tests/test_p3_build_authority_cli.py": {
+    "rc": 0,
+    "seconds": 17.9,
+    "nodes": []
+   },
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 0,
+    "seconds": 1.9,
+    "nodes": []
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_mocc_proof_surface.py::test_compute_positive_control_json_is_all_pass_and_bound",
+   "orchestrator/tests/test_mocc_proof_surface.py::test_driver_check_keys_are_exact",
+   "orchestrator/tests/test_mocc_proof_surface.py::test_driver_compute_checks_is_input_derived_per_key"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_mocc_proof_surface.py"
+  ]
+ },
+ "M10-verify-protocol-dropped": {
+  "touched": [
+   "orchestrator/campaign/s3_mocc_lock_coverage.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_mocc_proof_surface.py": {
+    "rc": 1,
+    "seconds": 1.1,
+    "nodes": [
+     "orchestrator/tests/test_mocc_proof_surface.py::test_driver_verify_passes_mocc_protocol_and_given_root"
+    ]
+   },
+   "orchestrator/tests/test_condition_meaning_gate.py": {
+    "rc": 0,
+    "seconds": 20.5,
+    "nodes": []
+   },
+   "orchestrator/tests/test_ccbench_spawn_sites.py": {
+    "rc": 0,
+    "seconds": 62.1,
+    "nodes": []
+   },
+   "orchestrator/tests/test_p3_build_authority_cli.py": {
+    "rc": 0,
+    "seconds": 18.1,
+    "nodes": []
+   },
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 0,
+    "seconds": 2.0,
+    "nodes": []
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_mocc_proof_surface.py::test_driver_verify_passes_mocc_protocol_and_given_root"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_mocc_proof_surface.py"
+  ]
+ },
+ "M11-materializer-entry-removed": {
+  "touched": [
+   "orchestrator/campaign/materializer_admission.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_mocc_proof_surface.py": {
+    "rc": 0,
+    "seconds": 1.9,
+    "nodes": []
+   },
+   "orchestrator/tests/test_condition_meaning_gate.py": {
+    "rc": 0,
+    "seconds": 20.5,
+    "nodes": []
+   },
+   "orchestrator/tests/test_ccbench_spawn_sites.py": {
+    "rc": 0,
+    "seconds": 66.3,
+    "nodes": []
+   },
+   "orchestrator/tests/test_p3_build_authority_cli.py": {
+    "rc": 1,
+    "seconds": 18.9,
+    "nodes": [
+     "orchestrator/tests/test_p3_build_authority_cli.py::test_python_ccbench_manual_materializers_are_explicitly_non_admissible",
+     "orchestrator/tests/test_p3_build_authority_cli.py::test_single_registry_has_typed_compatible_projections"
+    ]
+   },
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 0,
+    "seconds": 1.4,
+    "nodes": []
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_p3_build_authority_cli.py::test_python_ccbench_manual_materializers_are_explicitly_non_admissible",
+   "orchestrator/tests/test_p3_build_authority_cli.py::test_single_registry_has_typed_compatible_projections"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_p3_build_authority_cli.py"
+  ]
+ },
+ "M12-early-relock-dropped": {
+  "touched": [
+   "patches/broken-mocc-early-unlock.patch"
+  ],
+  "harness": {
+   "orchestrator/tests/test_mocc_proof_surface.py": {
+    "rc": 1,
+    "seconds": 1.1,
+    "nodes": [
+     "orchestrator/tests/test_mocc_proof_surface.py::test_broken_mocc_early_unlock_patch_unlocks_after_entry_and_relocks_before_publish",
+     "orchestrator/tests/test_mocc_proof_surface.py::test_compute_positive_control_json_is_all_pass_and_bound"
+    ]
+   },
+   "orchestrator/tests/test_condition_meaning_gate.py": {
+    "rc": 0,
+    "seconds": 20.2,
+    "nodes": []
+   },
+   "orchestrator/tests/test_ccbench_spawn_sites.py": {
+    "rc": 0,
+    "seconds": 75.5,
+    "nodes": []
+   },
+   "orchestrator/tests/test_p3_build_authority_cli.py": {
+    "rc": 0,
+    "seconds": 22.2,
+    "nodes": []
+   },
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 0,
+    "seconds": 1.8,
+    "nodes": []
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_mocc_proof_surface.py::test_broken_mocc_early_unlock_patch_unlocks_after_entry_and_relocks_before_publish",
+   "orchestrator/tests/test_mocc_proof_surface.py::test_compute_positive_control_json_is_all_pass_and_bound"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_mocc_proof_surface.py"
+  ]
+ },
+ "M13-fixture-p-line-removed": {
+  "touched": [
+   "orchestrator/tests/fixtures/m4_mocc_permutation/trace_0.log"
+  ],
+  "harness": {
+   "orchestrator/tests/test_mocc_proof_surface.py": {
+    "rc": 1,
+    "seconds": 1.8,
+    "nodes": [
+     "orchestrator/tests/test_mocc_proof_surface.py::test_mocc_p_fixture_routes_to_permutation_indeterminate"
+    ]
+   },
+   "orchestrator/tests/test_condition_meaning_gate.py": {
+    "rc": 0,
+    "seconds": 23.1,
+    "nodes": []
+   },
+   "orchestrator/tests/test_ccbench_spawn_sites.py": {
+    "rc": 0,
+    "seconds": 67.9,
+    "nodes": []
+   },
+   "orchestrator/tests/test_p3_build_authority_cli.py": {
+    "rc": 0,
+    "seconds": 18.7,
+    "nodes": []
+   },
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 0,
+    "seconds": 1.6,
+    "nodes": []
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_mocc_proof_surface.py::test_mocc_p_fixture_routes_to_permutation_indeterminate"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_mocc_proof_surface.py"
+  ]
+ },
+ "M14-entry-predicate-false": {
+  "touched": [
+   "patches/instr-mocc-lock-coverage.patch"
+  ],
+  "harness": {
+   "orchestrator/tests/test_mocc_proof_surface.py": {
+    "rc": 1,
+    "seconds": 1.3,
+    "nodes": [
+     "orchestrator/tests/test_mocc_proof_surface.py::test_compute_positive_control_json_is_all_pass_and_bound",
+     "orchestrator/tests/test_mocc_proof_surface.py::test_instr_patch_names_cll_lock_pointer_predicate"
+    ]
+   },
+   "orchestrator/tests/test_condition_meaning_gate.py": {
+    "rc": 0,
+    "seconds": 19.9,
+    "nodes": []
+   },
+   "orchestrator/tests/test_ccbench_spawn_sites.py": {
+    "rc": 0,
+    "seconds": 65.0,
+    "nodes": []
+   },
+   "orchestrator/tests/test_p3_build_authority_cli.py": {
+    "rc": 0,
+    "seconds": 21.1,
+    "nodes": []
+   },
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 0,
+    "seconds": 1.5,
+    "nodes": []
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_mocc_proof_surface.py::test_compute_positive_control_json_is_all_pass_and_bound",
+   "orchestrator/tests/test_mocc_proof_surface.py::test_instr_patch_names_cll_lock_pointer_predicate"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_mocc_proof_surface.py"
+  ]
+ },
+ "M15-early-directive-duplicated": {
+  "touched": [
+   "patches/broken-mocc-early-unlock.patch"
+  ],
+  "harness": {
+   "orchestrator/tests/test_mocc_proof_surface.py": {
+    "rc": 1,
+    "seconds": 1.2,
+    "nodes": [
+     "orchestrator/tests/test_mocc_proof_surface.py::test_broken_mocc_early_unlock_patch_unlocks_after_entry_and_relocks_before_publish",
+     "orchestrator/tests/test_mocc_proof_surface.py::test_broken_mocc_patches_have_unique_production_condition_witnesses",
+     "orchestrator/tests/test_mocc_proof_surface.py::test_compute_positive_control_json_is_all_pass_and_bound"
+    ]
+   },
+   "orchestrator/tests/test_condition_meaning_gate.py": {
+    "rc": 1,
+    "seconds": 23.0,
+    "nodes": [
+     "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches"
+    ]
+   },
+   "orchestrator/tests/test_ccbench_spawn_sites.py": {
+    "rc": 0,
+    "seconds": 78.1,
+    "nodes": []
+   },
+   "orchestrator/tests/test_p3_build_authority_cli.py": {
+    "rc": 0,
+    "seconds": 22.0,
+    "nodes": []
+   },
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 0,
+    "seconds": 2.7,
+    "nodes": []
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches",
+   "orchestrator/tests/test_mocc_proof_surface.py::test_broken_mocc_early_unlock_patch_unlocks_after_entry_and_relocks_before_publish",
+   "orchestrator/tests/test_mocc_proof_surface.py::test_broken_mocc_patches_have_unique_production_condition_witnesses",
+   "orchestrator/tests/test_mocc_proof_surface.py::test_compute_positive_control_json_is_all_pass_and_bound"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_mocc_proof_surface.py",
+   "orchestrator/tests/test_condition_meaning_gate.py"
+  ]
+ },
+ "M16-check-formula-constant": {
+  "touched": [
+   "orchestrator/campaign/s3_mocc_lock_coverage.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_mocc_proof_surface.py": {
+    "rc": 1,
+    "seconds": 1.9,
+    "nodes": [
+     "orchestrator/tests/test_mocc_proof_surface.py::test_driver_compute_checks_is_input_derived_per_key"
+    ]
+   },
+   "orchestrator/tests/test_condition_meaning_gate.py": {
+    "rc": 0,
+    "seconds": 22.8,
+    "nodes": []
+   },
+   "orchestrator/tests/test_ccbench_spawn_sites.py": {
+    "rc": 0,
+    "seconds": 69.9,
+    "nodes": []
+   },
+   "orchestrator/tests/test_p3_build_authority_cli.py": {
+    "rc": 0,
+    "seconds": 23.2,
+    "nodes": []
+   },
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 0,
+    "seconds": 2.3,
+    "nodes": []
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_mocc_proof_surface.py::test_driver_compute_checks_is_input_derived_per_key"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_mocc_proof_surface.py"
+  ]
+ },
+ "M17-toolchain-mismatch-raise-removed": {
+  "touched": [
+   "orchestrator/campaign/s3_mocc_lock_coverage.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_mocc_proof_surface.py": {
+    "rc": 1,
+    "seconds": 2.7,
+    "nodes": [
+     "orchestrator/tests/test_mocc_proof_surface.py::test_driver_resolve_toolchain_accepts_bound_versions_and_fails_closed"
+    ]
+   },
+   "orchestrator/tests/test_condition_meaning_gate.py": {
+    "rc": 0,
+    "seconds": 25.1,
+    "nodes": []
+   },
+   "orchestrator/tests/test_ccbench_spawn_sites.py": {
+    "rc": 0,
+    "seconds": 79.8,
+    "nodes": []
+   },
+   "orchestrator/tests/test_p3_build_authority_cli.py": {
+    "rc": 0,
+    "seconds": 22.7,
+    "nodes": []
+   },
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 0,
+    "seconds": 1.5,
+    "nodes": []
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_mocc_proof_surface.py::test_driver_resolve_toolchain_accepts_bound_versions_and_fails_closed"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_mocc_proof_surface.py"
+  ]
+ },
+ "M18-update-retention-false-and": {
+  "touched": [
+   "patches/instr-mocc-lock-coverage.patch"
+  ],
+  "harness": {
+   "orchestrator/tests/test_mocc_proof_surface.py": {
+    "rc": 1,
+    "seconds": 1.1,
+    "nodes": [
+     "orchestrator/tests/test_mocc_proof_surface.py::test_compute_positive_control_json_is_all_pass_and_bound",
+     "orchestrator/tests/test_mocc_proof_surface.py::test_mocc_x_p_proof_surfaces_are_present_only_after_instr_patch"
+    ]
+   },
+   "orchestrator/tests/test_condition_meaning_gate.py": {
+    "rc": 0,
+    "seconds": 22.0,
+    "nodes": []
+   },
+   "orchestrator/tests/test_ccbench_spawn_sites.py": {
+    "rc": 0,
+    "seconds": 66.7,
+    "nodes": []
+   },
+   "orchestrator/tests/test_p3_build_authority_cli.py": {
+    "rc": 0,
+    "seconds": 20.1,
+    "nodes": []
+   },
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 0,
+    "seconds": 1.7,
+    "nodes": []
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_mocc_proof_surface.py::test_compute_positive_control_json_is_all_pass_and_bound",
+   "orchestrator/tests/test_mocc_proof_surface.py::test_mocc_x_p_proof_surfaces_are_present_only_after_instr_patch"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_mocc_proof_surface.py"
+  ]
+ },
+ "M19-entry-cll-writer-init-true": {
+  "touched": [
+   "patches/instr-mocc-lock-coverage.patch"
+  ],
+  "harness": {
+   "orchestrator/tests/test_mocc_proof_surface.py": {
+    "rc": 1,
+    "seconds": 1.1,
+    "nodes": [
+     "orchestrator/tests/test_mocc_proof_surface.py::test_compute_positive_control_json_is_all_pass_and_bound",
+     "orchestrator/tests/test_mocc_proof_surface.py::test_instr_patch_names_cll_lock_pointer_predicate"
+    ]
+   },
+   "orchestrator/tests/test_condition_meaning_gate.py": {
+    "rc": 0,
+    "seconds": 21.0,
+    "nodes": []
+   },
+   "orchestrator/tests/test_ccbench_spawn_sites.py": {
+    "rc": 0,
+    "seconds": 65.7,
+    "nodes": []
+   },
+   "orchestrator/tests/test_p3_build_authority_cli.py": {
+    "rc": 0,
+    "seconds": 19.5,
+    "nodes": []
+   },
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 0,
+    "seconds": 2.0,
+    "nodes": []
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_mocc_proof_surface.py::test_compute_positive_control_json_is_all_pass_and_bound",
+   "orchestrator/tests/test_mocc_proof_surface.py::test_instr_patch_names_cll_lock_pointer_predicate"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_mocc_proof_surface.py"
+  ]
+ },
+ "M20-p-emitter-false-and": {
+  "touched": [
+   "patches/instr-mocc-lock-coverage.patch"
+  ],
+  "harness": {
+   "orchestrator/tests/test_mocc_proof_surface.py": {
+    "rc": 1,
+    "seconds": 1.1,
+    "nodes": [
+     "orchestrator/tests/test_mocc_proof_surface.py::test_compute_positive_control_json_is_all_pass_and_bound",
+     "orchestrator/tests/test_mocc_proof_surface.py::test_mocc_x_p_proof_surfaces_are_present_only_after_instr_patch"
+    ]
+   },
+   "orchestrator/tests/test_condition_meaning_gate.py": {
+    "rc": 0,
+    "seconds": 24.4,
+    "nodes": []
+   },
+   "orchestrator/tests/test_ccbench_spawn_sites.py": {
+    "rc": 0,
+    "seconds": 70.8,
+    "nodes": []
+   },
+   "orchestrator/tests/test_p3_build_authority_cli.py": {
+    "rc": 0,
+    "seconds": 20.1,
+    "nodes": []
+   },
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 0,
+    "seconds": 1.8,
+    "nodes": []
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_mocc_proof_surface.py::test_compute_positive_control_json_is_all_pass_and_bound",
+   "orchestrator/tests/test_mocc_proof_surface.py::test_mocc_x_p_proof_surfaces_are_present_only_after_instr_patch"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_mocc_proof_surface.py"
+  ]
+ },
+ "M3-cll-lock-pointer-dropped": {
+  "touched": [
+   "patches/instr-mocc-lock-coverage.patch"
+  ],
+  "harness": {
+   "orchestrator/tests/test_mocc_proof_surface.py": {
+    "rc": 1,
+    "seconds": 1.6,
+    "nodes": [
+     "orchestrator/tests/test_mocc_proof_surface.py::test_compute_positive_control_json_is_all_pass_and_bound",
+     "orchestrator/tests/test_mocc_proof_surface.py::test_instr_patch_names_cll_lock_pointer_predicate"
+    ]
+   },
+   "orchestrator/tests/test_condition_meaning_gate.py": {
+    "rc": 0,
+    "seconds": 22.5,
+    "nodes": []
+   },
+   "orchestrator/tests/test_ccbench_spawn_sites.py": {
+    "rc": 0,
+    "seconds": 76.6,
+    "nodes": []
+   },
+   "orchestrator/tests/test_p3_build_authority_cli.py": {
+    "rc": 0,
+    "seconds": 23.9,
+    "nodes": []
+   },
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 0,
+    "seconds": 1.6,
+    "nodes": []
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_mocc_proof_surface.py::test_compute_positive_control_json_is_all_pass_and_bound",
+   "orchestrator/tests/test_mocc_proof_surface.py::test_instr_patch_names_cll_lock_pointer_predicate"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_mocc_proof_surface.py"
+  ]
+ }
+}
