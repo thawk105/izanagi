@@ -1,0 +1,56 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 3600,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "M1-require-raw-pointer-for-pre-raw-failure",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+          "old": "        if (\n            failure_phase in _ROLE_FAILURE_PHASES_AFTER_RAW_WRITE\n            and present_raw_keys != raw_keys\n        ):\n            _fail(\n                \"role-event-shape\",\n                f\"{label}.error_artifacts raw response pointer is required\",\n            )\n",
+          "new": "        if (\n            present_raw_keys != raw_keys\n        ):\n            _fail(\n                \"role-event-shape\",\n                f\"{label}.error_artifacts raw response pointer is required\",\n            )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_p3_role_invalid_partial_passes"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-decision-token-lookahead-drops-cjk",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "    r\"(?<![A-Za-z-])(NO-GO|GO)(?![A-Za-z一-龯ぁ-んァ-ヶ-])\"\n",
+          "new": "    r\"(?<![A-Za-z-])(NO-GO|GO)(?![A-Za-z-])\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_f176_preserves_legitimate_opposite_mentions[go_condition_not_met]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-ledger-nodeid-count-drift",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/acceptance_duration_ledger.json",
+          "old": "\"nodeid_count\": 19517",
+          "new": "\"nodeid_count\": 19519"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_update_acceptance_duration_ledger.py::test_g7e_checked_in_ledger_has_valid_schema_and_finite_durations"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
