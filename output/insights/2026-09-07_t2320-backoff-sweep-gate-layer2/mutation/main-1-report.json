@@ -1,0 +1,601 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2320-backoff-sweep-gate-layer2/output/pegasus-dispatch/7f67cf428330e87e00454d06bfa34f6c/izdw-7f67cf4283.o979627",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2320-backoff-sweep-gate-layer2/output/pegasus-dispatch/7f67cf428330e87e00454d06bfa34f6c/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n...............................................                          [100%]\n47 passed in 4.53s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "54bd341c7169a8804fb9b6ea141bdbece6217eb9b190c9e4003005ea59c59ded"
+    },
+    "artifact_error": null,
+    "collection_sha256": "de5a633507c4bf71bfbbf599fc64e0fdc42aab9c9db2153ced6e6b32bb67078a",
+    "duration_s": 27.027,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "3dd23c0ecfced7b935a3411b1f07878ff107d1549fada8603f826b0b9ac4d6ad",
+    "repo_head": "0ade09d5e3d1cde388876ce3b7c82351ae082344",
+    "runner_sha256": "e2c8b34cfb8698501f5854037f1ab38766631f19f7611ea56960be18fae2a465",
+    "spec_sha256": "e1efd6a08489c76cd260a29fd48d5abfa0150d5301bbecb1edcd323cf877e64f",
+    "status": "PASSED",
+    "test_output_sha256": "54bd341c7169a8804fb9b6ea141bdbece6217eb9b190c9e4003005ea59c59ded",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "c4b7f3cf951280f3633807228646fe8460d5fc99f172fc108e8d6c62d459f669"
+  },
+  "date": "2026-09-06T17:26:36.413779+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2320-backoff-sweep-gate-layer2/output/pegasus-dispatch/2584d2ae9091365d7769237a66398e9e/izdw-2584d2ae90.o979629",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2320-backoff-sweep-gate-layer2/output/pegasus-dispatch/2584d2ae9091365d7769237a66398e9e/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.............................................F.                          [100%]\n=================================== FAILURES ===================================\n__ test_real_family_helper_admits_effective_define_and_recomputes_file_digest __\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_real_family_helper_admits_effective_define_and_recomputes_file_digest():\n        \"\"\"A real owner-TU byte difference admits the raw build request.\"\"\"\n        configure_arg = \"-DCMAKE_VERBOSE_MAKEFILE=ON\"\n        run = backoff_sweep._require_backoff_condition_gate(\n            str(_condition_fixture(\"supplied\")),\n            stock_root=None,\n            driver_id=\"orchestrator/campaign/backoff_sweep.py\",\n            macro_values={\"BACKOFF_FIXED\": (5,)},\n            cxx=_available_executable(\"g++-13\", \"g++-12\", \"g++\"),\n            cmake=_available_executable(\"cmake\"),\n            configure_args=(configure_arg,),\n        )\n    \n        supply = run.supply_records[0]\n        assert run.admission.admitted is True\n        assert (supply.terminal_status, supply.reason_code) == (\n            \"green\", \"requested-default-preprocess-different\",\n        )\n>       assert configure_arg in supply.evidence[\"requested_configure_argv\"]\nE       AssertionError: assert '-DCMAKE_VERBOSE_MAKEFILE=ON' in ('/usr/bin/cmake', '-S', '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2320-backoff-sweep-gate-layer2/orchest...ng_gate/supplied', '-B', '/tmp/izanagi_condition_supply_7u2nbj_m/requested', '-DCMAKE_EXPORT_COMPILE_COMMANDS=ON', ...)\n\norchestrator/tests/test_backoff_sweep.py:163: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_backoff_sweep.py::test_real_family_helper_admits_effective_define_and_recomputes_file_digest\n1 failed, 46 passed in 4.53s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_backoff_sweep.py::test_real_family_helper_admits_effective_define_and_recomputes_file_digest\" nodeid_bytes=116 nodeid_omitted_bytes=0 source_bytes=1357 retained_bytes=1357 omitted_bytes=0 rendered_excerpt_bytes=1406 sha256=3b42e7a0b1d075f94e235250cb2b2fb924bc11af376bc34cec3f22f9512be0f8\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_real_family_helper_admits_effective_define_and_recomputes_file_digest():\n>         \"\"\"A real owner-TU byte difference admits the raw build request.\"\"\"\n>         configure_arg = \"-DCMAKE_VERBOSE_MAKEFILE=ON\"\n>         run = backoff_sweep._require_backoff_condition_gate(\n>             str(_condition_fixture(\"supplied\")),\n>             stock_root=None,\n>             driver_id=\"orchestrator/campaign/backoff_sweep.py\",\n>             macro_values={\"BACKOFF_FIXED\": (5,)},\n>             cxx=_available_executable(\"g++-13\", \"g++-12\", \"g++\"),\n>             cmake=_available_executable(\"cmake\"),\n>             configure_args=(configure_arg,),\n>         )\n>     \n>         supply = run.supply_records[0]\n>         assert run.admission.admitted is True\n>         assert (supply.terminal_status, supply.reason_code) == (\n>             \"green\", \"requested-default-preprocess-different\",\n>         )\n> >       assert configure_arg in supply.evidence[\"requested_configure_argv\"]\n> E       AssertionError: assert '-DCMAKE_VERBOSE_MAKEFILE=ON' in ('/usr/bin/cmake', '-S', '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2320-backoff-sweep-gate-layer2/orchest...ng_gate/supplied', '-B', '/tmp/izanagi_condition_supply_7u2nbj_m/requested', '-DCMAKE_EXPORT_COMPILE_COMMANDS=ON', ...)\n> \n> orchestrator/tests/test_backoff_sweep.py:163: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1357 retained_bytes=1357 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2150 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "2b0b19bde2b93c24536b7e28d22c996b1fc2683b9cc74c0084b659eef734e5f0"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "de5a633507c4bf71bfbbf599fc64e0fdc42aab9c9db2153ced6e6b32bb67078a",
+      "duration_s": 27.374,
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_sweep.py::test_real_family_helper_admits_effective_define_and_recomputes_file_digest"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_backoff_sweep.py::test_real_family_helper_admits_effective_define_and_recomputes_file_digest"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2320-M1-HELPER-DROPS-CONFIGURE-ARGS",
+      "injection_diff_sha256": "cc5174108fdad4d09e4b1e2630fdc38448e4b8c6c02c9f5a3b01105ad96fb8bd",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "3eae9fd62ab11b515ef3dd78bde6d54385d73193747aaf2456cb47d1489de196",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_sweep.py",
+          "new": "        source_root, stock_root=stock_root,\n",
+          "old": "        source_root, stock_root=stock_root, configure_args=configure_args,\n"
+        }
+      ],
+      "repo_head": "0ade09d5e3d1cde388876ce3b7c82351ae082344",
+      "runner_sha256": "e2c8b34cfb8698501f5854037f1ab38766631f19f7611ea56960be18fae2a465",
+      "spec_sha256": "e1efd6a08489c76cd260a29fd48d5abfa0150d5301bbecb1edcd323cf877e64f",
+      "status": "KILLED",
+      "test_output_sha256": "2b0b19bde2b93c24536b7e28d22c996b1fc2683b9cc74c0084b659eef734e5f0",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c4b7f3cf951280f3633807228646fe8460d5fc99f172fc108e8d6c62d459f669"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2320-backoff-sweep-gate-layer2/output/pegasus-dispatch/89d62b7958d3a22b1b2b97c6d3593661/izdw-89d62b7958.o979631",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2320-backoff-sweep-gate-layer2/output/pegasus-dispatch/89d62b7958d3a22b1b2b97c6d3593661/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n......................................FFF......                          [100%]\n=================================== FAILURES ===================================\n___ test_run_workload_gates_the_prepared_patched_tree_with_fetchcontent_base ___\n[gw23] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14b453a751e0>\n\n    def test_run_workload_gates_the_prepared_patched_tree_with_fetchcontent_base(\n            monkeypatch):\n        captured = {}\n        _stub_run_workload_dependencies(monkeypatch, captured)\n    \n        backoff_sweep.run_workload(\n            \"read-heavy\",\n            {\"ycsb_zipf_skew\": \"0.9\", \"ycsb_rratio\": \"95\", \"ycsb_rmw\": \"0\"},\n            log=lambda _message: None,\n        )\n    \n>       prepare = captured[\"masstree_prepare_calls\"][0]\nE       IndexError: list index out of range\n\norchestrator/tests/test_backoff_sweep.py:268: IndexError\n________ test_run_workload_prepares_masstree_once_before_condition_gate ________\n[gw22] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14780a4f74c0>\n\n    def test_run_workload_prepares_masstree_once_before_condition_gate(monkeypatch):\n        captured = {}\n        _stub_run_workload_dependencies(monkeypatch, captured)\n    \n        backoff_sweep.run_workload(\n            \"read-heavy\",\n            {\"ycsb_zipf_skew\": \"0.9\", \"ycsb_rratio\": \"95\", \"ycsb_rmw\": \"0\"},\n            log=lambda _message: None,\n        )\n    \n>       assert len(captured[\"masstree_prepare_calls\"]) == 1\nE       assert 0 == 1\nE        +  where 0 = len([])\n\norchestrator/tests/test_backoff_sweep.py:245: AssertionError\n____ test_sweep_condition_gate_dominates_screened_and_direct_campaign_paths ____\n[gw12] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_sweep_condition_gate_dominates_screened_and_direct_campaign_paths():\n        source = inspect.getsource(backoff_sweep.run_workload)\n        checkout = source.index(\"with patchharness.checkout\")\n        patch = source.index(\"with patchharness.applied\")\n>       prepare = source.index(\"prepare_masstree_fetchcontent\")\nE       ValueError: substring not found\n\norchestrator/tests/test_backoff_sweep.py:227: ValueError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_backoff_sweep.py::test_run_workload_gates_the_prepared_patched_tree_with_fetchcontent_base\nFAILED orchestrator/tests/test_backoff_sweep.py::test_run_workload_prepares_masstree_once_before_condition_gate\nFAILED orchestrator/tests/test_backoff_sweep.py::test_sweep_condition_gate_dominates_screened_and_direct_campaign_paths\n3 failed, 44 passed in 4.53s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_backoff_sweep.py::test_run_workload_gates_the_prepared_patched_tree_with_fetchcontent_base\" nodeid_bytes=114 nodeid_omitted_bytes=0 source_bytes=670 retained_bytes=670 omitted_bytes=0 rendered_excerpt_bytes=709 sha256=6d1448dcd648f3c024c30c24840f4e4b4b43af6cd7d99ef661f1ad849ce96dbe\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw23] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14b453a751e0>\n> \n>     def test_run_workload_gates_the_prepared_patched_tree_with_fetchcontent_base(\n>             monkeypatch):\n>         captured = {}\n>         _stub_run_workload_dependencies(monkeypatch, captured)\n>     \n>         backoff_sweep.run_workload(\n>             \"read-heavy\",\n>             {\"ycsb_zipf_skew\": \"0.9\", \"ycsb_rratio\": \"95\", \"ycsb_rmw\": \"0\"},\n>             log=lambda _message: None,\n>         )\n>     \n> >       prepare = captured[\"masstree_prepare_calls\"][0]\n> E       IndexError: list index out of range\n> \n> orchestrator/tests/test_backoff_sweep.py:268: IndexError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_backoff_sweep.py::test_run_workload_prepares_masstree_once_before_condition_gate\" nodeid_bytes=104 nodeid_omitted_bytes=0 source_bytes=663 retained_bytes=663 omitted_bytes=0 rendered_excerpt_bytes=702 sha256=63f91b796ffc3c7f984e6e1ed163390dc078f10feb8db04d5a342344b5571dd0\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw22] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14780a4f74c0>\n> \n>     def test_run_workload_prepares_masstree_once_before_condition_gate(monkeypatch):\n>         captured = {}\n>         _stub_run_workload_dependencies(monkeypatch, captured)\n>     \n>         backoff_sweep.run_workload(\n>             \"read-heavy\",\n>             {\"ycsb_zipf_skew\": \"0.9\", \"ycsb_rratio\": \"95\", \"ycsb_rmw\": \"0\"},\n>             log=lambda _message: None,\n>         )\n>     \n> >       assert len(captured[\"masstree_prepare_calls\"]) == 1\n> E       assert 0 == 1\n> E        +  where 0 = len([])\n> \n> orchestrator/tests/test_backoff_sweep.py:245: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_backoff_sweep.py::test_sweep_condition_gate_dominates_screened_and_direct_campaign_paths\" nodeid_bytes=112 nodeid_omitted_bytes=0 source_bytes=474 retained_bytes=474 omitted_bytes=0 rendered_excerpt_bytes=495 sha256=8192db05daeaac3baa1eb2e52ee95554c7fc4fd2367d66704a1af9d8a815d2f6\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw12] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_sweep_condition_gate_dominates_screened_and_direct_campaign_paths():\n>         source = inspect.getsource(backoff_sweep.run_workload)\n>         checkout = source.index(\"with patchharness.checkout\")\n>         patch = source.index(\"with patchharness.applied\")\n> >       prepare = source.index(\"prepare_masstree_fetchcontent\")\n> E       ValueError: substring not found\n> \n> orchestrator/tests/test_backoff_sweep.py:227: ValueError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=1807 retained_bytes=1807 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3537 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "fa949359eff107ee025e73f318e16a923e4387d11d4d2af52891a89f247aed39"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "de5a633507c4bf71bfbbf599fc64e0fdc42aab9c9db2153ced6e6b32bb67078a",
+      "duration_s": 27.414,
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_sweep.py::test_run_workload_gates_the_prepared_patched_tree_with_fetchcontent_base",
+        "orchestrator/tests/test_backoff_sweep.py::test_run_workload_prepares_masstree_once_before_condition_gate",
+        "orchestrator/tests/test_backoff_sweep.py::test_sweep_condition_gate_dominates_screened_and_direct_campaign_paths"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_backoff_sweep.py::test_run_workload_gates_the_prepared_patched_tree_with_fetchcontent_base",
+        "orchestrator/tests/test_backoff_sweep.py::test_run_workload_prepares_masstree_once_before_condition_gate",
+        "orchestrator/tests/test_backoff_sweep.py::test_sweep_condition_gate_dominates_screened_and_direct_campaign_paths"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2320-M2-SWEEP-DROPS-PREPARE",
+      "injection_diff_sha256": "daecaf357af0e5a096f42c3ca7c373ed58bd992307b5c3b9db78bb41603659bf",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "ef8e1656c8d71398b77603e5e4658e3a4a39c779f02c968ee433922fbb74d7c0",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_sweep.py",
+          "new": "                _require_backoff_condition_gate(\n",
+          "old": "                buildcache.prepare_masstree_fetchcontent(\n                    ccbench_dir=canonical_ccbench_dir,\n                    fetchcontent_base_dir=canonical_base,\n                    expected_toolchain_manifest=expected_toolchain_manifest,\n                    configure_timeout_s=900,\n                    target_timeout_s=900,\n                    site=site,\n                )\n                _require_backoff_condition_gate(\n"
+        }
+      ],
+      "repo_head": "0ade09d5e3d1cde388876ce3b7c82351ae082344",
+      "runner_sha256": "e2c8b34cfb8698501f5854037f1ab38766631f19f7611ea56960be18fae2a465",
+      "spec_sha256": "e1efd6a08489c76cd260a29fd48d5abfa0150d5301bbecb1edcd323cf877e64f",
+      "status": "KILLED",
+      "test_output_sha256": "fa949359eff107ee025e73f318e16a923e4387d11d4d2af52891a89f247aed39",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c4b7f3cf951280f3633807228646fe8460d5fc99f172fc108e8d6c62d459f669"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2320-backoff-sweep-gate-layer2/output/pegasus-dispatch/a8113b7413a69c473a7d6b0352259a03/izdw-a8113b7413.o979635",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2320-backoff-sweep-gate-layer2/output/pegasus-dispatch/a8113b7413a69c473a7d6b0352259a03/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................F......                          [100%]\n=================================== FAILURES ===================================\n___ test_run_workload_gates_the_prepared_patched_tree_with_fetchcontent_base ___\n[gw23] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14cde0c7a410>\n\n    def test_run_workload_gates_the_prepared_patched_tree_with_fetchcontent_base(\n            monkeypatch):\n        captured = {}\n        _stub_run_workload_dependencies(monkeypatch, captured)\n    \n        backoff_sweep.run_workload(\n            \"read-heavy\",\n            {\"ycsb_zipf_skew\": \"0.9\", \"ycsb_rratio\": \"95\", \"ycsb_rmw\": \"0\"},\n            log=lambda _message: None,\n        )\n    \n        prepare = captured[\"masstree_prepare_calls\"][0]\n        gate_args, gate_kwargs = captured[\"condition_gate_calls\"][0]\n        canonical_base = prepare[\"fetchcontent_base_dir\"]\n>       assert gate_kwargs[\"configure_args\"] == (\n            f\"-DFETCHCONTENT_BASE_DIR={canonical_base}\",\n        )\nE       AssertionError: assert () == ('-DFETCHCONT...te-bze48jnj',)\nE         \nE         Right contains one more item: '-DFETCHCONTENT_BASE_DIR=/tmp/izanagi-backoff-condition-gate-bze48jnj'\nE         Use -v to get more diff\n\norchestrator/tests/test_backoff_sweep.py:271: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_backoff_sweep.py::test_run_workload_gates_the_prepared_patched_tree_with_fetchcontent_base\n1 failed, 46 passed in 4.56s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_backoff_sweep.py::test_run_workload_gates_the_prepared_patched_tree_with_fetchcontent_base\" nodeid_bytes=114 nodeid_omitted_bytes=0 source_bytes=1098 retained_bytes=1098 omitted_bytes=0 rendered_excerpt_bytes=1153 sha256=0d497f0ffb18908bb33116d0c2bddfdc9e623a3c8fce398bbd53bfff091e77aa\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw23] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14cde0c7a410>\n> \n>     def test_run_workload_gates_the_prepared_patched_tree_with_fetchcontent_base(\n>             monkeypatch):\n>         captured = {}\n>         _stub_run_workload_dependencies(monkeypatch, captured)\n>     \n>         backoff_sweep.run_workload(\n>             \"read-heavy\",\n>             {\"ycsb_zipf_skew\": \"0.9\", \"ycsb_rratio\": \"95\", \"ycsb_rmw\": \"0\"},\n>             log=lambda _message: None,\n>         )\n>     \n>         prepare = captured[\"masstree_prepare_calls\"][0]\n>         gate_args, gate_kwargs = captured[\"condition_gate_calls\"][0]\n>         canonical_base = prepare[\"fetchcontent_base_dir\"]\n> >       assert gate_kwargs[\"configure_args\"] == (\n>             f\"-DFETCHCONTENT_BASE_DIR={canonical_base}\",\n>         )\n> E       AssertionError: assert () == ('-DFETCHCONT...te-bze48jnj',)\n> E         \n> E         Right contains one more item: '-DFETCHCONTENT_BASE_DIR=/tmp/izanagi-backoff-condition-gate-bze48jnj'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_backoff_sweep.py:271: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1098 retained_bytes=1098 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1895 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "157aac4e0c0294568863cf63ce7fe0ddd2b874f638b012daf349d00d22ff8ae2"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "de5a633507c4bf71bfbbf599fc64e0fdc42aab9c9db2153ced6e6b32bb67078a",
+      "duration_s": 27.265,
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_sweep.py::test_run_workload_gates_the_prepared_patched_tree_with_fetchcontent_base"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_backoff_sweep.py::test_run_workload_gates_the_prepared_patched_tree_with_fetchcontent_base"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2320-M3-SWEEP-GATE-EMPTY-CONFIGURE-ARGS",
+      "injection_diff_sha256": "db7bd8d138e6b8b8e8b4560cbcc94f4ff96d1b2348814772cfc055d263274850",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c871ccfcaf9bf0ce9a82e07cb136080a0e2d7e601324a3d567fcfc64e4409f6f",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_sweep.py",
+          "new": "                    configure_args=(),\n                )\n",
+          "old": "                    configure_args=(\n                        f\"-DFETCHCONTENT_BASE_DIR={canonical_base}\",\n                    ),\n                )\n"
+        }
+      ],
+      "repo_head": "0ade09d5e3d1cde388876ce3b7c82351ae082344",
+      "runner_sha256": "e2c8b34cfb8698501f5854037f1ab38766631f19f7611ea56960be18fae2a465",
+      "spec_sha256": "e1efd6a08489c76cd260a29fd48d5abfa0150d5301bbecb1edcd323cf877e64f",
+      "status": "KILLED",
+      "test_output_sha256": "157aac4e0c0294568863cf63ce7fe0ddd2b874f638b012daf349d00d22ff8ae2",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c4b7f3cf951280f3633807228646fe8460d5fc99f172fc108e8d6c62d459f669"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2320-backoff-sweep-gate-layer2/output/pegasus-dispatch/62bbe9b72f0e82b42fc2f93b87713d51/izdw-62bbe9b72f.o979637",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2320-backoff-sweep-gate-layer2/output/pegasus-dispatch/62bbe9b72f0e82b42fc2f93b87713d51/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................F......                          [100%]\n=================================== FAILURES ===================================\n___ test_run_workload_gates_the_prepared_patched_tree_with_fetchcontent_base ___\n[gw23] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15419dada200>\n\n    def test_run_workload_gates_the_prepared_patched_tree_with_fetchcontent_base(\n            monkeypatch):\n        captured = {}\n        _stub_run_workload_dependencies(monkeypatch, captured)\n    \n        backoff_sweep.run_workload(\n            \"read-heavy\",\n            {\"ycsb_zipf_skew\": \"0.9\", \"ycsb_rratio\": \"95\", \"ycsb_rmw\": \"0\"},\n            log=lambda _message: None,\n        )\n    \n        prepare = captured[\"masstree_prepare_calls\"][0]\n        gate_args, gate_kwargs = captured[\"condition_gate_calls\"][0]\n        canonical_base = prepare[\"fetchcontent_base_dir\"]\n        assert gate_kwargs[\"configure_args\"] == (\n            f\"-DFETCHCONTENT_BASE_DIR={canonical_base}\",\n        )\n        prepared_root = Path(prepare[\"ccbench_dir\"]).resolve()\n        gated_root = Path(gate_args[0]).resolve()\n        patched_root = Path(backoff_sweep.buildcache._ccbench_dir()).resolve()\n>       assert prepared_root == gated_root == patched_root\nE       AssertionError: assert PosixPath('/ccbench') == PosixPath('/stock')\n\norchestrator/tests/test_backoff_sweep.py:277: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_backoff_sweep.py::test_run_workload_gates_the_prepared_patched_tree_with_fetchcontent_base\n1 failed, 46 passed in 4.57s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_backoff_sweep.py::test_run_workload_gates_the_prepared_patched_tree_with_fetchcontent_base\" nodeid_bytes=114 nodeid_omitted_bytes=0 source_bytes=1201 retained_bytes=1201 omitted_bytes=0 rendered_excerpt_bytes=1258 sha256=12961aa3d68dc20341abf6ce1b769027b6506982b88d7631381ff573762d5f4d\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw23] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15419dada200>\n> \n>     def test_run_workload_gates_the_prepared_patched_tree_with_fetchcontent_base(\n>             monkeypatch):\n>         captured = {}\n>         _stub_run_workload_dependencies(monkeypatch, captured)\n>     \n>         backoff_sweep.run_workload(\n>             \"read-heavy\",\n>             {\"ycsb_zipf_skew\": \"0.9\", \"ycsb_rratio\": \"95\", \"ycsb_rmw\": \"0\"},\n>             log=lambda _message: None,\n>         )\n>     \n>         prepare = captured[\"masstree_prepare_calls\"][0]\n>         gate_args, gate_kwargs = captured[\"condition_gate_calls\"][0]\n>         canonical_base = prepare[\"fetchcontent_base_dir\"]\n>         assert gate_kwargs[\"configure_args\"] == (\n>             f\"-DFETCHCONTENT_BASE_DIR={canonical_base}\",\n>         )\n>         prepared_root = Path(prepare[\"ccbench_dir\"]).resolve()\n>         gated_root = Path(gate_args[0]).resolve()\n>         patched_root = Path(backoff_sweep.buildcache._ccbench_dir()).resolve()\n> >       assert prepared_root == gated_root == patched_root\n> E       AssertionError: assert PosixPath('/ccbench') == PosixPath('/stock')\n> \n> orchestrator/tests/test_backoff_sweep.py:277: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1201 retained_bytes=1201 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2000 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "05988dd78e005ecea42d54f5327be86488ea57f9b91e292a46c99b93e4f00fa7"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "de5a633507c4bf71bfbbf599fc64e0fdc42aab9c9db2153ced6e6b32bb67078a",
+      "duration_s": 26.996,
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_sweep.py::test_run_workload_gates_the_prepared_patched_tree_with_fetchcontent_base"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_backoff_sweep.py::test_run_workload_gates_the_prepared_patched_tree_with_fetchcontent_base"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2320-M4-SWEEP-GATE-STOCK-ROOT",
+      "injection_diff_sha256": "a1146d232b480e701e65708f6165d01007f3731c9fce57888e9673142261ca79",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "7184f1265ed2553a6feaaec562aee55713301e30360879339119c480e619b25a",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_sweep.py",
+          "new": "                _require_backoff_condition_gate(\n                    stock_root,\n                    stock_root=stock_root,\n",
+          "old": "                _require_backoff_condition_gate(\n                    canonical_ccbench_dir,\n                    stock_root=stock_root,\n"
+        }
+      ],
+      "repo_head": "0ade09d5e3d1cde388876ce3b7c82351ae082344",
+      "runner_sha256": "e2c8b34cfb8698501f5854037f1ab38766631f19f7611ea56960be18fae2a465",
+      "spec_sha256": "e1efd6a08489c76cd260a29fd48d5abfa0150d5301bbecb1edcd323cf877e64f",
+      "status": "KILLED",
+      "test_output_sha256": "05988dd78e005ecea42d54f5327be86488ea57f9b91e292a46c99b93e4f00fa7",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c4b7f3cf951280f3633807228646fe8460d5fc99f172fc108e8d6c62d459f669"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2320-backoff-sweep-gate-layer2/output/pegasus-dispatch/ee6dd958a8d47962a6e6fe9f20911753/izdw-ee6dd958a8.o979642",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2320-backoff-sweep-gate-layer2/output/pegasus-dispatch/ee6dd958a8d47962a6e6fe9f20911753/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.........................................F.....                          [100%]\n=================================== FAILURES ===================================\n______________ test_extended_gate_wrapper_forwards_configure_args ______________\n[gw36] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1494b2a3fbb0>\n\n    def test_extended_gate_wrapper_forwards_configure_args(monkeypatch):\n        observed = []\n        configure_args = (\"-DFETCHCONTENT_BASE_DIR=/canonical/base\",)\n    \n        def require_gate(*args, **kwargs):\n            observed.append((args, kwargs))\n            return object()\n    \n        monkeypatch.setattr(M, \"_require_backoff_condition_gate\", require_gate)\n        result = M._require_condition_gate_before_measurement(\n            \"/patched\",\n            stock_root=\"/stock\",\n            points=[M.Genome(\"silo\", {\"BACKOFF_FIXED\": 5})],\n            cxx=\"c++\",\n            configure_args=configure_args,\n        )\n    \n        assert result is not None\n        assert len(observed) == 1\n>       assert observed[0][1][\"configure_args\"] is configure_args\nE       KeyError: 'configure_args'\n\norchestrator/tests/test_backoff_extended_sweep.py:581: KeyError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_backoff_extended_sweep.py::test_extended_gate_wrapper_forwards_configure_args\n1 failed, 46 passed in 4.53s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_backoff_extended_sweep.py::test_extended_gate_wrapper_forwards_configure_args\" nodeid_bytes=101 nodeid_omitted_bytes=0 source_bytes=987 retained_bytes=987 omitted_bytes=0 rendered_excerpt_bytes=1042 sha256=b7e432d09b786832bf3d7b14adbb873ee1943438c1c83888cd002893e4145ce9\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw36] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1494b2a3fbb0>\n> \n>     def test_extended_gate_wrapper_forwards_configure_args(monkeypatch):\n>         observed = []\n>         configure_args = (\"-DFETCHCONTENT_BASE_DIR=/canonical/base\",)\n>     \n>         def require_gate(*args, **kwargs):\n>             observed.append((args, kwargs))\n>             return object()\n>     \n>         monkeypatch.setattr(M, \"_require_backoff_condition_gate\", require_gate)\n>         result = M._require_condition_gate_before_measurement(\n>             \"/patched\",\n>             stock_root=\"/stock\",\n>             points=[M.Genome(\"silo\", {\"BACKOFF_FIXED\": 5})],\n>             cxx=\"c++\",\n>             configure_args=configure_args,\n>         )\n>     \n>         assert result is not None\n>         assert len(observed) == 1\n> >       assert observed[0][1][\"configure_args\"] is configure_args\n> E       KeyError: 'configure_args'\n> \n> orchestrator/tests/test_backoff_extended_sweep.py:581: KeyError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=987 retained_bytes=987 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1767 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "003b0f0488b2d6d65388c89a2248ce775b76493731d58a9e79351c81cbb7f202"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "de5a633507c4bf71bfbbf599fc64e0fdc42aab9c9db2153ced6e6b32bb67078a",
+      "duration_s": 27.223,
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_extended_gate_wrapper_forwards_configure_args"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_extended_gate_wrapper_forwards_configure_args"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2320-M5-EXT-WRAPPER-DROPS-FORWARDING",
+      "injection_diff_sha256": "9f92af3c244a58a5c317e0321cccfbe7f42482897a8744049070ea964ef485d3",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "6abe685a801d54e2ba22830ac217d3f32b3b9721dc4c7506c1b318e07a39a733",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "new": "        cxx=cxx,\n        use_class=\"raw-measurement\",\n    )\n",
+          "old": "        cxx=cxx,\n        use_class=\"raw-measurement\",\n        configure_args=configure_args,\n    )\n"
+        }
+      ],
+      "repo_head": "0ade09d5e3d1cde388876ce3b7c82351ae082344",
+      "runner_sha256": "e2c8b34cfb8698501f5854037f1ab38766631f19f7611ea56960be18fae2a465",
+      "spec_sha256": "e1efd6a08489c76cd260a29fd48d5abfa0150d5301bbecb1edcd323cf877e64f",
+      "status": "KILLED",
+      "test_output_sha256": "003b0f0488b2d6d65388c89a2248ce775b76493731d58a9e79351c81cbb7f202",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c4b7f3cf951280f3633807228646fe8460d5fc99f172fc108e8d6c62d459f669"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2320-backoff-sweep-gate-layer2/output/pegasus-dispatch/654b96eca3c09ed300be9e3a0fd8e620/izdw-654b96eca3.o979648",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2320-backoff-sweep-gate-layer2/output/pegasus-dispatch/654b96eca3c09ed300be9e3a0fd8e620/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..........................................F....                          [100%]\n=================================== FAILURES ===================================\n____________ test_mu13_run_path_uses_the_calibration_bound_records _____________\n[gw42] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x148e03fdd810>\n\n    def test_mu13_run_path_uses_the_calibration_bound_records(monkeypatch):\n        contract = p2_2._legacy_linux_contract()\n        authorization = env_contract.authorize(contract.env_tag)\n        observed = {}\n        events = _stub_patch_and_prebuild(monkeypatch)\n        monkeypatch.setattr(M.p2_2, \"_assert_single_tenant\", lambda: None)\n        monkeypatch.setattr(\n            M.p2_2,\n            \"resolve_site_runtime\",\n            lambda: (site_policy.OTHER, contract, authorization),\n        )\n    \n        def calibration(candidate):\n            observed[\"calibration_contract\"] = candidate\n    \n        monkeypatch.setattr(M.p2_2, \"_assert_matches_calibration\", calibration)\n        monkeypatch.setattr(M.buildcache, \"compilers_for_current_site\", lambda: (\"cc\", \"c++\"))\n        monkeypatch.setattr(M.buildcache, \"observed_toolchain_manifest\", lambda *_args: {\"cc\": {}, \"cxx\": {}})\n    \n        def run_campaign(*args, **_kwargs):\n            events.append((\"campaign\",))\n            observed[\"config\"] = args[0]\n            observed[\"perf\"] = args[2]\n            observed[\"cache_root\"] = _kwargs[\"cache_root\"]\n            return SimpleNamespace(committed=31, aborted=0, campaign_id=\"cid\")\n    \n        monkeypatch.setattr(M, \"run_campaign\", run_campaign)\n        M.run_workload(\n            \"balanced\", M.WORKLOAD_BY_TAG[\"balanced\"], log=lambda *_args: None,\n            cache_root=\"/tmp/b10-test-cache\",\n        )\n        assert observed[\"calibration_contract\"] is contract\n        assert observed[\"perf\"].records == p2_2.RECORDS == 1_000_000\n        assert observed[\"config\"].search_config[\"records\"] == 1_000_000\n        assert observed[\"cache_root\"] == \"/tmp/b10-test-cache\"\n>       assert [event[0] for event in events] == [\n            \"patch-enter\", \"patch-materialized\", \"masstree-prepare\",\n            \"condition-gate\", \"prebuild\", \"campaign\", \"patch-exit\",\n        ]\nE       AssertionError: assert ['patch-enter...ampaign', ...] == ['patch-enter...ampaign', ...]\nE         \nE         At index 2 diff: 'condition-gate' != 'masstree-prepare'\nE         Use -v to get more diff\n\norchestrator/tests/test_backoff_extended_sweep.py:742: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_backoff_extended_sweep.py::test_mu13_run_path_uses_the_calibration_bound_records\n1 failed, 46 passed in 4.59s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_backoff_extended_sweep.py::test_mu13_run_path_uses_the_calibration_bound_records\" nodeid_bytes=104 nodeid_omitted_bytes=0 source_bytes=2287 retained_bytes=2287 omitted_bytes=0 rendered_excerpt_bytes=2386 sha256=384231132869889624be29a6a32af05d04875895048201be2b763ec276c51296\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw42] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x148e03fdd810>\n> \n>     def test_mu13_run_path_uses_the_calibration_bound_records(monkeypatch):\n>         contract = p2_2._legacy_linux_contract()\n>         authorization = env_contract.authorize(contract.env_tag)\n>         observed = {}\n>         events = _stub_patch_and_prebuild(monkeypatch)\n>         monkeypatch.setattr(M.p2_2, \"_assert_single_tenant\", lambda: None)\n>         monkeypatch.setattr(\n>             M.p2_2,\n>             \"resolve_site_runtime\",\n>             lambda: (site_policy.OTHER, contract, authorization),\n>         )\n>     \n>         def calibration(candidate):\n>             observed[\"calibration_contract\"] = candidate\n>     \n>         monkeypatch.setattr(M.p2_2, \"_assert_matches_calibration\", calibration)\n>         monkeypatch.setattr(M.buildcache, \"compilers_for_current_site\", lambda: (\"cc\", \"c++\"))\n>         monkeypatch.setattr(M.buildcache, \"observed_toolchain_manifest\", lambda *_args: {\"cc\": {}, \"cxx\": {}})\n>     \n>         def run_campaign(*args, **_kwargs):\n>             events.append((\"campaign\",))\n>             observed[\"config\"] = args[0]\n>             observed[\"perf\"] = args[2]\n>             observed[\"cache_root\"] = _kwargs[\"cache_root\"]\n>             return SimpleNamespace(committed=31, aborted=0, campaign_id=\"cid\")\n>     \n>         monkeypatch.setattr(M, \"run_campaign\", run_campaign)\n>         M.run_workload(\n>             \"balanced\", M.WORKLOAD_BY_TAG[\"balanced\"], log=lambda *_args: None,\n>             cache_root=\"/tmp/b10-test-cache\",\n>         )\n>         assert observed[\"calibration_contract\"] is contract\n>         assert observed[\"perf\"].records == p2_2.RECORDS == 1_000_000\n>         assert observed[\"config\"].search_config[\"records\"] == 1_000_000\n>         assert observed[\"cache_root\"] == \"/tmp/b10-test-cache\"\n> >       assert [event[0] for event in events] == [\n>             \"patch-enter\", \"patch-materialized\", \"masstree-prepare\",\n>             \"condition-gate\", \"prebuild\", \"campaign\", \"patch-exit\",\n>         ]\n> E       AssertionError: assert ['patch-enter...ampaign', ...] == ['patch-enter...ampaign', ...]\n> E         \n> E         At index 2 diff: 'condition-gate' != 'masstree-prepare'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_backoff_extended_sweep.py:742: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2287 retained_bytes=2287 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3118 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "7a0fc84a8a049bc21a511b6a21901b9239806d7708f999f58b34f195a99d0e58"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "de5a633507c4bf71bfbbf599fc64e0fdc42aab9c9db2153ced6e6b32bb67078a",
+      "duration_s": 26.982,
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_mu13_run_path_uses_the_calibration_bound_records"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_mu13_run_path_uses_the_calibration_bound_records"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2320-M6-EXT-GATE-BEFORE-PREPARE",
+      "injection_diff_sha256": "f1ecbf3b190d410eb8db52574d31776ac045f56fa98d6308a5e7b65a1b502d50",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "1b51340d2d5470c2a360a8b084498cee7fa8ae831653b0888c1227a76913c990",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "new": "                    _require_condition_gate_before_measurement(\n                        canonical_ccbench_dir,\n                        stock_root=stock_root,\n                        points=ordered_genomes,\n                        cxx=resolved_cxx,\n                        configure_args=(\n                            f\"-DFETCHCONTENT_BASE_DIR={canonical_base}\",\n                        ),\n                    )\n                    buildcache.prepare_masstree_fetchcontent(\n                        ccbench_dir=canonical_ccbench_dir,\n                        fetchcontent_base_dir=canonical_base,\n                        expected_toolchain_manifest=expected_toolchain_manifest,\n                        configure_timeout_s=900,\n                        target_timeout_s=900,\n                        site=site,\n                    )\n",
+          "old": "                    buildcache.prepare_masstree_fetchcontent(\n                        ccbench_dir=canonical_ccbench_dir,\n                        fetchcontent_base_dir=canonical_base,\n                        expected_toolchain_manifest=expected_toolchain_manifest,\n                        configure_timeout_s=900,\n                        target_timeout_s=900,\n                        site=site,\n                    )\n                    _require_condition_gate_before_measurement(\n                        canonical_ccbench_dir,\n                        stock_root=stock_root,\n                        points=ordered_genomes,\n                        cxx=resolved_cxx,\n                        configure_args=(\n                            f\"-DFETCHCONTENT_BASE_DIR={canonical_base}\",\n                        ),\n                    )\n"
+        }
+      ],
+      "repo_head": "0ade09d5e3d1cde388876ce3b7c82351ae082344",
+      "runner_sha256": "e2c8b34cfb8698501f5854037f1ab38766631f19f7611ea56960be18fae2a465",
+      "spec_sha256": "e1efd6a08489c76cd260a29fd48d5abfa0150d5301bbecb1edcd323cf877e64f",
+      "status": "KILLED",
+      "test_output_sha256": "7a0fc84a8a049bc21a511b6a21901b9239806d7708f999f58b34f195a99d0e58",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c4b7f3cf951280f3633807228646fe8460d5fc99f172fc108e8d6c62d459f669"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2320-backoff-sweep-gate-layer2/output/pegasus-dispatch/5150787cd62bff784ce809c8455b848c/izdw-5150787cd6.o979651",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2320-backoff-sweep-gate-layer2/output/pegasus-dispatch/5150787cd62bff784ce809c8455b848c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................FF.....                          [100%]\n=================================== FAILURES ===================================\n____________ test_mu13_run_path_uses_the_calibration_bound_records _____________\n[gw42] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x147f29707520>\n\n    def test_mu13_run_path_uses_the_calibration_bound_records(monkeypatch):\n        contract = p2_2._legacy_linux_contract()\n        authorization = env_contract.authorize(contract.env_tag)\n        observed = {}\n        events = _stub_patch_and_prebuild(monkeypatch)\n        monkeypatch.setattr(M.p2_2, \"_assert_single_tenant\", lambda: None)\n        monkeypatch.setattr(\n            M.p2_2,\n            \"resolve_site_runtime\",\n            lambda: (site_policy.OTHER, contract, authorization),\n        )\n    \n        def calibration(candidate):\n            observed[\"calibration_contract\"] = candidate\n    \n        monkeypatch.setattr(M.p2_2, \"_assert_matches_calibration\", calibration)\n        monkeypatch.setattr(M.buildcache, \"compilers_for_current_site\", lambda: (\"cc\", \"c++\"))\n        monkeypatch.setattr(M.buildcache, \"observed_toolchain_manifest\", lambda *_args: {\"cc\": {}, \"cxx\": {}})\n    \n        def run_campaign(*args, **_kwargs):\n            events.append((\"campaign\",))\n            observed[\"config\"] = args[0]\n            observed[\"perf\"] = args[2]\n            observed[\"cache_root\"] = _kwargs[\"cache_root\"]\n            return SimpleNamespace(committed=31, aborted=0, campaign_id=\"cid\")\n    \n        monkeypatch.setattr(M, \"run_campaign\", run_campaign)\n        M.run_workload(\n            \"balanced\", M.WORKLOAD_BY_TAG[\"balanced\"], log=lambda *_args: None,\n            cache_root=\"/tmp/b10-test-cache\",\n        )\n        assert observed[\"calibration_contract\"] is contract\n        assert observed[\"perf\"].records == p2_2.RECORDS == 1_000_000\n        assert observed[\"config\"].search_config[\"records\"] == 1_000_000\n        assert observed[\"cache_root\"] == \"/tmp/b10-test-cache\"\n>       assert [event[0] for event in events] == [\n            \"patch-enter\", \"patch-materialized\", \"masstree-prepare\",\n            \"condition-gate\", \"prebuild\", \"campaign\", \"patch-exit\",\n        ]\nE       AssertionError: assert ['patch-enter... 'patch-exit'] == ['patch-enter...ampaign', ...]\nE         \nE         At index 2 diff: 'condition-gate' != 'masstree-prepare'\nE         Right contains one more item: 'patch-exit'\nE         Use -v to get more diff\n\norchestrator/tests/test_backoff_extended_sweep.py:742: AssertionError\n_______ test_extended_run_path_prepares_and_gates_the_same_patched_tree ________\n[gw43] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw43/test_extended_run_path_prepare0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x150c30296ec0>\n\n    def test_extended_run_path_prepares_and_gates_the_same_patched_tree(\n            tmp_path, monkeypatch):\n        contract = p2_2._legacy_linux_contract()\n        authorization = env_contract.authorize(contract.env_tag)\n        events = _stub_patch_and_prebuild(monkeypatch)\n        patched_root = tmp_path / \"ccbench\"\n        patched_root.mkdir()\n        monkeypatch.setattr(M, \"_resolve_ccbench_dir\", lambda _value: str(patched_root))\n        monkeypatch.setattr(M.p2_2, \"_assert_single_tenant\", lambda: None)\n        monkeypatch.setattr(\n            M.p2_2,\n            \"resolve_site_runtime\",\n            lambda: (site_policy.OTHER, contract, authorization),\n        )\n        monkeypatch.setattr(M.p2_2, \"_assert_matches_calibration\", lambda _contract: None)\n        monkeypatch.setattr(\n            M.buildcache, \"compilers_for_current_site\", lambda: (\"cc\", \"c++\"),\n        )\n        monkeypatch.setattr(\n            M.buildcache,\n            \"observed_toolchain_manifest\",\n            lambda *_args: {\"cc\": {}, \"cxx\": {}},\n        )\n    \n        def run_campaign(*args, **kwargs):\n            events.append((\"campaign\", args, kwargs))\n            return SimpleNamespace(total=8, committed=7, aborted=0, campaign_id=\"cid\")\n    \n        monkeypatch.setattr(M, \"run_campaign\", run_campaign)\n    \n        M.run_workload(\n            \"balanced\",\n            M.WORKLOAD_BY_TAG[\"balanced\"],\n            log=lambda *_args: None,\n            cache_root=str(tmp_path / \"cache\"),\n            ccbench_dir=str(patched_root),\n            run_kind=M.T2266_RUN_KIND,\n        )\n    \n        prepare_events = [event for event in events if event[0] == \"masstree-prepare\"]\n        gate_events = [event for event in events if event[0] == \"condition-gate\"]\n        prebuild_events = [event for event in events if event[0] == \"prebuild\"]\n        campaign_events = [event for event in events if event[0] == \"campaign\"]\n>       assert len(prepare_events) == 1\nE       assert 0 == 1\nE        +  where 0 = len([])\n\norchestrator/tests/test_backoff_extended_sweep.py:793: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_backoff_extended_sweep.py::test_mu13_run_path_uses_the_calibration_bound_records\nFAILED orchestrator/tests/test_backoff_extended_sweep.py::test_extended_run_path_prepares_and_gates_the_same_patched_tree\n2 failed, 45 passed in 4.57s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_backoff_extended_sweep.py::test_mu13_run_path_uses_the_calibration_bound_records\" nodeid_bytes=104 nodeid_omitted_bytes=0 source_bytes=2340 retained_bytes=2340 omitted_bytes=0 rendered_excerpt_bytes=2441 sha256=4ae06b62ff3b736a00228127c5c12f9d140a3d2d9bbd773713a5d6edc90f6c7b\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw42] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x147f29707520>\n> \n>     def test_mu13_run_path_uses_the_calibration_bound_records(monkeypatch):\n>         contract = p2_2._legacy_linux_contract()\n>         authorization = env_contract.authorize(contract.env_tag)\n>         observed = {}\n>         events = _stub_patch_and_prebuild(monkeypatch)\n>         monkeypatch.setattr(M.p2_2, \"_assert_single_tenant\", lambda: None)\n>         monkeypatch.setattr(\n>             M.p2_2,\n>             \"resolve_site_runtime\",\n>             lambda: (site_policy.OTHER, contract, authorization),\n>         )\n>     \n>         def calibration(candidate):\n>             observed[\"calibration_contract\"] = candidate\n>     \n>         monkeypatch.setattr(M.p2_2, \"_assert_matches_calibration\", calibration)\n>         monkeypatch.setattr(M.buildcache, \"compilers_for_current_site\", lambda: (\"cc\", \"c++\"))\n>         monkeypatch.setattr(M.buildcache, \"observed_toolchain_manifest\", lambda *_args: {\"cc\": {}, \"cxx\": {}})\n>     \n>         def run_campaign(*args, **_kwargs):\n>             events.append((\"campaign\",))\n>             observed[\"config\"] = args[0]\n>             observed[\"perf\"] = args[2]\n>             observed[\"cache_root\"] = _kwargs[\"cache_root\"]\n>             return SimpleNamespace(committed=31, aborted=0, campaign_id=\"cid\")\n>     \n>         monkeypatch.setattr(M, \"run_campaign\", run_campaign)\n>         M.run_workload(\n>             \"balanced\", M.WORKLOAD_BY_TAG[\"balanced\"], log=lambda *_args: None,\n>             cache_root=\"/tmp/b10-test-cache\",\n>         )\n>         assert observed[\"calibration_contract\"] is contract\n>         assert observed[\"perf\"].records == p2_2.RECORDS == 1_000_000\n>         assert observed[\"config\"].search_config[\"records\"] == 1_000_000\n>         assert observed[\"cache_root\"] == \"/tmp/b10-test-cache\"\n> >       assert [event[0] for event in events] == [\n>             \"patch-enter\", \"patch-materialized\", \"masstree-prepare\",\n>             \"condition-gate\", \"prebuild\", \"campaign\", \"patch-exit\",\n>         ]\n> E       AssertionError: assert ['patch-enter... 'patch-exit'] == ['patch-enter...ampaign', ...]\n> E         \n> E         At index 2 diff: 'condition-gate' != 'masstree-prepare'\n> E         Right contains one more item: 'patch-exit'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_backoff_extended_sweep.py:742: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_backoff_extended_sweep.py::test_extended_run_path_prepares_and_gates_the_same_patched_tree\" nodeid_bytes=114 nodeid_omitted_bytes=0 source_bytes=2286 retained_bytes=2286 omitted_bytes=0 rendered_excerpt_bytes=2393 sha256=ef1d5b969d30b4664cf76d4d5f243d460f45f9e7de33ff08c4e221245e622be3\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw43] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw43/test_extended_run_path_prepare0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x150c30296ec0>\n> \n>     def test_extended_run_path_prepares_and_gates_the_same_patched_tree(\n>             tmp_path, monkeypatch):\n>         contract = p2_2._legacy_linux_contract()\n>         authorization = env_contract.authorize(contract.env_tag)\n>         events = _stub_patch_and_prebuild(monkeypatch)\n>         patched_root = tmp_path / \"ccbench\"\n>         patched_root.mkdir()\n>         monkeypatch.setattr(M, \"_resolve_ccbench_dir\", lambda _value: str(patched_root))\n>         monkeypatch.setattr(M.p2_2, \"_assert_single_tenant\", lambda: None)\n>         monkeypatch.setattr(\n>             M.p2_2,\n>             \"resolve_site_runtime\",\n>             lambda: (site_policy.OTHER, contract, authorization),\n>         )\n>         monkeypatch.setattr(M.p2_2, \"_assert_matches_calibration\", lambda _contract: None)\n>         monkeypatch.setattr(\n>             M.buildcache, \"compilers_for_current_site\", lambda: (\"cc\", \"c++\"),\n>         )\n>         monkeypatch.setattr(\n>             M.buildcache,\n>             \"observed_toolchain_manifest\",\n>             lambda *_args: {\"cc\": {}, \"cxx\": {}},\n>         )\n>     \n>         def run_campaign(*args, **kwargs):\n>             events.append((\"campaign\", args, kwargs))\n>             return SimpleNamespace(total=8, committed=7, aborted=0, campaign_id=\"cid\")\n>     \n>         monkeypatch.setattr(M, \"run_campaign\", run_campaign)\n>     \n>         M.run_workload(\n>             \"balanced\",\n>             M.WORKLOAD_BY_TAG[\"balanced\"],\n>             log=lambda *_args: None,\n>             cache_root=str(tmp_path / \"cache\"),\n>             ccbench_dir=str(patched_root),\n>             run_kind=M.T2266_RUN_KIND,\n>         )\n>     \n>         prepare_events = [event for event in events if event[0] == \"masstree-prepare\"]\n>         gate_events = [event for event in events if event[0] == \"condition-gate\"]\n>         prebuild_events = [event for event in events if event[0] == \"prebuild\"]\n>         campaign_events = [event for event in events if event[0] == \"campaign\"]\n> >       assert len(prepare_events) == 1\n> E       assert 0 == 1\n> E        +  where 0 = len([])\n> \n> orchestrator/tests/test_backoff_extended_sweep.py:793: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=4626 retained_bytes=4626 omitted_bytes=0 budget_bytes=49152 rendered_bytes=6021 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "d92b7f8f4134547acc54c1ee598045a237d9f216aa3900aba2a84f4bcefe39ab"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "de5a633507c4bf71bfbbf599fc64e0fdc42aab9c9db2153ced6e6b32bb67078a",
+      "duration_s": 32.126,
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_extended_run_path_prepares_and_gates_the_same_patched_tree",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_mu13_run_path_uses_the_calibration_bound_records"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_mu13_run_path_uses_the_calibration_bound_records",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_extended_run_path_prepares_and_gates_the_same_patched_tree"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2320-M7-EXT-DROPS-PREPARE",
+      "injection_diff_sha256": "c2666d3b5c39ff0a6fc7c095a3b4d75395b5e532e8cefa1f1d53e519fb07957e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "0adf8f68227bdf2643eb4d431c98c20a8428825de063a44154cb92e7d0491c08",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "new": "                    _require_condition_gate_before_measurement(\n",
+          "old": "                    buildcache.prepare_masstree_fetchcontent(\n                        ccbench_dir=canonical_ccbench_dir,\n                        fetchcontent_base_dir=canonical_base,\n                        expected_toolchain_manifest=expected_toolchain_manifest,\n                        configure_timeout_s=900,\n                        target_timeout_s=900,\n                        site=site,\n                    )\n                    _require_condition_gate_before_measurement(\n"
+        }
+      ],
+      "repo_head": "0ade09d5e3d1cde388876ce3b7c82351ae082344",
+      "runner_sha256": "e2c8b34cfb8698501f5854037f1ab38766631f19f7611ea56960be18fae2a465",
+      "spec_sha256": "e1efd6a08489c76cd260a29fd48d5abfa0150d5301bbecb1edcd323cf877e64f",
+      "status": "KILLED",
+      "test_output_sha256": "d92b7f8f4134547acc54c1ee598045a237d9f216aa3900aba2a84f4bcefe39ab",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c4b7f3cf951280f3633807228646fe8460d5fc99f172fc108e8d6c62d459f669"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2320-backoff-sweep-gate-layer2/output/pegasus-dispatch/76a7fdf228dbd485fb72343818929aed/izdw-76a7fdf228.o979624",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2320-backoff-sweep-gate-layer2/output/pegasus-dispatch/76a7fdf228dbd485fb72343818929aed/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_backoff_sweep.py::test_real_family_helper_admits_effective_define_and_recomputes_file_digest\norchestrator/tests/test_backoff_sweep.py::test_real_family_helper_treats_minus_one_as_stock_identity\norchestrator/tests/test_backoff_sweep.py::test_real_family_helper_rejects_minus_one_without_stock_tree\norchestrator/tests/test_backoff_sweep.py::test_real_family_helper_rejects_ignored_define_before_any_driver_build\norchestrator/tests/test_backoff_sweep.py::test_sweep_condition_gate_dominates_screened_and_direct_campaign_paths\norchestrator/tests/test_backoff_sweep.py::test_run_workload_prepares_masstree_once_before_condition_gate\norchestrator/tests/test_backoff_sweep.py::test_run_workload_gates_the_prepared_patched_tree_with_fetchcontent_base\norchestrator/tests/test_backoff_sweep.py::test_official_output_root_policy_is_passed_to_run_campaign\norchestrator/tests/test_backoff_sweep.py::test_without_official_output_root_policy_is_omitted\norchestrator/tests/test_backoff_extended_sweep.py::test_mu1_extended_grid_semantic_golden_except_registered_upper_endpoint\norchestrator/tests/test_backoff_extended_sweep.py::test_mu2_grid_upper_endpoint_matches_adaptive_range\norchestrator/tests/test_backoff_extended_sweep.py::test_mu15_all_adaptive_discrete_states_have_independent_literal_coverage\norchestrator/tests/test_backoff_extended_sweep.py::test_fixed_zero_and_none_are_distinct_genomes\norchestrator/tests/test_backoff_extended_sweep.py::test_t2266_grid_is_exact_eight_points_without_encoded_1000\norchestrator/tests/test_backoff_extended_sweep.py::test_t2266_requested_realized_and_unrealized_are_separate_identity_fields\norchestrator/tests/test_backoff_extended_sweep.py::test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep\norchestrator/tests/test_backoff_extended_sweep.py::test_t2266_rep_capture_rejects_extra_abort_parser_call\norchestrator/tests/test_backoff_extended_sweep.py::test_t2266_report_writers_are_create_only\norchestrator/tests/test_backoff_extended_sweep.py::test_applied_tree_contains_the_backoff_fixed_build_surface\norchestrator/tests/test_backoff_extended_sweep.py::test_both_drivers_accept_the_same_explicit_ccbench_worktree_cli\norchestrator/tests/test_backoff_extended_sweep.py::test_invalid_explicit_worktree_cannot_fall_back_to_valid_shared_tree\norchestrator/tests/test_backoff_extended_sweep.py::test_distinct_backoff_fixed_amounts_produce_distinct_build_results\norchestrator/tests/test_backoff_extended_sweep.py::test_real_extended_driver_gate_recomputes_preprocessed_file_digest\norchestrator/tests/test_backoff_extended_sweep.py::test_extended_gate_wrapper_forwards_configure_args\norchestrator/tests/test_backoff_extended_sweep.py::test_duplicate_static_binary_hash_stops_before_campaign\norchestrator/tests/test_backoff_extended_sweep.py::test_t2266_none_and_adaptive_must_have_distinct_perf_binaries\norchestrator/tests/test_backoff_extended_sweep.py::test_mu4_workload_literal_oracle_reaches_config_diagnostic_and_argv\norchestrator/tests/test_backoff_extended_sweep.py::test_mu11_measurement_order_is_the_registered_seeded_permutation\norchestrator/tests/test_backoff_extended_sweep.py::test_measurement_seed_changes_the_real_campaign_id\norchestrator/tests/test_backoff_extended_sweep.py::test_mu13_run_path_uses_the_calibration_bound_records\norchestrator/tests/test_backoff_extended_sweep.py::test_extended_run_path_prepares_and_gates_the_same_patched_tree\norchestrator/tests/test_backoff_extended_sweep.py::test_all_genomes_must_be_committed_and_none_aborted\norchestrator/tests/test_backoff_extended_sweep.py::test_probe_error_receipt_is_durable_before_loop_raises\norchestrator/tests/test_backoff_extended_sweep.py::test_probe_error_driver_materializes_typed_stop_receipt\norchestrator/tests/test_backoff_extended_sweep.py::test_b10_pbs_payload_and_submit_wrapper_are_three_independent_jobs\norchestrator/tests/test_backoff_extended_sweep.py::test_b10_run_kind_routes_t2266_only_by_opt_in_and_binds_all_receipts\norchestrator/tests/test_backoff_extended_sweep.py::test_b10_job_builds_pinned_dependencies_in_job_scratch\norchestrator/tests/test_backoff_extended_sweep.py::test_b10_job_creates_records_and_passes_a_detached_ccbench_worktree\norchestrator/tests/test_backoff_extended_sweep.py::test_b10_job_exit_trap_removes_worktree_on_normal_and_abnormal_exit[normal]\norchestrator/tests/test_backoff_extended_sweep.py::test_b10_job_exit_trap_removes_worktree_on_normal_and_abnormal_exit[abnormal]\norchestrator/tests/test_backoff_extended_sweep.py::test_b10_job_time_budget_matches_walltime\norchestrator/tests/test_backoff_extended_sweep.py::test_b10_job_script_identity_uses_three_sha256_values_not_path_equality\norchestrator/tests/test_backoff_extended_sweep.py::test_deferred_report_writes_plot_inputs_and_records_missing_png\norchestrator/tests/test_backoff_extended_sweep.py::test_report_cli_preserves_default_render_and_allows_measurement_deferral[extra_args0-True]\norchestrator/tests/test_backoff_extended_sweep.py::test_report_cli_preserves_default_render_and_allows_measurement_deferral[extra_args1-False]\norchestrator/tests/test_backoff_extended_sweep.py::test_failure_and_submission_receipts_cover_partial_progress\norchestrator/tests/test_backoff_extended_sweep.py::test_b10_freeze_tree_bytes_match_the_wave_local_gate\n\n47 tests collected in 0.65s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "52a25be295822a4cd3050d7d20b14d462b304e0c53125a7330853a72cbaadb14"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_backoff_sweep.py::test_real_family_helper_admits_effective_define_and_recomputes_file_digest",
+        "orchestrator/tests/test_backoff_sweep.py::test_real_family_helper_treats_minus_one_as_stock_identity",
+        "orchestrator/tests/test_backoff_sweep.py::test_real_family_helper_rejects_minus_one_without_stock_tree",
+        "orchestrator/tests/test_backoff_sweep.py::test_real_family_helper_rejects_ignored_define_before_any_driver_build",
+        "orchestrator/tests/test_backoff_sweep.py::test_sweep_condition_gate_dominates_screened_and_direct_campaign_paths",
+        "orchestrator/tests/test_backoff_sweep.py::test_run_workload_prepares_masstree_once_before_condition_gate",
+        "orchestrator/tests/test_backoff_sweep.py::test_run_workload_gates_the_prepared_patched_tree_with_fetchcontent_base",
+        "orchestrator/tests/test_backoff_sweep.py::test_official_output_root_policy_is_passed_to_run_campaign",
+        "orchestrator/tests/test_backoff_sweep.py::test_without_official_output_root_policy_is_omitted",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_mu1_extended_grid_semantic_golden_except_registered_upper_endpoint",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_mu2_grid_upper_endpoint_matches_adaptive_range",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_mu15_all_adaptive_discrete_states_have_independent_literal_coverage",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_fixed_zero_and_none_are_distinct_genomes",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_grid_is_exact_eight_points_without_encoded_1000",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_requested_realized_and_unrealized_are_separate_identity_fields",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_rep_capture_rejects_extra_abort_parser_call",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_report_writers_are_create_only",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_applied_tree_contains_the_backoff_fixed_build_surface",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_both_drivers_accept_the_same_explicit_ccbench_worktree_cli",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_invalid_explicit_worktree_cannot_fall_back_to_valid_shared_tree",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_distinct_backoff_fixed_amounts_produce_distinct_build_results",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_real_extended_driver_gate_recomputes_preprocessed_file_digest",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_extended_gate_wrapper_forwards_configure_args",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_duplicate_static_binary_hash_stops_before_campaign",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_none_and_adaptive_must_have_distinct_perf_binaries",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_mu4_workload_literal_oracle_reaches_config_diagnostic_and_argv",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_mu11_measurement_order_is_the_registered_seeded_permutation",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_measurement_seed_changes_the_real_campaign_id",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_mu13_run_path_uses_the_calibration_bound_records",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_extended_run_path_prepares_and_gates_the_same_patched_tree",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_all_genomes_must_be_committed_and_none_aborted",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_probe_error_receipt_is_durable_before_loop_raises",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_probe_error_driver_materializes_typed_stop_receipt",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_pbs_payload_and_submit_wrapper_are_three_independent_jobs",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_run_kind_routes_t2266_only_by_opt_in_and_binds_all_receipts",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_job_builds_pinned_dependencies_in_job_scratch",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_job_creates_records_and_passes_a_detached_ccbench_worktree",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_job_exit_trap_removes_worktree_on_normal_and_abnormal_exit[normal]",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_job_exit_trap_removes_worktree_on_normal_and_abnormal_exit[abnormal]",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_job_time_budget_matches_walltime",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_job_script_identity_uses_three_sha256_values_not_path_equality",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_deferred_report_writes_plot_inputs_and_records_missing_png",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_report_cli_preserves_default_render_and_allows_measurement_deferral[extra_args0-True]",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_report_cli_preserves_default_render_and_allows_measurement_deferral[extra_args1-False]",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_failure_and_submission_receipts_cover_partial_progress",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_freeze_tree_bytes_match_the_wave_local_gate"
+      ],
+      "duration_s": 24.567,
+      "rc": 0,
+      "repo_head": "0ade09d5e3d1cde388876ce3b7c82351ae082344",
+      "runner_sha256": "e2c8b34cfb8698501f5854037f1ab38766631f19f7611ea56960be18fae2a465",
+      "spec_sha256": "e1efd6a08489c76cd260a29fd48d5abfa0150d5301bbecb1edcd323cf877e64f",
+      "status": "PASSED",
+      "tool_sha256": "c4b7f3cf951280f3633807228646fe8460d5fc99f172fc108e8d6c62d459f669"
+    },
+    "hang_timeout_seconds": 3600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "MUT-T2320-M1-HELPER-DROPS-CONFIGURE-ARGS": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_backoff_sweep.py::test_real_family_helper_admits_effective_define_and_recomputes_file_digest"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "cc5174108fdad4d09e4b1e2630fdc38448e4b8c6c02c9f5a3b01105ad96fb8bd",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/backoff_sweep.py",
+            "new": "        source_root, stock_root=stock_root,\n",
+            "old": "        source_root, stock_root=stock_root, configure_args=configure_args,\n"
+          }
+        ]
+      },
+      "MUT-T2320-M2-SWEEP-DROPS-PREPARE": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_backoff_sweep.py::test_run_workload_gates_the_prepared_patched_tree_with_fetchcontent_base",
+          "orchestrator/tests/test_backoff_sweep.py::test_run_workload_prepares_masstree_once_before_condition_gate",
+          "orchestrator/tests/test_backoff_sweep.py::test_sweep_condition_gate_dominates_screened_and_direct_campaign_paths"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "daecaf357af0e5a096f42c3ca7c373ed58bd992307b5c3b9db78bb41603659bf",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/backoff_sweep.py",
+            "new": "                _require_backoff_condition_gate(\n",
+            "old": "                buildcache.prepare_masstree_fetchcontent(\n                    ccbench_dir=canonical_ccbench_dir,\n                    fetchcontent_base_dir=canonical_base,\n                    expected_toolchain_manifest=expected_toolchain_manifest,\n                    configure_timeout_s=900,\n                    target_timeout_s=900,\n                    site=site,\n                )\n                _require_backoff_condition_gate(\n"
+          }
+        ]
+      },
+      "MUT-T2320-M3-SWEEP-GATE-EMPTY-CONFIGURE-ARGS": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_backoff_sweep.py::test_run_workload_gates_the_prepared_patched_tree_with_fetchcontent_base"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "db7bd8d138e6b8b8e8b4560cbcc94f4ff96d1b2348814772cfc055d263274850",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/backoff_sweep.py",
+            "new": "                    configure_args=(),\n                )\n",
+            "old": "                    configure_args=(\n                        f\"-DFETCHCONTENT_BASE_DIR={canonical_base}\",\n                    ),\n                )\n"
+          }
+        ]
+      },
+      "MUT-T2320-M4-SWEEP-GATE-STOCK-ROOT": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_backoff_sweep.py::test_run_workload_gates_the_prepared_patched_tree_with_fetchcontent_base"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a1146d232b480e701e65708f6165d01007f3731c9fce57888e9673142261ca79",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/backoff_sweep.py",
+            "new": "                _require_backoff_condition_gate(\n                    stock_root,\n                    stock_root=stock_root,\n",
+            "old": "                _require_backoff_condition_gate(\n                    canonical_ccbench_dir,\n                    stock_root=stock_root,\n"
+          }
+        ]
+      },
+      "MUT-T2320-M5-EXT-WRAPPER-DROPS-FORWARDING": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_backoff_extended_sweep.py::test_extended_gate_wrapper_forwards_configure_args"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "9f92af3c244a58a5c317e0321cccfbe7f42482897a8744049070ea964ef485d3",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/backoff_extended_sweep.py",
+            "new": "        cxx=cxx,\n        use_class=\"raw-measurement\",\n    )\n",
+            "old": "        cxx=cxx,\n        use_class=\"raw-measurement\",\n        configure_args=configure_args,\n    )\n"
+          }
+        ]
+      },
+      "MUT-T2320-M6-EXT-GATE-BEFORE-PREPARE": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_backoff_extended_sweep.py::test_mu13_run_path_uses_the_calibration_bound_records"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f1ecbf3b190d410eb8db52574d31776ac045f56fa98d6308a5e7b65a1b502d50",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/backoff_extended_sweep.py",
+            "new": "                    _require_condition_gate_before_measurement(\n                        canonical_ccbench_dir,\n                        stock_root=stock_root,\n                        points=ordered_genomes,\n                        cxx=resolved_cxx,\n                        configure_args=(\n                            f\"-DFETCHCONTENT_BASE_DIR={canonical_base}\",\n                        ),\n                    )\n                    buildcache.prepare_masstree_fetchcontent(\n                        ccbench_dir=canonical_ccbench_dir,\n                        fetchcontent_base_dir=canonical_base,\n                        expected_toolchain_manifest=expected_toolchain_manifest,\n                        configure_timeout_s=900,\n                        target_timeout_s=900,\n                        site=site,\n                    )\n",
+            "old": "                    buildcache.prepare_masstree_fetchcontent(\n                        ccbench_dir=canonical_ccbench_dir,\n                        fetchcontent_base_dir=canonical_base,\n                        expected_toolchain_manifest=expected_toolchain_manifest,\n                        configure_timeout_s=900,\n                        target_timeout_s=900,\n                        site=site,\n                    )\n                    _require_condition_gate_before_measurement(\n                        canonical_ccbench_dir,\n                        stock_root=stock_root,\n                        points=ordered_genomes,\n                        cxx=resolved_cxx,\n                        configure_args=(\n                            f\"-DFETCHCONTENT_BASE_DIR={canonical_base}\",\n                        ),\n                    )\n"
+          }
+        ]
+      },
+      "MUT-T2320-M7-EXT-DROPS-PREPARE": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_backoff_extended_sweep.py::test_extended_run_path_prepares_and_gates_the_same_patched_tree",
+          "orchestrator/tests/test_backoff_extended_sweep.py::test_mu13_run_path_uses_the_calibration_bound_records"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "c2666d3b5c39ff0a6fc7c095a3b4d75395b5e532e8cefa1f1d53e519fb07957e",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/backoff_extended_sweep.py",
+            "new": "                    _require_condition_gate_before_measurement(\n",
+            "old": "                    buildcache.prepare_masstree_fetchcontent(\n                        ccbench_dir=canonical_ccbench_dir,\n                        fetchcontent_base_dir=canonical_base,\n                        expected_toolchain_manifest=expected_toolchain_manifest,\n                        configure_timeout_s=900,\n                        target_timeout_s=900,\n                        site=site,\n                    )\n                    _require_condition_gate_before_measurement(\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "3dd23c0ecfced7b935a3411b1f07878ff107d1549fada8603f826b0b9ac4d6ad",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_backoff_sweep.py",
+      "orchestrator/tests/test_backoff_extended_sweep.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 3600.0
+  },
+  "repo_head": "0ade09d5e3d1cde388876ce3b7c82351ae082344",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_backoff_sweep.py",
+      "orchestrator/tests/test_backoff_extended_sweep.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2320-backoff-sweep-gate-layer2/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2320-backoff-sweep-gate-layer2/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "55b11d377eb998d51d29cfafb2f10e679a210b3d",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "e2c8b34cfb8698501f5854037f1ab38766631f19f7611ea56960be18fae2a465",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "e1efd6a08489c76cd260a29fd48d5abfa0150d5301bbecb1edcd323cf877e64f",
+  "summary": {
+    "KILLED": 7,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 7,
+    "matching": 7,
+    "recorded": 7,
+    "registered": 7
+  },
+  "tool_identity": {
+    "head_blob_sha256": "900a6500b112faec9702a147242427d6cc2ebcad1029149a689ff5999d5f5ab9",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2320-backoff-sweep-gate-layer2/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "900a6500b112faec9702a147242427d6cc2ebcad1029149a689ff5999d5f5ab9"
+  },
+  "tool_sha256": "c4b7f3cf951280f3633807228646fe8460d5fc99f172fc108e8d6c62d459f669",
+  "updated_at": "2026-09-06T17:30:54.651810+00:00"
+}

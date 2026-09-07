@@ -1,0 +1,276 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2320-backoff-sweep-gate-layer2/output/pegasus-dispatch/e3099beea1fb1499fdb1524f151d3469/izdw-e3099beea1.o979953",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2320-backoff-sweep-gate-layer2/output/pegasus-dispatch/e3099beea1fb1499fdb1524f151d3469/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n......................................                                   [100%]\n38 passed in 4.46s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "a1390671c5a05f54030d2cd2bf59431d44c0fc6ba75e1a198c581eeed9866c3d"
+    },
+    "artifact_error": null,
+    "collection_sha256": "877d5f4f31bc641012c9fc094443bc92d807dfe42a4b6027b75839afcade4fae",
+    "duration_s": 27.055,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "4d76fa7048caee21bb1c6a884e3e8a84819b2948f072d2ab681e64f558fc8b71",
+    "repo_head": "0943b730a59b0d3aed69152f22b5c3468cb2bf06",
+    "runner_sha256": "97476de5aee6b4ad3604ee99db1a6d8f540b84c6c3fc37afbfaaec35d265804f",
+    "spec_sha256": "cd5c7ae5e9c38a8a931428199dd9cc9758f274e9c0d90bcdab740c81af8f3066",
+    "status": "PASSED",
+    "test_output_sha256": "a1390671c5a05f54030d2cd2bf59431d44c0fc6ba75e1a198c581eeed9866c3d",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "c4b7f3cf951280f3633807228646fe8460d5fc99f172fc108e8d6c62d459f669"
+  },
+  "date": "2026-09-06T23:04:09.644400+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2320-backoff-sweep-gate-layer2/output/pegasus-dispatch/573157b969cca90f934283cc3b34adf9/izdw-573157b969.o979960",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2320-backoff-sweep-gate-layer2/output/pegasus-dispatch/573157b969cca90f934283cc3b34adf9/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n....................................F.                                   [100%]\n=================================== FAILURES ===================================\n_____ test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep _____\n[gw23] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw23/test_t2266_real_rep_capture_fl0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14c6f4f91870>\n\n    def test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep(\n            tmp_path, monkeypatch):\n        capture = M._T2266RepCapture()\n        expected_abort_rates = []\n        with capture.installed():\n            for point_index in range(8):\n                expected_abort_rates.append(_measure_t2266_round(capture, point_index))\n        view = _t2266_certified_view(tmp_path, capture)\n        bench_payloads = [\n            record.payload\n            for record in view.records\n            if record.stage == M.wal.STAGE_BENCH_DONE\n        ]\n        assert len(bench_payloads) == 8\n        assert all(type(payload[\"tps\"]) is tuple for payload in bench_payloads)\n        assert all(\n            type(payload[\"leading_indicators\"]) is MappingProxyType\n            for payload in bench_payloads\n        )\n    \n        def discover(slug, search_tag, output_root, *, purpose):\n            assert slug == \"t2266-backoff-static-tail-silo-balanced\"\n            assert search_tag == \"sweep\"\n            assert output_root == str(tmp_path)\n            assert purpose is M.CampaignReadPurpose.CERTIFIED_ACCEPTANCE\n            return view\n    \n        # Redirect only the filesystem locator; certified-view validation and WAL\n        # replay remain the production consumers used by materialize_t2266_report.\n        monkeypatch.setattr(M, \"discover_campaign_dir\", discover)\n    \n>       paths = M.materialize_t2266_report(\"balanced\", str(tmp_path), capture)\n\norchestrator/tests/test_backoff_extended_sweep.py:386: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/backoff_extended_sweep.py:762: in materialize_t2266_report\n    campaign_id, points = _load_t2266_report_points(tag, output_root, capture)\norchestrator/campaign/backoff_extended_sweep.py:671: in _load_t2266_report_points\n    reps = capture.reps_for(bench)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = <orchestrator.campaign.backoff_extended_sweep._T2266RepCapture object at 0x14c6f50303d0>\nbench = mappingproxy({'build_attempt_id': 'fixture-attempt-0', 'run_cmd': '/fixture/t2266-point-0 -thread_num=1 -ycsb_tuple_nu...002.0, 'leading_indicators': mappingproxy({'abort_rate': 0.012, 'latency_ns': 100.0}), 'cv': 0.001, 'unstable': False})\n\n    def reps_for(self, bench: Mapping[str, object]) -> list[dict[str, object]]:\n        run_cmd = bench.get(\"run_cmd\")\n        tps = bench.get(\"tps\")\n        matches = [\n            item for item in self.rounds\n            if item[\"run_cmd\"] == run_cmd and item[\"throughput_tps\"] == tps\n        ]\n        if not matches:\n>           raise RuntimeError(\"T-2266 adopted bench round lacks rep capture\")\nE           RuntimeError: T-2266 adopted bench round lacks rep capture\n\norchestrator/campaign/backoff_extended_sweep.py:606: RuntimeError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep\n1 failed, 37 passed in 4.38s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep\" nodeid_bytes=119 nodeid_omitted_bytes=0 source_bytes=3067 retained_bytes=3067 omitted_bytes=0 rendered_excerpt_bytes=3190 sha256=1646d7eef9a0fc4553f1c91ec605451fe3659d0142373a8731ef3afda9639769\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw23] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw23/test_t2266_real_rep_capture_fl0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14c6f4f91870>\n> \n>     def test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep(\n>             tmp_path, monkeypatch):\n>         capture = M._T2266RepCapture()\n>         expected_abort_rates = []\n>         with capture.installed():\n>             for point_index in range(8):\n>                 expected_abort_rates.append(_measure_t2266_round(capture, point_index))\n>         view = _t2266_certified_view(tmp_path, capture)\n>         bench_payloads = [\n>             record.payload\n>             for record in view.records\n>             if record.stage == M.wal.STAGE_BENCH_DONE\n>         ]\n>         assert len(bench_payloads) == 8\n>         assert all(type(payload[\"tps\"]) is tuple for payload in bench_payloads)\n>         assert all(\n>             type(payload[\"leading_indicators\"]) is MappingProxyType\n>             for payload in bench_payloads\n>         )\n>     \n>         def discover(slug, search_tag, output_root, *, purpose):\n>             assert slug == \"t2266-backoff-static-tail-silo-balanced\"\n>             assert search_tag == \"sweep\"\n>             assert output_root == str(tmp_path)\n>             assert purpose is M.CampaignReadPurpose.CERTIFIED_ACCEPTANCE\n>             return view\n>     \n>         # Redirect only the filesystem locator; certified-view validation and WAL\n>         # replay remain the production consumers used by materialize_t2266_report.\n>         monkeypatch.setattr(M, \"discover_campaign_dir\", discover)\n>     \n> >       paths = M.materialize_t2266_report(\"balanced\", str(tmp_path), capture)\n> \n> orchestrator/tests/test_backoff_extended_sweep.py:386: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/backoff_extended_sweep.py:762: in materialize_t2266_report\n>     campaign_id, points = _load_t2266_report_points(tag, output_root, capture)\n> orchestrator/campaign/backoff_extended_sweep.py:671: in _load_t2266_report_points\n>     reps = capture.reps_for(bench)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> self = <orchestrator.campaign.backoff_extended_sweep._T2266RepCapture object at 0x14c6f50303d0>\n> bench = mappingproxy({'build_attempt_id': 'fixture-attempt-0', 'run_cmd': '/fixture/t2266-point-0 -thread_num=1 -ycsb_tuple_nu...002.0, 'leading_indicators': mappingproxy({'abort_rate': 0.012, 'latency_ns': 100.0}), 'cv': 0.001, 'unstable': False})\n> \n>     def reps_for(self, bench: Mapping[str, object]) -> list[dict[str, object]]:\n>         run_cmd = bench.get(\"run_cmd\")\n>         tps = bench.get(\"tps\")\n>         matches = [\n>             item for item in self.rounds\n>             if item[\"run_cmd\"] == run_cmd and item[\"throughput_tps\"] == tps\n>         ]\n>         if not matches:\n> >           raise RuntimeError(\"T-2266 adopted bench round lacks rep capture\")\n> E           RuntimeError: T-2266 adopted bench round lacks rep capture\n> \n> orchestrator/campaign/backoff_extended_sweep.py:606: RuntimeError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=3067 retained_bytes=3067 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3937 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "11c64bf090e80087b23bc1dc3453df0da75f93c237b3e655c08ddd68f758d8c5"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "877d5f4f31bc641012c9fc094443bc92d807dfe42a4b6027b75839afcade4fae",
+      "duration_s": 27.015,
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2320-M8-REPS-FOR-LIST-TUPLE-MISMATCH",
+      "injection_diff_sha256": "8fab0c8eff8197f7e23b671953e1c386252dfec0e54ddc930ac5795b609b21d2",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "8203b5262f4644a1a51c568aca7d8bbdd4a7a09b9b82135b4023e93c09891474",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "new": "        matches = [\n            item for item in self.rounds\n            if item[\"run_cmd\"] == run_cmd and item[\"throughput_tps\"] == tps\n        ]\n",
+          "old": "        normalized_tps = tuple(tps) if type(tps) in {list, tuple} else None\n        matches = [\n            item for item in self.rounds\n            if (\n                item[\"run_cmd\"] == run_cmd\n                and tuple(item[\"throughput_tps\"]) == normalized_tps\n            )\n        ]\n"
+        }
+      ],
+      "repo_head": "0943b730a59b0d3aed69152f22b5c3468cb2bf06",
+      "runner_sha256": "97476de5aee6b4ad3604ee99db1a6d8f540b84c6c3fc37afbfaaec35d265804f",
+      "spec_sha256": "cd5c7ae5e9c38a8a931428199dd9cc9758f274e9c0d90bcdab740c81af8f3066",
+      "status": "KILLED",
+      "test_output_sha256": "11c64bf090e80087b23bc1dc3453df0da75f93c237b3e655c08ddd68f758d8c5",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c4b7f3cf951280f3633807228646fe8460d5fc99f172fc108e8d6c62d459f669"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2320-backoff-sweep-gate-layer2/output/pegasus-dispatch/8768267352a63291792c3ef385e11b81/izdw-8768267352.o979963",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2320-backoff-sweep-gate-layer2/output/pegasus-dispatch/8768267352a63291792c3ef385e11b81/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n....................................F.                                   [100%]\n=================================== FAILURES ===================================\n_____ test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep _____\n[gw23] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw23/test_t2266_real_rep_capture_fl0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15286a15f3a0>\n\n    def test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep(\n            tmp_path, monkeypatch):\n        capture = M._T2266RepCapture()\n        expected_abort_rates = []\n        with capture.installed():\n            for point_index in range(8):\n                expected_abort_rates.append(_measure_t2266_round(capture, point_index))\n        view = _t2266_certified_view(tmp_path, capture)\n        bench_payloads = [\n            record.payload\n            for record in view.records\n            if record.stage == M.wal.STAGE_BENCH_DONE\n        ]\n        assert len(bench_payloads) == 8\n        assert all(type(payload[\"tps\"]) is tuple for payload in bench_payloads)\n        assert all(\n            type(payload[\"leading_indicators\"]) is MappingProxyType\n            for payload in bench_payloads\n        )\n    \n        def discover(slug, search_tag, output_root, *, purpose):\n            assert slug == \"t2266-backoff-static-tail-silo-balanced\"\n            assert search_tag == \"sweep\"\n            assert output_root == str(tmp_path)\n            assert purpose is M.CampaignReadPurpose.CERTIFIED_ACCEPTANCE\n            return view\n    \n        # Redirect only the filesystem locator; certified-view validation and WAL\n        # replay remain the production consumers used by materialize_t2266_report.\n        monkeypatch.setattr(M, \"discover_campaign_dir\", discover)\n    \n>       paths = M.materialize_t2266_report(\"balanced\", str(tmp_path), capture)\n\norchestrator/tests/test_backoff_extended_sweep.py:386: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/backoff_extended_sweep.py:766: in materialize_t2266_report\n    campaign_id, points = _load_t2266_report_points(tag, output_root, capture)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ntag = 'balanced'\noutput_root = '/tmp/pytest-of-tanab/pytest-0/popen-gw23/test_t2266_real_rep_capture_fl0'\ncapture = <orchestrator.campaign.backoff_extended_sweep._T2266RepCapture object at 0x15286a278340>\n\n    def _load_t2266_report_points(\n            tag: str, output_root: str, capture: _T2266RepCapture,\n    ) -> tuple[str, list[dict[str, object]]]:\n        view = require_certified_campaign_view(discover_campaign_dir(\n            f\"t2266-backoff-static-tail-silo-{tag}\",\n            \"sweep\",\n            output_root,\n            purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,\n        ))\n        expected = {\n            genome.canonical(): (index, label)\n            for index, (label, genome) in enumerate(zip(\n                t2266_measurement_order(tag), t2266_genomes(tag), strict=True,\n            ))\n        }\n        points: list[dict[str, object]] = []\n        seen: set[str] = set()\n        campaign_id = os.path.basename(view.layout.root)\n        for variant, state in wal.replay_admitted_records(view.records).items():\n            if not state.committed:\n                continue\n            if state.committed_build_start is None or state.committed_bench is None:\n                raise RuntimeError(\"T-2266 committed point lacks attempt-bound records\")\n            canonical = state.committed_build_start.payload.get(\"genome\")\n            if canonical not in expected or canonical in seen:\n                raise RuntimeError(\"T-2266 committed genome set differs from preregistration\")\n            seen.add(canonical)\n            flags = {\n                key: int(value)\n                for key, value in (\n                    item.split(\"=\", 1) for item in canonical.split(\"|\", 1)[1].split(\",\")\n                )\n            }\n            label, kind, amount = _t2266_point_label(flags)\n            point_index, expected_label = expected[canonical]\n            if label != expected_label:\n                raise RuntimeError(\"T-2266 label and genome order differ\")\n            bench = state.committed_bench.payload\n            reps = capture.reps_for(bench)\n            if (\n                len(reps) != p2_2.REPS\n                or [rep.get(\"rep\") for rep in reps] != list(range(p2_2.REPS))\n            ):\n                raise RuntimeError(\"T-2266 report requires every configured rep\")\n            if not all(\n                _finite_number(rep.get(\"throughput_tps\"), positive=True)\n                and _finite_number(rep.get(\"abort_rate\"))\n                and 0.0 <= float(rep[\"abort_rate\"]) <= 1.0\n                for rep in reps\n            ):\n                raise RuntimeError(\n                    \"T-2266 report requires finite throughput and abort rate per rep\"\n                )\n            indicators = bench.get(\"leading_indicators\")\n            if type(indicators) is not dict:\n>               raise RuntimeError(\"T-2266 committed bench lacks leading indicators\")\nE               RuntimeError: T-2266 committed bench lacks leading indicators\n\norchestrator/campaign/backoff_extended_sweep.py:692: RuntimeError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep\n1 failed, 37 passed in 4.35s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep\" nodeid_bytes=119 nodeid_omitted_bytes=0 source_bytes=5110 retained_bytes=3933 omitted_bytes=1177 rendered_excerpt_bytes=4096 sha256=ea8a4ccfddf6e5cafcd0b720fcc5def51314bb52faa5757ff802ddc9d6f7427a\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> ed\"\n>             assert search_tag == \"sweep\"\n>             assert output_root == str(tmp_path)\n>             assert purpose is M.CampaignReadPurpose.CERTIFIED_ACCEPTANCE\n>             return view\n>     \n>         # Redirect only the filesystem locator; certified-view validation and WAL\n>         # replay remain the production consumers used by materialize_t2266_report.\n>         monkeypatch.setattr(M, \"discover_campaign_dir\", discover)\n>     \n> >       paths = M.materialize_t2266_report(\"balanced\", str(tmp_path), capture)\n> \n> orchestrator/tests/test_backoff_extended_sweep.py:386: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/backoff_extended_sweep.py:766: in materialize_t2266_report\n>     campaign_id, points = _load_t2266_report_points(tag, output_root, capture)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> tag = 'balanced'\n> output_root = '/tmp/pytest-of-tanab/pytest-0/popen-gw23/test_t2266_real_rep_capture_fl0'\n> capture = <orchestrator.campaign.backoff_extended_sweep._T2266RepCapture object at 0x15286a278340>\n> \n>     def _load_t2266_report_points(\n>             tag: str, output_root: str, capture: _T2266RepCapture,\n>     ) -> tuple[str, list[dict[str, object]]]:\n>         view = require_certified_campaign_view(discover_campaign_dir(\n>             f\"t2266-backoff-static-tail-silo-{tag}\",\n>             \"sweep\",\n>             output_root,\n>             purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,\n>         ))\n>         expected = {\n>             genome.canonical(): (index, label)\n>             for index, (label, genome) in enumerate(zip(\n>                 t2266_measurement_order(tag), t2266_genomes(tag), strict=True,\n>             ))\n>         }\n>         points: list[dict[str, object]] = []\n>         seen: set[str] = set()\n>         campaign_id = os.path.basename(view.layout.root)\n>         for variant, state in wal.replay_admitted_records(view.records).items():\n>             if not state.committed:\n>                 continue\n>             if state.committed_build_start is None or state.committed_bench is None:\n>                 raise RuntimeError(\"T-2266 committed point lacks attempt-bound records\")\n>             canonical = state.committed_build_start.payload.get(\"genome\")\n>             if canonical not in expected or canonical in seen:\n>                 raise RuntimeError(\"T-2266 committed genome set differs from preregistration\")\n>             seen.add(canonical)\n>             flags = {\n>                 key: int(value)\n>                 for key, value in (\n>                     item.split(\"=\", 1) for item in canonical.split(\"|\", 1)[1].split(\",\")\n>                 )\n>             }\n>             label, kind, amount = _t2266_point_label(flags)\n>             point_index, expected_label = expected[canonical]\n>             if label != expected_label:\n>                 raise RuntimeError(\"T-2266 label and genome order differ\")\n>             bench = state.committed_bench.payload\n>             reps = capture.reps_for(bench)\n>             if (\n>                 len(reps) != p2_2.REPS\n>                 or [rep.get(\"rep\") for rep in reps] != list(range(p2_2.REPS))\n>             ):\n>                 raise RuntimeError(\"T-2266 report requires every configured rep\")\n>             if not all(\n>                 _finite_number(rep.get(\"throughput_tps\"), positive=True)\n>                 and _finite_number(rep.get(\"abort_rate\"))\n>                 and 0.0 <= float(rep[\"abort_rate\"]) <= 1.0\n>                 for rep in reps\n>             ):\n>                 raise RuntimeError(\n>                     \"T-2266 report requires finite throughput and abort rate per rep\"\n>                 )\n>             indicators = bench.get(\"leading_indicators\")\n>             if type(indicators) is not dict:\n> >               raise RuntimeError(\"T-2266 committed bench lacks leading indicators\")\n> E               RuntimeError: T-2266 committed bench lacks leading indicators\n> \n> orchestrator/campaign/backoff_extended_sweep.py:692: RuntimeError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=5110 retained_bytes=3933 omitted_bytes=1177 budget_bytes=49152 rendered_bytes=4849 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "41fc66b800390dd246a3e012c7f5728465584034e70e508665273915858dc5c5"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "877d5f4f31bc641012c9fc094443bc92d807dfe42a4b6027b75839afcade4fae",
+      "duration_s": 26.994,
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2320-M9-INDICATORS-DICT-ONLY",
+      "injection_diff_sha256": "a8aed1a5748ab5430e955c1dbfc4365e9515b9a4270046af9d796c26003666c4",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "6eb0d0672551ef93767d9470f79f8f2e02b2b9e55f8f2c3249b7afd9b7bdd640",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "new": "        if type(indicators) is not dict:\n",
+          "old": "        if type(indicators) not in {dict, MappingProxyType}:\n"
+        }
+      ],
+      "repo_head": "0943b730a59b0d3aed69152f22b5c3468cb2bf06",
+      "runner_sha256": "97476de5aee6b4ad3604ee99db1a6d8f540b84c6c3fc37afbfaaec35d265804f",
+      "spec_sha256": "cd5c7ae5e9c38a8a931428199dd9cc9758f274e9c0d90bcdab740c81af8f3066",
+      "status": "KILLED",
+      "test_output_sha256": "41fc66b800390dd246a3e012c7f5728465584034e70e508665273915858dc5c5",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c4b7f3cf951280f3633807228646fe8460d5fc99f172fc108e8d6c62d459f669"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2320-backoff-sweep-gate-layer2/output/pegasus-dispatch/17fd0529aae7b05ba4bced542b779922/izdw-17fd0529aa.o979950",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2320-backoff-sweep-gate-layer2/output/pegasus-dispatch/17fd0529aae7b05ba4bced542b779922/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_backoff_extended_sweep.py::test_mu1_extended_grid_semantic_golden_except_registered_upper_endpoint\norchestrator/tests/test_backoff_extended_sweep.py::test_mu2_grid_upper_endpoint_matches_adaptive_range\norchestrator/tests/test_backoff_extended_sweep.py::test_mu15_all_adaptive_discrete_states_have_independent_literal_coverage\norchestrator/tests/test_backoff_extended_sweep.py::test_fixed_zero_and_none_are_distinct_genomes\norchestrator/tests/test_backoff_extended_sweep.py::test_t2266_grid_is_exact_eight_points_without_encoded_1000\norchestrator/tests/test_backoff_extended_sweep.py::test_t2266_requested_realized_and_unrealized_are_separate_identity_fields\norchestrator/tests/test_backoff_extended_sweep.py::test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep\norchestrator/tests/test_backoff_extended_sweep.py::test_t2266_rep_capture_rejects_extra_abort_parser_call\norchestrator/tests/test_backoff_extended_sweep.py::test_t2266_report_writers_are_create_only\norchestrator/tests/test_backoff_extended_sweep.py::test_applied_tree_contains_the_backoff_fixed_build_surface\norchestrator/tests/test_backoff_extended_sweep.py::test_both_drivers_accept_the_same_explicit_ccbench_worktree_cli\norchestrator/tests/test_backoff_extended_sweep.py::test_invalid_explicit_worktree_cannot_fall_back_to_valid_shared_tree\norchestrator/tests/test_backoff_extended_sweep.py::test_distinct_backoff_fixed_amounts_produce_distinct_build_results\norchestrator/tests/test_backoff_extended_sweep.py::test_real_extended_driver_gate_recomputes_preprocessed_file_digest\norchestrator/tests/test_backoff_extended_sweep.py::test_extended_gate_wrapper_forwards_configure_args\norchestrator/tests/test_backoff_extended_sweep.py::test_duplicate_static_binary_hash_stops_before_campaign\norchestrator/tests/test_backoff_extended_sweep.py::test_t2266_none_and_adaptive_must_have_distinct_perf_binaries\norchestrator/tests/test_backoff_extended_sweep.py::test_mu4_workload_literal_oracle_reaches_config_diagnostic_and_argv\norchestrator/tests/test_backoff_extended_sweep.py::test_mu11_measurement_order_is_the_registered_seeded_permutation\norchestrator/tests/test_backoff_extended_sweep.py::test_measurement_seed_changes_the_real_campaign_id\norchestrator/tests/test_backoff_extended_sweep.py::test_mu13_run_path_uses_the_calibration_bound_records\norchestrator/tests/test_backoff_extended_sweep.py::test_extended_run_path_prepares_and_gates_the_same_patched_tree\norchestrator/tests/test_backoff_extended_sweep.py::test_all_genomes_must_be_committed_and_none_aborted\norchestrator/tests/test_backoff_extended_sweep.py::test_probe_error_receipt_is_durable_before_loop_raises\norchestrator/tests/test_backoff_extended_sweep.py::test_probe_error_driver_materializes_typed_stop_receipt\norchestrator/tests/test_backoff_extended_sweep.py::test_b10_pbs_payload_and_submit_wrapper_are_three_independent_jobs\norchestrator/tests/test_backoff_extended_sweep.py::test_b10_run_kind_routes_t2266_only_by_opt_in_and_binds_all_receipts\norchestrator/tests/test_backoff_extended_sweep.py::test_b10_job_builds_pinned_dependencies_in_job_scratch\norchestrator/tests/test_backoff_extended_sweep.py::test_b10_job_creates_records_and_passes_a_detached_ccbench_worktree\norchestrator/tests/test_backoff_extended_sweep.py::test_b10_job_exit_trap_removes_worktree_on_normal_and_abnormal_exit[normal]\norchestrator/tests/test_backoff_extended_sweep.py::test_b10_job_exit_trap_removes_worktree_on_normal_and_abnormal_exit[abnormal]\norchestrator/tests/test_backoff_extended_sweep.py::test_b10_job_time_budget_matches_walltime\norchestrator/tests/test_backoff_extended_sweep.py::test_b10_job_script_identity_uses_three_sha256_values_not_path_equality\norchestrator/tests/test_backoff_extended_sweep.py::test_deferred_report_writes_plot_inputs_and_records_missing_png\norchestrator/tests/test_backoff_extended_sweep.py::test_report_cli_preserves_default_render_and_allows_measurement_deferral[extra_args0-True]\norchestrator/tests/test_backoff_extended_sweep.py::test_report_cli_preserves_default_render_and_allows_measurement_deferral[extra_args1-False]\norchestrator/tests/test_backoff_extended_sweep.py::test_failure_and_submission_receipts_cover_partial_progress\norchestrator/tests/test_backoff_extended_sweep.py::test_b10_freeze_tree_bytes_match_the_wave_local_gate\n\n38 tests collected in 0.70s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "301381f0182a573c00fc9ed2fc260463b648c2fae25d94799821c84791a361b5"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_mu1_extended_grid_semantic_golden_except_registered_upper_endpoint",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_mu2_grid_upper_endpoint_matches_adaptive_range",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_mu15_all_adaptive_discrete_states_have_independent_literal_coverage",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_fixed_zero_and_none_are_distinct_genomes",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_grid_is_exact_eight_points_without_encoded_1000",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_requested_realized_and_unrealized_are_separate_identity_fields",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_rep_capture_rejects_extra_abort_parser_call",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_report_writers_are_create_only",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_applied_tree_contains_the_backoff_fixed_build_surface",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_both_drivers_accept_the_same_explicit_ccbench_worktree_cli",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_invalid_explicit_worktree_cannot_fall_back_to_valid_shared_tree",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_distinct_backoff_fixed_amounts_produce_distinct_build_results",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_real_extended_driver_gate_recomputes_preprocessed_file_digest",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_extended_gate_wrapper_forwards_configure_args",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_duplicate_static_binary_hash_stops_before_campaign",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_none_and_adaptive_must_have_distinct_perf_binaries",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_mu4_workload_literal_oracle_reaches_config_diagnostic_and_argv",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_mu11_measurement_order_is_the_registered_seeded_permutation",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_measurement_seed_changes_the_real_campaign_id",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_mu13_run_path_uses_the_calibration_bound_records",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_extended_run_path_prepares_and_gates_the_same_patched_tree",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_all_genomes_must_be_committed_and_none_aborted",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_probe_error_receipt_is_durable_before_loop_raises",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_probe_error_driver_materializes_typed_stop_receipt",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_pbs_payload_and_submit_wrapper_are_three_independent_jobs",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_run_kind_routes_t2266_only_by_opt_in_and_binds_all_receipts",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_job_builds_pinned_dependencies_in_job_scratch",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_job_creates_records_and_passes_a_detached_ccbench_worktree",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_job_exit_trap_removes_worktree_on_normal_and_abnormal_exit[normal]",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_job_exit_trap_removes_worktree_on_normal_and_abnormal_exit[abnormal]",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_job_time_budget_matches_walltime",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_job_script_identity_uses_three_sha256_values_not_path_equality",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_deferred_report_writes_plot_inputs_and_records_missing_png",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_report_cli_preserves_default_render_and_allows_measurement_deferral[extra_args0-True]",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_report_cli_preserves_default_render_and_allows_measurement_deferral[extra_args1-False]",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_failure_and_submission_receipts_cover_partial_progress",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_freeze_tree_bytes_match_the_wave_local_gate"
+      ],
+      "duration_s": 22.109,
+      "rc": 0,
+      "repo_head": "0943b730a59b0d3aed69152f22b5c3468cb2bf06",
+      "runner_sha256": "97476de5aee6b4ad3604ee99db1a6d8f540b84c6c3fc37afbfaaec35d265804f",
+      "spec_sha256": "cd5c7ae5e9c38a8a931428199dd9cc9758f274e9c0d90bcdab740c81af8f3066",
+      "status": "PASSED",
+      "tool_sha256": "c4b7f3cf951280f3633807228646fe8460d5fc99f172fc108e8d6c62d459f669"
+    },
+    "hang_timeout_seconds": 3600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "MUT-T2320-M8-REPS-FOR-LIST-TUPLE-MISMATCH": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "8fab0c8eff8197f7e23b671953e1c386252dfec0e54ddc930ac5795b609b21d2",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/backoff_extended_sweep.py",
+            "new": "        matches = [\n            item for item in self.rounds\n            if item[\"run_cmd\"] == run_cmd and item[\"throughput_tps\"] == tps\n        ]\n",
+            "old": "        normalized_tps = tuple(tps) if type(tps) in {list, tuple} else None\n        matches = [\n            item for item in self.rounds\n            if (\n                item[\"run_cmd\"] == run_cmd\n                and tuple(item[\"throughput_tps\"]) == normalized_tps\n            )\n        ]\n"
+          }
+        ]
+      },
+      "MUT-T2320-M9-INDICATORS-DICT-ONLY": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a8aed1a5748ab5430e955c1dbfc4365e9515b9a4270046af9d796c26003666c4",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/backoff_extended_sweep.py",
+            "new": "        if type(indicators) is not dict:\n",
+            "old": "        if type(indicators) not in {dict, MappingProxyType}:\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "4d76fa7048caee21bb1c6a884e3e8a84819b2948f072d2ab681e64f558fc8b71",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_backoff_extended_sweep.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 3600.0
+  },
+  "repo_head": "0943b730a59b0d3aed69152f22b5c3468cb2bf06",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_backoff_extended_sweep.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2320-backoff-sweep-gate-layer2/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2320-backoff-sweep-gate-layer2/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "58c4436ad899e86abf141684924fc730e4aacb04",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "97476de5aee6b4ad3604ee99db1a6d8f540b84c6c3fc37afbfaaec35d265804f",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "cd5c7ae5e9c38a8a931428199dd9cc9758f274e9c0d90bcdab740c81af8f3066",
+  "summary": {
+    "KILLED": 2,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 2,
+    "matching": 2,
+    "recorded": 2,
+    "registered": 2
+  },
+  "tool_identity": {
+    "head_blob_sha256": "900a6500b112faec9702a147242427d6cc2ebcad1029149a689ff5999d5f5ab9",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2320-backoff-sweep-gate-layer2/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "900a6500b112faec9702a147242427d6cc2ebcad1029149a689ff5999d5f5ab9"
+  },
+  "tool_sha256": "c4b7f3cf951280f3633807228646fe8460d5fc99f172fc108e8d6c62d459f669",
+  "updated_at": "2026-09-06T23:05:41.674057+00:00"
+}

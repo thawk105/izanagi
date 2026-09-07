@@ -164,6 +164,12 @@
   非 0 rc を「対象の不在」と読む前に、rc を返した実体が振り分け役でないかを確かめ、
   推論の否定側を同じ台帳の中でも検索する (worklog 2026-09-04、
   `output/insights/2026-09-04_f241-perf-attribution/`)。
+
+- **再発: 2026-09-05 (near-miss)** — [T-2257] wave の親が、producer 実走の record を job refs へ保存し直したとき (2 回目の走)、
+  brief には 1 回目の走の `ts` を写したまま残した。段 5 の実装子は refs を byte 単位で正しく写していたのに、親は brief の値を
+  根拠に「逐語と不一致」と誤裁定し、fix 子に refs と食い違う値へ書き換えさせた。親の byte 比較 script が refs との不一致を
+  出して発覚し、次の fix 子で refs の bytes へ戻した (land 前、実害なし)。転写対象が「自分が保存し直した artifact と、
+  それ以前に自分が書いた引用」の食い違いへ広がった顕在化。照合は brief の引用でなく artifact そのものと行う。
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
   構成の変化で挙動が割れた (worklog Phase 2、修理 065593a)。同時期に repro_command の
@@ -1768,6 +1774,15 @@
   テストも既定対象に含める」は、この 3 件を防げていない** — 3 件が pin するのは全体 hash ではなく
   契約ファイルを**加工した**値だからである。運用として、凍結成果物の path を読む test は
   全体 hash の pin だけでなく**加工後の値を pin するもの**まで列挙する。
+
+- **再発: 2026-09-05** — 8c formal consumer の WAL 形状を直す wave ([T-2257]) で、fixture builder の trigger record を変えると
+  result evidence record の bytes が変わるのに、その **sha256 を値で literal pin する 4 定数**
+  (`orchestrator/tests/test_reflux_result_evidence.py` の `_RECORD_RAW_GOLDEN` 等) を、段 2 プラン・段 3 の 2 レンズ・親の
+  pin 閉包 (path 検索 + fixture builder 利用 9 file の列挙) がそろって落とした。key が path でも fixture 名でもなく派生 digest
+  値なので path 検索に原理的に掛からない、F39 本体と同じ機序の再発。検出は親の焦点走 1 回目 (4 赤、land 前、実害なし)。
+  旧 baseline の hash 値そのもので `git grep` すると同 file だけが当たり、他に漏れはなかった。恒久対応は F39 から変更しない。
+  運用として、fixture / baseline を変える wave では**旧 hash 値を値で `git grep`** して閉包に入れる (memory
+  `edit-surface-growth-reopens-pin-closure` と同旨)。
 ### F40. 測定のための一時変異ハーネスが部分一致の anchor で tracked file を壊し、実装の退行に見える赤を出した [恒真ゲート] [防壁の射程誤認]
 
 - 事象: [T-120] の A/B 交互測定 (xdist group あり/なしを交互に走らせて wall を比べる) で、親は
@@ -8442,6 +8457,21 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   「branch X の内容を採る」形のときは、段 1 brief の時点で X を tip SHA へ固定し、
   以後は SHA だけを使う。名前で遅延解決すると `invalid reference` になり、
   実装が最初から無かったのか撤去されたのかを取り違えうる。
+
+- **再発: 2026-09-07** — 掃除主体が並行 session でなく**兄弟 job の終了処理**である型。同じ detached
+  `submit-tree` から A-5 2 job と T-2266 tail 3 job を同時に走らせたところ、先に終わった A-5 write-heavy
+  job の cleanup (`tools/pegasus/a5_second_boot_backoff_sweep.sh` の `git worktree prune --expire now`) が、
+  5 job が共有する submodule gitdir (`…/.git/worktrees/<submit-tree>/modules/external/ccbench/worktrees/`)
+  上の他 job の worktree 登録を消した。各 job の ccbench worktree はノードローカル `/scr/<jobid>-…/` にあり、
+  別ノードから見ると存在しないので prune が「消えた worktree」として削除する。2 秒後に A-5 balanced と
+  T-2266 3 job が同時に `git status` / `git worktree list` rc=128 (`fatal: not a git repository`) で落ちた
+  (A-5 balanced は 8 genome の commit 後、T-2266 は 8 点中 6 / 6 / 4 点の commit 後)。関門も計測も無傷で、
+  失った値は無い (T-2266 は A-5 無しで再投入)。**A-5 投入器は同じ checkout から 2 job を出すので、
+  後に終わる job が必ずこの経路で落ちる構造**であり、09-02 / 09-04 は関門で先に落ちていたため顕在化しなかった。
+  対応は裁定へ返した (投入器を checkout ごとに分けるか、job 本体の prune を自 path の remove に限定するか。
+  いずれも登録簿と F660 に触れる)。判別 = 同一 checkout の gitdir を共有する job が複数走るとき、
+  どれか 1 本でも `worktree prune` を打つなら他は生きていても落ちる。記録は
+  `output/insights/2026-09-07_t2320-backoff-sweep-gate-layer2/README.md` §5。
 ### F252. 汚染判定器が sandbox の方針拒否を誤検知した [計測汚染]
 
 - 事象: 上記の汚染を検出する判定器で `Rejected(...)` を徴候に使ったところ、第 2 走の 1 cell を
@@ -18663,6 +18693,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   本件である。`main_before == main_after` で main は無傷なので、受入をやり直せば進める。
   一斉着地の直後 (他 wave の land が並ぶ時間帯) が窓である。
 
+
+- **再発: 2026-09-07** — 同じ `registered worktree path cannot be resolved` が `[Errno 2] No such file or directory: '/scr'` で出た。path は a5 second boot の bench job 2 本 (979578/979579) が計算ノードのローカル scratch `/scr/<jobid>-a5-second-boot-<workload>/job-repo` に `git worktree add --detach` した登録で、login node からは job が走る間 (上限 7200 秒) ずっと解決できない (`git worktree list` は `prunable` と表示する)。job は EXIT trap で `worktree remove --force` + `prune` するので job 終了で消えるが、その間は repo 全体の land が `rc=31` / `retryable_same_request=false` で塞がる。一時エラーの種類が EINTR から「別ホストにしか存在しない path」へ広がっただけで、機序 (全登録 path の strict 解決 + OSError 一律非再試行) は同じ。本 wave は受入 (child-green、20834 passed) を捨てて job 終了後に取り直した。running 中の job の登録を login 側から prune してはいけない (job 側の git が壊れる)。
 ### F673. brief が「守るべき性質」と「現に成立している性質」を混同し、存在しない不変条件を根拠に暫定裁定した [誤前提]
 
 - 事象: 親は段 1 brief の不変条件へ「受理の根拠は完全に読み切った、矛盾のない 1 枚の scan」と書き、
@@ -22071,6 +22103,13 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 測定 job の meta に対象 file の mtime と `git status --porcelain` を記録し、job 開始時刻より新しい mtime を
   汚染として報告する (本 wave の `measure/run_c.py` は HEAD だけを記録しており、これが取り逃した)。
 
+
+- **再発: 2026-09-05** — 逆向きの同型。親が A-1 pilot を投入した固定 checkout (job の `PBS_O_WORKDIR`) へ、
+  request が待ち行列にいる間に本 wave の spool fragment (untracked) を書いた。1 分後に開始した job body の
+  preflight が `working tree is dirty` で 7 秒で終了し、group receipt の 60 秒待ち経路は観測できなかった
+  (`output/insights/2026-09-05_t2074-a1-pilot-run/README.md` §7)。測定は §4 の欠陥で既に失われていた。
+  対処: 投入専用 worktree と記録用 worktree を同じ SHA で分け、3 job の preflight 通過まで投入元を触らない
+  (memory `nqsv-qstat-f-format-and-a1-driver-regex`)。
 ### F850. 同名 wave の並行起動で、後発 session が共有 artifact root を退避し先発の段 2 子を全損させた [手順漏れ] [セッション死・救出]
 
 - 事象: 同じ [T-1905] 試し打ち wave が 2 つの背景 session で同時に起動した。後発 session は
@@ -22088,3 +22127,67 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: wave 開始時に `dev-wave-jobs/<wave>/` が既に存在し manifest.json を持つなら、
   同名 wave が稼働中か直前に走ったと見なして停止する。段 2 子の rc=2 と `FileNotFoundError` の組は
   「起動していない」の合図であり、成果物の不在を子の失敗と読まない。
+
+### F851. 計算ノード job が共有 repo へ登録した scratch worktree が、稼働中ずっと login 側の全 land を塞ぐ [手順漏れ]
+
+- 事象: 受入緑 (tested_main = 現 main、tested_tip 4f163be3d) の land (2026-09-07 02:19 JST) が
+  `rc=31 status=fold-gate-failed`、本文
+  `fold gate failed: registered worktree path cannot be resolved: [Errno 2] No such file or directory: '/scr'`、
+  `retryable_same_request=false`、`main_before == main_after` で止まった。`git worktree list` には
+  `/scr/0_979578.nqsv-a5-second-boot-write-heavy/job-repo` と `/scr/0_979579.nqsv-a5-second-boot-balanced/job-repo`
+  (detached、prunable) があり、両 job は `qstat` で RUN (経過上限 7200 秒、02:19 開始)。落ちた path は自分の wave でも
+  login node 上の path でもない。
+- 根本原因: `tools/pegasus/a5_second_boot_backoff_sweep.sh` が `git -C "$PBS_O_WORKDIR" worktree add --detach "$TMPDIR/job-repo"`
+  で、計算ノードの node-local scratch を共有 repo の admin (`.git/worktrees`) へ登録する。登録は同 script が job 終了時に打つ
+  `worktree remove --force` まで残り、login node からは path が存在しない。一方 `tools/dev_wave_land.py` の
+  `_registered_worktree_paths` は全登録を `resolve(strict=True)` し、`OSError` を一律 `_FoldGateFailure`
+  (`retryable_same_request=False`) にする。F672 と同じ経路だが、原因は EINTR (一時) でなく ENOENT (job が走る間ずっと持続) で、
+  a5 sweep job が 1 本でも走っている間は repo 内の全 wave の land が fail-closed で落ち、緑の受入 1 本ごとに捨てられる。
+  job script は「共有 repo の worktree として登録する」ことと、land は「登録は login node で解決できる」ことを
+  互いに前提しており、その食い違いを検査する場所が無かった。
+- 恒久対応: 未実施 (実装面、本 wave は docs のみ)。次 wave で (a) `_registered_worktree_paths` が prunable (path 不在) の
+  登録を fold gate の非接触対象から除く、または (b) job script が共有 repo でなく job 専用 clone を使う、のどちらかを
+  Codex author で入れる。それまでの運用は memory `land-discipline.md` の節
+  「計算ノード scratch の worktree 登録は job 終了まで land を塞ぐ」(2026-09-07) に従う — land 前に
+  `git worktree list` の `/scr/` 登録を見て、job が RUN の間は land を投げず、job 終了後に残った登録だけを
+  `git worktree list --porcelain` の prunable 行が `/scr/` だけであることを確かめて prune し、受入を取り直す。
+- 再発検知: land の `status=fold-gate-failed` の本文が `[Errno 2]` かつ path が `/scr/` で始まる。
+  land 直前の `git worktree list` に `/scr/` 登録があれば本型の予兆。
+
+### F852. A-1 driver の scheduler 可視性判定を実機の `qstat -f` 書式で一度も通さないまま投入 gate に置き、v3 pilot の初回投入が bench 前に失敗した [テスト代表性] [手順漏れ]
+
+- 事象: 2026-09-05 13:12 JST、A-1 pilot (study `paper-story-a1-20260901-balanced5-pilot-v1`) の
+  `submit` が write-heavy の qsub を受理させた直後に `qsub request identity/visibility is
+  indeterminate` で rc=2 になった。balanced / read-heavy は未投入、attempt-0001 は
+  `scheduler-or-infrastructure-failure-before-bench` の failure receipt だけを残した。
+- 根本原因: `orchestrator/campaign/paper_story_a1_paired.py` の `_observe_qstat_visibility` が
+  PBS-Pro 型の `job_state = Q` / `queue = gen_S` を前提にした正規表現で `qstat -f` を読むが、
+  この機体の NQSV は `Current State = Queued` と `Queue = gen_S@nqsv (Execution Queue)` を出す。
+  両方とも一致せず、投入は環境によらず決定的に落ちる。この関数は dd6ec73b9 (2026-08-29、Codex
+  author) が導入し、以後 v2 / v3 のどの study でも実機で通っていない (8/25 の v2 受領証は
+  それ以前の投入器が作った)。テスト fixture は `job_state = F` / `exit_status = 0` の PBS-Pro 型で、
+  実機の書式を代表していない。同じ repo の `tools/pegasus/dispatch_compute.py` は
+  `Current State` を解釈する実証済みの parser を持つが、A-1 driver はそれを使っていない。
+- 恒久対応: memory `nqsv-qstat-f-format-and-a1-driver-regex` (実機書式の逐語と、投入 gate の
+  parser は dispatch_compute の実証済み実装へ揃えるという規律)。修正は
+  [T-2349] (Codex author) が持ち、実機 `qstat -f` の逐語を fixture に
+  した正例・負例を同じ commit で足す。
+- 再発検知: 投入 gate に scheduler 出力の parser を足す wave は、段 1 で `qstat -f` の実出力を
+  login node で 1 回取り、fixture の書式と突き合わせる (DW-S01 の「別 program 起動物の実在棚卸し」の
+  対象に scheduler 出力の書式を含める)。
+
+### F853. 書き手なし FIFO の負例が block した孫 process を残し、計算ノードの job が walltime まで終われなかった [観測の穴] [後始末漏れ]
+
+- 事象: 変異走行で gate の policy open から `O_NONBLOCK` を外したところ、pytest は 14.28 秒で
+  `1 failed, 144 passed` を出した (負例は期待どおり赤) のに、計算ノードの batch job は walltime
+  3609 秒まで終われず orphan hold と変異残留を作った (request 979716)。
+- 根本原因: `subprocess.run` の timeout は直接の子 (`bash`) しか kill しない。FIFO の open で block した
+  孫 (heredoc の `python3`) が job の stdout / stderr を掴んだまま残るため、pytest が終わっても
+  job が終われない。負例に timeout を付けることは「test が赤になること」しか保証せず、
+  「走行が終わること」を保証しない。
+- 恒久対応: D1684 の実装で、policy や pinned receipt に FIFO を置きうる
+  3 つの wrapper の子起動を `start_new_session=True` + timeout 後の `os.killpg` による回収へ替えた
+  (`orchestrator/tests/test_mocc_trace_job_contract.py` の `_run_in_process_group`)。
+- 再発検知: 同じ変異 (gate policy open の `O_NONBLOCK` 削除) を変異 spec へ登録済み。回収経路が壊れれば
+  この変異が再び walltime まで走り、期待 node と一致しない形で露見する。台帳は
+  `output/insights/2026-09-07_t2195-policy-binding/mutation-ledger-final.json`。
