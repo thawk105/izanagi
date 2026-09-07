@@ -508,6 +508,9 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 | `tools/pegasus/p3_s4_loop_pegasus.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/paper_story_a1_paired.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/paper_story_a2_certification.sh` | `dispatch-required` | `static job-body classification` |
+| `tools/pegasus/probes/t1259_qsub_env_delivery_probe.pbs` | `dispatch-required` | `static job-body classification` |
+| `tools/pegasus/probes/t1259_qsub_env_delivery_probe.py` | `dispatch-required` | `static compute-side call-site classification` |
+| `tools/pegasus/probes/t1259_qsub_env_delivery_submit.sh` | `local-ok` | `static login-side submitter classification` |
 | `tools/pegasus/run_t139_a12_stress_check.py` | `dispatch-required` | `compute-node full run: 48 workers / 5.32 seconds; tens of MB per worker` |
 | `tools/pegasus/t139_a12_stress_check.pbs` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/probes/t139_positive_control_probe.pbs` | `unknown` | `unmeasured probe artifact` |

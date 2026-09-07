@@ -1,0 +1,100 @@
+#!/bin/bash
+#PBS -A SFC
+#PBS -q gen_S
+#PBS -b 1
+#PBS -l elapstim_req=00:10:00
+#PBS -N izanagi-t1259
+
+export GIT_OPTIONAL_LOCKS=0
+ulimit -c 0
+set -Eeuo pipefail
+umask 077
+
+RESULT_PREFIX='T1259_QSUB_ENV_DELIVERY_RESULT '
+RESULT_EMITTED=0
+emit_pbs_failure() {
+  local code=$1
+  if [[ "$RESULT_EMITTED" -eq 0 ]]; then
+    RESULT_EMITTED=1
+    printf '%s%s\n' "$RESULT_PREFIX" \
+      "{\"authority\":\"diagnostic-only\",\"errors\":[\"pbs-shell:$code\"],\"official_campaign_executed\":false,\"ok\":false,\"probe_script\":{\"path\":\"tools/pegasus/probes/t1259_qsub_env_delivery_probe.py\",\"sha256\":null},\"request_id\":null,\"schema_version\":\"izanagi-t1259-qsub-env-delivery-result/v1\"}"
+  fi
+}
+fail_pbs() {
+  local code=$1
+  trap - ERR
+  emit_pbs_failure "$code"
+  exit 2
+}
+trap 'fail_pbs unhandled-shell-error' ERR
+
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR
+unset GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
+unset GIT_CEILING_DIRECTORIES
+
+if [[ -z "${PBS_JOBID:-}" || -z "${PBS_O_WORKDIR:-}" ]]; then
+  fail_pbs missing-pbs-binding
+fi
+if [[ ! "$PBS_JOBID" =~ ^([0-9]+:)?[A-Za-z0-9._-]+$ ]]; then
+  fail_pbs unsafe-pbs-job-id
+fi
+
+COMPUTE_HOST=$(hostname) || fail_pbs hostname-unavailable
+if [[ ! "$COMPUTE_HOST" =~ ^bnode[0-9]+([.].*)?$ ]]; then
+  fail_pbs compute-host-required
+fi
+
+REPO_ROOT=$(realpath -e -- "$PBS_O_WORKDIR") || fail_pbs repo-root-unavailable
+if [[ "$REPO_ROOT" != "$PBS_O_WORKDIR" || ! -d "$REPO_ROOT" || -L "$REPO_ROOT" ]]; then
+  fail_pbs repo-root-not-canonical
+fi
+
+DRIVER_REL=tools/pegasus/probes/t1259_qsub_env_delivery_probe.py
+PBS_REL=tools/pegasus/probes/t1259_qsub_env_delivery_probe.pbs
+CAMPAIGN_REL=orchestrator/campaign/s8b_floor_campaign.py
+for relative in "$DRIVER_REL" "$PBS_REL" "$CAMPAIGN_REL"; do
+  candidate="$REPO_ROOT/$relative"
+  if [[ ! -f "$candidate" || -L "$candidate" ]]; then
+    fail_pbs required-source-unavailable
+  fi
+  git -C "$REPO_ROOT" ls-files --error-unmatch -- "$relative" >/dev/null \
+    || fail_pbs required-source-not-tracked
+done
+
+export TMPDIR="/scr/${PBS_JOBID//:/_}-t1259-qsub-env-delivery"
+if ! mkdir -m 700 -- "$TMPDIR"; then
+  fail_pbs scratch-create-failed
+fi
+cleanup() {
+  find "$TMPDIR" -depth -delete 2>/dev/null || true
+}
+trap cleanup EXIT
+
+unset PYTHONPATH PYTHONHOME PYTHONSTARTUP
+PY=""
+for candidate in python3.10 python3.11 python3.12 python3; do
+  resolved=$(command -v -- "$candidate" 2>/dev/null || true)
+  [[ -n "$resolved" ]] || continue
+  if "$resolved" -I -S -B -c \
+      'import sys; raise SystemExit(0 if sys.version_info[:2] >= (3, 10) else 1)' \
+      >/dev/null 2>&1; then
+    PY=$(realpath -e -- "$resolved")
+    break
+  fi
+done
+if [[ -z "$PY" ]]; then
+  fail_pbs python-3.10-required
+fi
+
+cd "$TMPDIR" || fail_pbs scratch-chdir-failed
+set +e
+"$PY" -I -B -u "$REPO_ROOT/$DRIVER_REL" \
+  --repo-root "$REPO_ROOT" \
+  --scratch-dir "$TMPDIR" \
+  --pbs-job-id "$PBS_JOBID"
+PROBE_RC=$?
+set -e
+
+# Python emits the one authoritative prefixed result line on every handled path.
+RESULT_EMITTED=1
+exit "$PROBE_RC"
