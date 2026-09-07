@@ -129,3 +129,47 @@ def target_bound_qstat_state(stdout: str, request_id: str) -> Optional[str]:
     """Return the canonical target-bound state, or ``None`` on ambiguity."""
 
     return target_bound_qstat_state_result(stdout, request_id).state
+
+
+NQSV_ACCOUNTING_REQUEST_ID_RE = re.compile(
+    r"(?m)^[ \t]*Request ID:[ \t]*(\S+)[ \t]*$"
+)
+NQSV_ACCOUNTING_ENDED_RE = re.compile(
+    r"(?m)^[ \t]*Ended Request Time:[ \t]*\S.*$"
+)
+
+
+@dataclass(frozen=True)
+class AccountingEndedResult:
+    ended: bool
+    reason: str
+
+
+def accounting_ended_result(
+    text: str,
+    request_id: str,
+) -> AccountingEndedResult:
+    """Recognize one target-bound NQSV accounting completion record."""
+
+    try:
+        expected = _normalize_request_id(request_id)
+    except ValueError:
+        return AccountingEndedResult(False, "invalid-target-request-id")
+    id_matches = list(NQSV_ACCOUNTING_REQUEST_ID_RE.finditer(text))
+    if len(id_matches) != 1:
+        return AccountingEndedResult(False, "request-id-count")
+    try:
+        observed = _normalize_request_id(id_matches[0].group(1))
+    except ValueError:
+        return AccountingEndedResult(False, "invalid-observed-request-id")
+    if observed != expected:
+        return AccountingEndedResult(False, "request-id-mismatch")
+    if NQSV_ACCOUNTING_ENDED_RE.search(text) is None:
+        return AccountingEndedResult(False, "ended-field-missing")
+    return AccountingEndedResult(True, "ok")
+
+
+def accounting_ended(text: str, request_id: str) -> bool:
+    """Return whether the accounting text proves the target request ended."""
+
+    return accounting_ended_result(text, request_id).ended

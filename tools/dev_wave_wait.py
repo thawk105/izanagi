@@ -224,6 +224,8 @@ _PROGRAM = "dev-wave-wait"
 _LEASE_ENV = "IZANAGI_WAVE_LEASE_DIR"
 _PRODUCER_POLL_SECONDS = 5
 _PRODUCER_GRACE_SECONDS = 30
+_COMPUTE_POLL_SECONDS = 15
+_COMPUTE_MAX_WAIT_SECONDS = 21600
 _DEFAULT_ACCEPTANCE_POLL_SECONDS = 30
 _MIN_ACCEPTANCE_POLL_SECONDS = 30
 _MAX_ACCEPTANCE_POLL_SECONDS = 120
@@ -236,6 +238,7 @@ _LEASE_TTL_SECONDS = 2400
 _RECEIPT_PUBLISH_MIN_TTL_SECONDS = 300
 _RECEIPT_SCHEMA_VERSION = "dev-wave-acceptance-receipt/v5"
 _PRODUCER_RECEIPT_SCHEMA_VERSION = "dev-wave-producer-receipt/v1"
+_COMPUTE_RECEIPT_SCHEMA_VERSION = "dev-wave-compute-receipt/v1"
 _RECEIPT_AUTHORITY_KIND = "dev-wave-acceptance-launcher"
 _RECEIPT_TEMP_PREFIX = ".dev-wave-acceptance-receipt-"
 _LAUNCHER_PATH = "tools/acceptance_launcher.py"
@@ -1626,6 +1629,20 @@ def _producer_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _compute_parser() -> argparse.ArgumentParser:
+    parser = _ArgumentParser(prog=f"{_PROGRAM} compute", add_help=True)
+    parser.add_argument("--request-id", required=True)
+    parser.add_argument("--done-file", type=Path, required=True)
+    parser.add_argument("--accounting-file", type=Path, required=True)
+    parser.add_argument(
+        "--max-wait-seconds",
+        type=_positive_int,
+        default=_COMPUTE_MAX_WAIT_SECONDS,
+    )
+    parser.add_argument("--receipt-file", type=Path)
+    return parser
+
+
 def _acceptance_parser() -> argparse.ArgumentParser:
     parser = _ArgumentParser(prog=f"{_PROGRAM} acceptance", add_help=True)
     parser.add_argument("--wave", required=True)
@@ -1672,17 +1689,21 @@ def _parse_cli(argv: Sequence[str]) -> tuple[str, argparse.Namespace, list[str]]
     if command == "producer":
         args = _producer_parser().parse_args(values[1:])
         return command, args, []
-    if command != "acceptance":
+    elif command == "compute":
+        args = _compute_parser().parse_args(values[1:])
+        return command, args, []
+    elif command == "acceptance":
+        try:
+            delimiter = values.index("--", 1)
+        except ValueError:
+            raise _StageFailure("cli-usage", RC_USAGE) from None
+        command_argv = values[delimiter + 1 :]
+        if not command_argv:
+            raise _StageFailure("cli-usage", RC_USAGE)
+        args = _acceptance_parser().parse_args(values[1:delimiter])
+        return command, args, command_argv
+    else:
         raise _StageFailure("cli-usage", RC_USAGE)
-    try:
-        delimiter = values.index("--", 1)
-    except ValueError:
-        raise _StageFailure("cli-usage", RC_USAGE) from None
-    command_argv = values[delimiter + 1 :]
-    if not command_argv:
-        raise _StageFailure("cli-usage", RC_USAGE)
-    args = _acceptance_parser().parse_args(values[1:delimiter])
-    return command, args, command_argv
 
 
 def _parse_pid(value: str) -> int:
@@ -1964,6 +1985,110 @@ def wait_for_producer(
             return _Outcome(RC_FAIL_CLOSED, "producer-files")
         effects.sleep(_PRODUCER_POLL_SECONDS)
         grace_elapsed += _PRODUCER_POLL_SECONDS
+
+
+def _compute_evidence(
+    *,
+    request_id: str,
+    done_file: Path,
+    accounting_file: Path,
+    effects: _Effects,
+) -> tuple[bool, bool]:
+    done_evidence = False
+    try:
+        if effects.is_file(done_file):
+            done_evidence = bool(effects.read_text(done_file).strip())
+    except OSError:
+        done_evidence = False
+
+    accounting_evidence = False
+    try:
+        if effects.is_file(accounting_file):
+            from orchestrator.scheduler_nqsv import accounting_ended
+
+            accounting_evidence = accounting_ended(
+                effects.read_text(accounting_file),
+                request_id,
+            )
+    except OSError:
+        accounting_evidence = False
+    return done_evidence, accounting_evidence
+
+
+def _wait_for_compute_job_result(
+    *,
+    request_id: str,
+    done_file: Path,
+    accounting_file: Path,
+    max_wait_seconds: int,
+    effects: _Effects,
+) -> tuple[_Outcome, bool, bool]:
+    try:
+        started = effects.monotonic()
+    except Exception:
+        return _Outcome(RC_FAIL_CLOSED, "compute-clock"), False, False
+    while True:
+        done_evidence, accounting_evidence = _compute_evidence(
+            request_id=request_id,
+            done_file=done_file,
+            accounting_file=accounting_file,
+            effects=effects,
+        )
+        if done_evidence or accounting_evidence:
+            return _Outcome(RC_OK), done_evidence, accounting_evidence
+        try:
+            elapsed = effects.monotonic() - started
+        except Exception:
+            return _Outcome(RC_FAIL_CLOSED, "compute-clock"), False, False
+        if elapsed + _COMPUTE_POLL_SECONDS > max_wait_seconds:
+            return _Outcome(RC_FAIL_CLOSED, "compute-timeout"), False, False
+        effects.sleep(_COMPUTE_POLL_SECONDS)
+
+
+def wait_for_compute_job(
+    *,
+    request_id: str,
+    done_file: Path,
+    accounting_file: Path,
+    max_wait_seconds: int,
+    effects: _Effects,
+) -> _Outcome:
+    outcome, _done_evidence, _accounting_evidence = (
+        _wait_for_compute_job_result(
+            request_id=request_id,
+            done_file=done_file,
+            accounting_file=accounting_file,
+            max_wait_seconds=max_wait_seconds,
+            effects=effects,
+        )
+    )
+    return outcome
+
+
+def _publish_compute_receipt(
+    *,
+    receipt_file: Path,
+    request_id: str,
+    done_file: Path,
+    accounting_file: Path,
+    done_evidence: bool,
+    accounting_evidence: bool,
+    effects: _Effects,
+) -> _Outcome:
+    payload = {
+        "schema_version": _COMPUTE_RECEIPT_SCHEMA_VERSION,
+        "status": "success",
+        "request_id": request_id,
+        "done_file": str(_absolute_path(done_file)),
+        "accounting_file": str(_absolute_path(accounting_file)),
+        "done_evidence": done_evidence,
+        "accounting_evidence": accounting_evidence,
+    }
+    try:
+        _atomic_publish_json(receipt_file, payload, effects)
+    except Exception:
+        return _Outcome(RC_FAIL_CLOSED, "compute-receipt")
+    return _Outcome(RC_OK)
 
 
 def _no_duplicate_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
@@ -4334,6 +4459,26 @@ def main(
                         state=state,
                         effects=active_effects,
                     )
+        elif command == "compute":
+            outcome, done_evidence, accounting_evidence = (
+                _wait_for_compute_job_result(
+                    request_id=args.request_id,
+                    done_file=args.done_file,
+                    accounting_file=args.accounting_file,
+                    max_wait_seconds=args.max_wait_seconds,
+                    effects=active_effects,
+                )
+            )
+            if outcome.rc == RC_OK and args.receipt_file is not None:
+                outcome = _publish_compute_receipt(
+                    receipt_file=args.receipt_file,
+                    request_id=args.request_id,
+                    done_file=args.done_file,
+                    accounting_file=args.accounting_file,
+                    done_evidence=done_evidence,
+                    accounting_evidence=accounting_evidence,
+                    effects=active_effects,
+                )
         else:
             active_repo = Path.cwd() if repo is None else repo
             lease_dir = _lease_dir(args.lease_dir, active_effects)
