@@ -10,23 +10,23 @@
     },
     "build_launch_admission_inputs": {
       "byte_length": 962,
-      "canonical_sha256": "caece59c4092933460a7844f14430bd3a3957957747552bff90483c6eb676133"
+      "canonical_sha256": "5e0992a5f6c132d24fc392522cd8e77bda656b726b4ff7070462857e3dcc13bb"
     },
     "build_ordered_wal_projection": {
-      "byte_length": 975,
-      "canonical_sha256": "271323c60ad2af8b4034872096d5c1c5066f26c6c85689252dd5ce762ddd3bc6"
+      "byte_length": 1914,
+      "canonical_sha256": "9729a84ea7a64fb724c61ae8e1cf47579d66b8749446902007cb0ba623698c2f"
     },
     "build_recovery_envelope_inputs": {
       "byte_length": 14909,
-      "canonical_sha256": "c0e4c5a93f99607ac2b2a1e94fdfd13f19ab662e3079438c3b3a3ddf902971d6"
+      "canonical_sha256": "d28b266e498df8a15167ed880c713fdaf6b140bb4400f78acb96903b330029d6"
     },
     "build_result_evidence_record": {
       "byte_length": 1848,
-      "canonical_sha256": "631a5fa04f9cc1a5442c5660410bb27b1ad03ef76f5da3fe3d4603ac5577c82c"
+      "canonical_sha256": "d4579e061f28a7dbca8813b6717e2fe4ed90906134c82d127df4b2ebfa9cf31f"
     },
     "build_source_closure_record": {
-      "byte_length": 1697,
-      "canonical_sha256": "e1565c1b62e9dd940fcce62cdccbc5f8c55eede8cbe5c3902f51855430c155b1"
+      "byte_length": 1704,
+      "canonical_sha256": "7988bd17287b97cc136032b388362646e1b736c654e199e089e66e0e5408a502"
     }
   },
   "schema_version": "izanagi-reflux-fixture-baseline/v1"

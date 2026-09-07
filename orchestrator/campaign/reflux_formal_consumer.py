@@ -94,6 +94,12 @@ ORIGIN_TERMINAL_PROJECTION_SCHEMA_VERSION = "OriginTerminalProjection/v1"
 _RECEIPT_ISSUER = "izanagi-formal-consumer/v1"
 _PROJECTION_KEY = "origin_terminal_projection"
 _SHA256_RE = re.compile(r"[0-9a-f]{64}\Z")
+_CANDIDATE_ATTRIBUTABLE_ABORT_REASON = "non-serializable"
+_ANOMALY_KEYS = frozenset({"phenomenon", "length", "cycle", "edges"})
+_EDGE_KEYS = frozenset({"from", "to", "types", "reasons"})
+_REASON_REQUIRED_KEYS = frozenset({"type", "key"})
+_REASON_OPTIONAL_KEYS = frozenset({"u_ver", "v_ver"})
+_PHENOMENA = frozenset({"G0", "G1c", "G2"})
 
 
 class FormalReasonCode(Enum):
@@ -826,6 +832,68 @@ def _wal_field(record: Mapping[str, object], name: str) -> object:
     return payload.get(name) if type(payload) is dict else None
 
 
+def _valid_witness_anomaly(anomaly: object) -> bool:
+    if type(anomaly) is not dict or set(anomaly) != _ANOMALY_KEYS:
+        return False
+    phenomenon = anomaly["phenomenon"]
+    if type(phenomenon) is not str or phenomenon not in _PHENOMENA:
+        return False
+    cycle = anomaly["cycle"]
+    if (
+        type(cycle) is not list
+        or not cycle
+        or any(type(txid) is not int for txid in cycle)
+        or len(set(cycle)) != len(cycle)
+        or anomaly["length"] != len(cycle)
+    ):
+        return False
+    edges = anomaly["edges"]
+    if type(edges) is not list or len(edges) != len(cycle):
+        return False
+    for index, edge in enumerate(edges):
+        if type(edge) is not dict or set(edge) != _EDGE_KEYS:
+            return False
+        if (
+            edge["from"] != cycle[index]
+            or edge["to"] != cycle[(index + 1) % len(cycle)]
+        ):
+            return False
+        types = edge["types"]
+        reasons = edge["reasons"]
+        if (
+            type(types) is not list
+            or not types
+            or any(type(edge_type) is not str for edge_type in types)
+            or type(reasons) is not list
+            or not reasons
+        ):
+            return False
+        for reason in reasons:
+            if type(reason) is not dict:
+                return False
+            keys = set(reason)
+            if not _REASON_REQUIRED_KEYS <= keys <= (
+                _REASON_REQUIRED_KEYS | _REASON_OPTIONAL_KEYS
+            ):
+                return False
+            if type(reason["type"]) is not str or type(reason["key"]) is not str:
+                return False
+            for optional in _REASON_OPTIONAL_KEYS:
+                if optional in reason and (
+                    type(reason[optional]) is not list
+                    or any(type(item) is not int for item in reason[optional])
+                ):
+                    return False
+    return True
+
+
+def _witness_class_sha256(anomaly: object) -> str:
+    try:
+        return hashlib.sha256(canonical_json_bytes(anomaly)).hexdigest()
+    except ArtifactError as exc:
+        raise _ContractFailure(FormalReasonCode.FC07) from exc
+
+
 def _verifier_policy(raw_bytes: bytes, expected_sha256: str) -> tuple[str, ...]:
     try:
         policy = strict_json_loads(raw_bytes)
@@ -868,14 +936,38 @@ def _validate_wal_outcomes(
             _require(FormalReasonCode.FC07, terminal.get("stage") == STAGE_ABORT)
             _require(
                 FormalReasonCode.FC07,
-                _wal_field(terminal, "candidate_attributable") is True
-                and _wal_field(terminal, "truncated") is False,
+                _wal_field(terminal, "reason")
+                == _CANDIDATE_ATTRIBUTABLE_ABORT_REASON,
             )
-            witnesses = _wal_field(terminal, "witness_class_sha256s")
+            verify = _wal_field(terminal, "verify")
+            _require(FormalReasonCode.FC07, type(verify) is dict)
             _require(
                 FormalReasonCode.FC07,
-                type(witnesses) is list
-                and witnesses == [physical["constraint_sha256"]],
+                verify.get("verdict") == _CANDIDATE_ATTRIBUTABLE_ABORT_REASON,
+            )
+            _require(FormalReasonCode.FC07, verify.get("serializable") is False)
+            _require(FormalReasonCode.FC07, verify.get("certified") is False)
+            integrity = verify.get("integrity")
+            _require(
+                FormalReasonCode.FC07,
+                type(integrity) is dict and integrity.get("clean") is True,
+            )
+            anomalies = verify.get("anomalies")
+            _require(
+                FormalReasonCode.FC07,
+                type(anomalies) is list and len(anomalies) == 1,
+            )
+            total_cycles = verify.get("total_cycles")
+            anomaly_count = verify.get("anomaly_count")
+            _require(FormalReasonCode.FC07, type(total_cycles) is int)
+            _require(FormalReasonCode.FC07, type(anomaly_count) is int)
+            _require(FormalReasonCode.FC07, anomaly_count == len(anomalies))
+            _require(FormalReasonCode.FC07, total_cycles == anomaly_count)
+            _require(FormalReasonCode.FC07, _valid_witness_anomaly(anomalies[0]))
+            _require(
+                FormalReasonCode.FC07,
+                _witness_class_sha256(anomalies[0])
+                == physical["constraint_sha256"],
             )
 
 
