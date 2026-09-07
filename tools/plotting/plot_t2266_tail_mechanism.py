@@ -68,14 +68,18 @@ LEGACY_SOURCE = {
 
 CAPTION = (
     "Non-certified measurements: source_measurement=trace_disabled, "
-    "performance_certified=false, claim_scope=descriptive_backoff_shape_only; "
-    "they must not be used as grounds for variant adoption. "
+    "performance_certified=false, claim_scope=descriptive_backoff_shape_only;\n"
+    "they must not be used as grounds for variant adoption.\n"
     "s = 48 / T is aggregate time across 48 workers and includes, without "
-    "separating, leader-specific costs. a = α/(1−α) is aborts per commit, "
-    "where α = aborts/(aborts+commits). The stacked areas are fitted accounting "
-    "components, not directly observed costs. A true static 1000 µs point was "
+    "separating, leader-specific costs.\n"
+    "a = α/(1−α) is aborts per commit, where α = "
+    "aborts/(aborts+commits).\n"
+    "The stacked areas are fitted accounting components, not directly observed "
+    "costs.\n"
+    "A true static 1000 µs point was "
     "not measured; 999 µs is the largest value expressible by the current "
-    "encoding (F718). This is post-hoc analysis formulated after the "
+    "encoding (F718).\n"
+    "This is post-hoc analysis formulated after the "
     "measurements were recorded."
 )
 
@@ -253,8 +257,8 @@ def analyze_report(report: Mapping) -> dict:
             THREADS * 1e6 / tps - (alpha / (1.0 - alpha)) * backoff
             for tps, alpha in zip(throughput_reps, abort_reps)
         ]
-        _service_rep_mean, service_ci = _mean_t95(service_reps)
-        _residual_rep_mean, residual_ci = _mean_t95(residual_reps)
+        service_rep_mean, service_ci = _mean_t95(service_reps)
+        residual_rep_mean, residual_ci = _mean_t95(residual_reps)
         calculated.append({
             "backoff_us": backoff,
             "throughput_mean_tps": throughput,
@@ -263,9 +267,13 @@ def analyze_report(report: Mapping) -> dict:
             "abort_rate_ci95_half": abort_ci,
             "service_time_us": service,
             "service_time_ci95_half_us": service_ci,
+            "service_time_ci95_lower_us": service_rep_mean - service_ci,
+            "service_time_ci95_upper_us": service_rep_mean + service_ci,
             "aborts_per_commit": aborts_per_commit,
             "residual_us": residual,
             "residual_ci95_half_us": residual_ci,
+            "residual_ci95_lower_us": residual_rep_mean - residual_ci,
+            "residual_ci95_upper_us": residual_rep_mean + residual_ci,
         })
 
     abort_counts = [point["aborts_per_commit"] for point in calculated]
@@ -291,10 +299,10 @@ def analyze_report(report: Mapping) -> dict:
     log_b = [math.log(float(point["backoff_us"])) for point in calculated]
     log_alpha = [math.log(point["abort_rate_mean"]) for point in calculated]
     log_c, g = _ols_intercept_slope(log_b, log_alpha)
-    predicted_log_alpha = [log_c + g * value for value in log_b]
+    fitted_log_alpha = [log_c + g * value for value in log_b]
     log_mean = statistics.fmean(log_alpha)
-    ss_res = sum((actual - predicted) ** 2 for actual, predicted in zip(
-        log_alpha, predicted_log_alpha))
+    ss_res = sum((actual - fitted) ** 2 for actual, fitted in zip(
+        log_alpha, fitted_log_alpha))
     ss_tot = sum((actual - log_mean) ** 2 for actual in log_alpha)
     return {
         "workload": workload,
@@ -314,9 +322,7 @@ def analyze_report(report: Mapping) -> dict:
 
 
 def analyze_reports(reports: Sequence[Mapping]) -> list[dict]:
-    """Analyze the three workload reports in the fixed column order."""
-    if [report.get("workload") for report in reports] != list(WORKLOADS):
-        _reject("reports must be in write-heavy/balanced/read-heavy order")
+    """Analyze the supplied workload reports."""
     return [analyze_report(report) for report in reports]
 
 
@@ -388,12 +394,10 @@ def _validate_text_bboxes(fig) -> None:
 
 def make_figure(analyses: Sequence[Mapping]):
     """Return the real 3x3 matplotlib Figure and semantic artist records."""
-    if [analysis.get("workload") for analysis in analyses] != list(WORKLOADS):
-        _reject("analyses must be in write-heavy/balanced/read-heavy order")
     _load_plot_deps()
     _style()
     fig, axes = plt.subplots(
-        3, 3, figsize=(12.8, 9.4), squeeze=False, sharex=False, sharey=False
+        3, 3, figsize=(12.8, 9.8), squeeze=False, sharex=False, sharey=False
     )
     colors = {
         "measured": "#202020",
@@ -429,7 +433,7 @@ def make_figure(analyses: Sequence[Mapping]):
             label="refuted exponential", zorder=2,
         )
         top.set_title(f"{workload} (read ratio {RRATIOS[workload]}%)")
-        top.set_ylabel("throughput (M tps)")
+        top.set_ylabel("throughput (million transactions/s)")
         top.legend(loc="best", frameon=False)
 
         middle = axes[1, column]
@@ -445,7 +449,18 @@ def make_figure(analyses: Sequence[Mapping]):
         )
         middle.errorbar(
             xs, [point["service_time_us"] for point in points],
-            yerr=[point["service_time_ci95_half_us"] for point in points],
+            yerr=[
+                [
+                    point["service_time_us"]
+                    - point["service_time_ci95_lower_us"]
+                    for point in points
+                ],
+                [
+                    point["service_time_ci95_upper_us"]
+                    - point["service_time_us"]
+                    for point in points
+                ],
+            ],
             fmt="o", color=colors["measured"], ecolor=colors["measured"],
             elinewidth=0.9, capsize=2.0, markersize=3.5, label="measured",
             zorder=4,
@@ -496,15 +511,19 @@ def make_figure(analyses: Sequence[Mapping]):
 
     fig.suptitle(
         "T-2266 static-backoff tail — descriptive accounting fits\n"
-        "48 threads, 1,000,000 records, Zipf 0.9, RMW 0",
+        "48 threads, 1,000,000 records, Zipf 0.9, "
+        "read-modify-write disabled",
         fontsize=10.0, y=0.985,
     )
+    fig.text(
+        0.075, 0.012, CAPTION, ha="left", va="bottom", fontsize=6.4,
+        linespacing=1.18,
+    )
     fig.subplots_adjust(
-        left=0.075, right=0.985, top=0.91, bottom=0.075,
+        left=0.075, right=0.985, top=0.91, bottom=0.18,
         wspace=0.31, hspace=0.34,
     )
     _validate_text_bboxes(fig)
-    fig._t2266_caption = CAPTION
     fig._t2266_artist_series = artist_records
     return fig, artist_records
 

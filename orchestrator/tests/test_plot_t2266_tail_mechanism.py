@@ -331,7 +331,9 @@ def test_figure_caption_contains_claim_boundary_and_six_caveats_once():
     analyses = plot.analyze_reports(plot.load_reports())
     figure, _records = plot.make_figure(analyses)
     try:
-        caption = figure._t2266_caption
+        rendered_text = "\n".join(
+            artist.get_text() for artist in figure.findobj(plot.Text)
+        )
         for literal in (
             "source_measurement=trace_disabled",
             "performance_certified=false",
@@ -346,7 +348,7 @@ def test_figure_caption_contains_claim_boundary_and_six_caveats_once():
             "current encoding (F718)",
             "post-hoc analysis",
         ):
-            assert caption.count(literal) == 1
+            assert rendered_text.count(literal) == 1
     finally:
         plot.plt.close(figure)
 
