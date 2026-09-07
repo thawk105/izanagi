@@ -430,42 +430,30 @@ def test_binding_seed_and_input_count_fail_closed_or_become_inconclusive(
 def test_artifacts_remain_bound_to_literal_v1_preregistration_sha(
     tmp_path: Path,
 ) -> None:
-    all_v2_paths = _write_artifacts(tmp_path / "all-v2")
+    v2_top_only_paths = _write_artifacts(tmp_path / "v2-top-only")
 
-    def bind_top_and_rows_to_v2(document: dict) -> None:
+    def bind_top_to_v2(document: dict) -> None:
         document["counterfactual_preregistration"] = (
             ANALYSIS_PREREGISTRATION_SHA256_V2
         )
+
+    for path in v2_top_only_paths:
+        _rewrite(path, bind_top_to_v2)
+    with pytest.raises(ValueError, match="top-level counterfactual contract mismatch"):
+        analysis.analyze_counterfactual(v2_top_only_paths, PREREGISTRATION)
+
+    v2_rows_only_paths = _write_artifacts(tmp_path / "v2-rows-only")
+
+    def bind_rows_to_v2(document: dict) -> None:
         for row in document["trace_runs"]:
             row["counterfactual_preregistration"] = (
                 ANALYSIS_PREREGISTRATION_SHA256_V2
             )
 
-    _rewrite(all_v2_paths[0], bind_top_and_rows_to_v2)
-    with pytest.raises(ValueError, match="top-level counterfactual contract mismatch"):
-        analysis.analyze_counterfactual(all_v2_paths, PREREGISTRATION)
-
-    one_v2_row_paths = _write_artifacts(tmp_path / "one-v2-row")
-    _rewrite(
-        one_v2_row_paths[0],
-        lambda document: _primary_row(document).__setitem__(
-            "counterfactual_preregistration",
-            ANALYSIS_PREREGISTRATION_SHA256_V2,
-        ),
-    )
+    for path in v2_rows_only_paths:
+        _rewrite(path, bind_rows_to_v2)
     with pytest.raises(ValueError, match="row preregistration SHA-256 mismatch"):
-        analysis.analyze_counterfactual(one_v2_row_paths, PREREGISTRATION)
-
-    v2_top_only_paths = _write_artifacts(tmp_path / "v2-top-only")
-    _rewrite(
-        v2_top_only_paths[0],
-        lambda document: document.__setitem__(
-            "counterfactual_preregistration",
-            ANALYSIS_PREREGISTRATION_SHA256_V2,
-        ),
-    )
-    with pytest.raises(ValueError, match="top-level counterfactual contract mismatch"):
-        analysis.analyze_counterfactual(v2_top_only_paths, PREREGISTRATION)
+        analysis.analyze_counterfactual(v2_rows_only_paths, PREREGISTRATION)
 
 
 def test_missing_arm_and_zero_commit_make_whole_primary_inconclusive(
