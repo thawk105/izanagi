@@ -1,0 +1,7 @@
+Request ID: 978193.nqsv
+    Request Name = paper_story_a1_paired.sh
+    Current State           = Queued
+    Previous State          = Staging
+    State Transition Time   = Sat Sep  5 13:12:21 2026
+    State Transition Reason = STAGEIN_SUCCESS
+    Queue = gen_S@nqsv (Execution Queue)
