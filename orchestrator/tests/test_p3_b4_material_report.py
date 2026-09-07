@@ -951,6 +951,49 @@ def test_m9_four_authority_and_assembly_states_project_exactly(
         }
 
 
+def test_present_floor_projects_required_verbatim_non_guarantees(
+    tmp_path: Path,
+) -> None:
+    authority_repo = tmp_path / "authority-repo"
+    _write_floor_preregistration(authority_repo, present=True)
+    authoritative_floor = floor_issuer.resolve_preregistered_authoritative_floor(
+        repo_root=authority_repo,
+        preregistration_path=R._PREREGISTRATION_RELATIVE_PATH,
+    )
+    assert authoritative_floor is not None
+    report = {
+        "floor": {
+            "availability": "absent",
+            "reason": "preregistration_section_5_unfilled",
+            "source": None,
+            "value": None,
+        },
+        "report_scope": {
+            "floor_availability": "absent",
+            "expected_analysis_verdict": "protocol_violation",
+            "expected_analysis_reason": "floor_domain_error",
+        },
+        "certification_scope": {
+            "not_guaranteed": ["authoritative_floor_artifact"],
+        },
+        "provenance": {"report_non_guarantees": []},
+        "analysis": {"status": "not_evaluated", "floor_argument": None},
+    }
+
+    projected = R._apply_authoritative_floor_projection(
+        SimpleNamespace(authoritative_floor=authoritative_floor),
+        report,
+    )
+    expected = [
+        "binary64 の中間丸めにより、記録された float D が同じ入力の exact D より小さいことがある。",
+        "その版が D1699 適合をまだ満たしていない。",
+        "source summary の参照先を実在照合していない",
+    ]
+    assert projected["floor"]["availability"] == "present"
+    assert projected["certification_scope"]["not_guaranteed"] == expected
+    assert projected["provenance"]["report_non_guarantees"] == expected
+
+
 def test_m7_non_sentinel_resolver_failure_never_falls_back_or_calls_evaluator(
     tmp_path: Path,
     immutable_publication: _ImmutablePublication,

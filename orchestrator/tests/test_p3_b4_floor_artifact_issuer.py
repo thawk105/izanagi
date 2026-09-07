@@ -529,6 +529,27 @@ def test_authority_issue_is_create_only_exact_and_loadable(
     assert (tmp_path / result.artifact_path).read_bytes() == before
 
 
+def test_authority_non_guarantees_pin_required_verbatim_limitations(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    summary_path, _summary = _synthetic_source(
+        tmp_path, monkeypatch, receipt_has_protocol=True
+    )
+    result = issuer.issue_authoritative_floor(
+        repo_root=tmp_path, summary_path=summary_path
+    )
+    authority = json.loads(
+        (tmp_path / result.artifact_path).read_text(encoding="utf-8")
+    )
+
+    assert authority["non_guarantees"][:3] == [
+        "binary64 の中間丸めにより、記録された float D が同じ入力の exact D より小さいことがある。",
+        "その版が D1699 適合をまだ満たしていない。",
+        "source summary の参照先を実在照合していない",
+    ]
+
+
 def test_authority_filename_contains_all_five_derived_components(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
