@@ -74,6 +74,19 @@ V6 で足した運び手 (`run_cmd` / `notes` / probe stdout) は有効で、運
   軽い具体化で成立、M1 / M2 / M3 / M8 / M10 / M11 は再照準、M13〜M18 は分割上この単位に入らない
 - 段 2 / 段 3 の成果物は骨格が変わらない限り次 wave で流用できる (読み込み契約の規定)
 
+## 9. 受入全走
+
+- attempt 1 (19:32 JST): `stage=merge-message-provenance` rc=70。テストは 1 件も走っていない。
+  受入自身が行う main 取り込みで、両親が共に `attempt_registry_core.py` と
+  `test_attempt_registry_core_s8b_profile.py` を変更しているため、既定の self-report message では
+  Codex `role=author` が足りない。親はこの走行に待ち手を付けておらず約 27 分を空転させた。
+- 合成監査 (20:03-20:13 JST): Codex `role=author` の read-only 子が両側の差分と main 側の現物を
+  読み、3 file の意味の合成を **干渉なし**と判定した。逐語は `verbatim/merge-audit.md`、
+  prompt は `prompts/prompt-merge-audit.md`。
+- attempt 2 (20:14-20:29 JST): **rc=0、`verdict: child-green`、21,414 passed / 68 skipped**。
+  `tested_main=f2cca136a`、`tested_tip=6e1845adf`、red / flake は空、pre/post fingerprint 一致。
+  receipt は `acceptance-receipt.json`。
+
 ## 8. 収録物
 
 - `s1-brief.md` — 段 1 brief
