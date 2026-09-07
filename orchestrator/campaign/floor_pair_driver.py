@@ -14,6 +14,8 @@ runner 引数を閉じた専用 adapter である。
 * 標本の統計的独立性を判定しない。window / campaign を記録するだけ。
 * strip 済み binary の trace 混入を検出しない。
 * ``nm`` の PATH 解決先を binary identity として束縛しない。
+* 落ちた標本による残存標本数の減少を許容限界の被覆確率へ補正せず、残存標本で 95% 被覆を保つことを証明しない。
+* campaign 合算の 5% は pair 間の欠測の偏りを制限しない (stratum ごとの件数は報告する)。
 """
 from __future__ import annotations
 
@@ -31,6 +33,7 @@ import sys
 from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from fractions import Fraction
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
@@ -45,15 +48,17 @@ from . import (
 )
 
 
-SPEC_SCHEMA = "floor-pair-spec/v1"
+SPEC_SCHEMA = "floor-pair-spec/v2"
 PLAN_SCHEMA = "floor-pair-plan/v1"
-WINDOW_SCHEMA = "floor-pair-window/v1"
-SUMMARY_SCHEMA = "floor-pair-summary/v1"
+WINDOW_SCHEMA = "floor-pair-window/v2"
+SUMMARY_SCHEMA = "floor-pair-summary/v2"
 RANDOMIZATION_ID = "hmac-sha256-rank/v1"
 SESSION_REDUCER_ID = "median/v1"
 STRATUM_UPPER_ID = "sample_max/v1"
 FINAL_COMBINER_ID = "max_over_closed_strata/v1"
-FAILURE_POLICY_ID = "all_planned_samples_required/v1"
+FAILURE_POLICY_ID = "d1641-drop-and-count-max-5pct/v1"
+MAX_DROPPED_FRACTION = Fraction(1, 20)
+MAX_DROPPED_FRACTION_WIRE = "1/20"
 WINDOW_FORMAT_ID = "floor-pair-jsonl/v1"
 SUMMARY_FORMAT_ID = "floor-pair-summary-json/v1"
 COMPETING_PROBE_ARGV = ("pgrep", "-af", r"ycsb_.*\.exe")
@@ -66,6 +71,8 @@ NOT_PROVEN = (
     "標本の統計的独立性を判定しない。window / campaign を記録するだけ。",
     "strip 済み binary の trace 混入を検出しない。",
     "``nm`` の PATH 解決先を binary identity として束縛しない。",
+    "落ちた標本による残存標本数の減少を許容限界の被覆確率へ補正せず、残存標本で 95% 被覆を保つことを証明しない。",
+    "campaign 合算の 5% は pair 間の欠測の偏りを制限しない (stratum ごとの件数は報告する)。",
 )
 
 _HEX64_RE = re.compile(r"[0-9a-f]{64}")
@@ -86,8 +93,24 @@ SESSION_STATUSES = frozenset(
         "post_probe_indeterminate",
         "binary_binding_failed",
         "outside_window",
+        "protocol_violation",
+        "not_run_sample_dropped",
         "not_run_after_fail_closed",
     }
+)
+
+DROPPABLE_STATUSES = frozenset(
+    {
+        "pre_probe_competing",
+        "pre_probe_indeterminate",
+        "measure_failed",
+        "measure_incomplete",
+        "post_probe_competing",
+        "post_probe_indeterminate",
+    }
+)
+FATAL_STATUSES = frozenset(
+    {"binary_binding_failed", "outside_window", "protocol_violation"}
 )
 
 
@@ -207,6 +230,7 @@ class FailurePolicy:
     policy: str
     retry_count: int
     require_all_reps: bool
+    max_dropped_fraction: Fraction
 
 
 @dataclass(frozen=True)
@@ -882,7 +906,9 @@ def _parse_statistics(value: object) -> StatisticsConfig:
 
 def _parse_failure_policy(value: object) -> FailurePolicy:
     obj = _exact_object(
-        value, {"policy", "retry_count", "require_all_reps"}, label="failure_policy"
+        value,
+        {"policy", "retry_count", "require_all_reps", "max_dropped_fraction"},
+        label="failure_policy",
     )
     policy = _exact_text(obj["policy"], label="failure_policy.policy")
     if policy != FAILURE_POLICY_ID:
@@ -895,10 +921,20 @@ def _parse_failure_policy(value: object) -> FailurePolicy:
     )
     if require_all_reps is not True:
         raise FloorPairSpecError("failure_policy.require_all_reps は true でなければならない")
+    max_dropped_fraction = _exact_text(
+        obj["max_dropped_fraction"],
+        label="failure_policy.max_dropped_fraction",
+    )
+    if max_dropped_fraction != MAX_DROPPED_FRACTION_WIRE:
+        raise FloorPairSpecError(
+            "failure_policy.max_dropped_fraction は "
+            f"{MAX_DROPPED_FRACTION_WIRE!r} でなければならない"
+        )
     return FailurePolicy(
         policy=policy,
         retry_count=retry_count,
         require_all_reps=require_all_reps,
+        max_dropped_fraction=MAX_DROPPED_FRACTION,
     )
 
 
@@ -1280,12 +1316,33 @@ def _assert_plan_exact(
         raise error_type("measurement plan が frozen spec の canonical plan と exact 一致しない")
 
 
+def _total_throughput_float(value: object) -> tuple[float | None, bool]:
+    """Return a non-negative numeric conversion and the pre-conversion sign."""
+    if type(value) not in {int, float}:
+        return None, False
+    if value < 0:
+        return None, True
+    try:
+        return float(value), False
+    except (OverflowError, ValueError):
+        return None, False
+
+
 def _finite_positive(value: object, *, label: str) -> float:
     if type(value) not in {int, float}:
         raise ValueError(f"{label} は exact finite number でなければならない")
-    numeric = float(value)
-    if not math.isfinite(numeric) or numeric <= 0:
+    numeric, negative = _total_throughput_float(value)
+    if numeric is None or negative or not math.isfinite(numeric) or numeric <= 0:
         raise ValueError(f"{label} は有限正数でなければならない")
+    return numeric
+
+
+def _finite_nonnegative(value: object, *, label: str) -> float:
+    if type(value) not in {int, float}:
+        raise ValueError(f"{label} は exact finite number でなければならない")
+    numeric, negative = _total_throughput_float(value)
+    if numeric is None or negative or not math.isfinite(numeric):
+        raise ValueError(f"{label} は有限非負数でなければならない")
     return numeric
 
 
@@ -1295,8 +1352,8 @@ def compute_gain_difference(
     reference_tps: float,
 ) -> GainDifference:
     """一つの共通 reference を分母として二つの相対利得の差を返す。"""
-    candidate_1 = _finite_positive(candidate_1_tps, label="candidate_1_tps")
-    candidate_2 = _finite_positive(candidate_2_tps, label="candidate_2_tps")
+    candidate_1 = _finite_nonnegative(candidate_1_tps, label="candidate_1_tps")
+    candidate_2 = _finite_nonnegative(candidate_2_tps, label="candidate_2_tps")
     reference = _finite_positive(reference_tps, label="reference_tps")
     gain_1 = candidate_1 / reference - 1.0
     gain_2 = candidate_2 / reference - 1.0
@@ -1544,61 +1601,119 @@ def _json_safe(value: object) -> object:
     return value
 
 
+def _throughput_protocol_violation(
+    values: Sequence[object], *, role: str
+) -> str | None:
+    for value in values:
+        if type(value) not in {int, float}:
+            continue
+        numeric, negative = _total_throughput_float(value)
+        if negative:
+            return f"{role} throughput が負値"
+        if role == "reference" and numeric is not None and numeric == 0:
+            return "reference throughput が 0"
+    return None
+
+
+def _measurement_payload_complete(
+    *,
+    throughputs: Sequence[object],
+    rep_returncodes: Sequence[object],
+    rep_observations: Sequence[object],
+    rep_timestamps: Sequence[object],
+    expected_reps: int,
+    role: str,
+) -> tuple[bool, str | None, str | None]:
+    if role not in _ROLES:
+        return False, "未知の measurement role", None
+    protocol_error = _throughput_protocol_violation(throughputs, role=role)
+    observation_values = [
+        observation["throughput"]
+        for observation in rep_observations
+        if type(observation) is dict and "throughput" in observation
+    ]
+    protocol_error = protocol_error or _throughput_protocol_violation(
+        observation_values, role=role
+    )
+    if protocol_error is not None:
+        return False, None, protocol_error
+    if len(throughputs) != expected_reps:
+        return False, "throughputs 件数が reps と不一致", None
+    for value in throughputs:
+        if type(value) not in {int, float}:
+            return False, "throughput が exact number でない", None
+        numeric, negative = _total_throughput_float(value)
+        if numeric is None or not math.isfinite(numeric):
+            return False, "throughput が有限数でない", None
+        if role == "reference" and numeric <= 0:
+            return False, "reference throughput が有限正数でない", None
+        if role != "reference" and negative:
+            return False, "candidate throughput が有限非負数でない", None
+    if len(rep_returncodes) != expected_reps:
+        return False, "rep_returncodes 件数が reps と不一致", None
+    if any(type(code) is not int or code != 0 for code in rep_returncodes):
+        return False, "rep returncode が exact 0 でない", None
+    if len(rep_observations) != expected_reps:
+        return False, "rep_observations 件数が reps と不一致", None
+    if len(rep_timestamps) != expected_reps:
+        return False, "rep_timestamps 件数が reps と不一致", None
+    for index, observation in enumerate(rep_observations):
+        if type(observation) is not dict:
+            return False, "rep_observation が object でない", None
+        if "rep_index" not in observation or observation["rep_index"] != index:
+            return False, "rep_observation.rep_index 不一致", None
+        if "returncode" not in observation or observation["returncode"] != 0:
+            return False, "rep_observation.returncode 不一致", None
+        if "throughput" not in observation:
+            return False, "rep_observation.throughput 欠落", None
+        observed = observation["throughput"]
+        observed_numeric, observed_negative = _total_throughput_float(observed)
+        if (
+            observed_numeric is None
+            or observed_negative
+            or not math.isfinite(observed_numeric)
+        ):
+            return False, "rep_observation.throughput が非有限または型不正", None
+        throughput_numeric, _negative = _total_throughput_float(throughputs[index])
+        if observed_numeric != throughput_numeric:
+            return False, "rep_observation.throughput が raw throughput と不一致", None
+    for index, timestamp in enumerate(rep_timestamps):
+        if type(timestamp) is not dict:
+            return False, "rep_timestamp が object でない", None
+        if set(timestamp) != {"rep_index", "started_at_ns", "finished_at_ns"}:
+            return False, "rep_timestamp key 不一致", None
+        if timestamp["rep_index"] != index:
+            return False, "rep_timestamp.rep_index 不一致", None
+        for key in ("started_at_ns", "finished_at_ns"):
+            if type(timestamp[key]) is not int or timestamp[key] < 0:
+                return False, f"rep_timestamp.{key} が exact 非負 int でない", None
+        if timestamp["started_at_ns"] > timestamp["finished_at_ns"]:
+            return False, "rep_timestamp の時刻順が逆", None
+    return True, None, None
+
+
 def _measurement_complete(
     result: MeasurementResult,
     request: MeasurementRequest,
-) -> tuple[bool, str | None]:
+    *,
+    role: str,
+) -> tuple[bool, str | None, str | None]:
     if not isinstance(result, MeasurementResult):
-        return False, "production measurement adapter が MeasurementResult を返さない"
+        return False, "production measurement adapter が MeasurementResult を返さない", None
     if result.session_id != request.session_id:
-        return False, "MeasurementResult.session_id 不一致"
+        return False, "MeasurementResult.session_id 不一致", None
     if result.point_records != request.perf_config.records:
-        return False, "ScalePoint.records 不一致"
+        return False, "ScalePoint.records 不一致", None
     if result.point_threads != request.perf_config.threads:
-        return False, "ScalePoint.threads 不一致"
-    reps = request.perf_config.reps
-    if len(result.throughputs) != reps:
-        return False, "throughputs 件数が reps と不一致"
-    for value in result.throughputs:
-        if type(value) not in {int, float}:
-            return False, "throughput が exact number でない"
-        if not math.isfinite(float(value)) or float(value) <= 0:
-            return False, "throughput が有限正数でない"
-    if len(result.rep_returncodes) != reps:
-        return False, "rep_returncodes 件数が reps と不一致"
-    if any(type(code) is not int or code != 0 for code in result.rep_returncodes):
-        return False, "rep returncode が exact 0 でない"
-    if len(result.rep_observations) != reps:
-        return False, "rep_observations 件数が reps と不一致"
-    if len(result.rep_timestamps) != reps:
-        return False, "rep_timestamps 件数が reps と不一致"
-    for index, observation in enumerate(result.rep_observations):
-        if type(observation) is not dict:
-            return False, "rep_observation が object でない"
-        if "rep_index" not in observation or observation["rep_index"] != index:
-            return False, "rep_observation.rep_index 不一致"
-        if "returncode" not in observation or observation["returncode"] != 0:
-            return False, "rep_observation.returncode 不一致"
-        if "throughput" not in observation:
-            return False, "rep_observation.throughput 欠落"
-        observed = observation["throughput"]
-        if type(observed) not in {int, float} or not math.isfinite(float(observed)):
-            return False, "rep_observation.throughput が非有限または型不正"
-        if float(observed) != float(result.throughputs[index]):
-            return False, "rep_observation.throughput が raw throughput と不一致"
-    for index, timestamp in enumerate(result.rep_timestamps):
-        if type(timestamp) is not dict:
-            return False, "rep_timestamp が object でない"
-        if set(timestamp) != {"rep_index", "started_at_ns", "finished_at_ns"}:
-            return False, "rep_timestamp key 不一致"
-        if timestamp["rep_index"] != index:
-            return False, "rep_timestamp.rep_index 不一致"
-        for key in ("started_at_ns", "finished_at_ns"):
-            if type(timestamp[key]) is not int or timestamp[key] < 0:
-                return False, f"rep_timestamp.{key} が exact 非負 int でない"
-        if timestamp["started_at_ns"] > timestamp["finished_at_ns"]:
-            return False, "rep_timestamp の時刻順が逆"
-    return True, None
+        return False, "ScalePoint.threads 不一致", None
+    return _measurement_payload_complete(
+        throughputs=result.throughputs,
+        rep_returncodes=result.rep_returncodes,
+        rep_observations=result.rep_observations,
+        rep_timestamps=result.rep_timestamps,
+        expected_reps=request.perf_config.reps,
+        role=role,
+    )
 
 
 def _session_record_base(session: PlannedSession) -> dict[str, object]:
@@ -1613,6 +1728,7 @@ def _session_record_base(session: PlannedSession) -> dict[str, object]:
         "role": session.role,
         "artifact_id": session.artifact_id,
         "schedule_index": session.schedule_index,
+        "dropped_by_session_id": None,
     }
 
 
@@ -1632,6 +1748,33 @@ def _not_run_record(session: PlannedSession, now_fn: Callable[[], datetime]) -> 
             "started_at": observed,
             "finished_at": observed,
             "error": "earlier session failed closed",
+        }
+    )
+    return record
+
+
+def _sample_dropped_record(
+    session: PlannedSession,
+    *,
+    dropped_by_session_id: str,
+    now_fn: Callable[[], datetime],
+) -> dict[str, object]:
+    record = _session_record_base(session)
+    observed = _format_utc(now_fn())
+    record.update(
+        {
+            "status": "not_run_sample_dropped",
+            "throughputs": [],
+            "rep_returncodes": [],
+            "rep_observations": [],
+            "rep_timestamps": [],
+            "binary_sha256": None,
+            "pre_probe": None,
+            "post_probe": None,
+            "started_at": observed,
+            "finished_at": observed,
+            "error": "sample_dropped",
+            "dropped_by_session_id": dropped_by_session_id,
         }
     )
     return record
@@ -1713,6 +1856,20 @@ def _run_planned_session(
         except Exception as exc:
             measurement_error = f"{type(exc).__name__}: {str(exc)[:500]}"
     post_probe = _probe_once(spec.environment, probe_fn)
+    protocol_reason: str | None = None
+    if measurement is not None:
+        protocol_reason = _throughput_protocol_violation(
+            measurement.throughputs,
+            role=session.role,
+        )
+        protocol_reason = protocol_reason or _throughput_protocol_violation(
+            [
+                observation["throughput"]
+                for observation in measurement.rep_observations
+                if type(observation) is dict and "throughput" in observation
+            ],
+            role=session.role,
+        )
     status = "complete"
     error: str | None = None
     if pre_probe["status"] == "competing":
@@ -1721,18 +1878,21 @@ def _run_planned_session(
     elif pre_probe["status"] == "indeterminate":
         status = "pre_probe_indeterminate"
         error = str(pre_probe["error"])
-    elif measurement_error is not None:
-        status = "measure_failed"
-        error = measurement_error
-    elif measurement is None:
-        status = "measure_failed"
-        error = "measurement result がない"
+    elif protocol_reason is not None:
+        status = "protocol_violation"
+        error = protocol_reason
     elif post_probe["status"] == "competing":
         status = "post_probe_competing"
         error = "post probe detected competing process"
     elif post_probe["status"] == "indeterminate":
         status = "post_probe_indeterminate"
         error = str(post_probe["error"])
+    elif measurement_error is not None:
+        status = "measure_failed"
+        error = measurement_error
+    elif measurement is None:
+        status = "measure_failed"
+        error = "measurement result がない"
     else:
         request = MeasurementRequest(
             session_id=session.session_id,
@@ -1744,8 +1904,18 @@ def _run_planned_session(
             timeout_s=spec.environment.timeout_s,
             extra_env=spec.environment.extra_env,
         )
-        complete, incomplete_reason = _measurement_complete(measurement, request)
-        if not complete:
+        complete, incomplete_reason, protocol_reason = _measurement_complete(
+            measurement,
+            request,
+            role=session.role,
+        )
+        if protocol_reason is not None:
+            status = "protocol_violation"
+            error = protocol_reason
+        elif len(measurement.throughputs) == 0:
+            status = "measure_failed"
+            error = incomplete_reason
+        elif not complete:
             status = "measure_incomplete"
             error = incomplete_reason
     record.update(
@@ -1832,12 +2002,20 @@ def run_window(
         },
     }
     records: list[dict[str, object]] = []
-    failed = False
+    dropped_causes: dict[tuple[str, str, int], str] = {}
+    fatal = False
     with _ExclusiveWriter(output_path) as writer:
         writer.write_object(header)
         for session in sessions:
-            if failed:
+            sample_key = (session.window_id, session.pair_id, session.sample_index)
+            if fatal:
                 record = _not_run_record(session, now_fn)
+            elif sample_key in dropped_causes:
+                record = _sample_dropped_record(
+                    session,
+                    dropped_by_session_id=dropped_causes[sample_key],
+                    now_fn=now_fn,
+                )
             else:
                 record = _run_planned_session(
                     spec=spec,
@@ -1846,11 +2024,31 @@ def run_window(
                     probe_fn=probe_fn,
                     now_fn=now_fn,
                 )
-                if record["status"] != "complete":
-                    failed = True
+                if record["status"] in DROPPABLE_STATUSES:
+                    dropped_causes[sample_key] = session.session_id
+                elif record["status"] in FATAL_STATUSES:
+                    fatal = True
             writer.write_object(record)
             records.append(record)
-        terminal_status = "complete" if not failed else "incomplete"
+        planned_sample_keys = {
+            (session.window_id, session.pair_id, session.sample_index)
+            for session in sessions
+        }
+        complete_sample_keys = {
+            sample_key
+            for sample_key in planned_sample_keys
+            if all(
+                record["status"] == "complete"
+                for record in records
+                if (
+                    record["window_id"],
+                    record["pair_id"],
+                    record["sample_index"],
+                )
+                == sample_key
+            )
+        }
+        terminal_status = "incomplete" if fatal else "complete"
         writer.write_object(
             {
                 "event": "terminal",
@@ -1858,6 +2056,9 @@ def run_window(
                 "window_id": window.window_id,
                 "planned_session_count": len(sessions),
                 "recorded_session_count": len(records),
+                "planned_sample_count": len(planned_sample_keys),
+                "dropped_sample_count": len(dropped_causes),
+                "complete_sample_count": len(complete_sample_keys),
             }
         )
     artifact_raw = output_path.read_bytes()
@@ -1896,9 +2097,238 @@ def _read_jsonl(path: Path, *, label: str) -> tuple[dict[str, object], ...]:
     return tuple(result)
 
 
+_SESSION_RECORD_FIELDS = frozenset(
+    {
+        "event",
+        "session_id",
+        "window_id",
+        "campaign_id",
+        "pair_id",
+        "cell_id",
+        "sample_index",
+        "role",
+        "artifact_id",
+        "schedule_index",
+        "dropped_by_session_id",
+        "status",
+        "throughputs",
+        "rep_returncodes",
+        "rep_observations",
+        "rep_timestamps",
+        "binary_sha256",
+        "pre_probe",
+        "post_probe",
+        "started_at",
+        "finished_at",
+        "error",
+    }
+)
+_PROBE_FIELDS = frozenset(
+    {"status", "returncode", "stdout", "stderr", "competitors", "error"}
+)
+
+
+def _probe_payload_status(value: object, *, label: str) -> str:
+    if type(value) is not dict or set(value) != _PROBE_FIELDS:
+        raise FloorPairBindingError(f"{label} probe payload が不正")
+    if type(value["stdout"]) is not str or type(value["stderr"]) is not str:
+        raise FloorPairBindingError(f"{label} probe stdout/stderr が不正")
+    if type(value["competitors"]) is not list:
+        raise FloorPairBindingError(f"{label} probe competitors が array でない")
+    status = value["status"]
+    if status == "clear":
+        if value["competitors"] != [] or value["error"] is not None:
+            raise FloorPairBindingError(f"{label} clear probe payload が不整合")
+    elif status == "competing":
+        if len(value["competitors"]) == 0 or value["error"] is not None:
+            raise FloorPairBindingError(f"{label} competing probe payload が不整合")
+    elif status == "indeterminate":
+        if (
+            value["returncode"] is not None
+            or value["competitors"] != []
+            or type(value["error"]) is not str
+            or value["error"] == ""
+        ):
+            raise FloorPairBindingError(f"{label} indeterminate probe payload が不整合")
+    else:
+        raise FloorPairBindingError(f"{label} probe status が閉集合外")
+    if value["returncode"] is not None and type(value["returncode"]) is not int:
+        raise FloorPairBindingError(f"{label} probe returncode が不正")
+    return status
+
+
+def _derived_record_status(
+    *,
+    spec: FloorPairSpec,
+    session: PlannedSession,
+    record: dict[str, object],
+) -> str:
+    label = f"session {session.session_id}"
+    if set(record) != _SESSION_RECORD_FIELDS:
+        raise FloorPairBindingError(f"{label} payload key が exact 一致しない")
+    arrays = (
+        record["throughputs"],
+        record["rep_returncodes"],
+        record["rep_observations"],
+        record["rep_timestamps"],
+    )
+    if any(type(value) is not list for value in arrays):
+        raise FloorPairBindingError(f"{label} measurement payload が array でない")
+    error = record["error"]
+    if error is not None and (type(error) is not str or error == ""):
+        raise FloorPairBindingError(f"{label} error が不正")
+    dropped_by = record["dropped_by_session_id"]
+    pre_probe = record["pre_probe"]
+    post_probe = record["post_probe"]
+    if pre_probe is None and post_probe is None:
+        if any(value != [] for value in arrays) or record["binary_sha256"] is not None:
+            raise FloorPairBindingError(f"{label} non-run payload が不整合")
+        if error == "sample_dropped":
+            if type(dropped_by) is not str or dropped_by == "":
+                raise FloorPairBindingError(f"{label} dropped cause が不正")
+            return "not_run_sample_dropped"
+        if dropped_by is not None:
+            raise FloorPairBindingError(f"{label} dropped cause が予定外")
+        if error == "earlier session failed closed":
+            return "not_run_after_fail_closed"
+        if error == "session start が半開時間窓の外":
+            return "outside_window"
+        if type(error) is str:
+            return "binary_binding_failed"
+        raise FloorPairBindingError(f"{label} non-run error が不正")
+    if pre_probe is None or post_probe is None:
+        raise FloorPairBindingError(f"{label} probe pair が不完備")
+    if dropped_by is not None:
+        raise FloorPairBindingError(f"{label} measured record に dropped cause がある")
+    artifacts = {artifact.artifact_id: artifact for artifact in spec.artifacts}
+    if record["binary_sha256"] != artifacts[session.artifact_id].binary_sha256:
+        raise FloorPairBindingError(f"{label} binary_sha256 が不一致")
+    pre_status = _probe_payload_status(pre_probe, label=f"{label}.pre_probe")
+    post_status = _probe_payload_status(post_probe, label=f"{label}.post_probe")
+    protocol_error = _throughput_protocol_violation(arrays[0], role=session.role)
+    protocol_error = protocol_error or _throughput_protocol_violation(
+        [
+            observation["throughput"]
+            for observation in arrays[2]
+            if type(observation) is dict and "throughput" in observation
+        ],
+        role=session.role,
+    )
+    if pre_status == "competing":
+        expected_error = "pre probe detected competing process"
+        derived = "pre_probe_competing"
+    elif pre_status == "indeterminate":
+        expected_error = pre_probe["error"]
+        derived = "pre_probe_indeterminate"
+    elif protocol_error is not None:
+        expected_error = protocol_error
+        derived = "protocol_violation"
+    elif post_status == "competing":
+        expected_error = "post probe detected competing process"
+        derived = "post_probe_competing"
+    elif post_status == "indeterminate":
+        expected_error = post_probe["error"]
+        derived = "post_probe_indeterminate"
+    else:
+        expected_reps = next(
+            cell.perf_config.reps for cell in spec.cells if cell.cell_id == session.cell_id
+        )
+        if arrays[0] == []:
+            if type(error) is not str:
+                raise FloorPairBindingError(f"{label} failed measurement error がない")
+            return "measure_failed"
+        complete, incomplete_reason, protocol_reason = _measurement_payload_complete(
+            throughputs=arrays[0],
+            rep_returncodes=arrays[1],
+            rep_observations=arrays[2],
+            rep_timestamps=arrays[3],
+            expected_reps=expected_reps,
+            role=session.role,
+        )
+        if protocol_reason is not None:
+            if error != protocol_reason:
+                raise FloorPairBindingError(f"{label} protocol error が payload と不一致")
+            return "protocol_violation"
+        if not complete:
+            if type(error) is not str or incomplete_reason is None:
+                raise FloorPairBindingError(f"{label} incomplete error が不正")
+            return "measure_incomplete"
+        if error is not None:
+            raise FloorPairBindingError(f"{label} complete record に error がある")
+        return "complete"
+    if error != expected_error:
+        raise FloorPairBindingError(f"{label} probe error が payload と不一致")
+    return derived
+
+
+def _audit_session_causality(
+    *,
+    spec: FloorPairSpec,
+    expected_sessions: Sequence[PlannedSession],
+    records: Sequence[dict[str, object]],
+) -> tuple[set[tuple[str, str, int]], set[tuple[str, str, int]], bool]:
+    dropped_causes: dict[tuple[str, str, int], str] = {}
+    statuses_by_sample: dict[tuple[str, str, int], list[str]] = {}
+    fatal_seen = False
+    for session, record in zip(expected_sessions, records, strict=True):
+        derived = _derived_record_status(spec=spec, session=session, record=record)
+        if record["status"] != derived:
+            raise FloorPairBindingError(
+                f"session {session.session_id} status が payload からの再導出と不一致"
+            )
+        sample_key = (session.window_id, session.pair_id, session.sample_index)
+        if sample_key not in statuses_by_sample:
+            statuses_by_sample[sample_key] = []
+        statuses_by_sample[sample_key].append(derived)
+        if fatal_seen:
+            if derived != "not_run_after_fail_closed":
+                raise FloorPairBindingError("fatal session 後に planned session が実行された")
+            continue
+        if derived == "not_run_after_fail_closed":
+            raise FloorPairBindingError("先行 fatal のない not_run_after_fail_closed")
+        if sample_key in dropped_causes:
+            if (
+                derived != "not_run_sample_dropped"
+                or record["dropped_by_session_id"] != dropped_causes[sample_key]
+            ):
+                raise FloorPairBindingError("落ちた標本の後続 role の因果が不整合")
+            continue
+        if derived == "not_run_sample_dropped":
+            raise FloorPairBindingError("先行失敗のない not_run_sample_dropped")
+        if derived in DROPPABLE_STATUSES:
+            dropped_causes[sample_key] = session.session_id
+        elif derived in FATAL_STATUSES:
+            fatal_seen = True
+    complete_keys = {
+        sample_key
+        for sample_key, statuses in statuses_by_sample.items()
+        if statuses == ["complete", "complete", "complete"]
+    }
+    for sample_key, cause_id in dropped_causes.items():
+        sample_sessions = [
+            session for session in expected_sessions
+            if (session.window_id, session.pair_id, session.sample_index) == sample_key
+        ]
+        cause_index = next(
+            index for index, session in enumerate(sample_sessions)
+            if session.session_id == cause_id
+        )
+        statuses = statuses_by_sample[sample_key]
+        if (
+            any(status != "complete" for status in statuses[:cause_index])
+            or statuses[cause_index] not in DROPPABLE_STATUSES
+            or any(
+                status != "not_run_sample_dropped"
+                for status in statuses[cause_index + 1:]
+            )
+        ):
+            raise FloorPairBindingError("落ちた標本の role 因果が不整合")
+    return set(dropped_causes), complete_keys, fatal_seen
+
+
 def _validate_window_artifact(
     *, spec: FloorPairSpec, plan: MeasurementPlan, window: WindowConfig
-) -> tuple[bytes, tuple[dict[str, object], ...]]:
+) -> tuple[bytes, tuple[dict[str, object], ...], str]:
     path = _resolve_regular(
         spec.repo_root, window.artifact_relpath, label=f"window artifact {window.window_id}"
     )
@@ -1933,15 +2363,6 @@ def _validate_window_artifact(
     if header != expected_header:
         raise FloorPairBindingError(f"window artifact {window.window_id} header が不正")
     session_records = records[1:-1]
-    expected_terminal = {
-        "event": "terminal",
-        "status": "complete",
-        "window_id": window.window_id,
-        "planned_session_count": len(expected_sessions),
-        "recorded_session_count": len(session_records),
-    }
-    if terminal != expected_terminal:
-        raise FloorPairBindingError(f"window artifact {window.window_id} terminal が不正")
     planned_ids = [session.session_id for session in expected_sessions]
     expected_by_id = {session.session_id: session for session in expected_sessions}
     recorded_ids: list[str] = []
@@ -1981,75 +2402,153 @@ def _validate_window_artifact(
             raise FloorPairBindingError(
                 f"window artifact {window.window_id} session status が閉集合外"
             )
+    dropped_keys, complete_keys, fatal_seen = _audit_session_causality(
+        spec=spec,
+        expected_sessions=expected_sessions,
+        records=session_records,
+    )
+    planned_sample_keys = {
+        (session.window_id, session.pair_id, session.sample_index)
+        for session in expected_sessions
+    }
+    terminal_status = "incomplete" if fatal_seen else "complete"
+    expected_terminal = {
+        "event": "terminal",
+        "status": terminal_status,
+        "window_id": window.window_id,
+        "planned_session_count": len(expected_sessions),
+        "recorded_session_count": len(session_records),
+        "planned_sample_count": len(planned_sample_keys),
+        "dropped_sample_count": len(dropped_keys),
+        "complete_sample_count": len(complete_keys),
+    }
+    if terminal != expected_terminal:
+        raise FloorPairBindingError(f"window artifact {window.window_id} terminal が不正")
     raw = path.read_bytes()
-    return raw, tuple(session_records)
+    return raw, tuple(session_records), terminal_status
 
 
 def _median(values: Sequence[float]) -> float:
-    ordered = sorted(float(value) for value in values)
+    converted = [_total_throughput_float(value)[0] for value in values]
+    if any(value is None for value in converted):
+        raise ValueError("median の throughput を変換できない")
+    ordered = sorted(value for value in converted if value is not None)
     count = len(ordered)
     middle = count // 2
     if count % 2 == 1:
         return ordered[middle]
-    return (ordered[middle - 1] + ordered[middle]) / 2.0
+    low = ordered[middle - 1]
+    high = ordered[middle]
+    return low + (high - low) / 2.0
 
 
 def _status_from_records(
     spec: FloorPairSpec,
     records: Sequence[dict[str, object]],
+    terminal_statuses: Sequence[str],
 ) -> str | None:
+    if any(status == "incomplete" for status in terminal_statuses):
+        return "not_generated_missing_samples"
     cells = {cell.cell_id: cell for cell in spec.cells}
     for record in records:
         if record["status"] != "complete":
-            return "not_generated_missing_samples"
-        values = record["throughputs"]
+            continue
         expected_reps = cells[record["cell_id"]].perf_config.reps
-        if type(values) is not list or len(values) != expected_reps:
+        complete, _incomplete_reason, protocol_reason = _measurement_payload_complete(
+            throughputs=record["throughputs"],
+            rep_returncodes=record["rep_returncodes"],
+            rep_observations=record["rep_observations"],
+            rep_timestamps=record["rep_timestamps"],
+            expected_reps=expected_reps,
+            role=record["role"],
+        )
+        if not complete or protocol_reason is not None:
             return "not_generated_missing_samples"
-        for value in values:
-            if type(value) not in {int, float}:
-                return "not_generated_missing_samples"
-            if not math.isfinite(float(value)) or float(value) <= 0:
-                return "not_generated_missing_samples"
-        returncodes = record["rep_returncodes"]
-        observations = record["rep_observations"]
-        timestamps = record["rep_timestamps"]
-        if type(returncodes) is not list or len(returncodes) != expected_reps:
-            return "not_generated_missing_samples"
-        if any(type(code) is not int or code != 0 for code in returncodes):
-            return "not_generated_missing_samples"
-        if type(observations) is not list or len(observations) != expected_reps:
-            return "not_generated_missing_samples"
-        if type(timestamps) is not list or len(timestamps) != expected_reps:
-            return "not_generated_missing_samples"
-        for index, observation in enumerate(observations):
-            if type(observation) is not dict:
-                return "not_generated_missing_samples"
-            if not {"rep_index", "returncode", "throughput"}.issubset(observation):
-                return "not_generated_missing_samples"
-            if observation["rep_index"] != index or observation["returncode"] != 0:
-                return "not_generated_missing_samples"
-            observed = observation["throughput"]
-            if type(observed) not in {int, float}:
-                return "not_generated_missing_samples"
-            if not math.isfinite(float(observed)):
-                return "not_generated_missing_samples"
-            if float(observed) != float(values[index]):
-                return "not_generated_missing_samples"
-        for index, timestamp in enumerate(timestamps):
-            if type(timestamp) is not dict:
-                return "not_generated_missing_samples"
-            if set(timestamp) != {"rep_index", "started_at_ns", "finished_at_ns"}:
-                return "not_generated_missing_samples"
-            if timestamp["rep_index"] != index:
-                return "not_generated_missing_samples"
-            started = timestamp["started_at_ns"]
-            finished = timestamp["finished_at_ns"]
-            if type(started) is not int or type(finished) is not int:
-                return "not_generated_missing_samples"
-            if started < 0 or finished < started:
-                return "not_generated_missing_samples"
     return None
+
+
+def _dropped_sample_keys(
+    records: Sequence[dict[str, object]],
+) -> set[tuple[str, str, int]]:
+    return {
+        (record["window_id"], record["pair_id"], record["sample_index"])
+        for record in records
+        if record["status"] in DROPPABLE_STATUSES
+    }
+
+
+def _campaign_reports(
+    *,
+    spec: FloorPairSpec,
+    records: Sequence[dict[str, object]],
+) -> tuple[list[dict[str, object]], set[tuple[str, str, int]], bool, bool]:
+    dropped_keys = _dropped_sample_keys(records)
+    campaigns: list[dict[str, object]] = []
+    threshold_exceeded = False
+    empty_stratum = False
+    for window in spec.windows:
+        planned = window.sample_count * len(window.pair_ids)
+        window_dropped = {
+            key for key in dropped_keys if key[0] == window.window_id
+        }
+        fraction = Fraction(len(window_dropped), planned)
+        admissible = fraction <= spec.failure_policy.max_dropped_fraction
+        threshold_exceeded = threshold_exceeded or not admissible
+        strata: list[dict[str, object]] = []
+        for pair_id in window.pair_ids:
+            dropped = sum(
+                1
+                for sample_index in range(window.sample_count)
+                if (window.window_id, pair_id, sample_index) in dropped_keys
+            )
+            retained = window.sample_count - dropped
+            empty_stratum = empty_stratum or retained == 0
+            strata.append(
+                {
+                    "window_id": window.window_id,
+                    "pair_id": pair_id,
+                    "planned_sample_count": window.sample_count,
+                    "dropped_sample_count": dropped,
+                    "retained_sample_count": retained,
+                }
+            )
+        campaigns.append(
+            {
+                "window_id": window.window_id,
+                "campaign_id": window.campaign_id,
+                "planned_sample_count": planned,
+                "dropped_sample_count": len(window_dropped),
+                "dropped_fraction": {
+                    "numerator": fraction.numerator,
+                    "denominator": fraction.denominator,
+                },
+                "threshold": MAX_DROPPED_FRACTION_WIRE,
+                "admissible": admissible,
+                "strata": strata,
+            }
+        )
+    return campaigns, dropped_keys, threshold_exceeded, empty_stratum
+
+
+def _dropped_record_summary(
+    records: Sequence[dict[str, object]],
+    dropped_keys: set[tuple[str, str, int]],
+) -> list[dict[str, object]]:
+    fields = (
+        "window_id",
+        "pair_id",
+        "sample_index",
+        "role",
+        "status",
+        "error",
+        "dropped_by_session_id",
+    )
+    return [
+        {field: record[field] for field in fields}
+        for record in records
+        if (record["window_id"], record["pair_id"], record["sample_index"])
+        in dropped_keys
+    ]
 
 
 def _derive_strata(
@@ -2057,6 +2556,7 @@ def _derive_strata(
     spec: FloorPairSpec,
     plan: MeasurementPlan,
     records: Sequence[dict[str, object]],
+    dropped_sample_keys: set[tuple[str, str, int]],
 ) -> tuple[list[dict[str, object]], float]:
     by_session = {record["session_id"]: record for record in records}
     strata_values: dict[tuple[str, str], list[float]] = {
@@ -2070,6 +2570,8 @@ def _derive_strata(
     )
     derived_samples: list[dict[str, object]] = []
     for window_id, pair_id, sample_index in sample_keys:
+        if (window_id, pair_id, sample_index) in dropped_sample_keys:
+            continue
         matching = [
             session
             for session in plan.sessions
@@ -2133,8 +2635,13 @@ def finalize_floor(
     _assert_plan_exact(spec, plan, error_type=FloorPairBindingError)
     window_entries: list[dict[str, object]] = []
     all_records: list[dict[str, object]] = []
+    terminal_statuses: list[str] = []
     for window in spec.windows:
-        raw, records = _validate_window_artifact(spec=spec, plan=plan, window=window)
+        raw, records, terminal_status = _validate_window_artifact(
+            spec=spec,
+            plan=plan,
+            window=window,
+        )
         window_entries.append(
             {
                 "window_id": window.window_id,
@@ -2144,13 +2651,28 @@ def finalize_floor(
             }
         )
         all_records.extend(records)
-    status = _status_from_records(spec, all_records)
+        terminal_statuses.append(terminal_status)
+    campaigns, dropped_keys, threshold_exceeded, empty_stratum = _campaign_reports(
+        spec=spec,
+        records=all_records,
+    )
+    dropped = _dropped_record_summary(all_records, dropped_keys)
+    status = _status_from_records(spec, all_records, terminal_statuses)
     derived: list[dict[str, object]] = []
     upper: float | None = None
     candidate_floor: float | None = None
+    if status is None and threshold_exceeded:
+        status = "not_generated_dropped_fraction_exceeded"
+    elif status is None and empty_stratum:
+        status = "not_generated_empty_stratum"
     if status is None:
         try:
-            derived, upper = _derive_strata(spec=spec, plan=plan, records=all_records)
+            derived, upper = _derive_strata(
+                spec=spec,
+                plan=plan,
+                records=all_records,
+                dropped_sample_keys=dropped_keys,
+            )
         except (ValueError, OverflowError):
             status = "not_generated_missing_samples"
             upper = None
@@ -2175,6 +2697,10 @@ def finalize_floor(
         "upper": upper,
         "candidate_floor": candidate_floor,
         "window_artifacts": window_entries,
+        "campaigns": campaigns,
+        "dropped_sample_count": len(dropped_keys),
+        "dropped_record_count": len(dropped),
+        "dropped": dropped,
         "derivation": derived,
         "proof_limitations": {
             "section": "証明していないこと",

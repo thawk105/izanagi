@@ -1,0 +1,41 @@
+diff --git a/cc/mocc/transaction.cc b/cc/mocc/transaction.cc
+--- a/cc/mocc/transaction.cc
++++ b/cc/mocc/transaction.cc
+@@ -13,7 +13,13 @@
+ // izanagi: #if TRACE-guarded correctness trace
+ #include "../../include/trace.hh"
+ #endif
+ #line 17
++#if IZANAGI_BREAK_MOCC_EARLY_UNLOCK
++static constexpr bool izanagi_break_mocc_early_unlock = true;
++#else
++static constexpr bool izanagi_break_mocc_early_unlock = false;
++#endif
++#line 17
+ 
+ using namespace std;
+ 
+@@ -1200,6 +1206,12 @@ void TxExecutor::writePhase() {
+   }
+ #endif
+ #line 1158
++if constexpr (izanagi_break_mocc_early_unlock) {
++  for (auto& we : write_set_) {
++    if (we.op_ != OpType::INSERT) we.rcdptr_->rwlock_.w_unlock();
++  }
++}
++#line 1158
+ 
+   // write (record, commit-tid)
+   for (auto itr = write_set_.begin(); itr != write_set_.end(); ++itr) {
+@@ -1257,6 +1269,10 @@ void TxExecutor::writePhase() {
+           "lock-lost-before-publish");
+ #endif
+ #line 1195
++if constexpr (izanagi_break_mocc_early_unlock) {
++    if ((*itr).op_ != OpType::INSERT) (*itr).rcdptr_->rwlock_.w_lock();
++}
++#line 1195
+     __atomic_store_n(&((*itr).rcdptr_->tidword_.obj_), maxtid.obj_,
+                      __ATOMIC_RELEASE);
+ #if TRACE
