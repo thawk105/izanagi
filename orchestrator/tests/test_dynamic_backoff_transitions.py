@@ -1452,15 +1452,19 @@ def test_lcg_preprocesses_out_of_policy_zero_and_into_policy_two(
         )
         outputs[policy] = result.stdout
 
+    normalized_outputs = {
+        policy: " ".join(output.split()) for policy, output in outputs.items()
+    }
     lcg_tokens = (
         "kBackoffStepPolicySeed",
         "backoff_step_policy_state_",
-        "6364136223846793005ULL",
+        "backoff_step_policy_state_ * 6364136223846793005ULL",
+        "backoff_step_policy_state_ * 6364136223846793005ULL + "
         "1442695040888963407ULL",
     )
     for token in lcg_tokens:
-        assert token not in outputs[0], f"policy 0 retained {token}"
-        assert token in outputs[2], f"policy 2 omitted {token}"
+        assert token not in normalized_outputs[0], f"policy 0 retained {token}"
+        assert token in normalized_outputs[2], f"policy 2 omitted {token}"
 
 
 def test_trace_preprocesses_out_of_trace_zero_builds(
