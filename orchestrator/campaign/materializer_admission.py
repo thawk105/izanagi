@@ -75,6 +75,11 @@ MATERIALIZER_ADMISSION_REGISTRY = MappingProxyType({
             NON_ADMISSIBLE,
             "trace-only mocc lock/permutation controls used to prove the verifier has teeth",
         ),
+    "orchestrator.campaign.s3_mocc_lock_coverage._install_dependency":
+        MaterializerRegistration(
+            NON_ADMISSIBLE,
+            "static gflags/glog installation for the diagnostic mocc build produces no CCBench binary and cannot source performance values",
+        ),
     "orchestrator.campaign.s5_permutation_coverage._build_broken":
         MaterializerRegistration(
             NON_ADMISSIBLE,

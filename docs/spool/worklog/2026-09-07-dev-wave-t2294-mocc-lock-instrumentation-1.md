@@ -35,6 +35,10 @@ title: [T-2294] mocc に lock 被覆と permutation の #if TRACE 計装を入�
   compute 2 job (52 秒 + 130 秒)、login build 約 20 本。親 context 1 本 (1 回圧縮)。
 - 裁定パッケージ (scope 外、ユーザー判断): mocc trace pilot への計装 patch 重ね、verifier core の P 説明文の protocol 中立化、
   gitlink の e9e477ca (+patch) への前進 [T-2295]、DELETE 経路の動的立証 (YCSB に DELETE が無い)。
+- 受入 1 回目 (09:02〜09:18 JST、post-claim merge で main dcf053f1c を取り込み): 20,957 緑 / 1 赤
+  `test_s8b_floor_campaign.py::test_materializer_registry_covers_all_python_build_launches`。原因は本 wave の driver の
+  `_install_dependency` (gflags / glog の cmake --build) が materializer 登録簿に無いこと (自分起因)。Codex fix 子 4 が登録簿と
+  `EXPECTED_NON_ADMISSIBLE` へ追加し、焦点走の後に受入 2 回目を走らせた。
 - dev-wave 改善候補 3 件は段 8 で routing (DW-O13 の発火条件、隔離 session の guard と submodule の object 取得、`tools/pegasus/*.py --help` 拒否)。
 
 ## 次の一手差分

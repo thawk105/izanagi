@@ -73,6 +73,12 @@
   `-DRULE_LAUNCH_COMPILE=` を CCBench の project は使わず CMake が「未使用変数」警告を出していた。login の生死確認は警告を無視して
   build を通していたので見えなかった。
 
+- 受入 1 回目 (tip 3d08167bd、main dcf053f1c を post-claim merge): 20,957 緑 / 1 赤
+  `test_s8b_floor_campaign.py::test_materializer_registry_covers_all_python_build_launches`。この test は campaign 配下で
+  文字列 `--build` を持つ全関数と materializer 登録簿 (`NON_ADMISSIBLE_MATERIALIZERS`) の exact 一致を要求する。driver の
+  `_install_dependency` (gflags / glog の一時 static install) が未登録だった。fix 子 4 が `NON_ADMISSIBLE` で登録
+  (CCBench binary を生まず性能値の出所にならない、理由は登録簿の文言)。実装は変えていない。
+
 ## 4. 変異台帳 (spec v3、19 件、runner = proof_surface / condition_gate / spawn_sites / build_authority / verifier の 5 file)
 
 | id | 変異 | 期待 killer (probe 観測、file::node) | 本走 |
