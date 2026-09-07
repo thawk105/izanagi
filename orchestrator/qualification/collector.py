@@ -12,6 +12,7 @@ import subprocess
 from pathlib import Path, PurePosixPath
 from typing import Any, Callable, Mapping, Optional
 
+from . import artifacts as qualification_artifacts
 from .artifacts import (
     PERMANENT_NONRETRY_FAILURES,
     QualificationArtifactError,
@@ -289,9 +290,9 @@ def _schema_validate(name: str, value: Mapping[str, Any]) -> None:
         from jsonschema import Draft7Validator
     except ImportError as exc:  # pragma: no cover - production dependency gate
         raise CollectionError("jsonschema is required for receipt validation") from exc
-    schema_path = Path(__file__).resolve().parent / name
     try:
-        schema = json.loads(read_regular_file(schema_path))
+        schema = json.loads(
+            qualification_artifacts.qualification_schema_bytes(name))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise CollectionError(f"invalid bundled receipt schema: {name}") from exc
     errors = sorted(
