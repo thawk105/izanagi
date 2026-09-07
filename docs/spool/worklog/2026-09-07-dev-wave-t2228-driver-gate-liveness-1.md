@@ -38,10 +38,13 @@ title: [T-2228] 残り 3 driver の関門を実測した — 通ったのは 1 �
   再照準した。初回台帳は消さず erratum として insight へ残した。
 - 計算ノード: 実測 2 回 (各約 2 分)、焦点走 3 回、変異走行 2 回。gen_S の混雑は無し。
   詳細は `output/insights/2026-09-07_t2228-driver-gate-liveness/`。
-- 段 8 の改善候補 3 件: (a) `dev_wave_codex.py` の `--reasoning` は plan/consult で必須・
-  author/fix/review/focus で禁止だが reference は必須側しか書いていない、
-  (b) 隔離 worktree セッションで共有 checkout へ `cd` すると以後の Bash が全部拒否される、
-  (c) `tools/pegasus/` へ実行体を 1 つ足すと 5 箇所の同期が要り 1 投入で 1 件しか露見しない。
+- 段 8 の改善候補は 3 件挙げて 1 件を自己反証した。(a) `dev_wave_codex.py` へ `--reasoning` を
+  誤って渡し rc=2 で 1 回空振りしたが、禁止側は `DW-C01` が既に書いており
+  (「他段指定/必須段無指定は rc=2」)、docs の欠落ではなく親の読み落としだった。docs は変えない。
+  (b) 隔離 worktree セッションで共有 checkout へ `cd` すると以後の Bash が全部拒否される件は
+  エージェント側の作法なので repo docs へは入れない。
+  (c) `tools/pegasus/` へ実行体を 1 つ足すと 5 箇所の同期が要り 1 投入で 1 件しか露見しない件は
+  insight の §5 へ書いた。台帳への一般化は今回の依頼の scope 外なので行わない。
 
 ## 次の一手差分
 
