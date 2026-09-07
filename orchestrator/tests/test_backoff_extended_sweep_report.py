@@ -71,7 +71,7 @@ def _normal_points(overrides=None):
         elif flags["BACKOFF_FIXED"] == -1:
             key = ("adaptive", None)
         else:
-            key = ("static", flags["BACKOFF_FIXED"])
+            key = ("static", S.decode_static_backoff_us(flags["BACKOFF_FIXED"]))
         expected[key] = (point_index, genome.canonical())
     for point in points:
         point_index, canonical = expected[(point["kind"], point["backoff_us"])]

@@ -57,18 +57,35 @@ EXTENDED_SWEEP_US = [
     150, 200, 250, 300, 400, 500, 560, 600, 700, 800, 900, 1000,
 ]
 
+STATIC_BACKOFF_MAX_US = 9999
+STATIC_BACKOFF_RAW_MAX = 11999
+
+
+def encode_static_backoff_us(backoff_us: int) -> int:
+    """Encode one physical static-backoff value for BACKOFF_FIXED."""
+    if type(backoff_us) is not int or not 0 <= backoff_us <= STATIC_BACKOFF_MAX_US:
+        raise ValueError("static backoff_us must be an exact integer in [0, 9999]")
+    return backoff_us if backoff_us <= 999 else backoff_us + 2000
+
+
+def decode_static_backoff_us(encoded: int) -> int:
+    """Decode one BACKOFF_FIXED value from the static-only wire domain."""
+    if type(encoded) is not int or not 0 <= encoded <= STATIC_BACKOFF_RAW_MAX:
+        raise ValueError("encoded static backoff must be an exact integer in [0, 11999]")
+    if encoded <= 999:
+        return encoded
+    if encoded >= 3000:
+        return encoded - 2000
+    raise ValueError("encoded BACKOFF_FIXED value is not in the static wire domain")
+
 EXTENDED_RUN_KIND = "extended"
 T2266_RUN_KIND = "t2266-tail"
 RUN_KINDS = (EXTENDED_RUN_KIND, T2266_RUN_KIND)
 
-# The requested coordinates and the representable measurement coordinates are
-# intentionally separate.  F718 records why 999 must not be called T(1000).
 T2266_REQUESTED_US = (150, 200, 300, 500, 750, 1000)
-T2266_REALIZED_US = (150, 200, 300, 500, 750, 999)
-T2266_UNREALIZED = {
-    1000: "F718 — 現符号化では商 1・振幅 0 となり固定 0 へ復号される",
-}
-T2266_REPORT_SCHEMA = "t2266-backoff-static-tail-report/v1"
+T2266_REALIZED_US = (150, 200, 300, 500, 750, 1000)
+T2266_UNREALIZED: dict[int, str] = {}
+T2266_REPORT_SCHEMA = "t2266-backoff-static-tail-report/v2"
 T2266_CLAIM_SCOPE = "descriptive_backoff_shape_only"
 
 # The literals are an oracle independent of labels and of the legacy sweep.
@@ -372,7 +389,9 @@ def _ordered_points(tag: str) -> list[tuple[str, dict[str, int]]]:
         ("adaptive", {**_BASE, "BACK_OFF": 1, "BACKOFF_FIXED": -1}),
         *[
             (f"fixed-{amount}us", {
-                **_BASE, "BACK_OFF": 1, "BACKOFF_FIXED": amount,
+                **_BASE,
+                "BACK_OFF": 1,
+                "BACKOFF_FIXED": encode_static_backoff_us(amount),
             })
             for amount in EXTENDED_SWEEP_US
         ],
@@ -389,7 +408,9 @@ def _t2266_points(tag: str) -> list[tuple[str, dict[str, int]]]:
         ("adaptive", {**_BASE, "BACK_OFF": 1, "BACKOFF_FIXED": -1}),
         *[
             (f"fixed-{amount}us", {
-                **_BASE, "BACK_OFF": 1, "BACKOFF_FIXED": amount,
+                **_BASE,
+                "BACK_OFF": 1,
+                "BACKOFF_FIXED": encode_static_backoff_us(amount),
             })
             for amount in T2266_REALIZED_US
         ],
@@ -450,7 +471,7 @@ def config_for(tag: str, workload: dict[str, str], *, contract=None) -> Campaign
             f"expected={expected!r}, actual={workload!r}"
         )
     search_config = {
-        "scale": "silo-backoff-extended",
+        "scale": "silo-backoff-extended-static-codec-v2",
         "base": "L-W0",
         "sweep_us": list(EXTENDED_SWEEP_US),
         "workload": tag,
@@ -461,12 +482,12 @@ def config_for(tag: str, workload: dict[str, str], *, contract=None) -> Campaign
         "measurement_order": measurement_order(tag),
     }
     cfg = CampaignConfig(
-        spec_slug=f"b10-backoff-grid-silo-{tag}",
+        spec_slug=f"b10-backoff-grid-static-codec-v2-silo-{tag}",
         search_tag="sweep",
         spec_content=f"B-10 certified extended static-backoff grid; workload={tag}",
         ccbench_commit=pin.CURRENT_PIN,
         search_config=search_config,
-        trial="b10-backoff-grid",
+        trial="b10-backoff-grid-static-codec-v2",
     )
     if contract is None:
         contract = p2_2._legacy_linux_contract()
@@ -483,7 +504,7 @@ def t2266_config_for(
         )
     points = _t2266_points(tag)
     search_config = {
-        "scale": "t2266-backoff-static-tail",
+        "scale": "t2266-backoff-static-tail-v2",
         "run_kind": T2266_RUN_KIND,
         "base": "L-W0",
         "grid": [
@@ -503,12 +524,12 @@ def t2266_config_for(
         "measurement_order": t2266_measurement_order(tag),
     }
     cfg = CampaignConfig(
-        spec_slug=f"t2266-backoff-static-tail-silo-{tag}",
+        spec_slug=f"t2266-backoff-static-tail-v2-silo-{tag}",
         search_tag="sweep",
         spec_content=f"T-2266 static-backoff tail measurement; workload={tag}",
         ccbench_commit=pin.CURRENT_PIN,
         search_config=search_config,
-        trial="t2266-backoff-static-tail",
+        trial="t2266-backoff-static-tail-v2",
     )
     if contract is None:
         contract = p2_2._legacy_linux_contract()
@@ -629,17 +650,24 @@ def _t2266_point_label(flags: Mapping[str, int]) -> tuple[str, str, Optional[int
         return "none", "none", None
     if back_off == 1 and amount == -1:
         return "adaptive", "adaptive", None
-    if back_off == 1 and amount in T2266_REALIZED_US:
-        return f"fixed-{amount}us", "static", amount
+    if back_off == 1 and type(amount) is int and amount >= 0:
+        try:
+            physical_us = decode_static_backoff_us(amount)
+        except ValueError:
+            pass
+        else:
+            if physical_us in T2266_REALIZED_US:
+                return f"fixed-{physical_us}us", "static", physical_us
     raise RuntimeError("T-2266 campaign contains an unexpected backoff point")
 
 
 def _load_t2266_report_points(
         tag: str, output_root: str, capture: _T2266RepCapture,
 ) -> tuple[str, list[dict[str, object]]]:
+    cfg = t2266_config_for(tag, WORKLOAD_BY_TAG[tag])
     view = require_certified_campaign_view(discover_campaign_dir(
-        f"t2266-backoff-static-tail-silo-{tag}",
-        "sweep",
+        cfg.spec_slug,
+        cfg.search_tag,
         output_root,
         purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
     ))
