@@ -22504,3 +22504,50 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   として書き出して実行し、抜き出しが現物の逐語部分列であることを同じテストで固定する**。
   防壁を迂回する書き方 (別 path へ copy して同名で叩く、絶対 path で呼ぶ) は取らない。
 - 再発検知: 子へ「実際に走らせて確かめよ」と書く前に、その対象が防壁の管轄下にないかを親が確かめる。
+
+### F870. A-1 の group submission receipt を `renameat2(RENAME_NOREPLACE)` で公開する経路が、Lustre 上の durable base で決定的に失敗した [テスト代表性] [手順漏れ]
+
+- 事象: 2026-09-07 19:03 JST、A-1 pilot (study `paper-story-a1-20260901-balanced5-pilot-v1`) の
+  attempt-0002 で 3 本の qsub がすべて受理され qstat 可視性判定も 3 本とも通った直後に、
+  `no-replace submission receipt publish failed: Invalid argument` で rc=2 になった。
+  group receipt `receipts/submission.json` は生まれず、3 job は計算ノードで body preflight を通ってから
+  `acquisition receipt did not appear within 60 seconds` で bench に入らず終わった。測定値は 0 点。
+- 根本原因: `orchestrator/campaign/paper_story_a1_paired.py` の `_publish_submission_receipt` が
+  `_renameat2_directory(staging, path, _RENAME_NOREPLACE)` で完成名へ移すが、policy
+  `execution.durable_measurement_base` が固定する `/work` 配下は Lustre で、この flag を受け付けない。
+  同じ directory での実測は `renameat2(RENAME_NOREPLACE)` = errno 22 (EINVAL)、`flags=0` = 成功、
+  `os.link()` = 空き先に成功・既存先に errno 17 (EEXIST)、tmpfs では `RENAME_NOREPLACE` が成功。
+  flag は kernel にあるが Lustre が実装していない。この経路は環境と混雑によらず決定的に落ちる。
+  attempt-0001 は 1 段手前の F852 で落ちていたため、公開まで到達したのは attempt-0002 が初めてで、
+  **実機で一度も通っていない手順が投入 gate に置かれていた** — F852 と同じ型で層だけが違う。
+  同じ file の `_observe_materialization_publish` は公開先と同じ file system で
+  `RENAME_NOREPLACE` を 1 回試して `EINVAL` なら fallback を選ぶ機構を既に持つが、
+  submission receipt の公開だけがその機構を持たない。
+- 恒久対応: 一次資料 `output/insights/2026-09-07_a1-pilot-attempt-0002/README.md` §5・§7 の裁定パッケージ
+  (公開機構 3 案と実測表、親推奨は `os.link()` による公開)。実装は [T-2396] が
+  Codex `role=author` で持ち、Lustre 上で公開が成立する正例と、既存先を上書きしない負例を同じ commit へ足す。
+  受理集合を広げる素の rename への退避は採らない。
+- 再発検知: 投入 gate に file system 依存の primitive (`renameat2` の flag、`O_TMPFILE`、
+  advisory lock 等) を置く wave は、段 1 で対象の durable base 上に最小 probe を 1 回走らせ、
+  fixture が代表していない環境差を投入前に出す。`docs/dev-wave/core.md` `DW-S01` の
+  「別 program 起動物の実在棚卸し」の対象に、公開先 file system が primitive を受けるかを含める。
+
+### F871. 棚卸しの発火窓を前回の裁定時刻で切り、照合を directory 単位で行って再訪条件 7 件を「発火 0 件」と誤判定しかけた [手順漏れ] [ドリフト]
+
+- 事象: /rulings 第 13 回の収集で、見送り台帳の再訪条件の発火を 0 件と結論した。別系統モデルの
+  相談 (B) が 7 件の発火を指摘し、親が git の記録で全件を裏取りして誤りと確定した
+  (T-281 / T-436 / T-982 / T-993 / T-1007 / T-1008 / T-1015)。同じ収集で、絞り込み語に
+  『ユーザー手番』が無いために [T-1662] が落ち、insight 側だけが裁定パッケージを持つ [T-2392] も落ちた。
+- 根本原因: 3 つある。(1) 収集節の「前回裁定後」を裁定の**着地時刻** (12:46) と読み、前回が見た
+  末尾エントリ (1297、10:44) 以降という正しい窓より狭く取った。その間に着地した wave が窓の外へ出た。
+  (2) 「同一 file を触る wave への相乗り」型の条件を、項の所有 file を名指しせず変更 **directory** の
+  一覧と突き合わせた。directory 単位では稼働中の編集面を必ず外す。(3) 絞り込み語が
+  ユーザーの**実行**手番 (D1705 が索引に残すと定めた類) を覆っておらず、また worklog の項本文が
+  「新規」へ弱められた裁定パッケージを覆っていなかった。
+- 恒久対応: `.claude/commands/rulings.md` 収集節を 3 箇所是正した。経路 5 へ「窓は前回の裁定時刻でなく
+  前回が見た末尾エントリ以降」と「所有 file を名指しして file 単位で照合する (directory 単位では
+  必ず外す)」を、経路 1 の総ざらい語へ『ユーザー手番』を、経路 2 へ「worklog の項本文に裁定語が
+  無くても対応する insight の裁定パッケージ節が返していれば拾う」を足した。
+- 再発検知: 次回の /rulings で、見送り台帳の相乗り条件を持つ項について所有 file 名を書き出し、
+  前回が見た末尾エントリ以降の `git log --name-only` の file 集合と突き合わせた件数を記録する。
+  0 件と結論するときは、突き合わせた file 数を worklog に書く (数を書けない 0 件は根拠不足とみなす)。
