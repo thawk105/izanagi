@@ -1,0 +1,106 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 1500,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "M1-variant-id-drops-token",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "old": "    expected_variant = variant_id(expected_genome, expected_token)\n",
+          "new": "    expected_variant = variant_id(expected_genome)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-resolve-uses-source-root",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "old": "                genome, current_pin, ccbench_dir=os.fspath(variant_root),\n",
+          "new": "                genome, current_pin, ccbench_dir=os.fspath(source_root),\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-role-predicate-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "old": "            _require_cell_src_token_role(cell, evidence.src_token)\n",
+          "new": "            pass\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "F2-full-manifest-schema-reambiguated",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "old": "RAW_MANIFEST_SCHEMA = \"paper-story-a2-full-raw-manifest/v4\"\n",
+          "new": "RAW_MANIFEST_SCHEMA = \"paper-story-a2-raw-manifest/v4\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11-queue-wait-arg-dropped",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "old": "            [\"--queue-wait-timeout\", str(timeout_overrides[\"queue_wait_timeout_s\"])]\n",
+          "new": "            []\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M12-overall-grace-arg-dropped",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "old": "            [\"--overall-grace\", str(timeout_overrides[\"overall_grace_s\"])]\n",
+          "new": "            []\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M14-provenance-forwarding-dropped",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "old": "        **_dispatch_timeout_overrides(environ=os.environ),\n",
+          "new": "\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
