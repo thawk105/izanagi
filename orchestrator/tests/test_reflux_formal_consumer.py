@@ -23,6 +23,7 @@ from orchestrator.campaign.layout import CampaignLayout
 from orchestrator.tests import reflux_origin_fixture_builder as F
 from orchestrator.verifier import core as verifier_core
 from orchestrator.verifier import report as verifier_report
+from orchestrator.verifier.model import RW, WR, WW
 
 
 WAVE_PRODUCTION_FILES = (
@@ -427,6 +428,39 @@ def _set_duplicate_cycle_ids(anomaly: dict) -> None:
     for edge in anomaly["edges"]:
         edge["from"] = 1
         edge["to"] = 1
+
+
+def _set_single_node_cycle(anomaly: dict) -> None:
+    txid = anomaly["cycle"][0]
+    edge = anomaly["edges"][0]
+    edge["from"] = txid
+    edge["to"] = txid
+    anomaly["length"] = 1
+    anomaly["cycle"] = [txid]
+    anomaly["edges"] = [edge]
+
+
+def _set_bogus_reason_type(anomaly: dict) -> None:
+    edge = anomaly["edges"][0]
+    edge["types"] = ["bogus"]
+    edge["reasons"][0]["type"] = "bogus"
+
+
+def _set_wr_reason_with_v_ver(anomaly: dict) -> None:
+    edge = anomaly["edges"][0]
+    edge["types"] = [WR]
+    edge["reasons"][0]["type"] = WR
+
+
+def _set_ww_reason_missing_u_ver(anomaly: dict) -> None:
+    edge = anomaly["edges"][0]
+    edge["types"] = [WW]
+    edge["reasons"][0]["type"] = WW
+    edge["reasons"][0].pop("u_ver")
+
+
+def _set_rw_reason_missing_v_ver(anomaly: dict) -> None:
+    anomaly["edges"][0]["reasons"][0].pop("v_ver")
 
 
 def _wire(mask: int) -> str:
@@ -936,6 +970,24 @@ def test_real_dense_cycle4_anomaly_passes_witness_structure_validator() -> None:
     assert C._valid_witness_anomaly(report["anomalies"][0])
 
 
+def test_real_dense_cycle4_report_schema_matches_consumer_key_sets() -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+    result = verifier_core.verify_trace_dir(
+        str(Path(__file__).with_name("fixtures") / "r9_dense_cycle4"),
+        protocol="silo",
+        ccbench_root=repo_root / "external" / "ccbench",
+    )
+    report = verifier_report.result_to_dict(result)
+
+    assert frozenset(report) - {"trace_dir"} == C._VERIFY_KEYS
+    assert frozenset(report["stats"]) == C._VERIFY_STATS_KEYS
+    assert frozenset(report["integrity"]) == C._VERIFY_INTEGRITY_KEYS
+    assert (
+        frozenset(report["integrity"]["permutation_violation_details"])
+        == C._PERMUTATION_VIOLATION_DETAILS_KEYS
+    )
+
+
 def test_fc07_rejects_legacy_root_kind_terminal_shape(case: _Case) -> None:
     trigger = _projection_records(case, 0)[0]
     legacy = {
@@ -1052,8 +1104,13 @@ def test_fc07_rejects_truncated_verifier_anomaly_list(case: _Case) -> None:
     _assert_reason(case, C.FormalReasonCode.FC07)
 
 
-def test_fc07_rejects_boolean_cycle_counts(case: _Case) -> None:
-    _replace_verify_fields(case, 0, anomaly_count=True, total_cycles=True)
+def test_fc07_rejects_boolean_total_cycles(case: _Case) -> None:
+    _replace_verify_fields(case, 0, anomaly_count=1, total_cycles=True)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_boolean_anomaly_count(case: _Case) -> None:
+    _replace_verify_fields(case, 0, anomaly_count=True, total_cycles=1)
     _assert_reason(case, C.FormalReasonCode.FC07)
 
 
@@ -1109,20 +1166,33 @@ def test_fc07_rejects_witness_digest_mismatch_after_other_gates_pass(
         _set_boolean_cycle_id,
         _set_duplicate_cycle_ids,
         lambda anomaly: anomaly.__setitem__("length", 3),
+        lambda anomaly: anomaly.__setitem__("length", 2.0),
+        _set_single_node_cycle,
         lambda anomaly: anomaly["edges"].pop(),
         lambda anomaly: anomaly["edges"][0].pop("types"),
         lambda anomaly: anomaly["edges"][0].__setitem__("types", []),
         lambda anomaly: anomaly["edges"][0].__setitem__("types", [1]),
+        lambda anomaly: anomaly["edges"][0].__setitem__("from", 1.0),
+        lambda anomaly: anomaly["edges"][0].__setitem__("to", 2.0),
         lambda anomaly: anomaly["edges"][0].__setitem__("reasons", []),
         lambda anomaly: anomaly["edges"][0]["reasons"][0].pop("key"),
         lambda anomaly: anomaly["edges"][0]["reasons"][0].update({"extra": 1}),
         lambda anomaly: anomaly["edges"][0]["reasons"][0].__setitem__("type", 1),
+        _set_bogus_reason_type,
+        lambda anomaly: anomaly["edges"][0]["types"].append(WW),
+        lambda anomaly: anomaly.__setitem__("phenomenon", "G1c"),
         lambda anomaly: anomaly["edges"][0]["reasons"][0].__setitem__(
             "u_ver", "not-a-list"
         ),
         lambda anomaly: anomaly["edges"][0]["reasons"][0].__setitem__(
+            "u_ver", [1]
+        ),
+        lambda anomaly: anomaly["edges"][0]["reasons"][0].__setitem__(
             "v_ver", [True, 2]
         ),
+        _set_wr_reason_with_v_ver,
+        _set_ww_reason_missing_u_ver,
+        _set_rw_reason_missing_v_ver,
     ],
     ids=[
         "unknown-phenomenon",
@@ -1131,16 +1201,27 @@ def test_fc07_rejects_witness_digest_mismatch_after_other_gates_pass(
         "boolean-cycle-id",
         "duplicate-cycle-id",
         "length-mismatch",
+        "length-float",
+        "single-node-cycle",
         "edge-count-mismatch",
         "edge-key-missing",
         "empty-types",
         "non-string-type",
+        "edge-from-float",
+        "edge-to-float",
         "empty-reasons",
         "reason-required-key-missing",
         "reason-extra-key",
         "reason-type-not-string",
+        "reason-type-outside-closed-set",
+        "types-not-derived-from-reasons",
+        "phenomenon-not-derived-from-types",
         "reason-version-not-list",
+        "reason-version-not-two-elements",
         "reason-version-boolean",
+        "wr-reason-has-v-ver",
+        "ww-reason-missing-u-ver",
+        "rw-reason-missing-v-ver",
     ],
 )
 def test_fc07_rejects_each_malformed_witness_structure(
@@ -1150,6 +1231,67 @@ def test_fc07_rejects_each_malformed_witness_structure(
     anomaly = _fixture_witness_anomaly(case)
     mutate(anomaly)
     _replace_all_rejected_witnesses(case, [anomaly])
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_verify_without_stats(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    wal[-1]["payload"]["verify"].pop("stats")
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_stats_with_missing_key(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    wal[-1]["payload"]["verify"]["stats"].pop("abort_reasons")
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_integrity_with_missing_key(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    wal[-1]["payload"]["verify"]["integrity"].pop("notes")
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_permutation_details_with_missing_key(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    details = wal[-1]["payload"]["verify"]["integrity"][
+        "permutation_violation_details"
+    ]
+    details.pop("sample")
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_clean_integrity_with_nonzero_wire_counter(
+    case: _Case,
+) -> None:
+    wal = _projection_records(case, 0)
+    wal[-1]["payload"]["verify"]["integrity"]["orphan_reads"] = 1
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_zero_framing_count_with_nonempty_details(
+    case: _Case,
+) -> None:
+    wal = _projection_records(case, 0)
+    wal[-1]["payload"]["verify"]["integrity"][
+        "framing_violation_details"
+    ] = [{"kind": "unexpected-detail"}]
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_permutation_count_sum_mismatch(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    details = wal[-1]["payload"]["verify"]["integrity"][
+        "permutation_violation_details"
+    ]
+    details["counts"]["size-changed"] = 1
+    _rewrite_wal(case, 0, wal)
     _assert_reason(case, C.FormalReasonCode.FC07)
 
 
