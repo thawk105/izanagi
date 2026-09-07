@@ -152,6 +152,15 @@ TRACE 混入は build 出口の一次防壁が捕える。
   **誤操作抑止であって認証防壁ではない** — 発効の真正性は `s8b_ratified_freeze` の Git 内容による規約
   attestation (`AI-Agent: none` 逐語 + 導入 commit topology) が担い、hook は層に数えない (AI が `none`
   commit を作れる以上、人間性の機械証明にはならない)。誤って freeze を worktree 直書きする事故だけを止める。
+- **発行主体 subtree への直接書き込み拒否 ([T-2146], D906/D1478):** 着地受領証の署名鍵と issuer 運用複製を
+  置く repo 外の固定 subtree (path は `guard_write.py` / `guard_bash.py` の module 定数が正本。argv・
+  環境変数・repo root から導出しない) への Write/Edit/MultiEdit/NotebookEdit と apply_patch の全 directive
+  (Add/Update/Delete と Move to の両方向) を拒否する。判定は lexical と canonical (realpath) の両側で
+  **path 要素の境界**で行い、部分文字列一致にしない — 兄弟 directory (`…-copy` / `…2`) と同じ親を持つ
+  無関係な directory を巻き込まないため。配下の regular file は (st_dev, st_ino) 索引で hardlink 別名も
+  捕える。削除・移動元は最終要素を解決しないので、その subtree を指す**外部 symlink entry 自身**の
+  unlink / move は通る。**読取りは通す** — 検証器が公開鍵を読む経路を止めないため。閉じない面は
+  「発行主体 subtree について閉じない面」を参照。
 - **payload 検査は方針 A で削除 (D33):** `#ifdef`/生指令/TRACE 混入/偽 cache hit の担保は、テキスト検査の
   完全性 (原理的に破れる) ではなく一次防壁 = source_digest の preprocess 後ハッシュ + #include 行 HEAD 固定 +
   build 出口の diff-of-diffs (観測者効果) + TOCTOU 再照合が担う。意味的逸脱 (骨格破壊・領域外編集) の判定は
@@ -171,6 +180,14 @@ guard_write が見ない Bash 経由の成果物書き込み (`echo >> wal.jsonl
 - here-doc `<<` は不透明構文として fails-closed (bare interpreter への流し込みを塞ぐ)。
 - 純読み取り (objdump/readelf/ldd/size/du/zcat 系) を allowlist に追加 (規律1 の手検証を止めない)。
 - tar/rsync は read (backup) / write (展開・mirror INTO) を判別 (backup を巻き込まない)。
+
+**発行主体 subtree も同じ形で防護する** ([T-2146])。上記の固定 subtree への書き込み・削除・移動を拒否する。
+既存の防護ツリーと同じく、redirect 先・writer の引数・option 値・inline program 内・`cd` 後の相対 path を
+見る。**祖先**を対象にした削除・移動・展開 (`rm -rf <その subtree の親>`) も拒否し、部分 glob は
+メタ文字前のリテラル prefix で重なりを判定する。`perf` の出力先と builder 例外 (`cmake --build` 配下の
+build-variants) も個別に扱い、builder 例外はこの subtree へ広げない。既存の `_MENTION_RE` /
+`_TREE_LITERAL_RE` は変更せず、境界付きの専用 trigger を足して OR する (既存の alternative は部分文字列に
+近く、足すと兄弟 directory を巻き込むため)。`cd` の cwd 追跡も既存の marker と別に持つ。**読取りは通す。**
 
 **head 名だけの pure reader と、option/program を解析する conditional reader を分ける** ([T-1025])。
 `nm`/`xxd`/`file`/`rg`/`less`/`zless` は head としては読み取りだが書き込み・任意実行の option を持つため
@@ -372,12 +389,48 @@ probe したところ、**guard_agent が PreToolUse で拒否し spawn は起�
   広げる必要があり、build 経路 (`cmake` の build-variants 生成) と干渉しうるため別課題とした。
   保守的な巻き添えも残る: awk の program で `print` と比較演算が同じ statement にある形
   (`awk '{ print ($1 > 5) }'`) は redirection と区別できず拒否する。
+- **発行主体 subtree について閉じない面** ([T-2146])。閉じるのは**信頼済み PreToolUse が観測し、
+  lexical / canonical path として識別できた直接操作**だけである。主張してよい上限は
+  **「観測可能な直接書込み面から発行主体 subtree を追加で除外した」**まで。
+  **「完全ロック」「AI は受領証を偽造できない」「D906 を満たした」とは書かない。**
+  - **これは読取り防護でも署名権限の隔離でもない。** 公開鍵の読取りは意図どおり通り、**秘密鍵の
+    読取りも通る**。鍵を読める主体は署名を作れるので、書込みを閉じただけで偽造不能性は言えない。
+    `guard_read.py` は repo 内 `docs/` / `output/` の大容量読取りを抑える fail-open の衛生層であり、
+    ここの正しさ防壁には使えない。真正性を機械的に主張するには、鍵と署名実行権限を AI から分離した
+    別 principal / 別 host / hardware signer が要る (裁定待ち)。
+  - **subtree の 0700 は同一 uid を隔離しない。** AI process は鍵所有者と同じ uid で動く。
+  - 次は既存の防護ツリーと同じく開いたままである: script file 越し・変数展開・`python3 -c`・
+    persistent shell・別 process・cron・IDE・MCP / apps / plugins / 子エージェントの別書込み面・
+    `.codex/hooks.json` / `.claude/settings.json` の設定面・path literal を持たない Git 操作・
+    既に開かれた fd。**hardlink alias は、元 file が今も subtree 配下にある限り inode 索引が
+    捕える** — 開いたままなのは、元 file が subtree から消えた後も残る alias と、
+    subtree の directory を別 path へ bind した経路 (この場合、まだ存在しない file の作成は
+    lexical・realpath・既存 inode のどれにも一致しない)。
+  - 既存の防護ツリーと**同じ穴**をこの subtree も持つ。閉じるには機構の新設が要るため本 wave では
+    閉じていない: `pushd` と `env --chdir` / subshell / 条件実行による cwd 追跡漏れ、
+    ANSI-C quote (`$'...'`) や brace 展開 (`{a,b}`) で綴りを割った path (glob の literal prefix は
+    `*?[` しか見ない)、archive の内容や source basename から親 directory
+    経由で subtree を生成・上書きする形、`perf` の密着短 option (`-oFILE`)、内部例外 fallback が
+    exact literal しか見ないこと (canonical / hardlink alias は fail-open)。
+  - 保守的な巻き添えも既存と同じ形で残る。subtree を**入力元として読むだけ**の `cp` / `rsync` /
+    archive backup は拒否される (`cat … > …` は通るので読取り防護にはならない非対称)。
+    実行されない `cd` の後続相対 path、subtree の path をデータとして表示するだけの不透明構文も拒否する。
+    **祖先を拒否する代償として、共有する親 directory を格納先にする無関係な操作**
+    (`mv` / `install` / `rsync` / `tar -C` でそこへ file を置く形) **も拒否される。**
+    格納と破壊を見分けるには操作の向きを解析する必要があり、それは新機構なので入れていない。
 - **guard 自身の保守境界** ([T-956])。`codex_guard.sh` は tool call ごとに guard を読み直すため、
   hooks/ へ判定を入れた瞬間から同一 worktree での再編集は自分自身に拒否される (構文エラーでも
   同じ — 壊れた guard は rc≠0/2 が 2 へ正規化されて全拒否になる)。さらに
   `check_codex_hooks.validate_installation` が working bytes と HEAD blob の一致を要求するので、
   **guard を未 commit で変更している間は Codex 子を 1 本も起動できない**。guard を直すには
   有効化前の commit から作り直し、統合 commit を作ってから次の子を起動する。
+  **具体的な経路は D427 が正本** — 有効化前 commit を base にした第 2 worktree で実装子が書き、
+  親がそこで統合 commit を作り、wave branch へ `git merge` で持ち込む。[T-2146] で再実行し、
+  次の 3 点を実測した。(1) 第 2 worktree の作業ツリー版は古いので、実装子には現行 main の全文を
+  射影して渡し、親が同期後の bytes を sha256 で検算する。(2) `guard_write` は**最後の 1 回**で
+  入れる — 入った瞬間に第 2 worktree でも `hooks/` が施錠される。(3) merge は競合するので、
+  実装 branch 側を採ったうえで、結果が実装 branch の blob と byte 一致し、かつ他の file が
+  1 本も動いていないことを親が検算する。受理集合を変えるので D428 の反転検査も要る。
   `.claude/settings.json` と一次防壁のコードは従来どおり防護対象外で、緩和は規律6 の監査 +
   人間のコミットレビュー。
 
