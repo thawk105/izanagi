@@ -37,6 +37,9 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     __package__ = "orchestrator.campaign"
 
+if __name__ == "__main__":  # pragma: no cover - direct CLI execution
+    sys.modules["orchestrator.campaign.s8c_preregistration"] = sys.modules[__name__]
+
 
 SOURCE_PATH = "docs/phase3-8c-preregistration.md"
 FREEZE_DIR = "output/s8c-preregistration/condition-freeze"
