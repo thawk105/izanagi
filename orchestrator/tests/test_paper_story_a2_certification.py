@@ -4327,6 +4327,8 @@ def test_driver_resolves_exact_source_tokens_before_campaign_and_forwards_them(
     full_pin = REPO_CURRENT_PIN + "1" * (40 - len(REPO_CURRENT_PIN))
     events = []
     tokens = (source_digest.STOCK, "9" * 64)
+    role_predicate_calls = []
+    real_role_predicate = A2._require_cell_src_token_role
 
     def git_run(command, **_kwargs):
         if command in (
@@ -4374,6 +4376,10 @@ def test_driver_resolves_exact_source_tokens_before_campaign_and_forwards_them(
         resolve_evidence=resolve_evidence,
     )
 
+    def observed_role_predicate(cell, token):
+        role_predicate_calls.append((cell.cell_id, token))
+        return real_role_predicate(cell, token)
+
     def fake_run_campaign(*_args, **kwargs):
         assert [event[0] for event in events] == ["resolve", "resolve"]
         assert kwargs["ccbench_dir"] == os.fspath(variant_root)
@@ -4404,6 +4410,8 @@ def test_driver_resolves_exact_source_tokens_before_campaign_and_forwards_them(
     monkeypatch.setattr(A2.subprocess, "run", git_run)
     monkeypatch.setattr(A2, "_condition_gate_family_context", condition_context)
     monkeypatch.setattr(A2, "source_digest", driver_source_digest)
+    monkeypatch.setattr(
+        A2, "_require_cell_src_token_role", observed_role_predicate)
     monkeypatch.setattr(A2, "_raw_cell_from_wal", raw_producer)
     monkeypatch.setattr(loop, "run_campaign", fake_run_campaign)
     monkeypatch.setattr(
@@ -4427,10 +4435,128 @@ def test_driver_resolves_exact_source_tokens_before_campaign_and_forwards_them(
         ("rr5-stock", source_digest.STOCK),
         ("rr5-fixed10", "9" * 64),
     ]
+    assert role_predicate_calls == forwarded
     parsed = A2._parse_condition_gate_admissions(
         policy, "rr5", events[2][1], current_pin=REPO_CURRENT_PIN)
     assert [parsed[cell.cell_id].src_token for cell in policy.cells[:2]] \
         == list(tokens)
+
+
+@pytest.mark.parametrize(
+    ("mutation", "tokens", "expected_calls", "signature"),
+    (
+        (
+            "adopted-stock",
+            (source_digest.STOCK, source_digest.STOCK),
+            (
+                ("rr5-stock", source_digest.STOCK),
+                ("rr5-fixed10", source_digest.STOCK),
+            ),
+            "source token role rejected rr5-fixed10: patch-unapplied",
+        ),
+        (
+            "stock-non-stock",
+            (
+                "955b452a332d3b33cab33ea19d784da79f29b0913de179e494f62fdffeb093c9",
+                "955b452a332d3b33cab33ea19d784da79f29b0913de179e494f62fdffeb093c9",
+            ),
+            ((
+                "rr5-stock",
+                "955b452a332d3b33cab33ea19d784da79f29b0913de179e494f62fdffeb093c9",
+            ),),
+            "source token role rejected rr5-stock: role-mismatch",
+        ),
+    ),
+    ids=("adopted-stock", "stock-non-stock"),
+)
+def test_live_precampaign_source_role_predicate_rejects_before_campaign(
+        tmp_path, monkeypatch, mutation, tokens, expected_calls, signature):
+    """Name and execute the production role predicate on rejecting inputs."""
+    from orchestrator.campaign import layout as campaign_layout
+
+    policy = _policy(tmp_path)
+    attempt = A2.preregister_attempt(
+        policy, "live-role-reject-" + mutation, REPO_CURRENT_PIN)
+    job_root = A2.workload_job_root(policy, attempt, "rr5")
+    raw_root = job_root / "raw"
+    raw_root.mkdir()
+    dependency = tmp_path / "dependency"
+    dependency.mkdir()
+    source_root = tmp_path / "ccbench"
+    source_root.mkdir()
+    full_pin = REPO_CURRENT_PIN + "1" * (40 - len(REPO_CURRENT_PIN))
+    predicate_calls = []
+    campaign_calls = []
+    real_role_predicate = A2._require_cell_src_token_role
+
+    def git_run(command, **_kwargs):
+        if command in (
+                ["git", "rev-parse", "--verify", "HEAD^{commit}"],
+                ["git", "rev-parse", "--verify",
+                 f"{REPO_CURRENT_PIN}^{{commit}}"]):
+            return subprocess.CompletedProcess(command, 0, full_pin + "\n", "")
+        if command == ["git", "status", "--porcelain", "--untracked-files=no"]:
+            return subprocess.CompletedProcess(command, 0, "", "")
+        raise AssertionError(command)
+
+    def resolve_evidence(genome, commit, *, ccbench_dir, cxx):
+        index = len(predicate_calls)
+        assert index < 2
+        assert commit == REPO_CURRENT_PIN
+        assert ccbench_dir == os.fspath(source_root)
+        assert cxx == "g++"
+        return source_digest.SourceEvidence(
+            source_digest.SOURCE_EVIDENCE_SCHEMA,
+            str(source_root.resolve()), REPO_CURRENT_PIN,
+            hashlib.sha256(genome.canonical().encode("utf-8")).hexdigest(),
+            tokens[index], hashlib.sha256(
+                f"live-role-source-{index}".encode("ascii")).hexdigest(),
+            False, hashlib.sha256(b"live-role-patch").hexdigest(),
+            ("include/backoff.hh",),
+        )
+
+    driver_source_digest = A2.SimpleNamespace(
+        STOCK=source_digest.STOCK,
+        SourceEvidence=source_digest.SourceEvidence,
+        resolve_evidence=resolve_evidence,
+    )
+
+    def observed_role_predicate(cell, token):
+        predicate_calls.append((cell.cell_id, token))
+        return real_role_predicate(cell, token)
+
+    def forbidden_campaign(*args, **kwargs):
+        campaign_calls.append((args, kwargs))
+        raise AssertionError("campaign started after source role mismatch")
+
+    monkeypatch.setattr(A2.subprocess, "run", git_run)
+    monkeypatch.setattr(A2, "source_digest", driver_source_digest)
+    monkeypatch.setattr(
+        A2, "_require_cell_src_token_role", observed_role_predicate)
+    monkeypatch.setattr(loop, "run_campaign", forbidden_campaign)
+    monkeypatch.setattr(
+        campaign_layout, "resolve_campaign_output_root",
+        lambda _use_class, output_root: output_root)
+    monkeypatch.setattr(
+        buildcache, "compilers_for_current_site", lambda: ("gcc", "g++"))
+    monkeypatch.setattr(
+        buildcache, "observed_toolchain_manifest",
+        lambda *_args: {"fixture": "toolchain"})
+    monkeypatch.setattr(env_contract, "authorize", lambda _tag: object())
+
+    with pytest.raises(A2.CertificationError, match=signature):
+        A2.run_workload(
+            policy, workload_id="rr5", attempt_root=attempt,
+            raw_root=raw_root, current_pin=REPO_CURRENT_PIN,
+            dependency_prefix=dependency, ccbench_dir=source_root,
+            log=lambda *_args: None)
+
+    assert predicate_calls == list(expected_calls)
+    assert campaign_calls == []
+    assert not (
+        attempt / A2._condition_gate_receipt_relative("rr5")
+    ).exists()
+    assert list(raw_root.iterdir()) == []
 
 
 def test_pipeline_runs_correctness_workload_repetitions_without_new_wal_fields():
