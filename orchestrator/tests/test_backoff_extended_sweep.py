@@ -278,6 +278,35 @@ def test_mu1_extended_grid_semantic_golden_except_registered_upper_endpoint():
 
 def test_mu2_grid_upper_endpoint_matches_adaptive_range():
     assert M.EXTENDED_SWEEP_US[-1] == 1000
+    cfg = M.config_for("balanced", M.WORKLOAD_BY_TAG["balanced"])
+    assert cfg.spec_slug == "b10-backoff-grid-static-codec-v2-silo-balanced"
+    assert cfg.search_config["scale"] == "silo-backoff-extended-static-codec-v2"
+    assert cfg.trial == "b10-backoff-grid-static-codec-v2"
+    assert any(
+        genome.flags["BACKOFF_FIXED"] == 3000
+        for genome in M.genomes("balanced")
+    )
+
+
+def test_static_codec_is_bijective_on_its_exact_bounded_domain():
+    assert M.encode_static_backoff_us(0) == 0
+    assert M.encode_static_backoff_us(999) == 999
+    assert M.encode_static_backoff_us(1000) == 3000
+    assert M.encode_static_backoff_us(9999) == 11999
+    assert M.decode_static_backoff_us(0) == 0
+    assert M.decode_static_backoff_us(999) == 999
+    assert M.decode_static_backoff_us(3000) == 1000
+    assert M.decode_static_backoff_us(11999) == 9999
+    for amount in range(10000):
+        expected_raw = amount if amount <= 999 else amount + 2000
+        assert M.encode_static_backoff_us(amount) == expected_raw
+        assert M.decode_static_backoff_us(expected_raw) == amount
+    for invalid in (-1, True, 10000):
+        with pytest.raises(ValueError):
+            M.encode_static_backoff_us(invalid)
+    for invalid in (-1, True, 1000, 1999, 2000, 2999, 12000):
+        with pytest.raises(ValueError):
+            M.decode_static_backoff_us(invalid)
 
 
 def test_mu15_all_adaptive_discrete_states_have_independent_literal_coverage():
@@ -299,8 +328,8 @@ def test_fixed_zero_and_none_are_distinct_genomes():
     assert none.canonical() != fixed_zero.canonical()
 
 
-def test_t2266_grid_is_exact_eight_points_without_encoded_1000():
-    expected_static = (150, 200, 300, 500, 750, 999)
+def test_t2266_grid_is_exact_eight_points_with_physical_1000_encoded_as_3000():
+    expected_static = (150, 200, 300, 500, 750, 3000)
     for tag, _workload in M.WORKLOADS:
         points = M.t2266_genomes(tag)
         assert len(points) == 8
@@ -322,22 +351,20 @@ def test_t2266_grid_is_exact_eight_points_without_encoded_1000():
 
 def test_t2266_requested_realized_and_unrealized_are_separate_identity_fields():
     assert M.T2266_REQUESTED_US == (150, 200, 300, 500, 750, 1000)
-    assert M.T2266_REALIZED_US == (150, 200, 300, 500, 750, 999)
-    assert M.T2266_REQUESTED_US is not M.T2266_REALIZED_US
-    assert set(M.T2266_UNREALIZED) == {1000}
-    assert "F718" in M.T2266_UNREALIZED[1000]
-    assert "商 1" in M.T2266_UNREALIZED[1000]
-    assert "振幅 0" in M.T2266_UNREALIZED[1000]
-    assert "固定 0" in M.T2266_UNREALIZED[1000]
+    assert M.T2266_REALIZED_US == (150, 200, 300, 500, 750, 1000)
+    assert M.T2266_UNREALIZED == {}
 
     cfg = M.t2266_config_for("balanced", M.WORKLOAD_BY_TAG["balanced"])
-    assert cfg.spec_slug == "t2266-backoff-static-tail-silo-balanced"
+    assert cfg.spec_slug == "t2266-backoff-static-tail-v2-silo-balanced"
+    assert cfg.search_config["scale"] == "t2266-backoff-static-tail-v2"
+    assert cfg.trial == "t2266-backoff-static-tail-v2"
     assert cfg.search_config["requested_us"] == list(M.T2266_REQUESTED_US)
     assert cfg.search_config["realized_us"] == list(M.T2266_REALIZED_US)
-    assert cfg.search_config["unrealized"] == [{
-        "backoff_us": 1000,
-        "reason": M.T2266_UNREALIZED[1000],
-    }]
+    assert cfg.search_config["requested_us"] is not cfg.search_config["realized_us"]
+    cfg.search_config["requested_us"].append(9999)
+    assert cfg.search_config["realized_us"] == [150, 200, 300, 500, 750, 1000]
+    cfg.search_config["requested_us"].pop()
+    assert cfg.search_config["unrealized"] == []
     assert cfg.search_config["run_kind"] == M.T2266_RUN_KIND
     assert cfg.search_config["measurement_order"] == M.t2266_measurement_order(
         "balanced",
@@ -347,9 +374,22 @@ def test_t2266_requested_realized_and_unrealized_are_separate_identity_fields():
             f"fixed-{amount}us" for amount in M.T2266_REALIZED_US
         ]]
     )
+    endpoint = next(
+        point for point in cfg.search_config["grid"]
+        if point["label"] == "fixed-1000us"
+    )
+    assert endpoint["flags"]["BACKOFF_FIXED"] == 3000
     assert set(cfg.search_config["measurement_order"]) == {
         point["label"] for point in cfg.search_config["grid"]
     }
+
+    report = M._t2266_report_document("balanced", "campaign-fixture", [])
+    assert "requested_us" in report and "realized_us" in report
+    assert report["requested_us"] == [150, 200, 300, 500, 750, 1000]
+    assert report["realized_us"] == [150, 200, 300, 500, 750, 1000]
+    assert report["requested_us"] is not report["realized_us"]
+    report["requested_us"].append(9999)
+    assert report["realized_us"] == [150, 200, 300, 500, 750, 1000]
 
 
 def test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep(
@@ -373,7 +413,7 @@ def test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep(
     )
 
     def discover(slug, search_tag, output_root, *, purpose):
-        assert slug == "t2266-backoff-static-tail-silo-balanced"
+        assert slug == "t2266-backoff-static-tail-v2-silo-balanced"
         assert search_tag == "sweep"
         assert output_root == str(tmp_path)
         assert purpose is M.CampaignReadPurpose.CERTIFIED_ACCEPTANCE
@@ -387,13 +427,18 @@ def test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep(
     document = json.loads(Path(paths["json"]).read_text(encoding="utf-8"))
     dat = Path(paths["dat"]).read_text(encoding="utf-8")
 
-    assert document["schema_version"] == M.T2266_REPORT_SCHEMA
+    assert document["schema_version"] == "t2266-backoff-static-tail-report/v2"
     assert document["run_kind"] == M.T2266_RUN_KIND
     assert document["claim_scope"] == "descriptive_backoff_shape_only"
     assert document["source_measurement"] == "trace_disabled"
     assert document["performance_certified"] is False
     assert document["correctness_verified"] is True
+    assert document["requested_us"] == [150, 200, 300, 500, 750, 1000]
+    assert document["realized_us"] == [150, 200, 300, 500, 750, 1000]
     assert len(document["points"]) == 8
+    endpoint = next(point for point in document["points"] if point["kind"] == "static" and point["backoff_us"] == 1000)
+    assert endpoint["label"] == "fixed-1000us"
+    assert "BACKOFF_FIXED=3000" in endpoint["genome"]
     for point_index, point in enumerate(document["points"]):
         assert len(point["reps"]) == p2_2.REPS
         assert point["throughput_tps_reps"] == (
@@ -827,7 +872,7 @@ def test_extended_run_path_prepares_and_gates_the_same_patched_tree(
     assert patched_root.resolve() != Path(gate_kwargs["stock_root"]).resolve()
     assert {
         point.flags["BACKOFF_FIXED"] for point in gate_kwargs["points"]
-    } == {-1, 150, 200, 300, 500, 750, 999}
+    } == {-1, 150, 200, 300, 500, 750, 3000}
     assert prepare["site"] == site_policy.OTHER
     assert "dependency_prefix" not in prepare
 

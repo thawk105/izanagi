@@ -827,6 +827,7 @@ def _policy_defines(
     dyn_ceiling: int = 0,
     trace: int = 1,
     max_us: str = "1000",
+    seed: str = STEP_POLICY_SEED,
 ) -> tuple[str, ...]:
     return (
         "-DADD_ANALYSIS=0",
@@ -837,7 +838,7 @@ def _policy_defines(
         "-DBACKOFF_COUNT_CAP_US=0",
         f"-DBACKOFF_STEP_ADAPT={step_adapt}",
         f"-DBACKOFF_STEP_POLICY={policy}",
-        f"-DBACKOFF_STEP_POLICY_SEED={STEP_POLICY_SEED}",
+        f"-DBACKOFF_STEP_POLICY_SEED={seed}",
         "-DBACKOFF_STEP_MIN_MILLI=1000",
         "-DBACKOFF_STEP_MAX_MILLI=4000",
         f"-DBACKOFF_DYN_CEILING={dyn_ceiling}",
@@ -897,6 +898,10 @@ def policy_binaries(patched_sources, tmp_path_factory: pytest.TempPathFactory):
         "p0-trace": (patched_sources.after_c, _policy_defines(policy=0)),
         "p1": (patched_sources.after_c, _policy_defines(policy=1)),
         "p2": (patched_sources.after_c, _policy_defines(policy=2)),
+        "p2-alt-seed": (
+            patched_sources.after_c,
+            _policy_defines(policy=2, seed="5744733223455690259"),
+        ),
         "p0-dyn": (
             patched_sources.after_c,
             _policy_defines(policy=0, dyn_ceiling=1),
@@ -1324,6 +1329,21 @@ def test_policy_two_assignment_sequence_is_exact(policy_binaries) -> None:
     assert values == "101,99,99,99,101,101,99,101,101,101,99,101,101,99,99,101"
 
 
+def test_policy_two_nondefault_seed_assignment_matches_independent_lcg(
+    policy_binaries,
+) -> None:
+    observed, _values = _driver_output(policy_binaries["p2-alt-seed"], "lcg")
+    state = 5_744_733_223_455_690_259
+    expected = []
+    for _ in range(16):
+        state = (
+            state * 6_364_136_223_846_793_005
+            + 1_442_695_040_888_963_407
+        ) % (2**64)
+        expected.append(str((state >> 63) & 1))
+    assert observed == "".join(expected)
+
+
 def test_policy_two_lcg_literals_are_exact() -> None:
     patch_text = PATCH_C.read_text(encoding="utf-8")
     update = (
@@ -1431,6 +1451,7 @@ def test_lcg_preprocesses_out_of_policy_zero_and_into_policy_two(
     source = tmp_path / "preprocess-policy-lcg.cc"
     source.write_text('#include "backoff.hh"\n', encoding="utf-8")
     outputs: dict[int, str] = {}
+    alternate_seed = "5744733223455690259"
     for policy in (0, 2):
         result = subprocess.run(
             [
@@ -1439,7 +1460,7 @@ def test_lcg_preprocesses_out_of_policy_zero_and_into_policy_two(
                 "-E",
                 "-P",
                 f"-I{patched_sources.tree / 'include'}",
-                *_policy_defines(policy=policy, trace=0),
+                *_policy_defines(policy=policy, trace=0, seed=alternate_seed),
                 str(source),
             ],
             capture_output=True,
@@ -1456,6 +1477,7 @@ def test_lcg_preprocesses_out_of_policy_zero_and_into_policy_two(
         policy: " ".join(output.split()) for policy, output in outputs.items()
     }
     lcg_tokens = (
+        alternate_seed,
         "kBackoffStepPolicySeed",
         "backoff_step_policy_state_",
         "backoff_step_policy_state_ * 6364136223846793005ULL",
