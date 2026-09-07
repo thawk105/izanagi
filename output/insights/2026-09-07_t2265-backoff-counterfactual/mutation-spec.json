@@ -18,8 +18,7 @@
         "orchestrator/tests/test_dynamic_backoff_transitions.py::test_patch_c_uses_numeric_if_and_adds_no_include"
       ],
       "expected_status": "KILLED",
-      "hang_risk": false,
-      "note": "probe の観測完全集合は事前登録した完全集合と一致した。"
+      "hang_risk": false
     },
     {
       "id": "M2-policy-cache-default-one",
@@ -36,8 +35,7 @@
         "orchestrator/tests/test_condition_meaning_gate.py::test_define_inventory_includes_step_policy_default_zero"
       ],
       "expected_status": "KILLED",
-      "hang_risk": false,
-      "note": "probe の観測完全集合は事前登録した完全集合と一致した。"
+      "hang_risk": false
     },
     {
       "id": "M3-policy-definition-outside-function",
@@ -76,8 +74,7 @@
         "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_unbound_proof_surface_argv_for_one_reason[mismatch---protocol-positive]"
       ],
       "expected_status": "KILLED",
-      "hang_risk": false,
-      "note": "policy define の関数外移動が実 patch の適用と public certification・group receipt の検証経路にも連動した。"
+      "hang_risk": false
     },
     {
       "id": "M4-policy-one-keeps-recommendation",
@@ -98,8 +95,7 @@
         "orchestrator/tests/test_dynamic_backoff_transitions.py::test_inversion_realized_is_zero_at_lower_and_fixed_upper_clamps"
       ],
       "expected_status": "KILLED",
-      "hang_risk": false,
-      "note": "probe の観測完全集合は事前登録した完全集合と一致した。"
+      "hang_risk": false
     },
     {
       "id": "M5-inversion-after-clamp",
@@ -120,8 +116,7 @@
         "orchestrator/tests/test_dynamic_backoff_transitions.py::test_both_actions_feasible_is_computed_before_assignment"
       ],
       "expected_status": "KILLED",
-      "hang_risk": false,
-      "note": "clamp 後への反転移動が policy 2 の LCG 前進検査にも連動した。"
+      "hang_risk": false
     },
     {
       "id": "M6-inversion-only-with-step-adapt",
@@ -157,8 +152,7 @@
         "orchestrator/tests/test_dynamic_backoff_transitions.py::test_inversion_realized_is_one_only_for_unclamped_exact_inverse"
       ],
       "expected_status": "KILLED",
-      "hang_risk": false,
-      "note": "probe の観測完全集合は事前登録した完全集合と一致した。"
+      "hang_risk": false
     },
     {
       "id": "M7-policy-two-condition-zero",
@@ -177,8 +171,7 @@
         "orchestrator/tests/test_dynamic_backoff_transitions.py::test_policy_two_lcg_advances_on_every_update"
       ],
       "expected_status": "KILLED",
-      "hang_risk": false,
-      "note": "probe の観測完全集合は事前登録した完全集合と一致した。"
+      "hang_risk": false
     },
     {
       "id": "M8-lcg-addend-minus-five",
@@ -195,8 +188,7 @@
         "orchestrator/tests/test_dynamic_backoff_transitions.py::test_policy_two_assignment_sequence_is_exact"
       ],
       "expected_status": "KILLED",
-      "hang_risk": false,
-      "note": "probe の観測完全集合は事前登録した完全集合と一致した。"
+      "hang_risk": false
     },
     {
       "id": "M9-lcg-skips-special-updates",
@@ -212,8 +204,7 @@
         "orchestrator/tests/test_dynamic_backoff_transitions.py::test_policy_two_lcg_advances_on_every_update"
       ],
       "expected_status": "KILLED",
-      "hang_risk": false,
-      "note": "probe の観測完全集合は事前登録した完全集合と一致した。"
+      "hang_risk": false
     },
     {
       "id": "M10-recommendation-aliases-gradient",
@@ -230,8 +221,7 @@
         "orchestrator/tests/test_dynamic_backoff_transitions.py::test_trace_v2_records_parity_recommendation_not_gradient_alias"
       ],
       "expected_status": "KILLED",
-      "hang_risk": false,
-      "note": "probe の観測完全集合は事前登録した完全集合と一致した。"
+      "hang_risk": false
     },
     {
       "id": "M11-realized-uses-sign-only",
@@ -250,8 +240,7 @@
         "orchestrator/tests/test_dynamic_backoff_transitions.py::test_both_actions_feasible_is_computed_before_assignment"
       ],
       "expected_status": "KILLED",
-      "hang_risk": false,
-      "note": "実現判定の符号比較化が反転位置検査と両腕 feasible 判定にも連動した。"
+      "hang_risk": false
     },
     {
       "id": "M12-feasibility-after-assignment",
@@ -267,8 +256,7 @@
         "orchestrator/tests/test_dynamic_backoff_transitions.py::test_both_actions_feasible_is_computed_before_assignment"
       ],
       "expected_status": "KILLED",
-      "hang_risk": false,
-      "note": "probe の観測完全集合は事前登録した完全集合と一致した。"
+      "hang_risk": false
     },
     {
       "id": "M13-v2-emitter-drops-feasibility-field",
@@ -284,8 +272,7 @@
         "orchestrator/tests/test_dynamic_backoff_transitions.py::test_emitter_stdout_parses_with_the_real_parser"
       ],
       "expected_status": "KILLED",
-      "hang_risk": false,
-      "note": "probe の観測完全集合は事前登録した完全集合と一致した。"
+      "hang_risk": false
     },
     {
       "id": "M14-emitter-renames-assigned-field",
@@ -301,8 +288,7 @@
         "orchestrator/tests/test_dynamic_backoff_transitions.py::test_emitter_stdout_parses_with_the_real_parser"
       ],
       "expected_status": "KILLED",
-      "hang_risk": false,
-      "note": "probe の観測完全集合は事前登録した完全集合と一致した。"
+      "hang_risk": false
     },
     {
       "id": "M15-parser-rejects-runtime-twelve-field-cells",
@@ -326,8 +312,7 @@
         "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly"
       ],
       "expected_status": "KILLED",
-      "hang_risk": false,
-      "note": "driver の行数変化で付随発火する層。単独変異の独立証拠には数えない。"
+      "hang_risk": false
     },
     {
       "id": "M16-grid-omits-step-policy",
@@ -346,8 +331,7 @@
         "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly"
       ],
       "expected_status": "KILLED",
-      "hang_risk": false,
-      "note": "driver の行数変化で付随発火する層。単独変異の独立証拠には数えない。"
+      "hang_risk": false
     },
     {
       "id": "M17-document-ignores-policy-key-presence",
@@ -366,8 +350,7 @@
         "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly"
       ],
       "expected_status": "KILLED",
-      "hang_risk": false,
-      "note": "driver の行数変化で付随発火する層。単独変異の独立証拠には数えない。"
+      "hang_risk": false
     },
     {
       "id": "M18-python-drops-counterfactual-trace-literal",
@@ -386,8 +369,7 @@
         "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly"
       ],
       "expected_status": "KILLED",
-      "hang_risk": false,
-      "note": "driver の行数変化で付随発火する層。単独変異の独立証拠には数えない。"
+      "hang_risk": false
     },
     {
       "id": "M19-pbs-counterfactual-literal-byte-drift",
@@ -403,8 +385,7 @@
         "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_two_layer_trace_literals_are_byte_identical"
       ],
       "expected_status": "KILLED",
-      "hang_risk": false,
-      "note": "probe の観測完全集合は事前登録した完全集合と一致した。"
+      "hang_risk": false
     },
     {
       "id": "M20-pbs-classifies-only-eleven-fields",
@@ -420,8 +401,7 @@
         "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_pbs_marks_eleven_and_twelve_fields_extended"
       ],
       "expected_status": "KILLED",
-      "hang_risk": false,
-      "note": "probe の観測完全集合は事前登録した完全集合と一致した。"
+      "hang_risk": false
     },
     {
       "id": "M21-patch-stack-omits-c",
@@ -440,8 +420,7 @@
         "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly"
       ],
       "expected_status": "KILLED",
-      "hang_risk": false,
-      "note": "driver の行数変化で付随発火する層。単独変異の独立証拠には数えない。"
+      "hang_risk": false
     },
     {
       "id": "M22-counterfactual-performance-schema-v2",
@@ -457,8 +436,7 @@
         "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_stack_artifacts_use_schema_v3"
       ],
       "expected_status": "KILLED",
-      "hang_risk": false,
-      "note": "probe の観測完全集合は事前登録した完全集合と一致した。"
+      "hang_risk": false
     },
     {
       "id": "M23-registry-drops-policy-seed",
@@ -478,8 +456,7 @@
         "orchestrator/tests/test_screening_driver.py::test_screening_condition_requests_cover_exact_define_specs"
       ],
       "expected_status": "KILLED",
-      "hang_risk": false,
-      "note": "probe の観測完全集合は事前登録した完全集合と一致した。"
+      "hang_risk": false
     },
     {
       "id": "M24-plot-rejects-ab-stack",
@@ -504,8 +481,7 @@
         "orchestrator/tests/test_plot_dynamic_backoff.py::test_large_log_ratio_percentages_use_independent_exponential_transform"
       ],
       "expected_status": "KILLED",
-      "hang_risk": false,
-      "note": "probe の観測完全集合は事前登録した完全集合と一致した。"
+      "hang_risk": false
     },
     {
       "id": "M25-equivalent-comment-wording",
@@ -519,8 +495,7 @@
       ],
       "expected_nodes": [],
       "expected_status": "SURVIVED",
-      "hang_risk": false,
-      "note": "probe の観測完全集合は事前登録した完全集合と一致した。"
+      "hang_risk": false
     }
   ]
 }
