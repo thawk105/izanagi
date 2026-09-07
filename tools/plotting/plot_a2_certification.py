@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import base64
+import binascii
 import datetime
 import hashlib
 import json
@@ -25,15 +27,27 @@ import matplotlib.pyplot as plt  # noqa: E402
 REPO_ROOT = Path(__file__).resolve().parents[2]
 GENERATOR = Path(__file__).resolve()
 SCHEMA = "izanagi-a2-certification-figure-provenance/v1"
-CERT_SCHEMA = "paper-story-a2-certification-result/v3"
-MANIFEST_SCHEMA = "paper-story-a2-raw-manifest/v3"
-RAW_SCHEMA = "paper-story-a2-cell-result/v2"
+LEGACY_CERT_SCHEMA = "paper-story-a2-certification-result/v3"
+LEGACY_MANIFEST_SCHEMA = "paper-story-a2-raw-manifest/v3"
+LEGACY_RAW_SCHEMA = "paper-story-a2-cell-result/v2"
+CURRENT_CERT_SCHEMA = "paper-story-a2-certification-result/v4"
+CURRENT_MANIFEST_SCHEMA = "paper-story-a2-full-raw-manifest/v4"
+CURRENT_RAW_SCHEMA = "paper-story-a2-cell-result/v3"
+# Compatibility names remain the legacy profile so no legacy helper silently
+# changes its accepted schema.
+CERT_SCHEMA = LEGACY_CERT_SCHEMA
+MANIFEST_SCHEMA = LEGACY_MANIFEST_SCHEMA
+RAW_SCHEMA = LEGACY_RAW_SCHEMA
 STUDY = "paper-story-a2-certification"
-WORKLOADS = ("rr5", "rr50")
-CELLS = ("rr5-stock", "rr5-fixed10", "rr50-stock", "rr50-fixed5")
+LEGACY_WORKLOADS = ("rr5", "rr50")
+LEGACY_CELLS = ("rr5-stock", "rr5-fixed10", "rr50-stock", "rr50-fixed5")
+WORKLOADS = LEGACY_WORKLOADS
+CELLS = LEGACY_CELLS
 CANONICAL_SHA256 = {
-    "certification": "f685b40d194c9e4b40eed6337b294f38a7ff4aef731829317fd2e83940fbda40",
-    "raw_manifest": "12d8be7a9cabd404ab3147301c2df7998a731b310ec51a93f9a99b37705a7c35",
+    "output/insights/2026-08-24_paper-story-a2-certification/certification.json": {
+        "certification": "f685b40d194c9e4b40eed6337b294f38a7ff4aef731829317fd2e83940fbda40",
+        "raw_manifest": "12d8be7a9cabd404ab3147301c2df7998a731b310ec51a93f9a99b37705a7c35",
+    },
 }
 DEFAULT_ROOT = Path("/work/1/SFC/tanab/izanagi-measurements/"
                     "dev-wave-paper-story-a2-cert-20260824/t2022-20260828c")
@@ -89,25 +103,107 @@ def _display_path(path: Path) -> str:
     except ValueError:
         return str(path.resolve())
 
+def _expected_hashes(
+    certification_path: Path, override: Mapping[str, str] | None,
+) -> dict[str, str]:
+    if override is None:
+        key = _display_path(certification_path)
+        pinned = CANONICAL_SHA256.get(key)
+        if pinned is None:
+            _fail(
+                "certification canonical SHA-256 mismatch: path is not in "
+                f"repository-owned pin table: {key}"
+            )
+        expected = dict(pinned)
+    else:
+        expected = dict(override)
+    if (set(expected) != {"certification", "raw_manifest"}
+            or any(type(value) is not str or len(value) != 64
+                   or any(character not in "0123456789abcdef" for character in value)
+                   for value in expected.values())):
+        _fail("expected hashes must be the exact certification/raw_manifest lowercase SHA-256 pair")
+    return expected
+
 def _load_tracked_authority(
-    path: Path, kind: str, expected_hashes: Mapping[str, str] | None = None,
+    path: Path, kind: str, expected_hashes: Mapping[str, str],
 ) -> tuple[dict[str, Any], dict[str, Any]]:
-    expected = dict(CANONICAL_SHA256 if expected_hashes is None else expected_hashes)
     if kind not in ("certification", "raw_manifest"):
         _fail(f"unknown tracked authority kind: {kind}")
     actual = _sha256(path)
-    if kind == "certification" and actual != expected["certification"]:
+    if kind == "certification" and actual != expected_hashes["certification"]:
         _fail("certification canonical SHA-256 mismatch")
-    if kind == "raw_manifest" and actual != expected["raw_manifest"]:
+    if kind == "raw_manifest" and actual != expected_hashes["raw_manifest"]:
         _fail("raw-manifest canonical SHA-256 mismatch")
     document = _json(path)
-    schema = CERT_SCHEMA if kind == "certification" else MANIFEST_SCHEMA
-    if document.get("schema_version") != schema:
-        _fail(f"{kind} schema mismatch")
     return document, {
         "kind": kind, "path": _display_path(path), "sha256": actual,
-        "schema": schema, "authority_scope": "canonical frozen report bytes",
+        "authority_scope": "canonical frozen report bytes",
     }
+
+def _profile(certification: Mapping[str, Any], manifest: Mapping[str, Any]) -> str:
+    pair = (certification.get("schema_version"), manifest.get("schema_version"))
+    profiles = {
+        (LEGACY_CERT_SCHEMA, LEGACY_MANIFEST_SCHEMA): "legacy",
+        (CURRENT_CERT_SCHEMA, CURRENT_MANIFEST_SCHEMA): "current-full",
+    }
+    try:
+        return profiles[pair]
+    except KeyError:
+        _fail(
+            "certification/raw-manifest schema pair is not an accepted legacy "
+            "or current-full profile"
+        )
+
+def _load_current_policy(certification: Mapping[str, Any]):
+    encoded = certification.get("policy_bytes_base64")
+    expected_sha = certification.get("policy_sha256")
+    if type(encoded) is not str or type(expected_sha) is not str:
+        _fail("current certification embedded policy authority is missing")
+    try:
+        raw = base64.b64decode(encoded, validate=True)
+    except (ValueError, binascii.Error) as exc:
+        raise FigureDataError("current certification policy bytes are not strict base64") from exc
+    if base64.b64encode(raw).decode("ascii") != encoded or hashlib.sha256(raw).hexdigest() != expected_sha:
+        _fail("current certification embedded policy SHA-256 mismatch")
+    # Reuse the producer's exact policy grammar instead of maintaining a
+    # plot-only approximation of the scientific protocol.
+    if str(REPO_ROOT) not in sys.path:
+        sys.path.insert(0, str(REPO_ROOT))
+    from orchestrator.campaign import paper_story_a2_certification as producer
+    path: Path | None = None
+    try:
+        descriptor, raw_path = tempfile.mkstemp(prefix="a2-embedded-policy-", suffix=".json")
+        path = Path(raw_path)
+        with os.fdopen(descriptor, "wb") as stream:
+            stream.write(raw)
+            stream.flush()
+        policy = producer.load_policy(path)
+        producer._validate_certification_cells(certification, legacy=False)
+    except (OSError, producer.CertificationError) as exc:
+        raise FigureDataError(f"current certification embedded policy is invalid: {exc}") from exc
+    finally:
+        if path is not None:
+            try:
+                path.unlink()
+            except FileNotFoundError:
+                pass
+    if (certification.get("protocol_schema") != producer.POLICY_SCHEMA
+            or certification.get("study") != policy.study
+            or certification.get("protocol_sha256") != policy.protocol_sha256):
+        _fail("current certification and embedded policy identity mismatch")
+    expected_cells = [
+        (cell.cell_id, cell.workload_id, cell.role, dict(cell.genome))
+        for cell in policy.cells
+    ]
+    observed_cells = [
+        (cell.get("cell_id"), cell.get("workload"), cell.get("role"), cell.get("genome"))
+        for cell in certification.get("cells", [])
+    ]
+    if observed_cells != expected_cells:
+        _fail("current certification cell order/identity differs from embedded policy")
+    if any(cell.get("source_binding_status") != "bound" for cell in certification["cells"]):
+        _fail("current certification source_binding_status is not bound")
+    return policy, producer
 
 def _bench_done_rows(path: Path) -> list[dict[str, Any]]:
     try:
@@ -130,13 +226,28 @@ def _summarize_samples(values: object) -> dict[str, float | int | list[float]]:
         "ci95_half_tps": _T975[4] * stdev / math.sqrt(5), "cv": stdev / mean,
     }
 
-def _external_plan(manifest: Mapping[str, Any], certification: Mapping[str, Any]) -> list[dict[str, Any]]:
+def _canonical_relative(value: object, label: str) -> str:
+    if type(value) is not str:
+        _fail(f"{label} must be a string")
+    path = Path(value)
+    if path.is_absolute() or ".." in path.parts or path.as_posix() != value:
+        _fail(f"{label} is not a canonical relative path")
+    return value
+
+def _external_plan(
+    manifest: Mapping[str, Any], certification: Mapping[str, Any],
+    *, profile: str = "legacy", workloads: Sequence[str] = LEGACY_WORKLOADS,
+    cells: Sequence[str] = LEGACY_CELLS,
+) -> list[dict[str, Any]]:
     files = manifest.get("files")
     claims = manifest.get("campaign_claims")
-    if type(files) is not dict or len(files) != 10 or type(claims) is not dict:
-        _fail("raw-manifest must contain the ten-file closure and campaign claims")
+    expected_count = 10 if profile == "legacy" else 12
+    if type(files) is not dict or len(files) != expected_count or type(claims) is not dict:
+        _fail(f"raw-manifest must contain the exact {expected_count}-file closure and campaign claims")
+    if profile == "current-full" and list(claims) != list(workloads):
+        _fail("current raw-manifest campaign claims are not in policy order")
     plan = []
-    for workload in WORKLOADS:
+    for workload in workloads:
         claim = claims.get(workload)
         if type(claim) is not dict or not isinstance(claim.get("campaign_id"), str):
             _fail(f"campaign claim missing: {workload}")
@@ -149,16 +260,35 @@ def _external_plan(manifest: Mapping[str, Any], certification: Mapping[str, Any]
         plan.append({"kind": "raw-cell", "workload": cell.get("workload"),
                      "cell": cell.get("cell_id"),
                      "path": f"jobs/{cell.get('workload')}/raw/{cell.get('cell_id')}.json"})
-    if [row.get("cell") for row in plan if row["kind"] == "raw-cell"] != list(CELLS):
+    if [row.get("cell") for row in plan if row["kind"] == "raw-cell"] != list(cells):
         _fail("certification cell order/identity mismatch")
     closure = {row["path"] for row in plan}
-    for workload in WORKLOADS:
+    for workload in workloads:
         claim = claims[workload]
         if not isinstance(claim.get("claim_path"), str):
             _fail(f"claim path missing: {workload}")
-        closure.update((claim["claim_path"], f"jobs/{workload}/campaigns/{claim['campaign_id']}/campaign.lock"))
+        claim_path = claim["claim_path"]
+        lock_path = f"jobs/{workload}/campaigns/{claim['campaign_id']}/campaign.lock"
+        closure.update((claim_path, lock_path))
+        if profile == "current-full":
+            expected_claim = f"jobs/{workload}/env/pegasus/claims/{claim['campaign_id']}.claim"
+            if claim_path != expected_claim:
+                _fail(f"current campaign claim path mismatch: {workload}")
+            plan.extend((
+                {"kind": "campaign-lock", "workload": workload, "path": lock_path},
+                {"kind": "campaign-claim", "workload": workload, "path": claim_path},
+                {"kind": "condition-receipt", "workload": workload,
+                 "path": f"receipts/condition-gate-{workload}.admissions.jsonl"},
+            ))
+            closure.add(f"receipts/condition-gate-{workload}.admissions.jsonl")
     if set(files) != closure:
-        _fail("raw-manifest ten-file closure key set mismatch")
+        _fail(f"raw-manifest {expected_count}-file closure key set mismatch")
+    if profile == "current-full" and any(
+            _canonical_relative(path, "raw-manifest member") != path
+            or type(digest) is not str or len(digest) != 64
+            or any(character not in "0123456789abcdef" for character in digest)
+            for path, digest in files.items()):
+        _fail("current raw-manifest paths or SHA-256 values are not canonical")
     for row in plan:
         digest = files.get(row["path"])
         if not isinstance(digest, str):
@@ -168,28 +298,71 @@ def _external_plan(manifest: Mapping[str, Any], certification: Mapping[str, Any]
 
 def _load_external_inputs(
     root: Path, manifest: Mapping[str, Any], certification: Mapping[str, Any],
-) -> tuple[dict[str, list[dict[str, Any]]], dict[str, dict[str, Any]], list[dict[str, Any]]]:
+    *, profile: str = "legacy", workloads: Sequence[str] = LEGACY_WORKLOADS,
+    cells: Sequence[str] = LEGACY_CELLS, policy=None, producer=None,
+) -> tuple[
+    dict[str, list[dict[str, Any]]], dict[str, dict[str, Any]],
+    list[dict[str, Any]], dict[str, list[dict[str, Any]]], dict[str, str],
+]:
     wal: dict[str, list[dict[str, Any]]] = {}
+    wal_records: dict[str, list[dict[str, Any]]] = {}
     raw: dict[str, dict[str, Any]] = {}
-    rows = _external_plan(manifest, certification)
+    receipt_tokens: dict[str, str] = {}
+    root = Path(root).resolve()
+    rows = _external_plan(
+        manifest, certification, profile=profile, workloads=workloads, cells=cells)
     for row in rows:
         path = root / row["path"]
         if not path.is_file():
             _fail(f"external input missing: {row['path']}")
+        if profile == "current-full" and path.resolve() != path:
+            _fail(f"current external input path traverses a symlink: {row['path']}")
         if _sha256(path) != row["sha256"]:
             _fail(f"external input SHA-256 mismatch: {row['path']}")
         if row["kind"] == "wal":
-            selected = _bench_done_rows(path)
+            try:
+                records = [
+                    json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()
+                    if line
+                ]
+            except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+                raise FigureDataError(f"cannot parse WAL {path}: {exc}") from exc
+            if any(type(record) is not dict or type(record.get("payload")) is not dict
+                   for record in records):
+                _fail(f"WAL records must be objects with payload objects: {path}")
+            selected = [record for record in records if record.get("stage") == "bench_done"]
             if len(selected) != 2:
                 _fail(f"WAL must contain exactly two bench_done rows: {row['workload']}")
             wal[str(row["workload"])] = selected
-        else:
+            wal_records[str(row["workload"])] = records
+        elif row["kind"] == "raw-cell":
             raw[str(row["cell"])] = _json(path)
-    return wal, raw, rows
+        elif row["kind"] == "condition-receipt":
+            if policy is None or producer is None:
+                _fail("current receipt validation lacks embedded policy authority")
+            try:
+                payload = path.read_bytes()
+                evidences = producer._parse_condition_gate_admissions(
+                    policy, str(row["workload"]), payload,
+                    current_pin=str(certification.get("current_pin")),
+                )
+            except (OSError, producer.CertificationError) as exc:
+                raise FigureDataError(
+                    f"current manifest-bound condition receipt is invalid: {exc}"
+                ) from exc
+            overlap = set(receipt_tokens) & set(evidences)
+            if overlap:
+                _fail("condition receipt cell identity is duplicated")
+            receipt_tokens.update({key: value.src_token for key, value in evidences.items()})
+    if profile == "current-full" and set(receipt_tokens) != set(cells):
+        _fail("current condition receipts do not cover every policy cell")
+    return wal, raw, rows, wal_records, receipt_tokens
 
 def _validate_raw_cell(
     raw: Mapping[str, Any], bench: Mapping[str, Any], certified: Mapping[str, Any],
     workload: str, certification: Mapping[str, Any], manifest: Mapping[str, Any],
+    *, profile: str = "legacy", expected_condition: Mapping[str, Any] | None = None,
+    wal_records: Sequence[Mapping[str, Any]] = (), receipt_token: str | None = None,
 ) -> dict[str, Any]:
     payload = bench.get("payload")
     performance = raw.get("performance")
@@ -197,7 +370,8 @@ def _validate_raw_cell(
     evidence = raw.get("campaign_evidence")
     if not all(isinstance(value, Mapping) for value in (payload, performance, build, evidence)):
         _fail("raw/WAL nested evidence is missing")
-    if raw.get("schema_version") != RAW_SCHEMA or raw.get("cell_id") != certified.get("cell_id"):
+    raw_schema = LEGACY_RAW_SCHEMA if profile == "legacy" else CURRENT_RAW_SCHEMA
+    if raw.get("schema_version") != raw_schema or raw.get("cell_id") != certified.get("cell_id"):
         _fail("raw cell schema/identity mismatch")
     if raw.get("build_attempt_id") != payload.get("build_attempt_id") or raw.get("build_attempt_id") != certified.get("build_attempt_id"):
         _fail("raw/WAL/certification build_attempt_id mismatch")
@@ -207,6 +381,33 @@ def _validate_raw_cell(
         _fail("raw/WAL variant mismatch")
     if raw.get("genome") != certified.get("genome"):
         _fail("raw/certification genome mismatch")
+    if profile == "current-full":
+        starts = [
+            row for row in wal_records
+            if row.get("stage") == "build_start"
+            and row.get("payload", {}).get("build_attempt_id") == raw.get("build_attempt_id")
+        ]
+        if len(starts) != 1 or starts[0].get("variant") != bench.get("variant"):
+            _fail("current WAL build_start mapping is not unique")
+        start_payload = starts[0]["payload"]
+        admission = start_payload.get("build_admission")
+        admission_source = admission.get("source") if isinstance(admission, Mapping) else None
+        tokens = (
+            receipt_token, raw.get("src_token"), start_payload.get("src_token"),
+            admission_source.get("src_token") if isinstance(admission_source, Mapping) else None,
+            certified.get("src_token"),
+        )
+        if any(token != tokens[0] for token in tokens[1:]):
+            _fail("receipt/raw/WAL/certification src_token mismatch")
+        token = tokens[0]
+        if certified.get("source_binding_status") != "bound":
+            _fail("current certification source_binding_status is not bound")
+        if certified.get("role") == "stock":
+            if token != "stock":
+                _fail("stock cell src_token is not stock")
+        elif (token == "stock" or type(token) is not str or len(token) != 64
+              or any(character not in "0123456789abcdef" for character in token)):
+            _fail("adopted cell src_token is not a non-stock SHA-256")
     if list(performance.get("samples_tps", [])) != list(payload.get("tps", [])):
         _fail("WAL samples and raw samples_tps mismatch")
     if build.get("source_commit") != certification.get("current_pin"):
@@ -234,10 +435,11 @@ def _validate_raw_cell(
     if not 0 <= abort <= 1:
         _fail("abort rate must be in [0,1]")
     condition = performance.get("workload")
-    expected = {"extime": 3, "records": 1_000_000, "reps": 5, "threads": 48,
-                "workload": {"ycsb_max_ope": "10", "ycsb_rmw": "0",
-                             "ycsb_rratio": "5" if workload == "rr5" else "50",
-                             "ycsb_zipf_skew": "0.9"}}
+    expected = ({"extime": 3, "records": 1_000_000, "reps": 5, "threads": 48,
+                 "workload": {"ycsb_max_ope": "10", "ycsb_rmw": "0",
+                              "ycsb_rratio": "5" if workload == "rr5" else "50",
+                              "ycsb_zipf_skew": "0.9"}}
+                if profile == "legacy" else dict(expected_condition or {}))
     if condition != expected or not build.get("toolchain"):
         _fail("structured workload conditions are missing")
     return {
@@ -249,13 +451,18 @@ def _validate_raw_cell(
         "toolchain": dict(build.get("toolchain", {})),
     }
 
-def _crosscheck_certification(cells: Sequence[Mapping[str, Any]], certification: Mapping[str, Any]) -> dict[str, float]:
+def _crosscheck_certification(
+    cells: Sequence[Mapping[str, Any]], certification: Mapping[str, Any],
+    workloads: Sequence[str] = LEGACY_WORKLOADS,
+) -> dict[str, float]:
     certified = {row["cell_id"]: row for row in certification["cells"]}
     for cell in cells:
         if cell["median_tps"] != _number(certified[cell["cell_id"]]["performance"]["median_tps"], "certification median"):
             _fail(f"computed/certification median mismatch: {cell['cell_id']}")
-    by_workload = {w: {row["role"]: row for row in cells if row["workload"] == w} for w in WORKLOADS}
-    computed = {w: by_workload[w]["adopted"]["median_tps"] / by_workload[w]["stock"]["median_tps"] - 1 for w in WORKLOADS}
+    by_workload = {w: {row["role"]: row for row in cells if row["workload"] == w} for w in workloads}
+    if any(set(rows) != {"stock", "adopted"} for rows in by_workload.values()):
+        _fail("certification workload roles are not exact stock/adopted pairs")
+    computed = {w: by_workload[w]["adopted"]["median_tps"] / by_workload[w]["stock"]["median_tps"] - 1 for w in workloads}
     for workload, value in computed.items():
         if not math.isclose(value, _number(certification["effects"].get(workload), "certification effect"), rel_tol=0, abs_tol=1e-12):
             _fail(f"computed/certification effect mismatch: {workload}")
@@ -266,38 +473,70 @@ def load_measurements(
     raw_manifest_path: Path = DEFAULT_MANIFEST,
     expected_hashes: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:
-    certification, cert_row = _load_tracked_authority(Path(certification_path), "certification", expected_hashes)
-    manifest, manifest_row = _load_tracked_authority(Path(raw_manifest_path), "raw_manifest", expected_hashes)
+    certification_path = Path(certification_path)
+    raw_manifest_path = Path(raw_manifest_path)
+    expected = _expected_hashes(certification_path, expected_hashes)
+    certification, cert_row = _load_tracked_authority(certification_path, "certification", expected)
+    manifest, manifest_row = _load_tracked_authority(raw_manifest_path, "raw_manifest", expected)
+    profile = _profile(certification, manifest)
+    cert_row["schema"] = certification["schema_version"]
+    manifest_row["schema"] = manifest["schema_version"]
+    policy = producer = None
+    if profile == "current-full":
+        policy, producer = _load_current_policy(certification)
+        workloads = tuple(str(row["id"]) for row in policy.document["workloads"])
+        cell_ids = tuple(cell.cell_id for cell in policy.cells)
+        if (not isinstance(certification.get("status"), str)
+                or certification["status"] not in producer._CERTIFICATION_RESULT_STATUSES):
+            _fail("current certification top-level status is invalid")
+        if (type(certification.get("request_ids")) is not dict
+                or list(certification["request_ids"]) != list(workloads)):
+            _fail("current certification request IDs are not in policy order")
+    else:
+        workloads, cell_ids = LEGACY_WORKLOADS, LEGACY_CELLS
     identity = ("study", "attempt_id", "protocol_sha256", "current_pin")
     if any(certification.get(k) != manifest.get(k) for k in identity) or certification.get("study") != STUDY:
         _fail("tracked authority identity mismatch")
     if not isinstance(certification.get("status"), str) or not isinstance(certification.get("effects"), Mapping):
         _fail("certification status/effects are missing")
-    wal, raw, external = _load_external_inputs(Path(measurement_root), manifest, certification)
+    wal, raw, external, wal_records, receipt_tokens = _load_external_inputs(
+        Path(measurement_root), manifest, certification, profile=profile,
+        workloads=workloads, cells=cell_ids, policy=policy, producer=producer)
     cells = []
     for certified in certification["cells"]:
         workload = str(certified["workload"])
+        if workload not in workloads:
+            _fail(f"certification cell has an unknown workload: {workload}")
         matches = [row for row in wal[workload] if row["payload"].get("build_attempt_id") == certified["build_attempt_id"]]
         if len(matches) != 1:
             _fail(f"bench_done/build attempt mapping is not unique: {certified['cell_id']}")
-        cells.append(_validate_raw_cell(raw[certified["cell_id"]], matches[0], certified, workload, certification, manifest))
+        expected_condition = (
+            policy.cell(str(certified["cell_id"])).perf if policy is not None else None)
+        cells.append(_validate_raw_cell(
+            raw[certified["cell_id"]], matches[0], certified, workload,
+            certification, manifest, profile=profile,
+            expected_condition=expected_condition,
+            wal_records=wal_records.get(workload, ()),
+            receipt_token=receipt_tokens.get(str(certified["cell_id"])),
+        ))
     if any(row["toolchain"] != cells[0]["toolchain"] for row in cells):
         _fail("toolchain differs across cells")
-    effects = _crosscheck_certification(cells, certification)
+    effects = _crosscheck_certification(cells, certification, workloads)
     conditions = cells[0]["workload_conditions"]
     common = {key: conditions[key] for key in ("threads", "records", "reps", "extime")}
     common["zipf_skew"] = conditions["workload"]["ycsb_zipf_skew"]
     common["rmw"] = conditions["workload"]["ycsb_rmw"]
     common["max_ope"] = conditions["workload"]["ycsb_max_ope"]
     workload_rows = []
-    for workload in WORKLOADS:
+    for workload in workloads:
         claim = manifest["campaign_claims"][workload]
         sample = next(row for row in cells if row["workload"] == workload)
         wc = sample["workload_conditions"]["workload"]
         request = certification["request_ids"][workload]
         if not str(claim["claim"].get("job_id", "")).endswith(request):
             _fail(f"request/campaign claim mismatch: {workload}")
-        workload_rows.append({"id": workload, "label": "write-heavy" if workload == "rr5" else "balanced",
+        label = ("write-heavy" if workload == "rr5" else "balanced") if policy is None else policy.cell(sample["cell_id"]).workload_label
+        workload_rows.append({"id": workload, "label": label,
                               "rratio": wc["ycsb_rratio"], "host": claim["claim"]["host"],
                               "request_id": request,
                               "campaign_id": claim["campaign_id"], "created_utc": claim["claim"]["created_utc"]})
@@ -307,17 +546,26 @@ def load_measurements(
     legacy_reps = {row["legacy_repetitions_observed"] for row in correctness.values()}; performance_reps = {row["performance_repetitions_observed"] for row in correctness.values()}
     if legacy_reps != {1} or performance_reps != {5} or any(row.get("status") != "certified" for row in correctness.values()):
         _fail("certification correctness projection mismatch")
+    gate_note = GATE_NOTE if profile == "legacy" else (
+        "The raw manifest binds canonical condition-admission records reporting "
+        f'use_class="paper" and admitted=true for all {len(cell_ids)} policy cells; '
+        "the original supply and meaning records are not retained in this artifact."
+    )
+    measurement_conditions = {"attempt": certification["attempt_id"],
+        "protocol_sha256": certification["protocol_sha256"],
+        "izanagi_source_commit": certification["source_commit"],
+        "ccbench_pin": certification["current_pin"], **common,
+        "trace_disabled_performance": True, "perf_used": False, "environment": "pegasus",
+        "toolchain": cells[0]["toolchain"], "workloads": workload_rows}
+    if profile == "current-full":
+        measurement_conditions["artifact_profile"] = profile
     return {
         "tracked_inputs": [cert_row, manifest_row], "external_inputs": external,
         "external_root": str(Path(measurement_root).resolve()), "cells": cells,
-        "measurement_conditions": {"attempt": certification["attempt_id"],
-            "protocol_sha256": certification["protocol_sha256"],
-            "izanagi_source_commit": certification["source_commit"],
-            "ccbench_pin": certification["current_pin"], **common,
-            "trace_disabled_performance": True, "perf_used": False, "environment": "pegasus",
-            "toolchain": cells[0]["toolchain"], "workloads": workload_rows},
+        "measurement_conditions": measurement_conditions,
         "outer_status": certification["status"], "effects": dict(certification["effects"]),
-        "effect_crosschecks": {w: {"computed": effects[w], "authority_matches": True} for w in WORKLOADS},
+        "effect_crosschecks": {w: {"computed": effects[w], "authority_matches": True} for w in workloads},
+        "gate_note": gate_note,
         "correctness": {"cells": correctness, "legacy_repetitions": next(iter(legacy_reps)),
             "performance_repetitions": next(iter(performance_reps)),
             "argv_observation_limit": certification["independent_observation_limits"]["correctness_run_argv"]},
@@ -326,6 +574,37 @@ def load_measurements(
 def _caption(data: Mapping[str, Any]) -> str:
     c = data["measurement_conditions"]
     w = {row["id"]: row for row in c["workloads"]}
+    if c.get("artifact_profile") == "current-full":
+        workload_ids = [row["id"] for row in c["workloads"]]
+        campaigns = " and ".join(
+            f"request {w[workload]['request_id']} on {w[workload]['host']} at {w[workload]['created_utc']}"
+            for workload in workload_ids
+        )
+        effect_text = " and ".join(
+            f"{w[workload]['label']} ({workload}) fixed "
+            f"{next(row for row in data['cells'] if row['workload'] == workload and row['role'] == 'adopted')['genome']['BACKOFF_FIXED']} us "
+            f"{100 * data['effects'][workload]:.4f}%"
+            for workload in workload_ids
+        )
+        return (
+            f"Figure 5. A-2 formal certification attempt {c['attempt']} (outer status: {data['outer_status']}). "
+            f"The independent workload campaigns were {campaigns}, at distinct recorded times; the outer status "
+            "is their logical conjunction. The top row shows all five trace-disabled performance samples per cell; "
+            "short bars are medians, and diamonds with error bars are sample means with t-distribution 95% confidence "
+            "intervals. The gray dashed line is the workload's no-backoff median and the effect denominator. Median "
+            f"effects copied from certification are {effect_text}. M tps means million transactions per second. Mean "
+            "confidence intervals describe samples; they are not confidence intervals for effects, decisions, or "
+            "medians, and this artifact makes no significance decision. The displayed outer status is the protocol "
+            "status based on the predefined median ratios. The bottom row is a descriptive leading indicator: one "
+            "aggregate abort-rate point per cell, no confidence interval, and no causal mechanism claim. Correctness "
+            f"comes from separate trace-enabled runs: all {len(data['cells'])} cells were certified, but this is not a "
+            "performance certification. L01 limits that evidence to point-key traces; under D1257 the correctness argv "
+            f"was not independently recorded. {data['gate_note']} Conditions: {c['threads']} threads, "
+            f"{c['records']:,} records, Zipf {c['zipf_skew']}, read-modify-write disabled, max operations "
+            f"{c['max_ope']}, {c['extime']} s, {c['reps']} repetitions, CCBench pin {c['ccbench_pin']}, no perf, "
+            "trace-disabled performance. Top-row y axes are scaled independently by workload; do not compare panel "
+            "heights. The older series is not a comparator, and the cause of the sign difference has not been identified."
+        )
     return (
         f"Figure 5. A-2 formal certification attempt {c['attempt']} (outer status: {data['outer_status']}). "
         f"The two independent workload campaigns were requests {w['rr5']['request_id']} on {w['rr5']['host']} "
@@ -350,7 +629,7 @@ def _caption(data: Mapping[str, Any]) -> str:
 
 def _artist_series(data: Mapping[str, Any]) -> list[dict[str, Any]]:
     rows = []
-    for workload in WORKLOADS:
+    for workload in [row["id"] for row in data["measurement_conditions"]["workloads"]]:
         selected = [row for row in data["cells"] if row["workload"] == workload]
         stock = next(row for row in selected if row["role"] == "stock")
         for x, cell in enumerate(selected):
@@ -374,7 +653,8 @@ def make_figure(data: Mapping[str, Any]):
     fig.subplots_adjust(left=.075, right=.98, top=.78, bottom=.12, wspace=.24, hspace=.48)
     colors = {"stock": "#666666", "adopted": "#b24a00"}
     jitter = (-.12, -.06, 0, .06, .12)
-    for column, workload in enumerate(WORKLOADS):
+    for column, workload in enumerate(
+            row["id"] for row in data["measurement_conditions"]["workloads"]):
         cells = [row for row in data["cells"] if row["workload"] == workload]
         stock = next(row for row in cells if row["role"] == "stock")
         top, bottom = axes[0, column], axes[1, column]
@@ -466,7 +746,8 @@ def build_provenance(
         "outer_status": data["outer_status"], "effects": dict(data["effects"]),
         "effect_crosschecks": dict(data["effect_crosschecks"]),
         "correctness": dict(data["correctness"]),
-        "correctness_performance_note": CORRECTNESS_NOTE, "gate_note": GATE_NOTE,
+        "correctness_performance_note": CORRECTNESS_NOTE,
+        "gate_note": data.get("gate_note", GATE_NOTE),
         "caption": _caption(data),
         "reproduction": {"cwd": "repository-root", "argv": list(argv), "command": shlex.join(argv)},
     }
