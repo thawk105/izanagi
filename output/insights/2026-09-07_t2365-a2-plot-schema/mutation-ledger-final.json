@@ -1,0 +1,851 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2365-a2-plot-schema/output/pegasus-dispatch/70ea9ab276c7d371e54a95d540d4154b/izdw-70ea9ab276.o981746",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2365-a2-plot-schema/output/pegasus-dispatch/70ea9ab276c7d371e54a95d540d4154b/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2365-a2-plot-schema\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [202 items]\n\n........................................................................ [ 35%]\n........................................................................ [ 71%]\n..........................................................               [100%]\n============================= 202 passed in 8.87s ==============================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "5eb1dcd35cd38ceb677d274f2e0b9cb6c3a5647236b6c1e8c70396ab7657ab48"
+    },
+    "artifact_error": null,
+    "collection_sha256": "86f0d0117eb76f33fc02e3e650ba0a6aa2ce33b0df674f19322db5ff73cd3309",
+    "duration_s": 57.816,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "8bc86e9d5c23ad7271919555c3d585209a0ff69d813fa2d5fbd7cfacac92979c",
+    "repo_head": "7bdc0d13b0156c90a041864548836da88d5d4060",
+    "runner_sha256": "bbaf493c9f9504a9c294221fec67f1d155b6756245e6ea3a072fca5db6cdb87a",
+    "spec_sha256": "07c9f35d00830c2bf4b1b359752b566d3004abebb6ce31ac75518dc621bac045",
+    "status": "PASSED",
+    "test_output_sha256": "5eb1dcd35cd38ceb677d274f2e0b9cb6c3a5647236b6c1e8c70396ab7657ab48",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "d8e5ff05e916174600e310ab90be75d807d030c059ae4f99bd58d39c5f8e34a3"
+  },
+  "date": "2026-09-07T13:47:48.590633+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2365-a2-plot-schema/output/pegasus-dispatch/408ba97cd74b6ded9276b7e7a7f1550c/izdw-408ba97cd7.o981752",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2365-a2-plot-schema/output/pegasus-dispatch/408ba97cd74b6ded9276b7e7a7f1550c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2365-a2-plot-schema\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [202 items]\n\n........................................................................ [ 35%]\n........................................................................ [ 71%]\n...............................................F.F........               [100%]\n=================================== FAILURES ===================================\n___ test_atomic_write_bytes_noreplace_einval_hard_link_refuses_existing_name ___\n[gw23] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw23/test_atomic_write_bytes_norepl0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14f9c1821930>\n\n    def test_atomic_write_bytes_noreplace_einval_hard_link_refuses_existing_name(\n            tmp_path, monkeypatch):\n        path = tmp_path / \"condition-gate-rr5.admissions.jsonl\"\n        original_bytes = b'{\"writer\":\"first\"}\\n'\n        path.write_bytes(original_bytes)\n    \n        def unsupported_noreplace(_source, _destination):\n            raise OSError(errno.EINVAL, \"unsupported no-replace\")\n    \n        monkeypatch.setattr(A2, \"_rename_noreplace\", unsupported_noreplace)\n        with pytest.raises(FileExistsError):\n>           A2._atomic_write_bytes_noreplace(path, b'{\"writer\":\"second\"}\\n')\n\norchestrator/tests/test_paper_story_a2_certification.py:3748: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/paper_story_a2_certification.py:948: in _atomic_write_bytes_noreplace\n    _rename_noreplace(staging, path)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\n_source = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw23/test_atomic_write_bytes_norepl0/.condition-gate-rr5.admissions.jsonl.tmp-1063996-b1619a1f3b9c7258')\n_destination = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw23/test_atomic_write_bytes_norepl0/condition-gate-rr5.admissions.jsonl')\n\n    def unsupported_noreplace(_source, _destination):\n>       raise OSError(errno.EINVAL, \"unsupported no-replace\")\nE       OSError: [Errno 22] unsupported no-replace\n\norchestrator/tests/test_paper_story_a2_certification.py:3744: OSError\n_____ test_atomic_write_bytes_noreplace_einval_uses_create_only_hard_link ______\n[gw17] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw17/test_atomic_write_bytes_norepl0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x145760e9be50>\n\n    def test_atomic_write_bytes_noreplace_einval_uses_create_only_hard_link(\n            tmp_path, monkeypatch):\n        path = tmp_path / \"condition-gate-rr5.admissions.jsonl\"\n        payload = b'{\"admitted\":true}\\n'\n        link_calls = []\n        original_link = A2.os.link\n    \n        def unsupported_noreplace(_source, _destination):\n            raise OSError(errno.EINVAL, \"unsupported no-replace\")\n    \n        def observed_link(source, destination):\n            assert source.parent == destination.parent == tmp_path\n            assert destination == path\n            original_link(source, destination)\n            assert source.stat().st_ino == destination.stat().st_ino\n            link_calls.append((source, destination))\n    \n        monkeypatch.setattr(A2, \"_rename_noreplace\", unsupported_noreplace)\n        monkeypatch.setattr(A2.os, \"link\", observed_link)\n>       A2._atomic_write_bytes_noreplace(path, payload)\n\norchestrator/tests/test_paper_story_a2_certification.py:3730: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/paper_story_a2_certification.py:948: in _atomic_write_bytes_noreplace\n    _rename_noreplace(staging, path)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\n_source = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw17/test_atomic_write_bytes_norepl0/.condition-gate-rr5.admissions.jsonl.tmp-1063972-bd192fedfe82896a')\n_destination = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw17/test_atomic_write_bytes_norepl0/condition-gate-rr5.admissions.jsonl')\n\n    def unsupported_noreplace(_source, _destination):\n>       raise OSError(errno.EINVAL, \"unsupported no-replace\")\nE       OSError: [Errno 22] unsupported no-replace\n\norchestrator/tests/test_paper_story_a2_certification.py:3719: OSError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_paper_story_a2_certification.py::test_atomic_write_bytes_noreplace_einval_hard_link_refuses_existing_name\nFAILED orchestrator/tests/test_paper_story_a2_certification.py::test_atomic_write_bytes_noreplace_einval_uses_create_only_hard_link\n======================== 2 failed, 200 passed in 8.78s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a2_certification.py::test_atomic_write_bytes_noreplace_einval_uses_create_only_hard_link\" nodeid_bytes=124 nodeid_omitted_bytes=0 source_bytes=2041 retained_bytes=2041 omitted_bytes=0 rendered_excerpt_bytes=2125 sha256=1ee2e3edae1ba539008ebcbdd06aa939298a30e60cdbad5c758b73710b0f06cd\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw17] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw17/test_atomic_write_bytes_norepl0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x145760e9be50>\n> \n>     def test_atomic_write_bytes_noreplace_einval_uses_create_only_hard_link(\n>             tmp_path, monkeypatch):\n>         path = tmp_path / \"condition-gate-rr5.admissions.jsonl\"\n>         payload = b'{\"admitted\":true}\\x5cn'\n>         link_calls = []\n>         original_link = A2.os.link\n>     \n>         def unsupported_noreplace(_source, _destination):\n>             raise OSError(errno.EINVAL, \"unsupported no-replace\")\n>     \n>         def observed_link(source, destination):\n>             assert source.parent == destination.parent == tmp_path\n>             assert destination == path\n>             original_link(source, destination)\n>             assert source.stat().st_ino == destination.stat().st_ino\n>             link_calls.append((source, destination))\n>     \n>         monkeypatch.setattr(A2, \"_rename_noreplace\", unsupported_noreplace)\n>         monkeypatch.setattr(A2.os, \"link\", observed_link)\n> >       A2._atomic_write_bytes_noreplace(path, payload)\n> \n> orchestrator/tests/test_paper_story_a2_certification.py:3730: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/paper_story_a2_certification.py:948: in _atomic_write_bytes_noreplace\n>     _rename_noreplace(staging, path)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> _source = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw17/test_atomic_write_bytes_norepl0/.condition-gate-rr5.admissions.jsonl.tmp-1063972-bd192fedfe82896a')\n> _destination = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw17/test_atomic_write_bytes_norepl0/condition-gate-rr5.admissions.jsonl')\n> \n>     def unsupported_noreplace(_source, _destination):\n> >       raise OSError(errno.EINVAL, \"unsupported no-replace\")\n> E       OSError: [Errno 22] unsupported no-replace\n> \n> orchestrator/tests/test_paper_story_a2_certification.py:3719: OSError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a2_certification.py::test_atomic_write_bytes_noreplace_einval_hard_link_refuses_existing_name\" nodeid_bytes=129 nodeid_omitted_bytes=0 source_bytes=1716 retained_bytes=1716 omitted_bytes=0 rendered_excerpt_bytes=1787 sha256=5e57098ab19308147139fb15283d219f3c0d34d493852305348ebdae17038f5f\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw23] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw23/test_atomic_write_bytes_norepl0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14f9c1821930>\n> \n>     def test_atomic_write_bytes_noreplace_einval_hard_link_refuses_existing_name(\n>             tmp_path, monkeypatch):\n>         path = tmp_path / \"condition-gate-rr5.admissions.jsonl\"\n>         original_bytes = b'{\"writer\":\"first\"}\\x5cn'\n>         path.write_bytes(original_bytes)\n>     \n>         def unsupported_noreplace(_source, _destination):\n>             raise OSError(errno.EINVAL, \"unsupported no-replace\")\n>     \n>         monkeypatch.setattr(A2, \"_rename_noreplace\", unsupported_noreplace)\n>         with pytest.raises(FileExistsError):\n> >           A2._atomic_write_bytes_noreplace(path, b'{\"writer\":\"second\"}\\x5cn')\n> \n> orchestrator/tests/test_paper_story_a2_certification.py:3748: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/paper_story_a2_certification.py:948: in _atomic_write_bytes_noreplace\n>     _rename_noreplace(staging, path)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> _source = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw23/test_atomic_write_bytes_norepl0/.condition-gate-rr5.admissions.jsonl.tmp-1063996-b1619a1f3b9c7258')\n> _destination = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw23/test_atomic_write_bytes_norepl0/condition-gate-rr5.admissions.jsonl')\n> \n>     def unsupported_noreplace(_source, _destination):\n> >       raise OSError(errno.EINVAL, \"unsupported no-replace\")\n> E       OSError: [Errno 22] unsupported no-replace\n> \n> orchestrator/tests/test_paper_story_a2_certification.py:3744: OSError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=3757 retained_bytes=3757 omitted_bytes=0 budget_bytes=49152 rendered_bytes=5134 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "f5f29f76fcaf242bd9223a99492287e070d9645bf565886123b39005b4cdd15f"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "86f0d0117eb76f33fc02e3e650ba0a6aa2ce33b0df674f19322db5ff73cd3309",
+      "duration_s": 47.612,
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_atomic_write_bytes_noreplace_einval_hard_link_refuses_existing_name",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_atomic_write_bytes_noreplace_einval_uses_create_only_hard_link"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_atomic_write_bytes_noreplace_einval_hard_link_refuses_existing_name",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_atomic_write_bytes_noreplace_einval_uses_create_only_hard_link"
+      ],
+      "hang_risk": false,
+      "id": "M1-einval-fallback-removed",
+      "injection_diff_sha256": "645320ada6e6c5b32db0629e74b292f9a225ea2a14e7a67e3f05944a0221fae7",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "b664dd1b50eeb1d87406197626717b3f68ed99968bf6558cc110847f646adb4b",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "new": "            raise\n",
+          "old": "            if exc.errno != errno.EINVAL:\n                raise\n            os.link(staging, path)\n            staging.unlink()\n"
+        }
+      ],
+      "repo_head": "7bdc0d13b0156c90a041864548836da88d5d4060",
+      "runner_sha256": "bbaf493c9f9504a9c294221fec67f1d155b6756245e6ea3a072fca5db6cdb87a",
+      "spec_sha256": "07c9f35d00830c2bf4b1b359752b566d3004abebb6ce31ac75518dc621bac045",
+      "status": "KILLED",
+      "test_output_sha256": "f5f29f76fcaf242bd9223a99492287e070d9645bf565886123b39005b4cdd15f",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "d8e5ff05e916174600e310ab90be75d807d030c059ae4f99bd58d39c5f8e34a3"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2365-a2-plot-schema/output/pegasus-dispatch/41fd869791026655e5fed49941b36824/izdw-41fd869791.o981755",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2365-a2-plot-schema/output/pegasus-dispatch/41fd869791026655e5fed49941b36824/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2365-a2-plot-schema\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [202 items]\n\n........................................................................ [ 35%]\n........................................................................ [ 71%]\n..................................................FF......               [100%]\n=================================== FAILURES ===================================\n___ test_atomic_write_bytes_noreplace_einval_hard_link_refuses_existing_name ___\n[gw11] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_atomic_write_bytes_norepl0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14d693b7ca90>\n\n    def test_atomic_write_bytes_noreplace_einval_hard_link_refuses_existing_name(\n            tmp_path, monkeypatch):\n        path = tmp_path / \"condition-gate-rr5.admissions.jsonl\"\n        original_bytes = b'{\"writer\":\"first\"}\\n'\n        path.write_bytes(original_bytes)\n    \n        def unsupported_noreplace(_source, _destination):\n            raise OSError(errno.EINVAL, \"unsupported no-replace\")\n    \n        monkeypatch.setattr(A2, \"_rename_noreplace\", unsupported_noreplace)\n>       with pytest.raises(FileExistsError):\nE       Failed: DID NOT RAISE FileExistsError\n\norchestrator/tests/test_paper_story_a2_certification.py:3747: Failed\n_____ test_atomic_write_bytes_noreplace_einval_uses_create_only_hard_link ______\n[gw14] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw14/test_atomic_write_bytes_norepl0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1474f67ae0b0>\n\n    def test_atomic_write_bytes_noreplace_einval_uses_create_only_hard_link(\n            tmp_path, monkeypatch):\n        path = tmp_path / \"condition-gate-rr5.admissions.jsonl\"\n        payload = b'{\"admitted\":true}\\n'\n        link_calls = []\n        original_link = A2.os.link\n    \n        def unsupported_noreplace(_source, _destination):\n            raise OSError(errno.EINVAL, \"unsupported no-replace\")\n    \n        def observed_link(source, destination):\n            assert source.parent == destination.parent == tmp_path\n            assert destination == path\n            original_link(source, destination)\n            assert source.stat().st_ino == destination.stat().st_ino\n            link_calls.append((source, destination))\n    \n        monkeypatch.setattr(A2, \"_rename_noreplace\", unsupported_noreplace)\n        monkeypatch.setattr(A2.os, \"link\", observed_link)\n        A2._atomic_write_bytes_noreplace(path, payload)\n    \n>       assert link_calls and len(link_calls) == 1\nE       assert ([])\n\norchestrator/tests/test_paper_story_a2_certification.py:3732: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_paper_story_a2_certification.py::test_atomic_write_bytes_noreplace_einval_hard_link_refuses_existing_name\nFAILED orchestrator/tests/test_paper_story_a2_certification.py::test_atomic_write_bytes_noreplace_einval_uses_create_only_hard_link\n======================== 2 failed, 200 passed in 8.20s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a2_certification.py::test_atomic_write_bytes_noreplace_einval_uses_create_only_hard_link\" nodeid_bytes=124 nodeid_omitted_bytes=0 source_bytes=1301 retained_bytes=1301 omitted_bytes=0 rendered_excerpt_bytes=1365 sha256=7f7210fc1d714a8d656d8bf6f059bf9155197d5fec5c975806854270b3d21427\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw14] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw14/test_atomic_write_bytes_norepl0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1474f67ae0b0>\n> \n>     def test_atomic_write_bytes_noreplace_einval_uses_create_only_hard_link(\n>             tmp_path, monkeypatch):\n>         path = tmp_path / \"condition-gate-rr5.admissions.jsonl\"\n>         payload = b'{\"admitted\":true}\\x5cn'\n>         link_calls = []\n>         original_link = A2.os.link\n>     \n>         def unsupported_noreplace(_source, _destination):\n>             raise OSError(errno.EINVAL, \"unsupported no-replace\")\n>     \n>         def observed_link(source, destination):\n>             assert source.parent == destination.parent == tmp_path\n>             assert destination == path\n>             original_link(source, destination)\n>             assert source.stat().st_ino == destination.stat().st_ino\n>             link_calls.append((source, destination))\n>     \n>         monkeypatch.setattr(A2, \"_rename_noreplace\", unsupported_noreplace)\n>         monkeypatch.setattr(A2.os, \"link\", observed_link)\n>         A2._atomic_write_bytes_noreplace(path, payload)\n>     \n> >       assert link_calls and len(link_calls) == 1\n> E       assert ([])\n> \n> orchestrator/tests/test_paper_story_a2_certification.py:3732: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a2_certification.py::test_atomic_write_bytes_noreplace_einval_hard_link_refuses_existing_name\" nodeid_bytes=129 nodeid_omitted_bytes=0 source_bytes=861 retained_bytes=861 omitted_bytes=0 rendered_excerpt_bytes=903 sha256=3a2a84450cb3f57bb0737c90c6afc2ab143e3c0a156d2bf34001843392201942\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw11] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_atomic_write_bytes_norepl0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14d693b7ca90>\n> \n>     def test_atomic_write_bytes_noreplace_einval_hard_link_refuses_existing_name(\n>             tmp_path, monkeypatch):\n>         path = tmp_path / \"condition-gate-rr5.admissions.jsonl\"\n>         original_bytes = b'{\"writer\":\"first\"}\\x5cn'\n>         path.write_bytes(original_bytes)\n>     \n>         def unsupported_noreplace(_source, _destination):\n>             raise OSError(errno.EINVAL, \"unsupported no-replace\")\n>     \n>         monkeypatch.setattr(A2, \"_rename_noreplace\", unsupported_noreplace)\n> >       with pytest.raises(FileExistsError):\n> E       Failed: DID NOT RAISE FileExistsError\n> \n> orchestrator/tests/test_paper_story_a2_certification.py:3747: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2162 retained_bytes=2162 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3487 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "bd86da16a14e5043bfd0c06e4718c066e362eb265afd440e317f6f8f45fa1214"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "86f0d0117eb76f33fc02e3e650ba0a6aa2ce33b0df674f19322db5ff73cd3309",
+      "duration_s": 344.337,
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_atomic_write_bytes_noreplace_einval_hard_link_refuses_existing_name",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_atomic_write_bytes_noreplace_einval_uses_create_only_hard_link"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_atomic_write_bytes_noreplace_einval_hard_link_refuses_existing_name",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_atomic_write_bytes_noreplace_einval_uses_create_only_hard_link"
+      ],
+      "hang_risk": false,
+      "id": "M2-einval-fallback-replaces-existing",
+      "injection_diff_sha256": "26aea62b0684111ae682b80b24aff4b0ebb15d25f8badd1e1eaeac0e56850d4b",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "71f697413c7f8ca0fa23a2e9936b5b2fcf7e4432116b2d74ebbc31861d921d6e",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "new": "            os.replace(staging, path)\n",
+          "old": "            os.link(staging, path)\n            staging.unlink()\n"
+        }
+      ],
+      "repo_head": "7bdc0d13b0156c90a041864548836da88d5d4060",
+      "runner_sha256": "bbaf493c9f9504a9c294221fec67f1d155b6756245e6ea3a072fca5db6cdb87a",
+      "spec_sha256": "07c9f35d00830c2bf4b1b359752b566d3004abebb6ce31ac75518dc621bac045",
+      "status": "KILLED",
+      "test_output_sha256": "bd86da16a14e5043bfd0c06e4718c066e362eb265afd440e317f6f8f45fa1214",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "d8e5ff05e916174600e310ab90be75d807d030c059ae4f99bd58d39c5f8e34a3"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2365-a2-plot-schema/output/pegasus-dispatch/f16d27dee130352ef70717cc9084c0ab/izdw-f16d27dee1.o981762",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2365-a2-plot-schema/output/pegasus-dispatch/f16d27dee130352ef70717cc9084c0ab/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2365-a2-plot-schema\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [202 items]\n\n........................................................................ [ 35%]\n........................................................................ [ 71%]\n.............................................F.F..........               [100%]\n=================================== FAILURES ===================================\n__ test_cli_rejects_exact_bytes_at_certification_path_missing_from_pin_table ___\n[gw42] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw42/test_cli_rejects_exact_bytes_a0')\n\n    def test_cli_rejects_exact_bytes_at_certification_path_missing_from_pin_table(tmp_path):\n        plot = _plot()\n        certification = tmp_path / \"certification.json\"\n        certification.write_bytes(plot.DEFAULT_CERT.read_bytes())\n        root = tmp_path / \"empty-root\"; root.mkdir(); prefix = tmp_path / \"fig5_missing_pin\"\n        completed = _run_script(certification, plot.DEFAULT_MANIFEST, root, prefix)\n        assert completed.returncode != 0\n>       assert \"repository-owned pin table\" in completed.stderr\nE       assert 'repository-owned pin table' in \"[error] FigureDataError: cannot hash /tmp/pytest-of-tanab/pytest-0/popen-gw42/test_cli_rejects_exact_bytes_a0/raw-man...such file or directory: '/tmp/pytest-of-tanab/pytest-0/popen-gw42/test_cli_rejects_exact_bytes_a0/raw-manifest.json'\\n\"\nE        +  where \"[error] FigureDataError: cannot hash /tmp/pytest-of-tanab/pytest-0/popen-gw42/test_cli_rejects_exact_bytes_a0/raw-man...such file or directory: '/tmp/pytest-of-tanab/pytest-0/popen-gw42/test_cli_rejects_exact_bytes_a0/raw-manifest.json'\\n\" = CompletedProcess(args=['/bin/python3.10', 'tools/plotting/plot_a2_certification.py', '--certification', '/tmp/pytest-o...uch file or directory: '/tmp/pytest-of-tanab/pytest-0/popen-gw42/test_cli_rejects_exact_bytes_a0/raw-manifest.json'\\n\").stderr\n\norchestrator/tests/test_plot_a2_certification.py:713: AssertionError\n____ test_m11_whitespace_changed_certification_fails_cli_with_zero_outputs _____\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_m11_whitespace_changed_ce0')\n\n    def test_m11_whitespace_changed_certification_fails_cli_with_zero_outputs(tmp_path):\n        plot = _plot(); certification = tmp_path / \"certification.json\"\n        certification.write_text(plot.DEFAULT_CERT.read_text(encoding=\"utf-8\") + \"\\n\", encoding=\"utf-8\")\n        root = tmp_path / \"empty-root\"; root.mkdir(); prefix = tmp_path / \"fig5_changed_certification\"\n        completed = _run_script(certification, plot.DEFAULT_MANIFEST, root, prefix)\n>       assert completed.returncode != 0 and \"canonical SHA-256 mismatch\" in completed.stderr\nE       assert (2 != 0 and 'canonical SHA-256 mismatch' in \"[error] FigureDataError: cannot hash /tmp/pytest-of-tanab/pytest-0/popen-gw4/test_m11_whitespace_changed_ce0/raw-mani... such file or directory: '/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_m11_whitespace_changed_ce0/raw-manifest.json'\\n\")\nE        +  where 2 = CompletedProcess(args=['/bin/python3.10', 'tools/plotting/plot_a2_certification.py', '--certification', '/tmp/pytest-o...such file or directory: '/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_m11_whitespace_changed_ce0/raw-manifest.json'\\n\").returncode\nE        +  and   \"[error] FigureDataError: cannot hash /tmp/pytest-of-tanab/pytest-0/popen-gw4/test_m11_whitespace_changed_ce0/raw-mani... such file or directory: '/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_m11_whitespace_changed_ce0/raw-manifest.json'\\n\" = CompletedProcess(args=['/bin/python3.10', 'tools/plotting/plot_a2_certification.py', '--certification', '/tmp/pytest-o...such file or directory: '/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_m11_whitespace_changed_ce0/raw-manifest.json'\\n\").stderr\n\norchestrator/tests/test_plot_a2_certification.py:942: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_a2_certification.py::test_cli_rejects_exact_bytes_at_certification_path_missing_from_pin_table\nFAILED orchestrator/tests/test_plot_a2_certification.py::test_m11_whitespace_changed_certification_fails_cli_with_zero_outputs\n======================== 2 failed, 200 passed in 8.57s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_a2_certification.py::test_m11_whitespace_changed_certification_fails_cli_with_zero_outputs\" nodeid_bytes=119 nodeid_omitted_bytes=0 source_bytes=1844 retained_bytes=1844 omitted_bytes=0 rendered_excerpt_bytes=1890 sha256=3ae2aa8eb7396ebad3934b267dbccd18467cfae930ba5df8f0d068dfa3fc28d2\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_m11_whitespace_changed_ce0')\n> \n>     def test_m11_whitespace_changed_certification_fails_cli_with_zero_outputs(tmp_path):\n>         plot = _plot(); certification = tmp_path / \"certification.json\"\n>         certification.write_text(plot.DEFAULT_CERT.read_text(encoding=\"utf-8\") + \"\\x5cn\", encoding=\"utf-8\")\n>         root = tmp_path / \"empty-root\"; root.mkdir(); prefix = tmp_path / \"fig5_changed_certification\"\n>         completed = _run_script(certification, plot.DEFAULT_MANIFEST, root, prefix)\n> >       assert completed.returncode != 0 and \"canonical SHA-256 mismatch\" in completed.stderr\n> E       assert (2 != 0 and 'canonical SHA-256 mismatch' in \"[error] FigureDataError: cannot hash /tmp/pytest-of-tanab/pytest-0/popen-gw4/test_m11_whitespace_changed_ce0/raw-mani... such file or directory: '/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_m11_whitespace_changed_ce0/raw-manifest.json'\\x5cn\")\n> E        +  where 2 = CompletedProcess(args=['/bin/python3.10', 'tools/plotting/plot_a2_certification.py', '--certification', '/tmp/pytest-o...such file or directory: '/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_m11_whitespace_changed_ce0/raw-manifest.json'\\x5cn\").returncode\n> E        +  and   \"[error] FigureDataError: cannot hash /tmp/pytest-of-tanab/pytest-0/popen-gw4/test_m11_whitespace_changed_ce0/raw-mani... such file or directory: '/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_m11_whitespace_changed_ce0/raw-manifest.json'\\x5cn\" = CompletedProcess(args=['/bin/python3.10', 'tools/plotting/plot_a2_certification.py', '--certification', '/tmp/pytest-o...such file or directory: '/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_m11_whitespace_changed_ce0/raw-manifest.json'\\x5cn\").stderr\n> \n> orchestrator/tests/test_plot_a2_certification.py:942: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_plot_a2_certification.py::test_cli_rejects_exact_bytes_at_certification_path_missing_from_pin_table\" nodeid_bytes=123 nodeid_omitted_bytes=0 source_bytes=1532 retained_bytes=1532 omitted_bytes=0 rendered_excerpt_bytes=1574 sha256=70ff9b96c1b90766a38b77b988c659717477a64e6d8146de00d465acca68cc6b\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw42] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw42/test_cli_rejects_exact_bytes_a0')\n> \n>     def test_cli_rejects_exact_bytes_at_certification_path_missing_from_pin_table(tmp_path):\n>         plot = _plot()\n>         certification = tmp_path / \"certification.json\"\n>         certification.write_bytes(plot.DEFAULT_CERT.read_bytes())\n>         root = tmp_path / \"empty-root\"; root.mkdir(); prefix = tmp_path / \"fig5_missing_pin\"\n>         completed = _run_script(certification, plot.DEFAULT_MANIFEST, root, prefix)\n>         assert completed.returncode != 0\n> >       assert \"repository-owned pin table\" in completed.stderr\n> E       assert 'repository-owned pin table' in \"[error] FigureDataError: cannot hash /tmp/pytest-of-tanab/pytest-0/popen-gw42/test_cli_rejects_exact_bytes_a0/raw-man...such file or directory: '/tmp/pytest-of-tanab/pytest-0/popen-gw42/test_cli_rejects_exact_bytes_a0/raw-manifest.json'\\x5cn\"\n> E        +  where \"[error] FigureDataError: cannot hash /tmp/pytest-of-tanab/pytest-0/popen-gw42/test_cli_rejects_exact_bytes_a0/raw-man...such file or directory: '/tmp/pytest-of-tanab/pytest-0/popen-gw42/test_cli_rejects_exact_bytes_a0/raw-manifest.json'\\x5cn\" = CompletedProcess(args=['/bin/python3.10', 'tools/plotting/plot_a2_certification.py', '--certification', '/tmp/pytest-o...uch file or directory: '/tmp/pytest-of-tanab/pytest-0/popen-gw42/test_cli_rejects_exact_bytes_a0/raw-manifest.json'\\x5cn\").stderr\n> \n> orchestrator/tests/test_plot_a2_certification.py:713: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=3376 retained_bytes=3376 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4675 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "01167b25148a13377a0d4d175922152364d87ac72ba63cb2ea946c60b7dcca33"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "86f0d0117eb76f33fc02e3e650ba0a6aa2ce33b0df674f19322db5ff73cd3309",
+      "duration_s": 37.303,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_a2_certification.py::test_cli_rejects_exact_bytes_at_certification_path_missing_from_pin_table",
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_cli_reads_repository_owned_pin_table",
+        "orchestrator/tests/test_plot_a2_certification.py::test_m11_whitespace_changed_certification_fails_cli_with_zero_outputs",
+        "orchestrator/tests/test_plot_a2_certification.py::test_m12_whitespace_changed_raw_manifest_fails_cli_with_zero_outputs"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_a2_certification.py::test_cli_rejects_exact_bytes_at_certification_path_missing_from_pin_table",
+        "orchestrator/tests/test_plot_a2_certification.py::test_m11_whitespace_changed_certification_fails_cli_with_zero_outputs"
+      ],
+      "hang_risk": false,
+      "id": "M3-pin-table-bypassed",
+      "injection_diff_sha256": "1b4b171ba2e52c9ae5c080fa6e5564a189b51aa4321f96dacf7e25f454a1f09f",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "2ef90d117c690e1b33a94260654c18d30066db187799a1118668118d365ab8de",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a2_certification.py",
+          "new": "        pinned = CANONICAL_SHA256.get(key) or {\"certification\": _sha256(certification_path), \"raw_manifest\": _sha256(certification_path.parent / \"raw-manifest.json\")}\n",
+          "old": "        pinned = CANONICAL_SHA256.get(key)\n"
+        }
+      ],
+      "repo_head": "7bdc0d13b0156c90a041864548836da88d5d4060",
+      "runner_sha256": "bbaf493c9f9504a9c294221fec67f1d155b6756245e6ea3a072fca5db6cdb87a",
+      "spec_sha256": "07c9f35d00830c2bf4b1b359752b566d3004abebb6ce31ac75518dc621bac045",
+      "status": "MISMATCH",
+      "test_output_sha256": "01167b25148a13377a0d4d175922152364d87ac72ba63cb2ea946c60b7dcca33",
+      "test_output_tail": [
+        ".............................................F.F..........               [100%]",
+        "=================================== FAILURES ===================================",
+        "__ test_cli_rejects_exact_bytes_at_certification_path_missing_from_pin_table ___",
+        "[gw42] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw42/test_cli_rejects_exact_bytes_a0')",
+        "",
+        "    def test_cli_rejects_exact_bytes_at_certification_path_missing_from_pin_table(tmp_path):",
+        "        plot = _plot()",
+        "        certification = tmp_path / \"certification.json\"",
+        "        certification.write_bytes(plot.DEFAULT_CERT.read_bytes())",
+        "        root = tmp_path / \"empty-root\"; root.mkdir(); prefix = tmp_path / \"fig5_missing_pin\"",
+        "        completed = _run_script(certification, plot.DEFAULT_MANIFEST, root, prefix)",
+        "        assert completed.returncode != 0",
+        ">       assert \"repository-owned pin table\" in completed.stderr",
+        "E       assert 'repository-owned pin table' in \"[error] FigureDataError: cannot hash /tmp/pytest-of-tanab/pytest-0/popen-gw42/test_cli_rejects_exact_bytes_a0/raw-man...such file or directory: '/tmp/pytest-of-tanab/pytest-0/popen-gw42/test_cli_rejects_exact_bytes_a0/raw-manifest.json'\\n\"",
+        "E        +  where \"[error] FigureDataError: cannot hash /tmp/pytest-of-tanab/pytest-0/popen-gw42/test_cli_rejects_exact_bytes_a0/raw-man...such file or directory: '/tmp/pytest-of-tanab/pytest-0/popen-gw42/test_cli_rejects_exact_bytes_a0/raw-manifest.json'\\n\" = CompletedProcess(args=['/bin/python3.10', 'tools/plotting/plot_a2_certification.py', '--certification', '/tmp/pytest-o...uch file or directory: '/tmp/pytest-of-tanab/pytest-0/popen-gw42/test_cli_rejects_exact_bytes_a0/raw-manifest.json'\\n\").stderr",
+        "",
+        "orchestrator/tests/test_plot_a2_certification.py:713: AssertionError",
+        "____ test_m11_whitespace_changed_certification_fails_cli_with_zero_outputs _____",
+        "[gw4] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_m11_whitespace_changed_ce0')",
+        "",
+        "    def test_m11_whitespace_changed_certification_fails_cli_with_zero_outputs(tmp_path):",
+        "        plot = _plot(); certification = tmp_path / \"certification.json\"",
+        "        certification.write_text(plot.DEFAULT_CERT.read_text(encoding=\"utf-8\") + \"\\n\", encoding=\"utf-8\")",
+        "        root = tmp_path / \"empty-root\"; root.mkdir(); prefix = tmp_path / \"fig5_changed_certification\"",
+        "        completed = _run_script(certification, plot.DEFAULT_MANIFEST, root, prefix)",
+        ">       assert completed.returncode != 0 and \"canonical SHA-256 mismatch\" in completed.stderr",
+        "E       assert (2 != 0 and 'canonical SHA-256 mismatch' in \"[error] FigureDataError: cannot hash /tmp/pytest-of-tanab/pytest-0/popen-gw4/test_m11_whitespace_changed_ce0/raw-mani... such file or directory: '/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_m11_whitespace_changed_ce0/raw-manifest.json'\\n\")",
+        "E        +  where 2 = CompletedProcess(args=['/bin/python3.10', 'tools/plotting/plot_a2_certification.py', '--certification', '/tmp/pytest-o...such file or directory: '/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_m11_whitespace_changed_ce0/raw-manifest.json'\\n\").returncode",
+        "E        +  and   \"[error] FigureDataError: cannot hash /tmp/pytest-of-tanab/pytest-0/popen-gw4/test_m11_whitespace_changed_ce0/raw-mani... such file or directory: '/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_m11_whitespace_changed_ce0/raw-manifest.json'\\n\" = CompletedProcess(args=['/bin/python3.10', 'tools/plotting/plot_a2_certification.py', '--certification', '/tmp/pytest-o...such file or directory: '/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_m11_whitespace_changed_ce0/raw-manifest.json'\\n\").stderr",
+        "",
+        "orchestrator/tests/test_plot_a2_certification.py:942: AssertionError",
+        "=========================== short test summary info ============================",
+        "FAILED orchestrator/tests/test_plot_a2_certification.py::test_cli_rejects_exact_bytes_at_certification_path_missing_from_pin_table",
+        "FAILED orchestrator/tests/test_plot_a2_certification.py::test_m11_whitespace_changed_certification_fails_cli_with_zero_outputs",
+        "======================== 2 failed, 200 passed in 8.57s =========================",
+        "IZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}",
+        "=== IZANAGI FAILURE DIGEST v1 BEGIN ===",
+        "IZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_a2_certification.py::test_m11_whitespace_changed_certification_fails_cli_with_zero_outputs\" nodeid_bytes=119 nodeid_omitted_bytes=0 source_bytes=1844 retained_bytes=1844 omitted_bytes=0 rendered_excerpt_bytes=1890 sha256=3ae2aa8eb7396ebad3934b267dbccd18467cfae930ba5df8f0d068dfa3fc28d2",
+        "--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---",
+        "> [gw4] linux -- Python 3.10.12 /bin/python3.10",
+        "> ",
+        "> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_m11_whitespace_changed_ce0')",
+        "> ",
+        ">     def test_m11_whitespace_changed_certification_fails_cli_with_zero_outputs(tmp_path):",
+        ">         plot = _plot(); certification = tmp_path / \"certification.json\"",
+        ">         certification.write_text(plot.DEFAULT_CERT.read_text(encoding=\"utf-8\") + \"\\x5cn\", encoding=\"utf-8\")",
+        ">         root = tmp_path / \"empty-root\"; root.mkdir(); prefix = tmp_path / \"fig5_changed_certification\"",
+        ">         completed = _run_script(certification, plot.DEFAULT_MANIFEST, root, prefix)",
+        "> >       assert completed.returncode != 0 and \"canonical SHA-256 mismatch\" in completed.stderr",
+        "> E       assert (2 != 0 and 'canonical SHA-256 mismatch' in \"[error] FigureDataError: cannot hash /tmp/pytest-of-tanab/pytest-0/popen-gw4/test_m11_whitespace_changed_ce0/raw-mani... such file or directory: '/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_m11_whitespace_changed_ce0/raw-manifest.json'\\x5cn\")",
+        "> E        +  where 2 = CompletedProcess(args=['/bin/python3.10', 'tools/plotting/plot_a2_certification.py', '--certification', '/tmp/pytest-o...such file or directory: '/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_m11_whitespace_changed_ce0/raw-manifest.json'\\x5cn\").returncode",
+        "> E        +  and   \"[error] FigureDataError: cannot hash /tmp/pytest-of-tanab/pytest-0/popen-gw4/test_m11_whitespace_changed_ce0/raw-mani... such file or directory: '/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_m11_whitespace_changed_ce0/raw-manifest.json'\\x5cn\" = CompletedProcess(args=['/bin/python3.10', 'tools/plotting/plot_a2_certification.py', '--certification', '/tmp/pytest-o...such file or directory: '/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_m11_whitespace_changed_ce0/raw-manifest.json'\\x5cn\").stderr",
+        "> ",
+        "> orchestrator/tests/test_plot_a2_certification.py:942: AssertionError",
+        "--- IZANAGI FAILURE EXCERPT rank=1 END ---",
+        "IZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_plot_a2_certification.py::test_cli_rejects_exact_bytes_at_certification_path_missing_from_pin_table\" nodeid_bytes=123 nodeid_omitted_bytes=0 source_bytes=1532 retained_bytes=1532 omitted_bytes=0 rendered_excerpt_bytes=1574 sha256=70ff9b96c1b90766a38b77b988c659717477a64e6d8146de00d465acca68cc6b",
+        "--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---",
+        "> [gw42] linux -- Python 3.10.12 /bin/python3.10",
+        "> ",
+        "> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw42/test_cli_rejects_exact_bytes_a0')",
+        "> ",
+        ">     def test_cli_rejects_exact_bytes_at_certification_path_missing_from_pin_table(tmp_path):",
+        ">         plot = _plot()",
+        ">         certification = tmp_path / \"certification.json\"",
+        ">         certification.write_bytes(plot.DEFAULT_CERT.read_bytes())",
+        ">         root = tmp_path / \"empty-root\"; root.mkdir(); prefix = tmp_path / \"fig5_missing_pin\"",
+        ">         completed = _run_script(certification, plot.DEFAULT_MANIFEST, root, prefix)",
+        ">         assert completed.returncode != 0",
+        "> >       assert \"repository-owned pin table\" in completed.stderr",
+        "> E       assert 'repository-owned pin table' in \"[error] FigureDataError: cannot hash /tmp/pytest-of-tanab/pytest-0/popen-gw42/test_cli_rejects_exact_bytes_a0/raw-man...such file or directory: '/tmp/pytest-of-tanab/pytest-0/popen-gw42/test_cli_rejects_exact_bytes_a0/raw-manifest.json'\\x5cn\"",
+        "> E        +  where \"[error] FigureDataError: cannot hash /tmp/pytest-of-tanab/pytest-0/popen-gw42/test_cli_rejects_exact_bytes_a0/raw-man...such file or directory: '/tmp/pytest-of-tanab/pytest-0/popen-gw42/test_cli_rejects_exact_bytes_a0/raw-manifest.json'\\x5cn\" = CompletedProcess(args=['/bin/python3.10', 'tools/plotting/plot_a2_certification.py', '--certification', '/tmp/pytest-o...uch file or directory: '/tmp/pytest-of-tanab/pytest-0/popen-gw42/test_cli_rejects_exact_bytes_a0/raw-manifest.json'\\x5cn\").stderr",
+        "> ",
+        "> orchestrator/tests/test_plot_a2_certification.py:713: AssertionError",
+        "--- IZANAGI FAILURE EXCERPT rank=2 END ---",
+        "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=3376 retained_bytes=3376 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4675 omitted_manifest_sha256=-",
+        "=== IZANAGI FAILURE DIGEST v1 END ==="
+      ],
+      "timed_out": false,
+      "tool_sha256": "d8e5ff05e916174600e310ab90be75d807d030c059ae4f99bd58d39c5f8e34a3"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2365-a2-plot-schema/output/pegasus-dispatch/2da51638542b464780d0f1c46885533d/izdw-2da5163854.o981766",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2365-a2-plot-schema/output/pegasus-dispatch/2da51638542b464780d0f1c46885533d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2365-a2-plot-schema\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [202 items]\n\n........................................................................ [ 35%]\n........................................................................ [ 71%]\n........................................................F.               [100%]\n=================================== FAILURES ===================================\n_________________ test_current_rejects_legacy_raw_cell_schema __________________\n[gw46] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw46/test_current_rejects_legacy_ra0')\n\n    def test_current_rejects_legacy_raw_cell_schema(tmp_path):\n        plot, fixture = _plot(), _current_fixture(tmp_path)\n        _change_raw(\n            fixture, \"rr5-fixed10\",\n            lambda raw: raw.__setitem__(\"schema_version\", plot.LEGACY_RAW_SCHEMA),\n        )\n>       with pytest.raises(plot.FigureDataError, match=\"raw cell schema/identity mismatch\"):\nE       Failed: DID NOT RAISE FigureDataError\n\norchestrator/tests/test_plot_a2_certification.py:487: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_a2_certification.py::test_current_rejects_legacy_raw_cell_schema\n======================== 1 failed, 201 passed in 7.74s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_a2_certification.py::test_current_rejects_legacy_raw_cell_schema\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=619 retained_bytes=619 omitted_bytes=0 rendered_excerpt_bytes=648 sha256=5ee0f43b24bee2179cfc8e7e7fc214f7e97e19b663c399e592c81ee1417be14d\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw46] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw46/test_current_rejects_legacy_ra0')\n> \n>     def test_current_rejects_legacy_raw_cell_schema(tmp_path):\n>         plot, fixture = _plot(), _current_fixture(tmp_path)\n>         _change_raw(\n>             fixture, \"rr5-fixed10\",\n>             lambda raw: raw.__setitem__(\"schema_version\", plot.LEGACY_RAW_SCHEMA),\n>         )\n> >       with pytest.raises(plot.FigureDataError, match=\"raw cell schema/identity mismatch\"):\n> E       Failed: DID NOT RAISE FigureDataError\n> \n> orchestrator/tests/test_plot_a2_certification.py:487: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=619 retained_bytes=619 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1363 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "5e8c29d47468043ba62a2c6726683478ef296488d9d7c6553da5ea18863d3432"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "86f0d0117eb76f33fc02e3e650ba0a6aa2ce33b0df674f19322db5ff73cd3309",
+      "duration_s": 42.317,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_rejects_legacy_raw_cell_schema"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_rejects_legacy_raw_cell_schema"
+      ],
+      "hang_risk": false,
+      "id": "M4b-current-also-accepts-legacy-raw-schema",
+      "injection_diff_sha256": "411b2ff0ed9eeabf5c99f7c3aa01323f64c1e559a2435efd94402c51ecdb5c0b",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "1fe38abdea7b3959103e0409256691aeda296276d00918d3bac5af4cb4bffabf",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a2_certification.py",
+          "new": "    if raw.get(\"schema_version\") not in (raw_schema, LEGACY_RAW_SCHEMA) or raw.get(\"cell_id\") != certified.get(\"cell_id\"):\n",
+          "old": "    if raw.get(\"schema_version\") != raw_schema or raw.get(\"cell_id\") != certified.get(\"cell_id\"):\n"
+        }
+      ],
+      "repo_head": "7bdc0d13b0156c90a041864548836da88d5d4060",
+      "runner_sha256": "bbaf493c9f9504a9c294221fec67f1d155b6756245e6ea3a072fca5db6cdb87a",
+      "spec_sha256": "07c9f35d00830c2bf4b1b359752b566d3004abebb6ce31ac75518dc621bac045",
+      "status": "KILLED",
+      "test_output_sha256": "5e8c29d47468043ba62a2c6726683478ef296488d9d7c6553da5ea18863d3432",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "d8e5ff05e916174600e310ab90be75d807d030c059ae4f99bd58d39c5f8e34a3"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2365-a2-plot-schema/output/pegasus-dispatch/38700ddd4121ba563755fffbd52dc73c/izdw-38700ddd41.o981771",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2365-a2-plot-schema/output/pegasus-dispatch/38700ddd4121ba563755fffbd52dc73c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2365-a2-plot-schema\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [202 items]\n\n........................................................................ [ 35%]\n........................................................................ [ 71%]\n..................................F.......................               [100%]\n=================================== FAILURES ===================================\n_____ test_current_gate_copy_is_receipt_observation_not_legacy_fixed_copy ______\n[gw25] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw25/test_current_gate_copy_is_rece0')\n\n    def test_current_gate_copy_is_receipt_observation_not_legacy_fixed_copy(tmp_path):\n        plot, fixture = _plot(), _current_fixture(tmp_path)\n        data = _load(plot, fixture)\n        caption = plot._caption(data, fixture[\"prefix\"])\n        expected_gate_note = (\n            \"The raw manifest binds canonical condition-admission records reporting \"\n            f'use_class=\"paper\" and admitted=true for all {len(fixture[\"policy\"].cells)} policy cells; '\n            \"the original supply and meaning records are not retained in this artifact.\"\n        )\n>       assert data[\"gate_note\"] == expected_gate_note\nE       assert 'The D1198 me...ted evidence.' == 'The raw mani...his artifact.'\nE         \nE         - The raw manifest binds canonical condition-admission records reporting use_class=\"paper\" and admitted=true for all 4 policy cells; the original supply and meaning records are not retained in this artifact.\nE         + The D1198 measurement-condition gate family was not applied to this run; condition identity rests on recorded genomes, build-admission receipts, and source-routed evidence.\n\norchestrator/tests/test_plot_a2_certification.py:694: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_a2_certification.py::test_current_gate_copy_is_receipt_observation_not_legacy_fixed_copy\n======================== 1 failed, 201 passed in 8.84s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_a2_certification.py::test_current_gate_copy_is_receipt_observation_not_legacy_fixed_copy\" nodeid_bytes=117 nodeid_omitted_bytes=0 source_bytes=1325 retained_bytes=1325 omitted_bytes=0 rendered_excerpt_bytes=1366 sha256=26b723b4589f3f64b07ce9b1542683cbf41f9c8073784ec43c96646ab2555613\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw25] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw25/test_current_gate_copy_is_rece0')\n> \n>     def test_current_gate_copy_is_receipt_observation_not_legacy_fixed_copy(tmp_path):\n>         plot, fixture = _plot(), _current_fixture(tmp_path)\n>         data = _load(plot, fixture)\n>         caption = plot._caption(data, fixture[\"prefix\"])\n>         expected_gate_note = (\n>             \"The raw manifest binds canonical condition-admission records reporting \"\n>             f'use_class=\"paper\" and admitted=true for all {len(fixture[\"policy\"].cells)} policy cells; '\n>             \"the original supply and meaning records are not retained in this artifact.\"\n>         )\n> >       assert data[\"gate_note\"] == expected_gate_note\n> E       assert 'The D1198 me...ted evidence.' == 'The raw mani...his artifact.'\n> E         \n> E         - The raw manifest binds canonical condition-admission records reporting use_class=\"paper\" and admitted=true for all 4 policy cells; the original supply and meaning records are not retained in this artifact.\n> E         + The D1198 measurement-condition gate family was not applied to this run; condition identity rests on recorded genomes, build-admission receipts, and source-routed evidence.\n> \n> orchestrator/tests/test_plot_a2_certification.py:694: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1325 retained_bytes=1325 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2111 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "4cb87e2f046fcf5e9fbc7649b498b5f0fff91f4d1f85bd10c78c4e3db146fd79"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "86f0d0117eb76f33fc02e3e650ba0a6aa2ce33b0df674f19322db5ff73cd3309",
+      "duration_s": 32.192,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_gate_copy_is_receipt_observation_not_legacy_fixed_copy"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_gate_copy_is_receipt_observation_not_legacy_fixed_copy"
+      ],
+      "hang_risk": false,
+      "id": "M5b-current-gate-note-uses-legacy-fixed-copy",
+      "injection_diff_sha256": "9fc52cb246e1c35b1a6668f97e0151fb5838e01e16f9ab62a1e786a05150c448",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "db95a926cd221686f13e0d0ef655f7b8cf129453ec169f7076e36cd85cdf9caf",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a2_certification.py",
+          "new": "    gate_note = GATE_NOTE if profile in (\"legacy\", \"current-full\") else (\n",
+          "old": "    gate_note = GATE_NOTE if profile == \"legacy\" else (\n"
+        }
+      ],
+      "repo_head": "7bdc0d13b0156c90a041864548836da88d5d4060",
+      "runner_sha256": "bbaf493c9f9504a9c294221fec67f1d155b6756245e6ea3a072fca5db6cdb87a",
+      "spec_sha256": "07c9f35d00830c2bf4b1b359752b566d3004abebb6ce31ac75518dc621bac045",
+      "status": "KILLED",
+      "test_output_sha256": "4cb87e2f046fcf5e9fbc7649b498b5f0fff91f4d1f85bd10c78c4e3db146fd79",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "d8e5ff05e916174600e310ab90be75d807d030c059ae4f99bd58d39c5f8e34a3"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2365-a2-plot-schema/output/pegasus-dispatch/9e7bd63d6315f90d0849004bca7944ee/izdw-9e7bd63d63.o981775",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2365-a2-plot-schema/output/pegasus-dispatch/9e7bd63d6315f90d0849004bca7944ee/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2365-a2-plot-schema\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [202 items]\n\n........................................................................ [ 35%]\n........................................................................ [ 71%]\n..................................F.......................               [100%]\n=================================== FAILURES ===================================\n_____________ test_current_rejects_nonbound_source_binding_status ______________\n[gw25] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw25/test_current_rejects_nonbound_0')\n\n    def test_current_rejects_nonbound_source_binding_status(tmp_path):\n        plot, fixture = _plot(), _current_fixture(tmp_path)\n        _change_cert(fixture, lambda row: row[\"cells\"][1].__setitem__(\"source_binding_status\", \"token-mismatch\"))\n>       with pytest.raises(plot.FigureDataError, match=\"source_binding_status is not bound\"):\nE       Failed: DID NOT RAISE FigureDataError\n\norchestrator/tests/test_plot_a2_certification.py:646: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_a2_certification.py::test_current_rejects_nonbound_source_binding_status\n======================== 1 failed, 201 passed in 8.78s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_a2_certification.py::test_current_rejects_nonbound_source_binding_status\" nodeid_bytes=101 nodeid_omitted_bytes=0 source_bytes=592 retained_bytes=592 omitted_bytes=0 rendered_excerpt_bytes=615 sha256=ca87e73cc32f36dbeec580a691c7309bd26652b49384620d3ed0083ce23be19b\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw25] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw25/test_current_rejects_nonbound_0')\n> \n>     def test_current_rejects_nonbound_source_binding_status(tmp_path):\n>         plot, fixture = _plot(), _current_fixture(tmp_path)\n>         _change_cert(fixture, lambda row: row[\"cells\"][1].__setitem__(\"source_binding_status\", \"token-mismatch\"))\n> >       with pytest.raises(plot.FigureDataError, match=\"source_binding_status is not bound\"):\n> E       Failed: DID NOT RAISE FigureDataError\n> \n> orchestrator/tests/test_plot_a2_certification.py:646: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=592 retained_bytes=592 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1339 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "b057f0db0baabc5f0365580066027ff6d1d82058c830c0514d55d211507e8313"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "86f0d0117eb76f33fc02e3e650ba0a6aa2ce33b0df674f19322db5ff73cd3309",
+      "duration_s": 37.312,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_rejects_nonbound_source_binding_status"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_rejects_nonbound_source_binding_status"
+      ],
+      "hang_risk": false,
+      "id": "M6b-source-binding-status-both-layers-removed",
+      "injection_diff_sha256": "cffa0a9b603a5bf939813cbbda88633dbb69388fad328d0843f388b9670db65c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "97f2f1c953f3a2e0ffaba21e37f2816f6c2b175dfeda284a905b219923e3f277",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a2_certification.py",
+          "new": "    if False:\n        _fail(\"current certification source_binding_status is not bound\")\n",
+          "old": "    if any(cell.get(\"source_binding_status\") != \"bound\" for cell in certification[\"cells\"]):\n        _fail(\"current certification source_binding_status is not bound\")\n"
+        },
+        {
+          "file": "tools/plotting/plot_a2_certification.py",
+          "new": "        if False:\n            _fail(\"current certification source_binding_status is not bound\")\n",
+          "old": "        if certified.get(\"source_binding_status\") != \"bound\":\n            _fail(\"current certification source_binding_status is not bound\")\n"
+        }
+      ],
+      "repo_head": "7bdc0d13b0156c90a041864548836da88d5d4060",
+      "runner_sha256": "bbaf493c9f9504a9c294221fec67f1d155b6756245e6ea3a072fca5db6cdb87a",
+      "spec_sha256": "07c9f35d00830c2bf4b1b359752b566d3004abebb6ce31ac75518dc621bac045",
+      "status": "KILLED",
+      "test_output_sha256": "b057f0db0baabc5f0365580066027ff6d1d82058c830c0514d55d211507e8313",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "d8e5ff05e916174600e310ab90be75d807d030c059ae4f99bd58d39c5f8e34a3"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2365-a2-plot-schema/output/pegasus-dispatch/fa9971ab3be7df54daacc4ec77c9a778/izdw-fa9971ab3b.o981781",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2365-a2-plot-schema/output/pegasus-dispatch/fa9971ab3be7df54daacc4ec77c9a778/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2365-a2-plot-schema\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [202 items]\n\n........................................................................ [ 35%]\n........................................................................ [ 71%]\n..........................................F...............               [100%]\n=================================== FAILURES ===================================\n__________ test_p1_a2_default_policy_bytes_and_protocol_are_unchanged __________\n[gw18] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_p1_a2_default_policy_bytes_and_protocol_are_unchanged():\n        raw = A2.POLICY_PATH.read_bytes()\n        policy = A2.load_policy()\n    \n>       assert hashlib.sha256(raw).hexdigest() == (\n            \"67dce5a785dfc52d5df9b773f7a65905a030b7bd61ab7706704e2ed8e85a0487\")\nE       AssertionError: assert '42bfee487c9e...bbd637ecc897e' == '67dce5a785df...e2ed8e85a0487'\nE         \nE         - 67dce5a785dfc52d5df9b773f7a65905a030b7bd61ab7706704e2ed8e85a0487\nE         + 42bfee487c9e517b9876fbb41f8a4b4de53266ced1543263087bbd637ecc897e\n\norchestrator/tests/test_paper_story_a2_certification.py:1767: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_paper_story_a2_certification.py::test_p1_a2_default_policy_bytes_and_protocol_are_unchanged\n======================== 1 failed, 201 passed in 8.77s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a2_certification.py::test_p1_a2_default_policy_bytes_and_protocol_are_unchanged\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=669 retained_bytes=669 omitted_bytes=0 rendered_excerpt_bytes=698 sha256=bfa15661269c13b1c6d281b4ffe0169090cc4960f9b20737ee60c442c133c3f8\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw18] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_p1_a2_default_policy_bytes_and_protocol_are_unchanged():\n>         raw = A2.POLICY_PATH.read_bytes()\n>         policy = A2.load_policy()\n>     \n> >       assert hashlib.sha256(raw).hexdigest() == (\n>             \"67dce5a785dfc52d5df9b773f7a65905a030b7bd61ab7706704e2ed8e85a0487\")\n> E       AssertionError: assert '42bfee487c9e...bbd637ecc897e' == '67dce5a785df...e2ed8e85a0487'\n> E         \n> E         - 67dce5a785dfc52d5df9b773f7a65905a030b7bd61ab7706704e2ed8e85a0487\n> E         + 42bfee487c9e517b9876fbb41f8a4b4de53266ced1543263087bbd637ecc897e\n> \n> orchestrator/tests/test_paper_story_a2_certification.py:1767: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=669 retained_bytes=669 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1436 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "de707516e3501635dd380de9c9e19a34fedd9b9516fc8337dcf88d66dc3f696a"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "86f0d0117eb76f33fc02e3e650ba0a6aa2ce33b0df674f19322db5ff73cd3309",
+      "duration_s": 119.323,
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_p1_a2_default_policy_bytes_and_protocol_are_unchanged"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_p1_a2_default_policy_bytes_and_protocol_are_unchanged"
+      ],
+      "hang_risk": false,
+      "id": "M7-policy-destination-reverted",
+      "injection_diff_sha256": "5c94d00c9f7e459714f42b6b1179cac826818831df522515aa07ea14fb52eebc",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "51b797f97e606a6f1aa993cf9c712ce4e1bcb67130f4fed5a5bcee41e58d8a38",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.v2.json",
+          "new": "  \"tracked_destination\": \"output/insights/2026-08-24_paper-story-a2-certification\",\n",
+          "old": "  \"tracked_destination\": \"output/insights/2026-09-07_t2364-paper-story-a2-certification\",\n"
+        }
+      ],
+      "repo_head": "7bdc0d13b0156c90a041864548836da88d5d4060",
+      "runner_sha256": "bbaf493c9f9504a9c294221fec67f1d155b6756245e6ea3a072fca5db6cdb87a",
+      "spec_sha256": "07c9f35d00830c2bf4b1b359752b566d3004abebb6ce31ac75518dc621bac045",
+      "status": "KILLED",
+      "test_output_sha256": "de707516e3501635dd380de9c9e19a34fedd9b9516fc8337dcf88d66dc3f696a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "d8e5ff05e916174600e310ab90be75d807d030c059ae4f99bd58d39c5f8e34a3"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2365-a2-plot-schema/output/pegasus-dispatch/74d41df67c2ad2237575f7c01796bd7f/izdw-74d41df67c.o981734",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2365-a2-plot-schema/output/pegasus-dispatch/74d41df67c2ad2237575f7c01796bd7f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_plot_a2_certification.py::test_current_full_profile_uses_producer_policy_and_exact_twelve_file_closure\norchestrator/tests/test_plot_a2_certification.py::test_current_rejects_embedded_policy_hash_mismatch\norchestrator/tests/test_plot_a2_certification.py::test_current_top_level_status_uses_verdict_vocabulary_not_bound\norchestrator/tests/test_plot_a2_certification.py::test_current_full_policy_order_is_artifact_derived\norchestrator/tests/test_plot_a2_certification.py::test_current_rejects_schema_crosses_and_partial_families[cert-paper-story-a2-certification-result/v3]\norchestrator/tests/test_plot_a2_certification.py::test_current_rejects_schema_crosses_and_partial_families[manifest-paper-story-a2-raw-manifest/v3]\norchestrator/tests/test_plot_a2_certification.py::test_current_rejects_schema_crosses_and_partial_families[cert-paper-story-a2-partial-result/v1]\norchestrator/tests/test_plot_a2_certification.py::test_current_rejects_schema_crosses_and_partial_families[cert-paper-story-a2-partial-result/v2]\norchestrator/tests/test_plot_a2_certification.py::test_current_rejects_schema_crosses_and_partial_families[manifest-paper-story-a2-raw-manifest/v4]\norchestrator/tests/test_plot_a2_certification.py::test_current_rejects_schema_crosses_and_partial_families[manifest-paper-story-a2-raw-manifest/v5]\norchestrator/tests/test_plot_a2_certification.py::test_current_rejects_legacy_raw_cell_schema\norchestrator/tests/test_plot_a2_certification.py::test_current_rejects_embedded_policy_protocol_identity_mismatch\norchestrator/tests/test_plot_a2_certification.py::test_current_rejects_duplicate_wal_build_start_mapping\norchestrator/tests/test_plot_a2_certification.py::test_current_rejects_policy_mismatched_workload_condition\norchestrator/tests/test_plot_a2_certification.py::test_current_rejects_noncanonical_campaign_claim_path\norchestrator/tests/test_plot_a2_certification.py::test_current_rejects_symlinked_campaign_claim_path\norchestrator/tests/test_plot_a2_certification.py::test_current_rejects_twelve_file_closure_underflow_and_overflow[missing]\norchestrator/tests/test_plot_a2_certification.py::test_current_rejects_twelve_file_closure_underflow_and_overflow[extra]\norchestrator/tests/test_plot_a2_certification.py::test_current_rejects_missing_manifest_bound_condition_receipt\norchestrator/tests/test_plot_a2_certification.py::test_current_rejects_condition_receipt_hash_mismatch\norchestrator/tests/test_plot_a2_certification.py::test_current_hash_checks_passive_campaign_closure_members\norchestrator/tests/test_plot_a2_certification.py::test_current_rejects_noncanonical_condition_receipt\norchestrator/tests/test_plot_a2_certification.py::test_current_rejects_condition_receipt_admitted_false\norchestrator/tests/test_plot_a2_certification.py::test_current_rejects_each_src_token_authority_mismatch[receipt]\norchestrator/tests/test_plot_a2_certification.py::test_current_rejects_each_src_token_authority_mismatch[raw]\norchestrator/tests/test_plot_a2_certification.py::test_current_rejects_each_src_token_authority_mismatch[certification]\norchestrator/tests/test_plot_a2_certification.py::test_current_rejects_wal_build_start_payload_src_token_mismatch\norchestrator/tests/test_plot_a2_certification.py::test_current_rejects_wal_build_admission_source_src_token_mismatch\norchestrator/tests/test_plot_a2_certification.py::test_current_rejects_nonbound_source_binding_status\norchestrator/tests/test_plot_a2_certification.py::test_current_rejects_role_wrong_tokens_even_when_all_four_authorities_agree[rr5-stock-eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee-stock cell src_token is not stock]\norchestrator/tests/test_plot_a2_certification.py::test_current_rejects_role_wrong_tokens_even_when_all_four_authorities_agree[rr5-fixed10-stock-adopted cell src_token is not a non-stock]\norchestrator/tests/test_plot_a2_certification.py::test_current_recomputes_certification_medians_and_effects[median]\norchestrator/tests/test_plot_a2_certification.py::test_current_recomputes_certification_medians_and_effects[effect]\norchestrator/tests/test_plot_a2_certification.py::test_current_gate_copy_is_receipt_observation_not_legacy_fixed_copy\norchestrator/tests/test_plot_a2_certification.py::test_cli_has_no_caller_selected_hash_options\norchestrator/tests/test_plot_a2_certification.py::test_cli_rejects_exact_bytes_at_certification_path_missing_from_pin_table\norchestrator/tests/test_plot_a2_certification.py::test_current_cli_reads_repository_owned_pin_table\norchestrator/tests/test_plot_a2_certification.py::test_fixture_has_production_shape_and_recomputes_statistics\norchestrator/tests/test_plot_a2_certification.py::test_m1_bench_done_rows_ignore_real_nonbench_stage_keys\norchestrator/tests/test_plot_a2_certification.py::test_m2_five_samples_are_required_when_all_projections_agree\norchestrator/tests/test_plot_a2_certification.py::test_m3_external_sha256_mismatch_is_rejected\norchestrator/tests/test_plot_a2_certification.py::test_m4a_raw_samples_must_match_wal_after_manifest_rebind\norchestrator/tests/test_plot_a2_certification.py::test_m4b_raw_build_attempt_must_match_wal_after_manifest_rebind\norchestrator/tests/test_plot_a2_certification.py::test_m4c_raw_variant_must_match_wal_after_manifest_rebind\norchestrator/tests/test_plot_a2_certification.py::test_m4d_nested_performance_build_attempt_must_match_raw_after_manifest_rebind\norchestrator/tests/test_plot_a2_certification.py::test_m5_certification_median_mismatch_is_rejected\norchestrator/tests/test_plot_a2_certification.py::test_m6_certification_effect_mismatch_is_rejected\norchestrator/tests/test_plot_a2_certification.py::test_m7_outer_status_is_copied_into_provenance\norchestrator/tests/test_plot_a2_certification.py::test_m8_artist_baseline_is_stock_median_with_stock_genome\norchestrator/tests/test_plot_a2_certification.py::test_m9_caption_distinguishes_correctness_from_performance\norchestrator/tests/test_plot_a2_certification.py::test_real_size_figure_passes_layout_and_artist_contract\norchestrator/tests/test_plot_a2_certification.py::test_m10_layout_failure_publishes_no_outputs\norchestrator/tests/test_plot_a2_certification.py::test_caption_uses_figure_number_from_output_prefix\norchestrator/tests/test_plot_a2_certification.py::test_output_prefix_without_figure_number_is_rejected\norchestrator/tests/test_plot_a2_certification.py::test_m11_whitespace_changed_certification_fails_cli_with_zero_outputs\norchestrator/tests/test_plot_a2_certification.py::test_m12_whitespace_changed_raw_manifest_fails_cli_with_zero_outputs\norchestrator/tests/test_plot_a2_certification.py::test_m13_raw_source_commit_must_equal_current_pin_after_manifest_rebind\norchestrator/tests/test_plot_a2_certification.py::test_cli_writes_complete_provenance_with_repo_relative_argv\norchestrator/tests/test_plot_a2_certification.py::test_tracked_authority_literals_and_run_readme_record_agree\norchestrator/tests/test_plot_a2_certification.py::test_external_root_partial_absence_is_failure_not_skip\norchestrator/tests/test_plot_a2_certification.py::test_real_external_inputs_when_available\norchestrator/tests/test_plot_a2_certification.py::test_landed_fig5_repo_closure_and_caption_when_present\norchestrator/tests/test_paper_story_a2_certification.py::test_paper_condition_gate_is_p_strict_and_precedes_campaign\norchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_context_cleans_up_on_body_exception\norchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_context_cleans_up_on_prebuild_exception\norchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_prebuild_runs_once_for_multiple_cells\norchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_family_real_records_positive_then_issued_red_negative\norchestrator/tests/test_paper_story_a2_certification.py::test_raw_cell_requires_persisted_certification[a2]\norchestrator/tests/test_paper_story_a2_certification.py::test_policy_is_the_exact_literal_four_cell_protocol\norchestrator/tests/test_paper_story_a2_certification.py::test_p1_a2_default_policy_bytes_and_protocol_are_unchanged\norchestrator/tests/test_paper_story_a2_certification.py::test_m3_combined_count_layers_reject_three_workload_a6_policy\norchestrator/tests/test_paper_story_a2_certification.py::test_policy_loader_rejects_unknown_study\norchestrator/tests/test_paper_story_a2_certification.py::test_m4_cli_policy_selection_rejects_noncanonical_path\norchestrator/tests/test_paper_story_a2_certification.py::test_m5_workloads_remain_in_protocol_preimage\norchestrator/tests/test_paper_story_a2_certification.py::test_a6_policy_is_exact_read_heavy_pair_with_twelve_hour_walltime\norchestrator/tests/test_paper_story_a2_certification.py::test_production_policy_protocol_maps_to_real_silo_layout_and_artifacts\norchestrator/tests/test_paper_story_a2_certification.py::test_uppercase_silo_protocol_is_rejected_by_policy_loader\norchestrator/tests/test_paper_story_a2_certification.py::test_m1_closed_verify_mode_wires_performance_and_rejects_unknown\norchestrator/tests/test_paper_story_a2_certification.py::test_m2_performance_constructor_is_exact_and_rejects_shrinkage\norchestrator/tests/test_paper_story_a2_certification.py::test_m3_campaign_preimage_and_perfconfig_must_both_match\norchestrator/tests/test_paper_story_a2_certification.py::test_m4_full_scale_verify_is_required_for_cell_completion\norchestrator/tests/test_paper_story_a2_certification.py::test_m5_collector_rejects_non_exact_cell_sets[missing]\norchestrator/tests/test_paper_story_a2_certification.py::test_m5_collector_rejects_non_exact_cell_sets[extra]\norchestrator/tests/test_paper_story_a2_certification.py::test_m5_collector_rejects_non_exact_cell_sets[duplicate]\norchestrator/tests/test_paper_story_a2_certification.py::test_m5_collector_rejects_non_exact_cell_sets[cross-attempt]\norchestrator/tests/test_paper_story_a2_certification.py::test_m6_positive_report_never_claims_global_minimality\norchestrator/tests/test_paper_story_a2_certification.py::test_anomaly_is_determinate_reject_and_performance_incomplete_is_not_pass\norchestrator/tests/test_paper_story_a2_certification.py::test_m8_controlled_define_map_and_argv_are_independent_gates[map]\norchestrator/tests/test_paper_story_a2_certification.py::test_m8_controlled_define_map_and_argv_are_independent_gates[argv]\norchestrator/tests/test_paper_story_a2_certification.py::test_m9_run_argv_zero_must_be_the_canonical_binary\norchestrator/tests/test_paper_story_a2_certification.py::test_perf_sha_is_recomputed_from_binary_bytes\norchestrator/tests/test_paper_story_a2_certification.py::test_m10_full_submission_and_completion_receipts_are_cross_bound\norchestrator/tests/test_paper_story_a2_certification.py::test_scheduler_request_id_diagnostic_is_create_only_and_non_symlink\norchestrator/tests/test_paper_story_a2_certification.py::test_qsub_diagnostics_fsync_both_files_then_scheduler_directory\norchestrator/tests/test_paper_story_a2_certification.py::test_m1_a6_single_workload_full_success_stays_v3\norchestrator/tests/test_paper_story_a2_certification.py::test_m2_partial_v4_completion_requires_exact_two_workloads\norchestrator/tests/test_paper_story_a2_certification.py::test_p2_a6_full_v3_path_collects_and_materializes\norchestrator/tests/test_paper_story_a2_certification.py::test_a6_anomaly_is_immediate_reject\norchestrator/tests/test_paper_story_a2_certification.py::test_m4_finish_rejects_compute_request_mismatch_without_raw_manifest\norchestrator/tests/test_paper_story_a2_certification.py::test_m5_finish_prevalidates_each_job_against_its_own_request\norchestrator/tests/test_paper_story_a2_certification.py::test_pc2_canonical_finish_creates_manifest_completion_and_acquisition\norchestrator/tests/test_paper_story_a2_certification.py::test_authority_none_production_finish_and_collect_remain_v3_indeterminate\norchestrator/tests/test_paper_story_a2_certification.py::test_legacy_v3_one_failed_driver_consumer_remains_indeterminate\norchestrator/tests/test_paper_story_a2_certification.py::test_partial_anomaly_production_chain_rejects_without_failed_raw\norchestrator/tests/test_paper_story_a2_certification.py::test_partial_positive_and_nonpositive_effect_statuses[1.1-partial-authoritative-workload-positive:rr50]\norchestrator/tests/test_paper_story_a2_certification.py::test_partial_positive_and_nonpositive_effect_statuses[1.0-reject-authoritative-workload-effect-nonpositive:rr50]\norchestrator/tests/test_paper_story_a2_certification.py::test_partial_positive_and_nonpositive_effect_statuses[0.9-reject-authoritative-workload-effect-nonpositive:rr50]\norchestrator/tests/test_paper_story_a2_certification.py::test_partial_authoritative_science_can_remain_inconclusive\norchestrator/tests/test_paper_story_a2_certification.py::test_partial_invalid_authority_stops_before_report_or_artifact\norchestrator/tests/test_paper_story_a2_certification.py::test_partial_materializer_rejects_cross_schema_and_failed_raw_mixing[cross-version]\norchestrator/tests/test_paper_story_a2_certification.py::test_partial_materializer_rejects_cross_schema_and_failed_raw_mixing[failed-raw-member]\norchestrator/tests/test_paper_story_a2_certification.py::test_partial_v4_chain_rejects_noncanonical_authority_path_before_read[manifest]\norchestrator/tests/test_paper_story_a2_certification.py::test_partial_v4_chain_rejects_noncanonical_authority_path_before_read[submission]\norchestrator/tests/test_paper_story_a2_certification.py::test_partial_v4_chain_rejects_noncanonical_authority_path_before_read[completion]\norchestrator/tests/test_paper_story_a2_certification.py::test_materializer_rejects_v3_v4_result_receipt_cross_chain\norchestrator/tests/test_paper_story_a2_certification.py::test_m7_partial_materializer_rejects_forged_authority_and_status\norchestrator/tests/test_paper_story_a2_certification.py::test_m8_partial_materializer_rejects_failed_workload_cells_and_effects\norchestrator/tests/test_paper_story_a2_certification.py::test_m10_each_canonical_qsub_and_submit_observation_field_is_required[qsub_argv]\norchestrator/tests/test_paper_story_a2_certification.py::test_m10_each_canonical_qsub_and_submit_observation_field_is_required[qstat_visibility]\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_argv_environment_nodes_and_job_body_are_exact[extra-env]\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_argv_environment_nodes_and_job_body_are_exact[nodes]\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_argv_environment_nodes_and_job_body_are_exact[job-body]\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_uses_the_full_real_qstat_fixture\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_another_request_block\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_conflicting_state_fields\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_state_before_target_id\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_non_none_ended_time\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_requires_one_ended_time_after_request_id[missing-ended request time is missing]\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_requires_one_ended_time_after_request_id[duplicated-ended request time is duplicated]\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_requires_one_ended_time_after_request_id[before-request-id-ended request time precedes request ID]\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_disappearance_with_visible_block\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_receipt_state_mismatch\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_finished_request_stdout\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_nonaccepted_vocabulary[Held-outside the submission acceptance set]\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_nonaccepted_vocabulary[Suspended-state vocabulary is unknown]\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_vocabulary_sets_are_nonvacuous_and_exact\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_requires_timestamped_nonterminal_state\norchestrator/tests/test_paper_story_a2_certification.py::test_m11_materializer_stages_marker_before_single_noreplace_rename\norchestrator/tests/test_paper_story_a2_certification.py::test_materialize_einval_uses_exclusive_claim_and_flags_zero_rename\norchestrator/tests/test_paper_story_a2_certification.py::test_materialize_einval_refuses_destination_created_before_recheck\norchestrator/tests/test_paper_story_a2_certification.py::test_materialize_einval_fails_closed_on_publish_claim_collision\norchestrator/tests/test_paper_story_a2_certification.py::test_materialize_non_einval_publish_error_does_not_enter_fallback\norchestrator/tests/test_paper_story_a2_certification.py::test_materialize_noreplace_success_does_not_enter_fallback\norchestrator/tests/test_paper_story_a2_certification.py::test_m12_attempt_root_must_be_direct_child_of_pinned_durable_base\norchestrator/tests/test_paper_story_a2_certification.py::test_m12_durable_base_rejects_symlinked_ancestor\norchestrator/tests/test_paper_story_a2_certification.py::test_correctness_requires_every_ratified_repetition\norchestrator/tests/test_paper_story_a2_certification.py::test_nonfinite_json_and_samples_are_fail_closed\norchestrator/tests/test_paper_story_a2_certification.py::test_collector_never_calls_positive_path_for_failed_or_manifestless_compute[authority-none-driver_rc0-False]\norchestrator/tests/test_paper_story_a2_certification.py::test_collector_never_calls_positive_path_for_failed_or_manifestless_compute[manifestless-full-0-False]\norchestrator/tests/test_paper_story_a2_certification.py::test_completion_driver_rc_request_and_pin_are_bound_to_compute_result\norchestrator/tests/test_paper_story_a2_certification.py::test_completion_accepts_both_canonical_terminal_observations[scheduler-end-state]\norchestrator/tests/test_paper_story_a2_certification.py::test_completion_accepts_both_canonical_terminal_observations[request-disappeared-after-visibility]\norchestrator/tests/test_paper_story_a2_certification.py::test_disappeared_terminal_rejects_noncanonical_observations[empty-output]\norchestrator/tests/test_paper_story_a2_certification.py::test_disappeared_terminal_rejects_noncanonical_observations[visible-output]\norchestrator/tests/test_paper_story_a2_certification.py::test_disappeared_terminal_rejects_noncanonical_observations[nonzero-rc]\norchestrator/tests/test_paper_story_a2_certification.py::test_disappeared_terminal_rejects_noncanonical_observations[stderr]\norchestrator/tests/test_paper_story_a2_certification.py::test_raw_manifest_binds_campaign_lock_and_wal_and_freezes_raw_bytes\norchestrator/tests/test_paper_story_a2_certification.py::test_changed_campaign_wal_invalidates_the_manifest_bundle\norchestrator/tests/test_paper_story_a2_certification.py::test_condition_receipt_publish_is_atomic_noreplace_and_durable\norchestrator/tests/test_paper_story_a2_certification.py::test_atomic_write_bytes_noreplace_einval_uses_create_only_hard_link\norchestrator/tests/test_paper_story_a2_certification.py::test_atomic_write_bytes_noreplace_einval_hard_link_refuses_existing_name\norchestrator/tests/test_paper_story_a2_certification.py::test_atomic_write_bytes_noreplace_non_einval_is_not_fallback\norchestrator/tests/test_paper_story_a2_certification.py::test_source_role_and_missing_token_are_determinate_cell_rejects[adopted-stock-patch-unapplied]\norchestrator/tests/test_paper_story_a2_certification.py::test_source_role_and_missing_token_are_determinate_cell_rejects[missing-token-token-missing]\norchestrator/tests/test_paper_story_a2_certification.py::test_source_role_and_missing_token_are_determinate_cell_rejects[legacy-v2-patch-unapplied]\norchestrator/tests/test_paper_story_a2_certification.py::test_patched_adopted_source_binding_positive_control\norchestrator/tests/test_paper_story_a2_certification.py::test_raw_token_is_checked_against_precampaign_receipt_not_itself\norchestrator/tests/test_paper_story_a2_certification.py::test_precampaign_token_cross_checks_wal_admission_and_variant[wal-token-WAL build start token]\norchestrator/tests/test_paper_story_a2_certification.py::test_precampaign_token_cross_checks_wal_admission_and_variant[admission-token-build admission token]\norchestrator/tests/test_paper_story_a2_certification.py::test_precampaign_token_cross_checks_wal_admission_and_variant[variant-canonical cell variant]\norchestrator/tests/test_paper_story_a2_certification.py::test_manifest_bound_condition_receipt_is_required_and_hash_checked[missing]\norchestrator/tests/test_paper_story_a2_certification.py::test_manifest_bound_condition_receipt_is_required_and_hash_checked[changed]\norchestrator/tests/test_paper_story_a2_certification.py::test_source_authority_failure_stops_before_tracked_artifact[receipt-file-missing]\norchestrator/tests/test_paper_story_a2_certification.py::test_source_authority_failure_stops_before_tracked_artifact[receipt-corrupt]\norchestrator/tests/test_paper_story_a2_certification.py::test_source_authority_failure_stops_before_tracked_artifact[receipt-token-missing]\norchestrator/tests/test_paper_story_a2_certification.py::test_source_authority_failure_stops_before_tracked_artifact[receipt-token-invalid]\norchestrator/tests/test_paper_story_a2_certification.py::test_source_authority_failure_stops_before_tracked_artifact[receipt-hash-mismatch]\norchestrator/tests/test_paper_story_a2_certification.py::test_source_authority_failure_stops_before_tracked_artifact[raw-token-missing]\norchestrator/tests/test_paper_story_a2_certification.py::test_source_authority_failure_stops_before_tracked_artifact[raw-token-invalid]\norchestrator/tests/test_paper_story_a2_certification.py::test_full_and_legacy_partial_manifest_identifiers_and_loaders_are_distinct\norchestrator/tests/test_paper_story_a2_certification.py::test_frozen_v3_certification_bytes_and_legacy_cell_shape_remain_accepted\norchestrator/tests/test_paper_story_a2_certification.py::test_p3_cli_selects_default_a2_and_explicit_a6_policy\norchestrator/tests/test_paper_story_a2_certification.py::test_run_workload_production_pin_gate_rejects_noncanonical_source[wrong-prefix]\norchestrator/tests/test_paper_story_a2_certification.py::test_run_workload_production_pin_gate_rejects_noncanonical_source[resolver-failure]\norchestrator/tests/test_paper_story_a2_certification.py::test_run_workload_production_pin_gate_rejects_noncanonical_source[dirty]\norchestrator/tests/test_paper_story_a2_certification.py::test_run_workload_requires_exact_repository_canonical_short_pin[1111111111111111111111111111111111111111]\norchestrator/tests/test_paper_story_a2_certification.py::test_run_workload_requires_exact_repository_canonical_short_pin[abcdef0]\norchestrator/tests/test_paper_story_a2_certification.py::test_official_run_observes_and_passes_current_toolchain_manifest\norchestrator/tests/test_paper_story_a2_certification.py::test_driver_resolves_exact_source_tokens_before_campaign_and_forwards_them\norchestrator/tests/test_paper_story_a2_certification.py::test_live_precampaign_source_role_predicate_rejects_before_campaign[adopted-stock]\norchestrator/tests/test_paper_story_a2_certification.py::test_live_precampaign_source_role_predicate_rejects_before_campaign[stock-non-stock]\norchestrator/tests/test_paper_story_a2_certification.py::test_pipeline_runs_correctness_workload_repetitions_without_new_wal_fields\norchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[separated-define]\norchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[duplicate-configure-token]\norchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[unknown-configure-token]\norchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[build-subcommand]\norchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[unknown-build-token]\norchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[unknown-run-flag]\norchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[clocks-per-us]\norchestrator/tests/test_paper_story_a2_certification.py::test_wal_configure_locator_comes_from_versioned_grammar\norchestrator/tests/test_paper_story_a2_certification.py::test_synthetic_pbs_free_preregister_through_analyze_positive\norchestrator/tests/test_paper_story_a2_certification.py::test_volatile_diagnostics_are_not_fixture_authority\n\n202 tests collected in 1.01s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "8239cbce40eb8adbf7d622c2cf32b19d069dba395b4a49921f6f1b9a1ced42ea"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_full_profile_uses_producer_policy_and_exact_twelve_file_closure",
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_rejects_embedded_policy_hash_mismatch",
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_top_level_status_uses_verdict_vocabulary_not_bound",
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_full_policy_order_is_artifact_derived",
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_rejects_schema_crosses_and_partial_families[cert-paper-story-a2-certification-result/v3]",
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_rejects_schema_crosses_and_partial_families[manifest-paper-story-a2-raw-manifest/v3]",
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_rejects_schema_crosses_and_partial_families[cert-paper-story-a2-partial-result/v1]",
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_rejects_schema_crosses_and_partial_families[cert-paper-story-a2-partial-result/v2]",
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_rejects_schema_crosses_and_partial_families[manifest-paper-story-a2-raw-manifest/v4]",
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_rejects_schema_crosses_and_partial_families[manifest-paper-story-a2-raw-manifest/v5]",
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_rejects_legacy_raw_cell_schema",
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_rejects_embedded_policy_protocol_identity_mismatch",
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_rejects_duplicate_wal_build_start_mapping",
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_rejects_policy_mismatched_workload_condition",
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_rejects_noncanonical_campaign_claim_path",
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_rejects_symlinked_campaign_claim_path",
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_rejects_twelve_file_closure_underflow_and_overflow[missing]",
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_rejects_twelve_file_closure_underflow_and_overflow[extra]",
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_rejects_missing_manifest_bound_condition_receipt",
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_rejects_condition_receipt_hash_mismatch",
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_hash_checks_passive_campaign_closure_members",
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_rejects_noncanonical_condition_receipt",
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_rejects_condition_receipt_admitted_false",
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_rejects_each_src_token_authority_mismatch[receipt]",
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_rejects_each_src_token_authority_mismatch[raw]",
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_rejects_each_src_token_authority_mismatch[certification]",
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_rejects_wal_build_start_payload_src_token_mismatch",
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_rejects_wal_build_admission_source_src_token_mismatch",
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_rejects_nonbound_source_binding_status",
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_rejects_role_wrong_tokens_even_when_all_four_authorities_agree[rr5-stock-eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee-stock cell src_token is not stock]",
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_rejects_role_wrong_tokens_even_when_all_four_authorities_agree[rr5-fixed10-stock-adopted cell src_token is not a non-stock]",
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_recomputes_certification_medians_and_effects[median]",
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_recomputes_certification_medians_and_effects[effect]",
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_gate_copy_is_receipt_observation_not_legacy_fixed_copy",
+        "orchestrator/tests/test_plot_a2_certification.py::test_cli_has_no_caller_selected_hash_options",
+        "orchestrator/tests/test_plot_a2_certification.py::test_cli_rejects_exact_bytes_at_certification_path_missing_from_pin_table",
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_cli_reads_repository_owned_pin_table",
+        "orchestrator/tests/test_plot_a2_certification.py::test_fixture_has_production_shape_and_recomputes_statistics",
+        "orchestrator/tests/test_plot_a2_certification.py::test_m1_bench_done_rows_ignore_real_nonbench_stage_keys",
+        "orchestrator/tests/test_plot_a2_certification.py::test_m2_five_samples_are_required_when_all_projections_agree",
+        "orchestrator/tests/test_plot_a2_certification.py::test_m3_external_sha256_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_a2_certification.py::test_m4a_raw_samples_must_match_wal_after_manifest_rebind",
+        "orchestrator/tests/test_plot_a2_certification.py::test_m4b_raw_build_attempt_must_match_wal_after_manifest_rebind",
+        "orchestrator/tests/test_plot_a2_certification.py::test_m4c_raw_variant_must_match_wal_after_manifest_rebind",
+        "orchestrator/tests/test_plot_a2_certification.py::test_m4d_nested_performance_build_attempt_must_match_raw_after_manifest_rebind",
+        "orchestrator/tests/test_plot_a2_certification.py::test_m5_certification_median_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_a2_certification.py::test_m6_certification_effect_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_a2_certification.py::test_m7_outer_status_is_copied_into_provenance",
+        "orchestrator/tests/test_plot_a2_certification.py::test_m8_artist_baseline_is_stock_median_with_stock_genome",
+        "orchestrator/tests/test_plot_a2_certification.py::test_m9_caption_distinguishes_correctness_from_performance",
+        "orchestrator/tests/test_plot_a2_certification.py::test_real_size_figure_passes_layout_and_artist_contract",
+        "orchestrator/tests/test_plot_a2_certification.py::test_m10_layout_failure_publishes_no_outputs",
+        "orchestrator/tests/test_plot_a2_certification.py::test_caption_uses_figure_number_from_output_prefix",
+        "orchestrator/tests/test_plot_a2_certification.py::test_output_prefix_without_figure_number_is_rejected",
+        "orchestrator/tests/test_plot_a2_certification.py::test_m11_whitespace_changed_certification_fails_cli_with_zero_outputs",
+        "orchestrator/tests/test_plot_a2_certification.py::test_m12_whitespace_changed_raw_manifest_fails_cli_with_zero_outputs",
+        "orchestrator/tests/test_plot_a2_certification.py::test_m13_raw_source_commit_must_equal_current_pin_after_manifest_rebind",
+        "orchestrator/tests/test_plot_a2_certification.py::test_cli_writes_complete_provenance_with_repo_relative_argv",
+        "orchestrator/tests/test_plot_a2_certification.py::test_tracked_authority_literals_and_run_readme_record_agree",
+        "orchestrator/tests/test_plot_a2_certification.py::test_external_root_partial_absence_is_failure_not_skip",
+        "orchestrator/tests/test_plot_a2_certification.py::test_real_external_inputs_when_available",
+        "orchestrator/tests/test_plot_a2_certification.py::test_landed_fig5_repo_closure_and_caption_when_present",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_paper_condition_gate_is_p_strict_and_precedes_campaign",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_context_cleans_up_on_body_exception",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_context_cleans_up_on_prebuild_exception",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_prebuild_runs_once_for_multiple_cells",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_family_real_records_positive_then_issued_red_negative",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_raw_cell_requires_persisted_certification[a2]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_policy_is_the_exact_literal_four_cell_protocol",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_p1_a2_default_policy_bytes_and_protocol_are_unchanged",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m3_combined_count_layers_reject_three_workload_a6_policy",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_policy_loader_rejects_unknown_study",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m4_cli_policy_selection_rejects_noncanonical_path",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m5_workloads_remain_in_protocol_preimage",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_a6_policy_is_exact_read_heavy_pair_with_twelve_hour_walltime",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_production_policy_protocol_maps_to_real_silo_layout_and_artifacts",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_uppercase_silo_protocol_is_rejected_by_policy_loader",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m1_closed_verify_mode_wires_performance_and_rejects_unknown",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m2_performance_constructor_is_exact_and_rejects_shrinkage",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m3_campaign_preimage_and_perfconfig_must_both_match",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m4_full_scale_verify_is_required_for_cell_completion",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m5_collector_rejects_non_exact_cell_sets[missing]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m5_collector_rejects_non_exact_cell_sets[extra]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m5_collector_rejects_non_exact_cell_sets[duplicate]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m5_collector_rejects_non_exact_cell_sets[cross-attempt]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m6_positive_report_never_claims_global_minimality",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_anomaly_is_determinate_reject_and_performance_incomplete_is_not_pass",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m8_controlled_define_map_and_argv_are_independent_gates[map]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m8_controlled_define_map_and_argv_are_independent_gates[argv]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m9_run_argv_zero_must_be_the_canonical_binary",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_perf_sha_is_recomputed_from_binary_bytes",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m10_full_submission_and_completion_receipts_are_cross_bound",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_scheduler_request_id_diagnostic_is_create_only_and_non_symlink",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_qsub_diagnostics_fsync_both_files_then_scheduler_directory",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m1_a6_single_workload_full_success_stays_v3",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m2_partial_v4_completion_requires_exact_two_workloads",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_p2_a6_full_v3_path_collects_and_materializes",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_a6_anomaly_is_immediate_reject",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m4_finish_rejects_compute_request_mismatch_without_raw_manifest",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m5_finish_prevalidates_each_job_against_its_own_request",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_pc2_canonical_finish_creates_manifest_completion_and_acquisition",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_authority_none_production_finish_and_collect_remain_v3_indeterminate",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_legacy_v3_one_failed_driver_consumer_remains_indeterminate",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_anomaly_production_chain_rejects_without_failed_raw",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_positive_and_nonpositive_effect_statuses[1.1-partial-authoritative-workload-positive:rr50]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_positive_and_nonpositive_effect_statuses[1.0-reject-authoritative-workload-effect-nonpositive:rr50]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_positive_and_nonpositive_effect_statuses[0.9-reject-authoritative-workload-effect-nonpositive:rr50]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_authoritative_science_can_remain_inconclusive",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_invalid_authority_stops_before_report_or_artifact",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_materializer_rejects_cross_schema_and_failed_raw_mixing[cross-version]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_materializer_rejects_cross_schema_and_failed_raw_mixing[failed-raw-member]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_v4_chain_rejects_noncanonical_authority_path_before_read[manifest]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_v4_chain_rejects_noncanonical_authority_path_before_read[submission]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_v4_chain_rejects_noncanonical_authority_path_before_read[completion]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materializer_rejects_v3_v4_result_receipt_cross_chain",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m7_partial_materializer_rejects_forged_authority_and_status",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m8_partial_materializer_rejects_failed_workload_cells_and_effects",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m10_each_canonical_qsub_and_submit_observation_field_is_required[qsub_argv]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m10_each_canonical_qsub_and_submit_observation_field_is_required[qstat_visibility]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_argv_environment_nodes_and_job_body_are_exact[extra-env]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_argv_environment_nodes_and_job_body_are_exact[nodes]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_argv_environment_nodes_and_job_body_are_exact[job-body]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_uses_the_full_real_qstat_fixture",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_another_request_block",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_conflicting_state_fields",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_state_before_target_id",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_non_none_ended_time",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_requires_one_ended_time_after_request_id[missing-ended request time is missing]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_requires_one_ended_time_after_request_id[duplicated-ended request time is duplicated]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_requires_one_ended_time_after_request_id[before-request-id-ended request time precedes request ID]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_disappearance_with_visible_block",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_receipt_state_mismatch",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_finished_request_stdout",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_nonaccepted_vocabulary[Held-outside the submission acceptance set]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_nonaccepted_vocabulary[Suspended-state vocabulary is unknown]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_vocabulary_sets_are_nonvacuous_and_exact",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_requires_timestamped_nonterminal_state",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m11_materializer_stages_marker_before_single_noreplace_rename",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_einval_uses_exclusive_claim_and_flags_zero_rename",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_einval_refuses_destination_created_before_recheck",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_einval_fails_closed_on_publish_claim_collision",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_non_einval_publish_error_does_not_enter_fallback",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_noreplace_success_does_not_enter_fallback",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m12_attempt_root_must_be_direct_child_of_pinned_durable_base",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m12_durable_base_rejects_symlinked_ancestor",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_correctness_requires_every_ratified_repetition",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_nonfinite_json_and_samples_are_fail_closed",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_collector_never_calls_positive_path_for_failed_or_manifestless_compute[authority-none-driver_rc0-False]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_collector_never_calls_positive_path_for_failed_or_manifestless_compute[manifestless-full-0-False]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_completion_driver_rc_request_and_pin_are_bound_to_compute_result",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_completion_accepts_both_canonical_terminal_observations[scheduler-end-state]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_completion_accepts_both_canonical_terminal_observations[request-disappeared-after-visibility]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_disappeared_terminal_rejects_noncanonical_observations[empty-output]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_disappeared_terminal_rejects_noncanonical_observations[visible-output]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_disappeared_terminal_rejects_noncanonical_observations[nonzero-rc]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_disappeared_terminal_rejects_noncanonical_observations[stderr]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_raw_manifest_binds_campaign_lock_and_wal_and_freezes_raw_bytes",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_changed_campaign_wal_invalidates_the_manifest_bundle",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_condition_receipt_publish_is_atomic_noreplace_and_durable",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_atomic_write_bytes_noreplace_einval_uses_create_only_hard_link",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_atomic_write_bytes_noreplace_einval_hard_link_refuses_existing_name",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_atomic_write_bytes_noreplace_non_einval_is_not_fallback",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_source_role_and_missing_token_are_determinate_cell_rejects[adopted-stock-patch-unapplied]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_source_role_and_missing_token_are_determinate_cell_rejects[missing-token-token-missing]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_source_role_and_missing_token_are_determinate_cell_rejects[legacy-v2-patch-unapplied]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_patched_adopted_source_binding_positive_control",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_raw_token_is_checked_against_precampaign_receipt_not_itself",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_precampaign_token_cross_checks_wal_admission_and_variant[wal-token-WAL build start token]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_precampaign_token_cross_checks_wal_admission_and_variant[admission-token-build admission token]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_precampaign_token_cross_checks_wal_admission_and_variant[variant-canonical cell variant]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_manifest_bound_condition_receipt_is_required_and_hash_checked[missing]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_manifest_bound_condition_receipt_is_required_and_hash_checked[changed]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_source_authority_failure_stops_before_tracked_artifact[receipt-file-missing]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_source_authority_failure_stops_before_tracked_artifact[receipt-corrupt]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_source_authority_failure_stops_before_tracked_artifact[receipt-token-missing]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_source_authority_failure_stops_before_tracked_artifact[receipt-token-invalid]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_source_authority_failure_stops_before_tracked_artifact[receipt-hash-mismatch]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_source_authority_failure_stops_before_tracked_artifact[raw-token-missing]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_source_authority_failure_stops_before_tracked_artifact[raw-token-invalid]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_full_and_legacy_partial_manifest_identifiers_and_loaders_are_distinct",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_frozen_v3_certification_bytes_and_legacy_cell_shape_remain_accepted",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_p3_cli_selects_default_a2_and_explicit_a6_policy",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_run_workload_production_pin_gate_rejects_noncanonical_source[wrong-prefix]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_run_workload_production_pin_gate_rejects_noncanonical_source[resolver-failure]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_run_workload_production_pin_gate_rejects_noncanonical_source[dirty]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_run_workload_requires_exact_repository_canonical_short_pin[1111111111111111111111111111111111111111]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_run_workload_requires_exact_repository_canonical_short_pin[abcdef0]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_official_run_observes_and_passes_current_toolchain_manifest",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_driver_resolves_exact_source_tokens_before_campaign_and_forwards_them",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_live_precampaign_source_role_predicate_rejects_before_campaign[adopted-stock]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_live_precampaign_source_role_predicate_rejects_before_campaign[stock-non-stock]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_pipeline_runs_correctness_workload_repetitions_without_new_wal_fields",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[separated-define]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[duplicate-configure-token]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[unknown-configure-token]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[build-subcommand]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[unknown-build-token]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[unknown-run-flag]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[clocks-per-us]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_wal_configure_locator_comes_from_versioned_grammar",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_synthetic_pbs_free_preregister_through_analyze_positive",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_volatile_diagnostics_are_not_fixture_authority"
+      ],
+      "duration_s": 124.281,
+      "rc": 0,
+      "repo_head": "7bdc0d13b0156c90a041864548836da88d5d4060",
+      "runner_sha256": "bbaf493c9f9504a9c294221fec67f1d155b6756245e6ea3a072fca5db6cdb87a",
+      "spec_sha256": "07c9f35d00830c2bf4b1b359752b566d3004abebb6ce31ac75518dc621bac045",
+      "status": "PASSED",
+      "tool_sha256": "d8e5ff05e916174600e310ab90be75d807d030c059ae4f99bd58d39c5f8e34a3"
+    },
+    "hang_timeout_seconds": 4600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1-einval-fallback-removed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_paper_story_a2_certification.py::test_atomic_write_bytes_noreplace_einval_hard_link_refuses_existing_name",
+          "orchestrator/tests/test_paper_story_a2_certification.py::test_atomic_write_bytes_noreplace_einval_uses_create_only_hard_link"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "645320ada6e6c5b32db0629e74b292f9a225ea2a14e7a67e3f05944a0221fae7",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/paper_story_a2_certification.py",
+            "new": "            raise\n",
+            "old": "            if exc.errno != errno.EINVAL:\n                raise\n            os.link(staging, path)\n            staging.unlink()\n"
+          }
+        ]
+      },
+      "M2-einval-fallback-replaces-existing": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_paper_story_a2_certification.py::test_atomic_write_bytes_noreplace_einval_hard_link_refuses_existing_name",
+          "orchestrator/tests/test_paper_story_a2_certification.py::test_atomic_write_bytes_noreplace_einval_uses_create_only_hard_link"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "26aea62b0684111ae682b80b24aff4b0ebb15d25f8badd1e1eaeac0e56850d4b",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/paper_story_a2_certification.py",
+            "new": "            os.replace(staging, path)\n",
+            "old": "            os.link(staging, path)\n            staging.unlink()\n"
+          }
+        ]
+      },
+      "M3-pin-table-bypassed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_a2_certification.py::test_cli_rejects_exact_bytes_at_certification_path_missing_from_pin_table",
+          "orchestrator/tests/test_plot_a2_certification.py::test_current_cli_reads_repository_owned_pin_table",
+          "orchestrator/tests/test_plot_a2_certification.py::test_m11_whitespace_changed_certification_fails_cli_with_zero_outputs",
+          "orchestrator/tests/test_plot_a2_certification.py::test_m12_whitespace_changed_raw_manifest_fails_cli_with_zero_outputs"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "1b4b171ba2e52c9ae5c080fa6e5564a189b51aa4321f96dacf7e25f454a1f09f",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_a2_certification.py",
+            "new": "        pinned = CANONICAL_SHA256.get(key) or {\"certification\": _sha256(certification_path), \"raw_manifest\": _sha256(certification_path.parent / \"raw-manifest.json\")}\n",
+            "old": "        pinned = CANONICAL_SHA256.get(key)\n"
+          }
+        ]
+      },
+      "M4b-current-also-accepts-legacy-raw-schema": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_a2_certification.py::test_current_rejects_legacy_raw_cell_schema"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "411b2ff0ed9eeabf5c99f7c3aa01323f64c1e559a2435efd94402c51ecdb5c0b",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_a2_certification.py",
+            "new": "    if raw.get(\"schema_version\") not in (raw_schema, LEGACY_RAW_SCHEMA) or raw.get(\"cell_id\") != certified.get(\"cell_id\"):\n",
+            "old": "    if raw.get(\"schema_version\") != raw_schema or raw.get(\"cell_id\") != certified.get(\"cell_id\"):\n"
+          }
+        ]
+      },
+      "M5b-current-gate-note-uses-legacy-fixed-copy": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_a2_certification.py::test_current_gate_copy_is_receipt_observation_not_legacy_fixed_copy"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "9fc52cb246e1c35b1a6668f97e0151fb5838e01e16f9ab62a1e786a05150c448",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_a2_certification.py",
+            "new": "    gate_note = GATE_NOTE if profile in (\"legacy\", \"current-full\") else (\n",
+            "old": "    gate_note = GATE_NOTE if profile == \"legacy\" else (\n"
+          }
+        ]
+      },
+      "M6b-source-binding-status-both-layers-removed": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_a2_certification.py::test_current_rejects_nonbound_source_binding_status"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "cffa0a9b603a5bf939813cbbda88633dbb69388fad328d0843f388b9670db65c",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_a2_certification.py",
+            "new": "    if False:\n        _fail(\"current certification source_binding_status is not bound\")\n",
+            "old": "    if any(cell.get(\"source_binding_status\") != \"bound\" for cell in certification[\"cells\"]):\n        _fail(\"current certification source_binding_status is not bound\")\n"
+          },
+          {
+            "file": "tools/plotting/plot_a2_certification.py",
+            "new": "        if False:\n            _fail(\"current certification source_binding_status is not bound\")\n",
+            "old": "        if certified.get(\"source_binding_status\") != \"bound\":\n            _fail(\"current certification source_binding_status is not bound\")\n"
+          }
+        ]
+      },
+      "M7-policy-destination-reverted": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_paper_story_a2_certification.py::test_p1_a2_default_policy_bytes_and_protocol_are_unchanged"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "5c94d00c9f7e459714f42b6b1179cac826818831df522515aa07ea14fb52eebc",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/paper_story_a2_certification.v2.json",
+            "new": "  \"tracked_destination\": \"output/insights/2026-08-24_paper-story-a2-certification\",\n",
+            "old": "  \"tracked_destination\": \"output/insights/2026-09-07_t2364-paper-story-a2-certification\",\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "8bc86e9d5c23ad7271919555c3d585209a0ff69d813fa2d5fbd7cfacac92979c",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-rf",
+      "orchestrator/tests/test_plot_a2_certification.py",
+      "orchestrator/tests/test_paper_story_a2_certification.py",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 4400.0
+  },
+  "repo_head": "7bdc0d13b0156c90a041864548836da88d5d4060",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-rf",
+      "orchestrator/tests/test_plot_a2_certification.py",
+      "orchestrator/tests/test_paper_story_a2_certification.py",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2365-a2-plot-schema/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2365-a2-plot-schema/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "294ad8075a6daabd4b78b5cfdc4218546815f50b",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "bbaf493c9f9504a9c294221fec67f1d155b6756245e6ea3a072fca5db6cdb87a",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "07c9f35d00830c2bf4b1b359752b566d3004abebb6ce31ac75518dc621bac045",
+  "summary": {
+    "KILLED": 6,
+    "MISMATCH": 1,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 7,
+    "matching": 6,
+    "recorded": 7,
+    "registered": 7
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2365-a2-plot-schema/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "d8e5ff05e916174600e310ab90be75d807d030c059ae4f99bd58d39c5f8e34a3",
+  "updated_at": "2026-09-07T14:00:29.897424+00:00"
+}

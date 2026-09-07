@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import importlib.util
+import re
+import shlex
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -154,6 +157,120 @@ def test_submitter_rejects_an_unregistered_ratio_before_side_effects(tmp_path: P
     assert completed.returncode == 2
     assert "--rratio must be exactly 20, 50, or 80" in completed.stderr
     assert not (tmp_path / "attempts").exists()
+
+
+def _run_submit_dry_run_in_clean_fixture(
+    tmp_path: Path,
+) -> tuple[Path, Path, Path, list[str]]:
+    fixture_repo = tmp_path / "repo"
+    fixture_tools = fixture_repo / "tools" / "pegasus"
+    fixture_tools.parent.mkdir(parents=True)
+    shutil.copytree(
+        ROOT / "tools" / "pegasus",
+        fixture_tools,
+        ignore=shutil.ignore_patterns("__pycache__"),
+    )
+    subprocess.run(["git", "init", "-q", str(fixture_repo)], check=True)
+    subprocess.run(
+        ["git", "-C", str(fixture_repo), "config", "user.email", "fixture@example.invalid"],
+        check=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(fixture_repo), "config", "user.name", "Fixture"],
+        check=True,
+    )
+    subprocess.run(["git", "-C", str(fixture_repo), "add", "."], check=True)
+    subprocess.run(
+        ["git", "-C", str(fixture_repo), "commit", "-qm", "fixture"],
+        check=True,
+    )
+
+    completed = subprocess.run(
+        [
+            "bash",
+            str(fixture_tools / "submit_certify.sh"),
+            "--repo-root",
+            str(fixture_repo),
+            "--attempts-root",
+            str(tmp_path / "attempts"),
+            "--dry-run",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stderr
+    command_lines = [
+        line for line in completed.stdout.splitlines()
+        if line.startswith("qsub command:")
+    ]
+    assert len(command_lines) == 1
+    qsub_argv = shlex.split(command_lines[0].removeprefix("qsub command:"))
+
+    git_common_dir = Path(subprocess.run(
+        [
+            "git",
+            "-C",
+            str(fixture_repo),
+            "rev-parse",
+            "--path-format=absolute",
+            "--git-common-dir",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip())
+    expected_root = (
+        git_common_dir.parent.parent
+        / "izanagi-job-evidence"
+        / "calibration-certify"
+    )
+    return fixture_repo, git_common_dir.parent, expected_root, qsub_argv
+
+
+def test_submit_dry_run_passes_scheduler_file_paths_to_qsub(tmp_path: Path) -> None:
+    _fixture_repo, _git_common_repo, expected_root, qsub_argv = (
+        _run_submit_dry_run_in_clean_fixture(tmp_path)
+    )
+
+    assert qsub_argv[0] == "qsub"
+    assert "-o" in qsub_argv
+    assert "-e" in qsub_argv
+    stdout_path = Path(qsub_argv[qsub_argv.index("-o") + 1])
+    stderr_path = Path(qsub_argv[qsub_argv.index("-e") + 1])
+    assert stdout_path.is_absolute()
+    assert stderr_path.is_absolute()
+
+    stdout_name = re.fullmatch(r"([0-9a-f]{32})\.scheduler\.stdout", stdout_path.name)
+    stderr_name = re.fullmatch(r"([0-9a-f]{32})\.scheduler\.stderr", stderr_path.name)
+    assert stdout_name is not None
+    assert stderr_name is not None
+    assert stdout_name.group(1) == stderr_name.group(1)
+    assert stdout_path != expected_root
+    assert stderr_path != expected_root
+    assert stdout_path.parent == expected_root
+    assert stderr_path.parent == expected_root
+    assert expected_root.is_dir()
+
+
+def test_submit_dry_run_keeps_scheduler_output_outside_the_repository(tmp_path: Path) -> None:
+    """受理: 返り先が repo の外なら検査は通り、qsub argv はそのまま構築される。
+
+    拒否: 返り先が repo root 自身またはその配下へ動いた瞬間、この検査は赤になる。
+    """
+    fixture_repo, git_common_repo, _expected_root, qsub_argv = (
+        _run_submit_dry_run_in_clean_fixture(tmp_path)
+    )
+
+    assert "-o" in qsub_argv
+    assert "-e" in qsub_argv
+    stdout_path = Path(qsub_argv[qsub_argv.index("-o") + 1])
+    stderr_path = Path(qsub_argv[qsub_argv.index("-e") + 1])
+    for output_path in (stdout_path, stderr_path):
+        assert output_path != fixture_repo
+        assert fixture_repo not in output_path.parents
+        assert output_path != git_common_repo
+        assert git_common_repo not in output_path.parents
 
 
 def test_runbook_shows_ai_driven_h1_h2_submission_path() -> None:
