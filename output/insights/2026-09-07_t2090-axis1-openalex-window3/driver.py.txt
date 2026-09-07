@@ -1,0 +1,122 @@
+#!/usr/bin/env python3
+"""窓 3 の leaf 駆動 loop (使い捨て、repo 外)。cwd は登録 commit を detach した木。
+
+窓 2 の driver と同型。違いは順序だけで、D1624 の「無償枠の窓は未走 leaf の初回取得に使う」に従い
+未走 leaf を先に、2 走目 checkpoint を後に置く。
+重複除去は bundle の証拠 (pages / ledgers / checkpoint の second_pass) で行い、台帳 (jsonl) は記録専用。
+残量は起動と起動の間に runtime.json から読み、STOP_REMAINING を切ったら新規起動しない。
+判定は rc でなく stdout JSON の state。
+"""
+import datetime
+import json
+import pathlib
+import subprocess
+import sys
+
+TREE = "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2090-openalex-window3/fetch-tree"
+JOB = pathlib.Path("/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2090-openalex-window3")
+BUNDLE = pathlib.Path("/work/1/SFC/tanab/axis1-bundles/2026-09-03-t2090-openalex/bundle")
+REG = "4ec3eba04354f9ba86117a2dd488c72d007045e6"
+CAT = "docs/related-work/claim-survey/2026-09-02-axis1-search-catalog.json"
+RUN_ID = "t2090-openalex-20260907"
+# 条件 5 と 2 走不一致で再開点を持たない leaf。bundle の page 証拠でも除かれるが二重に外す。
+EXCLUDE = {
+    "AX1-20260902-E1-Q1@openalex",
+    "AX1-20260902-E1-Q4@openalex",
+    "AX1-20260902-E1-Q5@openalex",
+    "AX1-20260902-E1-Q3-SY1992@openalex",
+}
+STOP_REMAINING = 200
+# 本窓 (JST の今日) に pass 1 を取った leaf の 2 走目は回さない。同日内の 2 走目の可否は
+# [T-2258] の裁定事項であり、まだ裁定が無い。
+TODAY_JST = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9))).date().isoformat()
+STOP_STATES = {"paused_quota", "quota_reserve"}
+LEDGER = JOB / "fetch-window3.jsonl"
+DRY = "--dry-run" in sys.argv
+BASE = [
+    "python3", "tools/run_axis1_search.py",
+    "--registration-commit", REG,
+    "--catalog", CAT,
+    "--bundle", str(BUNDLE),
+    "--run-id", RUN_ID,
+]
+
+
+def remaining():
+    return json.load(open(BUNDLE / "state" / "runtime.json"))["quota"]["openalex"]["remaining"]
+
+
+def plan():
+    tasks = []
+    # (1) 未走 leaf の初回取得 (D1624)。
+    for line in open(JOB / "leaf-order.txt"):
+        qid = line.strip()
+        if not qid or qid in EXCLUDE:
+            continue
+        if (BUNDLE / "pages" / f"{qid}_p0.a01.json").exists():
+            continue  # 初回取得の証拠が bundle にある
+        tasks.append((qid, BASE + ["--query-id", qid], qid))
+    # (2) 2 走目待ちの checkpoint。argv は checkpoint の canonical_runner_argv を逐語で使う。
+    for ck in sorted((BUNDLE / "checkpoints").glob("*.json")):
+        d = json.load(open(ck))
+        # 台帳の file 名は shard の leaf ID で付く。checkpoint の query_id は shard 親 (aggregate) なので
+        # そちらで glob すると 2 走目の済みを 1 件も検出できない (窓 2 の driver の潜在欠陥)。
+        qid = d["leaf_query_id"]
+        if d["quota"]["observed_at_jst"][:10] == TODAY_JST:
+            continue  # 本窓で pass 1 を取った leaf。同日内の 2 走目は [T-2258] の裁定事項で未裁定
+        if d["resume_action"] != "start_independent_pass" or d["second_pass"]["state"] != "not_started":
+            continue  # 2 走目が既に始まっている
+        if list((BUNDLE / "ledgers").glob(f"{qid}.pass2.*")):
+            continue  # 2 走目の台帳が既にある
+        tasks.append((f"ckpt:{ck.name}", d["canonical_runner_argv"], qid))
+    return tasks
+
+
+def already_in_ledger(key):
+    if not LEDGER.exists():
+        return False
+    return any(json.loads(line)["key"] == key for line in open(LEDGER) if line.strip())
+
+
+def main():
+    tasks = plan()
+    print(f"planned {len(tasks)} launches; remaining_now={remaining()}", flush=True)
+    for key, argv, qid in tasks:
+        if DRY:
+            print("DRY", key, flush=True)
+            continue
+        if already_in_ledger(key):
+            print("SKIP (ledger)", key, flush=True)
+            continue
+        rem = remaining()
+        if rem < STOP_REMAINING:
+            print(f"STOP remaining={rem} < {STOP_REMAINING} before {key}", flush=True)
+            return 0
+        started = datetime.datetime.now().astimezone().isoformat()
+        p = subprocess.run(argv, cwd=TREE, capture_output=True, text=True)
+        try:
+            res = json.loads(p.stdout)
+        except Exception:
+            res = None
+        row = {
+            "key": key, "qid": qid, "rc": p.returncode, "remaining_before": rem,
+            "started_at": started, "result": res,
+            "stderr_tail": p.stderr[-800:] if p.stderr else "",
+        }
+        with open(LEDGER, "a") as f:
+            f.write(json.dumps(row, ensure_ascii=False) + "\n")
+        state = res.get("state") if isinstance(res, dict) else None
+        print(
+            f"{key} state={state} reason={res.get('reason_code') if res else None} "
+            f"rc={p.returncode} requests={res.get('request_count') if res else None}",
+            flush=True,
+        )
+        if state is None or state in STOP_STATES:
+            print(f"STOP state={state} (fail-closed)", flush=True)
+            return 1
+    print("ALL PLANNED LAUNCHES DONE", flush=True)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
