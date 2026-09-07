@@ -426,10 +426,43 @@ class OriginBindingRequest:
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
+class OriginCampaignRun:
+    """One producer-derived physical campaign run inside a logical trial."""
+
+    query_ordinal: int
+    campaign: CampaignConfig
+    identity_preimage: str
+    campaign_run_identity: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class OriginMemberPlanInput:
+    """Caller material for one member, excluding producer-owned identity."""
+
+    candidate_salt: str
+    result_evidence_salt: str
+    constraint_salt: str
+    evidence_path: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class OriginRunPlanInput:
+    """Logical recovery-plan material with no physical identity input."""
+
+    hypothesis_sha256: str
+    validation_plan_sha256: str
+    attempt_0_batch_id: str
+    retry_1_batch_id: str
+    event_operation_ids: reflux_origin_topology.EventOperationIds
+    source_mask: int
+    member_materials: tuple[OriginMemberPlanInput, ...]
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
 class OriginProducerInputs:
     """Closed formal-consumer inputs supplied by the logical producer."""
 
-    run_plan: reflux_origin_topology.RecoveryEnvelope
+    run_plan_input: OriginRunPlanInput
     result_record_bytes: tuple[bytes, ...]
     evidence_root: Path
     verifier_policy_bytes: bytes
@@ -447,7 +480,12 @@ class OriginTrialRuntime:
     binding_request: OriginBindingRequest
     producer_inputs: OriginProducerInputs
     launch_admission_record_sha256: str
+    prepared_campaign: PreparedCampaignIdentity
+    campaign_output_root: Path
     initial_snapshot: reflux_origin_ledger.OriginSnapshot | None
+    campaign_runs: tuple[OriginCampaignRun, ...] = ()
+    run_plan: reflux_origin_topology.RecoveryEnvelope | None = None
+    run_plan_sha256: str | None = None
     terminal_projection: (
         reflux_formal_consumer.OriginTerminalProjection | None
     ) = None
@@ -1197,6 +1235,173 @@ def _prepare_campaign_identity(
     )
 
 
+def _derive_origin_campaign_run(
+    logical_cfg: CampaignConfig,
+    *,
+    attempt_capability_sha256: str,
+    query_ordinal: int,
+) -> OriginCampaignRun:
+    """Derive one physical identity from only logical cfg, slot, and q."""
+
+    if type(logical_cfg) is not CampaignConfig:
+        raise TypeError("logical origin campaign must be a CampaignConfig")
+    if type(logical_cfg.search_config) is not dict:
+        raise AutonomousTrialError(
+            "logical origin campaign search_config must be an exact dict"
+        )
+    if "origin_campaign_run" in logical_cfg.search_config:
+        raise AutonomousTrialError(
+            "logical origin campaign already contains origin_campaign_run"
+        )
+    if (
+        type(attempt_capability_sha256) is not str
+        or _LOWER_HEX_RE.fullmatch(attempt_capability_sha256) is None
+    ):
+        raise AutonomousTrialError(
+            "attempt capability digest must be a lowercase SHA-256"
+        )
+    if (
+        type(query_ordinal) is not int
+        or not 0 <= query_ordinal
+        < reflux_origin_topology.SOURCE_AND_VALIDATION_MEMBER_COUNT
+    ):
+        raise AutonomousTrialError(
+            "origin campaign query ordinal must be an exact int in 0..32"
+        )
+    campaign = dataclasses.replace(
+        logical_cfg,
+        search_config={
+            **logical_cfg.search_config,
+            "origin_campaign_run": {
+                "attempt_capability_sha256": attempt_capability_sha256,
+                "query_ordinal": query_ordinal,
+            },
+        },
+    )
+    identity_preimage = ident.canonical_preimage(campaign)
+    campaign_run_identity = str(ident.campaign_id(campaign))
+    return OriginCampaignRun(
+        query_ordinal=query_ordinal,
+        campaign=campaign,
+        identity_preimage=identity_preimage,
+        campaign_run_identity=campaign_run_identity,
+    )
+
+
+def _derive_origin_campaign_runs(
+    logical_cfg: CampaignConfig,
+    *,
+    attempt_capability_sha256: str,
+) -> tuple[OriginCampaignRun, ...]:
+    """Derive and validate the exact ordered set of 33 physical runs."""
+
+    runs = tuple(
+        _derive_origin_campaign_run(
+            logical_cfg,
+            attempt_capability_sha256=attempt_capability_sha256,
+            query_ordinal=query_ordinal,
+        )
+        for query_ordinal in range(
+            reflux_origin_topology.SOURCE_AND_VALIDATION_MEMBER_COUNT
+        )
+    )
+    expected_ordinals = tuple(
+        range(reflux_origin_topology.SOURCE_AND_VALIDATION_MEMBER_COUNT)
+    )
+    if tuple(run.query_ordinal for run in runs) != expected_ordinals:
+        raise AutonomousTrialError(
+            "origin campaign runs differ from the exact q=0..32 order"
+        )
+    if any(
+        run.identity_preimage != ident.canonical_preimage(run.campaign)
+        or run.campaign_run_identity != str(ident.campaign_id(run.campaign))
+        for run in runs
+    ):
+        raise AutonomousTrialError(
+            "origin campaign run identity differs from its physical config"
+        )
+    preimages = tuple(run.identity_preimage for run in runs)
+    identities = tuple(run.campaign_run_identity for run in runs)
+    if len(set(preimages)) != len(runs):
+        raise AutonomousTrialError(
+            "origin campaign run preimages must be pairwise distinct"
+        )
+    if len(set(identities)) != len(runs):
+        raise AutonomousTrialError(
+            "origin campaign run identities must be pairwise distinct"
+        )
+    return runs
+
+
+def _build_origin_recovery_envelope(
+    *,
+    capability: reflux_origin_binding.OriginBindingCapability,
+    source_closure: ValidatedSourceClosure,
+    initial_snapshot: reflux_origin_ledger.OriginSnapshot,
+    run_plan_input: OriginRunPlanInput,
+    campaign_runs: tuple[OriginCampaignRun, ...],
+) -> reflux_origin_topology.RecoveryEnvelope:
+    """Build the envelope while keeping planned identities producer-owned."""
+
+    capability = reflux_origin_binding.assert_issued_origin_binding_capability(
+        capability
+    )
+    if type(source_closure) is not ValidatedSourceClosure:
+        raise TypeError("origin source closure has the wrong exact type")
+    if type(run_plan_input) is not OriginRunPlanInput:
+        raise TypeError("origin run_plan_input must be an OriginRunPlanInput")
+    if (
+        type(campaign_runs) is not tuple
+        or len(campaign_runs)
+        != reflux_origin_topology.SOURCE_AND_VALIDATION_MEMBER_COUNT
+        or any(type(run) is not OriginCampaignRun for run in campaign_runs)
+    ):
+        raise AutonomousTrialError(
+            "origin recovery envelope requires exactly 33 derived campaign runs"
+        )
+    if (
+        type(run_plan_input.member_materials) is not tuple
+        or len(run_plan_input.member_materials)
+        != reflux_origin_topology.SOURCE_AND_VALIDATION_MEMBER_COUNT
+        or any(
+            type(item) is not OriginMemberPlanInput
+            for item in run_plan_input.member_materials
+        )
+    ):
+        raise AutonomousTrialError(
+            "origin run plan requires exactly 33 member inputs"
+        )
+    member_materials = tuple(
+        reflux_origin_topology.MemberRecoveryMaterial(
+            candidate_salt=material.candidate_salt,
+            result_evidence_salt=material.result_evidence_salt,
+            constraint_salt=material.constraint_salt,
+            evidence_path=material.evidence_path,
+            planned_campaign_run_identity=run.campaign_run_identity,
+        )
+        for material, run in zip(
+            run_plan_input.member_materials, campaign_runs, strict=True
+        )
+    )
+    capability_digest = hashlib.sha256(
+        _canonical_json_bytes(
+            reflux_origin_binding.origin_binding_capability_record(capability)
+        )
+    ).hexdigest()
+    return reflux_origin_topology.build_recovery_envelope(
+        capability_digest=capability_digest,
+        source_closure_digest=source_closure.source_closure_sha256,
+        hypothesis_sha256=run_plan_input.hypothesis_sha256,
+        validation_plan_sha256=run_plan_input.validation_plan_sha256,
+        attempt_0_batch_id=run_plan_input.attempt_0_batch_id,
+        retry_1_batch_id=run_plan_input.retry_1_batch_id,
+        event_operation_ids=run_plan_input.event_operation_ids,
+        source_mask=run_plan_input.source_mask,
+        member_materials=member_materials,
+        initial_expected_state_commitment=initial_snapshot.state_commitment,
+    )
+
+
 def _prepare_manifest_campaign_identity(
     *,
     workload: str,
@@ -1450,6 +1655,7 @@ def _prepare_origin_trial_runtime(
     ),
     build_context: BuildRunContext,
     arm_execution: trial_registry.TrialArmExecutionBinding,
+    campaign_output_root: Path,
     defer_initial_snapshot: bool = False,
 ) -> OriginTrialRuntime:
     """Issue the origin capability; optionally defer its first ledger read."""
@@ -1478,8 +1684,8 @@ def _prepare_origin_trial_runtime(
         raise reflux_origin_binding.OriginBindingError(
             "[trial-workload] origin request requires exactly one workload"
         )
-    if type(producer_inputs.run_plan) is not reflux_origin_topology.RecoveryEnvelope:
-        raise TypeError("origin producer run_plan must be a RecoveryEnvelope")
+    if type(producer_inputs.run_plan_input) is not OriginRunPlanInput:
+        raise TypeError("origin producer run_plan_input must be an OriginRunPlanInput")
     if type(producer_inputs.result_record_bytes) is not tuple or any(
         type(raw) is not bytes for raw in producer_inputs.result_record_bytes
     ):
@@ -1584,6 +1790,8 @@ def _prepare_origin_trial_runtime(
         launch_admission_record_sha256=hashlib.sha256(
             _canonical_json_bytes(launch_record)
         ).hexdigest(),
+        prepared_campaign=prepared_campaign,
+        campaign_output_root=Path(campaign_output_root),
         initial_snapshot=initial_snapshot,
     )
 
@@ -1651,10 +1859,20 @@ def _complete_origin_runtime(runtime: OriginTrialRuntime) -> None:
     snapshot = runtime.client.read_origin(capability)
     sealed_batches = runtime.client.read_sealed_batches(capability)
     producer = runtime.producer_inputs
+    run_plan = runtime.run_plan
+    if type(run_plan) is not reflux_origin_topology.RecoveryEnvelope:
+        raise AutonomousTrialError("origin runtime has no producer-derived run plan")
     result = reflux_formal_consumer.evaluate_formal_origin(
         capability=capability,
         source_closure=runtime.binding_request.validated_source_closure,
-        run_plan=producer.run_plan,
+        run_plan=run_plan,
+        campaign_output_root=str(runtime.campaign_output_root),
+        origin_run_plan_sha256=runtime.run_plan_sha256,
+        attempt_capability_sha256=(
+            runtime.campaign_runs[0].campaign.search_config[
+                "origin_campaign_run"
+            ]["attempt_capability_sha256"]
+        ),
         authority_blob_bytes=runtime.binding_request.authority_blob_bytes,
         launch_admission_record_sha256=(
             runtime.launch_admission_record_sha256
@@ -3808,12 +4026,6 @@ def _run_workload(
             str(run_root / "campaigns" / campaign_id)
         )
     _assert_fresh_campaign_state(layout)
-    if origin_runtime is not None:
-        reflux_origin_topology.write_recovery_envelope_create_only(
-            evidence_root=run_root,
-            envelope=origin_runtime.producer_inputs.run_plan,
-            relative_path=Path("origin/recovery-envelope.json"),
-        )
     result: dict[str, Any] = {
         "workload": workload,
         "workload_flags": dict(entry["ycsb"]),
@@ -4332,6 +4544,7 @@ def mark_experiment_indeterminate(
     origin_terminal_projection: (
         reflux_formal_consumer.OriginTerminalProjection | None
     ) = None,
+    failure_reason: str | None = None,
 ) -> None:
     """Record an experiment-wide indeterminate state and forbid a rerun.
 
@@ -4368,6 +4581,8 @@ def mark_experiment_indeterminate(
             terminal_arguments["origin_terminal_projection"] = (
                 origin_terminal_projection
             )
+        if failure_reason is not None:
+            terminal_arguments["failure_reason"] = failure_reason
         trial_registry.record_trial_terminal(token, **terminal_arguments)
     except BaseException as terminal_error:
         failures.append(("terminal-record", terminal_error))
@@ -4619,6 +4834,7 @@ def run_trial(
             effective_preregistration=effective_preregistration,
             build_context=preflight_build_context,
             arm_execution=arm_execution,
+            campaign_output_root=run_root,
             defer_initial_snapshot=True,
         )
     _assert_reservation_preflight(
@@ -4669,13 +4885,41 @@ def run_trial(
             )
             attempt_classified = True
         if origin_runtime is not None:
-            # The first performance observation is after the freeze-wide
-            # reservation.  The CLI environment probe is outside this bound.
-            if attempt_slot is not None:
-                trial_registry.begin_attempt_observation(attempt_slot)
+            if attempt_slot is None:  # pragma: no cover - registered postcondition
+                raise AutonomousTrialError(
+                    "origin-bound run has no reserved attempt slot"
+                )
             origin_runtime.initial_snapshot = origin_runtime.client.read_origin(
                 origin_runtime.capability
             )
+            origin_runtime.campaign_runs = _derive_origin_campaign_runs(
+                origin_runtime.prepared_campaign.campaign,
+                attempt_capability_sha256=(
+                    attempt_slot.capability_digest_sha256
+                ),
+            )
+            origin_runtime.run_plan = _build_origin_recovery_envelope(
+                capability=origin_runtime.capability,
+                source_closure=(
+                    origin_runtime.binding_request.validated_source_closure
+                ),
+                initial_snapshot=origin_runtime.initial_snapshot,
+                run_plan_input=origin_runtime.producer_inputs.run_plan_input,
+                campaign_runs=origin_runtime.campaign_runs,
+            )
+            run_root.mkdir(parents=True)
+            ensure_exploration_namespace(str(run_root))
+            (run_root / "origin").mkdir()
+            envelope_path = (
+                reflux_origin_topology.write_recovery_envelope_create_only(
+                    evidence_root=origin_runtime.campaign_output_root,
+                    envelope=origin_runtime.run_plan,
+                    relative_path=Path("origin/recovery-envelope.json"),
+                )
+            )
+            origin_runtime.run_plan_sha256 = hashlib.sha256(
+                envelope_path.read_bytes()
+            ).hexdigest()
         if trial_admission.mode in (
             "registered-effective",
             "registered-formal-non-certifying",
@@ -4692,6 +4936,9 @@ def run_trial(
             )
             if origin_runtime is not None:
                 lifecycle_arguments["origin_binding"] = origin_runtime.capability
+                lifecycle_arguments["origin_run_plan_sha256"] = (
+                    origin_runtime.run_plan_sha256
+                )
             lifecycle_token = trial_registry.record_trial_start_once(
                 **lifecycle_arguments
             )
@@ -4742,14 +4989,21 @@ def run_trial(
                     )
                     attempt_terminalized = True
                 if lifecycle_token is not None:
+                    terminal_arguments = {
+                        "terminal_status": "indeterminate",
+                    }
+                    if origin_runtime is not None:
+                        terminal_arguments["failure_reason"] = (
+                            "budget-insufficient"
+                        )
                     trial_registry.record_trial_terminal(
-                        lifecycle_token,
-                        terminal_status="indeterminate",
+                        lifecycle_token, **terminal_arguments
                     )
                     lifecycle_terminalized = True
                 return report
-        run_root.mkdir(parents=True)
-        ensure_exploration_namespace(str(run_root))
+        if origin_runtime is None:
+            run_root.mkdir(parents=True)
+            ensure_exploration_namespace(str(run_root))
         if arm_execution is not None:
             invocation_namespace = (
                 run_root
@@ -4760,10 +5014,7 @@ def run_trial(
                 )
             )
             ensure_exploration_namespace(str(invocation_namespace))
-        run_children = ["raw", "proposals"]
-        if origin_runtime is not None:
-            run_children.append("origin")
-        for child in run_children:
+        for child in ("raw", "proposals"):
             (run_root / child).mkdir()
         journal = AttemptJournal(run_root / "attempts.jsonl")
         started = attempt_started_at
@@ -4830,6 +5081,10 @@ def run_trial(
                 ),
             })
         journal.append(run_start)
+        if origin_runtime is not None and attempt_slot is not None:
+            # Envelope bytes and their lifecycle binding are durable before
+            # the first performance-observation authority can be consumed.
+            trial_registry.begin_attempt_observation(attempt_slot)
     except BaseException as exc:
         if (
             attempt_slot is not None
@@ -4853,9 +5108,14 @@ def run_trial(
                     if origin_runtime is None
                     else origin_runtime.terminal_projection
                 ),
+                failure_reason=(
+                    "origin-producer-failure"
+                    if origin_runtime is not None
+                    and origin_runtime.terminal_projection is None
+                    else None
+                ),
             )
-        else:
-            raise
+        raise
     owns_active_providers = providers is None
     active_providers: dict[str, Any] = {}
     fatal_error: dict[str, str] | None = (
@@ -4985,6 +5245,12 @@ def run_trial(
                     if origin_runtime is None
                     else origin_runtime.terminal_projection
                 ),
+                failure_reason=(
+                    "origin-producer-failure"
+                    if origin_runtime is not None
+                    and origin_runtime.terminal_projection is None
+                    else None
+                ),
             )
         else:
             raise
@@ -5053,6 +5319,14 @@ def run_origin_trial(
                 partial_report = loaded
         except (OSError, ValueError, TypeError):
             pass
+        if partial_report is None:
+            partial_report = {
+                "status": "partial",
+                "fatal_error": {
+                    "type": error_type,
+                    "message": message,
+                },
+            }
         return OriginPartialTrialReport(partial_report, error_type, message)
     if report.get("status") == "complete":
         return OriginCompletedTrialReport(report)

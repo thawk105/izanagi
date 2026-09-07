@@ -16,15 +16,25 @@ This wiring also assumes that callers do not invoke the ledger's private
 seams directly.  Python code in the same process can otherwise bypass this
 consumer; closing that route would require a ledger acceptance change outside
 this unit's scope.
+
+The physical-layout checks below establish artifact consistency only beneath
+the canonical leaves of the base selected by the caller through
+``campaign_output_root``.  They neither identify a unique deployment root,
+prove physical execution, nor authenticate a trusted harness.  D1674 assumes
+operationally that only the trusted harness can write the evidence root;
+coherent locks and WAL evidence placed under those leaves after execution
+cannot be rejected here.
 """
 from __future__ import annotations
 
 import hashlib
 import json
 import math
+import os
 import re
+import stat
 import threading
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import Enum
 from pathlib import Path
 from types import MappingProxyType
@@ -32,9 +42,12 @@ from typing import Mapping, Sequence, TypeAlias
 
 from orchestrator.verifier.model import RW, WR, WW
 
+from . import campaign_lock
+from . import ident
 from . import reflux_origin_ledger as ledger
 from . import trigger_gate_binding
-from .model import STAGE_ABORT, STAGE_COMMIT
+from .layout import exploration_campaign_layout
+from .model import CampaignConfig, STAGE_ABORT, STAGE_COMMIT
 from .reflux_origin_artifacts import (
     ArtifactError,
     canonical_json_bytes,
@@ -95,6 +108,11 @@ FORMAL_CONSUMER_RECEIPT_SCHEMA_VERSION = "formal-consumer-receipt/v1"
 ORIGIN_TERMINAL_PROJECTION_SCHEMA_VERSION = "OriginTerminalProjection/v1"
 _RECEIPT_ISSUER = "izanagi-formal-consumer/v1"
 _PROJECTION_KEY = "origin_terminal_projection"
+_RECOVERY_ENVELOPE_RELATIVE_PATH = Path("origin/recovery-envelope.json")
+_ORIGIN_CAMPAIGN_RUN_KEYS = frozenset({
+    "attempt_capability_sha256",
+    "query_ordinal",
+})
 _SHA256_RE = re.compile(r"[0-9a-f]{64}\Z")
 _CANDIDATE_ATTRIBUTABLE_ABORT_REASON = "non-serializable"
 _ANOMALY_KEYS = frozenset({"phenomenon", "length", "cycle", "edges"})
@@ -377,6 +395,128 @@ def _token(value: object, *, label: str) -> str:
 def _require(reason_code: FormalReasonCode, condition: bool) -> None:
     if type(condition) is not bool or not condition:
         raise _ContractFailure(reason_code)
+
+
+def _read_regular_file_no_follow(
+    path: Path, *, reason_code: FormalReasonCode
+) -> bytes:
+    """Read one fixed-path artifact without following a symlink component."""
+
+    target = Path(os.path.abspath(os.fspath(path)))
+    current = Path(target.anchor)
+    try:
+        for component in target.parts[1:]:
+            current /= component
+            info = os.lstat(current)
+            _require(reason_code, not stat.S_ISLNK(info.st_mode))
+    except OSError as exc:
+        raise _ContractFailure(reason_code) from exc
+
+    nofollow = getattr(os, "O_NOFOLLOW", None)
+    _require(reason_code, nofollow is not None)
+    flags = os.O_RDONLY | nofollow | getattr(os, "O_CLOEXEC", 0)
+    try:
+        fd = os.open(target, flags)
+    except OSError as exc:
+        raise _ContractFailure(reason_code) from exc
+    try:
+        info = os.fstat(fd)
+        _require(reason_code, stat.S_ISREG(info.st_mode))
+        identity = (info.st_dev, info.st_ino)
+        chunks: list[bytes] = []
+        while True:
+            chunk = os.read(fd, 1024 * 1024)
+            if not chunk:
+                break
+            chunks.append(chunk)
+    except OSError as exc:
+        raise _ContractFailure(reason_code) from exc
+    finally:
+        os.close(fd)
+
+    try:
+        final_info = os.lstat(target)
+    except OSError as exc:
+        raise _ContractFailure(reason_code) from exc
+    _require(reason_code, not stat.S_ISLNK(final_info.st_mode))
+    _require(reason_code, (final_info.st_dev, final_info.st_ino) == identity)
+    return b"".join(chunks)
+
+
+def _validate_bound_recovery_envelope(
+    *,
+    evidence_root: Path,
+    run_plan: RecoveryEnvelope,
+    origin_run_plan_sha256: str,
+) -> None:
+    """Re-read the one fixed envelope and match its lifecycle-bound digest."""
+
+    try:
+        bound_digest = _sha256(
+            origin_run_plan_sha256, label="origin_run_plan_sha256"
+        )
+    except ValueError as exc:
+        raise _ContractFailure(FormalReasonCode.FC03) from exc
+    path = Path(evidence_root) / _RECOVERY_ENVELOPE_RELATIVE_PATH
+    raw = _read_regular_file_no_follow(path, reason_code=FormalReasonCode.FC03)
+    _require(
+        FormalReasonCode.FC03,
+        hashlib.sha256(raw).hexdigest() == bound_digest,
+    )
+    _require(
+        FormalReasonCode.FC03,
+        raw == canonical_recovery_envelope_bytes(run_plan),
+    )
+
+
+def _campaign_config_from_lock(
+    decoded: campaign_lock.DecodedCampaignLock,
+    *,
+    expected_campaign_run_identity: str,
+) -> CampaignConfig:
+    """Reconstruct a config whose identity must equal the planned run ID."""
+
+    identity = decoded.identity
+    search_tag = identity["search_tag"]
+    config = CampaignConfig(
+        spec_slug="",
+        search_tag=search_tag,
+        spec_content=identity["spec_content"],
+        ccbench_commit=identity["ccbench_commit"],
+        search_config=dict(identity["search_config"]),
+        trial=identity["trial"],
+    )
+    try:
+        reconstructed_preimage = ident.canonical_preimage(config)
+    except (TypeError, ValueError) as exc:
+        raise _ContractFailure(FormalReasonCode.FC03) from exc
+    # The v2 decoder already enforces this equality.  The v1 decoder preserves
+    # its original text, so the comparison is meaningful only for v1.
+    if decoded.schema_version == "campaign-lock/v1":
+        _require(
+            FormalReasonCode.FC03,
+            reconstructed_preimage == decoded.identity_preimage,
+        )
+    cfg_hash8 = hashlib.sha256(
+        reconstructed_preimage.encode("utf-8")
+    ).hexdigest()[:8]
+    suffix = f"-{search_tag}-{cfg_hash8}"
+    slug = (
+        expected_campaign_run_identity[: -len(suffix)]
+        if expected_campaign_run_identity.endswith(suffix)
+        else ""
+    )
+    _require(FormalReasonCode.FC03, bool(slug))
+    config = replace(config, spec_slug=slug)
+    try:
+        reconstructed_identity = str(ident.campaign_id(config))
+    except (TypeError, ValueError) as exc:
+        raise _ContractFailure(FormalReasonCode.FC03) from exc
+    _require(
+        FormalReasonCode.FC03,
+        reconstructed_identity == expected_campaign_run_identity,
+    )
+    return config
 
 
 def _decision(snapshot: ledger.OriginSnapshot) -> AbortedOriginDecision:
@@ -796,7 +936,121 @@ def _validate_execution_provenance_bindings(
         )
 
 
+def _validate_physical_campaign_bindings(
+    *,
+    capability: OriginBindingCapability,
+    attempt_capability_sha256: str,
+    campaign_output_root: str,
+    run_plan: RecoveryEnvelope,
+    paired: Sequence[_MemberRecord],
+    resolved: Sequence[ResolvedResultEvidence],
+) -> None:
+    """Bind records below canonical leaves of the caller-selected base.
+
+    ``campaign_output_root`` is not authenticated as a deployment-wide root.
+    The checks here establish path and identity consistency under the base the
+    caller supplied, subject to the trusted-writer assumption stated above.
+    """
+
+    try:
+        expected_attempt = _sha256(
+            attempt_capability_sha256,
+            label="attempt_capability_sha256",
+        )
+    except ValueError as exc:
+        raise _ContractFailure(FormalReasonCode.FC03) from exc
+    planned_by_query = {
+        member.query_ordinal: member for member in run_plan.members
+    }
+    for item, resolved_item in zip(paired, resolved, strict=True):
+        query_ordinal = item.record["ledger_member"]["query_ordinal"]
+        planned = planned_by_query.get(query_ordinal)
+        _require(FormalReasonCode.FC03, planned is not None)
+        planned_identity = planned.planned_campaign_run_identity
+        try:
+            computed_root = Path(os.path.abspath(
+                exploration_campaign_layout(
+                    planned_identity, campaign_output_root
+                ).root
+            ))
+        except (TypeError, ValueError, OSError) as exc:
+            raise _ContractFailure(FormalReasonCode.FC03) from exc
+
+        lock_raw = _read_regular_file_no_follow(
+            computed_root / "campaign.lock",
+            reason_code=FormalReasonCode.FC03,
+        )
+        try:
+            decoded = campaign_lock.decode_campaign_lock_bytes(lock_raw)
+        except campaign_lock.CampaignLockCodecError as exc:
+            raise _ContractFailure(FormalReasonCode.FC03) from exc
+        physical_config = _campaign_config_from_lock(
+            decoded,
+            expected_campaign_run_identity=planned_identity,
+        )
+        run_binding = physical_config.search_config.get("origin_campaign_run")
+        _require(FormalReasonCode.FC03, type(run_binding) is dict)
+        _require(
+            FormalReasonCode.FC03,
+            set(run_binding) == _ORIGIN_CAMPAIGN_RUN_KEYS,
+        )
+        _require(
+            FormalReasonCode.FC03,
+            run_binding["attempt_capability_sha256"] == expected_attempt,
+        )
+        _require(
+            FormalReasonCode.FC03,
+            type(run_binding["query_ordinal"]) is int
+            and run_binding["query_ordinal"] == query_ordinal,
+        )
+        _require(
+            FormalReasonCode.FC03,
+            resolved_item.execution_provenance.get("campaign_run_identity")
+            == planned_identity,
+        )
+
+        logical_search_config = dict(physical_config.search_config)
+        del logical_search_config["origin_campaign_run"]
+        logical_config = replace(
+            physical_config,
+            search_config=logical_search_config,
+        )
+        try:
+            logical_identity = str(ident.campaign_id(logical_config))
+        except (TypeError, ValueError) as exc:
+            raise _ContractFailure(FormalReasonCode.FC03) from exc
+        _require(
+            FormalReasonCode.FC03,
+            logical_identity == capability.campaign_id,
+        )
+
+        projection_path = resolved_item.ordered_wal.projection_ref.normalized_path
+        source_wal_path = resolved_item.ordered_wal.source_wal_ref.normalized_path
+        _require(
+            FormalReasonCode.FC03,
+            all(
+                path.is_relative_to(computed_root)
+                for path in (projection_path, source_wal_path)
+            ),
+        )
+
+
+def _wal_trigger_shape_family(record: Mapping[str, object]) -> str | None:
+    if record.get("stage") == trigger_gate_binding.WAL_RECORD_STAGE:
+        return "native-stage-payload"
+    if record.get("kind") == "TriggerGateBinding":
+        return "legacy-root"
+    return None
+
+
 def _wal_trigger(records: Sequence[dict]) -> object:
+    families = {
+        family
+        for record in records
+        if (family := _wal_trigger_shape_family(record)) is not None
+    }
+    if families != {"native-stage-payload"}:
+        return None
     stage_records = [
         record
         for record in records
@@ -1243,6 +1497,9 @@ def evaluate_formal_origin(
     capability: OriginBindingCapability,
     source_closure: ValidatedSourceClosure,
     run_plan: RecoveryEnvelope,
+    campaign_output_root: str,
+    origin_run_plan_sha256: str,
+    attempt_capability_sha256: str,
     authority_blob_bytes: bytes,
     launch_admission_record_sha256: str,
     origin_snapshot: ledger.OriginSnapshot,
@@ -1255,7 +1512,12 @@ def evaluate_formal_origin(
     generator_closure: Mapping[str, object],
     operation_id: str,
 ) -> FormalConsumerResult:
-    """Evaluate conditions 1--7, 9--10 and §4.2, then stop at P6."""
+    """Evaluate conditions 1--7, 9--10 and §4.2, then stop at P6.
+
+    The physical-layout result is relative to the caller-selected
+    ``campaign_output_root`` base.  It does not certify a unique deployment
+    root, physical execution, or the identity of the evidence writer.
+    """
 
     if type(capability) is not OriginBindingCapability:
         raise TypeError("capability must be an exact OriginBindingCapability")
@@ -1264,6 +1526,8 @@ def evaluate_formal_origin(
         raise TypeError("origin_snapshot must be an exact OriginSnapshot")
     if type(run_plan) is not RecoveryEnvelope:
         raise TypeError("run_plan must be an exact RecoveryEnvelope")
+    if type(campaign_output_root) is not str:
+        raise TypeError("campaign_output_root must be an exact string")
     _sha256(arm_binding_digest_sha256, label="arm_binding_digest_sha256")
     if issued_capability.enforcement_arm != enforcement_arm:
         raise ValueError("enforcement_arm differs from issued arm binding")
@@ -1290,10 +1554,23 @@ def evaluate_formal_origin(
             sealed_batches=sealed_batches,
             paired=paired,
         )
+        _validate_bound_recovery_envelope(
+            evidence_root=Path(evidence_root),
+            run_plan=run_plan,
+            origin_run_plan_sha256=origin_run_plan_sha256,
+        )
         _validate_exact_rejected_classes(paired)
         _validate_member_mapping(paired)
         resolved = _resolved_records(paired, evidence_root=Path(evidence_root))
         _validate_execution_provenance_bindings(capability, paired, resolved)
+        _validate_physical_campaign_bindings(
+            capability=capability,
+            attempt_capability_sha256=attempt_capability_sha256,
+            campaign_output_root=campaign_output_root,
+            run_plan=run_plan,
+            paired=paired,
+            resolved=resolved,
+        )
         _validate_bijection(paired, resolved)
         _validate_topology(paired, run_plan)
         ordered_verifiers = _verifier_policy(

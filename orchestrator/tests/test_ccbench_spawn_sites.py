@@ -863,7 +863,7 @@ _DEFERRED_GATE_MEMBERS = (
         "active wave owns this driver",
         "buildcache",
         "<module>._build_binary",
-        3131,
+        3294,
     ),
     _DeferredGateMember(
         "orchestrator/campaign/b10_backoff_shape_sweep.py",
@@ -871,7 +871,7 @@ _DEFERRED_GATE_MEMBERS = (
         "active wave owns this driver",
         "campaign",
         "<module>.run_formal",
-        3890,
+        4051,
     ),
     _DeferredGateMember(
         "orchestrator/campaign/paper_story_a1_paired.py",
@@ -919,7 +919,7 @@ _DEFERRED_GATE_MEMBERS = (
         ),
         "buildcache",
         "<module>._certify_main._build_trace_binary",
-        2940,
+        3013,
     ),
     _DeferredGateMember(
         "tools/pegasus/probes/t2187_adaptive_const_probe.py",
@@ -931,7 +931,7 @@ _DEFERRED_GATE_MEMBERS = (
         ),
         "buildcache",
         "<module>.main",
-        3296,
+        3382,
     ),
 )
 
@@ -2649,11 +2649,11 @@ def test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink():
     } == {
         (
             "orchestrator/campaign/b10_backoff_shape_sweep.py",
-            "wave t1905", "buildcache", "<module>._build_binary", 3131,
+            "wave t1905", "buildcache", "<module>._build_binary", 3294,
         ),
         (
             "orchestrator/campaign/b10_backoff_shape_sweep.py",
-            "wave t1905", "campaign", "<module>.run_formal", 3890,
+            "wave t1905", "campaign", "<module>.run_formal", 4051,
         ),
         (
             "orchestrator/campaign/paper_story_a1_paired.py",
@@ -2676,11 +2676,11 @@ def test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink():
         (
             "tools/pegasus/probes/t2187_adaptive_const_probe.py",
             "wave dynamic-backoff-mechanism", "buildcache",
-            "<module>._certify_main._build_trace_binary", 2940,
+            "<module>._certify_main._build_trace_binary", 3013,
         ),
         (
             "tools/pegasus/probes/t2187_adaptive_const_probe.py",
-            "wave dynamic-backoff-mechanism", "buildcache", "<module>.main", 3296,
+            "wave dynamic-backoff-mechanism", "buildcache", "<module>.main", 3382,
         ),
     }
     assert all(item.reason for item in _DEFERRED_GATE_MEMBERS)

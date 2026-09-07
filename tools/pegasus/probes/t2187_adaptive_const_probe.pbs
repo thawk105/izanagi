@@ -84,6 +84,7 @@ PERFORMANCE_ARTIFACT=${IZANAGI_T2187_PERFORMANCE_ARTIFACT:-}
 PERFORMANCE_ARTIFACT_SHA256=${IZANAGI_T2187_PERFORMANCE_ARTIFACT_SHA256:-}
 EXPECTED_VERIFIER_IDENTITY=${IZANAGI_T2187_EXPECTED_VERIFIER_IDENTITY:-}
 EXPECTED_VERIFIER_IDENTITY_SHA256=${IZANAGI_T2187_EXPECTED_VERIFIER_IDENTITY_SHA256:-}
+STEP_POLICY_SEED=${IZANAGI_T2187_STEP_POLICY_SEED:-}
 
 require_canonical_child() {
   local raw_path=$1 namespace=$2 binding=$3 canonical_path
@@ -121,18 +122,30 @@ if [[ ! "$REP_INDEX" =~ ^[0-9]+$ ]]; then
   echo "IZANAGI_T2187_REP_INDEX must be nonnegative" >&2
   exit 2
 fi
+if [[ -n "$STEP_POLICY_SEED" && ! "$STEP_POLICY_SEED" =~ ^[0-9]+$ ]]; then
+  echo "IZANAGI_T2187_STEP_POLICY_SEED must be an ASCII decimal integer" >&2
+  exit 2
+fi
 if [[ ! "$STAGE" =~ ^[123]$ ]]; then
   echo "IZANAGI_T2187_STAGE must be 1, 2 or 3" >&2
   exit 2
 fi
 HAS_EXTENDED_CELL=0
+HAS_POLICY_TWO=0
 IFS='+' read -r -a CELL_ITEMS <<< "$CELLS_RAW"
 for raw_cell in "${CELL_ITEMS[@]}"; do
   colon_text=${raw_cell//[^:]/}
   if [[ ${#colon_text} -eq 10 || ${#colon_text} -eq 11 ]]; then
     HAS_EXTENDED_CELL=1
   fi
+  if [[ ${#colon_text} -eq 11 && "$raw_cell" == *:2 ]]; then
+    HAS_POLICY_TWO=1
+  fi
 done
+if [[ "$MODE" == performance && "$HAS_POLICY_TWO" == 1 && -z "$STEP_POLICY_SEED" ]]; then
+  echo "IZANAGI_T2187_STEP_POLICY_SEED is required for policy 2" >&2
+  exit 2
+fi
 if [[ "$BACKOFF_TRACE" == 1 ]]; then
   if [[ "$CELLS_RAW" != "$TRACE_CELLS_RAW" &&
         "$CELLS_RAW" != "$COUNTERFACTUAL_TRACE_CELLS_RAW" ]] ||
@@ -369,8 +382,13 @@ BACKOFF_TRACE_ARGS=()
 if [[ "$BACKOFF_TRACE" == 1 ]]; then
   BACKOFF_TRACE_ARGS=(--backoff-trace)
 fi
+STEP_POLICY_SEED_ARGS=()
+if [[ -n "$STEP_POLICY_SEED" ]]; then
+  STEP_POLICY_SEED_ARGS=(--step-policy-seed "$STEP_POLICY_SEED")
+fi
 exec "$PY" -B -u "$DRIVER" \
   "${BACKOFF_TRACE_ARGS[@]}" \
+  "${STEP_POLICY_SEED_ARGS[@]}" \
   --repo-head "$REPO_HEAD" \
   --repo-clean 1 \
   --cells "$CELLS" \

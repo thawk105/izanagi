@@ -21,10 +21,10 @@ from orchestrator.tests.reflux_origin_fixture_builder import (
 )
 
 
-_RECORD_RAW_GOLDEN = "d4579e061f28a7dbca8813b6717e2fe4ed90906134c82d127df4b2ebfa9cf31f"
-_LEDGER_EVIDENCE_DIGEST_GOLDEN = "d4579e061f28a7dbca8813b6717e2fe4ed90906134c82d127df4b2ebfa9cf31f"
-_OUTER_SALTED_COMMITMENT_GOLDEN = "ff042352f18c8182afa1483c07b8405fe46d1ac84b4ba6e14ee1c9415c233781"
-_WRONG_DOMAIN_PREFIXED_RAW_GOLDEN = "ddfba4f4378180881809538818c926bb774ad735635a0dcb76993c3863062476"
+_RECORD_RAW_GOLDEN = "5c0ac03d7ccd53153f70c2e10dde301aa4097eeee61f9118eeefc49b3ad24767"
+_LEDGER_EVIDENCE_DIGEST_GOLDEN = "5c0ac03d7ccd53153f70c2e10dde301aa4097eeee61f9118eeefc49b3ad24767"
+_OUTER_SALTED_COMMITMENT_GOLDEN = "b9e20f457bec0bb2ed7e866c7bd175cee9fba8779a96fe2085fd7f79d5cb6365"
+_WRONG_DOMAIN_PREFIXED_RAW_GOLDEN = "610867ca65d585909812e468368f931a76fdf0a7faca488a0a294554ed97735f"
 _SALT = "0123456789abcdef0123456789abcdef"
 
 
@@ -80,6 +80,8 @@ def _rewrite_provenance(root: Path, record: dict, provenance: dict) -> None:
 
 def test_exact_nine_key_schema_and_nested_cardinalities():
     record = build_result_evidence_record()
+    assert evidence.RESULT_EVIDENCE_SCHEMA_VERSION == "result-evidence/v1"
+    assert record["schema_version"] == "result-evidence/v1"
     assert set(record) == {
         "schema_version",
         "issuer",
@@ -98,6 +100,9 @@ def test_exact_nine_key_schema_and_nested_cardinalities():
     assert len(record["trigger_binding"]) == 3
     assert len(record["physical_result"]) == 3
     assert len(record["evidence"]) == 2
+    assert set(record["evidence"]) == {
+        "ordered_wal_ref", "execution_provenance_ref",
+    }
     assert evidence.validate_result_evidence(record) == record
 
 
@@ -195,9 +200,22 @@ def test_content_addressed_resolver_rejects_sha256_mismatch(tmp_path):
         {},
         build_execution_provenance(execution_receipt_sha256=None),
         build_execution_provenance(trigger_binding={}),
-        build_execution_provenance(schema_version="execution-provenance/v2"),
+        build_execution_provenance(campaign_run_identity=...),
+        build_execution_provenance(campaign_run_identity=None),
+        build_execution_provenance(campaign_run_identity=""),
+        build_execution_provenance(campaign_run_identity=7),
+        build_execution_provenance(unexpected="closed-schema"),
+        build_execution_provenance(schema_version="execution-provenance/v1"),
+        build_execution_provenance(
+            campaign_run_identity="../foreign-run-00000000"
+        ),
+        build_execution_provenance(campaign_run_identity="fixture-run-0000"),
     ],
-    ids=["empty", "missing-receipt", "missing-trigger", "wrong-version"],
+    ids=[
+        "empty", "missing-receipt", "missing-trigger", "missing-run-identity",
+        "null-run-identity", "empty-run-identity", "non-string-run-identity",
+        "extra", "v1", "path-invalid-run-identity", "non-ident-run-identity",
+    ],
 )
 def test_execution_provenance_is_closed_and_nonempty(tmp_path, provenance):
     record = _resolution_tree(tmp_path)
@@ -206,6 +224,24 @@ def test_execution_provenance_is_closed_and_nonempty(tmp_path, provenance):
     _rewrite_provenance(tmp_path, record, provenance)
     with pytest.raises(evidence.ResultEvidenceError, match="execution provenance"):
         evidence.resolve_result_evidence(record, evidence_root=tmp_path)
+
+
+def test_execution_provenance_v2_has_exact_eight_keys(tmp_path):
+    provenance = build_execution_provenance()
+    assert provenance["schema_version"] == "execution-provenance/v2"
+    assert set(provenance) == evidence._EXECUTION_PROVENANCE_V2_KEYS == {
+        "schema_version",
+        "build_attempt_id",
+        "campaign_id",
+        "workload",
+        "contract_sha256",
+        "trigger_binding",
+        "execution_receipt_sha256",
+        "campaign_run_identity",
+    }
+    record = _resolution_tree(tmp_path)
+    resolved = evidence.resolve_result_evidence(record, evidence_root=tmp_path)
+    assert resolved.execution_provenance == provenance
 
 
 def test_content_addressed_resolver_rejects_path_outside_root(tmp_path):
