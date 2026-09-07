@@ -21681,6 +21681,10 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   生存していれば本エントリの型であり、同じ引数で待ち手を張り直せばよい。
 - **supersede: 2026-09-03** — 本エントリは F268 / F355 と同型であり、新規 F を採るべきでなかった。台帳の正本は F355 とし、2026-09-02 の観測は同エントリの再発として記録した。以後この型は F355 へ追記する。
 
+
+- **再発: 2026-09-08** — 段 6 レビュー B の待ち手が producer 生存中に rc=0 で戻り、
+  `.done` も成果物も存在しなかった。`DW-C00` どおり `.done` 非空で判定していたので誤判定はせず、
+  until ループへ張り替えて正しく待てた。恒久対応は未実施のままでよい。
 ### F818. Codex の使用枠切れが凍結境界ごと wave を止めた [手順漏れ]
 
 - 事象: 2026-09-02 23:48、段 3 の敵対相談 2 本が 7 model call 時点で
@@ -22404,6 +22408,15 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `_require_condition_gate` と同じ関数列を login で呼んで supply / meaning の全記録を出す probe (job dir の `gate-probe.py`) で読む。
 - 再発検知: compute JSON の `condition_gates` に 3 macro の green record が残ること (consumer test は all_pass を要求)。
 
+
+- **再発: 2026-09-08** — 向きが逆の同型。screening 関門へ `-DFETCHCONTENT_BASE_DIR` を渡す
+  実装を入れたところ、それを参照しない共有 fixture `condition_meaning_gate/effectuation-ignored`
+  に対して CMake が「Manually-specified variables were not used by the project」を stderr へ出し、
+  gate が `configure-failed` で赤になった。既存の `preprocess-bytes-identical` 判定に届く前に
+  止まるため、負例 test が別の理由で赤になっていた。D1666 は同じ理由で共有 fixture
+  `condition_meaning_gate/supplied` へ無害な参照 1 行を入れており、本 wave はそれを
+  `effectuation-ignored` へも入れて閉じた。**gate 側は fail-closed で正しく、直すのは
+  変数を渡す側か受ける側である**という F855 の恒久対応がそのまま当てはまる。
 ### F856. 上流への argv 追加が、下流の閉じた argv 文法に無効化される [手順漏れ] [恒真ゲート]
 
 - 事象: 認証経路をオフライン依存へ配線する wave で、段 3 の敵対レンズが「配線しても A-6 は

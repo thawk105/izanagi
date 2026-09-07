@@ -113,6 +113,19 @@ def _source_evidence(genome: Genome, *, root: str = "/fixture/ccbench"):
     )
 
 
+def _toolchain_manifest(*, cxx: str = "test-cxx", cmake: str = "test-cmake"):
+    requested = {"cc": cxx, "cxx": cxx, "cmake": cmake}
+    return {
+        role: {
+            "requested": name,
+            "realpath": os.path.realpath(shutil.which(name) or name),
+            "version_first_line": f"{role} version A",
+            "version": f"{role} version A",
+        }
+        for role, name in requested.items()
+    }
+
+
 def _log_completed_attempt(layout, variant: str, genome: Genome) -> None:
     evidence = _source_evidence(genome)
     generator = attest_generator_output(
@@ -166,8 +179,13 @@ def _write_floor(root, *, floor=0.03, workload=WORKLOAD, protocol="silo",
     return path
 
 
-def test_screening_condition_gate_accepts_real_runtime_genome_value():
+def test_screening_condition_gate_accepts_real_runtime_genome_value(monkeypatch):
     genome = Genome("silo", {"BACKOFF_FIXED": 5})
+    monkeypatch.setattr(
+        screening_driver.buildcache,
+        "prepare_masstree_fetchcontent",
+        lambda **_kwargs: pytest.fail("manifest None path must not prepare"),
+    )
     run = screening_driver._run_condition_gate_for_genome(
         str(_CONDITION_FIXTURES / "supplied"), genome,
         stock_root=None, cxx=_any_cxx(), cmake=_any_cmake(),
@@ -185,8 +203,14 @@ def test_screening_condition_gate_accepts_real_runtime_genome_value():
             for request in requests] == [("BACKOFF_FIXED", 5)]
 
 
-def test_screening_condition_gate_rejects_real_ignored_runtime_define():
+def test_screening_condition_gate_rejects_real_ignored_runtime_define(monkeypatch):
     genome = Genome("silo", {"BACKOFF_FIXED": 5})
+    prepare_calls = []
+    monkeypatch.setattr(
+        screening_driver.buildcache,
+        "prepare_masstree_fetchcontent",
+        lambda **kwargs: prepare_calls.append(kwargs),
+    )
 
     with pytest.raises(
             condition_meaning_gate.ConditionMeaningGateError,
@@ -195,11 +219,301 @@ def test_screening_condition_gate_rejects_real_ignored_runtime_define():
         screening_driver._run_condition_gate_for_genome(
             str(_CONDITION_FIXTURES / "effectuation-ignored"), genome,
             stock_root=None, cxx=_any_cxx(), cmake=_any_cmake(),
+            expected_toolchain_manifest={"route": "backoff-screening"},
+        )
+    assert len(prepare_calls) == 1
+
+
+def test_screening_condition_gate_prepares_once_with_exact_fetchcontent_arguments(
+        monkeypatch):
+    source_root = (_CONDITION_FIXTURES / "supplied").resolve()
+    genome = Genome("silo", {"BACKOFF_FIXED": 5})
+    expected = {"route": "backoff-screening"}
+    prepare_calls = []
+    capture_calls = []
+    real_capture = condition_meaning_gate.capture_define_inputs
+
+    def prepare(**kwargs):
+        prepare_calls.append(kwargs)
+        assert Path(kwargs["fetchcontent_base_dir"]).is_dir()
+
+    def capture(*args, **kwargs):
+        capture_calls.append((args, kwargs))
+        base_arg = kwargs["configure_args"][-1]
+        base = Path(base_arg.removeprefix("-DFETCHCONTENT_BASE_DIR="))
+        assert base.is_dir()
+        return real_capture(*args, **kwargs)
+
+    monkeypatch.setattr(
+        screening_driver.buildcache, "prepare_masstree_fetchcontent", prepare,
+    )
+    monkeypatch.setattr(
+        screening_driver.condition_meaning_gate, "capture_define_inputs", capture,
+    )
+
+    run = screening_driver._run_condition_gate_for_genome(
+        str(source_root), genome,
+        stock_root=None, cxx=_any_cxx(), cmake=_any_cmake(),
+        expected_toolchain_manifest=expected,
+    )
+
+    assert run is not None and run.admission.admitted
+    assert len(prepare_calls) == 1
+    prepare_call = prepare_calls[0]
+    base = prepare_call["fetchcontent_base_dir"]
+    assert set(prepare_call) == {
+        "ccbench_dir", "fetchcontent_base_dir", "expected_toolchain_manifest",
+        "configure_timeout_s", "target_timeout_s", "site",
+    }
+    assert prepare_call["ccbench_dir"] == str(source_root)
+    assert prepare_call["expected_toolchain_manifest"] is expected
+    assert prepare_call["configure_timeout_s"] == 900
+    assert prepare_call["target_timeout_s"] == 900
+    assert prepare_call["site"] is None
+    assert base == str(Path(base).resolve())
+    assert capture_calls[0][0] == (str(source_root),)
+    configure_args = capture_calls[0][1]["configure_args"]
+    base_arg = f"-DFETCHCONTENT_BASE_DIR={base}"
+    assert configure_args == (
+        *screening_driver._condition_gate_base_configure_args(genome),
+        base_arg,
+    )
+    assert sum(
+        argument.startswith("-DFETCHCONTENT_BASE_DIR=")
+        for argument in configure_args
+    ) == 1
+    assert not Path(base).exists()
+
+
+def test_screening_condition_gate_supplies_prepared_base_to_real_supply_arm(
+        monkeypatch):
+    source_root = (_CONDITION_FIXTURES / "prepared-base-required").resolve()
+    prepared_headers = []
+
+    def prepare(**kwargs):
+        header = (
+            Path(kwargs["fetchcontent_base_dir"])
+            / "izanagi-screening-dependency-src"
+            / "include"
+            / "izanagi_prepared_dependency.hh"
+        )
+        header.parent.mkdir(parents=True)
+        header.write_text(
+            "#define IZANAGI_PREPARED_DEPENDENCY 1\n", encoding="utf-8",
+        )
+        prepared_headers.append(header)
+
+    monkeypatch.setattr(
+        screening_driver.buildcache, "prepare_masstree_fetchcontent", prepare,
+    )
+
+    run = screening_driver._run_condition_gate_for_genome(
+        str(source_root), Genome("silo", {"BACKOFF_FIXED": 5}),
+        stock_root=None, cxx=_any_cxx(), cmake=_any_cmake(),
+        expected_toolchain_manifest={"route": "backoff-screening"},
+    )
+
+    assert run is not None and run.admission.admitted
+    assert len(prepared_headers) == 1
+    supply = run.supply_records[0]
+    assert (supply.terminal_status, supply.reason_code) == (
+        "green", "requested-default-preprocess-different",
+    )
+    base_arg = f"-DFETCHCONTENT_BASE_DIR={prepared_headers[0].parents[2]}"
+    for label in ("requested", "control"):
+        configure_argv = supply.evidence[f"{label}_configure_argv"]
+        assert configure_argv.count(base_arg) == 1
+        assert str(prepared_headers[0]) in dict(
+            supply.evidence[f"{label}_dependency_closure"]
+        )
+    assert not prepared_headers[0].exists()
+
+
+def test_screening_condition_gate_fails_without_prepared_base_side_effect(
+        monkeypatch):
+    monkeypatch.setattr(
+        screening_driver.buildcache,
+        "prepare_masstree_fetchcontent",
+        lambda **_kwargs: None,
+    )
+
+    with pytest.raises(
+            condition_meaning_gate.ConditionMeaningGateError,
+            match="preprocess-failed",
+    ):
+        screening_driver._run_condition_gate_for_genome(
+            str(_CONDITION_FIXTURES / "prepared-base-required"),
+            Genome("silo", {"BACKOFF_FIXED": 5}),
+            stock_root=None, cxx=_any_cxx(), cmake=_any_cmake(),
+            expected_toolchain_manifest={"route": "backoff-screening"},
         )
 
 
-def test_screening_condition_gate_rejects_route_absent_from_real_build_args():
+def test_screening_condition_gate_without_manifest_preserves_unsupplied_path(
+        monkeypatch):
+    capture_calls = []
+    real_capture = condition_meaning_gate.capture_define_inputs
+
+    class NoTemporaryDirectory:
+        @staticmethod
+        def TemporaryDirectory(*_args, **_kwargs):
+            pytest.fail("manifest None path must not create a supply base")
+
+    def capture(*args, **kwargs):
+        capture_calls.append((args, kwargs))
+        return real_capture(*args, **kwargs)
+
+    monkeypatch.setattr(screening_driver, "tempfile", NoTemporaryDirectory)
+    monkeypatch.setattr(
+        screening_driver.buildcache,
+        "prepare_masstree_fetchcontent",
+        lambda **_kwargs: pytest.fail("manifest None path must not prepare"),
+    )
+    monkeypatch.setattr(
+        screening_driver.condition_meaning_gate, "capture_define_inputs", capture,
+    )
+
+    run = screening_driver._run_condition_gate_for_genome(
+        str(_CONDITION_FIXTURES / "supplied"),
+        Genome("silo", {"BACKOFF_FIXED": 5}),
+        stock_root=None, cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+
+    assert run is not None and run.admission.admitted
+    assert all(
+        not argument.startswith("-DFETCHCONTENT_BASE_DIR=")
+        for argument in capture_calls[0][1]["configure_args"]
+    )
+
+
+def test_screening_condition_gate_no_requests_does_not_prepare_with_manifest(
+        monkeypatch):
+    class NoTemporaryDirectory:
+        @staticmethod
+        def TemporaryDirectory(*_args, **_kwargs):
+            pytest.fail("request-free path must not create a supply base")
+
+    monkeypatch.setattr(screening_driver, "tempfile", NoTemporaryDirectory)
+    monkeypatch.setattr(
+        screening_driver.buildcache,
+        "prepare_masstree_fetchcontent",
+        lambda **_kwargs: pytest.fail("request-free path must not prepare"),
+    )
+
+    assert screening_driver._run_condition_gate_for_genome(
+        "unused", Genome("silo", {"BACK_OFF": 1}),
+        stock_root=None, cxx="unused", cmake="unused",
+        expected_toolchain_manifest={"route": "backoff-screening"},
+    ) is None
+
+
+def test_screening_condition_gate_prepare_is_nested_inside_stock_checkout(
+        tmp_path, monkeypatch):
+    source_root = (tmp_path / "patched").resolve()
+    stock_root = (tmp_path / "stock").resolve()
+    source_root.mkdir()
+    stock_root.mkdir()
+    events = []
+    state = {"stock_active": False, "base": None}
+    expected = {"route": "backoff-screening"}
+
+    class Checkout:
+        def __enter__(self):
+            state["stock_active"] = True
+            events.append("stock-enter")
+            return str(stock_root)
+
+        def __exit__(self, exc_type, exc, traceback):
+            events.append("stock-exit")
+            assert state["base"] is not None
+            assert not state["base"].exists()
+            state["stock_active"] = False
+
+    def checkout(commit, *, base_dir):
+        assert commit == "deadbeef"
+        assert base_dir == str(source_root)
+        return Checkout()
+
+    def prepare(**kwargs):
+        events.append("prepare")
+        assert state["stock_active"]
+        assert kwargs["expected_toolchain_manifest"] is expected
+        state["base"] = Path(kwargs["fetchcontent_base_dir"])
+        assert state["base"].is_dir()
+
+    def capture(root, *, stock_root: str, configure_args):
+        events.append("capture")
+        assert state["stock_active"] and state["base"].is_dir()
+        assert root == str(source_root)
+        assert stock_root == str(tmp_path / "stock")
+        assert configure_args[-1] == (
+            f"-DFETCHCONTENT_BASE_DIR={state['base']}"
+        )
+        return object()
+
+    def supply(*_args, **_kwargs):
+        events.append("supply")
+        assert state["stock_active"] and state["base"].is_dir()
+        return object()
+
+    def meaning(*_args, **kwargs):
+        events.append("meaning")
+        assert kwargs["declaration"] is None
+        assert state["stock_active"] and state["base"].is_dir()
+        return object()
+
+    class Admission:
+        admitted = True
+
+    def admit(*_args, **kwargs):
+        events.append("admission")
+        assert kwargs["use_class"] == "raw"
+        assert state["stock_active"] and state["base"].is_dir()
+        return Admission()
+
+    monkeypatch.setattr(screening_driver.patchharness, "checkout", checkout)
+    monkeypatch.setattr(
+        screening_driver.buildcache, "prepare_masstree_fetchcontent", prepare,
+    )
+    monkeypatch.setattr(
+        screening_driver.condition_meaning_gate, "capture_define_inputs", capture,
+    )
+    monkeypatch.setattr(
+        screening_driver.condition_meaning_gate,
+        "evaluate_define_supply_effectuation", supply,
+    )
+    monkeypatch.setattr(
+        screening_driver.condition_meaning_gate,
+        "evaluate_define_runtime_meaning", meaning,
+    )
+    monkeypatch.setattr(
+        screening_driver.condition_meaning_gate,
+        "require_condition_gate_family", admit,
+    )
+
+    run = screening_driver._require_condition_gate_before_evaluation(
+        str(source_root), "deadbeef", Genome("silo", {"BACKOFF_FIXED": -1}),
+        cxx="unused", cmake="unused",
+        expected_toolchain_manifest=expected,
+    )
+
+    assert run is not None and run.admission.admitted
+    assert events == [
+        "stock-enter", "prepare", "capture", "supply", "meaning",
+        "admission", "stock-exit",
+    ]
+    assert state["stock_active"] is False
+    assert state["base"] is not None and not state["base"].exists()
+
+
+def test_screening_condition_gate_rejects_route_absent_from_real_build_args(
+        monkeypatch):
     genome = Genome("silo", {"IZANAGI_BREAK_PERMUTATION": 1})
+    monkeypatch.setattr(
+        screening_driver.buildcache,
+        "prepare_masstree_fetchcontent",
+        lambda **_kwargs: pytest.fail("route mismatch must precede prepare"),
+    )
 
     with pytest.raises(
             condition_meaning_gate.ConditionMeaningGateError,
@@ -208,6 +522,7 @@ def test_screening_condition_gate_rejects_route_absent_from_real_build_args():
         screening_driver._run_condition_gate_for_genome(
             str(_CONDITION_FIXTURES / "supplied"), genome,
             stock_root=None, cxx=_any_cxx(), cmake=_any_cmake(),
+            expected_toolchain_manifest={"route": "backoff-screening"},
         )
 
 
@@ -231,7 +546,11 @@ def test_screening_condition_gate_is_before_real_evaluate_build_sink():
     gate = source.index("_require_condition_gate_before_evaluation(")
     build_sink = source.index("return evaluate(")
     assert source_evidence < gate < build_sink
-    assert "evidence.source_root" in source[source_evidence:gate + 160]
+    gate_call = source[gate:build_sink]
+    assert "evidence.source_root" in gate_call
+    assert (
+        "expected_toolchain_manifest=expected_toolchain_manifest" in gate_call
+    )
 
 
 def test_screening_condition_requests_reject_non_exact_domain_value():
@@ -656,15 +975,7 @@ def test_evaluate_candidate_forwards_v2_contract_and_toolchain_binding(
     layout = campaign_layout(str(ident.campaign_id(cfg)), str(tmp_path / "out")).ensure()
     wal.write_lock(layout, build_v2_lock(ident.canonical_preimage(cfg)))
     genome = Genome("silo", {"BACK_OFF": 1})
-    expected = {
-        role: {
-            "requested": f"test-{role}",
-            "realpath": f"/fixture/test-{role}",
-            "version_first_line": f"{role} version A",
-            "version": f"{role} version A",
-        }
-        for role in ("cc", "cxx", "cmake")
-    }
+    expected = _toolchain_manifest()
     seen_source = []
 
     def evaluate(candidate, candidate_layout, *args, **kwargs):
@@ -700,6 +1011,136 @@ def test_evaluate_candidate_forwards_v2_contract_and_toolchain_binding(
     assert evaluate_kwargs["expected_toolchain_manifest"] == expected
     assert evaluate_kwargs["declared_use_class"] == "official"
     assert seen_source[0]["source_cxx"] == "test-cxx"
+
+
+def test_evaluate_candidate_uses_one_canonical_root_for_prepare_gate_and_build(
+        tmp_path, monkeypatch, _certified_writer_authority):
+    authorization, contract = _certified_writer_authority
+    cfg = _cfg()
+    layout = campaign_layout(
+        str(ident.campaign_id(cfg)), str(tmp_path / "out"),
+    ).ensure()
+    wal.write_lock(layout, build_v2_lock(ident.canonical_preimage(cfg)))
+    genome = Genome("silo", {"BACKOFF_FIXED": 5})
+    source_root = (_CONDITION_FIXTURES / "supplied").resolve()
+    cxx = _any_cxx()
+    cmake = _any_cmake()
+    expected = _toolchain_manifest(cxx=cxx, cmake=cmake)
+    prepare_calls = []
+    capture_calls = []
+    evaluate_calls = []
+    real_capture = condition_meaning_gate.capture_define_inputs
+
+    def prepare(**kwargs):
+        prepare_calls.append(kwargs)
+
+    def capture(root, **kwargs):
+        capture_calls.append((root, kwargs))
+        return real_capture(root, **kwargs)
+
+    def evaluate(candidate, candidate_layout, *args, **kwargs):
+        evaluate_calls.append((candidate, candidate_layout, args, kwargs))
+        return EvalResult(
+            genome=candidate, variant="candidate", certified=True, aborted=False,
+        )
+
+    monkeypatch.setattr(
+        screening_driver.source_digest, "resolve_evidence",
+        lambda *_args, **_kwargs: _source_evidence(
+            genome, root=str(source_root),
+        ),
+    )
+    monkeypatch.setattr(
+        screening_driver.buildcache, "prepare_masstree_fetchcontent", prepare,
+    )
+    monkeypatch.setattr(
+        screening_driver.condition_meaning_gate, "capture_define_inputs", capture,
+    )
+    monkeypatch.setattr(screening_driver, "evaluate", evaluate)
+
+    result = screening_driver.evaluate_candidate(
+        cfg, layout, genome, PerfConfig(records=1, threads=1),
+        contract.env_tag, contract.clocks_per_us,
+        numactl=contract.numactl,
+        authorization_contract=authorization,
+        build_context=_BUILD_CONTEXT,
+        screening=None, env_contract=contract,
+        expected_toolchain_manifest=expected,
+        declared_use_class="official", src_token="stock",
+        ccbench_dir=str(source_root / ".." / "supplied"),
+        log=lambda _message: None,
+    )
+
+    assert result is not None and result.certified
+    assert len(prepare_calls) == len(capture_calls) == len(evaluate_calls) == 1
+    prepare_call = prepare_calls[0]
+    gated_root, gate_kwargs = capture_calls[0]
+    build_evidence = evaluate_calls[0][3]["source_evidence"]
+    assert prepare_call["ccbench_dir"] == str(source_root)
+    assert gated_root == str(source_root)
+    assert build_evidence.source_root == str(source_root)
+    assert prepare_call["expected_toolchain_manifest"] is expected
+    assert gate_kwargs["stock_root"] is None
+    base = prepare_call["fetchcontent_base_dir"]
+    assert gate_kwargs["configure_args"][-1] == (
+        f"-DFETCHCONTENT_BASE_DIR={base}"
+    )
+    assert not Path(base).exists()
+
+
+def test_evaluate_candidate_prepare_failure_escapes_without_wal_abort(
+        tmp_path, monkeypatch, _certified_writer_authority):
+    authorization, contract = _certified_writer_authority
+    cfg = _cfg()
+    layout = campaign_layout(
+        str(ident.campaign_id(cfg)), str(tmp_path / "out"),
+    ).ensure()
+    wal.write_lock(layout, build_v2_lock(ident.canonical_preimage(cfg)))
+    genome = Genome("silo", {"BACKOFF_FIXED": 5})
+    source_root = (_CONDITION_FIXTURES / "supplied").resolve()
+    expected = _toolchain_manifest()
+    failure = screening_driver.buildcache.MasstreeFetchContentError(
+        "target", "synthetic prepare failure",
+    )
+    evaluate_calls = []
+
+    def fail_prepare(**_kwargs):
+        raise failure
+
+    monkeypatch.setattr(
+        screening_driver.source_digest, "resolve_evidence",
+        lambda *_args, **_kwargs: _source_evidence(
+            genome, root=str(source_root),
+        ),
+    )
+    monkeypatch.setattr(
+        screening_driver.buildcache,
+        "prepare_masstree_fetchcontent",
+        fail_prepare,
+    )
+    monkeypatch.setattr(
+        screening_driver, "evaluate",
+        lambda *args, **kwargs: evaluate_calls.append((args, kwargs)),
+    )
+
+    with pytest.raises(
+            screening_driver.buildcache.MasstreeFetchContentError,
+    ) as caught:
+        screening_driver.evaluate_candidate(
+            cfg, layout, genome, PerfConfig(records=1, threads=1),
+            contract.env_tag, contract.clocks_per_us,
+            numactl=contract.numactl,
+            authorization_contract=authorization,
+            build_context=_BUILD_CONTEXT,
+            screening=None, env_contract=contract,
+            expected_toolchain_manifest=expected,
+            declared_use_class="official", src_token="stock",
+            ccbench_dir=str(source_root), log=lambda _message: None,
+        )
+
+    assert caught.value is failure
+    assert evaluate_calls == []
+    assert wal.read_records(layout) == []
 
 
 @pytest.mark.usefixtures("ratified_enforcement_source")
