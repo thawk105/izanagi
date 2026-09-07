@@ -22189,6 +22189,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 投入 gate に scheduler 出力の parser を足す wave は、段 1 で `qstat -f` の実出力を
   login node で 1 回取り、fixture の書式と突き合わせる (DW-S01 の「別 program 起動物の実在棚卸し」の
   対象に scheduler 出力の書式を含める)。
+- **supersede: 2026-09-07** — 恒久対応が指していた [T-2349] を実施した。`_observe_qstat_visibility` は共有 leaf `orchestrator/scheduler_nqsv.py` の `target_bound_qstat_state_result` で state を正規化し、canonical が `QUE` / `RUN` のときだけ受理する。execution queue 行は広い候補 regex で stdout 全体から数え、ちょうど 1 本かつ唯一の `Request ID:` 行より後方であることを確かめてから厳格書式 (`@nqsv`、`(Execution Queue)`、`gen_S`) で検証する。終端側は受理を広げず、実機の可視出力が終端と判定されないことを試験で固定し、消失枝は A-2 と同じ 1 行 fullmatch と対象 ID 束縛で締めた。実機 `qstat -f` の逐語 4 種 (Running / Pre-running / Queued / 不存在) を `orchestrator/tests/fixtures/paper_story_a1/` に fixture 化し、正例・負例は production 関数を通す。変異 11/11 KILLED (SURVIVED 0)。記録は `output/insights/2026-09-07_t2349-a1-qstat-format/`。
 
 ### F853. 書き手なし FIFO の負例が block した孫 process を残し、計算ノードの job が walltime まで終われなかった [観測の穴] [後始末漏れ]
 
