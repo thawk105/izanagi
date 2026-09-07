@@ -1,0 +1,35 @@
+#!/usr/bin/env python3
+"""駆動 loop の前に正規 runner を 1 本だけ手で起動し、runtime.json の観測を今窓の値へ更新する。
+
+runtime.json の持続観測は前窓 (remaining=189) のままで、runner が 1 request 出すまで今窓の実値に
+ならない。閾値検査 (残量 200) を緩めずに解くための 1 本であり、この leaf は本窓の計画の先頭でもある。
+台帳の行は driver.py と同じ形式で追記する。
+"""
+import datetime
+import json
+import subprocess
+import sys
+
+sys.path.insert(0, "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2090-openalex-window3")
+from driver import BASE, LEDGER, TREE, remaining  # noqa: E402
+
+QID = "AX1-20260902-E1-Q3-SY2019@openalex"
+argv = BASE + ["--query-id", QID]
+rem = remaining()
+started = datetime.datetime.now().astimezone().isoformat()
+print("manual launch", QID, "remaining_before(stale)=", rem, flush=True)
+p = subprocess.run(argv, cwd=TREE, capture_output=True, text=True)
+try:
+    res = json.loads(p.stdout)
+except Exception:
+    res = None
+row = {
+    "key": QID, "qid": QID, "rc": p.returncode, "remaining_before": rem,
+    "started_at": started, "result": res,
+    "stderr_tail": p.stderr[-800:] if p.stderr else "",
+    "note": "manual launch to refresh runtime.json observation for this window",
+}
+with open(LEDGER, "a") as f:
+    f.write(json.dumps(row, ensure_ascii=False) + "\n")
+print(json.dumps(row, ensure_ascii=False), flush=True)
+print("remaining_after=", remaining(), flush=True)

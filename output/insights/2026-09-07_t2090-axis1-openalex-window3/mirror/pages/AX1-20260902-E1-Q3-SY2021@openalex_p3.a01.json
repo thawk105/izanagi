@@ -1,0 +1,261 @@
+{
+  "completion": [
+    {
+      "condition": 1,
+      "detail": "interpreted query matches",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 2,
+      "detail": "page position is continuous",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 3,
+      "detail": "actual element count matches cursor cardinality",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 4,
+      "detail": "preserved all 103 occurrences",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 5,
+      "detail": "page contribution retained for leaf-wide distinct-ID, shard, and independent-pass evaluation",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 6,
+      "detail": "response terminated normally and evidence is stored",
+      "passed": true,
+      "reason_code": null
+    }
+  ],
+  "document_type": "page_evidence",
+  "failure": null,
+  "identity": {
+    "attempt_number": 1,
+    "catalog_path": "docs/related-work/claim-survey/2026-09-02-axis1-search-catalog.json",
+    "catalog_sha256": "8e23d63a799c8ab9d25151012c34bc738dbb422ac3dfb237999c359137c816ab",
+    "index": "openalex",
+    "leaf_query_id": "AX1-20260902-E1-Q3-SY2021@openalex",
+    "logical_query_id": "AX1-20260902-E1-Q3@openalex",
+    "page_number": 3,
+    "pass_number": 1,
+    "registration_commit": "4ec3eba04354f9ba86117a2dd488c72d007045e6",
+    "registration_epoch": "AX1-20260902-E1",
+    "request_id": "AX1-20260902-E1-Q3-SY2021@openalex#p3",
+    "run_id": "t2090-openalex-20260907",
+    "window_number": 1
+  },
+  "parse": {
+    "actual_count": 103,
+    "capacity_echo": 200,
+    "declared_total": 702,
+    "interpreted_query": "{\"filter_rows\":[{\"column_id\":\"from_publication_date\",\"value\":\"2021-01-01\"},{\"column_id\":\"to_publication_date\",\"value\":\"2021-12-31\"},{\"filters\":[{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"OLTP\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"concurrency control\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"conflict detection\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"isolation level\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"lock manager\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"multi-version concurrency control\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"optimistic concurrency control\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"serializability\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"snapshot isolation\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"transaction processing\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"transactional memory\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"two-phase locking\\\"\"}],\"join\":\"or\"},{\"filters\":[{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"action space\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"algorithm\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"design space\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"implementation\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"intermediate representation\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"policy\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"protocol\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"source code\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"variant\\\"\"}],\"join\":\"or\"}],\"get_rows\":\"works\"}",
+    "parse_errors": [],
+    "position_in": "IlswLjc1MDY3MjM0LCAxNjIzMDI0MDAwMDAwLCAnaHR0cHM6Ly9vcGVuYWxleC5vcmcvVzQzOTI0OTY4NjAnXSI=",
+    "position_out": null
+  },
+  "quota": {
+    "cost_usd": 0.001,
+    "credits_used": 10,
+    "limit": 1000,
+    "observed_at": "2026-09-07T02:39:47.731132Z",
+    "remaining": 879,
+    "reset_observation": "76814"
+  },
+  "records": {
+    "duplicate_occurrences": 0,
+    "index_work_id_digest": "c0e3baea9d9be859e8c9e8cd427fa81b454ab96d1a7e6438eeb4c6414b6b3541",
+    "index_work_ids": [
+      "https://openalex.org/W4406614433",
+      "https://openalex.org/W4237871631",
+      "https://openalex.org/W3191457250",
+      "https://openalex.org/W7120307856",
+      "https://openalex.org/W3175384030",
+      "https://openalex.org/W4387860153",
+      "https://openalex.org/W3195589855",
+      "https://openalex.org/W3168919905",
+      "https://openalex.org/W3173768370",
+      "https://openalex.org/W7153136328",
+      "https://openalex.org/W3211246409",
+      "https://openalex.org/W2260184104",
+      "https://openalex.org/W3177090686",
+      "https://openalex.org/W3214805646",
+      "https://openalex.org/W3174810076",
+      "https://openalex.org/W3176190270",
+      "https://openalex.org/W4200306129",
+      "https://openalex.org/W3141261536",
+      "https://openalex.org/W3213941440",
+      "https://openalex.org/W7127965333",
+      "https://openalex.org/W3204665518",
+      "https://openalex.org/W7127974970",
+      "https://openalex.org/W3137186698",
+      "https://openalex.org/W4313349618",
+      "https://openalex.org/W3183112005",
+      "https://openalex.org/W3175579849",
+      "https://openalex.org/W3172120506",
+      "https://openalex.org/W3145345665",
+      "https://openalex.org/W4206553595",
+      "https://openalex.org/W3183728091",
+      "https://openalex.org/W4237971622",
+      "https://openalex.org/W4416623462",
+      "https://openalex.org/W3164780039",
+      "https://openalex.org/W3190090413",
+      "https://openalex.org/W3197103484",
+      "https://openalex.org/W3203684937",
+      "https://openalex.org/W4206671622",
+      "https://openalex.org/W3212584708",
+      "https://openalex.org/W4200580537",
+      "https://openalex.org/W3174784633",
+      "https://openalex.org/W7134230374",
+      "https://openalex.org/W4225839898",
+      "https://openalex.org/W3195655818",
+      "https://openalex.org/W3174551995",
+      "https://openalex.org/W3210959301",
+      "https://openalex.org/W3210262299",
+      "https://openalex.org/W4200551115",
+      "https://openalex.org/W4392890401",
+      "https://openalex.org/W4416648549",
+      "https://openalex.org/W4285319350",
+      "https://openalex.org/W4416648550",
+      "https://openalex.org/W3216160851",
+      "https://openalex.org/W4235965510",
+      "https://openalex.org/W3197404042",
+      "https://openalex.org/W4285321242",
+      "https://openalex.org/W4291625312",
+      "https://openalex.org/W3177439000",
+      "https://openalex.org/W4230875037",
+      "https://openalex.org/W3194441798",
+      "https://openalex.org/W3160893285",
+      "https://openalex.org/W3168733666",
+      "https://openalex.org/W3197840692",
+      "https://openalex.org/W3138393949",
+      "https://openalex.org/W3214840696",
+      "https://openalex.org/W3135122127",
+      "https://openalex.org/W4285478608",
+      "https://openalex.org/W3213630240",
+      "https://openalex.org/W7124229060",
+      "https://openalex.org/W4394239601",
+      "https://openalex.org/W4241939471",
+      "https://openalex.org/W7104035089",
+      "https://openalex.org/W4285346592",
+      "https://openalex.org/W7131778210",
+      "https://openalex.org/W7103986351",
+      "https://openalex.org/W3157490509",
+      "https://openalex.org/W3134042042",
+      "https://openalex.org/W3198317220",
+      "https://openalex.org/W4200398889",
+      "https://openalex.org/W3168746038",
+      "https://openalex.org/W3192664155",
+      "https://openalex.org/W3194770333",
+      "https://openalex.org/W4206920884",
+      "https://openalex.org/W3170877943",
+      "https://openalex.org/W4205883384",
+      "https://openalex.org/W3180953815",
+      "https://openalex.org/W4205613511",
+      "https://openalex.org/W3167437783",
+      "https://openalex.org/W4206656026",
+      "https://openalex.org/W4365801235",
+      "https://openalex.org/W4401494293",
+      "https://openalex.org/W4256202868",
+      "https://openalex.org/W3211968641",
+      "https://openalex.org/W3198376681",
+      "https://openalex.org/W3158994344",
+      "https://openalex.org/W3185575180",
+      "https://openalex.org/W4206303517",
+      "https://openalex.org/W3193634324",
+      "https://openalex.org/W3196740126",
+      "https://openalex.org/W7134542334",
+      "https://openalex.org/W4401494374",
+      "https://openalex.org/W4386664050",
+      "https://openalex.org/W4205136481",
+      "https://openalex.org/W4293170305"
+    ],
+    "occurrence_count": 103,
+    "occurrence_ledger_path": "ledgers/AX1-20260902-E1-Q3-SY2021@openalex.pass1.0f40902581ea.json"
+  },
+  "request": {
+    "encoded_url": "https://api.openalex.org/works?filter=from_publication_date%3A2021-01-01%2Cto_publication_date%3A2021-12-31%2Ctitle_and_abstract.search%3A%28%22concurrency+control%22+OR+%22transaction+processing%22+OR+%22serializability%22+OR+%22isolation+level%22+OR+%22two-phase+locking%22+OR+%22optimistic+concurrency+control%22+OR+%22multi-version+concurrency+control%22+OR+%22snapshot+isolation%22+OR+%22transactional+memory%22+OR+%22lock+manager%22+OR+%22conflict+detection%22+OR+%22OLTP%22%29+AND+%28%22protocol%22+OR+%22algorithm%22+OR+%22policy%22+OR+%22source+code%22+OR+%22implementation%22+OR+%22intermediate+representation%22+OR+%22action+space%22+OR+%22design+space%22+OR+%22variant%22%29&per-page=200&cursor=IlswLjc1MDY3MjM0LCAxNjIzMDI0MDAwMDAwLCAnaHR0cHM6Ly9vcGVuYWxleC5vcmcvVzQzOTI0OTY4NjAnXSI%3D",
+    "expected_interpreted_query": "{\"filter_rows\":[{\"column_id\":\"from_publication_date\",\"value\":\"2021-01-01\"},{\"column_id\":\"to_publication_date\",\"value\":\"2021-12-31\"},{\"filters\":[{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"concurrency control\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"transaction processing\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"serializability\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"isolation level\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"two-phase locking\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"optimistic concurrency control\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"multi-version concurrency control\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"snapshot isolation\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"transactional memory\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"lock manager\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"conflict detection\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"OLTP\\\"\"}],\"join\":\"or\"},{\"filters\":[{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"protocol\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"algorithm\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"policy\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"source code\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"implementation\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"intermediate representation\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"action space\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"design space\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"variant\\\"\"}],\"join\":\"or\"}],\"get_rows\":\"works\"}",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "host": "api.openalex.org",
+    "method": "GET",
+    "parent_response_sha256": "cf094edc2878fc2552ea22371090226577275a50f326f0635de3eaf202748114",
+    "path": "/works",
+    "position_in": "IlswLjc1MDY3MjM0LCAxNjIzMDI0MDAwMDAwLCAnaHR0cHM6Ly9vcGVuYWxleC5vcmcvVzQzOTI0OTY4NjAnXSI=",
+    "query_parameters": [
+      [
+        "filter",
+        "from_publication_date:2021-01-01,to_publication_date:2021-12-31,title_and_abstract.search:(\"concurrency control\" OR \"transaction processing\" OR \"serializability\" OR \"isolation level\" OR \"two-phase locking\" OR \"optimistic concurrency control\" OR \"multi-version concurrency control\" OR \"snapshot isolation\" OR \"transactional memory\" OR \"lock manager\" OR \"conflict detection\" OR \"OLTP\") AND (\"protocol\" OR \"algorithm\" OR \"policy\" OR \"source code\" OR \"implementation\" OR \"intermediate representation\" OR \"action space\" OR \"design space\" OR \"variant\")"
+      ],
+      [
+        "per-page",
+        "200"
+      ],
+      [
+        "cursor",
+        "IlswLjc1MDY3MjM0LCAxNjIzMDI0MDAwMDAwLCAnaHR0cHM6Ly9vcGVuYWxleC5vcmcvVzQzOTI0OTY4NjAnXSI="
+      ]
+    ],
+    "scheme": "https",
+    "timeout_s": 60.0
+  },
+  "response": {
+    "body_path": "raw/AX1-20260902-E1-Q3-SY2021@openalex_p3.a01.body.gz",
+    "byte_count": 1646306,
+    "content_type": "application/json",
+    "elapsed_s": 1.6536719559808262,
+    "final_url": "https://api.openalex.org/works?filter=from_publication_date%3A2021-01-01%2Cto_publication_date%3A2021-12-31%2Ctitle_and_abstract.search%3A%28%22concurrency+control%22+OR+%22transaction+processing%22+OR+%22serializability%22+OR+%22isolation+level%22+OR+%22two-phase+locking%22+OR+%22optimistic+concurrency+control%22+OR+%22multi-version+concurrency+control%22+OR+%22snapshot+isolation%22+OR+%22transactional+memory%22+OR+%22lock+manager%22+OR+%22conflict+detection%22+OR+%22OLTP%22%29+AND+%28%22protocol%22+OR+%22algorithm%22+OR+%22policy%22+OR+%22source+code%22+OR+%22implementation%22+OR+%22intermediate+representation%22+OR+%22action+space%22+OR+%22design+space%22+OR+%22variant%22%29&per-page=200&cursor=IlswLjc1MDY3MjM0LCAxNjIzMDI0MDAwMDAwLCAnaHR0cHM6Ly9vcGVuYWxleC5vcmcvVzQzOTI0OTY4NjAnXSI%3D",
+    "redirect_chain": [],
+    "safe_headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "X-RateLimit-Cost-USD",
+        "0.001"
+      ],
+      [
+        "X-RateLimit-Credits-Used",
+        "10"
+      ],
+      [
+        "X-RateLimit-Limit",
+        "1000"
+      ],
+      [
+        "X-RateLimit-Remaining",
+        "879"
+      ],
+      [
+        "X-RateLimit-Reset",
+        "76814"
+      ]
+    ],
+    "sha256": "4073f3e93d873fae08ffddf46a87dc6f8b5b21148a1dad6e4d8ddcec80fac9fb",
+    "status": 200
+  },
+  "schema_version": "izanagi-axis1-search-page-evidence/v1",
+  "wal": {
+    "issued_at": "2026-09-07T02:39:45.901335Z",
+    "parsed_at": "2026-09-07T02:39:47.769083Z",
+    "prepared_at": "2026-09-07T02:39:45.896882Z",
+    "response_stored_at": "2026-09-07T02:39:47.730071Z",
+    "state": "terminal",
+    "terminal_at": "2026-09-07T02:39:47.797072Z"
+  }
+}

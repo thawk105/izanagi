@@ -10,6 +10,8 @@ CCBench (`external/ccbench` submodule = `thawk105/ccbench`) への Izanagi 由�
 | broken-silo (わざと壊した Silo) | verifier の赤検出用 positive control = **テスト用の意図的バグ** | **out-of-tree patch** (このディレクトリ。永久) |
 | 合成 variant (例: 静的 backoff `BACKOFF_FIXED`) | Izanagi がフラグ空間外に合成した**評価中の正当な variant** (D18) | **out-of-tree patch** (価値確定まで。昇格は人間判断) |
 | 診断計器 (例: `BACKOFF_NOINLINE`) | perf 帰属用の計器 (D20 第 5 類)。既定 inert — ただし inert は各 patch が witness (実測・実 TU/binary) で個別に立証する義務であり、default-OFF 構文だけでは導けない | **out-of-tree patch** (このディレクトリ) |
+| mocc 計装 (`instr-mocc-lock-coverage.patch`、mocc の `#if TRACE` lock 被覆・permutation 検査) | Izanagi の verifier 入力 (X/P 行)。D14 契約で perf build から完全除去し、`#line` で TRACE=0 の前処理出力と `.text` を preimage と同一化 | **out-of-tree patch** (preimage = submodule `e9e477ca`。pin 前進 [T-2295] で izanagi-trace 側へ移すかは人間判断) |
+| broken-mocc (わざと壊した mocc 3 本) | mocc 計装の positive control = **テスト用の意図的バグ** | **out-of-tree patch** (このディレクトリ。永久) |
 | 劣化 rung (例: `silo_ladder_rung1`) | **正しさを保ったまま性能だけを意図的に損なう** ability probe (D18 第 4 類 subtype `evaluation_role=ability_probe`)。研究目標に数えず recovery pipeline へ直結しない | **out-of-tree patch** + `ledger.json` 登録必須 |
 
 **broken-silo を patch に隔離する理由 (絶対規律2):** 壊した CC をブランチに commit すると
@@ -410,6 +412,75 @@ P 検査後・lockWriteSet 前 (P を発火させない単一理由設計)。
 I=0/certified (偽陽性なし・BOMB で U/I/D の 3 producer を動的被覆)、broken 4 run は
 cycles==0 (verifier 単独なら certify) のまま I だけが赤 → indeterminate。
 
+## instr-mocc-lock-coverage.patch — mocc の lock 被覆・permutation 計装 ([T-2294])
+
+mocc (`cc/mocc/transaction.cc`) に Silo と同じ 2 種の `#if TRACE` 検査を入れる。**真実源は RWLOCK
+(`ReaderWriterLock` の counter、`-1` = writer 保持) と CLL (`CLL_` の `LockElement`)** であり、Silo の
+Tidword ベース計装 (`instr-silo-*.patch`) は転用しない。preimage は submodule
+**`e9e477ca1b55348ab4530de0b1cf663ce4555290`** (branch `izanagi-t1943-mocc-g2-readfrom-witness`、mocc trace v2 hook
+入り) で、現 pin 511c9538 には当たらない (`git apply --check` が拒否する。test で固定)。
+
+- **X (lock 被覆) 3 検査点** — writePhase 内、非 INSERT の write のみ:
+  (1) **入口** = C/R/W emit 直後: `CLL_` に `key_ == rcdptr_` ∧ writer `mode_` ∧ `lock_ == &rcdptr_->rwlock_` の要素があり、かつ
+  counter が `W_LOCKED` でなければ `X … not-locked-at-entry`。
+  (2) **payload 直前** = UPDATE の `memcpy` / DELETE の `remove_value_if_present` の直前: counter が `W_LOCKED` でなければ
+  `X … lock-lost-before-write`。
+  (3) **publish 直前** = tidword の `__atomic_store_n` 直前: 同条件で `X … lock-lost-before-publish` (mocc は payload・publish・
+  `unlockCLL()` が別なので Silo より 1 点多い)。
+- **P (permutation 保存)** — validation の `sort(write_set_)` 前後で `size()` と `rcdptr_` multiset を比較し、不変でなければ
+  `P size-changed` / `P rcdptr-set-changed`。**P が証明するのは write_set_ sort に対する size と record-pointer multiset の保存だけ**
+  で、CLL の順序や施錠順の正しさは主張しない。
+- **D14 契約と `#line` 例外**: 実行コード・宣言・`#include <set>` は全て literal `#if TRACE` の first branch 内にある。例外として
+  各 `#endif` の直後に preimage の論理行番号を復元する `#line N` だけを置く (`#line` は code を生まない preprocessor 指令)。
+  これが無いと後続 `ERR`/`NNN` の `__LINE__` immediate と rip 相対 lea が動き、TRACE=0 binary が preimage と一致しなくなる
+  (login probe: comment 30 行で 14 箇所)。
+- **規律 1 の witness (2 層)**: (i) 正本 = `orchestrator/tests/test_mocc_proof_surface.py::test_instr_patch_keeps_trace0_preprocess_identical`:
+  無 patch と patch 適用後の `transaction.cc` を `g++ -E -DTRACE=0 -DRWLOCK …` (line marker を残す) し、marker を論理行番号へ畳んだ
+  (行番号, 非空本文) 列の一致を要求する。`#line` の値が ±1 ずれても赤 (生 byte 一致は `#line` が marker を増やすので構造的に不可能)。
+  (ii) 補助 = driver の `trace0_text_identical` check: 無 patch TRACE=0 と patch 適用 TRACE=0 の `objdump -d` (行頭アドレスだけ除去) が
+  一致し、`nm -C` の `izanagi` と `strings -a` の `izanagi_trace` / `IZANAGI_` が 0 (JSON `trace0` に両 binary の sha256 と差分行数)。
+  source と build の dir 名長は揃える (`__FILE__` 文字列長の差で .rodata が動き lea が 158 行ずれる、login 実測)。
+- **RWLOCK 無しの build は暗黙に fail-closed**: `CLL_` / `rwlock_` は `RWLOCK` 定義時にしか宣言されず compile error になる。
+  `#error` は置かない (裸 define 登録簿が `RWLOCK` を新設 interface と数えるため)。
+- **既知限界**: counter に owner ID が無いため「CLL が stale で他 worker が同じ lock を再取得した」状態は入口検査で区別できない。
+  driver の YCSB workload に DELETE は無く、DELETE 経路の検査点は build と静的読解でのみ確認されている。verifier core の P 説明文
+  (`orchestrator/verifier/parse.py`) は Silo の `validationPhase` を前提に書かれている (本 wave では verifier を無編集)。
+- **verifier の読み手**: 既存 consumer が X → `integrity.lock_coverage_violations`、P → `permutation_violations` に配線し、いずれも
+  verdict を indeterminate に倒す (非 certified)。`orchestrator/verifier/model.py` の proof-surface 判定は patch 適用 source を
+  X/P evidence-present と判定し、無 patch の e9e477ca / 511c9538 は evidence-absent = 非 certified のまま。
+- **実証** (2026-09-07、Pegasus gen_S job 979791、`output/env/pegasus/calibration/s3_mocc_lock_coverage.json`、**14 check all_pass**):
+  stock 1 thread = 190,384 txn / 893,376 非 INSERT write で X 0・P 0・certified、stock 4 thread = 203,460 txn で同じく silent。
+  TRACE=0 は nm / strings 0、`.text` 差分 0 行、toolchain は policy (gcc/g++ 11) と一致。
+
+---
+
+## broken-mocc-lockskip-validation.patch / broken-mocc-permutation-erase.patch / broken-mocc-early-unlock.patch — mocc 計装の positive control ([T-2294])
+
+**わざと壊した CC** 3 本。上の計装が恒真でなく歯を持つことを、実体を名指しして機械実証する。preimage は e9e477ca + `instr-mocc-lock-coverage.patch`。
+
+- **broken-mocc-lockskip-validation.patch** (`IZANAGI_BREAK_MOCC_LOCK_COVERAGE`): validation の writer lock 獲得 `lock(rcdptr_, true)` を
+  skip → 入口 (`not-locked-at-entry`) と保持 2 理由が全て正数。1 thread では cycles 0 のまま X で indeterminate、4 thread では
+  本物の non-serializable (cycle) も出る。
+- **broken-mocc-permutation-erase.patch** (`IZANAGI_BREAK_MOCC_PERMUTATION`): sort 直後に `pop_back()` → `P size-changed` だけ
+  (`rcdptr-set-changed` は 0)。
+- **broken-mocc-early-unlock.patch** (`IZANAGI_BREAK_MOCC_EARLY_UNLOCK`、**balanced**): 入口検査の後に非 INSERT を `w_unlock()`、
+  publish 検査の後・tidword store の前に `w_lock()` で再取得する。counter が `-1 → 0 → -1 → 0` と均衡するので 1 thread run が完走し、
+  入口 0 / `lock-lost-before-write` と `lock-lost-before-publish` が正数 = **保持検査だけの歯**を独立に立証する。単純な `w_unlock()`
+  挿入は counter を `0 → 1` に壊して次の writer が永久 spin する (`cc/mocc/lock.cc` の `w_unlock` は `counter_++`)。
+  裸 directive は file scope の 1 箇所だけ (`static constexpr bool izanagi_break_mocc_early_unlock`) で、2 site は `if constexpr` で従う
+  (condition gate は「owner file 内で directive はちょうど 1 回」を要求する)。
+- **既定 OFF inert**: 裸マクロ (`CCBENCH_` 接頭辞なし) で pipeline から定義不能。`condition_meaning_gate` / `screening_driver` /
+  spawn_sites の裸 define 登録簿に 3 本とも登録済み。baseline に絶対混ぜない (絶対規律 2)。
+- **駆動の正本 = `orchestrator/campaign/s3_mocc_lock_coverage.py`** (compute 専用。policy 束縛の gcc/g++、`--third-party-cache` 必須、
+  TRACE=1 × 4 + TRACE=0 × 2 の build、6 run、verifier、`compute_checks` 14 key を JSON へ)。`_build_variant` は materializer 登録簿で
+  NON_ADMISSIBLE (診断 build、性能値の出所にならない)。configure 引数に CCBench が使わない CMake 変数を渡してはいけない —
+  condition gate は configure の stderr 警告 (未使用変数) を fail-closed で red にする (2026-09-07 実測、`RULE_LAUNCH_COMPILE`)。
+- **実証** (2026-09-07、job 979791、同 JSON): lockskip 1 thread = 136,905 txn、X 1,927,227 (3 reason 各 642,409)、cycles 0、indeterminate;
+  lockskip 4 thread = X 2,382,127、cycles 3,754 (non-serializable); perm-erase = P 221,097 (全て size-changed)、X 0;
+  early-unlock = 146,072 txn 完走、`not-locked-at-entry` 0、`lock-lost-before-write` 685,184、`lock-lost-before-publish` 685,184。
+
+---
+
 ## トレース形式 (verifier = タスク2 の入力契約)
 
 trace-hook の**実装**は submodule `izanagi-trace` ブランチにある (Silo は `writePhase` の `maxtid`
@@ -438,6 +509,9 @@ bytes を保存したまま再検証を退役した。
 `P` (permutation 保存違反、D41)・`A` (abort 要因、D48)・`I` (write-intent 被覆違反、[T-152] —
 実装は izanagi-trace ブランチ側、pin 前進まで pinned producer は emit しない)。書式と意味論の
 正本は `orchestrator/verifier/parse.py` の module docstring と各 patch 節。
+X の reason token は `not-locked-at-entry` / `lock-lost-before-write` (Silo、D38) に加え、mocc では
+`lock-lost-before-publish` ([T-2294]、payload と publish が別のため) を使う。verifier は reason を自由 token として数える。
+P の reason は `size-changed` / `rcdptr-set-changed` の 2 語だけを認識し、それ以外は `unknown` として同じく indeterminate に倒す。
 
 - `txid` = グローバル単調 id (TRACE ビルド限定の atomic)。1 trx の C/R/W をまとめるためだけ。
 - `key_hex` = キー生バイトの小文字 hex (YCSB は 8byte big-endian)

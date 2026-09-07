@@ -53,8 +53,20 @@ _REAL_CONDITION_GATE_FAMILY = A2._condition_gate_family_context
 @pytest.fixture(autouse=True)
 def _avoid_condition_compiler_work_in_protocol_tests(monkeypatch):
     @contextlib.contextmanager
-    def bypass_condition_gate(source_root, *_args, **_kwargs):
-        yield Path(source_root), None
+    def bypass_condition_gate(source_root, genomes, **_kwargs):
+        records = tuple(
+            json.dumps({
+                "admission_id": f"condition-gate/admission/{index}",
+                "admission_digest": hashlib.sha256(
+                    f"admission-{index}".encode("ascii")).hexdigest(),
+                "use_class": "paper",
+                "admitted": True,
+                "record_ids": [f"record-{index}"],
+                "unestablished_meaning_macros": [],
+            }, sort_keys=True, separators=(",", ":"))
+            for index, _genome in enumerate(genomes)
+        )
+        yield Path(source_root), None, records
 
     monkeypatch.setattr(A2, "_condition_gate_family_context", bypass_condition_gate)
 
@@ -64,6 +76,8 @@ def test_paper_condition_gate_is_p_strict_and_precedes_campaign(monkeypatch):
     assert run_source.index("_condition_gate_family_context(") < run_source.index(
         "summary = run_campaign("
     )
+    assert run_source.index("_write_condition_gate_admissions_x(") \
+        < run_source.index("summary = run_campaign(")
     helper_source = inspect.getsource(_REAL_CONDITION_GATE_FAMILY)
     assert 'use_class="paper"' in helper_source
     assert '"BACKOFF_FIXED"' in helper_source
@@ -77,7 +91,7 @@ def test_paper_condition_gate_is_p_strict_and_precedes_campaign(monkeypatch):
     assert helper_source.index("patchharness.checkout(") < helper_source.index(
         "patchharness.applied("
     ) < helper_source.index("capture_define_inputs(")
-    assert "as (variant_root, condition_gate_receipts):" in run_source
+    assert "as (variant_root, condition_gate_receipts," in run_source
 
     tree = ast.parse(run_source)
     condition_context = next(
@@ -230,9 +244,10 @@ def _assert_condition_gate_context(monkeypatch):
             dependency_prefix=Path("/dependency"),
             current_pin="abc1234",
             expected_toolchain_manifest=expected_toolchain_manifest,
-    ) as (observed_variant, receipts):
+    ) as (observed_variant, receipts, canonical_records):
         assert observed_variant == variant_root
         assert len(receipts) == 1
+        assert len(canonical_records) == 1
         events.append(("campaign", observed_variant))
         assert not any(event[0] == "applied-exit" for event in events)
 
@@ -346,9 +361,10 @@ def test_condition_gate_context_cleans_up_on_body_exception(monkeypatch):
                 dependency_prefix=Path("/dependency"),
                 current_pin="abc1234",
                 expected_toolchain_manifest=expected_toolchain_manifest,
-        ) as (observed_variant, receipts):
+        ) as (observed_variant, receipts, canonical_records):
             assert observed_variant == variant_root
             assert len(receipts) == 1
+            assert len(canonical_records) == 1
             events.append(("campaign", observed_variant))
             raise RuntimeError("campaign failed")
 
@@ -491,9 +507,10 @@ def test_condition_gate_prebuild_runs_once_for_multiple_cells(monkeypatch):
             dependency_prefix=Path("/dependency"),
             current_pin="abc1234",
             expected_toolchain_manifest={"fixture": "toolchain"},
-    ) as (observed_variant, receipts):
+    ) as (observed_variant, receipts, canonical_records):
         assert observed_variant == variant_root
         assert len(receipts) == len(genomes)
+        assert len(canonical_records) == len(genomes)
 
     assert len(prebuild_calls) == 1
 
@@ -864,9 +881,10 @@ def test_condition_gate_family_real_records_positive_then_issued_red_negative(
         dependency_prefix=dependency_prefix,
         current_pin=current_pin,
         expected_toolchain_manifest=expected_toolchain_manifest,
-    ) as (observed_variant, receipts):
+    ) as (observed_variant, receipts, canonical_records):
         assert observed_variant == positive_variant
         assert len(receipts) == 2
+        assert len(canonical_records) == 2
         for receipt, (supply, meaning, admission) in zip(
             receipts, positive_cells, strict=True,
         ):
@@ -1023,7 +1041,9 @@ def _campaign_lock_text(policy, workload_id, attempt_id):
         policy, workload_id, attempt_id, CURRENT_PIN)
     observed = {
         **expected,
-        ident.ADMISSION_POLICY_SEARCH_KEY: {"fixture": "producer-shaped"},
+        ident.ADMISSION_POLICY_SEARCH_KEY: build_admission.build_run_context(
+            generator_id=build_admission.GeneratorId.BACKOFF_REPRO,
+        ).policy.as_preimage(),
     }
     identity = {
         "spec_content": A2._canonical_json(expected).decode("ascii"),
@@ -1094,6 +1114,10 @@ def _positive_results(
             encoding="utf-8",
         )
         cells = [cell for cell in policy.cells if cell.workload_id == workload_id]
+        source_evidences = []
+        condition_admissions = []
+        build_context = build_admission.build_run_context(
+            generator_id=build_admission.GeneratorId.BACKOFF_REPRO)
         for cell_index, cell in enumerate(cells):
             build_dir = attempt_root / "build" / cell.cell_id
             binary = (
@@ -1123,7 +1147,48 @@ def _positive_results(
             )
             build_attempt_id = "build-" + cell.cell_id
             genome = A2._genome_for_cell(policy, cell)
-            variant = variant_id(genome)
+            src_token = (
+                source_digest.STOCK if cell.role == "stock"
+                else hashlib.sha256(
+                    ("patched-source:" + cell.cell_id).encode("ascii")
+                ).hexdigest()
+            )
+            source_evidence = source_digest.SourceEvidence(
+                source_digest.SOURCE_EVIDENCE_SCHEMA,
+                str((attempt_root / "variant-source" / workload_id).resolve()),
+                CURRENT_PIN,
+                hashlib.sha256(genome.canonical().encode("utf-8")).hexdigest(),
+                src_token,
+                hashlib.sha256(
+                    ("source-bytes:" + cell.cell_id).encode("ascii")
+                ).hexdigest(),
+                False,
+                hashlib.sha256(
+                    ("tracked-diff:" + workload_id).encode("ascii")
+                ).hexdigest(),
+                ("include/backoff.hh",),
+            )
+            generator_receipt = build_admission.attest_generator_output(
+                build_context, source_evidence,
+                generator_input_sha256=A2._generator_input_sha256(
+                    policy, workload_id, source_evidence.genome_sha256),
+            )
+            admission = build_admission.derive_build_admission(
+                build_context, source_evidence,
+                generator_receipt=generator_receipt)
+            variant = variant_id(genome, src_token)
+            source_evidences.append(source_evidence)
+            condition_admissions.append(json.dumps({
+                "admission_id": (
+                    "condition-gate/admission/" + cell.cell_id),
+                "admission_digest": hashlib.sha256(
+                    ("condition-admission:" + cell.cell_id).encode("ascii")
+                ).hexdigest(),
+                "use_class": "paper",
+                "admitted": True,
+                "record_ids": ["condition-record/" + cell.cell_id],
+                "unestablished_meaning_macros": [],
+            }, sort_keys=True, separators=(",", ":")))
             value = 100.0 * (
                 adopted_gain if cell.role == "adopted" else 1.0)
             samples = [value - 2, value - 1, value, value + 1, value + 2]
@@ -1131,6 +1196,9 @@ def _positive_results(
                 (STAGE_BUILD_START, {
                     "build_attempt_id": build_attempt_id,
                     "genome": genome.canonical(),
+                    "src_token": src_token,
+                    "build_admission": admission.as_wal_receipt(),
+                    "build_admission_receipt_sha256": admission.receipt_sha256,
                 }),
                 (STAGE_BUILD_DONE, {
                     "build_attempt_id": build_attempt_id,
@@ -1194,13 +1262,27 @@ def _positive_results(
             "proc_starttime": 456,
             "created_utc": "2026-08-27T00:00:00+00:00",
         }, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
+        receipts_root = attempt_root / "receipts"
+        receipts_root.mkdir(exist_ok=True)
+        A2._write_condition_gate_admissions_x(
+            attempt_root / A2._condition_gate_receipt_relative(workload_id),
+            condition_admissions, source_evidences)
         for cell in cells:
+            expected_src_token = next(
+                evidence.src_token for evidence in source_evidences
+                if evidence.genome_sha256 == hashlib.sha256(
+                    A2._genome_for_cell(policy, cell).canonical().encode("utf-8")
+                ).hexdigest()
+            )
             results.append(A2._raw_cell_from_wal(
                 policy, cell,
                 result=type("Result", (), {
-                    "variant": variant_id(A2._genome_for_cell(policy, cell))})(),
+                    "variant": variant_id(
+                        A2._genome_for_cell(policy, cell),
+                        expected_src_token)})(),
                 layout_root=str(layout_root), attempt_id=attempt_root.name,
                 current_pin=CURRENT_PIN,
+                expected_src_token=expected_src_token,
             ))
     return [
         next(raw for raw in results if raw["cell_id"] == cell.cell_id)
@@ -1459,7 +1541,8 @@ def _rewrite_first_cell_science_from_wal(
         wal.parse_line(frame.decode("utf-8"))
         for frame in wal_path.read_bytes().splitlines(keepends=True)
     ]
-    target_variant = variant_id(A2._genome_for_cell(policy, target))
+    target_variant = variant_id(
+        A2._genome_for_cell(policy, target), target_raw["src_token"])
     rewritten = []
     mutation_written = False
     target_build_attempt = None
@@ -1546,12 +1629,19 @@ def _rewrite_first_cell_science_from_wal(
         )
     regenerated = []
     for cell in cells:
+        existing, _ = A2._read_json(
+            attempt_root / "jobs" / workload_id / "raw"
+            / f"{cell.cell_id}.json")
+        expected_src_token = existing["src_token"]
         raw = A2._raw_cell_from_wal(
             policy, cell,
             result=type("Result", (), {
-                "variant": variant_id(A2._genome_for_cell(policy, cell))})(),
+                "variant": variant_id(
+                    A2._genome_for_cell(policy, cell),
+                    expected_src_token)})(),
             layout_root=str(layout_root), attempt_id=attempt_root.name,
             current_pin=CURRENT_PIN,
+            expected_src_token=expected_src_token,
         )
         path = (
             attempt_root / "jobs" / workload_id / "raw"
@@ -1585,6 +1675,16 @@ def _reseal_partial_receipts_after_manifest_mutation(attempt_root):
     acquisition["completion_receipt_sha256"] = hashlib.sha256(
         completion_path.read_bytes()).hexdigest()
     acquisition_path.write_bytes(A2._canonical_json(acquisition))
+
+
+def _reseal_manifest_member_and_receipts(attempt_root, relative):
+    manifest_path = attempt_root / "raw-manifest.json"
+    manifest, _ = A2._read_json(manifest_path)
+    member_path = attempt_root / relative
+    manifest["files"][relative] = hashlib.sha256(
+        member_path.read_bytes()).hexdigest()
+    manifest_path.write_bytes(A2._canonical_json(manifest))
+    _reseal_partial_receipts_after_manifest_mutation(attempt_root)
 
 
 def test_policy_is_the_exact_literal_four_cell_protocol(tmp_path):
@@ -2151,7 +2251,7 @@ def test_m1_a6_single_workload_full_success_stays_v3(tmp_path):
     assert evidence["completion_schema"] == A2.COMPLETION_SCHEMA
     assert evidence["raw_manifest_schema"] == A2.RAW_MANIFEST_SCHEMA
     assert evidence["raw_manifest_valid"] is True
-    assert len(evidence["raw_files"]) == 5
+    assert len(evidence["raw_files"]) == 6
 
 
 def test_m2_partial_v4_completion_requires_exact_two_workloads(tmp_path):
@@ -2390,6 +2490,7 @@ def test_partial_anomaly_production_chain_rejects_without_failed_raw(
     expected_manifest_members = {
         "jobs/rr50/raw/rr50-stock.json",
         "jobs/rr50/raw/rr50-fixed5.json",
+        A2._condition_gate_receipt_relative("rr50"),
         *(
             Path(authoritative_raw[0]["campaign_evidence"][f"{kind}_path"])
             .relative_to(root).as_posix()
@@ -2424,7 +2525,7 @@ def test_partial_anomaly_production_chain_rejects_without_failed_raw(
     assert manifest["schema_version"] == A2.PARTIAL_RAW_MANIFEST_SCHEMA
     assert manifest["successful_workload"] == "rr50"
     assert set(manifest["files"]) == expected_manifest_members
-    assert len(manifest["files"]) == 5
+    assert len(manifest["files"]) == 6
     assert all(not path.startswith("jobs/rr5/") for path in manifest["files"])
     assert len([
         path for path in manifest["files"]
@@ -2441,7 +2542,7 @@ def test_partial_anomaly_production_chain_rejects_without_failed_raw(
     assert evidence["acquisition_schema"] == A2.PARTIAL_ACQUISITION_SCHEMA
     assert [raw["cell_id"] for raw in evidence["raw_results"]] == [
         "rr50-stock", "rr50-fixed5"]
-    assert len(evidence["raw_files"]) == 5
+    assert len(evidence["raw_files"]) == 6
     assert all("jobs/rr5/" not in path for path in evidence["raw_files"])
 
     monkeypatch.setattr(A2, "load_policy", lambda: policy)
@@ -2567,8 +2668,8 @@ def test_partial_authoritative_science_can_remain_inconclusive(
     assert (destination / "COMPLETE.json").is_file()
 
 
-def test_partial_invalid_authority_is_inconclusive_without_cells_or_effects(
-        tmp_path):
+def test_partial_invalid_authority_stops_before_report_or_artifact(
+        tmp_path, monkeypatch):
     policy = _policy(tmp_path)
     root = A2.preregister_attempt(
         policy, "attempt-partial-invalid-authority", CURRENT_PIN)
@@ -2582,13 +2683,20 @@ def test_partial_invalid_authority_is_inconclusive_without_cells_or_effects(
         policy, acquisition, current_pin=CURRENT_PIN)
     assert evidence["raw_manifest_valid"] is False
     assert evidence["raw_manifest_invalid_kind"] == "authority"
-    report = A2._canonical_partial_report(
-        policy, evidence, current_pin=CURRENT_PIN)
-    assert report["status"] == "inconclusive"
-    assert report["cells"] == []
-    assert report["effects"] == {}
-    assert report["workload_authority"]["rr50"]["authority"] == "unavailable"
-    assert A2.driver_rc(report) == 2
+    with pytest.raises(A2.AuthorityError, match="raw manifest authority"):
+        A2._canonical_partial_report(
+            policy, evidence, current_pin=CURRENT_PIN)
+
+    monkeypatch.setattr(A2, "load_policy", lambda: policy)
+    repo = tmp_path / "partial-invalid-authority-repo"
+    repo.mkdir()
+    assert A2.main([
+        "collect", "--attempt-root", str(root),
+        "--current-pin", CURRENT_PIN,
+        "--acquisition-receipt", str(acquisition),
+        "--repo-root", str(repo),
+    ]) == 2
+    assert not (repo / policy.tracked_destination).exists()
 
 
 @pytest.mark.parametrize("mutation", ("cross-version", "failed-raw-member"))
@@ -2604,7 +2712,7 @@ def test_partial_materializer_rejects_cross_schema_and_failed_raw_mixing(
     manifest_path = root / "raw-manifest.json"
     manifest, _ = A2._read_json(manifest_path)
     if mutation == "cross-version":
-        manifest["schema_version"] = A2.RAW_MANIFEST_SCHEMA
+        manifest["schema_version"] = A2.LEGACY_RAW_MANIFEST_SCHEMA
     else:
         failed_raw = root / "jobs" / "rr5" / "raw" / "rr5-stock.json"
         manifest["files"]["jobs/rr5/raw/rr5-stock.json"] = hashlib.sha256(
@@ -3082,6 +3190,8 @@ def test_m11_materializer_stages_marker_before_single_noreplace_rename(
     assert sorted(path.name for path in destination.iterdir()) == [
         "COMPLETE.json", "acquisition-receipt.json", "artifact-manifest.json",
         "certification.json", "completion-receipt.json",
+        "condition-gate-rr5.admissions.jsonl",
+        "condition-gate-rr50.admissions.jsonl",
         "raw-manifest.json", "submission-receipt.json",
     ]
     materialized = json.loads(
@@ -3326,6 +3436,12 @@ def test_collector_never_calls_positive_path_for_failed_or_manifestless_compute(
         "attempt_root": str(root),
         "repo_root": str(tmp_path),
     })()
+    if case_name == "manifestless-full":
+        with pytest.raises(A2.AuthorityError, match="raw manifest authority"):
+            A2._collect_command(args)
+        assert positive_calls == []
+        assert captured == {}
+        return
     assert A2._collect_command(args) == 2
     assert positive_calls == []
     assert captured["status"] == "indeterminate"
@@ -3405,7 +3521,7 @@ def test_raw_manifest_binds_campaign_lock_and_wal_and_freezes_raw_bytes(tmp_path
     acquisition, _ = _write_receipt_bundle(policy, root)
     evidence = A2.validate_acquisition_bundle(
         policy, acquisition, current_pin=CURRENT_PIN)
-    assert len(evidence["raw_files"]) == 10
+    assert len(evidence["raw_files"]) == 12
     raw_path = root / "jobs" / "rr5" / "raw" / "rr5-stock.json"
     raw_path.write_text('{"tampered":true}\n', encoding="utf-8")
     report = A2.collect_results(
@@ -3539,6 +3655,380 @@ def test_changed_campaign_wal_invalidates_the_manifest_bundle(tmp_path):
     assert "hash mismatch" in evidence["raw_manifest_reason"]
 
 
+def test_condition_receipt_publish_is_atomic_noreplace_and_durable(
+        tmp_path, monkeypatch):
+    path = tmp_path / "condition-gate-rr5.admissions.jsonl"
+    genome = A2._genome_for_cell(_policy(tmp_path), _policy(tmp_path).cells[0])
+    evidence = source_digest.SourceEvidence(
+        source_digest.SOURCE_EVIDENCE_SCHEMA,
+        str(tmp_path.resolve()), CURRENT_PIN,
+        hashlib.sha256(genome.canonical().encode("utf-8")).hexdigest(),
+        source_digest.STOCK, "a" * 64, True,
+        source_digest.EMPTY_TRACKED_DIFF_SHA256, (),
+    )
+    admission = json.dumps({
+        "admission_id": "condition-gate/admission/atomic",
+        "admission_digest": "b" * 64,
+        "use_class": "paper", "admitted": True,
+        "record_ids": ["condition-record/atomic"],
+        "unestablished_meaning_macros": [],
+    }, sort_keys=True, separators=(",", ":"))
+    events = []
+    original_fsync = A2.os.fsync
+    original_rename = A2._rename_noreplace
+
+    def observed_fsync(descriptor):
+        target = Path(f"/proc/self/fd/{descriptor}").resolve()
+        events.append(("fsync", target))
+        original_fsync(descriptor)
+
+    def observed_rename(source, destination):
+        assert source.parent == destination.parent == tmp_path
+        assert destination == path
+        assert source.is_file() and source.stat().st_size > 0
+        assert events and events[-1] == ("fsync", source)
+        if not destination.exists():
+            assert not path.exists()
+        events.append(("rename", source, destination))
+        original_rename(source, destination)
+
+    monkeypatch.setattr(A2.os, "fsync", observed_fsync)
+    monkeypatch.setattr(A2, "_rename_noreplace", observed_rename)
+    A2._write_condition_gate_admissions_x(
+        path, [admission], [evidence])
+
+    assert path.is_file()
+    assert events[-1] == ("fsync", tmp_path)
+    assert [event[0] for event in events] == ["fsync", "rename", "fsync"]
+    original_bytes = path.read_bytes()
+    with pytest.raises(FileExistsError):
+        A2._write_condition_gate_admissions_x(
+            path, [admission], [evidence])
+    assert path.read_bytes() == original_bytes
+    assert not list(tmp_path.glob(f".{path.name}.tmp-*"))
+
+
+@pytest.mark.parametrize(
+    ("mutation", "expected_status"),
+    (("adopted-stock", "patch-unapplied"),
+     ("missing-token", "token-missing"),
+     ("legacy-v2", "patch-unapplied")),
+)
+def test_source_role_and_missing_token_are_determinate_cell_rejects(
+        tmp_path, mutation, expected_status):
+    policy = _policy(tmp_path)
+    root = A2.create_attempt_root(policy, "source-reject-" + mutation)
+    results = _positive_results(policy, root)
+    target = results[1]
+    if mutation == "adopted-stock":
+        receipt_path = root / A2._condition_gate_receipt_relative("rr5")
+        frames = receipt_path.read_bytes().splitlines(keepends=True)
+        source_record = json.loads(frames[3])
+        source_record["src_token"] = source_digest.STOCK
+        frames[3] = A2._canonical_json(source_record)
+        receipt_path.write_bytes(b"".join(frames))
+        target["src_token"] = source_digest.STOCK
+    elif mutation == "missing-token":
+        target.pop("src_token")
+    else:
+        for raw in results:
+            raw["schema_version"] = A2.LEGACY_RAW_RESULT_SCHEMA
+            raw.pop("src_token")
+    if mutation == "missing-token":
+        with pytest.raises(A2.AuthorityError, match="raw src_token"):
+            A2.collect_results(
+                policy, results, attempt_id=root.name,
+                current_pin=CURRENT_PIN, request_ids=_request_ids(policy),
+                _test_token=A2._COLLECT_TEST_TOKEN)
+        return
+    report = A2.collect_results(
+        policy, results, attempt_id=root.name, current_pin=CURRENT_PIN,
+        request_ids=_request_ids(policy),
+        _test_token=A2._COLLECT_TEST_TOKEN)
+
+    assert report["status"] == "reject"
+    assert report["cells"]
+    if mutation == "legacy-v2":
+        assert {cell["source_binding_status"] for cell in report["cells"]} \
+            == {"patch-unapplied"}
+        assert all(cell["src_token"] is None for cell in report["cells"])
+    else:
+        cell = next(
+            cell for cell in report["cells"]
+            if cell["cell_id"] == target["cell_id"])
+        assert cell["source_binding_status"] == expected_status
+
+
+def test_patched_adopted_source_binding_positive_control(tmp_path):
+    policy = _policy(tmp_path)
+    root = A2.create_attempt_root(policy, "source-binding-positive")
+    report = A2.collect_results(
+        policy, _positive_results(policy, root), attempt_id=root.name,
+        current_pin=CURRENT_PIN, request_ids=_request_ids(policy),
+        _test_token=A2._COLLECT_TEST_TOKEN)
+
+    assert report["status"] == "observed-positive"
+    adopted = [cell for cell in report["cells"] if cell["role"] == "adopted"]
+    assert adopted
+    assert all(cell["source_binding_status"] == "bound" for cell in adopted)
+    assert all(cell["src_token"] != source_digest.STOCK for cell in adopted)
+
+
+def test_raw_token_is_checked_against_precampaign_receipt_not_itself(tmp_path):
+    policy = _policy(tmp_path)
+    root = A2.create_attempt_root(policy, "receipt-token-independent")
+    results = _positive_results(policy, root)
+    target = results[1]
+    assert target["src_token"] != source_digest.STOCK
+    target["src_token"] = source_digest.STOCK
+
+    report = A2.collect_results(
+        policy, results, attempt_id=root.name, current_pin=CURRENT_PIN,
+        request_ids=_request_ids(policy), attempt_root=root)
+
+    target_cell = next(
+        cell for cell in report["cells"]
+        if cell["cell_id"] == target["cell_id"])
+    assert report["status"] == "reject"
+    assert target_cell["source_binding_status"] == "token-mismatch"
+
+
+@pytest.mark.parametrize(
+    ("mutation", "signature"),
+    (("wal-token", "WAL build start token"),
+     ("admission-token", "build admission token"),
+     ("variant", "canonical cell variant")),
+)
+def test_precampaign_token_cross_checks_wal_admission_and_variant(
+        tmp_path, mutation, signature):
+    policy = _policy(tmp_path)
+    root = A2.create_attempt_root(policy, "token-cross-" + mutation)
+    results = _positive_results(policy, root)
+    target = results[1]
+    cell = policy.cell(target["cell_id"])
+    expected_token = target["src_token"]
+    wal_path = Path(target["campaign_evidence"]["wal_path"])
+    if mutation != "variant":
+        records = [
+            wal.parse_line(frame.decode("utf-8"))
+            for frame in wal_path.read_bytes().splitlines(keepends=True)
+        ]
+        rewritten = []
+        changed = False
+        for record in records:
+            if (record.variant == target["variant"]
+                    and record.stage == STAGE_BUILD_START):
+                payload = copy.deepcopy(record.payload)
+                if mutation == "wal-token":
+                    payload["src_token"] = source_digest.STOCK
+                else:
+                    payload["build_admission"]["source"]["src_token"] = (
+                        source_digest.STOCK)
+                record = WalRecord(
+                    variant=record.variant, stage=record.stage,
+                    env_tag=record.env_tag, ts=record.ts, payload=payload)
+                changed = True
+            rewritten.append(record)
+        assert changed
+        wal_path.write_text(
+            "".join(wal._record_to_line(record) + "\n" for record in rewritten),
+            encoding="utf-8")
+    result_variant = (
+        variant_id(A2._genome_for_cell(policy, cell), source_digest.STOCK)
+        if mutation == "variant" else target["variant"])
+    with pytest.raises(A2.CertificationError, match=signature):
+        A2._raw_cell_from_wal(
+            policy, cell,
+            result=A2.SimpleNamespace(variant=result_variant),
+            layout_root=str(wal_path.parents[1]), attempt_id=root.name,
+            current_pin=CURRENT_PIN, expected_src_token=expected_token)
+
+
+@pytest.mark.parametrize("mutation", ("missing", "changed"))
+def test_manifest_bound_condition_receipt_is_required_and_hash_checked(
+        tmp_path, mutation):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(
+        policy, "condition-receipt-" + mutation, CURRENT_PIN)
+    acquisition, _ = _write_receipt_bundle(policy, root)
+    receipt = root / A2._condition_gate_receipt_relative("rr5")
+    if mutation == "missing":
+        receipt.unlink()
+    else:
+        receipt.write_bytes(receipt.read_bytes() + b" ")
+
+    evidence = A2.validate_acquisition_bundle(
+        policy, acquisition, current_pin=CURRENT_PIN)
+    assert evidence["raw_manifest_valid"] is False
+    assert "manifest member" in evidence["raw_manifest_reason"]
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "receipt-file-missing",
+        "receipt-corrupt",
+        "receipt-token-missing",
+        "receipt-token-invalid",
+        "receipt-hash-mismatch",
+        "raw-token-missing",
+        "raw-token-invalid",
+    ),
+)
+def test_source_authority_failure_stops_before_tracked_artifact(
+        tmp_path, monkeypatch, mutation):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(
+        policy, "authority-hard-stop-" + mutation, CURRENT_PIN)
+    acquisition, _ = _write_receipt_bundle(policy, root)
+
+    if mutation.startswith("receipt-"):
+        relative = A2._condition_gate_receipt_relative("rr5")
+        receipt = root / relative
+        if mutation == "receipt-file-missing":
+            receipt.unlink()
+        elif mutation == "receipt-corrupt":
+            receipt.write_bytes(b"{not-json}\n")
+            _reseal_manifest_member_and_receipts(root, relative)
+        elif mutation == "receipt-hash-mismatch":
+            receipt.write_bytes(receipt.read_bytes() + b" ")
+        else:
+            frames = receipt.read_bytes().splitlines(keepends=True)
+            source_record = json.loads(frames[1])
+            if mutation == "receipt-token-missing":
+                source_record.pop("src_token")
+            else:
+                source_record["src_token"] = "not-a-token"
+            frames[1] = A2._canonical_json(source_record)
+            receipt.write_bytes(b"".join(frames))
+            _reseal_manifest_member_and_receipts(root, relative)
+    else:
+        relative = "jobs/rr5/raw/rr5-fixed10.json"
+        raw_path = root / relative
+        raw, _ = A2._read_json(raw_path)
+        if mutation == "raw-token-missing":
+            raw.pop("src_token")
+        else:
+            raw["src_token"] = "not-a-token"
+        raw_path.write_bytes(A2._canonical_json(raw))
+        _reseal_manifest_member_and_receipts(root, relative)
+
+    evidence = A2.validate_acquisition_bundle(
+        policy, acquisition, current_pin=CURRENT_PIN)
+    if mutation.startswith("receipt-"):
+        assert evidence["raw_manifest_valid"] is False
+        assert evidence["raw_manifest_invalid_kind"] == "authority"
+    else:
+        with pytest.raises(A2.AuthorityError, match="raw src_token"):
+            A2.collect_results(
+                policy, evidence["raw_results"], attempt_id=root.name,
+                current_pin=CURRENT_PIN, request_ids=evidence["request_ids"],
+                frozen_files=evidence["raw_files"], attempt_root=root)
+
+    monkeypatch.setattr(A2, "load_policy", lambda: policy)
+    repo = tmp_path / "authority-hard-stop-repo"
+    repo.mkdir()
+    assert A2.main([
+        "collect", "--attempt-root", str(root),
+        "--current-pin", CURRENT_PIN,
+        "--acquisition-receipt", str(acquisition),
+        "--repo-root", str(repo),
+    ]) == 2
+    assert not (repo / policy.tracked_destination).exists()
+
+
+def test_full_and_legacy_partial_manifest_identifiers_and_loaders_are_distinct(
+        tmp_path):
+    policy = _policy(tmp_path)
+    assert A2.RAW_MANIFEST_SCHEMA == "paper-story-a2-full-raw-manifest/v4"
+    assert A2.LEGACY_PARTIAL_RAW_MANIFEST_SCHEMA == (
+        "paper-story-a2-raw-manifest/v4")
+    assert A2.RAW_MANIFEST_SCHEMA != A2.LEGACY_PARTIAL_RAW_MANIFEST_SCHEMA
+
+    full_root = A2.preregister_attempt(
+        policy, "schema-distinct-full", CURRENT_PIN)
+    full_acquisition, full_submission = _write_receipt_bundle(
+        policy, full_root)
+    full_evidence = A2.validate_acquisition_bundle(
+        policy, full_acquisition, current_pin=CURRENT_PIN)
+    full_manifest_path = full_root / "raw-manifest.json"
+    full_manifest, _ = A2._read_json(full_manifest_path)
+    assert full_manifest["schema_version"] == A2.RAW_MANIFEST_SCHEMA
+    full_submission_binding = A2._validate_submission_receipt(
+        policy, full_submission, full_root.name, full_root, CURRENT_PIN)
+    full_completion, _ = A2._read_json(
+        full_root / "receipts" / "completion.json")
+    full_completion_binding = A2._validate_completion_receipt(
+        policy, full_completion, full_root.name, full_root, CURRENT_PIN,
+        full_submission_binding)
+    assert full_evidence["raw_manifest_valid"] is True
+
+    partial_root = A2.preregister_attempt(
+        policy, "schema-distinct-legacy-partial", CURRENT_PIN)
+    _, partial_submission = _write_receipt_bundle(
+        policy, partial_root, driver_rc=7, record_completion=False)
+    _, partial_acquisition = A2.finish_group(
+        policy, partial_root, CURRENT_PIN, qstat_runner=_terminal_qstat)
+    partial_submission_binding = A2._validate_submission_receipt(
+        policy, partial_submission, partial_root.name, partial_root,
+        CURRENT_PIN)
+    partial_completion, _ = A2._read_json(
+        partial_root / "receipts" / "completion.json")
+    partial_completion_binding = A2._validate_completion_receipt(
+        policy, partial_completion, partial_root.name, partial_root,
+        CURRENT_PIN, partial_submission_binding)
+    partial_manifest, _ = A2._read_json(
+        partial_root / "raw-manifest.json")
+    successful_workload = partial_completion["successful_workload"]
+    receipt_relative = A2._condition_gate_receipt_relative(
+        successful_workload)
+    legacy_partial_manifest = copy.deepcopy(partial_manifest)
+    legacy_partial_manifest["schema_version"] = (
+        A2.LEGACY_PARTIAL_RAW_MANIFEST_SCHEMA)
+    legacy_partial_manifest["files"].pop(receipt_relative)
+    legacy_partial_path = partial_root / "legacy-partial-raw-manifest.json"
+    A2.write_json_x(legacy_partial_path, legacy_partial_manifest)
+    legacy_partial_bundle = A2._load_partial_raw_manifest_bundle(
+        policy, legacy_partial_path,
+        hashlib.sha256(legacy_partial_path.read_bytes()).hexdigest(),
+        attempt_id=partial_root.name, attempt_root=partial_root,
+        current_pin=CURRENT_PIN, successful_workload=successful_workload,
+        job_bindings=partial_completion_binding["jobs"],
+    )
+    assert legacy_partial_bundle["manifest"]["schema_version"] == (
+        A2.LEGACY_PARTIAL_RAW_MANIFEST_SCHEMA)
+
+    with pytest.raises(A2.SchemaChainError, match="shape crosses"):
+        A2._load_partial_raw_manifest_bundle(
+            policy, full_manifest_path,
+            hashlib.sha256(full_manifest_path.read_bytes()).hexdigest(),
+            attempt_id=full_root.name, attempt_root=full_root,
+            current_pin=CURRENT_PIN, successful_workload="rr5",
+            job_bindings=full_completion_binding["jobs"],
+        )
+    with pytest.raises(A2.CertificationError, match="identity mismatch"):
+        A2._load_raw_manifest_bundle(
+            policy, legacy_partial_path,
+            hashlib.sha256(legacy_partial_path.read_bytes()).hexdigest(),
+            attempt_id=partial_root.name, attempt_root=partial_root,
+            current_pin=CURRENT_PIN,
+            job_bindings=partial_completion_binding["jobs"],
+        )
+
+
+def test_frozen_v3_certification_bytes_and_legacy_cell_shape_remain_accepted():
+    path = (
+        A2.POLICY_PATH.parents[2] / "output/insights"
+        / "2026-08-24_paper-story-a2-certification/certification.json")
+    frozen = path.read_bytes()
+    report = json.loads(frozen)
+
+    assert hashlib.sha256(frozen).hexdigest() == (
+        "f685b40d194c9e4b40eed6337b294f38a7ff4aef731829317fd2e83940fbda40")
+    assert report["schema_version"] == A2.LEGACY_CERTIFICATION_SCHEMA
+    A2._validate_certification_cells(report, legacy=True)
+
+
 def test_p3_cli_selects_default_a2_and_explicit_a6_policy():
     common = ["preregister", "--attempt-id", "cli-policy", "--current-pin", CURRENT_PIN]
     default_args = A2._parser().parse_args(common)
@@ -3619,6 +4109,8 @@ def test_run_workload_requires_exact_repository_canonical_short_pin(
 
 def test_official_run_observes_and_passes_current_toolchain_manifest(
         tmp_path, monkeypatch):
+    from orchestrator.campaign import layout as campaign_layout
+
     source = inspect.getsource(A2.run_workload)
     observed = "buildcache.observed_toolchain_manifest("
     passed = "expected_toolchain_manifest=expected_toolchain_manifest"
@@ -3626,7 +4118,7 @@ def test_official_run_observes_and_passes_current_toolchain_manifest(
     assert source.count(passed) == 2
     condition_gate_call = source.index("with _condition_gate_family_context(")
     condition_gate_call_end = source.index(
-        ") as (variant_root, condition_gate_receipts):", condition_gate_call)
+        ") as (variant_root, condition_gate_receipts,", condition_gate_call)
     condition_gate_manifest = source.index(
         passed, condition_gate_call, condition_gate_call_end)
     assert condition_gate_call < condition_gate_manifest < condition_gate_call_end
@@ -3651,6 +4143,29 @@ def test_official_run_observes_and_passes_current_toolchain_manifest(
     ccbench = tmp_path / "ccbench"
     ccbench.mkdir()
     calls = {}
+
+    def driver_resolve_evidence(genome, commit, *, ccbench_dir, cxx):
+        index = len(calls.setdefault("driver_evidences", []))
+        assert index < 2
+        assert commit == REPO_CURRENT_PIN
+        assert Path(ccbench_dir) == ccbench
+        assert cxx == "g++"
+        token = source_digest.STOCK if index == 0 else "d" * 64
+        evidence = source_digest.SourceEvidence(
+            source_digest.SOURCE_EVIDENCE_SCHEMA,
+            str(ccbench.resolve()), REPO_CURRENT_PIN,
+            hashlib.sha256(genome.canonical().encode("utf-8")).hexdigest(),
+            token, "e" * 64, False, "f" * 64,
+            ("include/backoff.hh",),
+        )
+        calls["driver_evidences"].append(evidence)
+        return evidence
+
+    driver_source_digest = A2.SimpleNamespace(
+        STOCK=source_digest.STOCK,
+        SourceEvidence=source_digest.SourceEvidence,
+        resolve_evidence=driver_resolve_evidence,
+    )
     resolved_repo_pin = subprocess.run(
         ["git", "-C", str(A2.POLICY_PATH.parents[2] / "external/ccbench"),
          "rev-parse", "--verify", f"{REPO_CURRENT_PIN}^{{commit}}"],
@@ -3728,9 +4243,14 @@ def test_official_run_observes_and_passes_current_toolchain_manifest(
 
     def raw_producer(_policy, cell, *, layout_root, **kwargs):
         calls.setdefault("layout_roots", []).append(Path(layout_root))
+        expected = calls["driver_evidences"][
+            len(calls.setdefault("raw_expected_tokens", []))].src_token
+        assert kwargs["expected_src_token"] == expected
+        calls["raw_expected_tokens"].append(expected)
         return {"cell_id": cell.cell_id, "terminal": "commit"}
 
     monkeypatch.setattr(A2.subprocess, "run", git_run)
+    monkeypatch.setattr(A2, "source_digest", driver_source_digest)
     monkeypatch.setattr(A2, "_raw_cell_from_wal", raw_producer)
     monkeypatch.setattr(loop, "_authorize_measurement", authorize)
     monkeypatch.setattr(
@@ -3741,6 +4261,12 @@ def test_official_run_observes_and_passes_current_toolchain_manifest(
     monkeypatch.setattr(loop.wal, "replay", lambda *_args, **_kwargs: {})
     monkeypatch.setattr(loop.source_digest, "resolve_evidence", resolve_evidence)
     monkeypatch.setattr(loop, "evaluate", evaluate)
+    monkeypatch.setattr(
+        campaign_layout, "resolve_campaign_output_root",
+        lambda _use_class, output_root: output_root)
+    monkeypatch.setattr(
+        loop, "resolve_campaign_output_root",
+        lambda _use_class, output_root: output_root)
     monkeypatch.setattr(
         buildcache, "compilers_for_current_site", lambda: ("gcc", "g++"))
     monkeypatch.setattr(
@@ -3756,6 +4282,8 @@ def test_official_run_observes_and_passes_current_toolchain_manifest(
         current_pin=REPO_CURRENT_PIN, dependency_prefix=dependency,
         ccbench_dir=ccbench, log=lambda *_args: None)
     assert calls["authorized"] is True
+    assert len(calls["driver_evidences"]) == 2
+    assert calls["raw_expected_tokens"] == [source_digest.STOCK, "d" * 64]
     assert len(set(calls["layout_roots"])) == 1
     assert calls["layout_roots"][0].parent == job_root / "campaigns"
     assert not (job_root / "campaigns" / "campaigns").exists()
@@ -3778,6 +4306,257 @@ def test_official_run_observes_and_passes_current_toolchain_manifest(
     assert calls["adopted_receipt"]["generator_input_sha256"] \
         == expected_generator_input
     assert calls["adopted_receipt_repeat"] == calls["adopted_receipt"]
+
+
+def test_driver_resolves_exact_source_tokens_before_campaign_and_forwards_them(
+        tmp_path, monkeypatch):
+    from orchestrator.campaign import layout as campaign_layout
+
+    policy = _policy(tmp_path)
+    attempt = A2.preregister_attempt(
+        policy, "driver-source-token-binding", REPO_CURRENT_PIN)
+    job_root = A2.workload_job_root(policy, attempt, "rr5")
+    raw_root = job_root / "raw"
+    raw_root.mkdir()
+    dependency = tmp_path / "dependency"
+    dependency.mkdir()
+    source_root = tmp_path / "ccbench"
+    source_root.mkdir()
+    variant_root = tmp_path / "patched-variant"
+    variant_root.mkdir()
+    full_pin = REPO_CURRENT_PIN + "1" * (40 - len(REPO_CURRENT_PIN))
+    events = []
+    tokens = (source_digest.STOCK, "9" * 64)
+    role_predicate_calls = []
+    real_role_predicate = A2._require_cell_src_token_role
+
+    def git_run(command, **_kwargs):
+        if command in (
+                ["git", "rev-parse", "--verify", "HEAD^{commit}"],
+                ["git", "rev-parse", "--verify",
+                 f"{REPO_CURRENT_PIN}^{{commit}}"]):
+            return subprocess.CompletedProcess(command, 0, full_pin + "\n", "")
+        if command == ["git", "status", "--porcelain", "--untracked-files=no"]:
+            return subprocess.CompletedProcess(command, 0, "", "")
+        raise AssertionError(command)
+
+    @contextlib.contextmanager
+    def condition_context(*_args, **_kwargs):
+        admissions = tuple(json.dumps({
+            "admission_id": f"condition-gate/admission/{index}",
+            "admission_digest": hashlib.sha256(
+                f"driver-admission-{index}".encode("ascii")).hexdigest(),
+            "use_class": "paper", "admitted": True,
+            "record_ids": [f"driver-record-{index}"],
+            "unestablished_meaning_macros": [],
+        }, sort_keys=True, separators=(",", ":")) for index in range(2))
+        yield variant_root, [{"cell": 0}, {"cell": 1}], admissions
+
+    def resolve_evidence(genome, commit, *, ccbench_dir, cxx):
+        index = len([event for event in events if event[0] == "resolve"])
+        assert index < 2
+        assert commit == REPO_CURRENT_PIN
+        assert ccbench_dir == os.fspath(variant_root)
+        assert cxx == "g++"
+        evidence = source_digest.SourceEvidence(
+            source_digest.SOURCE_EVIDENCE_SCHEMA,
+            str(variant_root.resolve()), REPO_CURRENT_PIN,
+            hashlib.sha256(genome.canonical().encode("utf-8")).hexdigest(),
+            tokens[index], hashlib.sha256(
+                f"driver-source-{index}".encode("ascii")).hexdigest(),
+            False, hashlib.sha256(b"driver-patch").hexdigest(),
+            ("include/backoff.hh",),
+        )
+        events.append(("resolve", index, ccbench_dir, evidence.src_token))
+        return evidence
+
+    driver_source_digest = A2.SimpleNamespace(
+        STOCK=source_digest.STOCK,
+        SourceEvidence=source_digest.SourceEvidence,
+        resolve_evidence=resolve_evidence,
+    )
+
+    def observed_role_predicate(cell, token):
+        role_predicate_calls.append((cell.cell_id, token))
+        return real_role_predicate(cell, token)
+
+    def fake_run_campaign(*_args, **kwargs):
+        assert [event[0] for event in events] == ["resolve", "resolve"]
+        assert kwargs["ccbench_dir"] == os.fspath(variant_root)
+        receipt = attempt / A2._condition_gate_receipt_relative("rr5")
+        assert receipt.is_file()
+        events.append(("campaign", receipt.read_bytes()))
+        genomes = _args[1]
+        return A2.SimpleNamespace(
+            results=[
+                A2.SimpleNamespace(variant=variant_id(genome, token))
+                for genome, token in zip(genomes, tokens, strict=True)
+            ],
+            skipped=0,
+            layout_root=str(job_root / "campaigns" / "fake-campaign"),
+            campaign_id="fake-campaign", committed=2, aborted=0,
+        )
+
+    forwarded = []
+
+    def raw_producer(_policy, cell, *, expected_src_token, **_kwargs):
+        forwarded.append((cell.cell_id, expected_src_token))
+        events.append(("raw", cell.cell_id, expected_src_token))
+        return {
+            "cell_id": cell.cell_id,
+            "terminal": "commit",
+        }
+
+    monkeypatch.setattr(A2.subprocess, "run", git_run)
+    monkeypatch.setattr(A2, "_condition_gate_family_context", condition_context)
+    monkeypatch.setattr(A2, "source_digest", driver_source_digest)
+    monkeypatch.setattr(
+        A2, "_require_cell_src_token_role", observed_role_predicate)
+    monkeypatch.setattr(A2, "_raw_cell_from_wal", raw_producer)
+    monkeypatch.setattr(loop, "run_campaign", fake_run_campaign)
+    monkeypatch.setattr(
+        campaign_layout, "resolve_campaign_output_root",
+        lambda _use_class, output_root: output_root)
+    monkeypatch.setattr(
+        buildcache, "compilers_for_current_site", lambda: ("gcc", "g++"))
+    monkeypatch.setattr(
+        buildcache, "observed_toolchain_manifest",
+        lambda *_args: {"fixture": "toolchain"})
+    monkeypatch.setattr(env_contract, "authorize", lambda _tag: object())
+
+    A2.run_workload(
+        policy, workload_id="rr5", attempt_root=attempt, raw_root=raw_root,
+        current_pin=REPO_CURRENT_PIN, dependency_prefix=dependency,
+        ccbench_dir=source_root, log=lambda *_args: None)
+
+    assert [event[0] for event in events] == [
+        "resolve", "resolve", "campaign", "raw", "raw"]
+    assert forwarded == [
+        ("rr5-stock", source_digest.STOCK),
+        ("rr5-fixed10", "9" * 64),
+    ]
+    assert role_predicate_calls == forwarded
+    parsed = A2._parse_condition_gate_admissions(
+        policy, "rr5", events[2][1], current_pin=REPO_CURRENT_PIN)
+    assert [parsed[cell.cell_id].src_token for cell in policy.cells[:2]] \
+        == list(tokens)
+
+
+@pytest.mark.parametrize(
+    ("mutation", "tokens", "expected_calls", "signature"),
+    (
+        (
+            "adopted-stock",
+            (source_digest.STOCK, source_digest.STOCK),
+            (
+                ("rr5-stock", source_digest.STOCK),
+                ("rr5-fixed10", source_digest.STOCK),
+            ),
+            "source token role rejected rr5-fixed10: patch-unapplied",
+        ),
+        (
+            "stock-non-stock",
+            (
+                "955b452a332d3b33cab33ea19d784da79f29b0913de179e494f62fdffeb093c9",
+                "955b452a332d3b33cab33ea19d784da79f29b0913de179e494f62fdffeb093c9",
+            ),
+            ((
+                "rr5-stock",
+                "955b452a332d3b33cab33ea19d784da79f29b0913de179e494f62fdffeb093c9",
+            ),),
+            "source token role rejected rr5-stock: role-mismatch",
+        ),
+    ),
+    ids=("adopted-stock", "stock-non-stock"),
+)
+def test_live_precampaign_source_role_predicate_rejects_before_campaign(
+        tmp_path, monkeypatch, mutation, tokens, expected_calls, signature):
+    """Name and execute the production role predicate on rejecting inputs."""
+    from orchestrator.campaign import layout as campaign_layout
+
+    policy = _policy(tmp_path)
+    attempt = A2.preregister_attempt(
+        policy, "live-role-reject-" + mutation, REPO_CURRENT_PIN)
+    job_root = A2.workload_job_root(policy, attempt, "rr5")
+    raw_root = job_root / "raw"
+    raw_root.mkdir()
+    dependency = tmp_path / "dependency"
+    dependency.mkdir()
+    source_root = tmp_path / "ccbench"
+    source_root.mkdir()
+    full_pin = REPO_CURRENT_PIN + "1" * (40 - len(REPO_CURRENT_PIN))
+    predicate_calls = []
+    campaign_calls = []
+    real_role_predicate = A2._require_cell_src_token_role
+
+    def git_run(command, **_kwargs):
+        if command in (
+                ["git", "rev-parse", "--verify", "HEAD^{commit}"],
+                ["git", "rev-parse", "--verify",
+                 f"{REPO_CURRENT_PIN}^{{commit}}"]):
+            return subprocess.CompletedProcess(command, 0, full_pin + "\n", "")
+        if command == ["git", "status", "--porcelain", "--untracked-files=no"]:
+            return subprocess.CompletedProcess(command, 0, "", "")
+        raise AssertionError(command)
+
+    def resolve_evidence(genome, commit, *, ccbench_dir, cxx):
+        index = len(predicate_calls)
+        assert index < 2
+        assert commit == REPO_CURRENT_PIN
+        assert ccbench_dir == os.fspath(source_root)
+        assert cxx == "g++"
+        return source_digest.SourceEvidence(
+            source_digest.SOURCE_EVIDENCE_SCHEMA,
+            str(source_root.resolve()), REPO_CURRENT_PIN,
+            hashlib.sha256(genome.canonical().encode("utf-8")).hexdigest(),
+            tokens[index], hashlib.sha256(
+                f"live-role-source-{index}".encode("ascii")).hexdigest(),
+            False, hashlib.sha256(b"live-role-patch").hexdigest(),
+            ("include/backoff.hh",),
+        )
+
+    driver_source_digest = A2.SimpleNamespace(
+        STOCK=source_digest.STOCK,
+        SourceEvidence=source_digest.SourceEvidence,
+        resolve_evidence=resolve_evidence,
+    )
+
+    def observed_role_predicate(cell, token):
+        predicate_calls.append((cell.cell_id, token))
+        return real_role_predicate(cell, token)
+
+    def forbidden_campaign(*args, **kwargs):
+        campaign_calls.append((args, kwargs))
+        raise AssertionError("campaign started after source role mismatch")
+
+    monkeypatch.setattr(A2.subprocess, "run", git_run)
+    monkeypatch.setattr(A2, "source_digest", driver_source_digest)
+    monkeypatch.setattr(
+        A2, "_require_cell_src_token_role", observed_role_predicate)
+    monkeypatch.setattr(loop, "run_campaign", forbidden_campaign)
+    monkeypatch.setattr(
+        campaign_layout, "resolve_campaign_output_root",
+        lambda _use_class, output_root: output_root)
+    monkeypatch.setattr(
+        buildcache, "compilers_for_current_site", lambda: ("gcc", "g++"))
+    monkeypatch.setattr(
+        buildcache, "observed_toolchain_manifest",
+        lambda *_args: {"fixture": "toolchain"})
+    monkeypatch.setattr(env_contract, "authorize", lambda _tag: object())
+
+    with pytest.raises(A2.CertificationError, match=signature):
+        A2.run_workload(
+            policy, workload_id="rr5", attempt_root=attempt,
+            raw_root=raw_root, current_pin=REPO_CURRENT_PIN,
+            dependency_prefix=dependency, ccbench_dir=source_root,
+            log=lambda *_args: None)
+
+    assert predicate_calls == list(expected_calls)
+    assert campaign_calls == []
+    assert not (
+        attempt / A2._condition_gate_receipt_relative("rr5")
+    ).exists()
+    assert list(raw_root.iterdir()) == []
 
 
 def test_pipeline_runs_correctness_workload_repetitions_without_new_wal_fields():
@@ -3901,10 +4680,11 @@ def test_volatile_diagnostics_are_not_fixture_authority(tmp_path):
     report_a = A2.collect_results(
         policy, first, attempt_id=root.name, current_pin=CURRENT_PIN,
         request_ids={"rr5": "125.nqsv", "rr50": "126.nqsv"})
-    report_b = A2.collect_results(
-        policy, second, attempt_id=root.name, current_pin=CURRENT_PIN,
-        request_ids={"rr5": "125.nqsv", "rr50": "126.nqsv"})
-    assert report_a == report_b
+    assert report_a["status"] == "observed-positive"
+    with pytest.raises(A2.CertificationError, match="raw cell result schema"):
+        A2.collect_results(
+            policy, second, attempt_id=root.name, current_pin=CURRENT_PIN,
+            request_ids={"rr5": "125.nqsv", "rr50": "126.nqsv"})
 
 
 def _run() -> int:

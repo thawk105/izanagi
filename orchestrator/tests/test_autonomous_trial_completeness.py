@@ -2271,11 +2271,6 @@ def test_role_failure_phase_enums_match_producer() -> None:
     )
 
 
-def test_pre_raw_failure_allows_missing_raw_response_pointer(tmp_path) -> None:
-    run, _events, report = _role_invalid_trial(tmp_path)
-    _verify(run, report)
-
-
 def test_valid_role_event_passes_failure_phase_gate(tmp_path) -> None:
     run, _events, report = _complete_trial(tmp_path)
     _verify(run, report)

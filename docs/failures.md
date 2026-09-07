@@ -10693,6 +10693,18 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   撤去し、D612 の上書き (queue-wait 3600 / grace 600) を付けて attempt 2 を投入した。
   **本件が足す事実: 前景 timeout ではなく、shard 間の queue 待ちのばらつきだけで同じ孤児が生まれる。**
   gen_S が混む時間帯の受入全走は、最初から D612 の上書きを付けて投入する方が 1 走分安い。
+
+- **再発: 2026-09-07** — [T-2347] の焦点走で `tools/run_tests.py` が
+  `rc=16` / `IZANAGI_DISPATCH_OUTCOME_V1 {"child_rc":null,"child_started":false,"kind":"infra","reason":"orphan-hold"}`
+  を返し、log の実体は `Pegasus orphan hold があるため scheduler command を起動しません` だった。
+  **この再発が足す事実: 親を打ち切っていなくても同型になる。** 本件では `timeout` も手動の中断も
+  無く、detached の 1 invocation が自分の qsub 窓で立った hold を見て戻っている
+  (hold は `phase: "pending-qsub"` / `request_id: null`、job 名は `izdw-8101e58f94`)。
+  既載の (i)〜(iii) はそのまま成立した — `qstat` には `980096.nqsv izdw-810 ... PRR` が生きており、
+  job 終端とともに `orphan-hold.json` は機構自身が消え、提出 dir に `child_rc=0` の `result.json` と
+  `311 passed, 1 skipped in 15.82s` の `<job>.o<id>` が残ったので再走は不要だった。
+  親は手動 qdel をしていない。**`rc=16` を見た時点で走行を失敗と決めず、request ID を `qstat` で
+  引き、終端後に提出 dir の成果物を読む。** 既存恒久対応に修正すべき新事実はない。
 ### F334. 正本 runbook が「無い」と実測記録した kernel field を、後発の gate が必須条件にした — 機構全体が一度も動かないまま land した [恒真ゲート] [テスト代表性]
 
 - 事象: `tools/mutation_fanout.py` の admission は、measurement log の
@@ -21276,6 +21288,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   ユーザー裁定へ返した。規律 2 により gate を緩めて通すことはしない。
 - 再発検知: A-6 attempt `a6-20260902a` の `certification.json` が `indeterminate` として保存され、
   reason に driver rc が残っている。
+- **supersede: 2026-09-07** — 恒久対応の「共有 measurement pipeline への横断的な引数追加になる」という見立ては必要条件でしかない。引数を通しても下流の閉じた trace0 argv 文法が全 cell を拒否し `indeterminate` が続く。詳細と解消案は D1688。
 
 ### F809. 投入の保留ファイルは 2 種類あり、片方だけ片付けると同じ理由で無限に弾かれる [手順漏れ]
 
@@ -22153,6 +22166,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `git worktree list --porcelain` の prunable 行が `/scr/` だけであることを確かめて prune し、受入を取り直す。
 - 再発検知: land の `status=fold-gate-failed` の本文が `[Errno 2]` かつ path が `/scr/` で始まる。
   land 直前の `git worktree list` に `/scr/` 登録があれば本型の予兆。
+- **supersede: 2026-09-07** — 恒久対応の「未実施」は解消した。案 (a) を D1691 の形で実装済みで、`_registered_worktree_paths` は `FileNotFoundError` の登録を捨てずに未解決の絶対 path として残し、それ以外の解決失敗は従来どおり fail-closed とする。案として挙がっていた `prunable` marker での除外は実測 3 点により却下した。運用回避 (job が RUN の間は land を投げない) はもう要らない。
 
 ### F852. A-1 driver の scheduler 可視性判定を実機の `qstat -f` 書式で一度も通さないまま投入 gate に置き、v3 pilot の初回投入が bench 前に失敗した [テスト代表性] [手順漏れ]
 
@@ -22175,6 +22189,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 投入 gate に scheduler 出力の parser を足す wave は、段 1 で `qstat -f` の実出力を
   login node で 1 回取り、fixture の書式と突き合わせる (DW-S01 の「別 program 起動物の実在棚卸し」の
   対象に scheduler 出力の書式を含める)。
+- **supersede: 2026-09-07** — 恒久対応が指していた [T-2349] を実施した。`_observe_qstat_visibility` は共有 leaf `orchestrator/scheduler_nqsv.py` の `target_bound_qstat_state_result` で state を正規化し、canonical が `QUE` / `RUN` のときだけ受理する。execution queue 行は広い候補 regex で stdout 全体から数え、ちょうど 1 本かつ唯一の `Request ID:` 行より後方であることを確かめてから厳格書式 (`@nqsv`、`(Execution Queue)`、`gen_S`) で検証する。終端側は受理を広げず、実機の可視出力が終端と判定されないことを試験で固定し、消失枝は A-2 と同じ 1 行 fullmatch と対象 ID 束縛で締めた。実機 `qstat -f` の逐語 4 種 (Running / Pre-running / Queued / 不存在) を `orchestrator/tests/fixtures/paper_story_a1/` に fixture 化し、正例・負例は production 関数を通す。変異 11/11 KILLED (SURVIVED 0)。記録は `output/insights/2026-09-07_t2349-a1-qstat-format/`。
 
 ### F853. 書き手なし FIFO の負例が block した孫 process を残し、計算ノードの job が walltime まで終われなかった [観測の穴] [後始末漏れ]
 
@@ -22191,3 +22206,85 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 同じ変異 (gate policy open の `O_NONBLOCK` 削除) を変異 spec へ登録済み。回収経路が壊れれば
   この変異が再び walltime まで走り、期待 node と一致しない形で露見する。台帳は
   `output/insights/2026-09-07_t2195-policy-binding/mutation-ledger-final.json`。
+
+### F854. 負例 patch の裸 directive が 2 site に重複し、実 patch 束縛 test が set() で重複を許していた [恒真ゲート] [テスト代表性]
+
+- 事象: `broken-mocc-early-unlock.patch` が同じ `#if IZANAGI_BREAK_MOCC_EARLY_UNLOCK` を unlock site と relock site の 2 箇所に置いた。
+  production の condition gate (`_instrument_declared_owner_source`) は owner file 内で directive がちょうど 1 回であることを要求し、
+  driver は early 変異の build 前にそこで停止する。段 5 の test `_patch_added_branch_declaration` は `len(set(matches)) == 1` で
+  重複を畳んでいたため緑のまま、その後は directive 1 個の合成 source を検査していた。段 6 敵対レビュー B が静的に発見。
+- 根本原因: test が「実 patch の directive 集合」と「production gate が要求する一意性」を別々に見て、実 patch を production の
+  関数へ通していなかった。
+- 恒久対応: `len(matches) == 1` へ戻し、実 patch を materialize して production の uniqueness 関数へ通す node
+  `test_broken_mocc_patches_have_unique_production_condition_witnesses` を追加 (合成重複 source で `compile-time-branch-start-not-unique`
+  になる負例と対)。early-unlock は file scope の constexpr 1 箇所 + `if constexpr` 2 site へ書き換え (D1686)。
+- 再発検知: 同 node と変異 M15 (directive 重複) の KILLED。
+
+### F855. condition gate は configure 成功でも stderr 非空を red にし、driver が渡した未使用 CMake 変数の警告で compute 走が停止した [手順漏れ]
+
+- 事象: compute 1 回目 (job 979769) が `condition gate rejected IZANAGI_BREAK_MOCC_LOCK_COVERAGE: red/red` で 52 秒後に停止。
+  login で同じ引数で gate を呼ぶと supply / meaning とも `configure-failed`、detail は CMake の「Manually-specified variables were
+  not used by the project: RULE_LAUNCH_COMPILE」警告。driver の `_common_configure_args` が silo driver に無い `-DRULE_LAUNCH_COMPILE=`
+  を渡していた (gflags / glog の install build から流用)。
+- 根本原因: gate は fail-closed で正しい。driver 側が「CCBench の project が使う変数だけを渡す」という gate の暗黙契約を知らず、
+  driver は gate の status しか出力しないため理由が見えなかった。login の生死確認は CMake の警告を無視して build を通していた。
+- 恒久対応: driver から未使用変数を除去 (fix-2)。`patches/README.md` の driver 節に「CCBench が使わない CMake 変数を configure に渡さない、
+  gate は configure の stderr 警告を fail-closed で red にする」と明記。gate の red は driver で再現せず、
+  `_require_condition_gate` と同じ関数列を login で呼んで supply / meaning の全記録を出す probe (job dir の `gate-probe.py`) で読む。
+- 再発検知: compute JSON の `condition_gates` に 3 macro の green record が残ること (consumer test は all_pass を要求)。
+
+### F856. 上流への argv 追加が、下流の閉じた argv 文法に無効化される [手順漏れ] [恒真ゲート]
+
+- 事象: 認証経路をオフライン依存へ配線する wave で、段 3 の敵対レンズが「配線しても A-6 は
+  `indeterminate` のままである」ことを指摘した。親が実コードで裏を取り、段 4 で実装せずに
+  ユーザー再裁定へ返した。段 1 の brief も段 2 のプランも、この阻害要因を見落としていた。
+- 根本原因: 変更は共有 build 経路の configure argv を広げるものだった。この argv は WAL の
+  `build_done.perf_configure_cmd` へ記録され、下流の認証 collector が
+  `_exact_trace0_configure_argv` で**閉じた文法との完全一致**を検査する。文法は
+  `expected = fixed + prefix + ordered_define_tokens` を完全に determine しており、
+  token が 1 本増えるだけで不一致になる。**argv を作る側だけを見て、argv を検査する側を
+  見なかった**ことが見落としの原因である。
+- 波及: 文法は policy JSON の `trace0_cmake_argv` にあり `_protocol_preimage` に含まれるため、
+  広げると A-2 / A-6 の `protocol_sha256` が動く。凍結された認証プロトコルの同一性であり、
+  親の一存では変えられない。段 1 の pin 閉包は編集対象 4 file の内容 hash を値で走査して
+  「literal pin 0 件」と結論したが、**policy JSON の golden 4 値を閉包に入れていなかった。**
+  走査の射程が「編集すると決めた file」に限られており、「編集の結果 bytes が動く file」へ
+  広がっていなかった。
+- 恒久対応: D1688 でユーザー再裁定へ返した。
+  再発防止は memory `closure-and-search-discipline` の pin 閉包規律へ次を加える —
+  **producer の出力 (argv・payload・record) を広げる変更では、その出力を読む consumer を
+  1 つ残らず辿り、閉じた集合・完全一致・exact key 検査を持つものを列挙してから scope を決める。**
+  path と内容 hash の走査は「編集する file」しか見つけないので、これを代替にしない。
+- 再発検知: 段 3 の敵対レンズが独立に検出した (レンズ B 所見 1)。レンズに
+  「成果物が実際に効く全層が scope に入るか」を必ず入れる `DW-S03` の規定がそのまま機能した。
+
+### F857. 裁定パッケージを返した wave が「次の一手」に項を作らず、carry 鎖を辿るだけの収集では 1 件も拾えなかった [手順漏れ]
+
+- 事象: 2026-09-07 の /rulings 全件 第 12 回で、B-4 対照対 driver の wave が
+  「**ユーザー裁定へ 6 件返す**」と worklog エントリ本文に明記していたのに、同エントリの
+  「次の一手」には 1 件も項が立っていなかった。同エントリが新設した項は無関係な 1 件だけだった。
+  末尾エントリの carry 鎖 476 項を実体まで解決する既定の収集経路では、6 件すべてが落ちた。
+  索引の 13 件中 6 件がこの 1 wave 由来なので、**索引の半分近くが消えていた**。
+- 根本原因: 収集手順の第 1 項は「末尾エントリの次の一手」を正本と定め、第 2 項が
+  「insights の裁定パッケージ節」を並べている。しかし手順は**エントリ本文そのもの**を
+  見る指示を持たない。wave が裁定パッケージを insight と worklog 本文にだけ書き、
+  次の一手へ項を立てなかった場合、第 1 項でも第 2 項でも当たらない
+  (insight 側は直近数件しか開かないため、数日前の wave は視野の外に落ちる)。
+- 恒久対応: `.claude/commands/rulings.md` の収集 1 に、末尾エントリだけでなく
+  **前回 /rulings 以降の全エントリ本文を「裁定へ返す」「裁定パッケージ」で走査する**手順を足した
+  (同 command の収集節が正本)。次の一手に項が無くても本文から拾える。
+- 再発検知: /rulings の収集時に、前回 /rulings 以降の各 worklog エントリ本文で当該語が当たった件数と、
+  索引へ載せた件数を突き合わせる。差があれば落としている。
+
+### F858. /rulings の出力規則が `all` の扱いを 2 通りに書いており、詳説の要否を実行時に決められなかった [手順漏れ]
+
+- 事象: 2026-09-07 の /rulings 全件 第 12 回で、出力節の
+  「先頭 N 件を詳説 (N = $ARGUMENTS、未指定 5、`all` は索引のみ、ID はその件のみ)」が、
+  引数 `all` の展開後に「N = all、…、`all` は索引のみ」となり、同じ括弧の中で `all` を
+  「全件詳説」とも「索引のみ」とも読める形になった。実行側は後者を採ったが、
+  どちらが意図かを手順からは決められなかった。
+- 根本原因: 引数から N を決める規則 (`N = $ARGUMENTS`) と、引数ごとの出力形態を決める規則
+  (`all` は索引のみ) を 1 つの括弧へ畳んだため、展開後に 2 つの異なる軸が同じ語で衝突した。
+- 恒久対応: `.claude/commands/rulings.md` の出力節を、引数ごとに 1 行 1 値へ分解した
+  (同 command の出力節が正本)。`all` は索引のみ、と単独で読める形にした。
+- 再発検知: /rulings の出力節に、同じ語が 2 つの軸で現れていないかを改訂時に読み合わせる。

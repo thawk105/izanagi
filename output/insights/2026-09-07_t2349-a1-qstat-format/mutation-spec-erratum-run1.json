@@ -1,0 +1,193 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "MUT-T2349-M1-CANONICAL-STATE",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_visibility_rejects_each_noncanonical_observation[M1-held]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "        and state in _NQSV_SUBMISSION_VISIBLE_STATES\n        and len(request_matches) == 1\n",
+          "new": "        and state is not None\n        and len(request_matches) == 1\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2349-M2-QUEUE-POSITION",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_visibility_rejects_each_noncanonical_observation[M2-queue-before-id]",
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_visibility_rejects_each_noncanonical_observation[queue-position-before-id]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "        and queue_candidates[0].start() > request_matches[0].end()\n",
+          "new": "        and queue_candidates[0].start() >= 0\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2349-M3-QUEUE-NAME",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_visibility_rejects_each_noncanonical_observation[M3-wrong-queue]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "        and queue == _PBS_QUEUE\n",
+          "new": "        and queue is not None\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2349-M4-EXECUTION-QUEUE-MARKER",
+      "category": "both-layers",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_visibility_rejects_each_noncanonical_observation[M4-missing-marker]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "    r\"(?m)^[ \\t]*Queue[ \\t]*=[ \\t]*\\S(?:[^\\r\\n]*\\S)?[ \\t]+\"\n    r\"\\(Execution[ \\t]+Queue\\)[ \\t]*$\"",
+          "new": "    r\"(?m)^[ \\t]*Queue[ \\t]*=[ \\t]*\\S(?:[^\\r\\n]*\\S)?[ \\t]*\"\n    r\"(?:\\(Execution[ \\t]+Queue\\))?[ \\t]*$\""
+        },
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "    r\"(?m)^[ \\t]*Queue[ \\t]*=[ \\t]*([A-Za-z0-9._-]+)@nqsv[ \\t]+\"\n    r\"\\(Execution[ \\t]+Queue\\)[ \\t]*$\"",
+          "new": "    r\"(?m)^[ \\t]*Queue[ \\t]*=[ \\t]*([A-Za-z0-9._-]+)@nqsv[ \\t]*\"\n    r\"(?:\\(Execution[ \\t]+Queue\\))?[ \\t]*$\""
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2349-M5-DISAPPEARANCE-ID-BINDING",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_terminal_observer_rejects_nonterminal_nqsv_observations[M5-other-request]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "    try:\n        return _validated_request_id(\n            disappeared.group(1), \"disappeared qstat request ID\",\n        ) == _validated_request_id(request_id, \"completion request ID\")\n    except PaperStoryError:\n        return False",
+          "new": "    return True"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2349-M6-TERMINAL-SIGNATURE",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_terminal_observer_rejects_nonterminal_nqsv_observations[M6-nonsignature]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "        if not _is_target_nqsv_disappearance(stdout, request_id):\n            raise PaperStoryError(\"scheduler terminal qstat observation failed\")\n",
+          "new": "        if False:\n            raise PaperStoryError(\"scheduler terminal qstat observation failed\")\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2349-M7-VISIBILITY-STDERR",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_visibility_rejects_each_noncanonical_observation[M7-nonempty-stderr]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "        completed.returncode == 0\n        and completed.stderr == \"\"\n        and state in _NQSV_SUBMISSION_VISIBLE_STATES\n",
+          "new": "        completed.returncode == 0\n        and True\n        and state in _NQSV_SUBMISSION_VISIBLE_STATES\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2349-M8-SHARED-STATE-PARSER",
+      "category": "positive",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_real_nqsv_visibility_flows_through_acquisition_validator[M8-running]",
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_real_nqsv_visibility_flows_through_acquisition_validator[M8-pre-running]",
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_real_nqsv_visibility_flows_through_acquisition_validator[M8-queued]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "    state = target_bound_qstat_state_result(stdout, request_id).state\n",
+          "new": "    _legacy_state = _QSTAT_STATE_RE.search(stdout)\n    state = _legacy_state.group(1) if _legacy_state is not None else None\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2349-M9-UNKNOWN-STATE",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_visibility_rejects_each_noncanonical_observation[M9-unknown-state]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "        and state in _NQSV_SUBMISSION_VISIBLE_STATES\n        and len(request_matches) == 1\n        and len(queue_candidates) == 1\n",
+          "new": "        and (state in _NQSV_SUBMISSION_VISIBLE_STATES or state is None)\n        and len(request_matches) == 1\n        and len(queue_candidates) == 1\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2349-M10-COMPLETION-VALIDATOR",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_completion_validator_reparses_disappearance_stdout[M10-other-request]",
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_completion_validator_reparses_disappearance_stdout[M10-nonsignature]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "            or not _is_target_nqsv_disappearance(qstat_stdout, request_id)\n",
+          "new": "            or _qstat_mentions_request(qstat_stdout, request_id)\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2349-M11-QUEUE-CANDIDATE-RECOUPLING",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_visibility_rejects_each_noncanonical_observation[M11-second-queue-other-server]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "    queue_candidates = list(_NQSV_EXECUTION_QUEUE_CANDIDATE_RE.finditer(stdout))\n",
+          "new": "    queue_candidates = list(_NQSV_EXECUTION_QUEUE_RE.finditer(stdout))\n"
+        }
+      ]
+    }
+  ]
+}
