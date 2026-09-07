@@ -22189,6 +22189,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 投入 gate に scheduler 出力の parser を足す wave は、段 1 で `qstat -f` の実出力を
   login node で 1 回取り、fixture の書式と突き合わせる (DW-S01 の「別 program 起動物の実在棚卸し」の
   対象に scheduler 出力の書式を含める)。
+- **supersede: 2026-09-07** — 恒久対応が指していた [T-2349] を実施した。`_observe_qstat_visibility` は共有 leaf `orchestrator/scheduler_nqsv.py` の `target_bound_qstat_state_result` で state を正規化し、canonical が `QUE` / `RUN` のときだけ受理する。execution queue 行は広い候補 regex で stdout 全体から数え、ちょうど 1 本かつ唯一の `Request ID:` 行より後方であることを確かめてから厳格書式 (`@nqsv`、`(Execution Queue)`、`gen_S`) で検証する。終端側は受理を広げず、実機の可視出力が終端と判定されないことを試験で固定し、消失枝は A-2 と同じ 1 行 fullmatch と対象 ID 束縛で締めた。実機 `qstat -f` の逐語 4 種 (Running / Pre-running / Queued / 不存在) を `orchestrator/tests/fixtures/paper_story_a1/` に fixture 化し、正例・負例は production 関数を通す。変異 11/11 KILLED (SURVIVED 0)。記録は `output/insights/2026-09-07_t2349-a1-qstat-format/`。
 
 ### F853. 書き手なし FIFO の負例が block した孫 process を残し、計算ノードの job が walltime まで終われなかった [観測の穴] [後始末漏れ]
 
@@ -22256,3 +22257,118 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   path と内容 hash の走査は「編集する file」しか見つけないので、これを代替にしない。
 - 再発検知: 段 3 の敵対レンズが独立に検出した (レンズ B 所見 1)。レンズに
   「成果物が実際に効く全層が scope に入るか」を必ず入れる `DW-S03` の規定がそのまま機能した。
+
+### F857. 裁定パッケージを返した wave が「次の一手」に項を作らず、carry 鎖を辿るだけの収集では 1 件も拾えなかった [手順漏れ]
+
+- 事象: 2026-09-07 の /rulings 全件 第 12 回で、B-4 対照対 driver の wave が
+  「**ユーザー裁定へ 6 件返す**」と worklog エントリ本文に明記していたのに、同エントリの
+  「次の一手」には 1 件も項が立っていなかった。同エントリが新設した項は無関係な 1 件だけだった。
+  末尾エントリの carry 鎖 476 項を実体まで解決する既定の収集経路では、6 件すべてが落ちた。
+  索引の 13 件中 6 件がこの 1 wave 由来なので、**索引の半分近くが消えていた**。
+- 根本原因: 収集手順の第 1 項は「末尾エントリの次の一手」を正本と定め、第 2 項が
+  「insights の裁定パッケージ節」を並べている。しかし手順は**エントリ本文そのもの**を
+  見る指示を持たない。wave が裁定パッケージを insight と worklog 本文にだけ書き、
+  次の一手へ項を立てなかった場合、第 1 項でも第 2 項でも当たらない
+  (insight 側は直近数件しか開かないため、数日前の wave は視野の外に落ちる)。
+- 恒久対応: `.claude/commands/rulings.md` の収集 1 に、末尾エントリだけでなく
+  **前回 /rulings 以降の全エントリ本文を「裁定へ返す」「裁定パッケージ」で走査する**手順を足した
+  (同 command の収集節が正本)。次の一手に項が無くても本文から拾える。
+- 再発検知: /rulings の収集時に、前回 /rulings 以降の各 worklog エントリ本文で当該語が当たった件数と、
+  索引へ載せた件数を突き合わせる。差があれば落としている。
+
+### F858. /rulings の出力規則が `all` の扱いを 2 通りに書いており、詳説の要否を実行時に決められなかった [手順漏れ]
+
+- 事象: 2026-09-07 の /rulings 全件 第 12 回で、出力節の
+  「先頭 N 件を詳説 (N = $ARGUMENTS、未指定 5、`all` は索引のみ、ID はその件のみ)」が、
+  引数 `all` の展開後に「N = all、…、`all` は索引のみ」となり、同じ括弧の中で `all` を
+  「全件詳説」とも「索引のみ」とも読める形になった。実行側は後者を採ったが、
+  どちらが意図かを手順からは決められなかった。
+- 根本原因: 引数から N を決める規則 (`N = $ARGUMENTS`) と、引数ごとの出力形態を決める規則
+  (`all` は索引のみ) を 1 つの括弧へ畳んだため、展開後に 2 つの異なる軸が同じ語で衝突した。
+- 恒久対応: `.claude/commands/rulings.md` の出力節を、引数ごとに 1 行 1 値へ分解した
+  (同 command の出力節が正本)。`all` は索引のみ、と単独で読める形にした。
+- 再発検知: /rulings の出力節に、同じ語が 2 つの軸で現れていないかを改訂時に読み合わせる。
+
+### F859. EnterWorktree 直後に永続 shell の cwd が共有 checkout に残り、全 Bash 呼び出しが拒否される [セッション死・救出] [手順漏れ]
+
+- 事象: 背景 job で `EnterWorktree` を呼ぶと session は worktree に入るが、**Bash tool の永続 shell の
+  cwd は共有 checkout のまま残ることがある。** その状態では `pwd` や `mkdir` を含む**あらゆる**
+  Bash 呼び出しが `working directory resolved to the shared checkout` で拒否される。
+  拒否文言は「その worktree から実行し直せ」と言うが、`cd <worktree>` も
+  `cd <worktree>; pwd` も同じ理由で拒否されるため、bash 側に脱出手段が無い。2026-09-07 の本 wave で
+  4 ターン空転した (実害は時間のみ)。
+- 根本原因: guard は**コマンド開始時点の永続 shell の cwd** を見て判定する。`EnterWorktree` は
+  session の作業ディレクトリを移すが、既に起動している永続 shell の cwd は動かさない。
+  `cd` を含む複合コマンドも開始時点の cwd で判定されるので、自力で直せない。
+  同型の危険として、隔離 session で `cd <別 worktree> && <cmd>` を Bash tool へ直接書くと
+  永続 shell がそこへ移り、以後すべて拒否される。
+- 恒久対応: memory `worktree-discipline` の節
+  `enterworktree-leaves-shell-cwd-behind` と `never-cd-persistent-shell-to-another-worktree`
+  (`/home/SFC/tanab/.claude/projects/-work-1-SFC-tanab-izanagi/memory/worktree-discipline.md`)。
+  **復旧は同じ path で `EnterWorktree({path: <いま入っている worktree の絶対 path>})` を呼び直す。**
+  予防は「Bash tool の command 先頭に裸の `cd` を書かない。別 path で走らせるものは
+  `bash -c 'cd <path> && <cmd>'` の部分シェル形か、path を本文に固定した runner script にする」。
+  `docs/dev-wave/operations.md` の `DW-O20` へ復旧経路を足す案は、同 file 群の byte 予算が
+  満杯のため採らない (安全義務を削って捻出しない)。
+- 再発検知: 隔離 session の最初の Bash が上記の拒否文言を返したかどうか。返したら
+  `cd` を試さず即座に `EnterWorktree({path})` を呼ぶ。
+
+### F860. node の所要時間を wall の増減として数えた [計測汚染]
+
+- 事象: 受入高速化 wave で親が同じ取り違えを 2 回した。(1) collection の per-item
+  `Path.resolve()` を削る効果を「1 shard あたり 87.6 秒」と書いたが、48 worker は並列なので
+  **wall の節約は約 1.8 秒**だった。(2) 実 repo 全体の等価性テストを新設しない理由を
+  「246 秒の 4 割を wall へ食い返す」と書いたが、marker 無しの 1 node を 48 worker へ配れば
+  理想的な追加 load は**約 2.3 秒**であり、省略の理由として成立しなかった。
+  いずれも段 6 の敵対レビューが一次資料で反証した。
+- 根本原因: 並列実行される test の「全 node 時間の合計」と「最遅 worker の wall」を
+  同じ単位として扱った。合計は CPU 予算、wall は臨界路であり、48 並列では 48 倍ずれる。
+- 恒久対応: D1714 が、受入の所要を論じるときに
+  (a) 最長 node の分布、(b) 除去の反実仮想での残存最長 node、(c) 3 shard それぞれの wall と
+  最遅 shard の identity、の 3 つの併記を義務づける。node 時間の合計を単独で
+  wall の増減として書かない。
+- 再発検知: 段 6 の有効性レンズの prompt に「node 時間を wall 増分と読み替えていないか」を
+  攻撃面として明記する。本 wave の実例が反例集になる。
+
+### F861. grep の一致件数を test の本数として費用を見積もった [捏造/幻覚]
+
+- 事象: 親が `grep -c "_real_output_snapshot()"` の 20 を「20 test が各 2 回 = 40 回」と読み、
+  費用を 484 秒と見積もった。実際は 20 が call site の数であり、呼ぶ test は 10 本
+  (parametrize 展開後 11〜12 nodeid)、呼び出しは **22 回で約 253 秒**だった。
+  **約 1.8 倍の過大評価**であり、そのまま裁定・報告・brief に載った。
+- 根本原因: 「1 test が 2 回呼ぶ」という構造を確かめずに、一致件数を test 数と同一視した。
+  検算 (呼び出し元 test の列挙) を後から行ったが、そのとき数字を直さなかった。
+- 恒久対応: 費用の見積りに grep の一致件数を使うときは、
+  **呼び出し元の関数名を列挙して本数を数え直す**。本 wave では
+  `output/insights/` の変異台帳に列挙結果を残す。
+- 再発検知: 段 6 の有効性レンズが「見積りの母数がどう数えられたか」を必ず問う。
+
+### F862. 実 repo を読む test は登録簿にあると仮定した [テスト代表性]
+
+- 事象: 親が「実 repo に触る test は `xdist_group("real-repo")` で 1 worker に直列固定される」と
+  裁定に書いたが、`_real_output_snapshot()` を呼ぶ 10 本は **1 本も
+  `REAL_REPO_ACCESS_BY_NODE` に登録されていなかった** (同 file からの登録は ccbench build canary
+  3 本のみ)。よって対象は直列固定されず 48 worker へ散っており、費用モデルの前提が崩れた。
+- 根本原因: 登録簿の存在と marker 付与の条件は読んだが、**対象 node が実際に登録簿にあるかを
+  照合しなかった。** 「実 repo を読む = 登録されている」は成り立たない。
+- 恒久対応: 直列性・排他を前提にした見積りを書く前に、対象 nodeid を登録簿へ
+  **実際に照合する** (`REAL_REPO_ACCESS_BY_NODE` の keys との集合演算)。
+- 再発検知: 本 wave の D1714 が要求する
+  「node → worker 割当」の実測が、この仮定の誤りを毎回顕在化させる。
+
+### F863. 高速化がキャッシュ経由で検出力を静かに下げた [恒真ゲート]
+
+- 事象: 実 repo `output/` snapshot を git 索引経由へ変える実装が、初版で 3 つの経路から
+  検出力を落としていた。(1) `assume-unchanged` / `skip-worktree` が立った tracked file は
+  `git status` が黙るためキャッシュから永久に見えない、(2) キャッシュのキーが blob sha だけで
+  path を含まず、`.gitattributes` の変換で同じ blob が異なる working bytes を持つ場合に衝突する、
+  (3) `git status -z` の末尾 NUL を検査せず、rc=0 のまま切れた出力を正常受理する。
+  **返り値は実 repo で参照オラクルと完全一致していたため、等価性の実測だけでは 3 件とも見えなかった。**
+- 根本原因: 「現に一致する」ことを「常に一致する」ことの証拠として扱った。
+  キャッシュは、キーが同一性を保存する場合にだけ健全であり、その前提を検査していなかった。
+- 恒久対応: D1713 が、索引と設定だけで判定する
+  5 つのフォールバック条件を fail-closed で義務づける。加えて repo の大きさに依存しない
+  性能モデルのテストを常設し、初回 digest 回数・2 回目 0 回・別プロセスでの再 miss・
+  git 起動回数・5 種のフォールバック条件での挙動 (変更が検出されること) を固定する。
+- 再発検知: 上記の性能モデルテストは、静かなフォールバック (速くなったつもり) と
+  検出力の低下 (速さのための緩め) の両方を赤にする。

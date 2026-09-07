@@ -2576,7 +2576,6 @@
     "orchestrator/tests/test_autonomous_trial_completeness.py::test_payload_validation_receipt_is_independently_rechecked[workload-descriptor-workload descriptor digest differs]": 0.93,
     "orchestrator/tests/test_autonomous_trial_completeness.py::test_perf_config_scale_is_independently_bound_to_the_entry": 8.5,
     "orchestrator/tests/test_autonomous_trial_completeness.py::test_post_raw_failure_requires_raw_response_pointer": 1.0,
-    "orchestrator/tests/test_autonomous_trial_completeness.py::test_pre_raw_failure_allows_missing_raw_response_pointer": 0.99,
     "orchestrator/tests/test_autonomous_trial_completeness.py::test_pre_workload_wall_budget_terminal_projection_passes": 0.96,
     "orchestrator/tests/test_autonomous_trial_completeness.py::test_producer_cell_metadata_and_descriptor_binding_are_required": 1.0,
     "orchestrator/tests/test_autonomous_trial_completeness.py::test_query_ordinals_must_be_contiguous_and_exclude_skips": 1.0,
@@ -5764,7 +5763,6 @@
     "orchestrator/tests/test_codex_reasoning_ab.py::test_f176_accepts_decision_statement_variants[spaced_desu]": 0.003,
     "orchestrator/tests/test_codex_reasoning_ab.py::test_f176_accepts_real_s03_artifact": 0.004,
     "orchestrator/tests/test_codex_reasoning_ab.py::test_f176_preserves_decision_mentions[focused_review_reason]": 0.003,
-    "orchestrator/tests/test_codex_reasoning_ab.py::test_f176_preserves_decision_mentions[go_condition]": 0.001,
     "orchestrator/tests/test_codex_reasoning_ab.py::test_f176_preserves_legitimate_opposite_mentions[go_condition_not_met]": 0.003,
     "orchestrator/tests/test_codex_reasoning_ab.py::test_f176_preserves_legitimate_opposite_mentions[go_possibility]": 0.003,
     "orchestrator/tests/test_codex_reasoning_ab.py::test_f176_preserves_legitimate_opposite_mentions[go_reasons_invalid]": 0.003,
@@ -19520,7 +19518,7 @@
     "orchestrator/tests/test_wave_land_window.py::test_ticket_cleanup_does_not_require_flock_and_returns_success": 0.002,
     "orchestrator/tests/test_wave_land_window.py::test_ticket_cleanup_preserves_same_name_replacement": 0.002
   },
-  "nodeid_count": 19519,
+  "nodeid_count": 19517,
   "schema_version": 1,
   "unit": "seconds"
 }

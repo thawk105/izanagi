@@ -21,6 +21,7 @@ from orchestrator.campaign.build_admission import GeneratorId, build_run_context
 REPO_ROOT = Path(__file__).resolve().parents[2]
 JOB = REPO_ROOT / "tools/pegasus/paper_story_a1_paired.sh"
 REGISTRY = REPO_ROOT / "tools/pegasus/admission_registry.json"
+A1_QSTAT_FIXTURES = REPO_ROOT / "orchestrator/tests/fixtures/paper_story_a1"
 EXPECTED_NQSV_QSTAT_STATES = (
     "ARR",
     "WAI",
@@ -144,6 +145,10 @@ def _policy_for_base(base: Path) -> dict:
     return policy
 
 
+def _qstat_fixture(name: str) -> str:
+    return (A1_QSTAT_FIXTURES / name).read_bytes().decode("utf-8")
+
+
 def _acquisition(
     attempt_root: Path,
     repo_root: Path,
@@ -238,6 +243,165 @@ def test_acquisition_receipt_accepts_exact_nqsv_qstat_state_vocabulary(
 def test_nqsv_qstat_state_allowlist_is_exact() -> None:
     assert paired.NQSV_QSTAT_STATES == frozenset(EXPECTED_NQSV_QSTAT_STATES)
     assert paired.NQSV_QSTAT_TERMINAL_STATES == frozenset({"C", "F", "EXT"})
+
+
+@pytest.mark.parametrize(
+    ("fixture_name", "request_id", "expected_state"),
+    [
+        ("qstat-f-980043.nqsv.txt", "980043.nqsv", "RUN"),
+        ("qstat-f-980062.nqsv.txt", "980062.nqsv", "RUN"),
+        ("qstat-f-queued-978193.excerpt.txt", "978193.nqsv", "QUE"),
+    ],
+    ids=["M8-running", "M8-pre-running", "M8-queued"],
+)
+def test_real_nqsv_visibility_flows_through_acquisition_validator(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fixture_name: str,
+    request_id: str,
+    expected_state: str,
+) -> None:
+    stdout = _qstat_fixture(fixture_name)
+    monkeypatch.setattr(
+        paired.subprocess,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(
+            args[0], 0, stdout, "",
+        ),
+    )
+    monkeypatch.setattr(paired.time, "time", lambda: 2)
+    visibility = paired._observe_qstat_visibility(request_id)
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    base = (tmp_path / "measurement").resolve()
+    base.mkdir()
+    attempt = base / "attempt"
+    attempt.mkdir()
+    receipt = _acquisition(attempt, repo, request_id=request_id)
+    receipt["submit_observation"]["qstat_visibility"] = visibility
+    roots = paired.validate_acquisition_receipt(
+        receipt,
+        repo_root=repo,
+        study_id=paired.STUDY_ID,
+        source_commit="a" * 40,
+        request_id=request_id,
+        pbs_observation=_pbs_observation(
+            attempt, repo, pbs_jobid=request_id,
+        ),
+        policy=_policy_for_base(base),
+    )
+
+    assert visibility == {
+        "request_id": request_id,
+        "visible": True,
+        "state": expected_state,
+        "queue": "gen_S",
+        "observed_epoch": 2,
+    }
+    assert roots["attempt_root"] == os.fspath(attempt)
+
+
+@pytest.mark.parametrize(
+    ("mutation", "returncode", "stderr"),
+    [
+        ("held", 0, ""),
+        ("queue-before-id", 0, ""),
+        ("only-queue-before-id", 0, ""),
+        ("wrong-queue", 0, ""),
+        ("missing-execution-queue-marker", 0, ""),
+        ("wrong-server", 0, ""),
+        ("missing-queue", 0, ""),
+        ("duplicate-queue-after-id", 0, ""),
+        ("second-queue-other-server", 0, ""),
+        ("second-queue-other-name", 0, ""),
+        ("disappeared", 0, ""),
+        ("unchanged", 1, ""),
+        ("unchanged", 0, "qstat warning\n"),
+        ("unknown-state", 0, ""),
+    ],
+    ids=[
+        "M1-held",
+        "M2-queue-before-id",
+        "queue-position-before-id",
+        "M3-wrong-queue",
+        "M4-missing-marker",
+        "wrong-server",
+        "queue-count-zero",
+        "queue-count-two-after-id",
+        "M11-second-queue-other-server",
+        "queue-count-two-other-name",
+        "rc0-disappeared-request",
+        "nonzero-rc",
+        "M7-nonempty-stderr",
+        "M9-unknown-state",
+    ],
+)
+def test_visibility_rejects_each_noncanonical_observation(
+    monkeypatch: pytest.MonkeyPatch,
+    mutation: str,
+    returncode: int,
+    stderr: str,
+) -> None:
+    stdout = _qstat_fixture("qstat-f-980043.nqsv.txt")
+    queue_line = "    Queue = gen_S@nqsv (Execution Queue)\n"
+    if mutation == "held":
+        stdout = stdout.replace(
+            "    Current State           = Running\n",
+            "    Current State           = Held\n",
+        )
+    elif mutation == "queue-before-id":
+        stdout = queue_line + stdout
+    elif mutation == "only-queue-before-id":
+        stdout = queue_line + stdout.replace(queue_line, "")
+    elif mutation == "wrong-queue":
+        stdout = stdout.replace(
+            queue_line,
+            "    Queue = other@nqsv (Execution Queue)\n",
+        )
+    elif mutation == "missing-execution-queue-marker":
+        stdout = stdout.replace(queue_line, "    Queue = gen_S@nqsv\n")
+    elif mutation == "wrong-server":
+        stdout = stdout.replace(
+            queue_line,
+            "    Queue = gen_S@other (Execution Queue)\n",
+        )
+    elif mutation == "missing-queue":
+        stdout = stdout.replace(queue_line, "")
+    elif mutation == "duplicate-queue-after-id":
+        stdout = stdout.replace(queue_line, queue_line + queue_line)
+    elif mutation == "second-queue-other-server":
+        stdout = stdout.replace(
+            queue_line,
+            queue_line + "    Queue = other@other (Execution Queue)\n",
+        )
+    elif mutation == "second-queue-other-name":
+        stdout = stdout.replace(
+            queue_line,
+            queue_line + "    Queue = other@nqsv (Execution Queue)\n",
+        )
+    elif mutation == "disappeared":
+        stdout = _qstat_fixture("qstat-f-absent-900001.stdout")
+    elif mutation == "unknown-state":
+        stdout = stdout.replace(
+            "    Current State           = Running\n",
+            "    Current State           = Launching\n",
+        )
+    elif mutation != "unchanged":
+        raise AssertionError(f"unhandled test mutation: {mutation}")
+
+    monkeypatch.setattr(
+        paired.subprocess,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(
+            args[0], returncode, stdout, stderr,
+        ),
+    )
+    with pytest.raises(
+        paired.PaperStoryError,
+        match="qstat did not visibly bind the submitted request",
+    ):
+        paired._observe_qstat_visibility("980043.nqsv")
 
 
 def test_non_certifying_source_closure_matches_shell_and_preserves_legacy_set() -> None:
@@ -1044,6 +1208,150 @@ def test_scheduler_completion_accepts_disappearance_after_submission_visibility(
     ) == completion
     assert completion["scheduler_terminal"]["state"] == {"observed": False}
     assert completion["scheduler_terminal"]["exit_status"] == {"observed": False}
+
+
+def test_real_nqsv_disappearance_flows_from_producer_to_completion_validator(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    request_id = "900001.nqsv"
+    completion, submission, trusted, submission_raw, terminal_path = (
+        _scheduler_completion_fixture(tmp_path, request_id=request_id)
+    )
+    stdout = _qstat_fixture("qstat-f-absent-900001.stdout")
+    stderr = _qstat_fixture("qstat-f-absent-900001.stderr")
+    monkeypatch.setattr(
+        paired.subprocess,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(
+            args[0], 0, stdout, stderr,
+        ),
+    )
+    monkeypatch.setattr(paired.time, "time", lambda: 2)
+
+    completion["scheduler_terminal"] = paired._observe_scheduler_terminal(
+        request_id, submission,
+    )
+    assert paired.validate_completion_receipt(
+        completion,
+        trusted_roots=trusted,
+        source_commit="a" * 40,
+        request_id=request_id,
+        submission_receipt=submission,
+        submission_receipt_sha256=hashlib.sha256(submission_raw).hexdigest(),
+        job_terminal_sha256=hashlib.sha256(
+            terminal_path.read_bytes()
+        ).hexdigest(),
+    ) == completion
+
+
+@pytest.mark.parametrize(
+    ("mutation", "request_id", "returncode", "stderr", "message"),
+    [
+        ("other-id", "900002.nqsv", 0, "", "observation failed"),
+        ("diagnostic", "900001.nqsv", 0, "", "observation failed"),
+        (
+            "unchanged", "900001.nqsv", 0, "qstat warning\n",
+            "observation failed",
+        ),
+        ("unchanged", "900001.nqsv", 1, "", "observation failed"),
+        ("visible-run", "980043.nqsv", 0, "", "visible scheduler request"),
+    ],
+    ids=[
+        "M5-other-request",
+        "M6-nonsignature",
+        "M7-nonempty-stderr",
+        "nonzero-rc",
+        "real-running-is-not-terminal",
+    ],
+)
+def test_terminal_observer_rejects_nonterminal_nqsv_observations(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mutation: str,
+    request_id: str,
+    returncode: int,
+    stderr: str,
+    message: str,
+) -> None:
+    _completion, submission, _trusted, _submission_raw, _terminal_path = (
+        _scheduler_completion_fixture(tmp_path, request_id=request_id)
+    )
+    if mutation == "visible-run":
+        stdout = _qstat_fixture("qstat-f-980043.nqsv.txt")
+    else:
+        stdout = _qstat_fixture("qstat-f-absent-900001.stdout")
+    if mutation == "diagnostic":
+        stdout = "qstat: scheduler lookup returned no request\n"
+    elif mutation not in {"other-id", "unchanged", "visible-run"}:
+        raise AssertionError(f"unhandled test mutation: {mutation}")
+    monkeypatch.setattr(
+        paired.subprocess,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(
+            args[0], returncode, stdout, stderr,
+        ),
+    )
+    monkeypatch.setattr(paired.time, "time", lambda: 2)
+
+    with pytest.raises(paired.PaperStoryError, match=message):
+        paired._observe_scheduler_terminal(request_id, submission)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ["other-id", "diagnostic"],
+    ids=["M10-other-request", "M10-nonsignature"],
+)
+def test_completion_validator_reparses_disappearance_stdout(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mutation: str,
+) -> None:
+    request_id = "900001.nqsv"
+    completion, submission, trusted, submission_raw, terminal_path = (
+        _scheduler_completion_fixture(tmp_path, request_id=request_id)
+    )
+    stdout = _qstat_fixture("qstat-f-absent-900001.stdout")
+    monkeypatch.setattr(
+        paired.subprocess,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(
+            args[0], 0, stdout, "",
+        ),
+    )
+    monkeypatch.setattr(paired.time, "time", lambda: 2)
+    completion["scheduler_terminal"] = paired._observe_scheduler_terminal(
+        request_id, submission,
+    )
+    validation_kwargs = {
+        "trusted_roots": trusted,
+        "source_commit": "a" * 40,
+        "request_id": request_id,
+        "submission_receipt": submission,
+        "submission_receipt_sha256": hashlib.sha256(submission_raw).hexdigest(),
+        "job_terminal_sha256": hashlib.sha256(
+            terminal_path.read_bytes()
+        ).hexdigest(),
+    }
+    assert paired.validate_completion_receipt(
+        completion, **validation_kwargs,
+    ) == completion
+
+    terminal = completion["scheduler_terminal"]
+    if mutation == "other-id":
+        terminal["qstat_stdout"] = stdout.replace("900001", "900002")
+    elif mutation == "diagnostic":
+        terminal["qstat_stdout"] = "qstat: scheduler lookup returned no request\n"
+    else:
+        raise AssertionError(f"unhandled test mutation: {mutation}")
+    terminal["qstat_stdout_sha256"] = hashlib.sha256(
+        terminal["qstat_stdout"].encode("utf-8")
+    ).hexdigest()
+    with pytest.raises(
+        paired.PaperStoryError,
+        match="disappeared scheduler terminal observation differs",
+    ):
+        paired.validate_completion_receipt(completion, **validation_kwargs)
 
 
 def test_scheduler_completion_rejects_disappearance_without_prior_visibility_M32(
@@ -2394,12 +2702,12 @@ def test_submit_runs_real_qsub_call_from_repository_root(
     def run(argv, **kwargs):
         calls.append((list(argv), dict(kwargs), Path.cwd()))
         if argv[0] == "qsub":
-            return subprocess.CompletedProcess(argv, 0, "12345.nqsv\n", "")
+            return subprocess.CompletedProcess(argv, 0, "980043.nqsv\n", "")
         assert argv[:2] == ["qstat", "-f"]
         return subprocess.CompletedProcess(
             argv,
             0,
-            "Request ID: 12345.nqsv\nState: QUE\nQueue: gen_S\n",
+            _qstat_fixture("qstat-f-980043.nqsv.txt"),
             "",
         )
 

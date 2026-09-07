@@ -1,0 +1,498 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 120,
+ "timeout_seconds": 3600,
+ "hang_timeout_seconds": 900,
+ "mutations": [
+  {
+   "id": "M1-t126-registry",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/qualification/contract.py",
+     "old": "if subject > reference * (1.0 + threshold):",
+     "new": "if subject >= reference * (1.0 + threshold):"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "M3-t126-registry",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/qualification/artifacts.py",
+     "old": "    if actual != expected_sha256:\n",
+     "new": "    if False and actual != expected_sha256:\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "M2a-t126-registry",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/layer3_report.py",
+     "old": "    _reject_qualification_ancestry(\n        campaign_dir, _qualification_ancestry_bound(campaign_dir, output_root),\n    )\n",
+     "new": "    # mutant: ancestor qualification marker ignored\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "M2b-t126-registry",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/layer3_report.py",
+     "old": "    if _contains_qualification_lineage(lock):\n",
+     "new": "    if False and _contains_qualification_lineage(lock):\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "M2c-t126-registry",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/layer3_report.py",
+     "old": "    if _contains_qualification_lineage(records):\n",
+     "new": "    if False and _contains_qualification_lineage(records):\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "M4a-t126-registry",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/pipeline.py",
+     "old": "    if require_settled and (not settled or settled.get(\"settled\") is not True):\n",
+     "new": "    if False and require_settled and (not settled or settled.get(\"settled\") is not True):\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "M4b-t126-registry",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/qualification/artifacts.py",
+     "old": "    if (bench.get(\"settled\") is not True\n",
+     "new": "    if (False\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "M5a-t126-registry",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/qualification/artifacts.py",
+     "old": "    if [row.get(\"workload\", {}).get(\"tag\") for row in verify_rows] != [\"legacy\", \"s2\"]:\n",
+     "new": "    if False and [row.get(\"workload\", {}).get(\"tag\") for row in verify_rows] != [\"legacy\", \"s2\"]:\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "M5b-t126-registry",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/qualification/artifacts.py",
+     "old": "                or argv[1:] != exact_flags.get(tag)\n",
+     "new": "                or False\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "M6a-t126-registry",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/qualification/collector.py",
+     "old": "    accounting_bytes = read_regular_file(accounting)\n",
+     "new": "    accounting_bytes = (read_regular_file(accounting) if accounting.exists() else b\"Request ID = 123.server\\nExit_status = 34\\nresources_used.walltime = 1\\n\")\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "M6b-t126-registry",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/qualification/collector.py",
+     "old": "    if (accounting[\"job_id\"] != _normalize_job_id(job_id)\n",
+     "new": "    if (False\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "M6c-t126-registry",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/qualification/collector.py",
+     "old": "        and (job_result[\"driver_rc\"] != accounting[\"exit_status\"]\n",
+     "new": "        and (False\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "M6d-t126-registry",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/qualification/collector.py",
+     "old": "            expected_pointer_paths[\"series_result\"] = (\n                attempt_dir / \"series-result.json\")\n",
+     "new": "            expected_pointer_paths[\"series_result\"] = paths[\"series_result\"]\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "M7a-t126-registry",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/qualification/attempt_ledger.py",
+     "old": "            if state != \"new\":\n",
+     "new": "            if False and state != \"new\":\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "M7b-t126-registry",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/qualification/attempt_ledger.py",
+     "old": "    if last_retry_index != 0:\n",
+     "new": "    if False and last_retry_index != 0:\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "M7c-t126-registry",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/qualification/attempt_ledger.py",
+     "old": "    if (observations_recorded != 0 or terminal is not None\n",
+     "new": "    if (False or terminal is not None\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "M8a-t126-registry",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/submit_t126_qualification.sh",
+     "old": "      if ! recover_or_reject_unbound_invocation; then\n        exit 4\n      fi\n",
+     "new": "      INVOCATION_SHA256=$(load_qsub_invocation_claim)\n      RESERVATION_STATE=\"reserved-existing-invocation\"\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "M8b-t126-registry",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/submit_t126_qualification.sh",
+     "old": "recover_or_reject_unbound_invocation() {\n  echo \"qsub invocation has no durable v2 binding; automatic resubmit is forbidden\" >&2\n  return 1\n}\n",
+     "new": "recover_or_reject_unbound_invocation() {\n  JOB_ID=$(publish_qsub_binding)\n  bind_qsub_attempt\n  RESERVATION_STATE=\"resume-bound\"\n  return 0\n}\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "M8c-t126-registry",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/submit_t126_qualification.sh",
+     "old": "  if [[ \"$qsub_rc\" -ne 0 ]]; then\n    exit \"$qsub_rc\"\n  fi\n",
+     "new": "  if [[ \"$qsub_rc\" -ne 0 ]]; then\n    rm -f -- \"$SUBMISSION_DIR/qsub-invocation.json\"\n    exit \"$qsub_rc\"\n  fi\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "M8d-t126-registry",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/t126_qualification.sh",
+     "old": "        or binding[\"qsub_returncode\"]!=0 \\\n",
+     "new": ""
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "M9a-t126-registry",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/qualification/collector.py",
+     "old": "            \"missing\", None, None, stage,\n            \"targetless\" if stage is not None else None)\n",
+     "new": "            *_decode_job_result(stage, submit), stage,\n            \"after-publish\" if stage is not None else None)\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "M9b-t126-registry",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/qualification/collector.py",
+     "old": "    stage.unlink()\n    _fsync_directory(directory)\n",
+     "new": "    # mutant: valid after-publish stage retained\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "M9c-t126-registry",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/qualification/collector.py",
+     "old": "    if staging_state == \"missing\":\n        return attempt_state, attempt_bytes, attempt_value\n",
+     "new": "    if True:\n        return attempt_state, attempt_bytes, attempt_value\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "M9d-t126-registry",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/qualification/collector.py",
+     "old": "                != (target_stat.st_dev, target_stat.st_ino)\n",
+     "new": "                != (stage_stat.st_dev, stage_stat.st_ino)\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "M9e-t126-registry",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/qualification/collector.py",
+     "old": "    _retire_after_publish_attempt_staging(attempt_dir, attempt_preflight)\n\n    series_path = attempt_dir / \"series-result.json\"\n    series_present = series_path.is_file() and not series_path.is_symlink()\n    series = load_json_strict(series_path) if series_present else None\n    if series_present:\n        verification = verify_attempt(attempt_dir)\n        if verification.integrity_status != \"valid\":\n            raise CollectionError(\n                \"series result failed read-only verification: \"\n                + \"; \".join(verification.errors))\n        terminal = series[\"terminal\"]\n        observations = len(series[\"bits\"])\n    else:\n        terminal = None\n        ledger = attempt_dir / \"series-ledger.jsonl\"\n        if ((not ledger.is_file() or ledger.is_symlink())\n                and not recovered_pre_attempt):\n            raise CollectionError(\n                \"attempt failure is missing its canonical series ledger\")\n        observations = (\n            0 if recovered_pre_attempt\n            else replay_ledger(\n                load_jsonl_strict(ledger), protocol).observations_recorded)\n    canonical_state, canonical_job_result_bytes, result = (\n",
+     "new": "\n    series_path = attempt_dir / \"series-result.json\"\n    series_present = series_path.is_file() and not series_path.is_symlink()\n    series = load_json_strict(series_path) if series_present else None\n    if series_present:\n        verification = verify_attempt(attempt_dir)\n        if verification.integrity_status != \"valid\":\n            raise CollectionError(\n                \"series result failed read-only verification: \"\n                + \"; \".join(verification.errors))\n        terminal = series[\"terminal\"]\n        observations = len(series[\"bits\"])\n    else:\n        terminal = None\n        ledger = attempt_dir / \"series-ledger.jsonl\"\n        if ((not ledger.is_file() or ledger.is_symlink())\n                and not recovered_pre_attempt):\n            raise CollectionError(\n                \"attempt failure is missing its canonical series ledger\")\n        observations = (\n            0 if recovered_pre_attempt\n            else replay_ledger(\n                load_jsonl_strict(ledger), protocol).observations_recorded)\n    _retire_after_publish_attempt_staging(attempt_dir, attempt_preflight)\n    canonical_state, canonical_job_result_bytes, result = (\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "M9g-t126-registry",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/qualification/collector.py",
+     "old": "    _retire_after_publish_attempt_staging(attempt_dir, attempt_preflight)\n\n    series_path = attempt_dir / \"series-result.json\"\n    series_present = series_path.is_file() and not series_path.is_symlink()\n    series = load_json_strict(series_path) if series_present else None\n    if series_present:\n        verification = verify_attempt(attempt_dir)\n        if verification.integrity_status != \"valid\":\n            raise CollectionError(\n                \"series result failed read-only verification: \"\n                + \"; \".join(verification.errors))\n        terminal = series[\"terminal\"]\n        observations = len(series[\"bits\"])\n    else:\n        terminal = None\n        ledger = attempt_dir / \"series-ledger.jsonl\"\n        if ((not ledger.is_file() or ledger.is_symlink())\n                and not recovered_pre_attempt):\n            raise CollectionError(\n                \"attempt failure is missing its canonical series ledger\")\n        observations = (\n            0 if recovered_pre_attempt\n            else replay_ledger(\n                load_jsonl_strict(ledger), protocol).observations_recorded)\n    canonical_state, canonical_job_result_bytes, result = (\n        _reconcile_job_results(\n            capability=capability, attempt_dir=attempt_dir, submit=submit,\n            protocol=protocol, series_preimage=series_preimage,\n            series=series, accounting=accounting_record,\n            observations_recorded=observations,\n            recovered_pre_attempt=recovered_pre_attempt,\n            attempt_preflight=attempt_preflight,\n            staging_preflight=staging_preflight))\n",
+     "new": "\n    series_path = attempt_dir / \"series-result.json\"\n    series_present = series_path.is_file() and not series_path.is_symlink()\n    series = load_json_strict(series_path) if series_present else None\n    if series_present:\n        verification = verify_attempt(attempt_dir)\n        if verification.integrity_status != \"valid\":\n            raise CollectionError(\n                \"series result failed read-only verification: \"\n                + \"; \".join(verification.errors))\n        terminal = series[\"terminal\"]\n        observations = len(series[\"bits\"])\n    else:\n        terminal = None\n        ledger = attempt_dir / \"series-ledger.jsonl\"\n        if ((not ledger.is_file() or ledger.is_symlink())\n                and not recovered_pre_attempt):\n            raise CollectionError(\n                \"attempt failure is missing its canonical series ledger\")\n        observations = (\n            0 if recovered_pre_attempt\n            else replay_ledger(\n                load_jsonl_strict(ledger), protocol).observations_recorded)\n    canonical_state, canonical_job_result_bytes, result = (\n        _reconcile_job_results(\n            capability=capability, attempt_dir=attempt_dir, submit=submit,\n            protocol=protocol, series_preimage=series_preimage,\n            series=series, accounting=accounting_record,\n            observations_recorded=observations,\n            recovered_pre_attempt=recovered_pre_attempt,\n            attempt_preflight=attempt_preflight,\n            staging_preflight=staging_preflight))\n    if canonical_state not in {\"semantic-conflict\", \"invalid\"}:\n        _retire_after_publish_attempt_staging(attempt_dir, attempt_preflight)\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "M9h-t126-registry",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/qualification/collector.py",
+     "old": "def _preflight_job_result_namespaces(\n        *, capability, attempt_dir: Path, submit: Mapping[str, Any],\n) -> tuple[\n        tuple[str, bytes | None, dict[str, Any] | None, Path | None,\n              str | None],\n        tuple[str, bytes | None, dict[str, Any] | None, Path | None,\n              str | None]]:\n    \"\"\"Preflight both publisher namespaces before either one is mutated.\"\"\"\n    attempt_preflight = _reconcile_result_namespace(\n        attempt_dir, submit=submit, label=\"attempt\")\n    staging_dir = _job_staging_directory(capability.root, submit)\n    staging_preflight = _reconcile_result_namespace(\n        staging_dir, submit=submit, label=\"early job-staging\")\n    return attempt_preflight, staging_preflight\n\n\ndef _retire_after_publish_attempt_staging(\n        attempt_dir: Path,\n        attempt_preflight: tuple[\n            str, bytes | None, dict[str, Any] | None, Path | None,\n            str | None]) -> None:\n    \"\"\"Retire the attempt stage that is only a second name for the canonical.\n\n    An after-publish stage shares inode and bytes with the canonical entry, so\n    unlinking it loses no information. A targetless stage is the only copy of\n    its bytes, and the structural fail-closed rejections that still run below\n    (series verification, series ledger, semantic gates) must be able to refuse\n    without mutating it; targetless staging is therefore left to the in-function\n    apply that runs after the global preflight and the semantic checks.\n    \"\"\"\n    (_state, _bytes, _value, stage, lifecycle) = attempt_preflight\n    if lifecycle not in _EARLY_RETIRABLE_LIFECYCLES:\n        return\n    _apply_result_reconciliation(attempt_dir, stage, lifecycle)\n",
+     "new": "def _preflight_job_result_namespaces(\n        *, capability, attempt_dir: Path, submit: Mapping[str, Any],\n) -> tuple[\n        tuple[str, bytes | None, dict[str, Any] | None, Path | None,\n              str | None],\n        tuple[str, bytes | None, dict[str, Any] | None, Path | None,\n              str | None]]:\n    \"\"\"Preflight both publisher namespaces before either one is mutated.\"\"\"\n    attempt_preflight = _reconcile_result_namespace(\n        attempt_dir, submit=submit, label=\"attempt\")\n    (_state, _bytes, _value, stage, lifecycle) = attempt_preflight\n    if lifecycle in _EARLY_RETIRABLE_LIFECYCLES:\n        _apply_result_reconciliation(attempt_dir, stage, lifecycle)\n    staging_dir = _job_staging_directory(capability.root, submit)\n    staging_preflight = _reconcile_result_namespace(\n        staging_dir, submit=submit, label=\"early job-staging\")\n    return attempt_preflight, staging_preflight\n\n\ndef _retire_after_publish_attempt_staging(\n        attempt_dir: Path,\n        attempt_preflight: tuple[\n            str, bytes | None, dict[str, Any] | None, Path | None,\n            str | None]) -> None:\n    \"\"\"mutant: retirement moved into the namespace preflight.\"\"\"\n    return\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "M9i-t126-registry",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/qualification/collector.py",
+     "old": "_EARLY_RETIRABLE_LIFECYCLES = (\"after-publish\",)\n",
+     "new": "_EARLY_RETIRABLE_LIFECYCLES = (\"after-publish\", \"targetless\")\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "M9j-t126-registry",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/qualification/collector.py",
+     "old": "        canonical_conflicts = attempt_state == \"valid\"\n        if canonical_conflicts:\n            try:\n                _validate_job_result_semantics(\n                    attempt_value, submit=submit, protocol=protocol,\n                    series_preimage=series_preimage, series=series)\n            except (CollectionError, QualificationArtifactError):\n                canonical_conflicts = False\n        if canonical_conflicts:\n            raise CollectionError(\n                \"attempt canonical conflicts with a rejected early job-result\")\n        return \"invalid\", rejected_bytes, None\n",
+     "new": "        return \"invalid\", rejected_bytes, None\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "M10a-t126-registry",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/qualification/collector.py",
+     "old": "            elif canonical_state == \"missing\":\n                expected_failure = \"job-result-publication-failed\"\n",
+     "new": "            elif canonical_state == \"missing\":\n                expected_failure = \"pre-member-infrastructure\"\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "M10b-t126-registry",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/qualification/collector.py",
+     "old": "        if pointer_missing_canonical:\n",
+     "new": "        if False and pointer_missing_canonical:\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "M10c-t126-registry",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/qualification/collector.py",
+     "old": "    elif accounting_mismatch:\n        failure_class = \"job-result-accounting-mismatch\"\n",
+     "new": "    elif accounting_mismatch:\n        raise CollectionError(\"mutant leaves accounting mismatch open\")\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "M10d-t126-registry",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/qualification/artifacts.py",
+     "old": "    \"job-result-accounting-mismatch\",\n",
+     "new": ""
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "M11a-t126-registry",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/qualification/identity.py",
+     "old": "            or submitted != committed):\n",
+     "new": "            or False):\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "M11b-t126-registry",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/t126_qualification.sh",
+     "old": "import json,os,re,secrets,stat,sys,time\n",
+     "new": "import json,os,re,secrets,stat,sys,time\nsys.path.insert(0,os.environ[\"IZANAGI_T126_TEST_PERSISTENT_PACKAGE_ROOT\"])\nfrom orchestrator.qualification.atomic_publish import publish_bytes as _persistent_publish\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  }
+ ]
+}
