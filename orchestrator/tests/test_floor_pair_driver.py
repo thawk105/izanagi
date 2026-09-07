@@ -487,6 +487,33 @@ def test_all_four_semantic_schema_identifiers_are_bumped():
     assert F.SUMMARY_SCHEMA == "floor-pair-summary/v3"
 
 
+def test_loader_rejects_v2_schema_on_v3_shaped_spec(tmp_path, monkeypatch):
+    document, _hashes = _document_only(tmp_path)
+    document["schema"] = "floor-pair-spec/v2"
+    raw = _canonical(document)
+    (tmp_path / "spec.json").write_bytes(raw)
+    _install_git(monkeypatch, tmp_path)
+    monkeypatch.setattr(
+        F.calibration_verify,
+        "load_verified_calibration",
+        lambda **kwargs: pytest.fail("v2 schema must fail before calibration"),
+    )
+
+    with pytest.raises(F.FloorPairSpecError, match="schema"):
+        F.load_frozen_spec(
+            Path("spec.json"), hashlib.sha256(raw).hexdigest(), repo_root=tmp_path
+        )
+
+
+def test_plan_v1_schema_is_rejected_with_current_plan_shape(tmp_path, monkeypatch):
+    spec, _document, _raw = _prepare_spec(tmp_path, monkeypatch)
+    plan = F.make_measurement_plan(spec)
+    stale_plan = dataclasses.replace(plan, schema="floor-pair-plan/v1")
+
+    with pytest.raises(F.FloorPairBindingError, match="canonical plan"):
+        F._assert_plan_exact(spec, stale_plan, error_type=F.FloorPairBindingError)
+
+
 REQUIRED_FIELD_PATHS = (
     ("schema",),
     ("provenance",),
@@ -1683,7 +1710,7 @@ def test_pre_probe_drop_closes_sample_and_continues_next_sample(
     assert records[-1]["complete_sample_count"] == 1
 
 
-def test_measure_exception_runs_post_probe_drops_remaining_roles_and_continues(
+def test_measure_exception_runs_post_probe_drops_remaining_side_session_and_continues(
     tmp_path, monkeypatch
 ):
     spec, _document, _raw = _prepare_configured_spec(
@@ -2282,6 +2309,27 @@ def test_finalizer_revalidates_complete_header_and_terminal_contract(
     record[field] = value
     _rewrite_jsonl(artifact, records)
     with pytest.raises(F.FloorPairBindingError, match=target):
+        F.finalize_floor(spec, plan, now_fn=lambda: NOW)
+    assert not (tmp_path / "out/summary.json").exists()
+
+
+def test_finalizer_rejects_v2_schema_on_v3_shaped_window(tmp_path, monkeypatch):
+    spec, plan = _run_production(
+        tmp_path,
+        monkeypatch,
+        _pair_measurement_values(
+            candidate_1=(120.0, 120.0),
+            reference_1=(100.0, 100.0),
+            candidate_2=(110.0, 110.0),
+            reference_2=(100.0, 100.0),
+        ),
+    )
+    artifact = tmp_path / "out/window-a.jsonl"
+    records = _load_jsonl(artifact)
+    records[0]["schema"] = "floor-pair-window/v2"
+    _rewrite_jsonl(artifact, records)
+
+    with pytest.raises(F.FloorPairBindingError, match="header"):
         F.finalize_floor(spec, plan, now_fn=lambda: NOW)
     assert not (tmp_path / "out/summary.json").exists()
 

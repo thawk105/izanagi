@@ -2585,7 +2585,9 @@ def _audit_session_causality(
                 derived != "not_run_sample_dropped"
                 or record["dropped_by_session_id"] != dropped_causes[sample_key]
             ):
-                raise FloorPairBindingError("落ちた標本の後続 role の因果が不整合")
+                raise FloorPairBindingError(
+                    "落ちた標本の後続 side session の因果が不整合"
+                )
             continue
         if derived == "not_run_sample_dropped":
             raise FloorPairBindingError("先行失敗のない not_run_sample_dropped")
