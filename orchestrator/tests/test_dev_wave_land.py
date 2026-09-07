@@ -389,6 +389,33 @@ def _repo(*, waves: tuple[tuple[str, str], ...] = (("codex", "one"),)):
         fixture.close()
 
 
+def _add_detached_worktree(repo: _Repo, path: Path) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    _git(repo.main, "worktree", "add", "--detach", str(path), repo.base)
+    dotgit = (path / ".git").read_text(encoding="utf-8")
+    assert dotgit.startswith("gitdir: ")
+    admin = Path(dotgit.removeprefix("gitdir: ").strip())
+    assert admin.is_absolute() and admin.is_dir()
+    return admin
+
+
+def _worktree_porcelain(repo: _Repo) -> bytes:
+    result = LAND._git(repo.main, "worktree", "list", "--porcelain")
+    assert result.returncode == 0, result.stderr
+    return result.stdout
+
+
+@contextlib.contextmanager
+def _verified_repository(repo: _Repo, wave: Path):
+    request = repo.request(wave, tip=_git(wave, "rev-parse", "HEAD"))
+    with _cwd(wave):
+        repository = LAND._verify_repository(request)
+        try:
+            yield repository
+        finally:
+            repository.close()
+
+
 def _fake_gate_receipt(plan):
     raw_digests = tuple(
         (
@@ -9013,6 +9040,337 @@ def _gate_plan(
         fragments=(fragment,),
         transaction_id=transaction_id,
     )
+
+
+def test_fold_gate_rejects_overlap_with_third_live_registered_worktree(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        third = repo.root / "third-live-worktree"
+        _add_detached_worktree(repo, third)
+        isolation = third / "fold-isolation"
+        isolation.mkdir()
+
+        def exact_temporary_directory(**kwargs):
+            assert kwargs == {
+                "prefix": "izanagi-fold-gate-",
+                "dir": "/tmp",
+            }
+            return contextlib.nullcontext(str(isolation))
+
+        with _verified_repository(repo, wave) as repository:
+            registered = LAND._registered_worktree_paths(repository)
+            assert {
+                repo.main.resolve(strict=True),
+                wave.resolve(strict=True),
+                third.resolve(strict=True),
+            } <= set(registered)
+            monkeypatch.setattr(
+                LAND.tempfile,
+                "TemporaryDirectory",
+                exact_temporary_directory,
+            )
+            with pytest.raises(
+                LAND._FoldGateFailure,
+                match=(
+                    "fold gate isolation directory overlaps a registered "
+                    "worktree"
+                ),
+            ):
+                LAND._execute_fold_gate(
+                    repository,
+                    _FakeFoldPlan("docs/spool/worklog/synthetic.md"),
+                    LAND._FoldGateSelection("1" * 64, (), (), ()),
+                    _git(wave, "rev-parse", "HEAD"),
+                    LAND._fold_gate_budgets(),
+                )
+
+
+def test_registered_worktree_paths_keep_absent_registration() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        missing = repo.root / "scratch" / "job-repo"
+        _add_detached_worktree(repo, missing)
+        shutil.rmtree(missing)
+        raw = _worktree_porcelain(repo)
+        record = next(
+            item
+            for item in raw.split(b"\n\n")
+            if b"worktree " + os.fsencode(missing) in item.splitlines()
+        )
+        assert any(line.startswith(b"prunable ") for line in record.splitlines())
+
+        with _verified_repository(repo, wave) as repository:
+            registered = LAND._registered_worktree_paths(repository)
+
+        assert repo.main.resolve(strict=True) in registered
+        assert wave.resolve(strict=True) in registered
+        assert missing.is_absolute() and not missing.exists()
+        assert missing in registered
+
+
+def test_registered_worktree_paths_keep_live_directory_with_missing_dotgit(
+) -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        linked = repo.root / "dotgit-gone"
+        _add_detached_worktree(repo, linked)
+        (linked / ".git").unlink()
+        raw = _worktree_porcelain(repo)
+        record = next(
+            item
+            for item in raw.split(b"\n\n")
+            if b"worktree " + os.fsencode(linked) in item.splitlines()
+        )
+        assert any(line.startswith(b"prunable ") for line in record.splitlines())
+
+        with _verified_repository(repo, wave) as repository:
+            registered = LAND._registered_worktree_paths(repository)
+
+        assert linked.resolve(strict=True) in registered
+
+
+def test_registered_worktree_paths_keep_live_newline_marker_registration(
+) -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        linked = repo.root / "live\nprunable fake-marker"
+        _add_detached_worktree(repo, linked)
+        raw = _worktree_porcelain(repo)
+        raw_prefix = os.fsencode(linked).split(b"\n", 1)[0]
+        assert b"worktree " + raw_prefix + b"\nprunable fake-marker\n" in raw
+
+        with _verified_repository(repo, wave) as repository:
+            registered = LAND._registered_worktree_paths(repository)
+
+        listed_path = Path(os.fsdecode(raw_prefix))
+        assert linked.is_dir()
+        assert listed_path in registered
+
+
+@pytest.mark.parametrize(
+    "failure_kind",
+    ("permission", "unicode"),
+)
+def test_registered_worktree_paths_fail_closed_for_other_resolution_errors(
+    failure_kind: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        raw = _worktree_porcelain(repo)
+        main_raw = os.fsencode(repo.main)
+        assert b"worktree " + main_raw in raw
+
+        with _verified_repository(repo, wave) as repository:
+            with monkeypatch.context() as patch:
+                if failure_kind == "permission":
+                    original_resolve = LAND.Path.resolve
+
+                    def fail_resolve(path: Path, *, strict: bool = False):
+                        if path == repo.main and strict:
+                            raise PermissionError("synthetic permission denial")
+                        return original_resolve(path, strict=strict)
+
+                    patch.setattr(LAND.Path, "resolve", fail_resolve)
+                else:
+                    original_fsdecode = LAND.os.fsdecode
+
+                    def fail_decode(value):
+                        if value == main_raw:
+                            raise UnicodeError("synthetic decode failure")
+                        return original_fsdecode(value)
+
+                    patch.setattr(LAND.os, "fsdecode", fail_decode)
+
+                with pytest.raises(
+                    LAND._FoldGateFailure,
+                    match="registered worktree path cannot be resolved",
+                ):
+                    LAND._registered_worktree_paths(repository)
+
+
+@pytest.mark.parametrize(
+    "raw",
+    (b"", b"prunable fake-marker\n\n"),
+    ids=("empty", "marker-only"),
+)
+def test_registered_worktree_paths_reject_list_without_worktree_lines(
+    raw: bytes,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        with _verified_repository(repo, wave) as repository:
+            monkeypatch.setattr(
+                LAND,
+                "_git",
+                lambda *_args: subprocess.CompletedProcess(
+                    [REAL_GIT],
+                    0,
+                    raw,
+                    b"",
+                ),
+            )
+            with pytest.raises(
+                LAND._FoldGateFailure,
+                match="registered worktree list is empty",
+            ):
+                LAND._registered_worktree_paths(repository)
+
+
+def test_registered_worktree_paths_do_not_prune_absent_registration() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        missing = repo.root / "scratch" / "job-repo"
+        admin = _add_detached_worktree(repo, missing)
+        shutil.rmtree(missing)
+        assert admin.is_dir()
+
+        with _verified_repository(repo, wave) as repository:
+            registered = LAND._registered_worktree_paths(repository)
+
+        raw_after = _worktree_porcelain(repo)
+        assert missing in registered
+        assert admin.is_dir()
+        assert b"worktree " + os.fsencode(missing) + b"\n" in raw_after
+        assert b"prunable " in next(
+            item
+            for item in raw_after.split(b"\n\n")
+            if b"worktree " + os.fsencode(missing) in item.splitlines()
+        )
+
+
+def test_fold_gate_rejects_recreated_absent_registered_isolation_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        missing = repo.root / "izanagi-fold-gate-reserved"
+        _add_detached_worktree(repo, missing)
+        shutil.rmtree(missing)
+
+        @contextlib.contextmanager
+        def recreate_registered_path(**kwargs):
+            assert kwargs == {
+                "prefix": "izanagi-fold-gate-",
+                "dir": "/tmp",
+            }
+            missing.mkdir()
+            try:
+                yield str(missing)
+            finally:
+                shutil.rmtree(missing)
+
+        with _verified_repository(repo, wave) as repository:
+            monkeypatch.setattr(
+                LAND.tempfile,
+                "TemporaryDirectory",
+                recreate_registered_path,
+            )
+            with pytest.raises(
+                LAND._FoldGateFailure,
+                match=(
+                    "fold gate isolation directory overlaps a registered "
+                    "worktree"
+                ),
+            ):
+                LAND._execute_fold_gate(
+                    repository,
+                    _FakeFoldPlan("docs/spool/worklog/synthetic.md"),
+                    LAND._FoldGateSelection("1" * 64, (), (), ()),
+                    _git(wave, "rev-parse", "HEAD"),
+                    LAND._fold_gate_budgets(),
+                )
+
+
+def _absent_registration_fold_case(repo: _Repo, wave: Path):
+    (repo.main / ".git" / "info" / "exclude").write_text(
+        ".codex/worktrees/\n",
+        encoding="utf-8",
+    )
+    relative, _fragment, content = _fake_pending_fragment(repo, wave)
+    tip = _git(wave, "rev-parse", "HEAD")
+    missing = repo.root / "scratch" / "job-repo"
+    admin = _add_detached_worktree(repo, missing)
+    shutil.rmtree(missing)
+    folded_after = b"# receipts\n- missing-registration-land\n"
+
+    def apply(repo_path: Path, _plan) -> None:
+        (repo_path / relative).unlink()
+        (repo_path / "docs/spool/FOLDED.md").write_bytes(folded_after)
+
+    plan = _FakeFoldPlan(
+        relative,
+        targets=(
+            _FakeFoldTarget(
+                "docs/spool/FOLDED.md",
+                after_bytes=folded_after,
+            ),
+        ),
+        fragments=(
+            _FakeFoldFragment(
+                "test-wave",
+                path=relative,
+                content_sha256=hashlib.sha256(
+                    content.encode("utf-8")
+                ).hexdigest(),
+            ),
+        ),
+    )
+    module = _FakeFoldModule(plan, apply)
+    selection = LAND._FoldGateSelection("1" * 64, (), ("folded",), ())
+    return tip, missing, admin, module, selection
+
+
+@contextlib.contextmanager
+def _real_fold_land_seams(module: _FakeFoldModule, selection):
+    with (
+        _patched_land_attr("_load_spool_fold", lambda: module),
+        _patched_land_attr("_preflight_fold_message", lambda *_args: None),
+        _patched_land_attr("_select_fold_gate_nodes", lambda *_args: selection),
+        _patched_land_attr(
+            "_verify_folded_fragment_receipts",
+            lambda *_args: None,
+        ),
+    ):
+        yield
+
+
+def test_land_succeeds_with_absent_registered_worktree() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip, missing, admin, module, selection = (
+            _absent_registration_fold_case(repo, wave)
+        )
+        with _real_fold_land_seams(module, selection):
+            result = _land_real_gate(repo.request(wave, tip=tip))
+
+        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+        assert admin.is_dir()
+        assert b"worktree " + os.fsencode(missing) + b"\n" in (
+            _worktree_porcelain(repo)
+        )
+
+
+def test_land_with_absent_registration_still_rejects_live_wave_dirt() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip, missing, _admin, module, selection = (
+            _absent_registration_fold_case(repo, wave)
+        )
+        dirt = wave / "untracked-dirt.txt"
+        dirt.write_text("dirt\n", encoding="utf-8")
+        assert b"worktree " + os.fsencode(missing) + b"\n" in (
+            _worktree_porcelain(repo)
+        )
+        with _real_fold_land_seams(module, selection):
+            result = _land_real_gate(repo.request(wave, tip=tip))
+
+        assert (result.rc, result.status) == (LAND.RC_DIRT, "rejected"), result
+        assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+        assert dirt.read_text(encoding="utf-8") == "dirt\n"
 
 
 def test_fold_gate_rc_status_and_budget_invariant_are_exact() -> None:
