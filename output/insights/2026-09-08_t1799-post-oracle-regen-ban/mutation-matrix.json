@@ -1,0 +1,113 @@
+{
+ "baseline": {
+  "status": "PASSED",
+  "rc": 0,
+  "failed_nodes": [],
+  "repo_head": "1b5dca9d920ca5c80ec9998d3abed3a67456db04",
+  "spec_sha256": "826b6f16972cffd613a0c8592e5269a41fe5a7882eb1b2ff0a40b0ac056ef075",
+  "duration_s": 27.74
+ },
+ "mutations": [
+  {
+   "id": "M1-effective-root-equality-vacuous",
+   "category": "negative",
+   "status": "KILLED",
+   "rc": 1,
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_post_oracle_effective_root_mismatch_never_starts_build"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_post_oracle_effective_root_mismatch_never_starts_build"
+   ],
+   "matches_expectation": true,
+   "anchor_counts": {
+    "0": 1
+   },
+   "injection_diff_sha256": "712495eb94dd92fbea2c3ace4d74ef6730dc1596d6e1cc00365ae111922e182e",
+   "duration_s": 31.386
+  },
+  {
+   "id": "M2-restore-before-yield-opens-build-window",
+   "category": "negative",
+   "status": "KILLED",
+   "rc": 1,
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_post_oracle_build_cannot_rewrite_identical_material_bytes",
+    "orchestrator/tests/test_sort_swo_dependency_material.py::test_post_oracle_protection_rejects_overlapping_context_without_mode_change"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_sort_swo_dependency_material.py::test_post_oracle_protection_rejects_overlapping_context_without_mode_change",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_post_oracle_build_cannot_rewrite_identical_material_bytes"
+   ],
+   "matches_expectation": true,
+   "anchor_counts": {
+    "0": 1
+   },
+   "injection_diff_sha256": "5401e2eafcdb79484d9e1614d5b20d38094a8549429accbdb5b898e8f26b42ad",
+   "duration_s": 28.063
+  },
+  {
+   "id": "M3-finally-restore-removed",
+   "category": "negative",
+   "status": "KILLED",
+   "rc": 1,
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_post_oracle_cache_hit_rechecks_two_roots_before_return",
+    "orchestrator/tests/test_sort_swo_dependency_material.py::test_post_oracle_protection_rejects_overlapping_context_without_mode_change",
+    "orchestrator/tests/test_sort_swo_dependency_material.py::test_post_oracle_protection_restores_exact_modes_on_success_and_error"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_sort_swo_dependency_material.py::test_post_oracle_protection_restores_exact_modes_on_success_and_error",
+    "orchestrator/tests/test_sort_swo_dependency_material.py::test_post_oracle_protection_rejects_overlapping_context_without_mode_change",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_post_oracle_cache_hit_rechecks_two_roots_before_return"
+   ],
+   "matches_expectation": true,
+   "anchor_counts": {
+    "0": 1
+   },
+   "injection_diff_sha256": "17104f5c22608a4f7d206e3f1fb3857937266687bb9be141c0c6261b845509ef",
+   "duration_s": 28.494
+  },
+  {
+   "id": "M4-protection-widened-to-parent",
+   "category": "positive",
+   "status": "KILLED",
+   "rc": 1,
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_sort_swo_dependency_material.py::test_post_oracle_protection_leaves_binding_base_writable_for_new_entry"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_sort_swo_dependency_material.py::test_post_oracle_protection_leaves_binding_base_writable_for_new_entry"
+   ],
+   "matches_expectation": true,
+   "anchor_counts": {
+    "0": 1
+   },
+   "injection_diff_sha256": "533cd2dedbfc496d04562ce141a31a8d9e595654b3570f8095dbfc2fe3597b7c",
+   "duration_s": 28.579
+  },
+  {
+   "id": "M5-root-writable-precondition-vacuous",
+   "category": "negative",
+   "status": "KILLED",
+   "rc": 1,
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_sort_swo_dependency_material.py::test_post_oracle_protection_rejects_overlapping_context_without_mode_change"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_sort_swo_dependency_material.py::test_post_oracle_protection_rejects_overlapping_context_without_mode_change"
+   ],
+   "matches_expectation": true,
+   "anchor_counts": {
+    "0": 1
+   },
+   "injection_diff_sha256": "56ce602dc73de54f283340048d46399708a2bfbd53fd8a155946bc854da661d6",
+   "duration_s": 28.332
+  }
+ ]
+}

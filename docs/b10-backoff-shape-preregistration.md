@@ -7,8 +7,36 @@ B-10 の他の 3 項目 (過抑制域の機序、ピーク位置の再現、bala
 
 ## 0. 本書の版と改訂履歴
 
-**本書は v4 であり、発効している。** §5 の `physical_residual.values` に実測値が入っており、
+**本書は v5 であり、発効している。** §5 の `physical_residual.values` に実測値が入っており、
 `FILL_FROM_PROBE_RESULT…` の placeholder は残っていない。
+
+**v4 の下で完了した 135 cell は v4 のまま残る。** write-heavy `e3de15eb`、balanced `143a3f74`、
+read-heavy `acf840c8` の各 45 cell とそれらを集約した最終レポートは、v4 の登録 commit・blob・
+spec SHA・`patch_sha256` / `formula_sha256` に束縛されたままである。v5 へ resume・追記・
+再ラベルしてはならない。
+
+### v4 からの改訂 (2026-09-07)
+
+静的 backoff の符号化の最終 fallback を変えたことに伴う **artifact 束縛の付け替えだけ**である。
+
+- `schema_version` を `/v4` → `/v5` にした。
+- `artifacts.patch_sha256` を `36cd974c…` → `a5e0710c…` にした。
+- `artifacts.formula_sha256` を `5b3d8dee…` → `1205b1ff…` にした。
+
+**変えなかったもの。** §4 の R1〜R5、μ grid、workload の動作点、block 数と実行順の生成規則、
+threads、extime、反復数、cell の切り方、α、Holm、permutation、信頼区間、等価域 ±3.0%、
+欠測規則、曝露規則、判定手続き、`physical_residual` の値と provenance、
+登録する形の閉集合 (`constant`、`symmetric-modulo`)。**1 文字も変えていない。**
+
+**なぜ本書を動かす必要があったか。** driver は「作業ツリーの patch の中身が事前登録 commit の
+blob と一致すること」と「登録した式の SHA が現行の hole line から導く SHA と一致すること」を
+preflight で要求する。符号化を変えた時点で、新しい登録 commit を持たない限り B-10 の正式走行は
+必ず止まる。したがって符号化の変更と本書の版立ては同一の変更単位でなければならない。
+
+**この改訂で新しく測れるようになるもの。** hole line の最終 fallback が
+「1000 で割った余り」から「生値から 2000 を引いた値」に変わり、静的 backoff の物理値が
+`0..999` から `0..9999` へ広がった。本書の shape grid (μ = 2..100) はこの拡張を使わない。
+拡張を使うのは静的 tail の driver である。
 
 ### v3 (placeholder 版) からの改訂
 
@@ -281,10 +309,10 @@ probe の結果を見て変更していない。
 <!-- IZANAGI-B10-SPEC-BEGIN -->
 ```json
 {
-  "schema_version": "izanagi-b10-backoff-shape-preregistration/v4",
+  "schema_version": "izanagi-b10-backoff-shape-preregistration/v5",
   "artifacts": {
-    "patch_sha256": "36cd974c56c6f103d894a53048ac734d9859def266c05898d3794d2c48470832",
-    "formula_sha256": "5b3d8deefed35d05597891592d7af442c96b2fa094cdebc8376b2e9bc9cd7662"
+    "patch_sha256": "a5e0710c3f76744755b58ec66024c277daba00e49ce3cbf3d6d263cd7228580a",
+    "formula_sha256": "1205b1ffb4fa6740873f1aa1ecf50bfc484239fb74aa28464dcb2e3a19fbe8df"
   },
   "registration_rules": {
     "shape_eligibility_criterion": "symbolic-mean-deviation-has-no-unsuppressed-mu-coefficient-on-mixer-high-bit-frequency",

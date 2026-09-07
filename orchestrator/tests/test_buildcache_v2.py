@@ -1370,6 +1370,119 @@ def test_v2_post_oracle_effective_disconnected_off_refuses_before_build(
     assert calls == ["configure"]
 
 
+def test_v2_post_oracle_effective_root_mismatch_never_starts_build(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    binding_base = tmp_path / "fetchcontent-binding"
+    binding_base.mkdir()
+    receipt = _write_fetchcontent_dependency(binding_base)
+    binding = _post_oracle_binding(binding_base, receipt)
+    configured_base = tmp_path / "fetchcontent-configured"
+    configured_base.mkdir()
+    shutil.copytree(
+        binding_base / "masstree-src",
+        configured_base / "masstree-src",
+    )
+    mimalloc = configured_base / "mimalloc-src"
+    googletest = configured_base / "googletest-src"
+    mimalloc.mkdir()
+    googletest.mkdir()
+    events = []
+    original_run = buildcache._run
+
+    def record_run(cmd, what, **kwargs):
+        events.append(what)
+        return original_run(cmd, what, **kwargs)
+
+    monkeypatch.setattr(buildcache, "_run", record_run)
+    with pytest.raises(Exception):
+        _build(
+            tmp_path, _contract(1),
+            post_oracle_dependency_binding=binding,
+            masstree_source_dir=(configured_base / "masstree-src").resolve(),
+            mimalloc_source_dir=mimalloc.resolve(),
+            googletest_source_dir=googletest.resolve(),
+        )
+    assert events == ["configure"]
+
+
+def test_v2_post_oracle_build_cannot_rewrite_identical_material_bytes(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    base = tmp_path / "fetchcontent"
+    base.mkdir()
+    receipt = _write_fetchcontent_dependency(base)
+    binding = _post_oracle_binding(base, receipt)
+    source = base / "masstree-src"
+    targets = (
+        source / "config.h",
+        source / "libkohler_masstree_json.a",
+    )
+    rewrite_failures = []
+    original_run = buildcache._run
+
+    def attempt_identical_rewrite(cmd, what, **kwargs):
+        original_run(cmd, what, **kwargs)
+        if what == "build":
+            for target in targets:
+                payload = target.read_bytes()
+                try:
+                    target.write_bytes(payload)
+                except PermissionError:
+                    rewrite_failures.append(target.name)
+
+    monkeypatch.setattr(buildcache, "_run", attempt_identical_rewrite)
+    result = _build(
+        tmp_path, _contract(1),
+        site=buildcache.site_policy.OTHER,
+        post_oracle_dependency_binding=binding,
+    )
+
+    assert result.cached is False
+    assert rewrite_failures == [
+        "config.h", "libkohler_masstree_json.a",
+    ]
+
+
+def test_v2_generic_build_does_not_enter_post_oracle_protection_or_change_argv(
+        tmp_path, monkeypatch):
+    bindir = _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    base = tmp_path / "fetchcontent"
+    base.mkdir()
+    receipt = _write_fetchcontent_dependency(base)
+
+    def unexpected_protection(*_args, **_kwargs):
+        raise AssertionError("generic build entered post-oracle protection")
+
+    monkeypatch.setattr(
+        sort_swo_dependency_material,
+        "protect_post_oracle_dependency_material",
+        unexpected_protection,
+    )
+    result = _build(
+        tmp_path, _contract(1),
+        fetchcontent_base_dir=str(base.resolve()),
+        fetchcontent_dependency_receipt=receipt,
+    )
+    expected_argv = (
+        str((bindir / "cmake").resolve()),
+        "-S", result.ccbench_root,
+        "-B", result.build_dir,
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        f"-DCMAKE_C_COMPILER={(bindir / 'test-cc').resolve()}",
+        f"-DCMAKE_CXX_COMPILER={(bindir / 'test-cxx').resolve()}",
+        f"-DFETCHCONTENT_BASE_DIR={base.resolve()}",
+        *Genome("silo", {"BACK_OFF": 1}).cmake_defines(),
+        "-DCCBENCH_TRACE=1",
+    )
+
+    assert result.configure_argv == expected_argv
+
+
 def test_v2_post_oracle_policy_separates_only_bound_identity():
     genome = Genome("silo", {"BACK_OFF": 1})
     toolchain = {

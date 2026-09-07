@@ -12,6 +12,7 @@ _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, os.path.dirname(_ORCH))
 
 from orchestrator.campaign import backoff_extended_sweep as S
+from orchestrator.campaign import backoff_extended_sweep_report as R
 from orchestrator.campaign import backoff_overthrottle as M
 
 
@@ -70,6 +71,56 @@ def test_condition_gate_uses_backoff_flags_from_imported_genomes(monkeypatch):
             for reference in references
         ),
     }
+
+
+def test_static_1000_generator_to_diagnostic_report_uses_physical_label():
+    reference = next(
+        genome for genome in S.genomes("balanced")
+        if genome.flags["BACKOFF_FIXED"] == 3000
+    )
+    assert M.JSONL_SCHEMA == "b10-backoff-overthrottle-rep/v2"
+    assert M.MANIFEST_SCHEMA == "b10-backoff-overthrottle-manifest/v2"
+    assert M._point_label(reference) == "fixed-1000us"
+    assert M._point_backoff_us(reference) == 1000
+
+    rows = []
+    for rep in range(M.REPS):
+        rows.append({
+            "workload": "balanced",
+            "workload_coordinates": dict(S.WORKLOAD_BY_TAG["balanced"]),
+            "campaign_id": "campaign",
+            "reference_variant_id": "static-1000",
+            "reference_genome": reference.canonical(),
+            "aa_genome": M._aa_genome(reference).canonical(),
+            "label": M._point_label(reference),
+            "point_index": 30,
+            "rep": rep,
+            "back_off": 1,
+            "backoff_us": M._point_backoff_us(reference),
+            "values": {
+                field: M._value(float(rep + 1))
+                for field in (
+                    "backoff_latency_rate", "abort_rate", "latency_ns",
+                    "tps_aa", "eff_tps",
+                )
+            },
+        })
+    summary = M._summaries(rows)[0]
+    assert (summary["label"], summary["backoff_us"]) == ("fixed-1000us", 1000)
+
+    normal_point = {
+        "workload": "balanced",
+        "workload_coordinates": dict(S.WORKLOAD_BY_TAG["balanced"]),
+        "campaign_id": "campaign",
+        "variant_id": "static-1000",
+        "reference_genome": reference.canonical(),
+        "kind": "static",
+        "backoff_us": 1000,
+        "point_index": 30,
+    }
+    expected = R._expected_aa_binding(normal_point)
+    assert expected["reference_genome"] == reference.canonical()
+    assert (expected["label"], expected["backoff_us"]) == ("fixed-1000us", 1000)
 
 
 def test_mu9_only_back_off_zero_accepts_structural_missing_spin():
