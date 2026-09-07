@@ -7022,6 +7022,7 @@ def _t325_prepare_effective_binding(repo: Path, manifest_path: Path) -> str:
             "arm": trial.arm,
             "holdout": trial.holdout,
             "campaign_id": trial.campaign_id,
+            "prereg_generation": 13,
             "replicate_index": 0,
             "attempt_index": 0,
         }
@@ -7037,6 +7038,7 @@ def _t325_prepare_effective_binding(repo: Path, manifest_path: Path) -> str:
         manifest_path=manifest_path,
         manifest_sha256=manifest.sha256,
         freeze_id=f"freeze-{manifest.sha256[:16]}",
+        prereg_generation=13,
         slots=slots,
     )
     _t325_git(repo, "add", "--", str(attempt_path.relative_to(repo)))

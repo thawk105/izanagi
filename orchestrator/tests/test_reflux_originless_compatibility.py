@@ -202,6 +202,16 @@ _VOLATILE_ACCEPTANCE_LIFECYCLE_BYTES = ("acceptance", "lifecycle_prefix_bytes")
 _VOLATILE_ACCEPTANCE_REPORT_SHA = ("acceptance", "trials", "*", "report_sha256")
 # Acceptance journal digests transitively cover volatile journal leaves above.
 _VOLATILE_ACCEPTANCE_JOURNAL_SHA = ("acceptance", "trials", "*", "attempt_journal_sha256")
+# The attempt prefix contains exact start/classification/terminal evidence,
+# including wall-clock timestamps, process identity, and report/journal-derived
+# digests.  Its receipt binding must remain exact, but its digest and byte count
+# are therefore transitively volatile across equivalent harness rebuilds.
+_VOLATILE_ACCEPTANCE_ATTEMPT_PREFIX_SHA = (
+    "acceptance", "attempt_registry_prefix_sha256",
+)
+_VOLATILE_ACCEPTANCE_ATTEMPT_PREFIX_BYTES = (
+    "acceptance", "attempt_registry_prefix_bytes",
+)
 # Attempt output digests cover the journal's wall clock and temporary paths.
 _VOLATILE_REPORT_RAW_OUTPUT_SHA = ("reports", "*", "raw_output_sha256")
 _VOLATILE_LIFECYCLE_CLASSIFICATION_SHA = (
@@ -288,6 +298,8 @@ _VOLATILE_LEAF_PATHS = frozenset({
     _VOLATILE_ACCEPTANCE_LIFECYCLE_BYTES,
     _VOLATILE_ACCEPTANCE_REPORT_SHA,
     _VOLATILE_ACCEPTANCE_JOURNAL_SHA,
+    _VOLATILE_ACCEPTANCE_ATTEMPT_PREFIX_SHA,
+    _VOLATILE_ACCEPTANCE_ATTEMPT_PREFIX_BYTES,
     _VOLATILE_REPORT_RAW_OUTPUT_SHA,
     _VOLATILE_LIFECYCLE_CLASSIFICATION_SHA,
     _VOLATILE_LIFECYCLE_RAW_OUTPUT_SHA,
@@ -904,7 +916,7 @@ def _project_t1749_receipt_v4_to_v1(
     assert type(acceptance) is dict
     assert type(reports) is list
     assert type(journals) is list
-    assert acceptance["schema_version"] == "p3-8c-trial-acceptance-receipt/v4"
+    assert acceptance["schema_version"] == "p3-8c-trial-acceptance-receipt/v5"
     assert acceptance["certifying"] is False
     assert acceptance["non_certifying_reason_codes"] == [
         "no-build",
@@ -912,6 +924,24 @@ def _project_t1749_receipt_v4_to_v1(
     ]
     aggregate = acceptance.pop("cross_binding_receipt_sha256")
     assert type(aggregate) is str and len(aggregate) == 64
+    prereg_content_commit = acceptance.pop("prereg_content_commit")
+    prereg_effective_commit = acceptance.pop("prereg_effective_commit")
+    assert (
+        type(prereg_content_commit) is str
+        and len(prereg_content_commit) == 40
+    )
+    assert (
+        type(prereg_effective_commit) is str
+        and len(prereg_effective_commit) == 40
+    )
+    attempt_path = acceptance.pop("attempt_registry_path")
+    attempt_prefix_bytes = acceptance.pop("attempt_registry_prefix_bytes")
+    attempt_prefix_sha256 = acceptance.pop("attempt_registry_prefix_sha256")
+    attempt_projection = acceptance.pop("attempt_slot_projection")
+    assert attempt_path == "output/s8c-preregistration/attempt-registry.jsonl"
+    assert type(attempt_prefix_bytes) is int and attempt_prefix_bytes > 0
+    assert type(attempt_prefix_sha256) is str and len(attempt_prefix_sha256) == 64
+    assert type(attempt_projection) is dict
     current_activation_digest = acceptance[
         "activation_report_digest_sha256"
     ]

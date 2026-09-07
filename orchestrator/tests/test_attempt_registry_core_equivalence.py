@@ -16,7 +16,8 @@ from orchestrator.campaign import trial_registry as R
 
 
 _ZERO = "0" * 64
-_SCHEMA_VERSION = "p3-8c-attempt-registry/v2"
+_SCHEMA_VERSION = "p3-8c-attempt-registry/v3"
+_PREREG_GENERATION = 13
 _RETRYABLE_REASONS = (
     "launcher-failure", "node-failure", "preempted", "wall-timeout",
 )
@@ -34,7 +35,8 @@ _PROCESS = {
 }
 _SLOT_KEYS = frozenset({
     "slot_id", "trial_id", "arm", "holdout", "campaign_id",
-    "replicate_index", "attempt_index", "schedule_row_sha256",
+    "prereg_generation", "replicate_index", "attempt_index",
+    "schedule_row_sha256",
 })
 
 
@@ -122,6 +124,12 @@ def _legacy_parse_slot(value: object, *, label: str) -> dict[str, object]:
             "attempt-registry-schema", f"{label}.holdout is outside the closed set",
         )
     _legacy_text(value.get("campaign_id"), label=f"{label}.campaign_id")
+    prereg_generation = value.get("prereg_generation")
+    if type(prereg_generation) is not int or prereg_generation < 1:
+        _legacy_fail(
+            "attempt-registry-schema",
+            f"{label}.prereg_generation is invalid",
+        )
     for field in ("replicate_index", "attempt_index"):
         raw = value.get(field)
         if type(raw) is not int or raw < 0:
@@ -187,6 +195,7 @@ def _legacy_capability_digest(
         "arm": slot["arm"],
         "holdout": slot["holdout"],
         "campaign_id": slot["campaign_id"],
+        "prereg_generation": slot["prereg_generation"],
         "replicate_index": slot["replicate_index"],
         "attempt_index": slot["attempt_index"],
         "schedule_row_sha256": slot["schedule_row_sha256"],
@@ -201,6 +210,7 @@ def _slot(*, attempt_index: int = 0) -> dict[str, object]:
         "arm": "on",
         "holdout": "H1",
         "campaign_id": "reference-campaign",
+        "prereg_generation": _PREREG_GENERATION,
         "replicate_index": 0,
         "attempt_index": attempt_index,
     }
@@ -384,6 +394,7 @@ def _facade_reference(
         manifest_path=manifest,
         manifest_sha256=manifest_sha256,
         freeze_id=freeze_id,
+        prereg_generation=_PREREG_GENERATION,
         slots=[slot],
     )
     content = _commit(repo, "attempt genesis", registry)
@@ -547,6 +558,7 @@ def test_genesis_builder_rejection_matches_pre_extraction_order(
             manifest_path=manifest,
             manifest_sha256=manifest_sha256,
             freeze_id="reference-freeze",
+            prereg_generation=_PREREG_GENERATION,
             slots=[slot],
         )
 
@@ -587,6 +599,7 @@ def test_genesis_builder_retryable_reasons_match_pre_extraction(
             manifest_path=manifest,
             manifest_sha256=manifest_sha256,
             freeze_id="reference-freeze",
+            prereg_generation=_PREREG_GENERATION,
             slots=[_slot()],
             retryable_failure_reasons=retryable_failure_reasons,
         )
@@ -653,6 +666,7 @@ def test_skipped_slot_rejection_reason_is_identical(tmp_path: Path) -> None:
         manifest_path=manifest,
         manifest_sha256=manifest_sha256,
         freeze_id=freeze_id,
+        prereg_generation=_PREREG_GENERATION,
         slots=slots,
     )
     content = _commit(repo, "attempt genesis", registry)
@@ -696,6 +710,7 @@ def test_frozen_paths_and_public_signatures_are_literal_pinned() -> None:
         "create_attempt_registry_genesis": (
             "(*, repository_root: 'Path', manifest_path: 'Path', "
             "manifest_sha256: 'str', freeze_id: 'str', "
+            "prereg_generation: 'int', "
             "slots: 'Sequence[Mapping[str, Any]]', "
             "retryable_failure_reasons: 'Sequence[str]' = "
             "('launcher-failure', 'node-failure', 'preempted', 'wall-timeout'), "

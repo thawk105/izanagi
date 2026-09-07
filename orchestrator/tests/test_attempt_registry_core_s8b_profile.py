@@ -523,7 +523,7 @@ def test_s8c_genesis_requires_manifest_contract_and_preserves_exact_row(
     rows = core.create_attempt_registry_genesis(**arguments)
 
     assert rows[0] == {
-        "schema_version": "p3-8c-attempt-registry/v2",
+        "schema_version": "p3-8c-attempt-registry/v3",
         "event": "freeze",
         "freeze_id": "s8b-policy-control-freeze",
         "manifest_path": "manifest.json",
@@ -538,16 +538,17 @@ def test_s8c_genesis_requires_manifest_contract_and_preserves_exact_row(
             "arm": "on",
             "holdout": "H1",
             "campaign_id": "s8b-policy-control-campaign",
+            "prereg_generation": 13,
             "replicate_index": 0,
             "attempt_index": 0,
             "schedule_row_sha256": (
-                "9788103557789f4bd1f84f26148e55628df1eb091491fbd6ccb3ec1a9dde83b9"
+                "a33fa332404f536be10eef669ff091ffa8acbc229dd32d1ce181d9aee04a5e12"
             ),
         }],
         "event_index": 0,
         "previous_event_sha256": "0" * 64,
         "event_sha256": (
-            "3e28dc7e76bdebd07967a070bf0ec5ee235cef14b155ea76635c4bae35f69ea6"
+            "83e0db2035a3bce02b209fdaed365a49f487dda5dce24c1f9289dcd764321cb7"
         ),
     }
     assert core.load_attempt_registry(
@@ -1549,6 +1550,7 @@ def _s8c_slot() -> dict[str, object]:
         "arm": "on",
         "holdout": "H1",
         "campaign_id": "s8b-policy-control-campaign",
+        "prereg_generation": 13,
         "replicate_index": 0,
         "attempt_index": 0,
     }

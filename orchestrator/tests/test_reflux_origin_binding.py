@@ -327,6 +327,7 @@ def case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> _Case:
             "arm": trial.arm,
             "holdout": trial.holdout,
             "campaign_id": trial.campaign_id,
+            "prereg_generation": 13,
             "replicate_index": 0,
             "attempt_index": 0,
         }
@@ -340,6 +341,7 @@ def case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> _Case:
         manifest_path=manifest_path,
         manifest_sha256=loaded_manifest.sha256,
         freeze_id=f"freeze-{loaded_manifest.sha256[:16]}",
+        prereg_generation=13,
         slots=slots,
     )
     content_commit = _commit(repo, "attempt registry genesis", attempt_path)

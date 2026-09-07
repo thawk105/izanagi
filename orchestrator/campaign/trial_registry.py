@@ -62,9 +62,11 @@ DEFAULT_ATTEMPT_REGISTRY_PATH = Path(
     "output/s8c-preregistration/attempt-registry.jsonl"
 )
 _ATTEMPT_REGISTRY_SCHEMA_VERSION_V1 = "p3-8c-attempt-registry/v1"
-ATTEMPT_REGISTRY_SCHEMA_VERSION = "p3-8c-attempt-registry/v2"
+_ATTEMPT_REGISTRY_SCHEMA_VERSION_V2 = "p3-8c-attempt-registry/v2"
+ATTEMPT_REGISTRY_SCHEMA_VERSION = "p3-8c-attempt-registry/v3"
 _ATTEMPT_REGISTRY_SCHEMA_VERSIONS = frozenset({
     _ATTEMPT_REGISTRY_SCHEMA_VERSION_V1,
+    _ATTEMPT_REGISTRY_SCHEMA_VERSION_V2,
     ATTEMPT_REGISTRY_SCHEMA_VERSION,
 })
 EFFECTIVE_BINDING_SCHEMA_VERSION = "p3-8c-prereg-effective-binding/v1"
@@ -141,10 +143,11 @@ _ATTEMPT_V1_GENESIS_KEYS = frozenset({
     "schema_version", "event", "freeze_id", "manifest_path",
     "manifest_sha256", "root_path", "retryable_failure_reasons", "slots",
 })
-_ATTEMPT_SLOT_KEYS = frozenset({
+_ATTEMPT_V1_V2_SLOT_KEYS = frozenset({
     "slot_id", "trial_id", "arm", "holdout", "campaign_id",
     "replicate_index", "attempt_index", "schedule_row_sha256",
 })
+_ATTEMPT_SLOT_KEYS = _ATTEMPT_V1_V2_SLOT_KEYS | {"prereg_generation"}
 _ATTEMPT_CHAIN_KEYS = frozenset({
     "event_index", "previous_event_sha256", "event_sha256",
 })
@@ -439,6 +442,7 @@ class AttemptSlotCapability:
     arm: str
     holdout: str
     campaign_id: str
+    prereg_generation: int
     replicate_index: int
     attempt_index: int
     schedule_row_sha256: str
@@ -1964,7 +1968,13 @@ def _attempt_slot_config(slot: Mapping[str, Any]) -> tuple[object, ...]:
 def _parse_attempt_slot(value: object, *, label: str) -> dict[str, Any]:
     if not isinstance(value, Mapping):
         _fail("attempt-registry-schema", f"{label} is not an object")
-    _exact_keys(value, _ATTEMPT_SLOT_KEYS, label=label)
+    slot_keys = frozenset(value)
+    if slot_keys not in {_ATTEMPT_V1_V2_SLOT_KEYS, _ATTEMPT_SLOT_KEYS}:
+        expected = (
+            _ATTEMPT_SLOT_KEYS
+            if "prereg_generation" in value else _ATTEMPT_V1_V2_SLOT_KEYS
+        )
+        _exact_keys(value, expected, label=label)
     slot_id = _attempt_text(value.get("slot_id"), label=f"{label}.slot_id")
     trial_id = value.get("trial_id")
     if not isinstance(trial_id, str) or _TRIAL_ID_RE.fullmatch(trial_id) is None:
@@ -1978,6 +1988,15 @@ def _parse_attempt_slot(value: object, *, label: str) -> dict[str, Any]:
     campaign_id = _attempt_text(
         value.get("campaign_id"), label=f"{label}.campaign_id",
     )
+    prereg_generation = value.get("prereg_generation")
+    if (
+        "prereg_generation" in value
+        and (type(prereg_generation) is not int or prereg_generation < 1)
+    ):
+        _fail(
+            "attempt-registry-schema",
+            f"{label}.prereg_generation is invalid",
+        )
     replicate_index = value.get("replicate_index")
     attempt_index = value.get("attempt_index")
     for field, raw in (
@@ -1989,7 +2008,7 @@ def _parse_attempt_slot(value: object, *, label: str) -> dict[str, Any]:
     schedule_row_sha256 = _attempt_digest(
         value.get("schedule_row_sha256"), label=f"{label}.schedule_row_sha256",
     )
-    return {
+    result = {
         "slot_id": slot_id,
         "trial_id": trial_id,
         "arm": arm,
@@ -1999,6 +2018,9 @@ def _parse_attempt_slot(value: object, *, label: str) -> dict[str, Any]:
         "attempt_index": attempt_index,
         "schedule_row_sha256": schedule_row_sha256,
     }
+    if "prereg_generation" in value:
+        result["prereg_generation"] = prereg_generation
+    return result
 
 
 _S8CAttemptBinding = tuple[str, str]
@@ -2057,7 +2079,7 @@ class _S8CBindingCodec:
         freeze_id: str,
     ) -> dict[str, Any]:
         del freeze_id
-        return {
+        payload = {
             "slot_id": slot["slot_id"],
             "trial_id": slot["trial_id"],
             "arm": slot["arm"],
@@ -2069,6 +2091,9 @@ class _S8CBindingCodec:
             "prereg_content_commit": binding[0],
             "prereg_effective_commit": binding[1],
         }
+        if "prereg_generation" in slot:
+            payload["prereg_generation"] = slot["prereg_generation"]
+        return payload
 
 
 _ATTEMPT_V1_RECEIPT_KEYS = frozenset({
@@ -2083,6 +2108,38 @@ _ATTEMPT_RECEIPT_KEYS = frozenset({
     "external_evidence_sha256", "classified_at",
     "pre_observation_failure_reason", "pre_observation_seal_sha256",
 })
+
+_ATTEMPT_GENESIS_KEYS_BY_SCHEMA = {
+    _ATTEMPT_REGISTRY_SCHEMA_VERSION_V1: _ATTEMPT_V1_GENESIS_KEYS,
+    _ATTEMPT_REGISTRY_SCHEMA_VERSION_V2: _ATTEMPT_GENESIS_KEYS,
+    ATTEMPT_REGISTRY_SCHEMA_VERSION: _ATTEMPT_GENESIS_KEYS,
+}
+_ATTEMPT_EVENT_KEYS_BY_SCHEMA = {
+    _ATTEMPT_REGISTRY_SCHEMA_VERSION_V1: {
+        "start": _ATTEMPT_V1_START_KEYS,
+        "classification": _ATTEMPT_V1_CLASSIFICATION_KEYS,
+        "terminal": _ATTEMPT_V1_TERMINAL_KEYS,
+    },
+    _ATTEMPT_REGISTRY_SCHEMA_VERSION_V2: {
+        "start": _ATTEMPT_START_KEYS,
+        "pre-observation-seal": _ATTEMPT_PRE_OBSERVATION_SEAL_KEYS,
+        "classification": _ATTEMPT_CLASSIFICATION_KEYS,
+        "observation-start": _ATTEMPT_OBSERVATION_START_KEYS,
+        "terminal": _ATTEMPT_TERMINAL_KEYS,
+    },
+    ATTEMPT_REGISTRY_SCHEMA_VERSION: {
+        "start": _ATTEMPT_START_KEYS,
+        "pre-observation-seal": _ATTEMPT_PRE_OBSERVATION_SEAL_KEYS,
+        "classification": _ATTEMPT_CLASSIFICATION_KEYS,
+        "observation-start": _ATTEMPT_OBSERVATION_START_KEYS,
+        "terminal": _ATTEMPT_TERMINAL_KEYS,
+    },
+}
+_ATTEMPT_RECEIPT_KEYS_BY_SCHEMA = {
+    _ATTEMPT_REGISTRY_SCHEMA_VERSION_V1: _ATTEMPT_V1_RECEIPT_KEYS,
+    _ATTEMPT_REGISTRY_SCHEMA_VERSION_V2: _ATTEMPT_RECEIPT_KEYS,
+    ATTEMPT_REGISTRY_SCHEMA_VERSION: _ATTEMPT_RECEIPT_KEYS,
+}
 
 
 def _s8c_attempt_genesis_fields(
@@ -2114,28 +2171,9 @@ _S8C_ATTEMPT_PROFILE = _attempt_core.DomainProfile(
     schema=_attempt_core.SchemaProfile(
         current=ATTEMPT_REGISTRY_SCHEMA_VERSION,
         readable=_ATTEMPT_REGISTRY_SCHEMA_VERSIONS,
-        genesis_keys={
-            _ATTEMPT_REGISTRY_SCHEMA_VERSION_V1: _ATTEMPT_V1_GENESIS_KEYS,
-            ATTEMPT_REGISTRY_SCHEMA_VERSION: _ATTEMPT_GENESIS_KEYS,
-        },
-        event_keys={
-            _ATTEMPT_REGISTRY_SCHEMA_VERSION_V1: {
-                "start": _ATTEMPT_V1_START_KEYS,
-                "classification": _ATTEMPT_V1_CLASSIFICATION_KEYS,
-                "terminal": _ATTEMPT_V1_TERMINAL_KEYS,
-            },
-            ATTEMPT_REGISTRY_SCHEMA_VERSION: {
-                "start": _ATTEMPT_START_KEYS,
-                "pre-observation-seal": _ATTEMPT_PRE_OBSERVATION_SEAL_KEYS,
-                "classification": _ATTEMPT_CLASSIFICATION_KEYS,
-                "observation-start": _ATTEMPT_OBSERVATION_START_KEYS,
-                "terminal": _ATTEMPT_TERMINAL_KEYS,
-            },
-        },
-        receipt_keys={
-            _ATTEMPT_REGISTRY_SCHEMA_VERSION_V1: _ATTEMPT_V1_RECEIPT_KEYS,
-            ATTEMPT_REGISTRY_SCHEMA_VERSION: _ATTEMPT_RECEIPT_KEYS,
-        },
+        genesis_keys=_ATTEMPT_GENESIS_KEYS_BY_SCHEMA,
+        event_keys=_ATTEMPT_EVENT_KEYS_BY_SCHEMA,
+        receipt_keys=_ATTEMPT_RECEIPT_KEYS_BY_SCHEMA,
     ),
     layout=_attempt_core.RegistryLayout(
         registry_path=_PurePosixPath(DEFAULT_ATTEMPT_REGISTRY_PATH.as_posix()),
@@ -2187,7 +2225,7 @@ def _attempt_capability_payload(
     prereg_effective_commit: str,
     schema_version: str = ATTEMPT_REGISTRY_SCHEMA_VERSION,
 ) -> dict[str, Any]:
-    return {
+    payload = {
         "schema_version": schema_version,
         "freeze_id": freeze_id,
         "slot_id": slot["slot_id"],
@@ -2201,6 +2239,9 @@ def _attempt_capability_payload(
         "prereg_content_commit": prereg_content_commit,
         "prereg_effective_commit": prereg_effective_commit,
     }
+    if schema_version == ATTEMPT_REGISTRY_SCHEMA_VERSION:
+        payload["prereg_generation"] = slot["prereg_generation"]
+    return payload
 
 
 def _attempt_capability_digest(
@@ -2211,12 +2252,18 @@ def _attempt_capability_digest(
     prereg_effective_commit: str,
     schema_version: str = ATTEMPT_REGISTRY_SCHEMA_VERSION,
 ) -> str:
+    normalized_slot = dict(slot)
+    if schema_version in {
+        _ATTEMPT_REGISTRY_SCHEMA_VERSION_V1,
+        _ATTEMPT_REGISTRY_SCHEMA_VERSION_V2,
+    }:
+        normalized_slot.pop("prereg_generation", None)
     return _attempt_core_call(
         _attempt_core.capability_digest,
         profile=_S8C_ATTEMPT_PROFILE,
         schema_version=schema_version,
         freeze_id=freeze_id,
-        slot=dict(slot),
+        slot=normalized_slot,
         binding=(prereg_content_commit, prereg_effective_commit),
     )
 
@@ -2285,11 +2332,14 @@ def _assert_attempt_classification_receipts(
                 "classification receipt is not newline terminated",
             )
         receipt_value = _decode_json(receipt[:-1], label="classification receipt")
-        expected_receipt_keys = (
-            _ATTEMPT_RECEIPT_KEYS
-            if classification["schema_version"] == ATTEMPT_REGISTRY_SCHEMA_VERSION
-            else _ATTEMPT_V1_RECEIPT_KEYS
+        expected_receipt_keys = _ATTEMPT_RECEIPT_KEYS_BY_SCHEMA.get(
+            classification["schema_version"]
         )
+        if expected_receipt_keys is None:
+            _fail(
+                "attempt-classification",
+                "classification receipt schema is unsupported",
+            )
         if not isinstance(receipt_value, Mapping):
             _fail("attempt-classification", "classification receipt is not an object")
         if _canonical_json_bytes(receipt_value) + b"\n" != receipt:
@@ -2318,7 +2368,10 @@ def _assert_attempt_classification_receipts(
                 "attempt-classification",
                 "classification receipt is not capability-bound",
             )
-        if classification["schema_version"] == ATTEMPT_REGISTRY_SCHEMA_VERSION:
+        if classification["schema_version"] in {
+            _ATTEMPT_REGISTRY_SCHEMA_VERSION_V2,
+            ATTEMPT_REGISTRY_SCHEMA_VERSION,
+        }:
             if (
                 receipt_value.get("pre_observation_failure_reason")
                 != classification["pre_observation_failure_reason"]
@@ -2414,6 +2467,7 @@ def create_attempt_registry_genesis(
     manifest_path: Path,
     manifest_sha256: str,
     freeze_id: str,
+    prereg_generation: int,
     slots: Sequence[Mapping[str, Any]],
     retryable_failure_reasons: Sequence[str] = tuple(
         sorted(ATTEMPT_RETRYABLE_FAILURE_REASONS)
@@ -2425,14 +2479,30 @@ def create_attempt_registry_genesis(
     A genesis with the complete slot set is accepted only at the canonical
     path when that path is absent; a second genesis, a late slot, or a retry
     reason outside the exact closed set is rejected. A valid first creation
-    is one canonical freeze row containing every declared slot and no lifecycle
-    row yet.
+    has one positive ``prereg_generation`` exactly repeated by every slot;
+    a missing, different, boolean, or non-positive slot value is rejected.
     """
     root = _repository_root(repository_root)
     _attempt_registry_target(root, registry_path, create_parent=True)
     if not isinstance(manifest_sha256, str) or _SHA256_RE.fullmatch(manifest_sha256) is None:
         _fail("attempt-registry-genesis", "manifest_sha256 is invalid")
     _attempt_text(freeze_id, label="freeze_id")
+    if type(prereg_generation) is not int or prereg_generation < 1:
+        _fail(
+            "attempt-prereg-generation",
+            "prereg_generation must be a positive int",
+        )
+    for index, slot in enumerate(slots):
+        if (
+            not isinstance(slot, Mapping)
+            or type(slot.get("prereg_generation")) is not int
+            or slot.get("prereg_generation") != prereg_generation
+        ):
+            _fail(
+                "attempt-prereg-generation",
+                "prereg_generation differs from "
+                f"slots[{index}].prereg_generation",
+            )
     _repo_path, manifest_relative = _repo_relative(
         Path(manifest_path), root, label="manifest",
     )
@@ -2993,6 +3063,7 @@ def _assert_attempt_capability(capability: AttemptSlotCapability) -> None:
         "arm": capability.arm,
         "holdout": capability.holdout,
         "campaign_id": capability.campaign_id,
+        "prereg_generation": capability.prereg_generation,
         "replicate_index": capability.replicate_index,
         "attempt_index": capability.attempt_index,
         "schedule_row_sha256": capability.schedule_row_sha256,
@@ -3067,6 +3138,7 @@ def _reserve_attempt_slot(
             arm=slot["arm"],
             holdout=slot["holdout"],
             campaign_id=slot["campaign_id"],
+            prereg_generation=slot["prereg_generation"],
             replicate_index=slot["replicate_index"],
             attempt_index=slot["attempt_index"],
             schedule_row_sha256=slot["schedule_row_sha256"],
@@ -3338,7 +3410,7 @@ def _record_attempt_terminal(
         if classification.get("schema_version") != ATTEMPT_REGISTRY_SCHEMA_VERSION:
             _fail(
                 "attempt-phase-order",
-                "v2 terminal cannot bind a v1 classification",
+                "current terminal cannot bind a legacy classification",
             )
         if classification["pre_observation_seal_sha256"] != (
             capability.pre_observation_seal_sha256
@@ -6118,6 +6190,43 @@ def assert_trial_registry_acceptance(
             report_paths=report_paths,
         )
         attempt_snapshot.assert_rows(attempt_rows)
+        # Current v3 rows are accepted for new outer-receipt projection.  A
+        # readable legacy v1/v2 root is rejected for new formal issuance.
+        if attempt_rows[0]["schema_version"] != ATTEMPT_REGISTRY_SCHEMA_VERSION:
+            _fail(
+                "attempt-prereg-generation",
+                "new formal acceptance requires attempt registry schema v3",
+            )
+        initial_attempt_slots = sorted(
+            (
+                slot for slot in attempt_rows[0]["slots"]
+                if slot["attempt_index"] == 0
+            ),
+            key=lambda slot: slot["slot_id"],
+        )
+        attempt_generations = {
+            slot["prereg_generation"] for slot in attempt_rows[0]["slots"]
+        }
+        if not initial_attempt_slots or len(attempt_generations) != 1:
+            _fail(
+                "attempt-prereg-generation",
+                "formal attempt projection is empty or generation-mixed",
+            )
+        attempt_slot_projection = {
+            "prereg_generation": next(iter(attempt_generations)),
+            "unit_count": len(initial_attempt_slots),
+            "units": [
+                {
+                    "slot_id": slot["slot_id"],
+                    "trial_id": slot["trial_id"],
+                    "arm": slot["arm"],
+                    "holdout": slot["holdout"],
+                    "campaign_id": slot["campaign_id"],
+                    "replicate_index": slot["replicate_index"],
+                }
+                for slot in initial_attempt_slots
+            ],
+        }
         lifecycle_bytes, lifecycle_relative = _receipt_lifecycle_snapshot(
             repository_root=root,
             lifecycle_path=Path(lifecycle_path),
@@ -6235,6 +6344,8 @@ def assert_trial_registry_acceptance(
             "manifest_path": manifest_relative,
             "manifest_sha256": manifest.sha256,
             "prereg_commit": manifest.prereg_commit,
+            "prereg_content_commit": effective_binding.prereg_content_commit,
+            "prereg_effective_commit": registration.prereg_effective_commit,
             "activation_report_digest_sha256": (
                 effective_preregistration.report_digest_sha256
             ),
@@ -6248,6 +6359,12 @@ def assert_trial_registry_acceptance(
             "lifecycle_prefix_sha256": hashlib.sha256(
                 lifecycle_bytes
             ).hexdigest(),
+            "attempt_registry_path": attempt_snapshot.relative_path.as_posix(),
+            "attempt_registry_prefix_bytes": len(attempt_snapshot.data),
+            "attempt_registry_prefix_sha256": hashlib.sha256(
+                attempt_snapshot.data
+            ).hexdigest(),
+            "attempt_slot_projection": attempt_slot_projection,
             "certifying": False,
             "non_certifying_reason_codes": reason_codes,
             "cross_binding_receipt_sha256": cross_binding_receipt_sha256,

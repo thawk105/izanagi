@@ -167,7 +167,14 @@ def test_tracked_receipt_and_all_referenced_bytes_verify_positive(
     assert verified.path == path
     assert verified.raw_bytes == path.read_bytes()
     assert verified.sha256 == hashlib.sha256(path.read_bytes()).hexdigest()
-    assert receipt.require_current_verified_receipt(verified).sha256 == verified.sha256
+    with pytest.raises(
+        receipt.AcceptanceReceiptError,
+        match=(
+            r"^\[receipt-capability\] downstream capability requires the "
+            r"current receipt schema$"
+        ),
+    ):
+        receipt.require_current_verified_receipt(verified)
 
 
 def test_t822_tracked_receipt_rejects_mixed_measurement_heads(

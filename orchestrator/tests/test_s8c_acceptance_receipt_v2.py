@@ -9,10 +9,11 @@ import json
 import subprocess
 import sys
 from collections.abc import Mapping
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 import pytest
 
+from orchestrator.campaign import attempt_registry_core as attempt_core
 from orchestrator.campaign import s8c_acceptance_receipt as receipt
 
 
@@ -136,7 +137,35 @@ def _assert_resolved_descriptor_matches_ratified_literals(
     assert descriptor == expected_descriptors[(holdout, arm)]
 
 
-def _fixture(tmp_path: Path) -> tuple[Path, Path, dict]:
+def _attempt_slots(trials: list[dict], *, prereg_generation: int) -> list[dict]:
+    slots = []
+    for row in trials:
+        for attempt_index in range(2):
+            identity = {
+                "trial_id": row["trial_id"],
+                "arm": row["arm"],
+                "holdout": row["holdout"],
+                "campaign_id": row["campaign_id"],
+                "prereg_generation": prereg_generation,
+                "replicate_index": 0,
+                "attempt_index": attempt_index,
+            }
+            slots.append({
+                "slot_id": f"{row['trial_id']}-r0-a{attempt_index}",
+                **identity,
+                "schedule_row_sha256": hashlib.sha256(
+                    _canonical(identity)
+                ).hexdigest(),
+            })
+    return slots
+
+
+def _fixture(
+    tmp_path: Path,
+    *,
+    attempt_manifest_sha256: str | None = None,
+    track_attempt_genesis: bool = True,
+) -> tuple[Path, Path, dict]:
     from orchestrator.campaign import s8c_arm_inputs
 
     repo = tmp_path / "repo"
@@ -152,6 +181,28 @@ def _fixture(tmp_path: Path) -> tuple[Path, Path, dict]:
     lifecycle_path = repo / "output" / "s8c-trial-registry" / "lifecycle.jsonl"
     lifecycle_sha = _write(lifecycle_path, b'{"fixture":"lifecycle"}\n')
     s8c_arm_inputs.generate_off_neutral_artifacts(repository_root=repo)
+    genesis_trials = [
+        {
+            "trial_id": f"trial-{holdout.lower()}-{arm}",
+            "arm": arm,
+            "holdout": holdout,
+            "campaign_id": f"campaign-{holdout.lower()}-{arm}",
+        }
+        for holdout in ("H1", "H2")
+        for arm in ("on", "off", "swapped")
+    ]
+    if track_attempt_genesis:
+        genesis_rows = attempt_core.create_attempt_registry_genesis(
+            profile=receipt._RECEIPT_ATTEMPT_PROFILE,
+            freeze_id="receipt-v5-fixture",
+            manifest_path=PurePosixPath(manifest_path.relative_to(repo).as_posix()),
+            manifest_sha256=(attempt_manifest_sha256 or manifest_sha),
+            slots=_attempt_slots(genesis_trials, prereg_generation=13),
+        )
+        attempt_path = repo.joinpath(
+            *receipt.DEFAULT_ATTEMPT_REGISTRY_PATH.parts
+        )
+        _write(attempt_path, _canonical_line(genesis_rows[0]))
     introduction = _commit_all(repo, "receipt references and off artifacts")
 
     trial_rows = []
@@ -270,8 +321,186 @@ def _cross_binding_aggregate_for_schema(value: dict, schema_version: str) -> str
     return hashlib.sha256(_canonical(payload)).hexdigest()
 
 
-def _upgrade_to_current(value: dict) -> None:
+def _install_attempt_registry_binding(
+    repo: Path,
+    value: dict,
+    *,
+    terminal_failure_trials: frozenset[str] = frozenset(),
+    retry_trial_id: str | None = None,
+    binding_prereg_content_commit: str | None = None,
+    binding_prereg_effective_commit: str | None = None,
+) -> None:
+    prereg_generation = 13
+    slots = _attempt_slots(value["trials"], prereg_generation=prereg_generation)
+    profile = receipt._RECEIPT_ATTEMPT_PROFILE
+    attempt_path = repo.joinpath(*receipt.DEFAULT_ATTEMPT_REGISTRY_PATH.parts)
+    if attempt_path.is_file():
+        rows = attempt_core.load_attempt_registry(
+            attempt_path.read_bytes(), profile=profile,
+        )
+        assert sorted(
+            rows[0]["slots"], key=lambda slot: slot["slot_id"],
+        ) == sorted(slots, key=lambda slot: slot["slot_id"])
+    else:
+        rows = attempt_core.create_attempt_registry_genesis(
+            profile=profile,
+            freeze_id="receipt-v5-fixture",
+            manifest_path=PurePosixPath(value["manifest_path"]),
+            manifest_sha256=value["manifest_sha256"],
+            slots=slots,
+        )
+    binding = (
+        binding_prereg_content_commit or value["prereg_content_commit"],
+        binding_prereg_effective_commit or value["prereg_effective_commit"],
+    )
+    trial_rows = {row["trial_id"]: row for row in value["trials"]}
+
+    def consume(slot: dict, *, terminal_status: str, report_sha256: str) -> None:
+        nonlocal rows
+        failure_reason = (
+            "wall-timeout"
+            if terminal_status == "retryable-failure"
+            else "fixture-terminal-failure"
+            if terminal_status == "terminal-failure"
+            else None
+        )
+        rows = attempt_core.reserve_attempt_slot(
+            rows,
+            profile=profile,
+            freeze_id="receipt-v5-fixture",
+            slot_id=slot["slot_id"],
+            binding=binding,
+            run_start_receipt_sha256="3" * 64,
+            process_identity={
+                "pid": 101,
+                "starttime": f"start-{slot['slot_id']}",
+                "execution_uuid": f"execution-{slot['slot_id']}",
+            },
+            started_at="2026-09-02T00:00:00+00:00",
+        )
+        capability_digest = attempt_core.capability_digest(
+            profile=profile,
+            schema_version=receipt._ATTEMPT_SCHEMA_VERSION,
+            freeze_id="receipt-v5-fixture",
+            slot=slot,
+            binding=binding,
+        )
+        rows, _classification_receipt = attempt_core.classify_attempt(
+            rows,
+            profile=profile,
+            freeze_id="receipt-v5-fixture",
+            slot_id=slot["slot_id"],
+            binding=binding,
+            capability_digest_sha256=capability_digest,
+            pre_observation_failure_reason=failure_reason,
+            authority_id="receipt-v5-fixture-authority",
+            authority_policy_sha256="4" * 64,
+            external_evidence_sha256="5" * 64,
+            classified_at="2026-09-02T00:00:01+00:00",
+        )
+        if terminal_status != "retryable-failure":
+            rows = attempt_core.begin_attempt_observation(
+                rows,
+                profile=profile,
+                freeze_id="receipt-v5-fixture",
+                slot_id=slot["slot_id"],
+            )
+        rows = attempt_core.record_attempt_terminal(
+            rows,
+            profile=profile,
+            freeze_id="receipt-v5-fixture",
+            slot_id=slot["slot_id"],
+            binding=binding,
+            terminal_status=terminal_status,
+            raw_output_sha256="6" * 64,
+            report_sha256=report_sha256,
+            observation_sha256=("7" * 64 if terminal_status == "observed" else None),
+            primary_value=(1 if terminal_status == "observed" else None),
+            failure_reason=failure_reason,
+            finished_at="2026-09-02T00:00:02+00:00",
+        )
+
+    for row in value["trials"]:
+        trial_id = row["trial_id"]
+        if trial_id in terminal_failure_trials:
+            row["status"] = "partial"
+            report_path = repo / row["report_path"]
+            report = json.loads(report_path.read_bytes())
+            report["status"] = "partial"
+            report_bytes = _canonical(report)
+            report_path.write_bytes(report_bytes)
+            row["report_sha256"] = hashlib.sha256(report_bytes).hexdigest()
+        initial = next(
+            slot for slot in slots
+            if slot["trial_id"] == trial_id and slot["attempt_index"] == 0
+        )
+        if trial_id == retry_trial_id:
+            consume(
+                initial,
+                terminal_status="retryable-failure",
+                report_sha256="8" * 64,
+            )
+            final_slot = next(
+                slot for slot in slots
+                if slot["trial_id"] == trial_id and slot["attempt_index"] == 1
+            )
+            consume(
+                final_slot,
+                terminal_status="observed",
+                report_sha256=trial_rows[trial_id]["report_sha256"],
+            )
+        else:
+            consume(
+                initial,
+                terminal_status=(
+                    "terminal-failure"
+                    if trial_id in terminal_failure_trials else "observed"
+                ),
+                report_sha256=trial_rows[trial_id]["report_sha256"],
+            )
+
+    attempt_bytes = b"".join(_canonical_line(row) for row in rows)
+    _write(attempt_path, attempt_bytes)
+    initial_slots = sorted(
+        (slot for slot in slots if slot["attempt_index"] == 0),
+        key=lambda slot: slot["slot_id"],
+    )
+    value.update({
+        "attempt_registry_path": receipt.DEFAULT_ATTEMPT_REGISTRY_PATH.as_posix(),
+        "attempt_registry_prefix_bytes": len(attempt_bytes),
+        "attempt_registry_prefix_sha256": hashlib.sha256(attempt_bytes).hexdigest(),
+        "attempt_slot_projection": {
+            "prereg_generation": prereg_generation,
+            "unit_count": len(initial_slots),
+            "units": [
+                {
+                    "slot_id": slot["slot_id"],
+                    "trial_id": slot["trial_id"],
+                    "arm": slot["arm"],
+                    "holdout": slot["holdout"],
+                    "campaign_id": slot["campaign_id"],
+                    "replicate_index": slot["replicate_index"],
+                }
+                for slot in initial_slots
+            ],
+        },
+    })
+
+
+def _upgrade_to_current(
+    repo: Path,
+    value: dict,
+    *,
+    terminal_failure_trials: frozenset[str] = frozenset(),
+    retry_trial_id: str | None = None,
+    binding_prereg_content_commit: str | None = None,
+    binding_prereg_effective_commit: str | None = None,
+) -> None:
     value["schema_version"] = receipt.SCHEMA_VERSION
+    value.setdefault("prereg_content_commit", value["prereg_commit"])
+    effective = _run(repo, "rev-parse", "HEAD")
+    assert effective.returncode == 0, effective.stderr
+    value.setdefault("prereg_effective_commit", effective.stdout.strip())
     for index, row in enumerate(value["trials"]):
         row["cross_binding_receipt_sha256"] = hashlib.sha256(
             f"cross-binding-leaf-{index}".encode("ascii")
@@ -284,6 +513,14 @@ def _upgrade_to_current(value: dict) -> None:
             }
             for row in value["trials"]
         ])
+    )
+    _install_attempt_registry_binding(
+        repo,
+        value,
+        terminal_failure_trials=terminal_failure_trials,
+        retry_trial_id=retry_trial_id,
+        binding_prereg_content_commit=binding_prereg_content_commit,
+        binding_prereg_effective_commit=binding_prereg_effective_commit,
     )
 
 
@@ -770,7 +1007,7 @@ def test_v2_never_routes_through_v1_mandatory_reason_set(
 
 def test_v3_requires_cross_binding_receipt_sha256(tmp_path: Path) -> None:
     repo, path, value = _fixture(tmp_path)
-    _upgrade_to_current(value)
+    _upgrade_to_current(repo, value)
     _rewrite_receipt(repo, path, value, "receipt v4")
     verified = receipt.verify_acceptance_receipt(path, repository_root=repo)
     assert verified.receipt.schema_version == receipt.SCHEMA_VERSION
@@ -787,12 +1024,251 @@ def test_v3_requires_cross_binding_receipt_sha256(tmp_path: Path) -> None:
         receipt.parse_acceptance_receipt_bytes(_canonical_line(value))
 
 
+def test_v5_attempt_binding_accepts_all_predeclared_observed_units(
+    tmp_path: Path,
+) -> None:
+    """The positive pair for the v5 attempt-registry rejection branches."""
+    repo, path, value = _fixture(tmp_path)
+    _upgrade_to_current(repo, value)
+    _rewrite_receipt(repo, path, value, "valid receipt v5 attempt binding")
+
+    verified = receipt.verify_acceptance_receipt(path, repository_root=repo)
+    projection = verified.receipt.attempt_slot_projection
+    assert projection is not None
+    assert projection.prereg_generation == 13
+    assert projection.unit_count == 6
+    assert verified.receipt.prereg_content_commit == value[
+        "prereg_content_commit"
+    ]
+    assert verified.receipt.prereg_effective_commit == value[
+        "prereg_effective_commit"
+    ]
+    assert (
+        receipt.require_current_verified_receipt(verified).sha256
+        == verified.sha256
+    )
+
+
+def test_m4_downstream_capability_rejects_readable_v4_receipt(
+    tmp_path: Path,
+) -> None:
+    repo, path, value = _fixture(tmp_path)
+    _upgrade_to_current(repo, value)
+    value["schema_version"] = receipt.CROSS_BINDING_V2_SCHEMA_VERSION
+    for field in (
+        "prereg_content_commit",
+        "prereg_effective_commit",
+        "attempt_registry_path",
+        "attempt_registry_prefix_bytes",
+        "attempt_registry_prefix_sha256",
+        "attempt_slot_projection",
+    ):
+        value.pop(field)
+    _rewrite_receipt(repo, path, value, "readable legacy receipt v4")
+
+    verified = receipt.verify_acceptance_receipt(path, repository_root=repo)
+    with pytest.raises(
+        receipt.AcceptanceReceiptError,
+        match=(
+            r"^\[receipt-capability\] downstream capability requires the "
+            r"current receipt schema$"
+        ),
+    ):
+        receipt.require_current_verified_receipt(verified)
+
+
+def test_v5_rejects_attempt_registry_bound_to_another_manifest(
+    tmp_path: Path,
+) -> None:
+    repo, path, value = _fixture(
+        tmp_path, attempt_manifest_sha256="f" * 64,
+    )
+    _upgrade_to_current(repo, value)
+    _rewrite_receipt(repo, path, value, "receipt with other-manifest registry")
+
+    with pytest.raises(
+        receipt.AcceptanceReceiptError,
+        match=(
+            r"^\[receipt-attempt-binding\] attempt registry manifest_sha256 "
+            r"differs from receipt$"
+        ),
+    ):
+        receipt.verify_acceptance_receipt(path, repository_root=repo)
+
+
+def test_v5_rejects_attempt_registry_bound_to_another_content_commit(
+    tmp_path: Path,
+) -> None:
+    repo, path, value = _fixture(tmp_path)
+    registry_binding_commit = value["prereg_commit"]
+    value["prereg_content_commit"] = _run(
+        repo, "rev-parse", "HEAD",
+    ).stdout.strip()
+    assert value["prereg_content_commit"] != registry_binding_commit
+    _upgrade_to_current(
+        repo,
+        value,
+        binding_prereg_content_commit=registry_binding_commit,
+    )
+    _rewrite_receipt(repo, path, value, "receipt with other-P registry")
+
+    with pytest.raises(
+        receipt.AcceptanceReceiptError,
+        match=(
+            r"^\[receipt-attempt-registry\] \[attempt-binding\] attempt row "
+            r"content commit differs from receipt prereg_content_commit$"
+        ),
+    ):
+        receipt.verify_acceptance_receipt(path, repository_root=repo)
+
+
+def test_v5_rejects_attempt_registry_bound_to_another_effective_commit(
+    tmp_path: Path,
+) -> None:
+    repo, path, value = _fixture(tmp_path)
+    registry_binding_commit = _run(repo, "rev-parse", "HEAD").stdout.strip()
+    value["prereg_effective_commit"] = value["prereg_commit"]
+    assert value["prereg_effective_commit"] != registry_binding_commit
+    _upgrade_to_current(
+        repo,
+        value,
+        binding_prereg_effective_commit=registry_binding_commit,
+    )
+    _rewrite_receipt(repo, path, value, "receipt with other-C registry")
+
+    with pytest.raises(
+        receipt.AcceptanceReceiptError,
+        match=(
+            r"^\[receipt-attempt-registry\] \[attempt-binding\] attempt row "
+            r"effective commit differs from receipt prereg_effective_commit$"
+        ),
+    ):
+        receipt.verify_acceptance_receipt(path, repository_root=repo)
+
+
+def test_v5_rejects_registry_first_tracked_after_prereg_commit(
+    tmp_path: Path,
+) -> None:
+    repo, path, value = _fixture(tmp_path, track_attempt_genesis=False)
+    _upgrade_to_current(repo, value)
+    _rewrite_receipt(repo, path, value, "receipt with late complete registry")
+
+    with pytest.raises(
+        receipt.AcceptanceReceiptError,
+        match=(
+            r"^\[receipt-attempt-binding\] attempt registry does not extend "
+            r"the genesis at prereg_content_commit$"
+        ),
+    ):
+        receipt.verify_acceptance_receipt(path, repository_root=repo)
+
+
+def test_v5_rejects_second_registry_root_on_another_ref(tmp_path: Path) -> None:
+    repo, path, value = _fixture(tmp_path)
+    _upgrade_to_current(repo, value)
+    _rewrite_receipt(repo, path, value, "valid receipt before alternate root")
+    original_branch = _run(repo, "branch", "--show-current").stdout.strip()
+    assert original_branch
+    assert _run(repo, "checkout", "-q", "-b", "alternate-root").returncode == 0
+    canonical = repo.joinpath(*receipt.DEFAULT_ATTEMPT_REGISTRY_PATH.parts)
+    alternate = repo / "alternate" / "attempt-registry.jsonl"
+    _write(alternate, canonical.read_bytes().splitlines(keepends=True)[0])
+    _commit_all(repo, "alternate attempt registry root")
+    assert _run(repo, "checkout", "-q", original_branch).returncode == 0
+
+    with pytest.raises(
+        receipt.AcceptanceReceiptError,
+        match=(
+            r"^\[receipt-history\] alternate attempt registry genesis exists "
+            r"on a ref$"
+        ),
+    ):
+        receipt.verify_acceptance_receipt(path, repository_root=repo)
+
+
+def test_m3_v5_rejects_predeclared_unit_without_final_terminal(
+    tmp_path: Path,
+) -> None:
+    """M3 removes only one final terminal before the first tracked prefix."""
+    repo, path, value = _fixture(tmp_path)
+    _upgrade_to_current(repo, value)
+    attempt_path = repo.joinpath(*receipt.DEFAULT_ATTEMPT_REGISTRY_PATH.parts)
+    rows = attempt_path.read_bytes().splitlines()
+    assert json.loads(rows[-1])["event"] == "terminal"
+    truncated = b"\n".join(rows[:-1]) + b"\n"
+    attempt_path.write_bytes(truncated)
+    value["attempt_registry_prefix_bytes"] = len(truncated)
+    value["attempt_registry_prefix_sha256"] = hashlib.sha256(truncated).hexdigest()
+    _rewrite_receipt(repo, path, value, "receipt v5 missing one final terminal")
+
+    with pytest.raises(
+        receipt.AcceptanceReceiptError,
+        match=(
+            r"^\[receipt-attempt-consumption\] predeclared unit does not have "
+            r"exactly one final terminal$"
+        ),
+    ):
+        receipt.verify_acceptance_receipt(path, repository_root=repo)
+
+
+def test_m3b_v5_rejects_receipt_projection_divergent_from_registry(
+    tmp_path: Path,
+) -> None:
+    """All terminals remain valid; only one receipt-side slot_id is changed."""
+    repo, path, value = _fixture(tmp_path)
+    _upgrade_to_current(repo, value)
+    units = value["attempt_slot_projection"]["units"]
+    units[0]["slot_id"] = "a-receipt-only-slot"
+    assert units == sorted(units, key=lambda unit: unit["slot_id"])
+    _rewrite_receipt(repo, path, value, "receipt-only projection divergence")
+
+    with pytest.raises(
+        receipt.AcceptanceReceiptError,
+        match=(
+            r"^\[receipt-attempt-projection\] attempt registry slot projection "
+            r"differs from receipt$"
+        ),
+    ):
+        receipt.verify_acceptance_receipt(path, repository_root=repo)
+
+
+def test_p1_v5_accepts_observed_and_terminal_failure_mix(
+    tmp_path: Path,
+) -> None:
+    repo, path, value = _fixture(tmp_path)
+    failure_trials = frozenset({
+        value["trials"][1]["trial_id"],
+        value["trials"][4]["trial_id"],
+    })
+    _upgrade_to_current(
+        repo, value, terminal_failure_trials=failure_trials,
+    )
+    _rewrite_receipt(repo, path, value, "receipt v5 mixed final statuses")
+
+    verified = receipt.verify_acceptance_receipt(path, repository_root=repo)
+    assert {trial.status for trial in verified.trials} == {"complete", "partial"}
+
+
+def test_p2_v5_accepts_retryable_failure_followed_by_next_attempt(
+    tmp_path: Path,
+) -> None:
+    repo, path, value = _fixture(tmp_path)
+    retry_trial_id = value["trials"][0]["trial_id"]
+    _upgrade_to_current(repo, value, retry_trial_id=retry_trial_id)
+    _rewrite_receipt(repo, path, value, "receipt v5 retry then final")
+
+    verified = receipt.verify_acceptance_receipt(path, repository_root=repo)
+    assert verified.receipt.attempt_slot_projection is not None
+    assert verified.receipt.attempt_slot_projection.unit_count == 6
+
+
 @pytest.mark.parametrize(
     "schema_version",
     [
         receipt.LEGACY_SCHEMA_VERSION,
         receipt.PREVIOUS_SCHEMA_VERSION,
         receipt.CROSS_BINDING_V1_SCHEMA_VERSION,
+        receipt.CROSS_BINDING_V2_SCHEMA_VERSION,
         receipt.SCHEMA_VERSION,
     ],
 )
@@ -811,7 +1287,7 @@ def test_missing_schema_version_is_acceptance_receipt_error(
 
 def test_v3_aggregate_is_recomputed_from_trial_leaves(tmp_path: Path) -> None:
     repo, path, value = _fixture(tmp_path)
-    _upgrade_to_current(value)
+    _upgrade_to_current(repo, value)
     _rewrite_receipt(repo, path, value, "receipt v4 aggregate")
     value["cross_binding_receipt_sha256"] = "f" * 64
     _rewrite_receipt(repo, path, value, "receipt v4 forged aggregate")
@@ -851,6 +1327,26 @@ def test_v3_remains_bound_to_cross_binding_v1_domain(tmp_path: Path) -> None:
         match=r"\[receipt-cross-binding\] top-level cross-binding aggregate differs",
     ):
         receipt.verify_acceptance_receipt(path, repository_root=repo)
+
+
+def test_v4_remains_readable_without_v5_attempt_binding(tmp_path: Path) -> None:
+    repo, path, value = _fixture(tmp_path)
+    _upgrade_to_current(repo, value)
+    value["schema_version"] = receipt.CROSS_BINDING_V2_SCHEMA_VERSION
+    for field in (
+        "prereg_content_commit",
+        "prereg_effective_commit",
+        "attempt_registry_path",
+        "attempt_registry_prefix_bytes",
+        "attempt_registry_prefix_sha256",
+        "attempt_slot_projection",
+    ):
+        value.pop(field)
+    _rewrite_receipt(repo, path, value, "legacy receipt v4 remains readable")
+
+    verified = receipt.verify_acceptance_receipt(path, repository_root=repo)
+    assert verified.receipt.schema_version == receipt.CROSS_BINDING_V2_SCHEMA_VERSION
+    assert verified.receipt.attempt_slot_projection is None
 
 
 def test_binding_digest_is_rederived_from_self_consistent_three_way_claim(

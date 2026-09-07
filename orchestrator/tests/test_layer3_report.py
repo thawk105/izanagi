@@ -2293,12 +2293,17 @@ def test_reader_rejects_certifying_historical_admission(
 
 
 def test_m14_non_certifying_receipt_is_rejected_downstream(
-    tmp_path: Path,
+    tmp_path: Path, monkeypatch,
 ) -> None:
     campaign, output_root = _campaign(
         tmp_path, [_record("build_start", genome="g", src_token="s")],
     )
-    verified = _verified_non_certifying_receipt(campaign, output_root)
+    verified = SimpleNamespace(certifying=False)
+    monkeypatch.setattr(
+        layer3_report.s8c_acceptance_receipt,
+        "require_current_verified_receipt",
+        lambda _receipt: verified,
+    )
     with pytest.raises(
         layer3_report.Layer3ReportError,
         match="certifying=true でない",
@@ -2311,7 +2316,7 @@ def test_m14_non_certifying_receipt_is_rejected_downstream(
         )
 
 
-def test_render_accepted_rejects_non_certifying_receipt_before_write(
+def test_render_accepted_rejects_legacy_receipt_before_write(
     tmp_path: Path,
 ) -> None:
     campaign, output_root = _campaign(
@@ -2322,7 +2327,7 @@ def test_render_accepted_rejects_non_certifying_receipt_before_write(
 
     with pytest.raises(
         layer3_report.Layer3ReportError,
-        match="certifying=true でない",
+        match="downstream capability requires the current receipt schema",
     ):
         layer3_report.render_accepted(
             campaign,
