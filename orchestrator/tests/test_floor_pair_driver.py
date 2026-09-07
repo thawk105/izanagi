@@ -284,6 +284,7 @@ def _valid_document(hashes: dict[str, str]) -> dict[str, object]:
             "policy": F.FAILURE_POLICY_ID,
             "retry_count": 0,
             "require_all_reps": True,
+            "max_dropped_fraction": "1/20",
         },
         "outputs": {
             "window_format": F.WINDOW_FORMAT_ID,
@@ -394,6 +395,28 @@ def _document_only(tmp_path: Path) -> tuple[dict[str, object], dict[str, str]]:
     return _valid_document(hashes), hashes
 
 
+def _prepare_configured_spec(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    configure,
+) -> tuple[F.FloorPairSpec, dict[str, object], bytes]:
+    hashes = _write_inputs(tmp_path)
+    document = _valid_document(hashes)
+    configure(document)
+    raw = _canonical(document)
+    (tmp_path / "spec.json").write_bytes(raw)
+    _install_git(monkeypatch, tmp_path)
+    monkeypatch.setattr(
+        F.calibration_verify,
+        "load_verified_calibration",
+        lambda **kwargs: _verified_calibration(),
+    )
+    spec = F.load_frozen_spec(
+        Path("spec.json"), hashlib.sha256(raw).hexdigest(), repo_root=tmp_path
+    )
+    return spec, document, raw
+
+
 PUBLIC_DATACLASSES = (
     F.BoundReference,
     F.CalibrationReference,
@@ -432,6 +455,14 @@ def test_module_docstring_names_limits_and_unrecorded_env_failure_is_not_a_statu
     assert F.__doc__ is not None
     for limitation in F.NOT_PROVEN:
         assert limitation in F.__doc__
+    assert (
+        "落ちた標本による残存標本数の減少を許容限界の被覆確率へ補正せず、"
+        "残存標本で 95% 被覆を保つことを証明しない。"
+    ) in F.NOT_PROVEN
+    assert (
+        "campaign 合算の 5% は pair 間の欠測の偏りを制限しない "
+        "(stratum ごとの件数は報告する)。"
+    ) in F.NOT_PROVEN
     assert "environment_mismatch" not in F.SESSION_STATUSES
 
 
@@ -488,6 +519,7 @@ REQUIRED_FIELD_PATHS = (
     ("failure_policy", "policy"),
     ("failure_policy", "retry_count"),
     ("failure_policy", "require_all_reps"),
+    ("failure_policy", "max_dropped_fraction"),
     ("outputs", "window_format"),
     ("outputs", "summary_format"),
     ("outputs", "summary_relpath"),
@@ -514,6 +546,27 @@ def test_every_schema_field_is_required(tmp_path, monkeypatch, field_path):
         lambda **kwargs: _verified_calibration(),
     )
     with pytest.raises(F.FloorPairSpecError):
+        F.load_frozen_spec(
+            Path("spec.json"), hashlib.sha256(raw).hexdigest(), repo_root=tmp_path
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("policy", "all_planned_samples_required/v1"),
+        ("max_dropped_fraction", "1/19"),
+    ],
+)
+def test_d1641_failure_policy_is_the_only_accepted_wire_policy(
+    tmp_path, monkeypatch, field, value
+):
+    document, _hashes = _document_only(tmp_path)
+    document["failure_policy"][field] = value
+    raw = _canonical(document)
+    (tmp_path / "spec.json").write_bytes(raw)
+    _install_git(monkeypatch, tmp_path)
+    with pytest.raises(F.FloorPairSpecError, match=field):
         F.load_frozen_spec(
             Path("spec.json"), hashlib.sha256(raw).hexdigest(), repo_root=tmp_path
         )
@@ -964,19 +1017,26 @@ def test_mutation_11_hmac_rank_has_multiple_pair_sample_golden_order(
     )
     plan = F.make_measurement_plan(spec)
     assert [item.session_id for item in plan.sessions] == [
-        "window-a.pair-b.s000001.reference",
-        "window-a.pair-b.s000001.candidate_2",
-        "window-a.pair-b.s000001.candidate_1",
-        "window-a.pair-a.s000001.candidate_1",
-        "window-a.pair-a.s000001.reference",
-        "window-a.pair-a.s000001.candidate_2",
-        "window-a.pair-b.s000000.candidate_2",
-        "window-a.pair-b.s000000.candidate_1",
-        "window-a.pair-b.s000000.reference",
-        "window-a.pair-a.s000000.candidate_2",
         "window-a.pair-a.s000000.candidate_1",
         "window-a.pair-a.s000000.reference",
+        "window-a.pair-a.s000000.candidate_2",
+        "window-a.pair-b.s000000.reference",
+        "window-a.pair-b.s000000.candidate_2",
+        "window-a.pair-b.s000000.candidate_1",
+        "window-a.pair-a.s000001.candidate_1",
+        "window-a.pair-a.s000001.candidate_2",
+        "window-a.pair-a.s000001.reference",
+        "window-a.pair-b.s000001.candidate_2",
+        "window-a.pair-b.s000001.candidate_1",
+        "window-a.pair-b.s000001.reference",
     ]
+    for offset in range(0, len(plan.sessions), 3):
+        sample = plan.sessions[offset:offset + 3]
+        assert len(sample) == 3
+        assert len(
+            {(item.window_id, item.pair_id, item.sample_index) for item in sample}
+        ) == 1
+        assert {item.role for item in sample} == set(F._ROLES)
     assert [item.schedule_index for item in plan.sessions] == list(range(12))
     assert len({item.session_id for item in plan.sessions}) == 12
     assert F.make_measurement_plan(spec) == plan
@@ -1284,6 +1344,128 @@ def _rewrite_jsonl(path: Path, records: list[dict[str, object]]) -> None:
     )
 
 
+def _configure_campaign_shape(
+    document: dict[str, object],
+    *,
+    sample_count: int,
+    pair_count: int,
+    window_count: int = 1,
+) -> None:
+    pair_template = document["pairs"][0]
+    pairs = []
+    pair_ids = []
+    for index in range(pair_count):
+        pair = copy.deepcopy(pair_template)
+        pair_id = f"pair-{index:02d}"
+        pair["pair_id"] = pair_id
+        pairs.append(pair)
+        pair_ids.append(pair_id)
+    window_template = document["windows"][0]
+    windows = []
+    strata = []
+    for index in range(window_count):
+        window = copy.deepcopy(window_template)
+        window_id = f"window-{index}"
+        window["window_id"] = window_id
+        window["campaign_id"] = f"campaign-{index}"
+        window["not_before"] = f"2030-01-01T{index * 2:02d}:00:00Z"
+        window["not_after"] = f"2030-01-01T{index * 2 + 1:02d}:00:00Z"
+        window["sample_count"] = sample_count
+        window["pair_ids"] = list(pair_ids)
+        window["artifact_relpath"] = f"out/{window_id}.jsonl"
+        windows.append(window)
+        strata.extend(
+            {"window_id": window_id, "pair_id": pair_id}
+            for pair_id in pair_ids
+        )
+    document["pairs"] = pairs
+    document["windows"] = windows
+    document["statistics"]["closed_strata"] = strata
+
+
+def _run_campaign_shape(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    sample_count: int,
+    pair_count: int,
+    dropped_by_window: dict[str, int],
+    window_count: int = 1,
+    values_by_role: dict[str, tuple[float, float]] | None = None,
+) -> tuple[F.FloorPairSpec, F.MeasurementPlan]:
+    spec, _document, _raw = _prepare_configured_spec(
+        tmp_path,
+        monkeypatch,
+        lambda document: _configure_campaign_shape(
+            document,
+            sample_count=sample_count,
+            pair_count=pair_count,
+            window_count=window_count,
+        ),
+    )
+    plan = F.make_measurement_plan(spec)
+    _install_live_and_trace(monkeypatch)
+    role_values = (
+        {
+            "candidate_1": (120.0, 120.0),
+            "candidate_2": (110.0, 110.0),
+            "reference": (100.0, 100.0),
+        }
+        if values_by_role is None
+        else values_by_role
+    )
+    for window in spec.windows:
+        sessions = [
+            session for session in plan.sessions if session.window_id == window.window_id
+        ]
+        ordered_sample_keys = list(
+            dict.fromkeys(
+                (session.window_id, session.pair_id, session.sample_index)
+                for session in sessions
+            )
+        )
+        drop_keys = set(
+            ordered_sample_keys[:dropped_by_window.get(window.window_id, 0)]
+        )
+        cursor = 0
+
+        def measure_point(*args, **kwargs):
+            nonlocal cursor
+            session = sessions[cursor]
+            sample_key = (session.window_id, session.pair_id, session.sample_index)
+            if sample_key in drop_keys:
+                while cursor < len(sessions):
+                    current = sessions[cursor]
+                    current_key = (
+                        current.window_id,
+                        current.pair_id,
+                        current.sample_index,
+                    )
+                    if current_key != sample_key:
+                        break
+                    cursor += 1
+                raise RuntimeError("fixture sample drop")
+            cursor += 1
+            return _complete_scale_point(
+                args,
+                kwargs,
+                throughputs=role_values[session.role],
+            )
+
+        monkeypatch.setattr(F.runner, "measure_point", measure_point)
+        result = F.run_window(
+            spec,
+            plan,
+            window.window_id,
+            probe_fn=_clear_probe,
+            now_fn=lambda window=window: (
+                window.not_before + (window.not_after - window.not_before) / 2
+            ),
+        )
+        assert result.status == "complete"
+    return spec, plan
+
+
 def test_run_window_orders_pre_measure_post_and_records_all_sessions(tmp_path, monkeypatch):
     spec, _document, _raw = _prepare_spec(tmp_path, monkeypatch)
     plan = F.make_measurement_plan(spec)
@@ -1317,25 +1499,43 @@ def test_run_window_orders_pre_measure_post_and_records_all_sessions(tmp_path, m
     assert [record["event"] for record in records] == [
         "header", "session", "session", "session", "terminal"
     ]
-    assert records[-1]["status"] == "complete"
+    assert records[-1] == {
+        "event": "terminal",
+        "status": "complete",
+        "window_id": "window-a",
+        "planned_session_count": 3,
+        "recorded_session_count": 3,
+        "planned_sample_count": 1,
+        "dropped_sample_count": 0,
+        "complete_sample_count": 1,
+    }
 
 
-def test_measure_exception_still_runs_post_probe_and_closes_remaining_plan(
+def test_pre_probe_drop_closes_sample_and_continues_next_sample(
     tmp_path, monkeypatch
 ):
-    spec, _document, _raw = _prepare_spec(tmp_path, monkeypatch)
+    spec, _document, _raw = _prepare_configured_spec(
+        tmp_path,
+        monkeypatch,
+        lambda document: document["windows"][0].update(sample_count=2),
+    )
     plan = F.make_measurement_plan(spec)
     _install_live_and_trace(monkeypatch)
     probes = []
 
     def probe(argv, timeout_s):
         probes.append(len(probes))
+        if len(probes) == 1:
+            return 0, "999999 ycsb_fixture.exe\n", ""
         return 1, "", ""
 
-    def failed_measure_point(*args, **kwargs):
-        raise RuntimeError("fixture failure")
+    measure_calls = []
 
-    monkeypatch.setattr(F.runner, "measure_point", failed_measure_point)
+    def measure_point(*args, **kwargs):
+        measure_calls.append(args)
+        return _complete_scale_point(args, kwargs)
+
+    monkeypatch.setattr(F.runner, "measure_point", measure_point)
 
     result = F.run_window(
         spec,
@@ -1344,13 +1544,150 @@ def test_measure_exception_still_runs_post_probe_and_closes_remaining_plan(
         probe_fn=probe,
         now_fn=lambda: NOW,
     )
-    assert result.status == "incomplete"
-    assert probes == [0, 1]
-    sessions = _load_jsonl(tmp_path / "out/window-a.jsonl")[1:-1]
-    assert sessions[0]["status"] == "measure_failed"
-    assert [record["status"] for record in sessions[1:]] == [
-        "not_run_after_fail_closed", "not_run_after_fail_closed"
+    assert result.status == "complete"
+    assert probes == list(range(8))
+    assert len(measure_calls) == 3
+    records = _load_jsonl(tmp_path / "out/window-a.jsonl")
+    sessions = records[1:-1]
+    first_sample = sessions[:3]
+    assert [record["status"] for record in first_sample] == [
+        "pre_probe_competing",
+        "not_run_sample_dropped",
+        "not_run_sample_dropped",
     ]
+    assert [record["error"] for record in first_sample[1:]] == [
+        "sample_dropped",
+        "sample_dropped",
+    ]
+    assert [record["dropped_by_session_id"] for record in first_sample] == [
+        None,
+        first_sample[0]["session_id"],
+        first_sample[0]["session_id"],
+    ]
+    assert [record["status"] for record in sessions[3:]] == ["complete"] * 3
+    assert records[-1]["planned_sample_count"] == 2
+    assert records[-1]["dropped_sample_count"] == 1
+    assert records[-1]["complete_sample_count"] == 1
+
+
+def test_measure_exception_runs_post_probe_drops_remaining_roles_and_continues(
+    tmp_path, monkeypatch
+):
+    spec, _document, _raw = _prepare_configured_spec(
+        tmp_path,
+        monkeypatch,
+        lambda document: document["windows"][0].update(sample_count=2),
+    )
+    plan = F.make_measurement_plan(spec)
+    _install_live_and_trace(monkeypatch)
+    probes = []
+    events = []
+
+    def probe(argv, timeout_s):
+        probes.append(len(probes))
+        events.append("probe")
+        return 1, "", ""
+
+    measure_calls = []
+
+    def measure_point(*args, **kwargs):
+        measure_calls.append(args)
+        events.append("measure")
+        if len(measure_calls) == 1:
+            raise RuntimeError("fixture measurement failure")
+        return _complete_scale_point(args, kwargs)
+
+    monkeypatch.setattr(F.runner, "measure_point", measure_point)
+
+    result = F.run_window(
+        spec,
+        plan,
+        "window-a",
+        probe_fn=probe,
+        now_fn=lambda: NOW,
+    )
+    assert result.status == "complete"
+    assert events[:3] == ["probe", "measure", "probe"]
+    assert probes == list(range(8))
+    assert len(measure_calls) == 4
+    records = _load_jsonl(tmp_path / "out/window-a.jsonl")
+    sessions = records[1:-1]
+    first_sample = sessions[:3]
+    assert [record["status"] for record in first_sample] == [
+        "measure_failed",
+        "not_run_sample_dropped",
+        "not_run_sample_dropped",
+    ]
+    assert [record["error"] for record in first_sample[1:]] == [
+        "sample_dropped",
+        "sample_dropped",
+    ]
+    assert [record["dropped_by_session_id"] for record in first_sample] == [
+        None,
+        first_sample[0]["session_id"],
+        first_sample[0]["session_id"],
+    ]
+    assert [record["status"] for record in sessions[3:]] == ["complete"] * 3
+    assert records[-1]["planned_sample_count"] == 2
+    assert records[-1]["dropped_sample_count"] == 1
+    assert records[-1]["complete_sample_count"] == 1
+
+
+@pytest.mark.parametrize(
+    ("phase", "probe_status", "expected_status"),
+    [
+        ("pre", "competing", "pre_probe_competing"),
+        ("pre", "indeterminate", "pre_probe_indeterminate"),
+        ("post", "competing", "post_probe_competing"),
+        ("post", "indeterminate", "post_probe_indeterminate"),
+    ],
+)
+def test_droppable_probe_statuses_run_and_finalize(
+    tmp_path, monkeypatch, phase, probe_status, expected_status
+):
+    spec, _document, _raw = _prepare_configured_spec(
+        tmp_path,
+        monkeypatch,
+        lambda document: document["windows"][0].update(sample_count=21),
+    )
+    plan = F.make_measurement_plan(spec)
+    _install_live_and_trace(monkeypatch)
+    _install_complete_measurement(monkeypatch)
+    probe_calls = []
+    special_index = 0 if phase == "pre" else 1
+
+    def probe(argv, timeout_s):
+        index = len(probe_calls)
+        probe_calls.append(index)
+        if index != special_index:
+            return 1, "", ""
+        if probe_status == "competing":
+            return 0, "999999 ycsb_fixture.exe\n", ""
+        raise RuntimeError("fixture probe failure")
+
+    run_result = F.run_window(
+        spec,
+        plan,
+        "window-a",
+        probe_fn=probe,
+        now_fn=lambda: NOW,
+    )
+    assert run_result.status == "complete"
+    records = _load_jsonl(tmp_path / "out/window-a.jsonl")
+    sessions = records[1:-1]
+    assert [record["status"] for record in sessions] == [
+        expected_status,
+        "not_run_sample_dropped",
+        "not_run_sample_dropped",
+        *(["complete"] * 60),
+    ]
+    assert records[-1]["dropped_sample_count"] == 1
+    assert records[-1]["complete_sample_count"] == 20
+    result = F.finalize_floor(spec, plan, now_fn=lambda: NOW)
+    assert result.status == "generated"
+    assert result.upper == 0.0
+    summary = json.loads((tmp_path / "out/summary.json").read_text(encoding="utf-8"))
+    assert summary["dropped_sample_count"] == 1
 
 
 def test_mutation_05_real_trace_inspection_call_rejects_before_probe_and_measure(
@@ -1399,6 +1736,14 @@ def test_mutation_05_real_trace_inspection_call_rejects_before_probe_and_measure
         ["nm", "-C", str(tmp_path / first_artifact.binary_relpath)]
     ]
     assert sessions[0]["status"] == "binary_binding_failed"
+    assert [record["status"] for record in sessions[1:]] == [
+        "not_run_after_fail_closed",
+        "not_run_after_fail_closed",
+    ]
+    terminal = _load_jsonl(tmp_path / "out/window-a.jsonl")[-1]
+    assert terminal["status"] == "incomplete"
+    assert terminal["dropped_sample_count"] == 0
+    assert terminal["complete_sample_count"] == 0
     assert measure_calls == []
     assert probe_calls == []
 
@@ -1629,6 +1974,30 @@ def test_production_adapter_artifact_finalizes_from_raw_medians(tmp_path, monkey
     assert result.upper == pytest.approx(0.1)
     assert result.candidate_floor == pytest.approx(0.1)
     summary = json.loads((tmp_path / "out/summary.json").read_text(encoding="utf-8"))
+    assert summary["schema"] == "floor-pair-summary/v2"
+    assert summary["dropped_sample_count"] == 0
+    assert summary["dropped_record_count"] == 0
+    assert summary["dropped"] == []
+    assert summary["campaigns"] == [
+        {
+            "window_id": "window-a",
+            "campaign_id": "campaign-a",
+            "planned_sample_count": 1,
+            "dropped_sample_count": 0,
+            "dropped_fraction": {"numerator": 0, "denominator": 1},
+            "threshold": "1/20",
+            "admissible": True,
+            "strata": [
+                {
+                    "window_id": "window-a",
+                    "pair_id": "pair-a",
+                    "planned_sample_count": 1,
+                    "dropped_sample_count": 0,
+                    "retained_sample_count": 1,
+                }
+            ],
+        }
+    ]
     assert summary["proof_limitations"] == {
         "section": "証明していないこと",
         "items": list(F.NOT_PROVEN),
@@ -1641,6 +2010,77 @@ def test_production_adapter_artifact_finalizes_from_raw_medians(tmp_path, monkey
     }
 
 
+def test_mutation_21_max_finite_even_medians_generate_zero_upper(
+    tmp_path, monkeypatch
+):
+    maximum = sys.float_info.max
+    spec, plan = _run_production(
+        tmp_path,
+        monkeypatch,
+        {role: (maximum, maximum) for role in F._ROLES},
+    )
+    records = _load_jsonl(tmp_path / "out/window-a.jsonl")
+    assert [record["status"] for record in records[1:-1]] == ["complete"] * 3
+    result = F.finalize_floor(spec, plan, now_fn=lambda: NOW)
+    assert result.status == "generated"
+    assert result.upper == 0.0
+    assert result.candidate_floor == 0.0
+
+
+@pytest.mark.parametrize(
+    ("value", "expected_status", "remaining_status", "terminal_status", "final_status"),
+    [
+        (
+            10**400,
+            "measure_incomplete",
+            "not_run_sample_dropped",
+            "complete",
+            "not_generated_dropped_fraction_exceeded",
+        ),
+        (
+            -(10**400),
+            "protocol_violation",
+            "not_run_after_fail_closed",
+            "incomplete",
+            "not_generated_missing_samples",
+        ),
+    ],
+    ids=("positive-overflow", "negative-overflow"),
+)
+def test_mutation_22_large_exact_int_is_total_in_run_and_artifact_rederivation(
+    tmp_path,
+    monkeypatch,
+    value,
+    expected_status,
+    remaining_status,
+    terminal_status,
+    final_status,
+):
+    spec, _document, _raw = _prepare_spec(tmp_path, monkeypatch)
+    plan = F.make_measurement_plan(spec)
+    _install_live_and_trace(monkeypatch)
+
+    def measure_point(*args, **kwargs):
+        return _complete_scale_point(args, kwargs, throughputs=(value, value))
+
+    monkeypatch.setattr(F.runner, "measure_point", measure_point)
+    run_result = F.run_window(
+        spec, plan, "window-a", probe_fn=_clear_probe, now_fn=lambda: NOW
+    )
+    records = _load_jsonl(tmp_path / "out/window-a.jsonl")
+    assert [record["status"] for record in records[1:-1]] == [
+        expected_status,
+        remaining_status,
+        remaining_status,
+    ]
+    assert run_result.status == terminal_status
+    assert records[-1]["dropped_sample_count"] == (
+        1 if expected_status == "measure_incomplete" else 0
+    )
+    result = F.finalize_floor(spec, plan, now_fn=lambda: NOW)
+    assert result.status == final_status
+
+
 @pytest.mark.parametrize(
     ("target", "field", "value"),
     [
@@ -1650,6 +2090,9 @@ def test_production_adapter_artifact_finalizes_from_raw_medians(tmp_path, monkey
         ("header", "randomization_algorithm", "fixed-order/v1"),
         ("header", "seed_hex", "02" * 32),
         ("terminal", "status", "incomplete"),
+        ("terminal", "planned_sample_count", 2),
+        ("terminal", "dropped_sample_count", 1),
+        ("terminal", "complete_sample_count", 0),
     ],
 )
 def test_finalizer_revalidates_complete_header_and_terminal_contract(
@@ -1690,7 +2133,7 @@ def test_mutation_18_recorded_multiple_pair_sample_order_must_match_plan(
     assert not (tmp_path / "out/summary.json").exists()
 
 
-def test_mutation_07_one_noncomplete_session_makes_whole_floor_missing(
+def test_mutation_07_status_only_rewrite_is_rejected_by_payload_derivation(
     tmp_path, monkeypatch
 ):
     spec, plan = _run_production(
@@ -1706,10 +2149,464 @@ def test_mutation_07_one_noncomplete_session_makes_whole_floor_missing(
     records = _load_jsonl(artifact)
     records[1]["status"] = "measure_incomplete"
     _rewrite_jsonl(artifact, records)
+    with pytest.raises(F.FloorPairBindingError, match="再導出"):
+        F.finalize_floor(spec, plan, now_fn=lambda: NOW)
+    assert not (tmp_path / "out/summary.json").exists()
+
+
+_CAMPAIGN_BOUNDARY_CASES = (
+    (59, 1, 2, "generated"),
+    (59, 1, 3, "not_generated_dropped_fraction_exceeded"),
+    (40, 1, 2, "generated"),
+    (59, 3, 8, "generated"),
+    (59, 3, 9, "not_generated_dropped_fraction_exceeded"),
+)
+
+
+@pytest.mark.parametrize(
+    ("sample_count", "pair_count", "dropped_count", "expected_status"),
+    _CAMPAIGN_BOUNDARY_CASES,
+)
+def test_campaign_drop_fraction_uses_exact_campaign_boundary_and_pair_sum(
+    tmp_path,
+    monkeypatch,
+    sample_count,
+    pair_count,
+    dropped_count,
+    expected_status,
+):
+    spec, plan = _run_campaign_shape(
+        tmp_path,
+        monkeypatch,
+        sample_count=sample_count,
+        pair_count=pair_count,
+        dropped_by_window={"window-0": dropped_count},
+    )
     result = F.finalize_floor(spec, plan, now_fn=lambda: NOW)
-    assert result.status == "not_generated_missing_samples"
+    assert result.status == expected_status
+    assert (result.upper is not None) is (expected_status == "generated")
+
+
+@pytest.mark.parametrize(
+    ("sample_count", "pair_count", "dropped_count", "expected_status"),
+    _CAMPAIGN_BOUNDARY_CASES,
+)
+def test_campaign_boundary_summary_causality_and_derivation_are_exact(
+    tmp_path,
+    monkeypatch,
+    sample_count,
+    pair_count,
+    dropped_count,
+    expected_status,
+):
+    spec, plan = _run_campaign_shape(
+        tmp_path,
+        monkeypatch,
+        sample_count=sample_count,
+        pair_count=pair_count,
+        dropped_by_window={"window-0": dropped_count},
+    )
+    result = F.finalize_floor(spec, plan, now_fn=lambda: NOW)
+    summary = json.loads((tmp_path / "out/summary.json").read_text(encoding="utf-8"))
+    planned = sample_count * pair_count
+    campaign = summary["campaigns"][0]
+    assert campaign["planned_sample_count"] == planned
+    assert campaign["dropped_sample_count"] == dropped_count
+    fraction = F.Fraction(dropped_count, planned)
+    assert campaign["dropped_fraction"] == {
+        "numerator": fraction.numerator,
+        "denominator": fraction.denominator,
+    }
+    assert campaign["admissible"] is (
+        expected_status != "not_generated_dropped_fraction_exceeded"
+    )
+    assert summary["dropped_sample_count"] == dropped_count
+    assert summary["dropped_record_count"] == dropped_count * 3
+    assert len(summary["dropped"]) == dropped_count * 3
+    dropped_groups = {}
+    for record in summary["dropped"]:
+        key = (record["window_id"], record["pair_id"], record["sample_index"])
+        dropped_groups.setdefault(key, []).append(record)
+    assert len(dropped_groups) == dropped_count
+    for records in dropped_groups.values():
+        failure = next(record for record in records if record["status"] == "measure_failed")
+        cause_session_id = (
+            f"{failure['window_id']}.{failure['pair_id']}."
+            f"s{failure['sample_index']:06d}.{failure['role']}"
+        )
+        assert sum(record["status"] == "measure_failed" for record in records) == 1
+        for record in records:
+            if record is failure:
+                assert record["dropped_by_session_id"] is None
+            else:
+                assert record["status"] == "not_run_sample_dropped"
+                assert record["error"] == "sample_dropped"
+                assert record["dropped_by_session_id"] == cause_session_id
+    if expected_status == "generated":
+        assert len(summary["derivation"][0]["samples"]) == planned - dropped_count
+    else:
+        assert result.candidate_floor is None
+        assert summary["derivation"] == []
+
+
+def test_campaign_threshold_is_local_to_each_window_not_global_sum(
+    tmp_path, monkeypatch
+):
+    spec, plan = _run_campaign_shape(
+        tmp_path,
+        monkeypatch,
+        sample_count=20,
+        pair_count=1,
+        window_count=2,
+        dropped_by_window={"window-0": 2, "window-1": 0},
+    )
+    result = F.finalize_floor(spec, plan, now_fn=lambda: NOW)
+    assert result.status == "not_generated_dropped_fraction_exceeded"
+    summary = json.loads((tmp_path / "out/summary.json").read_text(encoding="utf-8"))
+    assert [campaign["admissible"] for campaign in summary["campaigns"]] == [
+        False,
+        True,
+    ]
+    assert sum(campaign["planned_sample_count"] for campaign in summary["campaigns"]) == 40
+    assert sum(campaign["dropped_sample_count"] for campaign in summary["campaigns"]) == 2
+
+
+def test_dropped_summary_includes_complete_role_before_failure(
+    tmp_path, monkeypatch
+):
+    spec, _document, _raw = _prepare_configured_spec(
+        tmp_path,
+        monkeypatch,
+        lambda document: document["windows"][0].update(sample_count=40),
+    )
+    plan = F.make_measurement_plan(spec)
+    _install_live_and_trace(monkeypatch)
+    sessions = list(plan.sessions)
+    cursor = 0
+
+    def measure_point(*args, **kwargs):
+        nonlocal cursor
+        session = sessions[cursor]
+        if cursor == 1:
+            cursor = 3
+            raise RuntimeError("second role failure")
+        cursor += 1
+        values = {
+            "candidate_1": (120.0, 120.0),
+            "candidate_2": (110.0, 110.0),
+            "reference": (100.0, 100.0),
+        }[session.role]
+        return _complete_scale_point(args, kwargs, throughputs=values)
+
+    monkeypatch.setattr(F.runner, "measure_point", measure_point)
+    F.run_window(
+        spec,
+        plan,
+        "window-a",
+        probe_fn=_clear_probe,
+        now_fn=lambda: NOW,
+    )
+    result = F.finalize_floor(spec, plan, now_fn=lambda: NOW)
+    assert result.status == "generated"
+    summary = json.loads((tmp_path / "out/summary.json").read_text(encoding="utf-8"))
+    assert summary["dropped_sample_count"] == 1
+    assert summary["dropped_record_count"] == 3
+    assert [record["status"] for record in summary["dropped"]] == [
+        "complete",
+        "measure_failed",
+        "not_run_sample_dropped",
+    ]
+    assert summary["dropped"][0]["error"] is None
+    assert summary["dropped"][0]["dropped_by_session_id"] is None
+
+
+def test_mutation_11_post_probe_drop_excludes_high_difference_sample(
+    tmp_path, monkeypatch
+):
+    spec, _document, _raw = _prepare_configured_spec(
+        tmp_path,
+        monkeypatch,
+        lambda document: document["windows"][0].update(sample_count=21),
+    )
+    plan = F.make_measurement_plan(spec)
+    _install_live_and_trace(monkeypatch)
+    sessions = list(plan.sessions)
+    first_sample_key = (
+        sessions[0].window_id,
+        sessions[0].pair_id,
+        sessions[0].sample_index,
+    )
+    cursor = 0
+
+    def measure_point(*args, **kwargs):
+        nonlocal cursor
+        session = sessions[cursor]
+        cursor += 1
+        sample_key = (session.window_id, session.pair_id, session.sample_index)
+        values = (
+            {
+                "candidate_1": (175.0, 175.0),
+                "candidate_2": (100.0, 100.0),
+                "reference": (100.0, 100.0),
+            }
+            if sample_key == first_sample_key
+            else {
+                "candidate_1": (125.0, 125.0),
+                "candidate_2": (100.0, 100.0),
+                "reference": (100.0, 100.0),
+            }
+        )[session.role]
+        return _complete_scale_point(args, kwargs, throughputs=values)
+
+    monkeypatch.setattr(F.runner, "measure_point", measure_point)
+    probe_calls = []
+
+    def probe(argv, timeout_s):
+        index = len(probe_calls)
+        probe_calls.append(index)
+        if index == 5:
+            return 0, "999999 ycsb_fixture.exe\n", ""
+        return 1, "", ""
+
+    F.run_window(
+        spec, plan, "window-a", probe_fn=probe, now_fn=lambda: NOW
+    )
+    artifact_records = _load_jsonl(tmp_path / "out/window-a.jsonl")[1:-1]
+    first_sample = artifact_records[:3]
+    assert [record["status"] for record in first_sample] == [
+        "complete",
+        "complete",
+        "post_probe_competing",
+    ]
+    assert all(len(record["throughputs"]) == 2 for record in first_sample)
+    result = F.finalize_floor(spec, plan, now_fn=lambda: NOW)
+    summary = json.loads((tmp_path / "out/summary.json").read_text(encoding="utf-8"))
+    retained = summary["derivation"][0]["samples"]
+    dropped_difference = F.compute_gain_difference(175.0, 100.0, 100.0).difference
+    assert dropped_difference == 0.75
+    assert len(retained) == 20
+    assert {sample["difference"] for sample in retained} == {0.25}
+    assert result.status == "generated"
+    assert result.upper == 0.25
+    assert dropped_difference > result.upper
+
+
+def test_exact_five_percent_with_empty_stratum_is_not_generated(
+    tmp_path, monkeypatch
+):
+    spec, plan = _run_campaign_shape(
+        tmp_path,
+        monkeypatch,
+        sample_count=1,
+        pair_count=20,
+        dropped_by_window={"window-0": 1},
+    )
+    result = F.finalize_floor(spec, plan, now_fn=lambda: NOW)
+    assert result.status == "not_generated_empty_stratum"
+    summary = json.loads((tmp_path / "out/summary.json").read_text(encoding="utf-8"))
+    campaign = summary["campaigns"][0]
+    assert campaign["admissible"] is True
+    assert campaign["dropped_fraction"] == {"numerator": 1, "denominator": 20}
+    assert sum(stratum["retained_sample_count"] == 0 for stratum in campaign["strata"]) == 1
     assert result.upper is None
     assert result.candidate_floor is None
+
+
+def test_threshold_status_precedes_empty_stratum_status(tmp_path, monkeypatch):
+    spec, plan = _run_campaign_shape(
+        tmp_path,
+        monkeypatch,
+        sample_count=1,
+        pair_count=2,
+        dropped_by_window={"window-0": 1},
+    )
+    result = F.finalize_floor(spec, plan, now_fn=lambda: NOW)
+    assert result.status == "not_generated_dropped_fraction_exceeded"
+    assert result.upper is None
+    assert result.candidate_floor is None
+
+
+def test_not_run_sample_dropped_without_prior_failure_is_rejected(
+    tmp_path, monkeypatch
+):
+    spec, plan = _run_production(
+        tmp_path,
+        monkeypatch,
+        {
+            "candidate_1": (120.0, 120.0),
+            "candidate_2": (110.0, 110.0),
+            "reference": (100.0, 100.0),
+        },
+    )
+    artifact = tmp_path / "out/window-a.jsonl"
+    records = _load_jsonl(artifact)
+    record = records[1]
+    record.update(
+        {
+            "status": "not_run_sample_dropped",
+            "throughputs": [],
+            "rep_returncodes": [],
+            "rep_observations": [],
+            "rep_timestamps": [],
+            "binary_sha256": None,
+            "pre_probe": None,
+            "post_probe": None,
+            "error": "sample_dropped",
+            "dropped_by_session_id": "forged-cause",
+        }
+    )
+    records[-1]["complete_sample_count"] = 0
+    _rewrite_jsonl(artifact, records)
+    with pytest.raises(
+        F.FloorPairBindingError,
+        match="先行失敗のない not_run_sample_dropped",
+    ):
+        F._validate_window_artifact(spec=spec, plan=plan, window=spec.windows[0])
+
+
+def test_drop_selection_is_invariant_under_complete_throughput_changes(
+    tmp_path, monkeypatch
+):
+    roots = [tmp_path / "first", tmp_path / "second"]
+    for root in roots:
+        root.mkdir()
+    summaries = []
+    for root, values in zip(
+        roots,
+        (
+            {
+                "candidate_1": (120.0, 120.0),
+                "candidate_2": (110.0, 110.0),
+                "reference": (100.0, 100.0),
+            },
+            {
+                "candidate_1": (1.0, 1.0),
+                "candidate_2": (500.0, 500.0),
+                "reference": (250.0, 250.0),
+            },
+        ),
+        strict=True,
+    ):
+        spec, plan = _run_campaign_shape(
+            root,
+            monkeypatch,
+            sample_count=59,
+            pair_count=1,
+            dropped_by_window={"window-0": 2},
+            values_by_role=values,
+        )
+        F.finalize_floor(spec, plan, now_fn=lambda: NOW)
+        summaries.append(
+            json.loads((root / "out/summary.json").read_text(encoding="utf-8"))
+        )
+    assert summaries[0]["dropped_sample_count"] == summaries[1]["dropped_sample_count"] == 2
+    assert summaries[0]["dropped"] == summaries[1]["dropped"]
+
+
+def test_candidate_zero_is_complete_and_contributes_gain_minus_one(
+    tmp_path, monkeypatch
+):
+    spec, plan = _run_campaign_shape(
+        tmp_path,
+        monkeypatch,
+        sample_count=1,
+        pair_count=1,
+        dropped_by_window={"window-0": 0},
+        values_by_role={
+            "candidate_1": (0.0, 0.0),
+            "candidate_2": (100.0, 100.0),
+            "reference": (100.0, 100.0),
+        },
+    )
+    sessions = _load_jsonl(tmp_path / "out/window-0.jsonl")[1:-1]
+    assert [record["status"] for record in sessions] == ["complete"] * 3
+    result = F.finalize_floor(spec, plan, now_fn=lambda: NOW)
+    assert result.status == "not_generated_upper_out_of_domain"
+    sample = json.loads(
+        (tmp_path / "out/summary.json").read_text(encoding="utf-8")
+    )["derivation"][0]["samples"][0]
+    assert sample["session_medians"]["candidate_1"] == 0.0
+    assert sample["gain_1"] == -1.0
+    assert sample["difference"] == 1.0
+
+
+@pytest.mark.parametrize(
+    "values_by_role",
+    [
+        {
+            "candidate_1": (120.0, 120.0),
+            "candidate_2": (110.0, 110.0),
+            "reference": (0.0, 0.0),
+        },
+        {
+            "candidate_1": (-1.0, -1.0),
+            "candidate_2": (110.0, 110.0),
+            "reference": (100.0, 100.0),
+        },
+    ],
+)
+def test_reference_zero_and_negative_values_are_fatal_protocol_violations(
+    tmp_path, monkeypatch, values_by_role
+):
+    spec, _document, _raw = _prepare_spec(tmp_path, monkeypatch)
+    plan = F.make_measurement_plan(spec)
+    _install_live_and_trace(monkeypatch)
+    sessions = list(plan.sessions)
+    cursor = 0
+
+    def measure_point(*args, **kwargs):
+        nonlocal cursor
+        session = sessions[cursor]
+        cursor += 1
+        return _complete_scale_point(
+            args,
+            kwargs,
+            throughputs=values_by_role[session.role],
+        )
+
+    monkeypatch.setattr(F.runner, "measure_point", measure_point)
+    result = F.run_window(
+        spec,
+        plan,
+        "window-a",
+        probe_fn=_clear_probe,
+        now_fn=lambda: NOW,
+    )
+    assert result.status == "incomplete"
+    records = _load_jsonl(tmp_path / "out/window-a.jsonl")
+    statuses = [record["status"] for record in records[1:-1]]
+    fatal_index = statuses.index("protocol_violation")
+    assert statuses[fatal_index + 1:] == ["not_run_after_fail_closed"] * (
+        len(statuses) - fatal_index - 1
+    )
+    assert records[-1]["dropped_sample_count"] == 0
+    final = F.finalize_floor(spec, plan, now_fn=lambda: NOW)
+    assert final.status == "not_generated_missing_samples"
+    assert final.upper is None
+    assert final.candidate_floor is None
+
+
+def test_outside_window_is_fatal_and_not_counted_as_dropped(tmp_path, monkeypatch):
+    spec, _document, _raw = _prepare_spec(tmp_path, monkeypatch)
+    plan = F.make_measurement_plan(spec)
+    _install_live_and_trace(monkeypatch)
+    result = F.run_window(
+        spec,
+        plan,
+        "window-a",
+        probe_fn=_clear_probe,
+        now_fn=lambda: datetime(2029, 12, 31, 23, 59, tzinfo=timezone.utc),
+    )
+    assert result.status == "incomplete"
+    records = _load_jsonl(tmp_path / "out/window-a.jsonl")
+    assert [record["status"] for record in records[1:-1]] == [
+        "outside_window",
+        "not_run_after_fail_closed",
+        "not_run_after_fail_closed",
+    ]
+    assert records[-1]["dropped_sample_count"] == 0
+    final = F.finalize_floor(spec, plan, now_fn=lambda: NOW)
+    assert final.status == "not_generated_missing_samples"
 
 
 def test_nonfinite_measurement_is_recorded_incomplete_not_serialized_as_nan(
@@ -1738,6 +2635,10 @@ def test_nonfinite_measurement_is_recorded_incomplete_not_serialized_as_nan(
     sessions = _load_jsonl(tmp_path / "out/window-a.jsonl")[1:-1]
     assert sessions[0]["status"] == "measure_incomplete"
     assert sessions[0]["throughputs"] == [100.0, None]
+    assert [record["status"] for record in sessions[1:]] == [
+        "not_run_sample_dropped",
+        "not_run_sample_dropped",
+    ]
 
 
 def test_mutation_08_upper_at_or_above_one_is_preserved_and_not_clamped(

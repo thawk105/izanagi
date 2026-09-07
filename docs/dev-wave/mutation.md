@@ -37,8 +37,8 @@ equivalent としない。両層変異は kill 期待を必ず事前登録する
 
 ## DW-M06 — hang 変異
 
-hang しうる変異は spec の `hang_risk` で部分集合と timeout へ隔離する。timeout は当該変異が
-fail-closed から fail-open へ倒れた証拠として記録し、harness 全体を落とさない（F32）。
+hang 変異は `hang_risk` と timeout へ隔離し、timeout を fail-open の証拠とする（F32）。
+dispatch は `hang_timeout_seconds` < job walltime。超過は orphan hold 中止 + 変異残留になる。
 
 ## DW-M07 — fix 後 anchor
 
