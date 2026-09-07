@@ -736,6 +736,18 @@ def _marked_block(source: str, label: str) -> str:
     return source.split(start, 1)[1].split(end, 1)[0]
 
 
+def _shell_function_body(source: str, name: str, next_name: str) -> str:
+    start = f"{name}() {{\n"
+    end = f"}}\n\n{next_name}()"
+    assert source.count(start) == 1
+    assert source.count(end) == 1
+    body_start = source.index(start) + len(start)
+    body_end = source.index(end, body_start)
+    body = source[body_start:body_end]
+    assert body.endswith("\n")
+    return body
+
+
 def _heredoc_python(shell_block: str) -> str:
     marker = "<<'PY'\n"
     assert shell_block.count(marker) == 1
@@ -856,12 +868,15 @@ def test_submitter_has_exact_three_request_design_and_create_only_witnesses() ->
     preflight = _marked_block(submitter, "PREFLIGHT CALLS AND SEMANTIC CHECK")
     qsub_call = _marked_block(submitter, "QSUB CALL")
     group_calls = _marked_block(submitter, "GROUP INTENT AND REQUEST CALLS")
-    manifest_writer = submitter.split(
-        "write_submission_manifest() {", 1
-    )[1].split("\n}\n\nwrite_group_intent()", 1)[0]
-    group_intent_writer = submitter.split(
-        "write_group_intent() {", 1
-    )[1].split("\n}\n\nwrite_request_receipt()", 1)[0]
+    manifest_writer = _shell_function_body(
+        submitter, "write_submission_manifest", "write_group_intent"
+    )
+    group_intent_writer = _shell_function_body(
+        submitter, "write_group_intent", "write_request_receipt"
+    )
+    request_receipt_writer = _shell_function_body(
+        submitter, "write_request_receipt", "submit_request"
+    )
     request_function = submitter.split(
         "submit_request() (", 1
     )[1].split("# BEGIN T1259 GROUP INTENT", 1)[0]
@@ -875,8 +890,8 @@ def test_submitter_has_exact_three_request_design_and_create_only_witnesses() ->
     assert 'qsub \\\n      -o "$evidence_dir/pbs.stdout"' in qsub_call
     assert '-v "$export_spec"' in qsub_call
     assert 'qstat "$scheduler_request_id" \\' in request_function
-    assert "line.startswith(scheduler_id)" in request_function
-    assert 'fields[1].startswith(expected_job_name_prefix)' in request_function
+    assert "line.startswith(scheduler_id)" in request_receipt_writer
+    assert 'fields[1].startswith(expected_job_name_prefix)' in request_receipt_writer
     assert "write_request_receipt" in request_function
     assert 'with target.open("x"' in manifest_writer
     assert 'with target.open("x"' in group_intent_writer
@@ -962,9 +977,9 @@ def test_request_receipt_binds_qstat_body_visibility(
     expected_visible: bool,
 ) -> None:
     submitter = (REPO_ROOT / SUBMITTER_TEXT_PATH).read_text(encoding="utf-8")
-    function_block = submitter.split(
-        "write_request_receipt() {", 1
-    )[1].split("\n}\n\nsubmit_request()", 1)[0]
+    function_block = _shell_function_body(
+        submitter, "write_request_receipt", "submit_request"
+    )
     code = _heredoc_python(function_block)
     manifest = tmp_path / SUBMISSION_MANIFEST_NAME
     receipt = tmp_path / "qsub-request.json"
@@ -1006,9 +1021,9 @@ def test_group_intent_is_create_only_and_has_no_completion_fields(
     tmp_path: Path,
 ) -> None:
     submitter = (REPO_ROOT / SUBMITTER_TEXT_PATH).read_text(encoding="utf-8")
-    function_block = submitter.split(
-        "write_group_intent() {", 1
-    )[1].split("\n}\n\nwrite_request_receipt()", 1)[0]
+    function_block = _shell_function_body(
+        submitter, "write_group_intent", "write_request_receipt"
+    )
     code = _heredoc_python(function_block)
     (tmp_path / "preflight").mkdir()
     (tmp_path / "preflight" / "preflight.json").write_text(
