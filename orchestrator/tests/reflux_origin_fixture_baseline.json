@@ -13,8 +13,8 @@
       "canonical_sha256": "caece59c4092933460a7844f14430bd3a3957957747552bff90483c6eb676133"
     },
     "build_ordered_wal_projection": {
-      "byte_length": 909,
-      "canonical_sha256": "7d5ce12b170cf50335682719016708275a75aa262cca247345815cb93c9baaac"
+      "byte_length": 975,
+      "canonical_sha256": "271323c60ad2af8b4034872096d5c1c5066f26c6c85689252dd5ce762ddd3bc6"
     },
     "build_recovery_envelope_inputs": {
       "byte_length": 14909,
@@ -22,7 +22,7 @@
     },
     "build_result_evidence_record": {
       "byte_length": 1848,
-      "canonical_sha256": "8fac4b360b17ffe862577565bc8d1a81e8e3d0a3552be7910b5c0b9fe1672ec0"
+      "canonical_sha256": "631a5fa04f9cc1a5442c5660410bb27b1ad03ef76f5da3fe3d4603ac5577c82c"
     },
     "build_source_closure_record": {
       "byte_length": 1697,
