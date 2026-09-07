@@ -367,8 +367,12 @@ qsub -v IZANAGI_S4_REPO_ROOT="$REPO_ROOT",IZANAGI_S4_EXPECTED_HEAD="$EXPECTED_HE
 (別の fixture 値、または別 campaign) が要る。塞ぐには campaign identity か duplicate の意味論を
 変える必要があり、裁定待ちである (T-2356)。
 
-**未実測のもの (F660)。** 本 job body は main 着地後にしか投入できないため、計算ノードでの動作
-(事前構築 receipt を通した build の成立、attestation の exact 照合、walltime 03:00:00 の充足) は
-測っていない。seam は login node の probe で「production `_v2_commands` の configure argv まで
-5 値が届く」ところまで確認した。
-一次資料は `output/insights/2026-09-05_t2232-s4-loop-pegasus-job-script/README.md`。
+**実測済みと未実測の境界。** 初回投入 (2026-09-07、job `981655.nqsv`、固定 SHA の専用 checkout から
+投入) で、host gate・環境 sanitize・`python3.10` shim・reservation 束縛・claim root・third-party
+複製までは通り、masstree 事前構築の configure で止まった (一次資料は
+`output/insights/2026-09-07_t2232-s4-loop-first-dispatch/README.md`)。gflags/glog prologue 以後
+(prologue 自体の build 時間、事前構築 receipt を通した build の成立、attestation の exact 照合、
+walltime 03:00:00 の充足) は未実測である。`compute-result.json` の `driver_rc` は driver だけでなく
+job body 全体の終了 rc であり、prologue や事前構築で止まった場合もその生の rc (timeout なら 124)
+が入る。seam は login node の probe で「production `_v2_commands` の configure argv まで
+5 値が届く」ところまで確認した (`output/insights/2026-09-05_t2232-s4-loop-pegasus-job-script/README.md`)。

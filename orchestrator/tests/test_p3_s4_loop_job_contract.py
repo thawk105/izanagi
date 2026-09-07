@@ -51,6 +51,9 @@ def _shell_body_without_heredocs(source: str) -> str:
             if line.strip() == delimiter:
                 delimiter = None
             continue
+        if re.match(r"^\s*#", line) is not None:
+            output.append(line)
+            continue
         match = opener.search(line)
         if match is None:
             output.append(line)
@@ -353,7 +356,15 @@ def _assert_static_job_contract(source: str) -> None:
             '    --value "${IZANAGI_S4_FIXTURE_VALUE:-20}"'
         ),
     }
-    missing = [label for label, fragment in required.items() if fragment not in source]
+    uncommented_source = "".join(
+        line for line in source.splitlines(keepends=True)
+        if re.match(r"^\s*#(?!PBS(?:\s|$))", line) is None
+    )
+    missing = [
+        label for label, fragment in required.items()
+        if fragment not in source
+        or (label != "job-body-comment" and fragment not in uncommented_source)
+    ]
     if missing:
         raise AssertionError("job contract missing: " + ",".join(missing))
     canonical_dump = (
@@ -374,6 +385,19 @@ def _assert_forbidden_job_constructs(source: str) -> None:
         raise AssertionError("forbidden-no-build")
 
     allowed = 'export CMAKE_PREFIX_PATH="$GFLAGS_INSTALL_DIR:$GLOG_INSTALL_DIR"'
+    sanitize = "unset CMAKE_PREFIX_PATH CMAKE_TOOLCHAIN_FILE"
+    allowed_prefix_lines = [
+        sanitize,
+        '-DWITH_UNWIND=OFF "-DCMAKE_PREFIX_PATH=$GFLAGS_INSTALL_DIR"',
+        allowed,
+    ]
+    prefix_lines = [
+        line.strip() for line in body.splitlines()
+        if "CMAKE_PREFIX_PATH" in line
+    ]
+    if prefix_lines != allowed_prefix_lines:
+        raise AssertionError("forbidden-cmake-environment-injection")
+
     prefix_assignments = [
         line for line in body.splitlines()
         if re.search(r"(?<![-A-Za-z0-9_])CMAKE_PREFIX_PATH(?:\+)?=", line)
@@ -381,7 +405,6 @@ def _assert_forbidden_job_constructs(source: str) -> None:
     if prefix_assignments != [allowed]:
         raise AssertionError("forbidden-cmake-environment-injection")
 
-    sanitize = "unset CMAKE_PREFIX_PATH CMAKE_TOOLCHAIN_FILE"
     prefix_unsets = [
         line.strip() for line in body.splitlines()
         if re.search(r"\bunset\b.*\bCMAKE_PREFIX_PATH\b", line)
@@ -403,8 +426,10 @@ def _assert_forbidden_job_constructs(source: str) -> None:
 
     driver = '"$PY" -B -m orchestrator.campaign.p3_s4_loop'
     driver_positions = [match.start() for match in re.finditer(re.escape(driver), body)]
+    prebuild_position = body.index('"$PY" - "$prebuild_receipt"')
     if len(driver_positions) != 2 or any(
-        position <= body.index(allowed) for position in driver_positions
+        position <= body.index(allowed) or position <= prebuild_position
+        for position in driver_positions
     ):
         raise AssertionError("forbidden-cmake-environment-injection")
 
@@ -756,6 +781,92 @@ def test_dependency_prefix_unset_after_export_is_rejected() -> None:
         AssertionError, match="^forbidden-cmake-environment-injection$"
     ):
         _assert_forbidden_job_constructs(mutant)
+
+
+def test_dependency_prefix_export_attribute_removal_is_rejected() -> None:
+    source = JOB.read_text(encoding="utf-8")
+    exact = 'export CMAKE_PREFIX_PATH="$GFLAGS_INSTALL_DIR:$GLOG_INSTALL_DIR"'
+    mutant = source.replace(exact, exact + "\nexport -n CMAKE_PREFIX_PATH", 1)
+    with pytest.raises(
+        AssertionError, match="^forbidden-cmake-environment-injection$"
+    ):
+        _assert_forbidden_job_constructs(mutant)
+
+
+def test_driver_dependency_prefix_removal_is_rejected() -> None:
+    source = JOB.read_text(encoding="utf-8")
+    driver = '"$PY" -B -m orchestrator.campaign.p3_s4_loop'
+    mutant = source.replace(
+        driver,
+        'env -u CMAKE_PREFIX_PATH ' + driver,
+        1,
+    )
+    with pytest.raises(
+        AssertionError, match="^forbidden-cmake-environment-injection$"
+    ):
+        _assert_forbidden_job_constructs(mutant)
+
+
+def test_comment_heredoc_cannot_mask_dependency_prefix_unset() -> None:
+    source = JOB.read_text(encoding="utf-8")
+    exact = 'export CMAKE_PREFIX_PATH="$GFLAGS_INSTALL_DIR:$GLOG_INSTALL_DIR"'
+    mutant = source.replace(
+        exact,
+        exact + "\n# <<true\nunset CMAKE_PREFIX_PATH\ntrue",
+        1,
+    )
+    with pytest.raises(
+        AssertionError, match="^forbidden-cmake-environment-injection$"
+    ):
+        _assert_forbidden_job_constructs(mutant)
+
+
+def test_fixture_driver_before_prebuild_is_rejected() -> None:
+    source = JOB.read_text(encoding="utf-8")
+    fixture_driver = (
+        '  "$PY" -B -m orchestrator.campaign.p3_s4_loop \\\n'
+        "    --allow-coder-derived-build \\\n"
+        "    --isolate-worktree \\\n"
+        '    --fetchcontent-prebuild-receipt "$prebuild_receipt" \\\n'
+        '    --value "${IZANAGI_S4_FIXTURE_VALUE:-20}"'
+    )
+    prebuild = '"$PY" - "$prebuild_receipt"'
+    assert source.count(fixture_driver) == 1
+    assert source.count(prebuild) == 1
+    mutant = source.replace(fixture_driver, "  true", 1).replace(
+        prebuild,
+        fixture_driver + "\n\n" + prebuild,
+        1,
+    )
+    with pytest.raises(
+        AssertionError, match="^forbidden-cmake-environment-injection$"
+    ):
+        _assert_forbidden_job_constructs(mutant)
+
+
+def test_commented_dependency_policy_field_is_rejected() -> None:
+    source = JOB.read_text(encoding="utf-8")
+    fragment = '    "gflags_source_path",'
+    assert source.count(fragment) == 1
+    mutant = source.replace(fragment, '    # "gflags_source_path",', 1)
+    with pytest.raises(
+        AssertionError, match="^job contract missing: dependency-policy-fields$"
+    ):
+        _assert_static_job_contract(mutant)
+
+
+def test_commented_prebuild_dependency_prefix_is_rejected() -> None:
+    source = JOB.read_text(encoding="utf-8")
+    fragment = (
+        '    dependency_prefix=";".join('
+        "[gflags_install_dir, glog_install_dir]),"
+    )
+    assert source.count(fragment) == 1
+    mutant = source.replace(fragment, "    # " + fragment.lstrip(), 1)
+    with pytest.raises(
+        AssertionError, match="^job contract missing: prebuild-dependency-prefix$"
+    ):
+        _assert_static_job_contract(mutant)
 
 
 def test_exact_dependency_prefix_export_is_accepted() -> None:
