@@ -977,12 +977,16 @@ def _atomic_write_bytes_noreplace(path: Path, payload: bytes) -> None:
         _write_bytes_x(staging, payload)
         try:
             _rename_noreplace(staging, path)
+            published = True
         except OSError as exc:
-            if exc.errno != errno.EINVAL:
+            if exc.errno not in {errno.EINVAL, errno.ENOSYS, errno.ENOTSUP}:
                 raise
-            os.link(staging, path)
-            staging.unlink()
-        published = True
+            os.link(staging, path, follow_symlinks=False)
+            published = True
+            try:
+                staging.unlink()
+            except OSError:
+                pass
         _fsync_dir(path.parent)
     finally:
         if not published and staging.exists():

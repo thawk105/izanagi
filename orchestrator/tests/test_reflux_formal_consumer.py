@@ -23,6 +23,9 @@ from orchestrator.campaign import trigger_gate_binding as G
 from orchestrator.campaign import wal as W
 from orchestrator.campaign.layout import CampaignLayout, exploration_campaign_layout
 from orchestrator.tests import reflux_origin_fixture_builder as F
+from orchestrator.verifier import core as verifier_core
+from orchestrator.verifier import report as verifier_report
+from orchestrator.verifier.model import RW, WR, WW
 
 
 WAVE_PRODUCTION_FILES = (
@@ -482,6 +485,119 @@ def _projection_records(case: _Case, index: int) -> list[dict]:
         "ordered_wal_ref"
     ]["path"]
     return copy.deepcopy(json.loads(projection_path.read_bytes())["records"])
+
+
+def _fixture_witness_anomaly(case: _Case) -> dict:
+    return copy.deepcopy(
+        _projection_records(case, 0)[-1]["payload"]["verify"]["anomalies"][0]
+    )
+
+
+def _replace_terminal_fields(case: _Case, index: int, **fields: object) -> None:
+    wal = _projection_records(case, index)
+    wal[-1]["payload"].update(copy.deepcopy(fields))
+    _rewrite_wal(case, index, wal)
+
+
+def _replace_verify_fields(case: _Case, index: int, **fields: object) -> None:
+    wal = _projection_records(case, index)
+    wal[-1]["payload"]["verify"].update(copy.deepcopy(fields))
+    _rewrite_wal(case, index, wal)
+
+
+def _replace_rejected_witness(
+    case: _Case,
+    index: int,
+    anomalies: list[dict],
+    *,
+    anomaly_count: int | bool | None = None,
+    total_cycles: int | bool | None = None,
+) -> str:
+    constraint_sha256 = _digest(_canonical(anomalies[0]))
+    selected_count = len(anomalies) if anomaly_count is None else anomaly_count
+    selected_total = len(anomalies) if total_cycles is None else total_cycles
+    wal = _projection_records(case, index)
+    verify = wal[-1]["payload"]["verify"]
+    verify["anomalies"] = copy.deepcopy(anomalies)
+    verify["anomaly_count"] = selected_count
+    verify["total_cycles"] = selected_total
+    _rewrite_wal(case, index, wal)
+    record = copy.deepcopy(case.records[index])
+    record["physical_result"]["constraint_sha256"] = constraint_sha256
+    _set_record(case, index, record)
+    _set_member(case, index, constraint_sha256=constraint_sha256)
+    return constraint_sha256
+
+
+def _replace_all_rejected_witnesses(
+    case: _Case,
+    anomalies: list[dict],
+    *,
+    anomaly_count: int | bool | None = None,
+    total_cycles: int | bool | None = None,
+) -> None:
+    for index in range(len(case.records)):
+        _replace_rejected_witness(
+            case,
+            index,
+            anomalies,
+            anomaly_count=anomaly_count,
+            total_cycles=total_cycles,
+        )
+
+
+def _replace_all_rejected_constraints(case: _Case, constraint_sha256: str) -> None:
+    for index in range(len(case.records)):
+        record = copy.deepcopy(case.records[index])
+        record["physical_result"]["constraint_sha256"] = constraint_sha256
+        _set_record(case, index, record)
+        _set_member(case, index, constraint_sha256=constraint_sha256)
+
+
+def _set_boolean_cycle_id(anomaly: dict) -> None:
+    anomaly["cycle"][0] = True
+    anomaly["edges"][0]["from"] = True
+    anomaly["edges"][-1]["to"] = True
+
+
+def _set_duplicate_cycle_ids(anomaly: dict) -> None:
+    anomaly["cycle"] = [1, 1]
+    for edge in anomaly["edges"]:
+        edge["from"] = 1
+        edge["to"] = 1
+
+
+def _set_single_node_cycle(anomaly: dict) -> None:
+    txid = anomaly["cycle"][0]
+    edge = anomaly["edges"][0]
+    edge["from"] = txid
+    edge["to"] = txid
+    anomaly["length"] = 1
+    anomaly["cycle"] = [txid]
+    anomaly["edges"] = [edge]
+
+
+def _set_bogus_reason_type(anomaly: dict) -> None:
+    edge = anomaly["edges"][0]
+    edge["types"] = ["bogus"]
+    edge["reasons"][0]["type"] = "bogus"
+
+
+def _set_wr_reason_with_v_ver(anomaly: dict) -> None:
+    edge = anomaly["edges"][0]
+    edge["types"] = [WR]
+    edge["reasons"][0]["type"] = WR
+
+
+def _set_ww_reason_missing_u_ver(anomaly: dict) -> None:
+    edge = anomaly["edges"][0]
+    edge["types"] = [WW]
+    edge["reasons"][0]["type"] = WW
+    edge["reasons"][0].pop("u_ver")
+
+
+def _set_rw_reason_missing_v_ver(anomaly: dict) -> None:
+    anomaly["edges"][0]["reasons"][0].pop("v_ver")
 
 
 def _wire(mask: int) -> str:
@@ -1285,6 +1401,44 @@ def test_fc06_rejects_validation_order_mismatch(case: _Case) -> None:
     _assert_reason(case, C.FormalReasonCode.FC06)
 
 
+def test_real_dense_cycle4_anomaly_passes_witness_structure_validator() -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+    result = verifier_core.verify_trace_dir(
+        str(Path(__file__).with_name("fixtures") / "r9_dense_cycle4"),
+        protocol="silo",
+        ccbench_root=repo_root / "external" / "ccbench",
+    )
+    report = verifier_report.result_to_dict(result)
+
+    assert result.integrity.clean(), result.integrity.notes
+    assert len(report["anomalies"]) == 1
+    assert C._valid_witness_anomaly(report["anomalies"][0])
+
+
+def test_real_dense_cycle4_report_schema_matches_consumer_key_sets() -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+    result = verifier_core.verify_trace_dir(
+        str(Path(__file__).with_name("fixtures") / "r9_dense_cycle4"),
+        protocol="silo",
+        ccbench_root=repo_root / "external" / "ccbench",
+    )
+    report = verifier_report.result_to_dict(result)
+
+    assert frozenset(report) - {"trace_dir"} == C._VERIFY_KEYS
+    assert frozenset(report["stats"]) == C._VERIFY_STATS_KEYS
+    assert frozenset(report["integrity"]) == C._VERIFY_INTEGRITY_KEYS
+    assert (
+        frozenset(report["integrity"]["permutation_violation_details"])
+        == C._PERMUTATION_VIOLATION_DETAILS_KEYS
+    )
+    assert (
+        frozenset(
+            report["integrity"]["permutation_violation_details"]["counts"]
+        )
+        == C._PERMUTATION_VIOLATION_COUNT_KEYS
+    )
+
+
 def test_fc07_rejects_legacy_root_kind_terminal_shape(case: _Case) -> None:
     trigger = _projection_records(case, 0)[0]
     legacy = {
@@ -1364,13 +1518,371 @@ def test_fc07_rejects_accepted_verify_config_order_mismatch(case: _Case) -> None
     _assert_reason(case, C.FormalReasonCode.FC07)
 
 
-def test_fc07_rejects_rejected_without_single_candidate_witness(case: _Case) -> None:
-    projection_path = case.fixture.evidence_root / case.records[0]["evidence"][
-        "ordered_wal_ref"
-    ]["path"]
-    wal = copy.deepcopy(json.loads(projection_path.read_bytes())["records"])
-    wal[-1]["payload"]["witness_class_sha256s"] = []
+def test_fc07_rejects_non_candidate_reason_with_valid_verify(case: _Case) -> None:
+    _replace_terminal_fields(case, 0, reason="indeterminate")
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_non_candidate_verdict_with_valid_reason(case: _Case) -> None:
+    _replace_verify_fields(case, 0, verdict="indeterminate")
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_dirty_integrity_with_valid_cycle(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    wal[-1]["payload"]["verify"]["integrity"]["clean"] = False
     _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_serializable_true_with_reject_verdict(case: _Case) -> None:
+    _replace_verify_fields(case, 0, serializable=True)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_certified_true_with_reject_verdict(case: _Case) -> None:
+    _replace_verify_fields(case, 0, certified=True)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_anomaly_count_different_from_list_length(case: _Case) -> None:
+    _replace_verify_fields(case, 0, anomaly_count=2, total_cycles=2)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_truncated_verifier_anomaly_list(case: _Case) -> None:
+    _replace_verify_fields(case, 0, total_cycles=2)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_boolean_total_cycles(case: _Case) -> None:
+    _replace_verify_fields(case, 0, anomaly_count=1, total_cycles=True)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_boolean_anomaly_count(case: _Case) -> None:
+    _replace_verify_fields(case, 0, anomaly_count=True, total_cycles=1)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_two_anomalies_even_when_first_digest_matches(
+    case: _Case,
+) -> None:
+    first = _fixture_witness_anomaly(case)
+    second = copy.deepcopy(first)
+    second["cycle"] = [3, 4]
+    second["edges"][0]["from"] = 3
+    second["edges"][0]["to"] = 4
+    second["edges"][1]["from"] = 4
+    second["edges"][1]["to"] = 3
+    _replace_all_rejected_witnesses(case, [first, second])
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_ring_position_mismatch_with_matching_digest(
+    case: _Case,
+) -> None:
+    anomaly = _fixture_witness_anomaly(case)
+    edge = anomaly["edges"][0]
+    edge["from"], edge["to"] = edge["to"], edge["from"]
+    _replace_all_rejected_witnesses(case, [anomaly])
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_anomaly_extra_key_with_matching_digest(case: _Case) -> None:
+    anomaly = _fixture_witness_anomaly(case)
+    anomaly["extra"] = "not-production"
+    _replace_all_rejected_witnesses(case, [anomaly])
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_empty_anomaly_with_matching_digest(case: _Case) -> None:
+    _replace_all_rejected_witnesses(case, [{}])
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_witness_digest_mismatch_after_other_gates_pass(
+    case: _Case,
+) -> None:
+    _replace_all_rejected_constraints(case, "e" * 64)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        lambda anomaly: anomaly.__setitem__("phenomenon", "unknown"),
+        lambda anomaly: anomaly.update({"length": 0, "cycle": [], "edges": []}),
+        lambda anomaly: anomaly.__setitem__("cycle", "not-a-list"),
+        _set_boolean_cycle_id,
+        _set_duplicate_cycle_ids,
+        lambda anomaly: anomaly.__setitem__("length", 3),
+        lambda anomaly: anomaly.__setitem__("length", 2.0),
+        _set_single_node_cycle,
+        lambda anomaly: anomaly["edges"].pop(),
+        lambda anomaly: anomaly["edges"][0].pop("types"),
+        lambda anomaly: anomaly["edges"][0].__setitem__("types", []),
+        lambda anomaly: anomaly["edges"][0].__setitem__("types", [1]),
+        lambda anomaly: anomaly["edges"][0].__setitem__("from", 1.0),
+        lambda anomaly: anomaly["edges"][0].__setitem__("to", 2.0),
+        lambda anomaly: anomaly["edges"][0].__setitem__("reasons", []),
+        lambda anomaly: anomaly["edges"][0]["reasons"][0].pop("key"),
+        lambda anomaly: anomaly["edges"][0]["reasons"][0].update({"extra": 1}),
+        lambda anomaly: anomaly["edges"][0]["reasons"][0].__setitem__("type", 1),
+        _set_bogus_reason_type,
+        lambda anomaly: anomaly["edges"][0]["types"].append(WW),
+        lambda anomaly: anomaly.__setitem__("phenomenon", "G1c"),
+        lambda anomaly: anomaly["edges"][0]["reasons"][0].__setitem__(
+            "u_ver", "not-a-list"
+        ),
+        lambda anomaly: anomaly["edges"][0]["reasons"][0].__setitem__(
+            "u_ver", [1]
+        ),
+        lambda anomaly: anomaly["edges"][0]["reasons"][0].__setitem__(
+            "v_ver", [True, 2]
+        ),
+        _set_wr_reason_with_v_ver,
+        _set_ww_reason_missing_u_ver,
+        _set_rw_reason_missing_v_ver,
+    ],
+    ids=[
+        "unknown-phenomenon",
+        "empty-cycle",
+        "cycle-not-list",
+        "boolean-cycle-id",
+        "duplicate-cycle-id",
+        "length-mismatch",
+        "length-float",
+        "single-node-cycle",
+        "edge-count-mismatch",
+        "edge-key-missing",
+        "empty-types",
+        "non-string-type",
+        "edge-from-float",
+        "edge-to-float",
+        "empty-reasons",
+        "reason-required-key-missing",
+        "reason-extra-key",
+        "reason-type-not-string",
+        "reason-type-outside-closed-set",
+        "types-not-derived-from-reasons",
+        "phenomenon-not-derived-from-types",
+        "reason-version-not-list",
+        "reason-version-not-two-elements",
+        "reason-version-boolean",
+        "wr-reason-has-v-ver",
+        "ww-reason-missing-u-ver",
+        "rw-reason-missing-v-ver",
+    ],
+)
+def test_fc07_rejects_each_malformed_witness_structure(
+    case: _Case,
+    mutate,
+) -> None:
+    anomaly = _fixture_witness_anomaly(case)
+    mutate(anomaly)
+    _replace_all_rejected_witnesses(case, [anomaly])
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_verify_without_stats(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    wal[-1]["payload"]["verify"].pop("stats")
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_stats_with_missing_key(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    wal[-1]["payload"]["verify"]["stats"].pop("abort_reasons")
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_string_stats_count(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    wal[-1]["payload"]["verify"]["stats"]["txns"] = "bad"
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_negative_stats_count(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    wal[-1]["payload"]["verify"]["stats"]["txns"] = -1
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_non_dict_abort_reasons(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    wal[-1]["payload"]["verify"]["stats"]["abort_reasons"] = []
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_string_abort_reason_count(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    wal[-1]["payload"]["verify"]["stats"]["abort_reasons"] = {
+        "fixture-abort": "bad"
+    }
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_negative_abort_reason_count(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    wal[-1]["payload"]["verify"]["stats"]["abort_reasons"] = {
+        "fixture-abort": -1
+    }
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_integrity_with_missing_key(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    wal[-1]["payload"]["verify"]["integrity"].pop("notes")
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_permutation_details_with_missing_key(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    details = wal[-1]["payload"]["verify"]["integrity"][
+        "permutation_violation_details"
+    ]
+    details.pop("sample")
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_clean_integrity_with_nonzero_wire_counter(
+    case: _Case,
+) -> None:
+    wal = _projection_records(case, 0)
+    wal[-1]["payload"]["verify"]["integrity"]["orphan_reads"] = 1
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_zero_framing_count_with_nonempty_details(
+    case: _Case,
+) -> None:
+    wal = _projection_records(case, 0)
+    wal[-1]["payload"]["verify"]["integrity"][
+        "framing_violation_details"
+    ] = [{"kind": "unexpected-detail"}]
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_non_list_framing_violation_details(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    wal[-1]["payload"]["verify"]["integrity"][
+        "framing_violation_details"
+    ] = {}
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_non_string_integrity_note(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    wal[-1]["payload"]["verify"]["integrity"]["notes"] = [1]
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_non_list_integrity_notes(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    wal[-1]["payload"]["verify"]["integrity"]["notes"] = {}
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_permutation_count_sum_mismatch(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    details = wal[-1]["payload"]["verify"]["integrity"][
+        "permutation_violation_details"
+    ]
+    details["counts"]["size-changed"] = 1
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_permutation_count_key_set_mismatch(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    details = wal[-1]["payload"]["verify"]["integrity"][
+        "permutation_violation_details"
+    ]
+    details["counts"]["not-production"] = 0
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_non_dict_permutation_counts(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    details = wal[-1]["payload"]["verify"]["integrity"][
+        "permutation_violation_details"
+    ]
+    details["counts"] = []
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_float_permutation_count(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    details = wal[-1]["payload"]["verify"]["integrity"][
+        "permutation_violation_details"
+    ]
+    details["counts"]["size-changed"] = 0.0
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_negative_permutation_count_with_matching_sum(
+    case: _Case,
+) -> None:
+    wal = _projection_records(case, 0)
+    details = wal[-1]["payload"]["verify"]["integrity"][
+        "permutation_violation_details"
+    ]
+    details["counts"]["size-changed"] = -1
+    details["counts"]["rcdptr-set-changed"] = 1
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_non_list_permutation_sample(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    details = wal[-1]["payload"]["verify"]["integrity"][
+        "permutation_violation_details"
+    ]
+    details["sample"] = "bad"
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_non_list_unknown_reason_sample(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    details = wal[-1]["payload"]["verify"]["integrity"][
+        "permutation_violation_details"
+    ]
+    details["unknown_reason_sample"] = {}
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_converts_witness_canonicalization_artifact_error(
+    case: _Case,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original = C.canonical_json_bytes
+
+    def fail_only_for_anomaly(value: object) -> bytes:
+        if type(value) is dict and set(value) == C._ANOMALY_KEYS:
+            raise C.ArtifactError("fixture canonicalization failure")
+        return original(value)
+
+    monkeypatch.setattr(C, "canonical_json_bytes", fail_only_for_anomaly)
     _assert_reason(case, C.FormalReasonCode.FC07)
 
 
@@ -1386,15 +1898,13 @@ def test_fc09_rejects_nonexact_rejected_class_set(case: _Case) -> None:
 
 
 def test_fc09_rejects_kmax_excess(case: _Case) -> None:
-    second_class = "e" * 64
-    record = copy.deepcopy(case.records[1])
-    record["physical_result"]["constraint_sha256"] = second_class
-    _set_record(case, 1, record)
-    _set_member(case, 1, constraint_sha256=second_class)
-    projection_path = case.fixture.evidence_root / record["evidence"]["ordered_wal_ref"]["path"]
-    wal = copy.deepcopy(json.loads(projection_path.read_bytes())["records"])
-    wal[-1]["payload"]["witness_class_sha256s"] = [second_class]
-    _rewrite_wal(case, 1, wal)
+    second = _fixture_witness_anomaly(case)
+    second["cycle"] = [3, 4]
+    second["edges"][0]["from"] = 3
+    second["edges"][0]["to"] = 4
+    second["edges"][1]["from"] = 4
+    second["edges"][1]["to"] = 3
+    _replace_rejected_witness(case, 1, [second])
     _assert_reason(case, C.FormalReasonCode.FC09)
 
 

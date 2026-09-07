@@ -83,7 +83,7 @@ _RUNTIME_FIELD_PATHS = {
     ),
     "verifier_policy_sha256": (
         "wal.commit.payload.verify_configs",
-        "wal.abort.payload.witnesses",
+        "wal.abort.payload.verify.anomalies",
     ),
     "environment_contract_sha256": (
         "execution_provenance.contract_sha256",
