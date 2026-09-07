@@ -51320,3 +51320,85 @@ exact 閉包、probe payload の形と型の整合、measured record の binary 
 
 **却下した選択肢:**
 - status に関係する field だけを見る — 何が「関係する」かを成果物の作り手が決められてしまう。
+
+## D1684. mocc trace policy の束縛は投入時 raw SHA を 5 者で照合し、読み口は non-blocking かつ strict JSON にする (2026-09-07)
+
+**決定:** D1541 の三者照合 (job 側 raw bytes・shell 変数・最終受領証) を次の形で実装する。
+
+- 投入側 (`submit_mocc_trace.sh`) は policy を O_NOFOLLOW + regular file 検査で 1 回だけ読み、同じ bytes から
+  raw SHA-256・`expected_compiler_version_body_sha256` mapping・`mocc_trace` 射影を導く。clean-tree gate 通過後に
+  再 hash して初回と一致することを要求し、pre-submit / submit receipt の `policy` 節へ `raw_sha256` と mapping を
+  記録し、qsub の `-v` で `IZANAGI_MOCC_POLICY_RAW_SHA256` を job 環境へも渡す。
+- job 側 (`mocc_trace_pilot.sh`) は早期 parser も同じ bytes から raw SHA を出し、source clean capture の**後**・
+  T1718 compiler gate の**前**に独立 marked block (`T2195 POLICY BINDING GATE`) を置く。gate は post-clean で読み直した
+  policy raw bytes・早期 parse 由来の shell 変数・pinned submit receipt・qsub 環境変数・receipt に記録された qsub argv の
+  `-v` 項の **5 者の raw SHA 全一致**と、live policy・shell 変数・receipt の **3 者の mapping 全一致**、および
+  policy の repo 相対 path が正準値であることを要求し、不一致・欠落・型不正・symlink・非 regular file・duplicate key を
+  `policy_binding` stage で fail-closed にする。finalization では独立 block で同じ値を再確認し、最終受領証の
+  top-level `policy` に `repo_path` / `raw_sha256` / mapping を記録する。
+- policy と pinned receipt を読む全 open に `O_NONBLOCK` を加え (fd 直後の `fstat` で非 regular を拒否する順序は不変)、
+  権威的な全 `json.loads` に `NaN` / `Infinity` / `-Infinity` を `ValueError` にする `parse_constant` を渡す。
+- 負例は production の shell fragment (parse → policy 復元 → receipt pin → clean capture → binding gate) を 1 つの
+  bash wrapper で実走し、「書き換え → 読ませる → 復元」経路が clean capture を通っても `policy_binding` で拒否される
+  ことを示す。schema version (pre-submit v1 / submit-receipt v2 / pilot-receipt v4)・既存 gate の述語と順序・
+  consumer・履歴 receipt は変えない。
+
+**理由:**
+- 受領証だけに raw SHA を持たせると、receipt の自己 pin と同じ主体が書く値になる。qsub `-v` は scheduler が保持する
+  投入時の値であり、receipt と独立した第 5 の証人になる (段 3 相談 A の must-fix)。
+- 早期 parser が raw SHA を出さないと、shell 変数側の期待値がどの bytes 由来かを job 内で言えない。late read を残すのは
+  clean capture 後の実体を読む必要があるからで、両方が要る。
+- 書き手のいない FIFO は O_NOFOLLOW だけの open で `fstat` の前に block し、失敗記録も最終受領証も残らないまま walltime
+  まで停滞する (段 6 レビュー A1 / B1)。`json.loads` は既定で非有限定数を受理するため、未参照 field に置いて SHA を合わせれば
+  gate を通れる (A2)。どちらも受理集合を狭めるだけの修正である。
+- 三者照合の実装であって、版ずれ検出の拡張 (D1542 の射程) や他 policy field の一般化は含めない (ユーザー指示の scope)。
+
+**却下した選択肢:**
+- 既存 checks dict へ policy 比較を混ぜる — gate の順序と marker の一意性が test で固定できず、既存述語の変更と区別しにくい。
+- receipt の自己 pin だけで済ませる — 投入権威の独立した証人にならない。
+- 早期 parser を廃して late read だけにする — shell 変数側の期待値の出所を失う。
+- gate 順序 (M12) を実行時変異で所有する — 170 行 block の移動は置換で表せず、marker 削除は診断文字列だけの赤になるため、
+  静的 test で所有する。
+
+## D1685. 待ちの長さは実所要に合わせ、無音は 30 分を上限とする (2026-09-07)
+
+**決定 (ユーザー裁定):** `CLAUDE.md`「作業の進め方」9 に、待機の長さを決める規則を 2 つ足す。
+順序も含めて確定であり、実行側で入れ替えない。
+
+1. **待つ長さは対象の実所要に合わせる。** これが第一原則である。3 分で終わる job を
+   30 分待つのは誤りである。
+2. **無音は 30 分を上限とする。** 所要が 30 分を超える待ちにだけ効く。30 分は確認間隔の
+   指定ではなく、黙っていてよい時間の上限である。
+
+あわせて、**ユーザーへの報告と、ターンを発生させることを別に扱う。** 報告は進捗が
+変化したときだけ行う。30 分以内の状態確認は 1 行で済ませ、変化が無ければユーザーへは書かない。
+
+現行文の「短周期の状態確認を繰り返さない」は「数秒〜1 分おきの状態確認を繰り返さない」へ
+具体化する。「N 分未満の確認を禁止」という形の下限規則は**書かない**。
+
+提供元ごとに違う倍率・保持時間の数値は共有 docs へ書かない。30 分はどの提供元でも
+安全な既定値なので書く。
+
+**理由:**
+- 現行文は下限 (連打の禁止) しか持たず、上限が無かった。上限が無いと、待ち手が
+  ブロックしている間ずっと沈黙し続ける運用が規律に適合してしまう。
+- `tools/dev_wave_wait.py` は `--poll-seconds` が no-op のブロックする作りである
+  (`docs/dev-wave/operations.md` `DW-O27`)。受入・変異走のような 1 時間級の待ちでは、
+  待ちの間にターンが 1 回も発生しない。無音が伸びるほど、次に口を開くときの
+  会話全文の送り直しが高くつく。30 分間隔なら 1 時間に 2 回で済む。
+- 1 分未満の連打が高くつくのは、送り直しがそのぶん増えるからである。数分規模の待ちを
+  1 本張るだけならターンは増えないので、同じ理由が当てはまらない。下限を規則の形で
+  書かないのはこのためである。
+- D676 は「無駄なポーリングでトークンを使わない」ことを目的に短周期の確認を禁じた。
+  本決定はその目的を反対側から補完する — 短すぎる確認と、長すぎる沈黙の両方が
+  同じ理由で高くつく。30 分は D676 の言う短周期ではない。
+
+**却下した選択肢:**
+- 上限だけを書き、実所要に合わせる原則を書かない — 3 分で終わる待ちに 30 分の
+  確認間隔が適用され、待ちそのものが不必要に伸びる。
+- 提供元固有の倍率・保持時間を根拠として docs へ書く — 値は提供元ごとに違い、
+  未確認の値を規律にすることになる。
+- `docs/dev-wave/` 側や command 入口へ書く — 待機は wave 固有の作法ではなく全作業に
+  かかる。加えて command 入口と `docs/dev-wave/core.md` は byte 予算が満杯である。
+- 他ファイルへ複製する — dev-wave の skill は `AGENTS.md` と `CLAUDE.md` の全文読了を
+  課すので、`CLAUDE.md` の 1 箇所で claude・codex 両方の wave に効く。
