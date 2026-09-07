@@ -225,6 +225,19 @@ def test_exact_schema_key_sets_and_canonical_bytes_contract() -> None:
     assert not raw.endswith(b"\n")
     assert raw.decode("utf-8").startswith('{"evidence":')
 
+    provenance = F.build_execution_provenance()
+    assert provenance["schema_version"] == "execution-provenance/v2"
+    assert set(provenance) == {
+        "schema_version",
+        "build_attempt_id",
+        "campaign_id",
+        "workload",
+        "contract_sha256",
+        "trigger_binding",
+        "execution_receipt_sha256",
+        "campaign_run_identity",
+    }
+
 
 def test_capability_and_recovery_topology_match_exact_contracts() -> None:
     capability = F.build_launch_admission_inputs()
@@ -341,6 +354,13 @@ def test_fixture_repository_writes_33_consistent_create_only_records(
         provenance_ref = record["evidence"]["execution_provenance_ref"]
         provenance_raw = (repository.root / provenance_ref["path"]).read_bytes()
         assert hashlib.sha256(provenance_raw).hexdigest() == provenance_ref["sha256"]
+        provenance = json.loads(provenance_raw)
+        assert provenance["schema_version"] == "execution-provenance/v2"
+        assert provenance["campaign_id"] == record["trial_binding"]["campaign_id"]
+        assert provenance["campaign_run_identity"] == (
+            f"fixture-run-{record['ledger_member']['query_ordinal']:08x}"
+        )
+        assert provenance["campaign_run_identity"] != provenance["campaign_id"]
     with pytest.raises(FileExistsError):
         F.build_fixture_repository(repository.root)
 

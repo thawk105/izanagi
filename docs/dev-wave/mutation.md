@@ -45,9 +45,8 @@ dispatch は `hang_timeout_seconds` < job walltime。超過は orphan hold 中�
 fix 後の最終 commit で変異 spec の anchor（old 逐語）と期待 node を再検証してから本走する。
 mask 時の再照準と erratum は `DW-M02` に従い台帳へ残す。
 本走は `--runner-mode dispatch` を既定とし、runner argv へ `--force-dispatch` を入れる。
-runner の実行経路を変異させる local は runner が自壊し収集段が `rc=16` になる。
-`--attempt-out` と `--wrapper-attempt` は dispatch 専用の同時指定必須ペア。片方のみ・local は
-中止。後者は整数、実走は `--detached` 必須。再投入は両方を変え、`--resume` は前回 sidecar を
+local は spec 不問で login が拒否する。runner 経路を変異させると自壊し収集段が `rc=16`。
+`--attempt-out` と `--wrapper-attempt` は dispatch 専用の同時指定必須ペア。片方のみは中止。後者は整数、実走は `--detached` 必須。再投入は両方を変え、`--resume` は前回 sidecar を
 新 path へ複写して渡す（F453。空 file は中止）。
 KILLED 期待で node 空の spec は起動前に中止するため、probe は全件 SURVIVED で登録し観測 node を
 集める。

@@ -750,6 +750,16 @@
   張り直したところ、子は正常に完走した。恒久対応 (`.done` の exit code と producer 生死で
   判定し、待ち手の rc も通知も信じない) がそのまま効き実害はゼロ。**追加事実は無く、
   2026-08-23 の「段 6 レビュー B の待ち手」と同一の形である。**
+
+- **再発: 2026-09-07** — 変異本走の生死確認に `pgrep -f` を道具名だけで掛け、**別 session の
+  変異走行を自分の子と誤認した**。自分の harness は約 50 分前に中止していたのに「実行中」と
+  報告し続け、ユーザーへの報告そのものが誤りになった。2026-08-26 の再発と同型
+  (`DW-M05` が要求する worktree path での一意化を、待ち直しのたびの生存判定へ適用していない) で、
+  **違いは実害がゼロでなかったこと**である。判定を spec path で掛け直して是正した。
+  同じ wave で `tools/dev_wave_wait.py producer` の argv を 2 つ誤り
+  (`--artifact-file` 欠落、および存在しない `--max-wait-s`)、待ち手が `stage=cli-usage rc=2` で
+  即戻ったのに待ち手 shell の rc は 0 だったため「完了」と誤読しかけた。
+  `.done` の実在確認 (F24 の恒久対応) がそのまま効いて子の生存を捕まえた。
 ### F25. commit trailer block の分断・結合ミス — provenance 監査 3+2 違反、積み直し 2 回 [手順漏れ]
 - 事象: 2026-07-20 の同一セッションで 2 回、`AI-Agent` trailer が git に trailer と認識されない
   message を作成 (1 回目 = trailer 行と `Co-Authored-By` の間に空行 → block 分断で AI-Agent が本文化。
@@ -1932,6 +1942,19 @@
   (2026-08-11 の再発と同じ degrade 経路)。fix 子 2 本目が `__main__` + `pytest.main` の 4 行を足し、焦点走 (meta-test + 新 test、26 件) の後に閉じた。
   費用は受入全走 1 回分 + fix 子 1 本 + 焦点走 1 回。**新設 test file がある wave では、親の焦点走の集合に `test_plain_runner_coverage.py` を必ず入れる**
   (2026-08-11 の恒久対応の逐語を親が守らなかった再発)。
+
+- **再発: 2026-09-07** — 7 回目。新設した `orchestrator/tests/test_backoff_counterfactual_analysis.py`
+  が自走 harness を持たず、受入全走 (21,309 passed / 68 skipped) を
+  `test_plain_runner_coverage.py` の 1 件赤にした。2026-08-11・2026-09-04 と同じ degrade 経路
+  (Pegasus では codex 実装子が計算ノードへ dispatch できずテストを 1 件も走らせられないため、
+  実測義務が親へ移る) である。
+  **本 wave の追加事実は、恒久対応が既に入口の dispatch 表から届く節へ逐語で書かれていたことである** —
+  `DW-O26` の「新規 test file を足す走は file 集合列挙のメタテストも焦点走に含める」は、
+  条件 18 (親のテスト・受入前) で必読に指定されている。親はその条件で節を読みながら、
+  焦点走の集合を wave の対象 module から組み、横断メタ検査を入れなかった。
+  **型は「手順書の不足」ではなく「必読に指定された逐語を読んだ上で適用しない」**であり、
+  2026-09-04 の「逐語を親が守らなかった再発」と同じ位置にある。
+  費用は受入全走 1 回分 + fix 子 1 本 + worktree 1 本。是正後の焦点走は 24 passed・赤 0。
 ### F43. codex 子が exit 0 のまま最終メッセージへ推敲断片だけを残し、レビュー本文が失われた [手順漏れ]
 - 事象: [T-147] の敵対レビュー B (2026-07-28) が 168k tokens・exec 31 回の実検証を行いながら、
   `-o` の最終メッセージに出力書式の推敲メモ断片 194 bytes だけを残して exit 0 で終了した。
@@ -7298,6 +7321,18 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   残さないことを検査するテストを追加した。**永続化先の filesystem が単体テストの tmp と
   異なる成果物では、その filesystem で機構を実測してから採用する。**
 
+
+- **再発: 2026-09-07** — A-2 の condition-gate 受領証の公開が、同じ `renameat2(RENAME_NOREPLACE)`
+  の Lustre EINVAL で決定的に失敗した。attempt `t2364-20260907a` は 2 workload とも約 50 秒で
+  `driver_rc=2` で終わり、bench に入らなかった。**F205 の恒久対応 (`os.link` + `unlink` による
+  create-only publish) は directory 公開側にしか適用されておらず、T-2337 が足した file 用の
+  新しい writer `_atomic_write_bytes_noreplace` が退避なしで同じ穴を再導入していた。**
+  単体テストが緑だったのも F205 と同じ理由で、pytest の一時領域が同フラグを実装する FS だった。
+  親が同じ Lustre 上で `ln` の成功と既存名での EEXIST を実測し、file 公開へ EINVAL 限定の
+  hard link 退避を実装した。退避を消す変異と「既存を置換する rename」へ変える変異の両方が
+  KILLED になることを変異試験で確かめた。
+  **同日、A-1 の wave も独立に同じ型を踏んでおり、`DW-G03` の「独立 2 件」が揃った。**
+  族としての一般化は別タスクへ送る。
 ### F206. 取り込み前の古い checker で incoming range を監査し、登録済みの既知違反を赤と誤認した [手順漏れ] [ドリフト]
 
 - 事象: 受入直前の `check_ai_provenance.py --range HEAD..main` が 4 違反で赤になり、
@@ -16687,6 +16722,17 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 
 
 - **再発: 2026-08-28** — 有効なA-2 4-cell acquisitionのtracked publishがLustre上の`RENAME_NOREPLACE` EINVALで停止。A-1既存先例と同じEINVAL限定exclusive-claim fallbackをA-2へ実装し、同じacquisitionの再提示でpublishした。
+
+- **再発: 2026-09-07** — 段 4 loop の job body を初めて実際に投入したところ、(2) と同一症状
+  `Could NOT find gflags` で masstree の FetchContent 事前構築が止まった (job `981655.nqsv`、
+  host `bnode116`、Elapse 9S)。この job body は同 F の (1) にあたる `IZANAGI_RESERVATION_*`
+  8 変数の export は正しく行っており、reservation 束縛も claim root の provisioning も通った。
+  欠けていたのは依存の供給経路だけである。兄弟 job body `tools/pegasus/floor_scoping.sh` は
+  policy の pin から gflags/glog を build / install し `CMAKE_PREFIX_PATH` を通しており、
+  本 F の再発検知が求める「同種の既存 job body を 1 本名指しして、そこが行っていて自分が
+  行っていない手順を列挙する」を実装 wave が段 1 brief で行っていれば、段 2 で見えていた。
+  帰属と対応案は D1737、実装は
+  [T-2406] で裁定待ち。
 ### F581. 敵対レビュー 2 巡を通過した実装に発火しない保証が 2 件残っていた [恒真ゲート] [テスト代表性]
 
 - 事象: 段 6 の変異 matrix 第 1 巡 (22 件) で SURVIVED が 6 件出た。うち 2 件は実欠落だった。
@@ -16705,6 +16751,14 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 変異の生存を「等価だから問題ない」で閉じない。実効 gate へ再照準し、初回結果を
   erratum として残したうえで再走する。
 
+
+- **再発: 2026-09-07** — 敵対レビュー 1 巡目が、足された検査 4 件について「外しても既存 test が
+  1 件も赤にならない」ことを名指しした。とくに新版 profile の正例が全部 test 用の kwargs seam を
+  通っており、repo 所有 pin 表を迂回する退行を検出できない形だった。fix で 4 件とも閉じ、
+  それぞれを殺す最小の変異 10 件を実際に当てて赤を確認した。さらに本走の probe 段で、
+  `source_binding_status` の検査が 2 層あり上位層が下位層を隠している構造が見つかった
+  (片層だけの変異は SURVIVED し、両層同時変異で KILLED)。**この mask は静的レビューでは
+  出ておらず、変異試験だけが明らかにした。**
 ### F582. 族へ自動編入する契約が単一 CLI 形状を暗黙前提にしており、別形状の driver が構造的に入れなかった [テスト代表性] [誤前提]
 
 - 事象: `orchestrator/tests/test_p3_exploration_namespace.py` は `orchestrator/campaign/*.py` を
@@ -17794,6 +17848,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   コード側の修正は次の一手へ登録した (CLI を実プロセスとして起動する検査の新設を含む)。
 - 再発検知: 同じ判定を返すはずの 2 経路が異なる答えを返さないことを、CLI を subprocess として
   起動する検査で固定する (未実装。次の一手で追跡)。
+- **supersede: 2026-09-07** — 恒久対応が独立入口として名指しした `-m` 形式は、判定器では同じ二重実体化を起こす (`runpy` が対象コードを `__main__` の namespace で実行するため)。gate report の `-m` が正しい内訳を返すのは、そこで core が通常の canonical import になるからであって `-m` 形式が安全だからではない。CLI を実プロセスとして起動する再発検知は `orchestrator/tests/test_s8c_cli_entrypoints.py` として実装済みで、判定器と gate report をファイルパスと `-m` の両形で起動し、同じ commit の library 判定と突き合わせる。
 
 ### F632. 新規 worktree の初回受入全走は `output/runs` 不在で必ず 3 件赤になる [テスト代表性]
 
@@ -21320,6 +21375,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: A-6 attempt `a6-20260902a` の `certification.json` が `indeterminate` として保存され、
   reason に driver rc が残っている。
 - **supersede: 2026-09-07** — 恒久対応の「共有 measurement pipeline への横断的な引数追加になる」という見立ては必要条件でしかない。引数を通しても下流の閉じた trace0 argv 文法が全 cell を拒否し `indeterminate` が続く。詳細と解消案は D1688。
+- **supersede: 2026-09-07** — 根本原因節の「`run_campaign` は FetchContent の source dir を受け取る引数を持たない」は現行 main では偽である。`orchestrator/campaign/loop.py` の `run_campaign` は 5 引数すべてを持ち `pipeline.evaluate` 経由で `buildcache` へ素通ししており、T-2356 の commit `466528512` で着地している。残っていたのは認証経路の呼び手が 5 引数を渡していないことと、閉じた trace0 argv 文法が FetchContent token を拒否することの 2 点で、いずれも D1693 と D1740 の実装で解消した。
 
 ### F809. 投入の保留ファイルは 2 種類あり、片方だけ片付けると同じ理由で無限に弾かれる [手順漏れ]
 
@@ -22585,3 +22641,206 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `cd` してしまったら `EnterWorktree` に自分の worktree の絶対 path を渡して入り直す。
 - 再発検知: 起動前に「実装単位は 2 つ以上か」を数える。1 つなら別 worktree を作らない。
   作ってしまった未使用 worktree は、隔離セッションからは撤去もできないので次 wave へ引き継ぐ。
+
+### F874. 親が測っていない否定を追補として子へ渡し、5 分上限を超える検査設計を招きかけた [捏造/幻覚] [テスト代表性]
+
+- 事象: 実プロセス CLI 検査の時間予算を決めるため、親は実 repository の全評価を 3 連走して
+  39.17 / 114.16 / 118.74 秒 (load average 76) を実測した。**この数字は正しい。** しかし親は
+  同じ追補に「小さな合成 repo を作って安く同じ欠陥を踏ませることはできない」と書き、
+  その否定を段 3 の両レンズへ前提として渡した。実際には、判定器・評価器・射影の 3 module の
+  live bytes を合成 commit へ copy すれば三 blob 検査を通過して評価器まで到達し、
+  **1 走 0.2〜0.3 秒**で同じ欠陥を判別できる。段 2 の当初案 (4 起動形 x 2 評価 = 最悪 950 秒) を
+  そのまま採っていれば、suite 全体 5 分の上限を新設検査 1 本で超えていた。
+- 根本原因: 測った命題 (「実 repo の全評価は高い」) から、測っていない命題
+  (「安い代替は無い」) を導いた。前者は実測、後者は親のコード読解による推測であり、
+  追補ではその区別を書かずに同じ節へ並べた。**否定命題は肯定命題より広く、
+  1 つの反例で倒れる。** 親は反例を探していなかった。
+- 恒久対応: memory `mechanism-necessity-needs-counterfactual` と同じ系統の作法として、
+  auto-memory `unmeasured-negation-must-be-labelled` を作り、**「〜はできない」「〜しかない」を
+  子への前提として書くときは、(a) 実測で確かめたのか (b) 読解で推測したのかを同じ行に書き、
+  (b) なら「反証を歓迎する」と明示する**を固定する。段 3 のレンズ prompt には、
+  親自身の実測値**とその一般化**を攻撃対象に含める義務が既にある (`DW-S03`) ので、
+  発火経路はそこに既存である。
+- 再発検知: 追補・brief に「できない」「無い」「唯一」を含む否定命題があり、
+  その節に実測 (数値・コマンド・成果物 path) が併記されていない場合が同型。
+  レンズが反証したかどうかで機械判定はできないため、段 4 裁定で親が
+  「自分の否定命題のうち実測で支えていないものを列挙する」ことで顕在化させる。
+
+### F875. 手順書の投入 recipe が実行体の前提条件を 1 つ書き落とし、逐語で実行すると決定的に拒否された [手順漏れ] [テスト代表性]
+
+- 事象: `tools/pegasus/README.md` §7 の tagged qsub command を逐語で実行して段 4 loop の job body を
+  投入すると、job body が `refuse "CCBench P3 S4 campaign pin mismatch"` (rc=2) で必ず止まる。
+  job body も driver (`patchharness.assert_pinned_clean`) も CCBench の working tree が
+  `p3_s4_loop.PIN` に exact 一致することを要求するが、recipe は「固定 SHA の専用 checkout」としか
+  書いておらず、**submodule を PIN へ checkout する手順が無い**。main の gitlink
+  (`511c9538e...`) は PIN (`028f34d`) の子孫であり、両者は一致しない。
+- 根本原因: recipe を書いた wave は新規 Pegasus 実行体のため一度も投入せず (F660)、検証を
+  login node の stub harness と契約テストで止めた。契約テストは job body の**本文**を固定するが、
+  README の recipe を実行したときに前提が揃うかは検査しない。両者の間に検査の空白がある。
+  gitlink は当該 wave の実装 commit の時点から前進しておらず、**recipe は着地時点から
+  逐語実行できなかった**。pin の前進による腐りではなく、書き起こし時の欠落である。
+- 恒久対応: 誤った pin のまま走ることは構造的に起きない — job body の rc=2 refuse と driver の
+  `assert_pinned_clean` が二重に fails-closed で止め、本 wave でも実際に止めた。
+  欠けているのは recipe 本文だけであり、その是正は
+  [T-2407] で裁定待ちとして返した。
+- 再発検知: 新しい job body を admission registry へ登録する wave は、README の投入 recipe を
+  **逐語で 1 回実行して rc を記録する**。実行できない事情があるなら、recipe が要求する前提を
+  1 つずつ列挙して job body の必須検査と突き合わせ、突き合わせた件数を段 1 brief に書く。
+  0 件と書くならその根拠を示す。
+
+### F876. 二段述語の片側だけを変異させると、もう片側が負例を先に捕まえ、赤くなるのは行番号 pin の冗長 gate だけになる [テスト代表性] [手順漏れ]
+
+- 事象: read-heavy 限定受理の変異事前登録 m08 は `execution_host` の**非空検査だけ**を削る形だった。
+  probe で観測された赤 node は `test_ccbench_spawn_sites.py` の行番号 pin 3 件だけで、
+  意図した semantic 負例 (`...semantic_gates_reject_mutated_digest_injected[execution-host-missing]`)
+  は 1 件も発火しなかった。probe を「期待 node の収集」としか見ていなければ、この 3 node を
+  期待値に焼いて本走で KILLED と記録し、**何も守っていない節を防壁として数えるところだった。**
+- 根本原因: 述語が `type(row.get("execution_host")) is not str` と `not row.get("execution_host")` の
+  二段で、負例が作る値が「キー欠落 (= `None`)」だったため、残した型検査が先に捕まえた。
+  非空検査が単独で守る値域 (空文字列) を撃つ負例が存在しなかった。
+  さらに、行数を変える変異はすべて行番号 pin を赤にするため、**冗長 gate の赤が
+  「kill された」という見かけを作る**。この 2 つが重なると帰属不成立が緑の顔で通過する。
+- 恒久対応: memory `mutation-probe-must-check-attribution-not-just-nodes` —
+  probe 台帳を読むとき変異ごとに冗長 gate の node を引き、残りが空なら帰属不成立として
+  `DW-M01` に従い実効 gate へ再照準する。本件は host 検査 2 行をまとめて削る形へ再照準し、
+  単独 probe で semantic 負例の発火を実測してから本走へ登録した (15 / 15 KILLED、期待 node 完全一致)。
+  初回 probe の台帳は `DW-M02` に従い
+  `output/insights/2026-09-07_t1905-b10-readheavy-admit/mutation-ledger-probe.json` に残す。
+- 再発検知: probe 台帳の `failed_nodes` から行番号 pin 3 node を引いた残りが空である変異。
+  この差し引きは probe の読み取り手順そのものであり、走らせれば必ず目に入る。
+
+### F877. 新設した検査 3 本が隣接する別の検査に隠れ、テストに固定されていなかった [テスト代表性] [恒真ゲート]
+
+- 事象: A-2 / A-6 の trace0 文法拡張で新設した検査のうち 3 本が、変異走行の probe 巡で
+  **どのテストにも殺されなかった** (SURVIVED)。段 6 の敵対レビュー 2 本は静的検査でこれを
+  1 件も指摘できなかった。負例テスト自体は存在していたのに、いずれも別の検査に先に拒否されて
+  対象の検査へ届いていなかった。
+- 根本原因: 負例が「その検査だけを撃つ」形になっていなかった。3 件とも隣接する検査が同じ入力を
+  先に拒否する。(1) path token の非空検査 — 値が空の FetchContent token は直後の正規絶対 path 判定が
+  拒否するため隠れる。判定を持たないのは dependency prefix (先頭 1 本) だけで、その空値の負例が
+  無かった。(2) path token の prefix 一致検査 — 期待値が受け取った token をそのまま写す構造のため、
+  最終の全一致比較でも捕まらない。統制 define の抽出器も対象外の接頭辞しか見ない。「位置は正しいが
+  prefix が違い、値は正規絶対 path」という負例が無かった。(3) policy の要素数検査 — 既存の負例が
+  3 要素だったため要素の重複を見る一意性検査にも掛かって隠れる。長さ検査だけを撃つには
+  「5 要素でうち 1 つが重複」(集合サイズは 4) が要る。
+- 恒久対応: `docs/dev-wave/mutation.md` の `DW-M01` (単一理由性) と `DW-M02` (所見ゼロの裏取り) の
+  fails-closed 適用。**新設検査には、その検査の項だけを一時的に落として当該負例が赤になることを
+  実測してから登録する。** 本 wave では 3 件すべてでこの実測を行い、復元後に production 差分ゼロを
+  確認した (`output/insights/2026-09-07_t2198-trace0-fetchcontent/verbatim/s6-fix2.md`)。
+- 再発検知: 変異走行の SURVIVED。静的レビューでは検出できないことが本件で実証された
+  (敵対レビュー 2 本がいずれも見落とした)。`DW-M02` の「変異が生存したらまず他層の mask と
+  等価変異を疑う」が発火点である。
+
+### F878. 順序是正が「開始だけあって終端がない」台帳行を作った [手順漏れ]
+
+- 事象: 受入要件 11 の順序是正で lifecycle start が observation 開始より前へ移った結果、
+  observation 開始後に失敗した起点試行が terminal を書けなくなった。台帳には start だけが残り、
+  その行は再試行を阻止しながら acceptance も成立させない。段 6 の敵対レビューが実測で見つけた。
+- 根本原因: 順序を動かす前に、動かした後の失敗経路が既存の終端契約を通れるかを確かめなかった。
+  `record_trial_terminal` は origin binding と projection の有無が食い違う terminal を拒否する。
+  順序変更が新しい失敗状態 (projection をまだ作れていない起点試行) を生むことを見落とした。
+- 恒久対応: D1746 で失敗 status に限って
+  projection 無しの終端を許した。成功終端の受理集合は動かしていない。
+- 再発検知: `orchestrator/tests/test_trial_registry.py` の負例 3 種
+  (complete かつ projection 無しは拒否、失敗 status かつ failure_reason 空は拒否、
+  失敗 status かつ failure_reason 非空は受理) と、
+  `orchestrator/tests/test_p3_autonomous_workload_trial.py` の
+  「terminal が在ること」まで見る test。
+
+### F879. 読み取り側が見えない情報の代理を使い、受理集合を広げた [恒真ゲート]
+
+- 事象: lifecycle loader が `origin_terminal_projection` の有無を `origin_binding` の有無の
+  代理にしていた。その結果、起点でない start 行に起点専用 key を足したもの、
+  および起点の start 行から key を落としたものが、どちらも loader を素通りした。
+  変更前の exact-key 拒否より受理集合が広い。段 6 の敵対レビュー 2 本が独立に指摘した。
+- 根本原因: 親が段 4 で「読み取り側でも必要十分条件を強制せよ」と裁定したが、
+  読み取り側が受け取るのは台帳の bytes だけで、行には要約値しか無く、
+  そこから元の情報を復元できないことを確かめていなかった。**強制できない層に強制を命じると、
+  実装は代理を作る。**
+- 恒久対応: D1745 で、
+  必要十分条件を情報が実在する層 (書き手・終端・受入) へ移し、
+  読み取り側は自分が見えるものだけを検査する形に戻した。代理は除去した。
+- 再発検知: `orchestrator/tests/test_trial_registry.py` の書き手側 iff 試験 3 種と
+  acceptance 側 iff 試験。読み取り側単独では判定できない限界は decisions の
+  「保証しないこと」に明記した。
+
+### F880. 期待した赤テストが収集集合に存在しなかった [恒真ゲート]
+
+- 事象: 変異事前登録で、期待する赤テストを素の関数名で書いた。対象テストは 3 通りに
+  parametrize されており、素の関数名の node は pytest の収集集合に存在しない。
+  変異 harness が投入前に fail-closed で止めた。
+- 根本原因: 関数名を grep しただけで node 名を書き、parametrize の有無を確かめなかった。
+  止められなければ、存在しないテストを期待集合にしたまま「kill された」と記録するところだった。
+- 恒久対応: 期待 node は関数定義の直前 8 行に parametrize が無いことを機械検査してから書く。
+  本 wave では 10 変異すべてについてこの検査を行い、1 件で id 3 つへ展開した。
+- 再発検知: `tools/mutation_harness.py` の「期待 node が pytest collection に実在しない」検査。
+  この検査自体が今回発火した。
+
+### F881. 歴史系列の束縛を現行の登録から組み立てていたため、登録の版上げが完了済み系列を拒否した [遡及汚染] [恒真ゲート]
+
+- 事象: 完了済み B-10 系列 (write-heavy 45 cell、balanced 45 cell) を読む adapter が、
+  期待する束縛のうち登録 commit・blob・spec・patch・式のハッシュの 5 つを、
+  **その系列が走った当時の登録ではなく現行の登録から**組み立てていた。事前登録を v4 から v5 へ
+  上げた時点で、記録済みの v4 行は束縛不一致で拒否される状態になった。
+- 根本原因: adapter が「登録は変わらない」ことを暗黙の前提にしていた。**版が上がらない限り
+  この作りは正しく見える。** 歴史系列に固有の値 (解析 commit と解析コードのハッシュ) は
+  literal で固定されていたのに、登録側の 5 値だけが現行参照のまま残っていた。
+- **既存の検査はこの型を捕まえない。** 旧系列を検査する test が、期待束縛を同じ関数から
+  作っていたため恒真だった。現行登録と記録行が別版である状況を 1 度も再現していない。
+- 恒久対応: D1750。歴史系列の束縛は成果物に記録された値へ
+  literal で固定し、現行の登録から独立させる。あわせて「現行登録が新版で記録行が旧版」の負例を
+  足す。受理集合を狭める方向の修正である。
+- 再発検知: 凍結系列を読む adapter を足すときは、**期待値の出所が現行の可変状態か記録された値かを
+  必ず見る。** 現行の可変状態から導いている箇所は、その状態が版を持つなら遡及汚染の候補である。
+  検査が恒真でないことは、期待値と実装が別の出所を持つことで示す。
+
+### F882. 「別の欄である」ことをオブジェクト同一性で確かめていた検査が、値が一致した途端に壊れた [恒真ゲート] [検証漏れ]
+
+- 事象: 「要求した座標と実際に測れた座標は別の欄である」という性質を
+  `assert 要求 is not 実現` で確かめていた検査が、両者の中身が等しくなった時点で失敗した。
+  処理系が同じ内容の定数を共有したためである。**実装は正しく、落ちたのは期待値の側だった。**
+- 根本原因: 守りたい性質 (成果物が 2 つの欄を持ち未実現点を隠さない) を、
+  **処理系の実装詳細 (定数の共有) に依存した近似で表現していた。** 両者の値が違う間は
+  たまたま成立していたが、値が一致しうる設計変更でその近似が崩れた。
+- 恒久対応: 期待値を性質そのものへ置き換える。両方の欄が存在すること、成果物側で生成される
+  2 つの並びが独立で、片方を変えても他方が変わらないことを検査する。
+  **定数をわざと別オブジェクトに作り分けて `is not` を通す直し方は採らない。**
+  それは実装詳細を固定するだけで、守るべき性質を守らない。
+- 再発検知: オブジェクト同一性・参照の異同で性質を確かめている検査を見たら、
+  **「値が一致しても成立するか」を問う。** 成立しないなら、その検査は値が離れている間だけ
+  効く近似である。
+
+### F883. 背景待ち手が条件未成立のまま「完了」を返し、未完了を完了と誤認しうる状態が続いた [捏造/幻覚] [手順漏れ]
+
+- 事象: 背景 job の `until [ -f <done> ]` ループと Monitor が、`.done` も台帳 file も存在しない
+  状態で「完了」「rc=0」「n=7」等の通知を返す事象が、1 セッション中に 10 回以上起きた。
+  producer は `ps` で生存が確認できた。通知本文だけで判定していれば、変異走の途中結果を
+  完走と読み、受入と land へ進んでいた。
+- 根本原因: 待ち手の通知は producer の実際の終了と束縛されていない。通知本文は待ち手 script の
+  出力ではなく、別経路で組み立てられうる。**通知は「見に行け」という合図であって、状態の証拠ではない。**
+- 恒久対応: 完了判定を通知本文から切り離し、**成果物の実在で行う** — producer 自身が書く `.done`
+  file の存在と中身、および成果物 (台帳 JSON・図・receipt) の実在を毎回 `ls` / `cat` で確かめる。
+  本 wave はこの規律で全判定を行い、10 件以上の誤通知をすべて弾いた。
+- 再発検知: 「完了通知は本文ごと誤りうる」を既存 memory が持つ。待ち手の rc・grep・通知の
+  いずれも判定にしない契約は `DW-C00` が既に定めており、本エントリはその契約が実測で
+  必要だったことの記録である。
+
+### F884. 成果物に保存した当時の policy を、consumer が版選択なしで現行 validator へ渡していた [テスト代表性] [ドリフト]
+
+- 事象: A-2 図生成器が、成果物の埋め込み policy bytes を現行 producer の `load_policy` へ
+  版選択なしで渡す設計だった。別 wave が producer の policy 文法へ必須 key を 1 つ足した結果、
+  その変更より前に作られた正当な認証成果物が拒否され、焦点走が 35 件赤になった。
+  **測定は当時の policy で正しく走り、当時の検証を通っている。** 壊れたのは読み手だけである。
+- 根本原因: producer は成果物へ当時の policy bytes を意図的に保存しているのに、
+  **consumer がその時点の文法を選ぶ情報を使っていない。** profile 選択は certification /
+  manifest の schema 名の組だけで行われ、policy の版は選択に関与しない。
+  したがって producer の必須 key・値制約が過去 bytes を満たさなくなる変更ごとに再発する。
+- 恒久対応: `(certification bytes の SHA-256, 埋め込み policy bytes の SHA-256)` の組を主 key にした
+  repo 所有の列挙を引き、完全一致した entry だけ当時の文法で読む
+  (D1754)。未知 hash への fallback は設けない。
+  version 欄と key 集合は entry 選択後の二次 assertion に留める
+  (旧も現行も policy version は同じ `v2` なので識別子にならない)。
+- 再発検知: 主 key を「policy hash だけ」に弱める変異が
+  `test_historical_rejects_changed_certification_bytes` を赤にすることを実測で確かめた。
+  **ただしこの対応は 1 件限定の adapter であり、構造そのものは残る。**
+  producer 共通 loader の版管理は本 wave の scope を超えるため裁定パッケージへ返す。
