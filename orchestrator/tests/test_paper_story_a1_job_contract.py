@@ -2318,10 +2318,15 @@ def test_m1_submission_receipt_is_complete_before_final_path_is_visible(
     submission_path = Path(evidence["submission_receipt"])
     qsub_calls: list[list[str]] = []
     _stub_successful_submit(monkeypatch, qsub_calls)
-    real_rename = paired._renameat2_directory
-    publish_boundaries = []
+    real_link = paired.os.link
+    publish_boundaries: list[tuple[Path, Path]] = []
 
-    def inspect_publish(staging, destination, flags):
+    def inspect_publish(
+        staging: Path,
+        destination: Path,
+        *,
+        follow_symlinks: bool,
+    ) -> None:
         if destination == submission_path:
             raw = staging.read_bytes()
             document = json.loads(raw)
@@ -2329,11 +2334,11 @@ def test_m1_submission_receipt_is_complete_before_final_path_is_visible(
             assert not os.path.lexists(destination)
             assert raw == paired._canonical_json_bytes(document)
             assert set(document) == paired._SUBMISSION_RECEIPT_KEYS
-            assert flags == paired._RENAME_NOREPLACE
+            assert follow_symlinks is False
             publish_boundaries.append((staging, destination))
-        return real_rename(staging, destination, flags)
+        real_link(staging, destination, follow_symlinks=follow_symlinks)
 
-    monkeypatch.setattr(paired, "_renameat2_directory", inspect_publish)
+    monkeypatch.setattr(paired.os, "link", inspect_publish)
     assert paired.run_submit(SimpleNamespace(
         study_id=paired.STUDY_ID,
         expected_head=head, attempt_root=str(attempt),
@@ -2341,6 +2346,9 @@ def test_m1_submission_receipt_is_complete_before_final_path_is_visible(
     assert len(publish_boundaries) == 1
     assert len(qsub_calls) == 1
     assert json.loads(submission_path.read_bytes())["request_id"] == "12345.nqsv"
+    assert not os.path.lexists(paired._receipt_staging_path(
+        submission_path, receipt_kind="submission",
+    ))
 
 
 def test_m2_submission_receipt_publish_is_no_replace(
@@ -2350,14 +2358,74 @@ def test_m2_submission_receipt_publish_is_no_replace(
     Rejection implication: an existing final path is never replaced by publication.
     """
     occupied = tmp_path / "occupied.submission.json"
-    occupied.write_bytes(b"existing receipt\n")
-    with pytest.raises(paired.PaperStoryError, match="no-replace"):
+    original = b"existing receipt\n"
+    occupied.write_bytes(original)
+    occupied_staging = paired._receipt_staging_path(
+        occupied, receipt_kind="submission",
+    )
+    with pytest.raises(
+        paired.PaperStoryError,
+        match=r"^no-replace submission receipt publish failed: ",
+    ):
         paired._publish_submission_receipt(occupied, {"value": "replacement"})
-    assert occupied.read_bytes() == b"existing receipt\n"
+    assert occupied.read_bytes() == original
+    assert not os.path.lexists(occupied_staging)
 
     clean = tmp_path / "clean.submission.json"
+    clean_staging = paired._receipt_staging_path(
+        clean, receipt_kind="submission",
+    )
     paired._publish_submission_receipt(clean, {"value": "accepted"})
     assert clean.read_bytes() == paired._canonical_json_bytes({"value": "accepted"})
+    assert not os.path.lexists(clean_staging)
+
+
+def test_completion_receipt_publish_boundary_and_no_replace(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Completion publishes only canonical staging bytes through a real hard link."""
+    occupied = tmp_path / "occupied.completion.json"
+    original = b"existing completion\n"
+    occupied.write_bytes(original)
+    occupied_staging = paired._receipt_staging_path(
+        occupied, receipt_kind="completion",
+    )
+    with pytest.raises(paired.PaperStoryError):
+        paired._publish_completion_receipt(
+            occupied, {"value": "replacement"},
+        )
+    assert occupied.read_bytes() == original
+    assert not os.path.lexists(occupied_staging)
+
+    clean = tmp_path / "clean.completion.json"
+    value = {"value": "accepted"}
+    expected = paired._canonical_json_bytes(value)
+    clean_staging = paired._receipt_staging_path(
+        clean, receipt_kind="completion",
+    )
+    real_link = paired.os.link
+    publish_boundaries: list[tuple[Path, Path]] = []
+
+    def inspect_publish(
+        staging: Path,
+        destination: Path,
+        *,
+        follow_symlinks: bool,
+    ) -> None:
+        assert staging == clean_staging
+        assert destination == clean
+        assert staging.read_bytes() == expected
+        assert not os.path.lexists(destination)
+        assert follow_symlinks is False
+        publish_boundaries.append((staging, destination))
+        real_link(staging, destination, follow_symlinks=follow_symlinks)
+
+    monkeypatch.setattr(paired.os, "link", inspect_publish)
+    paired._publish_completion_receipt(clean, value)
+    assert publish_boundaries == [(clean_staging, clean)]
+    assert clean.read_bytes() == expected
+    assert not os.path.lexists(clean_staging)
 
 
 def test_m3_submit_rejects_existing_completion_before_intent_and_qsub(
@@ -2490,30 +2558,38 @@ def test_m7_submit_creates_missing_durable_base(
 
 
 @pytest.mark.parametrize(
-    "rename_failure",
+    "link_failure",
     [
-        OSError(errno.EIO, "input/output error"),
-        paired.PaperStoryError("renameat2 no-replace is unavailable"),
+        FileExistsError(errno.EEXIST, os.strerror(errno.EEXIST)),
+        OSError(errno.EIO, os.strerror(errno.EIO)),
     ],
-    ids=("oserror", "paper-story-error"),
+    ids=("file-exists", "other-oserror"),
 )
-def test_submission_receipt_rename_failure_removes_owned_staging(
+def test_submission_receipt_link_failure_removes_owned_staging(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-    rename_failure: Exception,
+    link_failure: OSError,
 ) -> None:
     """Acceptance implication: cleanup leaves the namespace reusable after failure.
-    Rejection implication: either rename failure path must remove its owned staging file.
+    Rejection implication: both link failure paths must remove their owned staging file.
     Positive example: a later clean destination publishes after the failed attempt.
     """
     destination = tmp_path / "failed.submission.json"
-    staging = paired._submission_receipt_staging_path(destination)
+    staging = paired._receipt_staging_path(
+        destination, receipt_kind="submission",
+    )
 
-    def fail_rename(_staging, _destination, _flags):
-        raise rename_failure
+    def fail_link(
+        _staging: Path,
+        _destination: Path,
+        *,
+        follow_symlinks: bool,
+    ) -> None:
+        assert follow_symlinks is False
+        raise link_failure
 
     with monkeypatch.context() as patch:
-        patch.setattr(paired, "_renameat2_directory", fail_rename)
+        patch.setattr(paired.os, "link", fail_link)
         with pytest.raises(paired.PaperStoryError):
             paired._publish_submission_receipt(destination, {"value": "failed"})
     assert not os.path.lexists(staging)
@@ -2534,17 +2610,25 @@ def test_submission_receipt_cleanup_preserves_replaced_staging(
     Positive example: an unrelated clean destination still publishes normally.
     """
     destination = tmp_path / "replaced.submission.json"
-    staging = paired._submission_receipt_staging_path(destination)
+    staging = paired._receipt_staging_path(
+        destination, receipt_kind="submission",
+    )
     replacement = tmp_path / "foreign-staging"
     replacement.write_bytes(b"foreign staging\n")
 
-    def replace_then_fail(active_staging, _destination, _flags):
+    def replace_then_fail(
+        active_staging: Path,
+        _destination: Path,
+        *,
+        follow_symlinks: bool,
+    ) -> None:
+        assert follow_symlinks is False
         active_staging.unlink()
         replacement.rename(active_staging)
-        raise paired.PaperStoryError("renameat2 no-replace is unavailable")
+        raise OSError(errno.EIO, os.strerror(errno.EIO))
 
     with monkeypatch.context() as patch:
-        patch.setattr(paired, "_renameat2_directory", replace_then_fail)
+        patch.setattr(paired.os, "link", replace_then_fail)
         with pytest.raises(
             paired.PaperStoryError, match="staging cleanup identity differs",
         ):
@@ -2556,6 +2640,171 @@ def test_submission_receipt_cleanup_preserves_replaced_staging(
     assert clean.is_file()
 
 
+def test_published_receipt_cleanup_preserves_same_inode_after_destination_move(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Cleanup fails closed if the published link moves back over staging.
+
+    Acceptance implication: the same publisher succeeds without the injected move.
+    Rejection implication: the move is injected after exactly one real hard link,
+    and cleanup preserves the only remaining name instead of repairing publication.
+    """
+    destination = tmp_path / "moved.submission.json"
+    staging = paired._receipt_staging_path(
+        destination, receipt_kind="submission",
+    )
+    value = {"value": "published"}
+    expected = paired._canonical_json_bytes(value)
+    real_link = paired.os.link
+    link_calls: list[tuple[Path, Path]] = []
+
+    def link_then_move_destination(
+        active_staging: Path,
+        active_destination: Path,
+        *,
+        follow_symlinks: bool,
+    ) -> None:
+        assert follow_symlinks is False
+        link_calls.append((active_staging, active_destination))
+        real_link(
+            active_staging,
+            active_destination,
+            follow_symlinks=follow_symlinks,
+        )
+        active_staging.unlink()
+        active_destination.rename(active_staging)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(paired.os, "link", link_then_move_destination)
+        with pytest.raises(paired._PublishedReceiptCleanupError):
+            paired._publish_submission_receipt(destination, value)
+
+    assert link_calls == [(staging, destination)]
+    assert staging.read_bytes() == expected
+    assert not os.path.lexists(destination)
+
+    clean = tmp_path / "clean-after-move.submission.json"
+    clean_staging = paired._receipt_staging_path(
+        clean, receipt_kind="submission",
+    )
+    paired._publish_submission_receipt(clean, value)
+    assert clean.read_bytes() == expected
+    assert not os.path.lexists(clean_staging)
+
+
+def test_published_receipt_cleanup_preserves_staging_when_destination_disappears(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A missing published destination alone blocks owned staging cleanup."""
+    destination = tmp_path / "missing-destination.submission.json"
+    staging = paired._receipt_staging_path(
+        destination, receipt_kind="submission",
+    )
+    value = {"value": "published"}
+    expected = paired._canonical_json_bytes(value)
+    real_link = paired.os.link
+    link_calls: list[tuple[Path, Path]] = []
+
+    def link_then_remove_destination(
+        active_staging: Path,
+        active_destination: Path,
+        *,
+        follow_symlinks: bool,
+    ) -> None:
+        assert follow_symlinks is False
+        link_calls.append((active_staging, active_destination))
+        real_link(
+            active_staging,
+            active_destination,
+            follow_symlinks=follow_symlinks,
+        )
+        active_destination.unlink()
+
+    monkeypatch.setattr(paired.os, "link", link_then_remove_destination)
+    with pytest.raises(paired._PublishedReceiptCleanupError):
+        paired._publish_submission_receipt(destination, value)
+
+    assert link_calls == [(staging, destination)]
+    assert staging.read_bytes() == expected
+    assert not os.path.lexists(destination)
+
+
+def test_published_receipt_cleanup_requires_destination_identity(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Published cleanup preserves staging when the destination inode changes."""
+    destination = tmp_path / "foreign-destination.submission.json"
+    staging = paired._receipt_staging_path(
+        destination, receipt_kind="submission",
+    )
+    value = {"value": "published"}
+    expected = paired._canonical_json_bytes(value)
+    foreign = b"foreign destination\n"
+    real_link = paired.os.link
+
+    def link_then_replace_destination(
+        active_staging: Path,
+        active_destination: Path,
+        *,
+        follow_symlinks: bool,
+    ) -> None:
+        real_link(
+            active_staging,
+            active_destination,
+            follow_symlinks=follow_symlinks,
+        )
+        active_destination.unlink()
+        active_destination.write_bytes(foreign)
+
+    monkeypatch.setattr(paired.os, "link", link_then_replace_destination)
+    with pytest.raises(paired.PaperStoryError):
+        paired._publish_submission_receipt(destination, value)
+
+    assert staging.read_bytes() == expected
+    assert destination.read_bytes() == foreign
+
+
+def test_receipt_publish_orders_link_fsync_unlink_fsync(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The final link is durable before staging is removed and made durable."""
+    destination = tmp_path / "ordered.submission.json"
+    staging = paired._receipt_staging_path(
+        destination, receipt_kind="submission",
+    )
+    events: list[tuple[str, Path, Path | None]] = []
+    real_link = paired.os.link
+    real_unlink = paired.os.unlink
+
+    def observe_link(
+        source: Path,
+        target: Path,
+        *,
+        follow_symlinks: bool,
+    ) -> None:
+        events.append(("link", source, target))
+        real_link(source, target, follow_symlinks=follow_symlinks)
+
+    def observe_fsync(directory: Path) -> None:
+        events.append(("fsync", directory, None))
+
+    def observe_unlink(path: Path) -> None:
+        events.append(("unlink", path, None))
+        real_unlink(path)
+
+    monkeypatch.setattr(paired.os, "link", observe_link)
+    monkeypatch.setattr(paired.os, "unlink", observe_unlink)
+    monkeypatch.setattr(paired, "_fsync_directory", observe_fsync)
+    paired._publish_submission_receipt(destination, {"value": "ordered"})
+
+    assert events == [
+        ("link", staging, destination),
+        ("fsync", destination.parent, None),
+        ("unlink", staging, None),
+        ("fsync", destination.parent, None),
+    ]
+
+
 def test_submit_rejects_foreign_staging_before_intent_and_qsub(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -2565,8 +2814,9 @@ def test_submit_rejects_foreign_staging_before_intent_and_qsub(
     """
     _repo, attempt, head = _submit_cli_fixture(tmp_path, monkeypatch)
     evidence = paired._attempt_evidence_paths(attempt)
-    staging = paired._submission_receipt_staging_path(
-        Path(evidence["submission_receipt"])
+    staging = paired._receipt_staging_path(
+        Path(evidence["submission_receipt"]),
+        receipt_kind="submission",
     )
     staging.write_bytes(b"foreign staging\n")
     qsub_calls: list[list[str]] = []
@@ -2599,8 +2849,9 @@ def test_submit_accepts_clean_evidence_and_staging_namespace(
     """
     _repo, attempt, head = _submit_cli_fixture(tmp_path, monkeypatch)
     evidence = paired._attempt_evidence_paths(attempt)
-    staging = paired._submission_receipt_staging_path(
-        Path(evidence["submission_receipt"])
+    staging = paired._receipt_staging_path(
+        Path(evidence["submission_receipt"]),
+        receipt_kind="submission",
     )
     assert all(not os.path.lexists(path) for path in evidence.values())
     assert not os.path.lexists(staging)
@@ -2630,7 +2881,9 @@ def test_submit_accepts_name_max_submission_basename(
     attempt = seed_attempt.with_name("a" * (name_max - len(final_suffix)))
     evidence = paired._attempt_evidence_paths(attempt)
     submission = Path(evidence["submission_receipt"])
-    staging = paired._submission_receipt_staging_path(submission)
+    staging = paired._receipt_staging_path(
+        submission, receipt_kind="submission",
+    )
     assert len(os.fsencode(submission.name)) == name_max
     assert len(os.fsencode(staging.name)) <= name_max
     qsub_calls: list[list[str]] = []
@@ -2845,10 +3098,37 @@ def test_complete_only_issues_completion_receipt_without_materialize(
         "_validate_raw_non_certifying_observation_for_completion",
         lambda path, **kwargs: validated_sidecars.append((path, kwargs)),
     )
+    completion_path = Path(evidence["completion_receipt"])
+    completion_staging = paired._receipt_staging_path(
+        completion_path, receipt_kind="completion",
+    )
+    real_link = paired.os.link
+    publish_boundaries: list[tuple[Path, Path]] = []
+
+    def inspect_completion_publish(
+        staging: Path,
+        destination: Path,
+        *,
+        follow_symlinks: bool,
+    ) -> None:
+        if destination == completion_path:
+            raw = staging.read_bytes()
+            document = json.loads(raw)
+            assert staging == completion_staging
+            assert not os.path.lexists(destination)
+            assert raw == paired._canonical_json_bytes(document)
+            assert document["schema_version"] == paired.COMPLETION_SCHEMA
+            assert follow_symlinks is False
+            publish_boundaries.append((staging, destination))
+        real_link(staging, destination, follow_symlinks=follow_symlinks)
+
+    monkeypatch.setattr(paired.os, "link", inspect_completion_publish)
     assert paired.run_complete(SimpleNamespace(
         expected_head=head, attempt_root=str(attempt),
     )) == 0
-    completion = json.loads(Path(evidence["completion_receipt"]).read_bytes())
+    assert publish_boundaries == [(completion_staging, completion_path)]
+    assert not os.path.lexists(completion_staging)
+    completion = json.loads(completion_path.read_bytes())
     assert completion["schema_version"] == paired.COMPLETION_SCHEMA
     assert "materialization" not in completion
     assert validated_sidecars == [(
@@ -2914,6 +3194,171 @@ def _v3_visibility(request_id: str) -> dict:
     }
 
 
+def test_v3_complete_publishes_canonical_group_receipt_through_link_boundary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """V3 completion reaches the create-only hard-link publication boundary."""
+    _repo, attempt, head, _policy = _v3_submit_cli_fixture(
+        tmp_path, monkeypatch,
+    )
+    evidence = paired._v3_attempt_evidence_paths(attempt)
+    attempt.mkdir()
+    (attempt / "receipts").mkdir()
+    (attempt / "raw").mkdir()
+    intent_sha = "1" * 64
+    submission = {
+        "intent_sha256": intent_sha,
+        "jobs": [
+            {
+                "request_id": f"{123 + ordinal}.server",
+                "submit_observation": {},
+            }
+            for ordinal, _workload in enumerate(paired.WORKLOAD_ORDER)
+        ],
+    }
+    submission_raw = paired._canonical_json_bytes(submission)
+    Path(evidence["submission_receipt"]).write_bytes(submission_raw)
+    intent = {"intent_sha256": intent_sha}
+    paired._attempt_intent_path(attempt).write_bytes(
+        paired._canonical_json_bytes(intent)
+    )
+
+    campaign_ids = [f"campaign-{ordinal}" for ordinal in range(3)]
+    common_record = {"fixture": "common"}
+    source_binding = {"fixture": "source"}
+    non_certifying_source_binding = {"fixture": "non-certifying-source"}
+    terminal_by_workload = {}
+    for ordinal, workload in enumerate(paired.WORKLOAD_ORDER):
+        roots = paired._v3_job_roots(attempt, workload)
+        Path(roots["scheduler_root"]).mkdir(parents=True)
+        result_root = Path(roots["result_root"])
+        result_root.mkdir(parents=True)
+        result_path = result_root / "result.json"
+        receipt_path = result_root / "receipt.json"
+        terminal_path = Path(roots["job_terminal"])
+        result_path.write_bytes(b"{}\n")
+        receipt_path.write_bytes(b"{}\n")
+        terminal_path.write_bytes(b"{}\n")
+        Path(roots["stdout_path"]).write_bytes(
+            f"{workload} stdout\n".encode()
+        )
+        Path(roots["stderr_path"]).write_bytes(b"")
+        terminal_by_workload[workload] = {
+            "reservation_binding": {"fixture": f"reservation-{ordinal}"},
+            "accounting": {"fixture": f"accounting-{ordinal}"},
+            "result_sha256": hashlib.sha256(result_path.read_bytes()).hexdigest(),
+            "receipt_sha256": hashlib.sha256(receipt_path.read_bytes()).hexdigest(),
+        }
+
+    monkeypatch.setattr(
+        paired,
+        "_validate_v3_group_submission",
+        lambda *_args, **_kwargs: submission,
+    )
+    monkeypatch.setattr(
+        paired,
+        "_validate_submission_intent",
+        lambda *_args, **_kwargs: intent,
+    )
+
+    def validate_workload_shard(
+        _shard: object,
+        _receipt: object,
+        _terminal: object,
+        **kwargs,
+    ):
+        workload = kwargs["workload"]
+        return (
+            {
+                "common_record": common_record,
+                "campaign_ids": campaign_ids,
+                "source_binding": source_binding,
+                "non_certifying_source_binding": (
+                    non_certifying_source_binding
+                ),
+                "workload_result": {"workload": workload},
+            },
+            {},
+            terminal_by_workload[workload],
+        )
+
+    monkeypatch.setattr(
+        paired, "_validate_v3_workload_shard", validate_workload_shard,
+    )
+    monkeypatch.setattr(
+        paired,
+        "_observe_scheduler_terminal",
+        lambda *_args, **_kwargs: {
+            "terminal_reason": "scheduler-end-state",
+            "exit_status": {"observed": True, "value": 0},
+        },
+    )
+    monkeypatch.setattr(
+        paired,
+        "_validate_v3_barrier_for_completion",
+        lambda **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        paired,
+        "assemble_result",
+        lambda *_args, **_kwargs: {
+            "complete": True,
+            "all_workloads_terminal": True,
+        },
+    )
+    sidecar = Path(evidence["result_root"]) / "fixture-sidecar.json"
+    monkeypatch.setattr(
+        paired,
+        "_issue_non_certifying_observation",
+        lambda **_kwargs: sidecar,
+    )
+    monkeypatch.setattr(
+        paired,
+        "_validate_non_certifying_observation_contents",
+        lambda path: {"sidecar_path": path},
+    )
+
+    completion_path = Path(evidence["completion_receipt"])
+    completion_staging = paired._receipt_staging_path(
+        completion_path, receipt_kind="completion",
+    )
+    real_link = paired.os.link
+    publish_boundaries: list[tuple[Path, Path]] = []
+    published_raw: list[bytes] = []
+
+    def inspect_completion_publish(
+        staging: Path,
+        destination: Path,
+        *,
+        follow_symlinks: bool,
+    ) -> None:
+        raw = staging.read_bytes()
+        document = json.loads(raw)
+        assert staging == completion_staging
+        assert destination == completion_path
+        assert not os.path.lexists(destination)
+        assert raw == paired._canonical_json_bytes(document)
+        assert document["schema_version"] == paired.V3_GROUP_COMPLETION_SCHEMA
+        assert [job["workload"] for job in document["jobs"]] == list(
+            paired.WORKLOAD_ORDER
+        )
+        assert follow_symlinks is False
+        publish_boundaries.append((staging, destination))
+        published_raw.append(raw)
+        real_link(staging, destination, follow_symlinks=follow_symlinks)
+
+    monkeypatch.setattr(paired.os, "link", inspect_completion_publish)
+    assert paired.run_complete(SimpleNamespace(
+        study_id=paired.V3_PILOT_STUDY_ID,
+        expected_head=head,
+        attempt_root=os.fspath(attempt),
+    )) == 0
+
+    assert publish_boundaries == [(completion_staging, completion_path)]
+    assert completion_path.read_bytes() == published_raw[0]
+    assert not os.path.lexists(completion_staging)
+
+
 def test_v3_submit_fans_out_exact_workload_triple_and_publishes_group_receipt(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -2951,6 +3396,62 @@ def test_v3_submit_fans_out_exact_workload_triple_and_publishes_group_receipt(
         Path(paired._v3_job_roots(attempt, workload)["request_id_path"]).is_file()
         for workload in paired.WORKLOAD_ORDER
     )
+
+
+def test_v3_published_cleanup_failure_does_not_write_failure_receipt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A cleanup failure reports nonzero without publishing a false failure ledger."""
+    _repo, attempt, head, _policy = _v3_submit_cli_fixture(
+        tmp_path, monkeypatch,
+    )
+    qsub_calls: list[list[str]] = []
+
+    def qsub(argv, *, cwd):
+        ordinal = len(qsub_calls)
+        qsub_calls.append(list(argv))
+        return subprocess.CompletedProcess(
+            argv, 0, f"{123 + ordinal}.server\n", "",
+        )
+
+    def refuse_cleanup(
+        staging: Path,
+        identity: tuple[int, int],
+        *,
+        destination: Path,
+        published: bool,
+    ) -> None:
+        assert published is True
+        assert (staging.stat().st_dev, staging.stat().st_ino) == identity
+        assert (destination.stat().st_dev, destination.stat().st_ino) == identity
+        raise paired.PaperStoryError(
+            "receipt staging cleanup failed: injected",
+        )
+
+    monkeypatch.setattr(paired, "_run_qsub", qsub)
+    monkeypatch.setattr(paired, "_observe_qstat_visibility", _v3_visibility)
+    monkeypatch.setattr(paired, "_remove_receipt_staging", refuse_cleanup)
+    with pytest.raises(paired._PublishedReceiptCleanupError) as raised:
+        paired.run_submit(SimpleNamespace(
+            study_id=paired.V3_PILOT_STUDY_ID,
+            expected_head=head,
+            attempt_root=os.fspath(attempt),
+        ))
+
+    evidence = paired._v3_attempt_evidence_paths(attempt)
+    submission_path = Path(evidence["submission_receipt"])
+    failure_path = Path(evidence["submission_failure"])
+    staging_path = paired._receipt_staging_path(
+        submission_path, receipt_kind="submission",
+    )
+    submission_raw = submission_path.read_bytes()
+    submission = json.loads(submission_raw)
+    assert "already published" in str(raised.value)
+    assert len(qsub_calls) == 3
+    assert submission["schema_version"] == paired.V3_GROUP_SUBMISSION_SCHEMA
+    assert submission_raw == paired._canonical_json_bytes(submission)
+    assert staging_path.read_bytes() == submission_raw
+    assert not failure_path.exists()
 
 
 def test_v3_submit_second_qsub_failure_stops_third_and_retry_before_qsub(
