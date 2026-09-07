@@ -27,3 +27,38 @@ seq: 3
   裁定との食い違いは現れなかった。**子は親が射影した資料しか見ないため、親の資料選択の誤りは
   子の敵対レビューでは検出されない。**検出したのは台帳の base digest 取得という無関係な作業である。
   段 1 の資料選択そのものを検査する機構は無い。
+
+### {{F:commit-landed-in-primary-checkout-via-stale-cwd}}. 永続 shell の cwd が主 checkout に残ったまま commit し、local main を壊した [権限逸脱] [手順漏れ]
+
+- 事象: dev-wave `t2412-frozen-spec-fixpoint` の段 7 で、`git add -A; git commit` を隔離 worktree
+  ではなく**ユーザーの主 checkout** で実行した。untracked だった `.codex/worktrees/` の 110 本が
+  gitlink (mode 160000) として local main の先頭 commit `c12e25078` に入った。
+  全 session の land が DW-O25 の全史 provenance 監査で rc=29 になり、新規 worktree の
+  submodule 初期化も `no submodule mapping found in .gitmodules` で rc=1 になった。
+  別 session (next-tasks skill relocation) が独立に検出して通報してきた。
+- 根本原因: 直前のコマンドが `cd /work/1/SFC/tanab/izanagi && git log` で main の台帳を読んでおり、
+  **Bash tool の cwd はコマンドを跨いで残る**。次のコマンドは worktree にいるつもりで書かれていた。
+  `git add -A` は「その木の untracked をすべて」拾うため、意図した 1 file ではなく 110 本の
+  埋め込み repo を staged にした。
+- 併発した第 2 の欠陥: 同じコマンドが `check_ai_provenance.py ... 2>&1|tail -2; git commit` の形で、
+  検査の rc をパイプで握り潰していた。検査は「1 件中 1 違反」を報告していたが `set -e` は
+  pipeline の rc (tail の 0) しか見ず、commit が実行された。F37 の同型再発である。
+- 恒久対応: worktree を跨ぐ session では、状態を変える git 操作を `git -C <worktree の絶対 path>`
+  で明示する。cwd に依存しない。`git add -A` を使わず、対象 path を明示して stage する。
+  検査は `> <log>; echo "RC=$?"` の形で rc を単独で取り、パイプへ通さない。
+- 再発検知: 主 checkout の HEAD が自分の wave の commit になっていないかを、commit 直後に
+  `git -C <worktree> log --oneline -1` で確かめる。なお修復も失敗した — `git reset` を試みたが、
+  自分の `git status --porcelain` が 110 本の埋め込み repo を走査したまま `index.lock` を
+  握り続け、主 checkout の全 git 操作が止まった。**壊した後の修復手段まで同じ原因で塞がる。**
+
+## 再発
+
+### F37
+
+- **再発: 2026-09-08** — dev-wave `t2412-frozen-spec-fixpoint` の段 7 で
+  `set -e; git add -A; python3 tools/check_ai_provenance.py --message-file <f> 2>&1|tail -2; git commit -F <f>`
+  と書いた。検査は「実装面に Codex role=author がない — 110 paths」で rc=1 を返していたが、
+  `set -e` が見るのは pipeline 全体の rc (= `tail` の 0) であるため commit が実行され、
+  provenance 違反が local main へ入った (`c12e25078`)。F37 の初出は `&&` の右辺、今回は
+  `set -e` 下の逐次実行で、**どちらも「パイプの rc は最後のコマンドのもの」という同じ取り違え**である。
+  出力を短くする `| tail` を検査コマンドに付けた時点で guard は恒真になる。
