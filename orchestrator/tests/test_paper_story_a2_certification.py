@@ -50,6 +50,15 @@ from orchestrator.campaign.pipeline import (
 _REAL_CONDITION_GATE_FAMILY = A2._condition_gate_family_context
 
 
+def _staged_sources(fetchcontent_base):
+    base = Path(fetchcontent_base)
+    return {
+        "masstree": base / "masstree-src",
+        "mimalloc": base / "mimalloc-src",
+        "googletest": base / "googletest-src",
+    }
+
+
 @pytest.fixture(autouse=True)
 def _avoid_condition_compiler_work_in_protocol_tests(monkeypatch):
     @contextlib.contextmanager
@@ -69,6 +78,24 @@ def _avoid_condition_compiler_work_in_protocol_tests(monkeypatch):
         yield Path(source_root), None, records
 
     monkeypatch.setattr(A2, "_condition_gate_family_context", bypass_condition_gate)
+
+
+@pytest.fixture(autouse=True)
+def _avoid_live_third_party_git_probes_in_protocol_tests(monkeypatch):
+    def verify(fetchcontent_base_dir, *, repo_root):
+        assert repo_root == A2.POLICY_PATH.parents[2]
+        return _staged_sources(fetchcontent_base_dir)
+
+    monkeypatch.setattr(
+        A2.s8b_floor_campaign,
+        "_verify_pristine_floor_dependency_sources",
+        verify,
+    )
+    monkeypatch.setattr(
+        A2.buildcache,
+        "_observe_fetchcontent_dependency_receipt",
+        lambda _source: {"masstree_head": "a" * 40, "config_sha256": "b" * 64},
+    )
 
 
 def test_paper_condition_gate_is_p_strict_and_precedes_campaign(monkeypatch):
@@ -164,15 +191,6 @@ def _assert_condition_gate_context(monkeypatch):
         finally:
             events.append(("applied-exit", Path(ccbench_dir)))
 
-    @contextlib.contextmanager
-    def temporary_directory(*, prefix):
-        assert prefix == "izanagi-a2-condition-gate-"
-        events.append(("fetchcontent-enter", fetchcontent_base))
-        try:
-            yield os.fspath(fetchcontent_base)
-        finally:
-            events.append(("fetchcontent-exit", fetchcontent_base))
-
     def prepare_masstree_fetchcontent(**kwargs):
         events.append((
             "prebuild", Path(kwargs["ccbench_dir"]),
@@ -183,6 +201,12 @@ def _assert_condition_gate_context(monkeypatch):
         assert kwargs == {
             "ccbench_dir": os.fspath(variant_root),
             "fetchcontent_base_dir": os.fspath(fetchcontent_base),
+            "masstree_source_dir": os.fspath(
+                fetchcontent_base / "masstree-src"),
+            "mimalloc_source_dir": os.fspath(
+                fetchcontent_base / "mimalloc-src"),
+            "googletest_source_dir": os.fspath(
+                fetchcontent_base / "googletest-src"),
             "expected_toolchain_manifest": expected_toolchain_manifest,
             "configure_timeout_s": 900,
             "target_timeout_s": 900,
@@ -194,6 +218,9 @@ def _assert_condition_gate_context(monkeypatch):
         assert configure_args == (
             "-DCMAKE_PREFIX_PATH=/dependency",
             f"-DFETCHCONTENT_BASE_DIR={fetchcontent_base}",
+            f"-DFETCHCONTENT_SOURCE_DIR_MASSTREE={fetchcontent_base}/masstree-src",
+            f"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC={fetchcontent_base}/mimalloc-src",
+            f"-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST={fetchcontent_base}/googletest-src",
         )
         return object()
 
@@ -222,7 +249,6 @@ def _assert_condition_gate_context(monkeypatch):
 
     monkeypatch.setattr(A2.patchharness, "checkout", checkout)
     monkeypatch.setattr(A2.patchharness, "applied", applied)
-    monkeypatch.setattr(A2.tempfile, "TemporaryDirectory", temporary_directory)
     monkeypatch.setattr(
         A2.buildcache, "prepare_masstree_fetchcontent",
         prepare_masstree_fetchcontent)
@@ -244,6 +270,8 @@ def _assert_condition_gate_context(monkeypatch):
             dependency_prefix=Path("/dependency"),
             current_pin="abc1234",
             expected_toolchain_manifest=expected_toolchain_manifest,
+            fetchcontent_base_dir=fetchcontent_base,
+            staged_sources=_staged_sources(fetchcontent_base),
     ) as (observed_variant, receipts, canonical_records):
         assert observed_variant == variant_root
         assert len(receipts) == 1
@@ -265,6 +293,10 @@ def _assert_condition_gate_context(monkeypatch):
         ("applied-exit", variant_root),
         ("checkout-exit", variant_root),
     ]
+
+
+def test_condition_gate_uses_exact_offline_fetchcontent_argv(monkeypatch):
+    _assert_condition_gate_context(monkeypatch)
 
 
 def test_condition_gate_context_cleans_up_on_body_exception(monkeypatch):
@@ -291,18 +323,15 @@ def test_condition_gate_context_cleans_up_on_body_exception(monkeypatch):
         finally:
             events.append(("applied-exit", Path(ccbench_dir)))
 
-    @contextlib.contextmanager
-    def temporary_directory(*, prefix):
-        assert prefix == "izanagi-a2-condition-gate-"
-        events.append(("fetchcontent-enter", fetchcontent_base))
-        try:
-            yield os.fspath(fetchcontent_base)
-        finally:
-            events.append(("fetchcontent-exit", fetchcontent_base))
-
     def prepare_masstree_fetchcontent(**kwargs):
         assert Path(kwargs["ccbench_dir"]) == variant_root
         assert Path(kwargs["fetchcontent_base_dir"]) == fetchcontent_base
+        assert kwargs["masstree_source_dir"] == os.fspath(
+            fetchcontent_base / "masstree-src")
+        assert kwargs["mimalloc_source_dir"] == os.fspath(
+            fetchcontent_base / "mimalloc-src")
+        assert kwargs["googletest_source_dir"] == os.fspath(
+            fetchcontent_base / "googletest-src")
         events.append(("prebuild", variant_root, fetchcontent_base))
 
     def capture(source, *, stock_root, configure_args):
@@ -310,6 +339,9 @@ def test_condition_gate_context_cleans_up_on_body_exception(monkeypatch):
         assert configure_args == (
             "-DCMAKE_PREFIX_PATH=/dependency",
             f"-DFETCHCONTENT_BASE_DIR={fetchcontent_base}",
+            f"-DFETCHCONTENT_SOURCE_DIR_MASSTREE={fetchcontent_base}/masstree-src",
+            f"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC={fetchcontent_base}/mimalloc-src",
+            f"-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST={fetchcontent_base}/googletest-src",
         )
         return object()
 
@@ -338,7 +370,6 @@ def test_condition_gate_context_cleans_up_on_body_exception(monkeypatch):
 
     monkeypatch.setattr(A2.patchharness, "checkout", checkout)
     monkeypatch.setattr(A2.patchharness, "applied", applied)
-    monkeypatch.setattr(A2.tempfile, "TemporaryDirectory", temporary_directory)
     monkeypatch.setattr(
         A2.buildcache, "prepare_masstree_fetchcontent",
         prepare_masstree_fetchcontent)
@@ -361,6 +392,8 @@ def test_condition_gate_context_cleans_up_on_body_exception(monkeypatch):
                 dependency_prefix=Path("/dependency"),
                 current_pin="abc1234",
                 expected_toolchain_manifest=expected_toolchain_manifest,
+                fetchcontent_base_dir=fetchcontent_base,
+                staged_sources=_staged_sources(fetchcontent_base),
         ) as (observed_variant, receipts, canonical_records):
             assert observed_variant == variant_root
             assert len(receipts) == 1
@@ -371,12 +404,10 @@ def test_condition_gate_context_cleans_up_on_body_exception(monkeypatch):
     assert events == [
         ("checkout-enter", variant_root, source_root, "abc1234"),
         ("applied-enter", variant_root, "abc1234"),
-        ("fetchcontent-enter", fetchcontent_base),
         ("prebuild", variant_root, fetchcontent_base),
         ("capture", variant_root, source_root),
         ("admit", "paper"),
         ("campaign", variant_root),
-        ("fetchcontent-exit", fetchcontent_base),
         ("applied-exit", variant_root),
         ("checkout-exit", variant_root),
     ]
@@ -404,15 +435,6 @@ def test_condition_gate_context_cleans_up_on_prebuild_exception(monkeypatch):
         finally:
             events.append(("applied-exit", Path(ccbench_dir)))
 
-    @contextlib.contextmanager
-    def temporary_directory(*, prefix):
-        assert prefix == "izanagi-a2-condition-gate-"
-        events.append(("fetchcontent-enter", fetchcontent_base))
-        try:
-            yield os.fspath(fetchcontent_base)
-        finally:
-            events.append(("fetchcontent-exit", fetchcontent_base))
-
     def fail_prebuild(**kwargs):
         events.append((
             "prebuild", Path(kwargs["ccbench_dir"]),
@@ -422,7 +444,6 @@ def test_condition_gate_context_cleans_up_on_prebuild_exception(monkeypatch):
 
     monkeypatch.setattr(A2.patchharness, "checkout", checkout)
     monkeypatch.setattr(A2.patchharness, "applied", applied)
-    monkeypatch.setattr(A2.tempfile, "TemporaryDirectory", temporary_directory)
     monkeypatch.setattr(
         A2.buildcache, "prepare_masstree_fetchcontent", fail_prebuild)
     monkeypatch.setattr(
@@ -437,15 +458,15 @@ def test_condition_gate_context_cleans_up_on_prebuild_exception(monkeypatch):
                 dependency_prefix=Path("/dependency"),
                 current_pin="abc1234",
                 expected_toolchain_manifest={"fixture": "toolchain"},
+                fetchcontent_base_dir=fetchcontent_base,
+                staged_sources=_staged_sources(fetchcontent_base),
         ):
             pass
 
     assert events == [
         ("checkout-enter", source_root),
         ("applied-enter", variant_root),
-        ("fetchcontent-enter", fetchcontent_base),
         ("prebuild", variant_root, fetchcontent_base),
-        ("fetchcontent-exit", fetchcontent_base),
         ("applied-exit", variant_root),
         ("checkout-exit", variant_root),
     ]
@@ -463,10 +484,6 @@ def test_condition_gate_prebuild_runs_once_for_multiple_cells(monkeypatch):
     monkeypatch.setattr(
         A2.patchharness, "applied",
         lambda *_args, **_kwargs: contextlib.nullcontext())
-    monkeypatch.setattr(
-        A2.tempfile, "TemporaryDirectory",
-        lambda **_kwargs: contextlib.nullcontext(
-            os.fspath(fetchcontent_base)))
     monkeypatch.setattr(
         A2.buildcache, "prepare_masstree_fetchcontent",
         lambda **kwargs: prebuild_calls.append(kwargs))
@@ -507,12 +524,25 @@ def test_condition_gate_prebuild_runs_once_for_multiple_cells(monkeypatch):
             dependency_prefix=Path("/dependency"),
             current_pin="abc1234",
             expected_toolchain_manifest={"fixture": "toolchain"},
+            fetchcontent_base_dir=fetchcontent_base,
+            staged_sources=_staged_sources(fetchcontent_base),
     ) as (observed_variant, receipts, canonical_records):
         assert observed_variant == variant_root
         assert len(receipts) == len(genomes)
         assert len(canonical_records) == len(genomes)
 
-    assert len(prebuild_calls) == 1
+    assert prebuild_calls == [{
+        "ccbench_dir": os.fspath(variant_root),
+        "fetchcontent_base_dir": os.fspath(fetchcontent_base),
+        "masstree_source_dir": os.fspath(fetchcontent_base / "masstree-src"),
+        "mimalloc_source_dir": os.fspath(fetchcontent_base / "mimalloc-src"),
+        "googletest_source_dir": os.fspath(
+            fetchcontent_base / "googletest-src"),
+        "expected_toolchain_manifest": {"fixture": "toolchain"},
+        "configure_timeout_s": 900,
+        "target_timeout_s": 900,
+        "dependency_prefix": "/dependency",
+    }]
 
 
 def _assert_condition_gate_rejection(monkeypatch):
@@ -524,9 +554,6 @@ def _assert_condition_gate_rejection(monkeypatch):
     monkeypatch.setattr(
         A2.patchharness, "applied",
         lambda *_args, **_kwargs: contextlib.nullcontext())
-    monkeypatch.setattr(
-        A2.tempfile, "TemporaryDirectory",
-        lambda **_kwargs: contextlib.nullcontext("/scratch/fetchcontent"))
     monkeypatch.setattr(
         A2.buildcache, "prepare_masstree_fetchcontent",
         lambda **_kwargs: None)
@@ -577,6 +604,8 @@ def _assert_condition_gate_rejection(monkeypatch):
                 dependency_prefix=Path("/dependency"),
                 current_pin="abc1234",
                 expected_toolchain_manifest={"fixture": "toolchain"},
+                fetchcontent_base_dir=Path("/scratch/fetchcontent"),
+                staged_sources=_staged_sources("/scratch/fetchcontent"),
         ):
             pass
 
@@ -776,16 +805,13 @@ def test_condition_gate_family_real_records_positive_then_issued_red_negative(
             calls.append("applied")
             yield None
 
-        @contextlib.contextmanager
-        def temporary_directory(*, prefix):
-            assert prefix == "izanagi-a2-condition-gate-"
-            calls.append("temporary-directory")
-            yield os.fspath(fetchcontent_base)
-
         def prepare_masstree_fetchcontent(
             *,
             ccbench_dir,
             fetchcontent_base_dir,
+            masstree_source_dir,
+            mimalloc_source_dir,
+            googletest_source_dir,
             expected_toolchain_manifest,
             configure_timeout_s,
             target_timeout_s,
@@ -793,6 +819,12 @@ def test_condition_gate_family_real_records_positive_then_issued_red_negative(
         ):
             assert ccbench_dir == os.fspath(variant_root.resolve())
             assert fetchcontent_base_dir == os.fspath(fetchcontent_base)
+            assert masstree_source_dir == os.fspath(
+                fetchcontent_base / "masstree-src")
+            assert mimalloc_source_dir == os.fspath(
+                fetchcontent_base / "mimalloc-src")
+            assert googletest_source_dir == os.fspath(
+                fetchcontent_base / "googletest-src")
             assert expected_toolchain_manifest is expected_manifest
             assert configure_timeout_s == 900
             assert target_timeout_s == 900
@@ -805,6 +837,9 @@ def test_condition_gate_family_real_records_positive_then_issued_red_negative(
             assert configure_args == (
                 f"-DCMAKE_PREFIX_PATH={expected_dependency_prefix}",
                 f"-DFETCHCONTENT_BASE_DIR={fetchcontent_base}",
+                f"-DFETCHCONTENT_SOURCE_DIR_MASSTREE={fetchcontent_base}/masstree-src",
+                f"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC={fetchcontent_base}/mimalloc-src",
+                f"-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST={fetchcontent_base}/googletest-src",
             )
             calls.append("capture")
             return captured
@@ -846,9 +881,6 @@ def test_condition_gate_family_real_records_positive_then_issued_red_negative(
         monkeypatch.setattr(A2.patchharness, "checkout", checkout)
         monkeypatch.setattr(A2.patchharness, "applied", applied)
         monkeypatch.setattr(
-            A2.tempfile, "TemporaryDirectory", temporary_directory,
-        )
-        monkeypatch.setattr(
             A2.buildcache,
             "prepare_masstree_fetchcontent",
             prepare_masstree_fetchcontent,
@@ -881,6 +913,8 @@ def test_condition_gate_family_real_records_positive_then_issued_red_negative(
         dependency_prefix=dependency_prefix,
         current_pin=current_pin,
         expected_toolchain_manifest=expected_toolchain_manifest,
+        fetchcontent_base_dir=Path("/scratch/positive-fetchcontent"),
+        staged_sources=_staged_sources("/scratch/positive-fetchcontent"),
     ) as (observed_variant, receipts, canonical_records):
         assert observed_variant == positive_variant
         assert len(receipts) == 2
@@ -900,7 +934,6 @@ def test_condition_gate_family_real_records_positive_then_issued_red_negative(
     assert positive_calls == [
         "checkout",
         "applied",
-        "temporary-directory",
         "prebuild",
         "capture",
         "supply:cell-0:BACKOFF_FIXED",
@@ -937,6 +970,8 @@ def test_condition_gate_family_real_records_positive_then_issued_red_negative(
             dependency_prefix=dependency_prefix,
             current_pin=current_pin,
             expected_toolchain_manifest=expected_toolchain_manifest,
+            fetchcontent_base_dir=Path("/scratch/negative-fetchcontent"),
+            staged_sources=_staged_sources("/scratch/negative-fetchcontent"),
         ):
             pass
     message = str(error.value)
@@ -948,7 +983,6 @@ def test_condition_gate_family_real_records_positive_then_issued_red_negative(
     assert negative_calls == [
         "checkout",
         "applied",
-        "temporary-directory",
         "prebuild",
         "capture",
         "supply:cell-0:BACKOFF_FIXED",
@@ -1072,6 +1106,11 @@ def _positive_results(
         invalid_persisted_cell=None,
 ):
     results = []
+    fetchcontent_base = attempt_root / "fetchcontent"
+    fetchcontent_base.mkdir(exist_ok=True)
+    staged_sources = _staged_sources(fetchcontent_base)
+    for source in staged_sources.values():
+        source.mkdir(exist_ok=True)
     contract = env_contract.lookup("pegasus")
     toolchain = {
         "cc": {
@@ -1131,6 +1170,10 @@ def _positive_results(
                 A2._genome_for_cell(policy, cell), False, "/source",
                 str(build_dir), toolchain, jobs=48,
                 dependency_prefix="/pinned/dependencies",
+                fetchcontent_base_dir=os.fspath(fetchcontent_base),
+                masstree_source_dir=staged_sources["masstree"],
+                mimalloc_source_dir=staged_sources["mimalloc"],
+                googletest_source_dir=staged_sources["googletest"],
             )
             run_flags = [
                 f"-thread_num={cell.perf['threads']}",
@@ -1363,6 +1406,7 @@ def _write_receipt_bundle(
             "IZANAGI_A2_CCBENCH_ROOT": "/pinned/ccbench",
             "IZANAGI_A2_REPO_ROOT": str(repo_root),
             "IZANAGI_A2_DEPENDENCY_PREFIX_SOURCE": "/pinned/deps",
+            "IZANAGI_A2_THIRD_PARTY_SOURCE_ROOT": "/pinned/third-party",
         }
         if policy.study == "paper-story-a6-certification":
             qsub_environment["IZANAGI_A2_POLICY_PATH"] = str(policy.path)
@@ -1729,6 +1773,12 @@ def test_policy_is_the_exact_literal_four_cell_protocol(tmp_path):
                 {"role": "cxx", "prefix": "-DCMAKE_CXX_COMPILER="},
             ],
             "dependency_prefix_argument": "-DCMAKE_PREFIX_PATH=",
+            "fetchcontent_path_argument_prefixes": [
+                "-DFETCHCONTENT_BASE_DIR=",
+                "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=",
+                "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=",
+                "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=",
+            ],
             "controlled_define_argument": "-D",
         },
         "build": {
@@ -1765,15 +1815,69 @@ def test_p1_a2_default_policy_bytes_and_protocol_are_unchanged():
     policy = A2.load_policy()
 
     assert hashlib.sha256(raw).hexdigest() == (
-        "42bfee487c9e517b9876fbb41f8a4b4de53266ced1543263087bbd637ecc897e")
+        "2e97d69b60b73a1395d6b5efdc0198ee0cfbf84cfb48cabed442e705e64f41ea")
     assert policy.bytes_sha256 == (
-        "42bfee487c9e517b9876fbb41f8a4b4de53266ced1543263087bbd637ecc897e")
+        "2e97d69b60b73a1395d6b5efdc0198ee0cfbf84cfb48cabed442e705e64f41ea")
     assert policy.protocol_sha256 == (
-        "136b823e60a4b43e07dbbb4e3f8b5be48964226c955e143d59955325f0e0d9f4")
+        "d99f08bcc50c605d24d443d387a2c3144c16b9e670c9b9e247227c5db1be7f9c")
     assert policy.raw_bytes == raw
     assert A2.workload_ids(policy) == ("rr5", "rr50")
     assert A2._qsub_job_name(policy) == "paper-a2-cert"
     assert A2._qsub_environment_keys(policy) == A2._QSUB_ENV_KEYS
+
+
+@pytest.mark.parametrize(
+    ("mutation", "value"),
+    (
+        ("not-list", {"prefix": "-DFETCHCONTENT_BASE_DIR="}),
+        ("wrong-length", [
+            "-DFETCHCONTENT_BASE_DIR=",
+            "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=",
+            "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=",
+        ]),
+        ("non-string", [
+            "-DFETCHCONTENT_BASE_DIR=",
+            "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=",
+            "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=",
+            7,
+        ]),
+        ("empty", [
+            "-DFETCHCONTENT_BASE_DIR=",
+            "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=",
+            "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=",
+            "",
+        ]),
+        ("whitespace", [
+            "-DFETCHCONTENT_BASE_DIR=",
+            "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=",
+            "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=",
+            "-DFETCHCONTENT SOURCE_DIR_GOOGLETEST=",
+        ]),
+        ("missing-equals", [
+            "-DFETCHCONTENT_BASE_DIR=",
+            "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=",
+            "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=",
+            "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST",
+        ]),
+        ("duplicate", [
+            "-DFETCHCONTENT_BASE_DIR=",
+            "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=",
+            "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=",
+            "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=",
+        ]),
+    ),
+)
+def test_policy_loader_rejects_each_malformed_fetchcontent_prefix_list(
+        tmp_path, mutation, value):
+    document = json.loads(A2.POLICY_PATH.read_text(encoding="utf-8"))
+    document["trace0_cmake_argv"]["configure"][
+        "fetchcontent_path_argument_prefixes"
+    ] = value
+    path = tmp_path / f"malformed-fetchcontent-prefix-{mutation}.json"
+    path.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
+
+    with pytest.raises(A2.CertificationError, match="FetchContent path grammar"):
+        A2.load_policy(path)
 
 
 def test_m3_combined_count_layers_reject_three_workload_a6_policy(tmp_path):
@@ -1849,10 +1953,38 @@ def test_a6_policy_is_exact_read_heavy_pair_with_twelve_hour_walltime():
         "walltime": "12:00:00",
         "job_body": "tools/pegasus/paper_story_a2_certification.sh",
     }
+    assert policy.document["trace0_cmake_argv"] == {
+        "configure": {
+            "source_option": "-S",
+            "build_directory_option": "-B",
+            "fixed_arguments": [
+                "-DCMAKE_BUILD_TYPE=Release", "-DENABLE_SANITIZER=OFF",
+            ],
+            "toolchain_arguments": [
+                {"role": "cc", "prefix": "-DCMAKE_C_COMPILER="},
+                {"role": "cxx", "prefix": "-DCMAKE_CXX_COMPILER="},
+            ],
+            "dependency_prefix_argument": "-DCMAKE_PREFIX_PATH=",
+            "fetchcontent_path_argument_prefixes": [
+                "-DFETCHCONTENT_BASE_DIR=",
+                "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=",
+                "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=",
+                "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=",
+            ],
+            "controlled_define_argument": "-D",
+        },
+        "build": {
+            "subcommand": "--build",
+            "target_option": "--target",
+            "target_prefix": "ycsb_",
+            "target_suffix": ".exe",
+            "jobs_option": "-j",
+        },
+    }
     assert policy.bytes_sha256 == (
-        "4ca15d071f0bc10febe3274d0523b59f0e4903bf612ff050bef7e6728a3700d4")
+        "8969a7e4ee740a94ec12084c89ef88a37ebd255073cfb0122245113a295b87a8")
     assert policy.protocol_sha256 == (
-        "a73bc3a0eabd1bcb960779c9b61b20983ef3cfb88d76d50c073e9ced4f6be445")
+        "21427e71793ea744777d11bd90429ce2db1a8d3333ea9e2e0f227ecf377c25dc")
 
 
 def test_production_policy_protocol_maps_to_real_silo_layout_and_artifacts(
@@ -2920,6 +3052,32 @@ def test_submission_argv_environment_nodes_and_job_body_are_exact(
              / policy.document["scheduler"]["job_body"]).read_bytes())
         mutant["jobs"][0]["qsub_argv"][-1] = str(decoy)
         mutant["job_body_sha256"] = hashlib.sha256(decoy.read_bytes()).hexdigest()
+    with pytest.raises(A2.CertificationError):
+        A2._validate_submission_receipt(
+            policy, mutant, root.name, root, CURRENT_PIN)
+
+
+@pytest.mark.parametrize("mutation", ("missing", "changed"))
+def test_submission_rejects_missing_or_changed_third_party_source_root(
+        tmp_path, mutation):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(
+        policy, "attempt-submit-third-party-" + mutation, CURRENT_PIN)
+    _, submission = _write_receipt_bundle(policy, root)
+    mutant = copy.deepcopy(submission)
+    environment = mutant["jobs"][0]["qsub_environment"]
+    if mutation == "missing":
+        environment.pop("IZANAGI_A2_THIRD_PARTY_SOURCE_ROOT")
+        components = mutant["jobs"][0]["qsub_argv"][12].split(",")
+        mutant["jobs"][0]["qsub_argv"][12] = ",".join(
+            component for component in components
+            if not component.startswith(
+                "IZANAGI_A2_THIRD_PARTY_SOURCE_ROOT="
+            )
+        )
+    else:
+        environment["IZANAGI_A2_THIRD_PARTY_SOURCE_ROOT"] = "/changed/root"
+
     with pytest.raises(A2.CertificationError):
         A2._validate_submission_receipt(
             policy, mutant, root.name, root, CURRENT_PIN)
@@ -4083,6 +4241,7 @@ def test_run_workload_production_pin_gate_rejects_noncanonical_source(
             policy, workload_id="rr5", attempt_root=attempt,
             raw_root=raw_root, current_pin=REPO_CURRENT_PIN,
             dependency_prefix=dependency, ccbench_dir=ccbench,
+            third_party_source_root=tmp_path / "fetchcontent",
             log=lambda *_args: None)
 
 
@@ -4104,10 +4263,73 @@ def test_run_workload_requires_exact_repository_canonical_short_pin(
             policy, workload_id="rr5", attempt_root=attempt,
             raw_root=raw_root, current_pin=current_pin,
             dependency_prefix=dependency, ccbench_dir=ccbench,
+            third_party_source_root=tmp_path / "fetchcontent",
             log=lambda *_args: None)
 
 
-def test_official_run_observes_and_passes_current_toolchain_manifest(
+def test_run_workload_verifies_staged_sources_before_condition_gate(
+        tmp_path, monkeypatch):
+    policy = _policy(tmp_path)
+    attempt = A2.preregister_attempt(
+        policy, "run-workload-staged-verifier", REPO_CURRENT_PIN)
+    raw_root = A2.workload_job_root(policy, attempt, "rr5") / "raw"
+    raw_root.mkdir()
+    dependency = tmp_path / "dependency"
+    dependency.mkdir()
+    ccbench = tmp_path / "ccbench"
+    ccbench.mkdir()
+    third_party = tmp_path / "fetchcontent"
+    events = []
+
+    def verifier(fetchcontent_base_dir, *, repo_root):
+        events.append(("verify", Path(fetchcontent_base_dir), repo_root))
+        raise A2.s8b_floor_campaign.FloorCampaignError("staged source rejected")
+
+    monkeypatch.setattr(
+        A2.s8b_floor_campaign,
+        "_verify_pristine_floor_dependency_sources",
+        verifier,
+    )
+    monkeypatch.setattr(
+        A2,
+        "_condition_gate_family_context",
+        lambda *_args, **_kwargs: pytest.fail(
+            "condition gate started before staged source verification"
+        ),
+    )
+    with pytest.raises(A2.CertificationError) as error:
+        A2.run_workload(
+            policy, workload_id="rr5", attempt_root=attempt,
+            raw_root=raw_root, current_pin=REPO_CURRENT_PIN,
+            dependency_prefix=dependency, ccbench_dir=ccbench,
+            third_party_source_root=third_party,
+            log=lambda *_args: None,
+        )
+    assert isinstance(
+        error.value.__cause__, A2.s8b_floor_campaign.FloorCampaignError)
+    assert events == [
+        ("verify", third_party, A2.POLICY_PATH.parents[2]),
+    ]
+
+    def programming_error(*_args, **_kwargs):
+        raise ValueError("invalid fixed verifier arguments")
+
+    monkeypatch.setattr(
+        A2.s8b_floor_campaign,
+        "_verify_pristine_floor_dependency_sources",
+        programming_error,
+    )
+    with pytest.raises(ValueError, match="invalid fixed verifier arguments"):
+        A2.run_workload(
+            policy, workload_id="rr5", attempt_root=attempt,
+            raw_root=raw_root, current_pin=REPO_CURRENT_PIN,
+            dependency_prefix=dependency, ccbench_dir=ccbench,
+            third_party_source_root=third_party,
+            log=lambda *_args: None,
+        )
+
+
+def test_official_run_observes_dependency_receipt_after_condition_prebuild(
         tmp_path, monkeypatch):
     from orchestrator.campaign import layout as campaign_layout
 
@@ -4143,6 +4365,44 @@ def test_official_run_observes_and_passes_current_toolchain_manifest(
     ccbench = tmp_path / "ccbench"
     ccbench.mkdir()
     calls = {}
+    fetchcontent_root = tmp_path / "fetchcontent"
+    staged_sources = _staged_sources(fetchcontent_root)
+    order = []
+
+    @contextlib.contextmanager
+    def condition_context(source_root, genomes, **kwargs):
+        assert Path(source_root) == ccbench
+        assert kwargs["fetchcontent_base_dir"] == fetchcontent_root
+        assert kwargs["staged_sources"] == staged_sources
+        order.append("condition-prebuild-complete")
+        admissions = tuple(
+            json.dumps({
+                "admission_id": f"condition-gate/admission/{index}",
+                "admission_digest": hashlib.sha256(
+                    f"receipt-order-{index}".encode("ascii")
+                ).hexdigest(),
+                "use_class": "paper",
+                "admitted": True,
+                "record_ids": [f"receipt-order-record-{index}"],
+                "unestablished_meaning_macros": [],
+            }, sort_keys=True, separators=(",", ":"))
+            for index, _genome in enumerate(genomes)
+        )
+        try:
+            yield ccbench, None, admissions
+        finally:
+            order.append("condition-context-exit")
+
+    dependency_receipt = {
+        "masstree_head": "a" * 40,
+        "config_sha256": "b" * 64,
+    }
+
+    def observe_dependency_receipt(source):
+        assert source == os.fspath(staged_sources["masstree"])
+        assert order == ["condition-prebuild-complete"]
+        order.append("dependency-receipt")
+        return dependency_receipt
 
     def driver_resolve_evidence(genome, commit, *, ccbench_dir, cxx):
         index = len(calls.setdefault("driver_evidences", []))
@@ -4222,6 +4482,15 @@ def test_official_run_observes_and_passes_current_toolchain_manifest(
 
     def evaluate(genome, _layout, _env_tag, _commit, _perf,
                  _clocks_per_us, **kwargs):
+        assert order == ["condition-prebuild-complete", "dependency-receipt"]
+        assert kwargs["fetchcontent_base_dir"] == os.fspath(fetchcontent_root)
+        assert kwargs["masstree_source_dir"] == os.fspath(
+            staged_sources["masstree"])
+        assert kwargs["mimalloc_source_dir"] == os.fspath(
+            staged_sources["mimalloc"])
+        assert kwargs["googletest_source_dir"] == os.fspath(
+            staged_sources["googletest"])
+        assert kwargs["fetchcontent_dependency_receipt"] is dependency_receipt
         evidence = kwargs["source_evidence"]
         resolver = kwargs["capability_resolver"]
         assert evidence is calls["evidences"][len(calls.setdefault(
@@ -4250,6 +4519,12 @@ def test_official_run_observes_and_passes_current_toolchain_manifest(
         return {"cell_id": cell.cell_id, "terminal": "commit"}
 
     monkeypatch.setattr(A2.subprocess, "run", git_run)
+    monkeypatch.setattr(A2, "_condition_gate_family_context", condition_context)
+    monkeypatch.setattr(
+        A2.buildcache,
+        "_observe_fetchcontent_dependency_receipt",
+        observe_dependency_receipt,
+    )
     monkeypatch.setattr(A2, "source_digest", driver_source_digest)
     monkeypatch.setattr(A2, "_raw_cell_from_wal", raw_producer)
     monkeypatch.setattr(loop, "_authorize_measurement", authorize)
@@ -4280,7 +4555,14 @@ def test_official_run_observes_and_passes_current_toolchain_manifest(
     A2.run_workload(
         policy, workload_id="rr5", attempt_root=attempt, raw_root=raw_root,
         current_pin=REPO_CURRENT_PIN, dependency_prefix=dependency,
-        ccbench_dir=ccbench, log=lambda *_args: None)
+        ccbench_dir=ccbench,
+        third_party_source_root=fetchcontent_root,
+        log=lambda *_args: None)
+    assert order == [
+        "condition-prebuild-complete",
+        "dependency-receipt",
+        "condition-context-exit",
+    ]
     assert calls["authorized"] is True
     assert len(calls["driver_evidences"]) == 2
     assert calls["raw_expected_tokens"] == [source_digest.STOCK, "d" * 64]
@@ -4308,7 +4590,7 @@ def test_official_run_observes_and_passes_current_toolchain_manifest(
     assert calls["adopted_receipt_repeat"] == calls["adopted_receipt"]
 
 
-def test_driver_resolves_exact_source_tokens_before_campaign_and_forwards_them(
+def test_official_run_forwards_exact_fetchcontent_five_tuple(
         tmp_path, monkeypatch):
     from orchestrator.campaign import layout as campaign_layout
 
@@ -4322,6 +4604,8 @@ def test_driver_resolves_exact_source_tokens_before_campaign_and_forwards_them(
     dependency.mkdir()
     source_root = tmp_path / "ccbench"
     source_root.mkdir()
+    fetchcontent_root = tmp_path / "fetchcontent"
+    staged_sources = _staged_sources(fetchcontent_root)
     variant_root = tmp_path / "patched-variant"
     variant_root.mkdir()
     full_pin = REPO_CURRENT_PIN + "1" * (40 - len(REPO_CURRENT_PIN))
@@ -4383,6 +4667,17 @@ def test_driver_resolves_exact_source_tokens_before_campaign_and_forwards_them(
     def fake_run_campaign(*_args, **kwargs):
         assert [event[0] for event in events] == ["resolve", "resolve"]
         assert kwargs["ccbench_dir"] == os.fspath(variant_root)
+        assert kwargs["fetchcontent_base_dir"] == os.fspath(fetchcontent_root)
+        assert kwargs["masstree_source_dir"] == os.fspath(
+            staged_sources["masstree"])
+        assert kwargs["mimalloc_source_dir"] == os.fspath(
+            staged_sources["mimalloc"])
+        assert kwargs["googletest_source_dir"] == os.fspath(
+            staged_sources["googletest"])
+        assert kwargs["fetchcontent_dependency_receipt"] == {
+            "masstree_head": "a" * 40,
+            "config_sha256": "b" * 64,
+        }
         receipt = attempt / A2._condition_gate_receipt_relative("rr5")
         assert receipt.is_file()
         events.append(("campaign", receipt.read_bytes()))
@@ -4427,7 +4722,9 @@ def test_driver_resolves_exact_source_tokens_before_campaign_and_forwards_them(
     A2.run_workload(
         policy, workload_id="rr5", attempt_root=attempt, raw_root=raw_root,
         current_pin=REPO_CURRENT_PIN, dependency_prefix=dependency,
-        ccbench_dir=source_root, log=lambda *_args: None)
+        ccbench_dir=source_root,
+        third_party_source_root=fetchcontent_root,
+        log=lambda *_args: None)
 
     assert [event[0] for event in events] == [
         "resolve", "resolve", "campaign", "raw", "raw"]
@@ -4549,6 +4846,7 @@ def test_live_precampaign_source_role_predicate_rejects_before_campaign(
             policy, workload_id="rr5", attempt_root=attempt,
             raw_root=raw_root, current_pin=REPO_CURRENT_PIN,
             dependency_prefix=dependency, ccbench_dir=source_root,
+            third_party_source_root=tmp_path / "fetchcontent",
             log=lambda *_args: None)
 
     assert predicate_calls == list(expected_calls)
@@ -4611,8 +4909,76 @@ def test_pipeline_runs_correctness_workload_repetitions_without_new_wal_fields()
         )
 
 
+@pytest.mark.parametrize("mutation", ("wrong-prefix", "empty-value", "relative"))
+def test_trace0_fetchcontent_prefix_mutations_are_rejected(tmp_path, mutation):
+    policy = _policy(tmp_path)
+    root = A2.create_attempt_root(policy, "attempt-fetch-prefix-" + mutation)
+    raw = _raw_cell(policy, policy.cells[0], root)
+    evidence = raw["trace0_evidence"]
+    prefix = "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST="
+    index = next(
+        index for index, token in enumerate(evidence["configure_argv"])
+        if token.startswith(prefix)
+    )
+    if mutation == "wrong-prefix":
+        evidence["configure_argv"][index] = (
+            "-DFETCHCONTENT_SOURCE_DIR_GOOGLE_TEST="
+            + evidence["configure_argv"][index][len(prefix):]
+        )
+    elif mutation == "empty-value":
+        evidence["configure_argv"][index] = prefix
+    else:
+        evidence["configure_argv"][index] = prefix + "relative/googletest"
+
+    with pytest.raises(A2.CertificationError):
+        A2.validate_trace0_evidence(
+            policy, raw["cell_id"], root.name, CURRENT_PIN, evidence)
+
+
+def test_trace0_fetchcontent_segment_matches_v2_command_order(tmp_path):
+    policy = _policy(tmp_path)
+    root = A2.create_attempt_root(policy, "attempt-fetch-segment-order")
+    raw = _raw_cell(policy, policy.cells[0], root)
+    evidence = raw["trace0_evidence"]
+    configure = evidence["configure_argv"]
+    base_index = next(
+        index for index, token in enumerate(configure)
+        if token.startswith("-DFETCHCONTENT_BASE_DIR=")
+    )
+    masstree_index = next(
+        index for index, token in enumerate(configure)
+        if token.startswith("-DFETCHCONTENT_SOURCE_DIR_MASSTREE=")
+    )
+    configure[base_index], configure[masstree_index] = (
+        configure[masstree_index], configure[base_index]
+    )
+
+    with pytest.raises(A2.CertificationError):
+        A2.validate_trace0_evidence(
+            policy, raw["cell_id"], root.name, CURRENT_PIN, evidence)
+
+
+def test_trace0_configure_argv_rejects_short_path_segment(tmp_path):
+    policy = _policy(tmp_path)
+    root = A2.create_attempt_root(policy, "attempt-fetch-short-segment")
+    raw = _raw_cell(policy, policy.cells[0], root)
+    evidence = raw["trace0_evidence"]
+    dependency_index = next(
+        index for index, token in enumerate(evidence["configure_argv"])
+        if token.startswith("-DCMAKE_PREFIX_PATH=")
+    )
+    evidence["configure_argv"] = evidence["configure_argv"][
+        :dependency_index + 4
+    ]
+
+    with pytest.raises(A2.CertificationError, match="shorter|incomplete"):
+        A2.validate_trace0_evidence(
+            policy, raw["cell_id"], root.name, CURRENT_PIN, evidence)
+
+
 @pytest.mark.parametrize("mutation", (
     "separated-define", "duplicate-configure-token", "unknown-configure-token",
+    "fully-disconnected",
     "build-subcommand", "unknown-build-token", "unknown-run-flag",
     "clocks-per-us",
 ))
@@ -4627,6 +4993,8 @@ def test_trace0_argv_closed_grammar_rejects_unconsumed_tokens(tmp_path, mutation
         evidence["configure_argv"].append("-DENABLE_SANITIZER=OFF")
     elif mutation == "unknown-configure-token":
         evidence["configure_argv"].append("-DUNKNOWN=1")
+    elif mutation == "fully-disconnected":
+        evidence["configure_argv"].append("-DFETCHCONTENT_FULLY_DISCONNECTED=ON")
     elif mutation == "build-subcommand":
         evidence["build_argv"][1] = "--install"
     elif mutation == "unknown-build-token":

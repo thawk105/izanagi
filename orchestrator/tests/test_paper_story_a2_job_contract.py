@@ -62,10 +62,22 @@ def _assert_static_job_contract(source):
         "scheduler-start": 'qstat -f "$qstat_jobid"',
         "reservation-result": "paper-story-a2-reservation-result/v1",
         "dependency-source": "IZANAGI_A2_DEPENDENCY_PREFIX_SOURCE",
+        "third-party-source": "IZANAGI_A2_THIRD_PARTY_SOURCE_ROOT",
         "workload-input": "IZANAGI_A2_WORKLOAD",
         "workload-membership": "a2.workload_ids(policy).count(workload) != 1",
         "job-root": 'job_root=$attempt/jobs/$workload',
         "dependency-stage": "cp -a \"$dependency_source\"/. \"$dependency_prefix\"/",
+        "masstree-stage": (
+            "cp -a \"$third_party_source/masstree\" "
+            "\"$third_party_root/masstree-src\""),
+        "mimalloc-stage": (
+            "cp -a \"$third_party_source/mimalloc\" "
+            "\"$third_party_root/mimalloc-src\""),
+        "googletest-stage": (
+            "cp -a \"$third_party_source/googletest\" "
+            "\"$third_party_root/googletest-src\""),
+        "third-party-run-argument": (
+            '--third-party-source-root "$third_party_root"'),
         "fresh-raw": "if [[ -e \"$raw_root\" || -L \"$raw_root\" ]]",
         "preflight": "compute-preflight",
         "interpreter-candidates": (
@@ -395,7 +407,8 @@ def _run_submitter_harness(
         qsub_stderr_workload="", qsub_stderr_text="qsub diagnostic\n",
         precreate_diagnostic="", ccbench_head=None, resolved_pin=None,
         resolver_rc=0, tracked_dirty=False, study="a2",
-        exercise_finish_group=False):
+        exercise_finish_group=False, third_party_argument=None,
+        third_party_mutation=None):
     a2_policy = _policy(tmp_path)
     a6_policy = _a6_policy(tmp_path)
     policy = a6_policy if study == "a6" else a2_policy
@@ -405,8 +418,22 @@ def _run_submitter_harness(
     attempt_root = policy.durable_base / attempt_id
     ccbench = tmp_path / "ccbench"
     dependency = tmp_path / "dependency"
+    third_party = tmp_path / "third-party"
     ccbench.mkdir()
     dependency.mkdir()
+    third_party.mkdir()
+    for name in ("masstree", "mimalloc", "googletest"):
+        (third_party / name).mkdir()
+    if third_party_mutation == "missing-child":
+        (third_party / "googletest").rmdir()
+    elif third_party_mutation == "symlink-child":
+        (third_party / "googletest").rmdir()
+        (third_party / "googletest").symlink_to(
+            third_party / "masstree", target_is_directory=True)
+    elif third_party_mutation == "symlink-root":
+        link = tmp_path / "third-party-link"
+        link.symlink_to(third_party, target_is_directory=True)
+        third_party_argument = link
     binary_dir = tmp_path / "bin"
     binary_dir.mkdir()
     driver_log = tmp_path / "driver.log"
@@ -645,6 +672,10 @@ os.execv(sys.executable, [sys.executable, *args])
         "--attempt-id", attempt_id,
         "--ccbench-root", str(ccbench),
         "--dependency-prefix-source", str(dependency),
+        "--third-party-source-root", str(
+            third_party if third_party_argument is None
+            else third_party_argument
+        ),
     ])
     completed = subprocess.run(
         command,
@@ -675,8 +706,12 @@ def _run_compute_pin_harness(
         child.mkdir(parents=True, exist_ok=True)
     ccbench = tmp_path / "ccbench"
     dependency = tmp_path / "dependency"
+    third_party = tmp_path / "third-party"
     ccbench.mkdir()
     dependency.mkdir()
+    third_party.mkdir()
+    for name in ("masstree", "mimalloc", "googletest"):
+        (third_party / name).mkdir()
     binary_dir = tmp_path / "compute-bin"
     binary_dir.mkdir()
     if ccbench_head is None:
@@ -724,6 +759,18 @@ exit 97
         "#!/bin/bash\n"
         f"exec {shlex.quote(sys.executable)} \"$@\"\n"
     ))
+    _write_executable(binary_dir / "mkdir", r"""#!/bin/bash
+printf 'mkdir' >>"$A2_TEST_COMPUTE_STAGE_LOG"
+printf ' <%s>' "$@" >>"$A2_TEST_COMPUTE_STAGE_LOG"
+printf '\n' >>"$A2_TEST_COMPUTE_STAGE_LOG"
+exit 0
+""")
+    _write_executable(binary_dir / "cp", r"""#!/bin/bash
+printf 'cp' >>"$A2_TEST_COMPUTE_STAGE_LOG"
+printf ' <%s>' "$@" >>"$A2_TEST_COMPUTE_STAGE_LOG"
+printf '\n' >>"$A2_TEST_COMPUTE_STAGE_LOG"
+exit 0
+""")
     environment = dict(os.environ)
     environment.update({
         "PATH": str(binary_dir) + os.pathsep + environment["PATH"],
@@ -737,7 +784,9 @@ exit 97
         "IZANAGI_A2_CCBENCH_ROOT": str(ccbench),
         "IZANAGI_A2_ATTEMPT_ROOT": str(attempt_root),
         "IZANAGI_A2_DEPENDENCY_PREFIX_SOURCE": str(dependency),
+        "IZANAGI_A2_THIRD_PARTY_SOURCE_ROOT": str(third_party),
         "IZANAGI_A2_WORKLOAD": workload,
+        "A2_TEST_COMPUTE_STAGE_LOG": str(tmp_path / "compute-stage.log"),
         "A2_TEST_REQUESTED_S": "43200" if study == "a6" else "21600",
         "A2_TEST_CCBENCH_HEAD": ccbench_head,
         "A2_TEST_RESOLVED_PIN": resolved_pin,
@@ -766,6 +815,29 @@ def test_submitter_production_path_rejects_noncanonical_ccbench_source(
         kwargs["resolver_rc"] = 41
     else:
         kwargs["tracked_dirty"] = True
+    completed, attempt_root, driver_log = _run_submitter_harness(
+        tmp_path, **kwargs)
+    assert completed.returncode == 2
+    assert " preregister " not in " " + driver_log
+    assert not attempt_root.exists()
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ("comma", "equals", "newline", "symlink-root", "symlink-child", "missing-child"),
+)
+def test_submitter_rejects_unsafe_or_nonphysical_third_party_source_root(
+        tmp_path, mutation):
+    kwargs = {}
+    if mutation == "comma":
+        kwargs["third_party_argument"] = str(tmp_path / "third-party") + ",bad"
+    elif mutation == "equals":
+        kwargs["third_party_argument"] = str(tmp_path / "third-party") + "=bad"
+    elif mutation == "newline":
+        kwargs["third_party_argument"] = str(tmp_path / "third-party") + "\nbad"
+    else:
+        kwargs["third_party_mutation"] = mutation
+
     completed, attempt_root, driver_log = _run_submitter_harness(
         tmp_path, **kwargs)
     assert completed.returncode == 2
@@ -806,6 +878,32 @@ def test_a6_compute_job_accepts_rr95_membership_before_source_gate(tmp_path):
     assert result["workload"] == "rr95"
     assert result["driver_rc"] == 2
     assert not (job_root / "raw").exists()
+
+
+def test_job_body_stages_exact_three_src_suffixed_dependencies(tmp_path):
+    completed, _job_root = _run_compute_pin_harness(tmp_path)
+    assert completed.returncode != 0
+    scratch = Path(
+        f"/scr/{os.environ['USER']}/paper-story-a2-certification/"
+        "0_945411.nqsv"
+    )
+    dependency = tmp_path / "dependency"
+    third_party = tmp_path / "third-party"
+    assert (tmp_path / "compute-stage.log").read_text(
+        encoding="utf-8"
+    ).splitlines() == [
+        f"mkdir <-p> <{scratch.parent}>",
+        f"mkdir <{scratch}>",
+        f"mkdir <{scratch / 'dependencies'}>",
+        f"mkdir <{scratch / 'fetchcontent'}>",
+        f"cp <-a> <{dependency}/.> <{scratch / 'dependencies'}/>",
+        f"cp <-a> <{third_party / 'masstree'}> "
+        f"<{scratch / 'fetchcontent/masstree-src'}>",
+        f"cp <-a> <{third_party / 'mimalloc'}> "
+        f"<{scratch / 'fetchcontent/mimalloc-src'}>",
+        f"cp <-a> <{third_party / 'googletest'}> "
+        f"<{scratch / 'fetchcontent/googletest-src'}>",
+    ]
 
 
 def test_compute_job_trap_records_policy_resolution_failure(tmp_path):
@@ -1030,7 +1128,8 @@ def test_submitter_success_uses_production_cli_qsub_and_exact_stdout_contract(
             f"IZANAGI_A2_CURRENT_PIN={CANONICAL_PIN},"
             f"IZANAGI_A2_CCBENCH_ROOT={tmp_path / 'ccbench'},"
             f"IZANAGI_A2_REPO_ROOT={REPO},"
-            f"IZANAGI_A2_DEPENDENCY_PREFIX_SOURCE={tmp_path / 'dependency'}")
+            f"IZANAGI_A2_DEPENDENCY_PREFIX_SOURCE={tmp_path / 'dependency'},"
+            f"IZANAGI_A2_THIRD_PARTY_SOURCE_ROOT={tmp_path / 'third-party'}")
         assert argv == [
             "-A", "SFC", "-q", "gen_S", "-b", "1", "-l",
             "elapstim_req=06:00:00", "-N", "paper-a2-cert", "-v",
