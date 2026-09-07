@@ -14,6 +14,7 @@ from pathlib import Path, PurePosixPath
 import pytest
 
 from orchestrator.campaign import attempt_registry_core as attempt_core
+from orchestrator.campaign import autonomous_trial_completeness as completeness
 from orchestrator.campaign import s8c_acceptance_receipt as receipt
 
 
@@ -232,6 +233,7 @@ def _fixture(
                 "trial_id": trial_id,
                 "measurement_head": introduction,
                 "status": "complete",
+                "do_build": False,
                 "arm_execution": arm_execution,
                 "launch_admission": {
                     "binding": {
@@ -501,10 +503,20 @@ def _upgrade_to_current(
     effective = _run(repo, "rev-parse", "HEAD")
     assert effective.returncode == 0, effective.stderr
     value.setdefault("prereg_effective_commit", effective.stdout.strip())
-    for index, row in enumerate(value["trials"]):
-        row["cross_binding_receipt_sha256"] = hashlib.sha256(
-            f"cross-binding-leaf-{index}".encode("ascii")
-        ).hexdigest()
+    for row in value["trials"]:
+        report_path = repo / row["report_path"]
+        report = json.loads(report_path.read_bytes())
+        journal_path = repo / row["attempt_journal_path"]
+        events = [
+            json.loads(line) for line in journal_path.read_bytes().splitlines()
+        ]
+        projection = completeness.verify_s8c_cross_binding(
+            report=report,
+            events=events,
+            run_root=journal_path.parent,
+            output_root=None,
+        )
+        row["cross_binding_receipt_sha256"] = projection["receipt_sha256"]
     value["cross_binding_receipt_sha256"] = (
         receipt.cross_binding_aggregate_sha256([
             {
@@ -1047,6 +1059,34 @@ def test_v5_attempt_binding_accepts_all_predeclared_observed_units(
         receipt.require_current_verified_receipt(verified).sha256
         == verified.sha256
     )
+
+
+def test_v5_rejects_reaggregated_single_cross_binding_leaf_substitution(
+    tmp_path: Path,
+) -> None:
+    repo, path, value = _fixture(tmp_path)
+    _upgrade_to_current(repo, value)
+    _rewrite_receipt(repo, path, value, "valid receipt before leaf substitution")
+    receipt.verify_acceptance_receipt(path, repository_root=repo)
+
+    last_row = value["trials"][-1]
+    original_leaf = last_row["cross_binding_receipt_sha256"]
+    forged_leaf = hashlib.sha256(b"forged-cross-binding-leaf").hexdigest()
+    assert forged_leaf != original_leaf
+    last_row["cross_binding_receipt_sha256"] = forged_leaf
+    value["cross_binding_receipt_sha256"] = _cross_binding_aggregate_for_schema(
+        value, receipt.CROSS_BINDING_RECEIPT_SCHEMA_VERSION,
+    )
+    _rewrite_receipt(repo, path, value, "reaggregated forged final trial leaf")
+
+    with pytest.raises(
+        receipt.AcceptanceReceiptError,
+        match=(
+            rf"^\[receipt-cross-binding\] trial_id={last_row['trial_id']} leaf "
+            r"differs from independently rederived projection$"
+        ),
+    ):
+        receipt.verify_acceptance_receipt(path, repository_root=repo)
 
 
 def test_m4_downstream_capability_rejects_readable_v4_receipt(
