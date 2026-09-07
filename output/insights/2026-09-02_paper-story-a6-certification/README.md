@@ -232,3 +232,28 @@ walltime を `12:00:00` とした判定も、本書の他の結果も、昇格�
   欠測 attempt の時間を除いた再計算は行っていない。
 - **同節の「max 23 分」「3.83 時間」「約 3.1 倍」:** 追記訂正が既に誤りと確定した旧値である。
   母集団は上と同じで、本但し書きはその訂正を変えない (旧値は誤りのまま残る)。
+
+## 追記 (2026-09-07、[T-2198]) — 停止原因を解消したが、本 attempt の値は取り直さない
+
+本 attempt が `indeterminate` になった原因 (計算ノードの外部 network 不在で FetchContent が落ちる、
+F808) は、D1524 / D1693 に従って解消した。閉じた trace0 configure 文法へ FetchContent の枠を
+厳密な期待値として足し、認証経路の測定 build を staged 依存へ配線した。
+
+**本 attempt の値は取り直さない (絶対規律 7)。** 本 attempt は旧 policy に束縛されたまま残る。
+
+- 本 attempt が束縛する A-6 policy: bytes `4ca15d071f0bc10febe3274d0523b59f0e4903bf612ff050bef7e6728a3700d4`、
+  protocol `a73bc3a0eabd1bcb960779c9b61b20983ef3cfb88d76d50c073e9ced4f6be445`
+- 現行 (2026-09-07 以降) の A-6 policy: bytes `8969a7e4ee740a94ec12084c89ef88a37ebd255073cfb0122245113a295b87a8`、
+  protocol `21427e71793ea744777d11bd90429ce2db1a8d3333ea9e2e0f227ecf377c25dc`
+
+**両者は一致しない。** A-6 の read-heavy 認証は新しい hash に束縛された新しい attempt で取り直す。
+**本追記の時点でその実測はまだ行っていない。** 論文 §8 の但し書き 2 は外れていない。
+
+**旧 submission receipt は現行の exact qsub env 契約でも再受理されない** — 新しい環境変数
+`IZANAGI_A2_THIRD_PARTY_SOURCE_ROOT` が exact key 集合へ入ったため。これは新しい破壊ではなく、
+protocol hash と job body hash の変化に既に含まれている。
+
+なお `protocol_sha256` が束縛するのは policy document であって、Python 側の判定式や qsub env の
+exact 集合ではない。この限界は記録として残す (絶対規律 7)。
+
+詳細は `output/insights/2026-09-07_t2198-trace0-fetchcontent/README.md`。
