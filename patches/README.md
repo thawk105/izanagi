@@ -287,8 +287,10 @@ CMake option は 2 つ (既定はどちらも stock 同値、`#ifndef ... #error
 - 登録簿: 2 define は `orchestrator/campaign/condition_meaning_gate.py` の `DefineSpec`
   (patch_rel = C) と `screening_driver.py` の `_CONDITION_DEFAULTS` に登録。
 - patch stack は A → B → C の exact 順序。C を含む走行の artifact は schema v3 とし、
-  反実仮想 literal の走行には `counterfactual_preregistration: "pending"` を記録する
-  (旧事前登録が新しい実験を覆っているように見せないため)。
+  事前登録の exact 3 腕・3 workload・threads 24/48・rep 0・reps 1・extime 3 の診断走行にだけ、
+  `counterfactual_preregistration` として凍結済み
+  `docs/backoff-counterfactual-preregistration.md` の bytes の SHA-256 を記録する。ほかの格子には
+  この field を付けない。旧 `prereg_sha256` は旧事前登録の測定条件束縛として残す。
 - **科学的な限界:** policy 1 と policy 0 は別走行で最初の更新から軌跡が分岐するので、
   答えられるのは「制御器が選んだ向きの方策全体が throughput に効くか」までであり、
   **同一軌跡上の反実仮想ではない。** policy 2 が同一 pre-state の対照に近づくが、
