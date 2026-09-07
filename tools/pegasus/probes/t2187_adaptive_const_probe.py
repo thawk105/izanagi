@@ -1213,7 +1213,7 @@ def _capturing_subprocess_runner(chunks: list[str]):
 def _append_journal(out: Path, row: dict) -> None:
     journal = Path(str(out) + ".journal.jsonl")
     journal.parent.mkdir(parents=True, exist_ok=True)
-    encoded = json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n"
+    encoded = json.dumps(row, ensure_ascii=False, sort_keys=True, allow_nan=False) + "\n"
     with journal.open("a", encoding="utf-8") as stream:
         stream.write(encoded)
         stream.flush()
@@ -1816,7 +1816,7 @@ def _trace_manifest(trace_dir: Path) -> dict:
 def _write_json_create_only(path: Path, payload: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("x", encoding="utf-8") as stream:
-        json.dump(payload, stream, indent=2, ensure_ascii=False)
+        json.dump(payload, stream, indent=2, ensure_ascii=False, allow_nan=False)
         stream.write("\n")
 
 
@@ -1841,7 +1841,7 @@ def _performance_artifact_identity(
         raise CertificationReject(
             "performance-artifact-invalid", "performance artifact is not JSON"
         ) from exc
-    if type(document) is dict and "performance_contract" in document:
+    if type(document) is dict and ("performance_contract" in document or _contains_step_policy_cell(document)):
         raise CertificationReject(
             "performance-artifact-contract-rejected",
             "policy performance artifacts cannot satisfy certification performance "
@@ -3517,7 +3517,7 @@ def main(argv: list[str] | None = None) -> int:
         "not_certified": NOT_CERTIFIED,
         "headline_eligible": (
             False
-            if args.backoff_trace or "performance_contract" in contract_metadata
+            if args.backoff_trace or any(cell.has_step_policy for cell in cells)
             else True
         ),
         "throughput_scope": (
@@ -3599,13 +3599,45 @@ def main(argv: list[str] | None = None) -> int:
                     cache_root=str(cache_root),
                     ccbench_dir=work_root,
                 )
+                build_cache_key = buildcache.cache_key(
+                    genome,
+                    CURRENT_PIN,
+                    False,
+                    src_token=evidence.src_token,
+                    cc=cc,
+                    cxx=cxx,
+                    admission=admission,
+                )
+                if not build_cache_key.endswith("_t0"):
+                    raise RuntimeError(
+                        "performance build cache identity is not trace-disabled"
+                    )
                 symbol_count, string_count = _trace_binary_counts(build.binary)
                 _validate_trace_binary_counts(
                     symbol_count, string_count,
                     backoff_trace=args.backoff_trace,
                 )
+                if getattr(build, "trace", None) is not False:
+                    raise RuntimeError(
+                        "performance binary lacks trace-disabled build identity"
+                    )
+                source_evidence = {
+                    "ccbench_commit": evidence.ccbench_commit,
+                    "genome_sha256": evidence.genome_sha256,
+                    "src_token": evidence.src_token,
+                    "source_bytes_sha256": evidence.source_bytes_sha256,
+                }
                 built.append(
-                    (cell, genome, build, symbol_count, string_count)
+                    (
+                        cell,
+                        genome,
+                        build,
+                        symbol_count,
+                        string_count,
+                        build_cache_key,
+                        admission.receipt_sha256,
+                        source_evidence,
+                    )
                 )
                 print(
                     f"[build] {cell.label} sha={build.bin_sha256[:16]} "
@@ -3614,9 +3646,20 @@ def main(argv: list[str] | None = None) -> int:
                     flush=True,
                 )
 
+            if any(cell.has_step_policy for cell in cells):
+                payload["correctness_status"] = "uncertified"
             binary_shas = {
                 cell.label: build.bin_sha256
-                for cell, _genome, build, _symbols, _strings in built
+                for (
+                    cell,
+                    _genome,
+                    build,
+                    _symbols,
+                    _strings,
+                    _cache_key,
+                    _admission_sha256,
+                    _source_evidence,
+                ) in built
             }
             if len(set(binary_shas.values())) != len(binary_shas):
                 raise RuntimeError(
@@ -3627,7 +3670,16 @@ def main(argv: list[str] | None = None) -> int:
             for workload_id in workloads:
                 workload = WORKLOADS[workload_id]
                 for threads in threads_axis:
-                    for cell, genome, build, symbol_count, string_count in built:
+                    for (
+                        cell,
+                        genome,
+                        build,
+                        symbol_count,
+                        string_count,
+                        build_cache_key,
+                        admission_sha256,
+                        source_evidence,
+                    ) in built:
                         measure_started = time.monotonic()
                         stdout_chunks: list[str] = []
                         point = measure_point(
@@ -3648,9 +3700,8 @@ def main(argv: list[str] | None = None) -> int:
                                 else subprocess.run
                             ),
                         )
-                        throughputs = list(point.throughputs)
-                        median_tps = (
-                            statistics.median(throughputs) if throughputs else None
+                        throughputs, median_tps, missing_reason = (
+                            _performance_measurement_summary(point.throughputs)
                         )
                         row = {
                             **_cell_identity(cell),
@@ -3675,6 +3726,10 @@ def main(argv: list[str] | None = None) -> int:
                             "is_stock_control": cell.is_stock_control,
                             "genome": genome.canonical(),
                             "binary_sha256": build.bin_sha256,
+                            "build_trace_enabled": False,
+                            "build_cache_key": build_cache_key,
+                            "build_admission_receipt_sha256": admission_sha256,
+                            "source_evidence": dict(source_evidence),
                             "backoff_trace_symbol_count": symbol_count,
                             "backoff_trace_string_count": string_count,
                             "backoff_trace": args.backoff_trace,
@@ -3685,6 +3740,8 @@ def main(argv: list[str] | None = None) -> int:
                             "run_cmd": point.run_cmd,
                             "measured_utc": datetime.now(timezone.utc).isoformat(),
                         }
+                        if missing_reason is not None:
+                            row["missing_reason"] = missing_reason
                         if args.backoff_trace:
                             events, summary, directional = _parse_backoff_trace(
                                 "".join(stdout_chunks)
@@ -3722,7 +3779,7 @@ def main(argv: list[str] | None = None) -> int:
 
     out.parent.mkdir(parents=True, exist_ok=True)
     with out.open("x", encoding="utf-8") as stream:
-        json.dump(payload, stream, indent=2, ensure_ascii=False)
+        json.dump(payload, stream, indent=2, ensure_ascii=False, allow_nan=False)
         stream.write("\n")
     print(
         f"[done] {out} wall={wall_seconds:.1f}s cpu={cpu_seconds:.1f}s "
@@ -3730,6 +3787,33 @@ def main(argv: list[str] | None = None) -> int:
         flush=True,
     )
     return 0
+
+
+def _contains_step_policy_cell(document: dict) -> bool:
+    cells = document.get("cells")
+    return type(cells) is list and any(
+        type(row) is dict
+        and (row.get("cell_format_fields") == 12 or "step_policy" in row)
+        for row in cells
+    )
+
+
+def _performance_measurement_summary(
+    values: object,
+) -> tuple[list[int | float], float | None, str | None]:
+    import math
+
+    throughputs = list(values)
+    if not throughputs:
+        return [], None, "no-throughput-samples"
+    if any(
+        type(value) not in {int, float} or not math.isfinite(value)
+        for value in throughputs
+    ):
+        return [], None, "nonfinite-throughput"
+    if any(value <= 0 for value in throughputs):
+        return throughputs, None, "nonpositive-throughput"
+    return throughputs, statistics.median(throughputs), None
 
 
 if __name__ == "__main__":

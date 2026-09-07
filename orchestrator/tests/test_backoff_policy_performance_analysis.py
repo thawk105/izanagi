@@ -474,6 +474,48 @@ def test_hypotheses_return_preregistered_three_way_decisions(tmp_path: Path) -> 
     assert baseline_result["hypotheses"]["H3"]["decision"] == "accepted"
 
 
+def test_h3_aggregate_boundary_contact_is_inconclusive_not_rejected() -> None:
+    margin = 0.02955880224154443
+
+    def contrasts_with_boundary(lower: float, upper: float) -> dict:
+        def points(name: str) -> list[dict]:
+            result = []
+            for workload in WORKLOADS:
+                for threads in THREADS:
+                    point_lower, point_upper = -0.001, 0.001
+                    if (
+                        name == "p0/p1"
+                        and workload == "read-heavy"
+                        and threads == 6
+                    ):
+                        point_lower, point_upper = lower, upper
+                    result.append(
+                        {
+                            "workload": workload,
+                            "threads": threads,
+                            "ci95": {
+                                "lower_log": point_lower,
+                                "upper_log": point_upper,
+                            },
+                            "missing_rep_indices": [],
+                        }
+                    )
+            return result
+
+        return {
+            name: {"points": points(name)}
+            for name in ("p0/p1", "p0/p2", "p2/p1")
+        }
+
+    for lower, upper in ((margin, 0.04), (-0.04, -margin)):
+        hypotheses = analysis._hypotheses(contrasts_with_boundary(lower, upper))
+        assert hypotheses["H3"] == {
+            "decision": "inconclusive",
+            "reason": None,
+            "missing_rep_indices": [],
+        }
+
+
 def test_one_reasoned_missing_coordinate_is_local_not_artifact_invalid(
     tmp_path: Path,
 ) -> None:

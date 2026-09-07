@@ -72,6 +72,53 @@ if [[ ! "$ATTEMPT_ID" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]; then
   exit 2
 fi
 OUT_DIR="$POLICY_OUTPUT_PREFIX/$ATTEMPT_ID"
+LEDGER_ROOT=${IZANAGI_T2417_LEDGER_ROOT:-$POLICY_OUTPUT_PREFIX}
+if [[ "$LEDGER_ROOT" != /* ]]; then
+  echo "ledger root must be absolute" >&2
+  exit 2
+fi
+mkdir -p -m 700 -- "$LEDGER_ROOT"
+LEDGER_FILE="$LEDGER_ROOT/$ATTEMPT_ID.submission-ledger.jsonl"
+if ! (set -o noclobber; : > "$LEDGER_FILE") 2>/dev/null; then
+  echo "attempt id already has a submission ledger: $ATTEMPT_ID" >&2
+  exit 2
+fi
+PBS_SHA256=$(sha256sum -- "$PBS_BODY" | awk '{print $1}')
+if [[ ! "$PBS_SHA256" =~ ^[0-9a-f]{64}$ ]]; then
+  echo "PBS body SHA-256 could not be recorded" >&2
+  exit 2
+fi
+SUBMITTED_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+append_ledger() {
+  python3 -B - "$LEDGER_FILE" "$1" <<'PY'
+import os
+import sys
+
+with open(sys.argv[1], "a", encoding="utf-8") as stream:
+    stream.write(sys.argv[2] + "\n")
+    stream.flush()
+    os.fsync(stream.fileno())
+PY
+}
+
+submitted_ids=()
+report_partial_submission() {
+  local rep=$1 reason=$2 failed_utc
+  failed_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  append_ledger "{\"event\":\"submission-failed\",\"rep_index\":$rep,\"reason\":\"$reason\",\"failed_utc\":\"$failed_utc\"}" || true
+  printf 'submitted job IDs:'
+  if [[ ${#submitted_ids[@]} -eq 0 ]]; then
+    printf ' none\n'
+    return
+  fi
+  printf ' %s' "${submitted_ids[@]}"
+  printf '\nqdel --'
+  printf ' %s' "${submitted_ids[@]}"
+  printf '\n'
+}
+
+append_ledger "{\"event\":\"submission-started\",\"attempt_id\":\"$ATTEMPT_ID\",\"expected_repo_head\":\"$REPO_HEAD\",\"pbs_sha256\":\"$PBS_SHA256\",\"submitted_utc\":\"$SUBMITTED_UTC\"}"
 
 cd "$REPO_ROOT"
 submitted=0
@@ -79,22 +126,36 @@ for rep in {0..17}; do
   order_index=$((rep % 6))
   order=${PERMUTATIONS[$order_index]}
   seed=${SEEDS[$rep]}
-  qsub_environment="IZANAGI_T2187_MODE=performance,IZANAGI_T2187_BACKOFF_TRACE=0,IZANAGI_T2187_OUT_DIR=$OUT_DIR,IZANAGI_T2187_CELLS=$order,IZANAGI_T2187_WORKLOADS=$WORKLOADS,IZANAGI_T2187_THREADS=$THREADS,IZANAGI_T2187_REP_INDEX=$rep,IZANAGI_T2187_STEP_POLICY_SEED=$seed,IZANAGI_T2187_STAGE=1"
+  qsub_environment="IZANAGI_T2187_MODE=performance,IZANAGI_T2187_BACKOFF_TRACE=0,IZANAGI_T2187_EXPECTED_REPO_HEAD=$REPO_HEAD,IZANAGI_T2187_OUT_DIR=$OUT_DIR,IZANAGI_T2187_CELLS=$order,IZANAGI_T2187_WORKLOADS=$WORKLOADS,IZANAGI_T2187_THREADS=$THREADS,IZANAGI_T2187_REP_INDEX=$rep,IZANAGI_T2187_STEP_POLICY_SEED=$seed,IZANAGI_T2187_STAGE=1"
   if ! job_id=$(qsub -v "$qsub_environment" "$PBS_BODY"); then
     echo "qsub failed for rep $rep after $submitted successful submissions" >&2
+    report_partial_submission "$rep" "qsub-failed"
     exit 1
   fi
   if [[ ! "$job_id" =~ ^([0-9]+:)?[A-Za-z0-9._-]+$ ]]; then
     echo "qsub returned an invalid job id for rep $rep" >&2
+    report_partial_submission "$rep" "invalid-job-id"
     exit 1
   fi
-  printf '{"job_id":"%s","rep_index":%d,"order_index":%d,"order":"%s","seed":"%s"}\n' \
-    "$job_id" "$rep" "$order_index" "$order" "$seed"
+  ledger_row=$(printf '{"event":"job-submitted","job_id":"%s","rep_index":%d,"order_index":%d,"order":"%s","seed":"%s"}' \
+    "$job_id" "$rep" "$order_index" "$order" "$seed")
+  submitted_ids+=("$job_id")
+  if ! append_ledger "$ledger_row"; then
+    echo "submission ledger write failed for rep $rep" >&2
+    report_partial_submission "$rep" "ledger-write-failed"
+    exit 1
+  fi
+  printf '%s\n' "$ledger_row"
   submitted=$((submitted + 1))
 done
 
 if [[ "$submitted" -ne 18 ]]; then
   echo "submission count mismatch: expected 18, got $submitted" >&2
+  exit 1
+fi
+if ! append_ledger "{\"event\":\"submission-complete\",\"submitted\":$submitted,\"finished_utc\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"; then
+  echo "submission ledger completion write failed" >&2
+  report_partial_submission 18 "ledger-write-failed"
   exit 1
 fi
 echo "submitted $submitted policy-performance blocks" >&2

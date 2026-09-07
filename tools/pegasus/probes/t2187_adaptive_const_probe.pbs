@@ -117,6 +117,7 @@ PERFORMANCE_ARTIFACT_SHA256=${IZANAGI_T2187_PERFORMANCE_ARTIFACT_SHA256:-}
 EXPECTED_VERIFIER_IDENTITY=${IZANAGI_T2187_EXPECTED_VERIFIER_IDENTITY:-}
 EXPECTED_VERIFIER_IDENTITY_SHA256=${IZANAGI_T2187_EXPECTED_VERIFIER_IDENTITY_SHA256:-}
 STEP_POLICY_SEED=${IZANAGI_T2187_STEP_POLICY_SEED:-}
+EXPECTED_REPO_HEAD=${IZANAGI_T2187_EXPECTED_REPO_HEAD:-}
 
 require_canonical_child() {
   local raw_path=$1 namespace=$2 binding=$3 canonical_path
@@ -228,6 +229,15 @@ if [[ "$IS_POLICY_PERFORMANCE" == 1 ]]; then
   fi
 fi
 # T2417_POLICY_PERFORMANCE_GATE_END
+# T2417_EXPECTED_REPO_HEAD_GATE_BEGIN
+if [[ "$IS_POLICY_PERFORMANCE" == 1 ]]; then
+  if [[ ! "$EXPECTED_REPO_HEAD" =~ ^[0-9a-f]{40}$ ||
+        "$REPO_HEAD" != "$EXPECTED_REPO_HEAD" ]]; then
+    echo "policy-performance-repo-head-mismatch: execution HEAD does not match submission HEAD" >&2
+    exit 2
+  fi
+fi
+# T2417_EXPECTED_REPO_HEAD_GATE_END
 if [[ "$MODE" == certify ]]; then
   if [[ "$CELLS_RAW" != tuned:1:1:1000:2560 && "$CELLS_RAW" != "$CERT_DYNAMIC_CELL" ]]; then
     echo "certify mode requires exactly one of the two registered cells" >&2

@@ -4,6 +4,7 @@ import argparse
 import ast
 import copy
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 import hashlib
 import importlib.util
 import json
@@ -19,6 +20,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from orchestrator.campaign import backoff_policy_performance_analysis as policy_analysis
+
 ROOT = Path(__file__).resolve().parents[2]
 DRIVER = ROOT / "tools" / "pegasus" / "probes" / "t2187_adaptive_const_probe.py"
 PBS = ROOT / "tools" / "pegasus" / "probes" / "t2187_adaptive_const_probe.pbs"
@@ -26,7 +29,6 @@ SUBMIT_T2417 = (
     ROOT
     / "tools"
     / "pegasus"
-    / "probes"
     / "submit_t2417_backoff_policy_performance.sh"
 )
 POLICY_PERFORMANCE_PREREGISTRATION = (
@@ -2632,6 +2634,159 @@ def _policy_metadata_values(rep_index: int, **changes) -> dict:
     }
 
 
+def _install_policy_performance_runtime(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    *,
+    missing_coordinate: tuple[int, int, str, int] | None = None,
+) -> tuple[Path, dict[str, int]]:
+    dynamic_root = tmp_path / "dynamic"
+    policy_root = dynamic_root / "perf" / "t2417-policy"
+    checkout = tmp_path / "checkout"
+    checkout.mkdir()
+    state = {"rep_index": 0}
+
+    monkeypatch.setattr(probe, "DYNAMIC_OUT_PREFIX", dynamic_root)
+    monkeypatch.setattr(probe, "DYNAMIC_PERFORMANCE_PREFIX", dynamic_root / "perf")
+    monkeypatch.setattr(probe, "DYNAMIC_POLICY_PERFORMANCE_PREFIX", policy_root)
+    monkeypatch.setattr(probe.site_policy, "current_site", lambda: "PEGASUS_COMPUTE")
+    monkeypatch.setattr(probe.site_policy, "refuses_heavy_work", lambda _site: False)
+    monkeypatch.setattr(probe, "_assert_single_tenant", lambda: None)
+    monkeypatch.setattr(probe, "_ccbench_head", lambda _submodule: PIN_FULL)
+    monkeypatch.setattr(probe, "assert_pinned_clean", lambda *_args: None)
+    monkeypatch.setattr(probe, "_validated_repo_head", lambda _value: "a" * 40)
+    monkeypatch.setattr(
+        probe,
+        "_execution_identity",
+        lambda _value: {
+            "driver_sha256": hashlib.sha256(b"producer-driver").hexdigest(),
+            "pbs_sha256": hashlib.sha256(b"producer-pbs").hexdigest(),
+            "driver_argv": ["probe.py", "--mode", "performance"],
+            "repo_status_clean": True,
+        },
+    )
+    monkeypatch.setattr(
+        probe.buildcache, "compilers_for_current_site", lambda: ("gcc", "g++")
+    )
+    monkeypatch.setattr(probe, "build_run_context", lambda **_kwargs: object())
+    monkeypatch.setattr(probe, "attest_generator_output", lambda *_args, **_kwargs: object())
+
+    @contextmanager
+    def fake_checkout(*_args, **_kwargs):
+        yield str(checkout)
+
+    @contextmanager
+    def fake_patch_stack(*_args, **_kwargs):
+        yield ()
+
+    monkeypatch.setattr(probe, "isolated_checkout", fake_checkout)
+    monkeypatch.setattr(probe, "_applied_patch_stack", fake_patch_stack)
+
+    def fake_evidence(genome, ccbench_commit, **_kwargs):
+        canonical = genome.canonical()
+        return SimpleNamespace(
+            ccbench_commit=ccbench_commit,
+            genome_sha256=hashlib.sha256(canonical.encode()).hexdigest(),
+            src_token=hashlib.sha256(("src:" + canonical).encode()).hexdigest(),
+            source_bytes_sha256=hashlib.sha256(b"producer-source").hexdigest(),
+        )
+
+    monkeypatch.setattr(probe.source_digest, "resolve_evidence", fake_evidence)
+    monkeypatch.setattr(
+        probe,
+        "derive_build_admission",
+        lambda _context, evidence, **_kwargs: SimpleNamespace(
+            receipt_sha256=hashlib.sha256(
+                ("admission:" + evidence.genome_sha256).encode()
+            ).hexdigest()
+        ),
+    )
+    monkeypatch.setattr(
+        probe.buildcache,
+        "cache_key",
+        lambda genome, *_args, **_kwargs: (
+            hashlib.sha256(genome.canonical().encode()).hexdigest() + "_t0"
+        ),
+    )
+
+    def fake_build(genome, *_args, **_kwargs):
+        canonical = genome.canonical()
+        return SimpleNamespace(
+            binary=canonical,
+            bin_sha256=hashlib.sha256(("binary:" + canonical).encode()).hexdigest(),
+            cached=False,
+            trace=False,
+        )
+
+    monkeypatch.setattr(probe.buildcache, "build", fake_build)
+    monkeypatch.setattr(probe, "_trace_binary_counts", lambda _binary: (0, 0))
+    monkeypatch.setattr(probe, "_append_journal", lambda *_args, **_kwargs: None)
+
+    workload_by_ratio = {"5": "write-heavy", "50": "balanced", "95": "read-heavy"}
+
+    def fake_measure(binary, *, threads, workload, **_kwargs):
+        match = re.search(r"(?:^|,)BACKOFF_STEP_POLICY=([0-2])(?:,|$)", binary)
+        policy = int(match.group(1)) if match is not None else -1
+        coordinate = (
+            state["rep_index"],
+            policy,
+            workload_by_ratio[workload["ycsb_rratio"]],
+            threads,
+        )
+        throughputs = () if coordinate == missing_coordinate else (1_000_000.0,)
+        return SimpleNamespace(
+            throughputs=throughputs,
+            abort_rate=0.0,
+            latency_ns=None,
+            run_cmd=[binary],
+        )
+
+    monkeypatch.setattr(probe, "measure_point", fake_measure)
+    return policy_root, state
+
+
+def _produce_policy_performance_artifacts(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    *,
+    missing_coordinate: tuple[int, int, str, int] | None = None,
+) -> list[Path]:
+    policy_root, state = _install_policy_performance_runtime(
+        monkeypatch,
+        tmp_path,
+        missing_coordinate=missing_coordinate,
+    )
+    paths = []
+    for rep_index in range(18):
+        state["rep_index"] = rep_index
+        runtime = tmp_path / f"runtime-{rep_index}"
+        runtime.mkdir()
+        monkeypatch.setenv("TMPDIR", str(runtime))
+        out = policy_root / f"rep-{rep_index}.json"
+        assert probe.main(
+            [
+                "--repo-head",
+                "a" * 40,
+                "--repo-clean",
+                "1",
+                "--cells",
+                EXPECTED_PERMUTATIONS[rep_index % 6],
+                "--workloads",
+                EXPECTED_POLICY_WORKLOADS,
+                "--threads",
+                EXPECTED_POLICY_THREADS,
+                "--rep-index",
+                str(rep_index),
+                "--step-policy-seed",
+                str(EXPECTED_SEEDS_BY_SLOT[rep_index]),
+                "--out",
+                str(out),
+            ]
+        ) == 0
+        paths.append(out)
+    return paths
+
+
 def _pbs_policy_constants() -> tuple[tuple[str, ...], tuple[int, ...]]:
     pbs_text = PBS.read_text(encoding="utf-8")
     definitions = pbs_text.split('if [[ -z "${PBS_JOBID:-}"', 1)[0]
@@ -2878,8 +3033,158 @@ def test_public_policy_performance_missing_seed_uses_contract_reason() -> None:
         "--out",
         str(probe.DYNAMIC_POLICY_PERFORMANCE_PREFIX / "missing-seed.json"),
     ]
+    with pytest.raises(ValueError, match="step-policy-seed is required"):
+        probe.main(argv)
+
+
+def test_public_policy_performance_wrong_seed_uses_contract_reason() -> None:
+    args, _cells, _workloads, _threads = _policy_contract_values(0)
+    argv = [
+        "--cells",
+        args.cells,
+        "--workloads",
+        args.workloads,
+        "--threads",
+        args.threads,
+        "--rep-index",
+        "0",
+        "--step-policy-seed",
+        str(EXPECTED_SEEDS_BY_SLOT[0] + 1),
+        "--out",
+        str(probe.DYNAMIC_POLICY_PERFORMANCE_PREFIX / "wrong-seed.json"),
+    ]
     with pytest.raises(ValueError, match="policy-performance-contract-violation"):
         probe.main(argv)
+
+
+def test_public_policy_producer_output_is_final_and_analysis_compatible(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    paths = _produce_policy_performance_artifacts(monkeypatch, tmp_path)
+    document = json.loads(paths[0].read_text(encoding="utf-8"))
+    assert document["backoff_policy_performance_prereg_sha256"] == (
+        EXPECTED_POLICY_PREREG_SHA256
+    )
+    assert document["performance_contract"] == "backoff-policy-arm-perf/v1"
+    assert document["headline_eligible"] is False
+    assert document["correctness_status"] == "uncertified"
+    protected = {
+        "backoff_policy_performance_prereg_sha256",
+        "performance_contract",
+        "headline_eligible",
+        "correctness_status",
+    }
+    for row in document["cells"]:
+        assert row["build_trace_enabled"] is False
+        assert row["build_cache_key"].endswith("_t0")
+        assert re.fullmatch(
+            r"[0-9a-f]{64}", row["build_admission_receipt_sha256"]
+        )
+        assert row["source_evidence"]["source_bytes_sha256"] == hashlib.sha256(
+            b"producer-source"
+        ).hexdigest()
+        assert protected.isdisjoint(row)
+    result = policy_analysis.analyze_policy_performance(
+        paths, POLICY_PERFORMANCE_PREREGISTRATION
+    )
+    assert result["analysis_status"] == "complete"
+    assert result["blocks"]["present_rep_indices"] == list(range(18))
+
+
+def test_public_policy_producer_reasoned_missing_is_local_in_analysis(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    missing = (4, 0, "balanced", 12)
+    paths = _produce_policy_performance_artifacts(
+        monkeypatch,
+        tmp_path,
+        missing_coordinate=missing,
+    )
+    missing_rows = []
+    for path in paths:
+        document = json.loads(path.read_text(encoding="utf-8"))
+        missing_rows.extend(
+            row for row in document["cells"] if "missing_reason" in row
+        )
+    assert len(missing_rows) == 1
+    assert missing_rows[0]["median_tps"] is None
+    assert missing_rows[0]["throughputs"] == []
+    assert missing_rows[0]["missing_reason"] == "no-throughput-samples"
+    assert probe._performance_measurement_summary([0.0])[2] == (
+        "nonpositive-throughput"
+    )
+    assert probe._performance_measurement_summary([float("nan")]) == (
+        [],
+        None,
+        "nonfinite-throughput",
+    )
+
+    result = policy_analysis.analyze_policy_performance(
+        paths, POLICY_PERFORMANCE_PREREGISTRATION
+    )
+
+    def point(contrast: str, workload: str, threads: int) -> dict:
+        return next(
+            item
+            for item in result["contrasts"][contrast]["points"]
+            if item["workload"] == workload and item["threads"] == threads
+        )
+
+    for contrast in ("p0/p1", "p0/p2"):
+        affected = point(contrast, "balanced", 12)
+        assert affected["reason"] == "n-insufficient"
+        assert affected["missing_rep_indices"] == [4]
+    assert point("p2/p1", "balanced", 12)["decision"] == "equivalent"
+    assert all(
+        item["reason"] is None
+        for contrast in result["contrasts"].values()
+        for item in contrast["points"]
+        if not (
+            contrast["left"] == "p0"
+            and item["workload"] == "balanced"
+            and item["threads"] == 12
+        )
+    )
+
+
+def test_public_generic_policy_grid_is_accepted_but_uncertified(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    _policy_root, state = _install_policy_performance_runtime(monkeypatch, tmp_path)
+    state["rep_index"] = 0
+    runtime = tmp_path / "generic-runtime"
+    runtime.mkdir()
+    monkeypatch.setenv("TMPDIR", str(runtime))
+    cells = (
+        "none:0:100:1000:10,"
+        "stock:1:100:1000:10,"
+        "cw-as-dyn-p0:1:1:1000:2560:10000:10240:1:1:4:1:0"
+    )
+    out = probe.DYNAMIC_PERFORMANCE_PREFIX / "generic-policy.json"
+    assert probe.main(
+        [
+            "--repo-head",
+            "a" * 40,
+            "--repo-clean",
+            "1",
+            "--cells",
+            cells,
+            "--workloads",
+            "balanced",
+            "--threads",
+            "48",
+            "--out",
+            str(out),
+        ]
+    ) == 0
+    document = json.loads(out.read_text(encoding="utf-8"))
+    assert document["headline_eligible"] is False
+    assert document["correctness_status"] == "uncertified"
+    assert "performance_contract" not in document
+    assert "backoff_policy_performance_prereg_sha256" not in document
 
 
 def test_policy_performance_fields_are_top_level_only_and_require_every_condition(
@@ -2972,6 +3277,97 @@ def test_policy_performance_artifact_is_rejected_by_existing_certification_ident
         )
     assert caught.value.reason == "performance-artifact-contract-rejected"
 
+    markerless_policy = tmp_path / "markerless-policy.json"
+    markerless_policy.write_text(
+        json.dumps(
+            {
+                "schema_version": probe.SCHEMA_VERSION,
+                "kind": "performance-only-probe",
+                "not_certified": probe.NOT_CERTIFIED,
+                "cells": [
+                    probe._cell_identity(
+                        probe.parse_cells(EXPECTED_PERMUTATIONS[0])[0]
+                    )
+                ],
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(probe.CertificationReject) as caught:
+        probe._performance_artifact_identity(
+            markerless_policy,
+            hashlib.sha256(markerless_policy.read_bytes()).hexdigest(),
+        )
+    assert caught.value.reason == "performance-artifact-contract-rejected"
+
+
+def test_policy_performance_artifact_is_rejected_by_both_group_public_paths(
+    tmp_path: Path,
+) -> None:
+    policy = tmp_path / "policy.json"
+    policy.write_text(
+        json.dumps(
+            {
+                "schema_version": probe.SCHEMA_VERSION,
+                "kind": "performance-only-probe",
+                "not_certified": probe.NOT_CERTIFIED,
+                "performance_contract": "backoff-policy-arm-perf/v1",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    policy_sha256 = hashlib.sha256(policy.read_bytes()).hexdigest()
+    identity = {
+        "repository_commit": "a" * 40,
+        "module_sha256": {"verifier.py": "b" * 64},
+    }
+    identity_file_sha256 = "c" * 64
+    result_files = [tmp_path / f"result-{index}.json" for index in range(24)]
+    with pytest.raises(probe.CertificationReject) as caught:
+        probe._group_receipt_payload(
+            result_files,
+            policy,
+            policy_sha256,
+            "attempt-test",
+            identity,
+            identity_file_sha256,
+        )
+    assert caught.value.reason == "performance-artifact-contract-rejected"
+
+    group = tmp_path / "group.json"
+    group.write_text(
+        json.dumps(
+            {
+                "schema_version": probe.GROUP_RECEIPT_SCHEMA_VERSION,
+                "complete": True,
+                "certified_requests": 24,
+                "attempt_id": "attempt-test",
+                "verifier_identity": identity,
+                "expected_verifier_identity_file_sha256": identity_file_sha256,
+                "driver_sha256": "d" * 64,
+                "pbs_sha256": "e" * 64,
+                "driver_argv": ["probe.py", "--mode", "certify"],
+                "repo_status_clean": True,
+                **probe._cell_identity(probe.CERT_TUNED_CELL),
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(probe.CertificationReject) as caught:
+        probe._validate_published_group(
+            group,
+            [],
+            policy,
+            policy_sha256,
+            "attempt-test",
+            identity,
+            identity_file_sha256,
+        )
+    assert caught.value.reason == "performance-artifact-contract-rejected"
+
 
 def _run_extracted_pbs_policy_gate(
     tmp_path: Path, **changes: str
@@ -3054,6 +3450,43 @@ def test_extracted_pbs_policy_gate_rejects_each_drift_before_build(
     )
 
 
+def test_pbs_rejects_submission_head_drift_before_dependency_build(
+    tmp_path: Path,
+) -> None:
+    pbs_text = PBS.read_text(encoding="utf-8")
+    gate = pbs_text.split("# T2417_EXPECTED_REPO_HEAD_GATE_BEGIN\n", 1)[1].split(
+        "# T2417_EXPECTED_REPO_HEAD_GATE_END", 1
+    )[0]
+    gate_script = tmp_path / "expected-head-gate.sh"
+    gate_script.write_text(gate, encoding="utf-8")
+    common = {
+        **os.environ,
+        "IS_POLICY_PERFORMANCE": "1",
+        "REPO_HEAD": "a" * 40,
+    }
+    accepted = subprocess.run(
+        ["/bin/bash", str(gate_script)],
+        check=False,
+        capture_output=True,
+        text=True,
+        env={**common, "EXPECTED_REPO_HEAD": "a" * 40},
+    )
+    assert accepted.returncode == 0, accepted.stderr
+    rejected = subprocess.run(
+        ["/bin/bash", str(gate_script)],
+        check=False,
+        capture_output=True,
+        text=True,
+        env={**common, "EXPECTED_REPO_HEAD": "b" * 40},
+    )
+    assert rejected.returncode == 2
+    assert rejected.stdout == ""
+    assert "policy-performance-repo-head-mismatch" in rejected.stderr
+    assert pbs_text.index("# T2417_EXPECTED_REPO_HEAD_GATE_END") < pbs_text.index(
+        'verify_pinned_clean "$GFLAGS_SOURCE_PATH"'
+    )
+
+
 def test_submit_t2417_uses_one_checkout_and_exact_18_block_ledger(
     tmp_path: Path,
 ) -> None:
@@ -3074,6 +3507,7 @@ def test_submit_t2417_uses_one_checkout_and_exact_18_block_ledger(
     fake_bin = tmp_path / "bin"
     fake_bin.mkdir()
     qsub_log = tmp_path / "qsub.log"
+    ledger_root = tmp_path / "ledgers"
     fake_git = fake_bin / "git"
     fake_git.write_text(
         "#!/bin/bash\n"
@@ -3105,6 +3539,7 @@ def test_submit_t2417_uses_one_checkout_and_exact_18_block_ledger(
             "PATH": f"{fake_bin}:{os.environ['PATH']}",
             "FAKE_REPO_ROOT": str(ROOT.resolve()),
             "QSUB_LOG": str(qsub_log),
+            "IZANAGI_T2417_LEDGER_ROOT": str(ledger_root),
         },
     )
     assert completed.returncode == 0, completed.stderr
@@ -3120,6 +3555,23 @@ def test_submit_t2417_uses_one_checkout_and_exact_18_block_ledger(
     assert [int(entry["seed"]) for entry in ledger] == list(
         EXPECTED_SEEDS_BY_SLOT.values()
     )
+    persisted = [
+        json.loads(line)
+        for line in (ledger_root / "test-attempt.submission-ledger.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()
+    ]
+    assert persisted[0]["event"] == "submission-started"
+    assert persisted[0]["attempt_id"] == "test-attempt"
+    assert persisted[0]["expected_repo_head"] == "0" * 40
+    assert persisted[0]["pbs_sha256"] == hashlib.sha256(PBS.read_bytes()).hexdigest()
+    assert re.fullmatch(
+        r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z",
+        persisted[0]["submitted_utc"],
+    )
+    assert persisted[1:19] == ledger
+    assert persisted[-1]["event"] == "submission-complete"
+    assert persisted[-1]["submitted"] == 18
 
     qsub_lines = qsub_log.read_text(encoding="utf-8").splitlines()
     assert len(qsub_lines) == 18
@@ -3134,6 +3586,7 @@ def test_submit_t2417_uses_one_checkout_and_exact_18_block_ledger(
     assert set(environments[0]) == {
         "IZANAGI_T2187_MODE",
         "IZANAGI_T2187_BACKOFF_TRACE",
+        "IZANAGI_T2187_EXPECTED_REPO_HEAD",
         "IZANAGI_T2187_OUT_DIR",
         "IZANAGI_T2187_CELLS",
         "IZANAGI_T2187_WORKLOADS",
@@ -3152,6 +3605,10 @@ def test_submit_t2417_uses_one_checkout_and_exact_18_block_ledger(
         "IZANAGI_T2187_REP_INDEX",
         "IZANAGI_T2187_STEP_POLICY_SEED",
     }
+    assert {
+        environment["IZANAGI_T2187_EXPECTED_REPO_HEAD"]
+        for environment in environments
+    } == {"0" * 40}
     assert [
         int(environment["IZANAGI_T2187_REP_INDEX"])
         for environment in environments
@@ -3165,6 +3622,83 @@ def test_submit_t2417_uses_one_checkout_and_exact_18_block_ledger(
         for environment in environments
     ] == list(EXPECTED_SEEDS_BY_SLOT.values())
     assert 'if [[ "$submitted" -ne 18 ]]' in submit_text
+
+
+def test_submit_t2417_records_partial_jobs_prints_qdel_and_rejects_attempt_reuse(
+    tmp_path: Path,
+) -> None:
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    qsub_log = tmp_path / "qsub.log"
+    ledger_root = tmp_path / "ledgers"
+    fake_git = fake_bin / "git"
+    fake_git.write_text(
+        "#!/bin/bash\n"
+        "case \"$*\" in\n"
+        "  *'rev-parse --show-toplevel'*) printf '%s\\n' \"$FAKE_REPO_ROOT\" ;;\n"
+        "  *'rev-parse HEAD'*) printf '%040d\\n' 0 ;;\n"
+        "  *'symbolic-ref -q HEAD'*) exit 1 ;;\n"
+        "  *'status --porcelain --untracked-files=all'*) exit 0 ;;\n"
+        "  *) exit 9 ;;\n"
+        "esac\n",
+        encoding="utf-8",
+    )
+    fake_qsub = fake_bin / "qsub"
+    fake_qsub.write_text(
+        "#!/bin/bash\n"
+        "count=0\n"
+        "if [[ -f \"$QSUB_LOG\" ]]; then count=$(wc -l < \"$QSUB_LOG\"); fi\n"
+        "printf '%s\\n' \"$*\" >> \"$QSUB_LOG\"\n"
+        "if [[ $count -ge 3 ]]; then exit 1; fi\n"
+        "printf '%d.test\\n' \"$((100 + count))\"\n",
+        encoding="utf-8",
+    )
+    fake_git.chmod(0o755)
+    fake_qsub.chmod(0o755)
+    environment = {
+        **os.environ,
+        "PATH": f"{fake_bin}:{os.environ['PATH']}",
+        "FAKE_REPO_ROOT": str(ROOT.resolve()),
+        "QSUB_LOG": str(qsub_log),
+        "IZANAGI_T2417_LEDGER_ROOT": str(ledger_root),
+    }
+    completed = subprocess.run(
+        ["/bin/bash", str(SUBMIT_T2417), "partial-attempt"],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=environment,
+    )
+    assert completed.returncode == 1
+    assert "submitted job IDs: 100.test 101.test 102.test\n" in completed.stdout
+    assert "qdel -- 100.test 101.test 102.test\n" in completed.stdout
+    persisted = [
+        json.loads(line)
+        for line in (ledger_root / "partial-attempt.submission-ledger.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()
+    ]
+    assert [entry["job_id"] for entry in persisted if "job_id" in entry] == [
+        "100.test",
+        "101.test",
+        "102.test",
+    ]
+    assert persisted[-1]["event"] == "submission-failed"
+    assert persisted[-1]["rep_index"] == 3
+    assert persisted[-1]["reason"] == "qsub-failed"
+    assert len(qsub_log.read_text(encoding="utf-8").splitlines()) == 4
+
+    reused = subprocess.run(
+        ["/bin/bash", str(SUBMIT_T2417), "partial-attempt"],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=environment,
+    )
+    assert reused.returncode == 2
+    assert reused.stdout == ""
+    assert "attempt id already has a submission ledger" in reused.stderr
+    assert len(qsub_log.read_text(encoding="utf-8").splitlines()) == 4
 
 
 def test_backoff_trace_mode_rejects_nonzero_rep_index_only(tmp_path: Path) -> None:

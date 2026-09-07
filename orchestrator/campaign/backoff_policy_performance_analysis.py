@@ -690,8 +690,8 @@ def _hypotheses(contrasts: dict) -> dict:
     ]
     complete_h3 = [point for point in h3_points if point["ci95"] is not None]
     if any(
-        point["ci95"]["upper_log"] <= -margin
-        or point["ci95"]["lower_log"] >= margin
+        point["ci95"]["upper_log"] < -margin
+        or point["ci95"]["lower_log"] > margin
         for point in complete_h3
     ):
         h3 = {"decision": "rejected", "reason": None, "missing_rep_indices": []}
