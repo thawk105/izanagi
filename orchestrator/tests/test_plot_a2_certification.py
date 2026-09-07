@@ -190,6 +190,14 @@ def _current_fixture(tmp_path: Path, *, reverse_policy_order: bool = False) -> d
     producer = _producer()
     frozen = json.loads((REPO / "output/insights/2026-08-24_paper-story-a2-certification/certification.json").read_text())
     policy_document = json.loads(base64.b64decode(frozen["policy_bytes_base64"], validate=True))
+    policy_document["trace0_cmake_argv"]["configure"][
+        "fetchcontent_path_argument_prefixes"
+    ] = [
+        "-DFETCHCONTENT_BASE_DIR=",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=",
+    ]
     if reverse_policy_order:
         policy_document["workloads"] = list(reversed(policy_document["workloads"]))
         policy_document["cells"] = policy_document["cells"][2:] + policy_document["cells"][:2]
@@ -319,6 +327,75 @@ def _current_fixture(tmp_path: Path, *, reverse_policy_order: bool = False) -> d
     return fixture
 
 
+def _replace_embedded_policy_bytes(fixture: dict, policy_bytes: bytes) -> None:
+    certification = json.loads(fixture["cert"].read_text(encoding="utf-8"))
+    certification["policy_sha256"] = hashlib.sha256(policy_bytes).hexdigest()
+    certification["policy_bytes_base64"] = base64.b64encode(policy_bytes).decode("ascii")
+    fixture["cert"].write_text(
+        json.dumps(certification, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _historical_policy_fixture(plot, fixture: dict, monkeypatch) -> tuple[str, str]:
+    """Turn a valid current fixture into one exact pre-T2198 policy point."""
+    producer = _producer()
+    certification = json.loads(fixture["cert"].read_text(encoding="utf-8"))
+    document = json.loads(base64.b64decode(
+        certification["policy_bytes_base64"], validate=True))
+    del document["trace0_cmake_argv"]["configure"][
+        "fetchcontent_path_argument_prefixes"
+    ]
+    policy_bytes = (
+        json.dumps(document, ensure_ascii=True, indent=2) + "\n"
+    ).encode("utf-8")
+    policy_sha256 = hashlib.sha256(policy_bytes).hexdigest()
+    protocol_sha256 = hashlib.sha256(producer._canonical_json(
+        producer._protocol_preimage(document))).hexdigest()
+
+    for cell in SAMPLES:
+        raw_path = (
+            fixture["root"]
+            / f"jobs/{cell.split('-')[0]}/raw/{cell}.json"
+        )
+        raw = json.loads(raw_path.read_text(encoding="utf-8"))
+        raw["protocol_sha256"] = protocol_sha256
+        _write(raw_path, raw)
+    manifest = json.loads(fixture["manifest"].read_text(encoding="utf-8"))
+    manifest["protocol_sha256"] = protocol_sha256
+    for cell in SAMPLES:
+        raw_path = (
+            fixture["root"]
+            / f"jobs/{cell.split('-')[0]}/raw/{cell}.json"
+        )
+        manifest["files"][raw_path.relative_to(fixture["root"]).as_posix()] = _sha(raw_path)
+    fixture["manifest"].write_text(
+        json.dumps(manifest, separators=(",", ":")) + "\n", encoding="utf-8")
+
+    certification["protocol_sha256"] = protocol_sha256
+    certification["policy_sha256"] = policy_sha256
+    certification["policy_bytes_base64"] = base64.b64encode(
+        policy_bytes).decode("ascii")
+    fixture["cert"].write_text(
+        json.dumps(certification, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+    certification_sha256 = _sha(fixture["cert"])
+    monkeypatch.setattr(plot, "HISTORICAL_CURRENT_POLICY_VIEWS", {
+        (certification_sha256, policy_sha256): {
+            "protocol_schema": "paper-story-a2-certification-policy/v2",
+            "protocol_sha256": protocol_sha256,
+            "trace0_configure_keys": frozenset({
+                "source_option", "build_directory_option", "fixed_arguments",
+                "toolchain_arguments", "dependency_prefix_argument",
+                "controlled_define_argument",
+            }),
+        },
+    })
+    fixture["historical_policy_bytes"] = policy_bytes
+    return certification_sha256, policy_sha256
+
+
 def _hashes(fixture: dict) -> dict[str, str]:
     return {"certification": _sha(fixture["cert"]), "raw_manifest": _sha(fixture["manifest"])}
 
@@ -434,6 +511,142 @@ def test_current_full_profile_uses_producer_policy_and_exact_twelve_file_closure
     provenance = json.loads(Path(str(fixture["prefix"]) + ".provenance.json").read_text())
     assert len(provenance["external_inputs"]) == 12
     assert provenance["gate_note"] == data["gate_note"]
+
+
+def test_historical_policy_registry_contains_only_the_exact_t2364_pair():
+    plot = _plot()
+    pair = (
+        "e74d0f870497941b95ac4d1e244634188813e249f2821d571178e4854a3ed671",
+        "67dce5a785dfc52d5df9b773f7a65905a030b7bd61ab7706704e2ed8e85a0487",
+    )
+    assert set(plot.HISTORICAL_CURRENT_POLICY_VIEWS) == {pair}
+    assert plot.HISTORICAL_CURRENT_POLICY_VIEWS[pair] == {
+        "protocol_schema": "paper-story-a2-certification-policy/v2",
+        "protocol_sha256": "136b823e60a4b43e07dbbb4e3f8b5be48964226c955e143d59955325f0e0d9f4",
+        "trace0_configure_keys": frozenset({
+            "source_option", "build_directory_option", "fixed_arguments",
+            "toolchain_arguments", "dependency_prefix_argument",
+            "controlled_define_argument",
+        }),
+    }
+
+
+def test_historical_exact_hash_pair_uses_the_historical_policy_view(
+        tmp_path, monkeypatch):
+    plot, fixture = _plot(), _current_fixture(tmp_path)
+    _historical_policy_fixture(plot, fixture, monkeypatch)
+    data = _load(plot, fixture)
+    assert data["measurement_conditions"]["artifact_profile"] == "current-full"
+    assert [row["cell_id"] for row in data["cells"]] == list(SAMPLES)
+
+
+def test_historical_rejects_changed_certification_bytes(tmp_path, monkeypatch):
+    plot, fixture = _plot(), _current_fixture(tmp_path)
+    _historical_policy_fixture(plot, fixture, monkeypatch)
+    _change_cert(
+        fixture,
+        lambda report: report.__setitem__("source_commit", "changed-source"),
+    )
+    with pytest.raises(
+            plot.FigureDataError,
+            match="fetchcontent_path_argument_prefixes"):
+        _load(plot, fixture)
+
+
+def test_historical_rejects_changed_embedded_policy_hash(tmp_path, monkeypatch):
+    plot, fixture = _plot(), _current_fixture(tmp_path)
+    _historical_policy_fixture(plot, fixture, monkeypatch)
+    _change_cert(
+        fixture,
+        lambda report: report.__setitem__("policy_sha256", "0" * 64),
+    )
+    with pytest.raises(
+            plot.FigureDataError, match="embedded policy SHA-256 mismatch"):
+        _load(plot, fixture)
+
+
+def test_historical_rejects_unknown_bytes_with_the_same_v2_version(
+        tmp_path, monkeypatch):
+    plot, fixture = _plot(), _current_fixture(tmp_path)
+    _historical_policy_fixture(plot, fixture, monkeypatch)
+    unknown = fixture["historical_policy_bytes"] + b"\n"
+    _replace_embedded_policy_bytes(fixture, unknown)
+    assert json.loads(unknown)["schema_version"] == "paper-story-a2-certification-policy/v2"
+    with pytest.raises(
+            plot.FigureDataError,
+            match="fetchcontent_path_argument_prefixes"):
+        _load(plot, fixture)
+
+
+def test_historical_rejects_unknown_content_with_the_same_six_keys(
+        tmp_path, monkeypatch):
+    plot, fixture = _plot(), _current_fixture(tmp_path)
+    _historical_policy_fixture(plot, fixture, monkeypatch)
+    document = json.loads(fixture["historical_policy_bytes"])
+    document["tracked_destination"] = "output/insights/unknown-policy-content"
+    unknown = (json.dumps(document, ensure_ascii=True, indent=2) + "\n").encode()
+    _replace_embedded_policy_bytes(fixture, unknown)
+    assert set(document["trace0_cmake_argv"]["configure"]) == {
+        "source_option", "build_directory_option", "fixed_arguments",
+        "toolchain_arguments", "dependency_prefix_argument",
+        "controlled_define_argument",
+    }
+    with pytest.raises(
+            plot.FigureDataError,
+            match="fetchcontent_path_argument_prefixes"):
+        _load(plot, fixture)
+
+
+def test_unknown_policy_hash_flows_to_the_current_producer_loader(
+        tmp_path, monkeypatch):
+    plot, fixture = _plot(), _current_fixture(tmp_path)
+    _historical_policy_fixture(plot, fixture, monkeypatch)
+    unknown = fixture["historical_policy_bytes"] + b"\n"
+    _replace_embedded_policy_bytes(fixture, unknown)
+    producer = _producer()
+    original = producer.load_policy
+    observed = []
+
+    def observe(path):
+        observed.append(Path(path).read_bytes())
+        return original(path)
+
+    monkeypatch.setattr(producer, "load_policy", observe)
+    with pytest.raises(
+            plot.FigureDataError,
+            match="fetchcontent_path_argument_prefixes"):
+        _load(plot, fixture)
+    assert observed == [unknown]
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        ("delete-key", "fetchcontent_path_argument_prefixes"),
+        ("delete-element", "FetchContent path grammar"),
+    ],
+)
+def test_current_producer_still_rejects_fetchcontent_grammar_weakening(
+        tmp_path, mutation, message):
+    plot, fixture = _plot(), _current_fixture(tmp_path)
+    certification = json.loads(fixture["cert"].read_text(encoding="utf-8"))
+    document = json.loads(base64.b64decode(
+        certification["policy_bytes_base64"], validate=True))
+    prefixes = document["trace0_cmake_argv"]["configure"][
+        "fetchcontent_path_argument_prefixes"
+    ]
+    if mutation == "delete-key":
+        del document["trace0_cmake_argv"]["configure"][
+            "fetchcontent_path_argument_prefixes"
+        ]
+    else:
+        prefixes.pop()
+    policy_bytes = (
+        json.dumps(document, ensure_ascii=True, indent=2) + "\n"
+    ).encode("utf-8")
+    _replace_embedded_policy_bytes(fixture, policy_bytes)
+    with pytest.raises(plot.FigureDataError, match=message):
+        _load(plot, fixture)
 
 
 def test_current_rejects_embedded_policy_hash_mismatch(tmp_path):

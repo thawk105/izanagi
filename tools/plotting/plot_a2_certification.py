@@ -54,6 +54,20 @@ CANONICAL_SHA256 = {
         "raw_manifest": "b23ee2ee6ff36d2377da80c2cf4eccc925bae9c3d89aab8a6a8543edfe9ae319",
     },
 }
+HISTORICAL_CURRENT_POLICY_VIEWS = {
+    (
+        "e74d0f870497941b95ac4d1e244634188813e249f2821d571178e4854a3ed671",
+        "67dce5a785dfc52d5df9b773f7a65905a030b7bd61ab7706704e2ed8e85a0487",
+    ): {
+        "protocol_schema": "paper-story-a2-certification-policy/v2",
+        "protocol_sha256": "136b823e60a4b43e07dbbb4e3f8b5be48964226c955e143d59955325f0e0d9f4",
+        "trace0_configure_keys": frozenset({
+            "source_option", "build_directory_option", "fixed_arguments",
+            "toolchain_arguments", "dependency_prefix_argument",
+            "controlled_define_argument",
+        }),
+    },
+}
 DEFAULT_ROOT = Path("/work/1/SFC/tanab/izanagi-measurements/"
                     "dev-wave-paper-story-a2-cert-20260824/t2022-20260828c")
 DEFAULT_CERT = REPO_ROOT / "output/insights/2026-08-24_paper-story-a2-certification/certification.json"
@@ -159,7 +173,87 @@ def _profile(certification: Mapping[str, Any], manifest: Mapping[str, Any]) -> s
             "or current-full profile"
         )
 
-def _load_current_policy(certification: Mapping[str, Any]):
+def _producer_policy_from_bytes(producer, raw: bytes):
+    path: Path | None = None
+    try:
+        descriptor, raw_path = tempfile.mkstemp(
+            prefix="a2-embedded-policy-", suffix=".json")
+        path = Path(raw_path)
+        with os.fdopen(descriptor, "wb") as stream:
+            stream.write(raw)
+            stream.flush()
+        return producer.load_policy(path)
+    finally:
+        if path is not None:
+            try:
+                path.unlink()
+            except FileNotFoundError:
+                pass
+
+
+def _historical_policy_view(producer, raw: bytes, raw_sha256: str,
+                            entry: Mapping[str, Any]):
+    document = producer._loads_json(raw, "historical embedded policy")
+    configure = (
+        document.get("trace0_cmake_argv", {}).get("configure")
+        if type(document) is dict else None
+    )
+    if (type(document) is not dict
+            or document.get("schema_version") != entry["protocol_schema"]):
+        raise producer.CertificationError(
+            "historical embedded policy schema assertion failed")
+    if (type(configure) is not dict
+            or frozenset(configure) != entry["trace0_configure_keys"]):
+        raise producer.CertificationError(
+            "historical trace0 configure key assertion failed")
+    protocol_sha256 = hashlib.sha256(producer._canonical_json(
+        producer._protocol_preimage(document))).hexdigest()
+    if protocol_sha256 != entry["protocol_sha256"]:
+        raise producer.CertificationError(
+            "historical embedded policy protocol assertion failed")
+
+    try:
+        common = document["performance_common"]
+        workloads = {
+            workload["id"]: workload for workload in document["workloads"]
+        }
+        cells = []
+        for cell in document["cells"]:
+            workload = workloads[cell["workload"]]
+            cells.append(producer.CellSpec(
+                cell_id=cell["id"],
+                workload_id=cell["workload"],
+                workload_label=workload["label"],
+                role=cell["role"],
+                genome=dict(cell["genome"]),
+                perf={
+                    "records": common["records"],
+                    "threads": common["threads"],
+                    "workload": {
+                        "ycsb_zipf_skew": common["skew"],
+                        "ycsb_rratio": workload["rratio"],
+                        "ycsb_rmw": common["rmw"],
+                        "ycsb_max_ope": common["max_ope"],
+                    },
+                    "extime": common["extime"],
+                    "reps": common["reps"],
+                },
+            ))
+    except (KeyError, TypeError) as exc:
+        raise producer.CertificationError(
+            "historical embedded policy view is malformed") from exc
+    return producer.Policy(
+        path=Path("<historical-embedded-policy>"),
+        document=document,
+        raw_bytes=raw,
+        bytes_sha256=raw_sha256,
+        protocol_sha256=protocol_sha256,
+        cells=tuple(cells),
+    )
+
+
+def _load_current_policy(certification: Mapping[str, Any],
+                         certification_sha256: str):
     encoded = certification.get("policy_bytes_base64")
     expected_sha = certification.get("policy_sha256")
     if type(encoded) is not str or type(expected_sha) is not str:
@@ -168,30 +262,32 @@ def _load_current_policy(certification: Mapping[str, Any]):
         raw = base64.b64decode(encoded, validate=True)
     except (ValueError, binascii.Error) as exc:
         raise FigureDataError("current certification policy bytes are not strict base64") from exc
-    if base64.b64encode(raw).decode("ascii") != encoded or hashlib.sha256(raw).hexdigest() != expected_sha:
+    raw_sha256 = hashlib.sha256(raw).hexdigest()
+    if (base64.b64encode(raw).decode("ascii") != encoded
+            or raw_sha256 != expected_sha):
         _fail("current certification embedded policy SHA-256 mismatch")
     # Reuse the producer's exact policy grammar instead of maintaining a
     # plot-only approximation of the scientific protocol.
     if str(REPO_ROOT) not in sys.path:
         sys.path.insert(0, str(REPO_ROOT))
     from orchestrator.campaign import paper_story_a2_certification as producer
-    path: Path | None = None
     try:
-        descriptor, raw_path = tempfile.mkstemp(prefix="a2-embedded-policy-", suffix=".json")
-        path = Path(raw_path)
-        with os.fdopen(descriptor, "wb") as stream:
-            stream.write(raw)
-            stream.flush()
-        policy = producer.load_policy(path)
+        historical = HISTORICAL_CURRENT_POLICY_VIEWS.get(
+            (certification_sha256, raw_sha256))
+        if historical is None:
+            policy = _producer_policy_from_bytes(producer, raw)
+        else:
+            if (certification.get("protocol_schema")
+                    != historical["protocol_schema"]
+                    or certification.get("protocol_sha256")
+                    != historical["protocol_sha256"]):
+                raise producer.CertificationError(
+                    "historical certification protocol assertion failed")
+            policy = _historical_policy_view(
+                producer, raw, raw_sha256, historical)
         producer._validate_certification_cells(certification, legacy=False)
     except (OSError, producer.CertificationError) as exc:
         raise FigureDataError(f"current certification embedded policy is invalid: {exc}") from exc
-    finally:
-        if path is not None:
-            try:
-                path.unlink()
-            except FileNotFoundError:
-                pass
     if (certification.get("protocol_schema") != producer.POLICY_SCHEMA
             or certification.get("study") != policy.study
             or certification.get("protocol_sha256") != policy.protocol_sha256):
@@ -488,7 +584,7 @@ def load_measurements(
     manifest_row["schema"] = manifest["schema_version"]
     policy = producer = None
     if profile == "current-full":
-        policy, producer = _load_current_policy(certification)
+        policy, producer = _load_current_policy(certification, cert_row["sha256"])
         workloads = tuple(str(row["id"]) for row in policy.document["workloads"])
         cell_ids = tuple(cell.cell_id for cell in policy.cells)
         if (not isinstance(certification.get("status"), str)
