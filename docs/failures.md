@@ -22655,6 +22655,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   advisory lock 等) を置く wave は、段 1 で対象の durable base 上に最小 probe を 1 回走らせ、
   fixture が代表していない環境差を投入前に出す。`docs/dev-wave/core.md` `DW-S01` の
   「別 program 起動物の実在棚卸し」の対象に、公開先 file system が primitive を受けるかを含める。
+- **supersede: 2026-09-08** — 恒久対応が指す実装が着地した。group submission receipt と `complete` の completion receipt は完成した staging への `os.link` で公開し、materialize の directory 公開は現行のまま残す (D1766)。
 
 ### F871. 棚卸しの発火窓を前回の裁定時刻で切り、照合を directory 単位で行って再訪条件 7 件を「発火 0 件」と誤判定しかけた [手順漏れ] [ドリフト]
 
@@ -23045,3 +23046,59 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   走行中に上がった結果、「その版が要求を満たしていない」という非保証が偽になった。
   偽の非保証を残すことは、検査していないことを検査済みと読ませるのと同じ向きの誤りである。
   非保証は「現に証明していないこと」を述べる形へ保つ。
+
+### F893. 測定は完走したのに認証成果物を公開できず 2 段で止まった [手順漏れ] [環境前提]
+
+- 事象: A-6 read-heavy の実走が `driver_rc=0` で完走し受領証も揃ったのに、`collect` が
+  2 回続けて非 0 で止まった。1 回目は
+  `qsub -v is not bound to workload and current pin`、2 回目は
+  `tracked destination is not a fresh exact leaf`。
+- 根本原因: 独立な 2 件が重なっていた。(1) `collect` は投入時に記録した policy の
+  **絶対 path** と、実行時に解決した policy の path を突き合わせる。投入は隔離した投入用
+  checkout から行い、`collect` を記録用 worktree から実行したので不一致になった
+  (**`collect` は投入した checkout から実行する**)。(2) policy の `tracked_destination` が、
+  前走失敗時に手で書いた insight directory を指していた。`collect` は空の新しい leaf を
+  要求するので、以後この policy では永久に公開できない状態だった。
+- 恒久対応: (2) は `tracked_destination` を空の新しい leaf へ更新して解いた。この key は
+  `_protocol_preimage` に含まれないので `protocol_sha256` は動かない (実計算で確認)。
+  **公開先と手書き insight の置き場を同じにしない。**
+- 再発検知: (1) は既存 A-2 受領証が現配置で再検証できない件と同じ族であり、
+  投入 checkout の path が生きているかに依存する。撤去前に `collect` を済ませる。
+
+### F894. Lustre の EINVAL 対策が兄弟 writer 1 箇所だけ取り残されていた [consumer 取り残し]
+
+- 事象: A-6 read-heavy の実走が、条件 gate を 2 cell とも通過した直後に
+  `[Errno 22] Invalid argument` で 36 秒で終了した。
+- 根本原因: Lustre に `renameat2(RENAME_NOREPLACE)` が無い (実測: /work・/home で EINVAL、
+  ノード内蔵 /tmp で成功)。同じ file の materialize 経路は先行 commit で代替を得ていたが、
+  regular file を publish する `_atomic_write_bytes_noreplace` は代替を持たないまま残っていた。
+- 恒久対応: D1762。
+- 再発検知: 許可 errno・上書き禁止・非許可 errno の伝播・後始末失敗時の非失敗を、
+  それぞれ 1 本のテストで固定し、変異 4 件で単独帰属を確認した。
+- 併発: 同じ欠陥へ main 側の別 wave が独立に、より弱い修復を先に着地させていた。
+  受入の post-claim merge が競合し、Codex `role=author` の合成子による合成が必要になった。
+  **同一の欠陥へ複数 wave が同時に着手していることを、着手前の編集面重複検査は捕まえられない**
+  — 検査は path の重なりを見るが、main 側 wave はその時点でまだ着地していなかった。
+
+### F895. hard link 公開への切替えが、staging と宛先を同一 inode にして撤去処理へ受領証削除の経路を開きかけた [恒真ゲート] [手順漏れ]
+
+- 事象: 受領証の公開を `renameat2(RENAME_NOREPLACE)` から `os.link` へ替える段 2 プランは、
+  公開成功後に staging を撤去する経路を足しつつ、撤去側の `(st_dev, st_ino)` 照合を
+  **rename 時代のまま**据え置いていた。段 3 の敵対相談が、公開後に第三者が
+  `unlink(staging)` と `rename(destination, staging)` を行うと照合が通り、
+  撤去が受領証の最後の link を消して**例外なしで成功が返る**並びを実証した。着地前に閉じた。
+- 根本原因: rename では公開後に staging 名が消えるため撤去処理そのものが存在せず、
+  identity 照合は「自分が作った staging か」だけを見ればよかった。hard link は
+  **2 つの名前が同じ inode を指す**ので、同じ照合が「宛先を staging 名へ移したもの」も
+  通してしまう。**公開 primitive を替えると、その primitive に紐づく不変条件も替わる**という
+  点がプランから抜けていた。既存テストも rename 時代の性質しか固定していなかった。
+- 恒久対応: D1767。公開済み経路の撤去は宛先の存在と
+  identity 一致を前提にし、不成立なら unlink せず fail-closed で止める。
+  正例・負例は `orchestrator/tests/test_paper_story_a1_job_contract.py` の
+  `test_published_receipt_cleanup_preserves_same_inode_after_destination_move` と
+  `test_published_receipt_cleanup_preserves_staging_when_destination_disappears`
+  が持ち、変異 `t2396.m01a` / `t2396.m01b` が両 guard を単独で殺せることを実測した。
+- 再発検知: 公開・施錠・claim の primitive を差し替える wave は、**差し替え前の primitive が
+  暗黙に与えていた不変条件**を 1 つずつ書き出して、差し替え後も成立するかを見る。
+  `os.link` のように 2 つの名前が同じ inode を指す形へ移す場合は、identity 照合が
+  「どちらの名前か」を区別できなくなる点を必ず攻撃面に入れる。
