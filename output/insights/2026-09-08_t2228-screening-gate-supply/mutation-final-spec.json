@@ -1,0 +1,276 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 150,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/screening_driver.py",
+          "old": "        cmake=resolved_cmake,\n        expected_toolchain_manifest=expected_toolchain_manifest,\n    )",
+          "new": "        cmake=resolved_cmake,\n    )"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_screening_driver.py::test_evaluate_candidate_prepare_failure_escapes_without_wal_abort",
+        "orchestrator/tests/test_screening_driver.py::test_evaluate_candidate_uses_one_canonical_root_for_prepare_gate_and_build",
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_gate_is_before_real_evaluate_build_sink"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/screening_driver.py",
+          "old": "            source_root, genome, stock_root=stock_root, cxx=cxx, cmake=cmake,\n            expected_toolchain_manifest=expected_toolchain_manifest,",
+          "new": "            source_root, genome, stock_root=stock_root, cxx=cxx, cmake=cmake,\n            expected_toolchain_manifest=None,"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_gate_prepare_is_nested_inside_stock_checkout"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/screening_driver.py",
+          "old": "        configure_args = _condition_gate_base_configure_args(genome)\n        if expected_toolchain_manifest is not None:\n",
+          "new": "        configure_args = _condition_gate_base_configure_args(genome)\n        if expected_toolchain_manifest is None:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_screening_driver.py::test_evaluate_candidate_prepare_failure_escapes_without_wal_abort",
+        "orchestrator/tests/test_screening_driver.py::test_evaluate_candidate_uses_one_canonical_root_for_prepare_gate_and_build",
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_gate_accepts_real_runtime_genome_value",
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_gate_prepare_is_nested_inside_stock_checkout",
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_gate_prepares_once_with_exact_fetchcontent_arguments",
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_gate_rejects_real_ignored_runtime_define",
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_gate_supplies_prepared_base_to_real_supply_arm",
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_gate_without_manifest_preserves_unsupplied_path"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/screening_driver.py",
+          "old": "    requests = _condition_requests_for_genome(genome)\n    if not requests:\n        return None\n    _require_requests_match_genome_build_arguments(genome, requests)\n    with ExitStack() as stack:",
+          "new": "    requests = _condition_requests_for_genome(genome)\n    _require_requests_match_genome_build_arguments(genome, requests)\n    with ExitStack() as stack:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_gate_no_requests_does_not_prepare_with_manifest"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5a",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/screening_driver.py",
+          "old": "            buildcache.prepare_masstree_fetchcontent(\n                ccbench_dir=source_root,\n                fetchcontent_base_dir=fetchcontent_base_dir,\n                expected_toolchain_manifest=expected_toolchain_manifest,\n                configure_timeout_s=900,\n                target_timeout_s=900,\n                site=None,\n            )\n",
+          "new": "            pass\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_screening_driver.py::test_evaluate_candidate_prepare_failure_escapes_without_wal_abort",
+        "orchestrator/tests/test_screening_driver.py::test_evaluate_candidate_uses_one_canonical_root_for_prepare_gate_and_build",
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_gate_prepare_is_nested_inside_stock_checkout",
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_gate_prepares_once_with_exact_fetchcontent_arguments",
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_gate_rejects_real_ignored_runtime_define",
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_gate_supplies_prepared_base_to_real_supply_arm"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5b",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/screening_driver.py",
+          "old": "            buildcache.prepare_masstree_fetchcontent(\n                ccbench_dir=source_root,\n                fetchcontent_base_dir=fetchcontent_base_dir,\n                expected_toolchain_manifest=expected_toolchain_manifest,\n                configure_timeout_s=900,\n                target_timeout_s=900,\n                site=None,\n            )\n",
+          "new": "            buildcache.prepare_masstree_fetchcontent(\n                ccbench_dir=source_root,\n                fetchcontent_base_dir=fetchcontent_base_dir,\n                expected_toolchain_manifest=expected_toolchain_manifest,\n                configure_timeout_s=900,\n                target_timeout_s=900,\n                site=None,\n            )\n            buildcache.prepare_masstree_fetchcontent(\n                ccbench_dir=source_root,\n                fetchcontent_base_dir=fetchcontent_base_dir,\n                expected_toolchain_manifest=expected_toolchain_manifest,\n                configure_timeout_s=900,\n                target_timeout_s=900,\n                site=None,\n            )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_screening_driver.py::test_evaluate_candidate_uses_one_canonical_root_for_prepare_gate_and_build",
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_gate_prepare_is_nested_inside_stock_checkout",
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_gate_prepares_once_with_exact_fetchcontent_arguments",
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_gate_rejects_real_ignored_runtime_define",
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_gate_supplies_prepared_base_to_real_supply_arm"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6a",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/screening_driver.py",
+          "old": "                ccbench_dir=source_root,\n",
+          "new": "                ccbench_dir=stock_root,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_screening_driver.py::test_evaluate_candidate_uses_one_canonical_root_for_prepare_gate_and_build",
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_gate_prepares_once_with_exact_fetchcontent_arguments"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7a",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/screening_driver.py",
+          "old": "                configure_timeout_s=900,\n",
+          "new": "                configure_timeout_s=90,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_gate_prepares_once_with_exact_fetchcontent_arguments"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7b",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/screening_driver.py",
+          "old": "                target_timeout_s=900,\n",
+          "new": "                target_timeout_s=90,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_gate_prepares_once_with_exact_fetchcontent_arguments"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/screening_driver.py",
+          "old": "                site=None,\n",
+          "new": "                site=\"OTHER\",\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_gate_prepares_once_with_exact_fetchcontent_arguments"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/screening_driver.py",
+          "old": "                f\"-DFETCHCONTENT_BASE_DIR={fetchcontent_base_dir}\",\n",
+          "new": "                f\"-DFETCHCONTENT_BASE_DIR={source_root}\",\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_screening_driver.py::test_evaluate_candidate_uses_one_canonical_root_for_prepare_gate_and_build",
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_gate_prepare_is_nested_inside_stock_checkout",
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_gate_prepares_once_with_exact_fetchcontent_arguments",
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_gate_supplies_prepared_base_to_real_supply_arm"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/screening_driver.py",
+          "old": "        captured = condition_meaning_gate.capture_define_inputs(\n",
+          "new": "        stack.close()\n        captured = condition_meaning_gate.capture_define_inputs(\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_gate_prepare_is_nested_inside_stock_checkout",
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_gate_prepares_once_with_exact_fetchcontent_arguments",
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_gate_supplies_prepared_base_to_real_supply_arm"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/screening_driver.py",
+          "old": "            buildcache.prepare_masstree_fetchcontent(\n                ccbench_dir=source_root,\n                fetchcontent_base_dir=fetchcontent_base_dir,\n                expected_toolchain_manifest=expected_toolchain_manifest,\n                configure_timeout_s=900,\n                target_timeout_s=900,\n                site=None,\n            )\n",
+          "new": "            try:\n                buildcache.prepare_masstree_fetchcontent(\n                    ccbench_dir=source_root,\n                    fetchcontent_base_dir=fetchcontent_base_dir,\n                    expected_toolchain_manifest=expected_toolchain_manifest,\n                    configure_timeout_s=900,\n                    target_timeout_s=900,\n                    site=None,\n                )\n            except buildcache.MasstreeFetchContentError:\n                pass\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_screening_driver.py::test_evaluate_candidate_prepare_failure_escapes_without_wal_abort"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M12",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/screening_driver.py",
+          "old": "        if not admission.admitted:\n",
+          "new": "        if not admission.admitted and expected_toolchain_manifest is None:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_gate_fails_without_prepared_base_side_effect",
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_gate_rejects_real_ignored_runtime_define"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M13",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/screening_driver.py",
+          "old": "            configure_args=configure_args,\n",
+          "new": "            configure_args=_condition_gate_base_configure_args(genome),\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_screening_driver.py::test_evaluate_candidate_uses_one_canonical_root_for_prepare_gate_and_build",
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_gate_prepare_is_nested_inside_stock_checkout",
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_gate_prepares_once_with_exact_fetchcontent_arguments",
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_gate_supplies_prepared_base_to_real_supply_arm"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
