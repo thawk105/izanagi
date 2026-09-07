@@ -1993,7 +1993,7 @@ def test_a6_policy_is_exact_read_heavy_pair_with_twelve_hour_walltime():
         },
     }
     assert policy.bytes_sha256 == (
-        "8969a7e4ee740a94ec12084c89ef88a37ebd255073cfb0122245113a295b87a8")
+        "96ed47d0ea72811aa8ee8ced6740fa58c5896e026cb24fa4420a31919d12384a")
     assert policy.protocol_sha256 == (
         "21427e71793ea744777d11bd90429ce2db1a8d3333ea9e2e0f227ecf377c25dc")
 
