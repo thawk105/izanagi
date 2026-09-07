@@ -158,7 +158,7 @@ D39 残存リスク (b) が求める「off が rejection を一切見ないこ�
 |対象 driver と軸|base (silo-backoff-magnitude); evidence_set=t2341-eligibility; base.json sha256=d282c246e0b4f4d2542d28dd15850bbff650a8fc018e617bcd7ecec4be9ef237; sort.json sha256=9008aaace2bf1b9a2be508d068dcaac1222487041554b9cf540325f6132e3d72; trigger.json sha256=eb7f7cf1f48e0d7d65620932a7a26a42e0bec8bebb21bc7a9768f9e4635518f2; 記入者 = レビュー者 = thawk105 (D1266、D1638)|
 |赤 precursor の母集合 (workload・赤形状・初期 proposal)|未記入|
 |アームあたり block 数 n と検定単位|n = 201、検定単位 = block|
-|primary outcome の演算定義 (純関数)|未記入|
+|primary outcome の演算定義 (純関数)|orchestrator/campaign/p3_b4_analysis_contract.py sha256=528ee2fa5795bf36fcd966bed47efb025b24a070c8c4e4303c8615957893d2a3; orchestrator/campaign/p3_b4_analysis_adapter.py sha256=cf056566a7bc2c23b0a5af14a537450fe4d160b042eda9df26fd41ad200cc0b6; orchestrator/campaign/p3_b4_analysis_ledgers.py sha256=71393e8d3ffc60e8af3421c1caf80abc1cf2395551173d96524b724ab5785cda; orchestrator/campaign/p3_b4_analysis_path.py sha256=eeb397fcf8cfebf454bdacc00af9943010b53b59c6cf64dcdded0acf3217ea86; orchestrator/campaign/p3_b4_analysis_prereg_consumer.py sha256=fe3aeb804fc09733434c8974500bba9f46cbd942e39bd33b2c6063134d96b31a|
 |floor (対象動作点で再実測した between-run floor) の artifact パスと hash|未記入|
 |校正済み `PerfConfig` (records / threads / reps / extime) の artifact パスと hash|未記入|
 |総計測予算 (role query 数・build/verify/bench admission 数・累積 bench 秒) と arm ごとの上限|未記入|
@@ -821,6 +821,17 @@ next synthesis・primary outcome・secondary outcome を新たに生成も閲覧
   この先行 freeze を別 commit で固定し、その版に従って (ii) を実測するまで
   **「対象 driver と軸」の欄は埋められず、したがって本書は発効しない。**
 
+  **追記 (2026-09-08、[T-2398]。この現在地はその後変わった。)** §5.1 (i) の先行 freeze は
+  §5.1.0 として固定され、(ii) の実測と (iii) の記入も完了している。§5 の
+  「対象 driver と軸」欄は `base (silo-backoff-magnitude)` として**記入済み**であり、
+  上の「欄は埋められず」と、本節後段の「対象 driver と軸の選定そのもの」は現在の未決事項ではない。
+  裏付けは `output/insights/2026-08-27_t1769-b4-wiring-probe/t2341-eligibility/` の 3 件で、
+  各 JSON の sha256 は §5 の値セルに書かれた 3 値と exact 一致し、3 件とも `result.passed` が真、
+  `result.pass_rule` が §5.1.0 (d) の凍結値、`run.axis` が §5.1.0 の対と exact 一致する
+  (2026-09-08 に親が現物で照合)。§5.1.0 の決定規則 (列挙順 `base → sort → trigger` の先頭 1 件) が
+  base を選ぶ。**本書がなお発効前であることは変わらない** — §5 の他の未記入欄と §6 の
+  未充足条件が残るためであり、本追記はそれらを 1 つも解消しない。
+
 - **probe が閉じないこと (2026-08-27 に実測して明記、[T-1769])。**
   - **承認経路は deny-only の legacy 台帳を読む。** `make_critic_digest` は
     `require_admitted_campaign` が発行する exact な型しか受け取らないため、この読みは迂回できない
@@ -903,6 +914,16 @@ next synthesis・primary outcome・secondary outcome を新たに生成も閲覧
 これは D1377 が定めた設計であり、caller の自己申告を凍結値の位置へ入れないための向きである。
 **したがって §5 の floor 行を埋めるだけでは正規経路は変わらない。** 権威ある floor 成果物を
 検証して評価器へ渡す接続を材料レポート側に作るかどうかは、別の裁定と実装であり、本節は決めない。
+
+**追記 (2026-09-08、[T-2424]。worklog entry 1336 で現在地が変わった。)** 上の段落のうち
+「生成器は本書を読まず」「無条件に floor 不在を渡す」の 2 点は、現在の実装を表さない。
+`orchestrator/campaign/p3_b4_material_report.py` は本書 §5 を読み、
+`resolve_preregistered_authoritative_floor` へ渡して floor を解決したうえで評価器を呼ぶ。
+**ただし非 `None` の floor が渡るのは、§5 の floor 欄に検証を通る権威ある成果物 pin が
+書かれている場合だけである。** 欄が `未記入` のまま、あるいは resolver が pin を拒否した場合は
+fail-closed で従来どおり floor 不在が渡り、分析 verdict は 1 種類のままである。
+よって「§5 の floor 行を埋めるだけでは正規経路は変わらない」は、**「有効な pin でない記入では
+変わらない」という形でなお真である。** 本追記は §5.1 の解除条件も §6 の前提条件も 1 つも緩めない。
 
 材料レポートは Phase 3 主経路の片翼なので、ここが止まると主経路が止まる。これが floor 欄の
 手続きを先に用意する理由である。**ただし floor 欄が埋まっても本書は発効しない。**
@@ -1090,6 +1111,15 @@ floor driver が計算するのは絶対スループット基準の別量であ�
   本節に書いたままユーザー手番である。
 - **材料レポート側の接続。** 現行の生成器は本書を読まず無条件に floor 不在を渡す (D1377)。
   権威ある floor 成果物を検証して評価器へ渡す接続を作るかどうかは、別の裁定と実装である。
+
+  **追記 (2026-09-08、[T-2424]。worklog entry 1336 で現在地が変わった。)** 上の 1 行は
+  現在の実装を表さない。材料レポートの生成器は `orchestrator/campaign/p3_b4_material_report.py`
+  で本書 §5 を読み、`resolve_preregistered_authoritative_floor` に渡して floor を解決する。
+  接続を作るかどうかは決着済みであり、作られている。**ただし解決に成功して非 `None` の floor が
+  評価器へ渡るのは、§5 の floor 欄に検証を通る権威ある成果物 pin が書かれている場合だけである。**
+  欄が `未記入` のままなら、生成器は従来どおり floor 不在を渡す。したがって
+  **この訂正は §5.1 の解除条件も §6 の前提条件も 1 つも緩めず、`未記入` を有効な floor と
+  見なさない。** 上の項目のうち「接続が未実装」という部分だけが解消済みである。
 - **floor 欄が埋まっても本書は発効しない。** §5 の残り 9 欄と §6 の 9 条件は 1 つも免除されない。
 - **§7.1 の 4 分類が実効化するのは、次がすべて揃ったときである** — floor が発効し、§5 の全欄が
   埋まり、§6 の全条件が満たされ、その版が実走前に commit され、§5.1.1 が要求する adapter と
