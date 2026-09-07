@@ -201,12 +201,16 @@ _ATTEMPT_TERMINAL_KEYS = frozenset({
 _PROCESS_IDENTITY_KEYS = frozenset({
     "pid", "starttime", "execution_uuid",
 })
-_LIFECYCLE_START_KEYS = frozenset({
+_LIFECYCLE_START_BASE_KEYS = frozenset({
     "schema_version", "event", "trial_id", "run_root", "mode",
     "manifest_sha256", "prereg_commit", "prereg_content_commit",
     "prereg_effective_commit", "measurement_head",
     "activation_report_digest_sha256", "launch_admission_sha256", "slot_id",
     "schedule_row_sha256", "process_identity",
+})
+_LIFECYCLE_START_KEYS = frozenset({
+    _LIFECYCLE_START_BASE_KEYS,
+    _LIFECYCLE_START_BASE_KEYS | {"origin_run_plan_sha256"},
 })
 _LIFECYCLE_TERMINAL_BASE_KEYS = frozenset({
     "schema_version", "event", "trial_id", "terminal_status",
@@ -217,6 +221,7 @@ _LIFECYCLE_TERMINAL_BASE_KEYS = frozenset({
 _LIFECYCLE_TERMINAL_KEYS = frozenset({
     _LIFECYCLE_TERMINAL_BASE_KEYS,
     _LIFECYCLE_TERMINAL_BASE_KEYS | {"origin_terminal_projection"},
+    _LIFECYCLE_TERMINAL_BASE_KEYS | {"failure_reason"},
 })
 _ORIGIN_BINDING_KEYS = frozenset({
     "authority_blob_sha256", "source_closure_sha256", "origin_id", "cell_key",
@@ -396,6 +401,7 @@ class TrialLifecycleToken:
     prereg_content_commit: str
     prereg_effective_commit: str
     slot_id: str
+    origin_run_plan_sha256: str | None
     _seal: object = dataclasses.field(repr=False, compare=False)
 
 
@@ -414,6 +420,7 @@ class _TrialLifecycleCapabilityState:
     schedule_row_sha256: str
     process_identity: Mapping[str, Any]
     origin_binding: OriginBindingCapability | None
+    origin_run_plan_sha256: str | None
     consumed: bool = False
     started_once: bool = False
     restart_forbidden: bool = False
@@ -4418,7 +4425,11 @@ def _load_lifecycle_rows(data: bytes) -> tuple[dict[str, Any], ...]:
             _fail("lifecycle-schema", f"lifecycle line {lineno} has bad schema_version")
         event = value.get("event")
         if event == "start":
-            _exact_keys(value, _LIFECYCLE_START_KEYS, label=f"lifecycle line {lineno}")
+            if frozenset(value) not in _LIFECYCLE_START_KEYS:
+                _fail(
+                    "lifecycle-schema",
+                    f"lifecycle line {lineno} start exact keys differ",
+                )
         elif event == "terminal":
             if frozenset(value) not in _LIFECYCLE_TERMINAL_KEYS:
                 _fail(
@@ -4464,6 +4475,13 @@ def _load_lifecycle_rows(data: bytes) -> tuple[dict[str, Any], ...]:
                 raw = value[field]
                 if not isinstance(raw, str) or pattern.fullmatch(raw) is None:
                     _fail("lifecycle-schema", f"start {field} is invalid")
+            if "origin_run_plan_sha256" in value:
+                digest = value["origin_run_plan_sha256"]
+                if not isinstance(digest, str) or _SHA256_RE.fullmatch(digest) is None:
+                    _fail(
+                        "lifecycle-schema",
+                        "start origin_run_plan_sha256 is invalid",
+                    )
             if (
                 value["mode"] == REGISTERED_FORMAL_NON_CERTIFYING_MODE
                 and value["activation_report_digest_sha256"] is not None
@@ -4487,6 +4505,36 @@ def _load_lifecycle_rows(data: bytes) -> tuple[dict[str, Any], ...]:
             if value["terminal_status"] not in {"complete", "partial", "indeterminate"}:
                 _fail("lifecycle-schema", "terminal_status is outside the closed set")
             start = start_by_trial[trial_id]
+            start_has_origin = "origin_run_plan_sha256" in start
+            terminal_has_origin = "origin_terminal_projection" in value
+            origin_failure_without_projection = (
+                start_has_origin
+                and not terminal_has_origin
+                and value["terminal_status"] in {"partial", "indeterminate"}
+            )
+            if (
+                start_has_origin != terminal_has_origin
+                and not origin_failure_without_projection
+            ):
+                _fail(
+                    "lifecycle-origin",
+                    "start run-plan digest and terminal origin projection "
+                    "presence differ",
+                )
+            if origin_failure_without_projection:
+                failure_reason = value.get("failure_reason")
+                if type(failure_reason) is not str or not failure_reason:
+                    _fail(
+                        "lifecycle-origin",
+                        "origin failure without terminal projection requires "
+                        "a non-empty failure_reason",
+                    )
+            elif "failure_reason" in value:
+                _fail(
+                    "lifecycle-origin",
+                    "failure_reason is only valid for an origin failure "
+                    "without terminal projection",
+                )
             for field, pattern in (
                 ("prereg_commit", _COMMIT_RE),
                 ("prereg_content_commit", _COMMIT_RE),
@@ -4642,6 +4690,7 @@ def record_trial_start_once(
     registry_path: Path = DEFAULT_REGISTRY_PATH,
     lifecycle_path: Path = DEFAULT_LIFECYCLE_PATH,
     origin_binding: OriginBindingCapability | None = None,
+    origin_run_plan_sha256: str | None = None,
 ) -> TrialLifecycleToken:
     """Atomically record one formal start in a single shared lifecycle ledger.
 
@@ -4649,6 +4698,16 @@ def record_trial_start_once(
     append-only history is checked within one Git repository; no guarantee is
     claimed across independent clones or repositories.
     """
+    if (origin_binding is None) != (origin_run_plan_sha256 is None):
+        _fail(
+            "lifecycle-origin",
+            "origin binding and run-plan digest presence differ",
+        )
+    if origin_run_plan_sha256 is not None and (
+        type(origin_run_plan_sha256) is not str
+        or _SHA256_RE.fullmatch(origin_run_plan_sha256) is None
+    ):
+        _fail("lifecycle-origin", "origin run-plan digest is invalid")
     assert_rederived_launch_admission(
         admission,
         effective_preregistration=effective_preregistration,
@@ -4724,6 +4783,8 @@ def record_trial_start_once(
         "schedule_row_sha256": attempt_start["schedule_row_sha256"],
         "process_identity": dict(attempt_start["process_identity"]),
     }
+    if origin_run_plan_sha256 is not None:
+        row["origin_run_plan_sha256"] = origin_run_plan_sha256
     raw = _canonical_json_bytes(row)
     payload = raw + b"\n"
     root = _repository_root(repository_root)
@@ -4761,6 +4822,7 @@ def record_trial_start_once(
             prereg_content_commit=binding.prereg_content_commit,
             prereg_effective_commit=binding.prereg_effective_commit,
             slot_id=attempt_slot.slot_id,
+            origin_run_plan_sha256=origin_run_plan_sha256,
             _seal=_TRIAL_LIFECYCLE_TOKEN_SEAL,
         )
         state = _TrialLifecycleCapabilityState(
@@ -4777,6 +4839,7 @@ def record_trial_start_once(
             schedule_row_sha256=attempt_start["schedule_row_sha256"],
             process_identity=dict(attempt_start["process_identity"]),
             origin_binding=origin_binding,
+            origin_run_plan_sha256=origin_run_plan_sha256,
             started_once=True,
         )
         return payload, (token, state)
@@ -4858,8 +4921,9 @@ def record_trial_terminal(
     *,
     terminal_status: str,
     origin_terminal_projection: OriginTerminalProjection | None = None,
+    failure_reason: str | None = None,
 ) -> None:
-    """Consume one start token and append the optional formal projection."""
+    """Consume one start token and append its closed terminal form."""
     if (
         type(token) is not TrialLifecycleToken
         or token._seal is not _TRIAL_LIFECYCLE_TOKEN_SEAL
@@ -4885,12 +4949,33 @@ def record_trial_terminal(
             )
         if state.consumed:
             _fail("lifecycle-token", "lifecycle capability was already consumed")
-        if (state.origin_binding is None) != (projection_record is None):
+        origin_failure_without_projection = (
+            state.origin_binding is not None
+            and projection_record is None
+            and terminal_status in {"partial", "indeterminate"}
+        )
+        if (
+            (state.origin_binding is None) != (projection_record is None)
+            and not origin_failure_without_projection
+        ):
             _fail(
                 "lifecycle-origin",
                 "origin binding and terminal projection presence differ",
             )
-        if state.origin_binding is not None:
+        if origin_failure_without_projection:
+            if type(failure_reason) is not str or not failure_reason:
+                _fail(
+                    "lifecycle-origin",
+                    "origin failure without terminal projection requires "
+                    "a non-empty failure_reason",
+                )
+        elif failure_reason is not None:
+            _fail(
+                "lifecycle-origin",
+                "failure_reason is only valid for an origin failure without "
+                "terminal projection",
+            )
+        if state.origin_binding is not None and projection_record is not None:
             from . import reflux_origin_binding
 
             origin_record = reflux_origin_binding.origin_binding_capability_record(
@@ -4964,6 +5049,8 @@ def record_trial_terminal(
     }
     if projection_record is not None:
         row.update(projection_record)
+    elif origin_failure_without_projection:
+        row["failure_reason"] = failure_reason
     payload = _canonical_json_bytes(row) + b"\n"
 
     def append_terminal(rows):
@@ -5334,6 +5421,17 @@ def _receipt_lifecycle_snapshot(
         accepted = accepted_by_id[trial.trial_id]
         item = loaded_by_id[trial.trial_id]
         start = starts[0]
+        report_admission = item.report.get("launch_admission")
+        report_has_origin_binding = (
+            isinstance(report_admission, Mapping)
+            and "origin_binding" in report_admission
+        )
+        if report_has_origin_binding != ("origin_run_plan_sha256" in start):
+            _fail(
+                "acceptance-lifecycle",
+                f"trial {trial.trial_id!r} launch origin binding and lifecycle "
+                "run-plan digest presence differ",
+            )
         try:
             start_run_root = Path(start["run_root"]).resolve(strict=True)
             report_parent = item.report_path.parent.resolve(strict=True)

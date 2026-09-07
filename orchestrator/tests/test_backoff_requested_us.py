@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import contextlib
 import hashlib
 import inspect
@@ -19,6 +20,7 @@ _HERE = Path(__file__).resolve().parent
 _ROOT = _HERE.parents[1]
 sys.path.insert(0, str(_ROOT))
 
+from orchestrator.campaign import backoff_extended_sweep as S
 from orchestrator.campaign import backoff_requested_us as M
 from orchestrator.campaign import wal
 from orchestrator.campaign.build_admission import (
@@ -634,15 +636,48 @@ def test_mu06_usage_scope_is_exactly_four_false_and_counter_mutation_cannot_chan
 
 
 def test_mu07_requested_and_admitted_intersections_keep_f718_1000_separate():
-    committed = tuple(genome.canonical() for genome in M.genomes(M.WORKLOAD))
+    expected_fixed_grid_literal = (
+        0, 1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 35, 50, 75, 100,
+        150, 200, 250, 300, 400, 500, 560, 600, 700, 800, 900, 1000,
+    )
+    assert M.D1106_MEASUREMENT_SEED == 0xB10050
+    assert M.D1106_BASE_FLAGS == {
+        "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+        "NO_WAIT_OF_TICTOC": 0,
+        "WAL": 0,
+    }
+    assert M.EXPECTED_FIXED_GRID == expected_fixed_grid_literal
+    module = ast.parse(Path(M.__file__).read_text(encoding="utf-8"))
+    consumer = next(
+        node for node in module.body
+        if isinstance(node, ast.FunctionDef) and node.name == "load_reference_binding"
+    )
+    consumer_calls = [
+        node.func.id if isinstance(node.func, ast.Name) else node.func.attr
+        for node in ast.walk(consumer)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, (ast.Name, ast.Attribute))
+    ]
+    assert consumer_calls.count("_d1106_reference_genomes") == 2
+    assert "genomes" not in consumer_calls
+    committed = tuple(
+        genome.canonical() for genome in M._d1106_reference_genomes()
+    )
     projection = M._grid_projection(committed)
-    assert projection["expected_d1106_grid"] == list(M.EXPECTED_FIXED_GRID)
-    assert projection["observed_fixed_grid"] == list(M.EXPECTED_FIXED_GRID)
+    assert projection["expected_d1106_grid"] == list(expected_fixed_grid_literal)
+    assert projection["observed_fixed_grid"] == list(expected_fixed_grid_literal)
     requested = projection["requested_grid_intersection"]
     admitted = projection["admitted_realized_intersection"]
     assert requested == list(M.D1106_STATES)
     assert admitted == list(M.D1106_STATES[:-1])
     assert 1000 in requested and 1000 not in admitted
+    current_raw = {
+        genome.flags["BACKOFF_FIXED"]
+        for genome in S.genomes(M.WORKLOAD)
+        if genome.flags["BACK_OFF"] == 1
+        and genome.flags["BACKOFF_FIXED"] >= 0
+    }
+    assert 3000 in current_raw and 3000 not in projection["observed_fixed_grid"]
     without_1000 = tuple(
         canonical for canonical in committed if "BACKOFF_FIXED=1000" not in canonical
     )

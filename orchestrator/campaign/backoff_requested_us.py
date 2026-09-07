@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import json
 import os
+import random
 import re
 import shlex
 import shutil
@@ -38,7 +39,6 @@ from .backoff_extended_sweep import (  # noqa: E402
     _assert_backoff_fixed_materialized,
     _repo_root,
     _resolve_ccbench_dir,
-    genomes,
 )
 from .backoff_sweep import _require_backoff_condition_gate  # noqa: E402
 from .build_admission import (  # noqa: E402
@@ -70,6 +70,12 @@ EXPECTED_FIXED_GRID = (
     0, 1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 35, 50, 75, 100,
     150, 200, 250, 300, 400, 500, 560, 600, 700, 800, 900, 1000,
 )
+D1106_MEASUREMENT_SEED = 0xB10050
+D1106_BASE_FLAGS = {
+    "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+    "NO_WAIT_OF_TICTOC": 0,
+    "WAL": 0,
+}
 FIELD_NAMES = (
     "call_count",
     "requested_us_sum",
@@ -85,6 +91,20 @@ USAGE_ELIGIBILITY_KEYS = (
 )
 _SHA256_RE = re.compile(r"[0-9a-f]{64}")
 UINT64_MAX = (1 << 64) - 1
+
+
+def _d1106_reference_genomes() -> tuple[Genome, ...]:
+    """Reconstruct the frozen pre-static-codec D1106 raw genome sequence."""
+    points = [
+        {**D1106_BASE_FLAGS, "BACK_OFF": 0, "BACKOFF_FIXED": -1},
+        {**D1106_BASE_FLAGS, "BACK_OFF": 1, "BACKOFF_FIXED": -1},
+        *(
+            {**D1106_BASE_FLAGS, "BACK_OFF": 1, "BACKOFF_FIXED": amount}
+            for amount in EXPECTED_FIXED_GRID
+        ),
+    ]
+    random.Random(D1106_MEASUREMENT_SEED).shuffle(points)
+    return tuple(Genome("silo", flags) for flags in points)
 
 
 def _require_fixed_condition_gate_before_measurement(
@@ -636,7 +656,9 @@ def load_reference_binding(reference_root: str) -> dict[str, object]:
         if canonical in committed:
             raise RuntimeError(f"duplicate committed reference genome: {canonical}")
         committed[canonical] = (variant, state)
-    expected_genomes = {genome.canonical() for genome in genomes(WORKLOAD)}
+    expected_genomes = {
+        genome.canonical() for genome in _d1106_reference_genomes()
+    }
     if set(committed) != expected_genomes:
         raise RuntimeError(
             f"reference committed genome set mismatch: "
@@ -645,7 +667,7 @@ def load_reference_binding(reference_root: str) -> dict[str, object]:
         )
 
     adaptive = [
-        genome for genome in genomes(WORKLOAD)
+        genome for genome in _d1106_reference_genomes()
         if genome.flags.get("BACK_OFF") == 1
         and genome.flags.get("BACKOFF_FIXED") == -1
     ]
