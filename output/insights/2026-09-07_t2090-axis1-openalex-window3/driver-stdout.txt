@@ -1,0 +1,32 @@
+planned 65 launches; remaining_now=959
+AX1-20260902-E1-Q3-SY2020@openalex state=pass_complete reason=None rc=3 requests=4
+AX1-20260902-E1-Q3-SY2021@openalex state=pass_complete reason=None rc=3 requests=4
+AX1-20260902-E1-Q3-SY2022@openalex state=pass_complete reason=None rc=3 requests=4
+AX1-20260902-E1-Q3-SY2023@openalex state=pass_complete reason=None rc=3 requests=4
+AX1-20260902-E1-Q3-SY2024@openalex state=pass_complete reason=None rc=3 requests=6
+AX1-20260902-E1-Q3-SY2025@openalex state=blocked_on_ruling reason=distinct_work_id_total_mismatch rc=3 requests=9
+AX1-20260902-E1-Q3-SY2026@openalex state=blocked_on_ruling reason=distinct_work_id_total_mismatch rc=3 requests=16
+AX1-20260902-E1-Q6-SY1991@openalex state=pass_complete reason=None rc=3 requests=1
+AX1-20260902-E1-Q6-SY1992@openalex state=pass_complete reason=None rc=3 requests=1
+AX1-20260902-E1-Q6-SY1993@openalex state=pass_complete reason=None rc=3 requests=1
+AX1-20260902-E1-Q6-SY1994@openalex state=pass_complete reason=None rc=3 requests=1
+AX1-20260902-E1-Q6-SY1995@openalex state=pass_complete reason=None rc=3 requests=1
+AX1-20260902-E1-Q6-SY1996@openalex state=pass_complete reason=None rc=3 requests=1
+AX1-20260902-E1-Q6-SY1997@openalex state=pass_complete reason=None rc=3 requests=1
+AX1-20260902-E1-Q6-SY1998@openalex state=pass_complete reason=None rc=3 requests=1
+AX1-20260902-E1-Q6-SY1999@openalex state=pass_complete reason=None rc=3 requests=1
+AX1-20260902-E1-Q6-SY2000@openalex state=pass_complete reason=None rc=3 requests=1
+AX1-20260902-E1-Q6-SY2001@openalex state=pass_complete reason=None rc=3 requests=1
+AX1-20260902-E1-Q6-SY2002@openalex state=pass_complete reason=None rc=3 requests=1
+AX1-20260902-E1-Q6-SY2003@openalex state=pass_complete reason=None rc=3 requests=1
+AX1-20260902-E1-Q6-SY2004@openalex state=pass_complete reason=None rc=3 requests=1
+AX1-20260902-E1-Q6-SY2005@openalex state=pass_complete reason=None rc=3 requests=1
+AX1-20260902-E1-Q6-SY2006@openalex state=pass_complete reason=None rc=3 requests=1
+AX1-20260902-E1-Q6-SY2007@openalex state=pass_complete reason=None rc=3 requests=2
+AX1-20260902-E1-Q6-SY2008@openalex state=pass_complete reason=None rc=3 requests=2
+AX1-20260902-E1-Q6-SY2009@openalex state=pass_complete reason=None rc=3 requests=2
+AX1-20260902-E1-Q6-SY2010@openalex state=pass_complete reason=None rc=3 requests=2
+AX1-20260902-E1-Q6-SY2011@openalex state=pass_complete reason=None rc=3 requests=2
+AX1-20260902-E1-Q6-SY2012@openalex state=pass_complete reason=None rc=3 requests=2
+AX1-20260902-E1-Q6-SY2013@openalex state=pass_complete reason=None rc=3 requests=2
+STOP remaining=189 < 200 before AX1-20260902-E1-Q6-SY2014@openalex
