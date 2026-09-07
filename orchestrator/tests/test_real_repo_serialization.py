@@ -257,6 +257,7 @@ _XDIST_GROUP_NAMES_GOLDEN = frozenset({
 })
 
 _S8C_PREDICATE_SNAPSHOT_NODES_GOLDEN = frozenset({
+    "test_s8c_preregistration_predicates.py::test_current_repository_c04_rejects_missing_started_trial_preflight",
     "test_s8c_preregistration_predicates.py::test_current_repository_snapshot_has_zero_satisfied_predicates",
     "test_s8c_preregistration_predicates.py::test_current_repository_snapshot_exactly_matches_head",
     "test_s8c_preregistration_predicates.py::test_current_repository_gap_reason_snapshot_requires_cross_wave_review",

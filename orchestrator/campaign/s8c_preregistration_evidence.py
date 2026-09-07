@@ -2067,6 +2067,7 @@ def _evaluate_c04(probe: _ConditionProbe) -> core.PredicateResult:
         for target in (
             (workload_path, "mark_experiment_indeterminate"),
             (registry_path, "forbid_trial_restart"),
+            (registry_path, "reject_started_trial"),
         )
     ):
         return _result(probe, core.PredicateStatus.UNSATISFIED, ReasonCode.CRASH_POLICY_CELL_PARTIAL)
