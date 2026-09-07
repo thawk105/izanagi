@@ -2282,6 +2282,8 @@ def _repo_relative(token: str, repo_root: str, cwd: str = "") -> str:
 
 
 def _inside(path: str, tree: str) -> bool:
+    if tree == os.sep:
+        return os.path.isabs(path)
     return path == tree or path.startswith(tree + os.sep)
 
 
@@ -2493,6 +2495,23 @@ def _campaign_tree_violation(token: str, repo_root: str = "") -> bool:
     return False
 
 
+def _existing_tree_violation(
+        token: str, repo_root: str = "", cwd: str = "",
+        hooks_index=None) -> bool:
+    """token が既存の proof-chain 防護 tree と重なるか。"""
+    if (_hooks_tree_violation(token, repo_root, cwd, hooks_index)
+            or _LEAF_RE.search(token)
+            or _namespace_marker_violation(token, repo_root, cwd)):
+        return True
+    p = _repo_relative(token, repo_root)
+    if not p or p == ".":
+        return False
+    t = _CCBENCH_TREE
+    if p == t or t.startswith(p + "/") or p.startswith(t + "/"):
+        return True
+    return _campaign_tree_violation(token, repo_root)
+
+
 def _tree_violation(
         token: str, repo_root: str = "", cwd: str = "",
         hooks_index=None, authority_cwd: str = "", authority_index=None, *,
@@ -2510,20 +2529,12 @@ def _tree_violation(
     メタ文字前のリテラル prefix で判定 (`output/*` → `output/` は祖先 = 拒否。`out*` の
     ような部分 glob は判定不能 = 素通り、限界として docstring に記録)。"""
     authority_base = authority_cwd or os.path.realpath(repo_root or _repo_root())
-    if (_hooks_tree_violation(token, repo_root, cwd, hooks_index)
+    if (_existing_tree_violation(token, repo_root, cwd, hooks_index)
             or _authority_tree_violation(
                 token, authority_base, authority_index,
-                resolve_final=authority_resolve_final)
-            or _LEAF_RE.search(token)
-            or _namespace_marker_violation(token, repo_root, cwd)):
+                resolve_final=authority_resolve_final)):
         return True
-    p = _repo_relative(token, repo_root)
-    if not p or p == ".":
-        return False
-    t = _CCBENCH_TREE
-    if p == t or t.startswith(p + "/") or p.startswith(t + "/"):
-        return True
-    return _campaign_tree_violation(token, repo_root)
+    return False
 
 
 def _argument_hits_existing(
@@ -2780,19 +2791,20 @@ def decide(command: str, repo_root: str = "", *, site=None) -> tuple:
             # perf の自前出力先 (-o/--output) が防護対象なら拒否
             perf_output_indexes = set()
             for i, a in enumerate(args):
+                output_value = None
                 if a in ("-o", "--output") and i + 1 < len(args):
                     perf_output_indexes.update({i, i + 1})
+                    output_value = args[i + 1]
                 elif a.startswith("--output="):
                     perf_output_indexes.add(i)
-                if ((a in ("-o", "--output") and i + 1 < len(args)
-                     and (_LEAF_RE.search(args[i + 1])
-                          or _argument_hits_authority(
-                              args[i + 1], authority_cwd, authority_index)))
-                        or (a.startswith("--output=")
-                            and (_LEAF_RE.search(a)
-                                 or _argument_hits_authority(
-                                     a, authority_cwd, authority_index)))):
-                    return False, ("perf の出力先 (-o/--output) が末端防護対象または"
+                    output_value = a.split("=", 1)[1]
+                if (output_value is not None
+                        and (_existing_tree_violation(
+                            output_value, root, marker_cwd, hooks_index)
+                             or _argument_hits_authority(
+                                 output_value, authority_cwd,
+                                 authority_index))):
+                    return False, ("perf の出力先 (-o/--output) が既存防護 tree または"
                                    "固定の発行主体 root (規律2)")
             if "--" in args:
                 # 明示形 `perf <sub> [opts] -- <cmd>`: 子コマンドを実 head として続検査
