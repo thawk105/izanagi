@@ -1,5 +1,9 @@
 {
   "duration_seconds_by_nodeid": {
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_cli_entrypoint_matches_library_report[gate-module]": 0.34,
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_cli_entrypoint_matches_library_report[gate-path]": 0.34,
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_cli_entrypoint_matches_library_report[prereg-module]": 0.34,
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_cli_entrypoint_matches_library_report[prereg-path]": 0.36,
     "orchestrator/tests/test_a1_non_certifying_marker.py::test_balanced5_interruption_is_terminal_invalid_after_ident_resume[pilot]": 0.003,
     "orchestrator/tests/test_a1_non_certifying_marker.py::test_balanced5_interruption_is_terminal_invalid_after_ident_resume[sized]": 0.003,
     "orchestrator/tests/test_a1_non_certifying_marker.py::test_ident_accepts_each_registered_exact_identity_tuple[balanced5-pilot]": 0.001,
@@ -19518,7 +19522,7 @@
     "orchestrator/tests/test_wave_land_window.py::test_ticket_cleanup_does_not_require_flock_and_returns_success": 0.002,
     "orchestrator/tests/test_wave_land_window.py::test_ticket_cleanup_preserves_same_name_replacement": 0.002
   },
-  "nodeid_count": 19517,
+  "nodeid_count": 19521,
   "schema_version": 1,
   "unit": "seconds"
 }
