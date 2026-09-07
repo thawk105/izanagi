@@ -1609,6 +1609,16 @@ def _positive_int(value: str) -> int:
     return parsed
 
 
+def _compute_request_id(value: str) -> str:
+    from orchestrator.scheduler_nqsv import normalize_request_id
+
+    try:
+        normalize_request_id(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError("invalid request ID") from None
+    return value
+
+
 def _poll_seconds(value: str) -> int:
     parsed = _positive_int(value)
     if not _MIN_ACCEPTANCE_POLL_SECONDS <= parsed <= _MAX_ACCEPTANCE_POLL_SECONDS:
@@ -1631,7 +1641,7 @@ def _producer_parser() -> argparse.ArgumentParser:
 
 def _compute_parser() -> argparse.ArgumentParser:
     parser = _ArgumentParser(prog=f"{_PROGRAM} compute", add_help=True)
-    parser.add_argument("--request-id", required=True)
+    parser.add_argument("--request-id", type=_compute_request_id, required=True)
     parser.add_argument("--done-file", type=Path, required=True)
     parser.add_argument("--accounting-file", type=Path, required=True)
     parser.add_argument(
@@ -2000,6 +2010,8 @@ def _compute_evidence(
             done_evidence = bool(effects.read_text(done_file).strip())
     except OSError:
         done_evidence = False
+    if done_evidence:
+        return True, False
 
     accounting_evidence = False
     try:
@@ -2075,16 +2087,26 @@ def _publish_compute_receipt(
     accounting_evidence: bool,
     effects: _Effects,
 ) -> _Outcome:
-    payload = {
-        "schema_version": _COMPUTE_RECEIPT_SCHEMA_VERSION,
-        "status": "success",
-        "request_id": request_id,
-        "done_file": str(_absolute_path(done_file)),
-        "accounting_file": str(_absolute_path(accounting_file)),
-        "done_evidence": done_evidence,
-        "accounting_evidence": accounting_evidence,
-    }
     try:
+        payload = {
+            "schema_version": _COMPUTE_RECEIPT_SCHEMA_VERSION,
+            "status": "success",
+            "request_id": request_id,
+            "done_file": str(_absolute_path(done_file)),
+            "accounting_file": str(_absolute_path(accounting_file)),
+            "done_evidence": done_evidence,
+            "accounting_evidence": accounting_evidence,
+            "done_mtime_ns": (
+                _producer_file_mtime_ns(done_file, effects)
+                if done_evidence
+                else None
+            ),
+            "accounting_mtime_ns": (
+                _producer_file_mtime_ns(accounting_file, effects)
+                if accounting_evidence
+                else None
+            ),
+        }
         _atomic_publish_json(receipt_file, payload, effects)
     except Exception:
         return _Outcome(RC_FAIL_CLOSED, "compute-receipt")

@@ -2,6 +2,7 @@
 """Compute-job completion waiting and accounting binding contracts."""
 from __future__ import annotations
 
+import builtins
 import importlib.util
 import json
 import os
@@ -116,6 +117,43 @@ def test_accounting_ended_result_accepts_target_bound_ended_record() -> None:
 
 
 @pytest.mark.parametrize(
+    ("text", "ended", "reason"),
+    (
+        (
+            "Request ID: 12345.pegasus\n"
+            "Started Request Time: now\n"
+            "Request ID: 99999.pegasus\r\n"
+            "Ended Request Time: old-job-time\r\n",
+            False,
+            "request-id-count",
+        ),
+        (
+            "Request ID: 12345.pegasus\r\n"
+            "Ended Request Time: t\r\n",
+            True,
+            "ok",
+        ),
+        (
+            "Ended Request Time: old\n"
+            "Request ID: 12345.pegasus\n",
+            False,
+            "ended-before-target-request-id",
+        ),
+    ),
+    ids=("other-job-ended", "all-crlf", "ended-before-target"),
+)
+def test_accounting_ended_result_binds_ended_to_target_record(
+    text: str,
+    ended: bool,
+    reason: str,
+) -> None:
+    result = accounting_ended_result(text, _REQUEST_ID)
+
+    assert result.ended is ended
+    assert result.reason == reason
+
+
+@pytest.mark.parametrize(
     ("text", "reason"),
     (
         (
@@ -195,6 +233,58 @@ def test_wait_for_compute_job_accepts_done_evidence_alone(
     outcome, clock = _wait(tmp_path, done_text="complete\n")
 
     assert outcome == DW._Outcome(DW.RC_OK)
+    assert clock.sleeps == []
+
+
+@pytest.mark.parametrize(
+    ("done_text", "expected_rc"),
+    (("complete\n", DW.RC_OK), (None, DW.RC_FAIL_CLOSED)),
+    ids=("done-short-circuits", "accounting-failure-propagates"),
+)
+def test_done_evidence_controls_broken_accounting_import(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    done_text: str | None,
+    expected_rc: int,
+) -> None:
+    done_file = tmp_path / "done"
+    if done_text is not None:
+        done_file.write_text(done_text, encoding="utf-8")
+    accounting_file = tmp_path / "accounting"
+    accounting_file.write_text(_ACCOUNTING_TEXT, encoding="utf-8")
+    real_import = builtins.__import__
+
+    def fail_accounting_import(
+        name: str,
+        globals: object = None,
+        locals: object = None,
+        fromlist: object = (),
+        level: int = 0,
+    ) -> object:
+        if name == "orchestrator.scheduler_nqsv" and (
+            "accounting_ended" in fromlist
+        ):
+            raise ModuleNotFoundError("accounting dependency unavailable")
+        return real_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", fail_accounting_import)
+    clock = _Clock()
+    rc = DW.main(
+        [
+            "compute",
+            "--request-id",
+            _REQUEST_ID,
+            "--done-file",
+            str(done_file),
+            "--accounting-file",
+            str(accounting_file),
+            "--max-wait-seconds",
+            "15",
+        ],
+        effects=_effects(clock),
+    )
+
+    assert rc == expected_rc
     assert clock.sleeps == []
 
 
@@ -360,6 +450,8 @@ def test_compute_receipt_records_actual_evidence(
 
     assert rc == DW.RC_OK
     payload = json.loads(receipt_file.read_text(encoding="utf-8"))
+    done_mtime_ns = payload.pop("done_mtime_ns")
+    accounting_mtime_ns = payload.pop("accounting_mtime_ns")
     assert payload == {
         "schema_version": "dev-wave-compute-receipt/v1",
         "status": "success",
@@ -369,6 +461,14 @@ def test_compute_receipt_records_actual_evidence(
         "done_evidence": source == "done",
         "accounting_evidence": source == "accounting",
     }
+    assert done_mtime_ns == (
+        done_file.stat().st_mtime_ns if source == "done" else None
+    )
+    assert accounting_mtime_ns == (
+        accounting_file.stat().st_mtime_ns
+        if source == "accounting"
+        else None
+    )
 
 
 def test_compute_receipt_publish_failure_is_fail_closed(
@@ -399,6 +499,40 @@ def test_compute_receipt_publish_failure_is_fail_closed(
 
     assert rc == DW.RC_FAIL_CLOSED
     assert "stage=compute-receipt rc=70" in capsys.readouterr().err
+
+
+def test_compute_receipt_mtime_failure_uses_compute_stage(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    done_file = tmp_path / "done"
+    done_file.write_text("complete\n", encoding="utf-8")
+    receipt_file = tmp_path / "receipt.json"
+    clock = _Clock()
+
+    def read_then_remove(path: Path) -> str:
+        text = path.read_text(encoding="utf-8")
+        path.unlink()
+        return text
+
+    rc = DW.main(
+        [
+            "compute",
+            "--request-id",
+            _REQUEST_ID,
+            "--done-file",
+            str(done_file),
+            "--accounting-file",
+            str(tmp_path / "accounting"),
+            "--receipt-file",
+            str(receipt_file),
+        ],
+        effects=_effects(clock, read_text=read_then_remove),
+    )
+
+    assert rc == DW.RC_FAIL_CLOSED
+    assert "stage=compute-receipt rc=70" in capsys.readouterr().err
+    assert not receipt_file.exists()
 
 
 @pytest.mark.parametrize(
@@ -439,6 +573,40 @@ def test_compute_cli_rejects_child_command() -> None:
         )
 
     assert raised.value.outcome == DW._Outcome(DW.RC_USAGE, "cli-usage")
+
+
+def test_compute_cli_rejects_unnormalizable_request_id() -> None:
+    rc = DW.main(
+        [
+            "compute",
+            "--request-id",
+            ".",
+            "--done-file",
+            "done",
+            "--accounting-file",
+            "accounting",
+        ]
+    )
+
+    assert rc == DW.RC_USAGE
+
+
+def test_compute_cli_accepts_normal_request_id() -> None:
+    command, args, child = DW._parse_cli(
+        [
+            "compute",
+            "--request-id",
+            _REQUEST_ID,
+            "--done-file",
+            "done",
+            "--accounting-file",
+            "accounting",
+        ]
+    )
+
+    assert command == "compute"
+    assert args.request_id == _REQUEST_ID
+    assert child == []
 
 
 def test_compute_cli_uses_six_hour_default() -> None:

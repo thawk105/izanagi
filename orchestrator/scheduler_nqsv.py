@@ -37,6 +37,12 @@ def _normalize_request_id(value: str) -> str:
     return normalized
 
 
+def normalize_request_id(value: str) -> str:
+    """Return the shared canonical NQSV request ID or raise ``ValueError``."""
+
+    return _normalize_request_id(value)
+
+
 def gate_state_value(field: str, value: str) -> Optional[str]:
     """Normalize only the field-specific vocabulary accepted by NQSV gates."""
 
@@ -132,10 +138,10 @@ def target_bound_qstat_state(stdout: str, request_id: str) -> Optional[str]:
 
 
 NQSV_ACCOUNTING_REQUEST_ID_RE = re.compile(
-    r"(?m)^[ \t]*Request ID:[ \t]*(\S+)[ \t]*$"
+    r"(?m)^[ \t]*Request ID:[ \t]*(\S+?)[ \t]*\r?$"
 )
 NQSV_ACCOUNTING_ENDED_RE = re.compile(
-    r"(?m)^[ \t]*Ended Request Time:[ \t]*\S.*$"
+    r"(?m)^[ \t]*Ended Request Time:[ \t]*\S[^\r\n]*\r?$"
 )
 
 
@@ -164,7 +170,15 @@ def accounting_ended_result(
         return AccountingEndedResult(False, "invalid-observed-request-id")
     if observed != expected:
         return AccountingEndedResult(False, "request-id-mismatch")
-    if NQSV_ACCOUNTING_ENDED_RE.search(text) is None:
+    request_match = id_matches[0]
+    if NQSV_ACCOUNTING_ENDED_RE.search(
+        text[:request_match.start()],
+    ) is not None:
+        return AccountingEndedResult(
+            False,
+            "ended-before-target-request-id",
+        )
+    if NQSV_ACCOUNTING_ENDED_RE.search(text[request_match.end():]) is None:
         return AccountingEndedResult(False, "ended-field-missing")
     return AccountingEndedResult(True, "ok")
 
