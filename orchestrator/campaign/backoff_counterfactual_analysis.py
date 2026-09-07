@@ -1,4 +1,7 @@
-"""Offline analysis for the preregistered adaptive-backoff counterfactual."""
+"""Offline analysis for the preregistered adaptive-backoff counterfactual.
+
+この解析器は 2026-09-07 に取得した 12 件の cohort 専用であり、v2 束縛の成果物は受理しない。
+"""
 
 from __future__ import annotations
 
@@ -12,10 +15,13 @@ from typing import Callable
 
 __all__ = ["analyze_counterfactual"]
 
-ANALYSIS_VERSION = "izanagi-backoff-counterfactual-analysis/v1"
+ANALYSIS_VERSION = "izanagi-backoff-counterfactual-analysis/v2"
 TRACE_SCHEMA_VERSION = "izanagi-dynamic-backoff-trace/v3"
-PREREGISTRATION_SHA256 = (
+MEASUREMENT_PREREGISTRATION_SHA256_V1 = (
     "ee7617f57bf6816fd8bfb42b5830926be1174ebcca617ed122c3fbca62f127a6"
+)
+ANALYSIS_PREREGISTRATION_SHA256_V2 = (
+    "526d9384d8a8c62f82b132c41672aa2eff32722788ad06858c09f80185ca495a"
 )
 CCBENCH_PIN = "511c9538e4e8efa54b45cda62e72389ed3b706ec"
 PATCH_A_SHA256 = (
@@ -230,7 +236,6 @@ def _validate_genome(genome: object, *, policy: int, seed: int, binding: str) ->
 def _validate_row(
     row: object,
     *,
-    expected_hash: str,
     artifact_seed: int,
     binding: str,
 ) -> dict:
@@ -254,7 +259,10 @@ def _validate_row(
         _fail(f"{binding}: row must be trace enabled")
     if row.get("throughput_scope") != "diagnostic_only":
         _fail(f"{binding}: row throughput_scope must be diagnostic_only")
-    if row.get("counterfactual_preregistration") != expected_hash:
+    if (
+        row.get("counterfactual_preregistration")
+        != MEASUREMENT_PREREGISTRATION_SHA256_V1
+    ):
         _fail(f"{binding}: row preregistration SHA-256 mismatch")
     _validate_build_bindings(row, binding=binding)
     if policy == 2:
@@ -297,7 +305,7 @@ def _validate_row(
     }
 
 
-def _load_artifact(path: Path, *, expected_hash: str) -> dict:
+def _load_artifact(path: Path) -> dict:
     try:
         document = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
@@ -315,7 +323,7 @@ def _load_artifact(path: Path, *, expected_hash: str) -> dict:
         "records": 1_000_000,
         "extime_s": 3,
         "reps_per_job": 1,
-        "counterfactual_preregistration": expected_hash,
+        "counterfactual_preregistration": MEASUREMENT_PREREGISTRATION_SHA256_V1,
     }
     if not _matches_exact(document, exact_top_level):
         _fail(f"{path}: top-level counterfactual contract mismatch")
@@ -330,7 +338,6 @@ def _load_artifact(path: Path, *, expected_hash: str) -> dict:
     for index, raw_row in enumerate(rows_raw):
         row = _validate_row(
             raw_row,
-            expected_hash=expected_hash,
             artifact_seed=seed,
             binding=f"{path}:trace_runs[{index}]",
         )
@@ -377,16 +384,19 @@ def _run_difference(
     membership: Callable[[dict, int, int], bool],
 ) -> dict:
     events = run["events"]
-    outcome_count = len(events) - 1
+    analysis_events = events[1:]
+    outcome_count = len(analysis_events) - 1
     selected = [
         (current, following)
-        for index, (current, following) in enumerate(zip(events, events[1:]))
+        for index, (current, following) in enumerate(
+            zip(analysis_events, analysis_events[1:])
+        )
         if membership(current, index, outcome_count)
     ]
     forward_count = sum(current["assigned_invert"] == 0 for current, _ in selected)
     invert_count = sum(current["assigned_invert"] == 1 for current, _ in selected)
     total = forward_count + invert_count
-    if any(event["window_commits"] == 0 for event in events):
+    if any(event["window_commits"] == 0 for event in analysis_events):
         return {
             "estimate_log": None,
             "reason": "window_commits_zero",
@@ -569,7 +579,7 @@ def analyze_counterfactual(
         _fail("preregistration_path must be a Path")
     preregistration = preregistration_path.resolve(strict=True)
     preregistration_sha256 = _sha256(preregistration)
-    if preregistration_sha256 != PREREGISTRATION_SHA256:
+    if preregistration_sha256 != ANALYSIS_PREREGISTRATION_SHA256_V2:
         _fail("preregistration file SHA-256 does not match the frozen specification")
     resolved_paths = [path.resolve(strict=True) for path in diagnostic_paths]
     if len(set(resolved_paths)) != len(resolved_paths):
@@ -578,10 +588,7 @@ def analyze_counterfactual(
         {"path": str(path), "sha256": _sha256(path)}
         for path in sorted(resolved_paths, key=str)
     ]
-    artifacts = [
-        _load_artifact(path, expected_hash=preregistration_sha256)
-        for path in sorted(resolved_paths, key=str)
-    ]
+    artifacts = [_load_artifact(path) for path in sorted(resolved_paths, key=str)]
     if len({artifact["trace_counts"] for artifact in artifacts}) != 1:
         _fail("backoff trace symbol/string counts differ across artifacts")
     seeds = [artifact["seed"] for artifact in artifacts]

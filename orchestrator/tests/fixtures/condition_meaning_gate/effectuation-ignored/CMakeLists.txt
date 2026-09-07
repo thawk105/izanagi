@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 project(condition_gate_ignored_fixture LANGUAGES CXX)
+set(_condition_gate_fetchcontent_base "${FETCHCONTENT_BASE_DIR}")
 
 include(cmake/Options.cmake)
 ccbench_universal_definitions(condition_gate_defines)

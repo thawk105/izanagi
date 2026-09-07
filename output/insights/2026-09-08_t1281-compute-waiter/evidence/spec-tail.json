@@ -1,0 +1,46 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 600,
+  "timeout_seconds": 600,
+  "hang_timeout_seconds": 300,
+  "mutations": [
+    {
+      "id": "M12-receipt-done-mtime-dropped",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "            \"done_mtime_ns\": (\n                _producer_file_mtime_ns(done_file, effects)",
+          "new": "            \"done_mtime_ns\": (\n                None"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_compute_receipt_mtime_failure_uses_compute_stage",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_compute_receipt_records_actual_evidence[done]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M13-ended-scope-and-precheck-dropped",
+      "category": "both-layers",
+      "replacements": [
+        {
+          "file": "orchestrator/scheduler_nqsv.py",
+          "old": "    if NQSV_ACCOUNTING_ENDED_RE.search(\n        text[:request_match.start()],\n    ) is not None:",
+          "new": "    if False:"
+        },
+        {
+          "file": "orchestrator/scheduler_nqsv.py",
+          "old": "    if NQSV_ACCOUNTING_ENDED_RE.search(text[request_match.end():]) is None:",
+          "new": "    if NQSV_ACCOUNTING_ENDED_RE.search(text) is None:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_binds_ended_to_target_record[ended-before-target]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

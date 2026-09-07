@@ -65,6 +65,9 @@ GROUP_RECEIPT_SCHEMA_VERSION = (
 NOT_CERTIFIED = (
     "trace-disabled performance runs only; no serializability check was run"
 )
+DIAGNOSTIC_NOT_CERTIFIED = (
+    "trace-enabled diagnostic runs only; no serializability check was run"
+)
 PIN_FULL = "511c9538e4e8efa54b45cda62e72389ed3b706ec"
 PATCH_A_REL = "patches/cicada-adaptive-params.patch"
 PATCH_B_REL = "patches/cicada-adaptive-dynamic.patch"
@@ -2768,7 +2771,10 @@ def _artifact_contract_metadata(
     metadata = {
         "schema_version": (
             TRACE_SCHEMA_VERSION if backoff_trace else SCHEMA_VERSION
-        )
+        ),
+        "not_certified": (
+            DIAGNOSTIC_NOT_CERTIFIED if backoff_trace else NOT_CERTIFIED
+        ),
     }
     if (
         backoff_trace is True
@@ -3310,7 +3316,6 @@ def main(argv: list[str] | None = None) -> int:
             if args.backoff_trace
             else "performance-only-probe"
         ),
-        "not_certified": NOT_CERTIFIED,
         "headline_eligible": False if args.backoff_trace else True,
         "throughput_scope": (
             "diagnostic_only" if args.backoff_trace else "performance"

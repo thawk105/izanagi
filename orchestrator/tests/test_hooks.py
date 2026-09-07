@@ -3050,6 +3050,8 @@ _PEGASUS_EXPECTED_CLASSES = {
     "tools/pegasus/p3_s4_loop_pegasus.sh": "dispatch-required",
     "tools/pegasus/paper_story_a1_paired.sh": "dispatch-required",
     "tools/pegasus/paper_story_a2_certification.sh": "dispatch-required",
+    "tools/pegasus/probes/t1259_qsub_env_delivery_probe.pbs": "dispatch-required",
+    "tools/pegasus/probes/t1259_qsub_env_delivery_probe.py": "dispatch-required",
     "tools/pegasus/probes/t139_positive_control_probe.pbs": "unknown",
     "tools/pegasus/probes/t139_positive_control_probe.sh": "unknown",
     "tools/pegasus/probes/t139_r4_env_probe.pbs": "dispatch-required",
@@ -3222,6 +3224,18 @@ _PEGASUS_EXPECTED_ENTRIES = {
         "reason": "PBS paper-story A-2/A-6 policy-selected certification job body",
         "primary_gate": "PBS allocation and job-body site preflight",
         "evidence": "static job-body classification"
+    },
+    "tools/pegasus/probes/t1259_qsub_env_delivery_probe.pbs": {
+        "class": "dispatch-required",
+        "reason": "PBS T-1259 qsub environment delivery observation job body",
+        "primary_gate": "PBS allocation and job-body compute-host, repository, and scratch-path validation",
+        "evidence": "static job-body classification"
+    },
+    "tools/pegasus/probes/t1259_qsub_env_delivery_probe.py": {
+        "class": "dispatch-required",
+        "reason": "compute-side T-1259 qsub environment delivery and official CLI refusal observer",
+        "primary_gate": "compute allocation owned by t1259_qsub_env_delivery_probe.pbs",
+        "evidence": "static compute-side call-site classification"
     },
     "tools/pegasus/probes/t139_positive_control_probe.pbs": {
         "class": "unknown",

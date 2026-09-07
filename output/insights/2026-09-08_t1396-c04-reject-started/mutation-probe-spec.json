@@ -1,0 +1,50 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 180,
+  "timeout_seconds": 1500,
+  "hang_timeout_seconds": 1700,
+  "mutations": [
+    {
+      "id": "MU-1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "old": "            (registry_path, \"forbid_trial_restart\"),\n            (registry_path, \"reject_started_trial\"),\n",
+          "new": "            (registry_path, \"forbid_trial_restart\"),\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "MU-2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "old": "            (registry_path, \"forbid_trial_restart\"),\n            (registry_path, \"reject_started_trial\"),\n",
+          "new": "            (registry_path, \"forbid_trial_restart\"),\n            (registry_path, \"forbid_trial_restart\"),\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "MU-3-equivalent",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "old": "    if not all(\n        _declared_call(probe, graph, target)\n        for target in (\n            (workload_path, \"mark_experiment_indeterminate\"),\n            (registry_path, \"forbid_trial_restart\"),\n            (registry_path, \"reject_started_trial\"),\n        )\n    ):",
+          "new": "    if not all(\n        _declared_call(probe, graph, target)\n        for target in [\n            (workload_path, \"mark_experiment_indeterminate\"),\n            (registry_path, \"forbid_trial_restart\"),\n            (registry_path, \"reject_started_trial\"),\n        ]\n    ):"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

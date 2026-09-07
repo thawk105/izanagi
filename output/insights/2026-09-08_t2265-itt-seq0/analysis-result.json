@@ -1,0 +1,4247 @@
+{
+  "analysis_version": "izanagi-backoff-counterfactual-analysis/v2",
+  "preregistration": {
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2265-itt-seq0/docs/backoff-counterfactual-preregistration.md",
+    "sha256": "526d9384d8a8c62f82b132c41672aa2eff32722788ad06858c09f80185ca495a"
+  },
+  "inputs": [
+    {
+      "path": "/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/trace/t2265-itt/stage2-rep0-0_981402.nqsv.json",
+      "sha256": "292b194c9c454d756dd836335195d5b53777f4524ee58bcb5ed74ff0cb8e7713"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/trace/t2265-itt/stage2-rep0-0_981411.nqsv.json",
+      "sha256": "f95e0198ee919dc87ee0a6b928639acc6c361d79646c27009a6e05c856ab1687"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/trace/t2265-itt/stage2-rep0-0_981417.nqsv.json",
+      "sha256": "622d2e0013c8f456ff73f24dc4d10e165b1fc680439f901ce86c4e68754b5f36"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/trace/t2265-itt/stage2-rep0-0_981424.nqsv.json",
+      "sha256": "196caa22c1b2ed277103222c978798e93a031275cda07e3592e8a129e20539c8"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/trace/t2265-itt/stage2-rep0-0_981429.nqsv.json",
+      "sha256": "383268d5c422ac4bd9473870a10f2e9822a48b64a5dae0b8c0beca5ff322d994"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/trace/t2265-itt/stage2-rep0-0_981432.nqsv.json",
+      "sha256": "59cd4f99fab60eeb11a1d8bcacf476b865f167ee79d579de0008378a6bac3f4a"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/trace/t2265-itt/stage2-rep0-0_981442.nqsv.json",
+      "sha256": "b35a9b0c435c2e5bc565a500525e20396bacf3178d71e118f35c058e87b21a88"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/trace/t2265-itt/stage2-rep0-0_981444.nqsv.json",
+      "sha256": "0d0ad447b4729458042d38d71fab8b54215c2e650997806e302e8f12af43c336"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/trace/t2265-itt/stage2-rep0-0_981468.nqsv.json",
+      "sha256": "4229ad73428bb1a692306c24e4d0ffc85c794f916ef01973cab1b106743c200a"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/trace/t2265-itt/stage2-rep0-0_981488.nqsv.json",
+      "sha256": "fadcc2d2730203f3ce294cdafbde2b89ca7951bc33000b9aec5289b00d762b5a"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/trace/t2265-itt/stage2-rep0-0_981493.nqsv.json",
+      "sha256": "357d3ef985642b63a46c1f847f659eac43c9ae722cf8b9bb6bc05e993978824f"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/trace/t2265-itt/stage2-rep0-0_981503.nqsv.json",
+      "sha256": "e43cea32e59bc67d1a00e5d1aba0324df9f24e57af20bcef3dc49219b9bdfddd"
+    }
+  ],
+  "primary": {
+    "cluster_count": 12,
+    "confirmatory_complete": false,
+    "run_estimates": [
+      {
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          1606918558588661,
+          "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+        ],
+        "estimate_log": 0.017599169618720545,
+        "reason": null,
+        "assigned_forward": 264,
+        "assigned_invert": 289,
+        "assigned_invert_rate": 0.5226039783001808,
+        "effect_percent": 1.7754947516410258
+      },
+      {
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          781552995023334429,
+          "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+        ],
+        "estimate_log": 0.08030449285144273,
+        "reason": null,
+        "assigned_forward": 358,
+        "assigned_invert": 310,
+        "assigned_invert_rate": 0.46407185628742514,
+        "effect_percent": 8.36169710671893
+      },
+      {
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          1227967287010452276,
+          "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+        ],
+        "estimate_log": 0.07890106929589474,
+        "reason": null,
+        "assigned_forward": 298,
+        "assigned_invert": 295,
+        "assigned_invert_rate": 0.4974704890387858,
+        "effect_percent": 8.209726413049255
+      },
+      {
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          2057459156086657874,
+          "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+        ],
+        "estimate_log": 0.07638799139250718,
+        "reason": null,
+        "assigned_forward": 349,
+        "assigned_invert": 320,
+        "assigned_invert_rate": 0.47832585949177875,
+        "effect_percent": 7.938128357146603
+      },
+      {
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          2171878327641984105,
+          "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+        ],
+        "estimate_log": 0.04491029237530626,
+        "reason": null,
+        "assigned_forward": 296,
+        "assigned_invert": 305,
+        "assigned_invert_rate": 0.5074875207986689,
+        "effect_percent": 4.593402744284781
+      },
+      {
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          2410271300384854639,
+          "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+        ],
+        "estimate_log": 0.053423074716529795,
+        "reason": null,
+        "assigned_forward": 350,
+        "assigned_invert": 312,
+        "assigned_invert_rate": 0.47129909365558914,
+        "effect_percent": 5.487584202322422
+      },
+      {
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          5470969369189575692,
+          "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+        ],
+        "estimate_log": 0.13084672776731543,
+        "reason": null,
+        "assigned_forward": 343,
+        "assigned_invert": 300,
+        "assigned_invert_rate": 0.4665629860031104,
+        "effect_percent": 13.979306929455268
+      },
+      {
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          5744733223455690259,
+          "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+        ],
+        "estimate_log": 0.05146035773657018,
+        "reason": null,
+        "assigned_forward": 315,
+        "assigned_invert": 295,
+        "assigned_invert_rate": 0.48360655737704916,
+        "effect_percent": 5.280744979460852
+      },
+      {
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          11135758292722279839,
+          "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+        ],
+        "estimate_log": 0.07280492126979679,
+        "reason": null,
+        "assigned_forward": 308,
+        "assigned_invert": 313,
+        "assigned_invert_rate": 0.5040257648953301,
+        "effect_percent": 7.552070523503559
+      },
+      {
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          13467815584134101060,
+          "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+        ],
+        "estimate_log": null,
+        "reason": "window_commits_zero",
+        "assigned_forward": 281,
+        "assigned_invert": 300,
+        "assigned_invert_rate": 0.5163511187607573,
+        "effect_percent": null
+      },
+      {
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          13576760736062537317,
+          "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+        ],
+        "estimate_log": 0.07986643939964316,
+        "reason": null,
+        "assigned_forward": 306,
+        "assigned_invert": 312,
+        "assigned_invert_rate": 0.5048543689320388,
+        "effect_percent": 8.314239286548336
+      },
+      {
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          16736322205931003081,
+          "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+        ],
+        "estimate_log": 0.06616754408226053,
+        "reason": null,
+        "assigned_forward": 290,
+        "assigned_invert": 322,
+        "assigned_invert_rate": 0.5261437908496732,
+        "effect_percent": 6.840570722491095
+      }
+    ],
+    "assignment_rate_all_events": [
+      {
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          1606918558588661,
+          "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+        ],
+        "assignment_rate_all_events": 0.5243243243243243
+      },
+      {
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          781552995023334429,
+          "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+        ],
+        "assignment_rate_all_events": 0.46567164179104475
+      },
+      {
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          1227967287010452276,
+          "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+        ],
+        "assignment_rate_all_events": 0.49747899159663866
+      },
+      {
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          2057459156086657874,
+          "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+        ],
+        "assignment_rate_all_events": 0.47690014903129657
+      },
+      {
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          2171878327641984105,
+          "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+        ],
+        "assignment_rate_all_events": 0.5074626865671642
+      },
+      {
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          2410271300384854639,
+          "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+        ],
+        "assignment_rate_all_events": 0.4713855421686747
+      },
+      {
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          5470969369189575692,
+          "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+        ],
+        "assignment_rate_all_events": 0.46511627906976744
+      },
+      {
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          5744733223455690259,
+          "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+        ],
+        "assignment_rate_all_events": 0.48366013071895425
+      },
+      {
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          11135758292722279839,
+          "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+        ],
+        "assignment_rate_all_events": 0.5056179775280899
+      },
+      {
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          13467815584134101060,
+          "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+        ],
+        "assignment_rate_all_events": 0.516295025728988
+      },
+      {
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          13576760736062537317,
+          "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+        ],
+        "assignment_rate_all_events": 0.5032258064516129
+      },
+      {
+        "run_identity": [
+          "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+          16736322205931003081,
+          "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+        ],
+        "assignment_rate_all_events": 0.5260586319218241
+      }
+    ],
+    "theta_log": null,
+    "effect_percent": null,
+    "cluster_variance": null,
+    "cluster_sd": null,
+    "standard_error": null,
+    "ci90": null,
+    "ci95": null,
+    "reasons": [
+      "window_commits_zero"
+    ],
+    "stratum": {
+      "cell_literal": "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+      "workload": "write-heavy",
+      "threads": 48
+    },
+    "equivalence_margin_log": 0.02955880224154443,
+    "equivalence_region_percent": {
+      "lower": -2.9126213592233037,
+      "upper": 3.0000000000000027
+    },
+    "tost_equivalent": null,
+    "recommended_practical_superiority": null,
+    "inverted_practical_superiority": null,
+    "decision": "inconclusive"
+  },
+  "secondary": {
+    "workload_threads": [
+      {
+        "workload": "write-heavy",
+        "threads": 24,
+        "estimate_log": 0.07039065711647881,
+        "effect_percent": 7.2927246057699495,
+        "reason": null,
+        "details": {
+          "cluster_count": 12,
+          "confirmatory_complete": false,
+          "run_estimates": [
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ],
+              "estimate_log": 0.05305338566061649,
+              "reason": null,
+              "assigned_forward": 270,
+              "assigned_invert": 296,
+              "assigned_invert_rate": 0.5229681978798587,
+              "effect_percent": 5.448593804513836
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ],
+              "estimate_log": 0.1131727820851352,
+              "reason": null,
+              "assigned_forward": 354,
+              "assigned_invert": 309,
+              "assigned_invert_rate": 0.4660633484162896,
+              "effect_percent": 11.982540200205673
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ],
+              "estimate_log": 0.07449741356250025,
+              "reason": null,
+              "assigned_forward": 304,
+              "assigned_invert": 311,
+              "assigned_invert_rate": 0.5056910569105691,
+              "effect_percent": 7.734255703946184
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ],
+              "estimate_log": 0.08870770205378714,
+              "reason": null,
+              "assigned_forward": 323,
+              "assigned_invert": 292,
+              "assigned_invert_rate": 0.47479674796747967,
+              "effect_percent": 9.276119778625308
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ],
+              "estimate_log": 0.06375030408504925,
+              "reason": null,
+              "assigned_forward": 294,
+              "assigned_invert": 301,
+              "assigned_invert_rate": 0.5058823529411764,
+              "effect_percent": 6.582623307619952
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ],
+              "estimate_log": 0.07764752028276029,
+              "reason": null,
+              "assigned_forward": 322,
+              "assigned_invert": 286,
+              "assigned_invert_rate": 0.47039473684210525,
+              "effect_percent": 8.074165201355768
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ],
+              "estimate_log": 0.10010353345306097,
+              "reason": null,
+              "assigned_forward": 338,
+              "assigned_invert": 295,
+              "assigned_invert_rate": 0.4660347551342812,
+              "effect_percent": 10.528534616048372
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ],
+              "estimate_log": 0.05442301272051752,
+              "reason": null,
+              "assigned_forward": 238,
+              "assigned_invert": 245,
+              "assigned_invert_rate": 0.5072463768115942,
+              "effect_percent": 5.593118001550064
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ],
+              "estimate_log": 0.05389096886256718,
+              "reason": null,
+              "assigned_forward": 256,
+              "assigned_invert": 263,
+              "assigned_invert_rate": 0.5067437379576107,
+              "effect_percent": 5.536952774182533
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ],
+              "estimate_log": 0.0927029916648209,
+              "reason": null,
+              "assigned_forward": 279,
+              "assigned_invert": 295,
+              "assigned_invert_rate": 0.5139372822299652,
+              "effect_percent": 9.713582838609328
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ],
+              "estimate_log": 0.0489501052958206,
+              "reason": null,
+              "assigned_forward": 295,
+              "assigned_invert": 295,
+              "assigned_invert_rate": 0.5,
+              "effect_percent": 5.016795161353511
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ],
+              "estimate_log": 0.023788165671109952,
+              "reason": null,
+              "assigned_forward": 220,
+              "assigned_invert": 260,
+              "assigned_invert_rate": 0.5416666666666666,
+              "effect_percent": 2.4073361018810577
+            }
+          ],
+          "assignment_rate_all_events": [
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ],
+              "assignment_rate_all_events": 0.522887323943662
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ],
+              "assignment_rate_all_events": 0.46616541353383456
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ],
+              "assignment_rate_all_events": 0.5056726094003241
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ],
+              "assignment_rate_all_events": 0.47487844408427876
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ],
+              "assignment_rate_all_events": 0.5058626465661642
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ],
+              "assignment_rate_all_events": 0.46885245901639344
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ],
+              "assignment_rate_all_events": 0.46614173228346456
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ],
+              "assignment_rate_all_events": 0.5051546391752577
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ],
+              "assignment_rate_all_events": 0.5067178502879078
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ],
+              "assignment_rate_all_events": 0.5138888888888888
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ],
+              "assignment_rate_all_events": 0.5
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ],
+              "assignment_rate_all_events": 0.5435684647302904
+            }
+          ],
+          "theta_log": 0.07039065711647881,
+          "effect_percent": 7.2927246057699495,
+          "cluster_variance": 0.0006472197525471606,
+          "cluster_sd": 0.025440513999272118,
+          "standard_error": 0.0073440438029011,
+          "ci90": null,
+          "ci95": {
+            "lower_log": 0.05422652539814177,
+            "upper_log": 0.08655478883481585,
+            "half_width_log": 0.016164131718337037,
+            "critical_value": 2.2009852,
+            "lower_percent": 5.5723723307300315,
+            "upper_percent": 9.041110843530372
+          },
+          "reasons": []
+        }
+      },
+      {
+        "workload": "balanced",
+        "threads": 24,
+        "estimate_log": 0.09774728669113464,
+        "effect_percent": 10.26840869503777,
+        "reason": null,
+        "details": {
+          "cluster_count": 12,
+          "confirmatory_complete": false,
+          "run_estimates": [
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ],
+              "estimate_log": 0.034726047442020805,
+              "reason": null,
+              "assigned_forward": 167,
+              "assigned_invert": 182,
+              "assigned_invert_rate": 0.5214899713467048,
+              "effect_percent": 3.533603698938709
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ],
+              "estimate_log": 0.16425898348954338,
+              "reason": null,
+              "assigned_forward": 339,
+              "assigned_invert": 299,
+              "assigned_invert_rate": 0.46865203761755486,
+              "effect_percent": 17.851949266374522
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ],
+              "estimate_log": 0.09371565882795532,
+              "reason": null,
+              "assigned_forward": 239,
+              "assigned_invert": 244,
+              "assigned_invert_rate": 0.505175983436853,
+              "effect_percent": 9.82474245564737
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ],
+              "estimate_log": 0.1499575238263433,
+              "reason": null,
+              "assigned_forward": 320,
+              "assigned_invert": 290,
+              "assigned_invert_rate": 0.47540983606557374,
+              "effect_percent": 16.178489350331926
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ],
+              "estimate_log": 0.084792026758167,
+              "reason": null,
+              "assigned_forward": 235,
+              "assigned_invert": 242,
+              "assigned_invert_rate": 0.5073375262054507,
+              "effect_percent": 8.849066622403486
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ],
+              "estimate_log": 0.11719588458505492,
+              "reason": null,
+              "assigned_forward": 281,
+              "assigned_invert": 241,
+              "assigned_invert_rate": 0.4616858237547893,
+              "effect_percent": 12.433964892664662
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ],
+              "estimate_log": 0.16269097242900615,
+              "reason": null,
+              "assigned_forward": 342,
+              "assigned_invert": 299,
+              "assigned_invert_rate": 0.4664586583463339,
+              "effect_percent": 17.667300909584128
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ],
+              "estimate_log": 0.07845658559152728,
+              "reason": null,
+              "assigned_forward": 210,
+              "assigned_invert": 214,
+              "assigned_invert_rate": 0.5047169811320755,
+              "effect_percent": 8.16163964068964
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ],
+              "estimate_log": 0.07779615262333835,
+              "reason": null,
+              "assigned_forward": 235,
+              "assigned_invert": 231,
+              "assigned_invert_rate": 0.4957081545064378,
+              "effect_percent": 8.09022971130895
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ],
+              "estimate_log": 0.0844506430006859,
+              "reason": null,
+              "assigned_forward": 221,
+              "assigned_invert": 226,
+              "assigned_invert_rate": 0.5055928411633109,
+              "effect_percent": 8.811913661111209
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ],
+              "estimate_log": 0.09706343455902702,
+              "reason": null,
+              "assigned_forward": 235,
+              "assigned_invert": 245,
+              "assigned_invert_rate": 0.5104166666666666,
+              "effect_percent": 10.193027186487932
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ],
+              "estimate_log": 0.027863527160946186,
+              "reason": null,
+              "assigned_forward": 150,
+              "assigned_invert": 211,
+              "assigned_invert_rate": 0.5844875346260388,
+              "effect_percent": 2.8255345919116097
+            }
+          ],
+          "assignment_rate_all_events": [
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ],
+              "assignment_rate_all_events": 0.5242165242165242
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ],
+              "assignment_rate_all_events": 0.46875
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ],
+              "assignment_rate_all_events": 0.5051546391752577
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ],
+              "assignment_rate_all_events": 0.4738562091503268
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ],
+              "assignment_rate_all_events": 0.5073068893528184
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ],
+              "assignment_rate_all_events": 0.4618320610687023
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ],
+              "assignment_rate_all_events": 0.46500777604976673
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ],
+              "assignment_rate_all_events": 0.5046948356807511
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ],
+              "assignment_rate_all_events": 0.49786324786324787
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ],
+              "assignment_rate_all_events": 0.5055679287305123
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ],
+              "assignment_rate_all_events": 0.5103734439834025
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ],
+              "assignment_rate_all_events": 0.5867768595041323
+            }
+          ],
+          "theta_log": 0.09774728669113464,
+          "effect_percent": 10.26840869503777,
+          "cluster_variance": 0.0019756910420342805,
+          "cluster_sd": 0.04444874623692192,
+          "standard_error": 0.012831247802514118,
+          "ci90": null,
+          "ci95": {
+            "lower_log": 0.06950590018026855,
+            "upper_log": 0.12598867320200074,
+            "half_width_log": 0.028241386510866096,
+            "critical_value": 2.2009852,
+            "lower_percent": 7.197838605183371,
+            "upper_percent": 13.426932057079256
+          },
+          "reasons": []
+        }
+      },
+      {
+        "workload": "balanced",
+        "threads": 48,
+        "estimate_log": 0.07030737611534177,
+        "effect_percent": 7.283789532316155,
+        "reason": null,
+        "details": {
+          "cluster_count": 12,
+          "confirmatory_complete": false,
+          "run_estimates": [
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ],
+              "estimate_log": 0.07851725267075345,
+              "reason": null,
+              "assigned_forward": 301,
+              "assigned_invert": 338,
+              "assigned_invert_rate": 0.5289514866979655,
+              "effect_percent": 8.168201690499139
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ],
+              "estimate_log": 0.08835565129466964,
+              "reason": null,
+              "assigned_forward": 384,
+              "assigned_invert": 356,
+              "assigned_invert_rate": 0.4810810810810811,
+              "effect_percent": 9.237655808735996
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ],
+              "estimate_log": 0.08274506967663323,
+              "reason": null,
+              "assigned_forward": 312,
+              "assigned_invert": 319,
+              "assigned_invert_rate": 0.5055467511885895,
+              "effect_percent": 8.626485139752127
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ],
+              "estimate_log": 0.06874041231391562,
+              "reason": null,
+              "assigned_forward": 397,
+              "assigned_invert": 383,
+              "assigned_invert_rate": 0.491025641025641,
+              "effect_percent": 7.115811359867813
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ],
+              "estimate_log": 0.06854714574074872,
+              "reason": null,
+              "assigned_forward": 298,
+              "assigned_invert": 307,
+              "assigned_invert_rate": 0.5074380165289256,
+              "effect_percent": 7.095111454438624
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ],
+              "estimate_log": 0.07061097602065915,
+              "reason": null,
+              "assigned_forward": 365,
+              "assigned_invert": 332,
+              "assigned_invert_rate": 0.4763271162123386,
+              "effect_percent": 7.316365825489797
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ],
+              "estimate_log": 0.07637869605576011,
+              "reason": null,
+              "assigned_forward": 393,
+              "assigned_invert": 365,
+              "assigned_invert_rate": 0.4815303430079156,
+              "effect_percent": 7.937125040558765
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ],
+              "estimate_log": 0.06940797003110169,
+              "reason": null,
+              "assigned_forward": 358,
+              "assigned_invert": 339,
+              "assigned_invert_rate": 0.48637015781922527,
+              "effect_percent": 7.187341218872094
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ],
+              "estimate_log": 0.04007506866978606,
+              "reason": null,
+              "assigned_forward": 319,
+              "assigned_invert": 322,
+              "assigned_invert_rate": 0.5023400936037441,
+              "effect_percent": 4.088890940542241
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ],
+              "estimate_log": 0.0719516679844669,
+              "reason": null,
+              "assigned_forward": 287,
+              "assigned_invert": 304,
+              "assigned_invert_rate": 0.5143824027072758,
+              "effect_percent": 7.460340506020007
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ],
+              "estimate_log": 0.07361822138046892,
+              "reason": null,
+              "assigned_forward": 312,
+              "assigned_invert": 317,
+              "assigned_invert_rate": 0.5039745627980922,
+              "effect_percent": 7.639578214547198
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ],
+              "estimate_log": 0.054740381545137703,
+              "reason": null,
+              "assigned_forward": 359,
+              "assigned_invert": 374,
+              "assigned_invert_rate": 0.5102319236016372,
+              "effect_percent": 5.626635283687084
+            }
+          ],
+          "assignment_rate_all_events": [
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ],
+              "assignment_rate_all_events": 0.5304212168486739
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ],
+              "assignment_rate_all_events": 0.4811320754716981
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ],
+              "assignment_rate_all_events": 0.5055292259083728
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ],
+              "assignment_rate_all_events": 0.489769820971867
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ],
+              "assignment_rate_all_events": 0.5090609555189456
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ],
+              "assignment_rate_all_events": 0.474964234620887
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ],
+              "assignment_rate_all_events": 0.48157894736842105
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ],
+              "assignment_rate_all_events": 0.48497854077253216
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ],
+              "assignment_rate_all_events": 0.5038880248833593
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ],
+              "assignment_rate_all_events": 0.5160202360876898
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ],
+              "assignment_rate_all_events": 0.5039619651347068
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ],
+              "assignment_rate_all_events": 0.5115646258503401
+            }
+          ],
+          "theta_log": 0.07030737611534177,
+          "effect_percent": 7.283789532316155,
+          "cluster_variance": 0.0001601039521120638,
+          "cluster_sd": 0.012653219041495481,
+          "standard_error": 0.0036526697098613575,
+          "ci90": null,
+          "ci95": {
+            "lower_log": 0.06226790414344863,
+            "upper_log": 0.07834684808723491,
+            "half_width_log": 0.008039471971893142,
+            "critical_value": 2.2009852,
+            "lower_percent": 6.424742283375743,
+            "upper_percent": 8.149770903530007
+          },
+          "reasons": []
+        }
+      },
+      {
+        "workload": "read-heavy",
+        "threads": 24,
+        "estimate_log": 0.041545826129919944,
+        "effect_percent": 4.242093087393988,
+        "reason": null,
+        "details": {
+          "cluster_count": 12,
+          "confirmatory_complete": false,
+          "run_estimates": [
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ],
+              "estimate_log": 0.017960670843484405,
+              "reason": null,
+              "assigned_forward": 287,
+              "assigned_invert": 313,
+              "assigned_invert_rate": 0.5216666666666666,
+              "effect_percent": 1.8122933686164984
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ],
+              "estimate_log": 0.06287282623898488,
+              "reason": null,
+              "assigned_forward": 468,
+              "assigned_invert": 424,
+              "assigned_invert_rate": 0.47533632286995514,
+              "effect_percent": 6.489140437464096
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ],
+              "estimate_log": 0.05689513926670507,
+              "reason": null,
+              "assigned_forward": 464,
+              "assigned_invert": 438,
+              "assigned_invert_rate": 0.48558758314855877,
+              "effect_percent": 5.854480479108133
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ],
+              "estimate_log": 0.0613887439934163,
+              "reason": null,
+              "assigned_forward": 463,
+              "assigned_invert": 460,
+              "assigned_invert_rate": 0.49837486457204766,
+              "effect_percent": 6.331219007975008
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ],
+              "estimate_log": 0.02557266586787438,
+              "reason": null,
+              "assigned_forward": 326,
+              "assigned_invert": 334,
+              "assigned_invert_rate": 0.5060606060606061,
+              "effect_percent": 2.5902451653963117
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ],
+              "estimate_log": 0.055301100984824846,
+              "reason": null,
+              "assigned_forward": 464,
+              "assigned_invert": 451,
+              "assigned_invert_rate": 0.492896174863388,
+              "effect_percent": 5.6858787993826425
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ],
+              "estimate_log": 0.06091699266026442,
+              "reason": null,
+              "assigned_forward": 488,
+              "assigned_invert": 460,
+              "assigned_invert_rate": 0.48523206751054854,
+              "effect_percent": 6.281068943762229
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ],
+              "estimate_log": 0.02458404453174226,
+              "reason": null,
+              "assigned_forward": 354,
+              "assigned_invert": 332,
+              "assigned_invert_rate": 0.4839650145772595,
+              "effect_percent": 2.488872378053589
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ],
+              "estimate_log": 0.043010141946557195,
+              "reason": null,
+              "assigned_forward": 401,
+              "assigned_invert": 412,
+              "assigned_invert_rate": 0.5067650676506765,
+              "effect_percent": 4.394848246664062
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ],
+              "estimate_log": 0.04513982682227004,
+              "reason": null,
+              "assigned_forward": 379,
+              "assigned_invert": 389,
+              "assigned_invert_rate": 0.5065104166666666,
+              "effect_percent": 4.6174132886578425
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ],
+              "estimate_log": 0.038828704839611775,
+              "reason": null,
+              "assigned_forward": 369,
+              "assigned_invert": 382,
+              "assigned_invert_rate": 0.5086551264980027,
+              "effect_percent": 3.959239125201245
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ],
+              "estimate_log": 0.00607905556330374,
+              "reason": null,
+              "assigned_forward": 283,
+              "assigned_invert": 308,
+              "assigned_invert_rate": 0.5211505922165821,
+              "effect_percent": 0.6097570520378437
+            }
+          ],
+          "assignment_rate_all_events": [
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ],
+              "assignment_rate_all_events": 0.521594684385382
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ],
+              "assignment_rate_all_events": 0.4753914988814318
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ],
+              "assignment_rate_all_events": 0.48451327433628316
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ],
+              "assignment_rate_all_events": 0.4972972972972973
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ],
+              "assignment_rate_all_events": 0.5075528700906344
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ],
+              "assignment_rate_all_events": 0.49291166848418755
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ],
+              "assignment_rate_all_events": 0.4842105263157895
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ],
+              "assignment_rate_all_events": 0.48401162790697677
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ],
+              "assignment_rate_all_events": 0.5067484662576687
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ],
+              "assignment_rate_all_events": 0.5064935064935064
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ],
+              "assignment_rate_all_events": 0.5086321381142098
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ],
+              "assignment_rate_all_events": 0.521079258010118
+            }
+          ],
+          "theta_log": 0.041545826129919944,
+          "effect_percent": 4.242093087393988,
+          "cluster_variance": 0.0003661884067078342,
+          "cluster_sd": 0.019136049924366162,
+          "standard_error": 0.005524101787529461,
+          "ci90": null,
+          "ci95": {
+            "lower_log": 0.02938735985227406,
+            "upper_log": 0.05370429240756583,
+            "half_width_log": 0.012158466277645887,
+            "critical_value": 2.2009852,
+            "lower_percent": 2.982342947532034,
+            "upper_percent": 5.517253348733664
+          },
+          "reasons": []
+        }
+      },
+      {
+        "workload": "read-heavy",
+        "threads": 48,
+        "estimate_log": 0.05881868401059925,
+        "effect_percent": 6.058292266355044,
+        "reason": null,
+        "details": {
+          "cluster_count": 12,
+          "confirmatory_complete": false,
+          "run_estimates": [
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ],
+              "estimate_log": 0.026655494620893453,
+              "reason": null,
+              "assigned_forward": 527,
+              "assigned_invert": 562,
+              "assigned_invert_rate": 0.5160697887970616,
+              "effect_percent": 2.7013929988153724
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ],
+              "estimate_log": 0.10541319552902478,
+              "reason": null,
+              "assigned_forward": 601,
+              "assigned_invert": 551,
+              "assigned_invert_rate": 0.4782986111111111,
+              "effect_percent": 11.11696458431192
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ],
+              "estimate_log": 0.09181397324942148,
+              "reason": null,
+              "assigned_forward": 598,
+              "assigned_invert": 566,
+              "assigned_invert_rate": 0.48625429553264604,
+              "effect_percent": 9.616088786471456
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ],
+              "estimate_log": 0.06225566115210952,
+              "reason": null,
+              "assigned_forward": 569,
+              "assigned_invert": 587,
+              "assigned_invert_rate": 0.5077854671280276,
+              "effect_percent": 6.423439334153715
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ],
+              "estimate_log": 0.02691183229825158,
+              "reason": null,
+              "assigned_forward": 568,
+              "assigned_invert": 572,
+              "assigned_invert_rate": 0.5017543859649123,
+              "effect_percent": 2.7277226098496277
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ],
+              "estimate_log": 0.021603511248901835,
+              "reason": null,
+              "assigned_forward": 551,
+              "assigned_invert": 556,
+              "assigned_invert_rate": 0.5022583559168925,
+              "effect_percent": 2.1838556648460807
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ],
+              "estimate_log": 0.09585596316848964,
+              "reason": null,
+              "assigned_forward": 605,
+              "assigned_invert": 554,
+              "assigned_invert_rate": 0.47799827437446074,
+              "effect_percent": 10.060052556410556
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ],
+              "estimate_log": 0.0687127725461768,
+              "reason": null,
+              "assigned_forward": 581,
+              "assigned_invert": 579,
+              "assigned_invert_rate": 0.4991379310344828,
+              "effect_percent": 7.112850744636219
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ],
+              "estimate_log": 0.0746871683430878,
+              "reason": null,
+              "assigned_forward": 573,
+              "assigned_invert": 579,
+              "assigned_invert_rate": 0.5026041666666666,
+              "effect_percent": 7.754700733708771
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ],
+              "estimate_log": 0.03771879524378215,
+              "reason": null,
+              "assigned_forward": 586,
+              "assigned_invert": 565,
+              "assigned_invert_rate": 0.4908774978279757,
+              "effect_percent": 3.8439177780946068
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ],
+              "estimate_log": 0.04993761429022771,
+              "reason": null,
+              "assigned_forward": 568,
+              "assigned_invert": 589,
+              "assigned_invert_rate": 0.5090751944684528,
+              "effect_percent": 5.120551412823233
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ],
+              "estimate_log": 0.04425822643682415,
+              "reason": null,
+              "assigned_forward": 563,
+              "assigned_invert": 594,
+              "assigned_invert_rate": 0.5133967156439067,
+              "effect_percent": 4.525223180166794
+            }
+          ],
+          "assignment_rate_all_events": [
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ],
+              "assignment_rate_all_events": 0.5169569202566453
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ],
+              "assignment_rate_all_events": 0.47920277296360486
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ],
+              "assignment_rate_all_events": 0.4854202401372213
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ],
+              "assignment_rate_all_events": 0.5077720207253886
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ],
+              "assignment_rate_all_events": 0.5017513134851138
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ],
+              "assignment_rate_all_events": 0.5013525698827773
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ],
+              "assignment_rate_all_events": 0.4771748492678725
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ],
+              "assignment_rate_all_events": 0.4991394148020654
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ],
+              "assignment_rate_all_events": 0.5034662045060658
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ],
+              "assignment_rate_all_events": 0.4908933217692975
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ],
+              "assignment_rate_all_events": 0.5090595340811044
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ],
+              "assignment_rate_all_events": 0.5142364106988784
+            }
+          ],
+          "theta_log": 0.05881868401059925,
+          "effect_percent": 6.058292266355044,
+          "cluster_variance": 0.0008333259008679952,
+          "cluster_sd": 0.028867384725118333,
+          "standard_error": 0.00833329617092378,
+          "ci90": null,
+          "ci95": {
+            "lower_log": 0.04047722247117934,
+            "upper_log": 0.07716014555001915,
+            "half_width_log": 0.01834146153941991,
+            "critical_value": 2.2009852,
+            "lower_percent": 4.130759101872639,
+            "upper_percent": 8.021505417540943
+          },
+          "reasons": []
+        }
+      }
+    ],
+    "recommended_delta_sign": [
+      {
+        "level": -1,
+        "estimate_log": null,
+        "effect_percent": null,
+        "reason": "window_commits_zero",
+        "details": {
+          "cluster_count": 12,
+          "confirmatory_complete": false,
+          "run_estimates": [
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ],
+              "estimate_log": 0.029858045317316173,
+              "reason": null,
+              "assigned_forward": 176,
+              "assigned_invert": 216,
+              "assigned_invert_rate": 0.5510204081632653,
+              "effect_percent": 3.030826648905075
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ],
+              "estimate_log": 0.05062940995771893,
+              "reason": null,
+              "assigned_forward": 261,
+              "assigned_invert": 239,
+              "assigned_invert_rate": 0.478,
+              "effect_percent": 5.19329851501869
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ],
+              "estimate_log": 0.04563513604337144,
+              "reason": null,
+              "assigned_forward": 223,
+              "assigned_invert": 223,
+              "assigned_invert_rate": 0.5,
+              "effect_percent": 4.669244093225568
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ],
+              "estimate_log": 0.036319034980608074,
+              "reason": null,
+              "assigned_forward": 237,
+              "assigned_invert": 211,
+              "assigned_invert_rate": 0.47098214285714285,
+              "effect_percent": 3.6986628731553397
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ],
+              "estimate_log": 0.04041792071504395,
+              "reason": null,
+              "assigned_forward": 221,
+              "assigned_invert": 236,
+              "assigned_invert_rate": 0.5164113785557987,
+              "effect_percent": 4.124584148084798
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ],
+              "estimate_log": 0.04330039275470644,
+              "reason": null,
+              "assigned_forward": 252,
+              "assigned_invert": 228,
+              "assigned_invert_rate": 0.475,
+              "effect_percent": 4.4251533335595
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ],
+              "estimate_log": 0.021163626734343022,
+              "reason": null,
+              "assigned_forward": 200,
+              "assigned_invert": 164,
+              "assigned_invert_rate": 0.45054945054945056,
+              "effect_percent": 2.1389164538573464
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ],
+              "estimate_log": 0.038712857918750454,
+              "reason": null,
+              "assigned_forward": 234,
+              "assigned_invert": 212,
+              "assigned_invert_rate": 0.47533632286995514,
+              "effect_percent": 3.9471964650195237
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ],
+              "estimate_log": 0.03426433122297541,
+              "reason": null,
+              "assigned_forward": 218,
+              "assigned_invert": 204,
+              "assigned_invert_rate": 0.4834123222748815,
+              "effect_percent": 3.485811588939889
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ],
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "assigned_forward": 228,
+              "assigned_invert": 251,
+              "assigned_invert_rate": 0.524008350730689,
+              "effect_percent": null
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ],
+              "estimate_log": 0.03603416683937198,
+              "reason": null,
+              "assigned_forward": 210,
+              "assigned_invert": 210,
+              "assigned_invert_rate": 0.5,
+              "effect_percent": 3.6691266349803677
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ],
+              "estimate_log": 0.02190918564257294,
+              "reason": null,
+              "assigned_forward": 192,
+              "assigned_invert": 197,
+              "assigned_invert_rate": 0.506426735218509,
+              "effect_percent": 2.21509542732389
+            }
+          ],
+          "assignment_rate_all_events": [
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ],
+              "assignment_rate_all_events": 0.5243243243243243
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ],
+              "assignment_rate_all_events": 0.46567164179104475
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ],
+              "assignment_rate_all_events": 0.49747899159663866
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ],
+              "assignment_rate_all_events": 0.47690014903129657
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ],
+              "assignment_rate_all_events": 0.5074626865671642
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ],
+              "assignment_rate_all_events": 0.4713855421686747
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ],
+              "assignment_rate_all_events": 0.46511627906976744
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ],
+              "assignment_rate_all_events": 0.48366013071895425
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ],
+              "assignment_rate_all_events": 0.5056179775280899
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ],
+              "assignment_rate_all_events": 0.516295025728988
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ],
+              "assignment_rate_all_events": 0.5032258064516129
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ],
+              "assignment_rate_all_events": 0.5260586319218241
+            }
+          ],
+          "theta_log": null,
+          "effect_percent": null,
+          "cluster_variance": null,
+          "cluster_sd": null,
+          "standard_error": null,
+          "ci90": null,
+          "ci95": null,
+          "reasons": [
+            "window_commits_zero"
+          ]
+        }
+      },
+      {
+        "level": 0,
+        "estimate_log": null,
+        "effect_percent": null,
+        "reason": "missing_assignment_arm;window_commits_zero",
+        "details": {
+          "cluster_count": 12,
+          "confirmatory_complete": false,
+          "run_estimates": [
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ],
+              "estimate_log": null,
+              "reason": "missing_assignment_arm",
+              "assigned_forward": 0,
+              "assigned_invert": 0,
+              "assigned_invert_rate": null,
+              "effect_percent": null
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ],
+              "estimate_log": null,
+              "reason": "missing_assignment_arm",
+              "assigned_forward": 0,
+              "assigned_invert": 0,
+              "assigned_invert_rate": null,
+              "effect_percent": null
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ],
+              "estimate_log": null,
+              "reason": "missing_assignment_arm",
+              "assigned_forward": 0,
+              "assigned_invert": 0,
+              "assigned_invert_rate": null,
+              "effect_percent": null
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ],
+              "estimate_log": null,
+              "reason": "missing_assignment_arm",
+              "assigned_forward": 0,
+              "assigned_invert": 0,
+              "assigned_invert_rate": null,
+              "effect_percent": null
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ],
+              "estimate_log": null,
+              "reason": "missing_assignment_arm",
+              "assigned_forward": 0,
+              "assigned_invert": 0,
+              "assigned_invert_rate": null,
+              "effect_percent": null
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ],
+              "estimate_log": null,
+              "reason": "missing_assignment_arm",
+              "assigned_forward": 0,
+              "assigned_invert": 0,
+              "assigned_invert_rate": null,
+              "effect_percent": null
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ],
+              "estimate_log": null,
+              "reason": "missing_assignment_arm",
+              "assigned_forward": 0,
+              "assigned_invert": 0,
+              "assigned_invert_rate": null,
+              "effect_percent": null
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ],
+              "estimate_log": null,
+              "reason": "missing_assignment_arm",
+              "assigned_forward": 0,
+              "assigned_invert": 0,
+              "assigned_invert_rate": null,
+              "effect_percent": null
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ],
+              "estimate_log": null,
+              "reason": "missing_assignment_arm",
+              "assigned_forward": 0,
+              "assigned_invert": 0,
+              "assigned_invert_rate": null,
+              "effect_percent": null
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ],
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "assigned_forward": 0,
+              "assigned_invert": 0,
+              "assigned_invert_rate": null,
+              "effect_percent": null
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ],
+              "estimate_log": null,
+              "reason": "missing_assignment_arm",
+              "assigned_forward": 0,
+              "assigned_invert": 0,
+              "assigned_invert_rate": null,
+              "effect_percent": null
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ],
+              "estimate_log": null,
+              "reason": "missing_assignment_arm",
+              "assigned_forward": 0,
+              "assigned_invert": 0,
+              "assigned_invert_rate": null,
+              "effect_percent": null
+            }
+          ],
+          "assignment_rate_all_events": [
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ],
+              "assignment_rate_all_events": 0.5243243243243243
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ],
+              "assignment_rate_all_events": 0.46567164179104475
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ],
+              "assignment_rate_all_events": 0.49747899159663866
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ],
+              "assignment_rate_all_events": 0.47690014903129657
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ],
+              "assignment_rate_all_events": 0.5074626865671642
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ],
+              "assignment_rate_all_events": 0.4713855421686747
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ],
+              "assignment_rate_all_events": 0.46511627906976744
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ],
+              "assignment_rate_all_events": 0.48366013071895425
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ],
+              "assignment_rate_all_events": 0.5056179775280899
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ],
+              "assignment_rate_all_events": 0.516295025728988
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ],
+              "assignment_rate_all_events": 0.5032258064516129
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ],
+              "assignment_rate_all_events": 0.5260586319218241
+            }
+          ],
+          "theta_log": null,
+          "effect_percent": null,
+          "cluster_variance": null,
+          "cluster_sd": null,
+          "standard_error": null,
+          "ci90": null,
+          "ci95": null,
+          "reasons": [
+            "missing_assignment_arm",
+            "window_commits_zero"
+          ]
+        }
+      },
+      {
+        "level": 1,
+        "estimate_log": null,
+        "effect_percent": null,
+        "reason": "window_commits_zero",
+        "details": {
+          "cluster_count": 12,
+          "confirmatory_complete": false,
+          "run_estimates": [
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ],
+              "estimate_log": -0.01251830742050005,
+              "reason": null,
+              "assigned_forward": 88,
+              "assigned_invert": 73,
+              "assigned_invert_rate": 0.453416149068323,
+              "effect_percent": -1.2440279342690639
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ],
+              "estimate_log": 0.17173059546706532,
+              "reason": null,
+              "assigned_forward": 97,
+              "assigned_invert": 71,
+              "assigned_invert_rate": 0.4226190476190476,
+              "effect_percent": 18.735791051821916
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ],
+              "estimate_log": 0.18029198275697378,
+              "reason": null,
+              "assigned_forward": 75,
+              "assigned_invert": 72,
+              "assigned_invert_rate": 0.4897959183673469,
+              "effect_percent": 19.756698098690155
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ],
+              "estimate_log": 0.15689478227411965,
+              "reason": null,
+              "assigned_forward": 112,
+              "assigned_invert": 109,
+              "assigned_invert_rate": 0.49321266968325794,
+              "effect_percent": 16.98725160992779
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ],
+              "estimate_log": 0.05959609656065422,
+              "reason": null,
+              "assigned_forward": 75,
+              "assigned_invert": 69,
+              "assigned_invert_rate": 0.4791666666666667,
+              "effect_percent": 6.140775371346606
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ],
+              "estimate_log": 0.0805655153915115,
+              "reason": null,
+              "assigned_forward": 98,
+              "assigned_invert": 84,
+              "assigned_invert_rate": 0.46153846153846156,
+              "effect_percent": 8.389985643956194
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ],
+              "estimate_log": 0.2720802281773248,
+              "reason": null,
+              "assigned_forward": 143,
+              "assigned_invert": 136,
+              "assigned_invert_rate": 0.4874551971326165,
+              "effect_percent": 31.269231199818943
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ],
+              "estimate_log": 0.08612556473201669,
+              "reason": null,
+              "assigned_forward": 81,
+              "assigned_invert": 83,
+              "assigned_invert_rate": 0.5060975609756098,
+              "effect_percent": 8.994317813626877
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ],
+              "estimate_log": 0.15613975708955502,
+              "reason": null,
+              "assigned_forward": 90,
+              "assigned_invert": 109,
+              "assigned_invert_rate": 0.5477386934673367,
+              "effect_percent": 16.898956625352284
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ],
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "assigned_forward": 53,
+              "assigned_invert": 49,
+              "assigned_invert_rate": 0.4803921568627451,
+              "effect_percent": null
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ],
+              "estimate_log": 0.17267482264051087,
+              "reason": null,
+              "assigned_forward": 96,
+              "assigned_invert": 102,
+              "assigned_invert_rate": 0.5151515151515151,
+              "effect_percent": 18.847957559192064
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ],
+              "estimate_log": 0.1437181269527939,
+              "reason": null,
+              "assigned_forward": 98,
+              "assigned_invert": 125,
+              "assigned_invert_rate": 0.5605381165919282,
+              "effect_percent": 15.4558623696929
+            }
+          ],
+          "assignment_rate_all_events": [
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ],
+              "assignment_rate_all_events": 0.5243243243243243
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ],
+              "assignment_rate_all_events": 0.46567164179104475
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ],
+              "assignment_rate_all_events": 0.49747899159663866
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ],
+              "assignment_rate_all_events": 0.47690014903129657
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ],
+              "assignment_rate_all_events": 0.5074626865671642
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ],
+              "assignment_rate_all_events": 0.4713855421686747
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ],
+              "assignment_rate_all_events": 0.46511627906976744
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ],
+              "assignment_rate_all_events": 0.48366013071895425
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ],
+              "assignment_rate_all_events": 0.5056179775280899
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ],
+              "assignment_rate_all_events": 0.516295025728988
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ],
+              "assignment_rate_all_events": 0.5032258064516129
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ],
+              "assignment_rate_all_events": 0.5260586319218241
+            }
+          ],
+          "theta_log": null,
+          "effect_percent": null,
+          "cluster_variance": null,
+          "cluster_sd": null,
+          "standard_error": null,
+          "ci90": null,
+          "ci95": null,
+          "reasons": [
+            "window_commits_zero"
+          ]
+        }
+      }
+    ],
+    "both_actions_feasible": [
+      {
+        "level": 0,
+        "estimate_log": null,
+        "effect_percent": null,
+        "reason": "missing_assignment_arm;window_commits_zero",
+        "details": {
+          "cluster_count": 12,
+          "confirmatory_complete": false,
+          "run_estimates": [
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ],
+              "estimate_log": null,
+              "reason": "missing_assignment_arm",
+              "assigned_forward": 2,
+              "assigned_invert": 0,
+              "assigned_invert_rate": 0.0,
+              "effect_percent": null
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ],
+              "estimate_log": 0.25200326688121577,
+              "reason": null,
+              "assigned_forward": 38,
+              "assigned_invert": 23,
+              "assigned_invert_rate": 0.3770491803278688,
+              "effect_percent": 28.66002404481327
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ],
+              "estimate_log": 0.19858386203455605,
+              "reason": null,
+              "assigned_forward": 27,
+              "assigned_invert": 28,
+              "assigned_invert_rate": 0.509090909090909,
+              "effect_percent": 21.96743074944055
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ],
+              "estimate_log": 0.23610577323183973,
+              "reason": null,
+              "assigned_forward": 40,
+              "assigned_invert": 37,
+              "assigned_invert_rate": 0.4805194805194805,
+              "effect_percent": 26.630824459895265
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ],
+              "estimate_log": 0.23572675184904368,
+              "reason": null,
+              "assigned_forward": 8,
+              "assigned_invert": 16,
+              "assigned_invert_rate": 0.6666666666666666,
+              "effect_percent": 26.582837764270206
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ],
+              "estimate_log": 0.17764766435599422,
+              "reason": null,
+              "assigned_forward": 19,
+              "assigned_invert": 23,
+              "assigned_invert_rate": 0.5476190476190477,
+              "effect_percent": 19.440441584011005
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ],
+              "estimate_log": 0.261271102810612,
+              "reason": null,
+              "assigned_forward": 65,
+              "assigned_invert": 62,
+              "assigned_invert_rate": 0.4881889763779528,
+              "effect_percent": 29.857966631466148
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ],
+              "estimate_log": 0.2330272191530356,
+              "reason": null,
+              "assigned_forward": 18,
+              "assigned_invert": 17,
+              "assigned_invert_rate": 0.4857142857142857,
+              "effect_percent": 26.241584074957874
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ],
+              "estimate_log": 0.23265399044768226,
+              "reason": null,
+              "assigned_forward": 36,
+              "assigned_invert": 34,
+              "assigned_invert_rate": 0.4857142857142857,
+              "effect_percent": 26.19447588358331
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ],
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "assigned_forward": 0,
+              "assigned_invert": 0,
+              "assigned_invert_rate": null,
+              "effect_percent": null
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ],
+              "estimate_log": 0.1967312197617319,
+              "reason": null,
+              "assigned_forward": 36,
+              "assigned_invert": 46,
+              "assigned_invert_rate": 0.5609756097560976,
+              "effect_percent": 21.74167791551869
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ],
+              "estimate_log": 0.23890606906694037,
+              "reason": null,
+              "assigned_forward": 31,
+              "assigned_invert": 44,
+              "assigned_invert_rate": 0.5866666666666667,
+              "effect_percent": 26.985925191727723
+            }
+          ],
+          "assignment_rate_all_events": [
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ],
+              "assignment_rate_all_events": 0.5243243243243243
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ],
+              "assignment_rate_all_events": 0.46567164179104475
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ],
+              "assignment_rate_all_events": 0.49747899159663866
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ],
+              "assignment_rate_all_events": 0.47690014903129657
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ],
+              "assignment_rate_all_events": 0.5074626865671642
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ],
+              "assignment_rate_all_events": 0.4713855421686747
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ],
+              "assignment_rate_all_events": 0.46511627906976744
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ],
+              "assignment_rate_all_events": 0.48366013071895425
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ],
+              "assignment_rate_all_events": 0.5056179775280899
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ],
+              "assignment_rate_all_events": 0.516295025728988
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ],
+              "assignment_rate_all_events": 0.5032258064516129
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ],
+              "assignment_rate_all_events": 0.5260586319218241
+            }
+          ],
+          "theta_log": null,
+          "effect_percent": null,
+          "cluster_variance": null,
+          "cluster_sd": null,
+          "standard_error": null,
+          "ci90": null,
+          "ci95": null,
+          "reasons": [
+            "missing_assignment_arm",
+            "window_commits_zero"
+          ]
+        }
+      },
+      {
+        "level": 1,
+        "estimate_log": null,
+        "effect_percent": null,
+        "reason": "window_commits_zero",
+        "details": {
+          "cluster_count": 12,
+          "confirmatory_complete": false,
+          "run_estimates": [
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ],
+              "estimate_log": 0.016318510695901303,
+              "reason": null,
+              "assigned_forward": 262,
+              "assigned_invert": 289,
+              "assigned_invert_rate": 0.5245009074410163,
+              "effect_percent": 1.645238480893324
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ],
+              "estimate_log": 0.06145049744596307,
+              "reason": null,
+              "assigned_forward": 320,
+              "assigned_invert": 287,
+              "assigned_invert_rate": 0.4728171334431631,
+              "effect_percent": 6.3377855306128925
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ],
+              "estimate_log": 0.06721735837636332,
+              "reason": null,
+              "assigned_forward": 271,
+              "assigned_invert": 267,
+              "assigned_invert_rate": 0.4962825278810409,
+              "effect_percent": 6.952792376467174
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ],
+              "estimate_log": 0.055724489355130594,
+              "reason": null,
+              "assigned_forward": 309,
+              "assigned_invert": 283,
+              "assigned_invert_rate": 0.4780405405405405,
+              "effect_percent": 5.730634445213253
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ],
+              "estimate_log": 0.04019831760533299,
+              "reason": null,
+              "assigned_forward": 288,
+              "assigned_invert": 289,
+              "assigned_invert_rate": 0.5008665511265165,
+              "effect_percent": 4.101720576156149
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ],
+              "estimate_log": 0.04649222391224547,
+              "reason": null,
+              "assigned_forward": 331,
+              "assigned_invert": 289,
+              "assigned_invert_rate": 0.4661290322580645,
+              "effect_percent": 4.758993288561224
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ],
+              "estimate_log": 0.10142557590623455,
+              "reason": null,
+              "assigned_forward": 278,
+              "assigned_invert": 238,
+              "assigned_invert_rate": 0.46124031007751937,
+              "effect_percent": 10.674754664356634
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ],
+              "estimate_log": 0.04045846809084599,
+              "reason": null,
+              "assigned_forward": 297,
+              "assigned_invert": 278,
+              "assigned_invert_rate": 0.4834782608695652,
+              "effect_percent": 4.128806212324716
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ],
+              "estimate_log": 0.051722788060106537,
+              "reason": null,
+              "assigned_forward": 272,
+              "assigned_invert": 279,
+              "assigned_invert_rate": 0.5063520871143375,
+              "effect_percent": 5.308377465070444
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ],
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "assigned_forward": 281,
+              "assigned_invert": 300,
+              "assigned_invert_rate": 0.5163511187607573,
+              "effect_percent": null
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ],
+              "estimate_log": 0.06562453440003291,
+              "reason": null,
+              "assigned_forward": 270,
+              "assigned_invert": 266,
+              "assigned_invert_rate": 0.4962686567164179,
+              "effect_percent": 6.782571006762808
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ],
+              "estimate_log": 0.04607788230331829,
+              "reason": null,
+              "assigned_forward": 259,
+              "assigned_invert": 278,
+              "assigned_invert_rate": 0.5176908752327747,
+              "effect_percent": 4.71559626994857
+            }
+          ],
+          "assignment_rate_all_events": [
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ],
+              "assignment_rate_all_events": 0.5243243243243243
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ],
+              "assignment_rate_all_events": 0.46567164179104475
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ],
+              "assignment_rate_all_events": 0.49747899159663866
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ],
+              "assignment_rate_all_events": 0.47690014903129657
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ],
+              "assignment_rate_all_events": 0.5074626865671642
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ],
+              "assignment_rate_all_events": 0.4713855421686747
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ],
+              "assignment_rate_all_events": 0.46511627906976744
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ],
+              "assignment_rate_all_events": 0.48366013071895425
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ],
+              "assignment_rate_all_events": 0.5056179775280899
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ],
+              "assignment_rate_all_events": 0.516295025728988
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ],
+              "assignment_rate_all_events": 0.5032258064516129
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ],
+              "assignment_rate_all_events": 0.5260586319218241
+            }
+          ],
+          "theta_log": null,
+          "effect_percent": null,
+          "cluster_variance": null,
+          "cluster_sd": null,
+          "standard_error": null,
+          "ci90": null,
+          "ci95": null,
+          "reasons": [
+            "window_commits_zero"
+          ]
+        }
+      }
+    ],
+    "time_block": [
+      {
+        "block": 1,
+        "estimate_log": null,
+        "effect_percent": null,
+        "reason": "window_commits_zero",
+        "details": {
+          "cluster_count": 12,
+          "confirmatory_complete": false,
+          "run_estimates": [
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ],
+              "estimate_log": 0.039022100737398986,
+              "reason": null,
+              "assigned_forward": 61,
+              "assigned_invert": 78,
+              "assigned_invert_rate": 0.5611510791366906,
+              "effect_percent": 3.9793463598508168
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ],
+              "estimate_log": 0.07100851157134658,
+              "reason": null,
+              "assigned_forward": 87,
+              "assigned_invert": 80,
+              "assigned_invert_rate": 0.47904191616766467,
+              "effect_percent": 7.35903637704466
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ],
+              "estimate_log": 0.10141889881982928,
+              "reason": null,
+              "assigned_forward": 73,
+              "assigned_invert": 76,
+              "assigned_invert_rate": 0.5100671140939598,
+              "effect_percent": 10.674015681923986
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ],
+              "estimate_log": 0.0991903167141781,
+              "reason": null,
+              "assigned_forward": 89,
+              "assigned_invert": 79,
+              "assigned_invert_rate": 0.47023809523809523,
+              "effect_percent": 10.427644182540728
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ],
+              "estimate_log": 0.04406343818161259,
+              "reason": null,
+              "assigned_forward": 72,
+              "assigned_invert": 79,
+              "assigned_invert_rate": 0.5231788079470199,
+              "effect_percent": 4.504864877161461
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ],
+              "estimate_log": 0.06536874326530503,
+              "reason": null,
+              "assigned_forward": 86,
+              "assigned_invert": 80,
+              "assigned_invert_rate": 0.4819277108433735,
+              "effect_percent": 6.755260464801996
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ],
+              "estimate_log": 0.11013497259055813,
+              "reason": null,
+              "assigned_forward": 88,
+              "assigned_invert": 73,
+              "assigned_invert_rate": 0.453416149068323,
+              "effect_percent": 11.642874757023563
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ],
+              "estimate_log": 0.09637172641217748,
+              "reason": null,
+              "assigned_forward": 75,
+              "assigned_invert": 78,
+              "assigned_invert_rate": 0.5098039215686274,
+              "effect_percent": 10.116832127266655
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ],
+              "estimate_log": 0.16332665357840748,
+              "reason": null,
+              "assigned_forward": 90,
+              "assigned_invert": 66,
+              "assigned_invert_rate": 0.4230769230769231,
+              "effect_percent": 17.742123573832295
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ],
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "assigned_forward": 70,
+              "assigned_invert": 76,
+              "assigned_invert_rate": 0.5205479452054794,
+              "effect_percent": null
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ],
+              "estimate_log": 0.10919012174123041,
+              "reason": null,
+              "assigned_forward": 77,
+              "assigned_invert": 78,
+              "assigned_invert_rate": 0.5032258064516129,
+              "effect_percent": 11.537438710500997
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ],
+              "estimate_log": 0.14508114386200638,
+              "reason": null,
+              "assigned_forward": 66,
+              "assigned_invert": 87,
+              "assigned_invert_rate": 0.5686274509803921,
+              "effect_percent": 15.613337958935922
+            }
+          ],
+          "assignment_rate_all_events": [
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ],
+              "assignment_rate_all_events": 0.5243243243243243
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ],
+              "assignment_rate_all_events": 0.46567164179104475
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ],
+              "assignment_rate_all_events": 0.49747899159663866
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ],
+              "assignment_rate_all_events": 0.47690014903129657
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ],
+              "assignment_rate_all_events": 0.5074626865671642
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ],
+              "assignment_rate_all_events": 0.4713855421686747
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ],
+              "assignment_rate_all_events": 0.46511627906976744
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ],
+              "assignment_rate_all_events": 0.48366013071895425
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ],
+              "assignment_rate_all_events": 0.5056179775280899
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ],
+              "assignment_rate_all_events": 0.516295025728988
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ],
+              "assignment_rate_all_events": 0.5032258064516129
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ],
+              "assignment_rate_all_events": 0.5260586319218241
+            }
+          ],
+          "theta_log": null,
+          "effect_percent": null,
+          "cluster_variance": null,
+          "cluster_sd": null,
+          "standard_error": null,
+          "ci90": null,
+          "ci95": null,
+          "reasons": [
+            "window_commits_zero"
+          ]
+        }
+      },
+      {
+        "block": 2,
+        "estimate_log": null,
+        "effect_percent": null,
+        "reason": "window_commits_zero",
+        "details": {
+          "cluster_count": 12,
+          "confirmatory_complete": false,
+          "run_estimates": [
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ],
+              "estimate_log": 0.022108633848185903,
+              "reason": null,
+              "assigned_forward": 66,
+              "assigned_invert": 72,
+              "assigned_invert_rate": 0.5217391304347826,
+              "effect_percent": 2.235484077865723
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ],
+              "estimate_log": 0.05982496908212463,
+              "reason": null,
+              "assigned_forward": 90,
+              "assigned_invert": 77,
+              "assigned_invert_rate": 0.46107784431137727,
+              "effect_percent": 6.165070858415308
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ],
+              "estimate_log": 0.1536926144384917,
+              "reason": null,
+              "assigned_forward": 74,
+              "assigned_invert": 74,
+              "assigned_invert_rate": 0.5,
+              "effect_percent": 16.613237942502767
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ],
+              "estimate_log": 0.06644714139875622,
+              "reason": null,
+              "assigned_forward": 89,
+              "assigned_invert": 78,
+              "assigned_invert_rate": 0.46706586826347307,
+              "effect_percent": 6.870447235859823
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ],
+              "estimate_log": 0.09375678592418142,
+              "reason": null,
+              "assigned_forward": 81,
+              "assigned_invert": 69,
+              "assigned_invert_rate": 0.46,
+              "effect_percent": 9.829259321280496
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ],
+              "estimate_log": 0.027969489236637536,
+              "reason": null,
+              "assigned_forward": 88,
+              "assigned_invert": 77,
+              "assigned_invert_rate": 0.4666666666666667,
+              "effect_percent": 2.8364307762720022
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ],
+              "estimate_log": 0.10772324521065733,
+              "reason": null,
+              "assigned_forward": 88,
+              "assigned_invert": 73,
+              "assigned_invert_rate": 0.453416149068323,
+              "effect_percent": 11.373946999768828
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ],
+              "estimate_log": 0.010454930773468324,
+              "reason": null,
+              "assigned_forward": 78,
+              "assigned_invert": 74,
+              "assigned_invert_rate": 0.4868421052631579,
+              "effect_percent": 1.0509774524778919
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ],
+              "estimate_log": 0.06690572481661147,
+              "reason": null,
+              "assigned_forward": 71,
+              "assigned_invert": 84,
+              "assigned_invert_rate": 0.5419354838709678,
+              "effect_percent": 6.919467489899708
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ],
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "assigned_forward": 70,
+              "assigned_invert": 75,
+              "assigned_invert_rate": 0.5172413793103449,
+              "effect_percent": null
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ],
+              "estimate_log": 0.07884173450218265,
+              "reason": null,
+              "assigned_forward": 74,
+              "assigned_invert": 80,
+              "assigned_invert_rate": 0.5194805194805194,
+              "effect_percent": 8.203306001733669
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ],
+              "estimate_log": 0.01647023070281505,
+              "reason": null,
+              "assigned_forward": 63,
+              "assigned_invert": 90,
+              "assigned_invert_rate": 0.5882352941176471,
+              "effect_percent": 1.6606612671214267
+            }
+          ],
+          "assignment_rate_all_events": [
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ],
+              "assignment_rate_all_events": 0.5243243243243243
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ],
+              "assignment_rate_all_events": 0.46567164179104475
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ],
+              "assignment_rate_all_events": 0.49747899159663866
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ],
+              "assignment_rate_all_events": 0.47690014903129657
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ],
+              "assignment_rate_all_events": 0.5074626865671642
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ],
+              "assignment_rate_all_events": 0.4713855421686747
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ],
+              "assignment_rate_all_events": 0.46511627906976744
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ],
+              "assignment_rate_all_events": 0.48366013071895425
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ],
+              "assignment_rate_all_events": 0.5056179775280899
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ],
+              "assignment_rate_all_events": 0.516295025728988
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ],
+              "assignment_rate_all_events": 0.5032258064516129
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ],
+              "assignment_rate_all_events": 0.5260586319218241
+            }
+          ],
+          "theta_log": null,
+          "effect_percent": null,
+          "cluster_variance": null,
+          "cluster_sd": null,
+          "standard_error": null,
+          "ci90": null,
+          "ci95": null,
+          "reasons": [
+            "window_commits_zero"
+          ]
+        }
+      },
+      {
+        "block": 3,
+        "estimate_log": null,
+        "effect_percent": null,
+        "reason": "window_commits_zero",
+        "details": {
+          "cluster_count": 12,
+          "confirmatory_complete": false,
+          "run_estimates": [
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ],
+              "estimate_log": 0.0032690390684848416,
+              "reason": null,
+              "assigned_forward": 72,
+              "assigned_invert": 66,
+              "assigned_invert_rate": 0.4782608695652174,
+              "effect_percent": 0.32743882039565225
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ],
+              "estimate_log": 0.08980983850661559,
+              "reason": null,
+              "assigned_forward": 91,
+              "assigned_invert": 76,
+              "assigned_invert_rate": 0.4550898203592814,
+              "effect_percent": 9.396623367157765
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ],
+              "estimate_log": 0.03440358259882841,
+              "reason": null,
+              "assigned_forward": 76,
+              "assigned_invert": 72,
+              "assigned_invert_rate": 0.4864864864864865,
+              "effect_percent": 3.500223133975363
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ],
+              "estimate_log": 0.09567246693836286,
+              "reason": null,
+              "assigned_forward": 88,
+              "assigned_invert": 79,
+              "assigned_invert_rate": 0.47305389221556887,
+              "effect_percent": 10.039858804474237
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ],
+              "estimate_log": 0.03720961870810499,
+              "reason": null,
+              "assigned_forward": 68,
+              "assigned_invert": 82,
+              "assigned_invert_rate": 0.5466666666666666,
+              "effect_percent": 3.7910563508304898
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ],
+              "estimate_log": 0.06918749158601409,
+              "reason": null,
+              "assigned_forward": 96,
+              "assigned_invert": 70,
+              "assigned_invert_rate": 0.42168674698795183,
+              "effect_percent": 7.1637113255838685
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ],
+              "estimate_log": 0.1369747773922173,
+              "reason": null,
+              "assigned_forward": 80,
+              "assigned_invert": 81,
+              "assigned_invert_rate": 0.5031055900621118,
+              "effect_percent": 14.679922288860539
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ],
+              "estimate_log": 0.023118811628641406,
+              "reason": null,
+              "assigned_forward": 71,
+              "assigned_invert": 82,
+              "assigned_invert_rate": 0.5359477124183006,
+              "effect_percent": 2.3388122733920524
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ],
+              "estimate_log": 0.03302254106854305,
+              "reason": null,
+              "assigned_forward": 74,
+              "assigned_invert": 81,
+              "assigned_invert_rate": 0.5225806451612903,
+              "effect_percent": 3.357383683742858
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ],
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "assigned_forward": 76,
+              "assigned_invert": 69,
+              "assigned_invert_rate": 0.47586206896551725,
+              "effect_percent": null
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ],
+              "estimate_log": 0.11599608499277272,
+              "reason": null,
+              "assigned_forward": 79,
+              "assigned_invert": 76,
+              "assigned_invert_rate": 0.49032258064516127,
+              "effect_percent": 12.299147560490537
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ],
+              "estimate_log": 0.011455604599513346,
+              "reason": null,
+              "assigned_forward": 73,
+              "assigned_invert": 80,
+              "assigned_invert_rate": 0.5228758169934641,
+              "effect_percent": 1.1521471311934202
+            }
+          ],
+          "assignment_rate_all_events": [
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ],
+              "assignment_rate_all_events": 0.5243243243243243
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ],
+              "assignment_rate_all_events": 0.46567164179104475
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ],
+              "assignment_rate_all_events": 0.49747899159663866
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ],
+              "assignment_rate_all_events": 0.47690014903129657
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ],
+              "assignment_rate_all_events": 0.5074626865671642
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ],
+              "assignment_rate_all_events": 0.4713855421686747
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ],
+              "assignment_rate_all_events": 0.46511627906976744
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ],
+              "assignment_rate_all_events": 0.48366013071895425
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ],
+              "assignment_rate_all_events": 0.5056179775280899
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ],
+              "assignment_rate_all_events": 0.516295025728988
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ],
+              "assignment_rate_all_events": 0.5032258064516129
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ],
+              "assignment_rate_all_events": 0.5260586319218241
+            }
+          ],
+          "theta_log": null,
+          "effect_percent": null,
+          "cluster_variance": null,
+          "cluster_sd": null,
+          "standard_error": null,
+          "ci90": null,
+          "ci95": null,
+          "reasons": [
+            "window_commits_zero"
+          ]
+        }
+      },
+      {
+        "block": 4,
+        "estimate_log": null,
+        "effect_percent": null,
+        "reason": "window_commits_zero",
+        "details": {
+          "cluster_count": 12,
+          "confirmatory_complete": false,
+          "run_estimates": [
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ],
+              "estimate_log": 0.006310987681085372,
+              "reason": null,
+              "assigned_forward": 65,
+              "assigned_invert": 73,
+              "assigned_invert_rate": 0.5289855072463768,
+              "effect_percent": 0.6330943922951784
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ],
+              "estimate_log": 0.10068944841025532,
+              "reason": null,
+              "assigned_forward": 90,
+              "assigned_invert": 77,
+              "assigned_invert_rate": 0.46107784431137727,
+              "effect_percent": 10.593313913403097
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ],
+              "estimate_log": 0.026157353910512313,
+              "reason": null,
+              "assigned_forward": 75,
+              "assigned_invert": 73,
+              "assigned_invert_rate": 0.49324324324324326,
+              "effect_percent": 2.6502459942100662
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ],
+              "estimate_log": 0.04452329500840388,
+              "reason": null,
+              "assigned_forward": 83,
+              "assigned_invert": 84,
+              "assigned_invert_rate": 0.5029940119760479,
+              "effect_percent": 4.552933204135203
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ],
+              "estimate_log": 0.005193252107306048,
+              "reason": null,
+              "assigned_forward": 75,
+              "assigned_invert": 75,
+              "assigned_invert_rate": 0.5,
+              "effect_percent": 0.5206760414923308
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ],
+              "estimate_log": 0.05204815725554367,
+              "reason": null,
+              "assigned_forward": 80,
+              "assigned_invert": 85,
+              "assigned_invert_rate": 0.5151515151515151,
+              "effect_percent": 5.342647141965313
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ],
+              "estimate_log": 0.16890606713529394,
+              "reason": null,
+              "assigned_forward": 87,
+              "assigned_invert": 73,
+              "assigned_invert_rate": 0.45625,
+              "effect_percent": 18.400891635097334
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ],
+              "estimate_log": 0.07809318492041135,
+              "reason": null,
+              "assigned_forward": 91,
+              "assigned_invert": 61,
+              "assigned_invert_rate": 0.40131578947368424,
+              "effect_percent": 8.122340769305815
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ],
+              "estimate_log": 0.03277683845893546,
+              "reason": null,
+              "assigned_forward": 73,
+              "assigned_invert": 82,
+              "assigned_invert_rate": 0.5290322580645161,
+              "effect_percent": 3.3319916244249117
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ],
+              "estimate_log": null,
+              "reason": "window_commits_zero",
+              "assigned_forward": 65,
+              "assigned_invert": 80,
+              "assigned_invert_rate": 0.5517241379310345,
+              "effect_percent": null
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ],
+              "estimate_log": 0.014822815301367424,
+              "reason": null,
+              "assigned_forward": 76,
+              "assigned_invert": 78,
+              "assigned_invert_rate": 0.5064935064935064,
+              "effect_percent": 1.4933218046787626
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ],
+              "estimate_log": 0.09571295288390026,
+              "reason": null,
+              "assigned_forward": 88,
+              "assigned_invert": 65,
+              "assigned_invert_rate": 0.42483660130718953,
+              "effect_percent": 10.04431396238977
+            }
+          ],
+          "assignment_rate_all_events": [
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1606918558588661,
+                "5736eb63a3216e51cb1c36077fdf2cdf7ff9b493bacd4c4887b3a3f1607145b5"
+              ],
+              "assignment_rate_all_events": 0.5243243243243243
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                781552995023334429,
+                "6703673ded4d96868287795a7360568a5b280e6e94625d8cd0241c85a0f31c54"
+              ],
+              "assignment_rate_all_events": 0.46567164179104475
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                1227967287010452276,
+                "d7f752c76e6a7ad569fabb547d7071e6d9c228522d254f064170cf051acd6b94"
+              ],
+              "assignment_rate_all_events": 0.49747899159663866
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2057459156086657874,
+                "bd4d9ea04ae5d9986f55dd7193c8e591c53a293e2e738a3e94c22d729c2f2a73"
+              ],
+              "assignment_rate_all_events": 0.47690014903129657
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2171878327641984105,
+                "c83c688893f4d89f090628e09fdecd29e2db83274445f8041b051aada9e0fe16"
+              ],
+              "assignment_rate_all_events": 0.5074626865671642
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                2410271300384854639,
+                "75ccfe5fa999ef1fc5a2d09811417eabd531b3ccd7e3bf03c50d47f1544a92b5"
+              ],
+              "assignment_rate_all_events": 0.4713855421686747
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5470969369189575692,
+                "2d6d2c1b198c56bd58b84fd938a8846aa0eecfe32dd10d12da4c86f65ba87a21"
+              ],
+              "assignment_rate_all_events": 0.46511627906976744
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                5744733223455690259,
+                "2da5eb875db74d05b68f4c4ca22db988995d0b435bf406e75afc114954695ad3"
+              ],
+              "assignment_rate_all_events": 0.48366013071895425
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                11135758292722279839,
+                "065b479f174c4da0055a9c0b4930b99d8c715cf258b917bdbed696cb89155e04"
+              ],
+              "assignment_rate_all_events": 0.5056179775280899
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13467815584134101060,
+                "99edc30ff7be9fe93fe997533ba6b0215941339766e3cacd56c9b07197ba5149"
+              ],
+              "assignment_rate_all_events": 0.516295025728988
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                13576760736062537317,
+                "14335f0551f88e01db62c58bdc38e0e42080bfa9fcca4f0f383f65e94565ff55"
+              ],
+              "assignment_rate_all_events": 0.5032258064516129
+            },
+            {
+              "run_identity": [
+                "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+                16736322205931003081,
+                "45af6ba44ea0fd57a4f35cf244e47f5dfef0340531cc410ab2935cb31977097d"
+              ],
+              "assignment_rate_all_events": 0.5260586319218241
+            }
+          ],
+          "theta_log": null,
+          "effect_percent": null,
+          "cluster_variance": null,
+          "cluster_sd": null,
+          "standard_error": null,
+          "ci90": null,
+          "ci95": null,
+          "reasons": [
+            "window_commits_zero"
+          ]
+        }
+      }
+    ]
+  }
+}

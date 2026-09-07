@@ -1,0 +1,43 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 800,
+  "timeout_seconds": 1500,
+  "hang_timeout_seconds": 1500,
+  "mutations": [
+    {
+      "id": "m9a-diagnostic-side-reverted-to-performance-text",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "            DIAGNOSTIC_NOT_CERTIFIED if backoff_trace else NOT_CERTIFIED\n",
+          "new": "            NOT_CERTIFIED if backoff_trace else NOT_CERTIFIED\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_artifacts_record_exact_preregistration_sha_only_on_exact_axes",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_stack_artifacts_use_schema_v3",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_not_certified_text_is_mode_specific_without_changing_performance_identity"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m9b-performance-side-given-diagnostic-text",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "            DIAGNOSTIC_NOT_CERTIFIED if backoff_trace else NOT_CERTIFIED\n",
+          "new": "            DIAGNOSTIC_NOT_CERTIFIED if backoff_trace else DIAGNOSTIC_NOT_CERTIFIED\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_stack_artifacts_use_schema_v3",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_not_certified_text_is_mode_specific_without_changing_performance_identity"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

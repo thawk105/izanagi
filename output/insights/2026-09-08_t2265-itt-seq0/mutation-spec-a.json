@@ -1,0 +1,193 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 400,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "m1-drop-positional-exclusion",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_counterfactual_analysis.py",
+          "old": "    analysis_events = events[1:]\n",
+          "new": "    analysis_events = events\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_final_assignment_is_dropped_and_remaining_post_treatment_fields_do_not_filter",
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_seq_zero_is_excluded_before_pairing_and_membership_is_rebased",
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_seq_zero_zero_commit_is_v1_inconclusive_but_v2_confirmatory"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-outcome-count-on-raw-events",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_counterfactual_analysis.py",
+          "old": "    outcome_count = len(analysis_events) - 1\n",
+          "new": "    outcome_count = len(events) - 1\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_seq_zero_is_excluded_before_pairing_and_membership_is_rebased"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-filter-raw-pairs-instead-of-rebasing",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_counterfactual_analysis.py",
+          "old": "        for index, (current, following) in enumerate(\n            zip(analysis_events, analysis_events[1:])\n        )\n        if membership(current, index, outcome_count)\n",
+          "new": "        for index, (current, following) in enumerate(zip(events, events[1:]))\n        if index != 0 and membership(current, index, outcome_count)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_seq_zero_is_excluded_before_pairing_and_membership_is_rebased"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-zero-scan-back-to-raw-events",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_counterfactual_analysis.py",
+          "old": "    if any(event[\"window_commits\"] == 0 for event in analysis_events):\n",
+          "new": "    if any(event[\"window_commits\"] == 0 for event in events):\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_seq_zero_zero_commit_is_v1_inconclusive_but_v2_confirmatory"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m5a-zero-scan-narrowed-to-selected-currents",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_counterfactual_analysis.py",
+          "old": "    if any(event[\"window_commits\"] == 0 for event in analysis_events):\n",
+          "new": "    if any(current[\"window_commits\"] == 0 for current, _ in selected):\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_missing_arm_and_zero_commit_make_whole_primary_inconclusive",
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_seq_ge_one_zero_commit_remains_inconclusive_under_v2"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m5b-zero-scan-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_counterfactual_analysis.py",
+          "old": "    if any(event[\"window_commits\"] == 0 for event in analysis_events):\n        return {\n            \"estimate_log\": None,\n            \"reason\": \"window_commits_zero\",\n            \"assigned_forward\": forward_count,\n            \"assigned_invert\": invert_count,\n            \"assigned_invert_rate\": invert_count / total if total else None,\n        }\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_missing_arm_and_zero_commit_make_whole_primary_inconclusive",
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_seq_ge_one_zero_commit_remains_inconclusive_under_v2"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m6-analysis-document-pinned-to-v1-sha",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_counterfactual_analysis.py",
+          "old": "    if preregistration_sha256 != ANALYSIS_PREREGISTRATION_SHA256_V2:\n",
+          "new": "    if preregistration_sha256 != MEASUREMENT_PREREGISTRATION_SHA256_V1:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_analysis_preregistration_file_is_bound_to_literal_v2_sha256",
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_artifacts_remain_bound_to_literal_v1_preregistration_sha",
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_binding_seed_and_input_count_fail_closed_or_become_inconclusive",
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_final_assignment_is_dropped_and_remaining_post_treatment_fields_do_not_filter",
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_genome_requires_exact_driver_flag_set",
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_missing_arm_and_zero_commit_make_whole_primary_inconclusive",
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_public_analysis_pairs_next_window_and_uses_equal_run_clusters",
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_seq_zero_zero_commit_is_v1_inconclusive_but_v2_confirmatory"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m7a-top-level-artifact-pin-flipped-to-v2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_counterfactual_analysis.py",
+          "old": "        \"counterfactual_preregistration\": MEASUREMENT_PREREGISTRATION_SHA256_V1,\n",
+          "new": "        \"counterfactual_preregistration\": ANALYSIS_PREREGISTRATION_SHA256_V2,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_analysis_preregistration_file_is_bound_to_literal_v2_sha256",
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_artifacts_remain_bound_to_literal_v1_preregistration_sha",
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_binding_seed_and_input_count_fail_closed_or_become_inconclusive",
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_final_assignment_is_dropped_and_remaining_post_treatment_fields_do_not_filter",
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_genome_requires_exact_driver_flag_set",
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_missing_arm_and_zero_commit_make_whole_primary_inconclusive",
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_public_analysis_pairs_next_window_and_uses_equal_run_clusters",
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_seq_zero_zero_commit_is_v1_inconclusive_but_v2_confirmatory"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m7b-row-artifact-pin-flipped-to-v2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_counterfactual_analysis.py",
+          "old": "        != MEASUREMENT_PREREGISTRATION_SHA256_V1\n",
+          "new": "        != ANALYSIS_PREREGISTRATION_SHA256_V2\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_analysis_preregistration_file_is_bound_to_literal_v2_sha256",
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_artifacts_remain_bound_to_literal_v1_preregistration_sha",
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_binding_seed_and_input_count_fail_closed_or_become_inconclusive",
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_final_assignment_is_dropped_and_remaining_post_treatment_fields_do_not_filter",
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_genome_requires_exact_driver_flag_set",
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_missing_arm_and_zero_commit_make_whole_primary_inconclusive",
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_public_analysis_pairs_next_window_and_uses_equal_run_clusters",
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_seq_zero_zero_commit_is_v1_inconclusive_but_v2_confirmatory"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m8-analysis-version-left-at-v1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_counterfactual_analysis.py",
+          "old": "ANALYSIS_VERSION = \"izanagi-backoff-counterfactual-analysis/v2\"\n",
+          "new": "ANALYSIS_VERSION = \"izanagi-backoff-counterfactual-analysis/v1\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_public_analysis_pairs_next_window_and_uses_equal_run_clusters"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
