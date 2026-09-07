@@ -36,7 +36,7 @@ B4_FLOOR_ARTIFACT_SCHEMA_VERSION: Final[str] = (
     "p3-b4-authoritative-floor/v1"
 )
 ACCEPTED_FLOOR_PAIR_SUMMARY_SCHEMA_VERSION: Final[str] = (
-    "floor-pair-summary/v2"
+    "floor-pair-summary/v3"
 )
 FLOOR_PAIR_SUMMARY_FORMAT: Final[str] = "floor-pair-summary-json/v1"
 GENERATOR_IDENTITY: Final[str] = (
@@ -80,6 +80,7 @@ _SUMMARY_TOP_KEYS = {
     "status",
     "upper",
     "candidate_floor",
+    "statistics",
     "window_artifacts",
     "campaigns",
     "dropped_sample_count",
@@ -473,7 +474,7 @@ def _validate_dropped(value: object) -> None:
         "window_id",
         "pair_id",
         "sample_index",
-        "role",
+        "side_id",
         "status",
         "error",
         "dropped_by_session_id",
@@ -484,7 +485,7 @@ def _validate_dropped(value: object) -> None:
         _identifier(row["window_id"], label=f"{label}.window_id")
         _identifier(row["pair_id"], label=f"{label}.pair_id")
         _nonnegative_int(row["sample_index"], label=f"{label}.sample_index")
-        _identifier(row["role"], label=f"{label}.role")
+        _identifier(row["side_id"], label=f"{label}.side_id")
         _identifier(row["status"], label=f"{label}.status")
         for field in ("error", "dropped_by_session_id"):
             if row[field] is not None:
@@ -529,30 +530,53 @@ def _rederive_summary(value: object) -> float:
         seen_samples.add(sample_key)
         medians = _exact_object(
             sample["session_medians"],
-            {"candidate_1", "candidate_2", "reference"},
+            {"candidate_1", "candidate_2"},
             label=f"{label}.session_medians",
         )
-        candidate_1 = _float(
+        side_1 = _exact_object(
             medians["candidate_1"],
+            {"candidate", "reference"},
             label=f"{label}.session_medians.candidate_1",
+        )
+        side_2 = _exact_object(
+            medians["candidate_2"],
+            {"candidate", "reference"},
+            label=f"{label}.session_medians.candidate_2",
+        )
+        candidate_1 = _float(
+            side_1["candidate"],
+            label=f"{label}.session_medians.candidate_1.candidate",
             nonnegative=True,
         )
         candidate_2 = _float(
-            medians["candidate_2"],
-            label=f"{label}.session_medians.candidate_2",
+            side_2["candidate"],
+            label=f"{label}.session_medians.candidate_2.candidate",
             nonnegative=True,
         )
-        reference = _float(
-            medians["reference"],
-            label=f"{label}.session_medians.reference",
+        reference_1 = _float(
+            side_1["reference"],
+            label=f"{label}.session_medians.candidate_1.reference",
             nonnegative=True,
         )
-        if reference <= 0.0:
-            _fail("schema_error", f"{label}.session_medians.reference は positive でない")
+        reference_2 = _float(
+            side_2["reference"],
+            label=f"{label}.session_medians.candidate_2.reference",
+            nonnegative=True,
+        )
+        if reference_1 <= 0.0:
+            _fail(
+                "schema_error",
+                f"{label}.session_medians.candidate_1.reference は positive でない",
+            )
+        if reference_2 <= 0.0:
+            _fail(
+                "schema_error",
+                f"{label}.session_medians.candidate_2.reference は positive でない",
+            )
 
         # Keep this operation order identical to floor_pair_driver.compute_gain_difference.
-        gain_1 = candidate_1 / reference - 1.0
-        gain_2 = candidate_2 / reference - 1.0
+        gain_1 = candidate_1 / reference_1 - 1.0
+        gain_2 = candidate_2 / reference_2 - 1.0
         difference = abs(gain_1 - gain_2)
         if not all(math.isfinite(item) for item in (gain_1, gain_2, difference)):
             _fail("self_inconsistency", f"{label} の再導出値が finite でない")
@@ -796,7 +820,7 @@ def load_floor_pair_summary(
     repo_root: Path,
     summary_path: Path,
 ) -> B4ValidatedFloorPairSummary:
-    """Load a v2 summary, rederive its float values, and derive its identity.
+    """Load a v3 summary, rederive its float values, and derive its identity.
 
     A missing identity component is returned in ``missing_identity_elements``;
     it does not erase the fact that the producer summary itself was accepted.

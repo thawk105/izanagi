@@ -42,8 +42,9 @@ def _synthetic_source(
     monkeypatch: pytest.MonkeyPatch,
     *,
     candidate_1: float = 130.0,
+    reference_1: float = 100.0,
     candidate_2: float = 104.0,
-    reference: float = 100.0,
+    reference_2: float = 100.0,
     receipt_has_protocol: bool = False,
 ) -> tuple[Path, dict[str, object]]:
     """Write a closed-schema producer spec and an internally derived summary."""
@@ -93,7 +94,10 @@ def _synthetic_source(
     # The floor is always derived from named synthetic medians.  No measured or
     # plausible production floor is embedded as a fixture default.
     gain = floor_pair_driver.compute_gain_difference(
-        candidate_1, candidate_2, reference
+        candidate_1_tps=candidate_1,
+        reference_1_tps=reference_1,
+        candidate_2_tps=candidate_2,
+        reference_2_tps=reference_2,
     )
     window_raw = b"synthetic window artifact\n"
     window_sha = _write_bytes(root, "out/window.jsonl", window_raw)
@@ -108,6 +112,12 @@ def _synthetic_source(
         "status": "generated",
         "upper": gain.difference,
         "candidate_floor": gain.difference,
+        "statistics": {
+            "reference_measurements_per_pair_sample": (
+                floor_pair_driver.REFERENCE_MEASUREMENTS_PER_PAIR_SAMPLE
+            ),
+            "difference_formula": floor_pair_driver.DIFFERENCE_FORMULA,
+        },
         "window_artifacts": [
             {
                 "window_id": "window-a",
@@ -147,9 +157,14 @@ def _synthetic_source(
                         "pair_id": "pair-a",
                         "sample_index": 0,
                         "session_medians": {
-                            "candidate_1": candidate_1,
-                            "candidate_2": candidate_2,
-                            "reference": reference,
+                            "candidate_1": {
+                                "candidate": candidate_1,
+                                "reference": reference_1,
+                            },
+                            "candidate_2": {
+                                "candidate": candidate_2,
+                                "reference": reference_2,
+                            },
                         },
                         "gain_1": gain.gain_1,
                         "gain_2": gain.gain_2,
@@ -195,7 +210,7 @@ def test_m04_summary_schema_pin_is_one_exact_string() -> None:
     assert type(issuer.ACCEPTED_FLOOR_PAIR_SUMMARY_SCHEMA_VERSION) is str
     assert (
         issuer.ACCEPTED_FLOOR_PAIR_SUMMARY_SCHEMA_VERSION
-        == "floor-pair-summary/v2"
+        == "floor-pair-summary/v3"
     )
 
 
@@ -208,11 +223,12 @@ def test_real_finalize_floor_summary_is_accepted_before_missing_protocol_blocks_
     spec, plan = driver_tests._run_production(
         tmp_path,
         monkeypatch,
-        {
-            "candidate_1": (120.0, 120.0),
-            "candidate_2": (110.0, 110.0),
-            "reference": (100.0, 100.0),
-        },
+        driver_tests._pair_measurement_values(
+            candidate_1=(120.0, 120.0),
+            reference_1=(100.0, 100.0),
+            candidate_2=(110.0, 110.0),
+            reference_2=(110.0, 110.0),
+        ),
     )
     produced = floor_pair_driver.finalize_floor(
         spec, plan, now_fn=lambda: driver_tests.NOW
@@ -267,8 +283,9 @@ def test_m01_exact_conversion_preserves_candidate_binary64_and_accepts_zero(
         zero_root,
         monkeypatch,
         candidate_1=100.0,
+        reference_1=100.0,
         candidate_2=100.0,
-        reference=100.0,
+        reference_2=100.0,
     )
     zero = issuer.load_floor_pair_summary(
         repo_root=zero_root, summary_path=zero_summary_path
@@ -318,8 +335,9 @@ def test_gain_stratum_and_final_uppers_are_each_rederived(
         negative_root,
         monkeypatch,
         candidate_1=100.0,
+        reference_1=100.0,
         candidate_2=100.0,
-        reference=100.0,
+        reference_2=100.0,
     )
     for field in (
         "candidate_floor",
@@ -358,8 +376,9 @@ def test_m03_bool_upper_is_rejected_even_when_it_equals_zero(
         tmp_path,
         monkeypatch,
         candidate_1=100.0,
+        reference_1=100.0,
         candidate_2=100.0,
-        reference=100.0,
+        reference_2=100.0,
     )
     summary["upper"] = False
     _rewrite_summary(tmp_path, summary)
@@ -377,8 +396,9 @@ def test_m11_exact_floor_domain_rejects_one_without_clamp(
         tmp_path,
         monkeypatch,
         candidate_1=200.0,
+        reference_1=100.0,
         candidate_2=100.0,
-        reference=100.0,
+        reference_2=100.0,
     )
     with pytest.raises(issuer.B4FloorArtifactError, match="0 <= floor < 1"):
         issuer.load_floor_pair_summary(
@@ -389,7 +409,7 @@ def test_m11_exact_floor_domain_rejects_one_without_clamp(
 @pytest.mark.parametrize(
     ("field", "value", "message"),
     (
-        ("schema", "floor-pair-summary/v3", "pinned"),
+        ("schema", "floor-pair-summary/v2", "pinned"),
         ("status", "not_generated_missing_samples", "generated"),
     ),
 )
