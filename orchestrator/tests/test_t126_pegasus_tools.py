@@ -316,6 +316,12 @@ T126_MUTATION_REGISTRY = {
         "node": "orchestrator/tests/test_t126_pegasus_tools.py::"
                 "test_m12_relaxed_live_schema_cannot_expand_receipt_acceptance",
     },
+    "M13": {
+        "old_anchor": "qualification schema memo/live bytes equality",
+        "mutant": "ignore qualification schema memo drift",
+        "node": "orchestrator/tests/test_t126_pegasus_tools.py::"
+                "test_m13_qualification_schema_memo_drift_fails_closed",
+    },
 }
 
 # collector.collect() の逐語断片。M9e / M9g は「削除」ではなく「移動」変異な
@@ -646,6 +652,11 @@ _T126_MUTATION_TRANSFORMS = {
         "orchestrator/qualification/identity.py",
         "        if hashlib.sha256(live).hexdigest() != expected:\n",
         "        if False and hashlib.sha256(live).hexdigest() != expected:\n",
+    ),
+    "M13": (
+        "orchestrator/qualification/artifacts.py",
+        "    if memoized != live:\n",
+        "    if False and memoized != live:\n",
     ),
 }
 for _mutation_id, (_source_path, _anchor, _replacement) in (
@@ -3099,6 +3110,24 @@ def test_m12_relaxed_live_schema_cannot_expand_receipt_acceptance(
     verified = collector.verify_post_job_receipt(receipt_path, repo_root=repo)
     assert verified.integrity_status == "invalid"
     assert "live qualification schema differs" in " ".join(verified.errors)
+
+
+def test_m13_qualification_schema_memo_drift_fails_closed(monkeypatch):
+    schema_name = "t126_failure_receipt_schema.json"
+    schema_path = _ROOT / "orchestrator/qualification" / schema_name
+    disk_bytes = schema_path.read_bytes()
+    memo = qualification_artifacts._QUALIFICATION_SCHEMA_BYTES
+
+    monkeypatch.setitem(memo, schema_name, disk_bytes)
+    assert qualification_artifacts.qualification_schema_bytes(
+        schema_name) is disk_bytes
+
+    drifted = b"memoized qualification schema differs from disk"
+    assert drifted != disk_bytes
+    monkeypatch.setitem(memo, schema_name, drifted)
+    with pytest.raises(QualificationArtifactError, match=schema_name):
+        qualification_artifacts.qualification_schema_bytes(schema_name)
+    assert memo[schema_name] is drifted
 
 
 def test_identity_consumer_rejects_git_chain_tool_hash_and_snapshot_traversal(
@@ -6138,7 +6167,7 @@ def test_fr3_mutation_node_registry_is_exact_and_complete():
     actual = {
         node.name for node in tree.body
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-        and re.fullmatch(r"test_m(?:8[a-j]|9[a-j]|10[a-j]|11[a-j]|12)_.+",
+        and re.fullmatch(r"test_m(?:8[a-j]|9[a-j]|10[a-j]|11[a-j]|12|13)_.+",
                          node.name)
     }
     expected = {
@@ -6161,6 +6190,7 @@ def test_fr3_mutation_node_registry_is_exact_and_complete():
         "test_m11a_coherent_submission_job_rewrite_cannot_cross_committed_blob_edge",
         "test_m11b_exact_spooled_script_uses_embedded_isolated_publisher",
         "test_m12_relaxed_live_schema_cannot_expand_receipt_acceptance",
+        "test_m13_qualification_schema_memo_drift_fails_closed",
     }
     assert actual == expected
     assert set(T126_MUTATION_REGISTRY) == {
@@ -6168,7 +6198,7 @@ def test_fr3_mutation_node_registry_is_exact_and_complete():
         "M6a", "M6b", "M6c", "M6d", "M7a", "M7b", "M7c",
         "M8a", "M8b", "M8c", "M8d",
         "M9a", "M9b", "M9c", "M9d", "M9e", "M9g", "M9h", "M9i", "M9j",
-        "M10a", "M10b", "M10c", "M10d", "M11a", "M11b", "M12",
+        "M10a", "M10b", "M10c", "M10d", "M11a", "M11b", "M12", "M13",
     }
     parsed = {}
     transforms = set()

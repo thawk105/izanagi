@@ -650,11 +650,13 @@ def qualification_schema_bytes(schema_name: str) -> bytes:
     if (type(schema_name) is not str
             or "/" in schema_name or not schema_name.endswith("_schema.json")):
         raise QualificationArtifactError("schema name is unsafe")
-    if schema_name not in _QUALIFICATION_SCHEMA_BYTES:
-        schema_path = Path(__file__).resolve().parent / schema_name
-        _QUALIFICATION_SCHEMA_BYTES[schema_name] = read_regular_file(
-            schema_path)
-    return _QUALIFICATION_SCHEMA_BYTES[schema_name]
+    schema_path = Path(__file__).resolve().parent / schema_name
+    live = read_regular_file(schema_path)
+    memoized = _QUALIFICATION_SCHEMA_BYTES.setdefault(schema_name, live)
+    if memoized != live:
+        raise QualificationArtifactError(
+            f"qualification schema bytes drifted: {schema_name}")
+    return memoized
 
 
 def validate_json_schema(schema_name: str, value: Mapping[str, Any]) -> None:
