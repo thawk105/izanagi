@@ -46,11 +46,19 @@ from orchestrator.campaign.patchharness import (  # noqa: E402
 )
 from orchestrator.campaign.pin import CURRENT_PIN  # noqa: E402
 
-SCHEMA_VERSION = "izanagi-cicada-adaptive-3const-probe/v2"
-TRACE_SCHEMA_VERSION = "izanagi-dynamic-backoff-trace/v2"
-CERTIFICATION_SCHEMA_VERSION = "izanagi-cicada-adaptive-3const-certification/v2"
-GROUP_RECEIPT_SCHEMA_VERSION = (
+LEGACY_SCHEMA_VERSION = "izanagi-cicada-adaptive-3const-probe/v2"
+LEGACY_TRACE_SCHEMA_VERSION = "izanagi-dynamic-backoff-trace/v2"
+LEGACY_CERTIFICATION_SCHEMA_VERSION = (
+    "izanagi-cicada-adaptive-3const-certification/v2"
+)
+LEGACY_GROUP_RECEIPT_SCHEMA_VERSION = (
     "izanagi-cicada-adaptive-3const-certification-group/v2"
+)
+SCHEMA_VERSION = "izanagi-cicada-adaptive-3const-probe/v3"
+TRACE_SCHEMA_VERSION = "izanagi-dynamic-backoff-trace/v3"
+CERTIFICATION_SCHEMA_VERSION = "izanagi-cicada-adaptive-3const-certification/v3"
+GROUP_RECEIPT_SCHEMA_VERSION = (
+    "izanagi-cicada-adaptive-3const-certification-group/v3"
 )
 NOT_CERTIFIED = (
     "trace-disabled performance runs only; no serializability check was run"
@@ -58,8 +66,10 @@ NOT_CERTIFIED = (
 PIN_FULL = "511c9538e4e8efa54b45cda62e72389ed3b706ec"
 PATCH_A_REL = "patches/cicada-adaptive-params.patch"
 PATCH_B_REL = "patches/cicada-adaptive-dynamic.patch"
+PATCH_C_REL = "patches/cicada-adaptive-counterfactual.patch"
 PATCH_A = ROOT / PATCH_A_REL
 PATCH_B = ROOT / PATCH_B_REL
+PATCH_C = ROOT / PATCH_C_REL
 # Kept as the legacy name for callers that bind the immutable A patch.
 PATCH = PATCH_A
 EXPECTED_PATCH_A_SHA256 = (
@@ -135,6 +145,7 @@ STOCK_STEP_ADAPT = 0
 STOCK_STEP_MIN_US = 100.0
 STOCK_STEP_MAX_US = 100.0
 STOCK_DYN_CEILING = 0
+STOCK_STEP_POLICY_SEED = 11_400_714_819_323_198_485
 
 BASE = {
     "NO_WAIT_LOCKING_IN_VALIDATION": 1,
@@ -185,6 +196,8 @@ class Cell:
     step_max_us: float = STOCK_STEP_MAX_US
     dyn_ceiling: int = STOCK_DYN_CEILING
     extended: bool = False
+    step_policy: int = 0
+    has_step_policy: bool = False
 
     @property
     def incr_milli(self) -> int:
@@ -248,6 +261,11 @@ TRACE_CELLS_TEXT = (
     "cw-as:1:1:1000:2560:10000:10240:1:1:4:0,"
     "cw-as-dyn:1:1:1000:2560:10000:10240:1:1:4:1"
 )
+COUNTERFACTUAL_TRACE_CELLS_TEXT = (
+    "cw-as-dyn-p0:1:1:1000:2560:10000:10240:1:1:4:1:0,"
+    "cw-as-dyn-p1:1:1:1000:2560:10000:10240:1:1:4:1:1,"
+    "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2"
+)
 
 
 class CertificationReject(RuntimeError):
@@ -272,6 +290,7 @@ def is_stock_control(cell: Cell) -> bool:
         and cell.step_min_us == STOCK_STEP_MIN_US
         and cell.step_max_us == STOCK_STEP_MAX_US
         and cell.dyn_ceiling == STOCK_DYN_CEILING
+        and cell.step_policy == 0
     )
 
 
@@ -311,16 +330,16 @@ def _parse_nonnegative_integer(text: str, field: str) -> int:
 
 
 def parse_cells(text: str) -> tuple[Cell, ...]:
-    """Parse exact five-field legacy or eleven-field dynamic cells."""
+    """Parse exact five-, eleven-, or twelve-field cells."""
     if not isinstance(text, str) or not text.strip():
         raise ValueError("cells must not be empty")
     cells: list[Cell] = []
     labels: set[str] = set()
     for index, raw_cell in enumerate(text.split(",")):
         fields = [field.strip() for field in raw_cell.split(":")]
-        if len(fields) not in {5, 11} or any(not field for field in fields):
+        if len(fields) not in {5, 11, 12} or any(not field for field in fields):
             raise ValueError(
-                f"cell {index} must have five or eleven nonempty "
+                f"cell {index} must have five, eleven, or twelve nonempty "
                 "colon-separated fields: "
                 f"{raw_cell!r}"
             )
@@ -344,7 +363,8 @@ def parse_cells(text: str) -> tuple[Cell, ...]:
                 step_min_text,
                 step_max_text,
                 dyn_ceiling_text,
-            ) = fields[5:]
+            ) = fields[5:11]
+            step_policy_text = fields[11] if len(fields) == 12 else None
             count_window = _parse_nonnegative_integer(
                 count_window_text, "count_window"
             )
@@ -358,6 +378,15 @@ def parse_cells(text: str) -> tuple[Cell, ...]:
             if dyn_ceiling_text not in {"0", "1"}:
                 raise ValueError(
                     f"dyn_ceiling must be 0 or 1: {dyn_ceiling_text!r}"
+                )
+            if step_policy_text is not None and step_policy_text not in {
+                "0",
+                "1",
+                "2",
+            }:
+                raise ValueError(
+                    "step_policy must be 0, 1, or 2: "
+                    f"{step_policy_text!r}"
                 )
             step_min_us, step_min_milli = _parse_exact_step_us(
                 step_min_text, "step_min_us"
@@ -395,6 +424,8 @@ def parse_cells(text: str) -> tuple[Cell, ...]:
                 step_max_us,
                 dyn_ceiling,
                 True,
+                int(step_policy_text) if step_policy_text is not None else 0,
+                step_policy_text is not None,
             )
         if cell.incr_milli != incr_milli:
             raise ValueError(f"step_us normalization changed value: {step_text!r}")
@@ -406,6 +437,7 @@ def parse_cells(text: str) -> tuple[Cell, ...]:
 
 
 _parse_cells = parse_cells
+COUNTERFACTUAL_TRACE_CELLS = parse_cells(COUNTERFACTUAL_TRACE_CELLS_TEXT)
 
 
 def _validate_grid_contract(cells: tuple[Cell, ...]) -> None:
@@ -430,6 +462,8 @@ def _validate_grid_contract(cells: tuple[Cell, ...]) -> None:
             cell.step_min_milli,
             cell.step_max_milli,
             cell.dyn_ceiling,
+            cell.step_policy,
+            cell.has_step_policy,
         )
         for cell in cells
     }
@@ -542,11 +576,16 @@ def genome_for(cell: Cell, *, backoff_trace: bool = False) -> Genome:
             BACKOFF_DYN_CEILING=cell.dyn_ceiling,
             BACKOFF_TRACE=int(backoff_trace),
         )
+    if cell.has_step_policy:
+        flags.update(
+            BACKOFF_STEP_POLICY=cell.step_policy,
+            BACKOFF_STEP_POLICY_SEED=STOCK_STEP_POLICY_SEED,
+        )
     return Genome("silo", flags)
 
 
 def _cell_identity(cell: Cell) -> dict:
-    return {
+    identity = {
         "cell": cell.label,
         "back_off": cell.back_off,
         "step_us": cell.step_us,
@@ -558,16 +597,35 @@ def _cell_identity(cell: Cell) -> dict:
         "step_min_us": cell.step_min_us,
         "step_max_us": cell.step_max_us,
         "dyn_ceiling": cell.dyn_ceiling,
-        "cell_format_fields": 11 if cell.extended else 5,
+        "cell_format_fields": (
+            12 if cell.has_step_policy else 11 if cell.extended else 5
+        ),
     }
+    if cell.has_step_policy:
+        identity["step_policy"] = cell.step_policy
+    return identity
 
 
 def _cell_from_document(document: dict) -> Cell:
     fields = document.get("cell_format_fields")
-    if fields not in {5, 11}:
+    if type(fields) is not int or fields not in {5, 11, 12}:
         raise CertificationReject(
             "group-workload-contract-mismatch",
-            "certification cell format must be exactly 5 or 11 fields",
+            "certification cell format must be exactly 5, 11, or 12 fields",
+        )
+    has_step_policy_key = "step_policy" in document
+    if has_step_policy_key != (fields == 12):
+        raise CertificationReject(
+            "group-workload-contract-mismatch",
+            "certification cell format and step_policy presence disagree",
+        )
+    step_policy = document.get("step_policy") if has_step_policy_key else 0
+    if fields == 12 and (
+        type(step_policy) is not int or step_policy not in {0, 1, 2}
+    ):
+        raise CertificationReject(
+            "group-workload-contract-mismatch",
+            "certification step_policy must be an exact integer in 0..2",
         )
     values = (
         document.get("cell"),
@@ -588,7 +646,12 @@ def _cell_from_document(document: dict) -> Cell:
             "group-workload-contract-mismatch",
             "certification cell identity has an invalid type",
         )
-    cell = Cell(*values, extended=fields == 11)
+    cell = Cell(
+        *values,
+        extended=fields in {11, 12},
+        step_policy=step_policy,
+        has_step_policy=fields == 12,
+    )
     if _cell_identity(cell) != {
         key: document.get(key) for key in _cell_identity(cell)
     }:
@@ -611,9 +674,13 @@ def _patch_stack_identity() -> dict:
     if not PATCH_B.is_file():
         raise FileNotFoundError(f"patch B is missing: {PATCH_B}")
     b_sha256 = hashlib.sha256(PATCH_B.read_bytes()).hexdigest()
+    if not PATCH_C.is_file():
+        raise FileNotFoundError(f"patch C is missing: {PATCH_C}")
+    c_sha256 = hashlib.sha256(PATCH_C.read_bytes()).hexdigest()
     stack = [
         {"path": PATCH_A_REL, "sha256": a_sha256},
         {"path": PATCH_B_REL, "sha256": b_sha256},
+        {"path": PATCH_C_REL, "sha256": c_sha256},
     ]
     encoded = "izanagi-patch-stack/v1\n" + "".join(
         f"{entry['path']} {entry['sha256']}\n" for entry in stack
@@ -621,6 +688,7 @@ def _patch_stack_identity() -> dict:
     return {
         "patch_sha256": a_sha256,
         "dynamic_patch_sha256": b_sha256,
+        "counterfactual_patch_sha256": c_sha256,
         "patch_stack": stack,
         "patch_stack_sha256": hashlib.sha256(encoded.encode("utf-8")).hexdigest(),
     }
@@ -628,7 +696,7 @@ def _patch_stack_identity() -> dict:
 
 @contextmanager
 def _applied_patch_stack(work_root: str):
-    """Apply immutable A then exact-path B; outer A cleanup reverts both."""
+    """Apply exact-path A, B, then C; outer A cleanup reverts the stack."""
     with applied(str(PATCH_A), CURRENT_PIN, work_root) as a_files:
         b_files = patch_files(str(PATCH_B), work_root)
         if set(b_files) != set(a_files):
@@ -646,7 +714,23 @@ def _applied_patch_stack(work_root: str):
                     f"patch B path does not exist at pinned HEAD: {relative}"
                 )
         apply_patch(str(PATCH_B), work_root)
-        yield tuple(b_files)
+        c_files = patch_files(str(PATCH_C), work_root)
+        if set(c_files) != set(a_files):
+            raise RuntimeError(
+                "patch C must touch exactly the same existing paths as patches A and B"
+            )
+        for relative in c_files:
+            result = subprocess.run(
+                ["git", "-C", work_root, "cat-file", "-e", f"HEAD:{relative}"],
+                capture_output=True,
+                text=True,
+            )
+            if result.returncode != 0:
+                raise RuntimeError(
+                    f"patch C path does not exist at pinned HEAD: {relative}"
+                )
+        apply_patch(str(PATCH_C), work_root)
+        yield tuple(c_files)
 
 
 def _validated_repo_head(value: str | None) -> str:
@@ -814,7 +898,7 @@ def _validate_trace_binary_counts(
 
 
 _TRACE_RECORD_RE = re.compile(
-    r"^IZANAGI_BACKOFF_TRACE v=1 "
+    r"^IZANAGI_BACKOFF_TRACE v=(?P<version>1|2) "
     r"seq=(?P<seq>[0-9]+) tsc=(?P<tsc>[0-9]+) "
     r"window_us=(?P<window_us>[0-9]+) "
     r"window_commits=(?P<window_commits>[0-9]+) "
@@ -825,12 +909,16 @@ _TRACE_RECORD_RE = re.compile(
     r"step_us=(?P<step_us>[0-9]+(?:[.][0-9]+)?) "
     r"ceiling_us=(?P<ceiling_us>[0-9]+(?:[.][0-9]+)?) "
     r"ceiling_changed=(?P<ceiling_changed>0|1) "
-    r"parity_branch=(?P<parity_branch>-1|0|1)$"
+    r"parity_branch=(?P<parity_branch>-1|0|1)"
+    r"(?: recommended_delta_sign=(?P<recommended_delta_sign>-1|0|1)"
+    r" assigned_invert=(?P<assigned_invert>0|1)"
+    r" inversion_realized=(?P<inversion_realized>0|1)"
+    r" both_actions_feasible=(?P<both_actions_feasible>0|1))?$"
 )
 _TRACE_TRIGGER_NAMES = {0: "time", 1: "count", 2: "cap"}
 _TRACE_PARITY_BRANCH_NAMES = {-1: "none", 0: "decrement", 1: "increment"}
 _TRACE_SUMMARY_RE = re.compile(
-    r"^IZANAGI_BACKOFF_TRACE_SUMMARY v=1 "
+    r"^IZANAGI_BACKOFF_TRACE_SUMMARY v=(?P<version>1|2) "
     r"updates=(?P<updates>[0-9]+) retained=(?P<retained>[0-9]+) "
     r"dropped=(?P<dropped>[0-9]+)$"
 )
@@ -843,6 +931,18 @@ def _sign(value: Decimal) -> int:
 def _directional_success(events: list[dict]) -> dict:
     scored = 0
     successes = 0
+    is_v2 = bool(events) and "assigned_invert" in events[0]
+    # These assignment strata are descriptive counts, not a counterfactual
+    # estimator.  The next wave must preregister that estimator before use.
+    strata = (
+        {
+            "assigned_forward": [0, 0],
+            "assigned_invert": [0, 0],
+            "realized_invert": [0, 0],
+        }
+        if is_v2
+        else None
+    )
     for current, following in zip(events, events[1:]):
         action = _sign(
             Decimal(str(current["backoff_after"]))
@@ -856,18 +956,42 @@ def _directional_success(events: list[dict]) -> dict:
         following_tput = Decimal(following["window_commits"]) / Decimal(
             str(following["window_us"])
         )
+        success = int(action == _sign(following_tput - current_tput))
         scored += 1
-        successes += int(action == _sign(following_tput - current_tput))
-    return {
+        successes += success
+        if strata is not None:
+            memberships = {
+                "assigned_forward": current["assigned_invert"] == 0,
+                "assigned_invert": current["assigned_invert"] == 1,
+                "realized_invert": current["inversion_realized"] == 1,
+            }
+            for name, included in memberships.items():
+                if included:
+                    strata[name][0] += 1
+                    strata[name][1] += success
+    result = {
         "scored": scored,
         "successes": successes,
         "rate": successes / scored if scored else None,
     }
+    if strata is not None:
+        for name, (stratum_scored, stratum_successes) in strata.items():
+            result[name] = {
+                "scored": stratum_scored,
+                "successes": stratum_successes,
+                "rate": (
+                    stratum_successes / stratum_scored
+                    if stratum_scored
+                    else None
+                ),
+            }
+    return result
 
 
 def _parse_backoff_trace(stdout: str) -> tuple[list[dict], dict, dict]:
     events = []
     summary = None
+    trace_version = None
     for line in stdout.splitlines():
         if not line.startswith("IZANAGI_BACKOFF_TRACE"):
             continue
@@ -877,6 +1001,13 @@ def _parse_backoff_trace(stdout: str) -> tuple[list[dict], dict, dict]:
             if summary is not None:
                 raise ValueError("trace record appeared after summary")
             raw = record_match.groupdict()
+            version = int(raw["version"])
+            tail_present = raw["recommended_delta_sign"] is not None
+            if (version == 2) != tail_present:
+                raise ValueError("trace version and counterfactual tail disagree")
+            if trace_version is not None and version != trace_version:
+                raise ValueError("backoff trace record versions must not mix")
+            trace_version = version
             event = {
                 "seq": int(raw["seq"]),
                 "tsc": int(raw["tsc"]),
@@ -893,12 +1024,45 @@ def _parse_backoff_trace(stdout: str) -> tuple[list[dict], dict, dict]:
                     int(raw["parity_branch"])
                 ],
             }
+            if version == 2:
+                event.update(
+                    recommended_delta_sign=int(raw["recommended_delta_sign"]),
+                    assigned_invert=int(raw["assigned_invert"]),
+                    inversion_realized=int(raw["inversion_realized"]),
+                    both_actions_feasible=int(raw["both_actions_feasible"]),
+                )
+                if event["inversion_realized"] > event["assigned_invert"]:
+                    raise ValueError(
+                        "trace inversion_realized exceeds assigned_invert"
+                    )
+                if (
+                    event["recommended_delta_sign"] == 0
+                    and event["inversion_realized"] != 0
+                ):
+                    raise ValueError(
+                        "zero recommended delta cannot realize an inversion"
+                    )
+                if event["inversion_realized"] == 1:
+                    applied_delta = Decimal(raw["backoff_after"]) - Decimal(
+                        raw["backoff_before"]
+                    )
+                    recommended_delta = Decimal(
+                        event["recommended_delta_sign"]
+                    ) * Decimal(raw["step_us"])
+                    if applied_delta != -recommended_delta:
+                        raise ValueError(
+                            "realized inversion is not the exact recommended delta inverse"
+                        )
             if event["window_us"] <= 0 or event["step_us"] <= 0:
                 raise ValueError("trace window_us and step_us must be positive")
             events.append(event)
         elif summary_match is not None and summary is None:
+            raw_summary = summary_match.groupdict()
+            summary_version = int(raw_summary.pop("version"))
+            if trace_version is not None and summary_version != trace_version:
+                raise ValueError("trace summary version differs from record version")
             summary = {
-                key: int(value) for key, value in summary_match.groupdict().items()
+                key: int(value) for key, value in raw_summary.items()
             }
         else:
             raise ValueError(f"malformed backoff trace line: {line!r}")
@@ -1568,7 +1732,8 @@ def _performance_artifact_identity(
         ) from exc
     if (
         type(document) is not dict
-        or document.get("schema_version") != SCHEMA_VERSION
+        or document.get("schema_version")
+        not in {LEGACY_SCHEMA_VERSION, SCHEMA_VERSION}
         or document.get("kind") != "performance-only-probe"
         or document.get("not_certified") != NOT_CERTIFIED
     ):
@@ -1598,7 +1763,12 @@ def _performance_artifact_identity(
         cells = document.get("cells")
         expected_cell_identity = _cell_identity(required_cell)
         if (
-            document.get("repo_head") != expected_repo_head
+            (
+                expected_patch_stack_sha256
+                == _patch_stack_identity()["patch_stack_sha256"]
+                and document.get("schema_version") != SCHEMA_VERSION
+            )
+            or document.get("repo_head") != expected_repo_head
             or document.get("prereg_sha256") != expected_prereg_sha256
             or document.get("patch_stack_sha256")
             != expected_patch_stack_sha256
@@ -1961,6 +2131,9 @@ def _validated_certification_row(
             "claim": document["allowed_group_claim"],
             "patch_sha256": document["patch_sha256"],
             "dynamic_patch_sha256": document["dynamic_patch_sha256"],
+            "counterfactual_patch_sha256": document[
+                "counterfactual_patch_sha256"
+            ],
             "patch_stack": document["patch_stack"],
             "patch_stack_sha256": document["patch_stack_sha256"],
             "ccbench_commit": document["ccbench_commit"],
@@ -2078,6 +2251,7 @@ def _group_receipt_payload(
         or any(row["build_trace_enabled"] is not True for row in rows)
         or len({row["patch_sha256"] for row in rows}) != 1
         or len({row["dynamic_patch_sha256"] for row in rows}) != 1
+        or len({row["counterfactual_patch_sha256"] for row in rows}) != 1
         or len({row["patch_stack_sha256"] for row in rows}) != 1
         or len(
             {
@@ -2096,7 +2270,12 @@ def _group_receipt_payload(
             type(row[field]) is not str
             or re.fullmatch(r"[0-9a-f]{64}", row[field]) is None
             for row in rows
-            for field in ("binary_sha256", "patch_sha256")
+            for field in (
+                "binary_sha256",
+                "patch_sha256",
+                "dynamic_patch_sha256",
+                "counterfactual_patch_sha256",
+            )
         )
         or any(
             type(row["ccbench_commit"]) is not str
@@ -2161,6 +2340,9 @@ def _group_receipt_payload(
         "prereg_sha256": rows[0]["prereg_sha256"],
         "patch_sha256": rows[0]["patch_sha256"],
         "dynamic_patch_sha256": rows[0]["dynamic_patch_sha256"],
+        "counterfactual_patch_sha256": rows[0][
+            "counterfactual_patch_sha256"
+        ],
         "patch_stack": rows[0]["patch_stack"],
         "patch_stack_sha256": rows[0]["patch_stack_sha256"],
         "ccbench_commit": rows[0]["ccbench_commit"],
@@ -2498,11 +2680,16 @@ def _validate_backoff_trace_contract(
     workloads: tuple[str, ...],
     threads: tuple[int, ...],
 ) -> None:
+    trace_contracts = {
+        TRACE_CELLS_TEXT: TRACE_CELLS,
+        COUNTERFACTUAL_TRACE_CELLS_TEXT: COUNTERFACTUAL_TRACE_CELLS,
+    }
+    expected_cells = trace_contracts.get(args.cells)
     if (
-        args.cells != TRACE_CELLS_TEXT
+        expected_cells is None
+        or cells != expected_cells
         or args.workloads != ",".join(TRACE_WORKLOADS)
         or args.threads != ",".join(str(value) for value in TRACE_THREADS)
-        or cells != TRACE_CELLS
         or workloads != TRACE_WORKLOADS
         or threads != TRACE_THREADS
         or args.rep_index != 0
@@ -2510,9 +2697,23 @@ def _validate_backoff_trace_contract(
         or args.extime != 3
     ):
         raise ValueError(
-            "--backoff-trace requires exact cw/cw-as/cw-as-dyn cells, "
+            "--backoff-trace requires exact diagnostic axes and one exact "
+            "diagnostic cell set, "
             "three workloads, threads 24,48, rep index 0, reps 1, and extime 3"
         )
+
+
+def _artifact_contract_metadata(
+    *, backoff_trace: bool, cells_text: str
+) -> dict:
+    metadata = {
+        "schema_version": (
+            TRACE_SCHEMA_VERSION if backoff_trace else SCHEMA_VERSION
+        )
+    }
+    if cells_text == COUNTERFACTUAL_TRACE_CELLS_TEXT:
+        metadata["counterfactual_preregistration"] = "pending"
+    return metadata
 
 
 def _certify_main(args: argparse.Namespace) -> int:
@@ -3000,8 +3201,8 @@ def main(argv: list[str] | None = None) -> int:
     cache_root.mkdir(mode=0o700)
 
     payload = {
-        "schema_version": (
-            TRACE_SCHEMA_VERSION if args.backoff_trace else SCHEMA_VERSION
+        **_artifact_contract_metadata(
+            backoff_trace=args.backoff_trace, cells_text=args.cells
         ),
         "kind": (
             "diagnostic-backoff-trace"
@@ -3162,6 +3363,8 @@ def main(argv: list[str] | None = None) -> int:
                             "run_cmd": point.run_cmd,
                             "measured_utc": datetime.now(timezone.utc).isoformat(),
                         }
+                        if args.cells == COUNTERFACTUAL_TRACE_CELLS_TEXT:
+                            row["counterfactual_preregistration"] = "pending"
                         if args.backoff_trace:
                             events, summary, directional = _parse_backoff_trace(
                                 "".join(stdout_chunks)
