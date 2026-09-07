@@ -1,0 +1,45 @@
+Traceback (most recent call last):
+  File "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2232-s4-loop-first-dispatch/submit-tree/orchestrator/campaign/buildcache.py", line 2069, in prepare_masstree_fetchcontent
+    _run(configure, "configure", timeout_s=configure_timeout_s, site=resolved_site)
+  File "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2232-s4-loop-first-dispatch/submit-tree/orchestrator/campaign/buildcache.py", line 3498, in _run
+    raise RuntimeError(f"{what} failed (rc={r.returncode}): "
+RuntimeError: configure failed (rc=1): CMake Error at /usr/share/cmake-3.22/Modules/FindPackageHandleStandardArgs.cmake:230 (message):
+  Could NOT find gflags (missing: gflags_LIBRARY_FILE gflags_INCLUDE_DIR)
+Call Stack (most recent call first):
+  /usr/share/cmake-3.22/Modules/FindPackageHandleStandardArgs.cmake:594 (_FPHSA_FAILURE_MESSAGE)
+  cmake/Findgflags.cmake:9 (find_package_handle_standard_args)
+  CMakeLists.txt:33 (find_package)
+
+
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "<stdin>", line 24, in <module>
+  File "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2232-s4-loop-first-dispatch/submit-tree/orchestrator/campaign/buildcache.py", line 2071, in prepare_masstree_fetchcontent
+    raise MasstreeFetchContentError(
+orchestrator.campaign.buildcache.MasstreeFetchContentError: masstree FetchContent configure 失敗: configure failed (rc=1): CMake Error at /usr/share/cmake-3.22/Modules/FindPackageHandleStandardArgs.cmake:230 (message):
+  Could NOT find gflags (missing: gflags_LIBRARY_FILE gflags_INCLUDE_DIR)
+Call Stack (most recent call first):
+  /usr/share/cmake-3.22/Modules/FindPackageHandleStandardArgs.cmake:594 (_FPHSA_FAILURE_MESSAGE)
+  cmake/Findgflags.cmake:9 (find_package_handle_standard_args)
+  CMakeLists.txt:33 (find_package)
+
+
+
+
+============================================================
+Request ID:             981655.nqsv
+Request Name:           izs4loop
+Queue:                  gen_S@nqsv
+Number of Jobs:         1
+User Name:              tanab
+Group Name:             SFC
+Created Request Time:   Mon Sep  7 21:58:51 2026
+Started Request Time:   Mon Sep  7 22:30:06 2026
+Ended Request Time:     Mon Sep  7 22:30:11 2026
+Resources Information:
+  Elapse:               9S
+  Remaining Elapse:     10791S
+============================================================
