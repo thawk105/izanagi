@@ -13,6 +13,7 @@ import argparse
 import hashlib
 import importlib
 import json
+import math
 import os
 import re
 import secrets
@@ -24,7 +25,7 @@ import tempfile
 import threading
 import time
 import unicodedata
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from contextvars import ContextVar
 from dataclasses import dataclass
@@ -44,6 +45,12 @@ from orchestrator.campaign import site_policy  # noqa: E402
 POLICY_PATH = "docs/ai-provenance.md"
 # tools/run_tests.py:110 の _PEGASUS_DISPATCH_RC と同値 (meta-test で照合する)。
 PEGASUS_DISPATCH_RC = 16
+_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE_ENV = (
+    "IZANAGI_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE"
+)
+_DISPATCH_OVERALL_GRACE_OVERRIDE_ENV = (
+    "IZANAGI_DISPATCH_OVERALL_GRACE_OVERRIDE"
+)
 _BOUNDED_SCOPE_UNIT_ENV = "IZANAGI_PROVENANCE_SCOPE_UNIT"
 _BOUNDED_SCOPE_CAP_ENV = "IZANAGI_PROVENANCE_SCOPE_CAP"
 _BOUNDED_SCOPE_UNIT_PREFIX = "izanagi-provenance-"
@@ -2297,12 +2304,39 @@ def _message_file_correction_findings(
     return findings
 
 
+def _dispatch_timeout_overrides(
+    *, environ: Mapping[str, str]
+) -> dict[str, float]:
+    """D612 の opt-in dispatch timeout 上書きを純粋に解釈する。"""
+
+    overrides: dict[str, float] = {}
+    for env_name, keyword in (
+        (_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE_ENV, "queue_wait_timeout_s"),
+        (_DISPATCH_OVERALL_GRACE_OVERRIDE_ENV, "overall_grace_s"),
+    ):
+        raw_value = environ.get(env_name)
+        if not raw_value:
+            continue
+        value = float(raw_value)
+        if (
+            not math.isfinite(value)
+            or value < 0
+            or math.copysign(1.0, value) < 0
+        ):
+            raise ValueError(f"{env_name} は有限な非負数でなければなりません")
+        overrides[keyword] = value
+    return overrides
+
+
 def _default_dispatch(argv: Sequence[str]) -> int:
     from tools.pegasus import dispatch_compute
 
-    return dispatch_compute.dispatch(
-        argv, task="provenance", repo_root=REPO,
-    )
+    dispatch_kwargs = {
+        "task": "provenance",
+        "repo_root": REPO,
+        **_dispatch_timeout_overrides(environ=os.environ),
+    }
+    return dispatch_compute.dispatch(argv, **dispatch_kwargs)
 
 
 def _invoke_dispatch(dispatch_fn, argv: Sequence[str]) -> int:
