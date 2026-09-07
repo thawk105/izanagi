@@ -8,6 +8,8 @@ from __future__ import annotations
 import glob
 import json
 import os
+import tempfile
+from contextlib import ExitStack
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Callable, Dict, Mapping, Optional, Sequence
@@ -168,51 +170,80 @@ def _condition_gate_base_configure_args(genome: Genome) -> tuple[str, ...]:
 def _run_condition_gate_for_genome(
         source_root: str, genome: Genome, *, stock_root: Optional[str],
         cxx: str, cmake: str,
+        expected_toolchain_manifest: Optional[Mapping[str, object]] = None,
 ) -> Optional[_ScreeningConditionGateRun]:
-    """Evaluate both arms for every domain macro supplied by this Genome."""
+    """Evaluate both arms for every domain macro supplied by this Genome.
+
+    A non-None manifest is a proxy for the backoff screening route in the
+    current call graph, not authority to supply dependencies.  On that route a
+    prepared shared base lets calls that previously stopped before judgment
+    solely because the base was unsupplied reach the unchanged gate judgment.
+    Passing ``site=None`` makes each gate re-observe ``current_site()``.
+    """
     requests = _condition_requests_for_genome(genome)
     if not requests:
         return None
     _require_requests_match_genome_build_arguments(genome, requests)
-    captured = condition_meaning_gate.capture_define_inputs(
-        source_root,
-        stock_root=stock_root,
-        configure_args=_condition_gate_base_configure_args(genome),
-    )
-    supply_records = tuple(
-        condition_meaning_gate.evaluate_define_supply_effectuation(
-            captured, request=request, cxx=cxx, cmake=cmake,
+    with ExitStack() as stack:
+        configure_args = _condition_gate_base_configure_args(genome)
+        if expected_toolchain_manifest is not None:
+            fetchcontent_base_dir = str(Path(stack.enter_context(
+                tempfile.TemporaryDirectory(
+                    prefix="izanagi-screening-condition-gate-",
+                )
+            )).resolve())
+            buildcache.prepare_masstree_fetchcontent(
+                ccbench_dir=source_root,
+                fetchcontent_base_dir=fetchcontent_base_dir,
+                expected_toolchain_manifest=expected_toolchain_manifest,
+                configure_timeout_s=900,
+                target_timeout_s=900,
+                site=None,
+            )
+            configure_args = (
+                *configure_args,
+                f"-DFETCHCONTENT_BASE_DIR={fetchcontent_base_dir}",
+            )
+        captured = condition_meaning_gate.capture_define_inputs(
+            source_root,
+            stock_root=stock_root,
+            configure_args=configure_args,
         )
-        for request in requests
-    )
-    meaning_records = tuple(
-        condition_meaning_gate.evaluate_define_runtime_meaning(
-            captured, request=request, declaration=None, cxx=cxx,
+        supply_records = tuple(
+            condition_meaning_gate.evaluate_define_supply_effectuation(
+                captured, request=request, cxx=cxx, cmake=cmake,
+            )
+            for request in requests
         )
-        for request in requests
-    )
-    admission = condition_meaning_gate.require_condition_gate_family(
-        supply_records, meaning_records, use_class="raw",
-    )
-    if not admission.admitted:
-        reasons = ", ".join(
-            f"{record.macro}:{record.arm}="
-            f"{record.terminal_status}/{record.reason_code}"
-            for record in (*supply_records, *meaning_records)
-            if record.terminal_status == "red"
+        meaning_records = tuple(
+            condition_meaning_gate.evaluate_define_runtime_meaning(
+                captured, request=request, declaration=None, cxx=cxx,
+            )
+            for request in requests
         )
-        raise condition_meaning_gate.ConditionMeaningGateError(
-            "condition-family-rejected",
-            "screening Genome condition gate rejected before evaluation: " + reasons,
+        admission = condition_meaning_gate.require_condition_gate_family(
+            supply_records, meaning_records, use_class="raw",
         )
-    return _ScreeningConditionGateRun(
-        supply_records, meaning_records, admission,
-    )
+        if not admission.admitted:
+            reasons = ", ".join(
+                f"{record.macro}:{record.arm}="
+                f"{record.terminal_status}/{record.reason_code}"
+                for record in (*supply_records, *meaning_records)
+                if record.terminal_status == "red"
+            )
+            raise condition_meaning_gate.ConditionMeaningGateError(
+                "condition-family-rejected",
+                "screening Genome condition gate rejected before evaluation: " + reasons,
+            )
+        return _ScreeningConditionGateRun(
+            supply_records, meaning_records, admission,
+        )
 
 
 def _require_condition_gate_before_evaluation(
         source_root: str, ccbench_commit: str, genome: Genome, *,
         cxx: str, cmake: str,
+        expected_toolchain_manifest: Optional[Mapping[str, object]] = None,
 ) -> Optional[_ScreeningConditionGateRun]:
     """Provide stock identity when needed, then close the pre-build gate."""
     requests = _condition_requests_for_genome(genome)
@@ -222,12 +253,14 @@ def _require_condition_gate_before_evaluation(
     if not any(request.stock_comparison for request in requests):
         return _run_condition_gate_for_genome(
             source_root, genome, stock_root=None, cxx=cxx, cmake=cmake,
+            expected_toolchain_manifest=expected_toolchain_manifest,
         )
     with patchharness.checkout(
             ccbench_commit, base_dir=source_root,
     ) as stock_root:
         return _run_condition_gate_for_genome(
             source_root, genome, stock_root=stock_root, cxx=cxx, cmake=cmake,
+            expected_toolchain_manifest=expected_toolchain_manifest,
         )
 
 
@@ -558,6 +591,7 @@ def evaluate_candidate(
         genome,
         cxx=resolved_cxx,
         cmake=resolved_cmake,
+        expected_toolchain_manifest=expected_toolchain_manifest,
     )
     try:
         evaluate_kwargs = {

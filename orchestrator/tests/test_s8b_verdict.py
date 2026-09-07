@@ -25,6 +25,7 @@ from orchestrator.campaign import s8b_oracle_artifacts as artifacts  # noqa: E40
 from orchestrator.campaign import s8b_oracle_judge as oracle_judge  # noqa: E402
 from orchestrator.campaign import s8b_oracle_manifest as oracle_manifest  # noqa: E402
 from orchestrator.campaign import s8b_oracle_spec as oracle_spec  # noqa: E402
+from orchestrator.campaign import s8b_holdout_freeze as holdout_freeze  # noqa: E402
 from orchestrator.campaign import s8b_ratified_freeze as ratified_freeze  # noqa: E402
 from orchestrator.calibrator import perf_preflight  # noqa: E402
 from orchestrator.campaign.s8b_selector_input import (  # noqa: E402
@@ -32,6 +33,7 @@ from orchestrator.campaign.s8b_selector_input import (  # noqa: E402
     STATIC_DEFAULT_CHOICE_ID,
 )
 import test_s8b_oracle_report as report_fixtures  # noqa: E402
+import test_s8b_ratified_freeze as ratified_fixture  # noqa: E402
 
 STOCK = verdict.STOCK_CONFIGURATION  # "stock_common"
 
@@ -996,6 +998,138 @@ def _write_json(path: Path, document) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
+def _real_g1_with_scan_neutral_earlier_result(
+        tmp_path: Path,
+) -> tuple[Path, str, str, str]:
+    root, freeze_sha, freeze_rel, _g1, topology = (
+        ratified_fixture.build_production_emitter_g1(tmp_path)
+    )
+    selected_rel = topology["paths"]["result"]
+    selected_run_id = selected_rel.rsplit("/", 2)[-2]
+    proto8 = selected_run_id.rsplit("-", 1)[1]
+    earlier_rel = selected_rel.replace(
+        selected_run_id, f"20260718T115959Z-{proto8}",
+    )
+    assert earlier_rel != selected_rel
+    earlier_path = root / earlier_rel
+    earlier_path.parent.mkdir(parents=True, exist_ok=True)
+    earlier_path.write_bytes(b"{}")
+    assert earlier_path.read_bytes() != (root / selected_rel).read_bytes()
+    ratified_fixture._commit_exact(
+        root,
+        [earlier_rel],
+        subject="scan-neutral earlier official result",
+        agent="fixture",
+    )
+    return root, freeze_sha, freeze_rel, earlier_rel
+
+
+def test_verdict_cli_real_g1_rule_mismatch_preserves_selection_reason(
+        tmp_path, monkeypatch, capsys):
+    root, freeze_sha, freeze_rel, earlier_rel = (
+        _real_g1_with_scan_neutral_earlier_result(tmp_path)
+    )
+    eligibility_calls = []
+
+    def derive_eligibility(**kwargs):
+        eligibility_calls.append(kwargs["result_rel"])
+        return kwargs["result_rel"] == earlier_rel
+
+    monkeypatch.setattr(
+        holdout_freeze,
+        "_derive_floor_selection_eligibility",
+        derive_eligibility,
+    )
+    # These seams begin after the real historical reverify.  With the selection
+    # assertion removed, the same input must therefore reach rc=0 rather than a
+    # different downstream rejection.
+    monkeypatch.setattr(verdict.s8b_oracle_spec, "load_approved_spec", lambda root: object())
+    monkeypatch.setattr(
+        verdict.s8b_oracle_manifest, "verify_manifest", lambda path, **kwargs: object(),
+    )
+    monkeypatch.setattr(verdict, "_validate_execution_snapshot", lambda *args, **kwargs: None)
+    monkeypatch.setattr(verdict, "verify_prediction", lambda *args, **kwargs: object())
+    monkeypatch.setattr(verdict, "verify_oracle_verdict", lambda *args, **kwargs: object())
+    monkeypatch.setattr(
+        verdict, "judge_combined", lambda **kwargs: {"status": "selection-gate-passed"},
+    )
+    prediction_path = tmp_path / "prediction.json"
+    prediction_path.write_text("{}", encoding="utf-8")
+    output = tmp_path / "must-not-exist.json"
+
+    rc = verdict.main([
+        "judge", "--prediction", str(prediction_path),
+        "--oracle", str(tmp_path / "oracle.json"),
+        "--manifest", str(tmp_path / "manifest.json"),
+        "--observations", str(tmp_path / "observations.json"),
+        "--freeze", str(root / freeze_rel), "--freeze-sha256", freeze_sha,
+        "--root", str(root), "--out", str(output),
+    ])
+
+    captured = capsys.readouterr()
+    assert rc == 2
+    assert "floor-selection-rule-mismatch" in captured.err
+    assert "earliest-eligible-official-run-id/v1" in captured.err
+    assert eligibility_calls == [earlier_rel]
+    assert not output.exists()
+
+
+def test_verdict_cli_valid_real_g1_reaches_reverify_after_actual_selection_gate(
+        tmp_path, monkeypatch, capsys):
+    root, freeze_sha, freeze_rel, _g1, _topology = (
+        ratified_fixture.build_production_emitter_g1(tmp_path)
+    )
+    cli_root = Path(root)
+    events = []
+    loaded = []
+    selection_calls = []
+    real_load = ratified_freeze.load_ratified_freeze
+    real_selection = ratified_freeze.assert_g1_floor_selection_identity
+
+    def load_ratified(candidate_root):
+        candidate = real_load(candidate_root)
+        loaded.append(candidate)
+        return candidate
+
+    def assert_selection(candidate, candidate_root):
+        events.append("selection")
+        selection_calls.append((candidate, candidate_root))
+        return real_selection(candidate, candidate_root)
+
+    def reached_reverify(candidate, candidate_root):
+        events.append("reverify")
+        raise ratified_freeze.RatifiedFreezeError(
+            "test-reverify-sentinel", "actual selection gate completed",
+        )
+
+    monkeypatch.setattr(ratified_freeze, "load_ratified_freeze", load_ratified)
+    monkeypatch.setattr(
+        ratified_freeze, "assert_g1_floor_selection_identity", assert_selection,
+    )
+    monkeypatch.setattr(ratified_freeze, "reverify_published_freeze", reached_reverify)
+    output = tmp_path / "must-not-exist.json"
+
+    rc = verdict.main([
+        "judge", "--prediction", str(tmp_path / "prediction.json"),
+        "--oracle", str(tmp_path / "oracle.json"),
+        "--manifest", str(tmp_path / "manifest.json"),
+        "--observations", str(tmp_path / "observations.json"),
+        "--freeze", str(root / freeze_rel), "--freeze-sha256", freeze_sha,
+        "--root", str(root), "--out", str(output),
+    ])
+
+    captured = capsys.readouterr()
+    assert rc == 2
+    assert events == ["selection", "reverify"]
+    assert len(loaded) == 1
+    assert selection_calls == [(loaded[0], cli_root)]
+    assert selection_calls[0][0] is loaded[0]
+    assert type(selection_calls[0][1]) is type(cli_root)
+    assert selection_calls[0][1] == cli_root
+    assert "test-reverify-sentinel" in captured.err
+    assert not output.exists()
+
+
 def test_cli_rejects_removed_floors_and_holdouts_args(tmp_path, capsys):
     # 後方非互換: 旧 --floors / --holdouts は argparse が unrecognized で拒否する。
     args = ["judge", "--prediction", "p.json", "--oracle", "o.json",
@@ -1034,6 +1168,8 @@ def test_cli_preserves_freeze_and_floor_source_wiring(tmp_path, monkeypatch):
     out_path = tmp_path / "verdict.json"
 
     calls = []
+    selection_calls = []
+    cli_root = Path(tmp_path)
     ratified = object()
     reverified = SimpleNamespace(ratified=SimpleNamespace(
         document=freeze_doc, sha256=freeze_sha,
@@ -1048,6 +1184,10 @@ def test_cli_preserves_freeze_and_floor_source_wiring(tmp_path, monkeypatch):
     def load_ratified(root):
         calls.append("ratified")
         return ratified
+
+    def assert_selection(value, root):
+        calls.append("selection")
+        selection_calls.append((value, root))
 
     def reverify(value, root):
         calls.append("reverify")
@@ -1091,6 +1231,11 @@ def test_cli_preserves_freeze_and_floor_source_wiring(tmp_path, monkeypatch):
     monkeypatch.setattr(verdict, "load_verified_freeze", load_freeze)
     monkeypatch.setattr(verdict.s8b_ratified_freeze, "load_ratified_freeze", load_ratified)
     monkeypatch.setattr(
+        verdict.s8b_ratified_freeze,
+        "assert_g1_floor_selection_identity",
+        assert_selection,
+    )
+    monkeypatch.setattr(
         verdict.s8b_ratified_freeze, "reverify_published_freeze", reverify,
     )
     monkeypatch.setattr(verdict.s8b_oracle_spec, "load_approved_spec", load_approved)
@@ -1110,9 +1255,13 @@ def test_cli_preserves_freeze_and_floor_source_wiring(tmp_path, monkeypatch):
         "--root", str(tmp_path), "--out", str(out_path)])
     assert rc == 0
     assert calls == [
-        "freeze", "ratified", "reverify", "approved", "manifest",
+        "freeze", "ratified", "selection", "reverify", "approved", "manifest",
         "floor-source", "prediction", "oracle", "judge",
     ]
+    assert selection_calls == [(ratified, cli_root)]
+    assert selection_calls[0][0] is ratified
+    assert type(selection_calls[0][1]) is type(cli_root)
+    assert selection_calls[0][1] == cli_root
     out = json.loads(out_path.read_text(encoding="utf-8"))
     assert out["status"] == verdict.HOLDS
     assert out["holdouts"][H1]["oracle_verdict"] == "unique-best"
@@ -1144,8 +1293,20 @@ def test_cli_rejects_non_verdict_oracle_schema_without_output(
     output = tmp_path / "must-not-exist.json"
     authority = SimpleNamespace(document=freeze_doc, sha256=freeze_sha)
     reverified = SimpleNamespace(ratified=authority)
+    loaded_ratified = object()
+    cli_root = Path(tmp_path)
+    selection_calls = []
     monkeypatch.setattr(
-        verdict.s8b_ratified_freeze, "load_ratified_freeze", lambda root: object(),
+        verdict.s8b_ratified_freeze,
+        "load_ratified_freeze",
+        lambda root: loaded_ratified,
+    )
+    monkeypatch.setattr(
+        verdict.s8b_ratified_freeze,
+        "assert_g1_floor_selection_identity",
+        lambda candidate, candidate_root: selection_calls.append(
+            (candidate, candidate_root)
+        ),
     )
     monkeypatch.setattr(
         verdict.s8b_ratified_freeze, "reverify_published_freeze",
@@ -1175,6 +1336,10 @@ def test_cli_rejects_non_verdict_oracle_schema_without_output(
     ])
 
     assert rc == 2
+    assert selection_calls == [(loaded_ratified, cli_root)]
+    assert selection_calls[0][0] is loaded_ratified
+    assert type(selection_calls[0][1]) is type(cli_root)
+    assert selection_calls[0][1] == cli_root
     assert not output.exists()
 
 
@@ -1200,8 +1365,20 @@ def test_cli_rejects_freeze_identity_mismatch_before_consumers(tmp_path, monkeyp
         ratified=SimpleNamespace(document=freeze_doc, sha256="f" * 64),
     )
     calls = []
+    loaded_ratified = object()
+    cli_root = Path(tmp_path)
+    selection_calls = []
     monkeypatch.setattr(
-        verdict.s8b_ratified_freeze, "load_ratified_freeze", lambda root: object(),
+        verdict.s8b_ratified_freeze,
+        "load_ratified_freeze",
+        lambda root: loaded_ratified,
+    )
+    monkeypatch.setattr(
+        verdict.s8b_ratified_freeze,
+        "assert_g1_floor_selection_identity",
+        lambda candidate, candidate_root: selection_calls.append(
+            (candidate, candidate_root)
+        ),
     )
     monkeypatch.setattr(
         verdict.s8b_ratified_freeze, "reverify_published_freeze",
@@ -1229,6 +1406,10 @@ def test_cli_rejects_freeze_identity_mismatch_before_consumers(tmp_path, monkeyp
     ])
 
     assert rc == 2
+    assert selection_calls == [(loaded_ratified, cli_root)]
+    assert selection_calls[0][0] is loaded_ratified
+    assert type(selection_calls[0][1]) is type(cli_root)
+    assert selection_calls[0][1] == cli_root
     assert calls == []
     assert not output.exists()
 

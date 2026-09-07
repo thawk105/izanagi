@@ -1,0 +1,148 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 400,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 2100,
+  "mutations": [
+    {
+      "id": "t2396.m01a-published-cleanup-tolerates-missing-destination",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "        except FileNotFoundError:\n            raise PaperStoryError(\n                \"published receipt destination is missing during staging cleanup\"\n            ) from None",
+          "new": "        except FileNotFoundError:\n            return"
+        }
+      ]
+    },
+    {
+      "id": "t2396.m01b-published-cleanup-skips-destination-identity",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "            raise PaperStoryError(\n                \"published receipt destination identity differs during staging cleanup\"\n            )",
+          "new": "            pass"
+        }
+      ]
+    },
+    {
+      "id": "t2396.m02-staging-cleanup-skips-identity-check",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "        raise PaperStoryError(\"receipt staging cleanup identity differs\")",
+          "new": "        pass"
+        }
+      ]
+    },
+    {
+      "id": "t2396.m03-publish-drops-destination-directory-fsync",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "        published = True\n        _fsync_directory(path.parent)",
+          "new": "        published = True"
+        }
+      ]
+    },
+    {
+      "id": "t2396.m04-completion-wrapper-uses-submission-staging-kind",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "    _publish_receipt(path, value, receipt_kind=\"completion\")",
+          "new": "    _publish_receipt(path, value, receipt_kind=\"submission\")"
+        }
+      ]
+    },
+    {
+      "id": "t2396.m05-publish-degrades-to-os-replace",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "            os.link(staging, path, follow_symlinks=False)",
+          "new": "            os.replace(staging, path)"
+        }
+      ]
+    },
+    {
+      "id": "t2396.m06-completion-only-check-then-replace",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "def _publish_completion_receipt(path: Path, value: object) -> None:\n    _publish_receipt(path, value, receipt_kind=\"completion\")",
+          "new": "def _publish_completion_receipt(path: Path, value: object) -> None:\n    if os.path.lexists(path):\n        raise PaperStoryError(\n            \"no-replace completion receipt publish failed: File exists\"\n        )\n    staging = _receipt_staging_path(path, receipt_kind=\"completion\")\n    _exclusive_write_bytes(staging, _canonical_json_bytes(value))\n    os.replace(staging, path)\n    _fsync_directory(path.parent)"
+        }
+      ]
+    },
+    {
+      "id": "t2396.m07-publish-swallows-file-exists",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "        except FileExistsError as exc:\n            raise PaperStoryError(\n                f\"no-replace {receipt_kind} receipt publish failed: {exc.strerror}\"\n            ) from exc",
+          "new": "        except FileExistsError:\n            pass"
+        }
+      ]
+    },
+    {
+      "id": "t2396.m08-staging-is-never-unlinked",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "        os.unlink(staging)\n        _fsync_directory(staging.parent)",
+          "new": "        _fsync_directory(staging.parent)"
+        }
+      ]
+    },
+    {
+      "id": "t2396.m09-published-cleanup-error-loses-its-class",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "                raise _PublishedReceiptCleanupError(\n                    f\"receipt is already published; {exc}\"\n                ) from exc",
+          "new": "                raise PaperStoryError(\n                    f\"receipt is already published; {exc}\"\n                ) from exc"
+        }
+      ]
+    }
+  ]
+}

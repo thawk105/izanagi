@@ -42,10 +42,40 @@ _SOURCE_MASK = 7
 _BATCH_ID = "fixture-batch-0000"
 _CAMPAIGN_ID = "fixture-campaign-0000"
 _TRIAL_WORKLOAD = "ycsb-a"
-_CONSTRAINT_SHA256 = hashlib.sha256(
-    b"fixture:single-candidate-attributable-witness-class"
-).hexdigest()
 _FIXTURE_TRIGGER_NONCE = "a" * 64
+_WITNESS_ANOMALY = {
+    "phenomenon": "G2",
+    "length": 2,
+    "cycle": [1, 2],
+    "edges": [
+        {
+            "from": 1,
+            "to": 2,
+            "types": ["rw"],
+            "reasons": [
+                {
+                    "type": "rw",
+                    "key": "fixture-key-a",
+                    "u_ver": [1, 1],
+                    "v_ver": [1, 2],
+                }
+            ],
+        },
+        {
+            "from": 2,
+            "to": 1,
+            "types": ["rw"],
+            "reasons": [
+                {
+                    "type": "rw",
+                    "key": "fixture-key-b",
+                    "u_ver": [1, 2],
+                    "v_ver": [1, 3],
+                }
+            ],
+        },
+    ],
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,6 +109,9 @@ def _sha256_bytes(raw: bytes) -> str:
 
 def _sha256(value: object) -> str:
     return _sha256_bytes(_canonical_bytes(value))
+
+
+_CONSTRAINT_SHA256 = _sha256(_WITNESS_ANOMALY)
 
 
 def _label_sha256(label: str) -> str:
@@ -309,7 +342,7 @@ def build_source_closure_record(**overrides) -> dict:
             "producer_field": "verifier_policy_sha256",
             "runtime_field_paths": [
                 "wal.commit.payload.verify_configs",
-                "wal.abort.payload.witnesses",
+                "wal.abort.payload.verify.anomalies",
             ],
         },
         "environment_contract_sha256": {
@@ -379,10 +412,53 @@ def _wal_records(build_attempt_id: str, mask: int) -> list[dict]:
             "env_tag": "fixture-env",
             "ts": 0,
             "payload": {
+                "reason": "non-serializable",
                 "build_attempt_id": build_attempt_id,
-                "candidate_attributable": True,
-                "truncated": False,
-                "witness_class_sha256s": [_CONSTRAINT_SHA256],
+                "build_admission_receipt_sha256": _label_sha256(
+                    "launch-admission-record"
+                ),
+                "verify": {
+                    "verdict": "non-serializable",
+                    "certified": False,
+                    "serializable": False,
+                    "stats": {
+                        "txns": 2,
+                        "reads": 2,
+                        "writes": 2,
+                        "keys": 2,
+                        "edges": 2,
+                        "abort_reasons": {},
+                    },
+                    "integrity": {
+                        "clean": True,
+                        "orphan_reads": 0,
+                        "version_dups": 0,
+                        "dup_txids": 0,
+                        "genesis_commits": 0,
+                        "missing_txids": 0,
+                        "write_version_mismatch": 0,
+                        "malformed_keys": 0,
+                        "framing_violations": 0,
+                        "framing_violation_details": [],
+                        "lock_coverage_violations": 0,
+                        "write_intent_violations": 0,
+                        "permutation_violations": 0,
+                        "permutation_violation_details": {
+                            "counts": {
+                                "size-changed": 0,
+                                "rcdptr-set-changed": 0,
+                                "unknown": 0,
+                            },
+                            "sample": [],
+                            "unknown_reason_sample": [],
+                        },
+                        "notes": [],
+                    },
+                    "anomaly_count": 1,
+                    "total_cycles": 1,
+                    "anomalies": [copy.deepcopy(_WITNESS_ANOMALY)],
+                },
+                "workload": {"tag": _TRIAL_WORKLOAD},
             },
         },
     ]

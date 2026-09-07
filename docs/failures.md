@@ -4848,6 +4848,17 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   実害は再走 1 回。根本原因は既存の再発と同じで、走行を待ち時間とみなして worktree 内で別段の作業を進めたこと。
   今回の新しい点は、受入全走・変異走行だけでなく runner の bounded local 経路も tree の前後照合を持つため、
   焦点走のような短い走行でも同じ型で止まることである。恒久対応は F106 のまま (投入から結果取得までは worktree を触らない)。
+
+- **再発: 2026-09-08** — [T-2265] 反実仮想 ITT の確認的再解析 wave。**変異本走 B の走行中**に、
+  親が段 7 の insight (README + 成果物 + 逐語 12 本) を worktree へ書き、
+  `tools/mutation_harness.py` の preflight が untracked 21 件を検出して `rc=2` で中止した。
+  防壁は機能しており、実害は再投入の一手間だけである。新しい情報は 2 点ある。
+  (1) 親は**同じ wave の handoff に「走行中は repo を触らない」と書き、直前の変異本走 A では
+  守れていた**のに、B の待ち時間で踏んだ。長い待ちが 1 本入るたびに誘因が復活する。
+  (2) 今回書いたのは spool fragment ではなく **insight 一式**で、量が多い分だけ
+  「repo 外へ退避してから再投入する」復旧が明示的な手順になった。恒久対応は F106 のまま。
+  本 wave は成果物を job directory 側の staging へ移し、`--out` と `--wrapper-attempt` を
+  変えて再投入して 2/2 KILLED を得た。
 ### F107. 内側検証の変異を外側の一括再検証が mask した [恒真ゲート]
 
 - 事象: 事前登録した変異 M15 (publish 直後の再検証と rollback を落とす) が本走で **SURVIVED**
@@ -8405,6 +8416,14 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 変異本走で SURVIVED が出たら、まず `DW-M02` に従って他層 mask と**等価性**の両方を疑い、
   注入 diff を読んで「意味が変わっているか」を確認してから結論する。
 
+
+- **再発: 2026-09-08** — 変異 `b060.m23-length-exact-int` / `b060.m24-endpoint-exact-int`
+  (`type(x) is not int` を `not isinstance(x, int)` へ緩める) が probe 走で SURVIVED した。
+  `isinstance(2.0, int)` は False なので、float を使う既存の負例に対してこの緩和は
+  **何も変えていない**。開くのは bool の穴だけで、それを突く負例が集合に無かった。
+  F245 と同じく「緩和した方向を 1 件も持たない負例集合に対しては、その緩和が観測不能」である。
+  `DW-M02` に従い型検査そのものを取り除く形へ再照準して KILLED を実測し、
+  isinstance 版は「型の厳密さが負例で pin されていない」ことの実測として登録 SURVIVED で残した。
 ### F246. 「生きた consumer が居る」だけで凍結 artifact を現用と裁定し、逆向きに壊す再 pin を通した [手順漏れ]
 
 - 事象: [T-816] 手順 4 の段 4 で、親が `output/s1-freeze/*.json` と
@@ -19126,6 +19145,14 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   逆でないかを機械検査する仕組みが無い。** 本件は受入が赤になって初めて表面化した。
   向きの衝突を機械検出する gate は未実装で、次の一手として起票した。
 
+
+- **再発: 2026-09-08** — 受入全走が 21591 passed / 1 failed で戻り、落ちたのは同じ
+  `test_g5_real_ledger_covers_at_least_90_percent_of_real_collection` だった。被覆率は
+  19438 / 21660 = 89.7415%。main (240ee6360) 単独では 19439 / 21596 = 90.0120% と
+  **閾値を 0.0120 point しか上回っておらず**、本 wave の 65 node 追加でそのまま割った。
+  F684 の恒久対応 (部分更新) はそのまま効き、`--add-only` で自 wave の 65 node だけを
+  実測値で足して 90.0416% へ戻した。**残差がこれだけ薄いので、test を足す wave は
+  今後もほぼ確実に同じ赤を踏む。**
 ### F685. 編集面重複走査が、作成途中の worktree を「編集中」と誤検出した [手順漏れ]
 
 - 事象: [T-1434] の段 1 で、対象文書 `docs/phase3-t189-model-routing-preregistration.md` を触る
@@ -21665,6 +21692,10 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   生存していれば本エントリの型であり、同じ引数で待ち手を張り直せばよい。
 - **supersede: 2026-09-03** — 本エントリは F268 / F355 と同型であり、新規 F を採るべきでなかった。台帳の正本は F355 とし、2026-09-02 の観測は同エントリの再発として記録した。以後この型は F355 へ追記する。
 
+
+- **再発: 2026-09-08** — 段 6 レビュー B の待ち手が producer 生存中に rc=0 で戻り、
+  `.done` も成果物も存在しなかった。`DW-C00` どおり `.done` 非空で判定していたので誤判定はせず、
+  until ループへ張り替えて正しく待てた。恒久対応は未実施のままでよい。
 ### F818. Codex の使用枠切れが凍結境界ごと wave を止めた [手順漏れ]
 
 - 事象: 2026-09-02 23:48、段 3 の敵対相談 2 本が 7 model call 時点で
@@ -22388,6 +22419,15 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `_require_condition_gate` と同じ関数列を login で呼んで supply / meaning の全記録を出す probe (job dir の `gate-probe.py`) で読む。
 - 再発検知: compute JSON の `condition_gates` に 3 macro の green record が残ること (consumer test は all_pass を要求)。
 
+
+- **再発: 2026-09-08** — 向きが逆の同型。screening 関門へ `-DFETCHCONTENT_BASE_DIR` を渡す
+  実装を入れたところ、それを参照しない共有 fixture `condition_meaning_gate/effectuation-ignored`
+  に対して CMake が「Manually-specified variables were not used by the project」を stderr へ出し、
+  gate が `configure-failed` で赤になった。既存の `preprocess-bytes-identical` 判定に届く前に
+  止まるため、負例 test が別の理由で赤になっていた。D1666 は同じ理由で共有 fixture
+  `condition_meaning_gate/supplied` へ無害な参照 1 行を入れており、本 wave はそれを
+  `effectuation-ignored` へも入れて閉じた。**gate 側は fail-closed で正しく、直すのは
+  変数を渡す側か受ける側である**という F855 の恒久対応がそのまま当てはまる。
 ### F856. 上流への argv 追加が、下流の閉じた argv 文法に無効化される [手順漏れ] [恒真ゲート]
 
 - 事象: 認証経路をオフライン依存へ配線する wave で、段 3 の敵対レンズが「配線しても A-6 は
@@ -22655,6 +22695,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   advisory lock 等) を置く wave は、段 1 で対象の durable base 上に最小 probe を 1 回走らせ、
   fixture が代表していない環境差を投入前に出す。`docs/dev-wave/core.md` `DW-S01` の
   「別 program 起動物の実在棚卸し」の対象に、公開先 file system が primitive を受けるかを含める。
+- **supersede: 2026-09-08** — 恒久対応が指す実装が着地した。group submission receipt と `complete` の completion receipt は完成した staging への `os.link` で公開し、materialize の directory 公開は現行のまま残す (D1766)。
 
 ### F871. 棚卸しの発火窓を前回の裁定時刻で切り、照合を directory 単位で行って再訪条件 7 件を「発火 0 件」と誤判定しかけた [手順漏れ] [ドリフト]
 
@@ -23078,3 +23119,111 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   受入の post-claim merge が競合し、Codex `role=author` の合成子による合成が必要になった。
   **同一の欠陥へ複数 wave が同時に着手していることを、着手前の編集面重複検査は捕まえられない**
   — 検査は path の重なりを見るが、main 側 wave はその時点でまだ着地していなかった。
+
+### F895. hard link 公開への切替えが、staging と宛先を同一 inode にして撤去処理へ受領証削除の経路を開きかけた [恒真ゲート] [手順漏れ]
+
+- 事象: 受領証の公開を `renameat2(RENAME_NOREPLACE)` から `os.link` へ替える段 2 プランは、
+  公開成功後に staging を撤去する経路を足しつつ、撤去側の `(st_dev, st_ino)` 照合を
+  **rename 時代のまま**据え置いていた。段 3 の敵対相談が、公開後に第三者が
+  `unlink(staging)` と `rename(destination, staging)` を行うと照合が通り、
+  撤去が受領証の最後の link を消して**例外なしで成功が返る**並びを実証した。着地前に閉じた。
+- 根本原因: rename では公開後に staging 名が消えるため撤去処理そのものが存在せず、
+  identity 照合は「自分が作った staging か」だけを見ればよかった。hard link は
+  **2 つの名前が同じ inode を指す**ので、同じ照合が「宛先を staging 名へ移したもの」も
+  通してしまう。**公開 primitive を替えると、その primitive に紐づく不変条件も替わる**という
+  点がプランから抜けていた。既存テストも rename 時代の性質しか固定していなかった。
+- 恒久対応: D1767。公開済み経路の撤去は宛先の存在と
+  identity 一致を前提にし、不成立なら unlink せず fail-closed で止める。
+  正例・負例は `orchestrator/tests/test_paper_story_a1_job_contract.py` の
+  `test_published_receipt_cleanup_preserves_same_inode_after_destination_move` と
+  `test_published_receipt_cleanup_preserves_staging_when_destination_disappears`
+  が持ち、変異 `t2396.m01a` / `t2396.m01b` が両 guard を単独で殺せることを実測した。
+- 再発検知: 公開・施錠・claim の primitive を差し替える wave は、**差し替え前の primitive が
+  暗黙に与えていた不変条件**を 1 つずつ書き出して、差し替え後も成立するかを見る。
+  `os.link` のように 2 つの名前が同じ inode を指す形へ移す場合は、identity 照合が
+  「どちらの名前か」を区別できなくなる点を必ず攻撃面に入れる。
+
+### F896. 言語と自 repo の実行時挙動を実測せずに断定し、裁定の根拠に据えた [捏造/幻覚] [手順漏れ]
+
+- 事象: 段 4 裁定で親が 3 つの前提を実測せずに書き、いずれも子の実測で否定された。
+  (1)「`canonical_json_bytes()` が float を拒否するので witness に float は入らない」— 実際は
+  有限 float を許し、Python の `2.0 == 2` により型検査を素通りしていた。
+  (2)「verifier の出力は決定的なので正規化は不要」— 実際は
+  `orchestrator/verifier/dsg.py` の `_reasons()` が `u_writes.keys() & v_writes.keys()` を
+  未整列で走査するため、理由順が process 間で変わる。
+  (3)「producer が書く boolean は必ず恒真になる」— producer は untyped JSON へ潰れる前の
+  `VerifyResult` を持つので偽になりうる値を書ける。
+  (1) は受理集合を実際に広げており、段 6 の敵対レビュー 2 本が具体的に通る入力を示した。
+- 根本原因: いずれも**関数を 1 本呼べば 10 秒で確かめられる事実**を、名前と docstring からの
+  推測で断定した。`canonical_json_bytes` は「canonical JSON」という名前から float 拒否を
+  推測し、`_validate_json_value` の本体を読んでいない。決定性は「SCC を size 昇順に整列」
+  という別の決定性の記述から集合反復の決定性まで拡張した。
+- 恒久対応: `DW-S01` の既存義務「brief 前に承認済み裁定と引数の前提を実測し、覆す新事実は
+  brief に出して段 4 で再裁定する」と `DW-O13`「field の実在では足りない。その field が実環境で
+  取りうる値を実測し、要求する値が到達可能か確かめてから述語を採用する」の適用範囲に、
+  **判定式が依拠する言語・標準ライブラリ・自 repo helper の挙動**を含める。
+  memory `read-own-memory-before-deriving-from-source` と同じ向きで、
+  「source 導出より先に実行して確かめる」を優先する。
+- 再発検知: 裁定文へ「X は Y を拒否する / X は決定的である」の形の前提を書いたら、
+  その 1 文ごとに実行して確かめた出力を裁定パッケージへ貼る。貼れない前提は裁定の根拠にしない。
+  本件は段 3 と段 6 の敵対レビューが 3 件すべてを捕まえており、
+  独立の敵対検証子を省かない規律 (`DW-C00`) が実際に働いた例でもある。
+
+### F897. /rulings の `all` が裁定できない形の出力を返す [手順漏れ]
+
+- 事象: `/rulings all` の出力規則は「`all` は索引のみ」で、推奨は詳説の中にしか置かない。
+  そのため `all` の出力に対してユーザーが「推奨通りで」と返しても、及ぶ先が 1 件も無い。
+  **2 回連続で起きた** — 第 13 回は推奨を付けなかった 3 件が [T-2405] として持ち越され、
+  第 14 回は索引 17 件すべてが同じ理由で一度は裁定にならなかった。第 14 回はユーザーが
+  「推奨をつけてないのってなぜ？」と問うたことで露見し、推奨を起草し直して裁定に至った。
+- 根本原因: 入口が `all` を「件数指定の極大」として扱い、詳説の対象から外している。
+  しかし `all` は利用側では「全部見せて」の意味で使われ、返ってくるのは裁定できない形である。
+  出力規則と利用者の期待が食い違っている。
+- 恒久対応: 入口の出力規則を直す ([T-2440])。
+  byte 予算 (5,623) の中で行い、予算の引き上げはしない。
+- 再発検知: 各回の /rulings で、索引に載せた件のうち推奨を付けなかった件数を数える。
+  0 でなければ、その回は裁定を受けられない項を出したことになる。
+
+### F898. 検査を足した決定を「明記だけ」の先例として引いた [恒真ゲート]
+
+- 事象: 第 14 回の起草推奨が、B-10 の WAL 束縛について「gate を作らず限界を明記する」を
+  D1744 を先例として推奨した。**D1744 は明記だけの決定ではなく、loader に exact 一致検査を
+  足したうえで限界を明記した決定である。**別系統モデルの相談が指摘し、親が現物で確認して
+  推奨を閉じる側へ反転した (D1772)。
+- 根本原因: 決定の題 (「凍結項目の一致検査が束縛する範囲を明記する」) だけを読み、
+  本文の決定部 (検査を足すこと) を読まずに先例として引いた。題が「明記する」で終わるため
+  明記だけの決定に見える。
+- 恒久対応: 先例として D を引くときは、題ではなく**決定部の動詞**を読む。
+  「明記する」型の決定が実際に何を足したかを確かめる。
+- 再発検知: 「限界を明記して閉じる」を推奨するときは、その先例が D1197
+  (「限界の明記だけで足りるとする」を却下) と衝突しないかを必ず照合する。
+  衝突しないのは、明記によって主張の強さが実際に下がる場合だけである。
+
+### F899. 合成 fixture で書いた外部 command の列解析検査が、実機の列並びを 1 度も通さず緑だった [恒真ゲート] [未実測]
+
+- 事象: 投入 script が `qstat` 本文から状態列を取る処理で、状態列 (STT) でなく Pri 列を
+  読んでいた。実測した本文の field 番号は `0=RequestID 1=ReqName 2=UserName 3=Queue 4=Pri 5=STT`
+  であり、実装は index 4 を状態として読んでいた。receipt には `observed_state: "0"` が残った。
+- 根本原因: 既存 test の fixture が合成で、STT を index 4 に置いていた。実装と fixture が
+  同じ誤った列配置を共有していたため、**実装が誤っていても緑になった**。実機の出力を
+  1 度も通していない検査だった。敵対レビュー 2 本と焦点再レビュー 1 本も見つけていない。
+- 恒久対応: `orchestrator/tests/test_t1259_qsub_env_delivery_probe.py` の
+  `test_request_receipt_accepts_measured_qstat_layout` が、実機から採った header 2 行 +
+  データ行 1 行を逐語 fixture として持ち、`observed_state == "STG"` と owner 一致と受理成功を
+  固定する。旧実装はこの fixture で `observed_state == "0"` になり赤になる。
+- 再発検知: 外部 command の列・書式を解析する実装を足すときは、合成 fixture だけでなく
+  実機出力の逐語 fixture を同じ検査に入れる。
+
+### F900. 「負例を足した」という報告が、実際にはその述語を通らない負例だった [恒真ゲート]
+
+- 事象: 事前登録した 10 変異の probe 走で 5 件が生き残った。うち 3 件は
+  未承認 driver argv への承認 flag 混入、argv 完全一致の緩和、承認値と nonce の一致検査の
+  骨抜きであり、**いずれも規律 2 の中心にある**。直前の fix は「負例を追加した」と報告していたが、
+  その負例は前段の検査が先に拒否する入力を使っており、対象の述語を通っていなかった。
+- 根本原因: 負例の設計時に「どの検査が最初に拒否するか」を確かめていなかった。
+  静的レビューは述語の存在を見るだけで、その述語に到達する入力があるかを見ない。
+- 恒久対応: 変異事前登録の単一理由性確認 (`DW-M01`) を、負例側にも適用する。
+  fix の報告に「足した負例 / その入力が最初に当たる検査 / 過剰決定なら根拠」を書かせる。
+  実効は変異走で確かめる — D1787。
+- 再発検知: 変異 matrix の SURVIVED を「等価変異」と判定する前に、その位置へ到達する
+  負例が実在するかを確かめる。
