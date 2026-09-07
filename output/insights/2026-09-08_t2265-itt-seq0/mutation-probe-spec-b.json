@@ -1,0 +1,36 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 800,
+  "timeout_seconds": 1500,
+  "hang_timeout_seconds": 1500,
+  "mutations": [
+    {
+      "id": "m9a-diagnostic-side-reverted-to-performance-text",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "            DIAGNOSTIC_NOT_CERTIFIED if backoff_trace else NOT_CERTIFIED\n",
+          "new": "            NOT_CERTIFIED if backoff_trace else NOT_CERTIFIED\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m9b-performance-side-given-diagnostic-text",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "            DIAGNOSTIC_NOT_CERTIFIED if backoff_trace else NOT_CERTIFIED\n",
+          "new": "            DIAGNOSTIC_NOT_CERTIFIED if backoff_trace else DIAGNOSTIC_NOT_CERTIFIED\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
