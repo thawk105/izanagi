@@ -1,0 +1,40 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 120,
+ "timeout_seconds": 3600,
+ "hang_timeout_seconds": 900,
+ "mutations": [
+  {
+   "id": "M12-t126-registry",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/qualification/identity.py",
+     "old": "        if hashlib.sha256(live).hexdigest() != expected:\n",
+     "new": "        if False and hashlib.sha256(live).hexdigest() != expected:\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_t126_pegasus_tools.py::test_m12_relaxed_live_schema_cannot_expand_receipt_acceptance"
+   ],
+   "expected_status": "KILLED"
+  },
+  {
+   "id": "M13-t126-registry",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/qualification/artifacts.py",
+     "old": "    if memoized != live:\n",
+     "new": "    if False and memoized != live:\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_t126_pegasus_tools.py::test_m13_qualification_schema_memo_drift_fails_closed"
+   ],
+   "expected_status": "KILLED"
+  }
+ ]
+}
