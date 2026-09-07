@@ -68,6 +68,12 @@
         }
       ],
       "dependency_prefix_argument": "-DCMAKE_PREFIX_PATH=",
+      "fetchcontent_path_argument_prefixes": [
+        "-DFETCHCONTENT_BASE_DIR=",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST="
+      ],
       "controlled_define_argument": "-D"
     },
     "build": {
