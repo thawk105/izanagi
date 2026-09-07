@@ -7800,7 +7800,6 @@ def test_prebuild_receipt_loader_returns_exact_atomic_five_tuple(tmp_path):
         "configure_argv": ["cmake", "different-configure-root"],
         "build_argv": ["cmake", "--build", "different-build-root"],
     }
-    assert len(volatile_nontransport_fields) == 3
     record.update(volatile_nontransport_fields)
     _rewrite_prebuild_receipt(receipt, record)
     assert L._load_masstree_prebuild_receipt(receipt) == expected
@@ -7901,7 +7900,7 @@ def test_prebuild_receipt_cli_rejects_routes_without_a_build(suffix, monkeypatch
 
 @pytest.mark.parametrize("case", ("four-without-receipt", "five-without-contract"))
 def test_run_campaign_rejects_invalid_prebuild_tuple_before_side_effects(
-    tmp_path, monkeypatch, case,
+    monkeypatch, case,
 ):
     from orchestrator.campaign import loop as campaign_loop
 
@@ -7934,7 +7933,6 @@ def test_run_campaign_rejects_invalid_prebuild_tuple_before_side_effects(
             **kwargs,
         )
     forbidden.assert_not_called()
-    assert list(tmp_path.iterdir()) == []
 
 
 @pytest.mark.parametrize("case", ("four-without-receipt", "two-sources-with-receipt"))
@@ -7998,8 +7996,11 @@ def test_default_prebuild_values_do_not_enter_loop_evaluate_options(
     evidence = _prebuild_source_evidence(genome, source_root, L.PIN)
     layout = CampaignLayout(str(tmp_path / "campaign"))
     observed = {}
+    evaluate_call_count = 0
 
     def evaluate_spy(candidate, *_args, **kwargs):
+        nonlocal evaluate_call_count
+        evaluate_call_count += 1
         observed.update(kwargs)
         return campaign_pipeline.EvalResult(
             genome=candidate,
@@ -8022,6 +8023,7 @@ def test_default_prebuild_values_do_not_enter_loop_evaluate_options(
         do_bench=False, authorization_contract=env_contract.authorize(contract.env_tag),
         build_context=context, declared_use_class="exploration",
     )
+    assert evaluate_call_count >= 1
     assert set(observed).isdisjoint(_FETCHCONTENT_KEYS)
 
 

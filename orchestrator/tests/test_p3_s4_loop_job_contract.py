@@ -495,7 +495,7 @@ def test_registered_fragment_mutants_have_one_static_failure(
     label: str, fragment: str, replacement: str
 ) -> None:
     source = JOB.read_text(encoding="utf-8")
-    assert source.count(fragment) <= 1
+    assert source.count(fragment) == 1
     mutant = source.replace(fragment, replacement, 1)
     with pytest.raises(AssertionError) as error:
         _assert_static_job_contract(mutant)
