@@ -112,3 +112,26 @@ balanced (rratio=50) で **−65.9080%**、外側の status は 2 workload の�
   同系列は append-only なので、2026-09-04 付の稿は凍結物として残る。
 - 取り直しは、adopted cell の canonical identity を pin と patch に束縛した `src_token` で計算する
   実装 (D1644 / T-2337) の後に行う。取り直しは本 attempt を触らない。
+
+## 追記 (2026-09-07、[T-2198]) — 現行 policy との protocol hash 非一致
+
+D1693 (ユーザー裁定) に従い、`trace0_cmake_argv.configure` へ FetchContent の枠を厳密な期待値として
+足した。**本 attempt の値は取り直さない (絶対規律 7)。** 本 attempt は旧 policy に束縛されたまま残る。
+
+- 本 attempt が束縛する A-2 policy: bytes `42bfee487c9e517b9876fbb41f8a4b4de53266ced1543263087bbd637ecc897e`、
+  protocol `136b823e60a4b43e07dbbb4e3f8b5be48964226c955e143d59955325f0e0d9f4`
+- 現行 (2026-09-07 以降) の A-2 policy: bytes `2e97d69b60b73a1395d6b5efdc0198ee0cfbf84cfb48cabed442e705e64f41ea`、
+  protocol `d99f08bcc50c605d24d443d387a2c3144c16b9e670c9b9e247227c5db1be7f9c`
+
+**両者は一致しない。** 現行の認証プロトコルへ適合するかどうかは、新しい hash に束縛された
+新しい attempt でのみ判定できる。当時その道具でその測定をし、その結果が出たという事実は変わらない。
+
+**旧 submission receipt は現行の exact qsub env 契約でも再受理されない** — 新しい環境変数
+`IZANAGI_A2_THIRD_PARTY_SOURCE_ROOT` が exact key 集合へ入ったため。これは新しい破壊ではなく、
+protocol hash と job body hash の変化に既に含まれている。
+
+なお `protocol_sha256` が束縛するのは policy document であって、Python 側の判定式や qsub env の
+exact 集合ではない。同じ protocol hash のまま実装側の述語を書き換えれば受理は動きうる。
+これは認証プロトコル同一性の射程であり、限界として記録する (絶対規律 7)。
+
+詳細は `output/insights/2026-09-07_t2198-trace0-fetchcontent/README.md`。

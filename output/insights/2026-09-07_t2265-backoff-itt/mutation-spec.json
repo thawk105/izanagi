@@ -1,0 +1,178 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 150,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 6000,
+  "mutations": [
+    {
+      "id": "M14-margin-0.03",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_counterfactual_analysis.py",
+          "old": "EQUIVALENCE_MARGIN = math.log(1.03)",
+          "new": "EQUIVALENCE_MARGIN = 0.03"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_equivalence_uses_log_1p03_margin_not_literal_point03",
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_tost_and_practical_superiority_boundaries_are_strict"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M13-tost-uses-95",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_counterfactual_analysis.py",
+          "old": "T90_DF11 = 1.7958848",
+          "new": "T90_DF11 = 2.2009852"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_equivalence_uses_90_percent_interval_not_95_percent_interval",
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_equivalence_uses_log_1p03_margin_not_literal_point03",
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_tost_and_practical_superiority_boundaries_are_strict"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M12-sign-flip",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_counterfactual_analysis.py",
+          "old": "estimate = statistics.fmean(arm_values[0]) - statistics.fmean(arm_values[1])",
+          "new": "estimate = statistics.fmean(arm_values[1]) - statistics.fmean(arm_values[0])"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_public_analysis_pairs_next_window_and_uses_equal_run_clusters"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10-zero-event-dropped",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_counterfactual_analysis.py",
+          "old": "if any(event[\"window_commits\"] == 0 for event in events):",
+          "new": "if all(event[\"window_commits\"] == 0 for event in events):"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_missing_arm_and_zero_commit_make_whole_primary_inconclusive"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11-accept-partial-clusters",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_counterfactual_analysis.py",
+          "old": "PRIMARY_THREADS = 48",
+          "new": "PRIMARY_THREADS = 24"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_missing_arm_and_zero_commit_make_whole_primary_inconclusive",
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_only_final_assignment_is_dropped_and_post_treatment_fields_do_not_filter"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9-last-update",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_counterfactual_analysis.py",
+          "old": "for index, (current, following) in enumerate(zip(events, events[1:]))",
+          "new": "for index, (current, following) in enumerate(zip(events, events))"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_equivalence_uses_90_percent_interval_not_95_percent_interval",
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_equivalence_uses_log_1p03_margin_not_literal_point03",
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_only_final_assignment_is_dropped_and_post_treatment_fields_do_not_filter",
+        "orchestrator/tests/test_backoff_counterfactual_analysis.py::test_public_analysis_pairs_next_window_and_uses_equal_run_clusters"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-seed-not-applied",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "                if cell.step_policy == 2 and step_policy_seed is not None\n",
+          "new": "                if False and step_policy_seed is not None\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_genome_for_policy_cell_supplies_real_build_define"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-seed-leaks-to-policy01",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "                if cell.step_policy == 2 and step_policy_seed is not None\n",
+          "new": "                if step_policy_seed is not None\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_genome_for_policy_cell_supplies_real_build_define"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M1-seed-upper-bound",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "    if value >= 2**64:\n        raise argparse.ArgumentTypeError(\"must be smaller than 2**64\")\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_step_policy_seed_rejects_non_decimal_or_out_of_uint64[overflow]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-seed-format",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "    if type(text) is not str or _INTEGER_RE.fullmatch(text) is None:",
+          "new": "    if type(text) is not str:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_step_policy_seed_rejects_non_decimal_or_out_of_uint64[negative]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_step_policy_seed_rejects_non_decimal_or_out_of_uint64[non-ascii]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_step_policy_seed_rejects_non_decimal_or_out_of_uint64[plus]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_step_policy_seed_rejects_non_decimal_or_out_of_uint64[underscore]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

@@ -10,7 +10,8 @@ required_env=(
   PBS_JOBID PBS_NODEFILE PBS_O_WORKDIR
   IZANAGI_A2_REPO_ROOT IZANAGI_A2_EXPECTED_HEAD IZANAGI_A2_CURRENT_PIN
   IZANAGI_A2_CCBENCH_ROOT IZANAGI_A2_ATTEMPT_ROOT
-  IZANAGI_A2_DEPENDENCY_PREFIX_SOURCE IZANAGI_A2_WORKLOAD
+  IZANAGI_A2_DEPENDENCY_PREFIX_SOURCE IZANAGI_A2_THIRD_PARTY_SOURCE_ROOT
+  IZANAGI_A2_WORKLOAD
 )
 for name in "${required_env[@]}"; do
   if [[ -z "${!name:-}" ]]; then
@@ -34,6 +35,7 @@ campaign_root=$job_root/campaigns
 cache_root=$job_root/cache
 scheduler_root=$job_root/scheduler
 dependency_source=$IZANAGI_A2_DEPENDENCY_PREFIX_SOURCE
+third_party_source=$IZANAGI_A2_THIRD_PARTY_SOURCE_ROOT
 ccbench_root=$IZANAGI_A2_CCBENCH_ROOT
 if [[ ! -d "$repo" || -L "$repo" || ! -d "$attempt" || -L "$attempt" \
    || ! -d "$job_root" || -L "$job_root" \
@@ -117,6 +119,21 @@ fi
 
 if [[ ! -d "$dependency_source" || -L "$dependency_source" ]]; then
   echo "pinned dependency source is unavailable" >&2
+  exit 2
+fi
+if [[ -L "$third_party_source" ]]; then
+  echo "pinned third-party source must not be a symlink" >&2
+  exit 2
+fi
+third_party_source=$(realpath -e -- "$third_party_source")
+if [[ ! -d "$third_party_source" || -L "$third_party_source" \
+   || ! -d "$third_party_source/masstree" \
+   || -L "$third_party_source/masstree" \
+   || ! -d "$third_party_source/mimalloc" \
+   || -L "$third_party_source/mimalloc" \
+   || ! -d "$third_party_source/googletest" \
+   || -L "$third_party_source/googletest" ]]; then
+  echo "pinned third-party source is unavailable" >&2
   exit 2
 fi
 
@@ -281,6 +298,7 @@ fi
 scratch_base=/scr/${USER}/paper-story-a2-certification
 scratch=$scratch_base/${pbs_jobid_path_component}
 dependency_prefix=$scratch/dependencies
+third_party_root=$scratch/fetchcontent
 if [[ -e "$scratch" || -L "$scratch" ]]; then
   echo "scratch root is not fresh" >&2
   exit 2
@@ -288,7 +306,11 @@ fi
 mkdir -p "$scratch_base"
 mkdir "$scratch"
 mkdir "$dependency_prefix"
+mkdir "$third_party_root"
 cp -a "$dependency_source"/. "$dependency_prefix"/
+cp -a "$third_party_source/masstree" "$third_party_root/masstree-src"
+cp -a "$third_party_source/mimalloc" "$third_party_root/mimalloc-src"
+cp -a "$third_party_source/googletest" "$third_party_root/googletest-src"
 
 export PYTHONDONTWRITEBYTECODE=1
 "$PY" -B -m orchestrator.campaign.paper_story_a2_certification \
@@ -307,4 +329,5 @@ export PYTHONDONTWRITEBYTECODE=1
   --raw-root "$raw_root" \
   --current-pin "$IZANAGI_A2_CURRENT_PIN" \
   --dependency-prefix "$dependency_prefix" \
-  --ccbench-dir "$ccbench_root"
+  --ccbench-dir "$ccbench_root" \
+  --third-party-source-root "$third_party_root"
