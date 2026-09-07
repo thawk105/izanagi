@@ -1,0 +1,11 @@
+{
+ "note": "durable authority は /work/1/SFC/tanab/izanagi-job-evidence/t2228/ 配下の原本。ここに写した sweep.json は evidence field を外した縮約版であり、s1.json と repro.json は原本と同一内容 (整形のみ)。",
+ "sha256": {
+  "attempt-20260907a/repro.json": "9d99908ffcc1a7d9a3bf7de0f46a62b2fb9923dcf214d7d90d23ff0276d779a7",
+  "attempt-20260907a/s1.json": "400156ead9193e412ce91919a2118b7806bc76d921ed2a46e500866f46c960f8",
+  "attempt-20260907a/sweep.json": "2e4551a241110af12446636de7b295710222c81b44e1e03ce376f3747c4f6f36",
+  "attempt-20260907b/repro.json": "c2d6ee5bd636d297db91abdfb842eaf6d0f998c9d1f7ab3d955f812c9975122d",
+  "attempt-20260907b/s1.json": "b7fb37b81c6801f4137bf1079744df545dd11cd811b6892ee38d3c6f0418c9a9",
+  "attempt-20260907b/sweep.json": "bd356b743ae2a6d469f95d7f16e3eae5d31d96ffc25cebd81ef5c372d2f32205"
+ }
+}

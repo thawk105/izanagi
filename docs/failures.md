@@ -16687,6 +16687,17 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 
 
 - **再発: 2026-08-28** — 有効なA-2 4-cell acquisitionのtracked publishがLustre上の`RENAME_NOREPLACE` EINVALで停止。A-1既存先例と同じEINVAL限定exclusive-claim fallbackをA-2へ実装し、同じacquisitionの再提示でpublishした。
+
+- **再発: 2026-09-07** — 段 4 loop の job body を初めて実際に投入したところ、(2) と同一症状
+  `Could NOT find gflags` で masstree の FetchContent 事前構築が止まった (job `981655.nqsv`、
+  host `bnode116`、Elapse 9S)。この job body は同 F の (1) にあたる `IZANAGI_RESERVATION_*`
+  8 変数の export は正しく行っており、reservation 束縛も claim root の provisioning も通った。
+  欠けていたのは依存の供給経路だけである。兄弟 job body `tools/pegasus/floor_scoping.sh` は
+  policy の pin から gflags/glog を build / install し `CMAKE_PREFIX_PATH` を通しており、
+  本 F の再発検知が求める「同種の既存 job body を 1 本名指しして、そこが行っていて自分が
+  行っていない手順を列挙する」を実装 wave が段 1 brief で行っていれば、段 2 で見えていた。
+  帰属と対応案は D1737、実装は
+  [T-2406] で裁定待ち。
 ### F581. 敵対レビュー 2 巡を通過した実装に発火しない保証が 2 件残っていた [恒真ゲート] [テスト代表性]
 
 - 事象: 段 6 の変異 matrix 第 1 巡 (22 件) で SURVIVED が 6 件出た。うち 2 件は実欠落だった。
@@ -17794,6 +17805,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   コード側の修正は次の一手へ登録した (CLI を実プロセスとして起動する検査の新設を含む)。
 - 再発検知: 同じ判定を返すはずの 2 経路が異なる答えを返さないことを、CLI を subprocess として
   起動する検査で固定する (未実装。次の一手で追跡)。
+- **supersede: 2026-09-07** — 恒久対応が独立入口として名指しした `-m` 形式は、判定器では同じ二重実体化を起こす (`runpy` が対象コードを `__main__` の namespace で実行するため)。gate report の `-m` が正しい内訳を返すのは、そこで core が通常の canonical import になるからであって `-m` 形式が安全だからではない。CLI を実プロセスとして起動する再発検知は `orchestrator/tests/test_s8c_cli_entrypoints.py` として実装済みで、判定器と gate report をファイルパスと `-m` の両形で起動し、同じ commit の library 判定と突き合わせる。
 
 ### F632. 新規 worktree の初回受入全走は `output/runs` 不在で必ず 3 件赤になる [テスト代表性]
 
@@ -22504,3 +22516,130 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   として書き出して実行し、抜き出しが現物の逐語部分列であることを同じテストで固定する**。
   防壁を迂回する書き方 (別 path へ copy して同名で叩く、絶対 path で呼ぶ) は取らない。
 - 再発検知: 子へ「実際に走らせて確かめよ」と書く前に、その対象が防壁の管轄下にないかを親が確かめる。
+
+### F870. A-1 の group submission receipt を `renameat2(RENAME_NOREPLACE)` で公開する経路が、Lustre 上の durable base で決定的に失敗した [テスト代表性] [手順漏れ]
+
+- 事象: 2026-09-07 19:03 JST、A-1 pilot (study `paper-story-a1-20260901-balanced5-pilot-v1`) の
+  attempt-0002 で 3 本の qsub がすべて受理され qstat 可視性判定も 3 本とも通った直後に、
+  `no-replace submission receipt publish failed: Invalid argument` で rc=2 になった。
+  group receipt `receipts/submission.json` は生まれず、3 job は計算ノードで body preflight を通ってから
+  `acquisition receipt did not appear within 60 seconds` で bench に入らず終わった。測定値は 0 点。
+- 根本原因: `orchestrator/campaign/paper_story_a1_paired.py` の `_publish_submission_receipt` が
+  `_renameat2_directory(staging, path, _RENAME_NOREPLACE)` で完成名へ移すが、policy
+  `execution.durable_measurement_base` が固定する `/work` 配下は Lustre で、この flag を受け付けない。
+  同じ directory での実測は `renameat2(RENAME_NOREPLACE)` = errno 22 (EINVAL)、`flags=0` = 成功、
+  `os.link()` = 空き先に成功・既存先に errno 17 (EEXIST)、tmpfs では `RENAME_NOREPLACE` が成功。
+  flag は kernel にあるが Lustre が実装していない。この経路は環境と混雑によらず決定的に落ちる。
+  attempt-0001 は 1 段手前の F852 で落ちていたため、公開まで到達したのは attempt-0002 が初めてで、
+  **実機で一度も通っていない手順が投入 gate に置かれていた** — F852 と同じ型で層だけが違う。
+  同じ file の `_observe_materialization_publish` は公開先と同じ file system で
+  `RENAME_NOREPLACE` を 1 回試して `EINVAL` なら fallback を選ぶ機構を既に持つが、
+  submission receipt の公開だけがその機構を持たない。
+- 恒久対応: 一次資料 `output/insights/2026-09-07_a1-pilot-attempt-0002/README.md` §5・§7 の裁定パッケージ
+  (公開機構 3 案と実測表、親推奨は `os.link()` による公開)。実装は [T-2396] が
+  Codex `role=author` で持ち、Lustre 上で公開が成立する正例と、既存先を上書きしない負例を同じ commit へ足す。
+  受理集合を広げる素の rename への退避は採らない。
+- 再発検知: 投入 gate に file system 依存の primitive (`renameat2` の flag、`O_TMPFILE`、
+  advisory lock 等) を置く wave は、段 1 で対象の durable base 上に最小 probe を 1 回走らせ、
+  fixture が代表していない環境差を投入前に出す。`docs/dev-wave/core.md` `DW-S01` の
+  「別 program 起動物の実在棚卸し」の対象に、公開先 file system が primitive を受けるかを含める。
+
+### F871. 棚卸しの発火窓を前回の裁定時刻で切り、照合を directory 単位で行って再訪条件 7 件を「発火 0 件」と誤判定しかけた [手順漏れ] [ドリフト]
+
+- 事象: /rulings 第 13 回の収集で、見送り台帳の再訪条件の発火を 0 件と結論した。別系統モデルの
+  相談 (B) が 7 件の発火を指摘し、親が git の記録で全件を裏取りして誤りと確定した
+  (T-281 / T-436 / T-982 / T-993 / T-1007 / T-1008 / T-1015)。同じ収集で、絞り込み語に
+  『ユーザー手番』が無いために [T-1662] が落ち、insight 側だけが裁定パッケージを持つ [T-2392] も落ちた。
+- 根本原因: 3 つある。(1) 収集節の「前回裁定後」を裁定の**着地時刻** (12:46) と読み、前回が見た
+  末尾エントリ (1297、10:44) 以降という正しい窓より狭く取った。その間に着地した wave が窓の外へ出た。
+  (2) 「同一 file を触る wave への相乗り」型の条件を、項の所有 file を名指しせず変更 **directory** の
+  一覧と突き合わせた。directory 単位では稼働中の編集面を必ず外す。(3) 絞り込み語が
+  ユーザーの**実行**手番 (D1705 が索引に残すと定めた類) を覆っておらず、また worklog の項本文が
+  「新規」へ弱められた裁定パッケージを覆っていなかった。
+- 恒久対応: `.claude/commands/rulings.md` 収集節を 3 箇所是正した。経路 5 へ「窓は前回の裁定時刻でなく
+  前回が見た末尾エントリ以降」と「所有 file を名指しして file 単位で照合する (directory 単位では
+  必ず外す)」を、経路 1 の総ざらい語へ『ユーザー手番』を、経路 2 へ「worklog の項本文に裁定語が
+  無くても対応する insight の裁定パッケージ節が返していれば拾う」を足した。
+- 再発検知: 次回の /rulings で、見送り台帳の相乗り条件を持つ項について所有 file 名を書き出し、
+  前回が見た末尾エントリ以降の `git log --name-only` の file 集合と突き合わせた件数を記録する。
+  0 件と結論するときは、突き合わせた file 数を worklog に書く (数を書けない 0 件は根拠不足とみなす)。
+
+### F872. 開示義務のある caption が成果物に描画されず、内部値だけを見る test が緑を返した [恒真ゲート] [テスト代表性]
+
+- 事象: 図の caption (非認証の 3 値と 6 つの但し書き) は module 定数として定義され、
+  test も「12 個の literal が各 1 回ある」ことを検査していたが、**PNG / PDF には 1 文字も
+  描画されていなかった**。figure に artist として足す行が無く、figure-level の text は
+  suptitle だけだった。test は matplotlib の private 属性を読んでいたため、
+  **描画されていなくても通る恒真な検査**になっていた。成果物には格の断り書きが無いまま出ていた。
+- 根本原因: 「文字列が存在するか」を検査して「成果物に出るか」を検査していない。
+  定義と描画の間に経路があるのに、経路を通した現物を一度も見ていなかった。
+- 恒久対応: caption を `fig.text` の実 artist として bbox 検査の前に足し、
+  test は `figure.findobj(Text)` が返す**実 artist のテキスト**を走査する形にした。
+  親は実 report 3 本で生成器を走らせ、PDF を `pdftotext` で抽出して 12 literal を現物で数えた。
+- 再発検知: 事前登録した変異 10 件はすべて意図した test に殺されたが、
+  **この欠陥は変異 matrix の外にあった** — 恒真な oracle は、その oracle が守るはずの実装を
+  変異させても赤にならないので、変異では見つからない。見つけたのは段 6 の敵対レビューで、
+  「恒真な assert・stub で置き換えた偽の正例・実装を写しただけの oracle を探せ」と
+  名指しで指示したレンズである。**成果物に出るべき開示は、内部表現ではなく成果物の現物で検査する。**
+
+### F873. 背景 job の worktree 隔離が別 worktree への一切の command を拒否し、cd 後は永続 shell が取り残された [手順漏れ]
+
+- 事象: 段 5 の実装子を `DW-S05-A` どおり別 worktree (`.codex/worktrees/`) へ置こうとしたところ、
+  背景 job の worktree 隔離が**そこを cwd とする command を全部拒否**した。
+  `--repo <別 worktree>` のような引数経由でも、内部で cd する script 経由でも拒否される。
+  さらに一度 `cd` した後は**永続 shell がその worktree に取り残され**、`pwd` すら落ちた。
+  `EnterWorktree` に自分の worktree の path を渡して入り直すまで復旧しなかった。
+- 根本原因: 隔離は「このセッションの command は自分の worktree 内で走る」を強制する。
+  `DW-S05-A` の「各単位を別 worktree へ置く」は、複数の実装単位を並列投入して所有を分ける
+  ための規定であり、隔離セッションで単一単位のときは前提が成り立たない。
+- 恒久対応: 隔離セッションで実装単位が 1 つなら、実装子を wave worktree で直接走らせる。
+  親は子の稼働中に repo を触らない (変異・受入の clean tree 規律と同じ)。
+  `cd` してしまったら `EnterWorktree` に自分の worktree の絶対 path を渡して入り直す。
+- 再発検知: 起動前に「実装単位は 2 つ以上か」を数える。1 つなら別 worktree を作らない。
+  作ってしまった未使用 worktree は、隔離セッションからは撤去もできないので次 wave へ引き継ぐ。
+
+### F874. 親が測っていない否定を追補として子へ渡し、5 分上限を超える検査設計を招きかけた [捏造/幻覚] [テスト代表性]
+
+- 事象: 実プロセス CLI 検査の時間予算を決めるため、親は実 repository の全評価を 3 連走して
+  39.17 / 114.16 / 118.74 秒 (load average 76) を実測した。**この数字は正しい。** しかし親は
+  同じ追補に「小さな合成 repo を作って安く同じ欠陥を踏ませることはできない」と書き、
+  その否定を段 3 の両レンズへ前提として渡した。実際には、判定器・評価器・射影の 3 module の
+  live bytes を合成 commit へ copy すれば三 blob 検査を通過して評価器まで到達し、
+  **1 走 0.2〜0.3 秒**で同じ欠陥を判別できる。段 2 の当初案 (4 起動形 x 2 評価 = 最悪 950 秒) を
+  そのまま採っていれば、suite 全体 5 分の上限を新設検査 1 本で超えていた。
+- 根本原因: 測った命題 (「実 repo の全評価は高い」) から、測っていない命題
+  (「安い代替は無い」) を導いた。前者は実測、後者は親のコード読解による推測であり、
+  追補ではその区別を書かずに同じ節へ並べた。**否定命題は肯定命題より広く、
+  1 つの反例で倒れる。** 親は反例を探していなかった。
+- 恒久対応: memory `mechanism-necessity-needs-counterfactual` と同じ系統の作法として、
+  auto-memory `unmeasured-negation-must-be-labelled` を作り、**「〜はできない」「〜しかない」を
+  子への前提として書くときは、(a) 実測で確かめたのか (b) 読解で推測したのかを同じ行に書き、
+  (b) なら「反証を歓迎する」と明示する**を固定する。段 3 のレンズ prompt には、
+  親自身の実測値**とその一般化**を攻撃対象に含める義務が既にある (`DW-S03`) ので、
+  発火経路はそこに既存である。
+- 再発検知: 追補・brief に「できない」「無い」「唯一」を含む否定命題があり、
+  その節に実測 (数値・コマンド・成果物 path) が併記されていない場合が同型。
+  レンズが反証したかどうかで機械判定はできないため、段 4 裁定で親が
+  「自分の否定命題のうち実測で支えていないものを列挙する」ことで顕在化させる。
+
+### F875. 手順書の投入 recipe が実行体の前提条件を 1 つ書き落とし、逐語で実行すると決定的に拒否された [手順漏れ] [テスト代表性]
+
+- 事象: `tools/pegasus/README.md` §7 の tagged qsub command を逐語で実行して段 4 loop の job body を
+  投入すると、job body が `refuse "CCBench P3 S4 campaign pin mismatch"` (rc=2) で必ず止まる。
+  job body も driver (`patchharness.assert_pinned_clean`) も CCBench の working tree が
+  `p3_s4_loop.PIN` に exact 一致することを要求するが、recipe は「固定 SHA の専用 checkout」としか
+  書いておらず、**submodule を PIN へ checkout する手順が無い**。main の gitlink
+  (`511c9538e...`) は PIN (`028f34d`) の子孫であり、両者は一致しない。
+- 根本原因: recipe を書いた wave は新規 Pegasus 実行体のため一度も投入せず (F660)、検証を
+  login node の stub harness と契約テストで止めた。契約テストは job body の**本文**を固定するが、
+  README の recipe を実行したときに前提が揃うかは検査しない。両者の間に検査の空白がある。
+  gitlink は当該 wave の実装 commit の時点から前進しておらず、**recipe は着地時点から
+  逐語実行できなかった**。pin の前進による腐りではなく、書き起こし時の欠落である。
+- 恒久対応: 誤った pin のまま走ることは構造的に起きない — job body の rc=2 refuse と driver の
+  `assert_pinned_clean` が二重に fails-closed で止め、本 wave でも実際に止めた。
+  欠けているのは recipe 本文だけであり、その是正は
+  [T-2407] で裁定待ちとして返した。
+- 再発検知: 新しい job body を admission registry へ登録する wave は、README の投入 recipe を
+  **逐語で 1 回実行して rc を記録する**。実行できない事情があるなら、recipe が要求する前提を
+  1 つずつ列挙して job body の必須検査と突き合わせ、突き合わせた件数を段 1 brief に書く。
+  0 件と書くならその根拠を示す。
