@@ -361,6 +361,12 @@
       "primary_gate": "hook deny pending admission evidence",
       "evidence": "unmeasured; preflight input surfaces remain"
     },
+    "tools/pegasus/submit_t1998_balanced_stock_inline.sh": {
+      "class": "local-ok",
+      "reason": "login-side PBS T-1998 balanced-only submitter",
+      "primary_gate": "qsub submission; compute work stays in existing A-5 job body",
+      "evidence": "static login-side submitter classification"
+    },
     "tools/pegasus/t126_qualification.sh": {
       "class": "dispatch-required",
       "reason": "PBS T126 qualification job body",
