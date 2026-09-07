@@ -165,6 +165,117 @@ def _write_t2216_json(path: Path, value: dict) -> Path:
     return path
 
 
+def _t2266_tail_document(workload: str) -> dict:
+    workload_index = model.WORKLOADS.index(workload)
+    claim_scope = "descriptive_backoff_shape_only"
+    points = []
+    for point_index, backoff in enumerate(reversed(model.TAIL_BACKOFFS)):
+        base = 1_000_000.0 * (workload_index + 1) + 100.0 * backoff
+        throughputs = [base, base, base, base, base + 50.0]
+        abort_base = 0.10 + 0.05 * workload_index
+        abort_rates = [
+            abort_base, abort_base, abort_base, abort_base, abort_base + 0.10,
+        ]
+        points.append({
+            "label": f"fixed-{backoff}us",
+            "point_index": point_index,
+            "kind": "static",
+            "backoff_us": backoff,
+            "variant_id": f"fixture-{workload}-{backoff}",
+            "genome": f"silo|BACKOFF_FIXED={backoff},BACK_OFF=1,WAL=0",
+            "committed": True,
+            "correctness_verified": True,
+            "performance_certified": False,
+            "certified": False,
+            "claim_scope": claim_scope,
+            "source_measurement": "trace_disabled",
+            "median_tps": statistics.median(throughputs),
+            "reps": [
+                {
+                    "rep": rep,
+                    "throughput_tps": throughput,
+                    "abort_rate": abort_rate,
+                }
+                for rep, (throughput, abort_rate) in enumerate(
+                    zip(throughputs, abort_rates, strict=True)
+                )
+            ],
+            "throughput_tps_reps": throughputs,
+            "abort_rate_reps": abort_rates,
+            "representative_abort_rate": statistics.median(abort_rates),
+            "representative_latency_ns": 1234.0,
+            "cv": 0.01,
+            "unstable": False,
+        })
+    for kind in ("none", "adaptive"):
+        throughputs = [900_000.0 + rep for rep in range(model.TAIL_REPETITIONS)]
+        abort_rates = [0.30] * model.TAIL_REPETITIONS
+        points.append({
+            "label": kind,
+            "point_index": len(points),
+            "kind": kind,
+            "backoff_us": None,
+            "variant_id": f"fixture-{workload}-{kind}",
+            "genome": f"silo|BACK_OFF={0 if kind == 'none' else 1},WAL=0",
+            "committed": True,
+            "correctness_verified": True,
+            "performance_certified": False,
+            "certified": False,
+            "claim_scope": claim_scope,
+            "source_measurement": "trace_disabled",
+            "median_tps": statistics.median(throughputs),
+            "reps": [
+                {
+                    "rep": rep,
+                    "throughput_tps": throughput,
+                    "abort_rate": abort_rate,
+                }
+                for rep, (throughput, abort_rate) in enumerate(
+                    zip(throughputs, abort_rates, strict=True)
+                )
+            ],
+            "throughput_tps_reps": throughputs,
+            "abort_rate_reps": abort_rates,
+            "representative_abort_rate": 0.30,
+            "representative_latency_ns": 2345.0,
+            "cv": 0.02,
+            "unstable": False,
+        })
+    labels = [point["label"] for point in points]
+    return {
+        "schema_version": model.TAIL_REPORT_SCHEMA,
+        "status": "complete",
+        "run_kind": model.TAIL_RUN_KIND,
+        "claim_scope": claim_scope,
+        "source_measurement": "trace_disabled",
+        "performance_certified": False,
+        "correctness_verified": True,
+        "campaign_id": f"t2266-fixture-{workload}",
+        "workload": workload,
+        "workload_coordinates": {"fixture": workload_index},
+        "requested_us": [150, 200, 300, 500, 750, 1000],
+        "realized_us": list(model.TAIL_BACKOFFS),
+        "unrealized": [{"backoff_us": 1000, "reason": "fixture-999"}],
+        "measurement_order": labels,
+        "points": points,
+    }
+
+
+def _write_t2266_tail_inputs(tmp_path: Path) -> list[str]:
+    entries = []
+    for workload in model.WORKLOADS:
+        path = _write_t2216_json(
+            tmp_path / f"tail-{workload}.json",
+            _t2266_tail_document(workload),
+        )
+        entries.append(f"{workload}={path}")
+    return entries
+
+
+def _t2266_static_points(document: dict) -> list[dict]:
+    return [point for point in document["points"] if point["kind"] == "static"]
+
+
 def test_t2216_verbatim_source_copy_and_pin_are_exact():
     source = PINNED_BACKOFF.read_text(encoding="utf-8")
     assert hashlib.sha256(PINNED_BACKOFF.read_bytes()).hexdigest() == (
@@ -726,6 +837,260 @@ def test_t2216_build_document_rejects_input_and_config_overrides(tmp_path: Path)
         model.build_document(
             substituted, PINNED_BACKOFF, duration_us=2_000_000.0,
         )
+
+
+def test_t2266_tail_build_document_uses_six_sorted_rep_means_and_provenance(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    measured = _t2216_measured_document()
+    measured_path = _write_t2216_json(tmp_path / "measured-tail.json", measured)
+    monkeypatch.setattr(
+        model, "MEASURED_INPUT_SHA256",
+        hashlib.sha256(measured_path.read_bytes()).hexdigest(),
+    )
+    entries = _write_t2266_tail_inputs(tmp_path)
+    sentinel_runs = [{"prediction_sentinel": "tail"}]
+
+    def fake_predict(calibrations, *, repetitions, duration_us):
+        assert repetitions == model.REPETITIONS
+        assert duration_us == model.DURATION_US
+        assert set(calibrations) == set(model.WORKLOADS)
+        return json.loads(json.dumps(sentinel_runs))
+
+    def fake_evaluate(document, runs, *, score_h2):
+        assert document == measured
+        assert runs == sentinel_runs
+        assert score_h2 is False
+        return {"status": None, "shape": {"passed": False}}
+
+    monkeypatch.setattr(model, "predict_all", fake_predict)
+    monkeypatch.setattr(model, "evaluate_predictions", fake_evaluate)
+    built = model.build_document(
+        measured_path, PINNED_BACKOFF, tail_json=entries,
+    )
+
+    expected_grid = [*model.STATIC_BACKOFFS, *map(float, model.TAIL_BACKOFFS)]
+    for workload in model.WORKLOADS:
+        calibration = built["calibrations"][workload]
+        baseline = model.build_calibration(measured, workload)
+        tail = _t2266_tail_document(workload)
+        by_backoff = {
+            point["backoff_us"]: point for point in _t2266_static_points(tail)
+        }
+        assert calibration["backoffs_us"] == expected_grid
+        assert calibration["backoffs_us"] == sorted(calibration["backoffs_us"])
+        assert calibration["throughput_tps"][:7] == list(baseline.throughput_tps)
+        assert calibration["abort_rate"][:7] == list(baseline.abort_rate)
+        assert calibration["raw_cells"][:7] == list(baseline.raw_cells)
+        assert len(calibration["raw_cells"][7:]) == 6
+        for index, backoff in enumerate(model.TAIL_BACKOFFS, start=7):
+            point = by_backoff[backoff]
+            expected_throughput = statistics.fmean(point["throughput_tps_reps"])
+            expected_abort = statistics.fmean(point["abort_rate_reps"])
+            assert expected_throughput != statistics.median(
+                point["throughput_tps_reps"]
+            )
+            assert calibration["throughput_tps"][index] == expected_throughput
+            assert calibration["abort_rate"][index] == expected_abort
+            assert calibration["raw_cells"][index] == {
+                "cell": f"tail-{backoff}us",
+                "backoff_us": backoff,
+                "throughputs_tps": point["throughput_tps_reps"],
+                "abort_rates": point["abort_rate_reps"],
+                "pbs_jobids": [],
+                "throughput_mean_tps": expected_throughput,
+                "abort_rate_mean": expected_abort,
+                "source": model.TAIL_RUN_KIND,
+                "campaign_id": tail["campaign_id"],
+            }
+
+    expected_provenance = []
+    for entry in entries:
+        workload, raw_path = entry.split("=", 1)
+        path = Path(raw_path).resolve()
+        expected_provenance.append({
+            "workload": workload,
+            "path": str(path),
+            "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+            "campaign_id": f"t2266-fixture-{workload}",
+            "backoffs_us": list(model.TAIL_BACKOFFS),
+        })
+    assert built["provenance"]["tail_inputs"] == expected_provenance
+
+
+def test_t2266_no_tail_argument_matches_the_legacy_build_values(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    measured_path = _write_t2216_json(
+        tmp_path / "measured-no-tail.json", _t2216_measured_document(),
+    )
+    monkeypatch.setattr(
+        model, "MEASURED_INPUT_SHA256",
+        hashlib.sha256(measured_path.read_bytes()).hexdigest(),
+    )
+
+    def fake_predict(calibrations, *, repetitions, duration_us):
+        assert repetitions == model.REPETITIONS
+        assert duration_us == model.DURATION_US
+        return [{
+            "calibrations": {
+                workload: model._calibration_json(calibration)
+                for workload, calibration in calibrations.items()
+            }
+        }]
+
+    def fake_evaluate(_document, runs, *, score_h2):
+        return {"status": None, "score_h2": score_h2, "runs": runs}
+
+    monkeypatch.setattr(model, "predict_all", fake_predict)
+    monkeypatch.setattr(model, "evaluate_predictions", fake_evaluate)
+    legacy = model.build_document(measured_path, PINNED_BACKOFF)
+    explicit_empty = model.build_document(
+        measured_path, PINNED_BACKOFF, tail_json=(),
+    )
+    for key in ("calibrations", "predictions", "evaluation"):
+        assert explicit_empty[key] == legacy[key]
+    assert legacy["provenance"]["tail_inputs"] == []
+    assert explicit_empty["provenance"]["tail_inputs"] == []
+
+
+def test_t2266_tail_inputs_reject_missing_workload(tmp_path: Path):
+    entries = _write_t2266_tail_inputs(tmp_path)
+    with pytest.raises(model.ModelError, match="all three workloads"):
+        model._load_tail_inputs(entries[:2])
+
+
+def test_t2266_tail_inputs_reject_duplicate_workload():
+    with pytest.raises(model.ModelError, match="duplicated"):
+        model._load_tail_inputs([
+            "write-heavy=/fixture/write-a.json",
+            "write-heavy=/fixture/write-b.json",
+            "balanced=/fixture/balanced.json",
+        ])
+
+
+@pytest.mark.parametrize("bad_entry", [
+    "read-heavy",
+    "unknown=/fixture/unknown.json",
+])
+def test_t2266_tail_inputs_reject_missing_equals_or_unknown_workload(bad_entry: str):
+    with pytest.raises(model.ModelError):
+        model._load_tail_inputs([
+            "write-heavy=/fixture/write.json",
+            "balanced=/fixture/balanced.json",
+            bad_entry,
+        ])
+
+
+def test_t2266_tail_report_rejects_workload_field_mismatch():
+    tail = _t2266_tail_document("write-heavy")
+    tail["workload"] = "balanced"
+    with pytest.raises(model.ModelError, match="workload"):
+        model.build_calibration(
+            _t2216_measured_document(), "write-heavy", tail,
+        )
+
+
+def test_t2266_tail_report_rejects_realized_1000_instead_of_999():
+    tail = _t2266_tail_document("write-heavy")
+    tail["realized_us"] = [150, 200, 300, 500, 750, 1000]
+    with pytest.raises(model.ModelError, match="realized_us"):
+        model.build_calibration(
+            _t2216_measured_document(), "write-heavy", tail,
+        )
+
+
+def test_t2266_tail_report_rejects_five_static_points():
+    tail = _t2266_tail_document("write-heavy")
+    tail["points"].remove(_t2266_static_points(tail)[0])
+    with pytest.raises(model.ModelError, match="six realized backoffs"):
+        model.build_calibration(
+            _t2216_measured_document(), "write-heavy", tail,
+        )
+
+
+def test_t2266_tail_report_rejects_four_throughput_repetitions():
+    tail = _t2266_tail_document("write-heavy")
+    _t2266_static_points(tail)[0]["throughput_tps_reps"].pop()
+    with pytest.raises(model.ModelError, match="must contain 5 values"):
+        model.build_calibration(
+            _t2216_measured_document(), "write-heavy", tail,
+        )
+
+
+def test_t2266_tail_report_rejects_schema_version_mismatch():
+    tail = _t2266_tail_document("write-heavy")
+    tail["schema_version"] = "t2266-backoff-static-tail-report/v2"
+    with pytest.raises(model.ModelError, match="schema_version"):
+        model.build_calibration(
+            _t2216_measured_document(), "write-heavy", tail,
+        )
+
+
+def test_t2266_tail_report_rejects_run_kind_mismatch():
+    tail = _t2266_tail_document("write-heavy")
+    tail["run_kind"] = "ordinary-sweep"
+    with pytest.raises(model.ModelError, match="run_kind"):
+        model.build_calibration(
+            _t2216_measured_document(), "write-heavy", tail,
+        )
+
+
+def test_t2266_tail_report_rejects_abort_rate_above_one():
+    tail = _t2266_tail_document("write-heavy")
+    _t2266_static_points(tail)[0]["abort_rate_reps"][0] = 1.5
+    with pytest.raises(model.ModelError, match="abort rate must be <= 1"):
+        model.build_calibration(
+            _t2216_measured_document(), "write-heavy", tail,
+        )
+
+
+def test_t2266_tail_report_rejects_unknown_point_kind():
+    tail = _t2266_tail_document("write-heavy")
+    next(
+        point for point in tail["points"] if point["kind"] == "adaptive"
+    )["kind"] = "symmetric-modulo"
+    with pytest.raises(model.ModelError, match="kind is unsupported"):
+        model.build_calibration(
+            _t2216_measured_document(), "write-heavy", tail,
+        )
+
+
+def test_t2266_cli_writes_all_tail_arguments_to_reproduction(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    measured_path = _write_t2216_json(
+        tmp_path / "measured-cli-tail.json", _t2216_measured_document(),
+    )
+    monkeypatch.setattr(
+        model, "MEASURED_INPUT_SHA256",
+        hashlib.sha256(measured_path.read_bytes()).hexdigest(),
+    )
+    monkeypatch.setattr(
+        model, "predict_all",
+        lambda _calibrations, *, repetitions, duration_us: [
+            {"prediction_sentinel": [repetitions, duration_us]}
+        ],
+    )
+    monkeypatch.setattr(
+        model, "evaluate_predictions",
+        lambda _document, _runs, *, score_h2: {
+            "status": None, "score_h2": score_h2,
+        },
+    )
+    entries = _write_t2266_tail_inputs(tmp_path)
+    output_path = tmp_path / "model-tail.json"
+    argv = [str(measured_path), str(PINNED_BACKOFF), str(output_path)]
+    for entry in entries:
+        argv.extend(("--tail-json", entry))
+    assert model.main(argv) == 0
+    written = json.loads(output_path.read_text(encoding="utf-8"))
+    reproduction = written["provenance"]["reproduction"]["argv"]
+    assert [
+        reproduction[index + 1]
+        for index, value in enumerate(reproduction[:-1])
+        if value == "--tail-json"
+    ] == entries
 
 
 def _t2216_fake_run(

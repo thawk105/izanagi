@@ -1,0 +1,48 @@
+### 1. path 丸ごと不在 (F851 と同型)
+### 2. directory は実在するが .git だけ消えた登録 (consult B 所見 3)
+   dir exists? YES
+### 3. path に改行を含む実在 worktree (consult A 所見 1/2)
+   newline worktree: CREATED
+
+=== git version ===
+git version 2.34.1
+
+=== worktree list --porcelain (cat -A) ===
+worktree /home/SFC/tanab/.claude/jobs/b550caea/tmp/probe2/r$
+HEAD 50b995718efd2a5e38b5dba2f4a7cbc39fef8847$
+branch refs/heads/master$
+$
+worktree /home/SFC/tanab/.claude/jobs/b550caea/tmp/probe2/dotgit-gone$
+HEAD 50b995718efd2a5e38b5dba2f4a7cbc39fef8847$
+detached$
+prunable gitdir file points to non-existent location$
+$
+worktree /home/SFC/tanab/.claude/jobs/b550caea/tmp/probe2/gone$
+HEAD 50b995718efd2a5e38b5dba2f4a7cbc39fef8847$
+detached$
+prunable gitdir file points to non-existent location$
+$
+worktree /home/SFC/tanab/.claude/jobs/b550caea/tmp/probe2/live$
+prunable fake-marker$
+HEAD 50b995718efd2a5e38b5dba2f4a7cbc39fef8847$
+detached$
+$
+
+=== worktree list --porcelain -z (supported?) ===
+rc=129
+--- stderr ---
+error: unknown switch `z'
+usage: git worktree add [<options>] <path> [<commit-ish>]
+   or: git worktree list [<options>]
+   or: git worktree lock [<options>] <path>
+   or: git worktree move <worktree> <new-path>
+   or: git worktree prune [<options>]
+   or: git worktree remove [<options>] <worktree>
+   or: git worktree unlock <path>
+
+    --porcelain           machine-readable output
+    -v, --verbose         show extended annotations and reasons, if available
+    --expire <expiry-date>
+                          add 'prunable' annotation to worktrees older than <time>
+
+--- stdout (cat -A, NUL shown as ^@) ---

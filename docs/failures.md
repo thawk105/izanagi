@@ -10693,6 +10693,18 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   撤去し、D612 の上書き (queue-wait 3600 / grace 600) を付けて attempt 2 を投入した。
   **本件が足す事実: 前景 timeout ではなく、shard 間の queue 待ちのばらつきだけで同じ孤児が生まれる。**
   gen_S が混む時間帯の受入全走は、最初から D612 の上書きを付けて投入する方が 1 走分安い。
+
+- **再発: 2026-09-07** — [T-2347] の焦点走で `tools/run_tests.py` が
+  `rc=16` / `IZANAGI_DISPATCH_OUTCOME_V1 {"child_rc":null,"child_started":false,"kind":"infra","reason":"orphan-hold"}`
+  を返し、log の実体は `Pegasus orphan hold があるため scheduler command を起動しません` だった。
+  **この再発が足す事実: 親を打ち切っていなくても同型になる。** 本件では `timeout` も手動の中断も
+  無く、detached の 1 invocation が自分の qsub 窓で立った hold を見て戻っている
+  (hold は `phase: "pending-qsub"` / `request_id: null`、job 名は `izdw-8101e58f94`)。
+  既載の (i)〜(iii) はそのまま成立した — `qstat` には `980096.nqsv izdw-810 ... PRR` が生きており、
+  job 終端とともに `orphan-hold.json` は機構自身が消え、提出 dir に `child_rc=0` の `result.json` と
+  `311 passed, 1 skipped in 15.82s` の `<job>.o<id>` が残ったので再走は不要だった。
+  親は手動 qdel をしていない。**`rc=16` を見た時点で走行を失敗と決めず、request ID を `qstat` で
+  引き、終端後に提出 dir の成果物を読む。** 既存恒久対応に修正すべき新事実はない。
 ### F334. 正本 runbook が「無い」と実測記録した kernel field を、後発の gate が必須条件にした — 機構全体が一度も動かないまま land した [恒真ゲート] [テスト代表性]
 
 - 事象: `tools/mutation_fanout.py` の admission は、measurement log の
@@ -22154,6 +22166,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `git worktree list --porcelain` の prunable 行が `/scr/` だけであることを確かめて prune し、受入を取り直す。
 - 再発検知: land の `status=fold-gate-failed` の本文が `[Errno 2]` かつ path が `/scr/` で始まる。
   land 直前の `git worktree list` に `/scr/` 登録があれば本型の予兆。
+- **supersede: 2026-09-07** — 恒久対応の「未実施」は解消した。案 (a) を D1691 の形で実装済みで、`_registered_worktree_paths` は `FileNotFoundError` の登録を捨てずに未解決の絶対 path として残し、それ以外の解決失敗は従来どおり fail-closed とする。案として挙がっていた `prunable` marker での除外は実測 3 点により却下した。運用回避 (job が RUN の間は land を投げない) はもう要らない。
 
 ### F852. A-1 driver の scheduler 可視性判定を実機の `qstat -f` 書式で一度も通さないまま投入 gate に置き、v3 pilot の初回投入が bench 前に失敗した [テスト代表性] [手順漏れ]
 
