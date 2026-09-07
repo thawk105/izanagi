@@ -34,6 +34,7 @@ prompt に限らず brief、裁定、runner script、spec も同じ。`python3 -
 `eval`・`xargs` の同居は分類不能として拒否されるので、読取りは cat / grep / jq を直に使う。
 Bash 側は部分文字列で判定するため防護 path の兄弟 directory も掛かる。Write/Edit 側は
 subtree 判定で掛からない。射程が違うので Bash の拒否を Write の可否と読み替えない。
+隔離 session では repo 外の絶対 path も同型に掛かる。job dir への作成・追記も Write/Edit を使う。
 
 ## DW-O04 — 防護パスを含む commit message
 
