@@ -88,3 +88,61 @@ driver 本体は 4400 行あり、既定の予算では 1 巡で終わらない�
   要求するため、凍結済みの旧版は読めるが新版の certification では図を作れない。取り直しの前段。
 - full certification の materializer への exact 再導出。partial 側は再導出して一致を要求するのに
   full 側は外形と identity しか見ない非対称が既存で残っている。本 wave が作った欠陥ではない。
+
+## 段 9 準備で見つけた 2 件 (どちらも本 wave が作り込んだ)
+
+### 変異試験の道具が自分の検査対象を取り込んでいた
+
+`tools/mutation_harness.py` が module 読み込み時に `tools/check_ai_provenance.py` から
+待ち時間の解釈処理を import していた。このため `check_ai_provenance.py` へ変異を注入すると
+変異を注入する道具自身の挙動が変わる。DW-M07 が名指しする自壊型であり、裁定 4 の実装が
+変異試験で検査できない状態だった。段 6 のレビューは結合そのものを検査項目に挙げていたが、
+この帰結までは出ていない。
+
+import を除去して harness を自己完結させ、両実装の受理集合が一致することを機械照合する
+検査を足した (空値・有効値・`nan`・`inf`・負値・負のゼロの 8 例)。
+`PEGASUS_DISPATCH_RC = 16` と同じ先例に倣った形である。
+
+### role 述語に、発火する検査が無かった
+
+probe 走で `_require_cell_src_token_role` の live 事前評価での呼び出しを丸ごと消す変異 (M6) が
+**SURVIVED した。** 実装は在るが、外しても既存テストは 1 件も赤にならなかった。
+D1644 が「adopted が `stock` なら patch 未適用として赤」と定めた fails-closed の要求に、
+実際に発火する検査が付いていなかった。
+
+**段 6 の静的レビュー 2 本はこれを「充足」と判定しており、変異だけが反証した。**
+検査を 3 本足した (実装は無変更、テストのみ 126 行追加)。
+
+- 正しい 2 cell について production 述語が exact 2 回呼ばれること。
+- adopted の src_token が `stock` のとき campaign へ到達せず停止すること。
+- stock の src_token が非 `stock` のときも停止すること (述語は双方向に fails-closed)。
+
+負例の入力値は段 1 の実測 (patch 済み隔離木での実際の token) から取った。
+
+## 変異 matrix
+
+probe 走 (全件 SURVIVED 登録で観測 node を集める) → 修正 → 本走の 3 段で行った。
+
+| 変異 | probe 走 | 本走 |
+|---|---|---|
+| M2 patch 済み木でなく元の木で解決する | MISMATCH (1 node) | **KILLED** |
+| M6 role 述語の呼び出しを消す | **SURVIVED** | **KILLED** |
+| F2 full manifest の schema 名を二義へ戻す | MISMATCH (1 node) | **KILLED** |
+| M11 `--queue-wait-timeout` を落とす | MISMATCH (1 node) | **KILLED** |
+| M12 `--overall-grace` を落とす | MISMATCH (1 node) | **KILLED** |
+| M14 provenance の転送を落とす | MISMATCH (5 node) | **KILLED** |
+
+本走は 6/6 KILLED、SURVIVED 0、MISMATCH 0、baseline 緑 (rc=0)。
+台帳は同 dir の `mutation-ledger.json`、spec は `mutation-spec-final.json` と
+`mutation-spec-probe.json`。段 1 の probe 実測は `src-token-probe-result.json`。
+
+probe 走では M1 (本題の token 束縛を外す) が 100 node を赤にした。単一帰属が成立しないため
+段 4 裁定 §7 のとおり本走の登録から外した。本題の束縛は M2 と M6 が別経路から押さえている。
+
+## 実走した検査 (追記)
+
+| 対象 | 件数 | rc |
+|---|---|---|
+| 結合を切った後の焦点走 | 771 passed | 0 |
+| role 検査を足した後の焦点走 | 773 passed | 0 |
+| 変異本走 | 6/6 KILLED | 0 |
