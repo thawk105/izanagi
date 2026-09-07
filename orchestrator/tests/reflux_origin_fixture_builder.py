@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Mapping, Sequence
 
 from orchestrator.campaign import trigger_gate_binding
+from orchestrator.campaign.model import STAGE_ABORT
 
 
 __all__ = [
@@ -373,11 +374,16 @@ def _wal_records(build_attempt_id: str, mask: int) -> list[dict]:
             },
         },
         {
-            "kind": "abort",
-            "build_attempt_id": build_attempt_id,
-            "candidate_attributable": True,
-            "truncated": False,
-            "witness_class_sha256s": [_CONSTRAINT_SHA256],
+            "variant": "fixture-v",
+            "stage": STAGE_ABORT,
+            "env_tag": "fixture-env",
+            "ts": 0,
+            "payload": {
+                "build_attempt_id": build_attempt_id,
+                "candidate_attributable": True,
+                "truncated": False,
+                "witness_class_sha256s": [_CONSTRAINT_SHA256],
+            },
         },
     ]
 
