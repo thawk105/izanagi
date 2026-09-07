@@ -30,6 +30,7 @@ from .backoff_extended_sweep import (  # noqa: E402
     _require_distinct_static_binary_hashes,
     _resolve_ccbench_dir,
     config_for,
+    decode_static_backoff_us,
     genomes,
 )
 from .backoff_sweep import _require_backoff_condition_gate  # noqa: E402
@@ -46,8 +47,8 @@ from .replay import discover_campaign_dir  # noqa: E402
 
 EXTIME = 3
 REPS = 3
-JSONL_SCHEMA = "b10-backoff-overthrottle-rep/v1"
-MANIFEST_SCHEMA = "b10-backoff-overthrottle-manifest/v1"
+JSONL_SCHEMA = "b10-backoff-overthrottle-rep/v2"
+MANIFEST_SCHEMA = "b10-backoff-overthrottle-manifest/v2"
 SOURCE_MEASUREMENT = "add_analysis"
 
 
@@ -81,7 +82,17 @@ def _point_label(genome: Genome) -> str:
     if genome.flags.get("BACK_OFF") == 0:
         return "none"
     amount = genome.flags.get("BACKOFF_FIXED")
-    return "adaptive" if amount == -1 else f"fixed-{amount}us"
+    return (
+        "adaptive" if amount == -1
+        else f"fixed-{decode_static_backoff_us(amount)}us"
+    )
+
+
+def _point_backoff_us(genome: Genome) -> int:
+    amount = genome.flags.get("BACKOFF_FIXED")
+    if genome.flags.get("BACK_OFF") == 0 or amount == -1:
+        return -1
+    return decode_static_backoff_us(amount)
 
 
 def _flags(workload: Mapping[str, str], contract) -> list[str]:
@@ -323,7 +334,7 @@ def _validate_existing_bindings(
             or row.get("aa_genome") != _aa_genome(reference).canonical()
             or row.get("label") != _point_label(reference)
             or row.get("back_off") != reference.flags["BACK_OFF"]
-            or row.get("backoff_us") != reference.flags["BACKOFF_FIXED"]
+            or row.get("backoff_us") != _point_backoff_us(reference)
         ):
             raise RuntimeError("AA JSONL genome or rep binding mismatch")
         values = row.get("values")
@@ -473,7 +484,7 @@ def measure(
                         "point_index": point_index,
                         "rep": rep,
                         "back_off": reference.flags["BACK_OFF"],
-                        "backoff_us": reference.flags["BACKOFF_FIXED"],
+                        "backoff_us": _point_backoff_us(reference),
                         "certified": False,
                         "diagnostic_only": True,
                         "values": {

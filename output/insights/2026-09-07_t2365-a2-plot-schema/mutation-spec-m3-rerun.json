@@ -1,0 +1,25 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 4400,
+  "hang_timeout_seconds": 4600,
+  "mutations": [
+    {
+      "id": "M3-pin-table-bypassed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a2_certification.py",
+          "old": "        pinned = CANONICAL_SHA256.get(key)\n",
+          "new": "        pinned = CANONICAL_SHA256.get(key) or {\"certification\": _sha256(certification_path), \"raw_manifest\": _sha256(certification_path.parent / \"raw-manifest.json\")}\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_a2_certification.py::test_cli_rejects_exact_bytes_at_certification_path_missing_from_pin_table",
+        "orchestrator/tests/test_plot_a2_certification.py::test_m11_whitespace_changed_certification_fails_cli_with_zero_outputs"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

@@ -18,6 +18,7 @@
 | `fig2c_b10_extended_backoff.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_b10_extended_backoff.py` | B-10 拡張格子の**記述図**。1000 µs を F718 により除外した有効 28 点 |
 | `fig4_s1a_9pair_direct_comparison.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_s1_9pair.py` | 縮小主張 S' の**失敗報告図**。既存図の後継ではなく独立した新図 |
 | `fig5_a2_certification_reject.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_a2_certification.py` | A-2 正式 certification (outer `reject`) の**結果図**。既存図の後継ではなく独立した新図。判定は凍結 `certification.json` から読み、生成器は再計算しない。**測定条件の記述に erratum あり (同節の Erratum)。測ったのは採用静的 backoff ではなく `BACK_OFF` の有効/無効であり、取り直しまで論文の A-2 の結論にも図にも使わない (D1645)** |
+| `fig6_a2_certification_observed_positive.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_a2_certification.py` | A-2 正式 certification (outer `observed-positive`) の**結果図**。D1644 の pin + patch 束縛 src_token で identity を計算する driver で取り直した attempt `t2364-20260907b` を描く。`fig5_` の後継ではなく、**別の条件を測った別の attempt** の独立した図である (絶対規律 7)。判定は `certification.json` から読み、生成器は再計算しない |
 
 ## 調整済み adaptive の実対照 (論文図へ未昇格)
 
@@ -512,4 +513,82 @@ descriptive と明記した別パネル)、§5 (図中用語は最小、展開�
 - それらが着地後もずれないこと → `orchestrator/tests/test_plot_a2_certification.py`
 - 結果節・表・限定の材料 → `docs/paper-story/results/2026-09-07-a2-certification-reject.md`
   (2026-09-04 の稿は測定条件の記述を誤っており、append-only の履歴として残る。上の Erratum 節を参照)
+- 作図規約の正本 → `tools/plotting/FIGURE_CONVENTIONS.md`
+
+# `fig6_a2_certification_observed_positive` — 正しい identity で取り直した A-2 (outer `observed-positive`)
+
+## 何を示す図か
+
+attempt `t2364-20260907b` (2026-09-07) の 4 cell を描く。D1644 が定めた pin + patch 束縛の
+`src_token` で cell の identity を計算する driver で走った、最初の A-2 正式 certification である。
+
+上段は cell ごとの trace-disabled 性能標本 5 点、短い横棒が median、ひし形と誤差棒が標本平均と
+t 分布 95% 信頼区間である。灰色の破線は同 workload の no-backoff median であり、効果の分母でもある。
+下段は記述的な先行指標として cell あたり 1 点の集計 abort 率を置く。信頼区間は付けず、
+因果の機序も主張しない。
+
+## 既存図との関係
+
+**`fig5_a2_certification_reject` の後継図ではない。** 両者は別の attempt であり、
+測っている条件が違う。
+
+- `fig5_` の attempt `t2022-20260828c` は patch が当たっていない stock の木で走っており、
+  実際に効いた条件差は内蔵 backoff の有効/無効だけだった (D1645、F707 の再発)。
+- 本図の attempt `t2364-20260907b` は patch を当てた木で走り、4 cell すべてが
+  `source_binding_status=bound`、stock cell は `src_token=stock`、adopted cell は非 `stock` である。
+
+**当時の測定と判定は事実として残る (絶対規律 7)。** 両者を前後比較として読んではならない。
+`fig5_` とその provenance・results 稿は 1 byte も変更していない。
+
+## 入力
+
+- 権威 bytes: `output/insights/2026-09-07_t2364-paper-story-a2-certification/certification.json`
+  (`paper-story-a2-certification-result/v4`) と同 dir の `raw-manifest.json`
+  (`paper-story-a2-full-raw-manifest/v4`)。生成器は repo 所有の pin 表でこの 2 つの SHA-256 を
+  照合する。**pin は CLI から渡せない。** 新しい attempt を図にするには pin 表へ entry を足す
+  commit が要る。
+- 外部入力: attempt `t2364-20260907b` の WAL 2 本、raw cell 4 本、campaign lock 2 本、
+  campaign claim 2 本、条件関門の受領証 2 本の計 12 file。root 相対 path と SHA-256 を
+  provenance の `external_inputs` に記録する。
+
+## 再現
+
+```bash
+python3 tools/plotting/plot_a2_certification.py \
+  --measurement-root /work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2364-20260907b \
+  --certification output/insights/2026-09-07_t2364-paper-story-a2-certification/certification.json \
+  --raw-manifest output/insights/2026-09-07_t2364-paper-story-a2-certification/raw-manifest.json \
+  docs/paper-story/figures/fig6_a2_certification_observed_positive
+```
+
+図番号は出力 prefix の `fig<N>_` から導く。`fig<N>_` の形でない prefix は出力前に拒否する。
+
+## 条件関門についてこの図が言えること
+
+raw manifest は `use_class="paper"` かつ `admitted=true` と記録する canonical な
+admission record を 4 cell 分束縛している。**成果物が保存しているのはそこまでで、元の
+supply / meaning records は残らない。** したがって caption は「関門を実施し通過した」ではなく
+「そう記録された受領証が束縛されている」と書く。
+
+## キャプション正文
+
+キャプション正文は provenance JSON の `caption` と同一文字列であり、
+`orchestrator/tests/test_plot_a2_certification.py` が本 README への収録と生成器の決定的な
+組み立てとの一致を検査する。英文で書く。
+
+> Figure 6. A-2 formal certification attempt t2364-20260907b (outer status: observed-positive). The independent workload campaigns were request 981476.nqsv on bnode077 at 2026-09-07T12:12:55.607184+00:00 and request 981477.nqsv on bnode085 at 2026-09-07T12:12:55.388302+00:00, at distinct recorded times; the outer status is their logical conjunction. The top row shows all five trace-disabled performance samples per cell; short bars are medians, and diamonds with error bars are sample means with t-distribution 95% confidence intervals. The gray dashed line is the workload's no-backoff median and the effect denominator. Median effects copied from certification are write-heavy (rr5) fixed 10 us 63.5485% and balanced (rr50) fixed 5 us 14.4213%. M tps means million transactions per second. Mean confidence intervals describe samples; they are not confidence intervals for effects, decisions, or medians, and this artifact makes no significance decision. The displayed outer status is the protocol status based on the predefined median ratios. The bottom row is a descriptive leading indicator: one aggregate abort-rate point per cell, no confidence interval, and no causal mechanism claim. Correctness comes from separate trace-enabled runs: all 4 cells were certified, but this is not a performance certification. L01 limits that evidence to point-key traces; under D1257 the correctness argv was not independently recorded. The raw manifest binds canonical condition-admission records reporting use_class="paper" and admitted=true for all 4 policy cells; the original supply and meaning records are not retained in this artifact. Conditions: 48 threads, 1,000,000 records, Zipf 0.9, read-modify-write disabled, max operations 10, 3 s, 5 repetitions, CCBench pin 511c953, no perf, trace-disabled performance. Top-row y axes are scaled independently by workload; do not compare panel heights. The older series is not a comparator, and the cause of the sign difference has not been identified.
+
+## proof chain
+
+- 図に描いた標本・median・平均・CI・abort 率 → provenance JSON の `cells` と `artist_series`
+- 判定と効果 → `certification.json` の `status` / `effects`。生成器は再計算せず、
+  `effect_crosschecks` に再計算値との一致を記録する (rr5 / rr50 とも `authority_matches` が真)
+- 標本の由来 → durable authority の WAL `bench_done` と raw cell JSON
+  (provenance の `external_inputs` に root 相対 path と SHA-256)
+- 入力の束縛 → tracked `raw-manifest.json` の `files` (provenance の `tracked_inputs`)
+- source identity → 受領証 / raw / WAL / certification の 4 者で `src_token` が一致すること、
+  stock cell は `stock`、adopted cell は非 `stock` であること
+- それらが着地後もずれないこと → `orchestrator/tests/test_plot_a2_certification.py`
+- 結果節・表・限定の材料 →
+  `docs/paper-story/results/2026-09-07-a2-certification-observed-positive.md`
 - 作図規約の正本 → `tools/plotting/FIGURE_CONVENTIONS.md`

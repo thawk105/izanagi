@@ -5,8 +5,8 @@
       "canonical_sha256": "006b05079fe8c73bc379945446766c729672fcf1a01cdc298f1cbf8ab3ccf162"
     },
     "build_execution_provenance": {
-      "byte_length": 484,
-      "canonical_sha256": "3691de16e9c1a749e62b5401736b7320a26777113ab89082b6678f38f48abad4"
+      "byte_length": 531,
+      "canonical_sha256": "a38a392f4e8702f1d24031f635854be667d42191495dd6bf8785bc170b5a4096"
     },
     "build_launch_admission_inputs": {
       "byte_length": 962,
@@ -22,7 +22,7 @@
     },
     "build_result_evidence_record": {
       "byte_length": 1848,
-      "canonical_sha256": "631a5fa04f9cc1a5442c5660410bb27b1ad03ef76f5da3fe3d4603ac5577c82c"
+      "canonical_sha256": "7a4b39a2e7484bdd765c3f99a8e8f9b82a583117083a8c91cf670d1695e7d3a7"
     },
     "build_source_closure_record": {
       "byte_length": 1697,

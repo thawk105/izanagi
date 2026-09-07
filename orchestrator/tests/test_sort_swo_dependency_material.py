@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import os
 import shutil
+import stat
 import subprocess
 import sys
 from pathlib import Path
@@ -169,6 +170,107 @@ def test_source_symlink_is_not_copied(tmp_path, monkeypatch):
         )
     assert caught.value.detail_code == "canonical-copy-failed"
     assert list(tmp_path.glob(".sort-swo-dependency-*")) == []
+
+
+def test_post_oracle_protection_restores_exact_modes_on_success_and_error(
+        tmp_path):
+    base = tmp_path / "fetchcontent"
+    source = base / "masstree-src"
+    nested = source / "nested"
+    nested.mkdir(parents=True)
+    config = source / "config.h"
+    archive = source / "libkohler_masstree_json.a"
+    tracked = nested / "tracked.hh"
+    config.write_bytes(b"config\n")
+    archive.write_bytes(b"archive\n")
+    tracked.write_bytes(b"// tracked\n")
+    modes = {
+        base: 0o751,
+        source: 0o775,
+        nested: 0o750,
+        config: 0o664,
+        archive: 0o640,
+        tracked: 0o711,
+    }
+    for path, mode in modes.items():
+        path.chmod(mode)
+
+    class ConsumerError(RuntimeError):
+        pass
+
+    for consumer_fails in (False, True):
+        if consumer_fails:
+            with pytest.raises(ConsumerError):
+                with material.protect_post_oracle_dependency_material(
+                        source.resolve(), fetchcontent_base_dir=base.resolve()):
+                    raise ConsumerError("consumer failed")
+        else:
+            with material.protect_post_oracle_dependency_material(
+                    source.resolve(), fetchcontent_base_dir=base.resolve()):
+                pass
+        assert {
+            path: stat.S_IMODE(path.lstat().st_mode) for path in modes
+        } == modes
+
+
+def test_post_oracle_protection_rejects_overlapping_context_without_mode_change(
+        tmp_path):
+    base = tmp_path / "fetchcontent"
+    source = base / "masstree-src"
+    nested = source / "nested"
+    nested.mkdir(parents=True)
+    config = source / "config.h"
+    tracked = nested / "tracked.hh"
+    config.write_bytes(b"config\n")
+    tracked.write_bytes(b"// tracked\n")
+    original_modes = {
+        source: 0o775,
+        nested: 0o750,
+        config: 0o664,
+        tracked: 0o711,
+    }
+    for path, mode in original_modes.items():
+        path.chmod(mode)
+
+    def measured_modes() -> dict[Path, int]:
+        return {
+            path: stat.S_IMODE(path.lstat().st_mode)
+            for path in original_modes
+        }
+
+    with material.protect_post_oracle_dependency_material(
+            source.resolve(), fetchcontent_base_dir=base.resolve()):
+        protected_modes = {
+            path: mode & ~0o222 for path, mode in original_modes.items()
+        }
+        assert measured_modes() == protected_modes
+        with pytest.raises(
+                material.CanonicalDependencyMaterialError) as caught:
+            with material.protect_post_oracle_dependency_material(
+                    source.resolve(), fetchcontent_base_dir=base.resolve()):
+                pytest.fail("overlapping protection context was entered")
+        assert caught.value.detail_code == (
+            "post-oracle-protected-root-not-writable"
+        )
+        assert measured_modes() == protected_modes
+
+    assert measured_modes() == original_modes
+
+
+def test_post_oracle_protection_leaves_binding_base_writable_for_new_entry(
+        tmp_path):
+    base = tmp_path / "fetchcontent"
+    source = base / "masstree-src"
+    source.mkdir(parents=True)
+    (source / "config.h").write_bytes(b"config\n")
+    (source / "libkohler_masstree_json.a").write_bytes(b"archive\n")
+
+    created = base / "new-dependency-src"
+    with material.protect_post_oracle_dependency_material(
+            source.resolve(), fetchcontent_base_dir=base.resolve()):
+        created.mkdir()
+
+    assert created.is_dir()
 
 
 def test_two_root_verifier_rejects_live_tracked_byte_drift(

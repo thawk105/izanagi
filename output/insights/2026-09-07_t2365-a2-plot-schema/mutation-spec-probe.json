@@ -1,0 +1,106 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 1500,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "M1-einval-fallback-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "old": "            if exc.errno != errno.EINVAL:\n                raise\n            os.link(staging, path)\n            staging.unlink()\n",
+          "new": "            raise\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-einval-fallback-replaces-existing",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "old": "            os.link(staging, path)\n            staging.unlink()\n",
+          "new": "            os.replace(staging, path)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-pin-table-bypassed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a2_certification.py",
+          "old": "        pinned = CANONICAL_SHA256.get(key)\n",
+          "new": "        pinned = CANONICAL_SHA256.get(key) or {\"certification\": _sha256(certification_path), \"raw_manifest\": _sha256(certification_path.parent / \"raw-manifest.json\")}\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-current-accepts-legacy-raw-schema",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a2_certification.py",
+          "old": "CURRENT_RAW_SCHEMA = \"paper-story-a2-cell-result/v3\"\n",
+          "new": "CURRENT_RAW_SCHEMA = \"paper-story-a2-cell-result/v2\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-current-gate-note-uses-legacy-fixed-copy",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a2_certification.py",
+          "old": "    gate_note = GATE_NOTE if profile == \"legacy\" else (\n",
+          "new": "    gate_note = GATE_NOTE if profile in (\"legacy\", \"current\") else (\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-source-binding-status-check-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a2_certification.py",
+          "old": "        if certified.get(\"source_binding_status\") != \"bound\":\n            _fail(\"current certification source_binding_status is not bound\")\n",
+          "new": "        pass\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-policy-destination-reverted",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.v2.json",
+          "old": "  \"tracked_destination\": \"output/insights/2026-09-07_t2364-paper-story-a2-certification\",\n",
+          "new": "  \"tracked_destination\": \"output/insights/2026-08-24_paper-story-a2-certification\",\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
