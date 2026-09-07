@@ -8,6 +8,8 @@ EVOLVE-BLOCK 構造の検査は tmp に合成した骨格 (template patch と同
 """
 from __future__ import annotations
 
+from collections import Counter
+import errno
 import importlib.util
 import io
 import json
@@ -1192,9 +1194,12 @@ def test_t956_missing_hooks_root_allows_ordinary_writes_in_both_guards():
 
 
 def test_t956_hardlink_inode_index_is_built_once_per_decide():
+    """Each lazy inode index scans its own root at most once per decide()."""
     root = _mk_fixture_repo()
     outside, _, hardlink, _ = _mk_t956_aliases(root)
     real_walk = os.walk
+    hooks_root = os.path.realpath(os.path.join(root, "hooks"))
+    authority_root = os.path.realpath(GB._AUTHORITY_ROOT)
     try:
         command = (
             f"*** Update File: {hardlink}\n"
@@ -1202,14 +1207,26 @@ def test_t956_hardlink_inode_index_is_built_once_per_decide():
         )
         with patch.object(GW.os, "walk", wraps=real_walk) as walk:
             ok, _ = _patch(root, command)
-        assert not ok and walk.call_count == 1, \
-            f"guard_write inode scan count={walk.call_count}"
+        write_roots = Counter(
+            os.path.realpath(os.fspath(call.args[0]))
+            for call in walk.call_args_list)
+        assert not ok
+        assert walk.call_count == 1 and write_roots == Counter({hooks_root: 1}), \
+            (f"guard_write inode scans={dict(write_roots)} "
+             f"count={walk.call_count}")
 
         with patch.object(GB.os, "walk", wraps=real_walk) as walk:
             ok, _ = GB.decide(
                 f"printf bad > {hardlink} && rm -f {hardlink}", repo_root=root)
-        assert not ok and walk.call_count == 1, \
-            f"guard_bash inode scan count={walk.call_count}"
+        bash_roots = Counter(
+            os.path.realpath(os.fspath(call.args[0]))
+            for call in walk.call_args_list)
+        assert not ok
+        assert walk.call_count == 2 and bash_roots == Counter({
+            hooks_root: 1,
+            authority_root: 1,
+        }), (f"guard_bash inode scans={dict(bash_roots)} "
+             f"count={walk.call_count}")
     finally:
         shutil.rmtree(root)
         shutil.rmtree(outside)
@@ -1277,6 +1294,449 @@ def test_t956_guard_bash_accepts_a20_through_a24_component_boundaries():
             assert ok, f"{case_id} が誤拒否された: {command!r} ({why})"
     finally:
         shutil.rmtree(root)
+
+
+# ---------- T-2146: acceptance issuer authority subtree ----------
+
+_T2146_AUTHORITY_ROOT = "/work/1/SFC/tanab/dev-wave-authority"
+_T2146_AUTHORITY_PUBLIC_KEY = os.path.join(
+    _T2146_AUTHORITY_ROOT, "acceptance-issuer-public-key.pem")
+_T2146_AUTHORITY_FUTURE = os.path.join(
+    _T2146_AUTHORITY_ROOT, "t2146-do-not-create.pem")
+
+
+def _t2146_assert_denied(result, label):
+    ok, why = result
+    assert not ok, f"T-2146 authority write が通った [{label}]: {why}"
+    assert why, f"T-2146 authority deny に理由が無い [{label}]"
+
+
+def test_t2146_guard_write_rejects_authority_root_and_descendants_for_all_tools():
+    root = _mk_fixture_repo()
+    try:
+        assert GW._AUTHORITY_ROOT == GB._AUTHORITY_ROOT == _T2146_AUTHORITY_ROOT
+        assert not os.path.lexists(_T2146_AUTHORITY_FUTURE), \
+            "T-2146 未存在 path fixture が既に存在する"
+        targets = (
+            _T2146_AUTHORITY_ROOT,
+            _T2146_AUTHORITY_PUBLIC_KEY,
+            _T2146_AUTHORITY_FUTURE,
+        )
+        for tool in ("Write", "Edit", "MultiEdit", "NotebookEdit"):
+            path_key = "notebook_path" if tool == "NotebookEdit" else "file_path"
+            for target in targets:
+                _t2146_assert_denied(
+                    GW.decide(tool, {path_key: target}, repo_root=root),
+                    f"{tool}:{target}",
+                )
+    finally:
+        shutil.rmtree(root)
+
+
+def test_t2146_guard_write_rejects_every_authority_apply_patch_directive():
+    root = _mk_fixture_repo()
+    try:
+        future = _T2146_AUTHORITY_FUTURE
+        assert not os.path.lexists(future), \
+            "T-2146 未存在 apply_patch path fixture が既に存在する"
+        cases = {
+            "add": f"*** Add File: {future}\n+t2146\n",
+            "update": f"*** Update File: {_T2146_AUTHORITY_PUBLIC_KEY}\n",
+            "delete": f"*** Delete File: {_T2146_AUTHORITY_PUBLIC_KEY}\n",
+            "move-out": (
+                f"*** Update File: {_T2146_AUTHORITY_PUBLIC_KEY}\n"
+                "*** Move to: /tmp/t2146-public-key.pem\n"
+            ),
+            "move-in": (
+                "*** Update File: /tmp/t2146-public-key.pem\n"
+                f"*** Move to: {future}\n"
+            ),
+        }
+        for label, directives in cases.items():
+            command = f"*** Begin Patch\n{directives}*** End Patch\n"
+            _t2146_assert_denied(_patch(root, command), label)
+    finally:
+        shutil.rmtree(root)
+
+
+def test_t2146_guard_bash_rejects_authority_redirect_spellings():
+    root = _mk_fixture_repo()
+    target = _T2146_AUTHORITY_FUTURE
+    try:
+        assert not os.path.lexists(target), \
+            "T-2146 未存在 redirect path fixture が既に存在する"
+        for label, command in (
+            ("gt", f"printf t2146 > {target}"),
+            ("append", f"printf t2146 >> {target}"),
+            ("fd-and-file", f"printf t2146 >& {target}"),
+            ("both", f"printf t2146 &> {target}"),
+        ):
+            _t2146_assert_denied(
+                GB.decide(command, repo_root=root), f"redirect-{label}")
+    finally:
+        shutil.rmtree(root)
+
+
+def test_t2146_guard_bash_rejects_authority_tree_ancestor_and_partial_glob():
+    root = _mk_fixture_repo()
+    authority_parent = os.path.dirname(_T2146_AUTHORITY_ROOT)
+    partial_glob = _T2146_AUTHORITY_ROOT[:-1] + "?"
+    try:
+        for label, command in (
+            ("root", f"rm -rf {_T2146_AUTHORITY_ROOT}"),
+            ("ancestor", f"rm -rf {authority_parent}"),
+            ("partial-glob", f"rm -rf {partial_glob}"),
+        ):
+            _t2146_assert_denied(
+                GB.decide(command, repo_root=root), f"tree-{label}")
+    finally:
+        shutil.rmtree(root)
+
+
+def test_t2146_guard_bash_rejects_argument_writers_and_relative_cd_delete():
+    root = _mk_fixture_repo()
+    target = _T2146_AUTHORITY_FUTURE
+    try:
+        assert not os.path.lexists(target), \
+            "T-2146 未存在 writer path fixture が既に存在する"
+        cases = {
+            "cp": f"cp /tmp/t2146-source {target}",
+            "mv": f"mv /tmp/t2146-source {target}",
+            "install": f"install /tmp/t2146-source {target}",
+            "tee": f"tee {target}",
+            "truncate": f"truncate -s 0 {_T2146_AUTHORITY_PUBLIC_KEY}",
+            "relative-cd-rm": (
+                f"cd {_T2146_AUTHORITY_ROOT} && "
+                "rm acceptance-issuer-public-key.pem"
+            ),
+        }
+        for label, command in cases.items():
+            _t2146_assert_denied(
+                GB.decide(command, repo_root=root), f"writer-{label}")
+    finally:
+        shutil.rmtree(root)
+
+
+def test_t2146_guard_bash_perf_output_keeps_all_protected_trees_denied():
+    """perf output parsing must retain every existing tree and authority denial."""
+    root = _mk_fixture_repo()
+    try:
+        protected_targets = {
+            "authority": _T2146_AUTHORITY_ROOT,
+            "leaf": os.path.join(
+                root, "output", "campaigns", "c", "runs", "wal.jsonl"),
+            "official-campaign": os.path.join(
+                root, "output", "campaigns", "c"),
+            "exploration-campaign": os.path.join(
+                root, "output", "exploration", "campaigns", "c"),
+            "namespace-marker": os.path.join(
+                root, "output", "exploration", "namespace.json"),
+            "hooks": os.path.join(root, "hooks", "guard_bash.py"),
+            "ccbench": os.path.join(root, "external", "ccbench"),
+        }
+        spellings = (
+            lambda target: f"perf stat -o {target} -- true",
+            lambda target: f"perf stat --output {target} -- true",
+            lambda target: f"perf stat --output={target} -- true",
+        )
+        for label, target in protected_targets.items():
+            for spelling in spellings:
+                command = spelling(target)
+                _t2146_assert_denied(
+                    GB.decide(command, repo_root=root),
+                    f"perf-{label}:{command}",
+                )
+        for spelling in spellings:
+            command = spelling("/tmp/t2146-perf-output.txt")
+            ok, why = GB.decide(command, repo_root=root)
+            assert ok, f"T-2146 unrelated perf output が誤拒否された: {command} ({why})"
+    finally:
+        shutil.rmtree(root)
+
+
+def test_t2146_guard_bash_builder_exception_excludes_authority_tree():
+    """The build-variants builder exception must not extend into authority."""
+    root = _mk_fixture_repo()
+    try:
+        legacy_build = os.path.join(
+            root, "external", "ccbench", "build-variants", "silo-t2146")
+        authority_build = os.path.join(
+            _T2146_AUTHORITY_ROOT, "build-variants", "silo-t2146")
+        ok, why = GB.decide(
+            f"cmake --build {legacy_build}", repo_root=root)
+        assert ok, f"T-2146 existing build-variants builder が誤拒否された: {why}"
+        _t2146_assert_denied(
+            GB.decide(f"cmake --build {authority_build}", repo_root=root),
+            "builder-authority",
+        )
+    finally:
+        shutil.rmtree(root)
+
+
+def test_t2146_guard_bash_filesystem_root_ancestor_and_siblings():
+    """Filesystem root is protected as an ancestor without catching siblings."""
+    root = _mk_fixture_repo()
+    try:
+        for command in ("rm -rf /", "rm -rf --no-preserve-root /"):
+            _t2146_assert_denied(
+                GB.decide(command, repo_root=root), f"filesystem-root:{command}")
+        allowed = (
+            "/tmp",
+            _T2146_AUTHORITY_ROOT + "-copy",
+            _T2146_AUTHORITY_ROOT + "2",
+            "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2146-authority-guard",
+            _REPO,
+        )
+        for target in allowed:
+            command = f"rm -rf {target}"
+            ok, why = GB.decide(command, repo_root=root)
+            assert ok, f"T-2146 non-ancestor が誤拒否された: {command} ({why})"
+    finally:
+        shutil.rmtree(root)
+
+
+def test_t2146_authority_hardlink_alias_is_denied_in_both_guards(tmp_path):
+    assert os.path.isfile(_T2146_AUTHORITY_PUBLIC_KEY), \
+        "T-2146 hardlink fixture の authority public key が実在しない"
+    assert GW._HooksInodeIndex(_T2146_AUTHORITY_ROOT).protects(
+        _T2146_AUTHORITY_PUBLIC_KEY), \
+        "guard_write が実 authority root の inode 集合を構築できない"
+    assert GB._HooksInodeIndex(_T2146_AUTHORITY_ROOT).protects(
+        _T2146_AUTHORITY_PUBLIC_KEY), \
+        "guard_bash が実 authority root の inode 集合を構築できない"
+    alias_root = os.fspath(tmp_path)
+    same_device_root = None
+    alias_parent = alias_root
+    if os.stat(alias_root).st_dev != os.stat(_T2146_AUTHORITY_PUBLIC_KEY).st_dev:
+        # pytest tmp が別 device の環境でも、tmp_path 配下の lexical alias を入口にして
+        # hardlink entry 自体は authority と同じ device の repo-local 一時 dir に置く。
+        same_device_root = tempfile.mkdtemp(prefix="t2146-hardlink-", dir=_REPO)
+        alias_parent = os.path.join(alias_root, "same-device")
+        os.symlink(same_device_root, alias_parent)
+    alias = os.path.join(alias_parent, "authority-public-key-hardlink")
+    physical_alias = (
+        os.path.join(same_device_root, "authority-public-key-hardlink")
+        if same_device_root is not None else alias)
+    authority_root = _T2146_AUTHORITY_ROOT
+    authority_file = _T2146_AUTHORITY_PUBLIC_KEY
+    synthetic_authority = None
+    try:
+        os.link(authority_file, physical_alias)
+    except OSError as exc:
+        if exc.errno not in {errno.EXDEV, errno.EPERM, errno.EACCES}:
+            raise
+        # Managed sandbox は read-only authority mount と writable worktree mount を
+        # 別 mount として見せる。その exact 制約時だけ同じ実装関数へ synthetic root を
+        # 与え、inode detector 自体の歯を直接確認する。通常環境では上の実 file を使う。
+        if same_device_root is not None:
+            os.unlink(alias_parent)
+            os.rmdir(same_device_root)
+            same_device_root = None
+        alias_parent = alias_root
+        alias = os.path.join(alias_parent, "authority-public-key-hardlink")
+        physical_alias = alias
+        fixture_parent = alias_root
+        authority_root = os.path.join(fixture_parent, "synthetic-authority")
+        synthetic_authority = authority_root
+        os.makedirs(authority_root)
+        authority_file = os.path.join(authority_root, "public-key.pem")
+        with open(authority_file, "w", encoding="utf-8") as stream:
+            stream.write("t2146 inode fixture\n")
+        os.link(authority_file, physical_alias)
+    source_stat = os.stat(authority_file)
+    alias_stat = os.stat(alias)
+    assert (source_stat.st_dev, source_stat.st_ino) == \
+        (alias_stat.st_dev, alias_stat.st_ino), \
+        "T-2146 fixture が同一 inode の hardlink alias でない"
+    assert not os.path.realpath(alias).startswith(
+        os.path.realpath(authority_root) + os.sep), \
+        "hardlink test が canonical path 判定でも拒否できる fixture になった"
+    try:
+        with patch.object(GW, "_AUTHORITY_ROOT", authority_root), \
+                patch.object(GB, "_AUTHORITY_ROOT", authority_root):
+            _t2146_assert_denied(
+                GW.decide("Write", {"file_path": alias}, repo_root=_REPO),
+                "guard_write-hardlink",
+            )
+            _t2146_assert_denied(
+                GB.decide(f"printf t2146 > {alias}", repo_root=_REPO),
+                "guard_bash-hardlink",
+            )
+    finally:
+        os.unlink(alias)
+        if synthetic_authority is not None:
+            shutil.rmtree(synthetic_authority)
+        if same_device_root is not None:
+            os.unlink(alias_parent)
+            os.rmdir(same_device_root)
+
+
+def test_t2146_authority_canonical_symlink_alias_is_denied_in_both_guards(
+        tmp_path):
+    alias = tmp_path / "authority-alias"
+    alias.symlink_to(_T2146_AUTHORITY_ROOT, target_is_directory=True)
+    target = alias / "t2146-new.pem"
+    assert not target.exists(), "canonical alias の未存在 target 前提が崩れた"
+    _t2146_assert_denied(
+        GW.decide("Write", {"file_path": os.fspath(target)}, repo_root=_REPO),
+        "guard_write-canonical",
+    )
+    _t2146_assert_denied(
+        GB.decide(f"cp /tmp/t2146-source {target}", repo_root=_REPO),
+        "guard_bash-canonical",
+    )
+
+
+def test_t2146_authority_lexical_side_rejects_a_future_path_independently(
+        tmp_path):
+    authority = tmp_path / "synthetic-authority"
+    outside = tmp_path / "outside"
+    authority.mkdir()
+    outside.mkdir()
+    (authority / "escape").symlink_to(outside, target_is_directory=True)
+    target = authority / "escape" / "future.pem"
+    assert not target.exists(), "lexical detector の未存在 target 前提が崩れた"
+    assert not os.path.realpath(target).startswith(
+        os.path.realpath(authority) + os.sep), \
+        "canonical 側から独立した lexical fixture になっていない"
+
+    with patch.object(GW, "_AUTHORITY_ROOT", os.fspath(authority)):
+        _t2146_assert_denied(
+            GW.decide("Write", {"file_path": os.fspath(target)}, repo_root=_REPO),
+            "guard_write-lexical-future",
+        )
+    with patch.object(GB, "_AUTHORITY_ROOT", os.fspath(authority)):
+        _t2146_assert_denied(
+            GB.decide(f"cp /tmp/t2146-source {target}", repo_root=_REPO),
+            "guard_bash-lexical-future",
+        )
+
+
+def test_t2146_authority_component_boundaries_and_unrelated_paths_remain_allowed():
+    root = _mk_fixture_repo()
+    siblings = (
+        _T2146_AUTHORITY_ROOT + "-copy",
+        _T2146_AUTHORITY_ROOT + "2",
+        os.path.join(os.path.dirname(_T2146_AUTHORITY_ROOT), "t2146-unrelated"),
+    )
+    job_path = os.path.join(
+        "/work/1/SFC/tanab/dev-wave-jobs",
+        "dev-wave-t2146-authority-guard", "safe.txt")
+    worktree_path = os.path.join(_REPO, "t2146-safe.txt")
+    try:
+        for target_root in (*siblings, job_path, worktree_path):
+            target = (os.path.join(target_root, "safe.txt")
+                      if target_root in siblings else target_root)
+            ok, why = GW.decide(
+                "Write", {"file_path": target}, repo_root=root)
+            assert ok, f"T-2146 unrelated Write が誤拒否された: {target} ({why})"
+            ok, why = _patch(root, f"*** Add File: {target}\n+t2146\n")
+            assert ok, f"T-2146 unrelated apply_patch が誤拒否された: {target} ({why})"
+            for command in (f"printf t2146 > {target}", f"rm -rf {target}"):
+                ok, why = GB.decide(command, repo_root=root)
+                assert ok, f"T-2146 unrelated Bash が誤拒否された: {command} ({why})"
+    finally:
+        shutil.rmtree(root)
+
+
+def test_t2146_authority_reads_remain_allowed():
+    root = _mk_fixture_repo()
+    try:
+        for command in (
+            f"cat {_T2146_AUTHORITY_PUBLIC_KEY}",
+            f"grep -n BEGIN {_T2146_AUTHORITY_PUBLIC_KEY}",
+            f"sha256sum {_T2146_AUTHORITY_PUBLIC_KEY}",
+            f"stat {_T2146_AUTHORITY_PUBLIC_KEY}",
+        ):
+            ok, why = GB.decide(command, repo_root=root)
+            assert ok, f"T-2146 authority read が誤拒否された: {command} ({why})"
+    finally:
+        shutil.rmtree(root)
+
+
+def test_t2146_authority_symlink_entry_unlink_and_move_remain_allowed(tmp_path):
+    alias = tmp_path / "authority-unlink-alias"
+    alias.symlink_to(_T2146_AUTHORITY_ROOT, target_is_directory=True)
+    destination = tmp_path / "moved-alias"
+    for directives in (
+        f"*** Delete File: {alias}\n",
+        f"*** Update File: {alias}\n*** Move to: {destination}\n",
+    ):
+        ok, why = _patch(_REPO, directives, cwd=_REPO)
+        assert ok, f"T-2146 authority symlink entry 操作が誤拒否された: {why}"
+    for command in (f"rm {alias}", f"mv {alias} {destination}"):
+        ok, why = GB.decide(command, repo_root=_REPO)
+        assert ok, f"T-2146 authority symlink entry が誤拒否された: {command} ({why})"
+
+
+def test_t2146_both_guard_mains_fail_closed_on_authority_internal_errors():
+    write_payload = json.dumps({
+        "tool_name": "Write",
+        "tool_input": {"file_path": _T2146_AUTHORITY_PUBLIC_KEY},
+    })
+    bash_payload = json.dumps({
+        "tool_name": "Bash",
+        "tool_input": {"command": f"cat {_T2146_AUTHORITY_PUBLIC_KEY}"},
+    })
+    with patch.object(GW, "decide", side_effect=RuntimeError("t2146 rule bug")):
+        assert _guard_main(GW, write_payload) == 2
+    with patch.object(GB, "decide", side_effect=RuntimeError("t2146 rule bug")):
+        assert _guard_main(GB, bash_payload) == 2
+
+
+def test_t2146_both_guard_error_fallbacks_allow_authority_siblings():
+    """Fallback matching stays component-exact for -copy and numeric siblings."""
+    for sibling in (
+        _T2146_AUTHORITY_ROOT + "-copy",
+        _T2146_AUTHORITY_ROOT + "2",
+    ):
+        write_payload = json.dumps({
+            "tool_name": "Write",
+            "tool_input": {"file_path": os.path.join(sibling, "key.pem")},
+        })
+        bash_payload = json.dumps({
+            "tool_name": "Bash",
+            "tool_input": {"command": f"printf t2146 > {sibling}/key.pem"},
+        })
+        with patch.object(
+                GW, "decide", side_effect=RuntimeError("t2146 rule bug")):
+            assert _guard_main(GW, write_payload) == 0
+        with patch.object(
+                GB, "decide", side_effect=RuntimeError("t2146 rule bug")):
+            assert _guard_main(GB, bash_payload) == 0
+
+
+def test_t2146_authority_guards_run_as_subprocess_smoke():
+    env = dict(os.environ)
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    cases = (
+        ("guard_write", {
+            "tool_name": "Write",
+            "tool_input": {"file_path": _T2146_AUTHORITY_PUBLIC_KEY},
+        }, 2),
+        ("guard_write", {
+            "tool_name": "apply_patch", "cwd": _REPO,
+            "tool_input": {"command":
+                f"*** Add File: {_T2146_AUTHORITY_FUTURE}\n"},
+        }, 2),
+        ("guard_bash", {
+            "tool_name": "Bash",
+            "tool_input": {"command":
+                f"printf t2146 > {_T2146_AUTHORITY_FUTURE}"},
+        }, 2),
+        ("guard_bash", {
+            "tool_name": "Bash",
+            "tool_input": {"command": f"cat {_T2146_AUTHORITY_PUBLIC_KEY}"},
+        }, 0),
+    )
+    for name, payload, expected in cases:
+        result = subprocess.run(
+            [sys.executable, os.path.join(_REPO, "hooks", f"{name}.py")],
+            input=json.dumps(payload), capture_output=True, text=True, env=env,
+        )
+        assert result.returncode == expected, \
+            (f"T-2146 {name} subprocess rc={result.returncode} "
+             f"(期待 {expected}) stderr={result.stderr[:200]}")
 
 
 # ---------- guard_write: designated ソースは内容非検査 (方針 A, D30/D33) ----------
@@ -2601,6 +3061,8 @@ _PEGASUS_EXPECTED_CLASSES = {
     "tools/pegasus/probes/t1683_rr5_cost_probe.py": "dispatch-required",
     "tools/pegasus/probes/t2187_adaptive_const_probe.pbs": "dispatch-required",
     "tools/pegasus/probes/t2187_adaptive_const_probe.py": "dispatch-required",
+    "tools/pegasus/probes/t2228_driver_gate_liveness_probe.pbs": "dispatch-required",
+    "tools/pegasus/probes/t2228_driver_gate_liveness_probe.py": "dispatch-required",
     "tools/pegasus/probes/t293_perf_site_probe.pbs": "unknown",
     "tools/pegasus/probes/t293_perf_site_probe.py": "unknown",
     "tools/pegasus/probes/t316_sandbox_backend_probe.pbs": "dispatch-required",
@@ -2824,6 +3286,18 @@ _PEGASUS_EXPECTED_ENTRIES = {
         "class": "dispatch-required",
         "reason": "compute-side Cicada adaptive-backoff performance measurement and correctness certification driver",
         "primary_gate": "compute allocation owned by t2187_adaptive_const_probe.pbs",
+        "evidence": "static compute-side call-site classification"
+    },
+    "tools/pegasus/probes/t2228_driver_gate_liveness_probe.pbs": {
+        "class": "dispatch-required",
+        "reason": "PBS T-2228 condition-meaning-gate driver liveness measurement job body",
+        "primary_gate": "PBS allocation and job-body compute-host, repository, log-path, and evidence-path validation",
+        "evidence": "static job-body classification"
+    },
+    "tools/pegasus/probes/t2228_driver_gate_liveness_probe.py": {
+        "class": "dispatch-required",
+        "reason": "compute-side T-2228 condition-meaning-gate liveness measurement driver",
+        "primary_gate": "compute allocation owned by t2228_driver_gate_liveness_probe.pbs",
         "evidence": "static compute-side call-site classification"
     },
     "tools/pegasus/probes/t293_perf_site_probe.pbs": {

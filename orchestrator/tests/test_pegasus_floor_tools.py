@@ -2193,10 +2193,16 @@ def test_floor_job_exports_exact_reservation_fields() -> None:
     assert actual == set(reservation._ENV_FIELDS.values())
 
 
-def test_floor_job_has_no_confirmation_dataflow_and_keeps_admission_order() -> None:
+def test_floor_job_has_nonce_bound_official_confirmation_dataflow_and_keeps_admission_order() -> None:
     source = JOB.read_text(encoding="utf-8")
     assert "IZANAGI_CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT" not in source
     assert "--confirm-irreversible-pilot-holdout" not in source
+    assert "if [[ ${IZANAGI_CONFIRM_OFFICIAL_FLOOR_RUN+x} == x ]]" in source
+    assert (
+        '[[ "$IZANAGI_CONFIRM_OFFICIAL_FLOOR_RUN" '
+        '!= "$IZANAGI_SUBMISSION_NONCE" ]]' in source
+    )
+    assert "export -n IZANAGI_CONFIRM_OFFICIAL_FLOOR_RUN" in source
 
     unset_targets: list[str] = []
     for line in source.splitlines():
@@ -2210,6 +2216,8 @@ def test_floor_job_has_no_confirmation_dataflow_and_keeps_admission_order() -> N
 
     ordered_anchors = (
         'git -C "$REPO_ROOT" cat-file blob "$PREFLIGHT_HELPER_SPEC"',
+        "OFFICIAL_APPROVAL_BOUND=0",
+        "export -n IZANAGI_CONFIRM_OFFICIAL_FLOOR_RUN",
         "receipt_rc=0",
         'timeout 60 "${gflags_configure_argv[@]}"',
         '"${driver_argv[@]}" \\',
@@ -2219,7 +2227,103 @@ def test_floor_job_has_no_confirmation_dataflow_and_keeps_admission_order() -> N
     assert anchor_indexes == tuple(sorted(anchor_indexes))
 
 
-def _run_floor_driver_tail(tmp_path: Path) -> tuple[str, list[str]]:
+def _official_approval_binding_fragment() -> str:
+    source = JOB.read_text(encoding="utf-8")
+    start = source.index("CURRENT_STAGE=submit-binding")
+    end = source.index('SUBMISSION_DIR="$ATTEMPTS_ROOT/submissions/', start)
+    return source[start:end]
+
+
+def _run_official_approval_binding(
+    tmp_path: Path, *, approval: str | None,
+) -> tuple[subprocess.CompletedProcess[str], Path, Path]:
+    failure_call = tmp_path / "failure-call.txt"
+    downstream_marker = tmp_path / "downstream"
+    nonce = "d" * 32
+    prefix_lines = [
+        "set -Eeuo pipefail",
+        "CURRENT_STAGE=bootstrap",
+        f"IZANAGI_SUBMISSION_NONCE={nonce}",
+        "checkpoint_event() { return 0; }",
+        "write_failure() {",
+        f"  printf '%s|%s|%s\\n' \"$1\" \"$2\" \"$3\" > {shlex.quote(str(failure_call))}",
+        "}",
+    ]
+    if approval is not None:
+        prefix_lines.append(
+            "export IZANAGI_CONFIRM_OFFICIAL_FLOOR_RUN=" + shlex.quote(approval)
+        )
+    suffix = "\n".join([
+        (
+            f"{shlex.quote(sys.executable)} -c \"import os; "
+            "assert 'IZANAGI_CONFIRM_OFFICIAL_FLOOR_RUN' not in os.environ\""
+        ),
+        f"printf '%s\\n' \"$OFFICIAL_APPROVAL_BOUND\" > {shlex.quote(str(downstream_marker))}",
+        "",
+    ])
+    result = subprocess.run(
+        [
+            "bash", "-c",
+            "\n".join([*prefix_lines, ""])
+            + _official_approval_binding_fragment()
+            + suffix,
+        ],
+        capture_output=True,
+        text=True,
+    )
+    return result, failure_call, downstream_marker
+
+
+def test_floor_job_official_approval_binding_accepts_exact_nonce(
+        tmp_path: Path) -> None:
+    result, failure_call, downstream = _run_official_approval_binding(
+        tmp_path, approval="d" * 32,
+    )
+    assert result.returncode == 0, result.stderr
+    assert downstream.read_text(encoding="utf-8") == "1\n"
+    assert not failure_call.exists()
+
+
+def test_floor_job_official_approval_binding_leaves_flag_absent_when_env_unset(
+        tmp_path: Path) -> None:
+    result, failure_call, downstream = _run_official_approval_binding(
+        tmp_path, approval=None,
+    )
+    assert result.returncode == 0, result.stderr
+    assert downstream.read_text(encoding="utf-8") == "0\n"
+    assert not failure_call.exists()
+
+
+def test_floor_job_official_approval_binding_rejects_empty_before_downstream(
+        tmp_path: Path) -> None:
+    result, failure_call, downstream = _run_official_approval_binding(
+        tmp_path, approval="",
+    )
+    assert result.returncode == 2
+    assert failure_call.read_text(encoding="utf-8") == (
+        "2|submit_binding|"
+        "IZANAGI_CONFIRM_OFFICIAL_FLOOR_RUN is set but empty\n"
+    )
+    assert not downstream.exists()
+
+
+def test_floor_job_official_approval_binding_rejects_mismatch_before_downstream(
+        tmp_path: Path) -> None:
+    result, failure_call, downstream = _run_official_approval_binding(
+        tmp_path, approval="e" * 32,
+    )
+    assert result.returncode == 2
+    assert failure_call.read_text(encoding="utf-8") == (
+        "2|submit_binding|"
+        "IZANAGI_CONFIRM_OFFICIAL_FLOOR_RUN must exactly match "
+        "IZANAGI_SUBMISSION_NONCE\n"
+    )
+    assert not downstream.exists()
+
+
+def _run_floor_driver_tail(
+    tmp_path: Path, *, approval_bound: bool,
+) -> tuple[str, list[str]]:
     source = JOB.read_text(encoding="utf-8")
     repo = tmp_path / "repo"
     driver = repo / "orchestrator" / "campaign" / "s8b_floor_campaign.py"
@@ -2241,7 +2345,7 @@ def _run_floor_driver_tail(tmp_path: Path) -> tuple[str, list[str]]:
         f"REPO_ROOT={shlex.quote(str(repo))}",
         f"ATTEMPT_DIR={shlex.quote(str(attempt))}",
         f"PY={shlex.quote(sys.executable)}",
-        "IZANAGI_FLOOR_MODE=pilot",
+        f"OFFICIAL_APPROVAL_BOUND={int(approval_bound)}",
         "PBS_JOBID=0:fixture.nqsv",
         f"CURRENT_COMMIT={'a' * 40}",
         f"JOB_SCRIPT_SHA256={'b' * 64}",
@@ -2267,17 +2371,36 @@ def _run_floor_driver_tail(tmp_path: Path) -> tuple[str, list[str]]:
     return source, actual_argv
 
 
-def test_floor_job_invokes_fixed_pilot_cli_without_bypass(
-    tmp_path: Path,
-) -> None:
-    source, actual_argv = _run_floor_driver_tail(tmp_path)
+def test_floor_job_unset_approval_omits_flag_from_actual_argv(tmp_path: Path) -> None:
+    _source, actual_argv = _run_floor_driver_tail(
+        tmp_path, approval_bound=False,
+    )
     assert actual_argv == [
         "--mode",
-        "pilot",
+        "official",
         "--protocol",
         str(tmp_path / "repo/output/s8b-freeze/floor_protocol.json"),
     ]
-    assert "--confirm-irreversible-pilot-holdout" not in actual_argv
+
+
+def test_floor_job_exact_approval_appends_flag_once_in_actual_argv(
+        tmp_path: Path) -> None:
+    source, actual_argv = _run_floor_driver_tail(
+        tmp_path, approval_bound=True,
+    )
+    assert actual_argv.count("--confirm-official-floor-run") == 1
+    assert actual_argv[-1] == "--confirm-official-floor-run"
+    assert shlex.split(
+        source, comments=True, posix=True,
+    ).count("--confirm-official-floor-run") == 1
+
+
+def test_floor_job_driver_mode_is_fixed_official_in_tokens_and_actual_argv(
+        tmp_path: Path) -> None:
+    source, actual_argv = _run_floor_driver_tail(
+        tmp_path, approval_bound=False,
+    )
+    assert actual_argv[:2] == ["--mode", "official"]
 
     source_tokens = shlex.split(source, comments=True, posix=True)
     driver_path = "orchestrator/campaign/s8b_floor_campaign.py"
@@ -2290,7 +2413,7 @@ def test_floor_job_invokes_fixed_pilot_cli_without_bypass(
     assert source_tokens.count("resolve-current-protocol") == 1
     assert source_tokens.count("--mode") == 1
     source_mode_index = source_tokens.index("--mode")
-    assert source_tokens[source_mode_index + 1] == "pilot"
+    assert source_tokens[source_mode_index + 1] == "official"
     assert 'export IZANAGI_FLOOR_JOB_STAGING="$ATTEMPT_DIR"' in source
     resolver_index = source.index("resolve-current-protocol")
     driver_argv_index = source.index("driver_argv=(")
@@ -2304,7 +2427,7 @@ def test_floor_job_invokes_fixed_pilot_cli_without_bypass(
     assert source.index('export IZANAGI_FLOOR_JOB_STAGING="$ATTEMPT_DIR"') < (
         driver_launch_index
     )
-    assert "--mode official" not in source
+    assert "IZANAGI_FLOOR_MODE" not in source
     assert "--resume" not in source
     assert "eval " not in source
 
@@ -2324,6 +2447,10 @@ def test_submit_floor_qsub_exports_nonce_and_stages_third_party_payload() -> Non
     match = re.search(r'^export_spec="([^"]+)"$', source, re.MULTILINE)
     assert match is not None
     assert match.group(1) == "IZANAGI_SUBMISSION_NONCE=$NONCE"
+    assert (
+        'export_spec+=",IZANAGI_CONFIRM_OFFICIAL_FLOOR_RUN=$NONCE"'
+        in source
+    )
     assert (
         'qsub -o "$SCHEDULER_STDOUT" -e "$SCHEDULER_STDERR"\n'
         '  -v "$export_spec" "$JOB_SCRIPT"'
@@ -2484,7 +2611,7 @@ def test_submit_floor_failed_payload_staging_cleans_temp_and_skips_qsub(
             "qsub": 99,
         },
     )
-    result = _submit(repo, bin_dir)
+    result = _submit(repo, bin_dir, "--confirm-official-floor-run")
     assert result.returncode == 2
     submission = _only_submission(repo, "output/env/pegasus/floor/attempts")
     assert not (submission / "masstree-payload").exists()
@@ -2522,7 +2649,10 @@ def _successful_submission(
     repo = _fixture_repo(tmp_path)
     _install_floor_third_party_sources(repo)
     bin_dir, qsub_args, qsub_cwd = _successful_bin(tmp_path)
-    result = _submit(repo, bin_dir, *arguments, extra_env=extra_env)
+    result = _submit(
+        repo, bin_dir, "--confirm-official-floor-run", *arguments,
+        extra_env=extra_env,
+    )
     assert result.returncode == 0, result.stderr
     submission = _only_submission(
         repo, "output/env/pegasus/floor/attempts"
@@ -2553,7 +2683,10 @@ def test_submit_floor_non_dry_run_success_writes_real_submission_record(
         "-e",
         str(submission / "scheduler.stderr"),
         "-v",
-        "IZANAGI_SUBMISSION_NONCE=" + receipt["nonce"],
+        (
+            "IZANAGI_SUBMISSION_NONCE=" + receipt["nonce"]
+            + ",IZANAGI_CONFIRM_OFFICIAL_FLOOR_RUN=" + receipt["nonce"]
+        ),
         str(repo / "tools" / "pegasus" / "floor_campaign.sh"),
     ]
     for option in ("-o", "-e"):
@@ -2624,6 +2757,7 @@ def test_submit_floor_probes_and_indexes_explicit_external_evidence_root(
     export_spec = qsub_args[qsub_args.index("-v") + 1]
     assert export_spec == (
         f"IZANAGI_SUBMISSION_NONCE={receipt['nonce']},"
+        f"IZANAGI_CONFIRM_OFFICIAL_FLOOR_RUN={receipt['nonce']},"
         f"IZANAGI_FLOOR_JOB_EVIDENCE_ROOT={evidence_root}"
     )
     assert not list(repo.rglob("checkpoint.jsonl"))
@@ -2637,8 +2771,7 @@ def test_submit_floor_unreadable_override_falls_back_and_records_probe(
     bin_dir, qsub_args_path, _qsub_cwd = _successful_bin(tmp_path)
     unsafe = repo / "output" / "inside-repository"
     result = _submit(
-        repo,
-        bin_dir,
+        repo, bin_dir, "--confirm-official-floor-run",
         extra_env={floor_job_checkpoint.EVIDENCE_ROOT_ENV: str(unsafe)},
     )
     assert result.returncode == 0, result.stderr
@@ -2674,7 +2807,7 @@ def test_submit_floor_unreadable_default_persists_sidecar_for_consumer(
     bin_dir, _qsub_args_path, _qsub_cwd = _successful_bin(tmp_path)
     default_root = repo.parent / "izanagi-job-evidence"
     default_root.symlink_to(repo / "output", target_is_directory=True)
-    result = _submit(repo, bin_dir)
+    result = _submit(repo, bin_dir, "--confirm-official-floor-run")
     assert result.returncode == 0, result.stderr
     assert "default floor evidence root is not login-readable" in result.stderr
     assert "external floor evidence index create-only write failed" in result.stderr
@@ -2706,24 +2839,27 @@ def test_submit_floor_unreadable_default_persists_sidecar_for_consumer(
     assert external["index_write_status"] == "failed"
 
 
-def test_submit_floor_export_spec_has_no_confirmation_env(
+def test_submit_floor_without_option_ignores_ambient_confirmation_env_in_dry_run(
     tmp_path: Path,
 ) -> None:
-    repo, submission, qsub_args_path, _ = _successful_submission(
-        tmp_path,
-        extra_env={"IZANAGI_CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT": "1"},
+    repo = _fixture_repo(tmp_path)
+    bin_dir, sentinel = _sentinel_bin(tmp_path)
+    result = _submit(
+        repo, bin_dir, "--dry-run",
+        extra_env={
+            "IZANAGI_CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT": "1",
+            "IZANAGI_CONFIRM_OFFICIAL_FLOOR_RUN": "ambient",
+        },
     )
+    assert result.returncode == 0, result.stderr
+    assert not sentinel.exists()
+    submission = _only_submission(repo, "output/env/pegasus/floor/attempts")
     receipt = json.loads(
         (submission / "submit-receipt.json").read_text(encoding="utf-8")
     )
-    qsub_args = [
-        item.decode("utf-8")
-        for item in qsub_args_path.read_bytes().split(b"\0")
-        if item
-    ]
-    export_spec = qsub_args[qsub_args.index("-v") + 1]
-    assert export_spec == "IZANAGI_SUBMISSION_NONCE=" + receipt["nonce"]
-    assert "IZANAGI_CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT" not in export_spec
+    assert "IZANAGI_CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT" not in result.stdout
+    assert "IZANAGI_CONFIRM_OFFICIAL_FLOOR_RUN" not in result.stdout
+    assert f"IZANAGI_SUBMISSION_NONCE={receipt['nonce']}" in result.stdout
     submit_source = SUBMIT.read_text(encoding="utf-8")
     export_start = submit_source.index(
         'export_spec="IZANAGI_SUBMISSION_NONCE=$NONCE"'
@@ -2733,6 +2869,31 @@ def test_submit_floor_export_spec_has_no_confirmation_env(
         export_start:export_end
     ]
     assert set(receipt) == RECEIPT_KEYS
+
+
+def test_submit_floor_real_run_requires_approval_before_staging_and_qsub(
+        tmp_path: Path) -> None:
+    repo = _fixture_repo(tmp_path)
+    bin_dir, sentinel = _sentinel_bin(tmp_path)
+    result = _submit(repo, bin_dir)
+    assert result.returncode == 2
+    assert result.stderr == (
+        "real official floor submission requires "
+        "--confirm-official-floor-run\n"
+    )
+    assert not (repo / "output/env").exists()
+    assert not (repo / "output/claims").exists()
+    assert not sentinel.exists()
+
+    source = SUBMIT.read_text(encoding="utf-8")
+    guard = source.index(
+        'if [[ "$DRY_RUN" -eq 0 && "$CONFIRM_OFFICIAL_FLOOR_RUN" -ne 1 ]]'
+    )
+    assert guard < source.index('SUBMISSIONS_ROOT="$ATTEMPTS_ROOT/submissions"')
+    assert guard < source.index('mkdir "$SUBMISSION_DIR"')
+    assert guard < source.index("stage_floor_third_party_payload ||")
+    assert guard < source.index("provision_claim_root || exit 2")
+    assert guard < source.index("qsub_cmd=(")
 
 
 def test_submit_floor_rejects_removed_confirmation_option_without_artifacts(
@@ -2971,7 +3132,7 @@ def test_floor_liveness_terminal_reads_job_staging_failure_json(
             "pbs_jobid": "0:" + receipt["job_id"],
             "rc": 2,
             "stage": "floor_driver",
-            "message": "pilot floor driver returned nonzero",
+            "message": "official floor driver returned nonzero",
             "recorded_epoch": 1,
         }, indent=2) + "\n",
         encoding="utf-8",
@@ -2993,7 +3154,7 @@ def test_floor_liveness_terminal_reads_job_staging_failure_json(
         "kind": "failure-json",
         "fields": {
             "stage": "floor_driver",
-            "message": "pilot floor driver returned nonzero",
+            "message": "official floor driver returned nonzero",
             "rc": 2,
         },
     }
@@ -3599,7 +3760,7 @@ def test_submit_floor_preflight_failure_records_and_stops_before_qsub(
             "qsub": 99,
         },
     )
-    result = _submit(repo, bin_dir)
+    result = _submit(repo, bin_dir, "--confirm-official-floor-run")
     assert result.returncode == 3
     assert "preflight captures failed" in result.stderr
     calls = sentinel.read_text(encoding="utf-8").splitlines()
@@ -3764,6 +3925,7 @@ def _driver_tail() -> str:
     source = JOB.read_text(encoding="utf-8")
     return (
         "CHECKPOINT_PATH=${CHECKPOINT_PATH:-}\n"
+        "OFFICIAL_APPROVAL_BOUND=${OFFICIAL_APPROVAL_BOUND:-1}\n"
         + source[
         source.index("protocol_resolution_rc=0") :
         ]
@@ -3914,9 +4076,10 @@ def test_floor_protocol_resolution_is_shared_by_all_consumers(
         ["resolve-current-protocol"],
         [
             "--mode",
-            "pilot",
+            "official",
             "--protocol",
             str(tmp_path / "repo" / protocol_path),
+            "--confirm-official-floor-run",
         ],
     ]
     job_result = json.loads(
@@ -4066,7 +4229,7 @@ def test_floor_driver_failure_propagates_rc(
         "schema_version": "pegasus-floor-job-result/v1",
         "pbs_jobid": "0:fixture.nqsv",
         "driver_rc": driver_rc,
-        "mode": "pilot",
+        "mode": "official",
         "protocol_path": "output/s8b-freeze/floor_protocol.json",
         "source_commit": "a" * 40,
         "job_script_sha256": "b" * 64,
@@ -4083,7 +4246,7 @@ def test_floor_driver_failure_propagates_rc(
         assert not failure_call.exists()
     else:
         assert failure_call.read_text(encoding="utf-8") == (
-            f"{driver_rc}|floor_driver|pilot floor driver returned nonzero\n"
+            f"{driver_rc}|floor_driver|official floor driver returned nonzero\n"
         )
 
 
@@ -4139,7 +4302,7 @@ def test_floor_driver_zero_rc_rejects_missing_w2_floor_metric(
     assert job_result["driver_rc"] == 3
     assert failure_call.read_text(encoding="utf-8") == (
         "3|floor_result_metrics|"
-        "pilot floor result is missing finite W-2 floor metrics\n"
+        "official floor result is missing finite W-2 floor metrics\n"
     )
 
 

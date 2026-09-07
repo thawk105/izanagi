@@ -155,7 +155,7 @@ D39 残存リスク (b) が求める「off が rejection を一切見ないこ�
 
 |欄|値|
 |---|---|
-|対象 driver と軸|未記入|
+|対象 driver と軸|base (silo-backoff-magnitude); evidence_set=t2341-eligibility; base.json sha256=d282c246e0b4f4d2542d28dd15850bbff650a8fc018e617bcd7ecec4be9ef237; sort.json sha256=9008aaace2bf1b9a2be508d068dcaac1222487041554b9cf540325f6132e3d72; trigger.json sha256=eb7f7cf1f48e0d7d65620932a7a26a42e0bec8bebb21bc7a9768f9e4635518f2; 記入者 = レビュー者 = thawk105 (D1266、D1638)|
 |赤 precursor の母集合 (workload・赤形状・初期 proposal)|未記入|
 |アームあたり block 数 n と検定単位|n = 201、検定単位 = block|
 |primary outcome の演算定義 (純関数)|未記入|
@@ -189,6 +189,7 @@ D39 残存リスク (b) が求める「off が rejection を一切見ないこ�
   候補集合・各 exact command・証拠 path と hash・0 件/複数件の決定規則・記入者・レビュー者を
   人間の指名を含む別 commit で先に freeze しない限り、対象 driver と軸を記入しない。
   (i) と (ii) は実走開始前に完了させ、実走開始後は差し替えない。**
+  **(i) の固定は §5.1.0 に置く (2026-09-05、D1641 の委任)。**
 - **赤 precursor の母集合**: B-4 の出力を見る前に freeze する。赤が出なかった block も
   除外・差替えせず「treatment 未発火」として全件報告する (§7)。
   **母集合を決める適格性述語・順序・選択関数・完全性要件は §5.1.1 で凍結済みである。**
@@ -216,6 +217,12 @@ D39 残存リスク (b) が求める「off が rejection を一切見ないこ�
   48 スレッド動作点の calibration を**流用しない**。対象動作点で再実測し保守側 (最大) を採る。
   発効手続きの案と、床値を得るための測定計画は §11 にある。**§11 は D1383 に基づく未裁定の案であり、
   本欄の解除条件を 1 つも緩めない。記入の権限も実走の許可も与えない。**
+  **追記 (2026-09-07、D1694 / D1695)。** §11 のうち 2 点は裁定済みである。床値測定の
+  **window ごとの標本数は n = 62** (1 campaign・1 セルあたり。24 時間以上離した 2 campaign で
+  合計 124。D1641 の n = 59 を D1695 が改めた)。**§11.2 が名指しした専用 driver は実在する**
+  (D1694、§11.2 の erratum)。**それでも本欄の解除条件は 1 つも緩まない** — 記入してよいのは
+  対象動作点で再実測した床値の artifact path と hash を値として書けるときだけであり、
+  この追記は記入の権限も実走の許可も与えない。
 - **校正済み `PerfConfig`**: `p3_s4_loop.default_perf()` は自ら「性能比較用 calibration ではない」と
   宣言している (配線規模)。calibrator が決めた値へ差し替えるまで記入しない。
 - **総計測予算**: arm ごとに対称とする。失敗した role query と reject も予算を消費する。
@@ -253,6 +260,54 @@ D39 残存リスク (b) が求める「off が rejection を一切見ないこ�
   **この欄は計測に依存しないので、計測待ちを空欄の理由にしない。** 指名がないまま実走しない。
 - **開始時刻**: timezone 付きの**予定**開始時刻を記入し、「この時刻より前に実走を開始しない」と読む。
   実際の開始時刻は実走成果物側に別途記録し、**本欄を後から実測値へ書き換えない。**
+
+#### 5.1.0 「対象 driver と軸」の (i) 凍結 (2026-09-05、D1641 / D1266 / D1638)
+
+本小節は §5.1 (i) の項目だけを固定する。番号が 5.1.1 より若いのは、5.1.1 の bytes を
+`orchestrator/tests/test_p3_b4_analysis_prereg_consumer.py` が「5.1.1 の見出しから §6 まで」の範囲で
+pin しており、その範囲に小節を挿し込めないためである。(ii) の実行と (iii) の記入は本小節を含む commit の
+**後続 commit** で行い、本小節の内容は (ii) の実行後に差し替えない。本小節は §5 の値セルを変えず、
+発効版ではない。**本小節を読む機械検査は無い** — `orchestrator/campaign/p3_b4_admission_record.py` は
+§5 の値セルが非空で sentinel を含まないことだけを見る。以下の規則の履行は記入 commit と insight に人が書く。
+
+- **候補 (driver, 軸) の対 (exact 3、列挙順が優先順):**
+  `base = silo-backoff-magnitude`、`sort = silo-writeset-sort`、`trigger = silo-backoff-trigger-gating`。
+  driver 名は `orchestrator/campaign/p3_b4_wiring_probe.py` の `_DRIVER_MODULES` と
+  `orchestrator/campaign/p3_b4_admission_record.py` の `B4_PROJECTION_DRIVER_KINDS` の共通部分で、
+  両者が exact 3 で一致しなければ (ii) を開始しない。軸は各 driver module の `MARKER_ID` であり、
+  probe が証拠の `run.axis` へ機械記録する値と上の対が exact 一致しなければ不合格とする。
+- **適格性を測る sanctioned CLI command (driver ごとに exact 1 回、別 process):**
+  `python3 tools/pegasus/dispatch_compute.py --task generic -- python3 -m orchestrator.campaign.p3_b4_wiring_probe --driver base --evidence-set-id t2341-eligibility`
+  (`sort`、`trigger` は `--driver` だけを替えた同形。dispatch 側の運用 flag (`--walltime`、
+  `--queue-wait-timeout`、`--overall-grace`) は `--` より前に足してよく、`--` より後の probe argv は exact)。
+  実行 site は Pegasus 計算ノード (gen_S)、cwd は repository root、env は dispatch の clean 既定。
+  **前提:** 本小節の commit が実行時 HEAD の祖先であること、3 driver 分の証拠 target (JSON と sidecar) が
+  いずれも不存在であること、3 command を同じ HEAD から投入すること。login node で得た証拠は採用しない。
+  infra 失敗 (dispatch rc=16 等) は「不合格 0 件」ではなく手続き未完了として停止し、証拠を作らない。
+- **証拠の保存先と hash:** `output/insights/2026-08-27_t1769-b4-wiring-probe/t2341-eligibility/` 直下の
+  `<driver>.json` と detached sidecar `<driver>.json.sha256` (probe が同時に書く)。sidecar は
+  `<64 桁小文字 hex><空白 2 つ><driver>.json` の 1 行で、値は JSON bytes の sha256。CLI は既存 target を
+  拒否するため、同じ evidence-set-id では再走できない (1 回性)。**合否を問わず 3 driver 分の JSON と
+  sidecar を削除・改名せず tracked にする。** base / sort の証拠は site を記録しないので、3 件の dispatch
+  receipt (request ID と compute marker を含む) を insight に tracked にし、記入 commit の message から参照する。
+- **合格述語 (すべて満たすときだけ合格。部分点は無い):**
+  (a) command が rc=0 で終わり、JSON と sidecar が実在し、sidecar の値が JSON bytes の sha256 と一致する。
+  (b) `run.driver` と `run.axis` が上の対と exact 一致し、`run.evidence_set_id` が `t2341-eligibility`、
+  `run.argv` が `["--driver", "<driver>", "--evidence-set-id", "t2341-eligibility"]` と exact 一致する。
+  (c) `source.repository_head` が本小節の commit を祖先に含む。
+  (d) `result.passed` が `true`、`result.pass_rule` が
+  `all-four-checks-and-zero-interdiction-or-protected-root-violations`。
+  (e) `checks.campaign_identity.site_projected_cfg` が `null` でない driver (現行では trigger) について、
+  その `status` が `measured` かつ `site` が Pegasus 計算ノード。
+- **決定規則 (証拠を見る前に固定し、結果を見た後で変えない):** 3 候補すべてを判定した後、合格集合から
+  列挙順 `base → sort → trigger` の最初の 1 件を選ぶ。合格 0 件なら「対象 driver と軸」欄は `未記入` の
+  まま残し、insight に 3 件の証拠 path と不合格理由を列挙して実走へ進まない。
+- **記入の形 (§5 の値セル 1 行。3 候補すべての証拠を束縛する):**
+  `<driver> (<軸>); evidence_set=t2341-eligibility; base.json sha256=<64hex>; sort.json sha256=<64hex>; trigger.json sha256=<64hex>; 記入者 = レビュー者 = thawk105 (D1266、D1638)`。
+  path root は上の保存先に固定する。
+- **記入者とレビュー者:** いずれも `thawk105` (D1266)。レビュー者は独立検査者ではなく、記入内容が本小節と
+  §5.1 (ii)(iii) を満たすことの確認責任者である。操作は D1638 の委任により AI が `thawk105` 名義で行い、
+  記入 commit の message に本小節の commit hash と採用した証拠の sha256 を書く。
 
 #### 5.1.1 分析契約の一括凍結 (D1082)
 
@@ -915,6 +970,11 @@ next synthesis・primary outcome・secondary outcome を新たに生成も閲覧
 |成果物の書式と命名|ユーザー|
 |欠測・非有限値・環境不一致・競合検出・予定外 retry の扱い|ユーザー|
 
+**追記 (2026-09-07、D1695)。** 上表の「標本数・campaign 数・時間窓の分離」は決定済みである。
+値は **1 campaign・1 セルあたり n = 62**、24 時間以上離した 2 campaign で合計 124 とする
+(D1641 が n = 59 として確定し、D1695 が 62 へ改めた。理由は §11.2「標本数」の追記)。
+上表が割り当てた決定主体は変えない。他の 11 項目についてはここでは何も述べない。
+
 ### 11.2 床値を得るための測定計画 (未裁定)
 
 **以下には、現物から確認した事実と、未裁定の案が混在する。** 各項に *事実* と *案* を付けて
@@ -956,11 +1016,28 @@ fail-closed で落とす。**落とした標本を、値を小さくする方向
 *案*: **8 という前例を根拠に採らない。** 実際の数はユーザーが決め、決めた数とその根拠を凍結へ
 書く。**同じ campaign 内の連続した測定を、独立な機会として数えない。**
 
+**追記 (2026-09-07、D1695)。** 実際の数は **1 campaign・1 セルあたり n = 62** に決まった
+(2 campaign 合計 124)。**上の *事実* の 59 は書き換えない** — あれは欠測が 1 件も無いときに
+95 パーセンタイルを信頼度 95% で覆う最小標本数であり、真である。D1695 が 62 を採ったのは、
+D1641 が置いた 5% の欠測許容 (`dropped * 20 <= planned`) を維持する以上、n = 59 では
+許容どおり 2 件落ちて 57 件になると被覆が約 94.6% へ下がり、設計が要求する 95% を割るためである。
+n = 62 なら許容の上限が 3 件 (62 の 5% = 3.1) になり、59 件が残る。**許容を 0 へ戻す案は採らない**
+— 1 件の欠測で window が全損になる。
+**この算術がそのまま言えるのは 1 pair の場合だけである。** 5% の判定は campaign 合算であって
+pair ごとの閾値ではないので、複数 pair では欠測が 1 つの stratum へ偏りうる。
+**「n = 62 なら各 stratum に 59 件残る」「全セルで 95% 被覆が保たれる」とは読まない。**
+pair ごとの閾値は足さない (D1697)。残存標本での被覆は対照対 driver も保証していない。
+
 **費用の目安。**
-*事実*: **各 campaign で n = 59 を取り、2 campaign 合計で n = 118** とすると、候補側だけで
-236 セッションになる。1 セッション 5 反復 × 3 秒として名目の bench 時間は 3,540 秒 (約 59 分)。
-参照点を対ごとに測るなら、さらに 118 セッション分の約 1,770 秒 (約 29.5 分) が加わる。
+*事実*: **各 campaign で n = 62 を取り、2 campaign 合計で n = 124** とすると、候補側だけで
+248 セッションになる。1 セッション 5 反復 × 3 秒として名目の bench 時間は 3,720 秒 (約 62 分)。
+参照点を対ごとに測るなら、さらに 124 セッション分の約 1,860 秒 (約 31 分) が加わる。
 これは 1 セルあたりの値である。
+**(2026-09-07、D1695 で n = 59 / 合計 118 から改めた。起草時の派生値は 236 セッション・
+3,540 秒・1,770 秒だった。この session 数と秒数は、参照点を候補と別セッションで測る起草時の
+構成に対する条件付きの目安である。D1699 が候補と参照を 1 つの低水準セッションで測る形へ
+設計を変えたので、内訳は「加算」ではなく組み替えになる。組み替え後の目安は D1699 の実装が
+確定してから書き直す。)**
 *案*: セル数を掛けた総額が §5 の総計測予算欄に収まるかを、凍結の前に確かめる。
 
 **保守側の合成。**
@@ -991,10 +1068,26 @@ floor driver が計算するのは絶対スループット基準の別量であ�
 (D1383 の範囲は案と計画までである)。既存の sanctioned な面だけで要件を満たせないなら、
 測定を開始せずユーザー裁定へ戻す。
 
+**erratum (2026-09-07、D1694)。** 上の *事実* は本節の起草時点 (2026-09-02、`e8ffa2ea`) の
+記述であり、**現在は偽である。** *案* が名指しした専用 driver は D1453 の裁定を受けて同じ
+2026-09-02 に `orchestrator/campaign/floor_pair_driver.py` として main へ着地しており
+(`93181d56`)、2026-09-07 には D1641 第 3 項の欠測規則へ適合させてある (`b40414af`)。
+したがって D1641 第 4 項が本節を引いて書いた理由文「現行の sanctioned CLI ではこの測定を
+起動できない」は、**その裁定日 (2026-09-05) の時点で既に偽だった。** D1694 はこの前提だけを
+追記で訂正し、**決定そのもの (欠測規則へ適合させてから測る) の効力は維持する。第 4 項が
+命じた driver の「新設」は「適合」と読む。** 当時の記述は書き換えず残す (絶対規律 7)。
+**本 erratum が述べるのは driver の実在だけである。** §5 の空欄も §6 の前提条件も 1 つも
+免除せず、測定の開始を許可しない。
+
 ### 11.3 本節が閉じないこと
 
 - 担当者の指名、対象集合、標本数、統計関数、採用証拠の受理 — いずれもユーザー手番である。
 - §11.2 が名指しした専用 driver / adapter を作るかどうかと、その変更単位。
+  **追記 (2026-09-07)。** 上の 2 項目のうち 2 点は決着している。**標本数は D1695 で
+  n = 62 (1 campaign・1 セルあたり、2 campaign 合計 124) に決まった。専用 driver を作るか
+  どうかも決着しており、D1453 の裁定で作られて main に着地済みである** (D1694、§11.2 の
+  erratum)。残り (担当者の指名、対象集合、統計関数、採用証拠の受理、driver の変更単位) は
+  本節に書いたままユーザー手番である。
 - **材料レポート側の接続。** 現行の生成器は本書を読まず無条件に floor 不在を渡す (D1377)。
   権威ある floor 成果物を検証して評価器へ渡す接続を作るかどうかは、別の裁定と実装である。
 - **floor 欄が埋まっても本書は発効しない。** §5 の残り 9 欄と §6 の 9 条件は 1 つも免除されない。

@@ -818,6 +818,35 @@ def _parse_genesis(
         _normalize_slot(profile, slot, label=f"{label}.slots[{index}]")
         for index, slot in enumerate(raw_slots)
     )
+    if schema_version == "p3-8c-attempt-registry/v3":
+        # A v3 root is accepted only when every declared slot names one shared
+        # positive preregistration generation.  A missing or mixed generation
+        # is rejected without changing the domain-independent series key.
+        generations = [
+            slot.get("prereg_generation")
+            if isinstance(slot, Mapping) else None
+            for slot in slots
+        ]
+        if (
+            any(type(generation) is not int or generation < 1
+                for generation in generations)
+            or len(set(generations)) != 1
+        ):
+            _fail(
+                "attempt-prereg-generation",
+                "v3 genesis slots do not share one positive prereg_generation",
+            )
+    elif schema_version in {
+        "p3-8c-attempt-registry/v1",
+        "p3-8c-attempt-registry/v2",
+    } and any(
+        isinstance(slot, Mapping) and "prereg_generation" in slot
+        for slot in slots
+    ):
+        _fail(
+            "attempt-registry-schema",
+            "legacy 8c genesis slot carries prereg_generation",
+        )
     _assert_slot_layout(slots, profile=profile)
     result["slots"] = [profile.slot_codec.to_json(slot) for slot in slots]
     genesis_binding: BindingT | None = None

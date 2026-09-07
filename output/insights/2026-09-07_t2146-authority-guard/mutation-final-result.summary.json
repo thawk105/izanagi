@@ -1,0 +1,92 @@
+{
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "repo_head": "68cb58df1c68f8fa8e219c198059ea11dfb44d9d",
+  "spec_sha256": "3b6c9ed681325254dc23b6f3b1ff3e34b1a73b888201c5ee781c4664dc5ad1f2",
+  "runner_sha256": "644770128e039aa9eb431b55ad5e32366ef341f91753116cb76166737dc531ee",
+  "baseline": "PASSED",
+  "summary": {
+    "KILLED": 8,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 9,
+    "matching": 9,
+    "recorded": 9,
+    "registered": 9
+  },
+  "mutations": [
+    {
+      "id": "m3-m7-ancestor-overlap",
+      "status": "KILLED",
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_hooks.py::test_t2146_guard_bash_rejects_authority_tree_ancestor_and_partial_glob",
+        "orchestrator/tests/test_hooks.py::test_t2146_guard_bash_filesystem_root_ancestor_and_siblings"
+      ]
+    },
+    {
+      "id": "m8-partial-glob-prefix",
+      "status": "KILLED",
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_hooks.py::test_t2146_guard_bash_rejects_authority_tree_ancestor_and_partial_glob"
+      ]
+    },
+    {
+      "id": "m9-bash-inode-index",
+      "status": "KILLED",
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_hooks.py::test_t2146_authority_hardlink_alias_is_denied_in_both_guards",
+        "orchestrator/tests/test_hooks.py::test_t956_hardlink_inode_index_is_built_once_per_decide"
+      ]
+    },
+    {
+      "id": "m10-bash-canonical-side",
+      "status": "KILLED",
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_hooks.py::test_t2146_authority_canonical_symlink_alias_is_denied_in_both_guards"
+      ]
+    },
+    {
+      "id": "mf1-perf-existing-tree",
+      "status": "KILLED",
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_hooks.py::test_t2146_guard_bash_perf_output_keeps_all_protected_trees_denied"
+      ]
+    },
+    {
+      "id": "m1-write-authority-union",
+      "status": "KILLED",
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_hooks.py::test_t2146_authority_lexical_side_rejects_a_future_path_independently"
+      ]
+    },
+    {
+      "id": "m9w-write-inode-index",
+      "status": "KILLED",
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_hooks.py::test_t2146_authority_hardlink_alias_is_denied_in_both_guards"
+      ]
+    },
+    {
+      "id": "m14w-resolve-final-source",
+      "status": "KILLED",
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_hooks.py::test_t2146_authority_symlink_entry_unlink_and_move_remain_allowed"
+      ]
+    },
+    {
+      "id": "equiv-control-no-behaviour-change",
+      "status": "SURVIVED",
+      "expected_status": "SURVIVED",
+      "failed_nodes": []
+    }
+  ]
+}

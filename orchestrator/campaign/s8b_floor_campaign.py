@@ -39,10 +39,11 @@ fail-closed の原則: 縮退・欠測・不正入力・競合はすべて null 
 config の数値はコードに既定値を持たず入力必須にする (F14 対策)。CLI に env・経路・数値の上書き面は
 作らない。
 
-official mode の無条件拒否は private core 自体で行い、public wrapper の迂回を許さない。さらに
-official core は ``build_fn`` 注入を副作用前に拒否し、admission-aware な ``buildcache.build_v2``
-だけを materializer として使う。pilot、resume、または非既定 seam を使った artifact は
-``eligible_for_refreeze: false`` とし、fresh official の既定実引数だけを true にできる。
+official mode は CLI・public wrapper・private core の各入口で同じ明示承認を要求し、入口間の
+迂回を許さない。さらに official core は ``build_fn`` 注入を副作用前に拒否し、admission-aware な
+``buildcache.build_v2`` だけを materializer として使う。pilot、resume、または非既定 seam を
+使った artifact は ``eligible_for_refreeze: false`` とし、fresh official の既定実引数だけを
+true にできる。
 
 既知限界: durable 側が保証するのは、測定前に create-only で共有 store へ置く事前 commitment、
 生成後 artifact の書換と resume 後の basis 付替えの検出、台帳と artifact が食い違うときの
@@ -462,16 +463,15 @@ def _validate_mode(mode) -> str:
     return "pilot" if mode == "pilot" else "official"
 
 
-def _assert_official_permitted(mode: str) -> None:
-    """official の production 拒否。テスト専用 seam。
-
-    production flag・環境変数・引数での bypass を作らない。テストは局所的な monkeypatch だけで
-    dormant な official 結線を検証し、production の拒否意味論を変えない。
-    """
-    if mode == "official":
+def _assert_official_permitted(
+    mode: str,
+    confirm_official_floor_run: bool,
+) -> None:
+    """official は exact bool の明示承認がある場合だけ許可する。"""
+    if mode == "official" and confirm_official_floor_run is not True:
         raise FloorCampaignError(
-            "official mode は §8 (承認束縛方式) 未裁定のため core で無条件拒否する "
-            "(F6 まで pilot のみ実行可)"
+            "official mode は明示承認がないため core で拒否する "
+            "(--confirm-official-floor-run が必要)"
         )
 
 
@@ -5163,8 +5163,8 @@ def _atomic_create_only_json(
 # --------------------------------------------------------------------------- #
 # launch certificate (C2-2) — official 開始時の clean-scan 証明                 #
 #                                                                             #
-# production の official 拒否は _assert_official_permitted で不変のまま、テスト専用     #
-# seam の内側に発行・journal・resume の dormant 結線を置く。production bypass 面は持たない。#
+# official は CLI・public wrapper・private core で同じ明示承認を独立に要求する。         #
+# 承認 bool は測定 seam に含めず、発行・journal・resume の結線へも記録しない。          #
 # --------------------------------------------------------------------------- #
 
 def _pre_oracle_blob(root: Path, commit: str, rel: str, *, label: str) -> bytes:
@@ -7179,7 +7179,8 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
                  fetchcontent_base_dir=None,
                  after_certificate_issued_fn=None,
                  durable_root_policy=None, perf_preflight_fn=None,
-                 protocol_path: Path | str | None = None) -> dict:
+                 protocol_path: Path | str | None = None,
+                 confirm_official_floor_run: bool = False) -> dict:
     """Production wrapper with no caller-provided callable seams."""
     mode = _validate_mode(mode)
     nondefault_seams = _nondefault_campaign_seams(
@@ -7205,7 +7206,7 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
             raise FloorCampaignError(
                 f"official mode への非 default seam 注入を拒否する: {non_default}")
     if mode == "official":
-        _assert_official_permitted(mode)
+        _assert_official_permitted(mode, confirm_official_floor_run)
     authority_root = ROOT if repo_root is None else Path(repo_root)
     _require_supplied_protocol_authority(
         protocol, root=authority_root,
@@ -7223,6 +7224,7 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         after_certificate_issued_fn=after_certificate_issued_fn,
         durable_root_policy=durable_root_policy,
         perf_preflight_fn=perf_preflight_fn,
+        confirm_official_floor_run=confirm_official_floor_run,
     )
 
 
@@ -7235,7 +7237,8 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
                        after_certificate_issued_fn=None,
                        durable_root_policy=None, _floor_preflight_fn=None,
                        perf_preflight_fn=None, _holdout_repo_root=None,
-                       _holdout_signature_source=None) -> dict:
+                       _holdout_signature_source=None,
+                       confirm_official_floor_run: bool = False) -> dict:
     """floor campaign を直列・単一テナントで実行し、floor 案 artifact を書いて返す。
 
     注入点 (テスト容易性): ``measure_fn(binary, records, threads, workload) -> ScalePoint`` /
@@ -7301,7 +7304,7 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         build_fn = buildcache.build_v2
     else:
         build_fn = build_fn or buildcache.build_v2
-    _assert_official_permitted(mode)
+    _assert_official_permitted(mode, confirm_official_floor_run)
 
     if not isinstance(freeze_doc, _freeze_io.VerifiedFreeze):
         raise FloorCampaignError("freeze_doc が load_verified_freeze の戻り値でない")
@@ -8403,6 +8406,10 @@ def _parser() -> argparse.ArgumentParser:
         "--fetchcontent-base-dir", type=Path, default=None,
         help="staged FetchContent payload の base directory (pilot専用の非default seam)",
     )
+    parser.add_argument(
+        "--confirm-official-floor-run", action="store_true",
+        help="official floor campaign の明示承認",
+    )
     return parser
 
 
@@ -8598,12 +8605,12 @@ def main(argv=None) -> int:
 
     args = _parser().parse_args(cli_argv)
 
-    # official は §8 未裁定につき CLI でも拒否する (core も二重に拒否する, δ-3)。
-    if args.mode == "official":
+    # official は CLI でも明示承認を要求する (core も二重に拒否する, δ-3)。
+    if args.mode == "official" and args.confirm_official_floor_run is not True:
         print(json.dumps({
             "status": "refused",
-            "reason": "official mode は承認束縛方式が §8 未裁定のため現時点で拒否する "
-                      "(pilot のみ実行可)",
+            "reason": "official mode は --confirm-official-floor-run による "
+                      "明示承認がないため拒否する",
         }, ensure_ascii=False))
         return 2
 
@@ -8627,6 +8634,7 @@ def main(argv=None) -> int:
             resume_dir=args.resume,
             fetchcontent_base_dir=args.fetchcontent_base_dir,
             protocol_path=supplied_protocol_path,
+            confirm_official_floor_run=args.confirm_official_floor_run,
         )
     except SortSwoOracleUnavailable as exc:
         return _emit_sort_swo_unavailable(exc)

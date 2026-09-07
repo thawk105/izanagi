@@ -1,0 +1,215 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 240,
+ "timeout_seconds": 3600,
+ "hang_timeout_seconds": 1200,
+ "mutations": [
+  {
+   "id": "M1",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/output_snapshot_ignores.py",
+     "old": "            and not _path_is_changed(relative, changed)\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_git_index_fast_path_matches_reference"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M2",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/output_snapshot_ignores.py",
+     "old": "        index_entry = tracked.get(relative)\n",
+     "new": "        index_entry = tracked.get(relative)\n        if index_entry is None:\n            continue\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_git_index_fast_path_matches_reference"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M3",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/output_snapshot_ignores.py",
+     "old": "        else:\n            snapshot.append((\"dir\", relative))\n",
+     "new": "        else:\n            continue\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_git_index_fast_path_matches_reference"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M4",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/output_snapshot_ignores.py",
+     "old": "        cache_key = (blob_sha, repo_relative)\n",
+     "new": "        cache_key = (blob_sha, \"\")\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_git_index_cache_performance_model"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M5",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/output_snapshot_ignores.py",
+     "old": "        digest = _INDEX_BLOB_SHA256_CACHE.get(cache_key)\n        if digest is None:\n            digest = digester(absolute)\n",
+     "new": "        digest = _INDEX_BLOB_SHA256_CACHE.get(cache_key)\n        if digest is None:\n            digest = blob_sha.decode(\"ascii\")\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_git_index_fast_path_matches_reference"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M6",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/output_snapshot_ignores.py",
+     "old": "    if _core_autocrlf_enables_checkout_conversion(worktree_root):\n        fallback_reasons.append(\"core.autocrlf\")\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_git_index_cache_performance_model"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M9",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/output_snapshot_ignores.py",
+     "old": "        if flag == b\"S\":\n            fallback_reasons.append(\"skip-worktree\")\n        elif b\"a\" <= flag <= b\"z\":\n            fallback_reasons.append(\"assume-unchanged\")\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_git_index_cache_performance_model"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M10",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/output_snapshot_ignores.py",
+     "old": "    if not stdout.endswith(b\"\\0\"):\n        raise AssertionError(\n            f\"{' '.join(command)} が末尾 NUL のない出力を返した: {stdout!r}\"\n        )\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_git_snapshot_nul_parsers_fail_closed"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M11",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/output_snapshot_ignores.py",
+     "old": "        if (\n                relative == \".gitattributes\"\n                or relative.endswith(\"/.gitattributes\")\n        ):\n            fallback_reasons.append(\"subtree-gitattributes\")\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_git_index_cache_performance_model"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M12",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/output_snapshot_ignores.py",
+     "old": "    if _root_attributes_enable_checkout_conversion(\n            worktree_root, root_attributes_blob,\n    ):\n        fallback_reasons.append(\"root-gitattributes-conversion\")\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_git_index_cache_performance_model"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M7",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/conftest.py",
+     "old": "        relative_path = _ACCEPTANCE_LEDGER_RELATIVE_PATH_CACHE.get(path_key)\n",
+     "new": "        relative_path = next(\n            iter(_ACCEPTANCE_LEDGER_RELATIVE_PATH_CACHE.values()), None,\n        )\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g5_real_ledger_covers_at_least_90_percent_of_real_collection",
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g6_all_real_repo_items_stay_one_unit_and_keep_relative_order"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M8",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/conftest.py",
+     "old": "            relative_path = Path(path_key).resolve(strict=False).relative_to(\n                _ACCEPTANCE_DURATION_LEDGER_REPO_ROOT\n            ).as_posix()\n",
+     "new": "            relative_path = Path(path_key).resolve(strict=False).as_posix()\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g5_real_ledger_covers_at_least_90_percent_of_real_collection"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "C1",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/output_snapshot_ignores.py",
+     "old": "    \"\"\"``rglob`` と同じ entry 集合を symlink 非追跡で列挙する。\"\"\"\n",
+     "new": "    \"\"\"rglob と同じ entry 集合を symlink 非追跡で列挙する (control)。\"\"\"\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}

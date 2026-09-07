@@ -32,6 +32,7 @@ from typing import Mapping, Sequence, TypeAlias
 
 from . import reflux_origin_ledger as ledger
 from . import trigger_gate_binding
+from .model import STAGE_ABORT, STAGE_COMMIT
 from .reflux_origin_artifacts import (
     ArtifactError,
     canonical_json_bytes,
@@ -858,13 +859,13 @@ def _validate_wal_outcomes(
         attempt = physical["build_attempt_id"]
         _require(FormalReasonCode.FC07, _wal_field(terminal, "build_attempt_id") == attempt)
         if physical["outcome"] == "accepted":
-            _require(FormalReasonCode.FC07, terminal.get("kind") == "commit")
+            _require(FormalReasonCode.FC07, terminal.get("stage") == STAGE_COMMIT)
             _require(
                 FormalReasonCode.FC07,
                 tuple(_wal_field(terminal, "verify_configs") or ()) == ordered_verifiers,
             )
         else:
-            _require(FormalReasonCode.FC07, terminal.get("kind") == "abort")
+            _require(FormalReasonCode.FC07, terminal.get("stage") == STAGE_ABORT)
             _require(
                 FormalReasonCode.FC07,
                 _wal_field(terminal, "candidate_attributable") is True

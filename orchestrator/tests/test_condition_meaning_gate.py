@@ -34,6 +34,9 @@ _COMPILE_TIME_BRANCH_MACROS = (
     "IZANAGI_BREAK_PERMUTATION_SWAP",
     "IZANAGI_BREAK_LOCK_COVERAGE",
     "IZANAGI_BREAK_EARLY_UNLOCK",
+    "IZANAGI_BREAK_MOCC_LOCK_COVERAGE",
+    "IZANAGI_BREAK_MOCC_PERMUTATION",
+    "IZANAGI_BREAK_MOCC_EARLY_UNLOCK",
     "IZANAGI_BREAK_WRITE_INTENT_ERASE",
     "IZANAGI_BREAK_WRITE_INTENT_FORGE",
     "IZANAGI_BREAK_WRITE_INTENT_OPSWAP",
@@ -230,7 +233,8 @@ def _compile_time_source_root(
         assert directive is None and owner_text is None
         shutil.copytree(_SUPPLIED, root)
         return root
-    owner = root / "cc" / "silo" / "transaction.cc"
+    spec = G.DEFINE_SPECS[macro]
+    owner = root / spec.owner_tus[0]
     owner.parent.mkdir(parents=True)
     if owner_text is None:
         branch = (
@@ -242,11 +246,11 @@ def _compile_time_source_root(
             branch = "#if 1\n" + branch + "#endif\n"
         owner_text = prefix + branch + (branch if duplicate else "")
     owner.write_text(owner_text, encoding="utf-8")
-    return install_condition_gate_build_fixture(root)
+    return install_condition_gate_build_fixture(root, define_spec=spec)
 
 
 def _patch_added_branch_declaration(macro: str) -> tuple[str, str]:
-    """Derive the owner and exact start directive from real patch additions."""
+    """Derive the unique owner/directive pair from real patch additions."""
     patch = _ROOT / G.DEFINE_SPECS[macro].patch_rel
     current_target: str | None = None
     matches: list[tuple[str, str]] = []
@@ -2395,7 +2399,8 @@ def test_v1_domain_and_claim_boundaries_are_exact():
         "BACKOFF_FIXED", "BACKOFF_INCR_MILLI", "BACKOFF_MAX_US",
         "BACKOFF_COUNT_WINDOW", "BACKOFF_COUNT_CAP_US", "BACKOFF_STEP_ADAPT",
         "BACKOFF_STEP_MIN_MILLI", "BACKOFF_STEP_MAX_MILLI",
-        "BACKOFF_DYN_CEILING", "BACKOFF_TRACE",
+        "BACKOFF_DYN_CEILING", "BACKOFF_TRACE", "BACKOFF_STEP_POLICY",
+        "BACKOFF_STEP_POLICY_SEED",
         "BACKOFF_NOINLINE", "BACKOFF_REQUESTED_US", "BACKOFF_TRIGGER_GATING",
         "BACKOFF_UPDATE_US", "SORT_VARIANT", "SS2PL_LOCK_IMPL",
         "SS2PL_LOCK_KIND", "SS2PL_DLR", "SS2PL_WFG_DIAG",
@@ -2404,6 +2409,8 @@ def test_v1_domain_and_claim_boundaries_are_exact():
         "IZANAGI_BREAK_NOREAD_VALIDATION", "IZANAGI_BREAK_HIGHKEY_VALIDATION",
         "IZANAGI_BREAK_WRITE_INTENT_ERASE", "IZANAGI_BREAK_WRITE_INTENT_FORGE",
         "IZANAGI_BREAK_WRITE_INTENT_OPSWAP", "IZANAGI_BREAK_WRITE_INTENT_PTRSWAP",
+        "IZANAGI_BREAK_MOCC_LOCK_COVERAGE", "IZANAGI_BREAK_MOCC_PERMUTATION",
+        "IZANAGI_BREAK_MOCC_EARLY_UNLOCK",
         "IZANAGI_BREAK_TRIGGER_MISATTR", "IZANAGI_SILO_LADDER_RUNG1",
         "IZANAGI_SILO_LADDER_RUNG1_REPORT",
     }
@@ -2497,10 +2504,10 @@ def test_v1_domain_and_claim_boundaries_are_exact():
     ].companion_defines == (("IZANAGI_SILO_LADDER_RUNG1", "1"),)
     assert sum(
         spec.route == G.ROUTE_CMAKE_CACHE for spec in G.DEFINE_SPECS.values()
-    ) == 19
+    ) == 21
     assert sum(
         spec.route == G.ROUTE_CMAKE_CXX_FLAGS for spec in G.DEFINE_SPECS.values()
-    ) == 13
+    ) == 16
     assert G.CONTEXT_STARTS == (1, 2)
     assert G.DRIVER_INTEGRATION == "none"
     for invalid in (True, -1, 1.0, "1"):
@@ -2516,8 +2523,89 @@ def test_v1_domain_and_claim_boundaries_are_exact():
         G.MeaningCase(1, ("7ff0000000000000", "7ff0000000000000"))
 
 
-def test_module_claim_names_the_exact_32_define_supply_domain() -> None:
-    assert "supply domain contains the 32 patch-derived defines" in G.__doc__
+def test_counterfactual_specs_are_exact() -> None:
+    counterfactual_specs = {
+        macro: (
+            spec.patch_rel,
+            spec.owner_tus,
+            spec.target,
+            spec.inert_values,
+        )
+        for macro, spec in G.DEFINE_SPECS.items()
+        if spec.patch_rel == "patches/cicada-adaptive-counterfactual.patch"
+    }
+    assert counterfactual_specs == {
+        "BACKOFF_STEP_POLICY": (
+            "patches/cicada-adaptive-counterfactual.patch",
+            ("cc/silo/transaction.cc",),
+            "ycsb_silo.exe",
+            ("0",),
+        ),
+        "BACKOFF_STEP_POLICY_SEED": (
+            "patches/cicada-adaptive-counterfactual.patch",
+            ("cc/silo/transaction.cc",),
+            "ycsb_silo.exe",
+            (),
+        ),
+    }
+
+
+def test_define_inventory_includes_step_policy_default_zero() -> None:
+    patch_text = (
+        _ROOT / "patches" / "cicada-adaptive-counterfactual.patch"
+    ).read_text(encoding="utf-8")
+    assert (
+        '+set(CCBENCH_BACKOFF_STEP_POLICY 0 CACHE STRING '
+        '"backoff step policy (0=stock, 1=invert, 2=randomized)")'
+    ) in patch_text
+    assert (
+        '+set(CCBENCH_BACKOFF_STEP_POLICY_SEED 11400714819323198485 '
+        'CACHE STRING "deterministic backoff step policy seed")'
+    ) in patch_text
+    assert screening_driver._CONDITION_DEFAULTS["BACKOFF_STEP_POLICY"] == 0
+    assert screening_driver._CONDITION_DEFAULTS[
+        "BACKOFF_STEP_POLICY_SEED"
+    ] == 11400714819323198485
+    assert all(
+        G.DEFINE_SPECS[macro].route == G.ROUTE_CMAKE_CACHE
+        for macro in ("BACKOFF_STEP_POLICY", "BACKOFF_STEP_POLICY_SEED")
+    )
+
+    stock_requests = {
+        request.macro: request
+        for request in screening_driver._condition_requests_for_genome(
+            G.Genome("silo", {
+                "BACKOFF_STEP_POLICY": 0,
+                "BACKOFF_STEP_POLICY_SEED": 11400714819323198485,
+            })
+        )
+    }
+    nonstock_requests = {
+        request.macro: request
+        for request in screening_driver._condition_requests_for_genome(
+            G.Genome("silo", {
+                "BACKOFF_STEP_POLICY": 1,
+                "BACKOFF_STEP_POLICY_SEED": 11400714819323198485,
+            })
+        )
+    }
+    assert set(stock_requests) == {
+        "BACKOFF_STEP_POLICY", "BACKOFF_STEP_POLICY_SEED",
+    }
+    assert stock_requests["BACKOFF_STEP_POLICY"].default_value == 0
+    assert stock_requests["BACKOFF_STEP_POLICY"].stock_comparison is True
+    assert nonstock_requests["BACKOFF_STEP_POLICY"].default_value == 0
+    assert nonstock_requests["BACKOFF_STEP_POLICY"].stock_comparison is False
+    assert stock_requests[
+        "BACKOFF_STEP_POLICY_SEED"
+    ].default_value == 11400714819323198485
+    assert stock_requests["BACKOFF_STEP_POLICY_SEED"].stock_comparison is True
+
+
+def test_module_claim_names_the_exact_37_define_supply_domain() -> None:
+    assert "supply domain contains the 37 patch-derived defines" in G.__doc__
+    assert "registered macros plus three mocc controls additionally have a bounded" in G.__doc__
+    assert "compile-time witness (12 total)" in G.__doc__
 
 
 def test_captured_input_hash_drift_fails_closed():

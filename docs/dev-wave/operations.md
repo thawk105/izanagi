@@ -7,15 +7,14 @@
 
 `tools/dev_wave_codex.py --stage <stage> [--lane <lane>] -o <出力>.md` で起動（他の引数は `--help`）。model は全段、effort は段 5 / 6 が docs 権威から導出。caller 指定は不可。
 背景jobは`nohup setsid bash -c '<cmd>; echo $? > <log>.done' </dev/null`でdetach。
-prompt非空を先に検査し、既存`.done`を消去・再利用せず再投入を止める。
+prompt非空と`--dry-run`のargvを先に検査（段別flag違反はrc=2即死）。既存`.done`を消去・再利用せず再投入を止める。
 待機は `tools/dev_wave_wait.py producer` を使い、`--pid-file` は producer script 自身が `echo $$` で書く。
-wait側`--receipt-file`はworker launcher receiptと別pathにする（同じpathは証拠を上書きする）。
-完了は `.done` と exit code だけで判定し、grep も通知も待ち手 rc も判定にしない。成果物は最終メッセージから読む（F23/F24）。
+wait側`--receipt-file`はworker launcher receiptと別pathにする（同pathは証拠を上書き）。
+完了は`.done`とexit codeだけで判定し、grepも通知も待ち手rcも判定にしない。成果物は最終メッセージから読む（F23/F24）。
 採用は`tools/check_codex_output.py` rc=0（promptに`## 総括`必須、F43）。
 `<model>`: 全段 `gpt-5.6-sol` (段 3 の 2 本も同じ)。
-`--artifact-root`自身を先に作る。出力は`<root>/<wave>/`だけ、不在はrc=2。
-`--max-*`は非権威で増量可。重い巡はcall/tokenを見積もる。
-中断子は未完了と記して保全し、次の子に監査させる。
+`--artifact-root`は先に作る。出力は`<root>/<wave>/`だけ、不在はrc=2。
+`--max-*`は非権威で増量可。重い巡はcall/tokenを見積もる。中断子は未完了と記し次の子に監査させる。
 
 ## DW-O02 — job artifact
 

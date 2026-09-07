@@ -1,0 +1,501 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 1200,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "M1-policy-seed-ifdef",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/cicada-adaptive-counterfactual.patch",
+          "old": "+#if BACKOFF_STEP_POLICY == 2\n+#define BACKOFF_STEP_POLICY_SEED_STRING_INNER(value) #value\n+#define BACKOFF_STEP_POLICY_SEED_STRING(value) \\\n+  BACKOFF_STEP_POLICY_SEED_STRING_INNER(value)\n+  static constexpr uint64_t kBackoffStepPolicySeed = []() constexpr {\n+    const char* cursor =\n+        BACKOFF_STEP_POLICY_SEED_STRING(BACKOFF_STEP_POLICY_SEED);\n+    uint64_t parsed = 0;\n+    while (*cursor != '\\0') {\n+      parsed = parsed * 10 + static_cast<uint64_t>(*cursor - '0');\n+      ++cursor;\n+    }\n+    return parsed;\n+  }();\n+#undef BACKOFF_STEP_POLICY_SEED_STRING\n+#undef BACKOFF_STEP_POLICY_SEED_STRING_INNER\n+  uint64_t backoff_step_policy_state_ = kBackoffStepPolicySeed;\n+#endif\n",
+          "new": "+#ifdef BACKOFF_STEP_POLICY\n+#if BACKOFF_STEP_POLICY == 2\n+#define BACKOFF_STEP_POLICY_SEED_STRING_INNER(value) #value\n+#define BACKOFF_STEP_POLICY_SEED_STRING(value) \\\n+  BACKOFF_STEP_POLICY_SEED_STRING_INNER(value)\n+  static constexpr uint64_t kBackoffStepPolicySeed = []() constexpr {\n+    const char* cursor =\n+        BACKOFF_STEP_POLICY_SEED_STRING(BACKOFF_STEP_POLICY_SEED);\n+    uint64_t parsed = 0;\n+    while (*cursor != '\\0') {\n+      parsed = parsed * 10 + static_cast<uint64_t>(*cursor - '0');\n+      ++cursor;\n+    }\n+    return parsed;\n+  }();\n+  uint64_t backoff_step_policy_state_ = kBackoffStepPolicySeed;\n+#endif\n+#endif\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_patch_c_uses_numeric_if_and_adds_no_include"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-policy-cache-default-one",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/cicada-adaptive-counterfactual.patch",
+          "old": "+set(CCBENCH_BACKOFF_STEP_POLICY 0 CACHE STRING \"backoff step policy (0=stock, 1=invert, 2=randomized)\")\n",
+          "new": "+set(CCBENCH_BACKOFF_STEP_POLICY 1 CACHE STRING \"backoff step policy (0=stock, 1=invert, 2=randomized)\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_patch_c_cmake_cache_default_is_zero",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_define_inventory_includes_step_policy_default_zero"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-policy-definition-outside-function",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/cicada-adaptive-counterfactual.patch",
+          "old": " function(ccbench_universal_definitions out_var)\n   set(${out_var}\n     ADD_ANALYSIS=${CCBENCH_ADD_ANALYSIS}\n     BACK_OFF=${CCBENCH_BACK_OFF}\n     BACKOFF_COUNT_CAP_US=${CCBENCH_BACKOFF_COUNT_CAP_US}\n     BACKOFF_COUNT_WINDOW=${CCBENCH_BACKOFF_COUNT_WINDOW}\n     BACKOFF_DYN_CEILING=${CCBENCH_BACKOFF_DYN_CEILING}\n     BACKOFF_INCR_MILLI=${CCBENCH_BACKOFF_INCR_MILLI}\n     BACKOFF_MAX_US=${CCBENCH_BACKOFF_MAX_US}\n     BACKOFF_STEP_ADAPT=${CCBENCH_BACKOFF_STEP_ADAPT}\n+    BACKOFF_STEP_POLICY=${CCBENCH_BACKOFF_STEP_POLICY}\n+    BACKOFF_STEP_POLICY_SEED=${CCBENCH_BACKOFF_STEP_POLICY_SEED}\n",
+          "new": "+    BACKOFF_STEP_POLICY=${CCBENCH_BACKOFF_STEP_POLICY}\n function(ccbench_universal_definitions out_var)\n   set(${out_var}\n     ADD_ANALYSIS=${CCBENCH_ADD_ANALYSIS}\n     BACK_OFF=${CCBENCH_BACK_OFF}\n     BACKOFF_COUNT_CAP_US=${CCBENCH_BACKOFF_COUNT_CAP_US}\n     BACKOFF_COUNT_WINDOW=${CCBENCH_BACKOFF_COUNT_WINDOW}\n     BACKOFF_DYN_CEILING=${CCBENCH_BACKOFF_DYN_CEILING}\n     BACKOFF_INCR_MILLI=${CCBENCH_BACKOFF_INCR_MILLI}\n     BACKOFF_MAX_US=${CCBENCH_BACKOFF_MAX_US}\n     BACKOFF_STEP_ADAPT=${CCBENCH_BACKOFF_STEP_ADAPT}\n+    BACKOFF_STEP_POLICY_SEED=${CCBENCH_BACKOFF_STEP_POLICY_SEED}\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_patch_c_universal_definition_is_inside_the_function",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_nonexercising_target_for_one_reason[M17-negative]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_verifier_identity_drift_only",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_creates_group_only_after_all_24_requests",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_trace_disabled_cache_identity",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_target_exit_three_only",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_unbound_proof_surface_argv_for_one_reason[missing---protocol-target]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_contract_runs_full_real_verifier_path_and_saves_create_only",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_unbound_proof_surface_argv_for_one_reason[mismatch---ccbench-root-target]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_group_receipt_requires_exact_24_terminal_request_set",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_unbound_proof_surface_argv_for_one_reason[mismatch---protocol-target]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_nonexercising_target_for_one_reason[M2-edges]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_nonexercising_target_for_one_reason[M17-none]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_run_and_verify_phase_measurements_keep_distinct_meanings",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_post_verifier_identity_drift_only",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_nonexercising_target_for_one_reason[M17-non-int]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_lenient_argv_only",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_unbound_proof_surface_argv_for_one_reason[mismatch---ccbench-root-positive]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_substituted_target_trace_only",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_nonexercising_target_for_one_reason[M17-zero]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_unbound_proof_surface_argv_for_one_reason[missing---protocol-positive]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_unbound_proof_surface_argv_for_one_reason[missing---ccbench-root-target]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_unbound_proof_surface_argv_for_one_reason[missing---ccbench-root-positive]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_unbound_proof_surface_argv_for_one_reason[mismatch---protocol-positive]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-policy-one-keeps-recommendation",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/cicada-adaptive-counterfactual.patch",
+          "old": "+    new_backoff =\n+        izanagi_backoff_step_policy_origin - izanagi_backoff_step_policy_delta;\n",
+          "new": "+    new_backoff =\n+        izanagi_backoff_step_policy_origin + izanagi_backoff_step_policy_delta;\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_both_actions_feasible_is_computed_before_assignment",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_policy_one_reverses_safe_positive_and_negative_recommendations",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_inversion_is_applied_before_clamp",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_inversion_realized_is_one_only_for_unclamped_exact_inverse",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_policy_inversion_is_shared_by_all_step_ceiling_combinations",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_inversion_realized_is_zero_at_lower_and_fixed_upper_clamps"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-inversion-after-clamp",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/cicada-adaptive-counterfactual.patch",
+          "old": "+#if BACKOFF_STEP_POLICY == 1\n+    const double izanagi_backoff_step_policy_delta =\n+        new_backoff - izanagi_backoff_step_policy_origin;\n+    new_backoff =\n+        izanagi_backoff_step_policy_origin - izanagi_backoff_step_policy_delta;\n+#if BACKOFF_TRACE\n+    izanagi_backoff_trace_assigned_invert = 1;\n+#endif\n+#elif BACKOFF_STEP_POLICY == 2\n+    backoff_step_policy_state_ =\n+        backoff_step_policy_state_ * 6364136223846793005ULL +\n+        1442695040888963407ULL;\n+    const int izanagi_backoff_step_policy_invert =\n+        static_cast<int>((backoff_step_policy_state_ >> 63) & 1ULL);\n+#if BACKOFF_TRACE\n+    izanagi_backoff_trace_assigned_invert =\n+        izanagi_backoff_step_policy_invert;\n+#endif\n+    if (izanagi_backoff_step_policy_invert == 1) {\n+      const double izanagi_backoff_step_policy_delta =\n+          new_backoff - izanagi_backoff_step_policy_origin;\n+      new_backoff = izanagi_backoff_step_policy_origin -\n+                    izanagi_backoff_step_policy_delta;\n+    }\n+#endif\n+\n     if (new_backoff < kMinBackoff)\n       new_backoff = kMinBackoff;\n #if BACKOFF_DYN_CEILING\n     else if (new_backoff > ceiling_)\n       new_backoff = ceiling_;\n #else\n     else if (new_backoff > kMaxBackoff)\n       new_backoff = kMaxBackoff;\n+#endif\n",
+          "new": "     if (new_backoff < kMinBackoff)\n       new_backoff = kMinBackoff;\n #if BACKOFF_DYN_CEILING\n     else if (new_backoff > ceiling_)\n       new_backoff = ceiling_;\n #else\n     else if (new_backoff > kMaxBackoff)\n       new_backoff = kMaxBackoff;\n+#endif\n+\n+#if BACKOFF_STEP_POLICY == 1\n+    const double izanagi_backoff_step_policy_delta =\n+        new_backoff - izanagi_backoff_step_policy_origin;\n+    new_backoff =\n+        izanagi_backoff_step_policy_origin - izanagi_backoff_step_policy_delta;\n+#if BACKOFF_TRACE\n+    izanagi_backoff_trace_assigned_invert = 1;\n+#endif\n+#elif BACKOFF_STEP_POLICY == 2\n+    backoff_step_policy_state_ =\n+        backoff_step_policy_state_ * 6364136223846793005ULL +\n+        1442695040888963407ULL;\n+    const int izanagi_backoff_step_policy_invert =\n+        static_cast<int>((backoff_step_policy_state_ >> 63) & 1ULL);\n+#if BACKOFF_TRACE\n+    izanagi_backoff_trace_assigned_invert =\n+        izanagi_backoff_step_policy_invert;\n+#endif\n+    if (izanagi_backoff_step_policy_invert == 1) {\n+      const double izanagi_backoff_step_policy_delta =\n+          new_backoff - izanagi_backoff_step_policy_origin;\n+      new_backoff = izanagi_backoff_step_policy_origin -\n+                    izanagi_backoff_step_policy_delta;\n+    }\n+#endif\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_inversion_is_applied_before_clamp",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_inversion_realized_is_zero_at_lower_and_fixed_upper_clamps",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_policy_two_lcg_advances_on_every_update",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_inversion_realized_is_one_only_for_unclamped_exact_inverse",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_dynamic_ceiling_shrink_can_make_both_arms_equal",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_both_actions_feasible_is_computed_before_assignment"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-inversion-only-with-step-adapt",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/cicada-adaptive-counterfactual.patch",
+          "old": "+#if BACKOFF_STEP_POLICY > 0\n",
+          "new": "+#if BACKOFF_STEP_POLICY > 0 && BACKOFF_STEP_ADAPT\n"
+        },
+        {
+          "file": "patches/cicada-adaptive-counterfactual.patch",
+          "old": "+#if BACKOFF_STEP_POLICY == 1\n",
+          "new": "+#if BACKOFF_STEP_POLICY == 1 && BACKOFF_STEP_ADAPT\n"
+        },
+        {
+          "file": "patches/cicada-adaptive-counterfactual.patch",
+          "old": "+#elif BACKOFF_STEP_POLICY == 2\n",
+          "new": "+#elif BACKOFF_STEP_POLICY == 2 && BACKOFF_STEP_ADAPT\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_policy_inversion_is_shared_by_all_step_ceiling_combinations",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_policy_one_reverses_safe_positive_and_negative_recommendations",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_policy_two_assigned_one_reverses_recommendation",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_policy_two_lcg_advances_on_every_update",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_dynamic_ceiling_shrink_can_make_both_arms_equal",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_both_actions_feasible_is_computed_before_assignment",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_lcg_preprocesses_out_of_policy_zero_and_into_policy_two",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_policy_two_assignment_sequence_is_exact",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_inversion_realized_is_zero_at_lower_and_fixed_upper_clamps",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_inversion_is_applied_before_clamp",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_inversion_realized_is_one_only_for_unclamped_exact_inverse"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-policy-two-condition-zero",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/cicada-adaptive-counterfactual.patch",
+          "old": "+    if (izanagi_backoff_step_policy_invert == 1) {\n",
+          "new": "+    if (izanagi_backoff_step_policy_invert == 0) {\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_policy_two_assigned_zero_follows_recommendation",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_policy_two_assigned_one_reverses_recommendation",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_policy_two_assignment_sequence_is_exact",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_policy_two_lcg_advances_on_every_update"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8-lcg-addend-minus-five",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/cicada-adaptive-counterfactual.patch",
+          "old": "+        1442695040888963407ULL;\n",
+          "new": "+        1442695040888963407ULL - 5ULL;\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_policy_two_lcg_literals_are_exact",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_policy_two_assignment_sequence_is_exact"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9-lcg-skips-special-updates",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/cicada-adaptive-counterfactual.patch",
+          "old": "+    backoff_step_policy_state_ =\n+        backoff_step_policy_state_ * 6364136223846793005ULL +\n+        1442695040888963407ULL;\n+    const int izanagi_backoff_step_policy_invert =\n+        static_cast<int>((backoff_step_policy_state_ >> 63) & 1ULL);\n",
+          "new": "+    if (gradient != 0 && new_backoff != izanagi_backoff_step_policy_origin && izanagi_backoff_step_policy_origin - (new_backoff - izanagi_backoff_step_policy_origin) >= kMinBackoff)\n+    backoff_step_policy_state_ =\n+        backoff_step_policy_state_ * 6364136223846793005ULL +\n+        1442695040888963407ULL;\n+    const int izanagi_backoff_step_policy_invert = static_cast<int>((backoff_step_policy_state_ >> 63) & 1ULL);\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_policy_two_lcg_advances_on_every_update"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10-recommendation-aliases-gradient",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/cicada-adaptive-counterfactual.patch",
+          "old": "+    const int izanagi_backoff_trace_recommended_delta_sign =\n+        (izanagi_backoff_trace_recommended_delta > 0) -\n+        (izanagi_backoff_trace_recommended_delta < 0);\n",
+          "new": "+    const int izanagi_backoff_trace_recommended_delta_sign =\n+        gradient_sign\n+        /* mutation: alias the recommendation to the gradient */;\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_policy_two_lcg_advances_on_every_update",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_trace_v2_records_parity_recommendation_not_gradient_alias"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11-realized-uses-sign-only",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/cicada-adaptive-counterfactual.patch",
+          "old": "+    const int izanagi_backoff_trace_inversion_realized =\n+        izanagi_backoff_trace_assigned_invert == 1 &&\n+                izanagi_backoff_trace_recommended_delta_sign != 0 &&\n+                izanagi_backoff_trace_applied_delta ==\n+                    -izanagi_backoff_trace_recommended_delta\n+            ? 1\n+            : 0;\n",
+          "new": "+    const int izanagi_backoff_trace_inversion_realized =\n+        izanagi_backoff_trace_assigned_invert == 1 &&\n+                izanagi_backoff_trace_recommended_delta_sign != 0 &&\n+                izanagi_backoff_trace_applied_delta *\n+                    izanagi_backoff_trace_recommended_delta < 0\n+            ? 1\n+            : 0;\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_inversion_is_applied_before_clamp",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_inversion_realized_is_one_only_for_unclamped_exact_inverse",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_inversion_realized_is_zero_at_lower_and_fixed_upper_clamps",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_both_actions_feasible_is_computed_before_assignment"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M12-feasibility-after-assignment",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/cicada-adaptive-counterfactual.patch",
+          "old": "+    const int izanagi_backoff_trace_both_actions_feasible =\n+        new_backoff >= kMinBackoff &&\n+                new_backoff <= izanagi_backoff_trace_clamp_ceiling &&\n+                izanagi_backoff_trace_inverse_candidate >= kMinBackoff &&\n+                izanagi_backoff_trace_inverse_candidate <=\n+                    izanagi_backoff_trace_clamp_ceiling\n+            ? 1\n+            : 0;\n+#endif\n+\n+#if BACKOFF_STEP_POLICY == 1\n+    const double izanagi_backoff_step_policy_delta =\n+        new_backoff - izanagi_backoff_step_policy_origin;\n+    new_backoff =\n+        izanagi_backoff_step_policy_origin - izanagi_backoff_step_policy_delta;\n+#if BACKOFF_TRACE\n+    izanagi_backoff_trace_assigned_invert = 1;\n+#endif\n+#elif BACKOFF_STEP_POLICY == 2\n+    backoff_step_policy_state_ =\n+        backoff_step_policy_state_ * 6364136223846793005ULL +\n+        1442695040888963407ULL;\n+    const int izanagi_backoff_step_policy_invert =\n+        static_cast<int>((backoff_step_policy_state_ >> 63) & 1ULL);\n+#if BACKOFF_TRACE\n+    izanagi_backoff_trace_assigned_invert =\n+        izanagi_backoff_step_policy_invert;\n+#endif\n+    if (izanagi_backoff_step_policy_invert == 1) {\n+      const double izanagi_backoff_step_policy_delta =\n+          new_backoff - izanagi_backoff_step_policy_origin;\n+      new_backoff = izanagi_backoff_step_policy_origin -\n+                    izanagi_backoff_step_policy_delta;\n+    }\n+#endif\n",
+          "new": "+#endif\n+\n+#if BACKOFF_STEP_POLICY == 1\n+    const double izanagi_backoff_step_policy_delta =\n+        new_backoff - izanagi_backoff_step_policy_origin;\n+    new_backoff =\n+        izanagi_backoff_step_policy_origin - izanagi_backoff_step_policy_delta;\n+#if BACKOFF_TRACE\n+    izanagi_backoff_trace_assigned_invert = 1;\n+#endif\n+#elif BACKOFF_STEP_POLICY == 2\n+    backoff_step_policy_state_ =\n+        backoff_step_policy_state_ * 6364136223846793005ULL +\n+        1442695040888963407ULL;\n+    const int izanagi_backoff_step_policy_invert =\n+        static_cast<int>((backoff_step_policy_state_ >> 63) & 1ULL);\n+#if BACKOFF_TRACE\n+    izanagi_backoff_trace_assigned_invert =\n+        izanagi_backoff_step_policy_invert;\n+#endif\n+    if (izanagi_backoff_step_policy_invert == 1) {\n+      const double izanagi_backoff_step_policy_delta =\n+          new_backoff - izanagi_backoff_step_policy_origin;\n+      new_backoff = izanagi_backoff_step_policy_origin -\n+                    izanagi_backoff_step_policy_delta;\n+    }\n+#endif\n+#if BACKOFF_TRACE\n+    const int izanagi_backoff_trace_both_actions_feasible = new_backoff >= kMinBackoff &&\n+                new_backoff <= izanagi_backoff_trace_clamp_ceiling &&\n+                izanagi_backoff_trace_inverse_candidate >= kMinBackoff &&\n+                izanagi_backoff_trace_inverse_candidate <=\n+                    izanagi_backoff_trace_clamp_ceiling\n+            ? 1 : 0;\n+#endif\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_both_actions_feasible_is_computed_before_assignment"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M13-v2-emitter-drops-feasibility-field",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/cicada-adaptive-counterfactual.patch",
+          "old": "+            << \" both_actions_feasible=\"\n+            << izanagi_backoff_trace_item\n+                   .izanagi_backoff_trace_both_actions_feasible\n             << '\\n';\n",
+          "new": "+            // mutation: omit the v2 feasibility field from stdout\n+            // while retaining the record member in the trace structure\n+            // and retaining the surrounding emitter expression shape\n             << '\\n';\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_emitter_stdout_parses_with_the_real_parser"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M14-emitter-renames-assigned-field",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/cicada-adaptive-counterfactual.patch",
+          "old": "+            << \" assigned_invert=\"\n",
+          "new": "+            << \" assigned_inverse=\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_emitter_stdout_parses_with_the_real_parser"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M15-parser-rejects-runtime-twelve-field-cells",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "        if len(fields) not in {5, 11, 12} or any(not field for field in fields):\n",
+          "new": "        if (\n            len(fields) == 12\n            and \"COUNTERFACTUAL_TRACE_CELLS\" in globals()\n        ) or len(fields) not in {5, 11, 12} or any(not field for field in fields):\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_parse_cells_accepts_legacy_dynamic_and_policy_forms",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_eleven_and_explicit_policy_zero_have_distinct_identity",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_grid_distinguishes_policy_builds",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_genome_for_policy_cell_supplies_real_build_define",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_cell_document_round_trip_requires_policy_key_presence_to_match_format",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_backoff_trace_contract_accepts_only_two_exact_cell_literals",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_has_no_unreviewed_ungated_member",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M16-grid-omits-step-policy",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "            cell.dyn_ceiling,\n            cell.step_policy,\n            cell.has_step_policy,\n",
+          "new": "            cell.dyn_ceiling,\n            cell.has_step_policy,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_grid_distinguishes_policy_builds",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_has_no_unreviewed_ungated_member",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M17-document-ignores-policy-key-presence",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "    has_step_policy_key = \"step_policy\" in document\n    if has_step_policy_key != (fields == 12):\n        raise CertificationReject(\n            \"group-workload-contract-mismatch\",\n            \"certification cell format and step_policy presence disagree\",\n        )\n",
+          "new": "    has_step_policy_key = \"step_policy\" in document\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_cell_document_round_trip_requires_policy_key_presence_to_match_format",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_has_no_unreviewed_ungated_member",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M18-python-drops-counterfactual-trace-literal",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "    trace_contracts = {\n        TRACE_CELLS_TEXT: TRACE_CELLS,\n        COUNTERFACTUAL_TRACE_CELLS_TEXT: COUNTERFACTUAL_TRACE_CELLS,\n    }\n",
+          "new": "    trace_contracts = {\n        TRACE_CELLS_TEXT: TRACE_CELLS,\n    }\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_backoff_trace_contract_accepts_only_two_exact_cell_literals",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_has_no_unreviewed_ungated_member",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M19-pbs-counterfactual-literal-byte-drift",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.pbs",
+          "old": "COUNTERFACTUAL_TRACE_CELLS_RAW='cw-as-dyn-p0:1:1:1000:2560:10000:10240:1:1:4:1:0+cw-as-dyn-p1:1:1:1000:2560:10000:10240:1:1:4:1:1+cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2'\n",
+          "new": "COUNTERFACTUAL_TRACE_CELLS_RAW='cw-as-dyn-p0:1:1:1000:2560:10000:10240:1:1:4:1:0+cw-as-dyn-p1:1:1:1000:2560:10000:10240:1:1:4:1:1+cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:1'\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_two_layer_trace_literals_are_byte_identical"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M20-pbs-classifies-only-eleven-fields",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.pbs",
+          "old": "  if [[ ${#colon_text} -eq 10 || ${#colon_text} -eq 11 ]]; then\n",
+          "new": "  if [[ ${#colon_text} -eq 10 ]]; then\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_pbs_marks_eleven_and_twelve_fields_extended"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M21-patch-stack-omits-c",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "    stack = [\n        {\"path\": PATCH_A_REL, \"sha256\": a_sha256},\n        {\"path\": PATCH_B_REL, \"sha256\": b_sha256},\n        {\"path\": PATCH_C_REL, \"sha256\": c_sha256},\n    ]\n",
+          "new": "    stack = [\n        {\"path\": PATCH_A_REL, \"sha256\": a_sha256},\n        {\"path\": PATCH_B_REL, \"sha256\": b_sha256},\n    ]\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_patch_stack_identity_is_exact_ordered_a_b_c",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_has_no_unreviewed_ungated_member",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M22-counterfactual-performance-schema-v2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "SCHEMA_VERSION = \"izanagi-cicada-adaptive-3const-probe/v3\"\n",
+          "new": "SCHEMA_VERSION = \"izanagi-cicada-adaptive-3const-probe/v2\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_stack_artifacts_use_schema_v3"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M23-registry-drops-policy-seed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "    \"BACKOFF_STEP_POLICY_SEED\": DefineSpec(\n        ROUTE_CMAKE_CACHE, _SILO_OWNER, \"ycsb_silo.exe\",\n        \"patches/cicada-adaptive-counterfactual.patch\",\n        inert_values=(),\n    ),\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_counterfactual_specs_are_exact",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_define_inventory_includes_step_policy_default_zero",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_matches_condition_gate_registry",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_v1_domain_and_claim_boundaries_are_exact",
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_requests_cover_exact_define_specs"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M24-plot-rejects-ab-stack",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_dynamic_backoff.py",
+          "old": "    if identity[\"patch_stack\"] == expected_ab_stack:\n        if counterfactual_sha256 is not None:\n",
+          "new": "    if identity[\"patch_stack\"] == expected_ab_stack:\n        _fail(f\"{label}.patch_stack must be the preregistered ordered A+B+C stack\")\n        if counterfactual_sha256 is not None:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_dynamic_backoff.py::test_practical_margin_fixture_controls_verdicts_and_robust_endpoint",
+        "orchestrator/tests/test_plot_dynamic_backoff.py::test_execution_identity_and_diagnostic_rep_fail_closed[diagnostic-rep-rep_index must be exactly 0]",
+        "orchestrator/tests/test_plot_dynamic_backoff.py::test_diagnostic_fixture_round_trips_producer_schema_and_nullable_rate",
+        "orchestrator/tests/test_plot_dynamic_backoff.py::test_layout_failure_leaves_no_partial_outputs",
+        "orchestrator/tests/test_plot_dynamic_backoff.py::test_hostname_duplicates_are_recorded_not_rejected",
+        "orchestrator/tests/test_plot_dynamic_backoff.py::test_full_size_fixture_writes_three_figures_and_frozen_statistics",
+        "orchestrator/tests/test_plot_dynamic_backoff.py::test_plot_accepts_both_ab_and_abc_stacks",
+        "orchestrator/tests/test_plot_dynamic_backoff.py::test_plot_still_accepts_existing_ab_artifacts",
+        "orchestrator/tests/test_plot_dynamic_backoff.py::test_six_files_point_missing_and_n_insufficient_follow_preregistration",
+        "orchestrator/tests/test_plot_dynamic_backoff.py::test_large_log_ratio_percentages_use_independent_exponential_transform"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M25-equivalent-comment-wording",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "patches/cicada-adaptive-counterfactual.patch",
+          "old": "           new_backoff == ceiling_) // 確率はおよそ 1/2, すなわちランダム．\n",
+          "new": "-          new_backoff == ceiling_) // 確率はおよそ 1/2, すなわちランダム．\n+          new_backoff == ceiling_) // 偶奇分岐はおよそ半々になる．\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

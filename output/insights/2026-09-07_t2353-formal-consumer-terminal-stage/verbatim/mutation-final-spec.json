@@ -1,0 +1,100 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 1200,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "B-057-M1",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "old": "_require(FormalReasonCode.FC07, terminal.get(\"stage\") == STAGE_COMMIT)",
+          "new": "_require(FormalReasonCode.FC07, terminal.get(\"stage\") == STAGE_ABORT)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc07_accepts_production_commit_terminal_shape"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "B-057-M2",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "old": "_require(FormalReasonCode.FC07, terminal.get(\"stage\") == STAGE_ABORT)",
+          "new": "_require(FormalReasonCode.FC07, terminal.get(\"stage\") == STAGE_COMMIT)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_origin_public_path_preserves_capability_identity_and_projects_terminal",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_exact_fixture_contract_reaches_only_p6_unavailable",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc07_accepts_production_commit_terminal_shape",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc09_rejects_kmax_excess",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc09_rejects_query_floor_mismatch",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc10_rejects_origin_containing_all_tombstone_batch",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_live_producer_trigger_with_source_reaches_only_p6_unavailable",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_live_producer_trigger_without_source_reaches_only_p6_unavailable",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_receipt_exact_operation_replay_returns_cached_decision",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_receipt_has_exact_keys_independent_canonical_bytes_and_no_self_digest",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_receipt_rejects_wrong_input_state_commitment",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_receipt_rejects_wrong_terminal_payload_digest",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_receipt_same_operation_different_payload_is_rejected",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_terminal_projection_is_one_nested_key_with_closed_reason",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_verbatim_producer_records_with_only_attempt_transplanted_reach_p6"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "B-057-M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "old": "_require(FormalReasonCode.FC07, terminal.get(\"stage\") == STAGE_COMMIT)",
+          "new": "_require(FormalReasonCode.FC07, terminal.get(\"kind\") == \"commit\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc07_accepts_production_commit_terminal_shape"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "B-057-M4",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/reflux_origin_fixture_baseline.json",
+          "old": "\"canonical_sha256\": \"271323c60ad2af8b4034872096d5c1c5066f26c6c85689252dd5ce762ddd3bc6\"",
+          "new": "\"canonical_sha256\": \"271323c60ad2af8b4034872096d5c1c5066f26c6c85689252dd5ce762ddd3bc7\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_origin_fixture_builder.py::test_baseline_schema_and_every_entry_match_independent_recalculation"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "B-057-M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "old": "_require(FormalReasonCode.FC07, terminal.get(\"stage\") == STAGE_ABORT)",
+          "new": "_require(FormalReasonCode.FC07, _wal_field(terminal, \"stage\") == STAGE_ABORT)"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

@@ -257,6 +257,7 @@ def _prepare_fixture_effective_binding(
             manifest_path=manifest_path,
             manifest_sha256=manifest.sha256,
             freeze_id=f"freeze-{manifest.sha256[:16]}",
+            prereg_generation=13,
             slots=slots,
         )
     head = _head(repo)
@@ -1696,12 +1697,28 @@ def test_p5_six_complete_terminal_reports_pass_acceptance(tmp_path: Path) -> Non
         })
     lifecycle_bytes = (repo / R.DEFAULT_LIFECYCLE_PATH).read_bytes()
     registry_bytes = registry.read_bytes()
+    attempt_registry_path = repo / R.DEFAULT_ATTEMPT_REGISTRY_PATH
+    attempt_registry_bytes = attempt_registry_path.read_bytes()
+    attempt_genesis = json.loads(attempt_registry_bytes.splitlines()[0])
+    initial_slots = sorted(
+        (
+            slot for slot in attempt_genesis["slots"]
+            if slot["attempt_index"] == 0
+        ),
+        key=lambda slot: slot["slot_id"],
+    )
     first_report = json.loads(reports[0].read_bytes())
     expected_receipt = {
-        "schema_version": "p3-8c-trial-acceptance-receipt/v4",
+        "schema_version": "p3-8c-trial-acceptance-receipt/v5",
         "manifest_path": manifest_path.relative_to(repo).as_posix(),
         "manifest_sha256": manifest.sha256,
         "prereg_commit": manifest.prereg_commit,
+        "prereg_content_commit": first_report[
+            "launch_admission"
+        ]["prereg_content_commit"],
+        "prereg_effective_commit": first_report[
+            "launch_admission"
+        ]["prereg_effective_commit"],
         "activation_report_digest_sha256": first_report[
             "launch_admission"
         ]["activation_report_digest_sha256"],
@@ -1711,6 +1728,26 @@ def test_p5_six_complete_terminal_reports_pass_acceptance(tmp_path: Path) -> Non
         "lifecycle_path": R.DEFAULT_LIFECYCLE_PATH.as_posix(),
         "lifecycle_prefix_bytes": len(lifecycle_bytes),
         "lifecycle_prefix_sha256": hashlib.sha256(lifecycle_bytes).hexdigest(),
+        "attempt_registry_path": R.DEFAULT_ATTEMPT_REGISTRY_PATH.as_posix(),
+        "attempt_registry_prefix_bytes": len(attempt_registry_bytes),
+        "attempt_registry_prefix_sha256": hashlib.sha256(
+            attempt_registry_bytes
+        ).hexdigest(),
+        "attempt_slot_projection": {
+            "prereg_generation": 13,
+            "unit_count": len(initial_slots),
+            "units": [
+                {
+                    "slot_id": slot["slot_id"],
+                    "trial_id": slot["trial_id"],
+                    "arm": slot["arm"],
+                    "holdout": slot["holdout"],
+                    "campaign_id": slot["campaign_id"],
+                    "replicate_index": slot["replicate_index"],
+                }
+                for slot in initial_slots
+            ],
+        },
         "certifying": False,
         "non_certifying_reason_codes": [
             "no-build", "t468-approval-authority-absent",
@@ -1730,6 +1767,11 @@ def test_p5_six_complete_terminal_reports_pass_acceptance(tmp_path: Path) -> Non
     # the fixture repository and every key, leaf, and trial-array position is
     # compared.
     assert receipt == expected_receipt
+    assert receipt["prereg_commit"] != receipt["prereg_content_commit"]
+    assert (
+        receipt["prereg_content_commit"]
+        != receipt["prereg_effective_commit"]
+    )
     receipt_path = repo / summary.receipt_path
     _commit(repo, "track acceptance receipt v2", receipt_path)
     verified = R.s8c_acceptance_receipt.verify_acceptance_receipt(
@@ -5749,6 +5791,7 @@ def _attempt_slots(manifest: R.TrialManifest, *, repeats_for_first: int = 1) -> 
                 "arm": trial.arm,
                 "holdout": trial.holdout,
                 "campaign_id": trial.campaign_id,
+                "prereg_generation": 13,
                 "replicate_index": 0,
                 "attempt_index": attempt_index,
             }
@@ -5785,7 +5828,7 @@ def _attempt_fixture(
                 key: base[key]
                 for key in (
                     "trial_id", "arm", "holdout", "campaign_id",
-                    "replicate_index", "attempt_index",
+                    "prereg_generation", "replicate_index", "attempt_index",
                 )
             })
         ).hexdigest()
@@ -5795,6 +5838,7 @@ def _attempt_fixture(
         manifest_path=manifest_path,
         manifest_sha256=manifest.sha256,
         freeze_id="freeze-attempt-fixture",
+        prereg_generation=13,
         slots=slots,
     )
     if legacy_genesis:
@@ -5803,6 +5847,8 @@ def _attempt_fixture(
         legacy_genesis_row["schema_version"] = "p3-8c-attempt-registry/v1"
         for field in ("event_index", "previous_event_sha256", "event_sha256"):
             legacy_genesis_row.pop(field, None)
+        for slot in legacy_genesis_row["slots"]:
+            slot.pop("prereg_generation")
         registry.write_bytes(_canonical(legacy_genesis_row) + b"\n")
     content_commit = _commit(repo, "attempt genesis", registry)
     genesis_bytes = registry.read_bytes()
@@ -5940,10 +5986,13 @@ def _classify_and_terminal(
 
 
 def _rechain_attempt_rows(rows: list[dict]) -> list[dict]:
-    """Recompute only v2 chain fields after an intentional semantic mutation."""
+    """Recompute v2/v3 chain fields after an intentional semantic mutation."""
     previous = "0" * 64
     for index, row in enumerate(rows):
-        if row.get("schema_version") != R.ATTEMPT_REGISTRY_SCHEMA_VERSION:
+        if row.get("schema_version") not in {
+            "p3-8c-attempt-registry/v2",
+            R.ATTEMPT_REGISTRY_SCHEMA_VERSION,
+        }:
             if index == 0:
                 previous = "0" * 64
             continue
@@ -6143,6 +6192,7 @@ def _effective_binding_fixture(
         manifest_path=manifest_path,
         manifest_sha256=manifest.sha256,
         freeze_id="freeze-effective-fixture",
+        prereg_generation=13,
         slots=slots,
     )
     content = _commit(repo, "content and genesis", manifest_path, genesis)
@@ -6397,6 +6447,7 @@ def test_attempt_registry_genesis_is_closed_before_first_performance_observation
             manifest_path=repo / "manifest.json",
             manifest_sha256=manifest.sha256,
             freeze_id="freeze-attempt-fixture",
+            prereg_generation=13,
             slots=slots,
         )
     rows = [json.loads(line) for line in registry.read_text().splitlines()]
@@ -6406,6 +6457,117 @@ def test_attempt_registry_genesis_is_closed_before_first_performance_observation
         R._load_attempt_registry_bytes(
             b"".join(_canonical(row) + b"\n" for row in rows)
         )
+
+
+def test_m1_v3_reader_accepts_single_generation_and_rejects_mixed_generation(
+    tmp_path: Path,
+) -> None:
+    """M1 changes only the root-wide single-generation predicate."""
+    repo, _manifest, _loaded, registry, _p, _c, _freeze, _slots = (
+        _attempt_fixture(tmp_path)
+    )
+    valid_bytes = registry.read_bytes()
+    assert R._load_attempt_registry_bytes(valid_bytes)[0]["slots"][0][
+        "prereg_generation"
+    ] == 13
+
+    rows = [json.loads(line) for line in valid_bytes.splitlines()]
+    rows[0]["slots"][-1]["prereg_generation"] = 14
+    _rechain_attempt_rows(rows)
+    with pytest.raises(
+        R.TrialRegistryError,
+        match=(
+            r"^\[attempt-prereg-generation\] v3 genesis slots do not share "
+            r"one positive prereg_generation$"
+        ),
+    ):
+        R._load_attempt_registry_bytes(
+            b"".join(_canonical(row) + b"\n" for row in rows)
+        )
+
+
+def test_attempt_registry_v2_reader_remains_explicitly_mapped(
+    tmp_path: Path,
+) -> None:
+    repo, _manifest, _loaded, registry, _p, _c, _freeze, _slots = (
+        _attempt_fixture(tmp_path)
+    )
+    rows = [json.loads(line) for line in registry.read_bytes().splitlines()]
+    rows[0]["schema_version"] = "p3-8c-attempt-registry/v2"
+    for slot in rows[0]["slots"]:
+        slot.pop("prereg_generation")
+    _rechain_attempt_rows(rows)
+
+    checked = R._load_attempt_registry_bytes(
+        b"".join(_canonical(row) + b"\n" for row in rows)
+    )
+    assert checked[0]["schema_version"] == "p3-8c-attempt-registry/v2"
+    assert all("prereg_generation" not in slot for slot in checked[0]["slots"])
+
+
+def test_v3_capability_digest_binds_generation_without_receipt_duplication() -> None:
+    slot = {
+        "slot_id": "generation-binding-r0-a0",
+        "trial_id": "generation-binding",
+        "arm": "on",
+        "holdout": "H1",
+        "campaign_id": "generation-binding-campaign",
+        "prereg_generation": 13,
+        "replicate_index": 0,
+        "attempt_index": 0,
+        "schedule_row_sha256": "a" * 64,
+    }
+    generation_13 = R._attempt_capability_digest(
+        freeze_id="generation-binding-freeze",
+        slot=slot,
+        prereg_content_commit="1" * 40,
+        prereg_effective_commit="2" * 40,
+    )
+    generation_14 = R._attempt_capability_digest(
+        freeze_id="generation-binding-freeze",
+        slot={**slot, "prereg_generation": 14},
+        prereg_content_commit="1" * 40,
+        prereg_effective_commit="2" * 40,
+    )
+    assert generation_13 != generation_14
+    assert "prereg_generation" not in R._ATTEMPT_RECEIPT_KEYS
+
+
+def test_m2_genesis_creator_requires_exact_slot_generation(
+    tmp_path: Path,
+) -> None:
+    """M2 changes only the required argument-to-slot exact-match predicate."""
+    repo, seed = _init_repo(tmp_path)
+    manifest_path = repo / "manifest.json"
+    _write_manifest(manifest_path, _manifest_value(seed, "m2-generation"))
+    _commit(repo, "m2 manifest", manifest_path)
+    manifest = R.load_trial_manifest(manifest_path)
+    slots = _attempt_slots(manifest)
+    with pytest.raises(
+        R.TrialRegistryError,
+        match=(
+            r"^\[attempt-prereg-generation\] prereg_generation differs from "
+            r"slots\[0\]\.prereg_generation$"
+        ),
+    ):
+        R.create_attempt_registry_genesis(
+            repository_root=repo,
+            manifest_path=manifest_path,
+            manifest_sha256=manifest.sha256,
+            freeze_id="m2-generation",
+            prereg_generation=14,
+            slots=slots,
+        )
+
+    created = R.create_attempt_registry_genesis(
+        repository_root=repo,
+        manifest_path=manifest_path,
+        manifest_sha256=manifest.sha256,
+        freeze_id="m2-generation",
+        prereg_generation=13,
+        slots=slots,
+    )
+    assert created.is_file()
 
 
 def test_attempt_registry_consumes_only_next_slot_for_same_failed_repeat(
@@ -6890,21 +7052,36 @@ def test_attempt_registry_records_seal_observation_and_monotonic_event_index(
 
 
 def test_attempt_event_hash_matches_golden_vector() -> None:
-    row = {
-        "schema_version": R.ATTEMPT_REGISTRY_SCHEMA_VERSION,
+    """Keep the v2 vector fixed while pinning the v3 generation-bound schema."""
+    previous = (
+        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    )
+    v2_row = {
+        "schema_version": "p3-8c-attempt-registry/v2",
         "event": "classification",
         "freeze_id": "freeze-golden-vector",
         "slot_id": "trial-r0-a0",
     }
-    sealed = R._attempt_v2_event_row(
-        row,
+    v2_sealed = R._attempt_v2_event_row(
+        v2_row,
         event_index=3,
-        previous_event_sha256=(
-            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-        ),
+        previous_event_sha256=previous,
     )
-    assert sealed["event_sha256"] == (
+    assert v2_sealed["event_sha256"] == (
         "c87db9b4449f49eaea673b567d0e1e5db6b4a9bf97075ca4c4dc5f3652a4b8f7"
+    )
+
+    # Generation enters the v3 capability digest (pinned in the adjacent
+    # generation-binding test), while the v3 schema token distinguishes every
+    # chained row carrying that capability contract.  This reduced vector has
+    # no capability field, so the schema token is the direct changed byte.
+    v3_sealed = R._attempt_v2_event_row(
+        {**v2_row, "schema_version": R.ATTEMPT_REGISTRY_SCHEMA_VERSION},
+        event_index=3,
+        previous_event_sha256=previous,
+    )
+    assert v3_sealed["event_sha256"] == (
+        "b71bbdd5f8253c6744907e9ab7aa100fd71736c335a4129cb31fb95059c0b3ab"
     )
 
 

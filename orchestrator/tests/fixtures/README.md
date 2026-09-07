@@ -19,6 +19,7 @@
 | `g4_rw_no_cycle` | serializable | rw 辺が 1 本あるが cycle 無し (「rw=即異常」の誤検出ガード) |
 | `g5_silo_real_prefix` | serializable (certified) | **実 emitter 由来**。実 Silo 実行の commit-stamp prefix。1,345 txn / 8,466 辺 |
 | `g6_silo_serial_1thread` | serializable (certified) | **実 emitter 由来・1 thread**。判定が verifier の外で決まる緑側の地面。200 txn / 931 辺 / 1 file |
+| `g7_mocc_minimal_2thread` | serializable (certified) | synthetic mocc clean。実 producer の出力ではない。patched snapshot (instr 適用 source) と組でのみ certified、unpatched source では indeterminate |
 | `r1_write_skew` | **non-serializable / G2** | 古典的 write-skew。2 本の rw で 2-cycle |
 | `r2_lost_update` | **non-serializable / G2** | lost update。rw + ww の 2-cycle (2 スレッド) |
 | `r3_cycle3` | **non-serializable / G2** | 3 trx の rw cycle (x→y→z→x) |
@@ -31,11 +32,14 @@
 | `integrity_orphan` | **indeterminate** | 非 genesis なのに producer 不在の read (orphan)。cycle は無いが認証不能 |
 | `m1_commit_at_genesis` | **indeterminate** | trx が番兵 (1,0) で commit (非物理)。wr 辺は落とさず弾く (FIX2 回帰) |
 | `m2_version_dup` | **indeterminate** | 同一 (key,版) を 2 trx が産む malformed (FIX1 回帰) |
+| `m3_mocc_lock_coverage` | **indeterminate** | mocc X integrity positive control。実 producer の出力ではない |
+| `m4_mocc_permutation` | **indeterminate** | mocc P integrity positive control。実 producer の出力ではない |
 | `p1_phantom_skew` | serializable (限界) | 述語 phantom skew。key 粒度では見えない**スコープ限界** (insights 参照) |
 
-`m*` (malformed) と `integrity_orphan` は **絶対規律2 の硬化**の回帰: integrity 不良の
+`m1` / `m2` (malformed) と `integrity_orphan` は **絶対規律2 の硬化**の回帰: integrity 不良の
 trace で `serializable` を主張せず `indeterminate` を返す (辺が落ちて real cycle を
-隠す false-green を防ぐ)。`p1_phantom_skew` は trace 形式の限界を固定する (バグではない)。
+隠す false-green を防ぐ)。`m3` / `m4` は framing・syntax が正しい mocc proof-surface の
+integrity positive control である。`p1_phantom_skew` は trace 形式の限界を固定する (バグではない)。
 
 ## なぜ赤フィクスチャが全部 G2 か (構造的事実)
 

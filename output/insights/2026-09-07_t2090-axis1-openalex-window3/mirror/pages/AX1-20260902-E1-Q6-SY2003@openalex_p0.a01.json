@@ -1,0 +1,266 @@
+{
+  "completion": [
+    {
+      "condition": 1,
+      "detail": "interpreted query matches",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 2,
+      "detail": "page position is continuous",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 3,
+      "detail": "actual element count matches cursor cardinality",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 4,
+      "detail": "preserved all 108 occurrences",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 5,
+      "detail": "page contribution retained for leaf-wide distinct-ID, shard, and independent-pass evaluation",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 6,
+      "detail": "response terminated normally and evidence is stored",
+      "passed": true,
+      "reason_code": null
+    }
+  ],
+  "document_type": "page_evidence",
+  "failure": null,
+  "identity": {
+    "attempt_number": 1,
+    "catalog_path": "docs/related-work/claim-survey/2026-09-02-axis1-search-catalog.json",
+    "catalog_sha256": "8e23d63a799c8ab9d25151012c34bc738dbb422ac3dfb237999c359137c816ab",
+    "index": "openalex",
+    "leaf_query_id": "AX1-20260902-E1-Q6-SY2003@openalex",
+    "logical_query_id": "AX1-20260902-E1-Q6@openalex",
+    "page_number": 0,
+    "pass_number": 1,
+    "registration_commit": "4ec3eba04354f9ba86117a2dd488c72d007045e6",
+    "registration_epoch": "AX1-20260902-E1",
+    "request_id": "AX1-20260902-E1-Q6-SY2003@openalex#p0",
+    "run_id": "t2090-openalex-20260907",
+    "window_number": 1
+  },
+  "parse": {
+    "actual_count": 108,
+    "capacity_echo": 200,
+    "declared_total": 108,
+    "interpreted_query": "{\"filter_rows\":[{\"column_id\":\"from_publication_date\",\"value\":\"2003-01-01\"},{\"column_id\":\"to_publication_date\",\"value\":\"2003-12-31\"},{\"filters\":[{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"LLM agent\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"auto-tuning\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"automatic generation\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"code generation\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"compiler injection\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"evolutionary search\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"genetic programming\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"large language model\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"learned\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"program synthesis\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"reinforcement learning\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"superoptimization\\\"\"}],\"join\":\"or\"},{\"filters\":[{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"TPC-C\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"YCSB\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"benchmark\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"contention\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"many-core\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"read-write ratio\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"skew\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"workload\\\"\"}],\"join\":\"or\"},{\"filters\":[{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"action space\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"algorithm\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"design space\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"implementation\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"intermediate representation\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"policy\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"protocol\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"source code\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"variant\\\"\"}],\"join\":\"or\"}],\"get_rows\":\"works\"}",
+    "parse_errors": [],
+    "position_in": "*",
+    "position_out": null
+  },
+  "quota": {
+    "cost_usd": 0.001,
+    "credits_used": 10,
+    "limit": 1000,
+    "observed_at": "2026-09-07T02:42:53.563915Z",
+    "remaining": 359,
+    "reset_observation": "76628"
+  },
+  "records": {
+    "duplicate_occurrences": 0,
+    "index_work_id_digest": "b319c45bc1788f7f92b7f764127bb3238d7d37990095e60b92f9428c1cdeff41",
+    "index_work_ids": [
+      "https://openalex.org/W2132940773",
+      "https://openalex.org/W2108628477",
+      "https://openalex.org/W1885412325",
+      "https://openalex.org/W2117631199",
+      "https://openalex.org/W2162177192",
+      "https://openalex.org/W2099270968",
+      "https://openalex.org/W2141699448",
+      "https://openalex.org/W1485683465",
+      "https://openalex.org/W2057447866",
+      "https://openalex.org/W1726206169",
+      "https://openalex.org/W2101632550",
+      "https://openalex.org/W1492980301",
+      "https://openalex.org/W2101989466",
+      "https://openalex.org/W2126050751",
+      "https://openalex.org/W2144139895",
+      "https://openalex.org/W2016741014",
+      "https://openalex.org/W1969182567",
+      "https://openalex.org/W2146571341",
+      "https://openalex.org/W2149812765",
+      "https://openalex.org/W1488249787",
+      "https://openalex.org/W651669038",
+      "https://openalex.org/W86434456",
+      "https://openalex.org/W1568409566",
+      "https://openalex.org/W2118763921",
+      "https://openalex.org/W2107308202",
+      "https://openalex.org/W2130463867",
+      "https://openalex.org/W2128904081",
+      "https://openalex.org/W1503951801",
+      "https://openalex.org/W2104857724",
+      "https://openalex.org/W1527172735",
+      "https://openalex.org/W1595184331",
+      "https://openalex.org/W2078739175",
+      "https://openalex.org/W4252341881",
+      "https://openalex.org/W2164121649",
+      "https://openalex.org/W2049462737",
+      "https://openalex.org/W173271469",
+      "https://openalex.org/W2052356107",
+      "https://openalex.org/W2087537696",
+      "https://openalex.org/W1566145444",
+      "https://openalex.org/W2118909915",
+      "https://openalex.org/W1980081936",
+      "https://openalex.org/W1981350555",
+      "https://openalex.org/W4243705787",
+      "https://openalex.org/W4243431950",
+      "https://openalex.org/W2099564394",
+      "https://openalex.org/W2020080394",
+      "https://openalex.org/W2118921601",
+      "https://openalex.org/W1515671067",
+      "https://openalex.org/W2136794419",
+      "https://openalex.org/W2125522798",
+      "https://openalex.org/W4241549560",
+      "https://openalex.org/W1804337520",
+      "https://openalex.org/W1855300274",
+      "https://openalex.org/W1586873036",
+      "https://openalex.org/W2341806687",
+      "https://openalex.org/W1540265018",
+      "https://openalex.org/W2150805298",
+      "https://openalex.org/W1864712927",
+      "https://openalex.org/W1516248483",
+      "https://openalex.org/W4757378",
+      "https://openalex.org/W1561179502",
+      "https://openalex.org/W2182239168",
+      "https://openalex.org/W1954600077",
+      "https://openalex.org/W2532750180",
+      "https://openalex.org/W2150812079",
+      "https://openalex.org/W2088659514",
+      "https://openalex.org/W4256605001",
+      "https://openalex.org/W4236805321",
+      "https://openalex.org/W2169143738",
+      "https://openalex.org/W4233262716",
+      "https://openalex.org/W994584883",
+      "https://openalex.org/W9761094",
+      "https://openalex.org/W1480041557",
+      "https://openalex.org/W4232253787",
+      "https://openalex.org/W307030485",
+      "https://openalex.org/W2116916299",
+      "https://openalex.org/W2086855672",
+      "https://openalex.org/W2026035698",
+      "https://openalex.org/W2762763023",
+      "https://openalex.org/W2103645281",
+      "https://openalex.org/W342823311",
+      "https://openalex.org/W4243613711",
+      "https://openalex.org/W2144231744",
+      "https://openalex.org/W2147567917",
+      "https://openalex.org/W2061970893",
+      "https://openalex.org/W1972175170",
+      "https://openalex.org/W2993054410",
+      "https://openalex.org/W756331164",
+      "https://openalex.org/W1913931384",
+      "https://openalex.org/W2098473420",
+      "https://openalex.org/W1512161943",
+      "https://openalex.org/W4390429811",
+      "https://openalex.org/W1997759452",
+      "https://openalex.org/W44071390",
+      "https://openalex.org/W2369327828",
+      "https://openalex.org/W2069596582",
+      "https://openalex.org/W2285673611",
+      "https://openalex.org/W2313574125",
+      "https://openalex.org/W1990920902",
+      "https://openalex.org/W4205620666",
+      "https://openalex.org/W2908229864",
+      "https://openalex.org/W4252704315",
+      "https://openalex.org/W7138947663",
+      "https://openalex.org/W4239139728",
+      "https://openalex.org/W2061300390",
+      "https://openalex.org/W2333262388",
+      "https://openalex.org/W2059969955",
+      "https://openalex.org/W2314215679"
+    ],
+    "occurrence_count": 108,
+    "occurrence_ledger_path": "ledgers/AX1-20260902-E1-Q6-SY2003@openalex.pass1.b1f17dcbb3e2.json"
+  },
+  "request": {
+    "encoded_url": "https://api.openalex.org/works?filter=from_publication_date%3A2003-01-01%2Cto_publication_date%3A2003-12-31%2Ctitle_and_abstract.search%3A%28%22program+synthesis%22+OR+%22automatic+generation%22+OR+%22code+generation%22+OR+%22evolutionary+search%22+OR+%22genetic+programming%22+OR+%22large+language+model%22+OR+%22LLM+agent%22+OR+%22reinforcement+learning%22+OR+%22learned%22+OR+%22auto-tuning%22+OR+%22compiler+injection%22+OR+%22superoptimization%22%29+AND+%28%22protocol%22+OR+%22algorithm%22+OR+%22policy%22+OR+%22source+code%22+OR+%22implementation%22+OR+%22intermediate+representation%22+OR+%22action+space%22+OR+%22design+space%22+OR+%22variant%22%29+AND+%28%22workload%22+OR+%22benchmark%22+OR+%22YCSB%22+OR+%22TPC-C%22+OR+%22contention%22+OR+%22read-write+ratio%22+OR+%22skew%22+OR+%22many-core%22%29&per-page=200&cursor=%2A",
+    "expected_interpreted_query": "{\"filter_rows\":[{\"column_id\":\"from_publication_date\",\"value\":\"2003-01-01\"},{\"column_id\":\"to_publication_date\",\"value\":\"2003-12-31\"},{\"filters\":[{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"program synthesis\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"automatic generation\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"code generation\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"evolutionary search\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"genetic programming\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"large language model\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"LLM agent\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"reinforcement learning\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"learned\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"auto-tuning\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"compiler injection\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"superoptimization\\\"\"}],\"join\":\"or\"},{\"filters\":[{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"protocol\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"algorithm\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"policy\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"source code\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"implementation\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"intermediate representation\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"action space\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"design space\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"variant\\\"\"}],\"join\":\"or\"},{\"filters\":[{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"workload\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"benchmark\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"YCSB\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"TPC-C\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"contention\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"read-write ratio\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"skew\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"many-core\\\"\"}],\"join\":\"or\"}],\"get_rows\":\"works\"}",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "host": "api.openalex.org",
+    "method": "GET",
+    "parent_response_sha256": null,
+    "path": "/works",
+    "position_in": "*",
+    "query_parameters": [
+      [
+        "filter",
+        "from_publication_date:2003-01-01,to_publication_date:2003-12-31,title_and_abstract.search:(\"program synthesis\" OR \"automatic generation\" OR \"code generation\" OR \"evolutionary search\" OR \"genetic programming\" OR \"large language model\" OR \"LLM agent\" OR \"reinforcement learning\" OR \"learned\" OR \"auto-tuning\" OR \"compiler injection\" OR \"superoptimization\") AND (\"protocol\" OR \"algorithm\" OR \"policy\" OR \"source code\" OR \"implementation\" OR \"intermediate representation\" OR \"action space\" OR \"design space\" OR \"variant\") AND (\"workload\" OR \"benchmark\" OR \"YCSB\" OR \"TPC-C\" OR \"contention\" OR \"read-write ratio\" OR \"skew\" OR \"many-core\")"
+      ],
+      [
+        "per-page",
+        "200"
+      ],
+      [
+        "cursor",
+        "*"
+      ]
+    ],
+    "scheme": "https",
+    "timeout_s": 60.0
+  },
+  "response": {
+    "body_path": "raw/AX1-20260902-E1-Q6-SY2003@openalex_p0.a01.body.gz",
+    "byte_count": 1961685,
+    "content_type": "application/json",
+    "elapsed_s": 2.6811094469740056,
+    "final_url": "https://api.openalex.org/works?filter=from_publication_date%3A2003-01-01%2Cto_publication_date%3A2003-12-31%2Ctitle_and_abstract.search%3A%28%22program+synthesis%22+OR+%22automatic+generation%22+OR+%22code+generation%22+OR+%22evolutionary+search%22+OR+%22genetic+programming%22+OR+%22large+language+model%22+OR+%22LLM+agent%22+OR+%22reinforcement+learning%22+OR+%22learned%22+OR+%22auto-tuning%22+OR+%22compiler+injection%22+OR+%22superoptimization%22%29+AND+%28%22protocol%22+OR+%22algorithm%22+OR+%22policy%22+OR+%22source+code%22+OR+%22implementation%22+OR+%22intermediate+representation%22+OR+%22action+space%22+OR+%22design+space%22+OR+%22variant%22%29+AND+%28%22workload%22+OR+%22benchmark%22+OR+%22YCSB%22+OR+%22TPC-C%22+OR+%22contention%22+OR+%22read-write+ratio%22+OR+%22skew%22+OR+%22many-core%22%29&per-page=200&cursor=%2A",
+    "redirect_chain": [],
+    "safe_headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "X-RateLimit-Cost-USD",
+        "0.001"
+      ],
+      [
+        "X-RateLimit-Credits-Used",
+        "10"
+      ],
+      [
+        "X-RateLimit-Limit",
+        "1000"
+      ],
+      [
+        "X-RateLimit-Remaining",
+        "359"
+      ],
+      [
+        "X-RateLimit-Reset",
+        "76628"
+      ]
+    ],
+    "sha256": "d0e2ebae11e9a75ad068268845094ff64729542d0af2243f221dd8f5c6dc9257",
+    "status": 200
+  },
+  "schema_version": "izanagi-axis1-search-page-evidence/v1",
+  "wal": {
+    "issued_at": "2026-09-07T02:42:50.654472Z",
+    "parsed_at": "2026-09-07T02:42:53.613546Z",
+    "prepared_at": "2026-09-07T02:42:50.630823Z",
+    "response_stored_at": "2026-09-07T02:42:53.560573Z",
+    "state": "terminal",
+    "terminal_at": "2026-09-07T02:42:53.638412Z"
+  }
+}

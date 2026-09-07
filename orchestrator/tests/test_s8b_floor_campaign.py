@@ -84,7 +84,9 @@ from orchestrator.tests.test_masstree_archive_projection import (  # noqa: E402
 )
 from orchestrator.calibrator import perf_preflight as calibrator_perf_preflight  # noqa: E402
 from orchestrator.calibrator import runner as calibrator_runner  # noqa: E402
+from orchestrator.tests import output_snapshot_ignores as output_snapshots  # noqa: E402
 from orchestrator.tests.output_snapshot_ignores import (  # noqa: E402
+    git_indexed_output_snapshot,
     git_ignored_output_prefixes,
     git_ignored_output_snapshot_rules,
     is_git_ignored_output_path,
@@ -777,6 +779,8 @@ def _private_run_campaign(protocol, freeze_doc, **kwargs):
         _test_holdout_authority(kwargs["out_root"], protocol, freeze_doc)
         if "durable_root_policy" in kwargs else ROOT
     )
+    if kwargs.get("mode") == "official":
+        kwargs.setdefault("confirm_official_floor_run", True)
     return s8b_floor_campaign._run_campaign_core(
         protocol, freeze_doc,
         _holdout_repo_root=authority,
@@ -808,12 +812,11 @@ def _run_campaign(protocol, freeze_doc, *, out_root, build_root, measure_fn, pro
     )
     kwargs["_holdout_signature_source"] = freeze_doc.document["holdouts"]
     if mode == "official":
+        kwargs["confirm_official_floor_run"] = True
         official_preflight = (
             perf_preflight_fn or (lambda **_kwargs: _perf_receipt(available=True))
         )
-        with mock.patch.object(
-                s8b_floor_campaign, "_assert_official_permitted", lambda _mode: None), \
-                mock.patch.object(s8b_floor_campaign.buildcache, "build_v2", fake_build), \
+        with mock.patch.object(s8b_floor_campaign.buildcache, "build_v2", fake_build), \
                 mock.patch.object(
                     s8b_floor_campaign._perf_preflight,
                     "probe_perf_availability", official_preflight,
@@ -1690,33 +1693,20 @@ def _digest(abspath: str) -> str:
 
 # 32-worker 実測の file wall は base 42.19s / 4 thread 51.57s / 1 thread 41.78s。
 # critical path も 39.34s → 48.9s → 39.19s であり、disk 競合下では逐次 digest が最速だった。
-def _real_output_snapshot(output: Path = ROOT / "output") -> tuple:
+def _real_output_snapshot(
+        output: Path = ROOT / "output", *, repo_root: Path = ROOT,
+) -> tuple:
     """実 repo の Git-visible な output/ を統合テストが変えないことを固定する。
 
     旧実装との等価性は、安定しており、root と全 directory が読める通常 POSIX tree
     を定義域とする。
     """
-    if not output.exists():
-        return ()
-    ignored_prefixes, _ignored_ancestors = git_ignored_output_snapshot_rules(ROOT)
-    entries = [
-        entry for entry in _walk_entries(output)
-        if not is_git_ignored_output_path(entry[1], ignored_prefixes)
-    ]
-    files = [(rel, abspath) for kind, rel, abspath in entries if kind == "file"]
-    digest_by_rel = {}
-    for rel, abspath in files:
-        digest_by_rel[rel] = _digest(abspath)
-    snapshot = []
-    for kind, rel, abspath in entries:
-        if kind == "symlink":
-            snapshot.append(("symlink", rel, Path(abspath).readlink().as_posix()))
-        elif kind == "file":
-            snapshot.append(("file", rel, digest_by_rel[rel]))
-        else:
-            snapshot.append(("dir", rel))
-    snapshot.sort(key=lambda row: row[1])
-    return tuple(snapshot)
+    return git_indexed_output_snapshot(
+        output,
+        repo_root,
+        walk_entries=_walk_entries,
+        digest_file=_digest,
+    )
 
 
 def _real_output_snapshot_reference(output: Path = ROOT / "output") -> tuple:
@@ -1755,6 +1745,289 @@ def test_real_output_snapshot_matches_reference_and_is_deterministic(tmp_path):
     actual = _real_output_snapshot(output)
     assert actual == _real_output_snapshot_reference(output)
     assert actual == tuple(sorted(actual, key=lambda row: row[1]))
+
+
+def test_real_output_snapshot_git_index_fast_path_matches_reference(tmp_path):
+    repo = tmp_path / "indexed-output-repo"
+    output = repo / "output"
+    nested = output / "nested"
+    nested.mkdir(parents=True)
+    tracked = nested / "tracked.bin"
+    original_payload = b"tracked-alpha"
+    changed_payload = b"tracked-bravo"
+    assert len(original_payload) == len(changed_payload)
+    tracked.write_bytes(original_payload)
+    (output / "tracked-empty").write_bytes(b"")
+    (output / "tracked-link").symlink_to("nested/tracked.bin")
+    subprocess.run(
+        ["git", "init", "-q"], cwd=repo, check=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    subprocess.run(
+        ["git", "add", "--", "output"], cwd=repo, check=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    subprocess.run(
+        [
+            "git", "-c", "user.email=snapshot@example.invalid",
+            "-c", "user.name=Snapshot Test", "commit", "-q", "-m",
+            "tracked output fixture",
+        ],
+        cwd=repo, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+
+    def assert_matches_reference_twice() -> tuple:
+        expected = _real_output_snapshot_reference(output)
+        first = _real_output_snapshot(output, repo_root=repo)
+        second = _real_output_snapshot(output, repo_root=repo)
+        assert first == second == expected
+        return first
+
+    expected_baseline = _real_output_snapshot_reference(output)
+    baseline = _real_output_snapshot(output, repo_root=repo)
+    assert baseline == expected_baseline
+    with mock.patch.object(
+            sys.modules[__name__], "_digest", wraps=_digest,
+            ) as digest_spy:
+        cached = _real_output_snapshot(output, repo_root=repo)
+    assert cached == expected_baseline
+    digest_spy.assert_not_called()
+
+    tracked.write_bytes(changed_payload)
+    changed = assert_matches_reference_twice()
+    assert changed != baseline
+
+    tracked.write_bytes(original_payload)
+    restored = assert_matches_reference_twice()
+    assert restored == baseline
+
+    untracked = output / "untracked.bin"
+    untracked.write_bytes(b"untracked payload")
+    with_untracked = assert_matches_reference_twice()
+    assert with_untracked != restored
+    assert any(row[1] == "untracked.bin" for row in with_untracked)
+
+    empty_directory = output / "untracked-empty-directory"
+    empty_directory.mkdir()
+    with_empty_directory = assert_matches_reference_twice()
+    assert with_empty_directory != with_untracked
+    assert ("dir", "untracked-empty-directory") in with_empty_directory
+
+
+def test_real_output_snapshot_git_index_cache_performance_model(tmp_path):
+    negative_root_attributes = (
+        b"orchestrator/tests/fixtures/**/trace_*.log -text\n"
+    )
+
+    def make_repo(
+            name: str, *, root_attributes: bytes = negative_root_attributes,
+            subtree_attributes: bool = False,
+            index_flag: str | None = None,
+            autocrlf: str | None = None,
+    ) -> tuple[Path, Path, list[tuple[str, str, str]]]:
+        repo = tmp_path / name
+        output = repo / "output"
+        (output / "nested").mkdir(parents=True)
+        paths = [
+            output / "shared-a.bin",
+            output / "shared-b.bin",
+            output / "nested" / "distinct.bin",
+        ]
+        paths[0].write_bytes(b"shared payload\n")
+        paths[1].write_bytes(b"shared payload\n")
+        paths[2].write_bytes(b"distinct payload\n")
+        (repo / ".gitattributes").write_bytes(root_attributes)
+        if subtree_attributes:
+            subtree_rule = output / "nested" / ".gitattributes"
+            subtree_rule.write_bytes(b"*.bin -text\n")
+            paths.append(subtree_rule)
+
+        subprocess.run(
+            ["git", "init", "-q"], cwd=repo, check=True,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+        subprocess.run(
+            ["git", "add", "--", ".gitattributes", "output"],
+            cwd=repo, check=True, stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        subprocess.run(
+            [
+                "git", "-c", "user.email=snapshot@example.invalid",
+                "-c", "user.name=Snapshot Test", "commit", "-q", "-m",
+                "synthetic indexed output",
+            ],
+            cwd=repo, check=True, stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        if index_flag is not None:
+            subprocess.run(
+                [
+                    "git", "update-index", f"--{index_flag}", "--",
+                    "output/shared-a.bin",
+                ],
+                cwd=repo, check=True, stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+        if autocrlf is not None:
+            subprocess.run(
+                ["git", "config", "core.autocrlf", autocrlf],
+                cwd=repo, check=True, stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+        entries = [
+            (
+                "file",
+                path.relative_to(output).as_posix(),
+                os.fspath(path),
+            )
+            for path in paths
+        ]
+        return repo, output, entries
+
+    def snapshot(
+            repo: Path, output: Path, entries: list[tuple[str, str, str]],
+    ) -> tuple[tuple[object, ...], ...]:
+        def synthetic_walk(requested: Path) -> list[tuple[str, str, str]]:
+            assert requested == output
+            return list(entries)
+
+        return git_indexed_output_snapshot(
+            output, repo, walk_entries=synthetic_walk,
+        )
+
+    def snapshot_git_launch_counts(git_spy) -> tuple[int, int]:
+        commands = [call.args[1] for call in git_spy.call_args_list]
+        return (
+            sum(
+                command[1:4] == ("ls-files", "-s", "-v")
+                for command in commands
+            ),
+            sum(command[1:2] == ("status",) for command in commands),
+        )
+
+    cache = output_snapshots._INDEX_BLOB_SHA256_CACHE
+    cache.clear()
+    try:
+        repo, output, entries = make_repo("fast-path", autocrlf="false")
+        observed_reasons: list[tuple[str, ...]] = []
+        observed_indexes = []
+        real_index = output_snapshots._index_blobs_for_output
+
+        def capture_index(*args, **kwargs):
+            result = real_index(*args, **kwargs)
+            observed_indexes.append(result)
+            observed_reasons.append(result.fallback_reasons)
+            return result
+
+        with (
+                mock.patch.object(
+                    output_snapshots, "_index_blobs_for_output",
+                    side_effect=capture_index,
+                ) as index_spy,
+                mock.patch.object(
+                    output_snapshots, "_status_paths_for_output",
+                    wraps=output_snapshots._status_paths_for_output,
+                ) as status_spy,
+                mock.patch.object(
+                    output_snapshots, "_run_git_bytes",
+                    wraps=output_snapshots._run_git_bytes,
+                ) as git_spy,
+                mock.patch.object(
+                    output_snapshots, "_sha256_file",
+                    wraps=output_snapshots._sha256_file,
+                ) as digest_spy,
+        ):
+            first = snapshot(repo, output, entries)
+            assert digest_spy.call_count == len(entries)
+            second = snapshot(repo, output, entries)
+            assert second == first
+            assert digest_spy.call_count == len(entries)
+            cache.clear()
+            restarted = snapshot(repo, output, entries)
+            assert restarted == first
+            assert digest_spy.call_count == 2 * len(entries)
+        assert index_spy.call_count == 3
+        assert status_spy.call_count == 3
+        assert snapshot_git_launch_counts(git_spy) == (3, 3)
+        assert observed_reasons == [(), (), ()]
+        assert len(entries) == 3
+        assert len({
+            entry[1] for entry in observed_indexes[0].blobs.values()
+        }) == 2
+
+        fallback_cases = (
+            ("assume-unchanged", {"index_flag": "assume-unchanged"}),
+            ("skip-worktree", {"index_flag": "skip-worktree"}),
+            ("subtree-gitattributes", {"subtree_attributes": True}),
+            ("core.autocrlf", {"autocrlf": "true"}),
+            (
+                "root-gitattributes-conversion",
+                {"root_attributes": b"output/** text\n"},
+            ),
+        )
+        for expected_reason, options in fallback_cases:
+            cache.clear()
+            repo, output, entries = make_repo(expected_reason, **options)
+            observed_reasons = []
+            real_index = output_snapshots._index_blobs_for_output
+
+            def capture_fallback_index(*args, **kwargs):
+                result = real_index(*args, **kwargs)
+                observed_reasons.append(result.fallback_reasons)
+                return result
+
+            with (
+                    mock.patch.object(
+                        output_snapshots, "_index_blobs_for_output",
+                        side_effect=capture_fallback_index,
+                    ) as index_spy,
+                    mock.patch.object(
+                        output_snapshots, "_status_paths_for_output",
+                        wraps=output_snapshots._status_paths_for_output,
+                    ) as status_spy,
+                    mock.patch.object(
+                        output_snapshots, "_run_git_bytes",
+                        wraps=output_snapshots._run_git_bytes,
+                    ) as git_spy,
+                    mock.patch.object(
+                        output_snapshots, "_sha256_file",
+                        wraps=output_snapshots._sha256_file,
+                    ) as digest_spy,
+            ):
+                first = snapshot(repo, output, entries)
+                if expected_reason in {"assume-unchanged", "skip-worktree"}:
+                    Path(entries[0][2]).write_bytes(b"mutate payload\n")
+                second = snapshot(repo, output, entries)
+            if expected_reason in {"assume-unchanged", "skip-worktree"}:
+                assert second != first
+            else:
+                assert second == first
+            assert digest_spy.call_count == 2 * len(entries)
+            assert index_spy.call_count == 2
+            assert status_spy.call_count == 2
+            assert snapshot_git_launch_counts(git_spy) == (2, 2)
+            assert all(
+                expected_reason in reasons for reasons in observed_reasons
+            )
+    finally:
+        cache.clear()
+
+
+def test_git_snapshot_nul_parsers_fail_closed():
+    malformed_outputs = (
+        (
+            ("git", "ls-files", "-s", "-v", "-z"),
+            b"H 100644 deadbeef 0\toutput/truncated",
+        ),
+        (
+            ("git", "status", "--porcelain=v1", "-z"),
+            b" M output/truncated",
+        ),
+    )
+    for command, stdout in malformed_outputs:
+        with pytest.raises(AssertionError, match="末尾 NUL"):
+            output_snapshots._nul_terminated_records(command, stdout)
 
 
 def test_real_output_snapshot_detects_git_visible_real_output_changes(tmp_path):
@@ -6345,9 +6618,8 @@ def test_two_floor_subprocesses_same_protocol_different_runs_never_both_succeed(
 
 @contextlib.contextmanager
 def _official_test_seam(monkeypatch, *, clean_digest="d" * 64):
-    """production official 拒否を局所 scope だけで外し、clean scan を tmp-only test stub にする。"""
+    """承認済み official fixture の clean scan だけを tmp-only stub にする。"""
     with monkeypatch.context() as scoped:
-        scoped.setattr(s8b_floor_campaign, "_assert_official_permitted", lambda mode: None)
         scoped.setattr(
             s8b_floor_campaign, "clean_scan_digest",
             lambda root, *, freeze_allowlist: clean_digest,
@@ -6488,9 +6760,7 @@ def _deterministic_official_artifacts(base: Path) -> dict:
             )
         )
 
-    with mock.patch.object(
-            s8b_floor_campaign, "_assert_official_permitted", lambda _mode: None), \
-            mock.patch.object(s8b_floor_campaign.buildcache, "build_v2", fake_build), \
+    with mock.patch.object(s8b_floor_campaign.buildcache, "build_v2", fake_build), \
             mock.patch.object(
                 s8b_floor_campaign, "_bind_current_toolchain",
                 _fixture_toolchain_binding,
@@ -7078,7 +7348,7 @@ def test_assemble_result_requires_holdout_admission_keyword():
 
 
 # =========================================================================== #
-# 3. official mode は常に拒否 (§8 未裁定) — CLI + core 直接 (δ-3)               #
+# 3. official mode は明示承認必須 — CLI + public + private core (δ-3)           #
 # =========================================================================== #
 
 @pytest.mark.parametrize("mode", ["pilot", "official"])
@@ -7121,14 +7391,49 @@ def test_validate_mode_directly_rejects_str_subclass():
         s8b_floor_campaign._validate_mode(StatefulMode("official"))
 
 
-def test_main_official_mode_always_refused(tmp_path, capsys):
+def test_main_official_without_approval_is_refused_before_protocol_load(
+        tmp_path, monkeypatch, capsys):
     protocol_path = tmp_path / "protocol.json"
     protocol_path.write_text("{}", encoding="utf-8")
+    protocol_loader = mock.Mock(side_effect=AssertionError("protocol loader reached"))
+    monkeypatch.setattr(s8b_floor_campaign, "load_protocol", protocol_loader)
     rc = s8b_floor_campaign.main(["--mode", "official", "--protocol", str(protocol_path)])
     assert rc == 2
     payload = json.loads(capsys.readouterr().out)
     assert payload["status"] == "refused"
-    assert "§8" in payload["reason"]
+    assert "--confirm-official-floor-run" in payload["reason"]
+    assert "§8" not in payload["reason"]
+    assert "pilot のみ実行可" not in payload["reason"]
+    protocol_loader.assert_not_called()
+
+
+def test_main_official_with_approval_forwards_exact_bool_to_run_campaign(
+        tmp_path, monkeypatch, capsys):
+    protocol_path = tmp_path / s8b_floor_campaign._FLOOR_PROTOCOL_REL
+    protocol_path.parent.mkdir(parents=True)
+    protocol_path.write_text("{}", encoding="utf-8")
+    protocol = {"freeze": {"path": "freeze.json", "sha256": "f" * 64}}
+    verified = object()
+    run_campaign = mock.Mock(return_value={
+        "status": "completed", "run_dir": str(tmp_path / "run"),
+    })
+    monkeypatch.setattr(s8b_floor_campaign, "load_protocol", lambda _path: {})
+    monkeypatch.setattr(s8b_floor_campaign, "validate_protocol", lambda _raw: protocol)
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_load_verified_freeze", lambda *_args, **_kwargs: verified,
+    )
+    monkeypatch.setattr(s8b_floor_campaign, "repo_output_root", lambda: str(tmp_path))
+    monkeypatch.setattr(s8b_floor_campaign, "run_campaign", run_campaign)
+    monkeypatch.setattr(s8b_floor_campaign, "ROOT", tmp_path)
+
+    rc = s8b_floor_campaign.main([
+        "--mode", "official", "--protocol", str(protocol_path),
+        "--confirm-official-floor-run",
+    ])
+    assert rc == 0
+    assert json.loads(capsys.readouterr().out)["status"] == "completed"
+    assert run_campaign.call_count == 1
+    assert run_campaign.call_args.kwargs["confirm_official_floor_run"] is True
 
 
 def test_main_pilot_rejects_noncanonical_protocol_path_before_loading(tmp_path, capsys):
@@ -7278,25 +7583,89 @@ def test_run_campaign_core_rejects_official_materializer_injection_before_side_e
         s8b_floor_campaign._run_campaign_core(
             None, None, out_root=out_root, mode="official",
             build_fn=lambda *_args, **_kwargs: None,
+            confirm_official_floor_run=True,
         )
     assert not out_root.exists()
 
 
-def test_run_campaign_core_rejects_official_with_zero_side_effects(tmp_path):
-    """production wrapper は default official も従来どおり拒否し副作用 0。"""
+def test_public_wrapper_rejects_unapproved_official_before_private_core(
+        tmp_path, monkeypatch):
+    """public gate 削除時は実 authority を通って private core sentinel が発火する。"""
     freeze = _freeze_document()
     out_root = tmp_path / "out"
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    authority = _test_holdout_authority(out_root, protocol, verified)
+    private_core = mock.Mock(side_effect=AssertionError("private core reached"))
+    monkeypatch.setattr(s8b_floor_campaign, "ROOT", authority)
+    monkeypatch.setattr(s8b_floor_campaign, "_run_campaign_core", private_core)
 
-    def forbid_build(*a, **k):
-        raise AssertionError("official 拒否より前に build してはいけない")
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError) as caught:
+        s8b_floor_campaign.run_campaign(
+            protocol, verified, out_root=out_root, mode="official",
+            protocol_path=authority / "output/s8b-freeze/floor_protocol.json",
+        )
+    assert str(caught.value) == (
+        "official mode は明示承認がないため core で拒否する "
+        "(--confirm-official-floor-run が必要)"
+    )
+    private_core.assert_not_called()
+    assert not out_root.exists()
 
-    with mock.patch.object(s8b_floor_campaign.buildcache, "build", forbid_build):
-        with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="official"):
-            s8b_floor_campaign.run_campaign(
-                _protocol(freeze_sha=_freeze_sha(freeze)), _verified_freeze(freeze),
-                out_root=out_root, mode="official",
-            )
-    assert not out_root.exists()  # 書き込み 0 回
+
+def test_public_wrapper_approved_official_forwards_exact_true_to_private_core(
+        tmp_path, monkeypatch):
+    freeze = _freeze_document()
+    out_root = tmp_path / "out"
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    authority = _test_holdout_authority(out_root, protocol, verified)
+    private_core = mock.Mock(return_value={"status": "sentinel"})
+    monkeypatch.setattr(s8b_floor_campaign, "ROOT", authority)
+    monkeypatch.setattr(s8b_floor_campaign, "_run_campaign_core", private_core)
+
+    outcome = s8b_floor_campaign.run_campaign(
+        protocol, verified, out_root=out_root, mode="official",
+        protocol_path=authority / "output/s8b-freeze/floor_protocol.json",
+        confirm_official_floor_run=True,
+    )
+    assert outcome == {"status": "sentinel"}
+    assert private_core.call_count == 1
+    assert private_core.call_args.kwargs["confirm_official_floor_run"] is True
+
+
+def test_private_core_rejects_unapproved_official_before_downstream(
+        tmp_path, monkeypatch):
+    """private core gate 自身の exact 拒否と下流未到達を独立に固定する。"""
+    freeze = _freeze_document()
+    downstream = mock.Mock(side_effect=AssertionError("downstream reached"))
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_validate_protocol_against_current", downstream,
+    )
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError) as caught:
+        s8b_floor_campaign._run_campaign_core(
+            _protocol(freeze_sha=_freeze_sha(freeze)), _verified_freeze(freeze),
+            out_root=tmp_path / "out", mode="official",
+        )
+    assert str(caught.value) == (
+        "official mode は明示承認がないため core で拒否する "
+        "(--confirm-official-floor-run が必要)"
+    )
+    downstream.assert_not_called()
+    assert not (tmp_path / "out").exists()
+
+
+def test_official_permission_requires_exact_true():
+    expected = (
+        "official mode は明示承認がないため core で拒否する "
+        "(--confirm-official-floor-run が必要)"
+    )
+    for unapproved in (False, None, 1):
+        with pytest.raises(s8b_floor_campaign.FloorCampaignError) as caught:
+            s8b_floor_campaign._assert_official_permitted("official", unapproved)
+        assert str(caught.value) == expected
+    s8b_floor_campaign._assert_official_permitted("official", True)
+    s8b_floor_campaign._assert_official_permitted("pilot", 1)
 
 
 def test_materializer_registry_covers_all_python_build_launches():
@@ -7545,7 +7914,7 @@ def test_public_pilot_rejects_effect_capable_seams_without_calling_them(
 
 
 def test_refreeze_seam_classifier_covers_and_classifies_every_core_seam():
-    excluded = {"out_root", "mode", "resume_dir"}
+    excluded = {"out_root", "mode", "resume_dir", "confirm_official_floor_run"}
     core_keyword_only = {
         name for name, parameter in inspect.signature(
             s8b_floor_campaign._run_campaign_core,
@@ -7802,7 +8171,7 @@ def test_core_derives_refreeze_eligibility_at_entry_and_finalizes_without_args()
     assert finalizer.args.vararg is None
     assert finalizer.args.kwarg is None
     assert source.index("eligible_for_refreeze = _derive_refreeze_eligibility(") < source.index(
-        "    _assert_official_permitted(mode)"
+        "    _assert_official_permitted(mode, confirm_official_floor_run)"
     )
     assert source.index("eligible_for_refreeze = _derive_refreeze_eligibility(") < source.index(
         "    try:\n        runner.run()"
@@ -11064,9 +11433,7 @@ def test_repo_root_seam_runs_production_clean_scan_on_real_tmp_repo(tmp_path):
     )
     assert expected == _expected_clean_digest(repository_files, bounded_allowlist)
     fake_build = _make_fake_build(tmp_path / "ignored")
-    with mock.patch.object(
-            s8b_floor_campaign, "_assert_official_permitted", lambda _mode: None), \
-            mock.patch.object(s8b_floor_campaign.buildcache, "build_v2", fake_build):
+    with mock.patch.object(s8b_floor_campaign.buildcache, "build_v2", fake_build):
         outcome = _private_run_campaign(
             protocol, _verified_freeze(freeze), out_root=tmp_path / "out",
             mode="official",
@@ -11505,7 +11872,6 @@ def test_real_seal_protocol_to_floor_official_core_e2e(tmp_path, monkeypatch):
         reps=5, value_fn=lambda _cell_id: 1000.0,
         env_tag="pegasus", extime_s=5,
     )
-    monkeypatch.setattr(s8b_floor_campaign, "_assert_official_permitted", lambda _mode: None)
     monkeypatch.setattr(s8b_floor_campaign.buildcache, "build_v2", recording_build)
     outcome = s8b_floor_campaign._run_campaign_core(
         protocol, freeze, out_root=out_root, mode="official",
@@ -11516,6 +11882,7 @@ def test_real_seal_protocol_to_floor_official_core_e2e(tmp_path, monkeypatch):
         execution_receipt_fn=None,
         repo_root=clone_root, durable_root_policy=_durable_policy(out_root),
         _floor_preflight_fn=None,
+        confirm_official_floor_run=True,
     )
 
     assert outcome["status"] == "completed"
@@ -11784,16 +12151,14 @@ def test_new_seam_defaults_delegate_to_production_functions(tmp_path, monkeypatc
     monkeypatch.setattr(s8b_floor_campaign.buildcache, "build_v2", build_spy)
     monkeypatch.setattr(
         s8b_floor_campaign, "_after_certificate_issued_noop", after_spy)
-    with mock.patch.object(
-            s8b_floor_campaign, "_assert_official_permitted", lambda _mode: None):
-        outcome = _private_run_campaign(
-            protocol, _verified_freeze(freeze), out_root=tmp_path / "out", mode="official",
-            measure_fn=_make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid]),
-            probe_fn=lambda: (1, "", ""), sleep_fn=lambda _seconds: None,
-            monotonic_fn=lambda: 0.0, prepare_fn=_fake_prepare, now_fn=lambda: _FIXED_NOW,
-            durable_root_policy=_durable_policy(tmp_path / "out"),
-            _floor_preflight_fn=_fixture_floor_preflight,
-        )
+    outcome = _private_run_campaign(
+        protocol, _verified_freeze(freeze), out_root=tmp_path / "out", mode="official",
+        measure_fn=_make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid]),
+        probe_fn=lambda: (1, "", ""), sleep_fn=lambda _seconds: None,
+        monotonic_fn=lambda: 0.0, prepare_fn=_fake_prepare, now_fn=lambda: _FIXED_NOW,
+        durable_root_policy=_durable_policy(tmp_path / "out"),
+        _floor_preflight_fn=_fixture_floor_preflight,
+    )
     assert outcome["status"] == "completed"
     assert calls == {
         "calibration": 1, "machine_pin": 1, "host": 1, "process": 1,
@@ -12632,19 +12997,17 @@ def test_second_scan_digest_shift_persists_claim_but_issues_no_certificate(
         s8b_floor_campaign, "clean_scan_digest",
         lambda root, *, freeze_allowlist: next(digests),
     )
-    with mock.patch.object(
-            s8b_floor_campaign, "_assert_official_permitted", lambda _mode: None):
-        with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="clean_scan_digest"):
-            _private_run_campaign(
-                ctx["protocol"], _verified_freeze(ctx["freeze"]),
-                out_root=ctx["out_root"], mode="official", measure_fn=_forbid_measure,
-                probe_fn=lambda: (1, "", ""), sleep_fn=lambda _seconds: None,
-                monotonic_fn=lambda: 0.0, prepare_fn=_fake_prepare,
-                now_fn=lambda: _FIXED_NOW, host_provenance_fn=_fixed_host,
-                process_identity_fn=_fixed_process, repo_root=ctx["repo_root"],
-                durable_root_policy=_durable_policy(ctx["out_root"]),
-                _floor_preflight_fn=lambda *args, **kwargs: {},
-            )
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="clean_scan_digest"):
+        _private_run_campaign(
+            ctx["protocol"], _verified_freeze(ctx["freeze"]),
+            out_root=ctx["out_root"], mode="official", measure_fn=_forbid_measure,
+            probe_fn=lambda: (1, "", ""), sleep_fn=lambda _seconds: None,
+            monotonic_fn=lambda: 0.0, prepare_fn=_fake_prepare,
+            now_fn=lambda: _FIXED_NOW, host_provenance_fn=_fixed_host,
+            process_identity_fn=_fixed_process, repo_root=ctx["repo_root"],
+            durable_root_policy=_durable_policy(ctx["out_root"]),
+            _floor_preflight_fn=lambda *args, **kwargs: {},
+        )
     assert len(list(claim_root.glob("*.claim"))) == 1
     assert not list(ctx["out_root"].rglob("launch_certificate.json"))
 
@@ -12773,8 +13136,6 @@ def test_official_scan_rejection_has_zero_filesystem_side_effects(tmp_path, monk
     freeze = _freeze_document()
     out_root = tmp_path / "out"
     with monkeypatch.context() as scoped:
-        scoped.setattr(s8b_floor_campaign, "_assert_official_permitted", lambda mode: None)
-
         def reject_scan(root, *, freeze_allowlist):
             raise s8b_floor_campaign.FloorCampaignError("fixture scan hit")
 

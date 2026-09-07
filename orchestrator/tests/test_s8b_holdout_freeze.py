@@ -1291,14 +1291,27 @@ def test_verify_rejects_unratified_generation_documents(tmp_path):
     )
     M.verify(freeze, root=root, files=files, current_head=head)
 
-    # 世代 schema field をどれか 1 つでも持つ document は一律 invalid (承認束縛未裁定)。
+    # 世代別承認を検証しない v1 経路では、世代 field を 1 つでも持つ文書を拒否する。
     for field in sorted(M.GENERATION_SCHEMA_FIELDS):
         generation = copy.deepcopy(doc)
         generation[field] = "x" if field != "supersedes_sha256" else "a" * 64
         gen_path = tmp_path / f"generation-{field}.json"
         gen_path.write_text(json.dumps(generation), encoding="utf-8")
-        with pytest.raises(M.FreezeError, match="未承認世代 document は発効しない"):
+        with pytest.raises(M.FreezeError) as caught:
             M.verify(gen_path, root=root, files=files, current_head=head)
+        reason = str(caught.value)
+        assert "世代 document は v1 verify_document 経路では発効しない" in reason
+        assert "この v1 経路は世代別承認を検証しない" in reason
+        assert "未裁定" not in reason
+        assert "§8" not in reason
+
+
+def test_v1_source_verification_keeps_worktree_exactness_and_names_v2_authority():
+    reason = M._verify_source.__doc__ or ""
+    assert "worktree 完全一致のみを正とする" in reason
+    assert "s8b_ratified_freeze.load_ratified_freeze" in reason
+    assert "この v1 経路は" in reason
+    assert "世代 schema document を発効させない" in reason
 
 
 def _active_t080_resolution(*, holdout_sha256: str = T080.HOLDOUT_RAW_SHA256):

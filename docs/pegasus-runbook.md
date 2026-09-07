@@ -521,6 +521,8 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 | `tools/pegasus/probes/t1683_rr5_cost_probe.py` | `dispatch-required` | `static compute-side call-site classification` |
 | `tools/pegasus/probes/t2187_adaptive_const_probe.pbs` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/probes/t2187_adaptive_const_probe.py` | `dispatch-required` | `static compute-side call-site classification` |
+| `tools/pegasus/probes/t2228_driver_gate_liveness_probe.pbs` | `dispatch-required` | `static job-body classification` |
+| `tools/pegasus/probes/t2228_driver_gate_liveness_probe.py` | `dispatch-required` | `static compute-side call-site classification` |
 | `tools/pegasus/probes/t293_perf_site_probe.pbs` | `unknown` | `unmeasured probe artifact` |
 | `tools/pegasus/probes/t293_perf_site_probe.py` | `unknown` | `unmeasured probe artifact` |
 | `tools/pegasus/probes/t316_sandbox_backend_probe.pbs` | `dispatch-required` | `static job-body classification` |
@@ -1642,6 +1644,10 @@ probe worktree / dispatch 成果物の掃除は別物である — lease が解�
   パラメータの渡し方を自分で発明しない。この scheduler にスクリプトへ位置引数を渡す syntax は無く、
   既存の submit script は例外なく `qsub -v VAR=value <script>` の環境変数経由である
   (`tools/pegasus/submit_floor.sh`)。逐語再利用の対象は環境正規化だけでなく**投入インタフェースも含む**
+- **床値 official の sanctioned な投入は `tools/pegasus/submit_floor.sh --confirm-official-floor-run`
+  だけである** ([T-2324]、方式は D926)。承認は submission nonce に束ねて運ばれ、job script が exact
+  一致を確かめる。**`qsub -v` を自分で組み立てて `IZANAGI_CONFIRM_OFFICIAL_FLOOR_RUN` を渡す経路は
+  D926 の保証範囲外である** — nonce 束縛の意味が失われるので、認証された走行として扱わない。
 - ジョブ投入 (`qsub` / submit wrapper) の実行環境を確認した。原則はユーザー自身の端末。
   対話セッション内 shell (`!` 実行を含む) からの投入は、書き込み不永続・資格情報差で無効な
   request を作る (F47、2026-07-28 に request 873213 で実測) ため引き続き禁止。

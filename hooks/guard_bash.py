@@ -16,7 +16,8 @@ closed で拒否)。** これで新種の writer は列挙せずとも自動的�
 
 判定 (shlex でクォートを解決してからトークン単位で見る):
 1. 防護対象 (末端 = WAL/campaign.lock/runs/build-variants/exploration namespace
-   marker、ツリー = official / exploration campaigns、external/ccbench、hooks) がコマンドに
+   marker、ツリー = official / exploration campaigns、external/ccbench、hooks、固定の
+   発行主体 root) がコマンドに
    現れない → 即許可 (fast path、通常作業を妨げない)。
 2. 末端/防護ツリーの**パス字面**と不透明構文 ($()/バッククォート/プロセス置換/<<<
    /eval/xargs) が同居 → 分類不能 = fails-closed で拒否 (パス字面が無ければ通す —
@@ -104,6 +105,10 @@ _CAMPAIGN_TREE = (                      # 閉じた二要素集合 (子孫は末
 )
 _EXPLORATION_TREE = "output/exploration"
 _HOOKS_TREE = "hooks"
+_AUTHORITY_ROOT = "/work/1/SFC/tanab/dev-wave-authority"
+_AUTHORITY_LITERAL_RE = re.compile(
+    rf"(?<![-\w./]){re.escape(_AUTHORITY_ROOT)}"
+    r"(?=$|[/\s\"'`=,:;(){}<>|&])")
 
 # 不透明構文: 中で何が起きるかテキストから追えない。防護対象パス字面と同居したら拒否。
 # `<<` は here-doc (本文コードが追えない) と here-string `<<<` を両方捕える
@@ -1429,7 +1434,8 @@ def _sed_address(script: str, start: int):
 
 
 def _sed_script_check(
-        script: str, repo_root: str = "", cwd: str = "", hooks_index=None):
+        script: str, repo_root: str = "", cwd: str = "", hooks_index=None,
+        authority_cwd: str = "", authority_index=None):
     """sed script を字句走査し、書き込み・実行構文と解析不能を分ける。"""
     i = 0
     while i < len(script):
@@ -1475,7 +1481,8 @@ def _sed_script_check(
             if not target:
                 return False, _DENY_PROGRAM
             if _argument_hits_protected(
-                    target, repo_root, cwd, hooks_index):
+                    target, repo_root, cwd, hooks_index,
+                    authority_cwd, authority_index):
                 return False, _DENY_OUTPUT
             i = end
             continue
@@ -1511,7 +1518,8 @@ def _sed_script_check(
                         if not target:
                             return False, _DENY_PROGRAM
                         if _argument_hits_protected(
-                                target, repo_root, cwd, hooks_index):
+                                target, repo_root, cwd, hooks_index,
+                                authority_cwd, authority_index):
                             return False, _DENY_OUTPUT
                         j = len(flags)
                         continue
@@ -1532,7 +1540,9 @@ def _sed_script_check(
     return True, ""
 
 
-def _sed_read_only(args, repo_root: str = "", cwd: str = "", hooks_index=None):
+def _sed_read_only(
+        args, repo_root: str = "", cwd: str = "", hooks_index=None,
+        authority_cwd: str = "", authority_index=None):
     scripts = []
     explicit = False
     positional_script = False
@@ -1614,7 +1624,8 @@ def _sed_read_only(args, repo_root: str = "", cwd: str = "", hooks_index=None):
         return False, _DENY_PROGRAM
     for script in scripts:
         allowed, kind = _sed_script_check(
-            script, repo_root, cwd, hooks_index)
+            script, repo_root, cwd, hooks_index,
+            authority_cwd, authority_index)
         if not allowed:
             return False, kind
     return True, ""
@@ -1685,7 +1696,8 @@ def _awk_regex_end(program: str, start: int):
 
 
 def _awk_program_check(
-        program: str, repo_root: str = "", cwd: str = "", hooks_index=None):
+        program: str, repo_root: str = "", cwd: str = "", hooks_index=None,
+        authority_cwd: str = "", authority_index=None):
     """awk program の code 文脈だけで外部実行と redirection を判定する。"""
     i = 0
     statement = []
@@ -1785,7 +1797,8 @@ def _awk_program_check(
             if end is None:
                 return False, _DENY_PROGRAM
             if _argument_hits_protected(
-                    target, repo_root, cwd, hooks_index):
+                    target, repo_root, cwd, hooks_index,
+                    authority_cwd, authority_index):
                 return False, _DENY_OUTPUT
             statement.append(" ")
             expect_operand = False
@@ -1806,7 +1819,8 @@ def _awk_program_check(
 
 
 def _awk_read_only(
-        args, repo_root: str = "", cwd: str = "", hooks_index=None):
+        args, repo_root: str = "", cwd: str = "", hooks_index=None,
+        authority_cwd: str = "", authority_index=None):
     """inline program と option 値を一意に取り出し、危険な効果を拒否する。"""
     program = None
     i = 0
@@ -1832,7 +1846,8 @@ def _awk_read_only(
         if output_long is not None:
             value = arg.split("=", 1)[1] if "=" in arg else None
             if value is not None and _argument_hits_protected(
-                    value, repo_root, cwd, hooks_index):
+                    value, repo_root, cwd, hooks_index,
+                    authority_cwd, authority_index):
                 return False, _DENY_OUTPUT
             i += 1
             continue
@@ -1840,7 +1855,8 @@ def _awk_read_only(
                 and len(arg) >= 2 and arg[1] in "opD"):
             value = arg[2:]
             if value and _argument_hits_protected(
-                    value, repo_root, cwd, hooks_index):
+                    value, repo_root, cwd, hooks_index,
+                    authority_cwd, authority_index):
                 return False, _DENY_OUTPUT
             i += 1
             continue
@@ -1867,11 +1883,13 @@ def _awk_read_only(
         break
     if program is None:
         return False, _DENY_PROGRAM
-    return _awk_program_check(program, repo_root, cwd, hooks_index)
+    return _awk_program_check(
+        program, repo_root, cwd, hooks_index, authority_cwd, authority_index)
 
 
 def _xxd_read_only(
-        args, repo_root: str = "", cwd: str = "", hooks_index=None):
+        args, repo_root: str = "", cwd: str = "", hooks_index=None,
+        authority_cwd: str = "", authority_index=None):
     positionals = []
     value_options = frozenset({"-c", "-g", "-l", "-n", "-o", "-R", "-s"})
     long_value_options = frozenset({
@@ -1920,13 +1938,15 @@ def _xxd_read_only(
     if len(positionals) > 2:
         return False, _DENY_PROGRAM
     if _argument_hits_protected(
-            positionals[1], repo_root, cwd, hooks_index):
+            positionals[1], repo_root, cwd, hooks_index,
+            authority_cwd, authority_index):
         return False, _DENY_OUTPUT
     return True, ""
 
 
 def _git_read_only(
-        args, repo_root: str = "", cwd: str = "", hooks_index=None):
+        args, repo_root: str = "", cwd: str = "", hooks_index=None,
+        authority_cwd: str = "", authority_index=None):
     # legacy の sub 決定を維持し、既存 deny を allow へ反転させない。
     sub_index = next((i for i, arg in enumerate(args)
                       if not arg.startswith("-")), None)
@@ -1948,7 +1968,8 @@ def _git_read_only(
                 if value is None:
                     return False, _DENY_PROGRAM
                 if _argument_hits_protected(
-                        value, repo_root, cwd, hooks_index):
+                        value, repo_root, cwd, hooks_index,
+                        authority_cwd, authority_index):
                     return False, _DENY_OUTPUT
                 i = next_i
                 continue
@@ -1969,7 +1990,8 @@ def _git_read_only(
 
 
 def _find_read_only(
-        args, repo_root: str = "", cwd: str = "", hooks_index=None):
+        args, repo_root: str = "", cwd: str = "", hooks_index=None,
+        authority_cwd: str = "", authority_index=None):
     option_args = args
     if any(arg in ("-exec", "-execdir", "-ok", "-okdir")
            for arg in option_args):
@@ -1985,7 +2007,8 @@ def _find_read_only(
             if i + 1 >= len(option_args):
                 return False, _DENY_PROGRAM
             if _argument_hits_protected(
-                    option_args[i + 1], repo_root, cwd, hooks_index):
+                    option_args[i + 1], repo_root, cwd, hooks_index,
+                    authority_cwd, authority_index):
                 return False, _DENY_OUTPUT
             i += 2
             continue
@@ -1994,7 +2017,8 @@ def _find_read_only(
 
 
 def _sort_read_only(
-        args, repo_root: str = "", cwd: str = "", hooks_index=None):
+        args, repo_root: str = "", cwd: str = "", hooks_index=None,
+        authority_cwd: str = "", authority_index=None):
     option_args = _before_double_dash(args)
     safe_flags = frozenset("bdfghiMmnRrsuVz")
     value_flags = frozenset("kSt")
@@ -2012,7 +2036,8 @@ def _sort_read_only(
                 if value is None:
                     return False, _DENY_PROGRAM
                 if _argument_hits_protected(
-                        value, repo_root, cwd, hooks_index):
+                        value, repo_root, cwd, hooks_index,
+                        authority_cwd, authority_index):
                     return False, _DENY_OUTPUT
                 i = next_i
                 continue
@@ -2036,7 +2061,8 @@ def _sort_read_only(
                     value = option_args[i + 1]
                     i += 1
                 if flag in "oT" and _argument_hits_protected(
-                        value, repo_root, cwd, hooks_index):
+                        value, repo_root, cwd, hooks_index,
+                        authority_cwd, authority_index):
                     return False, _DENY_OUTPUT
                 j = len(cluster)
                 continue
@@ -2046,7 +2072,8 @@ def _sort_read_only(
 
 
 def _file_read_only(
-        args, repo_root: str = "", cwd: str = "", hooks_index=None):
+        args, repo_root: str = "", cwd: str = "", hooks_index=None,
+        authority_cwd: str = "", authority_index=None):
     option_args = _before_double_dash(args)
     compile_magic = False
     magic_files = []
@@ -2095,13 +2122,15 @@ def _file_read_only(
             return False, _DENY_PROGRAM
         i += 1
     if compile_magic and any(_argument_hits_protected(
-            value, repo_root, cwd, hooks_index) for value in magic_files):
+            value, repo_root, cwd, hooks_index,
+            authority_cwd, authority_index) for value in magic_files):
         return False, _DENY_OUTPUT
     return True, ""
 
 
 def _less_read_only(
-        args, repo_root: str = "", cwd: str = "", hooks_index=None):
+        args, repo_root: str = "", cwd: str = "", hooks_index=None,
+        authority_cwd: str = "", authority_index=None):
     option_args = _before_double_dash(args)
     safe_flags = frozenset("aABcCdDeEfFgGhHiIJKLMmnNqQrRsSuUVwWX~")
     value_flags = frozenset("jkPtxyz#")
@@ -2116,7 +2145,8 @@ def _less_read_only(
                 if value is None:
                     return False, _DENY_PROGRAM
                 if _argument_hits_protected(
-                        value, repo_root, cwd, hooks_index):
+                        value, repo_root, cwd, hooks_index,
+                        authority_cwd, authority_index):
                     return False, _DENY_OUTPUT
                 i = next_i
                 continue
@@ -2137,7 +2167,8 @@ def _less_read_only(
                     value = option_args[i + 1]
                     i += 1
                 if flag in "oO" and _argument_hits_protected(
-                        value, repo_root, cwd, hooks_index):
+                        value, repo_root, cwd, hooks_index,
+                        authority_cwd, authority_index):
                     return False, _DENY_OUTPUT
                 j = len(cluster)
                 continue
@@ -2151,30 +2182,38 @@ def _less_read_only(
 
 def _read_only_check(
         head: str, args, repo_root: str = "", cwd: str = "",
-        hooks_index=None):
+        hooks_index=None, authority_cwd: str = "", authority_index=None):
     """末端防護対象に触れる操作の可否と拒否原因分類を返す。"""
     if head in _PURE_READERS:
         return True, ""
     if head == "dd":
         for arg in args:
             if arg.startswith("of=") and _argument_hits_protected(
-                    arg.split("=", 1)[1], repo_root, cwd, hooks_index):
+                    arg.split("=", 1)[1], repo_root, cwd, hooks_index,
+                    authority_cwd, authority_index):
                 return False, _DENY_OUTPUT
         return True, ""
     if head == "find":
-        return _find_read_only(args, repo_root, cwd, hooks_index)
+        return _find_read_only(
+            args, repo_root, cwd, hooks_index, authority_cwd, authority_index)
     if head == "sed":
-        return _sed_read_only(args, repo_root, cwd, hooks_index)
+        return _sed_read_only(
+            args, repo_root, cwd, hooks_index, authority_cwd, authority_index)
     if head in ("awk", "gawk", "mawk"):
-        return _awk_read_only(args, repo_root, cwd, hooks_index)
+        return _awk_read_only(
+            args, repo_root, cwd, hooks_index, authority_cwd, authority_index)
     if head == "sort":
-        return _sort_read_only(args, repo_root, cwd, hooks_index)
+        return _sort_read_only(
+            args, repo_root, cwd, hooks_index, authority_cwd, authority_index)
     if head == "git":
-        return _git_read_only(args, repo_root, cwd, hooks_index)
+        return _git_read_only(
+            args, repo_root, cwd, hooks_index, authority_cwd, authority_index)
     if head == "xxd":
-        return _xxd_read_only(args, repo_root, cwd, hooks_index)
+        return _xxd_read_only(
+            args, repo_root, cwd, hooks_index, authority_cwd, authority_index)
     if head == "file":
-        return _file_read_only(args, repo_root, cwd, hooks_index)
+        return _file_read_only(
+            args, repo_root, cwd, hooks_index, authority_cwd, authority_index)
     if head == "nm":
         if any(_long_option(arg, "--plugin", 4)
                for arg in _before_double_dash(args)):
@@ -2187,7 +2226,8 @@ def _read_only_check(
             return False, _DENY_EXEC
         return True, ""
     if head in ("less", "zless"):
-        return _less_read_only(args, repo_root, cwd, hooks_index)
+        return _less_read_only(
+            args, repo_root, cwd, hooks_index, authority_cwd, authority_index)
     if head in _INTERP:
         # inline コード (-c/-e)・in-place (-i/-pe/-ne 等)・bare/stdin 実行は拒否。
         # 素の `python3 script.py wal.jsonl` (レポート生成) だけ許可。
@@ -2204,9 +2244,11 @@ def _read_only_check(
 
 def _is_read_only(
         head: str, args, repo_root: str = "", cwd: str = "",
-        hooks_index=None) -> bool:
+        hooks_index=None, authority_cwd: str = "", authority_index=None) -> bool:
     """既存 caller 向けの bool interface。"""
-    return _read_only_check(head, args, repo_root, cwd, hooks_index)[0]
+    return _read_only_check(
+        head, args, repo_root, cwd, hooks_index,
+        authority_cwd, authority_index)[0]
 
 
 def _glob_prefix(token: str) -> str:
@@ -2240,6 +2282,8 @@ def _repo_relative(token: str, repo_root: str, cwd: str = "") -> str:
 
 
 def _inside(path: str, tree: str) -> bool:
+    if tree == os.sep:
+        return os.path.isabs(path)
     return path == tree or path.startswith(tree + os.sep)
 
 
@@ -2300,6 +2344,79 @@ class _HooksInodeIndex:
         self._load()
         return (self._scan_failed
                 or (target.st_dev, target.st_ino) in self._identities)
+
+
+def _absolute_path(token: str, cwd: str) -> str:
+    """repo 外を含む path 字面を shell cwd 基準の絶対 lexical path にする。"""
+    raw = os.path.expanduser(token)
+    if not os.path.isabs(raw):
+        raw = os.path.join(cwd, raw)
+    return os.path.abspath(raw)
+
+
+def _canonical_path(path: str, *, resolve_final: bool) -> str:
+    """削除・移動元では final symlink entry 自体を保つ形で canonicalize する。"""
+    if resolve_final:
+        return os.path.realpath(path)
+    parent, name = os.path.split(path)
+    return os.path.join(os.path.realpath(parent), name)
+
+
+def _authority_path_violation(
+        token: str, cwd: str, authority_index=None, *,
+        include_ancestors: bool = False, resolve_final: bool = True) -> bool:
+    """固定発行主体 root と lexical/canonical/inode のいずれかで重なるか。"""
+    literal_prefix = _glob_prefix(token)
+    has_glob = literal_prefix != token
+    lexical_path = _absolute_path(literal_prefix, cwd)
+    canonical_path = _canonical_path(
+        lexical_path, resolve_final=resolve_final)
+    lexical_root = os.path.abspath(_AUTHORITY_ROOT)
+    canonical_root = os.path.realpath(_AUTHORITY_ROOT)
+
+    def overlaps(path: str, root: str) -> bool:
+        if _inside(path, root):
+            return True
+        if include_ancestors and _inside(root, path):
+            return True
+        # glob の literal prefix が path component の途中で終わる形も、root を
+        # 展開結果に含み得るなら重なりとする (`dev-wave-authorit?` 等)。
+        return has_glob and root.startswith(path)
+
+    if (overlaps(lexical_path, lexical_root)
+            or overlaps(canonical_path, canonical_root)):
+        return True
+    if not resolve_final:
+        return False
+    index = authority_index or _HooksInodeIndex(canonical_root)
+    return index.protects(lexical_path)
+
+
+def _argument_hits_authority(
+        token: str, cwd: str, authority_index=None, *,
+        resolve_final: bool = True) -> bool:
+    """option 値や inline fragment を固定発行主体 root と照合する。"""
+    candidates = [token]
+    if "=" in token:
+        candidates.append(token.split("=", 1)[1])
+    if len(token) > 2 and token.startswith("-") and not token.startswith("--"):
+        candidates.append(token[2:])
+    candidates.extend(fragment for fragment in re.split(
+        r"[\s\"'=,:;(){}<>|]+", token) if fragment)
+    return any(
+        _authority_path_violation(
+            candidate, cwd, authority_index, resolve_final=resolve_final)
+        for candidate in dict.fromkeys(candidates)
+    )
+
+
+def _authority_tree_violation(
+        token: str, cwd: str, authority_index=None, *,
+        resolve_final: bool = True) -> bool:
+    """破壊・移動・展開対象が発行主体 root/子孫/祖先と重なるか。"""
+    return _authority_path_violation(
+        token, cwd, authority_index, include_ancestors=True,
+        resolve_final=resolve_final)
 
 
 def _hooks_tree_violation(
@@ -2378,21 +2495,10 @@ def _campaign_tree_violation(token: str, repo_root: str = "") -> bool:
     return False
 
 
-def _tree_violation(
+def _existing_tree_violation(
         token: str, repo_root: str = "", cwd: str = "",
         hooks_index=None) -> bool:
-    """token の削除/移動/展開が proof chain を壊すか。
-
-    - 末端 (_LEAF_RE) はどの深さでも壊す。
-    - external/ccbench は全域 (祖先/自身/子孫) — submodule working-tree は identity の
-      実体で、部分破壊も評価を汚す。
-    - official / exploration campaign tree は祖先・自身・campaign dir 単位
-      (`<campaign-tree>/<id>`) まで。それより深い proof-chain でない子孫
-      (reports/ 等) は末端に触れない限り通す (F-FP-2: 散文・プロットの
-      mv/rm を巻き込まない)。
-    絶対パス・`~` は repo_root で相対化してから照合する (2026-07-04 敵対検証)。glob は
-    メタ文字前のリテラル prefix で判定 (`output/*` → `output/` は祖先 = 拒否。`out*` の
-    ような部分 glob は判定不能 = 素通り、限界として docstring に記録)。"""
+    """token が既存の proof-chain 防護 tree と重なるか。"""
     if (_hooks_tree_violation(token, repo_root, cwd, hooks_index)
             or _LEAF_RE.search(token)
             or _namespace_marker_violation(token, repo_root, cwd)):
@@ -2406,10 +2512,35 @@ def _tree_violation(
     return _campaign_tree_violation(token, repo_root)
 
 
-def _argument_hits_protected(
+def _tree_violation(
+        token: str, repo_root: str = "", cwd: str = "",
+        hooks_index=None, authority_cwd: str = "", authority_index=None, *,
+        authority_resolve_final: bool = True) -> bool:
+    """token の削除/移動/展開が proof chain を壊すか。
+
+    - 末端 (_LEAF_RE) はどの深さでも壊す。
+    - external/ccbench は全域 (祖先/自身/子孫) — submodule working-tree は identity の
+      実体で、部分破壊も評価を汚す。
+    - official / exploration campaign tree は祖先・自身・campaign dir 単位
+      (`<campaign-tree>/<id>`) まで。それより深い proof-chain でない子孫
+      (reports/ 等) は末端に触れない限り通す (F-FP-2: 散文・プロットの
+      mv/rm を巻き込まない)。
+    絶対パス・`~` は repo_root で相対化してから照合する (2026-07-04 敵対検証)。glob は
+    メタ文字前のリテラル prefix で判定 (`output/*` → `output/` は祖先 = 拒否。`out*` の
+    ような部分 glob は判定不能 = 素通り、限界として docstring に記録)。"""
+    authority_base = authority_cwd or os.path.realpath(repo_root or _repo_root())
+    if (_existing_tree_violation(token, repo_root, cwd, hooks_index)
+            or _authority_tree_violation(
+                token, authority_base, authority_index,
+                resolve_final=authority_resolve_final)):
+        return True
+    return False
+
+
+def _argument_hits_existing(
         token: str, repo_root: str = "", cwd: str = "",
         hooks_index=None) -> bool:
-    """option 値や inline program 内も含め、防護 path fragment を照合する。"""
+    """現行の repo 内防護 path fragment だけを照合する。"""
     candidates = [token]
     if "=" in token:
         candidates.append(token.split("=", 1)[1])
@@ -2426,9 +2557,53 @@ def _argument_hits_protected(
     )
 
 
+def _argument_hits_protected(
+        token: str, repo_root: str = "", cwd: str = "",
+        hooks_index=None, authority_cwd: str = "", authority_index=None) -> bool:
+    """現行防護対象と固定発行主体 root の deny union。"""
+    return (_argument_hits_existing(token, repo_root, cwd, hooks_index)
+            or bool(authority_cwd) and _argument_hits_authority(
+                token, authority_cwd, authority_index))
+
+
 def _path_args(args):
     """フラグ・`--` を除いたパス様引数 (削除/移動対象の候補)。"""
     return [a for a in args if not a.startswith("-") and a != "--"]
+
+
+def _authority_argument_resolves_final(head: str, args, index: int) -> bool:
+    """unlink/move source の final symlink entry は解決しない。"""
+    path_indexes = [i for i, arg in enumerate(args)
+                    if not arg.startswith("-") and arg != "--"]
+    if index not in path_indexes:
+        return True
+    if head in {"rm", "rmdir", "unlink"}:
+        return False
+    if head == "mv":
+        return index == path_indexes[-1]
+    if head == "find" and any(
+            arg in {"-delete", "-exec", "-execdir", "-ok", "-okdir"}
+            for arg in args):
+        return False
+    if head == "git":
+        sub = next((arg for arg in args if arg in _GIT_DESTROY_SUBS), "")
+        if sub == "rm":
+            return False
+        if sub == "mv":
+            return index == path_indexes[-1]
+    return True
+
+
+def _uses_tree_guard(head: str, args) -> bool:
+    """authority の削除・移動・展開を tree 層だけへ帰属させる。"""
+    if head in _TREE_MUTATORS or head == "rsync":
+        return True
+    if head == "tar":
+        return not _tar_creates(args)
+    if head == "find":
+        return any(arg in {"-delete", "-exec", "-execdir", "-ok", "-okdir"}
+                   for arg in args)
+    return head == "git" and any(arg in _GIT_DESTROY_SUBS for arg in args)
 
 
 def _tar_creates(args) -> bool:
@@ -2457,40 +2632,59 @@ def _tar_creates(args) -> bool:
 
 def _destroys_protected_tree(
         head: str, args, repo_root: str = "", cwd: str = "",
-        hooks_index=None) -> bool:
+        hooks_index=None, authority_cwd: str = "", authority_index=None) -> bool:
     """head が防護ツリーを丸ごと削除/移動/展開する操作か。"""
     if head == "git":
         if "clean" in args:                       # cwd 再帰で untracked WAL を消す
             return True
         if any(a in _GIT_DESTROY_SUBS for a in args):
-            return any(_tree_violation(t, repo_root, cwd, hooks_index)
-                       for t in _path_args(args))
+            sub = next((a for a in args if a in _GIT_DESTROY_SUBS), "")
+            paths = _path_args(args)
+            return any(_tree_violation(
+                token, repo_root, cwd, hooks_index,
+                authority_cwd, authority_index,
+                authority_resolve_final=not (
+                    sub == "rm" or sub == "mv" and index < len(paths) - 1))
+                for index, token in enumerate(paths))
         return False
     if head == "find":
         if any(a in ("-delete", "-exec", "-execdir", "-ok", "-okdir")
                for a in args):
-            return any(_tree_violation(t, repo_root, cwd, hooks_index)
-                       for t in _path_args(args))
+            return any(_tree_violation(
+                token, repo_root, cwd, hooks_index,
+                authority_cwd, authority_index,
+                authority_resolve_final=False)
+                for token in _path_args(args))
         return False
     if head == "tar":
         if _tar_creates(args):                    # backup (読み) は通す
             return False
-        return any(_tree_violation(t, repo_root, cwd, hooks_index)
+        return any(_tree_violation(
+                   t, repo_root, cwd, hooks_index,
+                   authority_cwd, authority_index)
                    for t in _path_args(args))
     if head == "rsync":
         # DEST (最後の path 引数) が防護ツリーなら mirror INTO (書き) = 拒否。
         # SRC だけが防護対象 (backup 元) の読みは通す。
         paths = _path_args(args)
         return bool(paths) and _tree_violation(
-            paths[-1], repo_root, cwd, hooks_index)
+            paths[-1], repo_root, cwd, hooks_index,
+            authority_cwd, authority_index)
     if head in _TREE_MUTATORS:
-        return any(_tree_violation(t, repo_root, cwd, hooks_index)
-                   for t in _path_args(args))
+        paths = _path_args(args)
+        return any(_tree_violation(
+            token, repo_root, cwd, hooks_index,
+            authority_cwd, authority_index,
+            authority_resolve_final=not (
+                head in {"rm", "rmdir", "unlink"}
+                or head == "mv" and index < len(paths) - 1))
+            for index, token in enumerate(paths))
     return False
 
 
 def _redirect_hits_protected(
-        seg, repo_root: str = "", cwd: str = "", hooks_index=None) -> bool:
+        seg, repo_root: str = "", cwd: str = "", hooks_index=None,
+        authority_cwd: str = "", authority_index=None) -> bool:
     """セグメント内でリダイレクト先が末端または防護 tree 自体なら True。"""
     for i, t in enumerate(seg):
         if t in _REDIR_OPS and i + 1 < len(seg):
@@ -2499,11 +2693,31 @@ def _redirect_hits_protected(
                 continue
             if (_LEAF_RE.search(tgt)
                     or _hooks_tree_violation(tgt, repo_root, cwd, hooks_index)
+                    or bool(authority_cwd) and _argument_hits_authority(
+                        tgt, authority_cwd, authority_index)
                     or _namespace_marker_violation(tgt, repo_root, cwd)
                     or _campaign_tree_violation(tgt, repo_root)
                     and _repo_relative(tgt, repo_root).startswith(
                         _EXPLORATION_TREE + "/")):
                 return True
+    return False
+
+
+def _authority_command_hot(tokens, cwd: str, authority_index) -> bool:
+    """token/canonical/inode/ancestor と cd 後の相対 path を fast path 前に拾う。"""
+    active_cwd = cwd
+    for seg in _segments(tokens):
+        if any(_argument_hits_authority(token, active_cwd, authority_index)
+               or _authority_tree_violation(
+                   token, active_cwd, authority_index,
+                   resolve_final=False)
+               for token in seg):
+            return True
+        head, args = _head_and_args(seg)
+        if head == "cd":
+            paths = _path_args(args)
+            if len(paths) == 1:
+                active_cwd = _absolute_path(paths[0], active_cwd)
     return False
 
 
@@ -2520,69 +2734,99 @@ def decide(command: str, repo_root: str = "", *, site=None) -> tuple:
     tokens = _tokenize(command)
     hooks_index = _HooksInodeIndex(
         os.path.realpath(os.path.join(root, _HOOKS_TREE)))
+    authority_index = _HooksInodeIndex(os.path.realpath(_AUTHORITY_ROOT))
     hooks_hot = bool(_TREE_LITERAL_RE.search(command))
+    authority_hot = bool(_AUTHORITY_LITERAL_RE.search(command))
     if tokens is not None:
         hooks_hot = hooks_hot or any(
-            _argument_hits_protected(token, root, hooks_index=hooks_index)
+            _argument_hits_existing(token, root, hooks_index=hooks_index)
             for token in tokens)
-    if not _MENTION_RE.search(command) and not hooks_hot:
+        authority_hot = authority_hot or _authority_command_hot(
+            tokens, root, authority_index)
+    if (not _MENTION_RE.search(command)
+            and not hooks_hot and not authority_hot):
         return True, ""                            # fast path
 
     # 「防護対象パスの字面が実在するか」— opaque 同居と bare interpreter の発火条件。
     # 裸単語 mention (散文の 'output' 等) では発火させない (F-FP-4 の虚偽拒否防止)。
     hot = bool(_LEAF_RE.search(command) or _TREE_LITERAL_RE.search(command)
-               or hooks_hot)
+               or hooks_hot or authority_hot)
 
     if hot and _OPAQUE_RE.search(command):
         return False, ("末端/防護ツリーのパス (WAL/campaign.lock/build-variants/"
-                       "namespace marker/official・exploration campaigns/external/ccbench) "
+                       "namespace marker/official・exploration campaigns/external/ccbench/"
+                       "固定の発行主体 root) "
                        "と不透明構文 ($()/` `/"
                        "プロセス置換/<<</eval/xargs) の同居は分類不能 = fails-closed。"
                        "読むだけなら cat/grep/jq で、正規の書き込みは pipeline.evaluate() "
                        "で、コミットは単一行 -m か -F <file> で")
 
     if tokens is None:
-        if _LEAF_RE.search(command) or hooks_hot or any(
-                _tree_violation(w, root, hooks_index=hooks_index)
-                for w in command.split()):
+        if (_LEAF_RE.search(command) or hooks_hot or authority_hot or any(
+                _tree_violation(
+                    w, root, hooks_index=hooks_index,
+                    authority_cwd=root, authority_index=authority_index)
+                for w in command.split())):
             return False, ("防護対象を含むコマンドを解析できない (クォート不整合等) — "
                            "fails-closed で拒否")
         return True, ""                            # 防護対象に触れない解析不能は素通し
 
     marker_cwd = ""
+    authority_cwd = root
     for seg in _segments(tokens):
-        if _redirect_hits_protected(seg, root, marker_cwd, hooks_index):
-            return False, ("リダイレクト先が末端防護対象または campaign tree。WAL/"
-                           "campaign.lock/build-cache を書く唯一の経路は "
+        if _redirect_hits_protected(
+                seg, root, marker_cwd, hooks_index,
+                authority_cwd, authority_index):
+            return False, ("リダイレクト先が末端防護対象、campaign tree、または固定の"
+                           "発行主体 root。WAL/campaign.lock/build-cache を書く唯一の経路は "
                            "pipeline.evaluate() (規律2)")
         head, args = _head_and_args(seg)
         if head == "cd":
             paths = _path_args(args)
             if len(paths) == 1:
                 marker_cwd = _repo_relative_path(paths[0], root, marker_cwd)
+                authority_cwd = _absolute_path(paths[0], authority_cwd)
             continue
         if head == "perf":
             # perf の自前出力先 (-o/--output) が防護対象なら拒否
+            perf_output_indexes = set()
             for i, a in enumerate(args):
-                if ((a in ("-o", "--output") and i + 1 < len(args)
-                     and _LEAF_RE.search(args[i + 1]))
-                        or (a.startswith("--output=") and _LEAF_RE.search(a))):
-                    return False, "perf の出力先 (-o/--output) が末端防護対象 (規律2)"
+                output_value = None
+                if a in ("-o", "--output") and i + 1 < len(args):
+                    perf_output_indexes.update({i, i + 1})
+                    output_value = args[i + 1]
+                elif a.startswith("--output="):
+                    perf_output_indexes.add(i)
+                    output_value = a.split("=", 1)[1]
+                if (output_value is not None
+                        and (_existing_tree_violation(
+                            output_value, root, marker_cwd, hooks_index)
+                             or _argument_hits_authority(
+                                 output_value, authority_cwd,
+                                 authority_index))):
+                    return False, ("perf の出力先 (-o/--output) が既存防護 tree または"
+                                   "固定の発行主体 root (規律2)")
             if "--" in args:
                 # 明示形 `perf <sub> [opts] -- <cmd>`: 子コマンドを実 head として続検査
                 # (build-variants バイナリの計測 = 正道を通しつつ、子が writer なら落とす)
                 head, args = _head_and_args(args[args.index("--") + 1:])
             elif any(_LEAF_RE.search(t)
-                     or _tree_violation(t, root, hooks_index=hooks_index)
-                     for t in args):
+                     or _tree_violation(
+                         t, root, hooks_index=hooks_index,
+                         authority_cwd=authority_cwd,
+                         authority_index=authority_index)
+                     for index, t in enumerate(args)
+                     if index not in perf_output_indexes):
                 return False, ("perf と防護対象の同居は `perf <サブコマンド> [opts] -- "
                                "<コマンド>` の明示形のみ許可 (子コマンドを検査するため)。"
                                "防護対象に触れない計測は自由 (F-FP-1)")
             else:
                 continue
         if _destroys_protected_tree(
-                head, args, root, marker_cwd, hooks_index):
-            return False, (f"campaign dir / ccbench root を破壊する操作 ({head})。"
+                head, args, root, marker_cwd, hooks_index,
+                authority_cwd, authority_index):
+            return False, (f"campaign dir / ccbench / hooks / 発行主体 root を破壊する操作 "
+                           f"({head})。"
                            "proof chain を配下ごと削除/移動/展開するのは不可 (規律2)")
         if (head in _TREE_DIRECT_WRITERS
                 and any(_campaign_tree_violation(t, root)
@@ -2594,16 +2838,33 @@ def decide(command: str, repo_root: str = "", *, site=None) -> tuple:
             return False, ("防護対象パスを含むコマンドでの bare/stdin インタプリタ実行 "
                            "(pipe や here-string でコードを流し込む形) は中身を追えない "
                            "= fails-closed (GB2-3)。スクリプトはファイルに置いて実行する")
-        leaf_hits = [t for t in args if _argument_hits_protected(
+        legacy_leaf_hits = [t for t in args if _argument_hits_existing(
             t, root, marker_cwd, hooks_index)]
+        authority_hits = [t for index, t in enumerate(args)
+                          if _argument_hits_authority(
+                              t, authority_cwd, authority_index,
+                              resolve_final=_authority_argument_resolves_final(
+                                  head, args, index))]
+        protected_hits = legacy_leaf_hits
+        if not _uses_tree_guard(head, args):
+            protected_hits = [t for index, t in enumerate(args)
+                              if _argument_hits_protected(
+                                  t, root, marker_cwd, hooks_index,
+                                  authority_cwd, authority_index)
+                              and (t in legacy_leaf_hits
+                                   or _authority_argument_resolves_final(
+                                       head, args, index))]
         read_only, refusal_kind = _read_only_check(
-            head, args, root, marker_cwd, hooks_index)
-        if leaf_hits and not read_only:
+            head, args, root, marker_cwd, hooks_index,
+            authority_cwd, authority_index)
+        if protected_hits and not read_only:
             # ビルドシステムによる build-variants の生成/更新は正当経路
             # (cmake -E の任意ファイル操作は除く)。head 自身が build-variants 配下の
-            # バイナリである「実行」は leaf_hits (args のみ) に乗らず素通り (F-FP-1)。
-            if (head in _BUILDERS and not (head == "cmake" and "-E" in args)
-                    and all("build-variants" in t for t in leaf_hits)):
+            # バイナリである「実行」は legacy_leaf_hits (args のみ) に乗らず素通り
+            # (F-FP-1)。
+            if (not authority_hits and head in _BUILDERS
+                    and not (head == "cmake" and "-E" in args)
+                    and all("build-variants" in t for t in legacy_leaf_hits)):
                 continue
             if refusal_kind == _DENY_OUTPUT:
                 return False, (f"保護対象を書き換える option / 出力先指定 ({head or '?'})。"
@@ -2615,8 +2876,9 @@ def decide(command: str, repo_root: str = "", *, site=None) -> tuple:
             if refusal_kind == _DENY_EXEC:
                 return False, (f"任意 command を実行し得る option ({head or '?'})。"
                                "pager/plugin/pre-command を外し、cat/grep/jq で読む")
-            return False, (f"末端防護対象に触れる非読み取りコマンド ({head or '?'})。"
-                           "WAL/campaign.lock/build-cache/namespace marker の書き換え・"
+            return False, (f"末端防護対象または固定の発行主体 root に触れる非読み取り"
+                           f"コマンド ({head or '?'}）。WAL/campaign.lock/build-cache/"
+                           "namespace marker/発行主体 root の書き換え・"
                            "削除・移動は不可 (規律2)。読み取りは cat/grep/jq/head/tail 等で")
     return True, ""
 
@@ -2635,11 +2897,13 @@ def main() -> int:
         decoded_values = tuple(_string_values(payload)) if payload is not None else ()
         decoded_protected = any(
             _MENTION_RE.search(value)
+            or _AUTHORITY_LITERAL_RE.search(value)
             or _PEGASUS_RAW_MENTION_RE.search(value)
             or _NON_PEGASUS_ADMISSION_RAW_MENTION_RE.search(value)
             or value == "hooks"
             for value in decoded_values)
         if (_MENTION_RE.search(raw)
+                or _AUTHORITY_LITERAL_RE.search(raw)
                 or _PEGASUS_RAW_MENTION_RE.search(raw)
                 or _NON_PEGASUS_ADMISSION_RAW_MENTION_RE.search(raw)
                 or decoded_protected):

@@ -18,6 +18,7 @@ DYNAMIC_OUT_PREFIX=/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/
 DYNAMIC_CERTIFY_PREFIX=/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/certify/
 DYNAMIC_PERFORMANCE_PREFIX=/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/perf/
 TRACE_CELLS_RAW='cw:1:1:1000:2560:10000:10240:0:100:100:0+cw-as:1:1:1000:2560:10000:10240:1:1:4:0+cw-as-dyn:1:1:1000:2560:10000:10240:1:1:4:1'
+COUNTERFACTUAL_TRACE_CELLS_RAW='cw-as-dyn-p0:1:1:1000:2560:10000:10240:1:1:4:1:0+cw-as-dyn-p1:1:1:1000:2560:10000:10240:1:1:4:1:1+cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2'
 CERT_TUNED_CELL='tuned:1:1:1000:2560'
 CERT_DYNAMIC_CELL='cw-as-dyn:1:1:1000:2560:10000:10240:1:1:4:1'
 
@@ -128,13 +129,16 @@ HAS_EXTENDED_CELL=0
 IFS='+' read -r -a CELL_ITEMS <<< "$CELLS_RAW"
 for raw_cell in "${CELL_ITEMS[@]}"; do
   colon_text=${raw_cell//[^:]/}
-  if [[ ${#colon_text} -eq 10 ]]; then
+  if [[ ${#colon_text} -eq 10 || ${#colon_text} -eq 11 ]]; then
     HAS_EXTENDED_CELL=1
   fi
 done
 if [[ "$BACKOFF_TRACE" == 1 ]]; then
-  if [[ "$CELLS_RAW" != "$TRACE_CELLS_RAW" || "$WORKLOADS_RAW" != write-heavy+balanced+read-heavy || "$THREADS_RAW" != 24+48 ]]; then
-    echo "backoff trace mode requires the exact diagnostic axes" >&2
+  if [[ "$CELLS_RAW" != "$TRACE_CELLS_RAW" &&
+        "$CELLS_RAW" != "$COUNTERFACTUAL_TRACE_CELLS_RAW" ]] ||
+     [[ "$WORKLOADS_RAW" != write-heavy+balanced+read-heavy ||
+        "$THREADS_RAW" != 24+48 ]]; then
+    echo "backoff trace mode requires one exact diagnostic cell set and exact axes" >&2
     exit 2
   fi
 fi
