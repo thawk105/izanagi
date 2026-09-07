@@ -1,0 +1,561 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2228-driver-gate-liveness/output/pegasus-dispatch/c56757e52bad258c93b501a3b38b1e28/izdw-c56757e52b.o980756",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2228-driver-gate-liveness/output/pegasus-dispatch/c56757e52bad258c93b501a3b38b1e28/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n..............                                                           [100%]\n14 passed in 3.93s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "7570578ddf21952cdf149196ed19f8aed2b24a190c602a0b55fef31b15fbcdad"
+    },
+    "artifact_error": null,
+    "collection_sha256": "607eb7aeef2ef9f6eb44587170896d096986d88f341f06944158c3d6b0145782",
+    "duration_s": 28.198,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "8a095bed1ed2a31e26cb7d851bcc63e12064a4398699fd7a3d1c5630857ffc07",
+    "repo_head": "c3447612e62ec7ec93d1662bfca45c594ff0a31b",
+    "runner_sha256": "5b1eef3189277b55f0df35db5d1bf7fb7b6bc0a78da12054099fe4dd4be2f53f",
+    "spec_sha256": "5b4e7b2b9e582675e3a378a8c8368d143da92d2246832297cec421938fb7f2aa",
+    "status": "PASSED",
+    "test_output_sha256": "7570578ddf21952cdf149196ed19f8aed2b24a190c602a0b55fef31b15fbcdad",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "bb7c0eca4898d47514febeee4b49fc0e406a9f0c8caf3da19fc49c2da25bf047"
+  },
+  "date": "2026-09-07T04:48:33.764101+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2228-driver-gate-liveness/output/pegasus-dispatch/386fe6889f31c033aa88884c29609713/izdw-386fe6889f.o980757",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2228-driver-gate-liveness/output/pegasus-dispatch/386fe6889f31c033aa88884c29609713/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...........FF.                                                           [100%]\n=================================== FAILURES ===================================\n_________ test_m1_exception_before_records_keeps_initial_result_false __________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_m1_exception_before_records_keeps_initial_result_false() -> None:\n        def fail_before_gate() -> None:\n            raise RuntimeError(\"pre-gate failure\")\n    \n        result = probe._base_result(\"repro\")\n        _value, observed, completed, exception = probe._measure_call(\n            gate,\n            driver_id=DRIVER_ID,\n            call=fail_before_gate,\n        )\n        if completed and probe._gate_success(gate, observed):\n            result[\"ok\"] = True\n        result[\"exception\"] = exception\n        probe._finish_result(result)\n    \n        assert completed is False\n        assert observed == probe._GateObservation()\n>       assert result[\"ok\"] is False\nE       assert True is False\n\norchestrator/tests/test_t2228_driver_gate_liveness_probe.py:78: AssertionError\n__ test_m5_run_sweep_rejects_aborted_summary_with_observed_production_records __\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_m5_run_sweep_rejects_abor0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14df23761b10>\n\n    def test_m5_run_sweep_rejects_aborted_summary_with_observed_production_records(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        summary = types.SimpleNamespace(\n            campaign_id=\"campaign\", committed=2, aborted=0, evaluated=2, skipped=0,\n        )\n        issue_count = 0\n    \n        def run_workload(\n            workload_name: str,\n            workload: dict,\n            *,\n            screening_enabled: bool,\n            screening_fixed_us: int,\n        ) -> object:\n            nonlocal issue_count\n            assert workload_name == \"write-heavy\"\n            assert workload == {\"fixture\": \"production-issued\"}\n            assert screening_enabled is True\n            assert screening_fixed_us == 2\n            issue_count += 1\n            _issue_production_family(\n                tmp_path / f\"family-{issue_count}\",\n                driver_id=probe.EXPECTED_DRIVER_IDS[\"sweep\"],\n            )\n            return summary\n    \n        bundle = types.SimpleNamespace(\n            gate=gate,\n            buildcache=types.SimpleNamespace(\n                _ccbench_dir=lambda: str(tmp_path),\n            ),\n            sweep=types.SimpleNamespace(\n                WORKLOADS=((\"write-heavy\", {\"fixture\": \"production-issued\"}),),\n                run_workload=run_workload,\n            ),\n        )\n        monkeypatch.setattr(\n            probe,\n            \"_driver_metadata\",\n            lambda _bundle, *, common, output_root: ({}, \"unused-cxx\"),\n        )\n        monkeypatch.setattr(\n            probe, \"_ccbench_head_and_clean\", lambda _root, _expected: \"f\" * 40,\n        )\n    \n        def accept_production_records(\n            gate_module: types.ModuleType,\n            observed: probe._GateObservation,\n        ) -> bool:\n            return probe._validated_family_admission(\n                gate_module,\n                observed.supply_records,\n                observed.meaning_records,\n                observed.admissions,\n            ) is observed.admissions[0]\n    \n        monkeypatch.setattr(probe, \"_gate_success\", accept_production_records)\n    \n        green = probe._run_sweep(bundle, common={}, output_root=tmp_path / \"green\")\n        assert green[\"ok\"] is True\n        assert green[\"rc\"] == 0\n    \n        summary.aborted = 1\n        aborted = probe._run_sweep(bundle, common={}, output_root=tmp_path / \"aborted\")\n>       assert aborted[\"ok\"] is False\nE       assert True is False\n\norchestrator/tests/test_t2228_driver_gate_liveness_probe.py:263: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m1_exception_before_records_keeps_initial_result_false\nFAILED orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m5_run_sweep_rejects_aborted_summary_with_observed_production_records\n2 failed, 12 passed in 3.96s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m5_run_sweep_rejects_aborted_summary_with_observed_production_records\" nodeid_bytes=135 nodeid_omitted_bytes=0 source_bytes=2753 retained_bytes=2753 omitted_bytes=0 rendered_excerpt_bytes=2904 sha256=7f7382f199a3db8e09d851f6a456336e33d4703c0fc01ca2f82b3b19bd0808cc\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw8] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_m5_run_sweep_rejects_abor0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14df23761b10>\n> \n>     def test_m5_run_sweep_rejects_aborted_summary_with_observed_production_records(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         summary = types.SimpleNamespace(\n>             campaign_id=\"campaign\", committed=2, aborted=0, evaluated=2, skipped=0,\n>         )\n>         issue_count = 0\n>     \n>         def run_workload(\n>             workload_name: str,\n>             workload: dict,\n>             *,\n>             screening_enabled: bool,\n>             screening_fixed_us: int,\n>         ) -> object:\n>             nonlocal issue_count\n>             assert workload_name == \"write-heavy\"\n>             assert workload == {\"fixture\": \"production-issued\"}\n>             assert screening_enabled is True\n>             assert screening_fixed_us == 2\n>             issue_count += 1\n>             _issue_production_family(\n>                 tmp_path / f\"family-{issue_count}\",\n>                 driver_id=probe.EXPECTED_DRIVER_IDS[\"sweep\"],\n>             )\n>             return summary\n>     \n>         bundle = types.SimpleNamespace(\n>             gate=gate,\n>             buildcache=types.SimpleNamespace(\n>                 _ccbench_dir=lambda: str(tmp_path),\n>             ),\n>             sweep=types.SimpleNamespace(\n>                 WORKLOADS=((\"write-heavy\", {\"fixture\": \"production-issued\"}),),\n>                 run_workload=run_workload,\n>             ),\n>         )\n>         monkeypatch.setattr(\n>             probe,\n>             \"_driver_metadata\",\n>             lambda _bundle, *, common, output_root: ({}, \"unused-cxx\"),\n>         )\n>         monkeypatch.setattr(\n>             probe, \"_ccbench_head_and_clean\", lambda _root, _expected: \"f\" * 40,\n>         )\n>     \n>         def accept_production_records(\n>             gate_module: types.ModuleType,\n>             observed: probe._GateObservation,\n>         ) -> bool:\n>             return probe._validated_family_admission(\n>                 gate_module,\n>                 observed.supply_records,\n>                 observed.meaning_records,\n>                 observed.admissions,\n>             ) is observed.admissions[0]\n>     \n>         monkeypatch.setattr(probe, \"_gate_success\", accept_production_records)\n>     \n>         green = probe._run_sweep(bundle, common={}, output_root=tmp_path / \"green\")\n>         assert green[\"ok\"] is True\n>         assert green[\"rc\"] == 0\n>     \n>         summary.aborted = 1\n>         aborted = probe._run_sweep(bundle, common={}, output_root=tmp_path / \"aborted\")\n> >       assert aborted[\"ok\"] is False\n> E       assert True is False\n> \n> orchestrator/tests/test_t2228_driver_gate_liveness_probe.py:263: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m1_exception_before_records_keeps_initial_result_false\" nodeid_bytes=120 nodeid_omitted_bytes=0 source_bytes=840 retained_bytes=840 omitted_bytes=0 rendered_excerpt_bytes=887 sha256=6e3efa93f4aa8fe61fcef192b276784052a5c762c8955413cd0c569b12ed2606\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_m1_exception_before_records_keeps_initial_result_false() -> None:\n>         def fail_before_gate() -> None:\n>             raise RuntimeError(\"pre-gate failure\")\n>     \n>         result = probe._base_result(\"repro\")\n>         _value, observed, completed, exception = probe._measure_call(\n>             gate,\n>             driver_id=DRIVER_ID,\n>             call=fail_before_gate,\n>         )\n>         if completed and probe._gate_success(gate, observed):\n>             result[\"ok\"] = True\n>         result[\"exception\"] = exception\n>         probe._finish_result(result)\n>     \n>         assert completed is False\n>         assert observed == probe._GateObservation()\n> >       assert result[\"ok\"] is False\n> E       assert True is False\n> \n> orchestrator/tests/test_t2228_driver_gate_liveness_probe.py:78: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=3593 retained_bytes=3593 omitted_bytes=0 budget_bytes=49152 rendered_bytes=5012 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "e823999883657179efe3b680f5ef433156ef6354cb543e7760803e9fcfaced0d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "607eb7aeef2ef9f6eb44587170896d096986d88f341f06944158c3d6b0145782",
+      "duration_s": 28.36,
+      "expected_nodes": [
+        "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m1_exception_before_records_keeps_initial_result_false",
+        "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m5_run_sweep_rejects_aborted_summary_with_observed_production_records"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m1_exception_before_records_keeps_initial_result_false",
+        "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m5_run_sweep_rejects_aborted_summary_with_observed_production_records"
+      ],
+      "hang_risk": false,
+      "id": "t2228.m1-initial-result-is-green",
+      "injection_diff_sha256": "15c56f92799960df65ed6818b87040721a9368a2615771646f9b3932df779580",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "3ef0df26301394ac15b8774ae3c201b61b143d546bf88e2bc495da10909daff2",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2228_driver_gate_liveness_probe.py",
+          "new": "        \"ok\": True,\n        \"rc\": 1,\n",
+          "old": "        \"ok\": False,\n        \"rc\": 1,\n"
+        }
+      ],
+      "repo_head": "c3447612e62ec7ec93d1662bfca45c594ff0a31b",
+      "runner_sha256": "5b1eef3189277b55f0df35db5d1bf7fb7b6bc0a78da12054099fe4dd4be2f53f",
+      "spec_sha256": "5b4e7b2b9e582675e3a378a8c8368d143da92d2246832297cec421938fb7f2aa",
+      "status": "KILLED",
+      "test_output_sha256": "e823999883657179efe3b680f5ef433156ef6354cb543e7760803e9fcfaced0d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bb7c0eca4898d47514febeee4b49fc0e406a9f0c8caf3da19fc49c2da25bf047"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2228-driver-gate-liveness/output/pegasus-dispatch/2246d21432d98c964d5ac941c4ed12ec/izdw-2246d21432.o980759",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2228-driver-gate-liveness/output/pegasus-dispatch/2246d21432d98c964d5ac941c4ed12ec/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...........FF.                                                           [100%]\n=================================== FAILURES ===================================\n_________ test_m2_production_integrity_rejects_tampered_issued_record __________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_m2_production_integrity_r0')\n\n    def test_m2_production_integrity_rejects_tampered_issued_record(\n        tmp_path: Path,\n    ) -> None:\n        observed = _production_observation(tmp_path / \"family\")\n        admission = probe._validated_family_admission(\n            gate,\n            observed.supply_records,\n            observed.meaning_records,\n            observed.admissions,\n        )\n        assert admission is observed.admissions[0]\n    \n        supply = observed.supply_records[0]\n        object.__setattr__(supply, \"record_digest\", \"0\" * 64)\n    \n>       assert probe._validated_family_admission(\n            gate,\n            observed.supply_records,\n            observed.meaning_records,\n            observed.admissions,\n        ) is None\nE       AssertionError: assert ConditionFamilyAdmission(admission_id='condition-gate/admission/c70d48ddb76b0654152617f8d8b4df5bd954e71fd2671ae8d7e6d4...ng/b75a4fdde749e7af0e31504ee716a7d875c0c0b36c1f80a41436eedeb0c105c4'), unestablished_meaning_macros=('BACKOFF_FIXED',)) is None\nE        +  where ConditionFamilyAdmission(admission_id='condition-gate/admission/c70d48ddb76b0654152617f8d8b4df5bd954e71fd2671ae8d7e6d4...ng/b75a4fdde749e7af0e31504ee716a7d875c0c0b36c1f80a41436eedeb0c105c4'), unestablished_meaning_macros=('BACKOFF_FIXED',)) = <function _validated_family_admission at 0x146e142000d0>(gate, [ConditionArmRecord(record_id='condition-gate/supply-effectuation/9d433fe50b90ca3a66fe81eda929c90ad084dd09301192551445...39697a296269f6309390f', evidence=mappingproxy({'detail': 'inert supply requires a distinct pinned-clean stock root'}))], [ConditionArmRecord(record_id='condition-gate/runtime-meaning/b75a4fdde749e7af0e31504ee716a7d875c0c0b36c1f80a41436eede...bcce3bb5ae07653249d6078544e2d89e1bbfbb4e07b39697a296269f6309390f', evidence=mappingproxy({'witness_declared': False}))], [ConditionFamilyAdmission(admission_id='condition-gate/admission/c70d48ddb76b0654152617f8d8b4df5bd954e71fd2671ae8d7e6d...g/b75a4fdde749e7af0e31504ee716a7d875c0c0b36c1f80a41436eedeb0c105c4'), unestablished_meaning_macros=('BACKOFF_FIXED',))])\nE        +    where <function _validated_family_admission at 0x146e142000d0> = probe._validated_family_admission\nE        +    and   [ConditionArmRecord(record_id='condition-gate/supply-effectuation/9d433fe50b90ca3a66fe81eda929c90ad084dd09301192551445...39697a296269f6309390f', evidence=mappingproxy({'detail': 'inert supply requires a distinct pinned-clean stock root'}))] = _GateObservation(requests=[DefineRequest(driver_id='orchestrator/campaign/backoff_repro.py', macro='BACKOFF_FIXED', ro.../b75a4fdde749e7af0e31504ee716a7d875c0c0b36c1f80a41436eedeb0c105c4'), unestablished_meaning_macros=('BACKOFF_FIXED',))]).supply_records\nE        +    and   [ConditionArmRecord(record_id='condition-gate/runtime-meaning/b75a4fdde749e7af0e31504ee716a7d875c0c0b36c1f80a41436eede...bcce3bb5ae07653249d6078544e2d89e1bbfbb4e07b39697a296269f6309390f', evidence=mappingproxy({'witness_declared': False}))] = _GateObservation(requests=[DefineRequest(driver_id='orchestrator/campaign/backoff_repro.py', macro='BACKOFF_FIXED', ro.../b75a4fdde749e7af0e31504ee716a7d875c0c0b36c1f80a41436eedeb0c105c4'), unestablished_meaning_macros=('BACKOFF_FIXED',))]).meaning_records\nE        +    and   [ConditionFamilyAdmission(admission_id='condition-gate/admission/c70d48ddb76b0654152617f8d8b4df5bd954e71fd2671ae8d7e6d...g/b75a4fdde749e7af0e31504ee716a7d875c0c0b36c1f80a41436eedeb0c105c4'), unestablished_meaning_macros=('BACKOFF_FIXED',))] = _GateObservation(requests=[DefineRequest(driver_id='orchestrator/campaign/backoff_repro.py', macro='BACKOFF_FIXED', ro.../b75a4fdde749e7af0e31504ee716a7d875c0c0b36c1f80a41436eedeb0c105c4'), unestablished_meaning_macros=('BACKOFF_FIXED',))]).admissions\n\norchestrator/tests/test_t2228_driver_gate_liveness_probe.py:97: AssertionError\n__________ test_m3_production_admission_is_bound_to_exact_record_ids ___________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_m3_production_admission_i0')\n\n    def test_m3_production_admission_is_bound_to_exact_record_ids(\n        tmp_path: Path,\n    ) -> None:\n        observed = _production_observation(tmp_path / \"family-a\")\n        unrelated = _production_observation(\n            tmp_path / \"family-b\",\n            driver_id=\"orchestrator/campaign/other-driver.py\",\n        )\n        assert observed.admissions[0].admitted is False\n        assert probe._gate_success(gate, observed) is False\n    \n>       assert probe._validated_family_admission(\n            gate,\n            observed.supply_records,\n            observed.meaning_records,\n            unrelated.admissions,\n        ) is None\nE       AssertionError: assert ConditionFamilyAdmission(admission_id='condition-gate/admission/25481a4b4c8e091208b97906a2923ffd1d95654c2519fbdd1edb2e...ng/1e56cd7c78c6f0265fd3a4aa2f1d585861882d11ffbf7d37299dcc9dcd26146a'), unestablished_meaning_macros=('BACKOFF_FIXED',)) is None\nE        +  where ConditionFamilyAdmission(admission_id='condition-gate/admission/25481a4b4c8e091208b97906a2923ffd1d95654c2519fbdd1edb2e...ng/1e56cd7c78c6f0265fd3a4aa2f1d585861882d11ffbf7d37299dcc9dcd26146a'), unestablished_meaning_macros=('BACKOFF_FIXED',)) = <function _validated_family_admission at 0x15221d5ec0d0>(gate, [ConditionArmRecord(record_id='condition-gate/supply-effectuation/9d433fe50b90ca3a66fe81eda929c90ad084dd09301192551445...39697a296269f6309390f', evidence=mappingproxy({'detail': 'inert supply requires a distinct pinned-clean stock root'}))], [ConditionArmRecord(record_id='condition-gate/runtime-meaning/b75a4fdde749e7af0e31504ee716a7d875c0c0b36c1f80a41436eede...bcce3bb5ae07653249d6078544e2d89e1bbfbb4e07b39697a296269f6309390f', evidence=mappingproxy({'witness_declared': False}))], [ConditionFamilyAdmission(admission_id='condition-gate/admission/25481a4b4c8e091208b97906a2923ffd1d95654c2519fbdd1edb2...g/1e56cd7c78c6f0265fd3a4aa2f1d585861882d11ffbf7d37299dcc9dcd26146a'), unestablished_meaning_macros=('BACKOFF_FIXED',))])\nE        +    where <function _validated_family_admission at 0x15221d5ec0d0> = probe._validated_family_admission\nE        +    and   [ConditionArmRecord(record_id='condition-gate/supply-effectuation/9d433fe50b90ca3a66fe81eda929c90ad084dd09301192551445...39697a296269f6309390f', evidence=mappingproxy({'detail': 'inert supply requires a distinct pinned-clean stock root'}))] = _GateObservation(requests=[DefineRequest(driver_id='orchestrator/campaign/backoff_repro.py', macro='BACKOFF_FIXED', ro.../b75a4fdde749e7af0e31504ee716a7d875c0c0b36c1f80a41436eedeb0c105c4'), unestablished_meaning_macros=('BACKOFF_FIXED',))]).supply_records\nE        +    and   [ConditionArmRecord(record_id='condition-gate/runtime-meaning/b75a4fdde749e7af0e31504ee716a7d875c0c0b36c1f80a41436eede...bcce3bb5ae07653249d6078544e2d89e1bbfbb4e07b39697a296269f6309390f', evidence=mappingproxy({'witness_declared': False}))] = _GateObservation(requests=[DefineRequest(driver_id='orchestrator/campaign/backoff_repro.py', macro='BACKOFF_FIXED', ro.../b75a4fdde749e7af0e31504ee716a7d875c0c0b36c1f80a41436eedeb0c105c4'), unestablished_meaning_macros=('BACKOFF_FIXED',))]).meaning_records\nE        +    and   [ConditionFamilyAdmission(admission_id='condition-gate/admission/25481a4b4c8e091208b97906a2923ffd1d95654c2519fbdd1edb2...g/1e56cd7c78c6f0265fd3a4aa2f1d585861882d11ffbf7d37299dcc9dcd26146a'), unestablished_meaning_macros=('BACKOFF_FIXED',))] = _GateObservation(requests=[DefineRequest(driver_id='orchestrator/campaign/other-driver.py', macro='BACKOFF_FIXED', rou.../1e56cd7c78c6f0265fd3a4aa2f1d585861882d11ffbf7d37299dcc9dcd26146a'), unestablished_meaning_macros=('BACKOFF_FIXED',))]).admissions\n\norchestrator/tests/test_t2228_driver_gate_liveness_probe.py:116: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m2_production_integrity_rejects_tampered_issued_record\nFAILED orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m3_production_admission_is_bound_to_exact_record_ids\n2 failed, 12 passed in 3.93s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m2_production_integrity_rejects_tampered_issued_record\" nodeid_bytes=120 nodeid_omitted_bytes=0 source_bytes=3944 retained_bytes=3944 omitted_bytes=0 rendered_excerpt_bytes=4011 sha256=f435e1764360565e71600f6e8484eeb4a01ec59131c7cc5666a99a434dd50fe9\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_m2_production_integrity_r0')\n> \n>     def test_m2_production_integrity_rejects_tampered_issued_record(\n>         tmp_path: Path,\n>     ) -> None:\n>         observed = _production_observation(tmp_path / \"family\")\n>         admission = probe._validated_family_admission(\n>             gate,\n>             observed.supply_records,\n>             observed.meaning_records,\n>             observed.admissions,\n>         )\n>         assert admission is observed.admissions[0]\n>     \n>         supply = observed.supply_records[0]\n>         object.__setattr__(supply, \"record_digest\", \"0\" * 64)\n>     \n> >       assert probe._validated_family_admission(\n>             gate,\n>             observed.supply_records,\n>             observed.meaning_records,\n>             observed.admissions,\n>         ) is None\n> E       AssertionError: assert ConditionFamilyAdmission(admission_id='condition-gate/admission/c70d48ddb76b0654152617f8d8b4df5bd954e71fd2671ae8d7e6d4...ng/b75a4fdde749e7af0e31504ee716a7d875c0c0b36c1f80a41436eedeb0c105c4'), unestablished_meaning_macros=('BACKOFF_FIXED',)) is None\n> E        +  where ConditionFamilyAdmission(admission_id='condition-gate/admission/c70d48ddb76b0654152617f8d8b4df5bd954e71fd2671ae8d7e6d4...ng/b75a4fdde749e7af0e31504ee716a7d875c0c0b36c1f80a41436eedeb0c105c4'), unestablished_meaning_macros=('BACKOFF_FIXED',)) = <function _validated_family_admission at 0x146e142000d0>(gate, [ConditionArmRecord(record_id='condition-gate/supply-effectuation/9d433fe50b90ca3a66fe81eda929c90ad084dd09301192551445...39697a296269f6309390f', evidence=mappingproxy({'detail': 'inert supply requires a distinct pinned-clean stock root'}))], [ConditionArmRecord(record_id='condition-gate/runtime-meaning/b75a4fdde749e7af0e31504ee716a7d875c0c0b36c1f80a41436eede...bcce3bb5ae07653249d6078544e2d89e1bbfbb4e07b39697a296269f6309390f', evidence=mappingproxy({'witness_declared': False}))], [ConditionFamilyAdmission(admission_id='condition-gate/admission/c70d48ddb76b0654152617f8d8b4df5bd954e71fd2671ae8d7e6d...g/b75a4fdde749e7af0e31504ee716a7d875c0c0b36c1f80a41436eedeb0c105c4'), unestablished_meaning_macros=('BACKOFF_FIXED',))])\n> E        +    where <function _validated_family_admission at 0x146e142000d0> = probe._validated_family_admission\n> E        +    and   [ConditionArmRecord(record_id='condition-gate/supply-effectuation/9d433fe50b90ca3a66fe81eda929c90ad084dd09301192551445...39697a296269f6309390f', evidence=mappingproxy({'detail': 'inert supply requires a distinct pinned-clean stock root'}))] = _GateObservation(requests=[DefineRequest(driver_id='orchestrator/campaign/backoff_repro.py', macro='BACKOFF_FIXED', ro.../b75a4fdde749e7af0e31504ee716a7d875c0c0b36c1f80a41436eedeb0c105c4'), unestablished_meaning_macros=('BACKOFF_FIXED',))]).supply_records\n> E        +    and   [ConditionArmRecord(record_id='condition-gate/runtime-meaning/b75a4fdde749e7af0e31504ee716a7d875c0c0b36c1f80a41436eede...bcce3bb5ae07653249d6078544e2d89e1bbfbb4e07b39697a296269f6309390f', evidence=mappingproxy({'witness_declared': False}))] = _GateObservation(requests=[DefineRequest(driver_id='orchestrator/campaign/backoff_repro.py', macro='BACKOFF_FIXED', ro.../b75a4fdde749e7af0e31504ee716a7d875c0c0b36c1f80a41436eedeb0c105c4'), unestablished_meaning_macros=('BACKOFF_FIXED',))]).meaning_records\n> E        +    and   [ConditionFamilyAdmission(admission_id='condition-gate/admission/c70d48ddb76b0654152617f8d8b4df5bd954e71fd2671ae8d7e6d...g/b75a4fdde749e7af0e31504ee716a7d875c0c0b36c1f80a41436eedeb0c105c4'), unestablished_meaning_macros=('BACKOFF_FIXED',))] = _GateObservation(requests=[DefineRequest(driver_id='orchestrator/campaign/backoff_repro.py', macro='BACKOFF_FIXED', ro.../b75a4fdde749e7af0e31504ee716a7d875c0c0b36c1f80a41436eedeb0c105c4'), unestablished_meaning_macros=('BACKOFF_FIXED',))]).admissions\n> \n> orchestrator/tests/test_t2228_driver_gate_liveness_probe.py:97: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m3_production_admission_is_bound_to_exact_record_ids\" nodeid_bytes=118 nodeid_omitted_bytes=0 source_bytes=3862 retained_bytes=3862 omitted_bytes=0 rendered_excerpt_bytes=3921 sha256=fea901c315971833a57cedf0ea717458e2f9f00f87386535d940ccfea9adb277\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_m3_production_admission_i0')\n> \n>     def test_m3_production_admission_is_bound_to_exact_record_ids(\n>         tmp_path: Path,\n>     ) -> None:\n>         observed = _production_observation(tmp_path / \"family-a\")\n>         unrelated = _production_observation(\n>             tmp_path / \"family-b\",\n>             driver_id=\"orchestrator/campaign/other-driver.py\",\n>         )\n>         assert observed.admissions[0].admitted is False\n>         assert probe._gate_success(gate, observed) is False\n>     \n> >       assert probe._validated_family_admission(\n>             gate,\n>             observed.supply_records,\n>             observed.meaning_records,\n>             unrelated.admissions,\n>         ) is None\n> E       AssertionError: assert ConditionFamilyAdmission(admission_id='condition-gate/admission/25481a4b4c8e091208b97906a2923ffd1d95654c2519fbdd1edb2e...ng/1e56cd7c78c6f0265fd3a4aa2f1d585861882d11ffbf7d37299dcc9dcd26146a'), unestablished_meaning_macros=('BACKOFF_FIXED',)) is None\n> E        +  where ConditionFamilyAdmission(admission_id='condition-gate/admission/25481a4b4c8e091208b97906a2923ffd1d95654c2519fbdd1edb2e...ng/1e56cd7c78c6f0265fd3a4aa2f1d585861882d11ffbf7d37299dcc9dcd26146a'), unestablished_meaning_macros=('BACKOFF_FIXED',)) = <function _validated_family_admission at 0x15221d5ec0d0>(gate, [ConditionArmRecord(record_id='condition-gate/supply-effectuation/9d433fe50b90ca3a66fe81eda929c90ad084dd09301192551445...39697a296269f6309390f', evidence=mappingproxy({'detail': 'inert supply requires a distinct pinned-clean stock root'}))], [ConditionArmRecord(record_id='condition-gate/runtime-meaning/b75a4fdde749e7af0e31504ee716a7d875c0c0b36c1f80a41436eede...bcce3bb5ae07653249d6078544e2d89e1bbfbb4e07b39697a296269f6309390f', evidence=mappingproxy({'witness_declared': False}))], [ConditionFamilyAdmission(admission_id='condition-gate/admission/25481a4b4c8e091208b97906a2923ffd1d95654c2519fbdd1edb2...g/1e56cd7c78c6f0265fd3a4aa2f1d585861882d11ffbf7d37299dcc9dcd26146a'), unestablished_meaning_macros=('BACKOFF_FIXED',))])\n> E        +    where <function _validated_family_admission at 0x15221d5ec0d0> = probe._validated_family_admission\n> E        +    and   [ConditionArmRecord(record_id='condition-gate/supply-effectuation/9d433fe50b90ca3a66fe81eda929c90ad084dd09301192551445...39697a296269f6309390f', evidence=mappingproxy({'detail': 'inert supply requires a distinct pinned-clean stock root'}))] = _GateObservation(requests=[DefineRequest(driver_id='orchestrator/campaign/backoff_repro.py', macro='BACKOFF_FIXED', ro.../b75a4fdde749e7af0e31504ee716a7d875c0c0b36c1f80a41436eedeb0c105c4'), unestablished_meaning_macros=('BACKOFF_FIXED',))]).supply_records\n> E        +    and   [ConditionArmRecord(record_id='condition-gate/runtime-meaning/b75a4fdde749e7af0e31504ee716a7d875c0c0b36c1f80a41436eede...bcce3bb5ae07653249d6078544e2d89e1bbfbb4e07b39697a296269f6309390f', evidence=mappingproxy({'witness_declared': False}))] = _GateObservation(requests=[DefineRequest(driver_id='orchestrator/campaign/backoff_repro.py', macro='BACKOFF_FIXED', ro.../b75a4fdde749e7af0e31504ee716a7d875c0c0b36c1f80a41436eedeb0c105c4'), unestablished_meaning_macros=('BACKOFF_FIXED',))]).meaning_records\n> E        +    and   [ConditionFamilyAdmission(admission_id='condition-gate/admission/25481a4b4c8e091208b97906a2923ffd1d95654c2519fbdd1edb2...g/1e56cd7c78c6f0265fd3a4aa2f1d585861882d11ffbf7d37299dcc9dcd26146a'), unestablished_meaning_macros=('BACKOFF_FIXED',))] = _GateObservation(requests=[DefineRequest(driver_id='orchestrator/campaign/other-driver.py', macro='BACKOFF_FIXED', rou.../1e56cd7c78c6f0265fd3a4aa2f1d585861882d11ffbf7d37299dcc9dcd26146a'), unestablished_meaning_macros=('BACKOFF_FIXED',))]).admissions\n> \n> orchestrator/tests/test_t2228_driver_gate_liveness_probe.py:116: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=7806 retained_bytes=7806 omitted_bytes=0 budget_bytes=49152 rendered_bytes=9139 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "fc7b8b08359ca117e6c6d4ab73187ee7b4dd4cacecb05f1673fe6f081975c836"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "607eb7aeef2ef9f6eb44587170896d096986d88f341f06944158c3d6b0145782",
+      "duration_s": 28.413,
+      "expected_nodes": [
+        "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m2_production_integrity_rejects_tampered_issued_record",
+        "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m3_production_admission_is_bound_to_exact_record_ids"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m2_production_integrity_rejects_tampered_issued_record",
+        "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m3_production_admission_is_bound_to_exact_record_ids"
+      ],
+      "hang_risk": false,
+      "id": "t2228.m2-family-admission-skips-production-revalidation",
+      "injection_diff_sha256": "8913e0c74e5afc235bed11864b73436eec79056c56cc50859ccfbadc079e05a2",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "8f01df37bcee3eafdf961dc90fc8d405546b567439d35cd5091d132859f2f1fd",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2228_driver_gate_liveness_probe.py",
+          "new": "    return admission\n",
+          "old": "    try:\n        expected = gate.require_condition_gate_family(\n            list(supply_records),\n            list(meaning_records),\n            use_class=admission.use_class,\n        )\n    except Exception:\n        return None\n    return admission if admission == expected else None\n"
+        }
+      ],
+      "repo_head": "c3447612e62ec7ec93d1662bfca45c594ff0a31b",
+      "runner_sha256": "5b1eef3189277b55f0df35db5d1bf7fb7b6bc0a78da12054099fe4dd4be2f53f",
+      "spec_sha256": "5b4e7b2b9e582675e3a378a8c8368d143da92d2246832297cec421938fb7f2aa",
+      "status": "KILLED",
+      "test_output_sha256": "fc7b8b08359ca117e6c6d4ab73187ee7b4dd4cacecb05f1673fe6f081975c836",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bb7c0eca4898d47514febeee4b49fc0e406a9f0c8caf3da19fc49c2da25bf047"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2228-driver-gate-liveness/output/pegasus-dispatch/70651c58c0a15cd783f3054155b597ac/izdw-70651c58c0.o980760",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2228-driver-gate-liveness/output/pegasus-dispatch/70651c58c0a15cd783f3054155b597ac/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n............F.                                                           [100%]\n=================================== FAILURES ===================================\n___ test_current_pin_control_requires_production_assert_pinned_clean_origin ____\n[gw7] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_current_pin_control_requires_production_assert_pinned_clean_origin() -> None:\n        def assert_pinned_clean() -> None:\n            raise RuntimeError(\"controlled pin mismatch\")\n    \n        _value, observed, completed, exception = probe._measure_call(\n            gate, driver_id=DRIVER_ID, call=assert_pinned_clean,\n        )\n        assert exception is not None\n        assert any(\n            row[\"function\"] == \"assert_pinned_clean\"\n            for row in exception[\"traceback\"]\n        )\n        production_exception = {\n            **exception,\n            \"traceback\": [{\n                \"module\": \"orchestrator.campaign.patchharness\",\n                \"function\": \"assert_pinned_clean\",\n            }],\n        }\n        assert probe._current_pin_control_success(\n            observed,\n            completed=completed,\n            exception=production_exception,\n            current_head=\"a\" * 40,\n            required_head=\"b\" * 40,\n        ) is True\n>       assert probe._current_pin_control_success(\n            observed,\n            completed=completed,\n            exception=production_exception,\n            current_head=\"a\" * 40,\n            required_head=\"a\" * 40,\n        ) is False\nE       AssertionError: assert True is False\nE        +  where True = <function _current_pin_control_success at 0x14ef14d98af0>(_GateObservation(requests=[], supply_records=[], meaning_records=[], admissions=[]), completed=False, exception={'type': 'RuntimeError', 'module': 'builtins', 'message': 'controlled pin mismatch', 'reason_code': None, ...}, current_head=('a' * 40), required_head=('a' * 40))\nE        +    where <function _current_pin_control_success at 0x14ef14d98af0> = probe._current_pin_control_success\n\norchestrator/tests/test_t2228_driver_gate_liveness_probe.py:188: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_current_pin_control_requires_production_assert_pinned_clean_origin\n1 failed, 13 passed in 3.93s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_current_pin_control_requires_production_assert_pinned_clean_origin\" nodeid_bytes=132 nodeid_omitted_bytes=0 source_bytes=1859 retained_bytes=1859 omitted_bytes=0 rendered_excerpt_bytes=1940 sha256=ec4b48b2eefe80c66cf105d4f77e29c9dc8e5012038d88d441172c65a309053b\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw7] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_current_pin_control_requires_production_assert_pinned_clean_origin() -> None:\n>         def assert_pinned_clean() -> None:\n>             raise RuntimeError(\"controlled pin mismatch\")\n>     \n>         _value, observed, completed, exception = probe._measure_call(\n>             gate, driver_id=DRIVER_ID, call=assert_pinned_clean,\n>         )\n>         assert exception is not None\n>         assert any(\n>             row[\"function\"] == \"assert_pinned_clean\"\n>             for row in exception[\"traceback\"]\n>         )\n>         production_exception = {\n>             **exception,\n>             \"traceback\": [{\n>                 \"module\": \"orchestrator.campaign.patchharness\",\n>                 \"function\": \"assert_pinned_clean\",\n>             }],\n>         }\n>         assert probe._current_pin_control_success(\n>             observed,\n>             completed=completed,\n>             exception=production_exception,\n>             current_head=\"a\" * 40,\n>             required_head=\"b\" * 40,\n>         ) is True\n> >       assert probe._current_pin_control_success(\n>             observed,\n>             completed=completed,\n>             exception=production_exception,\n>             current_head=\"a\" * 40,\n>             required_head=\"a\" * 40,\n>         ) is False\n> E       AssertionError: assert True is False\n> E        +  where True = <function _current_pin_control_success at 0x14ef14d98af0>(_GateObservation(requests=[], supply_records=[], meaning_records=[], admissions=[]), completed=False, exception={'type': 'RuntimeError', 'module': 'builtins', 'message': 'controlled pin mismatch', 'reason_code': None, ...}, current_head=('a' * 40), required_head=('a' * 40))\n> E        +    where <function _current_pin_control_success at 0x14ef14d98af0> = probe._current_pin_control_success\n> \n> orchestrator/tests/test_t2228_driver_gate_liveness_probe.py:188: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1859 retained_bytes=1859 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2700 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "6682e8bcdb6d1555591fe2c9b74edb202fc3a2c4ac9b7ba3a3ab5d08d6837be8"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "607eb7aeef2ef9f6eb44587170896d096986d88f341f06944158c3d6b0145782",
+      "duration_s": 28.269,
+      "expected_nodes": [
+        "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_current_pin_control_requires_production_assert_pinned_clean_origin"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_current_pin_control_requires_production_assert_pinned_clean_origin"
+      ],
+      "hang_risk": false,
+      "id": "t2228.m3-current-pin-control-ignores-head-equality",
+      "injection_diff_sha256": "5c27a2c92b9d8eaac10abd51dc44d1ee0a06991dd3da2242afdc6e13b82424c0",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "af83403a80415ba0821521018455dd7df0aa6641b530376b90b87ba8100d1319",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2228_driver_gate_liveness_probe.py",
+          "new": "    if completed or exception is None:\n",
+          "old": "    if completed or current_head == required_head or exception is None:\n"
+        }
+      ],
+      "repo_head": "c3447612e62ec7ec93d1662bfca45c594ff0a31b",
+      "runner_sha256": "5b1eef3189277b55f0df35db5d1bf7fb7b6bc0a78da12054099fe4dd4be2f53f",
+      "spec_sha256": "5b4e7b2b9e582675e3a378a8c8368d143da92d2246832297cec421938fb7f2aa",
+      "status": "KILLED",
+      "test_output_sha256": "6682e8bcdb6d1555591fe2c9b74edb202fc3a2c4ac9b7ba3a3ab5d08d6837be8",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bb7c0eca4898d47514febeee4b49fc0e406a9f0c8caf3da19fc49c2da25bf047"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2228-driver-gate-liveness/output/pegasus-dispatch/86c725a5d1a11f70473d9c75111c9930/izdw-86c725a5d1.o980763",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2228-driver-gate-liveness/output/pegasus-dispatch/86c725a5d1a11f70473d9c75111c9930/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n............F.                                                           [100%]\n=================================== FAILURES ===================================\n________ test_m4_runtime_error_without_attribute_keeps_reason_code_null ________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_m4_runtime_error_without_attribute_keeps_reason_code_null() -> None:\n        error = RuntimeError(\"configure-timeout: text is not a reason attribute\")\n    \n        document = probe._exception_document(error)\n    \n        assert document[\"type\"] == \"RuntimeError\"\n        assert document[\"message\"] == str(error)\n>       assert document[\"reason_code\"] is None\nE       AssertionError: assert 'configure-timeout' is None\n\norchestrator/tests/test_t2228_driver_gate_liveness_probe.py:131: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m4_runtime_error_without_attribute_keeps_reason_code_null\n1 failed, 13 passed in 3.92s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m4_runtime_error_without_attribute_keeps_reason_code_null\" nodeid_bytes=123 nodeid_omitted_bytes=0 source_bytes=558 retained_bytes=558 omitted_bytes=0 rendered_excerpt_bytes=585 sha256=0c831ce2263f3492e4859af3b12e5e1941bb1deb67225f47f6b86335e2414ef5\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_m4_runtime_error_without_attribute_keeps_reason_code_null() -> None:\n>         error = RuntimeError(\"configure-timeout: text is not a reason attribute\")\n>     \n>         document = probe._exception_document(error)\n>     \n>         assert document[\"type\"] == \"RuntimeError\"\n>         assert document[\"message\"] == str(error)\n> >       assert document[\"reason_code\"] is None\n> E       AssertionError: assert 'configure-timeout' is None\n> \n> orchestrator/tests/test_t2228_driver_gate_liveness_probe.py:131: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=558 retained_bytes=558 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1331 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "472586a4a63cd61b5757cfe65f632bc29b299873373e56569d6a078b8884b42e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "607eb7aeef2ef9f6eb44587170896d096986d88f341f06944158c3d6b0145782",
+      "duration_s": 28.273,
+      "expected_nodes": [
+        "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m4_runtime_error_without_attribute_keeps_reason_code_null"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m4_runtime_error_without_attribute_keeps_reason_code_null"
+      ],
+      "hang_risk": false,
+      "id": "t2228.m4-reason-code-guessed-from-message",
+      "injection_diff_sha256": "0c7eff02a5cc0055797a42bfead1382eed977fd5dd18e825302b753456d93fad",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "9499ea93c35ac53ae13f8fce653b1fbafc11c563201de2c23f7a9ac936a02960",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2228_driver_gate_liveness_probe.py",
+          "new": "            \"reason_code\": getattr(current, \"reason_code\", None) or str(current).split(\":\")[0],\n            \"traceback\": traceback_rows,\n",
+          "old": "            \"reason_code\": getattr(current, \"reason_code\", None),\n            \"traceback\": traceback_rows,\n"
+        }
+      ],
+      "repo_head": "c3447612e62ec7ec93d1662bfca45c594ff0a31b",
+      "runner_sha256": "5b1eef3189277b55f0df35db5d1bf7fb7b6bc0a78da12054099fe4dd4be2f53f",
+      "spec_sha256": "5b4e7b2b9e582675e3a378a8c8368d143da92d2246832297cec421938fb7f2aa",
+      "status": "KILLED",
+      "test_output_sha256": "472586a4a63cd61b5757cfe65f632bc29b299873373e56569d6a078b8884b42e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bb7c0eca4898d47514febeee4b49fc0e406a9f0c8caf3da19fc49c2da25bf047"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2228-driver-gate-liveness/output/pegasus-dispatch/6da4492254a0362860ad44b47fdf52ff/izdw-6da4492254.o980764",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2228-driver-gate-liveness/output/pegasus-dispatch/6da4492254a0362860ad44b47fdf52ff/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n............F.                                                           [100%]\n=================================== FAILURES ===================================\n__ test_m5_run_sweep_rejects_aborted_summary_with_observed_production_records __\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_m5_run_sweep_rejects_abor0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14c975681a20>\n\n    def test_m5_run_sweep_rejects_aborted_summary_with_observed_production_records(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        summary = types.SimpleNamespace(\n            campaign_id=\"campaign\", committed=2, aborted=0, evaluated=2, skipped=0,\n        )\n        issue_count = 0\n    \n        def run_workload(\n            workload_name: str,\n            workload: dict,\n            *,\n            screening_enabled: bool,\n            screening_fixed_us: int,\n        ) -> object:\n            nonlocal issue_count\n            assert workload_name == \"write-heavy\"\n            assert workload == {\"fixture\": \"production-issued\"}\n            assert screening_enabled is True\n            assert screening_fixed_us == 2\n            issue_count += 1\n            _issue_production_family(\n                tmp_path / f\"family-{issue_count}\",\n                driver_id=probe.EXPECTED_DRIVER_IDS[\"sweep\"],\n            )\n            return summary\n    \n        bundle = types.SimpleNamespace(\n            gate=gate,\n            buildcache=types.SimpleNamespace(\n                _ccbench_dir=lambda: str(tmp_path),\n            ),\n            sweep=types.SimpleNamespace(\n                WORKLOADS=((\"write-heavy\", {\"fixture\": \"production-issued\"}),),\n                run_workload=run_workload,\n            ),\n        )\n        monkeypatch.setattr(\n            probe,\n            \"_driver_metadata\",\n            lambda _bundle, *, common, output_root: ({}, \"unused-cxx\"),\n        )\n        monkeypatch.setattr(\n            probe, \"_ccbench_head_and_clean\", lambda _root, _expected: \"f\" * 40,\n        )\n    \n        def accept_production_records(\n            gate_module: types.ModuleType,\n            observed: probe._GateObservation,\n        ) -> bool:\n            return probe._validated_family_admission(\n                gate_module,\n                observed.supply_records,\n                observed.meaning_records,\n                observed.admissions,\n            ) is observed.admissions[0]\n    \n        monkeypatch.setattr(probe, \"_gate_success\", accept_production_records)\n    \n        green = probe._run_sweep(bundle, common={}, output_root=tmp_path / \"green\")\n        assert green[\"ok\"] is True\n        assert green[\"rc\"] == 0\n    \n        summary.aborted = 1\n        aborted = probe._run_sweep(bundle, common={}, output_root=tmp_path / \"aborted\")\n>       assert aborted[\"ok\"] is False\nE       assert True is False\n\norchestrator/tests/test_t2228_driver_gate_liveness_probe.py:263: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m5_run_sweep_rejects_aborted_summary_with_observed_production_records\n1 failed, 13 passed in 3.90s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m5_run_sweep_rejects_aborted_summary_with_observed_production_records\" nodeid_bytes=135 nodeid_omitted_bytes=0 source_bytes=2753 retained_bytes=2753 omitted_bytes=0 rendered_excerpt_bytes=2904 sha256=992c303b17187599ab7584699048fcaafb5d9a18f5354cb7c01d1e0cdbbab37b\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw8] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_m5_run_sweep_rejects_abor0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14c975681a20>\n> \n>     def test_m5_run_sweep_rejects_aborted_summary_with_observed_production_records(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         summary = types.SimpleNamespace(\n>             campaign_id=\"campaign\", committed=2, aborted=0, evaluated=2, skipped=0,\n>         )\n>         issue_count = 0\n>     \n>         def run_workload(\n>             workload_name: str,\n>             workload: dict,\n>             *,\n>             screening_enabled: bool,\n>             screening_fixed_us: int,\n>         ) -> object:\n>             nonlocal issue_count\n>             assert workload_name == \"write-heavy\"\n>             assert workload == {\"fixture\": \"production-issued\"}\n>             assert screening_enabled is True\n>             assert screening_fixed_us == 2\n>             issue_count += 1\n>             _issue_production_family(\n>                 tmp_path / f\"family-{issue_count}\",\n>                 driver_id=probe.EXPECTED_DRIVER_IDS[\"sweep\"],\n>             )\n>             return summary\n>     \n>         bundle = types.SimpleNamespace(\n>             gate=gate,\n>             buildcache=types.SimpleNamespace(\n>                 _ccbench_dir=lambda: str(tmp_path),\n>             ),\n>             sweep=types.SimpleNamespace(\n>                 WORKLOADS=((\"write-heavy\", {\"fixture\": \"production-issued\"}),),\n>                 run_workload=run_workload,\n>             ),\n>         )\n>         monkeypatch.setattr(\n>             probe,\n>             \"_driver_metadata\",\n>             lambda _bundle, *, common, output_root: ({}, \"unused-cxx\"),\n>         )\n>         monkeypatch.setattr(\n>             probe, \"_ccbench_head_and_clean\", lambda _root, _expected: \"f\" * 40,\n>         )\n>     \n>         def accept_production_records(\n>             gate_module: types.ModuleType,\n>             observed: probe._GateObservation,\n>         ) -> bool:\n>             return probe._validated_family_admission(\n>                 gate_module,\n>                 observed.supply_records,\n>                 observed.meaning_records,\n>                 observed.admissions,\n>             ) is observed.admissions[0]\n>     \n>         monkeypatch.setattr(probe, \"_gate_success\", accept_production_records)\n>     \n>         green = probe._run_sweep(bundle, common={}, output_root=tmp_path / \"green\")\n>         assert green[\"ok\"] is True\n>         assert green[\"rc\"] == 0\n>     \n>         summary.aborted = 1\n>         aborted = probe._run_sweep(bundle, common={}, output_root=tmp_path / \"aborted\")\n> >       assert aborted[\"ok\"] is False\n> E       assert True is False\n> \n> orchestrator/tests/test_t2228_driver_gate_liveness_probe.py:263: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2753 retained_bytes=2753 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3667 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "729dd27efe86cc9f924c647ed134e37ec1bac64d5aa0c8067f86d09adaac380e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "607eb7aeef2ef9f6eb44587170896d096986d88f341f06944158c3d6b0145782",
+      "duration_s": 28.254,
+      "expected_nodes": [
+        "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m5_run_sweep_rejects_aborted_summary_with_observed_production_records"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m5_run_sweep_rejects_aborted_summary_with_observed_production_records"
+      ],
+      "hang_risk": false,
+      "id": "t2228.m5-sweep-ignores-aborted",
+      "injection_diff_sha256": "0c8236b589664c38dab96e35c327ff18965eafc2572041345b26b920c8066f8f",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "970be1a420d9142df9707cc702086485900235bffeee027b37c5615a15f72877",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2228_driver_gate_liveness_probe.py",
+          "new": "        and type(aborted) is int\n",
+          "old": "        and type(aborted) is int\n        and aborted == 0\n"
+        }
+      ],
+      "repo_head": "c3447612e62ec7ec93d1662bfca45c594ff0a31b",
+      "runner_sha256": "5b1eef3189277b55f0df35db5d1bf7fb7b6bc0a78da12054099fe4dd4be2f53f",
+      "spec_sha256": "5b4e7b2b9e582675e3a378a8c8368d143da92d2246832297cec421938fb7f2aa",
+      "status": "KILLED",
+      "test_output_sha256": "729dd27efe86cc9f924c647ed134e37ec1bac64d5aa0c8067f86d09adaac380e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bb7c0eca4898d47514febeee4b49fc0e406a9f0c8caf3da19fc49c2da25bf047"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2228-driver-gate-liveness/output/pegasus-dispatch/fc42548ac155d7e22f1fc8cbcf2e7e01/izdw-fc42548ac1.o980765",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2228-driver-gate-liveness/output/pegasus-dispatch/fc42548ac155d7e22f1fc8cbcf2e7e01/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n............F.                                                           [100%]\n=================================== FAILURES ===================================\n_______________ test_m6_atomic_writer_refuses_existing_evidence ________________\n[gw9] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_m6_atomic_writer_refuses_0')\n\n    def test_m6_atomic_writer_refuses_existing_evidence(tmp_path: Path) -> None:\n        destination = tmp_path / \"repro.json\"\n        destination.write_text(\"existing\\n\", encoding=\"utf-8\")\n    \n>       with pytest.raises(FileExistsError):\nE       Failed: DID NOT RAISE FileExistsError\n\norchestrator/tests/test_t2228_driver_gate_liveness_probe.py:272: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m6_atomic_writer_refuses_existing_evidence\n1 failed, 13 passed in 3.88s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m6_atomic_writer_refuses_existing_evidence\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=502 retained_bytes=502 omitted_bytes=0 rendered_excerpt_bytes=530 sha256=c37641762ac75663acf5f7fc8a75fb23611c9d7f951a26c7e23910fea76efabd\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw9] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_m6_atomic_writer_refuses_0')\n> \n>     def test_m6_atomic_writer_refuses_existing_evidence(tmp_path: Path) -> None:\n>         destination = tmp_path / \"repro.json\"\n>         destination.write_text(\"existing\\x5cn\", encoding=\"utf-8\")\n>     \n> >       with pytest.raises(FileExistsError):\n> E       Failed: DID NOT RAISE FileExistsError\n> \n> orchestrator/tests/test_t2228_driver_gate_liveness_probe.py:272: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=502 retained_bytes=502 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1261 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "02fe91c662b97446c03752dadad8351f16f50367970f2fab27ecb5328c9037fc"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "607eb7aeef2ef9f6eb44587170896d096986d88f341f06944158c3d6b0145782",
+      "duration_s": 33.313,
+      "expected_nodes": [
+        "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m6_atomic_writer_refuses_existing_evidence"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m6_atomic_writer_refuses_existing_evidence"
+      ],
+      "hang_risk": false,
+      "id": "t2228.m6-evidence-writer-replaces-existing",
+      "injection_diff_sha256": "6d5f3377ac82d41e39ce5f3b4b335c466dafbfa0acce2b506db97287b1f482ae",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "ca45173c3b0f979b1628d8399b76d3bf59165d5da6ae9b3e66418576864a9ba8",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2228_driver_gate_liveness_probe.py",
+          "new": "        os.replace(temporary, path)\n",
+          "old": "        os.link(temporary, path)\n"
+        }
+      ],
+      "repo_head": "c3447612e62ec7ec93d1662bfca45c594ff0a31b",
+      "runner_sha256": "5b1eef3189277b55f0df35db5d1bf7fb7b6bc0a78da12054099fe4dd4be2f53f",
+      "spec_sha256": "5b4e7b2b9e582675e3a378a8c8368d143da92d2246832297cec421938fb7f2aa",
+      "status": "KILLED",
+      "test_output_sha256": "02fe91c662b97446c03752dadad8351f16f50367970f2fab27ecb5328c9037fc",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bb7c0eca4898d47514febeee4b49fc0e406a9f0c8caf3da19fc49c2da25bf047"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2228-driver-gate-liveness/output/pegasus-dispatch/f6d62df940ab42d7ff14f923bf80fa22/izdw-f6d62df940.o980766",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2228-driver-gate-liveness/output/pegasus-dispatch/f6d62df940ab42d7ff14f923bf80fa22/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.............F                                                           [100%]\n=================================== FAILURES ===================================\n__________ test_m7_reachability_counts_inert_request_from_freeze_data __________\n[gw13] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_m7_reachability_counts_inert_request_from_freeze_data() -> None:\n        reachability = probe._enumerate_s1_reachability(\n            _synthetic_freeze_with_one_inert_cell(),\n            __import__(\n                \"orchestrator.campaign.s1_direct_comparison\",\n                fromlist=[\"schedule_for_role\"],\n            ),\n            gate,\n        )\n    \n        assert reachability[\"cell_count\"] == 18\n>       assert reachability[\"inert_request_count\"] == 1\nE       assert 0 == 1\n\norchestrator/tests/test_t2228_driver_gate_liveness_probe.py:440: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m7_reachability_counts_inert_request_from_freeze_data\n1 failed, 13 passed in 3.92s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m7_reachability_counts_inert_request_from_freeze_data\" nodeid_bytes=119 nodeid_omitted_bytes=0 source_bytes=624 retained_bytes=624 omitted_bytes=0 rendered_excerpt_bytes=659 sha256=055a4d289949df2d0021320a6ba30b47a6fd7c1330d71ba68f99d8a3955c6e35\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw13] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_m7_reachability_counts_inert_request_from_freeze_data() -> None:\n>         reachability = probe._enumerate_s1_reachability(\n>             _synthetic_freeze_with_one_inert_cell(),\n>             __import__(\n>                 \"orchestrator.campaign.s1_direct_comparison\",\n>                 fromlist=[\"schedule_for_role\"],\n>             ),\n>             gate,\n>         )\n>     \n>         assert reachability[\"cell_count\"] == 18\n> >       assert reachability[\"inert_request_count\"] == 1\n> E       assert 0 == 1\n> \n> orchestrator/tests/test_t2228_driver_gate_liveness_probe.py:440: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=624 retained_bytes=624 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1401 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "432ad7b37688fc7c91ea59e9f6d76497d388fb08a98349c2dbce97c35346445f"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "607eb7aeef2ef9f6eb44587170896d096986d88f341f06944158c3d6b0145782",
+      "duration_s": 28.094,
+      "expected_nodes": [
+        "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m7_reachability_counts_inert_request_from_freeze_data"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m7_reachability_counts_inert_request_from_freeze_data"
+      ],
+      "hang_risk": false,
+      "id": "t2228.m7-reachability-count-is-constant",
+      "injection_diff_sha256": "6acfa3db849901ca26c6e7e92e9811d601e8179631ae04f0bd21f471767f96e3",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "37b721594ed12cdaa6739ff75f6d97f1f5cdda0b90130d6053b01bd3a767b903",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2228_driver_gate_liveness_probe.py",
+          "new": "            inert_request_count += 0\n",
+          "old": "            inert_request_count += int(inert)\n"
+        }
+      ],
+      "repo_head": "c3447612e62ec7ec93d1662bfca45c594ff0a31b",
+      "runner_sha256": "5b1eef3189277b55f0df35db5d1bf7fb7b6bc0a78da12054099fe4dd4be2f53f",
+      "spec_sha256": "5b4e7b2b9e582675e3a378a8c8368d143da92d2246832297cec421938fb7f2aa",
+      "status": "KILLED",
+      "test_output_sha256": "432ad7b37688fc7c91ea59e9f6d76497d388fb08a98349c2dbce97c35346445f",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bb7c0eca4898d47514febeee4b49fc0e406a9f0c8caf3da19fc49c2da25bf047"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2228-driver-gate-liveness/output/pegasus-dispatch/9a17f88da064d8ad136e53cc5d12f459/izdw-9a17f88da0.o980755",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2228-driver-gate-liveness/output/pegasus-dispatch/9a17f88da064d8ad136e53cc5d12f459/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m1_exception_before_records_keeps_initial_result_false\norchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m2_production_integrity_rejects_tampered_issued_record\norchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m3_production_admission_is_bound_to_exact_record_ids\norchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m4_runtime_error_without_attribute_keeps_reason_code_null\norchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_measure_call_propagates_process_control_exceptions[keyboard-interrupt]\norchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_measure_call_propagates_process_control_exceptions[system-exit]\norchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_network_observation_propagates_process_control_exception\norchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_current_pin_control_requires_production_assert_pinned_clean_origin\norchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m5_run_sweep_rejects_aborted_summary_with_observed_production_records\norchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m6_atomic_writer_refuses_existing_evidence\norchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_all_driver_payloads_share_one_process_run_binding\norchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_publish_failure_stops_before_next_driver\norchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_pbs_closes_git_environment_and_rejects_repo_local_logs\norchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m7_reachability_counts_inert_request_from_freeze_data\n\n14 tests collected in 0.35s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "3d2c1cafab0755ab29f3313c80df144545aee48ed95fd953a919825f5c5191c6"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m1_exception_before_records_keeps_initial_result_false",
+        "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m2_production_integrity_rejects_tampered_issued_record",
+        "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m3_production_admission_is_bound_to_exact_record_ids",
+        "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m4_runtime_error_without_attribute_keeps_reason_code_null",
+        "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_measure_call_propagates_process_control_exceptions[keyboard-interrupt]",
+        "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_measure_call_propagates_process_control_exceptions[system-exit]",
+        "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_network_observation_propagates_process_control_exception",
+        "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_current_pin_control_requires_production_assert_pinned_clean_origin",
+        "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m5_run_sweep_rejects_aborted_summary_with_observed_production_records",
+        "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m6_atomic_writer_refuses_existing_evidence",
+        "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_all_driver_payloads_share_one_process_run_binding",
+        "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_publish_failure_stops_before_next_driver",
+        "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_pbs_closes_git_environment_and_rejects_repo_local_logs",
+        "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m7_reachability_counts_inert_request_from_freeze_data"
+      ],
+      "duration_s": 21.786,
+      "rc": 0,
+      "repo_head": "c3447612e62ec7ec93d1662bfca45c594ff0a31b",
+      "runner_sha256": "5b1eef3189277b55f0df35db5d1bf7fb7b6bc0a78da12054099fe4dd4be2f53f",
+      "spec_sha256": "5b4e7b2b9e582675e3a378a8c8368d143da92d2246832297cec421938fb7f2aa",
+      "status": "PASSED",
+      "tool_sha256": "bb7c0eca4898d47514febeee4b49fc0e406a9f0c8caf3da19fc49c2da25bf047"
+    },
+    "hang_timeout_seconds": 5400.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "t2228.m1-initial-result-is-green": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m1_exception_before_records_keeps_initial_result_false",
+          "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m5_run_sweep_rejects_aborted_summary_with_observed_production_records"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "15c56f92799960df65ed6818b87040721a9368a2615771646f9b3932df779580",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t2228_driver_gate_liveness_probe.py",
+            "new": "        \"ok\": True,\n        \"rc\": 1,\n",
+            "old": "        \"ok\": False,\n        \"rc\": 1,\n"
+          }
+        ]
+      },
+      "t2228.m2-family-admission-skips-production-revalidation": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m2_production_integrity_rejects_tampered_issued_record",
+          "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m3_production_admission_is_bound_to_exact_record_ids"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "8913e0c74e5afc235bed11864b73436eec79056c56cc50859ccfbadc079e05a2",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t2228_driver_gate_liveness_probe.py",
+            "new": "    return admission\n",
+            "old": "    try:\n        expected = gate.require_condition_gate_family(\n            list(supply_records),\n            list(meaning_records),\n            use_class=admission.use_class,\n        )\n    except Exception:\n        return None\n    return admission if admission == expected else None\n"
+          }
+        ]
+      },
+      "t2228.m3-current-pin-control-ignores-head-equality": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_current_pin_control_requires_production_assert_pinned_clean_origin"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "5c27a2c92b9d8eaac10abd51dc44d1ee0a06991dd3da2242afdc6e13b82424c0",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t2228_driver_gate_liveness_probe.py",
+            "new": "    if completed or exception is None:\n",
+            "old": "    if completed or current_head == required_head or exception is None:\n"
+          }
+        ]
+      },
+      "t2228.m4-reason-code-guessed-from-message": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m4_runtime_error_without_attribute_keeps_reason_code_null"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "0c7eff02a5cc0055797a42bfead1382eed977fd5dd18e825302b753456d93fad",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t2228_driver_gate_liveness_probe.py",
+            "new": "            \"reason_code\": getattr(current, \"reason_code\", None) or str(current).split(\":\")[0],\n            \"traceback\": traceback_rows,\n",
+            "old": "            \"reason_code\": getattr(current, \"reason_code\", None),\n            \"traceback\": traceback_rows,\n"
+          }
+        ]
+      },
+      "t2228.m5-sweep-ignores-aborted": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m5_run_sweep_rejects_aborted_summary_with_observed_production_records"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "0c8236b589664c38dab96e35c327ff18965eafc2572041345b26b920c8066f8f",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t2228_driver_gate_liveness_probe.py",
+            "new": "        and type(aborted) is int\n",
+            "old": "        and type(aborted) is int\n        and aborted == 0\n"
+          }
+        ]
+      },
+      "t2228.m6-evidence-writer-replaces-existing": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m6_atomic_writer_refuses_existing_evidence"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "6d5f3377ac82d41e39ce5f3b4b335c466dafbfa0acce2b506db97287b1f482ae",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t2228_driver_gate_liveness_probe.py",
+            "new": "        os.replace(temporary, path)\n",
+            "old": "        os.link(temporary, path)\n"
+          }
+        ]
+      },
+      "t2228.m7-reachability-count-is-constant": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m7_reachability_counts_inert_request_from_freeze_data"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "6acfa3db849901ca26c6e7e92e9811d601e8179631ae04f0bd21f471767f96e3",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t2228_driver_gate_liveness_probe.py",
+            "new": "            inert_request_count += 0\n",
+            "old": "            inert_request_count += int(inert)\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "8a095bed1ed2a31e26cb7d851bcc63e12064a4398699fd7a3d1c5630857ffc07",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "/usr/bin/python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 5400.0
+  },
+  "repo_head": "c3447612e62ec7ec93d1662bfca45c594ff0a31b",
+  "runner_identity": {
+    "command": [
+      "/usr/bin/python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2228-driver-gate-liveness/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2228-driver-gate-liveness/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "7b9fa4346b03e4df2448e57f7242f71842b23446",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "5b1eef3189277b55f0df35db5d1bf7fb7b6bc0a78da12054099fe4dd4be2f53f",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "5b4e7b2b9e582675e3a378a8c8368d143da92d2246832297cec421938fb7f2aa",
+  "summary": {
+    "KILLED": 7,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 7,
+    "matching": 7,
+    "recorded": 7,
+    "registered": 7
+  },
+  "tool_identity": {
+    "head_blob_sha256": "900a6500b112faec9702a147242427d6cc2ebcad1029149a689ff5999d5f5ab9",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2228-driver-gate-liveness/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "900a6500b112faec9702a147242427d6cc2ebcad1029149a689ff5999d5f5ab9"
+  },
+  "tool_sha256": "bb7c0eca4898d47514febeee4b49fc0e406a9f0c8caf3da19fc49c2da25bf047",
+  "updated_at": "2026-09-07T04:52:55.477397+00:00"
+}
