@@ -11351,6 +11351,17 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   待ち手そのものは機能している。縮退経路 (`/proc/<pid>/stat` が読めないときの pid-only 判定) が
   対象 pid を生存と判定できずに完了扱いで抜けている疑いがあるが、本 wave では切り分けていない。
   3 回とも `.done` の不在で偽完了を捕まえ、張り直した待ち手が正しい完了を拾った。
+
+- **再発: 2026-09-08** — [T-583] wave の変異本走の待ち手で 1 回観測した。producer 生存・
+  `.done` 不在・成果物不在のまま `tools/dev_wave_wait.py producer` が rc=0 で戻り、
+  標準出力は空だった (2026-09-02 の再発が記録した縮退メッセージすら出ていない)。
+  `--receipt-file` の receipt も書かれなかった。`.done` と成果物の不在で偽完了を捕まえ、
+  待ち手を張り直して正しい完了を拾った。**張り直しに使った自前の
+  `until [ -s <done> ] || ! kill -0 <pid>` ループも即座に離脱した** — `nohup setsid` で
+  detach した producer に対し、別 shell から `kill -0` が生存を判定できなかったためで、
+  これは待ち手 tool の欠陥ではなく張り直し側の作り方の誤りである。生死条件を外して
+  `.done` の実在だけを見るループにしたら正しく待てた。**縮退した待ち手を張り直すときは、
+  生死判定を pid でなく成果物の実在に寄せる。**
 ### F356. 過去の遷移を毎回再判定する chain に、可変な現行定数との比較を置いた [恒真ゲート] [誤前提]
 
 - 事象: 環境契約の後継判定へ「取得方式名が現行 probe 定数と一致すること」を足した。
@@ -21491,6 +21502,14 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   staged deletion を大量に抱えた壊れた状態で残っていた。同じ tool をもう 1 度走らせて復旧した。
   **rc は観測していない** — 出力を `| tail -3` へ通したためである (F37 の再発)。
   「2 回目で通る」点は既載と同じだが、本件は入れ子側だけが壊れていた点が異なる。
+
+- **再発: 2026-09-08** — [T-583] wave 用 worktree の初期化で 1 回観測した。
+  `tools/dev_wave_submodule_init.py --worktree <ABS>` の 1 回目が
+  `runtime-io-failure: detail={'label': 'submodule', 'kind': 'update-no-fetch'}` で rc=1 になった。
+  同 worktree で `git submodule update --init --recursive --no-fetch` を直接実行すると rc=0 で
+  何も出力せず、その後に同じ tool を再実行して rc=0 になった。実装子用 worktree では 1 回目から
+  rc=0 で通っており、本 wave では 2 worktree 中 1 回の発生だった。根本原因は本 wave でも
+  切り分けていない。
 ### F811. 変異 wrapper の事後検査が共有 main を観測し、並行 land で本走が全損する [手順漏れ] [観測者効果]
 
 - 事象: `tools/mutation_worktree.py` で変異本走を投じたところ、6 走の見積もりどおり最後まで
@@ -22958,3 +22977,54 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   受入全走と land を取り直すこと (本 wave で実施し着地を確認した)。
 - 再発検知: 受入全走を投入する直前に handoff の「dev-wave 改善候補」節を見て、未裁定なら
   段 8 を先に閉じる。段 7 commit の message に段 8 の状態を書くと投入前に目に入る。
+
+### F890. 対象 file を絞った login 自走 probe は「正当な入力を全部拒否する」型の変異の期待 node を確定できない [手順漏れ] [テスト代表性]
+
+- 事象: 変異本走 attempt 2 で、照合の向きを反転する変異 (正当な受領証を拒否する向き) だけが
+  `MISMATCH` になった。login 自走 probe が観測した赤 node は 13 件、本走の実測は 15 件で、
+  差の 2 件は probe が走らせなかった側の test file にあった。他の 7 変異は完全一致だった。
+- 根本原因: probe を「変異ごとに必要な 1 file だけ」に絞ったこと。絞り込みは
+  計算ノード混雑下で 1 変異 12 分 × 2 file × 8 変異 = 2.5 時間を避けるための判断だったが、
+  **検査を弱める向きの変異 (負例側) は影響が局所に留まる一方、検査を強すぎる向きへ倒す変異
+  (正例側 = 過剰拒否) は、その検査を通る全ての正例を赤にするため影響が file を跨ぐ。**
+  絞り込みの可否は変異の向きで決まるのに、向きを見ずに一律へ絞った。
+- 恒久対応: `docs/dev-wave/mutation.md` の `DW-M08` が要求する「期待 node は完全集合」を
+  満たすため、**`category: positive` の変異 (過剰拒否の正例) は probe でも本走と同じ file 集合を
+  走らせる**。負例側だけを絞ってよい。判定は spec の `category` field で機械的に決まる。
+- 再発検知: 本走が `MISMATCH` を返したとき、実測 node が probe の未走行 file に属するかを
+  最初に見る。属していれば本項の型であり、変異の設計ではなく probe の絞り方を直す。
+
+### F891. D612 の queue-wait 上書きを付けたまま変異 harness を起動すると spec の timeout を超えて起動前に rc=2 で拒否される [手順漏れ]
+
+- 事象: 変異本走 attempt 1 が走行ゼロで `rc=2` になった。本文は
+  `mutation collection の外側 timeout が明示された dispatch 待機契約より短い:
+  timeout_seconds=2400.0, queue_wait_timeout_s=3600.0, overall_grace_s=600.0`。
+- 根本原因: 計算ノード混雑時に D612 の opt-in 上書き
+  (`IZANAGI_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE=3600` /
+  `IZANAGI_DISPATCH_OVERALL_GRACE_OVERRIDE=600`) を runner script へ入れたまま
+  変異 harness を起動したこと。harness は spec の `timeout_seconds` が
+  `queue_wait_timeout_s + overall_grace_s` 以上であることを要求する。既定 (900+300=1200) なら
+  2400 に収まるが、上書き後は 4200 になり収まらない。
+  **上書きは焦点走・受入では有効だが、変異 harness には spec 側の制約として跳ね返る。**
+- 恒久対応: 変異 harness の runner script に D612 上書きを入れない。混雑で queue 待ちが必要なら
+  spec の `timeout_seconds` を上書き後の和より大きく取り、`hang_timeout_seconds` が
+  job walltime 未満である `DW-M06` の制約と両立するかを起動前に確かめる。
+- 再発検知: `mutation harness aborted:` で始まり 3 つの秒数を並べる本文が出たら本項である。
+  再試行の前に runner script の `export IZANAGI_DISPATCH_*` を読む。
+
+### F892. 成果物の非保証の逐語が test で守られておらず、偽の主張へ反転しても緑だった [恒真ゲート]
+
+- 事象: 権威 floor 成果物が「source summary の参照先を実在照合していない」と非保証欄へ書いていたが、
+  その本文を「照合済みである」という**偽の主張**へ書き換えても、どの test も落ちなかった。
+  敵対レビュー 2 本はこれを見つけられず、変異走行だけが暴いた。
+- 根本原因: 非保証を「定数として置いて成果物へ流す」ところまでは実装したが、
+  **その内容が何であるかを検査するものが無かった**。非保証は成果物の値や受理集合を変えないため、
+  受理・拒否を検査する既存 test の網に掛からない。
+- 恒久対応: 非保証の逐語を pin する test を置く。**逐語は module 定数を参照せず test 側へ
+  literal で書く。** 定数を参照すると、定数を書き換えたときに両辺が同時に変わって検査が空回りする。
+- 再発検知: 当該逐語を偽の向きへ反転する変異を登録し KILLED を要求する。
+  本 wave では probe 段で SURVIVED、fix 後の再走で KILLED を確認した。
+- 併記: 同じ型として、**非保証が事実に反する側へ古びる**場合がある。本 wave では producer の版が
+  走行中に上がった結果、「その版が要求を満たしていない」という非保証が偽になった。
+  偽の非保証を残すことは、検査していないことを検査済みと読ませるのと同じ向きの誤りである。
+  非保証は「現に証明していないこと」を述べる形へ保つ。

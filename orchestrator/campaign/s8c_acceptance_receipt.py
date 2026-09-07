@@ -1,11 +1,16 @@
 # -*- coding: utf-8 -*-
 """Strict verifier for tracked Phase 3 8c acceptance receipt bytes.
 
-This module deliberately has no dependency on ``trial_registry`` or
-``layer3_report``.  It verifies the receipt artifact, every immutable byte
-hash it names, the recorded lifecycle prefix, and that recorded arm execution
-can be rederived from the ratified legacy freeze.  It does not infer approval
-authority or certify an experimental arm.
+This module has no import-time dependency on ``trial_registry``,
+``layer3_report``, or the autonomous-trial completeness verifier.  It verifies
+the receipt artifact, every immutable byte hash it names, the recorded
+lifecycle prefix, and that recorded arm execution can be rederived from the
+ratified legacy freeze.  For current v5 receipts it lazily loads the
+completeness verifier to rederive each cross-binding leaf.  Legacy v3/v4
+receipts retain their aggregate-only check; they cannot reach downstream
+capabilities because ``require_current_verified_receipt`` accepts only v5.
+This verifier does not infer approval authority or certify an experimental
+arm.
 """
 from __future__ import annotations
 
@@ -1358,6 +1363,37 @@ def _journal_events(data: bytes) -> tuple[Mapping[str, Any], ...]:
     return tuple(events)
 
 
+def _rederive_cross_binding_receipt_sha256(
+    root: Path,
+    trial: AcceptanceReceiptTrial,
+    *,
+    report_bytes: bytes,
+    journal_bytes: bytes,
+) -> str:
+    """Rederive one current cross-binding leaf from referenced evidence."""
+    report = _reference_object(report_bytes, label="trial report")
+    events = _journal_events(journal_bytes)
+    run_root = _resolved_reference(
+        root, trial.attempt_journal_path, "attempt journal",
+    ).parent
+    output_root = run_root.parent.parent if report.get("do_build") is True else None
+
+    from . import autonomous_trial_completeness as completeness
+
+    try:
+        projection = completeness.verify_s8c_cross_binding(
+            report=report,
+            events=events,
+            run_root=run_root,
+            output_root=output_root,
+        )
+    except completeness.AutonomousTrialCompletenessError as exc:
+        raise AcceptanceReceiptError(
+            f"[receipt-cross-binding] {exc}"
+        ) from exc
+    return projection["receipt_sha256"]
+
+
 def _verify_v2_trial_arm_execution(
     trial: AcceptanceReceiptTrial,
     *,
@@ -1987,6 +2023,19 @@ def verify_acceptance_receipt(
             )
             _assert_rederived_trial_arm_execution(root, trial)
             descriptor_proofs.append(descriptor_proven)
+        if receipt.schema_version == SCHEMA_VERSION:
+            rederived_leaf = _rederive_cross_binding_receipt_sha256(
+                root,
+                trial,
+                report_bytes=report_bytes,
+                journal_bytes=journal_bytes,
+            )
+            if trial.cross_binding_receipt_sha256 != rederived_leaf:
+                _fail(
+                    "receipt-cross-binding",
+                    f"trial_id={trial.trial_id} leaf differs from independently "
+                    "rederived projection",
+                )
     if (
         receipt.schema_version in {
             PREVIOUS_SCHEMA_VERSION,

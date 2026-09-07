@@ -1,0 +1,1130 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b4-floor-issue-wire/output/pegasus-dispatch/0921fa649c63ed9fcb686e5d2a36d64c/izdw-0921fa649c.o982157",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b4-floor-issue-wire/output/pegasus-dispatch/0921fa649c63ed9fcb686e5d2a36d64c/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....................................................................    [100%]\n69 passed in 157.44s (0:02:37)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "23316211e82bf846709a3ee32e7d3dd131b5eb5b9db9d50af8255d64af12500f"
+    },
+    "artifact_error": null,
+    "collection_sha256": "a2c6033598dde73eb1bf42d860a692c70aa94bb23f862e9a0b9c6589c5a7aa1c",
+    "duration_s": 181.873,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "6547a0367b92a252fa8428a3a2df5cb216cd4752a31da4c55e42992b0bcdeffb",
+    "repo_head": "30b3493eb0885c8d70800b950d85944ef9ca1837",
+    "runner_sha256": "04983deec8d06e3a5cf989fc26c6819e3d500d088502badca3f9a4d23d9fd23a",
+    "spec_sha256": "d8560439f93ad1169251e9cd467a722144ab399aa08672b0519c4875f348283f",
+    "status": "PASSED",
+    "test_output_sha256": "23316211e82bf846709a3ee32e7d3dd131b5eb5b9db9d50af8255d64af12500f",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "79c889dc50ee19de00400fe42d801c5decb0dfd86fc3c4942f57056120ac82c8"
+  },
+  "date": "2026-09-07T15:56:24.414640+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b4-floor-issue-wire/output/pegasus-dispatch/6caba50a96beb136df9c753b230ad248/izdw-6caba50a96.o982159",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b4-floor-issue-wire/output/pegasus-dispatch/6caba50a96beb136df9c753b230ad248/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...................F.................................................    [100%]\n=================================== FAILURES ===================================\n______________ test_m02_difference_self_inconsistency_is_rejected ______________\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_m02_difference_self_incon0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x148dc11fb220>\n\n    def test_m02_difference_self_inconsistency_is_rejected(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        summary_path, summary = _synthetic_source(tmp_path, monkeypatch)\n        broken = copy.deepcopy(summary)\n        broken[\"derivation\"][0][\"samples\"][0][\"difference\"] += 0.125\n        _rewrite_summary(tmp_path, broken)\n>       with pytest.raises(issuer.B4FloorArtifactError, match=\"difference\"):\nE       Failed: DID NOT RAISE B4FloorArtifactError\n\norchestrator/tests/test_p3_b4_floor_artifact_issuer.py:305: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m02_difference_self_inconsistency_is_rejected\n1 failed, 68 passed in 152.44s (0:02:32)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m02_difference_self_inconsistency_is_rejected\" nodeid_bytes=106 nodeid_omitted_bytes=0 source_bytes=777 retained_bytes=777 omitted_bytes=0 rendered_excerpt_bytes=812 sha256=caf6c9acaae7729247620ad608f46dd6132cff2f53f11ae3bc5292788ff4ce98\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_m02_difference_self_incon0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x148dc11fb220>\n> \n>     def test_m02_difference_self_inconsistency_is_rejected(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         summary_path, summary = _synthetic_source(tmp_path, monkeypatch)\n>         broken = copy.deepcopy(summary)\n>         broken[\"derivation\"][0][\"samples\"][0][\"difference\"] += 0.125\n>         _rewrite_summary(tmp_path, broken)\n> >       with pytest.raises(issuer.B4FloorArtifactError, match=\"difference\"):\n> E       Failed: DID NOT RAISE B4FloorArtifactError\n> \n> orchestrator/tests/test_p3_b4_floor_artifact_issuer.py:305: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=777 retained_bytes=777 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1541 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "de6af908c97e5f00456008792c3db6d21e64b2929724abc2f54ad8b0265a1374"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "a2c6033598dde73eb1bf42d860a692c70aa94bb23f862e9a0b9c6589c5a7aa1c",
+      "duration_s": 187.083,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m02_difference_self_inconsistency_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m02_difference_self_inconsistency_is_rejected"
+      ],
+      "hang_risk": false,
+      "id": "M2",
+      "injection_diff_sha256": "68c5367f9deb1d3f3523c229b8336a6846c5153bf3868aea541f295560021b7a",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "a3fe6061db0691573256698ddf8bd4e4a330110d881295985388f1cb7935d90c",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+          "new": "        if False:\n            _fail(\"self_inconsistency\", f\"{label}.difference が再導出値と不一致\")\n",
+          "old": "        if not _same_float(recorded_difference, difference):\n            _fail(\"self_inconsistency\", f\"{label}.difference が再導出値と不一致\")\n"
+        }
+      ],
+      "repo_head": "30b3493eb0885c8d70800b950d85944ef9ca1837",
+      "runner_sha256": "04983deec8d06e3a5cf989fc26c6819e3d500d088502badca3f9a4d23d9fd23a",
+      "spec_sha256": "d8560439f93ad1169251e9cd467a722144ab399aa08672b0519c4875f348283f",
+      "status": "KILLED",
+      "test_output_sha256": "de6af908c97e5f00456008792c3db6d21e64b2929724abc2f54ad8b0265a1374",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "79c889dc50ee19de00400fe42d801c5decb0dfd86fc3c4942f57056120ac82c8"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b4-floor-issue-wire/output/pegasus-dispatch/307e0afdf25480e121ab5aac0ffd6283/izdw-307e0afdf2.o982163",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b4-floor-issue-wire/output/pegasus-dispatch/307e0afdf25480e121ab5aac0ffd6283/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...................F.................................................    [100%]\n=================================== FAILURES ===================================\n___________ test_m03_bool_upper_is_rejected_even_when_it_equals_zero ___________\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_m03_bool_upper_is_rejecte0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x151c5bffb5b0>\n\n    def test_m03_bool_upper_is_rejected_even_when_it_equals_zero(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        summary_path, summary = _synthetic_source(\n            tmp_path,\n            monkeypatch,\n            candidate_1=100.0,\n            reference_1=100.0,\n            candidate_2=100.0,\n            reference_2=100.0,\n        )\n        summary[\"upper\"] = False\n        _rewrite_summary(tmp_path, summary)\n>       with pytest.raises(issuer.B4FloorArtifactError, match=\"exact finite float\"):\nE       Failed: DID NOT RAISE B4FloorArtifactError\n\norchestrator/tests/test_p3_b4_floor_artifact_issuer.py:385: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m03_bool_upper_is_rejected_even_when_it_equals_zero\n1 failed, 68 passed in 152.62s (0:02:32)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m03_bool_upper_is_rejected_even_when_it_equals_zero\" nodeid_bytes=112 nodeid_omitted_bytes=0 source_bytes=875 retained_bytes=875 omitted_bytes=0 rendered_excerpt_bytes=922 sha256=5ca3de9211e5bb9ad8912157f2903e074ef16583cf61463a633912fdad02e4ce\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw6] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_m03_bool_upper_is_rejecte0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x151c5bffb5b0>\n> \n>     def test_m03_bool_upper_is_rejected_even_when_it_equals_zero(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         summary_path, summary = _synthetic_source(\n>             tmp_path,\n>             monkeypatch,\n>             candidate_1=100.0,\n>             reference_1=100.0,\n>             candidate_2=100.0,\n>             reference_2=100.0,\n>         )\n>         summary[\"upper\"] = False\n>         _rewrite_summary(tmp_path, summary)\n> >       with pytest.raises(issuer.B4FloorArtifactError, match=\"exact finite float\"):\n> E       Failed: DID NOT RAISE B4FloorArtifactError\n> \n> orchestrator/tests/test_p3_b4_floor_artifact_issuer.py:385: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=875 retained_bytes=875 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1657 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "c46fd1fe8fce7c28ed82379596d9c46c3cb25ba08f4f345aff7761b89948852b"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "a2c6033598dde73eb1bf42d860a692c70aa94bb23f862e9a0b9c6589c5a7aa1c",
+      "duration_s": 176.817,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m03_bool_upper_is_rejected_even_when_it_equals_zero"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m03_bool_upper_is_rejected_even_when_it_equals_zero"
+      ],
+      "hang_risk": false,
+      "id": "M3",
+      "injection_diff_sha256": "a06652e6b44b15f2cf7e5fe81bdc575277cd669d59e4a43c214a92cb5fb72986",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "87bc9eddd230eaba3a0a53735b8d579ac7a74f9fcb7fadae9df44319d73b3ef2",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+          "new": "    if not isinstance(value, (int, float)) or not math.isfinite(value):\n        _fail(\"schema_error\", f\"{label} は exact finite float でなければならない\")\n",
+          "old": "    if type(value) is not float or not math.isfinite(value):\n        _fail(\"schema_error\", f\"{label} は exact finite float でなければならない\")\n"
+        }
+      ],
+      "repo_head": "30b3493eb0885c8d70800b950d85944ef9ca1837",
+      "runner_sha256": "04983deec8d06e3a5cf989fc26c6819e3d500d088502badca3f9a4d23d9fd23a",
+      "spec_sha256": "d8560439f93ad1169251e9cd467a722144ab399aa08672b0519c4875f348283f",
+      "status": "KILLED",
+      "test_output_sha256": "c46fd1fe8fce7c28ed82379596d9c46c3cb25ba08f4f345aff7761b89948852b",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "79c889dc50ee19de00400fe42d801c5decb0dfd86fc3c4942f57056120ac82c8"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b4-floor-issue-wire/output/pegasus-dispatch/112a681e29e780de91bae673d66bd866/izdw-112a681e29.o982170",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b4-floor-issue-wire/output/pegasus-dispatch/112a681e29e780de91bae673d66bd866/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...................F.................................................    [100%]\n=================================== FAILURES ===================================\n_ test_summary_schema_and_generated_status_are_required[schema-floor-pair-summary/v2-pinned] _\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_summary_schema_and_genera0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14944e2f3160>\nfield = 'schema', value = 'floor-pair-summary/v2', message = 'pinned'\n\n    @pytest.mark.parametrize(\n        (\"field\", \"value\", \"message\"),\n        (\n            (\"schema\", \"floor-pair-summary/v2\", \"pinned\"),\n            (\"status\", \"not_generated_missing_samples\", \"generated\"),\n        ),\n    )\n    def test_summary_schema_and_generated_status_are_required(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        field: str,\n        value: object,\n        message: str,\n    ) -> None:\n        summary_path, summary = _synthetic_source(tmp_path, monkeypatch)\n        summary[field] = value\n        _rewrite_summary(tmp_path, summary)\n>       with pytest.raises(issuer.B4FloorArtifactError, match=message):\nE       Failed: DID NOT RAISE B4FloorArtifactError\n\norchestrator/tests/test_p3_b4_floor_artifact_issuer.py:426: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_summary_schema_and_generated_status_are_required[schema-floor-pair-summary/v2-pinned]\n1 failed, 68 passed in 152.92s (0:02:32)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_summary_schema_and_generated_status_are_required[schema-floor-pair-summary/v2-pinned]\" nodeid_bytes=146 nodeid_omitted_bytes=0 source_bytes=1058 retained_bytes=1058 omitted_bytes=0 rendered_excerpt_bytes=1113 sha256=c37f8bb56a39e5d8beda1a8c75616e065e5fadc7bdf66875902ae27f4ff6c116\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw8] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_summary_schema_and_genera0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14944e2f3160>\n> field = 'schema', value = 'floor-pair-summary/v2', message = 'pinned'\n> \n>     @pytest.mark.parametrize(\n>         (\"field\", \"value\", \"message\"),\n>         (\n>             (\"schema\", \"floor-pair-summary/v2\", \"pinned\"),\n>             (\"status\", \"not_generated_missing_samples\", \"generated\"),\n>         ),\n>     )\n>     def test_summary_schema_and_generated_status_are_required(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>         field: str,\n>         value: object,\n>         message: str,\n>     ) -> None:\n>         summary_path, summary = _synthetic_source(tmp_path, monkeypatch)\n>         summary[field] = value\n>         _rewrite_summary(tmp_path, summary)\n> >       with pytest.raises(issuer.B4FloorArtifactError, match=message):\n> E       Failed: DID NOT RAISE B4FloorArtifactError\n> \n> orchestrator/tests/test_p3_b4_floor_artifact_issuer.py:426: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1058 retained_bytes=1058 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1887 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "23e345192e681600829bae78985e9126a972ffda26fe96c938d0139685dffdc6"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "a2c6033598dde73eb1bf42d860a692c70aa94bb23f862e9a0b9c6589c5a7aa1c",
+      "duration_s": 182.956,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_summary_schema_and_generated_status_are_required[schema-floor-pair-summary/v2-pinned]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_summary_schema_and_generated_status_are_required[schema-floor-pair-summary/v2-pinned]"
+      ],
+      "hang_risk": false,
+      "id": "M4",
+      "injection_diff_sha256": "ccf84d80a64591c1a755d168d25c89e4996cc9e5fb78b66a767e350e06e8d7dd",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "8b8abbbd4ff358d45bc8d28b8992ab84185d8259f486b84debf47af15a20ca97",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+          "new": "    if False:\n",
+          "old": "    if summary[\"schema\"] != ACCEPTED_FLOOR_PAIR_SUMMARY_SCHEMA_VERSION:\n"
+        }
+      ],
+      "repo_head": "30b3493eb0885c8d70800b950d85944ef9ca1837",
+      "runner_sha256": "04983deec8d06e3a5cf989fc26c6819e3d500d088502badca3f9a4d23d9fd23a",
+      "spec_sha256": "d8560439f93ad1169251e9cd467a722144ab399aa08672b0519c4875f348283f",
+      "status": "KILLED",
+      "test_output_sha256": "23e345192e681600829bae78985e9126a972ffda26fe96c938d0139685dffdc6",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "79c889dc50ee19de00400fe42d801c5decb0dfd86fc3c4942f57056120ac82c8"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b4-floor-issue-wire/output/pegasus-dispatch/cf3e488996471b034c5af2cfcfb3e816/izdw-cf3e488996.o982183",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b4-floor-issue-wire/output/pegasus-dispatch/cf3e488996471b034c5af2cfcfb3e816/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...................F.................................................    [100%]\n=================================== FAILURES ===================================\n_______________ test_resolver_exact_sentinel_is_the_only_absence _______________\n[gw15] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw15/test_resolver_exact_sentinel_i0')\n\n    def test_resolver_exact_sentinel_is_the_only_absence(tmp_path: Path) -> None:\n        prereg_path = Path(\"docs/prereg.md\")\n        _write_bytes(\n            tmp_path,\n            prereg_path.as_posix(),\n            _preregistration(issuer.PREREGISTRATION_ABSENT_SENTINEL),\n        )\n        assert (\n            issuer.resolve_preregistered_authoritative_floor(\n                repo_root=tmp_path, preregistration_path=prereg_path\n            )\n            is None\n        )\n        for malformed in (\" 未記入\", \"未記入 \", \"TBD\", \"artifact_path=x\"):\n            _write_bytes(tmp_path, prereg_path.as_posix(), _preregistration(malformed))\n>           with pytest.raises(issuer.B4FloorArtifactError) as caught:\nE           Failed: DID NOT RAISE B4FloorArtifactError\n\norchestrator/tests/test_p3_b4_floor_artifact_issuer.py:611: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_resolver_exact_sentinel_is_the_only_absence\n1 failed, 68 passed in 152.69s (0:02:32)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_resolver_exact_sentinel_is_the_only_absence\" nodeid_bytes=104 nodeid_omitted_bytes=0 source_bytes=987 retained_bytes=987 omitted_bytes=0 rendered_excerpt_bytes=1052 sha256=77211a88cd8f1eb4c534fb16f4a53192f63997035e095d3c2ddd0910c0771919\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw15] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw15/test_resolver_exact_sentinel_i0')\n> \n>     def test_resolver_exact_sentinel_is_the_only_absence(tmp_path: Path) -> None:\n>         prereg_path = Path(\"docs/prereg.md\")\n>         _write_bytes(\n>             tmp_path,\n>             prereg_path.as_posix(),\n>             _preregistration(issuer.PREREGISTRATION_ABSENT_SENTINEL),\n>         )\n>         assert (\n>             issuer.resolve_preregistered_authoritative_floor(\n>                 repo_root=tmp_path, preregistration_path=prereg_path\n>             )\n>             is None\n>         )\n>         for malformed in (\" \\u672a\\u8a18\\u5165\", \"\\u672a\\u8a18\\u5165 \", \"TBD\", \"artifact_path=x\"):\n>             _write_bytes(tmp_path, prereg_path.as_posix(), _preregistration(malformed))\n> >           with pytest.raises(issuer.B4FloorArtifactError) as caught:\n> E           Failed: DID NOT RAISE B4FloorArtifactError\n> \n> orchestrator/tests/test_p3_b4_floor_artifact_issuer.py:611: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=987 retained_bytes=987 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1780 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "16055c2e367009371930a2ce04aeb019843726cacd7e8b3af6d380c04f3c0a70"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "a2c6033598dde73eb1bf42d860a692c70aa94bb23f862e9a0b9c6589c5a7aa1c",
+      "duration_s": 182.237,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_resolver_exact_sentinel_is_the_only_absence"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_resolver_exact_sentinel_is_the_only_absence"
+      ],
+      "hang_risk": false,
+      "id": "M5",
+      "injection_diff_sha256": "ce6754abcbe08ffcc37ab8db27d689ba49dcc1cea952b690bd4537dcdd476223",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "2bcaf69b8372a03b6e2a2211dbb1e7581d9962d616e7e13edfa5acd9b88c5aeb",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+          "new": "    match = _FLOOR_PIN_RE.fullmatch(cell)\n    if match is None:\n        return None\n    if match is None:\n",
+          "old": "    match = _FLOOR_PIN_RE.fullmatch(cell)\n    if match is None:\n"
+        }
+      ],
+      "repo_head": "30b3493eb0885c8d70800b950d85944ef9ca1837",
+      "runner_sha256": "04983deec8d06e3a5cf989fc26c6819e3d500d088502badca3f9a4d23d9fd23a",
+      "spec_sha256": "d8560439f93ad1169251e9cd467a722144ab399aa08672b0519c4875f348283f",
+      "status": "KILLED",
+      "test_output_sha256": "16055c2e367009371930a2ce04aeb019843726cacd7e8b3af6d380c04f3c0a70",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "79c889dc50ee19de00400fe42d801c5decb0dfd86fc3c4942f57056120ac82c8"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b4-floor-issue-wire/output/pegasus-dispatch/c183fc92e02edda4714155f7e575a0f1/izdw-c183fc92e0.o982191",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b4-floor-issue-wire/output/pegasus-dispatch/c183fc92e02edda4714155f7e575a0f1/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...................F.................................................    [100%]\n=================================== FAILURES ===================================\n______ test_m05_m06_resolver_fails_closed_without_absence_fallback[hash] _______\n[gw18] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw18/test_m05_m06_resolver_fails_cl0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14946e2e5720>\nmode = 'hash'\n\n    @pytest.mark.parametrize(\"mode\", (\"missing\", \"hash\", \"schema\"))\n    def test_m05_m06_resolver_fails_closed_without_absence_fallback(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        mode: str,\n    ) -> None:\n        summary_path, _summary = _synthetic_source(\n            tmp_path, monkeypatch, receipt_has_protocol=True\n        )\n        result = issuer.issue_authoritative_floor(\n            repo_root=tmp_path, summary_path=summary_path\n        )\n        artifact_path = result.artifact_path\n        artifact_sha = result.artifact_sha256\n        if mode == \"missing\":\n            artifact_path = \"out/missing-authority.json\"\n        elif mode == \"hash\":\n            artifact_sha = \"0\" * 64\n        else:\n            value = json.loads((tmp_path / artifact_path).read_text(encoding=\"utf-8\"))\n            value[\"schema\"] = \"p3-b4-authoritative-floor/v2\"\n            raw = _canonical(value)\n            (tmp_path / artifact_path).write_bytes(raw)\n            artifact_sha = hashlib.sha256(raw).hexdigest()\n        prereg_path = Path(\"docs/prereg.md\")\n        _write_bytes(\n            tmp_path,\n            prereg_path.as_posix(),\n            _preregistration(\n                f\"artifact_path={artifact_path}; sha256={artifact_sha}\"\n            ),\n        )\n>       with pytest.raises(issuer.B4FloorArtifactError):\nE       Failed: DID NOT RAISE B4FloorArtifactError\n\norchestrator/tests/test_p3_b4_floor_artifact_issuer.py:677: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m05_m06_resolver_fails_closed_without_absence_fallback[hash]\n1 failed, 68 passed in 153.57s (0:02:33)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m05_m06_resolver_fails_closed_without_absence_fallback[hash]\" nodeid_bytes=121 nodeid_omitted_bytes=0 source_bytes=1694 retained_bytes=1694 omitted_bytes=0 rendered_excerpt_bytes=1779 sha256=d48d623d17acc3703679e56b731062feddfd00f4815d6663e1ea93751aacd6b6\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw18] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw18/test_m05_m06_resolver_fails_cl0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14946e2e5720>\n> mode = 'hash'\n> \n>     @pytest.mark.parametrize(\"mode\", (\"missing\", \"hash\", \"schema\"))\n>     def test_m05_m06_resolver_fails_closed_without_absence_fallback(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>         mode: str,\n>     ) -> None:\n>         summary_path, _summary = _synthetic_source(\n>             tmp_path, monkeypatch, receipt_has_protocol=True\n>         )\n>         result = issuer.issue_authoritative_floor(\n>             repo_root=tmp_path, summary_path=summary_path\n>         )\n>         artifact_path = result.artifact_path\n>         artifact_sha = result.artifact_sha256\n>         if mode == \"missing\":\n>             artifact_path = \"out/missing-authority.json\"\n>         elif mode == \"hash\":\n>             artifact_sha = \"0\" * 64\n>         else:\n>             value = json.loads((tmp_path / artifact_path).read_text(encoding=\"utf-8\"))\n>             value[\"schema\"] = \"p3-b4-authoritative-floor/v2\"\n>             raw = _canonical(value)\n>             (tmp_path / artifact_path).write_bytes(raw)\n>             artifact_sha = hashlib.sha256(raw).hexdigest()\n>         prereg_path = Path(\"docs/prereg.md\")\n>         _write_bytes(\n>             tmp_path,\n>             prereg_path.as_posix(),\n>             _preregistration(\n>                 f\"artifact_path={artifact_path}; sha256={artifact_sha}\"\n>             ),\n>         )\n> >       with pytest.raises(issuer.B4FloorArtifactError):\n> E       Failed: DID NOT RAISE B4FloorArtifactError\n> \n> orchestrator/tests/test_p3_b4_floor_artifact_issuer.py:677: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1694 retained_bytes=1694 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2528 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "eed976998bc89932e1cb7d01dc4e699eb1917ab7bd1375f0c5843c7f2a78b101"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "a2c6033598dde73eb1bf42d860a692c70aa94bb23f862e9a0b9c6589c5a7aa1c",
+      "duration_s": 176.931,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m05_m06_resolver_fails_closed_without_absence_fallback[hash]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m05_m06_resolver_fails_closed_without_absence_fallback[hash]"
+      ],
+      "hang_risk": false,
+      "id": "M6",
+      "injection_diff_sha256": "d0d066b3052bfb46e311b3a497536cb1ece840f8985dc19e9628bdffe83d4b48",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e31a452656ef5e32f0c42ffd5c12844bb5c2c4d1328938e676de96cda6693d9f",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+          "new": "    if False:\n",
+          "old": "    if observed_sha256 != expected:\n"
+        }
+      ],
+      "repo_head": "30b3493eb0885c8d70800b950d85944ef9ca1837",
+      "runner_sha256": "04983deec8d06e3a5cf989fc26c6819e3d500d088502badca3f9a4d23d9fd23a",
+      "spec_sha256": "d8560439f93ad1169251e9cd467a722144ab399aa08672b0519c4875f348283f",
+      "status": "KILLED",
+      "test_output_sha256": "eed976998bc89932e1cb7d01dc4e699eb1917ab7bd1375f0c5843c7f2a78b101",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "79c889dc50ee19de00400fe42d801c5decb0dfd86fc3c4942f57056120ac82c8"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b4-floor-issue-wire/output/pegasus-dispatch/fa85de7641ca1f66cd552cbc21ac46d5/izdw-fa85de7641.o982202",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b4-floor-issue-wire/output/pegasus-dispatch/fa85de7641ca1f66cd552cbc21ac46d5/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..............................................F......................    [100%]\n=================================== FAILURES ===================================\n__ test_m7_non_sentinel_resolver_failure_never_falls_back_or_calls_evaluator ___\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_m7_non_sentinel_resolver_0')\nimmutable_publication = _ImmutablePublication(publication_evidence=_PublicationEvidence(publication=B4PrerunPublication(publication_root='/tmp...tic-pair/off/receipt_producer-off-1_terminal.json'), iteration=201, on_commit_receipt=None, off_commit_receipt=None))))\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14bdb2d883d0>\n\n    def test_m7_non_sentinel_resolver_failure_never_falls_back_or_calls_evaluator(\n        tmp_path: Path,\n        immutable_publication: _ImmutablePublication,\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        authority_repo = tmp_path / \"authority-repo\"\n        docs = authority_repo / \"docs\"\n        docs.mkdir(parents=True)\n        (authority_repo / \"artifacts\").mkdir()\n        preregistration = docs / R._PREREGISTRATION_RELATIVE_PATH.name\n        preregistration.write_text(\n            \"|floor (対象動作点で再実測した between-run floor) の artifact パスと hash|\"\n            \"artifact_path=artifacts/missing.json; sha256=\"\n            + \"0\" * 64\n            + \"|\\n\",\n            encoding=\"utf-8\",\n        )\n        monkeypatch.setattr(R, \"_REPOSITORY_ROOT\", authority_repo)\n        evaluator_called = False\n    \n        def record_unexpected_evaluator_call(**_kwargs):\n            nonlocal evaluator_called\n            evaluator_called = True\n            raise AssertionError(\"evaluator must not run after resolver rejection\")\n    \n        monkeypatch.setattr(\n            R,\n            \"evaluate_b4_artifacts\",\n            record_unexpected_evaluator_call,\n        )\n    \n        with pytest.raises(R.B4MaterialReportError) as raised:\n>           R.build_material_report_document(\n                immutable_publication.publication.publication_root\n            )\n\norchestrator/tests/test_p3_b4_material_report.py:1029: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/p3_b4_material_report.py:1226: in build_material_report_document\n    inputs = _load_and_evaluate(publication_path)\norchestrator/campaign/p3_b4_material_report.py:263: in _load_and_evaluate\n    result = evaluate_b4_artifacts(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\n_kwargs = {'floor': None, 'contract_binding': B4ContractBinding(schema_version='p3-b4-analysis-contract/v1', manifest_sha256='99...c6aee5ffd704fc759a\",\"source_receipt_sha256\":\"3fd7a28a239ad3f49dc4e691ba2970037db665a1c4d282a54b5a46861cb3db5f\"}}', ...}\n\n    def record_unexpected_evaluator_call(**_kwargs):\n        nonlocal evaluator_called\n        evaluator_called = True\n>       raise AssertionError(\"evaluator must not run after resolver rejection\")\nE       AssertionError: evaluator must not run after resolver rejection\n\norchestrator/tests/test_p3_b4_material_report.py:1020: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_material_report.py::test_m7_non_sentinel_resolver_failure_never_falls_back_or_calls_evaluator@p3-b4-material-report\n1 failed, 68 passed in 156.32s (0:02:36)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_material_report.py::test_m7_non_sentinel_resolver_failure_never_falls_back_or_calls_evaluator@p3-b4-material-report\" nodeid_bytes=145 nodeid_omitted_bytes=0 source_bytes=2943 retained_bytes=2943 omitted_bytes=0 rendered_excerpt_bytes=3110 sha256=636d4752e5ac95c3e88c285374ee2b478a87db27ae92b3b513213a7a69096220\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_m7_non_sentinel_resolver_0')\n> immutable_publication = _ImmutablePublication(publication_evidence=_PublicationEvidence(publication=B4PrerunPublication(publication_root='/tmp...tic-pair/off/receipt_producer-off-1_terminal.json'), iteration=201, on_commit_receipt=None, off_commit_receipt=None))))\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14bdb2d883d0>\n> \n>     def test_m7_non_sentinel_resolver_failure_never_falls_back_or_calls_evaluator(\n>         tmp_path: Path,\n>         immutable_publication: _ImmutablePublication,\n>         monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         authority_repo = tmp_path / \"authority-repo\"\n>         docs = authority_repo / \"docs\"\n>         docs.mkdir(parents=True)\n>         (authority_repo / \"artifacts\").mkdir()\n>         preregistration = docs / R._PREREGISTRATION_RELATIVE_PATH.name\n>         preregistration.write_text(\n>             \"|floor (\\u5bfe\\u8c61\\u52d5\\u4f5c\\u70b9\\u3067\\u518d\\u5b9f\\u6e2c\\u3057\\u305f between-run floor) \\u306e artifact \\u30d1\\u30b9\\u3068 hash|\"\n>             \"artifact_path=artifacts/missing.json; sha256=\"\n>             + \"0\" * 64\n>             + \"|\\x5cn\",\n>             encoding=\"utf-8\",\n>         )\n>         monkeypatch.setattr(R, \"_REPOSITORY_ROOT\", authority_repo)\n>         evaluator_called = False\n>     \n>         def record_unexpected_evaluator_call(**_kwargs):\n>             nonlocal evaluator_called\n>             evaluator_called = True\n>             raise AssertionError(\"evaluator must not run after resolver rejection\")\n>     \n>         monkeypatch.setattr(\n>             R,\n>             \"evaluate_b4_artifacts\",\n>             record_unexpected_evaluator_call,\n>         )\n>     \n>         with pytest.raises(R.B4MaterialReportError) as raised:\n> >           R.build_material_report_document(\n>                 immutable_publication.publication.publication_root\n>             )\n> \n> orchestrator/tests/test_p3_b4_material_report.py:1029: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/p3_b4_material_report.py:1226: in build_material_report_document\n>     inputs = _load_and_evaluate(publication_path)\n> orchestrator/campaign/p3_b4_material_report.py:263: in _load_and_evaluate\n>     result = evaluate_b4_artifacts(\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> _kwargs = {'floor': None, 'contract_binding': B4ContractBinding(schema_version='p3-b4-analysis-contract/v1', manifest_sha256='99...c6aee5ffd704fc759a\",\"source_receipt_sha256\":\"3fd7a28a239ad3f49dc4e691ba2970037db665a1c4d282a54b5a46861cb3db5f\"}}', ...}\n> \n>     def record_unexpected_evaluator_call(**_kwargs):\n>         nonlocal evaluator_called\n>         evaluator_called = True\n> >       raise AssertionError(\"evaluator must not run after resolver rejection\")\n> E       AssertionError: evaluator must not run after resolver rejection\n> \n> orchestrator/tests/test_p3_b4_material_report.py:1020: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2943 retained_bytes=2943 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3883 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "56e66646c3a2056413eafc01ca45f50122d61499c7c7aa28d40febd2040b2155"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "a2c6033598dde73eb1bf42d860a692c70aa94bb23f862e9a0b9c6589c5a7aa1c",
+      "duration_s": 366.302,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m7_non_sentinel_resolver_failure_never_falls_back_or_calls_evaluator"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m7_non_sentinel_resolver_failure_never_falls_back_or_calls_evaluator@p3-b4-material-report"
+      ],
+      "hang_risk": false,
+      "id": "M7",
+      "injection_diff_sha256": "1f9193a38ab3d726a74936da1ee02fce9f2a35526569b8921b3e68e6816f38a2",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "a9971c23c79ba5f6a5f8b04b220699540ffb9ae7b942a201574683fb4136fd1d",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "new": "    except B4FloorArtifactError:\n        authoritative_floor = None\n",
+          "old": "    except B4FloorArtifactError as exc:\n        _fail(\n            \"authoritative_floor_rejected\",\n            f\"{exc.code}: {exc.detail}\",\n            cause=exc,\n        )\n"
+        }
+      ],
+      "repo_head": "30b3493eb0885c8d70800b950d85944ef9ca1837",
+      "runner_sha256": "04983deec8d06e3a5cf989fc26c6819e3d500d088502badca3f9a4d23d9fd23a",
+      "spec_sha256": "d8560439f93ad1169251e9cd467a722144ab399aa08672b0519c4875f348283f",
+      "status": "KILLED",
+      "test_output_sha256": "56e66646c3a2056413eafc01ca45f50122d61499c7c7aa28d40febd2040b2155",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "79c889dc50ee19de00400fe42d801c5decb0dfd86fc3c4942f57056120ac82c8"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b4-floor-issue-wire/output/pegasus-dispatch/3be828d81e26fc75b8bb1e28b3eec6c3/izdw-3be828d81e.o982221",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b4-floor-issue-wire/output/pegasus-dispatch/3be828d81e26fc75b8bb1e28b3eec6c3/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................F......F.....................    [100%]\n=================================== FAILURES ===================================\n________ test_m8_absent_authority_public_bytes_match_pre_change_golden _________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15315555b670>\n\n    def test_m8_absent_authority_public_bytes_match_pre_change_golden(\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        publication = SimpleNamespace(\n            publication_root=\"fixture/publication\",\n            issuer_commitment_sha256=\"0\" * 64,\n            registry_path=\"fixture/registry.json\",\n            registry=SimpleNamespace(canonical_bytes=b\"{}\\n\"),\n            manifest_path=\"fixture/manifest.json\",\n            manifest=SimpleNamespace(canonical_bytes=b\"{}\\n\", rows=()),\n            receipt_path=\"fixture/receipt.json\",\n            receipt_canonical_bytes=b\"{}\\n\",\n            non_guarantees=(),\n        )\n        inputs = R.B4MaterialReportInputs(\n            publication=publication,\n            planned_frames=(),\n            assembly=producer.B4RawRecordRejection(\n                schema_version=\"fixture-rejection/v1\",\n                attempt_id=None,\n                issues=(),\n            ),\n            contract_binding=None,\n            analysis_result=None,\n            campaign_root_discovery=R._CampaignRootDiscovery(\n                status=\"complete\",\n                roots=(),\n                unresolved=(),\n            ),\n            authoritative_floor=None,\n        )\n        rejection_history = SimpleNamespace(status=\"readable\")\n        producer_rejections = {\n            \"rejection_history_status\": {\n                \"path\": \"fixture/rejections.jsonl\",\n                \"status\": \"readable\",\n                \"readable\": True,\n                \"fragment_discarded\": False,\n                \"detail\": None,\n            },\n            \"recorded_rejection_event_count\": {\n                \"value\": 0,\n                \"population\": \"events_in_observed_readable_ledger_prefix\",\n                \"caveat\": \"stable fixture caveat\",\n            },\n            \"recorded_scheduled_attempt_rejection_rate\": {\n                \"numerator\": 0,\n                \"denominator\": 0,\n                \"population\": \"issuer_scheduled_attempts_joined_to_recorded_events\",\n                \"caveat\": \"stable fixture caveat\",\n            },\n            \"unresolved_absent_attempts\": [],\n            \"not_selected\": [],\n            \"events\": [],\n            \"scheduled_attempt_count\": 0,\n            \"planned_result_artifact_count\": 0,\n            \"manifest_selected_block_count\": 0,\n        }\n        assembly = {\n            \"status\": \"rejected\",\n            \"analysis_status\": \"not_evaluated\",\n            \"reason\": {\"code\": \"fixture_rejection\"},\n        }\n        monkeypatch.setattr(R, \"_load_and_evaluate\", lambda _root: inputs)\n        monkeypatch.setattr(R, \"_project_rows\", lambda _inputs: ())\n        monkeypatch.setattr(\n            R,\n            \"_assert_complete_projection\",\n            lambda _inputs, _rows: None,\n        )\n        monkeypatch.setattr(\n            R,\n            \"_assert_report_provenance\",\n            lambda _inputs, _report: None,\n        )\n        monkeypatch.setattr(\n            R,\n            \"_rejection_history\",\n            lambda _inputs: rejection_history,\n        )\n        monkeypatch.setattr(\n            R,\n            \"_producer_rejections_projection\",\n            lambda _inputs: producer_rejections,\n        )\n        monkeypatch.setattr(\n            R,\n            \"_assembly_projection\",\n            lambda _inputs: assembly,\n        )\n    \n        document = R.build_material_report_document(\n            \"fixture/publication\",\n            reproduction_argv=(\n                \"python3\",\n                R.GENERATOR_IDENTITY,\n                \"fixture/publication\",\n            ),\n        )\n    \n>       assert hashlib.sha256(document.json_bytes).hexdigest() == (\n            _ABSENT_LEGACY_JSON_SHA256\n        )\nE       AssertionError: assert '476fdc0dc1d9...6ebe8bbbaf989' == '7b73826656dc...247be07864e74'\nE         \nE         - 7b73826656dc301565713cca8a74f3ccc523ce5659ccae6c7c0247be07864e74\nE         + 476fdc0dc1d986a5cfd1f30470897eaae4d5c673318325a37386ebe8bbbaf989\n\norchestrator/tests/test_p3_b4_material_report.py:827: AssertionError\n_____ test_m08_floor_absence_runs_existing_evaluator_as_protocol_violation _____\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\nimmutable_publication = _ImmutablePublication(publication_evidence=_PublicationEvidence(publication=B4PrerunPublication(publication_root='/tmp...tic-pair/off/receipt_producer-off-1_terminal.json'), iteration=201, on_commit_receipt=None, off_commit_receipt=None))))\n\n    def test_m08_floor_absence_runs_existing_evaluator_as_protocol_violation(\n        immutable_publication: _ImmutablePublication,\n    ) -> None:\n        report = _document(immutable_publication).json_value\n        assert \"floor\" not in inspect.signature(R.build_material_report_document).parameters\n        assert \"floor\" not in inspect.signature(R.write_material_report).parameters\n        assert report[\"floor\"] == {\n            \"availability\": \"absent\",\n            \"reason\": \"preregistration_section_5_unfilled\",\n            \"source\": None,\n            \"value\": None,\n        }\n>       assert report[\"report_scope\"] == {\n            \"kind\": \"evidence-only\",\n            \"preregistration_section_5\": \"not_in_effect\",\n            \"floor_availability\": \"absent\",\n            \"expected_analysis_verdict\": \"protocol_violation\",\n            \"expected_analysis_reason\": \"floor_domain_error\",\n            \"section_7_1_four_classifications_operationalized\": False,\n        }\nE       AssertionError: assert {'kind': 'evi...olation', ...} == {'kind': 'evi...olation', ...}\nE         \nE         Omitting 5 identical items, use -vv to show\nE         Differing items:\nE         {'expected_analysis_reason': 'floor_absent'} != {'expected_analysis_reason': 'floor_domain_error'}\nE         Use -v to get more diff\n\norchestrator/tests/test_p3_b4_material_report.py:1051: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_material_report.py::test_m8_absent_authority_public_bytes_match_pre_change_golden@p3-b4-material-report\nFAILED orchestrator/tests/test_p3_b4_material_report.py::test_m08_floor_absence_runs_existing_evaluator_as_protocol_violation@p3-b4-material-report\n2 failed, 67 passed in 159.75s (0:02:39)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_material_report.py::test_m8_absent_authority_public_bytes_match_pre_change_golden@p3-b4-material-report\" nodeid_bytes=133 nodeid_omitted_bytes=0 source_bytes=4139 retained_bytes=3874 omitted_bytes=265 rendered_excerpt_bytes=4096 sha256=502af90d3964ded28ba5010058af7f16b5dc8d4a59c2b58b238454697d09e9bc\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> on = SimpleNamespace(\n>             publication_root=\"fixture/publication\",\n>             issuer_commitment_sha256=\"0\" * 64,\n>             registry_path=\"fixture/registry.json\",\n>             registry=SimpleNamespace(canonical_bytes=b\"{}\\x5cn\"),\n>             manifest_path=\"fixture/manifest.json\",\n>             manifest=SimpleNamespace(canonical_bytes=b\"{}\\x5cn\", rows=()),\n>             receipt_path=\"fixture/receipt.json\",\n>             receipt_canonical_bytes=b\"{}\\x5cn\",\n>             non_guarantees=(),\n>         )\n>         inputs = R.B4MaterialReportInputs(\n>             publication=publication,\n>             planned_frames=(),\n>             assembly=producer.B4RawRecordRejection(\n>                 schema_version=\"fixture-rejection/v1\",\n>                 attempt_id=None,\n>                 issues=(),\n>             ),\n>             contract_binding=None,\n>             analysis_result=None,\n>             campaign_root_discovery=R._CampaignRootDiscovery(\n>                 status=\"complete\",\n>                 roots=(),\n>                 unresolved=(),\n>             ),\n>             authoritative_floor=None,\n>         )\n>         rejection_history = SimpleNamespace(status=\"readable\")\n>         producer_rejections = {\n>             \"rejection_history_status\": {\n>                 \"path\": \"fixture/rejections.jsonl\",\n>                 \"status\": \"readable\",\n>                 \"readable\": True,\n>                 \"fragment_discarded\": False,\n>                 \"detail\": None,\n>             },\n>             \"recorded_rejection_event_count\": {\n>                 \"value\": 0,\n>                 \"population\": \"events_in_observed_readable_ledger_prefix\",\n>                 \"caveat\": \"stable fixture caveat\",\n>             },\n>             \"recorded_scheduled_attempt_rejection_rate\": {\n>                 \"numerator\": 0,\n>                 \"denominator\": 0,\n>                 \"population\": \"issuer_scheduled_attempts_joined_to_recorded_events\",\n>                 \"caveat\": \"stable fixture caveat\",\n>             },\n>             \"unresolved_absent_attempts\": [],\n>             \"not_selected\": [],\n>             \"events\": [],\n>             \"scheduled_attempt_count\": 0,\n>             \"planned_result_artifact_count\": 0,\n>             \"manifest_selected_block_count\": 0,\n>         }\n>         assembly = {\n>             \"status\": \"rejected\",\n>             \"analysis_status\": \"not_evaluated\",\n>             \"reason\": {\"code\": \"fixture_rejection\"},\n>         }\n>         monkeypatch.setattr(R, \"_load_and_evaluate\", lambda _root: inputs)\n>         monkeypatch.setattr(R, \"_project_rows\", lambda _inputs: ())\n>         monkeypatch.setattr(\n>             R,\n>             \"_assert_complete_projection\",\n>             lambda _inputs, _rows: None,\n>         )\n>         monkeypatch.setattr(\n>             R,\n>             \"_assert_report_provenance\",\n>             lambda _inputs, _report: None,\n>         )\n>         monkeypatch.setattr(\n>             R,\n>             \"_rejection_history\",\n>             lambda _inputs: rejection_history,\n>         )\n>         monkeypatch.setattr(\n>             R,\n>             \"_producer_rejections_projection\",\n>             lambda _inputs: producer_rejections,\n>         )\n>         monkeypatch.setattr(\n>             R,\n>             \"_assembly_projection\",\n>             lambda _inputs: assembly,\n>         )\n>     \n>         document = R.build_material_report_document(\n>             \"fixture/publication\",\n>             reproduction_argv=(\n>                 \"python3\",\n>                 R.GENERATOR_IDENTITY,\n>                 \"fixture/publication\",\n>             ),\n>         )\n>     \n> >       assert hashlib.sha256(document.json_bytes).hexdigest() == (\n>             _ABSENT_LEGACY_JSON_SHA256\n>         )\n> E       AssertionError: assert '476fdc0dc1d9...6ebe8bbbaf989' == '7b73826656dc...247be07864e74'\n> E         \n> E         - 7b73826656dc301565713cca8a74f3ccc523ce5659ccae6c7c0247be07864e74\n> E         + 476fdc0dc1d986a5cfd1f30470897eaae4d5c673318325a37386ebe8bbbaf989\n> \n> orchestrator/tests/test_p3_b4_material_report.py:827: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_material_report.py::test_m08_floor_absence_runs_existing_evaluator_as_protocol_violation@p3-b4-material-report\" nodeid_bytes=140 nodeid_omitted_bytes=0 source_bytes=1686 retained_bytes=1686 omitted_bytes=0 rendered_excerpt_bytes=1751 sha256=5baae8d0d8de81f6fe660daa856509de9ac45d6c103972fce72d76bdb3ca3f9f\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> immutable_publication = _ImmutablePublication(publication_evidence=_PublicationEvidence(publication=B4PrerunPublication(publication_root='/tmp...tic-pair/off/receipt_producer-off-1_terminal.json'), iteration=201, on_commit_receipt=None, off_commit_receipt=None))))\n> \n>     def test_m08_floor_absence_runs_existing_evaluator_as_protocol_violation(\n>         immutable_publication: _ImmutablePublication,\n>     ) -> None:\n>         report = _document(immutable_publication).json_value\n>         assert \"floor\" not in inspect.signature(R.build_material_report_document).parameters\n>         assert \"floor\" not in inspect.signature(R.write_material_report).parameters\n>         assert report[\"floor\"] == {\n>             \"availability\": \"absent\",\n>             \"reason\": \"preregistration_section_5_unfilled\",\n>             \"source\": None,\n>             \"value\": None,\n>         }\n> >       assert report[\"report_scope\"] == {\n>             \"kind\": \"evidence-only\",\n>             \"preregistration_section_5\": \"not_in_effect\",\n>             \"floor_availability\": \"absent\",\n>             \"expected_analysis_verdict\": \"protocol_violation\",\n>             \"expected_analysis_reason\": \"floor_domain_error\",\n>             \"section_7_1_four_classifications_operationalized\": False,\n>         }\n> E       AssertionError: assert {'kind': 'evi...olation', ...} == {'kind': 'evi...olation', ...}\n> E         \n> E         Omitting 5 identical items, use -vv to show\n> E         Differing items:\n> E         {'expected_analysis_reason': 'floor_absent'} != {'expected_analysis_reason': 'floor_domain_error'}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_p3_b4_material_report.py:1051: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=5825 retained_bytes=5560 omitted_bytes=265 budget_bytes=49152 rendered_bytes=7093 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "ed226a92bbe66b3e58055acab16eb48b3a54e6463db1e14023c54dacbf35309c"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "a2c6033598dde73eb1bf42d860a692c70aa94bb23f862e9a0b9c6589c5a7aa1c",
+      "duration_s": 182.265,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m8_absent_authority_public_bytes_match_pre_change_golden@p3-b4-material-report",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m08_floor_absence_runs_existing_evaluator_as_protocol_violation@p3-b4-material-report"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m8_absent_authority_public_bytes_match_pre_change_golden@p3-b4-material-report",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m08_floor_absence_runs_existing_evaluator_as_protocol_violation@p3-b4-material-report"
+      ],
+      "hang_risk": false,
+      "id": "M8",
+      "injection_diff_sha256": "346e06838d5832b0064b95a642e47d66ed00a27795952a08e91e09c6b0dd947d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "ff8917bce2acb0787d1407457ec7f0cf8f2534cb7e0a833a4ac250a4900c036e",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "new": "            \"expected_analysis_reason\": \"floor_absent\",\n",
+          "old": "            \"expected_analysis_reason\": \"floor_domain_error\",\n"
+        }
+      ],
+      "repo_head": "30b3493eb0885c8d70800b950d85944ef9ca1837",
+      "runner_sha256": "04983deec8d06e3a5cf989fc26c6819e3d500d088502badca3f9a4d23d9fd23a",
+      "spec_sha256": "d8560439f93ad1169251e9cd467a722144ab399aa08672b0519c4875f348283f",
+      "status": "KILLED",
+      "test_output_sha256": "ed226a92bbe66b3e58055acab16eb48b3a54e6463db1e14023c54dacbf35309c",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "79c889dc50ee19de00400fe42d801c5decb0dfd86fc3c4942f57056120ac82c8"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b4-floor-issue-wire/output/pegasus-dispatch/dd79d5141a6ab88b8ddd14df4eb53dbb/izdw-dd79d5141a.o982227",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b4-floor-issue-wire/output/pegasus-dispatch/dd79d5141a6ab88b8ddd14df4eb53dbb/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n............................................F........................    [100%]\n=================================== FAILURES ===================================\n____ test_m9_four_authority_and_assembly_states_project_exactly[True-False] ____\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_m9_four_authority_and_ass3')\nimmutable_publication = _ImmutablePublication(publication_evidence=_PublicationEvidence(publication=B4PrerunPublication(publication_root='/tmp...tic-pair/off/receipt_producer-off-1_terminal.json'), iteration=201, on_commit_receipt=None, off_commit_receipt=None))))\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1516ea9b68f0>\nauthority_present = True, assembly_succeeds = False\n\n    @pytest.mark.parametrize(\n        (\"authority_present\", \"assembly_succeeds\"),\n        (\n            (False, True),\n            (False, False),\n            (True, True),\n            (True, False),\n        ),\n    )\n    def test_m9_four_authority_and_assembly_states_project_exactly(\n        tmp_path: Path,\n        immutable_publication: _ImmutablePublication,\n        monkeypatch: pytest.MonkeyPatch,\n        authority_present: bool,\n        assembly_succeeds: bool,\n    ) -> None:\n        publication = _fresh_publication_from_shared_evidence(\n            tmp_path,\n            immutable_publication,\n        )\n        if not assembly_succeeds:\n            Path(publication.planned_result_artifacts[-1].artifact_path).unlink()\n    \n        authority_repo = tmp_path / \"authority-repo\"\n        expected_source = _write_floor_preregistration(\n            authority_repo,\n            present=authority_present,\n        )\n        monkeypatch.setattr(R, \"_REPOSITORY_ROOT\", authority_repo)\n        original_evaluator = R.evaluate_b4_artifacts\n        observed_floor_arguments: list[object] = []\n    \n        def record_floor_argument(**kwargs):\n            observed_floor_arguments.append(kwargs[\"floor\"])\n            return original_evaluator(**kwargs)\n    \n        monkeypatch.setattr(R, \"evaluate_b4_artifacts\", record_floor_argument)\n>       document = R.build_material_report_document(\n            publication.publication_root,\n        )\n\norchestrator/tests/test_p3_b4_material_report.py:875: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/p3_b4_material_report.py:1242: in build_material_report_document\n    _assert_authoritative_floor_projection(inputs, report)\norchestrator/campaign/p3_b4_material_report.py:1072: in _assert_authoritative_floor_projection\n    _fail(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nreason = 'authoritative_floor_projection_mismatch'\ndetail = 'analysis floor argument differs from evaluator reachability'\ncause = None\n\n    def _fail(reason: str, detail: str, *, cause: BaseException | None = None) -> NoReturn:\n        error = B4MaterialReportError(reason, detail)\n        if cause is None:\n>           raise error\nE           orchestrator.campaign.p3_b4_material_report.B4MaterialReportError: authoritative_floor_projection_mismatch: analysis floor argument differs from evaluator reachability\n\norchestrator/campaign/p3_b4_material_report.py:146: B4MaterialReportError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_material_report.py::test_m9_four_authority_and_assembly_states_project_exactly[True-False]@p3-b4-material-report\n1 failed, 68 passed in 153.01s (0:02:33)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_material_report.py::test_m9_four_authority_and_assembly_states_project_exactly[True-False]@p3-b4-material-report\" nodeid_bytes=142 nodeid_omitted_bytes=0 source_bytes=3033 retained_bytes=3033 omitted_bytes=0 rendered_excerpt_bytes=3168 sha256=dfcbab8aa2dd5bce179e1766217135802447ab9347dd1ea8f0d1588c017a9fa9\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_m9_four_authority_and_ass3')\n> immutable_publication = _ImmutablePublication(publication_evidence=_PublicationEvidence(publication=B4PrerunPublication(publication_root='/tmp...tic-pair/off/receipt_producer-off-1_terminal.json'), iteration=201, on_commit_receipt=None, off_commit_receipt=None))))\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1516ea9b68f0>\n> authority_present = True, assembly_succeeds = False\n> \n>     @pytest.mark.parametrize(\n>         (\"authority_present\", \"assembly_succeeds\"),\n>         (\n>             (False, True),\n>             (False, False),\n>             (True, True),\n>             (True, False),\n>         ),\n>     )\n>     def test_m9_four_authority_and_assembly_states_project_exactly(\n>         tmp_path: Path,\n>         immutable_publication: _ImmutablePublication,\n>         monkeypatch: pytest.MonkeyPatch,\n>         authority_present: bool,\n>         assembly_succeeds: bool,\n>     ) -> None:\n>         publication = _fresh_publication_from_shared_evidence(\n>             tmp_path,\n>             immutable_publication,\n>         )\n>         if not assembly_succeeds:\n>             Path(publication.planned_result_artifacts[-1].artifact_path).unlink()\n>     \n>         authority_repo = tmp_path / \"authority-repo\"\n>         expected_source = _write_floor_preregistration(\n>             authority_repo,\n>             present=authority_present,\n>         )\n>         monkeypatch.setattr(R, \"_REPOSITORY_ROOT\", authority_repo)\n>         original_evaluator = R.evaluate_b4_artifacts\n>         observed_floor_arguments: list[object] = []\n>     \n>         def record_floor_argument(**kwargs):\n>             observed_floor_arguments.append(kwargs[\"floor\"])\n>             return original_evaluator(**kwargs)\n>     \n>         monkeypatch.setattr(R, \"evaluate_b4_artifacts\", record_floor_argument)\n> >       document = R.build_material_report_document(\n>             publication.publication_root,\n>         )\n> \n> orchestrator/tests/test_p3_b4_material_report.py:875: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/p3_b4_material_report.py:1242: in build_material_report_document\n>     _assert_authoritative_floor_projection(inputs, report)\n> orchestrator/campaign/p3_b4_material_report.py:1072: in _assert_authoritative_floor_projection\n>     _fail(\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> reason = 'authoritative_floor_projection_mismatch'\n> detail = 'analysis floor argument differs from evaluator reachability'\n> cause = None\n> \n>     def _fail(reason: str, detail: str, *, cause: BaseException | None = None) -> NoReturn:\n>         error = B4MaterialReportError(reason, detail)\n>         if cause is None:\n> >           raise error\n> E           orchestrator.campaign.p3_b4_material_report.B4MaterialReportError: authoritative_floor_projection_mismatch: analysis floor argument differs from evaluator reachability\n> \n> orchestrator/campaign/p3_b4_material_report.py:146: B4MaterialReportError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=3033 retained_bytes=3033 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3938 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "2574a6f8bcc5060aca3e170d38cc582e102bfa0d5e3c5666cb4b88e8c53045d1"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "a2c6033598dde73eb1bf42d860a692c70aa94bb23f862e9a0b9c6589c5a7aa1c",
+      "duration_s": 181.862,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m9_four_authority_and_assembly_states_project_exactly[True-False]@p3-b4-material-report"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m9_four_authority_and_assembly_states_project_exactly[True-False]@p3-b4-material-report"
+      ],
+      "hang_risk": false,
+      "id": "M9",
+      "injection_diff_sha256": "13f88c5c7b2f857f1b565c547b09ceff237292deb8ee0df4f6dcd919484e2b11",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "20475392a1dcecb7987b9f8ee83e1ae7848baffd7292713591b026d1b0f4895b",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "new": "    analysis = report[\"analysis\"]\n    analysis[\"floor_argument\"] = ratio\n",
+          "old": "    analysis = report[\"analysis\"]\n    if analysis[\"status\"] == \"evaluated\":\n        analysis[\"floor_argument\"] = ratio\n"
+        }
+      ],
+      "repo_head": "30b3493eb0885c8d70800b950d85944ef9ca1837",
+      "runner_sha256": "04983deec8d06e3a5cf989fc26c6819e3d500d088502badca3f9a4d23d9fd23a",
+      "spec_sha256": "d8560439f93ad1169251e9cd467a722144ab399aa08672b0519c4875f348283f",
+      "status": "KILLED",
+      "test_output_sha256": "2574a6f8bcc5060aca3e170d38cc582e102bfa0d5e3c5666cb4b88e8c53045d1",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "79c889dc50ee19de00400fe42d801c5decb0dfd86fc3c4942f57056120ac82c8"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b4-floor-issue-wire/output/pegasus-dispatch/a30bd572b248a912260f070cecb22af9/izdw-a30bd572b2.o982232",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b4-floor-issue-wire/output/pegasus-dispatch/a30bd572b248a912260f070cecb22af9/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...................F.................................................    [100%]\n=================================== FAILURES ===================================\n____________ test_m11_exact_floor_domain_rejects_one_without_clamp _____________\n[gw7] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw7/test_m11_exact_floor_domain_re0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x152a630e3be0>\n\n    def test_m11_exact_floor_domain_rejects_one_without_clamp(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        summary_path, _summary = _synthetic_source(\n            tmp_path,\n            monkeypatch,\n            candidate_1=200.0,\n            reference_1=100.0,\n            candidate_2=100.0,\n            reference_2=100.0,\n        )\n>       with pytest.raises(issuer.B4FloorArtifactError, match=\"0 <= floor < 1\"):\nE       Failed: DID NOT RAISE B4FloorArtifactError\n\norchestrator/tests/test_p3_b4_floor_artifact_issuer.py:403: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m11_exact_floor_domain_rejects_one_without_clamp\n1 failed, 68 passed in 153.32s (0:02:33)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m11_exact_floor_domain_rejects_one_without_clamp\" nodeid_bytes=109 nodeid_omitted_bytes=0 source_bytes=792 retained_bytes=792 omitted_bytes=0 rendered_excerpt_bytes=835 sha256=d68d76ae993a4444d597b37e3aaeda1da4ce2f012c15e575fc4c3949b4fba1ab\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw7] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw7/test_m11_exact_floor_domain_re0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x152a630e3be0>\n> \n>     def test_m11_exact_floor_domain_rejects_one_without_clamp(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         summary_path, _summary = _synthetic_source(\n>             tmp_path,\n>             monkeypatch,\n>             candidate_1=200.0,\n>             reference_1=100.0,\n>             candidate_2=100.0,\n>             reference_2=100.0,\n>         )\n> >       with pytest.raises(issuer.B4FloorArtifactError, match=\"0 <= floor < 1\"):\n> E       Failed: DID NOT RAISE B4FloorArtifactError\n> \n> orchestrator/tests/test_p3_b4_floor_artifact_issuer.py:403: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=792 retained_bytes=792 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1567 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "1cc001f7251f9e3c75efc47b4a87a2c5e9eadff958a2b07056caaf2be8032f13"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "a2c6033598dde73eb1bf42d860a692c70aa94bb23f862e9a0b9c6589c5a7aa1c",
+      "duration_s": 181.908,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m11_exact_floor_domain_rejects_one_without_clamp"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m11_exact_floor_domain_rejects_one_without_clamp"
+      ],
+      "hang_risk": false,
+      "id": "M11",
+      "injection_diff_sha256": "ae15ea99674ec377ae6759d1a86bedca23c65934e41551cda741ca9a5ddec6f2",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "98b7e856ba347429f312693c162380ca5efc85316dc211049e7e136498ca2972",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+          "new": "    if not (Fraction(0, 1) <= floor_exact <= Fraction(1, 1)):\n",
+          "old": "    if not (Fraction(0, 1) <= floor_exact < Fraction(1, 1)):\n"
+        }
+      ],
+      "repo_head": "30b3493eb0885c8d70800b950d85944ef9ca1837",
+      "runner_sha256": "04983deec8d06e3a5cf989fc26c6819e3d500d088502badca3f9a4d23d9fd23a",
+      "spec_sha256": "d8560439f93ad1169251e9cd467a722144ab399aa08672b0519c4875f348283f",
+      "status": "KILLED",
+      "test_output_sha256": "1cc001f7251f9e3c75efc47b4a87a2c5e9eadff958a2b07056caaf2be8032f13",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "79c889dc50ee19de00400fe42d801c5decb0dfd86fc3c4942f57056120ac82c8"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b4-floor-issue-wire/output/pegasus-dispatch/9ea21ae0001626777c9e388ff00229d4/izdw-9ea21ae000.o982240",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b4-floor-issue-wire/output/pegasus-dispatch/9ea21ae0001626777c9e388ff00229d4/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...................F.................................................    [100%]\n=================================== FAILURES ===================================\n____________ test_gain_stratum_and_final_uppers_are_each_rederived _____________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_gain_stratum_and_final_up0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15126c60a230>\n\n    def test_gain_stratum_and_final_uppers_are_each_rederived(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        summary_path, summary = _synthetic_source(tmp_path, monkeypatch)\n        mutations = (\n            (\"gain\", lambda value: value[\"derivation\"][0][\"samples\"][0].__setitem__(\"gain_1\", 0.5)),\n            (\"values\", lambda value: value[\"derivation\"][0][\"strata\"][0].__setitem__(\"values\", [0.125])),\n            (\"stratum\", lambda value: value[\"derivation\"][0][\"strata\"][0].__setitem__(\"upper\", 0.125)),\n            (\"final\", lambda value: value.__setitem__(\"upper\", 0.125)),\n            (\"candidate\", lambda value: value.__setitem__(\"candidate_floor\", 0.125)),\n        )\n        for _mutation_id, mutate in mutations:\n            broken = copy.deepcopy(summary)\n            mutate(broken)\n            _rewrite_summary(tmp_path, broken)\n            with pytest.raises(issuer.B4FloorArtifactError):\n                issuer.load_floor_pair_summary(\n                    repo_root=tmp_path, summary_path=summary_path\n                )\n            _rewrite_summary(tmp_path, summary)\n    \n        negative_root = tmp_path / \"negative-zero\"\n        negative_summary_path, zero_summary = _synthetic_source(\n            negative_root,\n            monkeypatch,\n            candidate_1=100.0,\n            reference_1=100.0,\n            candidate_2=100.0,\n            reference_2=100.0,\n        )\n        for field in (\n            \"candidate_floor\",\n            \"upper\",\n            \"stratum_upper\",\n            \"difference\",\n            \"gain_1\",\n            \"gain_2\",\n            \"values\",\n        ):\n            broken = copy.deepcopy(zero_summary)\n            sample = broken[\"derivation\"][0][\"samples\"][0]\n            stratum = broken[\"derivation\"][0][\"strata\"][0]\n            if field in {\"candidate_floor\", \"upper\"}:\n                broken[field] = -0.0\n            elif field == \"stratum_upper\":\n                stratum[\"upper\"] = -0.0\n            elif field == \"values\":\n                stratum[\"values\"] = [-0.0]\n            else:\n                sample[field] = -0.0\n            _rewrite_summary(negative_root, broken)\n>           with pytest.raises(issuer.B4FloorArtifactError, match=\"negative zero\"):\nE           AssertionError: Regex pattern did not match.\nE             Expected regex: 'negative zero'\nE             Actual message: 'self_inconsistency: summary.candidate_floor が summary.upper と不一致'\n\norchestrator/tests/test_p3_b4_floor_artifact_issuer.py:363: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_gain_stratum_and_final_uppers_are_each_rederived\n1 failed, 68 passed in 153.58s (0:02:33)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_gain_stratum_and_final_uppers_are_each_rederived\" nodeid_bytes=109 nodeid_omitted_bytes=0 source_bytes=2750 retained_bytes=2750 omitted_bytes=0 rendered_excerpt_bytes=2892 sha256=22f2503cb549bb929a7969a5a96f42c6da57fdf69cac37b39dd118741c4cffab\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_gain_stratum_and_final_up0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15126c60a230>\n> \n>     def test_gain_stratum_and_final_uppers_are_each_rederived(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         summary_path, summary = _synthetic_source(tmp_path, monkeypatch)\n>         mutations = (\n>             (\"gain\", lambda value: value[\"derivation\"][0][\"samples\"][0].__setitem__(\"gain_1\", 0.5)),\n>             (\"values\", lambda value: value[\"derivation\"][0][\"strata\"][0].__setitem__(\"values\", [0.125])),\n>             (\"stratum\", lambda value: value[\"derivation\"][0][\"strata\"][0].__setitem__(\"upper\", 0.125)),\n>             (\"final\", lambda value: value.__setitem__(\"upper\", 0.125)),\n>             (\"candidate\", lambda value: value.__setitem__(\"candidate_floor\", 0.125)),\n>         )\n>         for _mutation_id, mutate in mutations:\n>             broken = copy.deepcopy(summary)\n>             mutate(broken)\n>             _rewrite_summary(tmp_path, broken)\n>             with pytest.raises(issuer.B4FloorArtifactError):\n>                 issuer.load_floor_pair_summary(\n>                     repo_root=tmp_path, summary_path=summary_path\n>                 )\n>             _rewrite_summary(tmp_path, summary)\n>     \n>         negative_root = tmp_path / \"negative-zero\"\n>         negative_summary_path, zero_summary = _synthetic_source(\n>             negative_root,\n>             monkeypatch,\n>             candidate_1=100.0,\n>             reference_1=100.0,\n>             candidate_2=100.0,\n>             reference_2=100.0,\n>         )\n>         for field in (\n>             \"candidate_floor\",\n>             \"upper\",\n>             \"stratum_upper\",\n>             \"difference\",\n>             \"gain_1\",\n>             \"gain_2\",\n>             \"values\",\n>         ):\n>             broken = copy.deepcopy(zero_summary)\n>             sample = broken[\"derivation\"][0][\"samples\"][0]\n>             stratum = broken[\"derivation\"][0][\"strata\"][0]\n>             if field in {\"candidate_floor\", \"upper\"}:\n>                 broken[field] = -0.0\n>             elif field == \"stratum_upper\":\n>                 stratum[\"upper\"] = -0.0\n>             elif field == \"values\":\n>                 stratum[\"values\"] = [-0.0]\n>             else:\n>                 sample[field] = -0.0\n>             _rewrite_summary(negative_root, broken)\n> >           with pytest.raises(issuer.B4FloorArtifactError, match=\"negative zero\"):\n> E           AssertionError: Regex pattern did not match.\n> E             Expected regex: 'negative zero'\n> E             Actual message: 'self_inconsistency: summary.candidate_floor \\u304c summary.upper \\u3068\\u4e0d\\u4e00\\u81f4'\n> \n> orchestrator/tests/test_p3_b4_floor_artifact_issuer.py:363: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2750 retained_bytes=2750 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3629 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "c657d8295344c18e778e702e6602f89e8004624aa040ecec96149206541eef06"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "a2c6033598dde73eb1bf42d860a692c70aa94bb23f862e9a0b9c6589c5a7aa1c",
+      "duration_s": 181.794,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_gain_stratum_and_final_uppers_are_each_rederived"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_gain_stratum_and_final_uppers_are_each_rederived"
+      ],
+      "hang_risk": false,
+      "id": "M12a",
+      "injection_diff_sha256": "f0a3fcc51b5abb2f2bd88e4abf8057a22b055fccbb5dfac146a6cc17f884c594",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "98faa3efdff8bf953ee9af255aea5af23f20789f0d136562e20220574933fc7e",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+          "new": "    if (\n        reject_negative_zero\n        and value == 0.0\n        and False\n    ):\n",
+          "old": "    if (\n        reject_negative_zero\n        and value == 0.0\n        and math.copysign(1.0, value) < 0\n    ):\n"
+        }
+      ],
+      "repo_head": "30b3493eb0885c8d70800b950d85944ef9ca1837",
+      "runner_sha256": "04983deec8d06e3a5cf989fc26c6819e3d500d088502badca3f9a4d23d9fd23a",
+      "spec_sha256": "d8560439f93ad1169251e9cd467a722144ab399aa08672b0519c4875f348283f",
+      "status": "KILLED",
+      "test_output_sha256": "c657d8295344c18e778e702e6602f89e8004624aa040ecec96149206541eef06",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "79c889dc50ee19de00400fe42d801c5decb0dfd86fc3c4942f57056120ac82c8"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b4-floor-issue-wire/output/pegasus-dispatch/0c8d6bca710ba2daa1140e354d9b7dbf/izdw-0c8d6bca71.o982247",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b4-floor-issue-wire/output/pegasus-dispatch/0c8d6bca710ba2daa1140e354d9b7dbf/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..................FF.................................................    [100%]\n=================================== FAILURES ===================================\n_____ test_identity_is_not_a_caller_surface_and_missing_protocol_is_named ______\n[gw11] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_identity_is_not_a_caller_0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1460dfbd7250>\n\n    def test_identity_is_not_a_caller_surface_and_missing_protocol_is_named(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        assert set(inspect.signature(issuer.issue_authoritative_floor).parameters) == {\n            \"repo_root\",\n            \"summary_path\",\n        }\n        loader_signature = inspect.signature(issuer.load_authoritative_floor)\n>       assert loader_signature.parameters[\"expected_sha256\"].default is (\n            inspect.Parameter.empty\n        )\nE       assert None is <class 'inspect._empty'>\nE        +  where None = <Parameter \"expected_sha256: 'str | None' = None\">.default\nE        +  and   <class 'inspect._empty'> = <class 'inspect.Parameter'>.empty\nE        +    where <class 'inspect.Parameter'> = inspect.Parameter\n\norchestrator/tests/test_p3_b4_floor_artifact_issuer.py:482: AssertionError\n____________ test_authority_issue_is_create_only_exact_and_loadable ____________\n[gw12] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw12/test_authority_issue_is_create0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x152b0edc1fc0>\n\n    def test_authority_issue_is_create_only_exact_and_loadable(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        summary_path, summary = _synthetic_source(\n            tmp_path, monkeypatch, receipt_has_protocol=True\n        )\n        accepted_summary = issuer.load_floor_pair_summary(\n            repo_root=tmp_path, summary_path=summary_path\n        )\n        result = issuer.issue_authoritative_floor(\n            repo_root=tmp_path, summary_path=summary_path\n        )\n        raw = (tmp_path / result.artifact_path).read_bytes()\n        assert hashlib.sha256(raw).hexdigest() == result.artifact_sha256\n        assert not list((tmp_path / \"out\").glob(\".b4-floor-stage-*\"))\n        with pytest.raises(TypeError, match=\"expected_sha256\"):\n>           issuer.load_authoritative_floor(\n                repo_root=tmp_path,\n                artifact_path=result.artifact_path,\n            )\n\norchestrator/tests/test_p3_b4_floor_artifact_issuer.py:517: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/p3_b4_floor_artifact_issuer.py:1040: in load_authoritative_floor\n    expected = _sha256(expected_sha256, label=\"expected_sha256\")\norchestrator/campaign/p3_b4_floor_artifact_issuer.py:275: in _sha256\n    text = _text(value, label=label)\norchestrator/campaign/p3_b4_floor_artifact_issuer.py:263: in _text\n    _fail(\"schema_error\", f\"{label} は exact string でなければならない\")\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncode = 'schema_error', detail = 'expected_sha256 は exact string でなければならない'\n\n    def _fail(code: str, detail: str) -> None:\n>       raise B4FloorArtifactError(code, detail)\nE       orchestrator.campaign.p3_b4_floor_artifact_issuer.B4FloorArtifactError: schema_error: expected_sha256 は exact string でなければならない\n\norchestrator/campaign/p3_b4_floor_artifact_issuer.py:168: B4FloorArtifactError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_identity_is_not_a_caller_surface_and_missing_protocol_is_named\nFAILED orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_authority_issue_is_create_only_exact_and_loadable\n2 failed, 67 passed in 156.96s (0:02:36)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_authority_issue_is_create_only_exact_and_loadable\" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=2205 retained_bytes=2205 omitted_bytes=0 rendered_excerpt_bytes=2384 sha256=5aa6cf10fec9a8522b6b9c338b002ce30e72855296a40e6de111e8247468e724\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw12] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw12/test_authority_issue_is_create0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x152b0edc1fc0>\n> \n>     def test_authority_issue_is_create_only_exact_and_loadable(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         summary_path, summary = _synthetic_source(\n>             tmp_path, monkeypatch, receipt_has_protocol=True\n>         )\n>         accepted_summary = issuer.load_floor_pair_summary(\n>             repo_root=tmp_path, summary_path=summary_path\n>         )\n>         result = issuer.issue_authoritative_floor(\n>             repo_root=tmp_path, summary_path=summary_path\n>         )\n>         raw = (tmp_path / result.artifact_path).read_bytes()\n>         assert hashlib.sha256(raw).hexdigest() == result.artifact_sha256\n>         assert not list((tmp_path / \"out\").glob(\".b4-floor-stage-*\"))\n>         with pytest.raises(TypeError, match=\"expected_sha256\"):\n> >           issuer.load_authoritative_floor(\n>                 repo_root=tmp_path,\n>                 artifact_path=result.artifact_path,\n>             )\n> \n> orchestrator/tests/test_p3_b4_floor_artifact_issuer.py:517: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/p3_b4_floor_artifact_issuer.py:1040: in load_authoritative_floor\n>     expected = _sha256(expected_sha256, label=\"expected_sha256\")\n> orchestrator/campaign/p3_b4_floor_artifact_issuer.py:275: in _sha256\n>     text = _text(value, label=label)\n> orchestrator/campaign/p3_b4_floor_artifact_issuer.py:263: in _text\n>     _fail(\"schema_error\", f\"{label} \\u306f exact string \\u3067\\u306a\\u3051\\u308c\\u3070\\u306a\\u3089\\u306a\\u3044\")\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> code = 'schema_error', detail = 'expected_sha256 \\u306f exact string \\u3067\\u306a\\u3051\\u308c\\u3070\\u306a\\u3089\\u306a\\u3044'\n> \n>     def _fail(code: str, detail: str) -> None:\n> >       raise B4FloorArtifactError(code, detail)\n> E       orchestrator.campaign.p3_b4_floor_artifact_issuer.B4FloorArtifactError: schema_error: expected_sha256 \\u306f exact string \\u3067\\u306a\\u3051\\u308c\\u3070\\u306a\\u3089\\u306a\\u3044\n> \n> orchestrator/campaign/p3_b4_floor_artifact_issuer.py:168: B4FloorArtifactError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_identity_is_not_a_caller_surface_and_missing_protocol_is_named\" nodeid_bytes=123 nodeid_omitted_bytes=0 source_bytes=1080 retained_bytes=1080 omitted_bytes=0 rendered_excerpt_bytes=1127 sha256=cd2abd637bc7333e6e5ac785540e5c70966a0783c754dcfc509e8ad5cfd30a41\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw11] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_identity_is_not_a_caller_0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1460dfbd7250>\n> \n>     def test_identity_is_not_a_caller_surface_and_missing_protocol_is_named(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         assert set(inspect.signature(issuer.issue_authoritative_floor).parameters) == {\n>             \"repo_root\",\n>             \"summary_path\",\n>         }\n>         loader_signature = inspect.signature(issuer.load_authoritative_floor)\n> >       assert loader_signature.parameters[\"expected_sha256\"].default is (\n>             inspect.Parameter.empty\n>         )\n> E       assert None is <class 'inspect._empty'>\n> E        +  where None = <Parameter \"expected_sha256: 'str | None' = None\">.default\n> E        +  and   <class 'inspect._empty'> = <class 'inspect.Parameter'>.empty\n> E        +    where <class 'inspect.Parameter'> = inspect.Parameter\n> \n> orchestrator/tests/test_p3_b4_floor_artifact_issuer.py:482: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=3285 retained_bytes=3285 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4713 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "adfd37739e56fed91324141386b8df4aa686a4c9926fe7e06523fc13245d6d5e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "a2c6033598dde73eb1bf42d860a692c70aa94bb23f862e9a0b9c6589c5a7aa1c",
+      "duration_s": 181.951,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_identity_is_not_a_caller_surface_and_missing_protocol_is_named",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_authority_issue_is_create_only_exact_and_loadable"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_identity_is_not_a_caller_surface_and_missing_protocol_is_named",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_authority_issue_is_create_only_exact_and_loadable"
+      ],
+      "hang_risk": false,
+      "id": "M14",
+      "injection_diff_sha256": "5d6b598effa9de087072a64d8064dca5c06411f9de9e238c6ba1306567e815bd",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "6d948027829480aec554ccb5ca614e8bdaaedbe4155ff8b9e794212976c08bac",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+          "new": "    artifact_path: str,\n    expected_sha256: str | None = None,\n) -> B4AuthoritativeFloor:\n",
+          "old": "    artifact_path: str,\n    expected_sha256: str,\n) -> B4AuthoritativeFloor:\n"
+        }
+      ],
+      "repo_head": "30b3493eb0885c8d70800b950d85944ef9ca1837",
+      "runner_sha256": "04983deec8d06e3a5cf989fc26c6819e3d500d088502badca3f9a4d23d9fd23a",
+      "spec_sha256": "d8560439f93ad1169251e9cd467a722144ab399aa08672b0519c4875f348283f",
+      "status": "KILLED",
+      "test_output_sha256": "adfd37739e56fed91324141386b8df4aa686a4c9926fe7e06523fc13245d6d5e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "79c889dc50ee19de00400fe42d801c5decb0dfd86fc3c4942f57056120ac82c8"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b4-floor-issue-wire/output/pegasus-dispatch/86c7292a5e7b148b6df173aac30bf9c6/izdw-86c7292a5e.o982255",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b4-floor-issue-wire/output/pegasus-dispatch/86c7292a5e7b148b6df173aac30bf9c6/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...................F.........................F.......................    [100%]\n=================================== FAILURES ===================================\n_______ test_authority_non_guarantees_pin_required_verbatim_limitations ________\n[gw13] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw13/test_authority_non_guarantees_0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14de8156c400>\n\n    def test_authority_non_guarantees_pin_required_verbatim_limitations(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        summary_path, _summary = _synthetic_source(\n            tmp_path, monkeypatch, receipt_has_protocol=True\n        )\n        result = issuer.issue_authoritative_floor(\n            repo_root=tmp_path, summary_path=summary_path\n        )\n        authority = json.loads(\n            (tmp_path / result.artifact_path).read_text(encoding=\"utf-8\")\n        )\n    \n>       assert authority[\"non_guarantees\"][:3] == [\n            \"binary64 の中間丸めにより、記録された float D が同じ入力の exact D より小さいことがある。\",\n            \"凍結が測定の結果を見る前に行われたことを証明しない。\",\n            \"source summary の参照先を実在照合していない\",\n        ]\nE       AssertionError: assert ['binary64 の中...照先を実在照合していない'] == ['binary64 の中...照先を実在照合していない']\nE         \nE         At index 1 diff: '凍結が測定の結果を見る前に行われたことを証明済みである。' != '凍結が測定の結果を見る前に行われたことを証明しない。'\nE         Use -v to get more diff\n\norchestrator/tests/test_p3_b4_floor_artifact_issuer.py:566: AssertionError\n_________ test_present_floor_projects_required_verbatim_non_guarantees _________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_present_floor_projects_re0')\n\n    def test_present_floor_projects_required_verbatim_non_guarantees(\n        tmp_path: Path,\n    ) -> None:\n        authority_repo = tmp_path / \"authority-repo\"\n        _write_floor_preregistration(authority_repo, present=True)\n        authoritative_floor = floor_issuer.resolve_preregistered_authoritative_floor(\n            repo_root=authority_repo,\n            preregistration_path=R._PREREGISTRATION_RELATIVE_PATH,\n        )\n        assert authoritative_floor is not None\n        report = {\n            \"floor\": {\n                \"availability\": \"absent\",\n                \"reason\": \"preregistration_section_5_unfilled\",\n                \"source\": None,\n                \"value\": None,\n            },\n            \"report_scope\": {\n                \"floor_availability\": \"absent\",\n                \"expected_analysis_verdict\": \"protocol_violation\",\n                \"expected_analysis_reason\": \"floor_domain_error\",\n            },\n            \"certification_scope\": {\n                \"not_guaranteed\": [\"authoritative_floor_artifact\"],\n            },\n            \"provenance\": {\"report_non_guarantees\": []},\n            \"analysis\": {\"status\": \"not_evaluated\", \"floor_argument\": None},\n        }\n    \n        projected = R._apply_authoritative_floor_projection(\n            SimpleNamespace(authoritative_floor=authoritative_floor),\n            report,\n        )\n        expected = [\n            \"binary64 の中間丸めにより、記録された float D が同じ入力の exact D より小さいことがある。\",\n            \"凍結が測定の結果を見る前に行われたことを証明しない。\",\n            \"source summary の参照先を実在照合していない\",\n        ]\n        assert projected[\"floor\"][\"availability\"] == \"present\"\n>       assert projected[\"certification_scope\"][\"not_guaranteed\"] == expected\nE       AssertionError: assert ['binary64 の中...照先を実在照合していない'] == ['binary64 の中...照先を実在照合していない']\nE         \nE         At index 1 diff: '凍結が測定の結果を見る前に行われたことを証明済みである。' != '凍結が測定の結果を見る前に行われたことを証明しない。'\nE         Use -v to get more diff\n\norchestrator/tests/test_p3_b4_material_report.py:993: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_authority_non_guarantees_pin_required_verbatim_limitations\nFAILED orchestrator/tests/test_p3_b4_material_report.py::test_present_floor_projects_required_verbatim_non_guarantees@p3-b4-material-report\n2 failed, 67 passed in 153.70s (0:02:33)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_material_report.py::test_present_floor_projects_required_verbatim_non_guarantees@p3-b4-material-report\" nodeid_bytes=132 nodeid_omitted_bytes=0 source_bytes=2442 retained_bytes=2442 omitted_bytes=0 rendered_excerpt_bytes=3002 sha256=ea2f25060dda29c29ce65609b4a1ae35d99bd2fc8f382e3c3b01697d300217b4\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_present_floor_projects_re0')\n> \n>     def test_present_floor_projects_required_verbatim_non_guarantees(\n>         tmp_path: Path,\n>     ) -> None:\n>         authority_repo = tmp_path / \"authority-repo\"\n>         _write_floor_preregistration(authority_repo, present=True)\n>         authoritative_floor = floor_issuer.resolve_preregistered_authoritative_floor(\n>             repo_root=authority_repo,\n>             preregistration_path=R._PREREGISTRATION_RELATIVE_PATH,\n>         )\n>         assert authoritative_floor is not None\n>         report = {\n>             \"floor\": {\n>                 \"availability\": \"absent\",\n>                 \"reason\": \"preregistration_section_5_unfilled\",\n>                 \"source\": None,\n>                 \"value\": None,\n>             },\n>             \"report_scope\": {\n>                 \"floor_availability\": \"absent\",\n>                 \"expected_analysis_verdict\": \"protocol_violation\",\n>                 \"expected_analysis_reason\": \"floor_domain_error\",\n>             },\n>             \"certification_scope\": {\n>                 \"not_guaranteed\": [\"authoritative_floor_artifact\"],\n>             },\n>             \"provenance\": {\"report_non_guarantees\": []},\n>             \"analysis\": {\"status\": \"not_evaluated\", \"floor_argument\": None},\n>         }\n>     \n>         projected = R._apply_authoritative_floor_projection(\n>             SimpleNamespace(authoritative_floor=authoritative_floor),\n>             report,\n>         )\n>         expected = [\n>             \"binary64 \\u306e\\u4e2d\\u9593\\u4e38\\u3081\\u306b\\u3088\\u308a\\u3001\\u8a18\\u9332\\u3055\\u308c\\u305f float D \\u304c\\u540c\\u3058\\u5165\\u529b\\u306e exact D \\u3088\\u308a\\u5c0f\\u3055\\u3044\\u3053\\u3068\\u304c\\u3042\\u308b\\u3002\",\n>             \"\\u51cd\\u7d50\\u304c\\u6e2c\\u5b9a\\u306e\\u7d50\\u679c\\u3092\\u898b\\u308b\\u524d\\u306b\\u884c\\u308f\\u308c\\u305f\\u3053\\u3068\\u3092\\u8a3c\\u660e\\u3057\\u306a\\u3044\\u3002\",\n>             \"source summary \\u306e\\u53c2\\u7167\\u5148\\u3092\\u5b9f\\u5728\\u7167\\u5408\\u3057\\u3066\\u3044\\u306a\\u3044\",\n>         ]\n>         assert projected[\"floor\"][\"availability\"] == \"present\"\n> >       assert projected[\"certification_scope\"][\"not_guaranteed\"] == expected\n> E       AssertionError: assert ['binary64 \\u306e\\u4e2d...\\u7167\\u5148\\u3092\\u5b9f\\u5728\\u7167\\u5408\\u3057\\u3066\\u3044\\u306a\\u3044'] == ['binary64 \\u306e\\u4e2d...\\u7167\\u5148\\u3092\\u5b9f\\u5728\\u7167\\u5408\\u3057\\u3066\\u3044\\u306a\\u3044']\n> E         \n> E         At index 1 diff: '\\u51cd\\u7d50\\u304c\\u6e2c\\u5b9a\\u306e\\u7d50\\u679c\\u3092\\u898b\\u308b\\u524d\\u306b\\u884c\\u308f\\u308c\\u305f\\u3053\\u3068\\u3092\\u8a3c\\u660e\\u6e08\\u307f\\u3067\\u3042\\u308b\\u3002' != '\\u51cd\\u7d50\\u304c\\u6e2c\\u5b9a\\u306e\\u7d50\\u679c\\u3092\\u898b\\u308b\\u524d\\u306b\\u884c\\u308f\\u308c\\u305f\\u3053\\u3068\\u3092\\u8a3c\\u660e\\u3057\\u306a\\u3044\\u3002'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_p3_b4_material_report.py:993: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_authority_non_guarantees_pin_required_verbatim_limitations\" nodeid_bytes=119 nodeid_omitted_bytes=0 source_bytes=1570 retained_bytes=1570 omitted_bytes=0 rendered_excerpt_bytes=2090 sha256=ad2c155e0b4830e4cf0733db7725842ad84541faef761ecd0bd0ccf6c38d5565\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw13] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw13/test_authority_non_guarantees_0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14de8156c400>\n> \n>     def test_authority_non_guarantees_pin_required_verbatim_limitations(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         summary_path, _summary = _synthetic_source(\n>             tmp_path, monkeypatch, receipt_has_protocol=True\n>         )\n>         result = issuer.issue_authoritative_floor(\n>             repo_root=tmp_path, summary_path=summary_path\n>         )\n>         authority = json.loads(\n>             (tmp_path / result.artifact_path).read_text(encoding=\"utf-8\")\n>         )\n>     \n> >       assert authority[\"non_guarantees\"][:3] == [\n>             \"binary64 \\u306e\\u4e2d\\u9593\\u4e38\\u3081\\u306b\\u3088\\u308a\\u3001\\u8a18\\u9332\\u3055\\u308c\\u305f float D \\u304c\\u540c\\u3058\\u5165\\u529b\\u306e exact D \\u3088\\u308a\\u5c0f\\u3055\\u3044\\u3053\\u3068\\u304c\\u3042\\u308b\\u3002\",\n>             \"\\u51cd\\u7d50\\u304c\\u6e2c\\u5b9a\\u306e\\u7d50\\u679c\\u3092\\u898b\\u308b\\u524d\\u306b\\u884c\\u308f\\u308c\\u305f\\u3053\\u3068\\u3092\\u8a3c\\u660e\\u3057\\u306a\\u3044\\u3002\",\n>             \"source summary \\u306e\\u53c2\\u7167\\u5148\\u3092\\u5b9f\\u5728\\u7167\\u5408\\u3057\\u3066\\u3044\\u306a\\u3044\",\n>         ]\n> E       AssertionError: assert ['binary64 \\u306e\\u4e2d...\\u7167\\u5148\\u3092\\u5b9f\\u5728\\u7167\\u5408\\u3057\\u3066\\u3044\\u306a\\u3044'] == ['binary64 \\u306e\\u4e2d...\\u7167\\u5148\\u3092\\u5b9f\\u5728\\u7167\\u5408\\u3057\\u3066\\u3044\\u306a\\u3044']\n> E         \n> E         At index 1 diff: '\\u51cd\\u7d50\\u304c\\u6e2c\\u5b9a\\u306e\\u7d50\\u679c\\u3092\\u898b\\u308b\\u524d\\u306b\\u884c\\u308f\\u308c\\u305f\\u3053\\u3068\\u3092\\u8a3c\\u660e\\u6e08\\u307f\\u3067\\u3042\\u308b\\u3002' != '\\u51cd\\u7d50\\u304c\\u6e2c\\u5b9a\\u306e\\u7d50\\u679c\\u3092\\u898b\\u308b\\u524d\\u306b\\u884c\\u308f\\u308c\\u305f\\u3053\\u3068\\u3092\\u8a3c\\u660e\\u3057\\u306a\\u3044\\u3002'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_p3_b4_floor_artifact_issuer.py:566: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=4012 retained_bytes=4012 omitted_bytes=0 budget_bytes=49152 rendered_bytes=6312 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "f4915369b5bfc36fac5d314d9973bdc4fb96d1a877fcd5048058c4b1417aa5b8"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "a2c6033598dde73eb1bf42d860a692c70aa94bb23f862e9a0b9c6589c5a7aa1c",
+      "duration_s": 176.908,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_authority_non_guarantees_pin_required_verbatim_limitations"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_authority_non_guarantees_pin_required_verbatim_limitations",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_present_floor_projects_required_verbatim_non_guarantees@p3-b4-material-report"
+      ],
+      "hang_risk": false,
+      "id": "M15",
+      "injection_diff_sha256": "4aa45bae1afc3cf6885ddf88fcae39effb72e5afea10ea46ec1db13941e53bd7",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "d30ee7ca49656a20d37319ff49d2158fc72718e0020d7e55daefbe22210c37fc",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+          "new": "    \"凍結が測定の結果を見る前に行われたことを証明済みである。\"\n",
+          "old": "    \"凍結が測定の結果を見る前に行われたことを証明しない。\"\n"
+        }
+      ],
+      "repo_head": "30b3493eb0885c8d70800b950d85944ef9ca1837",
+      "runner_sha256": "04983deec8d06e3a5cf989fc26c6819e3d500d088502badca3f9a4d23d9fd23a",
+      "spec_sha256": "d8560439f93ad1169251e9cd467a722144ab399aa08672b0519c4875f348283f",
+      "status": "MISMATCH",
+      "test_output_sha256": "f4915369b5bfc36fac5d314d9973bdc4fb96d1a877fcd5048058c4b1417aa5b8",
+      "test_output_tail": [
+        ">     ) -> None:",
+        ">         authority_repo = tmp_path / \"authority-repo\"",
+        ">         _write_floor_preregistration(authority_repo, present=True)",
+        ">         authoritative_floor = floor_issuer.resolve_preregistered_authoritative_floor(",
+        ">             repo_root=authority_repo,",
+        ">             preregistration_path=R._PREREGISTRATION_RELATIVE_PATH,",
+        ">         )",
+        ">         assert authoritative_floor is not None",
+        ">         report = {",
+        ">             \"floor\": {",
+        ">                 \"availability\": \"absent\",",
+        ">                 \"reason\": \"preregistration_section_5_unfilled\",",
+        ">                 \"source\": None,",
+        ">                 \"value\": None,",
+        ">             },",
+        ">             \"report_scope\": {",
+        ">                 \"floor_availability\": \"absent\",",
+        ">                 \"expected_analysis_verdict\": \"protocol_violation\",",
+        ">                 \"expected_analysis_reason\": \"floor_domain_error\",",
+        ">             },",
+        ">             \"certification_scope\": {",
+        ">                 \"not_guaranteed\": [\"authoritative_floor_artifact\"],",
+        ">             },",
+        ">             \"provenance\": {\"report_non_guarantees\": []},",
+        ">             \"analysis\": {\"status\": \"not_evaluated\", \"floor_argument\": None},",
+        ">         }",
+        ">     ",
+        ">         projected = R._apply_authoritative_floor_projection(",
+        ">             SimpleNamespace(authoritative_floor=authoritative_floor),",
+        ">             report,",
+        ">         )",
+        ">         expected = [",
+        ">             \"binary64 \\u306e\\u4e2d\\u9593\\u4e38\\u3081\\u306b\\u3088\\u308a\\u3001\\u8a18\\u9332\\u3055\\u308c\\u305f float D \\u304c\\u540c\\u3058\\u5165\\u529b\\u306e exact D \\u3088\\u308a\\u5c0f\\u3055\\u3044\\u3053\\u3068\\u304c\\u3042\\u308b\\u3002\",",
+        ">             \"\\u51cd\\u7d50\\u304c\\u6e2c\\u5b9a\\u306e\\u7d50\\u679c\\u3092\\u898b\\u308b\\u524d\\u306b\\u884c\\u308f\\u308c\\u305f\\u3053\\u3068\\u3092\\u8a3c\\u660e\\u3057\\u306a\\u3044\\u3002\",",
+        ">             \"source summary \\u306e\\u53c2\\u7167\\u5148\\u3092\\u5b9f\\u5728\\u7167\\u5408\\u3057\\u3066\\u3044\\u306a\\u3044\",",
+        ">         ]",
+        ">         assert projected[\"floor\"][\"availability\"] == \"present\"",
+        "> >       assert projected[\"certification_scope\"][\"not_guaranteed\"] == expected",
+        "> E       AssertionError: assert ['binary64 \\u306e\\u4e2d...\\u7167\\u5148\\u3092\\u5b9f\\u5728\\u7167\\u5408\\u3057\\u3066\\u3044\\u306a\\u3044'] == ['binary64 \\u306e\\u4e2d...\\u7167\\u5148\\u3092\\u5b9f\\u5728\\u7167\\u5408\\u3057\\u3066\\u3044\\u306a\\u3044']",
+        "> E         ",
+        "> E         At index 1 diff: '\\u51cd\\u7d50\\u304c\\u6e2c\\u5b9a\\u306e\\u7d50\\u679c\\u3092\\u898b\\u308b\\u524d\\u306b\\u884c\\u308f\\u308c\\u305f\\u3053\\u3068\\u3092\\u8a3c\\u660e\\u6e08\\u307f\\u3067\\u3042\\u308b\\u3002' != '\\u51cd\\u7d50\\u304c\\u6e2c\\u5b9a\\u306e\\u7d50\\u679c\\u3092\\u898b\\u308b\\u524d\\u306b\\u884c\\u308f\\u308c\\u305f\\u3053\\u3068\\u3092\\u8a3c\\u660e\\u3057\\u306a\\u3044\\u3002'",
+        "> E         Use -v to get more diff",
+        "> ",
+        "> orchestrator/tests/test_p3_b4_material_report.py:993: AssertionError",
+        "--- IZANAGI FAILURE EXCERPT rank=1 END ---",
+        "IZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_authority_non_guarantees_pin_required_verbatim_limitations\" nodeid_bytes=119 nodeid_omitted_bytes=0 source_bytes=1570 retained_bytes=1570 omitted_bytes=0 rendered_excerpt_bytes=2090 sha256=ad2c155e0b4830e4cf0733db7725842ad84541faef761ecd0bd0ccf6c38d5565",
+        "--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---",
+        "> [gw13] linux -- Python 3.10.12 /bin/python3.10",
+        "> ",
+        "> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw13/test_authority_non_guarantees_0')",
+        "> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14de8156c400>",
+        "> ",
+        ">     def test_authority_non_guarantees_pin_required_verbatim_limitations(",
+        ">         tmp_path: Path,",
+        ">         monkeypatch: pytest.MonkeyPatch,",
+        ">     ) -> None:",
+        ">         summary_path, _summary = _synthetic_source(",
+        ">             tmp_path, monkeypatch, receipt_has_protocol=True",
+        ">         )",
+        ">         result = issuer.issue_authoritative_floor(",
+        ">             repo_root=tmp_path, summary_path=summary_path",
+        ">         )",
+        ">         authority = json.loads(",
+        ">             (tmp_path / result.artifact_path).read_text(encoding=\"utf-8\")",
+        ">         )",
+        ">     ",
+        "> >       assert authority[\"non_guarantees\"][:3] == [",
+        ">             \"binary64 \\u306e\\u4e2d\\u9593\\u4e38\\u3081\\u306b\\u3088\\u308a\\u3001\\u8a18\\u9332\\u3055\\u308c\\u305f float D \\u304c\\u540c\\u3058\\u5165\\u529b\\u306e exact D \\u3088\\u308a\\u5c0f\\u3055\\u3044\\u3053\\u3068\\u304c\\u3042\\u308b\\u3002\",",
+        ">             \"\\u51cd\\u7d50\\u304c\\u6e2c\\u5b9a\\u306e\\u7d50\\u679c\\u3092\\u898b\\u308b\\u524d\\u306b\\u884c\\u308f\\u308c\\u305f\\u3053\\u3068\\u3092\\u8a3c\\u660e\\u3057\\u306a\\u3044\\u3002\",",
+        ">             \"source summary \\u306e\\u53c2\\u7167\\u5148\\u3092\\u5b9f\\u5728\\u7167\\u5408\\u3057\\u3066\\u3044\\u306a\\u3044\",",
+        ">         ]",
+        "> E       AssertionError: assert ['binary64 \\u306e\\u4e2d...\\u7167\\u5148\\u3092\\u5b9f\\u5728\\u7167\\u5408\\u3057\\u3066\\u3044\\u306a\\u3044'] == ['binary64 \\u306e\\u4e2d...\\u7167\\u5148\\u3092\\u5b9f\\u5728\\u7167\\u5408\\u3057\\u3066\\u3044\\u306a\\u3044']",
+        "> E         ",
+        "> E         At index 1 diff: '\\u51cd\\u7d50\\u304c\\u6e2c\\u5b9a\\u306e\\u7d50\\u679c\\u3092\\u898b\\u308b\\u524d\\u306b\\u884c\\u308f\\u308c\\u305f\\u3053\\u3068\\u3092\\u8a3c\\u660e\\u6e08\\u307f\\u3067\\u3042\\u308b\\u3002' != '\\u51cd\\u7d50\\u304c\\u6e2c\\u5b9a\\u306e\\u7d50\\u679c\\u3092\\u898b\\u308b\\u524d\\u306b\\u884c\\u308f\\u308c\\u305f\\u3053\\u3068\\u3092\\u8a3c\\u660e\\u3057\\u306a\\u3044\\u3002'",
+        "> E         Use -v to get more diff",
+        "> ",
+        "> orchestrator/tests/test_p3_b4_floor_artifact_issuer.py:566: AssertionError",
+        "--- IZANAGI FAILURE EXCERPT rank=2 END ---",
+        "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=4012 retained_bytes=4012 omitted_bytes=0 budget_bytes=49152 rendered_bytes=6312 omitted_manifest_sha256=-",
+        "=== IZANAGI FAILURE DIGEST v1 END ==="
+      ],
+      "timed_out": false,
+      "tool_sha256": "79c889dc50ee19de00400fe42d801c5decb0dfd86fc3c4942f57056120ac82c8"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b4-floor-issue-wire/output/pegasus-dispatch/2e6d1c1ad4d907b2db09ea87348eaccc/izdw-2e6d1c1ad4.o982275",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b4-floor-issue-wire/output/pegasus-dispatch/2e6d1c1ad4d907b2db09ea87348eaccc/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...................F.................................................    [100%]\n=================================== FAILURES ===================================\n____________ test_authority_issue_is_create_only_exact_and_loadable ____________\n[gw12] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw12/test_authority_issue_is_create0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14800bfc3af0>\n\n    def test_authority_issue_is_create_only_exact_and_loadable(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        summary_path, summary = _synthetic_source(\n            tmp_path, monkeypatch, receipt_has_protocol=True\n        )\n        accepted_summary = issuer.load_floor_pair_summary(\n            repo_root=tmp_path, summary_path=summary_path\n        )\n        result = issuer.issue_authoritative_floor(\n            repo_root=tmp_path, summary_path=summary_path\n        )\n        raw = (tmp_path / result.artifact_path).read_bytes()\n        assert hashlib.sha256(raw).hexdigest() == result.artifact_sha256\n        assert not list((tmp_path / \"out\").glob(\".b4-floor-stage-*\"))\n        with pytest.raises(TypeError, match=\"expected_sha256\"):\n            issuer.load_authoritative_floor(\n                repo_root=tmp_path,\n                artifact_path=result.artifact_path,\n            )\n    \n        loaded = issuer.load_authoritative_floor(\n            repo_root=tmp_path,\n            artifact_path=result.artifact_path,\n            expected_sha256=result.artifact_sha256,\n        )\n        assert loaded.floor == Fraction(\n            *accepted_summary.candidate_floor.as_integer_ratio()\n        )\n        assert loaded.source_float_hex == accepted_summary.candidate_floor.hex()\n        assert loaded.identity == accepted_summary.identity\n>       assert loaded.non_guarantees == (\n            *issuer.NON_GUARANTEES,\n            *summary[\"proof_limitations\"][\"items\"],\n        )\nE       AssertionError: assert ('binary64 の中...照先を実在照合していない') == ('binary64 の中...ued evidence')\nE         \nE         Right contains 2 more items, first extra item: 'not a measurement'\nE         Use -v to get more diff\n\norchestrator/tests/test_p3_b4_floor_artifact_issuer.py:532: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_authority_issue_is_create_only_exact_and_loadable\n1 failed, 68 passed in 161.04s (0:02:41)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_authority_issue_is_create_only_exact_and_loadable\" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=2065 retained_bytes=2065 omitted_bytes=0 rendered_excerpt_bytes=2208 sha256=7deac0d3e0ce96544d616aa7c035e52ddb45a7c55e7b0f29ec1a451f8ea53bab\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw12] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw12/test_authority_issue_is_create0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14800bfc3af0>\n> \n>     def test_authority_issue_is_create_only_exact_and_loadable(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         summary_path, summary = _synthetic_source(\n>             tmp_path, monkeypatch, receipt_has_protocol=True\n>         )\n>         accepted_summary = issuer.load_floor_pair_summary(\n>             repo_root=tmp_path, summary_path=summary_path\n>         )\n>         result = issuer.issue_authoritative_floor(\n>             repo_root=tmp_path, summary_path=summary_path\n>         )\n>         raw = (tmp_path / result.artifact_path).read_bytes()\n>         assert hashlib.sha256(raw).hexdigest() == result.artifact_sha256\n>         assert not list((tmp_path / \"out\").glob(\".b4-floor-stage-*\"))\n>         with pytest.raises(TypeError, match=\"expected_sha256\"):\n>             issuer.load_authoritative_floor(\n>                 repo_root=tmp_path,\n>                 artifact_path=result.artifact_path,\n>             )\n>     \n>         loaded = issuer.load_authoritative_floor(\n>             repo_root=tmp_path,\n>             artifact_path=result.artifact_path,\n>             expected_sha256=result.artifact_sha256,\n>         )\n>         assert loaded.floor == Fraction(\n>             *accepted_summary.candidate_floor.as_integer_ratio()\n>         )\n>         assert loaded.source_float_hex == accepted_summary.candidate_floor.hex()\n>         assert loaded.identity == accepted_summary.identity\n> >       assert loaded.non_guarantees == (\n>             *issuer.NON_GUARANTEES,\n>             *summary[\"proof_limitations\"][\"items\"],\n>         )\n> E       AssertionError: assert ('binary64 \\u306e\\u4e2d...\\u7167\\u5148\\u3092\\u5b9f\\u5728\\u7167\\u5408\\u3057\\u3066\\u3044\\u306a\\u3044') == ('binary64 \\u306e\\u4e2d...ued evidence')\n> E         \n> E         Right contains 2 more items, first extra item: 'not a measurement'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_p3_b4_floor_artifact_issuer.py:532: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2065 retained_bytes=2065 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2946 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "59e9b5a386e919cdc87fe325386f780dca039b93d448feb602ef156a6eca8105"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "a2c6033598dde73eb1bf42d860a692c70aa94bb23f862e9a0b9c6589c5a7aa1c",
+      "duration_s": 186.785,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_authority_issue_is_create_only_exact_and_loadable"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_authority_issue_is_create_only_exact_and_loadable"
+      ],
+      "hang_risk": false,
+      "id": "M16",
+      "injection_diff_sha256": "09581016cae596d7c50ece64be07e77d442d058805c27bfe9b62dc51b0877145",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "bdf55270eadedc6fddf894d2ab3dfc9a6d54907c7e96d16fe114073126335b82",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+          "new": "        \"non_guarantees\": [*NON_GUARANTEES],\n",
+          "old": "        \"non_guarantees\": [*NON_GUARANTEES, *summary.proof_limitations],\n"
+        }
+      ],
+      "repo_head": "30b3493eb0885c8d70800b950d85944ef9ca1837",
+      "runner_sha256": "04983deec8d06e3a5cf989fc26c6819e3d500d088502badca3f9a4d23d9fd23a",
+      "spec_sha256": "d8560439f93ad1169251e9cd467a722144ab399aa08672b0519c4875f348283f",
+      "status": "KILLED",
+      "test_output_sha256": "59e9b5a386e919cdc87fe325386f780dca039b93d448feb602ef156a6eca8105",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "79c889dc50ee19de00400fe42d801c5decb0dfd86fc3c4942f57056120ac82c8"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b4-floor-issue-wire/output/pegasus-dispatch/f60fa7a7d5c18752edb1a9b88310a947/izdw-f60fa7a7d5.o982288",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b4-floor-issue-wire/output/pegasus-dispatch/f60fa7a7d5c18752edb1a9b88310a947/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...........................................FF........................    [100%]\n=================================== FAILURES ===================================\n____ test_m9_four_authority_and_assembly_states_project_exactly[True-True] _____\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_m9_four_authority_and_ass2')\nimmutable_publication = _ImmutablePublication(publication_evidence=_PublicationEvidence(publication=B4PrerunPublication(publication_root='/tmp...tic-pair/off/receipt_producer-off-1_terminal.json'), iteration=201, on_commit_receipt=None, off_commit_receipt=None))))\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14e7d4490fd0>\nauthority_present = True, assembly_succeeds = True\n\n    @pytest.mark.parametrize(\n        (\"authority_present\", \"assembly_succeeds\"),\n        (\n            (False, True),\n            (False, False),\n            (True, True),\n            (True, False),\n        ),\n    )\n    def test_m9_four_authority_and_assembly_states_project_exactly(\n        tmp_path: Path,\n        immutable_publication: _ImmutablePublication,\n        monkeypatch: pytest.MonkeyPatch,\n        authority_present: bool,\n        assembly_succeeds: bool,\n    ) -> None:\n        publication = _fresh_publication_from_shared_evidence(\n            tmp_path,\n            immutable_publication,\n        )\n        if not assembly_succeeds:\n            Path(publication.planned_result_artifacts[-1].artifact_path).unlink()\n    \n        authority_repo = tmp_path / \"authority-repo\"\n        expected_source = _write_floor_preregistration(\n            authority_repo,\n            present=authority_present,\n        )\n        monkeypatch.setattr(R, \"_REPOSITORY_ROOT\", authority_repo)\n        original_evaluator = R.evaluate_b4_artifacts\n        observed_floor_arguments: list[object] = []\n    \n        def record_floor_argument(**kwargs):\n            observed_floor_arguments.append(kwargs[\"floor\"])\n            return original_evaluator(**kwargs)\n    \n        monkeypatch.setattr(R, \"evaluate_b4_artifacts\", record_floor_argument)\n>       document = R.build_material_report_document(\n            publication.publication_root,\n        )\n\norchestrator/tests/test_p3_b4_material_report.py:875: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/p3_b4_material_report.py:1243: in build_material_report_document\n    _assert_authoritative_floor_projection(inputs, report)\norchestrator/campaign/p3_b4_material_report.py:1065: in _assert_authoritative_floor_projection\n    _fail(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nreason = 'authoritative_floor_projection_mismatch'\ndetail = 'report scope differs', cause = None\n\n    def _fail(reason: str, detail: str, *, cause: BaseException | None = None) -> NoReturn:\n        error = B4MaterialReportError(reason, detail)\n        if cause is None:\n>           raise error\nE           orchestrator.campaign.p3_b4_material_report.B4MaterialReportError: authoritative_floor_projection_mismatch: report scope differs\n\norchestrator/campaign/p3_b4_material_report.py:146: B4MaterialReportError\n____ test_m9_four_authority_and_assembly_states_project_exactly[True-False] ____\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_m9_four_authority_and_ass3')\nimmutable_publication = _ImmutablePublication(publication_evidence=_PublicationEvidence(publication=B4PrerunPublication(publication_root='/tmp...tic-pair/off/receipt_producer-off-1_terminal.json'), iteration=201, on_commit_receipt=None, off_commit_receipt=None))))\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14e7cf946c50>\nauthority_present = True, assembly_succeeds = False\n\n    @pytest.mark.parametrize(\n        (\"authority_present\", \"assembly_succeeds\"),\n        (\n            (False, True),\n            (False, False),\n            (True, True),\n            (True, False),\n        ),\n    )\n    def test_m9_four_authority_and_assembly_states_project_exactly(\n        tmp_path: Path,\n        immutable_publication: _ImmutablePublication,\n        monkeypatch: pytest.MonkeyPatch,\n        authority_present: bool,\n        assembly_succeeds: bool,\n    ) -> None:\n        publication = _fresh_publication_from_shared_evidence(\n            tmp_path,\n            immutable_publication,\n        )\n        if not assembly_succeeds:\n            Path(publication.planned_result_artifacts[-1].artifact_path).unlink()\n    \n        authority_repo = tmp_path / \"authority-repo\"\n        expected_source = _write_floor_preregistration(\n            authority_repo,\n            present=authority_present,\n        )\n        monkeypatch.setattr(R, \"_REPOSITORY_ROOT\", authority_repo)\n        original_evaluator = R.evaluate_b4_artifacts\n        observed_floor_arguments: list[object] = []\n    \n        def record_floor_argument(**kwargs):\n            observed_floor_arguments.append(kwargs[\"floor\"])\n            return original_evaluator(**kwargs)\n    \n        monkeypatch.setattr(R, \"evaluate_b4_artifacts\", record_floor_argument)\n>       document = R.build_material_report_document(\n            publication.publication_root,\n        )\n\norchestrator/tests/test_p3_b4_material_report.py:875: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/p3_b4_material_report.py:1243: in build_material_report_document\n    _assert_authoritative_floor_projection(inputs, report)\norchestrator/campaign/p3_b4_material_report.py:1065: in _assert_authoritative_floor_projection\n    _fail(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nreason = 'authoritative_floor_projection_mismatch'\ndetail = 'report scope differs', cause = None\n\n    def _fail(reason: str, detail: str, *, cause: BaseException | None = None) -> NoReturn:\n        error = B4MaterialReportError(reason, detail)\n        if cause is None:\n>           raise error\nE           orchestrator.campaign.p3_b4_material_report.B4MaterialReportError: authoritative_floor_projection_mismatch: report scope differs\n\norchestrator/campaign/p3_b4_material_report.py:146: B4MaterialReportError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_material_report.py::test_m9_four_authority_and_assembly_states_project_exactly[True-True]@p3-b4-material-report\nFAILED orchestrator/tests/test_p3_b4_material_report.py::test_m9_four_authority_and_assembly_states_project_exactly[True-False]@p3-b4-material-report\n2 failed, 67 passed in 159.85s (0:02:39)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_material_report.py::test_m9_four_authority_and_assembly_states_project_exactly[True-False]@p3-b4-material-report\" nodeid_bytes=142 nodeid_omitted_bytes=0 source_bytes=2956 retained_bytes=2956 omitted_bytes=0 rendered_excerpt_bytes=3089 sha256=29cd7fddcab96007037bd3a0e0118d2f8adc8cad9d4d6c122d6dd668470154a5\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_m9_four_authority_and_ass3')\n> immutable_publication = _ImmutablePublication(publication_evidence=_PublicationEvidence(publication=B4PrerunPublication(publication_root='/tmp...tic-pair/off/receipt_producer-off-1_terminal.json'), iteration=201, on_commit_receipt=None, off_commit_receipt=None))))\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14e7cf946c50>\n> authority_present = True, assembly_succeeds = False\n> \n>     @pytest.mark.parametrize(\n>         (\"authority_present\", \"assembly_succeeds\"),\n>         (\n>             (False, True),\n>             (False, False),\n>             (True, True),\n>             (True, False),\n>         ),\n>     )\n>     def test_m9_four_authority_and_assembly_states_project_exactly(\n>         tmp_path: Path,\n>         immutable_publication: _ImmutablePublication,\n>         monkeypatch: pytest.MonkeyPatch,\n>         authority_present: bool,\n>         assembly_succeeds: bool,\n>     ) -> None:\n>         publication = _fresh_publication_from_shared_evidence(\n>             tmp_path,\n>             immutable_publication,\n>         )\n>         if not assembly_succeeds:\n>             Path(publication.planned_result_artifacts[-1].artifact_path).unlink()\n>     \n>         authority_repo = tmp_path / \"authority-repo\"\n>         expected_source = _write_floor_preregistration(\n>             authority_repo,\n>             present=authority_present,\n>         )\n>         monkeypatch.setattr(R, \"_REPOSITORY_ROOT\", authority_repo)\n>         original_evaluator = R.evaluate_b4_artifacts\n>         observed_floor_arguments: list[object] = []\n>     \n>         def record_floor_argument(**kwargs):\n>             observed_floor_arguments.append(kwargs[\"floor\"])\n>             return original_evaluator(**kwargs)\n>     \n>         monkeypatch.setattr(R, \"evaluate_b4_artifacts\", record_floor_argument)\n> >       document = R.build_material_report_document(\n>             publication.publication_root,\n>         )\n> \n> orchestrator/tests/test_p3_b4_material_report.py:875: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/p3_b4_material_report.py:1243: in build_material_report_document\n>     _assert_authoritative_floor_projection(inputs, report)\n> orchestrator/campaign/p3_b4_material_report.py:1065: in _assert_authoritative_floor_projection\n>     _fail(\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> reason = 'authoritative_floor_projection_mismatch'\n> detail = 'report scope differs', cause = None\n> \n>     def _fail(reason: str, detail: str, *, cause: BaseException | None = None) -> NoReturn:\n>         error = B4MaterialReportError(reason, detail)\n>         if cause is None:\n> >           raise error\n> E           orchestrator.campaign.p3_b4_material_report.B4MaterialReportError: authoritative_floor_projection_mismatch: report scope differs\n> \n> orchestrator/campaign/p3_b4_material_report.py:146: B4MaterialReportError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_material_report.py::test_m9_four_authority_and_assembly_states_project_exactly[True-True]@p3-b4-material-report\" nodeid_bytes=141 nodeid_omitted_bytes=0 source_bytes=2955 retained_bytes=2955 omitted_bytes=0 rendered_excerpt_bytes=3088 sha256=0b1819aec8d7d4f50d5d1a475323d1d0dfb53d1506d44f5cf8057e6a054086bc\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_m9_four_authority_and_ass2')\n> immutable_publication = _ImmutablePublication(publication_evidence=_PublicationEvidence(publication=B4PrerunPublication(publication_root='/tmp...tic-pair/off/receipt_producer-off-1_terminal.json'), iteration=201, on_commit_receipt=None, off_commit_receipt=None))))\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14e7d4490fd0>\n> authority_present = True, assembly_succeeds = True\n> \n>     @pytest.mark.parametrize(\n>         (\"authority_present\", \"assembly_succeeds\"),\n>         (\n>             (False, True),\n>             (False, False),\n>             (True, True),\n>             (True, False),\n>         ),\n>     )\n>     def test_m9_four_authority_and_assembly_states_project_exactly(\n>         tmp_path: Path,\n>         immutable_publication: _ImmutablePublication,\n>         monkeypatch: pytest.MonkeyPatch,\n>         authority_present: bool,\n>         assembly_succeeds: bool,\n>     ) -> None:\n>         publication = _fresh_publication_from_shared_evidence(\n>             tmp_path,\n>             immutable_publication,\n>         )\n>         if not assembly_succeeds:\n>             Path(publication.planned_result_artifacts[-1].artifact_path).unlink()\n>     \n>         authority_repo = tmp_path / \"authority-repo\"\n>         expected_source = _write_floor_preregistration(\n>             authority_repo,\n>             present=authority_present,\n>         )\n>         monkeypatch.setattr(R, \"_REPOSITORY_ROOT\", authority_repo)\n>         original_evaluator = R.evaluate_b4_artifacts\n>         observed_floor_arguments: list[object] = []\n>     \n>         def record_floor_argument(**kwargs):\n>             observed_floor_arguments.append(kwargs[\"floor\"])\n>             return original_evaluator(**kwargs)\n>     \n>         monkeypatch.setattr(R, \"evaluate_b4_artifacts\", record_floor_argument)\n> >       document = R.build_material_report_document(\n>             publication.publication_root,\n>         )\n> \n> orchestrator/tests/test_p3_b4_material_report.py:875: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/p3_b4_material_report.py:1243: in build_material_report_document\n>     _assert_authoritative_floor_projection(inputs, report)\n> orchestrator/campaign/p3_b4_material_report.py:1065: in _assert_authoritative_floor_projection\n>     _fail(\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> reason = 'authoritative_floor_projection_mismatch'\n> detail = 'report scope differs', cause = None\n> \n>     def _fail(reason: str, detail: str, *, cause: BaseException | None = None) -> NoReturn:\n>         error = B4MaterialReportError(reason, detail)\n>         if cause is None:\n> >           raise error\n> E           orchestrator.campaign.p3_b4_material_report.B4MaterialReportError: authoritative_floor_projection_mismatch: report scope differs\n> \n> orchestrator/campaign/p3_b4_material_report.py:146: B4MaterialReportError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=5911 retained_bytes=5911 omitted_bytes=0 budget_bytes=49152 rendered_bytes=7429 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "a427d89db70674d674f80af72585820d06f79441d46aa58280253688d8e1cff1"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "a2c6033598dde73eb1bf42d860a692c70aa94bb23f862e9a0b9c6589c5a7aa1c",
+      "duration_s": 187.478,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m9_four_authority_and_assembly_states_project_exactly[True-True]@p3-b4-material-report",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m9_four_authority_and_assembly_states_project_exactly[True-False]@p3-b4-material-report"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m9_four_authority_and_assembly_states_project_exactly[True-True]@p3-b4-material-report",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m9_four_authority_and_assembly_states_project_exactly[True-False]@p3-b4-material-report"
+      ],
+      "hang_risk": false,
+      "id": "M17",
+      "injection_diff_sha256": "5d07ea4bc054665ac2f36f8d0393af17ce7b0025e5b75adc79c8ebfe17457190",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "977c0d319926a32c1c43ecd285fac604b3c9b676cedcced3389a885b7e8d6a53",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "new": "    report_scope[\"expected_analysis_verdict\"] = \"not_fixed_by_floor_presence\"\n    report_scope[\"expected_analysis_reason\"] = \"not_fixed_by_floor_presence\"\n",
+          "old": "    report_scope[\"expected_analysis_verdict\"] = None\n    report_scope[\"expected_analysis_reason\"] = None\n"
+        }
+      ],
+      "repo_head": "30b3493eb0885c8d70800b950d85944ef9ca1837",
+      "runner_sha256": "04983deec8d06e3a5cf989fc26c6819e3d500d088502badca3f9a4d23d9fd23a",
+      "spec_sha256": "d8560439f93ad1169251e9cd467a722144ab399aa08672b0519c4875f348283f",
+      "status": "KILLED",
+      "test_output_sha256": "a427d89db70674d674f80af72585820d06f79441d46aa58280253688d8e1cff1",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "79c889dc50ee19de00400fe42d801c5decb0dfd86fc3c4942f57056120ac82c8"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b4-floor-issue-wire/output/pegasus-dispatch/e6b72533148e022337ec569760aa8c56/izdw-e6b7253314.o982153",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b4-floor-issue-wire/output/pegasus-dispatch/e6b72533148e022337ec569760aa8c56/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m04_summary_schema_pin_is_one_exact_string\norchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_real_finalize_floor_summary_is_accepted_before_missing_protocol_blocks_issue\norchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m01_exact_conversion_preserves_candidate_binary64_and_accepts_zero\norchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m02_difference_self_inconsistency_is_rejected\norchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_gain_stratum_and_final_uppers_are_each_rederived\norchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m03_bool_upper_is_rejected_even_when_it_equals_zero\norchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m11_exact_floor_domain_rejects_one_without_clamp\norchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_summary_schema_and_generated_status_are_required[schema-floor-pair-summary/v2-pinned]\norchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_summary_schema_and_generated_status_are_required[status-not_generated_missing_samples-generated]\norchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_summary_spec_hash_and_closed_top_level_are_required\norchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_identity_is_not_a_caller_surface_and_missing_protocol_is_named\norchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_authority_issue_is_create_only_exact_and_loadable\norchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_authority_non_guarantees_pin_required_verbatim_limitations\norchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_authority_filename_contains_all_five_derived_components\norchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_resolver_exact_sentinel_is_the_only_absence\norchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_resolver_returns_exact_fraction_from_valid_pin\norchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m05_m06_resolver_fails_closed_without_absence_fallback[missing]\norchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m05_m06_resolver_fails_closed_without_absence_fallback[hash]\norchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m05_m06_resolver_fails_closed_without_absence_fallback[schema]\norchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_resolver_rejects_duplicate_floor_rows\norchestrator/tests/test_p3_b4_material_report.py::test_normal_path_assembles_binds_evaluates_and_builds_document\norchestrator/tests/test_p3_b4_material_report.py::test_m01_m02_assembly_rejection_still_reports_201_blocks_and_missing_leaf\norchestrator/tests/test_p3_b4_material_report.py::test_partial_campaign_discovery_fails_closed_for_output_campaigns_path[missing]\norchestrator/tests/test_p3_b4_material_report.py::test_partial_campaign_discovery_fails_closed_for_output_campaigns_path[malformed]\norchestrator/tests/test_p3_b4_material_report.py::test_partial_campaign_discovery_rejects_recovered_campaign_root_sibling\norchestrator/tests/test_p3_b4_material_report.py::test_complete_projection_preserves_402_sources_fields_and_transcribed_binding\norchestrator/tests/test_p3_b4_material_report.py::test_markdown_provenance_argv_and_required_columns_match_json_rows\norchestrator/tests/test_p3_b4_material_report.py::test_markdown_escape_orders_backslash_pipe_and_normalizes_cr_lf\norchestrator/tests/test_p3_b4_material_report.py::test_artifact_availability_is_frozen_once_per_planned_leaf\norchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[terminal-reason]\norchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[campaign-id]\norchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[drop-one-arm]\norchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[duplicate-one-arm]\norchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[rewrite-source-utf8]\norchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[anomaly-class-alias]\norchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[absent-to-zero]\norchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[remove-transcribed-binding]\norchestrator/tests/test_p3_b4_material_report.py::test_input_artifact_projection_rejects_one_byte_rewrite_through_public_builder[registry]\norchestrator/tests/test_p3_b4_material_report.py::test_input_artifact_projection_rejects_one_byte_rewrite_through_public_builder[manifest]\norchestrator/tests/test_p3_b4_material_report.py::test_input_artifact_projection_rejects_one_byte_rewrite_through_public_builder[issuer_receipt]\norchestrator/tests/test_p3_b4_material_report.py::test_m8_absent_authority_public_bytes_match_pre_change_golden\norchestrator/tests/test_p3_b4_material_report.py::test_m9_four_authority_and_assembly_states_project_exactly[False-True]\norchestrator/tests/test_p3_b4_material_report.py::test_m9_four_authority_and_assembly_states_project_exactly[False-False]\norchestrator/tests/test_p3_b4_material_report.py::test_m9_four_authority_and_assembly_states_project_exactly[True-True]\norchestrator/tests/test_p3_b4_material_report.py::test_m9_four_authority_and_assembly_states_project_exactly[True-False]\norchestrator/tests/test_p3_b4_material_report.py::test_present_floor_projects_required_verbatim_non_guarantees\norchestrator/tests/test_p3_b4_material_report.py::test_m7_non_sentinel_resolver_failure_never_falls_back_or_calls_evaluator\norchestrator/tests/test_p3_b4_material_report.py::test_m08_floor_absence_runs_existing_evaluator_as_protocol_violation\norchestrator/tests/test_p3_b4_material_report.py::test_m09_renderer_only_future_compatibility_preserves_four_verdict_wire_values[established]\norchestrator/tests/test_p3_b4_material_report.py::test_m09_renderer_only_future_compatibility_preserves_four_verdict_wire_values[not_established]\norchestrator/tests/test_p3_b4_material_report.py::test_m09_renderer_only_future_compatibility_preserves_four_verdict_wire_values[indeterminate]\norchestrator/tests/test_p3_b4_material_report.py::test_m09_renderer_only_future_compatibility_preserves_four_verdict_wire_values[protocol_violation]\norchestrator/tests/test_p3_b4_material_report.py::test_m10_m11_m12_output_campaign_intersection_three_directions_write_nothing[equal]\norchestrator/tests/test_p3_b4_material_report.py::test_m10_m11_m12_output_campaign_intersection_three_directions_write_nothing[below]\norchestrator/tests/test_p3_b4_material_report.py::test_m10_m11_m12_output_campaign_intersection_three_directions_write_nothing[above]\norchestrator/tests/test_p3_b4_material_report.py::test_m13_lexical_dotdot_alias_reaches_resolved_campaign_comparison\norchestrator/tests/test_p3_b4_material_report.py::test_output_symlink_component_is_rejected_before_any_report_write\norchestrator/tests/test_p3_b4_material_report.py::test_m15_real_issuer_exception_is_wrapped_with_reason_and_writes_nothing\norchestrator/tests/test_p3_b4_material_report.py::test_publication_symlink_alias_remains_rejected_by_existing_loader\norchestrator/tests/test_p3_b4_material_report.py::test_m15_real_ledger_exception_type_is_wrapped_and_writes_nothing\norchestrator/tests/test_p3_b4_material_report.py::test_m16a_existing_pair_is_rejected_before_publication_reload\norchestrator/tests/test_p3_b4_material_report.py::test_m16b_prepublication_race_check_rejects_new_target\norchestrator/tests/test_p3_b4_material_report.py::test_m16c_create_only_link_rejects_collision_without_other_guards\norchestrator/tests/test_p3_b4_material_report.py::test_commit_marker_is_last_and_binds_both_durable_files\norchestrator/tests/test_p3_b4_material_report.py::test_second_link_failure_rolls_back_pair_and_leaves_no_commit_marker\norchestrator/tests/test_p3_b4_material_report.py::test_commit_marker_link_failure_rolls_back_both_staged_artifacts\norchestrator/tests/test_p3_b4_material_report.py::test_rollback_failure_is_reported_instead_of_suppressed\norchestrator/tests/test_p3_b4_material_report.py::test_cli_clean_subprocess_runs_twice_and_refuses_overwrite\norchestrator/tests/test_p3_b4_material_report.py::test_outputs_contain_no_combining_diacritic_codepoints\n\n69 tests collected in 1.09s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "2a3bea3b4aed72568e8f5ec6eaaddec93aadb0ce41cd87c80e503b5ed1f65cef"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m04_summary_schema_pin_is_one_exact_string",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_real_finalize_floor_summary_is_accepted_before_missing_protocol_blocks_issue",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m01_exact_conversion_preserves_candidate_binary64_and_accepts_zero",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m02_difference_self_inconsistency_is_rejected",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_gain_stratum_and_final_uppers_are_each_rederived",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m03_bool_upper_is_rejected_even_when_it_equals_zero",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m11_exact_floor_domain_rejects_one_without_clamp",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_summary_schema_and_generated_status_are_required[schema-floor-pair-summary/v2-pinned]",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_summary_schema_and_generated_status_are_required[status-not_generated_missing_samples-generated]",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_summary_spec_hash_and_closed_top_level_are_required",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_identity_is_not_a_caller_surface_and_missing_protocol_is_named",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_authority_issue_is_create_only_exact_and_loadable",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_authority_non_guarantees_pin_required_verbatim_limitations",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_authority_filename_contains_all_five_derived_components",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_resolver_exact_sentinel_is_the_only_absence",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_resolver_returns_exact_fraction_from_valid_pin",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m05_m06_resolver_fails_closed_without_absence_fallback[missing]",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m05_m06_resolver_fails_closed_without_absence_fallback[hash]",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m05_m06_resolver_fails_closed_without_absence_fallback[schema]",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_resolver_rejects_duplicate_floor_rows",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_normal_path_assembles_binds_evaluates_and_builds_document",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m01_m02_assembly_rejection_still_reports_201_blocks_and_missing_leaf",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_partial_campaign_discovery_fails_closed_for_output_campaigns_path[missing]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_partial_campaign_discovery_fails_closed_for_output_campaigns_path[malformed]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_partial_campaign_discovery_rejects_recovered_campaign_root_sibling",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_complete_projection_preserves_402_sources_fields_and_transcribed_binding",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_markdown_provenance_argv_and_required_columns_match_json_rows",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_markdown_escape_orders_backslash_pipe_and_normalizes_cr_lf",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_artifact_availability_is_frozen_once_per_planned_leaf",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[terminal-reason]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[campaign-id]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[drop-one-arm]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[duplicate-one-arm]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[rewrite-source-utf8]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[anomaly-class-alias]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[absent-to-zero]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[remove-transcribed-binding]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_input_artifact_projection_rejects_one_byte_rewrite_through_public_builder[registry]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_input_artifact_projection_rejects_one_byte_rewrite_through_public_builder[manifest]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_input_artifact_projection_rejects_one_byte_rewrite_through_public_builder[issuer_receipt]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m8_absent_authority_public_bytes_match_pre_change_golden",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m9_four_authority_and_assembly_states_project_exactly[False-True]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m9_four_authority_and_assembly_states_project_exactly[False-False]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m9_four_authority_and_assembly_states_project_exactly[True-True]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m9_four_authority_and_assembly_states_project_exactly[True-False]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_present_floor_projects_required_verbatim_non_guarantees",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m7_non_sentinel_resolver_failure_never_falls_back_or_calls_evaluator",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m08_floor_absence_runs_existing_evaluator_as_protocol_violation",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m09_renderer_only_future_compatibility_preserves_four_verdict_wire_values[established]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m09_renderer_only_future_compatibility_preserves_four_verdict_wire_values[not_established]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m09_renderer_only_future_compatibility_preserves_four_verdict_wire_values[indeterminate]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m09_renderer_only_future_compatibility_preserves_four_verdict_wire_values[protocol_violation]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m10_m11_m12_output_campaign_intersection_three_directions_write_nothing[equal]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m10_m11_m12_output_campaign_intersection_three_directions_write_nothing[below]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m10_m11_m12_output_campaign_intersection_three_directions_write_nothing[above]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m13_lexical_dotdot_alias_reaches_resolved_campaign_comparison",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_output_symlink_component_is_rejected_before_any_report_write",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m15_real_issuer_exception_is_wrapped_with_reason_and_writes_nothing",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_publication_symlink_alias_remains_rejected_by_existing_loader",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m15_real_ledger_exception_type_is_wrapped_and_writes_nothing",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m16a_existing_pair_is_rejected_before_publication_reload",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m16b_prepublication_race_check_rejects_new_target",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m16c_create_only_link_rejects_collision_without_other_guards",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_commit_marker_is_last_and_binds_both_durable_files",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_second_link_failure_rolls_back_pair_and_leaves_no_commit_marker",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_commit_marker_link_failure_rolls_back_both_staged_artifacts",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_rollback_failure_is_reported_instead_of_suppressed",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_cli_clean_subprocess_runs_twice_and_refuses_overwrite",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_outputs_contain_no_combining_diacritic_codepoints"
+      ],
+      "duration_s": 185.743,
+      "rc": 0,
+      "repo_head": "30b3493eb0885c8d70800b950d85944ef9ca1837",
+      "runner_sha256": "04983deec8d06e3a5cf989fc26c6819e3d500d088502badca3f9a4d23d9fd23a",
+      "spec_sha256": "d8560439f93ad1169251e9cd467a722144ab399aa08672b0519c4875f348283f",
+      "status": "PASSED",
+      "tool_sha256": "79c889dc50ee19de00400fe42d801c5decb0dfd86fc3c4942f57056120ac82c8"
+    },
+    "hang_timeout_seconds": 3000.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M11": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m11_exact_floor_domain_rejects_one_without_clamp"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ae15ea99674ec377ae6759d1a86bedca23c65934e41551cda741ca9a5ddec6f2",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+            "new": "    if not (Fraction(0, 1) <= floor_exact <= Fraction(1, 1)):\n",
+            "old": "    if not (Fraction(0, 1) <= floor_exact < Fraction(1, 1)):\n"
+          }
+        ]
+      },
+      "M12a": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_gain_stratum_and_final_uppers_are_each_rederived"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f0a3fcc51b5abb2f2bd88e4abf8057a22b055fccbb5dfac146a6cc17f884c594",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+            "new": "    if (\n        reject_negative_zero\n        and value == 0.0\n        and False\n    ):\n",
+            "old": "    if (\n        reject_negative_zero\n        and value == 0.0\n        and math.copysign(1.0, value) < 0\n    ):\n"
+          }
+        ]
+      },
+      "M14": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_identity_is_not_a_caller_surface_and_missing_protocol_is_named",
+          "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_authority_issue_is_create_only_exact_and_loadable"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "5d6b598effa9de087072a64d8064dca5c06411f9de9e238c6ba1306567e815bd",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+            "new": "    artifact_path: str,\n    expected_sha256: str | None = None,\n) -> B4AuthoritativeFloor:\n",
+            "old": "    artifact_path: str,\n    expected_sha256: str,\n) -> B4AuthoritativeFloor:\n"
+          }
+        ]
+      },
+      "M15": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_authority_non_guarantees_pin_required_verbatim_limitations"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "4aa45bae1afc3cf6885ddf88fcae39effb72e5afea10ea46ec1db13941e53bd7",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+            "new": "    \"凍結が測定の結果を見る前に行われたことを証明済みである。\"\n",
+            "old": "    \"凍結が測定の結果を見る前に行われたことを証明しない。\"\n"
+          }
+        ]
+      },
+      "M16": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_authority_issue_is_create_only_exact_and_loadable"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "09581016cae596d7c50ece64be07e77d442d058805c27bfe9b62dc51b0877145",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+            "new": "        \"non_guarantees\": [*NON_GUARANTEES],\n",
+            "old": "        \"non_guarantees\": [*NON_GUARANTEES, *summary.proof_limitations],\n"
+          }
+        ]
+      },
+      "M17": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_material_report.py::test_m9_four_authority_and_assembly_states_project_exactly[True-True]@p3-b4-material-report",
+          "orchestrator/tests/test_p3_b4_material_report.py::test_m9_four_authority_and_assembly_states_project_exactly[True-False]@p3-b4-material-report"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "5d07ea4bc054665ac2f36f8d0393af17ce7b0025e5b75adc79c8ebfe17457190",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_material_report.py",
+            "new": "    report_scope[\"expected_analysis_verdict\"] = \"not_fixed_by_floor_presence\"\n    report_scope[\"expected_analysis_reason\"] = \"not_fixed_by_floor_presence\"\n",
+            "old": "    report_scope[\"expected_analysis_verdict\"] = None\n    report_scope[\"expected_analysis_reason\"] = None\n"
+          }
+        ]
+      },
+      "M2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m02_difference_self_inconsistency_is_rejected"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "68c5367f9deb1d3f3523c229b8336a6846c5153bf3868aea541f295560021b7a",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+            "new": "        if False:\n            _fail(\"self_inconsistency\", f\"{label}.difference が再導出値と不一致\")\n",
+            "old": "        if not _same_float(recorded_difference, difference):\n            _fail(\"self_inconsistency\", f\"{label}.difference が再導出値と不一致\")\n"
+          }
+        ]
+      },
+      "M3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m03_bool_upper_is_rejected_even_when_it_equals_zero"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a06652e6b44b15f2cf7e5fe81bdc575277cd669d59e4a43c214a92cb5fb72986",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+            "new": "    if not isinstance(value, (int, float)) or not math.isfinite(value):\n        _fail(\"schema_error\", f\"{label} は exact finite float でなければならない\")\n",
+            "old": "    if type(value) is not float or not math.isfinite(value):\n        _fail(\"schema_error\", f\"{label} は exact finite float でなければならない\")\n"
+          }
+        ]
+      },
+      "M4": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_summary_schema_and_generated_status_are_required[schema-floor-pair-summary/v2-pinned]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ccf84d80a64591c1a755d168d25c89e4996cc9e5fb78b66a767e350e06e8d7dd",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+            "new": "    if False:\n",
+            "old": "    if summary[\"schema\"] != ACCEPTED_FLOOR_PAIR_SUMMARY_SCHEMA_VERSION:\n"
+          }
+        ]
+      },
+      "M5": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_resolver_exact_sentinel_is_the_only_absence"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ce6754abcbe08ffcc37ab8db27d689ba49dcc1cea952b690bd4537dcdd476223",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+            "new": "    match = _FLOOR_PIN_RE.fullmatch(cell)\n    if match is None:\n        return None\n    if match is None:\n",
+            "old": "    match = _FLOOR_PIN_RE.fullmatch(cell)\n    if match is None:\n"
+          }
+        ]
+      },
+      "M6": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m05_m06_resolver_fails_closed_without_absence_fallback[hash]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d0d066b3052bfb46e311b3a497536cb1ece840f8985dc19e9628bdffe83d4b48",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+            "new": "    if False:\n",
+            "old": "    if observed_sha256 != expected:\n"
+          }
+        ]
+      },
+      "M7": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_material_report.py::test_m7_non_sentinel_resolver_failure_never_falls_back_or_calls_evaluator"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "1f9193a38ab3d726a74936da1ee02fce9f2a35526569b8921b3e68e6816f38a2",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_material_report.py",
+            "new": "    except B4FloorArtifactError:\n        authoritative_floor = None\n",
+            "old": "    except B4FloorArtifactError as exc:\n        _fail(\n            \"authoritative_floor_rejected\",\n            f\"{exc.code}: {exc.detail}\",\n            cause=exc,\n        )\n"
+          }
+        ]
+      },
+      "M8": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_material_report.py::test_m8_absent_authority_public_bytes_match_pre_change_golden@p3-b4-material-report",
+          "orchestrator/tests/test_p3_b4_material_report.py::test_m08_floor_absence_runs_existing_evaluator_as_protocol_violation@p3-b4-material-report"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "346e06838d5832b0064b95a642e47d66ed00a27795952a08e91e09c6b0dd947d",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_material_report.py",
+            "new": "            \"expected_analysis_reason\": \"floor_absent\",\n",
+            "old": "            \"expected_analysis_reason\": \"floor_domain_error\",\n"
+          }
+        ]
+      },
+      "M9": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_material_report.py::test_m9_four_authority_and_assembly_states_project_exactly[True-False]@p3-b4-material-report"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "13f88c5c7b2f857f1b565c547b09ceff237292deb8ee0df4f6dcd919484e2b11",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_material_report.py",
+            "new": "    analysis = report[\"analysis\"]\n    analysis[\"floor_argument\"] = ratio\n",
+            "old": "    analysis = report[\"analysis\"]\n    if analysis[\"status\"] == \"evaluated\":\n        analysis[\"floor_argument\"] = ratio\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "6547a0367b92a252fa8428a3a2df5cb216cd4752a31da4c55e42992b0bcdeffb",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "-q",
+      "-rf",
+      "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py",
+      "orchestrator/tests/test_p3_b4_material_report.py",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 5400.0
+  },
+  "repo_head": "30b3493eb0885c8d70800b950d85944ef9ca1837",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "-q",
+      "-rf",
+      "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py",
+      "orchestrator/tests/test_p3_b4_material_report.py",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b4-floor-issue-wire/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b4-floor-issue-wire/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "dfe7cb213a8b3d44d3fc3ac15d8173cb3ba6332b",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "04983deec8d06e3a5cf989fc26c6819e3d500d088502badca3f9a4d23d9fd23a",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "d8560439f93ad1169251e9cd467a722144ab399aa08672b0519c4875f348283f",
+  "summary": {
+    "KILLED": 13,
+    "MISMATCH": 1,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 14,
+    "matching": 13,
+    "recorded": 14,
+    "registered": 14
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b4-floor-issue-wire/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "79c889dc50ee19de00400fe42d801c5decb0dfd86fc3c4942f57056120ac82c8",
+  "updated_at": "2026-09-07T16:46:29.947895+00:00"
+}
