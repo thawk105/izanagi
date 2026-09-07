@@ -4848,6 +4848,17 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   実害は再走 1 回。根本原因は既存の再発と同じで、走行を待ち時間とみなして worktree 内で別段の作業を進めたこと。
   今回の新しい点は、受入全走・変異走行だけでなく runner の bounded local 経路も tree の前後照合を持つため、
   焦点走のような短い走行でも同じ型で止まることである。恒久対応は F106 のまま (投入から結果取得までは worktree を触らない)。
+
+- **再発: 2026-09-08** — [T-2265] 反実仮想 ITT の確認的再解析 wave。**変異本走 B の走行中**に、
+  親が段 7 の insight (README + 成果物 + 逐語 12 本) を worktree へ書き、
+  `tools/mutation_harness.py` の preflight が untracked 21 件を検出して `rc=2` で中止した。
+  防壁は機能しており、実害は再投入の一手間だけである。新しい情報は 2 点ある。
+  (1) 親は**同じ wave の handoff に「走行中は repo を触らない」と書き、直前の変異本走 A では
+  守れていた**のに、B の待ち時間で踏んだ。長い待ちが 1 本入るたびに誘因が復活する。
+  (2) 今回書いたのは spool fragment ではなく **insight 一式**で、量が多い分だけ
+  「repo 外へ退避してから再投入する」復旧が明示的な手順になった。恒久対応は F106 のまま。
+  本 wave は成果物を job directory 側の staging へ移し、`--out` と `--wrapper-attempt` を
+  変えて再投入して 2/2 KILLED を得た。
 ### F107. 内側検証の変異を外側の一括再検証が mask した [恒真ゲート]
 
 - 事象: 事前登録した変異 M15 (publish 直後の再検証と rollback を落とす) が本走で **SURVIVED**
