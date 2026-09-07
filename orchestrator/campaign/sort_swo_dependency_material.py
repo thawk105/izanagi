@@ -504,6 +504,19 @@ def protect_post_oracle_dependency_material(
             "post-oracle-effective-root-mismatch", path=protected_root,
         )
 
+    try:
+        root_info = protected_root.lstat()
+    except OSError as exc:
+        raise CanonicalDependencyMaterialError(
+            "post-oracle-permission-inspection-failed",
+            path=protected_root,
+        ) from exc
+    if not stat.S_IMODE(root_info.st_mode) & 0o222:
+        raise CanonicalDependencyMaterialError(
+            "post-oracle-protected-root-not-writable",
+            path=protected_root,
+        )
+
     def permission_nodes() -> list[tuple[Path, int, tuple[int, int, int]]]:
         nodes: list[tuple[Path, int, tuple[int, int, int]]] = []
 

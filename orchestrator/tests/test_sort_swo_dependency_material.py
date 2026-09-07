@@ -213,6 +213,50 @@ def test_post_oracle_protection_restores_exact_modes_on_success_and_error(
         } == modes
 
 
+def test_post_oracle_protection_rejects_overlapping_context_without_mode_change(
+        tmp_path):
+    base = tmp_path / "fetchcontent"
+    source = base / "masstree-src"
+    nested = source / "nested"
+    nested.mkdir(parents=True)
+    config = source / "config.h"
+    tracked = nested / "tracked.hh"
+    config.write_bytes(b"config\n")
+    tracked.write_bytes(b"// tracked\n")
+    original_modes = {
+        source: 0o775,
+        nested: 0o750,
+        config: 0o664,
+        tracked: 0o711,
+    }
+    for path, mode in original_modes.items():
+        path.chmod(mode)
+
+    def measured_modes() -> dict[Path, int]:
+        return {
+            path: stat.S_IMODE(path.lstat().st_mode)
+            for path in original_modes
+        }
+
+    with material.protect_post_oracle_dependency_material(
+            source.resolve(), fetchcontent_base_dir=base.resolve()):
+        protected_modes = {
+            path: mode & ~0o222 for path, mode in original_modes.items()
+        }
+        assert measured_modes() == protected_modes
+        with pytest.raises(
+                material.CanonicalDependencyMaterialError) as caught:
+            with material.protect_post_oracle_dependency_material(
+                    source.resolve(), fetchcontent_base_dir=base.resolve()):
+                pytest.fail("overlapping protection context was entered")
+        assert caught.value.detail_code == (
+            "post-oracle-protected-root-not-writable"
+        )
+        assert measured_modes() == protected_modes
+
+    assert measured_modes() == original_modes
+
+
 def test_post_oracle_protection_leaves_binding_base_writable_for_new_entry(
         tmp_path):
     base = tmp_path / "fetchcontent"
