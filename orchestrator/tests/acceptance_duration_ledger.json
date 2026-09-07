@@ -1,5 +1,14 @@
 {
   "duration_seconds_by_nodeid": {
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_atomic_write_bytes_noreplace_einval_hard_link_refuses_existing_name": 0.002,
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_atomic_write_bytes_noreplace_einval_refuses_existing_destination": 0.002,
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_atomic_write_bytes_noreplace_einval_uses_create_only_hard_link": 0.002,
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_atomic_write_bytes_noreplace_link_publish_survives_unlink_error": 0.002,
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_atomic_write_bytes_noreplace_non_einval_is_not_fallback": 0.002,
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_atomic_write_bytes_noreplace_nonfallback_errno_propagates": 0.002,
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_atomic_write_bytes_noreplace_unsupported_rename_uses_link_unlink[22]": 0.003,
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_atomic_write_bytes_noreplace_unsupported_rename_uses_link_unlink[38]": 0.003,
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_atomic_write_bytes_noreplace_unsupported_rename_uses_link_unlink[95]": 0.003,
     "orchestrator/tests/test_s8c_cli_entrypoints.py::test_cli_entrypoint_matches_library_report[gate-module]": 0.34,
     "orchestrator/tests/test_s8c_cli_entrypoints.py::test_cli_entrypoint_matches_library_report[gate-path]": 0.34,
     "orchestrator/tests/test_s8c_cli_entrypoints.py::test_cli_entrypoint_matches_library_report[prereg-module]": 0.34,
@@ -19522,7 +19531,7 @@
     "orchestrator/tests/test_wave_land_window.py::test_ticket_cleanup_does_not_require_flock_and_returns_success": 0.002,
     "orchestrator/tests/test_wave_land_window.py::test_ticket_cleanup_preserves_same_name_replacement": 0.002
   },
-  "nodeid_count": 19521,
+  "nodeid_count": 19530,
   "schema_version": 1,
   "unit": "seconds"
 }
