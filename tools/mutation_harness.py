@@ -12,6 +12,7 @@ import fcntl
 import hashlib
 import importlib.util
 import json
+import math
 import os
 import re
 import secrets
@@ -21,7 +22,7 @@ import subprocess
 import sys
 import tempfile
 import time
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from importlib import metadata
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -41,6 +42,12 @@ ORPHAN_STOP_SCHEMA = "izanagi-dev-wave-mutation-orphan-stop/v1"
 ORPHAN_HOLD_SCHEMA = "pegasus-orphan-hold/v1"
 ORPHAN_HOLD_NAME = "orphan-hold.json"
 ORPHAN_HOLD_DIR_NAME = "orphan-holds"
+_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE_ENV = (
+    "IZANAGI_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE"
+)
+_DISPATCH_OVERALL_GRACE_OVERRIDE_ENV = (
+    "IZANAGI_DISPATCH_OVERALL_GRACE_OVERRIDE"
+)
 ANSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 RECEIPT_LINE_RE = re.compile(
     r"^\[Pegasus dispatch\] receipt を (.+) へ保存しました \(child rc=(-?\d+)\)$"
@@ -1385,8 +1392,39 @@ def _validate_artifact(
     return stdout
 
 
+def _dispatch_timeout_overrides(
+    *, environ: Mapping[str, str]
+) -> dict[str, float]:
+    """D612 の opt-in dispatch timeout 上書きを純粋に解釈する。"""
+
+    # tools/check_ai_provenance.py の同名実装と同値
+    # (test_t2337_dispatch_timeout_overrides.py の meta-test で照合する)。
+    overrides: dict[str, float] = {}
+    for env_name, keyword in (
+        (_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE_ENV, "queue_wait_timeout_s"),
+        (_DISPATCH_OVERALL_GRACE_OVERRIDE_ENV, "overall_grace_s"),
+    ):
+        raw_value = environ.get(env_name)
+        if not raw_value:
+            continue
+        value = float(raw_value)
+        if (
+            not math.isfinite(value)
+            or value < 0
+            or math.copysign(1.0, value) < 0
+        ):
+            raise ValueError(f"{env_name} は有限な非負数でなければなりません")
+        overrides[keyword] = value
+    return overrides
+
+
 def _collection_command(
-    repo: Path, command: Sequence[str], runner_mode: str
+    repo: Path,
+    command: Sequence[str],
+    runner_mode: str,
+    *,
+    outer_timeout_s: float | None = None,
+    environ: Mapping[str, str] | None = None,
 ) -> list[str]:
     forbidden = {"--collect-only", "--co", "--fixtures", "--fixtures-per-test"}
     if any(token in forbidden for token in command):
@@ -1404,12 +1442,47 @@ def _collection_command(
 
     if runner_mode == "local":
         return [*collection_args(command), "--collect-only", "-q"]
+    try:
+        timeout_overrides = _dispatch_timeout_overrides(
+            environ=os.environ if environ is None else environ
+        )
+    except (TypeError, ValueError) as exc:
+        raise HarnessError(f"D612 dispatch timeout 上書きが不正: {exc}") from exc
+    if timeout_overrides and outer_timeout_s is not None:
+        from tools.pegasus import dispatch_compute
+
+        queue_wait_timeout_s = timeout_overrides.get(
+            "queue_wait_timeout_s",
+            dispatch_compute.DEFAULT_QUEUE_WAIT_TIMEOUT_S,
+        )
+        overall_grace_s = timeout_overrides.get(
+            "overall_grace_s",
+            dispatch_compute.DEFAULT_OVERALL_GRACE_S,
+        )
+        if outer_timeout_s < queue_wait_timeout_s + overall_grace_s:
+            raise HarnessError(
+                "mutation collection の外側 timeout が明示された dispatch "
+                "待機契約より短い: "
+                f"timeout_seconds={outer_timeout_s}, "
+                f"queue_wait_timeout_s={queue_wait_timeout_s}, "
+                f"overall_grace_s={overall_grace_s}"
+            )
+    timeout_args: list[str] = []
+    if "queue_wait_timeout_s" in timeout_overrides:
+        timeout_args.extend(
+            ["--queue-wait-timeout", str(timeout_overrides["queue_wait_timeout_s"])]
+        )
+    if "overall_grace_s" in timeout_overrides:
+        timeout_args.extend(
+            ["--overall-grace", str(timeout_overrides["overall_grace_s"])]
+        )
     pytest_args = collection_args(command[2:])
     return [
         command[0],
         str(repo / "tools" / "pegasus" / "dispatch_compute.py"),
         "--task",
         "tests",
+        *timeout_args,
         "--",
         *pytest_args,
         "-n",
@@ -1444,7 +1517,12 @@ def _collect_expected_nodes(
         raise stop
     result = _run_tests(
         repo,
-        _collection_command(repo, command, runner_mode),
+        _collection_command(
+            repo,
+            command,
+            runner_mode,
+            outer_timeout_s=spec.timeout_seconds,
+        ),
         timeout_s=spec.timeout_seconds,
         runner_mode=runner_mode,
         attempt_recorder=attempt_recorder,

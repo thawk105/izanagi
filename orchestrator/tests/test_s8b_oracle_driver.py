@@ -15,7 +15,6 @@ import inspect
 import json
 import os
 import shutil
-import stat
 import subprocess
 import sys
 import tempfile
@@ -98,6 +97,7 @@ from orchestrator.tests.output_snapshot_ignores import (  # noqa: E402
     git_ignored_output_ancestor_directories,
     git_ignored_output_prefixes,
     git_ignored_output_snapshot_rules,
+    git_visible_output_metadata_snapshot,
     is_git_ignored_output_path,
 )
 
@@ -567,32 +567,7 @@ def _t080_output_snapshot(root: Path) -> tuple[tuple[object, ...], ...]:
 
     規則由来 ignore prefix の祖先 directory だけ size / mtime / ctime を正規化する。
     """
-    ignored_prefixes, ignored_ancestors = git_ignored_output_snapshot_rules(ROOT)
-    entries = [
-        root,
-        *(
-            path for path in root.rglob("*")
-            if not is_git_ignored_output_path(
-                path.relative_to(root).as_posix(), ignored_prefixes,
-            )
-        ),
-    ]
-    snapshot = []
-    for path in sorted(entries):
-        relative = path.relative_to(root).as_posix() if path != root else "."
-        info = path.lstat()
-        normalize = (
-            stat.S_ISDIR(info.st_mode)
-            and ignored_ancestors.contains(relative)
-        )
-        snapshot.append((
-            relative,
-            info.st_mode,
-            None if normalize else info.st_size,
-            None if normalize else info.st_mtime_ns,
-            None if normalize else info.st_ctime_ns,
-        ))
-    return tuple(snapshot)
+    return git_visible_output_metadata_snapshot(root, ROOT)
 
 
 def test_t080_output_snapshot_detects_git_visible_real_output_changes(tmp_path):

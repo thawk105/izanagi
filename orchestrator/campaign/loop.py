@@ -19,7 +19,7 @@ import secrets
 from contextlib import ExitStack
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, List, Optional, Sequence
+from typing import Callable, List, Mapping, Optional, Sequence
 
 from ..calibrator import perf_preflight as _perf_preflight
 from ..holdout_observation import HoldoutObservationAdmission
@@ -43,7 +43,8 @@ from .pipeline import (AdmissionCapabilityResolver, EvalResult, LEGACY_TAG,
                        _PreparedEvaluation, _abort_balanced_workload,
                        _prepare_evaluation, _run_balanced_schedule, evaluate,
                        performance_correctness_workload,
-                       s2_correctness_workload, variant_id)
+                       s2_correctness_workload, variant_id,
+                       _validate_fetchcontent_prebuild_inputs)
 from .trigger_gate_binding import (
     SCHEMA_VERSION as TRIGGER_BINDING_SCHEMA,
     SourceBinding,
@@ -242,6 +243,13 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                  do_bench: bool = True, output_root: str = "",
                  log=print, ccbench_dir: str = "", cache_root: str = "",
                  env_contract=None, dependency_prefix: str = "", *,
+                 fetchcontent_base_dir: str = "",
+                 masstree_source_dir: Optional[object] = None,
+                 mimalloc_source_dir: Optional[object] = None,
+                 googletest_source_dir: Optional[object] = None,
+                 fetchcontent_dependency_receipt: Optional[
+                     Mapping[str, object]
+                 ] = None,
                  expected_toolchain_manifest=None,
                  authorization_contract: AuthorizedContract,
                  build_context: BuildRunContext,
@@ -268,6 +276,14 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
     identity へ束縛し、source ごとの capability resolver は evidence 解決後の pipeline へ渡す。
     `bench_max_rounds` は既定 3 の既存経路では従来の evaluate 呼出し形を維持し、明示的な
     非既定値だけを pipeline へ渡す。`balanced_schedule` は二 arm 専用 opt-in。"""
+    fetchcontent_prebuild = _validate_fetchcontent_prebuild_inputs(
+        env_contract=env_contract,
+        fetchcontent_base_dir=fetchcontent_base_dir,
+        masstree_source_dir=masstree_source_dir,
+        mimalloc_source_dir=mimalloc_source_dir,
+        googletest_source_dir=googletest_source_dir,
+        fetchcontent_dependency_receipt=fetchcontent_dependency_receipt,
+    )
     if (isinstance(bench_max_rounds, bool)
             or not isinstance(bench_max_rounds, int)
             or bench_max_rounds < 1):
@@ -543,6 +559,16 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                         )
                 if dependency_prefix:
                     evaluate_options["dependency_prefix"] = dependency_prefix
+                if fetchcontent_prebuild:
+                    evaluate_options.update({
+                        "fetchcontent_base_dir": fetchcontent_base_dir,
+                        "masstree_source_dir": masstree_source_dir,
+                        "mimalloc_source_dir": mimalloc_source_dir,
+                        "googletest_source_dir": googletest_source_dir,
+                        "fetchcontent_dependency_receipt": (
+                            fetchcontent_dependency_receipt
+                        ),
+                    })
                 if trigger_gate_binding is not None:
                     evaluate_options["trigger_gate_binding"] = TriggerGateBinding(
                         mask=trigger_gate_binding.mask,
