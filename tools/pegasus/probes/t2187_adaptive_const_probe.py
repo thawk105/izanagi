@@ -3243,12 +3243,12 @@ def main(argv: list[str] | None = None) -> int:
     args = _argument_parser().parse_args(argv)
     cells = parse_cells(args.cells)
     _validate_step_policy_seed(cells, args.step_policy_seed)
-    if args.backoff_trace and args.mode == "certify":
-        raise CertificationReject(
-            "backoff-trace-certification-conflict",
-            "--backoff-trace cannot be combined with --mode certify",
-        )
     if args.mode == "certify":
+        if args.backoff_trace:
+            raise CertificationReject(
+                "backoff-trace-certification-conflict", "--backoff-trace cannot be combined with --mode certify")
+        if args.step_policy_seed is not None:
+            raise CertificationReject("step-policy-seed-certification-conflict", "--step-policy-seed cannot be combined with --mode certify")
         return _certify_main(args)
     workloads = _parse_workloads(args.workloads)
     threads_axis = _parse_threads(args.threads)

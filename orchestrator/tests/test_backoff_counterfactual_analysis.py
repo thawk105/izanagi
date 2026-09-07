@@ -15,6 +15,43 @@ from orchestrator.campaign import backoff_counterfactual_analysis as analysis
 ROOT = Path(__file__).resolve().parents[2]
 PREREGISTRATION = ROOT / "docs" / "backoff-counterfactual-preregistration.md"
 SEEDS = sorted(analysis.PREREGISTERED_SEEDS)
+PREREGISTRATION_SHA256 = (
+    "ee7617f57bf6816fd8bfb42b5830926be1174ebcca617ed122c3fbca62f127a6"
+)
+CCBENCH_PIN = "511c9538e4e8efa54b45cda62e72389ed3b706ec"
+PATCH_A_SHA256 = (
+    "9b2153e0547e167888ba2616750951365c4a075a80f9a95be6000e60b6f8f54b"
+)
+PATCH_B_SHA256 = (
+    "f3fe6b7e67931775bcef0a7831dda8c6cb53dfc7fc52a74f4508360e1fedf824"
+)
+PATCH_C_SHA256 = (
+    "794b7b48dd19e30560dddc27f4408d67923d801241046df53257a8aefe82a396"
+)
+PATCH_STACK = [
+    {
+        "path": "patches/cicada-adaptive-params.patch",
+        "sha256": PATCH_A_SHA256,
+    },
+    {
+        "path": "patches/cicada-adaptive-dynamic.patch",
+        "sha256": PATCH_B_SHA256,
+    },
+    {
+        "path": "patches/cicada-adaptive-counterfactual.patch",
+        "sha256": PATCH_C_SHA256,
+    },
+]
+
+
+def _build_bindings() -> dict:
+    return {
+        "ccbench_head": CCBENCH_PIN,
+        "patch_sha256": PATCH_A_SHA256,
+        "dynamic_patch_sha256": PATCH_B_SHA256,
+        "counterfactual_patch_sha256": PATCH_C_SHA256,
+        "patch_stack": copy.deepcopy(PATCH_STACK),
+    }
 
 
 def _events(effect: float, outcomes: int = 24) -> list[dict]:
@@ -53,6 +90,9 @@ def _row(
     build_seed = seed if policy == 2 else default_seed
     binary_key = f"policy-{policy}-seed-{seed if policy == 2 else 'fixed'}"
     genome_flags = {
+        "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+        "NO_WAIT_OF_TICTOC": 0,
+        "WAL": 0,
         "BACK_OFF": 1,
         "BACKOFF_INCR_MILLI": 1000,
         "BACKOFF_MAX_US": 1000,
@@ -76,6 +116,7 @@ def _row(
         "backoff_trace": True,
         "throughput_scope": "diagnostic_only",
         "counterfactual_preregistration": preregistration_sha256,
+        **_build_bindings(),
         "binary_sha256": hashlib.sha256(binary_key.encode()).hexdigest(),
         "genome": "silo|" + ",".join(
             f"{name}={value}" for name, value in sorted(genome_flags.items())
@@ -86,6 +127,8 @@ def _row(
             "retained": len(events),
             "dropped": 0,
         },
+        "backoff_trace_symbol_count": 1,
+        "backoff_trace_string_count": 1,
     }
     if policy == 2:
         row["step_policy_seed"] = seed
@@ -132,6 +175,7 @@ def _write_artifacts(
             "extime_s": 3,
             "reps_per_job": 1,
             "counterfactual_preregistration": preregistration_sha256,
+            **_build_bindings(),
             "step_policy_seed": seed,
             "trace_runs": rows,
         }
@@ -213,6 +257,20 @@ def test_only_final_assignment_is_dropped_and_post_treatment_fields_do_not_filte
     before = next(row for row in baseline["run_estimates"] if row["run_identity"][1] == seed)
     after = next(row for row in changed_final["run_estimates"] if row["run_identity"][1] == seed)
     assert after == before
+    before_all = next(
+        row
+        for row in baseline["assignment_rate_all_events"]
+        if row["run_identity"][1] == seed
+    )
+    after_all = next(
+        row
+        for row in changed_final["assignment_rate_all_events"]
+        if row["run_identity"][1] == seed
+    )
+    assert (
+        after_all["assignment_rate_all_events"]
+        - before_all["assignment_rate_all_events"]
+    ) == pytest.approx(1 / 25)
 
     def extreme_included(document: dict) -> None:
         events = _primary_row(document)["trace_events"]
@@ -312,6 +370,9 @@ def test_missing_arm_and_zero_commit_make_whole_primary_inconclusive(
 
 
 def test_tost_and_practical_superiority_boundaries_are_strict() -> None:
+    assert analysis.EQUIVALENCE_MARGIN == math.log(1.03)
+    assert analysis.T90_DF11 == 1.7958848
+    assert analysis.T95_DF11 == 2.2009852
     margin = analysis.EQUIVALENCE_MARGIN
     inside = analysis._primary_decision(
         {"lower_log": -margin + 1e-12, "upper_log": margin - 1e-12},
@@ -338,3 +399,125 @@ def test_tost_and_practical_superiority_boundaries_are_strict() -> None:
         {"lower_log": -margin - 0.01, "upper_log": -margin - 1e-12},
     )
     assert inverted["decision"] == "inverted_direction_superior"
+
+
+def _synthetic_cluster(effects: list[float]) -> dict:
+    runs = [
+        {
+            "cell_literal": analysis.CELL_LITERALS[2],
+            "step_policy_seed": seed,
+            "binary_sha256": hashlib.sha256(f"cluster-{index}".encode()).hexdigest(),
+            "events": _events(effect),
+        }
+        for index, (seed, effect) in enumerate(zip(SEEDS, effects, strict=True))
+    ]
+    return analysis._cluster_summary(
+        runs,
+        lambda _event, _index, _count: True,
+        confirmatory=True,
+    )
+
+
+def test_equivalence_uses_90_percent_interval_not_95_percent_interval() -> None:
+    summary = _synthetic_cluster([-0.048] * 6 + [0.048] * 6)
+    assert summary["ci90"]["lower_log"] > -math.log(1.03)
+    assert summary["ci90"]["upper_log"] < math.log(1.03)
+    assert summary["ci95"]["lower_log"] < -math.log(1.03)
+    assert summary["ci95"]["upper_log"] > math.log(1.03)
+    decision = analysis._primary_decision(summary["ci90"], summary["ci95"])
+    assert decision["decision"] == "equivalent"
+
+
+def test_equivalence_uses_log_1p03_margin_not_literal_point03() -> None:
+    target_half_width = 0.0298
+    amplitude = target_half_width * math.sqrt(11) / 1.7958848
+    summary = _synthetic_cluster([-amplitude] * 6 + [amplitude] * 6)
+    assert math.log(1.03) < summary["ci90"]["upper_log"] < 0.03
+    assert -0.03 < summary["ci90"]["lower_log"] < -math.log(1.03)
+    decision = analysis._primary_decision(summary["ci90"], summary["ci95"])
+    assert decision["decision"] == "inconclusive"
+
+
+def test_genome_requires_exact_driver_flag_set(tmp_path: Path) -> None:
+    for mutation in ("changed-base", "extra-flag"):
+        paths = _write_artifacts(tmp_path / mutation)
+
+        def mutate(document: dict, mutation: str = mutation) -> None:
+            row = _primary_row(document)
+            if mutation == "changed-base":
+                row["genome"] = row["genome"].replace(
+                    "NO_WAIT_OF_TICTOC=0", "NO_WAIT_OF_TICTOC=1"
+                )
+            else:
+                row["genome"] += ",UNREGISTERED_FLAG=1"
+
+        _rewrite(paths[0], mutate)
+        with pytest.raises(ValueError, match="genome does not bind"):
+            analysis.analyze_counterfactual(paths, PREREGISTRATION)
+
+
+def test_preregistration_file_is_bound_to_frozen_sha256(tmp_path: Path) -> None:
+    paths = _write_artifacts(tmp_path / "artifacts")
+    changed = tmp_path / "changed-preregistration.md"
+    changed.write_bytes(PREREGISTRATION.read_bytes() + b"\n")
+    assert hashlib.sha256(PREREGISTRATION.read_bytes()).hexdigest() == (
+        PREREGISTRATION_SHA256
+    )
+    with pytest.raises(ValueError, match="frozen specification"):
+        analysis.analyze_counterfactual(paths, changed)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "ccbench-pin",
+        "patch-a",
+        "patch-b",
+        "patch-c",
+        "patch-stack",
+        "row-ccbench-pin",
+        "row-patch-a",
+        "row-patch-stack",
+        "trace-symbol-count",
+        "trace-string-count",
+        "artifact-trace-symbol-count",
+        "artifact-trace-string-count",
+    ),
+)
+def test_artifact_build_and_trace_bindings_fail_closed(
+    tmp_path: Path, mutation: str
+) -> None:
+    paths = _write_artifacts(tmp_path / "artifacts")
+
+    def mutate(document: dict) -> None:
+        row = _primary_row(document)
+        if mutation == "ccbench-pin":
+            document["ccbench_head"] = "f" * 40
+        elif mutation == "patch-a":
+            document["patch_sha256"] = "0" * 64
+        elif mutation == "patch-b":
+            document["dynamic_patch_sha256"] = "0" * 64
+        elif mutation == "patch-c":
+            document["counterfactual_patch_sha256"] = "0" * 64
+        elif mutation == "patch-stack":
+            document["patch_stack"] = list(reversed(document["patch_stack"]))
+        elif mutation == "row-ccbench-pin":
+            row["ccbench_head"] = "f" * 40
+        elif mutation == "row-patch-a":
+            row["patch_sha256"] = "0" * 64
+        elif mutation == "row-patch-stack":
+            row["patch_stack"] = list(reversed(row["patch_stack"]))
+        elif mutation == "trace-symbol-count":
+            row["backoff_trace_symbol_count"] += 1
+        elif mutation == "trace-string-count":
+            row["backoff_trace_string_count"] += 1
+        elif mutation == "artifact-trace-symbol-count":
+            for item in document["trace_runs"]:
+                item["backoff_trace_symbol_count"] += 1
+        else:
+            for item in document["trace_runs"]:
+                item["backoff_trace_string_count"] += 1
+
+    _rewrite(paths[0], mutate)
+    with pytest.raises(ValueError):
+        analysis.analyze_counterfactual(paths, PREREGISTRATION)

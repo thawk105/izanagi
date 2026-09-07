@@ -14,6 +14,24 @@ __all__ = ["analyze_counterfactual"]
 
 ANALYSIS_VERSION = "izanagi-backoff-counterfactual-analysis/v1"
 TRACE_SCHEMA_VERSION = "izanagi-dynamic-backoff-trace/v3"
+PREREGISTRATION_SHA256 = (
+    "ee7617f57bf6816fd8bfb42b5830926be1174ebcca617ed122c3fbca62f127a6"
+)
+CCBENCH_PIN = "511c9538e4e8efa54b45cda62e72389ed3b706ec"
+PATCH_A_SHA256 = (
+    "9b2153e0547e167888ba2616750951365c4a075a80f9a95be6000e60b6f8f54b"
+)
+PATCH_B_SHA256 = (
+    "f3fe6b7e67931775bcef0a7831dda8c6cb53dfc7fc52a74f4508360e1fedf824"
+)
+PATCH_C_SHA256 = (
+    "794b7b48dd19e30560dddc27f4408d67923d801241046df53257a8aefe82a396"
+)
+PATCH_STACK = (
+    ("patches/cicada-adaptive-params.patch", PATCH_A_SHA256),
+    ("patches/cicada-adaptive-dynamic.patch", PATCH_B_SHA256),
+    ("patches/cicada-adaptive-counterfactual.patch", PATCH_C_SHA256),
+)
 COUNTERFACTUAL_CELLS = (
     "cw-as-dyn-p0:1:1:1000:2560:10000:10240:1:1:4:1:0,"
     "cw-as-dyn-p1:1:1:1000:2560:10000:10240:1:1:4:1:1,"
@@ -94,6 +112,21 @@ def _matches_exact(document: dict, expected: dict) -> bool:
     )
 
 
+def _validate_build_bindings(document: dict, *, binding: str) -> None:
+    expected = {
+        "ccbench_head": CCBENCH_PIN,
+        "patch_sha256": PATCH_A_SHA256,
+        "dynamic_patch_sha256": PATCH_B_SHA256,
+        "counterfactual_patch_sha256": PATCH_C_SHA256,
+        "patch_stack": [
+            {"path": path, "sha256": sha256}
+            for path, sha256 in PATCH_STACK
+        ],
+    }
+    if not _matches_exact(document, expected):
+        _fail(f"{binding}: ccbench pin or ordered patch stack mismatch")
+
+
 def _validate_event(event: object, index: int, *, binding: str) -> dict:
     if type(event) is not dict:
         _fail(f"{binding}: trace event {index} is not an object")
@@ -172,6 +205,9 @@ def _validate_genome(genome: object, *, policy: int, seed: int, binding: str) ->
             _fail(f"{binding}: genome flags are empty or duplicated")
         flags[name] = value
     expected_flags = {
+        "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+        "NO_WAIT_OF_TICTOC": "0",
+        "WAL": "0",
         "BACK_OFF": "1",
         "BACKOFF_INCR_MILLI": "1000",
         "BACKOFF_MAX_US": "1000",
@@ -186,7 +222,7 @@ def _validate_genome(genome: object, *, policy: int, seed: int, binding: str) ->
         "BACKOFF_STEP_POLICY": str(policy),
         "BACKOFF_STEP_POLICY_SEED": str(seed),
     }
-    if any(flags.get(name) != value for name, value in expected_flags.items()):
+    if flags != expected_flags:
         _fail(f"{binding}: genome does not bind the exact cell, trace, and seed")
     return genome
 
@@ -220,6 +256,7 @@ def _validate_row(
         _fail(f"{binding}: row throughput_scope must be diagnostic_only")
     if row.get("counterfactual_preregistration") != expected_hash:
         _fail(f"{binding}: row preregistration SHA-256 mismatch")
+    _validate_build_bindings(row, binding=binding)
     if policy == 2:
         if (
             type(row.get("step_policy_seed")) is not int
@@ -235,6 +272,16 @@ def _validate_row(
     genome = _validate_genome(
         row.get("genome"), policy=policy, seed=expected_seed, binding=binding
     )
+    trace_symbol_count = _exact_int(
+        row.get("backoff_trace_symbol_count"),
+        field=f"{binding}.backoff_trace_symbol_count",
+        minimum=1,
+    )
+    trace_string_count = _exact_int(
+        row.get("backoff_trace_string_count"),
+        field=f"{binding}.backoff_trace_string_count",
+        minimum=1,
+    )
     events = _validate_trace(row, binding=binding)
     return {
         "cell_literal": CELL_LITERALS[policy],
@@ -244,6 +291,8 @@ def _validate_row(
         "step_policy_seed": artifact_seed if policy == 2 else None,
         "binary_sha256": binary_sha256,
         "genome": genome,
+        "backoff_trace_symbol_count": trace_symbol_count,
+        "backoff_trace_string_count": trace_string_count,
         "events": events,
     }
 
@@ -270,6 +319,7 @@ def _load_artifact(path: Path, *, expected_hash: str) -> dict:
     }
     if not _matches_exact(document, exact_top_level):
         _fail(f"{path}: top-level counterfactual contract mismatch")
+    _validate_build_bindings(document, binding=str(path))
     seed = document.get("step_policy_seed")
     if type(seed) is not int or seed not in PREREGISTERED_SEEDS:
         _fail(f"{path}: step_policy_seed is not one preregistered uint64 seed")
@@ -296,13 +346,30 @@ def _load_artifact(path: Path, *, expected_hash: str) -> dict:
     }
     if set(rows) != expected_keys:
         _fail(f"{path}: trace rows do not cover the exact 3 x 3 x 2 grid")
+    if len(
+        {
+            (
+                row["backoff_trace_symbol_count"],
+                row["backoff_trace_string_count"],
+            )
+            for row in rows.values()
+        }
+    ) != 1:
+        _fail(f"{path}: backoff trace symbol/string counts differ across rows")
     for policy in range(3):
         policy_rows = [row for key, row in rows.items() if key[0] == policy]
         if len({row["binary_sha256"] for row in policy_rows}) != 1:
             _fail(f"{path}: policy {policy} binary identity changes within one artifact")
         if len({row["genome"] for row in policy_rows}) != 1:
             _fail(f"{path}: policy {policy} genome changes within one artifact")
-    return {"seed": seed, "rows": rows}
+    trace_counts = next(
+        (
+            row["backoff_trace_symbol_count"],
+            row["backoff_trace_string_count"],
+        )
+        for row in rows.values()
+    )
+    return {"seed": seed, "rows": rows, "trace_counts": trace_counts}
 
 
 def _run_difference(
@@ -358,15 +425,26 @@ def _cluster_summary(
     confirmatory: bool,
 ) -> dict:
     run_estimates = []
+    assignment_rate_all_events = []
     for run in sorted(runs, key=lambda item: item["step_policy_seed"]):
+        run_identity = [
+            run["cell_literal"],
+            run["step_policy_seed"],
+            run["binary_sha256"],
+        ]
+        events = run["events"]
+        assignment_rate_all_events.append(
+            {
+                "run_identity": run_identity,
+                "assignment_rate_all_events": statistics.fmean(
+                    event["assigned_invert"] for event in events
+                ),
+            }
+        )
         estimate = _run_difference(run, membership)
         run_estimates.append(
             {
-                "run_identity": [
-                    run["cell_literal"],
-                    run["step_policy_seed"],
-                    run["binary_sha256"],
-                ],
+                "run_identity": run_identity,
                 **estimate,
                 "effect_percent": (
                     100.0 * math.expm1(estimate["estimate_log"])
@@ -422,6 +500,7 @@ def _cluster_summary(
         "cluster_count": cluster_count,
         "confirmatory_complete": bool(confirmatory and complete),
         "run_estimates": run_estimates,
+        "assignment_rate_all_events": assignment_rate_all_events,
         "theta_log": theta if not invalid_reasons else None,
         "effect_percent": (
             100.0 * math.expm1(theta)
@@ -490,6 +569,8 @@ def analyze_counterfactual(
         _fail("preregistration_path must be a Path")
     preregistration = preregistration_path.resolve(strict=True)
     preregistration_sha256 = _sha256(preregistration)
+    if preregistration_sha256 != PREREGISTRATION_SHA256:
+        _fail("preregistration file SHA-256 does not match the frozen specification")
     resolved_paths = [path.resolve(strict=True) for path in diagnostic_paths]
     if len(set(resolved_paths)) != len(resolved_paths):
         _fail("diagnostic_paths must identify unique files")
@@ -501,6 +582,8 @@ def analyze_counterfactual(
         _load_artifact(path, expected_hash=preregistration_sha256)
         for path in sorted(resolved_paths, key=str)
     ]
+    if len({artifact["trace_counts"] for artifact in artifacts}) != 1:
+        _fail("backoff trace symbol/string counts differ across artifacts")
     seeds = [artifact["seed"] for artifact in artifacts]
     if len(set(seeds)) != len(seeds):
         _fail("step_policy_seed values must be unique across artifacts")

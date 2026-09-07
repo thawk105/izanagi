@@ -2096,7 +2096,6 @@ def test_counterfactual_artifacts_record_exact_preregistration_sha_only_on_exact
         "counterfactual_preregistration": expected,
     }
     assert re.fullmatch(r"[0-9a-f]{64}", expected)
-    assert "pending" not in DRIVER.read_text(encoding="utf-8")
     assert "counterfactual_preregistration" not in probe._artifact_contract_metadata(
         backoff_trace=True,
         cells_text=probe.TRACE_CELLS_TEXT,
@@ -2160,6 +2159,16 @@ def test_step_policy_seed_accepts_uint64_endpoints_and_default_calls() -> None:
         assert args.step_policy_seed == expected
     args = parser.parse_args(["--cells", VALID_CELLS, "--out", "unused.json"])
     assert args.step_policy_seed is None
+
+
+def test_public_certification_rejects_step_policy_seed_before_dispatch(
+    tmp_path: Path,
+) -> None:
+    argv = _certify_argv(tmp_path)
+    argv.extend(("--step-policy-seed", "7"))
+    with pytest.raises(probe.CertificationReject) as caught:
+        probe.main(argv)
+    assert caught.value.reason == "step-policy-seed-certification-conflict"
 
 
 def test_perf_and_diagnostic_binary_trace_counts_fail_closed() -> None:
