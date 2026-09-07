@@ -10,7 +10,7 @@ PYTHON_BIN=${PYTHON:-python3.10}
 cd "$REPO_ROOT"
 
 usage() {
-  echo "usage: submit_paper_story_a2_certification.sh [finish-group] [--policy PATH] --attempt-id ID [--ccbench-root ABS --dependency-prefix-source ABS]" >&2
+  echo "usage: submit_paper_story_a2_certification.sh [finish-group] [--policy PATH] --attempt-id ID [--ccbench-root ABS --dependency-prefix-source ABS --third-party-source-root ABS]" >&2
 }
 
 MODE=submit
@@ -21,6 +21,7 @@ fi
 ATTEMPT_ID=""
 CCBENCH_ROOT=""
 DEPENDENCY_PREFIX_SOURCE=""
+THIRD_PARTY_SOURCE_ROOT=""
 POLICY_SELECTION=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -42,6 +43,11 @@ while [[ $# -gt 0 ]]; do
     --dependency-prefix-source)
       [[ $# -ge 2 ]] || { usage; exit 2; }
       DEPENDENCY_PREFIX_SOURCE=$2
+      shift 2
+      ;;
+    --third-party-source-root)
+      [[ $# -ge 2 ]] || { usage; exit 2; }
+      THIRD_PARTY_SOURCE_ROOT=$2
       shift 2
       ;;
     -h|--help)
@@ -163,11 +169,13 @@ SOURCE_COMMIT=$(git rev-parse HEAD)
   exit 2
 }
 
-[[ -n "$CCBENCH_ROOT" && -n "$DEPENDENCY_PREFIX_SOURCE" ]] || {
+[[ -n "$CCBENCH_ROOT" && -n "$DEPENDENCY_PREFIX_SOURCE" \
+    && -n "$THIRD_PARTY_SOURCE_ROOT" ]] || {
   usage
   exit 2
 }
-for value in "$REPO_ROOT" "$CCBENCH_ROOT" "$DEPENDENCY_PREFIX_SOURCE"; do
+for value in "$REPO_ROOT" "$CCBENCH_ROOT" "$DEPENDENCY_PREFIX_SOURCE" \
+    "$THIRD_PARTY_SOURCE_ROOT"; do
   [[ "$value" == /* && "$value" != *","* && "$value" != *"="* \
       && "$value" != *$'\n'* ]] || {
     echo "qsub environment path is not a safe absolute value" >&2
@@ -176,9 +184,29 @@ for value in "$REPO_ROOT" "$CCBENCH_ROOT" "$DEPENDENCY_PREFIX_SOURCE"; do
 done
 CCBENCH_ROOT=$(realpath -e -- "$CCBENCH_ROOT")
 DEPENDENCY_PREFIX_SOURCE=$(realpath -e -- "$DEPENDENCY_PREFIX_SOURCE")
+[[ ! -L "$THIRD_PARTY_SOURCE_ROOT" ]] || {
+  echo "third-party source root must not be a symlink" >&2
+  exit 2
+}
+THIRD_PARTY_SOURCE_ROOT=$(realpath -e -- "$THIRD_PARTY_SOURCE_ROOT")
+for value in "$REPO_ROOT" "$CCBENCH_ROOT" "$DEPENDENCY_PREFIX_SOURCE" \
+    "$THIRD_PARTY_SOURCE_ROOT"; do
+  [[ "$value" == /* && "$value" != *","* && "$value" != *"="* \
+      && "$value" != *$'\n'* ]] || {
+    echo "qsub environment path is not a safe absolute value" >&2
+    exit 2
+  }
+done
 [[ -d "$CCBENCH_ROOT" && ! -L "$CCBENCH_ROOT" \
-    && -d "$DEPENDENCY_PREFIX_SOURCE" && ! -L "$DEPENDENCY_PREFIX_SOURCE" ]] || {
-  echo "CCBench or dependency prefix source is unavailable" >&2
+    && -d "$DEPENDENCY_PREFIX_SOURCE" && ! -L "$DEPENDENCY_PREFIX_SOURCE" \
+    && -d "$THIRD_PARTY_SOURCE_ROOT" && ! -L "$THIRD_PARTY_SOURCE_ROOT" \
+    && -d "$THIRD_PARTY_SOURCE_ROOT/masstree" \
+    && ! -L "$THIRD_PARTY_SOURCE_ROOT/masstree" \
+    && -d "$THIRD_PARTY_SOURCE_ROOT/mimalloc" \
+    && ! -L "$THIRD_PARTY_SOURCE_ROOT/mimalloc" \
+    && -d "$THIRD_PARTY_SOURCE_ROOT/googletest" \
+    && ! -L "$THIRD_PARTY_SOURCE_ROOT/googletest" ]] || {
+  echo "CCBench, dependency prefix, or third-party source is unavailable" >&2
   exit 2
 }
 CURRENT_PIN=$("$PYTHON_BIN" -B -c 'from orchestrator.campaign.pin import CURRENT_PIN; print(CURRENT_PIN)')
@@ -241,7 +269,7 @@ for workload in "${WORKLOADS[@]}"; do
   stderr_path="$job_root/scheduler/job.stderr"
   qsub_stdout_path="$job_root/scheduler/qsub.stdout"
   qsub_stderr_path="$job_root/scheduler/qsub.stderr"
-  variable_arg="IZANAGI_A2_ATTEMPT_ROOT=$ATTEMPT_ROOT,IZANAGI_A2_WORKLOAD=$workload,IZANAGI_A2_EXPECTED_HEAD=$SOURCE_COMMIT,IZANAGI_A2_CURRENT_PIN=$CURRENT_PIN,IZANAGI_A2_CCBENCH_ROOT=$CCBENCH_ROOT,IZANAGI_A2_REPO_ROOT=$REPO_ROOT,IZANAGI_A2_DEPENDENCY_PREFIX_SOURCE=$DEPENDENCY_PREFIX_SOURCE"
+  variable_arg="IZANAGI_A2_ATTEMPT_ROOT=$ATTEMPT_ROOT,IZANAGI_A2_WORKLOAD=$workload,IZANAGI_A2_EXPECTED_HEAD=$SOURCE_COMMIT,IZANAGI_A2_CURRENT_PIN=$CURRENT_PIN,IZANAGI_A2_CCBENCH_ROOT=$CCBENCH_ROOT,IZANAGI_A2_REPO_ROOT=$REPO_ROOT,IZANAGI_A2_DEPENDENCY_PREFIX_SOURCE=$DEPENDENCY_PREFIX_SOURCE,IZANAGI_A2_THIRD_PARTY_SOURCE_ROOT=$THIRD_PARTY_SOURCE_ROOT"
   if [[ "$STUDY" == paper-story-a6-certification ]]; then
     variable_arg+=",IZANAGI_A2_POLICY_PATH=$POLICY_PATH"
   fi
@@ -304,12 +332,13 @@ done
 "$PYTHON_BIN" -B - "$TMP_ROOT/submission.json" "$TMP_ROOT" \
   "$ATTEMPT_ROOT" "$SOURCE_COMMIT" "$CURRENT_PIN" "$host" \
   "$REPO_ROOT" "$CCBENCH_ROOT" "$DEPENDENCY_PREFIX_SOURCE" \
-  "$JOB_BODY" "$JOB_BODY_SHA256" "$POLICY_PATH" <<'PY'
+  "$THIRD_PARTY_SOURCE_ROOT" "$JOB_BODY" "$JOB_BODY_SHA256" \
+  "$POLICY_PATH" <<'PY'
 import json, pathlib, sys
 from orchestrator.campaign import paper_story_a2_certification as a2
 
 (destination, temporary, attempt, source, current, host, repo, ccbench,
- dependency, body, body_sha, policy_path) = sys.argv[1:]
+ dependency, third_party, body, body_sha, policy_path) = sys.argv[1:]
 temporary = pathlib.Path(temporary)
 policy = a2.load_policy(policy_path)
 scheduler_policy = policy.document["scheduler"]
@@ -331,6 +360,7 @@ for workload in a2.workload_ids(policy):
         "IZANAGI_A2_CCBENCH_ROOT": ccbench,
         "IZANAGI_A2_REPO_ROOT": repo,
         "IZANAGI_A2_DEPENDENCY_PREFIX_SOURCE": dependency,
+        "IZANAGI_A2_THIRD_PARTY_SOURCE_ROOT": third_party,
     }
     if policy.study == "paper-story-a6-certification":
         environment["IZANAGI_A2_POLICY_PATH"] = str(policy.path)
