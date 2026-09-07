@@ -1,0 +1,261 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 60,
+ "timeout_seconds": 1800,
+ "hang_timeout_seconds": 1800,
+ "mutations": [
+  {
+   "id": "MUT-T2067A-R1-REMOVED",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_valid_fixture_output_depends_only_on_spec_pin",
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_has_independent_canonical_bytes_and_sha_literal",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_cli_official_resolves_ratified_freeze_and_verifies",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_report_cli_real_g1_rule_mismatch_preserves_selection_reason",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_report_cli_selection_gate_receives_loaded_ratified_and_root"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_oracle_report.py",
+     "old": "            s8b_ratified_freeze.assert_g1_floor_selection_identity(ratified, root)\n",
+     "new": "            pass\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2067A-R2-DOCUMENT-ARG",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_valid_fixture_output_depends_only_on_spec_pin",
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_has_independent_canonical_bytes_and_sha_literal",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_cli_official_resolves_ratified_freeze_and_verifies",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_judge_cli_reverifies_official_manifest_and_legacy_cannot_reach_verdict",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_official_marked_empty_output_root_reports_missing_and_judges_indeterminate",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_report_cli_accepts_matching_spec_then_rejects_one_other_spec_without_output",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_report_cli_real_g1_rule_mismatch_preserves_selection_reason",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_report_cli_selection_gate_receives_loaded_ratified_and_root"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_oracle_report.py",
+     "old": "            s8b_ratified_freeze.assert_g1_floor_selection_identity(ratified, root)\n",
+     "new": "            s8b_ratified_freeze.assert_g1_floor_selection_identity(ratified.document, root)\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2067A-R3-WRONG-ROOT",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_valid_fixture_output_depends_only_on_spec_pin",
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_has_independent_canonical_bytes_and_sha_literal",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_cli_official_resolves_ratified_freeze_and_verifies",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_judge_cli_reverifies_official_manifest_and_legacy_cannot_reach_verdict",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_official_marked_empty_output_root_reports_missing_and_judges_indeterminate",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_report_cli_accepts_matching_spec_then_rejects_one_other_spec_without_output",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_report_cli_real_g1_rule_mismatch_preserves_selection_reason",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_report_cli_selection_gate_receives_loaded_ratified_and_root"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_oracle_report.py",
+     "old": "            s8b_ratified_freeze.assert_g1_floor_selection_identity(ratified, root)\n",
+     "new": "            s8b_ratified_freeze.assert_g1_floor_selection_identity(ratified, root.parent)\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2067A-J1-REMOVED",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_oracle_judge.py::test_judge_cli_real_g1_rule_mismatch_preserves_selection_reason",
+    "orchestrator/tests/test_s8b_oracle_judge.py::test_judge_cli_selection_gate_receives_loaded_ratified_and_root",
+    "orchestrator/tests/test_s8b_oracle_judge.py::test_judge_cli_valid_real_g1_reaches_reverify_after_actual_selection_gate",
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_valid_fixture_output_depends_only_on_spec_pin",
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_has_independent_canonical_bytes_and_sha_literal"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_oracle_judge.py",
+     "old": "        s8b_ratified_freeze.assert_g1_floor_selection_identity(ratified, root)\n",
+     "new": "        pass\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2067A-J2-DOCUMENT-ARG",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_oracle_judge.py::test_judge_cli_real_g1_rule_mismatch_preserves_selection_reason",
+    "orchestrator/tests/test_s8b_oracle_judge.py::test_judge_cli_rejects_non_observations_schema_without_output[8b-oracle-exploration-artifact/v1]",
+    "orchestrator/tests/test_s8b_oracle_judge.py::test_judge_cli_rejects_non_observations_schema_without_output[8b-oracle-verdict/v1]",
+    "orchestrator/tests/test_s8b_oracle_judge.py::test_judge_cli_rejects_non_observations_schema_without_output[None]",
+    "orchestrator/tests/test_s8b_oracle_judge.py::test_judge_cli_rejects_non_observations_schema_without_output[unknown/v1]",
+    "orchestrator/tests/test_s8b_oracle_judge.py::test_judge_cli_selection_gate_receives_loaded_ratified_and_root",
+    "orchestrator/tests/test_s8b_oracle_judge.py::test_judge_cli_valid_real_g1_reaches_reverify_after_actual_selection_gate",
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_valid_fixture_output_depends_only_on_spec_pin",
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_has_independent_canonical_bytes_and_sha_literal",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_judge_cli_reverifies_official_manifest_and_legacy_cannot_reach_verdict"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_oracle_judge.py",
+     "old": "        s8b_ratified_freeze.assert_g1_floor_selection_identity(ratified, root)\n",
+     "new": "        s8b_ratified_freeze.assert_g1_floor_selection_identity(ratified.document, root)\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2067A-J3-WRONG-ROOT",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_oracle_judge.py::test_judge_cli_real_g1_rule_mismatch_preserves_selection_reason",
+    "orchestrator/tests/test_s8b_oracle_judge.py::test_judge_cli_rejects_non_observations_schema_without_output[8b-oracle-exploration-artifact/v1]",
+    "orchestrator/tests/test_s8b_oracle_judge.py::test_judge_cli_rejects_non_observations_schema_without_output[8b-oracle-verdict/v1]",
+    "orchestrator/tests/test_s8b_oracle_judge.py::test_judge_cli_rejects_non_observations_schema_without_output[None]",
+    "orchestrator/tests/test_s8b_oracle_judge.py::test_judge_cli_rejects_non_observations_schema_without_output[unknown/v1]",
+    "orchestrator/tests/test_s8b_oracle_judge.py::test_judge_cli_selection_gate_receives_loaded_ratified_and_root",
+    "orchestrator/tests/test_s8b_oracle_judge.py::test_judge_cli_valid_real_g1_reaches_reverify_after_actual_selection_gate",
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_valid_fixture_output_depends_only_on_spec_pin",
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_has_independent_canonical_bytes_and_sha_literal",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_judge_cli_reverifies_official_manifest_and_legacy_cannot_reach_verdict"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_oracle_judge.py",
+     "old": "        s8b_ratified_freeze.assert_g1_floor_selection_identity(ratified, root)\n",
+     "new": "        s8b_ratified_freeze.assert_g1_floor_selection_identity(ratified, root.parent)\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2067A-V1-REMOVED",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_verdict.py::test_cli_preserves_freeze_and_floor_source_wiring",
+    "orchestrator/tests/test_s8b_verdict.py::test_cli_rejects_freeze_identity_mismatch_before_consumers",
+    "orchestrator/tests/test_s8b_verdict.py::test_cli_rejects_non_verdict_oracle_schema_without_output[8b-oracle-exploration-artifact/v1]",
+    "orchestrator/tests/test_s8b_verdict.py::test_cli_rejects_non_verdict_oracle_schema_without_output[8b-oracle-observations/v1]",
+    "orchestrator/tests/test_s8b_verdict.py::test_cli_rejects_non_verdict_oracle_schema_without_output[None]",
+    "orchestrator/tests/test_s8b_verdict.py::test_cli_rejects_non_verdict_oracle_schema_without_output[unknown/v1]",
+    "orchestrator/tests/test_s8b_verdict.py::test_verdict_cli_real_g1_rule_mismatch_preserves_selection_reason",
+    "orchestrator/tests/test_s8b_verdict.py::test_verdict_cli_valid_real_g1_reaches_reverify_after_actual_selection_gate"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_verdict.py",
+     "old": "        s8b_ratified_freeze.assert_g1_floor_selection_identity(ratified, root)\n",
+     "new": "        pass\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2067A-V2-DOCUMENT-ARG",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_verdict.py::test_cli_preserves_freeze_and_floor_source_wiring",
+    "orchestrator/tests/test_s8b_verdict.py::test_cli_rejects_freeze_identity_mismatch_before_consumers",
+    "orchestrator/tests/test_s8b_verdict.py::test_cli_rejects_non_verdict_oracle_schema_without_output[8b-oracle-exploration-artifact/v1]",
+    "orchestrator/tests/test_s8b_verdict.py::test_cli_rejects_non_verdict_oracle_schema_without_output[8b-oracle-observations/v1]",
+    "orchestrator/tests/test_s8b_verdict.py::test_cli_rejects_non_verdict_oracle_schema_without_output[None]",
+    "orchestrator/tests/test_s8b_verdict.py::test_cli_rejects_non_verdict_oracle_schema_without_output[unknown/v1]",
+    "orchestrator/tests/test_s8b_verdict.py::test_verdict_cli_real_g1_rule_mismatch_preserves_selection_reason",
+    "orchestrator/tests/test_s8b_verdict.py::test_verdict_cli_valid_real_g1_reaches_reverify_after_actual_selection_gate"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_verdict.py",
+     "old": "        s8b_ratified_freeze.assert_g1_floor_selection_identity(ratified, root)\n",
+     "new": "        s8b_ratified_freeze.assert_g1_floor_selection_identity(ratified.document, root)\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2067A-V3-WRONG-ROOT",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_verdict.py::test_cli_preserves_freeze_and_floor_source_wiring",
+    "orchestrator/tests/test_s8b_verdict.py::test_cli_rejects_freeze_identity_mismatch_before_consumers",
+    "orchestrator/tests/test_s8b_verdict.py::test_cli_rejects_non_verdict_oracle_schema_without_output[8b-oracle-exploration-artifact/v1]",
+    "orchestrator/tests/test_s8b_verdict.py::test_cli_rejects_non_verdict_oracle_schema_without_output[8b-oracle-observations/v1]",
+    "orchestrator/tests/test_s8b_verdict.py::test_cli_rejects_non_verdict_oracle_schema_without_output[None]",
+    "orchestrator/tests/test_s8b_verdict.py::test_cli_rejects_non_verdict_oracle_schema_without_output[unknown/v1]",
+    "orchestrator/tests/test_s8b_verdict.py::test_verdict_cli_real_g1_rule_mismatch_preserves_selection_reason",
+    "orchestrator/tests/test_s8b_verdict.py::test_verdict_cli_valid_real_g1_reaches_reverify_after_actual_selection_gate"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_verdict.py",
+     "old": "        s8b_ratified_freeze.assert_g1_floor_selection_identity(ratified, root)\n",
+     "new": "        s8b_ratified_freeze.assert_g1_floor_selection_identity(ratified, root.parent)\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2067A-P1-STALE-PIN",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_valid_fixture_output_depends_only_on_spec_pin",
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_has_independent_canonical_bytes_and_sha_literal"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_s8b_oracle_manifest.py",
+     "old": "    b'\"sha256\":\"30fe2b1bcad143f5a85ca32250744522d6049f4c71e9b853618e3af2dd0091c7\"}},'\n",
+     "new": "    b'\"sha256\":\"f7ef6259f8feb3a6ccd7812d85132f19bc36e10fa4cd10cea28ecd145769c93b\"}},'\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2067A-PC1-OVER-REJECT",
+   "category": "positive",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_oracle_judge.py::test_judge_cli_real_g1_rule_mismatch_preserves_selection_reason",
+    "orchestrator/tests/test_s8b_oracle_judge.py::test_judge_cli_rejects_non_observations_schema_without_output[8b-oracle-exploration-artifact/v1]",
+    "orchestrator/tests/test_s8b_oracle_judge.py::test_judge_cli_rejects_non_observations_schema_without_output[8b-oracle-verdict/v1]",
+    "orchestrator/tests/test_s8b_oracle_judge.py::test_judge_cli_rejects_non_observations_schema_without_output[None]",
+    "orchestrator/tests/test_s8b_oracle_judge.py::test_judge_cli_rejects_non_observations_schema_without_output[unknown/v1]",
+    "orchestrator/tests/test_s8b_oracle_judge.py::test_judge_cli_selection_gate_receives_loaded_ratified_and_root",
+    "orchestrator/tests/test_s8b_oracle_judge.py::test_judge_cli_valid_real_g1_reaches_reverify_after_actual_selection_gate",
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_real_g1_rule_mismatch_preserves_selection_reason",
+    "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_valid_real_g1_reaches_spec_after_actual_selection_gate",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_cli_official_resolves_ratified_freeze_and_verifies",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_judge_cli_reverifies_official_manifest_and_legacy_cannot_reach_verdict",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_official_marked_empty_output_root_reports_missing_and_judges_indeterminate",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_report_cli_accepts_matching_spec_then_rejects_one_other_spec_without_output",
+    "orchestrator/tests/test_s8b_oracle_report.py::test_report_cli_real_g1_rule_mismatch_preserves_selection_reason",
+    "orchestrator/tests/test_s8b_verdict.py::test_verdict_cli_real_g1_rule_mismatch_preserves_selection_reason",
+    "orchestrator/tests/test_s8b_verdict.py::test_verdict_cli_valid_real_g1_reaches_reverify_after_actual_selection_gate"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+     "old": "    if ratified.generation_number != 1:\n        return\n",
+     "new": "    if True:\n        raise RatifiedFreezeError(\n            \"floor-selection-rule-mismatch\", \"positive control over-rejection\",\n            cause=\"positive-control\",\n        )\n"
+    }
+   ]
+  }
+ ]
+}
