@@ -1,18 +1,22 @@
-#!/bin/bash
-# Login-side submitter for the three fixed T-1259 diagnostic requests.
+# Non-executable login-side submitter text for the three fixed T-1259 requests.
+# Copy it outside the repository without changing bytes, cd to the detached
+# submit-tree root, then run: bash /absolute/outside/path/submit.sh.txt ...
 set -Eeuo pipefail
 umask 077
 export GIT_OPTIONAL_LOCKS=0
+if ! ulimit -c 0; then
+  echo "cannot disable core dumps" >&2
+  exit 2
+fi
 
 usage() {
   cat <<'EOF'
-usage: t1259_qsub_env_delivery_submit.sh --attempt-root ABSOLUTE_NEW_PATH
+usage: bash /absolute/outside/path/submit.sh.txt --attempt-root ABSOLUTE_NEW_PATH
 
 Run this from a clean detached submit-tree at the commit to be measured.
 The script records queue preflight evidence, writes each request's create-only
-submission manifest, and submits exactly R1, R2, and R3. It does not wait for
-terminal scheduler states; the group manifest therefore remains indeterminate
-until the parent records all three terminal states and result hashes.
+submission manifest, creates one group intent, and submits exactly R1, R2, and
+R3. Each accepted request gets its own receipt; collection is left to the parent.
 EOF
 }
 
@@ -49,19 +53,21 @@ if [[ ! -f "$SCRIPT_PATH" || -L "$SCRIPT_PATH" || -L "$SCRIPT_SOURCE" ]]; then
   echo "submitter must be a non-symlink regular file" >&2
   exit 2
 fi
-SCRIPT_DIR=${SCRIPT_PATH%/*}
-REPO_ROOT=$(realpath -e -- "$SCRIPT_DIR/../../..") || {
+REPO_ROOT=$(realpath -e -- "$PWD") || {
   echo "cannot resolve repository root" >&2
   exit 2
 }
-if [[ "$SCRIPT_PATH" != "$REPO_ROOT/tools/pegasus/probes/t1259_qsub_env_delivery_submit.sh" ]]; then
-  echo "submitter must run from its canonical repository path" >&2
+if [[ "$REPO_ROOT" != "$PWD" || ! -e "$REPO_ROOT/.git" ]]; then
+  echo "run the submitter text from the canonical detached submit-tree root" >&2
   exit 2
 fi
 
+REPO_SUBMITTER_TEXT="$REPO_ROOT/tools/pegasus/probes/t1259_qsub_env_delivery_submit.sh.txt"
 PBS_SCRIPT="$REPO_ROOT/tools/pegasus/probes/t1259_qsub_env_delivery_probe.pbs"
 PROBE_SCRIPT="$REPO_ROOT/tools/pegasus/probes/t1259_qsub_env_delivery_probe.py"
-for source in "$SCRIPT_PATH" "$PBS_SCRIPT" "$PROBE_SCRIPT"; do
+CAMPAIGN_SCRIPT="$REPO_ROOT/orchestrator/campaign/s8b_floor_campaign.py"
+for source in "$SCRIPT_PATH" "$REPO_SUBMITTER_TEXT" "$PBS_SCRIPT" \
+    "$PROBE_SCRIPT" "$CAMPAIGN_SCRIPT"; do
   if [[ ! -f "$source" || -L "$source" ]]; then
     echo "required regular source is unavailable: $source" >&2
     exit 2
@@ -71,6 +77,11 @@ done
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR
 unset GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
 unset GIT_CEILING_DIRECTORIES
+DISCOVERED_REPO_ROOT=$(git -C "$REPO_ROOT" rev-parse --show-toplevel)
+if [[ "$DISCOVERED_REPO_ROOT" != "$REPO_ROOT" ]]; then
+  echo "current directory is not the detached submit-tree root" >&2
+  exit 2
+fi
 REPO_HEAD=$(git -C "$REPO_ROOT" rev-parse --verify HEAD)
 if [[ ! "$REPO_HEAD" =~ ^[0-9a-f]{40}$ ]]; then
   echo "repository HEAD must be an exact lowercase 40-hex commit" >&2
@@ -87,7 +98,7 @@ if [[ -n "$REPO_STATUS" ]]; then
   exit 2
 fi
 for relative in \
-    tools/pegasus/probes/t1259_qsub_env_delivery_submit.sh \
+    tools/pegasus/probes/t1259_qsub_env_delivery_submit.sh.txt \
     tools/pegasus/probes/t1259_qsub_env_delivery_probe.pbs \
     tools/pegasus/probes/t1259_qsub_env_delivery_probe.py \
     orchestrator/campaign/s8b_floor_campaign.py; do
@@ -96,6 +107,66 @@ for relative in \
     exit 2
   }
 done
+
+PROBE_SHA256=$(sha256sum -- "$PROBE_SCRIPT" | awk '{print $1}')
+PBS_SHA256=$(sha256sum -- "$PBS_SCRIPT" | awk '{print $1}')
+CAMPAIGN_SHA256=$(sha256sum -- "$CAMPAIGN_SCRIPT" | awk '{print $1}')
+SUBMITTER_SHA256=$(sha256sum -- "$REPO_SUBMITTER_TEXT" | awk '{print $1}')
+RUNNING_SUBMITTER_SHA256=$(sha256sum -- "$SCRIPT_PATH" | awk '{print $1}')
+for digest in "$PROBE_SHA256" "$PBS_SHA256" "$CAMPAIGN_SHA256" "$SUBMITTER_SHA256"; do
+  if [[ ! "$digest" =~ ^[0-9a-f]{64}$ ]]; then
+    echo "required source sha256 is invalid" >&2
+    exit 2
+  fi
+done
+if [[ "$RUNNING_SUBMITTER_SHA256" != "$SUBMITTER_SHA256" ]]; then
+  echo "running submitter text does not match the repository template bytes" >&2
+  exit 2
+fi
+
+verify_repo_unchanged() {
+  local phase=$1 current_head current_status current_probe current_pbs
+  local current_campaign current_submitter current_running_submitter
+  current_head=$(git -C "$REPO_ROOT" rev-parse --verify HEAD) || return 1
+  if [[ "$current_head" != "$REPO_HEAD" ]]; then
+    echo "repository HEAD changed $phase" >&2
+    return 1
+  fi
+  if git -C "$REPO_ROOT" symbolic-ref -q HEAD >/dev/null 2>&1; then
+    echo "repository is no longer detached $phase" >&2
+    return 1
+  fi
+  current_status=$(git -C "$REPO_ROOT" status --porcelain=v1 \
+    --untracked-files=all --ignore-submodules=none) || return 1
+  if [[ -n "$current_status" ]]; then
+    echo "repository is no longer clean $phase" >&2
+    return 1
+  fi
+  current_probe=$(sha256sum -- "$PROBE_SCRIPT" | awk '{print $1}') || return 1
+  current_pbs=$(sha256sum -- "$PBS_SCRIPT" | awk '{print $1}') || return 1
+  current_campaign=$(sha256sum -- "$CAMPAIGN_SCRIPT" | awk '{print $1}') || return 1
+  current_submitter=$(sha256sum -- "$REPO_SUBMITTER_TEXT" | awk '{print $1}') \
+    || return 1
+  current_running_submitter=$(sha256sum -- "$SCRIPT_PATH" | awk '{print $1}') \
+    || return 1
+  if [[ "$current_probe" != "$PROBE_SHA256" || "$current_pbs" != "$PBS_SHA256" \
+      || "$current_campaign" != "$CAMPAIGN_SHA256" \
+      || "$current_submitter" != "$SUBMITTER_SHA256" \
+      || "$current_running_submitter" != "$SUBMITTER_SHA256" ]]; then
+    echo "required source bytes changed $phase" >&2
+    return 1
+  fi
+}
+
+finish_submitter() {
+  local original_rc=$?
+  trap - EXIT
+  if ! verify_repo_unchanged "at submitter exit"; then
+    exit 2
+  fi
+  exit "$original_rc"
+}
+trap finish_submitter EXIT
 
 ATTEMPT_PARENT_RAW=${ATTEMPT_ROOT_RAW%/*}
 ATTEMPT_LEAF=${ATTEMPT_ROOT_RAW##*/}
@@ -137,11 +208,13 @@ if [[ -z "$PY" ]]; then
 fi
 
 mkdir -m 700 -- "$ATTEMPT_ROOT"
+ATTEMPT_STARTED_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 PREFLIGHT_DIR="$ATTEMPT_ROOT/preflight"
 R1_DIR="$ATTEMPT_ROOT/r1-with-explicit-approval"
 R2_DIR="$ATTEMPT_ROOT/r2-without-approval"
 R3_DIR="$ATTEMPT_ROOT/r3-ambient-approval-only"
 mkdir -m 700 -- "$PREFLIGHT_DIR" "$R1_DIR" "$R2_DIR" "$R3_DIR"
+cd "$ATTEMPT_ROOT"
 
 capture_preflight() {
   local name=$1
@@ -152,6 +225,7 @@ capture_preflight() {
   return "$rc"
 }
 
+# BEGIN T1259 PREFLIGHT CALLS AND SEMANTIC CHECK
 preflight_failed=0
 capture_preflight qstat-queues qstat -Q || preflight_failed=1
 capture_preflight pegasusinfo pegasusinfo || preflight_failed=1
@@ -185,6 +259,24 @@ for name, argv in (
         "stderr_path": stderr.name,
         "stderr_sha256": hashlib.sha256(stderr.read_bytes()).hexdigest(),
     })
+queue_text = (root / "qstat-queues.stdout").read_text(
+    encoding="utf-8", errors="replace"
+)
+queue_rows = []
+for line in queue_text.splitlines():
+    fields = line.split()
+    if fields and fields[0] == "gen_S":
+        states = [field for field in fields if field in {"ENA", "DIS", "INA"}]
+        queue_rows.append((line, states))
+queue_state = None
+queue_error = None
+if len(queue_rows) != 1:
+    queue_error = f"expected one gen_S row, got {len(queue_rows)}"
+elif len(queue_rows[0][1]) != 1:
+    queue_error = "gen_S row does not carry exactly one semantic state"
+else:
+    queue_state = queue_rows[0][1][0]
+queue_usable = queue_error is None and queue_state == "ENA"
 document = {
     "schema_version": "izanagi-t1259-qsub-preflight/v1",
     "authority": "diagnostic-only",
@@ -192,6 +284,12 @@ document = {
     "hostname": socket.gethostname(),
     "repo_head": sys.argv[2],
     "commands": commands,
+    "gen_s_queue": {
+        "state": queue_state,
+        "usable": queue_usable,
+        "parse_error": queue_error,
+        "accepted_state": "ENA",
+    },
 }
 target = root / "preflight.json"
 with target.open("x", encoding="utf-8") as stream:
@@ -199,23 +297,30 @@ with target.open("x", encoding="utf-8") as stream:
     stream.write("\n")
     stream.flush()
     os.fsync(stream.fileno())
+if not queue_usable:
+    if queue_error is not None:
+        print(f"cannot parse usable gen_S queue state: {queue_error}", file=sys.stderr)
+    else:
+        print(f"gen_S queue is unavailable: state={queue_state}", file=sys.stderr)
+    raise SystemExit(3)
 PY
 if [[ "$preflight_failed" -ne 0 ]]; then
   echo "queue/non-interference preflight command failed; no qsub was executed" >&2
   exit 2
 fi
+# END T1259 PREFLIGHT CALLS AND SEMANTIC CHECK
 
 readarray -t RANDOM_VALUES < <("$PY" -I -S -B - <<'PY'
 import secrets
 values = set()
-while len(values) < 6:
+while len(values) < 7:
     values.add(secrets.token_hex(16))
 for value in sorted(values):
     print(value)
 PY
 )
-if [[ ${#RANDOM_VALUES[@]} -ne 6 ]]; then
-  echo "failed to generate six distinct random 32-hex values" >&2
+if [[ ${#RANDOM_VALUES[@]} -ne 7 ]]; then
+  echo "failed to generate seven distinct random 32-hex values" >&2
   exit 2
 fi
 R1_NONCE=${RANDOM_VALUES[0]}
@@ -224,16 +329,16 @@ R2_EXPLICIT_SECOND=${RANDOM_VALUES[2]}
 R2_AMBIENT_SECOND=${RANDOM_VALUES[3]}
 R3_NONCE=${RANDOM_VALUES[4]}
 AMBIENT_SENTINEL_VALUE=${RANDOM_VALUES[5]}
+ATTEMPT_ID=${RANDOM_VALUES[6]}
 AMBIENT_APPROVAL_LITERAL=t1259-ambient-approval-must-not-match
-PROBE_SHA256=$(sha256sum -- "$PROBE_SCRIPT" | awk '{print $1}')
-SUBMITTER_SHA256=$(sha256sum -- "$SCRIPT_PATH" | awk '{print $1}')
 
 write_submission_manifest() {
   local request_id=$1 request_label=$2 evidence_dir=$3 export_spec=$4
   shift 4
   "$PY" -I -B - \
     "$evidence_dir/submission-manifest.json" \
-    "$request_id" "$request_label" "$REPO_HEAD" "$PROBE_SHA256" \
+    "$request_id" "$request_label" "$REPO_HEAD" \
+    "$PROBE_SHA256" "$PBS_SHA256" "$CAMPAIGN_SHA256" \
     "$export_spec" "$@" <<'PY'
 import datetime as dt
 import json
@@ -248,6 +353,8 @@ from pathlib import Path
     request_label,
     repo_head,
     probe_sha256,
+    pbs_sha256,
+    campaign_sha256,
     export_spec,
     *pair_tokens,
 ) = sys.argv[1:]
@@ -288,6 +395,10 @@ document = {
     "repo_head": repo_head,
     "probe_script_path": "tools/pegasus/probes/t1259_qsub_env_delivery_probe.py",
     "probe_script_sha256": probe_sha256,
+    "pbs_script_path": "tools/pegasus/probes/t1259_qsub_env_delivery_probe.pbs",
+    "pbs_script_sha256": pbs_sha256,
+    "campaign_script_path": "orchestrator/campaign/s8b_floor_campaign.py",
+    "campaign_script_sha256": campaign_sha256,
     "ordered_explicit_env": rows,
     "qsub_v_exact": export_spec,
     "qsub_v_byte_length": len(export_spec.encode("utf-8")),
@@ -305,28 +416,71 @@ with target.open("x", encoding="utf-8") as stream:
 PY
 }
 
-write_request_receipt() {
-  local evidence_dir=$1 request_id=$2 scheduler_request_id=$3 submitted_utc=$4
+write_group_intent() {
   "$PY" -I -B - \
-    "$evidence_dir/submission-manifest.json" \
-    "$evidence_dir/qsub-request.json" \
-    "$request_id" "$scheduler_request_id" "$submitted_utc" <<'PY'
+    "$ATTEMPT_ROOT/submission-group-intent.json" \
+    "$ATTEMPT_ID" "$ATTEMPT_STARTED_UTC" "$REPO_HEAD" \
+    "$SUBMITTER_SHA256" "$PROBE_SHA256" "$PBS_SHA256" "$CAMPAIGN_SHA256" <<'PY'
+import datetime as dt
 import hashlib
 import json
 import os
+import socket
 import sys
 from pathlib import Path
 
-manifest_path, target_text, logical_id, scheduler_id, submitted_utc = sys.argv[1:]
-manifest = Path(manifest_path)
+(
+    target_text,
+    attempt_id,
+    started_utc,
+    repo_head,
+    submitter_sha256,
+    probe_sha256,
+    pbs_sha256,
+    campaign_sha256,
+) = sys.argv[1:]
+requests = [
+    {
+        "submission_order": 1,
+        "request_id": "R1",
+        "request_label": "with-explicit-approval",
+        "evidence_directory": "r1-with-explicit-approval",
+        "receipt_path": "r1-with-explicit-approval/qsub-request.json",
+    },
+    {
+        "submission_order": 2,
+        "request_id": "R2",
+        "request_label": "without-approval-with-duplicate-second-name",
+        "evidence_directory": "r2-without-approval",
+        "receipt_path": "r2-without-approval/qsub-request.json",
+    },
+    {
+        "submission_order": 3,
+        "request_id": "R3",
+        "request_label": "ambient-approval-name-only",
+        "evidence_directory": "r3-ambient-approval-only",
+        "receipt_path": "r3-ambient-approval-only/qsub-request.json",
+    },
+]
+preflight = Path(target_text).parent / "preflight" / "preflight.json"
 document = {
-    "schema_version": "izanagi-t1259-qsub-request/v1",
+    "schema_version": "izanagi-t1259-qsub-submission-group-intent/v1",
     "authority": "diagnostic-only",
-    "request_id": logical_id,
-    "scheduler_request_id": scheduler_id,
-    "submitted_utc": submitted_utc,
-    "submission_manifest_path": manifest.name,
-    "submission_manifest_sha256": hashlib.sha256(manifest.read_bytes()).hexdigest(),
+    "attempt_id": attempt_id,
+    "attempt_root_leaf": Path(target_text).parent.name,
+    "expected_request_count": 3,
+    "requests": requests,
+    "started_utc": started_utc,
+    "intent_created_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
+    "repo_head": repo_head,
+    "submitted_hostname": socket.gethostname(),
+    "submitter_text_path": "tools/pegasus/probes/t1259_qsub_env_delivery_submit.sh.txt",
+    "submitter_text_sha256": submitter_sha256,
+    "probe_script_sha256": probe_sha256,
+    "pbs_script_sha256": pbs_sha256,
+    "campaign_script_sha256": campaign_sha256,
+    "preflight_path": "preflight/preflight.json",
+    "preflight_sha256": hashlib.sha256(preflight.read_bytes()).hexdigest(),
 }
 target = Path(target_text)
 with target.open("x", encoding="utf-8") as stream:
@@ -334,6 +488,85 @@ with target.open("x", encoding="utf-8") as stream:
     stream.write("\n")
     stream.flush()
     os.fsync(stream.fileno())
+PY
+}
+
+write_request_receipt() {
+  local evidence_dir=$1 request_id=$2 request_label=$3
+  local scheduler_request_id=$4 submitted_utc=$5 qstat_rc=$6
+  "$PY" -I -B - \
+    "$evidence_dir/submission-manifest.json" \
+    "$evidence_dir/qsub-request.json" \
+    "$evidence_dir/qstat-after-submit.stdout" \
+    "$evidence_dir/qstat-after-submit.stderr" \
+    "$request_id" "$request_label" "$scheduler_request_id" \
+    "$submitted_utc" "$qstat_rc" <<'PY'
+import hashlib
+import json
+import os
+import sys
+from pathlib import Path
+
+(
+    manifest_path,
+    target_text,
+    qstat_stdout_text,
+    qstat_stderr_text,
+    logical_id,
+    request_label,
+scheduler_id,
+submitted_utc,
+qstat_rc_text,
+) = sys.argv[1:]
+import re
+if re.fullmatch(r"([0-9]+:)?[A-Za-z0-9._-]+", scheduler_id) is None:
+    raise SystemExit("qsub returned an unsafe request ID")
+manifest = Path(manifest_path)
+qstat_stdout = Path(qstat_stdout_text)
+qstat_stderr = Path(qstat_stderr_text)
+qstat_rc = int(qstat_rc_text)
+expected_job_name_prefix = "izanagi-"
+matched_lines = []
+for line in qstat_stdout.read_text(encoding="utf-8", errors="replace").splitlines():
+    fields = line.split()
+    if (line.startswith(scheduler_id) and len(fields) >= 2
+            and fields[0] == scheduler_id
+            and fields[1].startswith(expected_job_name_prefix)):
+        matched_lines.append(line)
+line_visible = len(matched_lines) == 1
+accepted = qstat_rc == 0 and line_visible
+document = {
+    "schema_version": "izanagi-t1259-qsub-request/v1",
+    "authority": "diagnostic-only",
+    "request_id": logical_id,
+    "request_label": request_label,
+    "scheduler_request_id": scheduler_id,
+    "submitted_utc": submitted_utc,
+    "submission_manifest_path": manifest.name,
+    "submission_manifest_sha256": hashlib.sha256(manifest.read_bytes()).hexdigest(),
+    "qstat_visibility": {
+        "accepted": accepted,
+        "request_line_visible": line_visible,
+        "matching_line_count": len(matched_lines),
+        "matched_line": matched_lines[0] if line_visible else None,
+        "request_id_at_line_start": line_visible,
+        "expected_job_name_prefix": expected_job_name_prefix,
+        "job_name_prefix_matches": line_visible,
+        "returncode": qstat_rc,
+        "stdout_path": qstat_stdout.name,
+        "stdout_sha256": hashlib.sha256(qstat_stdout.read_bytes()).hexdigest(),
+        "stderr_path": qstat_stderr.name,
+        "stderr_sha256": hashlib.sha256(qstat_stderr.read_bytes()).hexdigest(),
+    },
+}
+target = Path(target_text)
+with target.open("x", encoding="utf-8") as stream:
+    json.dump(document, stream, ensure_ascii=False, sort_keys=True, indent=2, allow_nan=False)
+    stream.write("\n")
+    stream.flush()
+    os.fsync(stream.fileno())
+if not accepted:
+    raise SystemExit(5)
 PY
 }
 
@@ -385,15 +618,23 @@ submit_request() (
     "$request_id" "$request_label" "$evidence_dir" "$export_spec" \
     "${pair_tokens[@]}"
 
-  local submitted_utc qsub_rc=0 scheduler_request_id
+  local submitted_utc qsub_rc=0 scheduler_request_id qstat_rc=0
   submitted_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-  cd "$REPO_ROOT"
-  qsub \
-    -o "$evidence_dir/pbs.stdout" \
-    -e "$evidence_dir/pbs.stderr" \
-    -v "$export_spec" \
-    "$PBS_SCRIPT" \
-    >"$evidence_dir/qsub.stdout" 2>"$evidence_dir/qsub.stderr" || qsub_rc=$?
+  verify_repo_unchanged "before $request_id qsub" || exit 2
+  # BEGIN T1259 QSUB CALL
+  if (
+    cd "$REPO_ROOT"
+    qsub \
+      -o "$evidence_dir/pbs.stdout" \
+      -e "$evidence_dir/pbs.stderr" \
+      -v "$export_spec" \
+      "$PBS_SCRIPT"
+  ) >"$evidence_dir/qsub.stdout" 2>"$evidence_dir/qsub.stderr"; then
+    qsub_rc=0
+  else
+    qsub_rc=$?
+  fi
+  # END T1259 QSUB CALL
   ( set -o noclobber; printf '%s\n' "$qsub_rc" >"$evidence_dir/qsub.rc" )
   if [[ "$qsub_rc" -ne 0 ]]; then
     echo "$request_id qsub failed; evidence=$evidence_dir" >&2
@@ -417,9 +658,26 @@ PY
     echo "$request_id qsub succeeded but request ID could not be parsed" >&2
     exit 4
   }
-  write_request_receipt \
-    "$evidence_dir" "$request_id" "$scheduler_request_id" "$submitted_utc"
+  if qstat "$scheduler_request_id" \
+      >"$evidence_dir/qstat-after-submit.stdout" \
+      2>"$evidence_dir/qstat-after-submit.stderr"; then
+    qstat_rc=0
+  else
+    qstat_rc=$?
+  fi
+  ( set -o noclobber; printf '%s\n' "$qstat_rc" \
+    >"$evidence_dir/qstat-after-submit.rc" )
+  if ! write_request_receipt \
+      "$evidence_dir" "$request_id" "$request_label" \
+      "$scheduler_request_id" "$submitted_utc" "$qstat_rc"; then
+    echo "$request_id qsub request is not visible in qstat body; evidence=$evidence_dir" >&2
+    exit 5
+  fi
 )
+
+# BEGIN T1259 GROUP INTENT AND REQUEST CALLS
+verify_repo_unchanged "before group intent" || exit 2
+write_group_intent
 
 submit_request \
   R1 with-explicit-approval sentinel-only "$R1_DIR" \
@@ -437,68 +695,32 @@ submit_request \
   R3 ambient-approval-name-only ambient-approval "$R3_DIR" \
   IZANAGI_SUBMISSION_NONCE "$R3_NONCE" \
   IZANAGI_FLOOR_JOB_EVIDENCE_ROOT "$R3_DIR"
+# END T1259 GROUP INTENT AND REQUEST CALLS
 
 "$PY" -I -B - \
-  "$ATTEMPT_ROOT" "$REPO_HEAD" "$SUBMITTER_SHA256" <<'PY'
-import datetime as dt
-import hashlib
+  "$ATTEMPT_ROOT" <<'PY'
 import json
-import os
-import socket
 import sys
 from pathlib import Path
 
 root = Path(sys.argv[1])
 requests = []
-for order, directory_name in enumerate((
+for directory_name in (
     "r1-with-explicit-approval",
     "r2-without-approval",
     "r3-ambient-approval-only",
-), start=1):
+):
     directory = root / directory_name
     receipt_path = directory / "qsub-request.json"
     receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
-    result_path = directory / "result.json"
     requests.append({
-        "submission_order": order,
         "request_id": receipt["request_id"],
         "scheduler_request_id": receipt["scheduler_request_id"],
-        "submitted_utc": receipt["submitted_utc"],
-        "evidence_directory": directory_name,
-        "submission_manifest_sha256": receipt["submission_manifest_sha256"],
-        "terminal_state": "not-observed-by-submitter",
-        "result_sha256": (
-            hashlib.sha256(result_path.read_bytes()).hexdigest()
-            if result_path.is_file() and not result_path.is_symlink() else None
-        ),
+        "qstat_visible": receipt["qstat_visibility"]["accepted"],
     })
-preflight = root / "preflight" / "preflight.json"
-document = {
-    "schema_version": "izanagi-t1259-qsub-submission-group/v1",
-    "authority": "diagnostic-only",
-    "status": "indeterminate-until-three-terminal-results-are-collected",
-    "repo_head": sys.argv[2],
-    "submitter_script_path": "tools/pegasus/probes/t1259_qsub_env_delivery_submit.sh",
-    "submitter_script_sha256": sys.argv[3],
-    "submitted_hostname": socket.gethostname(),
-    "group_manifest_created_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
-    "preflight_path": "preflight/preflight.json",
-    "preflight_sha256": hashlib.sha256(preflight.read_bytes()).hexdigest(),
-    "requests": requests,
-    "completion_rule": (
-        "the group remains indeterminate until all three scheduler terminal states "
-        "and all three prefixed stdout results and result hashes are collected"
-    ),
-}
-target = root / "submission-group-manifest.json"
-with target.open("x", encoding="utf-8") as stream:
-    json.dump(document, stream, ensure_ascii=False, sort_keys=True, indent=2, allow_nan=False)
-    stream.write("\n")
-    stream.flush()
-    os.fsync(stream.fileno())
 print(json.dumps({
-    "status": document["status"],
+    "status": "three-submissions-receipted-no-completion-judgment",
     "attempt_root": str(root),
-    "requests": [row["scheduler_request_id"] for row in requests],
+    "requests": requests,
 }, ensure_ascii=False, sort_keys=True))
 PY

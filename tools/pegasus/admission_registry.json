@@ -133,12 +133,6 @@
       "primary_gate": "compute allocation owned by t1259_qsub_env_delivery_probe.pbs",
       "evidence": "static compute-side call-site classification"
     },
-    "tools/pegasus/probes/t1259_qsub_env_delivery_submit.sh": {
-      "class": "local-ok",
-      "reason": "login-side PBS T-1259 three-request qsub environment delivery probe submitter",
-      "primary_gate": "create-only submission evidence and qsub; compute work stays in probe job bodies",
-      "evidence": "static login-side submitter classification"
-    },
     "tools/pegasus/probes/t139_positive_control_probe.pbs": {
       "class": "unknown",
       "reason": "probe artifact has no login admission ruling",

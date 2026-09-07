@@ -62,6 +62,10 @@ _MANIFEST_KEYS = {
     "repo_head",
     "probe_script_path",
     "probe_script_sha256",
+    "pbs_script_path",
+    "pbs_script_sha256",
+    "campaign_script_path",
+    "campaign_script_sha256",
     "ordered_explicit_env",
     "qsub_v_exact",
     "qsub_v_byte_length",
@@ -140,6 +144,22 @@ def _run_git(repo_root: Path, *args: str) -> str:
     return completed.stdout
 
 
+def _repo_is_detached(repo_root: Path) -> bool:
+    environment = dict(os.environ)
+    environment["GIT_OPTIONAL_LOCKS"] = "0"
+    completed = subprocess.run(
+        ["git", "-C", os.fspath(repo_root), "symbolic-ref", "-q", "HEAD"],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=environment,
+        timeout=30.0,
+    )
+    if completed.returncode not in (0, 1):
+        raise ProbeError("cannot determine whether repository HEAD is detached")
+    return completed.returncode == 1
+
+
 def _repo_snapshot(repo_root: Path) -> dict[str, Any]:
     head = _run_git(repo_root, "rev-parse", "--verify", "HEAD").strip()
     if HEX40_RE.fullmatch(head) is None:
@@ -160,8 +180,17 @@ def _repo_snapshot(repo_root: Path) -> dict[str, Any]:
     )
     return {
         "head": head,
+        "detached": _repo_is_detached(repo_root),
         "tracked_status": tracked,
         "untracked_paths": sorted(path for path in untracked_raw.split("\0") if path),
+        "source_sha256": {
+            relative: _sha256_file(repo_root / relative)
+            for relative in (
+                PROBE_RELATIVE_PATH,
+                PBS_RELATIVE_PATH,
+                CAMPAIGN_RELATIVE_PATH,
+            )
+        },
     }
 
 
@@ -204,7 +233,8 @@ def _validate_submission_manifest(
     path: Path,
     *,
     evidence_dir: Path,
-    repo_root: Path,
+    repo_snapshot: Mapping[str, Any],
+    executing_pbs_sha256: str,
 ) -> tuple[dict[str, Any], str]:
     if path.is_symlink() or not path.is_file():
         raise ProbeError("submission manifest is not a regular non-symlink file")
@@ -226,17 +256,34 @@ def _validate_submission_manifest(
         raise ProbeError("submission manifest request label is invalid")
     if HEX40_RE.fullmatch(document.get("repo_head", "")) is None:
         raise ProbeError("submission manifest repo_head is invalid")
-    actual_head = _run_git(repo_root, "rev-parse", "--verify", "HEAD").strip()
-    if document["repo_head"] != actual_head:
+    if document["repo_head"] != repo_snapshot["head"]:
         raise ProbeError("submission manifest repo_head does not match the job repository")
+    if repo_snapshot["detached"] is not True:
+        raise ProbeError("job repository HEAD is not detached")
+    if repo_snapshot["tracked_status"] != "":
+        raise ProbeError("job repository is not tracked-clean at observer start")
+    if repo_snapshot["untracked_paths"] != []:
+        raise ProbeError("job repository has untracked paths at observer start")
 
-    probe_path = repo_root / PROBE_RELATIVE_PATH
-    if document["probe_script_path"] != PROBE_RELATIVE_PATH:
-        raise ProbeError("submission manifest probe script path is invalid")
-    if HEX64_RE.fullmatch(document.get("probe_script_sha256", "")) is None:
-        raise ProbeError("submission manifest probe script sha256 is invalid")
-    if document["probe_script_sha256"] != _sha256_file(probe_path):
-        raise ProbeError("submission manifest probe script sha256 does not match")
+    source_fields = (
+        ("probe_script", PROBE_RELATIVE_PATH),
+        ("pbs_script", PBS_RELATIVE_PATH),
+        ("campaign_script", CAMPAIGN_RELATIVE_PATH),
+    )
+    for field_prefix, expected_path in source_fields:
+        if document[f"{field_prefix}_path"] != expected_path:
+            raise ProbeError(f"submission manifest {field_prefix} path is invalid")
+        expected_sha256 = document[f"{field_prefix}_sha256"]
+        if HEX64_RE.fullmatch(expected_sha256) is None:
+            raise ProbeError(f"submission manifest {field_prefix} sha256 is invalid")
+        if expected_sha256 != repo_snapshot["source_sha256"][expected_path]:
+            raise ProbeError(
+                f"submission manifest {field_prefix} sha256 does not match job source"
+            )
+    if HEX64_RE.fullmatch(executing_pbs_sha256) is None:
+        raise ProbeError("executing PBS sha256 is invalid")
+    if executing_pbs_sha256 != document["pbs_script_sha256"]:
+        raise ProbeError("executing PBS bytes do not match the submission manifest")
 
     rows = document["ordered_explicit_env"]
     expected_names = REQUEST_ENV_NAMES[request_id]
@@ -365,30 +412,42 @@ def _source_projection(
         "approval_value": approval,
         "submission_nonce_value": nonce,
     }
-    if request_id == "R1":
+    approval_bound = approval_present and nonce is not None and approval == nonce
+    if approval_bound:
         base.update({
             "projected_outcome": "approval-bound",
-            "official_approval_bound": approval_present and approval == nonce,
-            "confirm_flag_would_be_appended": approval_present and approval == nonce,
+            "official_approval_bound": True,
+            "confirm_flag_would_be_appended": True,
         })
-    elif request_id == "R2":
-        base.update({
-            "projected_outcome": "approval-unset-unbound",
-            "official_approval_bound": False,
-            "confirm_flag_would_be_appended": False,
-        })
-    elif not approval_present:
+    elif not approval_present and request_id == "R3":
         base.update({
             "projected_outcome": "ambient-approval-not-delivered-unbound",
             "official_approval_bound": False,
             "confirm_flag_would_be_appended": False,
         })
-    else:
+    elif not approval_present:
+        base.update({
+            "projected_outcome": "approval-unset-unbound",
+            "official_approval_bound": False,
+            "confirm_flag_would_be_appended": False,
+        })
+    elif request_id == "R3":
         base.update({
             "projected_outcome": "ambient-approval-delivered-submit-binding-rejects-mismatch",
             "official_approval_bound": False,
             "confirm_flag_would_be_appended": False,
         })
+    else:
+        base.update({
+            "projected_outcome": "approval-present-submit-binding-rejects-mismatch",
+            "official_approval_bound": False,
+            "confirm_flag_would_be_appended": False,
+        })
+    categorical_bound = base["projected_outcome"] == "approval-bound"
+    if (categorical_bound is not base["official_approval_bound"]
+            or base["confirm_flag_would_be_appended"]
+            is not base["official_approval_bound"]):
+        raise ProbeError("source projection categorical and boolean values disagree")
     return base
 
 
@@ -397,22 +456,42 @@ def _scratch_entries(path: Path) -> list[str]:
 
 
 def _unapproved_driver_observation(
-    *, repo_root: Path, scratch_dir: Path, python_executable: str
+    *,
+    repo_root: Path,
+    scratch_dir: Path,
+    python_executable: str,
+    expected_campaign_sha256: str,
 ) -> dict[str, Any]:
     protocol = scratch_dir / "protocol-loader-must-not-run.json"
     if os.path.lexists(protocol):
         raise ProbeError("R2 nonexistent protocol control already exists")
     before_entries = _scratch_entries(scratch_dir)
+    campaign_path = repo_root / CAMPAIGN_RELATIVE_PATH
+    campaign_sha256_before = _sha256_file(campaign_path)
+    if campaign_sha256_before != expected_campaign_sha256:
+        raise ProbeError("R2 campaign source bytes differ before driver execution")
     argv = [
         python_executable,
         "-I",
         "-B",
-        os.fspath(repo_root / CAMPAIGN_RELATIVE_PATH),
+        os.fspath(campaign_path),
         "--mode",
         "official",
         "--protocol",
         os.fspath(protocol),
     ]
+    expected_argv = (
+        python_executable,
+        "-I",
+        "-B",
+        os.fspath(campaign_path),
+        "--mode",
+        "official",
+        "--protocol",
+        os.fspath(protocol),
+    )
+    if tuple(argv) != expected_argv:
+        raise ProbeError("R2 unapproved driver argv differs from the fixed contract")
     if "--confirm-official-floor-run" in argv:
         raise ProbeError("R2 unapproved driver argv unexpectedly carries approval")
     environment = dict(os.environ)
@@ -432,6 +511,10 @@ def _unapproved_driver_observation(
         return {
             "executed": True,
             "argv": argv,
+            "argv_exact_match": tuple(argv) == expected_argv,
+            "campaign_source_sha256_expected": expected_campaign_sha256,
+            "campaign_source_sha256_before": campaign_sha256_before,
+            "campaign_source_sha256_after": _sha256_file(campaign_path),
             "approval_flag_absent": True,
             "timeout_seconds": DRIVER_TIMEOUT_SECONDS,
             "timed_out": True,
@@ -448,6 +531,10 @@ def _unapproved_driver_observation(
         return {
             "executed": True,
             "argv": argv,
+            "argv_exact_match": tuple(argv) == expected_argv,
+            "campaign_source_sha256_expected": expected_campaign_sha256,
+            "campaign_source_sha256_before": campaign_sha256_before,
+            "campaign_source_sha256_after": _sha256_file(campaign_path),
             "approval_flag_absent": True,
             "timeout_seconds": DRIVER_TIMEOUT_SECONDS,
             "timed_out": False,
@@ -460,6 +547,7 @@ def _unapproved_driver_observation(
             "accepted_as_expected_refusal": False,
         }
     after_entries = _scratch_entries(scratch_dir)
+    campaign_sha256_after = _sha256_file(campaign_path)
     lines = completed.stdout.splitlines()
     parsed: object = None
     parse_error: str | None = None
@@ -478,7 +566,10 @@ def _unapproved_driver_observation(
         and "--confirm-official-floor-run" in parsed["reason"]
     )
     accepted = (
-        completed.returncode == 2
+        tuple(argv) == expected_argv
+        and campaign_sha256_before == expected_campaign_sha256
+        and campaign_sha256_after == expected_campaign_sha256
+        and completed.returncode == 2
         and completed.stderr == ""
         and parse_error is None
         and expected_payload
@@ -488,6 +579,10 @@ def _unapproved_driver_observation(
     return {
         "executed": True,
         "argv": argv,
+        "argv_exact_match": tuple(argv) == expected_argv,
+        "campaign_source_sha256_expected": expected_campaign_sha256,
+        "campaign_source_sha256_before": campaign_sha256_before,
+        "campaign_source_sha256_after": campaign_sha256_after,
         "approval_flag_absent": "--confirm-official-floor-run" not in argv,
         "timeout_seconds": DRIVER_TIMEOUT_SECONDS,
         "timed_out": False,
@@ -546,6 +641,7 @@ def observe(
     repo_root: Path,
     scratch_dir: Path,
     pbs_job_id: str,
+    executing_pbs_sha256: str,
     environ: Mapping[str, str] | None = None,
     python_executable: str | None = None,
 ) -> tuple[dict[str, Any], Path | None]:
@@ -580,7 +676,8 @@ def observe(
         },
         "pbs_script": {
             "path": PBS_RELATIVE_PATH,
-            "sha256": _sha256_file(pbs_path),
+            "repo_file_sha256": _sha256_file(pbs_path),
+            "executing_sha256": executing_pbs_sha256,
         },
         "ordering_semantics": (
             "ordered_explicit_env is the order written into the submission qsub -v argv; "
@@ -609,7 +706,8 @@ def observe(
         manifest, manifest_sha256 = _validate_submission_manifest(
             manifest_path,
             evidence_dir=evidence_dir,
-            repo_root=repository,
+            repo_snapshot=before,
+            executing_pbs_sha256=executing_pbs_sha256,
         )
     except (OSError, ProbeError, subprocess.SubprocessError) as exc:
         errors.append(f"submission-manifest: {type(exc).__name__}: {exc}")
@@ -628,6 +726,16 @@ def observe(
             "qsub_caller_pid": manifest["qsub_caller_pid"],
             "qsub_caller_observed_utc": manifest["qsub_caller_observed_utc"],
             "qsub_hostname": manifest["qsub_hostname"],
+            "source_identity": {
+                "repo_head": manifest["repo_head"],
+                "probe_script_path": manifest["probe_script_path"],
+                "probe_script_sha256": manifest["probe_script_sha256"],
+                "pbs_script_path": manifest["pbs_script_path"],
+                "pbs_script_sha256": manifest["pbs_script_sha256"],
+                "executing_pbs_sha256": executing_pbs_sha256,
+                "campaign_script_path": manifest["campaign_script_path"],
+                "campaign_script_sha256": manifest["campaign_script_sha256"],
+            },
         }
         comparisons = _explicit_comparisons(manifest, environment)
         result["explicit_env_comparisons"] = comparisons
@@ -695,6 +803,7 @@ def observe(
                 repo_root=repository,
                 scratch_dir=scratch,
                 python_executable=python_executable or sys.executable,
+                expected_campaign_sha256=manifest["campaign_script_sha256"],
             )
             if driver_observation["accepted_as_expected_refusal"] is not True:
                 errors.append("R2 unapproved real driver did not produce the exact early refusal")
@@ -723,7 +832,10 @@ def observe(
     result["repo_state_after"] = after
     result["repo_working_tree_unchanged"] = before == after
     if before != after:
-        errors.append("repository tracked state or untracked path set changed during observation")
+        errors.append(
+            "repository HEAD/detached/clean state, untracked paths, or target source "
+            "digests changed during observation"
+        )
     result["errors"] = errors
     result["ok"] = not errors
     return result, evidence_dir if manifest is not None else None
@@ -761,6 +873,7 @@ def _argument_parser() -> argparse.ArgumentParser:
     parser.add_argument("--repo-root", type=Path, required=True)
     parser.add_argument("--scratch-dir", type=Path, required=True)
     parser.add_argument("--pbs-job-id", required=True)
+    parser.add_argument("--executing-pbs-sha256", required=True)
     return parser
 
 
@@ -772,6 +885,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             repo_root=args.repo_root,
             scratch_dir=args.scratch_dir,
             pbs_job_id=args.pbs_job_id,
+            executing_pbs_sha256=args.executing_pbs_sha256,
         )
     except BaseException as exc:
         if isinstance(exc, (KeyboardInterrupt, SystemExit)):

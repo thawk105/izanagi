@@ -4,12 +4,30 @@
 #PBS -b 1
 #PBS -l elapstim_req=00:10:00
 #PBS -N izanagi-t1259
+# Keep all evidence outside the repository. The non-executable submitter text
+# creates the nonce values and runs these exact three qsub argument shapes:
+# R1:
+#   qsub -o "$ATTEMPT_ROOT/r1-with-explicit-approval/pbs.stdout" \
+#     -e "$ATTEMPT_ROOT/r1-with-explicit-approval/pbs.stderr" \
+#     -v "IZANAGI_SUBMISSION_NONCE=$R1_NONCE,IZANAGI_CONFIRM_OFFICIAL_FLOOR_RUN=$R1_NONCE,IZANAGI_FLOOR_JOB_EVIDENCE_ROOT=$ATTEMPT_ROOT/r1-with-explicit-approval" \
+#     tools/pegasus/probes/t1259_qsub_env_delivery_probe.pbs
+# R2:
+#   qsub -o "$ATTEMPT_ROOT/r2-without-approval/pbs.stdout" \
+#     -e "$ATTEMPT_ROOT/r2-without-approval/pbs.stderr" \
+#     -v "IZANAGI_SUBMISSION_NONCE=$R2_NONCE,T1259_QSUB_SECOND_HEX=$R2_EXPLICIT_SECOND,IZANAGI_FLOOR_JOB_EVIDENCE_ROOT=$ATTEMPT_ROOT/r2-without-approval" \
+#     tools/pegasus/probes/t1259_qsub_env_delivery_probe.pbs
+# R3:
+#   qsub -o "$ATTEMPT_ROOT/r3-ambient-approval-only/pbs.stdout" \
+#     -e "$ATTEMPT_ROOT/r3-ambient-approval-only/pbs.stderr" \
+#     -v "IZANAGI_SUBMISSION_NONCE=$R3_NONCE,IZANAGI_FLOOR_JOB_EVIDENCE_ROOT=$ATTEMPT_ROOT/r3-ambient-approval-only" \
+#     tools/pegasus/probes/t1259_qsub_env_delivery_probe.pbs
 
 export GIT_OPTIONAL_LOCKS=0
-ulimit -c 0
+ulimit -c 0 || exit 2
 set -Eeuo pipefail
 umask 077
 
+# BEGIN T1259 PBS RESULT FUNCTIONS
 RESULT_PREFIX='T1259_QSUB_ENV_DELIVERY_RESULT '
 RESULT_EMITTED=0
 emit_pbs_failure() {
@@ -20,6 +38,44 @@ emit_pbs_failure() {
       "{\"authority\":\"diagnostic-only\",\"errors\":[\"pbs-shell:$code\"],\"official_campaign_executed\":false,\"ok\":false,\"probe_script\":{\"path\":\"tools/pegasus/probes/t1259_qsub_env_delivery_probe.py\",\"sha256\":null},\"request_id\":null,\"schema_version\":\"izanagi-t1259-qsub-env-delivery-result/v1\"}"
   fi
 }
+validate_observer_stdout() {
+  local output_path=$1
+  "$PY" -I -S -B - "$output_path" "$RESULT_PREFIX" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+try:
+    lines = Path(sys.argv[1]).read_bytes().decode("utf-8", "strict").splitlines()
+    if len(lines) != 1 or not lines[0].startswith(sys.argv[2]):
+        raise ValueError("expected exactly one prefixed line")
+    payload = json.loads(lines[0][len(sys.argv[2]):])
+    if type(payload) is not dict:
+        raise ValueError("prefixed JSON is not an object")
+except (OSError, UnicodeError, ValueError, json.JSONDecodeError):
+    raise SystemExit(1)
+PY
+}
+run_observer() {
+  local output_path=$1 observer_rc=0 result_line
+  shift
+  if "$@" >"$output_path"; then
+    observer_rc=0
+  else
+    observer_rc=$?
+  fi
+  if ! validate_observer_stdout "$output_path"; then
+    emit_pbs_failure invalid-observer-stdout
+    return 2
+  fi
+  IFS= read -r result_line <"$output_path" || {
+    emit_pbs_failure invalid-observer-stdout
+    return 2
+  }
+  RESULT_EMITTED=1
+  printf '%s\n' "$result_line"
+  return "$observer_rc"
+}
 fail_pbs() {
   local code=$1
   trap - ERR
@@ -27,6 +83,7 @@ fail_pbs() {
   exit 2
 }
 trap 'fail_pbs unhandled-shell-error' ERR
+# END T1259 PBS RESULT FUNCTIONS
 
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR
 unset GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
@@ -52,6 +109,11 @@ fi
 DRIVER_REL=tools/pegasus/probes/t1259_qsub_env_delivery_probe.py
 PBS_REL=tools/pegasus/probes/t1259_qsub_env_delivery_probe.pbs
 CAMPAIGN_REL=orchestrator/campaign/s8b_floor_campaign.py
+EXECUTING_PBS_SHA256=$(sha256sum -- "${BASH_SOURCE[0]}" | awk '{print $1}') \
+  || fail_pbs executing-pbs-hash-unavailable
+if [[ ! "$EXECUTING_PBS_SHA256" =~ ^[0-9a-f]{64}$ ]]; then
+  fail_pbs executing-pbs-hash-invalid
+fi
 for relative in "$DRIVER_REL" "$PBS_REL" "$CAMPAIGN_REL"; do
   candidate="$REPO_ROOT/$relative"
   if [[ ! -f "$candidate" || -L "$candidate" ]]; then
@@ -87,14 +149,18 @@ if [[ -z "$PY" ]]; then
 fi
 
 cd "$TMPDIR" || fail_pbs scratch-chdir-failed
-set +e
-"$PY" -I -B -u "$REPO_ROOT/$DRIVER_REL" \
+# BEGIN T1259 PBS OBSERVER CALL
+PROBE_STDOUT="$TMPDIR/observer.stdout"
+if run_observer "$PROBE_STDOUT" \
+  "$PY" -I -B -u "$REPO_ROOT/$DRIVER_REL" \
   --repo-root "$REPO_ROOT" \
   --scratch-dir "$TMPDIR" \
-  --pbs-job-id "$PBS_JOBID"
-PROBE_RC=$?
-set -e
+  --pbs-job-id "$PBS_JOBID" \
+  --executing-pbs-sha256 "$EXECUTING_PBS_SHA256"; then
+  PROBE_RC=0
+else
+  PROBE_RC=$?
+fi
+# END T1259 PBS OBSERVER CALL
 
-# Python emits the one authoritative prefixed result line on every handled path.
-RESULT_EMITTED=1
 exit "$PROBE_RC"
