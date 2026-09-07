@@ -78,6 +78,9 @@ EXPECTED_PATCH_A_SHA256 = (
     "9b2153e0547e167888ba2616750951365c4a075a80f9a95be6000e60b6f8f54b"
 )
 PREREGISTRATION = ROOT / "docs" / "dynamic-backoff-preregistration.md"
+COUNTERFACTUAL_PREREGISTRATION = (
+    ROOT / "docs" / "backoff-counterfactual-preregistration.md"
+)
 PBS_DRIVER = Path(__file__).with_suffix(".pbs").resolve()
 DYNAMIC_OUT_PREFIX = Path(
     "/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/"
@@ -511,6 +514,15 @@ def _nonnegative_int(text: str) -> int:
     return value
 
 
+def _uint64_decimal(text: str) -> int:
+    if type(text) is not str or _INTEGER_RE.fullmatch(text) is None:
+        raise argparse.ArgumentTypeError("must be an ASCII decimal uint64")
+    value = int(text)
+    if value >= 2**64:
+        raise argparse.ArgumentTypeError("must be smaller than 2**64")
+    return value
+
+
 def _positive_int(text: str) -> int:
     value = int(text)
     if value <= 0:
@@ -560,7 +572,12 @@ def isolated_checkout(submodule: Path, pin_commit: str):
         assert_pinned_clean(str(path), pin_commit)
 
 
-def genome_for(cell: Cell, *, backoff_trace: bool = False) -> Genome:
+def genome_for(
+    cell: Cell,
+    *,
+    backoff_trace: bool = False,
+    step_policy_seed: int | None = None,
+) -> Genome:
     flags = {
         **BASE,
         "BACK_OFF": cell.back_off,
@@ -581,7 +598,11 @@ def genome_for(cell: Cell, *, backoff_trace: bool = False) -> Genome:
     if cell.has_step_policy:
         flags.update(
             BACKOFF_STEP_POLICY=cell.step_policy,
-            BACKOFF_STEP_POLICY_SEED=STOCK_STEP_POLICY_SEED,
+            BACKOFF_STEP_POLICY_SEED=(
+                step_policy_seed
+                if cell.step_policy == 2 and step_policy_seed is not None
+                else STOCK_STEP_POLICY_SEED
+            ),
         )
     return Genome("silo", flags)
 
@@ -813,6 +834,15 @@ def _prereg_sha256() -> str:
     if not PREREGISTRATION.is_file():
         raise FileNotFoundError(f"preregistration is missing: {PREREGISTRATION}")
     return hashlib.sha256(PREREGISTRATION.read_bytes()).hexdigest()
+
+
+def _counterfactual_prereg_sha256() -> str:
+    if not COUNTERFACTUAL_PREREGISTRATION.is_file():
+        raise FileNotFoundError(
+            "counterfactual preregistration is missing: "
+            f"{COUNTERFACTUAL_PREREGISTRATION}"
+        )
+    return hashlib.sha256(COUNTERFACTUAL_PREREGISTRATION.read_bytes()).hexdigest()
 
 
 def _validate_dynamic_output_path(out: Path) -> None:
@@ -2659,6 +2689,7 @@ def _argument_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--rep-index", type=_nonnegative_int, default=0)
     parser.add_argument("--reps-per-job", type=_positive_int, default=1)
+    parser.add_argument("--step-policy-seed", type=_uint64_decimal)
     parser.add_argument("--stage", type=int, choices=(1, 2, 3), default=1)
     parser.add_argument("--extime", type=_positive_int, default=EXTIME)
     parser.add_argument(
@@ -2725,15 +2756,57 @@ def _validate_backoff_trace_contract(
 
 
 def _artifact_contract_metadata(
-    *, backoff_trace: bool, cells_text: str
+    *,
+    backoff_trace: bool,
+    cells_text: str,
+    workloads_text: str,
+    threads_text: str,
+    rep_index: int,
+    reps_per_job: int,
+    extime: int,
 ) -> dict:
     metadata = {
         "schema_version": (
             TRACE_SCHEMA_VERSION if backoff_trace else SCHEMA_VERSION
         )
     }
-    if cells_text == COUNTERFACTUAL_TRACE_CELLS_TEXT:
-        metadata["counterfactual_preregistration"] = "pending"
+    if (
+        backoff_trace is True
+        and cells_text == COUNTERFACTUAL_TRACE_CELLS_TEXT
+        and workloads_text == ",".join(TRACE_WORKLOADS)
+        and threads_text == ",".join(str(value) for value in TRACE_THREADS)
+        and rep_index == 0
+        and reps_per_job == 1
+        and extime == 3
+    ):
+        metadata["counterfactual_preregistration"] = (
+            _counterfactual_prereg_sha256()
+        )
+    return metadata
+
+
+def _validate_step_policy_seed(
+    cells: tuple[Cell, ...], step_policy_seed: int | None
+) -> None:
+    if any(cell.step_policy == 2 for cell in cells) and step_policy_seed is None:
+        raise ValueError(
+            "--step-policy-seed is required when a policy 2 cell is present"
+        )
+
+
+def _counterfactual_row_metadata(
+    *,
+    preregistration_sha256: str | None,
+    cell: Cell,
+    step_policy_seed: int | None,
+) -> dict:
+    metadata = {}
+    if preregistration_sha256 is not None:
+        metadata["counterfactual_preregistration"] = preregistration_sha256
+    if cell.step_policy == 2:
+        if step_policy_seed is None:
+            raise ValueError("policy 2 row cannot be recorded without its seed")
+        metadata["step_policy_seed"] = step_policy_seed
     return metadata
 
 
@@ -3168,6 +3241,8 @@ def _certify_main(args: argparse.Namespace) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     args = _argument_parser().parse_args(argv)
+    cells = parse_cells(args.cells)
+    _validate_step_policy_seed(cells, args.step_policy_seed)
     if args.backoff_trace and args.mode == "certify":
         raise CertificationReject(
             "backoff-trace-certification-conflict",
@@ -3175,7 +3250,6 @@ def main(argv: list[str] | None = None) -> int:
         )
     if args.mode == "certify":
         return _certify_main(args)
-    cells = parse_cells(args.cells)
     workloads = _parse_workloads(args.workloads)
     threads_axis = _parse_threads(args.threads)
     out = Path(args.out)
@@ -3223,7 +3297,13 @@ def main(argv: list[str] | None = None) -> int:
 
     payload = {
         **_artifact_contract_metadata(
-            backoff_trace=args.backoff_trace, cells_text=args.cells
+            backoff_trace=args.backoff_trace,
+            cells_text=args.cells,
+            workloads_text=args.workloads,
+            threads_text=args.threads,
+            rep_index=args.rep_index,
+            reps_per_job=args.reps_per_job,
+            extime=args.extime,
         ),
         "kind": (
             "diagnostic-backoff-trace"
@@ -3266,13 +3346,19 @@ def main(argv: list[str] | None = None) -> int:
         "started_utc": started_utc,
         ("trace_runs" if args.backoff_trace else "cells"): [],
     }
+    if any(cell.step_policy == 2 for cell in cells):
+        payload["step_policy_seed"] = args.step_policy_seed
 
     with isolated_checkout(submodule, CURRENT_PIN) as work_root:
         with _applied_patch_stack(work_root):
             build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
             built = []
             for cell in cells:
-                genome = genome_for(cell, backoff_trace=args.backoff_trace)
+                genome = genome_for(
+                    cell,
+                    backoff_trace=args.backoff_trace,
+                    step_policy_seed=args.step_policy_seed,
+                )
                 evidence = source_digest.resolve_evidence(
                     genome,
                     CURRENT_PIN,
@@ -3360,6 +3446,13 @@ def main(argv: list[str] | None = None) -> int:
                         )
                         row = {
                             **_cell_identity(cell),
+                            **_counterfactual_row_metadata(
+                                preregistration_sha256=payload.get(
+                                    "counterfactual_preregistration"
+                                ),
+                                cell=cell,
+                                step_policy_seed=args.step_policy_seed,
+                            ),
                             "hostname": payload["hostname"],
                             "repo_head": repo_head,
                             "prereg_sha256": prereg_sha256,
@@ -3384,8 +3477,6 @@ def main(argv: list[str] | None = None) -> int:
                             "run_cmd": point.run_cmd,
                             "measured_utc": datetime.now(timezone.utc).isoformat(),
                         }
-                        if args.cells == COUNTERFACTUAL_TRACE_CELLS_TEXT:
-                            row["counterfactual_preregistration"] = "pending"
                         if args.backoff_trace:
                             events, summary, directional = _parse_backoff_trace(
                                 "".join(stdout_chunks)
