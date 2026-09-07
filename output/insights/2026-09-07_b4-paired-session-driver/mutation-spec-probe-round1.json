@@ -1,0 +1,106 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "MUT-B4PAIR-01-SINGLE-DENOMINATOR",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "    gain_2 = candidate_2 / reference_2 - 1.0\n",
+          "new": "    gain_2 = candidate_2 / reference_1 - 1.0\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-B4PAIR-02-MID-PROBE-NOT-GATING-RUN",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "    elif mid_probe[\"status\"] != \"clear\":\n",
+          "new": "    elif False:\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-B4PAIR-03-MID-PROBE-NOT-GATING-FINALIZE",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "    if mid_probe[\"status\"] == \"competing\":\n        return \"mid_probe_competing\", \"mid probe detected competing process\"\n",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "id": "MUT-B4PAIR-04-REFERENCE-COUNT-UNFROZEN",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "    if reference_count != REFERENCE_MEASUREMENTS_PER_PAIR_SAMPLE:\n",
+          "new": "    if False:\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-B4PAIR-05-DIFFERENCE-FORMULA-UNFROZEN",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "    if difference_formula != DIFFERENCE_FORMULA:\n",
+          "new": "    if False:\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-B4PAIR-06-EXACT-TWO-MEASUREMENTS",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "    if list(measurement_outcomes) != [\"complete\", \"complete\"]:\n",
+          "new": "    if False:\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-B4PAIR-07-SPEC-SCHEMA-UNCHECKED",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "    if schema != SPEC_SCHEMA:\n",
+          "new": "    if False:\n"
+        }
+      ]
+    }
+  ]
+}

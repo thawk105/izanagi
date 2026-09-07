@@ -1,0 +1,22 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 600,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 1200,
+  "mutations": [
+    {
+      "id": "m08",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "                or type(row.get(\"execution_host\")) is not str \\\n                or not row.get(\"execution_host\") \\\n                or type(row.get(\"variant_id\")) is not str \\\n                or re.fullmatch(r\"[0-9a-f]{12}\", row[\"variant_id\"]) is None \\\n                or row.get(\"preregistration_binding\") != expected_binding \\\n",
+          "new": "                or type(row.get(\"variant_id\")) is not str \\\n                or re.fullmatch(r\"[0-9a-f]{12}\", row[\"variant_id\"]) is None \\\n                or row.get(\"preregistration_binding\") != expected_binding \\\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

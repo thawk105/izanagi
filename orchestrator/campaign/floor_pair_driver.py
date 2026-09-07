@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
 """B-4 floor の対照対を凍結 spec どおりに測る専用 driver。
 
-この module は、同一 candidate の二つの独立 session と一つの共通 reference
-session から ``D = |gain_1 - gain_2|`` を作り、閉じた stratum の最大だけを
-create-only 成果物へ記録する。汎用測定基盤ではなく、統計関数、session 構成、
-runner 引数を閉じた専用 adapter である。
+この module は、同一 candidate の二つの独立 side session を作り、各 side の
+``pre probe -> measurement 1 -> mid probe -> measurement 2 -> post probe`` 区間で
+candidate と reference を各 1 回測る。side ごとの reference を分母にした
+``D = abs((median(candidate_1) / median(reference_1) - 1) -
+          (median(candidate_2) / median(reference_2) - 1))`` を作り、閉じた stratum の
+最大だけを create-only 成果物へ記録する。汎用測定基盤ではなく、統計関数、
+session 構成、runner 引数を閉じた専用 adapter である。
 
 証明していないこと
 
@@ -16,6 +19,8 @@ runner 引数を閉じた専用 adapter である。
 * ``nm`` の PATH 解決先を binary identity として束縛しない。
 * 落ちた標本による残存標本数の減少を許容限界の被覆確率へ補正せず、残存標本で 95% 被覆を保つことを証明しない。
 * campaign 合算の 5% は pair 間の欠測の偏りを制限しない (stratum ごとの件数は報告する)。
+* 凍結項目の一致検査は同一 revision 内の自己整合を示すだけであり、定数が D1699 の裁定値であることを証明しない。独立な pin も freeze receipt も無い。
+* 測定実体は module 属性であり、同一 process 内でこれを差し替える経路は防がない。
 """
 from __future__ import annotations
 
@@ -48,10 +53,10 @@ from . import (
 )
 
 
-SPEC_SCHEMA = "floor-pair-spec/v2"
-PLAN_SCHEMA = "floor-pair-plan/v1"
-WINDOW_SCHEMA = "floor-pair-window/v2"
-SUMMARY_SCHEMA = "floor-pair-summary/v2"
+SPEC_SCHEMA = "floor-pair-spec/v3"
+PLAN_SCHEMA = "floor-pair-plan/v2"
+WINDOW_SCHEMA = "floor-pair-window/v3"
+SUMMARY_SCHEMA = "floor-pair-summary/v3"
 RANDOMIZATION_ID = "hmac-sha256-rank/v1"
 SESSION_REDUCER_ID = "median/v1"
 STRATUM_UPPER_ID = "sample_max/v1"
@@ -62,6 +67,11 @@ MAX_DROPPED_FRACTION_WIRE = "1/20"
 WINDOW_FORMAT_ID = "floor-pair-jsonl/v1"
 SUMMARY_FORMAT_ID = "floor-pair-summary-json/v1"
 COMPETING_PROBE_ARGV = ("pgrep", "-af", r"ycsb_.*\.exe")
+REFERENCE_MEASUREMENTS_PER_PAIR_SAMPLE = 2
+DIFFERENCE_FORMULA = (
+    "D=abs((median(candidate_1)/median(reference_1)-1)-"
+    "(median(candidate_2)/median(reference_2)-1))"
+)
 _GIT_TIMEOUT_S = 10
 
 NOT_PROVEN = (
@@ -73,6 +83,8 @@ NOT_PROVEN = (
     "``nm`` の PATH 解決先を binary identity として束縛しない。",
     "落ちた標本による残存標本数の減少を許容限界の被覆確率へ補正せず、残存標本で 95% 被覆を保つことを証明しない。",
     "campaign 合算の 5% は pair 間の欠測の偏りを制限しない (stratum ごとの件数は報告する)。",
+    "凍結項目の一致検査は同一 revision 内の自己整合を示すだけであり、定数が D1699 の裁定値であることを証明しない。独立な pin も freeze receipt も無い。",
+    "測定実体は module 属性であり、同一 process 内でこれを差し替える経路は防がない。",
 )
 
 _HEX64_RE = re.compile(r"[0-9a-f]{64}")
@@ -81,12 +93,15 @@ _ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}")
 _WORKLOAD_KEYS = frozenset(
     {"ycsb_zipf_skew", "ycsb_rratio", "ycsb_rmw"}
 )
-_ROLES = ("candidate_1", "candidate_2", "reference")
+_SIDE_IDS = ("candidate_1", "candidate_2")
+_MEASUREMENT_ROLES = ("candidate", "reference")
 SESSION_STATUSES = frozenset(
     {
         "complete",
         "pre_probe_competing",
         "pre_probe_indeterminate",
+        "mid_probe_competing",
+        "mid_probe_indeterminate",
         "measure_failed",
         "measure_incomplete",
         "post_probe_competing",
@@ -103,6 +118,8 @@ DROPPABLE_STATUSES = frozenset(
     {
         "pre_probe_competing",
         "pre_probe_indeterminate",
+        "mid_probe_competing",
+        "mid_probe_indeterminate",
         "measure_failed",
         "measure_incomplete",
         "post_probe_competing",
@@ -223,6 +240,8 @@ class StatisticsConfig:
     stratum_upper: str
     closed_strata: tuple[tuple[str, str], ...]
     final_combiner: str
+    reference_measurements_per_pair_sample: int
+    difference_formula: str
 
 
 @dataclass(frozen=True)
@@ -260,6 +279,14 @@ class FloorPairSpec:
 
 
 @dataclass(frozen=True)
+class PlannedMeasurement:
+    measurement_id: str
+    role: str
+    artifact_id: str
+    order_index: int
+
+
+@dataclass(frozen=True)
 class PlannedSession:
     session_id: str
     window_id: str
@@ -267,8 +294,8 @@ class PlannedSession:
     pair_id: str
     cell_id: str
     sample_index: int
-    role: str
-    artifact_id: str
+    side_id: str
+    measurements: tuple[PlannedMeasurement, ...]
     schedule_index: int
 
 
@@ -284,7 +311,7 @@ class MeasurementPlan:
 
 @dataclass(frozen=True)
 class MeasurementRequest:
-    session_id: str
+    measurement_id: str
     binary_path: str
     perf_config: FrozenPerfConfig
     clocks_per_us: int
@@ -296,7 +323,7 @@ class MeasurementRequest:
 
 @dataclass(frozen=True)
 class MeasurementResult:
-    session_id: str
+    measurement_id: str
     point_records: int
     point_threads: int
     throughputs: tuple[float, ...]
@@ -780,7 +807,7 @@ def _parse_pairs(value: object) -> tuple[PairConfig, ...]:
                     ),
                 )
             )
-        if {side.side_id for side in sides} != {"candidate_1", "candidate_2"}:
+        if {side.side_id for side in sides} != set(_SIDE_IDS):
             raise FloorPairSpecError(f"{label}.sides の ID は candidate_1/2 exact でなければならない")
         if sides[0].candidate_artifact_id != sides[1].candidate_artifact_id:
             raise FloorPairSpecError(f"{label}.sides は同一 candidate artifact を共有しなければならない")
@@ -871,7 +898,14 @@ def _parse_randomization(value: object) -> RandomizationConfig:
 def _parse_statistics(value: object) -> StatisticsConfig:
     obj = _exact_object(
         value,
-        {"session_reducer", "stratum_upper", "closed_strata", "final_combiner"},
+        {
+            "session_reducer",
+            "stratum_upper",
+            "closed_strata",
+            "final_combiner",
+            "reference_measurements_per_pair_sample",
+            "difference_formula",
+        },
         label="statistics",
     )
     reducer = _exact_text(obj["session_reducer"], label="statistics.session_reducer")
@@ -883,6 +917,23 @@ def _parse_statistics(value: object) -> StatisticsConfig:
         raise FloorPairSpecError(f"statistics.stratum_upper は {STRATUM_UPPER_ID!r} でなければならない")
     if final_combiner != FINAL_COMBINER_ID:
         raise FloorPairSpecError(f"statistics.final_combiner は {FINAL_COMBINER_ID!r} でなければならない")
+    reference_count = _exact_int(
+        obj["reference_measurements_per_pair_sample"],
+        label="statistics.reference_measurements_per_pair_sample",
+        minimum=0,
+    )
+    if reference_count != REFERENCE_MEASUREMENTS_PER_PAIR_SAMPLE:
+        raise FloorPairSpecError(
+            "statistics.reference_measurements_per_pair_sample は "
+            f"exact {REFERENCE_MEASUREMENTS_PER_PAIR_SAMPLE} でなければならない"
+        )
+    difference_formula = _exact_text(
+        obj["difference_formula"], label="statistics.difference_formula"
+    )
+    if difference_formula != DIFFERENCE_FORMULA:
+        raise FloorPairSpecError(
+            f"statistics.difference_formula は {DIFFERENCE_FORMULA!r} でなければならない"
+        )
     strata_raw = _exact_list(obj["closed_strata"], label="statistics.closed_strata", allow_empty=False)
     strata: list[tuple[str, str]] = []
     for index, item in enumerate(strata_raw):
@@ -901,6 +952,8 @@ def _parse_statistics(value: object) -> StatisticsConfig:
         stratum_upper=stratum_upper,
         closed_strata=tuple(strata),
         final_combiner=final_combiner,
+        reference_measurements_per_pair_sample=reference_count,
+        difference_formula=difference_formula,
     )
 
 
@@ -1254,39 +1307,101 @@ def make_measurement_plan(spec: FloorPairSpec) -> MeasurementPlan:
         for pair_id, sample_index in samples:
             pair = pair_index[pair_id]
             candidate_artifact = _pair_candidate_artifact(pair)
-            roles = list(_ROLES)
-            roles.sort(
-                key=lambda role: _hmac_rank(
+            side_by_id = {side.side_id: side for side in pair.sides}
+            side_ids = list(_SIDE_IDS)
+            side_ids.sort(
+                key=lambda side_id: _hmac_rank(
                     seed,
                     (
                         spec.schema, spec.spec_sha256, window.window_id,
-                        pair_id, sample_index, role,
+                        pair_id, sample_index, "side-session", side_id,
                     ),
                 )
             )
-            for role in roles:
-                artifact_id = (
-                    pair.reference_artifact_id
-                    if role == "reference"
-                    else candidate_artifact
-                )
-                session_id = (
-                    f"{window.window_id}.{pair_id}.s{sample_index:06d}.{role}"
-                )
-                sessions.append(
-                    PlannedSession(
-                        session_id=session_id,
-                        window_id=window.window_id,
-                        campaign_id=window.campaign_id,
-                        pair_id=pair_id,
-                        cell_id=pair.cell_id,
-                        sample_index=sample_index,
-                        role=role,
-                        artifact_id=artifact_id,
-                        schedule_index=schedule_index,
+            sample_sessions: list[PlannedSession] = []
+            for side_id in side_ids:
+                roles = list(_MEASUREMENT_ROLES)
+                roles.sort(
+                    key=lambda role: _hmac_rank(
+                        seed,
+                        (
+                            spec.schema,
+                            spec.spec_sha256,
+                            window.window_id,
+                            pair_id,
+                            sample_index,
+                            "in-session-measurement",
+                            side_id,
+                            role,
+                        ),
                     )
                 )
+                session_id = (
+                    f"{window.window_id}.{pair_id}.s{sample_index:06d}.{side_id}"
+                )
+                measurements = tuple(
+                    PlannedMeasurement(
+                        measurement_id=f"{session_id}.{role}",
+                        role=role,
+                        artifact_id=(
+                            pair.reference_artifact_id
+                            if role == "reference"
+                            else side_by_id[side_id].candidate_artifact_id
+                        ),
+                        order_index=order_index,
+                    )
+                    for order_index, role in enumerate(roles)
+                )
+                session = PlannedSession(
+                    session_id=session_id,
+                    window_id=window.window_id,
+                    campaign_id=window.campaign_id,
+                    pair_id=pair_id,
+                    cell_id=pair.cell_id,
+                    sample_index=sample_index,
+                    side_id=side_id,
+                    measurements=measurements,
+                    schedule_index=schedule_index,
+                )
+                sessions.append(session)
+                sample_sessions.append(session)
                 schedule_index += 1
+            sample_measurements = [
+                measurement
+                for session in sample_sessions
+                for measurement in session.measurements
+            ]
+            if (
+                len(sample_sessions) != 2
+                or {session.side_id for session in sample_sessions} != set(_SIDE_IDS)
+                or any(len(session.measurements) != 2 for session in sample_sessions)
+                or len(sample_measurements) != 4
+                or sum(
+                    measurement.role == "reference"
+                    for measurement in sample_measurements
+                )
+                != REFERENCE_MEASUREMENTS_PER_PAIR_SAMPLE
+                or any(
+                    {measurement.role for measurement in session.measurements}
+                    != set(_MEASUREMENT_ROLES)
+                    for session in sample_sessions
+                )
+                or any(
+                    measurement.artifact_id != candidate_artifact
+                    for session in sample_sessions
+                    for measurement in session.measurements
+                    if measurement.role == "candidate"
+                )
+                or any(
+                    measurement.artifact_id != pair.reference_artifact_id
+                    for session in sample_sessions
+                    for measurement in session.measurements
+                    if measurement.role == "reference"
+                )
+            ):
+                raise FloorPairSpecError(
+                    f"pair sample {window.window_id}/{pair_id}/{sample_index} の plan が不完備"
+                )
     plan_payload = {
         "schema": PLAN_SCHEMA,
         "spec_sha256": spec.spec_sha256,
@@ -1347,16 +1462,19 @@ def _finite_nonnegative(value: object, *, label: str) -> float:
 
 
 def compute_gain_difference(
+    *,
     candidate_1_tps: float,
+    reference_1_tps: float,
     candidate_2_tps: float,
-    reference_tps: float,
+    reference_2_tps: float,
 ) -> GainDifference:
-    """一つの共通 reference を分母として二つの相対利得の差を返す。"""
+    """side ごとの reference を分母として二つの相対利得の差を返す。"""
     candidate_1 = _finite_nonnegative(candidate_1_tps, label="candidate_1_tps")
     candidate_2 = _finite_nonnegative(candidate_2_tps, label="candidate_2_tps")
-    reference = _finite_positive(reference_tps, label="reference_tps")
-    gain_1 = candidate_1 / reference - 1.0
-    gain_2 = candidate_2 / reference - 1.0
+    reference_1 = _finite_positive(reference_1_tps, label="reference_1_tps")
+    reference_2 = _finite_positive(reference_2_tps, label="reference_2_tps")
+    gain_1 = candidate_1 / reference_1 - 1.0
+    gain_2 = candidate_2 / reference_2 - 1.0
     difference = abs(gain_1 - gain_2)
     if not all(math.isfinite(value) for value in (gain_1, gain_2, difference)):
         raise ValueError("gain または D が非有限になった")
@@ -1437,7 +1555,7 @@ def _measure_with_runner(request: MeasurementRequest) -> MeasurementResult:
     if not isinstance(point, ScalePoint):
         raise FloorPairRunError("measure_point が ScalePoint を返さない", status="measure_failed")
     return MeasurementResult(
-        session_id=request.session_id,
+        measurement_id=request.measurement_id,
         point_records=point.records,
         point_threads=point.threads,
         throughputs=tuple(point.throughputs),
@@ -1624,7 +1742,7 @@ def _measurement_payload_complete(
     expected_reps: int,
     role: str,
 ) -> tuple[bool, str | None, str | None]:
-    if role not in _ROLES:
+    if role not in _MEASUREMENT_ROLES:
         return False, "未知の measurement role", None
     protocol_error = _throughput_protocol_violation(throughputs, role=role)
     observation_values = [
@@ -1700,8 +1818,8 @@ def _measurement_complete(
 ) -> tuple[bool, str | None, str | None]:
     if not isinstance(result, MeasurementResult):
         return False, "production measurement adapter が MeasurementResult を返さない", None
-    if result.session_id != request.session_id:
-        return False, "MeasurementResult.session_id 不一致", None
+    if result.measurement_id != request.measurement_id:
+        return False, "MeasurementResult.measurement_id 不一致", None
     if result.point_records != request.perf_config.records:
         return False, "ScalePoint.records 不一致", None
     if result.point_threads != request.perf_config.threads:
@@ -1725,8 +1843,7 @@ def _session_record_base(session: PlannedSession) -> dict[str, object]:
         "pair_id": session.pair_id,
         "cell_id": session.cell_id,
         "sample_index": session.sample_index,
-        "role": session.role,
-        "artifact_id": session.artifact_id,
+        "side_id": session.side_id,
         "schedule_index": session.schedule_index,
         "dropped_by_session_id": None,
     }
@@ -1738,12 +1855,9 @@ def _not_run_record(session: PlannedSession, now_fn: Callable[[], datetime]) -> 
     record.update(
         {
             "status": "not_run_after_fail_closed",
-            "throughputs": [],
-            "rep_returncodes": [],
-            "rep_observations": [],
-            "rep_timestamps": [],
-            "binary_sha256": None,
+            "measurements": [],
             "pre_probe": None,
+            "mid_probe": None,
             "post_probe": None,
             "started_at": observed,
             "finished_at": observed,
@@ -1764,12 +1878,9 @@ def _sample_dropped_record(
     record.update(
         {
             "status": "not_run_sample_dropped",
-            "throughputs": [],
-            "rep_returncodes": [],
-            "rep_observations": [],
-            "rep_timestamps": [],
-            "binary_sha256": None,
+            "measurements": [],
             "pre_probe": None,
+            "mid_probe": None,
             "post_probe": None,
             "started_at": observed,
             "finished_at": observed,
@@ -1778,6 +1889,137 @@ def _sample_dropped_record(
         }
     )
     return record
+
+
+def _unattempted_measurement_record(
+    measurement: PlannedMeasurement,
+    artifact: ArtifactConfig,
+    *,
+    reason: str,
+) -> dict[str, object]:
+    return {
+        "measurement_id": measurement.measurement_id,
+        "role": measurement.role,
+        "artifact_id": measurement.artifact_id,
+        "order_index": measurement.order_index,
+        "binary_sha256": artifact.binary_sha256,
+        "throughputs": [],
+        "rep_returncodes": [],
+        "rep_observations": [],
+        "rep_timestamps": [],
+        "started_at": None,
+        "finished_at": None,
+        "error": reason,
+    }
+
+
+def _run_planned_measurement(
+    *,
+    spec: FloorPairSpec,
+    session: PlannedSession,
+    measurement: PlannedMeasurement,
+    artifact: ArtifactConfig,
+    binary: Path,
+    cell: CellConfig,
+    now_fn: Callable[[], datetime],
+) -> tuple[dict[str, object], str]:
+    started = _format_utc(now_fn())
+    request = MeasurementRequest(
+        measurement_id=measurement.measurement_id,
+        binary_path=str(binary),
+        perf_config=cell.perf_config,
+        clocks_per_us=spec.environment.clocks_per_us,
+        numactl_argv=spec.environment.numactl_argv,
+        use_perf=spec.environment.use_perf,
+        timeout_s=spec.environment.timeout_s,
+        extra_env=spec.environment.extra_env,
+    )
+    result: MeasurementResult | None = None
+    adapter_error: str | None = None
+    try:
+        result = _measure_with_runner(request)
+    except Exception as exc:
+        adapter_error = f"{type(exc).__name__}: {str(exc)[:500]}"
+    outcome = "complete"
+    error = adapter_error
+    if result is None:
+        outcome = "failed"
+        if error is None:
+            error = "measurement result がない"
+    else:
+        complete, incomplete_reason, protocol_reason = _measurement_complete(
+            result,
+            request,
+            role=measurement.role,
+        )
+        if protocol_reason is not None:
+            outcome = "protocol"
+            error = protocol_reason
+        elif len(result.throughputs) == 0:
+            outcome = "failed"
+            error = incomplete_reason or "measurement result が空"
+        elif not complete:
+            outcome = "incomplete"
+            error = incomplete_reason or "measurement payload が不完備"
+        else:
+            error = None
+    record = {
+        "measurement_id": measurement.measurement_id,
+        "role": measurement.role,
+        "artifact_id": measurement.artifact_id,
+        "order_index": measurement.order_index,
+        "binary_sha256": artifact.binary_sha256,
+        "throughputs": [] if result is None else _json_safe(result.throughputs),
+        "rep_returncodes": (
+            [] if result is None else _json_safe(result.rep_returncodes)
+        ),
+        "rep_observations": (
+            [] if result is None else _json_safe(result.rep_observations)
+        ),
+        "rep_timestamps": (
+            [] if result is None else _json_safe(result.rep_timestamps)
+        ),
+        "started_at": started,
+        "finished_at": _format_utc(now_fn()),
+        "error": error,
+    }
+    return record, outcome
+
+
+def _session_outcome(
+    *,
+    pre_probe: Mapping[str, object],
+    mid_probe: Mapping[str, object],
+    post_probe: Mapping[str, object],
+    measurement_outcomes: Sequence[str],
+    measurement_errors: Sequence[object],
+) -> tuple[str, str | None]:
+    if pre_probe["status"] == "competing":
+        return "pre_probe_competing", "pre probe detected competing process"
+    if pre_probe["status"] == "indeterminate":
+        return "pre_probe_indeterminate", str(pre_probe["error"])
+    for outcome, error in zip(measurement_outcomes, measurement_errors, strict=True):
+        if outcome == "protocol":
+            return "protocol_violation", str(error)
+    if mid_probe["status"] == "competing":
+        return "mid_probe_competing", "mid probe detected competing process"
+    if mid_probe["status"] == "indeterminate":
+        return "mid_probe_indeterminate", str(mid_probe["error"])
+    if post_probe["status"] == "competing":
+        return "post_probe_competing", "post probe detected competing process"
+    if post_probe["status"] == "indeterminate":
+        return "post_probe_indeterminate", str(post_probe["error"])
+    for outcome, error in zip(measurement_outcomes, measurement_errors, strict=True):
+        if outcome == "failed":
+            return "measure_failed", str(error)
+        if outcome == "incomplete":
+            return "measure_incomplete", str(error)
+    if list(measurement_outcomes) != ["complete", "complete"]:
+        raise FloorPairRunError(
+            "side session の exact 2 measurement が完備でない",
+            status="protocol_violation",
+        )
+    return "complete", None
 
 
 def _run_planned_session(
@@ -1790,13 +2032,7 @@ def _run_planned_session(
 ) -> dict[str, object]:
     artifacts = {artifact.artifact_id: artifact for artifact in spec.artifacts}
     cells = {cell.cell_id: cell for cell in spec.cells}
-    artifact = artifacts[session.artifact_id]
     cell = cells[session.cell_id]
-    binary = _resolve_regular(
-        spec.repo_root,
-        artifact.binary_relpath,
-        label=f"session {session.session_id} binary",
-    )
     record = _session_record_base(session)
     started = now_fn()
     if started < window.not_before or started >= window.not_after:
@@ -1804,12 +2040,9 @@ def _run_planned_session(
         record.update(
             {
                 "status": "outside_window",
-                "throughputs": [],
-                "rep_returncodes": [],
-                "rep_observations": [],
-                "rep_timestamps": [],
-                "binary_sha256": None,
+                "measurements": [],
                 "pre_probe": None,
+                "mid_probe": None,
                 "post_probe": None,
                 "started_at": observed,
                 "finished_at": observed,
@@ -1817,19 +2050,25 @@ def _run_planned_session(
             }
         )
         return record
+    bound: dict[str, tuple[ArtifactConfig, Path]] = {}
     try:
-        buildcache.assert_binary_sha256(str(binary), artifact.binary_sha256)
-        buildcache._assert_no_trace_symbols(str(binary))
+        for measurement in session.measurements:
+            artifact = artifacts[measurement.artifact_id]
+            binary = _resolve_regular(
+                spec.repo_root,
+                artifact.binary_relpath,
+                label=f"measurement {measurement.measurement_id} binary",
+            )
+            buildcache.assert_binary_sha256(str(binary), artifact.binary_sha256)
+            buildcache._assert_no_trace_symbols(str(binary))
+            bound[measurement.measurement_id] = (artifact, binary)
     except Exception as exc:
         record.update(
             {
                 "status": "binary_binding_failed",
-                "throughputs": [],
-                "rep_returncodes": [],
-                "rep_observations": [],
-                "rep_timestamps": [],
-                "binary_sha256": None,
+                "measurements": [],
                 "pre_probe": None,
+                "mid_probe": None,
                 "post_probe": None,
                 "started_at": _format_utc(started),
                 "finished_at": _format_utc(now_fn()),
@@ -1838,103 +2077,68 @@ def _run_planned_session(
         )
         return record
     pre_probe = _probe_once(spec.environment, probe_fn)
-    measurement: MeasurementResult | None = None
-    measurement_error: str | None = None
+    measurement_records: list[dict[str, object]] = []
+    measurement_outcomes: list[str] = []
+    first = session.measurements[0]
+    first_artifact, first_binary = bound[first.measurement_id]
     if pre_probe["status"] == "clear":
-        request = MeasurementRequest(
-            session_id=session.session_id,
-            binary_path=str(binary),
-            perf_config=cell.perf_config,
-            clocks_per_us=spec.environment.clocks_per_us,
-            numactl_argv=spec.environment.numactl_argv,
-            use_perf=spec.environment.use_perf,
-            timeout_s=spec.environment.timeout_s,
-            extra_env=spec.environment.extra_env,
+        first_record, first_outcome = _run_planned_measurement(
+            spec=spec,
+            session=session,
+            measurement=first,
+            artifact=first_artifact,
+            binary=first_binary,
+            cell=cell,
+            now_fn=now_fn,
         )
-        try:
-            measurement = _measure_with_runner(request)
-        except Exception as exc:
-            measurement_error = f"{type(exc).__name__}: {str(exc)[:500]}"
-    post_probe = _probe_once(spec.environment, probe_fn)
-    protocol_reason: str | None = None
-    if measurement is not None:
-        protocol_reason = _throughput_protocol_violation(
-            measurement.throughputs,
-            role=session.role,
-        )
-        protocol_reason = protocol_reason or _throughput_protocol_violation(
-            [
-                observation["throughput"]
-                for observation in measurement.rep_observations
-                if type(observation) is dict and "throughput" in observation
-            ],
-            role=session.role,
-        )
-    status = "complete"
-    error: str | None = None
-    if pre_probe["status"] == "competing":
-        status = "pre_probe_competing"
-        error = "pre probe detected competing process"
-    elif pre_probe["status"] == "indeterminate":
-        status = "pre_probe_indeterminate"
-        error = str(pre_probe["error"])
-    elif protocol_reason is not None:
-        status = "protocol_violation"
-        error = protocol_reason
-    elif post_probe["status"] == "competing":
-        status = "post_probe_competing"
-        error = "post probe detected competing process"
-    elif post_probe["status"] == "indeterminate":
-        status = "post_probe_indeterminate"
-        error = str(post_probe["error"])
-    elif measurement_error is not None:
-        status = "measure_failed"
-        error = measurement_error
-    elif measurement is None:
-        status = "measure_failed"
-        error = "measurement result がない"
+        measurement_records.append(first_record)
+        measurement_outcomes.append(first_outcome)
     else:
-        request = MeasurementRequest(
-            session_id=session.session_id,
-            binary_path=str(binary),
-            perf_config=cell.perf_config,
-            clocks_per_us=spec.environment.clocks_per_us,
-            numactl_argv=spec.environment.numactl_argv,
-            use_perf=spec.environment.use_perf,
-            timeout_s=spec.environment.timeout_s,
-            extra_env=spec.environment.extra_env,
+        measurement_records.append(
+            _unattempted_measurement_record(
+                first, first_artifact, reason="not_run_pre_probe"
+            )
         )
-        complete, incomplete_reason, protocol_reason = _measurement_complete(
-            measurement,
-            request,
-            role=session.role,
+        measurement_outcomes.append("not_run")
+    mid_probe = _probe_once(spec.environment, probe_fn)
+    second = session.measurements[1]
+    second_artifact, second_binary = bound[second.measurement_id]
+    if measurement_outcomes[0] != "complete":
+        second_record = _unattempted_measurement_record(
+            second, second_artifact, reason="not_run_after_measurement_failure"
         )
-        if protocol_reason is not None:
-            status = "protocol_violation"
-            error = protocol_reason
-        elif len(measurement.throughputs) == 0:
-            status = "measure_failed"
-            error = incomplete_reason
-        elif not complete:
-            status = "measure_incomplete"
-            error = incomplete_reason
+        second_outcome = "not_run"
+    elif mid_probe["status"] != "clear":
+        second_record = _unattempted_measurement_record(
+            second, second_artifact, reason="not_run_mid_probe"
+        )
+        second_outcome = "not_run"
+    else:
+        second_record, second_outcome = _run_planned_measurement(
+            spec=spec,
+            session=session,
+            measurement=second,
+            artifact=second_artifact,
+            binary=second_binary,
+            cell=cell,
+            now_fn=now_fn,
+        )
+    measurement_records.append(second_record)
+    measurement_outcomes.append(second_outcome)
+    post_probe = _probe_once(spec.environment, probe_fn)
+    status, error = _session_outcome(
+        pre_probe=pre_probe,
+        mid_probe=mid_probe,
+        post_probe=post_probe,
+        measurement_outcomes=measurement_outcomes,
+        measurement_errors=[item["error"] for item in measurement_records],
+    )
     record.update(
         {
             "status": status,
-            "throughputs": (
-                [] if measurement is None else _json_safe(measurement.throughputs)
-            ),
-            "rep_returncodes": (
-                [] if measurement is None else _json_safe(measurement.rep_returncodes)
-            ),
-            "rep_observations": (
-                [] if measurement is None else _json_safe(measurement.rep_observations)
-            ),
-            "rep_timestamps": (
-                [] if measurement is None else _json_safe(measurement.rep_timestamps)
-            ),
-            "binary_sha256": artifact.binary_sha256,
+            "measurements": measurement_records,
             "pre_probe": pre_probe,
+            "mid_probe": mid_probe,
             "post_probe": post_probe,
             "started_at": _format_utc(started),
             "finished_at": _format_utc(now_fn()),
@@ -1980,6 +2184,9 @@ def run_window(
     output_path = _validate_output_path(
         spec.repo_root, window.artifact_relpath, label=f"window {window.window_id} output"
     )
+    planned_measurement_count = sum(
+        len(session.measurements) for session in sessions
+    )
     header = {
         "event": "header",
         "schema": WINDOW_SCHEMA,
@@ -1993,11 +2200,19 @@ def run_window(
         "seed_hex": plan.seed_hex,
         "window_id": window.window_id,
         "campaign_id": window.campaign_id,
-        "planned_sessions": [dataclasses.asdict(session) for session in sessions],
+        "planned_sessions": [
+            _json_safe(dataclasses.asdict(session)) for session in sessions
+        ],
         "window_count": len(spec.windows),
         "pair_sample_count": sum(window.sample_count for _pair_id in window.pair_ids),
         "session_count": len(sessions),
-        "reps_per_session": {
+        "planned_measurement_count": planned_measurement_count,
+        "measurements_per_session": len(_MEASUREMENT_ROLES),
+        "reference_measurements_per_pair_sample": (
+            spec.statistics.reference_measurements_per_pair_sample
+        ),
+        "difference_formula": spec.statistics.difference_formula,
+        "reps_per_measurement": {
             cell.cell_id: cell.perf_config.reps for cell in spec.cells
         },
     }
@@ -2037,15 +2252,21 @@ def run_window(
         complete_sample_keys = {
             sample_key
             for sample_key in planned_sample_keys
-            if all(
-                record["status"] == "complete"
-                for record in records
-                if (
-                    record["window_id"],
-                    record["pair_id"],
-                    record["sample_index"],
-                )
-                == sample_key
+            if len(
+                matching_records := [
+                    record
+                    for record in records
+                    if (
+                        record["window_id"],
+                        record["pair_id"],
+                        record["sample_index"],
+                    )
+                    == sample_key
+                ]
+            )
+            == len(_SIDE_IDS)
+            and all(
+                record["status"] == "complete" for record in matching_records
             )
         }
         terminal_status = "incomplete" if fatal else "complete"
@@ -2056,6 +2277,10 @@ def run_window(
                 "window_id": window.window_id,
                 "planned_session_count": len(sessions),
                 "recorded_session_count": len(records),
+                "planned_measurement_count": planned_measurement_count,
+                "recorded_measurement_count": sum(
+                    len(record["measurements"]) for record in records
+                ),
                 "planned_sample_count": len(planned_sample_keys),
                 "dropped_sample_count": len(dropped_causes),
                 "complete_sample_count": len(complete_sample_keys),
@@ -2106,18 +2331,30 @@ _SESSION_RECORD_FIELDS = frozenset(
         "pair_id",
         "cell_id",
         "sample_index",
-        "role",
-        "artifact_id",
+        "side_id",
         "schedule_index",
         "dropped_by_session_id",
         "status",
+        "measurements",
+        "pre_probe",
+        "mid_probe",
+        "post_probe",
+        "started_at",
+        "finished_at",
+        "error",
+    }
+)
+_MEASUREMENT_RECORD_FIELDS = frozenset(
+    {
+        "measurement_id",
+        "role",
+        "artifact_id",
+        "order_index",
+        "binary_sha256",
         "throughputs",
         "rep_returncodes",
         "rep_observations",
         "rep_timestamps",
-        "binary_sha256",
-        "pre_probe",
-        "post_probe",
         "started_at",
         "finished_at",
         "error",
@@ -2166,22 +2403,17 @@ def _derived_record_status(
     label = f"session {session.session_id}"
     if set(record) != _SESSION_RECORD_FIELDS:
         raise FloorPairBindingError(f"{label} payload key が exact 一致しない")
-    arrays = (
-        record["throughputs"],
-        record["rep_returncodes"],
-        record["rep_observations"],
-        record["rep_timestamps"],
-    )
-    if any(type(value) is not list for value in arrays):
-        raise FloorPairBindingError(f"{label} measurement payload が array でない")
+    if type(record["measurements"]) is not list:
+        raise FloorPairBindingError(f"{label}.measurements が array でない")
     error = record["error"]
     if error is not None and (type(error) is not str or error == ""):
         raise FloorPairBindingError(f"{label} error が不正")
     dropped_by = record["dropped_by_session_id"]
     pre_probe = record["pre_probe"]
+    mid_probe = record["mid_probe"]
     post_probe = record["post_probe"]
-    if pre_probe is None and post_probe is None:
-        if any(value != [] for value in arrays) or record["binary_sha256"] is not None:
+    if pre_probe is None and mid_probe is None and post_probe is None:
+        if record["measurements"] != []:
             raise FloorPairBindingError(f"{label} non-run payload が不整合")
         if error == "sample_dropped":
             if type(dropped_by) is not str or dropped_by == "":
@@ -2196,69 +2428,131 @@ def _derived_record_status(
         if type(error) is str:
             return "binary_binding_failed"
         raise FloorPairBindingError(f"{label} non-run error が不正")
-    if pre_probe is None or post_probe is None:
-        raise FloorPairBindingError(f"{label} probe pair が不完備")
+    if pre_probe is None or mid_probe is None or post_probe is None:
+        raise FloorPairBindingError(f"{label} probe 3 件が不完備")
     if dropped_by is not None:
         raise FloorPairBindingError(f"{label} measured record に dropped cause がある")
-    artifacts = {artifact.artifact_id: artifact for artifact in spec.artifacts}
-    if record["binary_sha256"] != artifacts[session.artifact_id].binary_sha256:
-        raise FloorPairBindingError(f"{label} binary_sha256 が不一致")
+    if len(record["measurements"]) != len(_MEASUREMENT_ROLES):
+        raise FloorPairBindingError(f"{label} measurement が exact 2 件でない")
     pre_status = _probe_payload_status(pre_probe, label=f"{label}.pre_probe")
+    mid_status = _probe_payload_status(mid_probe, label=f"{label}.mid_probe")
     post_status = _probe_payload_status(post_probe, label=f"{label}.post_probe")
-    protocol_error = _throughput_protocol_violation(arrays[0], role=session.role)
-    protocol_error = protocol_error or _throughput_protocol_violation(
-        [
-            observation["throughput"]
-            for observation in arrays[2]
-            if type(observation) is dict and "throughput" in observation
-        ],
-        role=session.role,
-    )
-    if pre_status == "competing":
-        expected_error = "pre probe detected competing process"
-        derived = "pre_probe_competing"
-    elif pre_status == "indeterminate":
-        expected_error = pre_probe["error"]
-        derived = "pre_probe_indeterminate"
-    elif protocol_error is not None:
-        expected_error = protocol_error
-        derived = "protocol_violation"
-    elif post_status == "competing":
-        expected_error = "post probe detected competing process"
-        derived = "post_probe_competing"
-    elif post_status == "indeterminate":
-        expected_error = post_probe["error"]
-        derived = "post_probe_indeterminate"
+    outcomes: list[str] = []
+    measurement_errors: list[object] = []
+    for planned, raw in zip(
+        session.measurements, record["measurements"], strict=True
+    ):
+        outcome = _derived_measurement_outcome(
+            spec=spec,
+            session=session,
+            measurement=planned,
+            record=raw,
+        )
+        outcomes.append(outcome)
+        measurement_errors.append(raw["error"])
+    if pre_status != "clear":
+        if outcomes != ["not_run", "not_run"]:
+            raise FloorPairBindingError(f"{label} pre probe failure 後に測定された")
+        if measurement_errors != [
+            "not_run_pre_probe",
+            "not_run_after_measurement_failure",
+        ]:
+            raise FloorPairBindingError(f"{label} pre probe failure の suffix が不正")
     else:
-        expected_reps = next(
-            cell.perf_config.reps for cell in spec.cells if cell.cell_id == session.cell_id
-        )
-        if arrays[0] == []:
-            if type(error) is not str:
-                raise FloorPairBindingError(f"{label} failed measurement error がない")
-            return "measure_failed"
-        complete, incomplete_reason, protocol_reason = _measurement_payload_complete(
-            throughputs=arrays[0],
-            rep_returncodes=arrays[1],
-            rep_observations=arrays[2],
-            rep_timestamps=arrays[3],
-            expected_reps=expected_reps,
-            role=session.role,
-        )
-        if protocol_reason is not None:
-            if error != protocol_reason:
-                raise FloorPairBindingError(f"{label} protocol error が payload と不一致")
-            return "protocol_violation"
-        if not complete:
-            if type(error) is not str or incomplete_reason is None:
-                raise FloorPairBindingError(f"{label} incomplete error が不正")
-            return "measure_incomplete"
-        if error is not None:
-            raise FloorPairBindingError(f"{label} complete record に error がある")
-        return "complete"
+        if outcomes[0] == "not_run":
+            raise FloorPairBindingError(f"{label} measurement 1 が未実行")
+        if outcomes[0] != "complete":
+            if outcomes[1] != "not_run" or measurement_errors[1] != (
+                "not_run_after_measurement_failure"
+            ):
+                raise FloorPairBindingError(f"{label} measurement failure 後の suffix が不正")
+        elif mid_status != "clear":
+            if outcomes[1] != "not_run" or measurement_errors[1] != "not_run_mid_probe":
+                raise FloorPairBindingError(f"{label} mid probe failure 後に測定された")
+        elif outcomes[1] == "not_run":
+            raise FloorPairBindingError(f"{label} measurement 2 が未実行")
+    derived, expected_error = _session_outcome(
+        pre_probe=pre_probe,
+        mid_probe=mid_probe,
+        post_probe=post_probe,
+        measurement_outcomes=outcomes,
+        measurement_errors=measurement_errors,
+    )
     if error != expected_error:
-        raise FloorPairBindingError(f"{label} probe error が payload と不一致")
+        raise FloorPairBindingError(f"{label} error が payload と不一致")
     return derived
+
+
+def _derived_measurement_outcome(
+    *,
+    spec: FloorPairSpec,
+    session: PlannedSession,
+    measurement: PlannedMeasurement,
+    record: object,
+) -> str:
+    label = f"measurement {measurement.measurement_id}"
+    if type(record) is not dict or set(record) != _MEASUREMENT_RECORD_FIELDS:
+        raise FloorPairBindingError(f"{label} payload key が exact 一致しない")
+    for field in ("measurement_id", "role", "artifact_id", "order_index"):
+        if record[field] != getattr(measurement, field):
+            raise FloorPairBindingError(f"{label} metadata.{field} 不一致")
+    artifacts = {artifact.artifact_id: artifact for artifact in spec.artifacts}
+    if record["binary_sha256"] != artifacts[measurement.artifact_id].binary_sha256:
+        raise FloorPairBindingError(f"{label} binary_sha256 が不一致")
+    arrays = (
+        record["throughputs"],
+        record["rep_returncodes"],
+        record["rep_observations"],
+        record["rep_timestamps"],
+    )
+    if any(type(value) is not list for value in arrays):
+        raise FloorPairBindingError(f"{label} payload が array でない")
+    error = record["error"]
+    if error is not None and (type(error) is not str or error == ""):
+        raise FloorPairBindingError(f"{label} error が不正")
+    started = record["started_at"]
+    finished = record["finished_at"]
+    if started is None and finished is None:
+        if any(value != [] for value in arrays) or error not in {
+            "not_run_pre_probe",
+            "not_run_mid_probe",
+            "not_run_after_measurement_failure",
+        }:
+            raise FloorPairBindingError(f"{label} unattempted payload が不整合")
+        return "not_run"
+    if (
+        type(started) is not str
+        or started == ""
+        or type(finished) is not str
+        or finished == ""
+    ):
+        raise FloorPairBindingError(f"{label} timestamp が不正")
+    if arrays[0] == []:
+        if type(error) is not str:
+            raise FloorPairBindingError(f"{label} failed measurement error がない")
+        return "failed"
+    expected_reps = next(
+        cell.perf_config.reps for cell in spec.cells if cell.cell_id == session.cell_id
+    )
+    complete, incomplete_reason, protocol_reason = _measurement_payload_complete(
+        throughputs=arrays[0],
+        rep_returncodes=arrays[1],
+        rep_observations=arrays[2],
+        rep_timestamps=arrays[3],
+        expected_reps=expected_reps,
+        role=measurement.role,
+    )
+    if protocol_reason is not None:
+        if error != protocol_reason:
+            raise FloorPairBindingError(f"{label} protocol error が payload と不一致")
+        return "protocol"
+    if not complete:
+        if error != incomplete_reason:
+            raise FloorPairBindingError(f"{label} incomplete error が payload と不一致")
+        return "incomplete"
+    if error is not None:
+        raise FloorPairBindingError(f"{label} complete record に error がある")
+    return "complete"
 
 
 def _audit_session_causality(
@@ -2291,7 +2585,9 @@ def _audit_session_causality(
                 derived != "not_run_sample_dropped"
                 or record["dropped_by_session_id"] != dropped_causes[sample_key]
             ):
-                raise FloorPairBindingError("落ちた標本の後続 role の因果が不整合")
+                raise FloorPairBindingError(
+                    "落ちた標本の後続 side session の因果が不整合"
+                )
             continue
         if derived == "not_run_sample_dropped":
             raise FloorPairBindingError("先行失敗のない not_run_sample_dropped")
@@ -2302,7 +2598,7 @@ def _audit_session_causality(
     complete_keys = {
         sample_key
         for sample_key, statuses in statuses_by_sample.items()
-        if statuses == ["complete", "complete", "complete"]
+        if statuses == ["complete", "complete"]
     }
     for sample_key, cause_id in dropped_causes.items():
         sample_sessions = [
@@ -2322,7 +2618,7 @@ def _audit_session_causality(
                 for status in statuses[cause_index + 1:]
             )
         ):
-            raise FloorPairBindingError("落ちた標本の role 因果が不整合")
+            raise FloorPairBindingError("落ちた標本の side session 因果が不整合")
     return set(dropped_causes), complete_keys, fatal_seen
 
 
@@ -2338,7 +2634,12 @@ def _validate_window_artifact(
     header = records[0]
     terminal = records[-1]
     expected_sessions = _window_sessions(plan, window.window_id)
-    expected_plans = [dataclasses.asdict(session) for session in expected_sessions]
+    expected_plans = [
+        _json_safe(dataclasses.asdict(session)) for session in expected_sessions
+    ]
+    planned_measurement_count = sum(
+        len(session.measurements) for session in expected_sessions
+    )
     expected_header = {
         "event": "header",
         "schema": WINDOW_SCHEMA,
@@ -2356,7 +2657,13 @@ def _validate_window_artifact(
         "window_count": len(spec.windows),
         "pair_sample_count": window.sample_count * len(window.pair_ids),
         "session_count": len(expected_sessions),
-        "reps_per_session": {
+        "planned_measurement_count": planned_measurement_count,
+        "measurements_per_session": len(_MEASUREMENT_ROLES),
+        "reference_measurements_per_pair_sample": (
+            spec.statistics.reference_measurements_per_pair_sample
+        ),
+        "difference_formula": spec.statistics.difference_formula,
+        "reps_per_measurement": {
             cell.cell_id: cell.perf_config.reps for cell in spec.cells
         },
     }
@@ -2388,7 +2695,7 @@ def _validate_window_artifact(
         )
     metadata_fields = (
         "window_id", "campaign_id", "pair_id", "cell_id", "sample_index",
-        "role", "artifact_id", "schedule_index",
+        "side_id", "schedule_index",
     )
     for record in session_records:
         expected = expected_by_id[record["session_id"]]
@@ -2418,6 +2725,11 @@ def _validate_window_artifact(
         "window_id": window.window_id,
         "planned_session_count": len(expected_sessions),
         "recorded_session_count": len(session_records),
+        "planned_measurement_count": planned_measurement_count,
+        "recorded_measurement_count": sum(
+            len(record["measurements"])
+            for record in session_records
+        ),
         "planned_sample_count": len(planned_sample_keys),
         "dropped_sample_count": len(dropped_keys),
         "complete_sample_count": len(complete_keys),
@@ -2449,20 +2761,11 @@ def _status_from_records(
 ) -> str | None:
     if any(status == "incomplete" for status in terminal_statuses):
         return "not_generated_missing_samples"
-    cells = {cell.cell_id: cell for cell in spec.cells}
     for record in records:
-        if record["status"] != "complete":
-            continue
-        expected_reps = cells[record["cell_id"]].perf_config.reps
-        complete, _incomplete_reason, protocol_reason = _measurement_payload_complete(
-            throughputs=record["throughputs"],
-            rep_returncodes=record["rep_returncodes"],
-            rep_observations=record["rep_observations"],
-            rep_timestamps=record["rep_timestamps"],
-            expected_reps=expected_reps,
-            role=record["role"],
-        )
-        if not complete or protocol_reason is not None:
+        if (
+            record["status"] == "complete"
+            and len(record["measurements"]) != len(_MEASUREMENT_ROLES)
+        ):
             return "not_generated_missing_samples"
     return None
 
@@ -2538,7 +2841,7 @@ def _dropped_record_summary(
         "window_id",
         "pair_id",
         "sample_index",
-        "role",
+        "side_id",
         "status",
         "error",
         "dropped_by_session_id",
@@ -2579,18 +2882,31 @@ def _derive_strata(
             and session.pair_id == pair_id
             and session.sample_index == sample_index
         ]
-        roles = {session.role: session for session in matching}
-        if set(roles) != set(_ROLES):
-            raise FloorPairBindingError("pair sample の 3 role が exact 完備でない")
-        medians: dict[str, float] = {}
-        for role in _ROLES:
-            record = by_session[roles[role].session_id]
-            raw_values = record["throughputs"]
-            medians[role] = _median(raw_values)
+        sides = {session.side_id: session for session in matching}
+        if set(sides) != set(_SIDE_IDS):
+            raise FloorPairBindingError("pair sample の 2 side session が exact 完備でない")
+        medians: dict[str, dict[str, float]] = {}
+        for side_id in _SIDE_IDS:
+            session = sides[side_id]
+            record = by_session[session.session_id]
+            raw_measurements = record["measurements"]
+            by_measurement_id = {
+                item["measurement_id"]: item for item in raw_measurements
+            }
+            role_medians: dict[str, float] = {}
+            for measurement in session.measurements:
+                raw_values = by_measurement_id[measurement.measurement_id]["throughputs"]
+                role_medians[measurement.role] = _median(raw_values)
+            if set(role_medians) != set(_MEASUREMENT_ROLES):
+                raise FloorPairBindingError(
+                    f"side session {session.session_id} の measurement role が不完備"
+                )
+            medians[side_id] = role_medians
         gain = compute_gain_difference(
-            medians["candidate_1"],
-            medians["candidate_2"],
-            medians["reference"],
+            candidate_1_tps=medians["candidate_1"]["candidate"],
+            reference_1_tps=medians["candidate_1"]["reference"],
+            candidate_2_tps=medians["candidate_2"]["candidate"],
+            reference_2_tps=medians["candidate_2"]["reference"],
         )
         strata_values[(window_id, pair_id)].append(gain.difference)
         derived_samples.append(
@@ -2696,6 +3012,12 @@ def finalize_floor(
         "status": status,
         "upper": upper,
         "candidate_floor": candidate_floor,
+        "statistics": {
+            "reference_measurements_per_pair_sample": (
+                spec.statistics.reference_measurements_per_pair_sample
+            ),
+            "difference_formula": spec.statistics.difference_formula,
+        },
         "window_artifacts": window_entries,
         "campaigns": campaigns,
         "dropped_sample_count": len(dropped_keys),
