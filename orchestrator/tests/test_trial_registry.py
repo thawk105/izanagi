@@ -1901,6 +1901,12 @@ def test_s8c_acceptance_registered_build_reports_reach_receipt_for_h1_h2_workloa
     }
     assert len(observed_fresh_campaign_roots) == 6
     assert set(observed_fresh_campaign_roots) == expected_campaign_roots
+    receipt_path = repo / summary.receipt_path
+    _commit(repo, "track materialized build acceptance receipt", receipt_path)
+    verified = R.s8c_acceptance_receipt.verify_acceptance_receipt(
+        receipt_path, repository_root=repo,
+    )
+    assert verified.sha256 == summary.receipt_sha256
 
 
 @pytest.mark.usefixtures("ratified_enforcement_source")
