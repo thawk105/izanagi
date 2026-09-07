@@ -53,7 +53,6 @@ _FULL_GITLINK = _SHORT_GITLINK + "1" * 33
 _SCRIPT_SHA = "9" * 64
 _BASELINE_SOURCE_SHA = "1" * 64
 _TARGET_SOURCE_SHA = "2" * 64
-_TOOLCHAIN_SHA = "3" * 64
 _PERF_SHA_BASE = "4" * 64
 _PERF_SHA_TARGET = "5" * 64
 _FLAGS = (
@@ -103,6 +102,11 @@ def _canonical_json(value: object) -> str:
     )
 
 
+_TOOLCHAIN_SHA = hashlib.sha256(
+    _canonical_json(_TOOLCHAIN).encode("utf-8")
+).hexdigest()
+
+
 def _campaign_id(lock_text: str) -> str:
     decoded = campaign_lock.decode_campaign_lock(lock_text)
     digest = hashlib.sha256(decoded.identity_preimage.encode("utf-8")).hexdigest()[:8]
@@ -123,12 +127,20 @@ def _write_producer(
     short_gitlink: str = _SHORT_GITLINK,
     full_gitlink: str = _FULL_GITLINK,
     diagnostic_arm: str | None = None,
+    typed_diagnostic_arm: str | None = None,
     diagnostic_genome_arm: str | None = None,
+    diagnostic_genome_value: int = 1,
     trace_enabled_arm: str | None = None,
+    typed_trace_arm: str | None = None,
     unstable_arm: str | None = None,
     off_pair_diagnostic_ordinal: int | None = None,
     target_toolchain_sha: str = _TOOLCHAIN_SHA,
     off_grid_high: bool = False,
+    omit_perf_build_arm: str | None = None,
+    mismatched_perf_build_arm: str | None = None,
+    decoy_bench_executable: str | None = None,
+    verify_env_mismatch_arm: str | None = None,
+    orphan_record: str | None = None,
 ) -> _Fixture:
     root = tmp_path / "producer"
     campaigns = root / "campaigns"
@@ -169,7 +181,7 @@ def _write_producer(
             (arm is not None and arm == diagnostic_genome_arm)
             or ordinal == off_pair_diagnostic_ordinal
         ):
-            genome_flags["BACKOFF_NOINLINE"] = 1
+            genome_flags["BACKOFF_NOINLINE"] = diagnostic_genome_value
         genome = Genome("silo", genome_flags)
         canonical = genome.canonical()
         src_token = "stock" if ordinal == 0 else f"{ordinal:064x}"
@@ -210,13 +222,17 @@ def _write_producer(
         configure = [
             "/usr/bin/cmake", "-S", "/fixture/ccbench", "-B", build_dir,
             *(f"-DCCBENCH_{key}={flags[key]}" for key in sorted(flags)),
-            f"-DCCBENCH_TRACE={1 if arm is not None and arm == trace_enabled_arm else 0}",
         ]
+        trace_value = 1 if arm is not None and arm == trace_enabled_arm else 0
+        trace_type = ":BOOL" if arm is not None and arm == typed_trace_arm else ""
+        configure.append(f"-DCCBENCH_TRACE{trace_type}={trace_value}")
         if (
             (arm is not None and arm == diagnostic_arm)
             or ordinal == off_pair_diagnostic_ordinal
         ):
             configure.append("-DCCBENCH_BACKOFF_NOINLINE=1")
+        if arm is not None and arm == typed_diagnostic_arm:
+            configure.append("-DCCBENCH_BACKOFF_NOINLINE:STRING=1")
         perf_sha = _PERF_SHA_BASE if arm == "baseline" else (
             _PERF_SHA_TARGET if arm == "target" else f"{ordinal + 30:064x}"
         )
@@ -231,33 +247,77 @@ def _write_producer(
             "src_token": src_token,
             "build_admission": admission_receipt,
         }, ts=float(ordinal * 10 + 1))
-        wal.log(layout, variant, STAGE_BUILD_DONE, authorization.contract.env_tag, {
+        build_done_payload = {
             **terminal_common,
             "trace_bin_sha256": f"{ordinal + 50:064x}",
             "perf_bin_sha256": perf_sha,
             "perf_configure_cmd": shlex.join(configure),
             "toolchain": _TOOLCHAIN,
             "toolchain_record_sha256": toolchain_sha,
-        }, ts=float(ordinal * 10 + 2))
-        wal.log(layout, variant, STAGE_VERIFY_DONE, authorization.contract.env_tag, {
+        }
+        if ordinal == 1 and orphan_record == "build-anomaly":
+            build_done_payload["anomalies"] = 1
+        if arm != omit_perf_build_arm:
+            built_dir = (
+                f"{build_dir}-mismatch"
+                if arm is not None and arm == mismatched_perf_build_arm
+                else build_dir
+            )
+            build_done_payload["perf_build_cmd"] = shlex.join([
+                "/usr/bin/cmake", "--build", built_dir,
+            ])
+        wal.log(
+            layout, variant, STAGE_BUILD_DONE, authorization.contract.env_tag,
+            build_done_payload, ts=float(ordinal * 10 + 2),
+        )
+        verify_env_tag = (
+            "fixture-mismatched-env"
+            if arm is not None and arm == verify_env_mismatch_arm
+            else authorization.contract.env_tag
+        )
+        wal.log(layout, variant, STAGE_VERIFY_DONE, verify_env_tag, {
             "build_attempt_id": attempt,
             "verdict": "serializable",
             "certified": True,
             "anomalies": 0,
             "workload": {"tag": "balanced"},
         }, ts=float(ordinal * 10 + 3))
+        if ordinal == 1 and orphan_record in {
+            "verify-anomaly", "verify-nonserializable", "verify-clean",
+        }:
+            wal.log(layout, variant, STAGE_VERIFY_DONE, authorization.contract.env_tag, {
+                "verdict": (
+                    "not-serializable"
+                    if orphan_record == "verify-nonserializable"
+                    else "serializable"
+                ),
+                "certified": True,
+                "anomalies": 1 if orphan_record == "verify-anomaly" else 0,
+                "workload": {"tag": "balanced"},
+            }, ts=float(ordinal * 10 + 3.5))
+        run_cmd = [
+            "numactl", "--interleave=all",
+            f"{build_dir}/cc/silo/ycsb_silo.exe",
+            "-thread_num=48", "-ycsb_rratio=50",
+        ]
+        if arm == "target" and decoy_bench_executable is not None:
+            run_cmd = [decoy_bench_executable, run_cmd[2]]
         wal.log(layout, variant, STAGE_BENCH_DONE, authorization.contract.env_tag, {
             "build_attempt_id": attempt,
             "tps": samples,
             "median_tps": median,
             "cv": 0.01,
             "unstable": unstable,
-            "run_cmd": shlex.join([
-                "numactl", "--interleave=all",
-                f"{build_dir}/cc/silo/ycsb_silo.exe",
-                "-thread_num=48", "-ycsb_rratio=50",
-            ]),
+            "run_cmd": shlex.join(run_cmd),
         }, ts=float(ordinal * 10 + 4))
+        if ordinal == 1 and orphan_record == "bench":
+            wal.log(layout, variant, STAGE_BENCH_DONE, authorization.contract.env_tag, {
+                "tps": samples,
+                "median_tps": median,
+                "cv": 0.01,
+                "unstable": False,
+                "run_cmd": shlex.join(run_cmd),
+            }, ts=float(ordinal * 10 + 4.5))
         commit_payload = {
             **terminal_common,
             "fitness_tps": median,
@@ -455,7 +515,7 @@ def test_launcher_script_digest_is_bound_to_preregistration(tmp_path: Path) -> N
     assert excinfo.value.field == "reservation.binding.script_sha256"
 
 
-@pytest.mark.parametrize("location", ["configure", "genome"])
+@pytest.mark.parametrize("location", ["configure", "typed-configure", "genome"])
 def test_explicit_noinline_one_is_diagnostic_build(
     tmp_path: Path, location: str,
 ) -> None:
@@ -463,6 +523,7 @@ def test_explicit_noinline_one_is_diagnostic_build(
     fixture = _write_producer(
         tmp_path,
         diagnostic_arm="target" if location == "configure" else None,
+        typed_diagnostic_arm="target" if location == "typed-configure" else None,
         diagnostic_genome_arm="target" if location == "genome" else None,
     )
 
@@ -472,10 +533,27 @@ def test_explicit_noinline_one_is_diagnostic_build(
     assert excinfo.value.arm == "target"
 
 
-def test_off_pair_diagnostic_build_does_not_taint_fixed_pair(tmp_path: Path) -> None:
+def test_off_pair_diagnostic_build_is_rejected(tmp_path: Path) -> None:
+    """The all-genome producer-shape layer alone rejects this off-pair key."""
     fixture = _write_producer(tmp_path, off_pair_diagnostic_ordinal=1)
 
-    assert _consume(fixture).status == "accepted"
+    with pytest.raises(T.T1998PairRejected) as excinfo:
+        _consume(fixture)
+    assert excinfo.value.code == "diagnostic-build"
+    assert excinfo.value.field == "wal.build_start.genome.BACKOFF_NOINLINE"
+    assert excinfo.value.arm == "unknown"
+
+
+def test_off_pair_diagnostic_key_value_is_not_interpreted(tmp_path: Path) -> None:
+    """The all-genome producer-shape layer alone rejects a zero-valued key."""
+    fixture = _write_producer(
+        tmp_path, off_pair_diagnostic_ordinal=1, diagnostic_genome_value=0,
+    )
+
+    with pytest.raises(T.T1998PairRejected) as excinfo:
+        _consume(fixture)
+    assert excinfo.value.code == "diagnostic-build"
+    assert excinfo.value.arm == "unknown"
 
 
 def test_trace_enabled_configure_is_not_performance_evidence(tmp_path: Path) -> None:
@@ -486,6 +564,80 @@ def test_trace_enabled_configure_is_not_performance_evidence(tmp_path: Path) -> 
         _consume(fixture)
     assert excinfo.value.code == "performance-build-not-trace-disabled"
     assert excinfo.value.arm == "target"
+
+
+def test_typed_trace_disabled_define_is_normalized(tmp_path: Path) -> None:
+    fixture = _write_producer(tmp_path, typed_trace_arm="target")
+
+    assert _consume(fixture).status == "accepted"
+
+
+@pytest.mark.parametrize("decoy", ["/bin/true", "/bin/echo"])
+def test_decoy_bench_binary_token_is_rejected(tmp_path: Path, decoy: str) -> None:
+    """The executable-position layer alone rejects the review's decoy command."""
+    fixture = _write_producer(tmp_path, decoy_bench_executable=decoy)
+
+    with pytest.raises(T.T1998PairRejected) as excinfo:
+        _consume(fixture)
+    assert excinfo.value.code == "performance-build-not-trace-disabled"
+    assert excinfo.value.field == "wal.bench_done.run_cmd.executable"
+    assert excinfo.value.arm == "target"
+
+
+def test_missing_perf_build_command_is_rejected(tmp_path: Path) -> None:
+    """The performance-build receipt layer alone rejects a missing build command."""
+    fixture = _write_producer(tmp_path, omit_perf_build_arm="target")
+
+    with pytest.raises(T.T1998PairRejected) as excinfo:
+        _consume(fixture)
+    assert excinfo.value.code == "performance-build-not-trace-disabled"
+    assert excinfo.value.field == "wal.build_done.perf_build_cmd.--build"
+    assert excinfo.value.arm == "target"
+
+
+def test_perf_build_directory_must_match_configure(tmp_path: Path) -> None:
+    """The configure/build directory layer alone rejects this directory drift."""
+    fixture = _write_producer(tmp_path, mismatched_perf_build_arm="target")
+
+    with pytest.raises(T.T1998PairRejected) as excinfo:
+        _consume(fixture)
+    assert excinfo.value.code == "performance-build-not-trace-disabled"
+    assert excinfo.value.field == "wal.build_done.perf_build_cmd.--build"
+    assert excinfo.value.arm == "target"
+
+
+def test_verify_environment_tag_drift_is_rejected(tmp_path: Path) -> None:
+    """The fixed-arm environment layer alone rejects verify_done env-tag drift."""
+    fixture = _write_producer(tmp_path, verify_env_mismatch_arm="target")
+
+    with pytest.raises(T.T1998PairRejected) as excinfo:
+        _consume(fixture)
+    assert excinfo.value.code == "environment-identity-mismatch"
+    assert excinfo.value.field == "wal.env_tag"
+    assert excinfo.value.arm == "target"
+
+
+@pytest.mark.parametrize(
+    ("orphan_record", "field"),
+    [
+        ("verify-anomaly", "wal.verify_done.anomalies"),
+        ("verify-nonserializable", "wal.verify_done.verdict"),
+        ("verify-clean", "wal.verify_done.build_attempt_id"),
+        ("bench", "wal.bench_done.build_attempt_id"),
+        ("build-anomaly", "wal.build_done.anomalies"),
+    ],
+)
+def test_all_verify_and_bench_records_are_fail_closed(
+    tmp_path: Path, orphan_record: str, field: str,
+) -> None:
+    """The all-record discipline-2 layer alone rejects this orphan signal."""
+    fixture = _write_producer(tmp_path, orphan_record=orphan_record)
+
+    with pytest.raises(T.T1998PairRejected) as excinfo:
+        _consume(fixture)
+    assert excinfo.value.code == "producer-rejected-variant"
+    assert excinfo.value.field == field
+    assert excinfo.value.arm == "unknown"
 
 
 @pytest.mark.parametrize("unstable_arm", ["baseline", "target"])
@@ -528,11 +680,15 @@ def test_result_projection_drift_is_rejected(tmp_path: Path) -> None:
 
 
 def test_invalid_persisted_receipt_is_rejected_by_real_admission(tmp_path: Path) -> None:
-    """The real certified admission layer alone rejects this receipt mutation."""
+    """The real admission layer alone rejects this target receipt mutation."""
     fixture = _write_producer(tmp_path)
     wal_path = fixture.campaign / "runs/wal.jsonl"
     records = [json.loads(line) for line in wal_path.read_text().splitlines()]
-    commit = next(record for record in records if record["stage"] == "commit")
+    commit = next(
+        record for record in records
+        if record["stage"] == "commit"
+        and record["payload"]["fitness_tps"] == 120.0
+    )
     commit["payload"]["commit_verification_receipt"]["receipt_id"] = "mutated"
     wal_path.write_text(
         "".join(_canonical_json(record) + "\n" for record in records),
@@ -544,6 +700,7 @@ def test_invalid_persisted_receipt_is_rejected_by_real_admission(tmp_path: Path)
         _consume(fixture)
     assert excinfo.value.code == "producer-rejected-variant"
     assert excinfo.value.field == "certified_campaign_admission"
+    assert excinfo.value.arm == "unknown"
     assert "ArtifactAdmissionError" in str(excinfo.value.actual)
 
 

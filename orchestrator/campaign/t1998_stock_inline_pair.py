@@ -37,6 +37,7 @@ from .model import (
 
 
 ArmName = Literal["baseline", "target"]
+RejectionArm = Literal["baseline", "target", "unknown"]
 
 WORKLOAD = "balanced"
 TARGET_FIXED_US = 5
@@ -93,27 +94,38 @@ def _gitlink_matches(expected_full: str, actual: object) -> bool:
     return expected_full.startswith(actual)
 
 
-def _pair_arm_from_genome(value: object) -> tuple[ArmName, bool] | None:
-    """Return the fixed arm and whether its sole drift is the diagnostic knob."""
+def _pair_arm_from_genome(value: object) -> ArmName | None:
+    """Return the fixed arm for an exact canonical pair genome."""
     if value == BASELINE_CANONICAL_GENOME:
-        return "baseline", False
+        return "baseline"
     if value == TARGET_CANONICAL_GENOME:
-        return "target", False
+        return "target"
+    return None
+
+
+def _genome_diagnostic_arm(value: object) -> tuple[bool, RejectionArm]:
+    """Return diagnostic-key presence and any pair arm recoverable without it."""
     if type(value) is not str:
-        return None
+        return False, "unknown"
     engine, separator, raw_flags = value.partition("|")
     if separator != "|":
-        return None
+        return False, "unknown"
     flags = raw_flags.split(",")
-    marker = "BACKOFF_NOINLINE=1"
-    if flags.count(marker) != 1:
-        return None
-    without_marker = f"{engine}|{','.join(flag for flag in flags if flag != marker)}"
+    diagnostic_flags = [
+        flag for flag in flags if flag.partition("=")[0] == "BACKOFF_NOINLINE"
+    ]
+    if not diagnostic_flags:
+        return False, "unknown"
+    without_marker_flags = [
+        flag for flag in flags
+        if flag.partition("=")[0] != "BACKOFF_NOINLINE"
+    ]
+    without_marker = f"{engine}|{','.join(without_marker_flags)}"
     if without_marker == BASELINE_CANONICAL_GENOME:
-        return "baseline", True
+        return True, "baseline"
     if without_marker == TARGET_CANONICAL_GENOME:
-        return "target", True
-    return None
+        return True, "target"
+    return True, "unknown"
 
 
 @dataclass(frozen=True, slots=True)
@@ -179,10 +191,10 @@ class T1998PairRejected(RuntimeError):
         field: str,
         expected: object,
         actual: object,
-        arm: ArmName,
+        arm: RejectionArm,
     ) -> None:
-        if arm not in {"baseline", "target"}:
-            raise ValueError("rejection arm must be baseline or target")
+        if arm not in {"baseline", "target", "unknown"}:
+            raise ValueError("rejection arm must be baseline, target, or unknown")
         self.code = code
         self.field = field
         self.expected = expected
@@ -253,7 +265,7 @@ def _reject(
     field: str,
     expected: object,
     actual: object,
-    arm: ArmName = "baseline",
+    arm: RejectionArm = "baseline",
 ) -> None:
     raise T1998PairRejected(
         code, field=field, expected=expected, actual=actual, arm=arm,
@@ -266,7 +278,7 @@ def _require_equal(
     *,
     code: str,
     field: str,
-    arm: ArmName = "baseline",
+    arm: RejectionArm = "baseline",
 ) -> None:
     if actual != expected:
         _reject(code, field, expected, actual, arm)
@@ -347,8 +359,19 @@ def _command_argv(value: object) -> list[str] | None:
 
 
 def _cmake_define_values(argv: list[str], name: str) -> list[str]:
-    prefix = f"-D{name}="
-    return [token[len(prefix):] for token in argv if token.startswith(prefix)]
+    """Return values after normalizing ``-DNAME[:TYPE]=VALUE`` tokens."""
+    values: list[str] = []
+    for token in argv:
+        if not token.startswith("-D"):
+            continue
+        definition = token[2:]
+        key_with_type, separator, value = definition.partition("=")
+        if separator != "=" or not key_with_type:
+            continue
+        key, _type_separator, _cmake_type = key_with_type.partition(":")
+        if key == name:
+            values.append(value)
+    return values
 
 
 def _build_dir_from_configure(argv: list[str]) -> str | None:
@@ -361,6 +384,47 @@ def _build_dir_from_configure(argv: list[str]) -> str | None:
     if len(values) != 1 or not values[0]:
         return None
     return os.path.normpath(values[0])
+
+
+def _build_dir_from_build(argv: list[str]) -> str | None:
+    values: list[str] = []
+    for index, token in enumerate(argv):
+        if token == "--build" and index + 1 < len(argv):
+            values.append(argv[index + 1])
+        elif token.startswith("--build="):
+            values.append(token[len("--build="):])
+    if len(values) != 1 or not values[0]:
+        return None
+    return os.path.normpath(values[0])
+
+
+_KNOWN_BENCH_WRAPPER_PREFIX = ("numactl", "--interleave=all")
+
+
+def _bench_execution_target(argv: list[str]) -> str | None:
+    prefix = _KNOWN_BENCH_WRAPPER_PREFIX
+    if tuple(argv[:len(prefix)]) != prefix:
+        return None
+    return argv[len(prefix)] if len(argv) > len(prefix) else None
+
+
+def _plain_json(value: Any) -> Any:
+    if type(value) in {dict, MappingProxyType}:
+        return {key: _plain_json(item) for key, item in value.items()}
+    if type(value) in {list, tuple}:
+        return [_plain_json(item) for item in value]
+    return value
+
+
+def _canonical_json_sha256(value: Any) -> str:
+    encoded = json.dumps(
+        _plain_json(value),
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+        allow_nan=False,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
 
 
 def _one_record(
@@ -378,6 +442,8 @@ def _one_record(
         and record.payload.get("build_attempt_id") == attempt_id
     ]
     if len(matches) != 1:
+        # Redundant standalone gate: certified admission/finalization rejects
+        # missing terminal receipts before this fixed-pair projection can fire.
         _reject(
             "pair-cardinality",
             f"wal.{stage}.count",
@@ -429,15 +495,15 @@ def _arm_decision(
         records, variant=variant, attempt_id=attempt_id,
         stage=STAGE_COMMIT, arm=arm,
     )
-    del verify_done  # Its exact persisted evidence was checked by certified admission.
-
-    arm_records = (start, build_done, bench_done, commit)
+    arm_records = (start, build_done, verify_done, bench_done, commit)
     env_tags = {record.env_tag for record in arm_records}
     if len(env_tags) != 1:
         _reject(
             "environment-identity-mismatch", "wal.env_tag",
             start.env_tag, sorted(env_tags), arm,
         )
+    # Redundant standalone gate: certified admission already binds COMMIT's
+    # environment digest to the campaign lock.  Retain this projection guard.
     _require_equal(
         commit.payload.get(COMMIT_CONTRACT_SHA256_KEY),
         environment_contract_sha256,
@@ -473,18 +539,18 @@ def _arm_decision(
             "non-empty shell command or argv", build_done.payload.get("perf_configure_cmd"),
             arm,
         )
-    diagnostic_markers = [
-        token for token in configure
-        if token in {
-            "-DCCBENCH_BACKOFF_NOINLINE=1",
-            "-DBACKOFF_NOINLINE=1",
-        }
-    ]
-    if "BACKOFF_NOINLINE=1" in expected_genome.split("|")[-1].split(",") \
-            or diagnostic_markers:
+    diagnostic_values = {
+        name: values[-1]
+        for name in ("CCBENCH_BACKOFF_NOINLINE", "BACKOFF_NOINLINE")
+        if (values := _cmake_define_values(configure, name))
+    }
+    diagnostic_markers = {
+        name: value for name, value in diagnostic_values.items() if value == "1"
+    }
+    if diagnostic_markers:
         _reject(
             "diagnostic-build", "BACKOFF_NOINLINE",
-            "not equal to 1", diagnostic_markers or expected_genome, arm,
+            "not equal to 1", diagnostic_markers, arm,
         )
     trace_values = _cmake_define_values(configure, "CCBENCH_TRACE")
     if trace_values != ["0"]:
@@ -500,19 +566,32 @@ def _arm_decision(
             "exact lowercase sha256", perf_sha, arm,
         )
     build_dir = _build_dir_from_configure(configure)
+    build_argv = _command_argv(build_done.payload.get("perf_build_cmd"))
+    built_dir = (
+        _build_dir_from_build(build_argv) if build_argv is not None else None
+    )
+    if build_dir is None or built_dir != build_dir:
+        _reject(
+            "performance-build-not-trace-disabled",
+            "wal.build_done.perf_build_cmd.--build",
+            build_dir or "one configure -B directory",
+            built_dir if build_argv is not None else build_done.payload.get(
+                "perf_build_cmd"
+            ),
+            arm,
+        )
     run_argv = _command_argv(bench_done.payload.get("run_cmd"))
-    expected_binary = (
-        os.path.join(build_dir, "cc", "silo", "ycsb_silo.exe")
-        if build_dir is not None else None
+    expected_binary = os.path.join(build_dir, "cc", "silo", "ycsb_silo.exe")
+    execution_target = (
+        _bench_execution_target(run_argv) if run_argv is not None else None
     )
     if (
-        expected_binary is None
-        or run_argv is None
-        or sum(os.path.normpath(token) == expected_binary for token in run_argv) != 1
+        execution_target is None
+        or os.path.normpath(execution_target) != expected_binary
     ):
         _reject(
             "performance-build-not-trace-disabled", "wal.bench_done.run_cmd.executable",
-            expected_binary or "one canonical performance-build executable",
+            expected_binary,
             bench_done.payload.get("run_cmd"), arm,
         )
 
@@ -579,6 +658,20 @@ def _arm_decision(
             "wal.build_done.toolchain_record_sha256",
             "exact lowercase sha256", toolchain_digest, arm,
         )
+    try:
+        canonical_toolchain_digest = _canonical_json_sha256(toolchain)
+    except (TypeError, ValueError) as exc:
+        _reject(
+            "toolchain-identity-mismatch", "wal.build_done.toolchain",
+            "canonical finite JSON manifest", f"{type(exc).__name__}: {exc}", arm,
+        )
+    _require_equal(
+        toolchain_digest,
+        canonical_toolchain_digest,
+        code="toolchain-identity-mismatch",
+        field="wal.build_done.toolchain_record_sha256",
+        arm=arm,
+    )
     receipt = commit.payload.get("commit_verification_receipt")
     receipt_id = (
         receipt.get("receipt_id")
@@ -586,8 +679,8 @@ def _arm_decision(
         else None
     )
     if type(receipt_id) is not str or not receipt_id:
-        # Normally certified admission rejects this first.  Keep this fail-closed
-        # projection for the admitted persisted payload itself.
+        # Redundant standalone gate: certified admission rejects a missing
+        # receipt first.  Keep this fail-closed persisted-payload projection.
         _reject(
             "producer-rejected-variant",
             "wal.commit.commit_verification_receipt.receipt_id",
@@ -681,6 +774,7 @@ def consume_balanced_stock_inline_pair(
         _reject(
             "producer-rejected-variant", "certified_campaign_admission",
             "admitted certified campaign", f"{type(exc).__name__}: {exc}",
+            "unknown",
         )
 
     lock_path = Path(view.lock_file)
@@ -693,6 +787,8 @@ def consume_balanced_stock_inline_pair(
             "producer-artifact-missing", "campaign lock/WAL",
             "readable regular files", str(exc),
         )
+    # Redundant standalone TOCTOU gates: the admitted view calculated both
+    # digests from these same bytes, so neither comparison fires by itself.
     _require_equal(
         lock_sha, view.decision.campaign_lock_sha256,
         code="producer-artifact-binding-mismatch", field="admission.lock_sha256",
@@ -763,9 +859,17 @@ def consume_balanced_stock_inline_pair(
             lock_gitlink,
         )
     starts = [record for record in view.records if record.stage == STAGE_BUILD_START]
-    # D1244 limits payload inspection to the fixed pair.  A sole diagnostic
-    # marker is classified with that pair only so its rejection keeps the
-    # correct arm; the other producer points are checked only for stage shape.
+    # D1244 limits content inspection to the fixed pair.  Genome key shape is
+    # producer provenance, so every build_start is still constrained below.
+    for record in starts:
+        has_diagnostic_key, arm = _genome_diagnostic_arm(
+            record.payload.get("genome")
+        )
+        if has_diagnostic_key:
+            _reject(
+                "diagnostic-build", "wal.build_start.genome.BACKOFF_NOINLINE",
+                "absent", record.payload.get("genome"), arm,
+            )
     pair_starts = [
         (record, pair_arm)
         for record in starts
@@ -773,7 +877,9 @@ def consume_balanced_stock_inline_pair(
         is not None
     ]
     wal_gitlinks: set[str] = set()
-    for record, (arm, _diagnostic) in pair_starts:
+    # Redundant standalone gate: certified admission binds the WAL source
+    # gitlink to the lock first.  Keep the preregistration projection guard.
+    for record, arm in pair_starts:
         build_admission = record.payload.get("build_admission")
         source = (
             build_admission.get("source")
@@ -825,19 +931,12 @@ def consume_balanced_stock_inline_pair(
         field="reservation.node_boot_evidence",
     )
 
-    for record, (arm, diagnostic) in pair_starts:
-        if diagnostic:
-            canonical = record.payload.get("genome")
-            _reject(
-                "diagnostic-build", "wal.build_start.genome.BACKOFF_NOINLINE",
-                "not equal to 1", canonical, arm,
-            )
     baseline_starts = [
-        record for record, (arm, _diagnostic) in pair_starts
+        record for record, arm in pair_starts
         if arm == "baseline"
     ]
     target_starts = [
-        record for record, (arm, _diagnostic) in pair_starts
+        record for record, arm in pair_starts
         if arm == "target"
     ]
     # pair-cardinality と producer-rejected-variant は上流 finalizer と
@@ -858,6 +957,45 @@ def consume_balanced_stock_inline_pair(
             "pair-cardinality", "wal.target.build_start.count",
             1, len(target_starts), "target",
         )
+    arm_by_variant: dict[str, RejectionArm] = {
+        **{record.variant: "baseline" for record in baseline_starts},
+        **{record.variant: "target" for record in target_starts},
+    }
+    known_attempts = {
+        (record.variant, attempt_id)
+        for record in starts
+        if type(attempt_id := record.payload.get("build_attempt_id")) is str
+        and attempt_id
+    }
+    for record in view.records:
+        arm = arm_by_variant.get(record.variant, "unknown")
+        if "anomalies" in record.payload or record.stage == STAGE_VERIFY_DONE:
+            _require_equal(
+                record.payload.get("anomalies"),
+                0,
+                code="producer-rejected-variant",
+                field=f"wal.{record.stage}.anomalies",
+                arm=arm,
+            )
+        if "verdict" in record.payload or record.stage == STAGE_VERIFY_DONE:
+            _require_equal(
+                record.payload.get("verdict"),
+                "serializable",
+                code="producer-rejected-variant",
+                field=f"wal.{record.stage}.verdict",
+                arm=arm,
+            )
+        if record.stage not in {STAGE_VERIFY_DONE, STAGE_BENCH_DONE}:
+            continue
+        attempt_id = record.payload.get("build_attempt_id")
+        if (record.variant, attempt_id) not in known_attempts:
+            _reject(
+                "producer-rejected-variant",
+                f"wal.{record.stage}.build_attempt_id",
+                "known build attempt for the same variant",
+                attempt_id,
+                arm,
+            )
     by_variant_stages: dict[str, set[str]] = {}
     for record in view.records:
         by_variant_stages.setdefault(record.variant, set()).add(record.stage)
@@ -867,6 +1005,8 @@ def consume_balanced_stock_inline_pair(
                 if record.variant == target_starts[0].variant
                 else "baseline"
             )
+            # Redundant standalone gate: finalization/admission rejects aborts
+            # before this fixed-pair fail-closed projection can fire.
             _reject(
                 "producer-rejected-variant", "wal.abort",
                 "absent", "present", arm,
@@ -875,6 +1015,8 @@ def consume_balanced_stock_inline_pair(
         missing = _PAIR_STAGES - by_variant_stages.get(variant, set())
         if missing:
             arm = "target" if variant == target_starts[0].variant else "baseline"
+            # Redundant standalone gate: finalization/admission rejects missing
+            # stages before this fixed-pair fail-closed projection can fire.
             _reject(
                 "producer-rejected-variant", "wal.variant.stages",
                 sorted(_PAIR_STAGES), sorted(by_variant_stages.get(variant, set())), arm,

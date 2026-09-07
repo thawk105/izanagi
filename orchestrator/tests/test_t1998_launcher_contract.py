@@ -101,6 +101,15 @@ def test_preflight_and_atomic_receipt_match_the_a5_submission_strength():
     assert '"repository_commit": expected_head' in submitter
 
 
+def test_all_submit_receipt_events_pin_the_t1998_schema():
+    submitter = SUBMITTER.read_text(encoding="utf-8")
+    schema_field = (
+        '"schema_version": "t1998-balanced-stock-inline-submit-event/v1"'
+    )
+
+    assert submitter.count(schema_field) == 3
+
+
 def test_submitter_is_registered_as_local_ok():
     registry = json.loads(REGISTRY.read_text(encoding="utf-8"))["entries"]
     assert registry["tools/pegasus/submit_t1998_balanced_stock_inline.sh"] == {
