@@ -154,7 +154,9 @@
     {
       "category": "negative",
       "expected_nodes": [
-        "orchestrator/tests/test_trial_registry.py::test_lifecycle_start_requires_origin_binding_and_run_plan_digest_iff"
+        "orchestrator/tests/test_trial_registry.py::test_lifecycle_start_requires_origin_binding_and_run_plan_digest_iff[binding-without-digest]",
+        "orchestrator/tests/test_trial_registry.py::test_lifecycle_start_requires_origin_binding_and_run_plan_digest_iff[digest-without-binding]",
+        "orchestrator/tests/test_trial_registry.py::test_lifecycle_start_requires_origin_binding_and_run_plan_digest_iff[invalid-digest]"
       ],
       "expected_status": "KILLED",
       "hang_risk": false,
