@@ -1,0 +1,106 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 150,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 1200,
+  "mutations": [
+    {
+      "id": "N01-ancestor-check-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "    if not _git_is_ancestor(root, provenance.source_commit, loaded_head):",
+          "new": "    if False and not _git_is_ancestor(root, provenance.source_commit, loaded_head):"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "N02-strict-ancestor-weakened-to-equality",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "    if provenance.source_commit == loaded_head:",
+          "new": "    if False:"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "N03-spec-blob-compare-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "    if raw != head_raw:\n        raise FloorPairBindingError(\n            \"frozen spec が loaded HEAD tracked blob と byte 一致しない\"\n        )",
+          "new": "    if False:\n        raise FloorPairBindingError(\n            \"frozen spec が loaded HEAD tracked blob と byte 一致しない\"\n        )"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "N04-runtime-head-check-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "    if runtime_head != spec.loaded_head:",
+          "new": "    if False:"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "N05-finalizer-expects-source-commit",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "        \"runtime_head\": spec.loaded_head,",
+          "new": "        \"runtime_head\": spec.provenance.source_commit,"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "N06-spec-blob-query-uses-symbolic-head",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "    head_raw = _git_show_head(root, loaded_head, relpath)",
+          "new": "    head_raw = _git_show_head(root, \"HEAD\", relpath)"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "N07-tracked-bound-blob-query-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "    head_raw = _git_show_head(root, loaded_head, reference.path)",
+          "new": "    head_raw = raw"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
