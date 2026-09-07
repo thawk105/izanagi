@@ -34,6 +34,9 @@ _COMPILE_TIME_BRANCH_MACROS = (
     "IZANAGI_BREAK_PERMUTATION_SWAP",
     "IZANAGI_BREAK_LOCK_COVERAGE",
     "IZANAGI_BREAK_EARLY_UNLOCK",
+    "IZANAGI_BREAK_MOCC_LOCK_COVERAGE",
+    "IZANAGI_BREAK_MOCC_PERMUTATION",
+    "IZANAGI_BREAK_MOCC_EARLY_UNLOCK",
     "IZANAGI_BREAK_WRITE_INTENT_ERASE",
     "IZANAGI_BREAK_WRITE_INTENT_FORGE",
     "IZANAGI_BREAK_WRITE_INTENT_OPSWAP",
@@ -230,7 +233,8 @@ def _compile_time_source_root(
         assert directive is None and owner_text is None
         shutil.copytree(_SUPPLIED, root)
         return root
-    owner = root / "cc" / "silo" / "transaction.cc"
+    spec = G.DEFINE_SPECS[macro]
+    owner = root / spec.owner_tus[0]
     owner.parent.mkdir(parents=True)
     if owner_text is None:
         branch = (
@@ -242,11 +246,11 @@ def _compile_time_source_root(
             branch = "#if 1\n" + branch + "#endif\n"
         owner_text = prefix + branch + (branch if duplicate else "")
     owner.write_text(owner_text, encoding="utf-8")
-    return install_condition_gate_build_fixture(root)
+    return install_condition_gate_build_fixture(root, define_spec=spec)
 
 
 def _patch_added_branch_declaration(macro: str) -> tuple[str, str]:
-    """Derive the owner and exact start directive from real patch additions."""
+    """Derive the unique owner/directive pair from real patch additions."""
     patch = _ROOT / G.DEFINE_SPECS[macro].patch_rel
     current_target: str | None = None
     matches: list[tuple[str, str]] = []
@@ -2404,6 +2408,8 @@ def test_v1_domain_and_claim_boundaries_are_exact():
         "IZANAGI_BREAK_NOREAD_VALIDATION", "IZANAGI_BREAK_HIGHKEY_VALIDATION",
         "IZANAGI_BREAK_WRITE_INTENT_ERASE", "IZANAGI_BREAK_WRITE_INTENT_FORGE",
         "IZANAGI_BREAK_WRITE_INTENT_OPSWAP", "IZANAGI_BREAK_WRITE_INTENT_PTRSWAP",
+        "IZANAGI_BREAK_MOCC_LOCK_COVERAGE", "IZANAGI_BREAK_MOCC_PERMUTATION",
+        "IZANAGI_BREAK_MOCC_EARLY_UNLOCK",
         "IZANAGI_BREAK_TRIGGER_MISATTR", "IZANAGI_SILO_LADDER_RUNG1",
         "IZANAGI_SILO_LADDER_RUNG1_REPORT",
     }
@@ -2500,7 +2506,7 @@ def test_v1_domain_and_claim_boundaries_are_exact():
     ) == 19
     assert sum(
         spec.route == G.ROUTE_CMAKE_CXX_FLAGS for spec in G.DEFINE_SPECS.values()
-    ) == 13
+    ) == 16
     assert G.CONTEXT_STARTS == (1, 2)
     assert G.DRIVER_INTEGRATION == "none"
     for invalid in (True, -1, 1.0, "1"):
@@ -2516,8 +2522,10 @@ def test_v1_domain_and_claim_boundaries_are_exact():
         G.MeaningCase(1, ("7ff0000000000000", "7ff0000000000000"))
 
 
-def test_module_claim_names_the_exact_32_define_supply_domain() -> None:
-    assert "supply domain contains the 32 patch-derived defines" in G.__doc__
+def test_module_claim_names_the_exact_35_define_supply_domain() -> None:
+    assert "supply domain contains the 35 patch-derived defines" in G.__doc__
+    assert "registered macros plus three mocc controls additionally have a bounded" in G.__doc__
+    assert "compile-time witness (12 total)" in G.__doc__
 
 
 def test_captured_input_hash_drift_fails_closed():

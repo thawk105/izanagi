@@ -1,0 +1,36 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 120,
+ "timeout_seconds": 3600,
+ "hang_timeout_seconds": 900,
+ "mutations": [
+  {
+   "id": "M18-gate-policy-drop-nonblock",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/mocc_trace_pilot.sh",
+     "old": "        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)\n    except OSError as exc:\n        raise ValueError(\"policy cannot be opened without following\") from exc\n",
+     "new": "        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)\n    except OSError as exc:\n        raise ValueError(\"policy cannot be opened without following\") from exc\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": true
+  },
+  {
+   "id": "M19-gate-drop-parse-constant",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/mocc_trace_pilot.sh",
+     "old": "        value = json.loads(\n            raw.decode(\"utf-8\"),\n            object_pairs_hook=reject_duplicate_keys,\n            parse_constant=_reject_non_finite,\n        )\n    except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:\n",
+     "new": "        value = json.loads(\n            raw.decode(\"utf-8\"),\n            object_pairs_hook=reject_duplicate_keys,\n        )\n    except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}
