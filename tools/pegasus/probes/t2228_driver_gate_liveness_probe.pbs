@@ -1,0 +1,291 @@
+#!/bin/bash
+#PBS -A SFC
+#PBS -q gen_S
+#PBS -b 1
+#PBS -l elapstim_req=03:00:00
+#PBS -N izanagi-t2228
+# Keep PBS stdout and stderr outside the repository. Example submission:
+#   mkdir -p /work/1/SFC/tanab/izanagi-job-evidence/t2228/attempt-001
+#   qsub -o /work/1/SFC/tanab/izanagi-job-evidence/t2228/attempt-001/pbs.stdout \
+#     -e /work/1/SFC/tanab/izanagi-job-evidence/t2228/attempt-001/pbs.stderr \
+#     -v 'IZANAGI_T2228_REPO_HEAD=<40-hex-head>,IZANAGI_T2228_EVIDENCE_DIR=/work/1/SFC/tanab/izanagi-job-evidence/t2228/attempt-001' \
+#     tools/pegasus/probes/t2228_driver_gate_liveness_probe.pbs
+
+set -Eeuo pipefail
+umask 077
+
+if [[ -z "${PBS_JOBID:-}" || -z "${PBS_O_WORKDIR:-}" ]]; then
+  echo "PBS_JOBID and PBS_O_WORKDIR are required" >&2
+  exit 2
+fi
+if [[ ! "$PBS_JOBID" =~ ^([0-9]+:)?[A-Za-z0-9._-]+$ ]]; then
+  echo "unsafe PBS_JOBID" >&2
+  exit 2
+fi
+
+COMPUTE_HOST=$(hostname)
+if [[ ! "$COMPUTE_HOST" =~ ^bnode[0-9]+([.].*)?$ ]]; then
+  echo "T-2228 driver gate probe is compute-only: hostname=$COMPUTE_HOST" >&2
+  exit 2
+fi
+
+REPO_ROOT=$(realpath -e -- "$PBS_O_WORKDIR")
+if [[ "$REPO_ROOT" != "$PBS_O_WORKDIR" ]]; then
+  echo "PBS_O_WORKDIR must be the canonical repository root" >&2
+  exit 2
+fi
+EXPECTED_HEAD=${IZANAGI_T2228_REPO_HEAD:-}
+if [[ ! "$EXPECTED_HEAD" =~ ^[0-9a-f]{40}$ ]]; then
+  echo "IZANAGI_T2228_REPO_HEAD must be an exact 40-hex commit" >&2
+  exit 2
+fi
+REPO_HEAD=$(git -C "$REPO_ROOT" rev-parse HEAD)
+if [[ "$REPO_HEAD" != "$EXPECTED_HEAD" ]]; then
+  echo "PBS_O_WORKDIR HEAD does not match IZANAGI_T2228_REPO_HEAD" >&2
+  exit 2
+fi
+REPO_STATUS=$(git -C "$REPO_ROOT" status --porcelain --untracked-files=no)
+if [[ -n "$REPO_STATUS" ]]; then
+  echo "PBS_O_WORKDIR must be tracked-clean" >&2
+  exit 2
+fi
+
+DRIVER_REL=tools/pegasus/probes/t2228_driver_gate_liveness_probe.py
+PBS_REL=tools/pegasus/probes/t2228_driver_gate_liveness_probe.pbs
+POLICY_REL=tools/pegasus/policy.json
+for relative in "$DRIVER_REL" "$PBS_REL" "$POLICY_REL"; do
+  candidate="$REPO_ROOT/$relative"
+  if [[ ! -f "$candidate" || -L "$candidate" ]]; then
+    echo "required regular file is unavailable: $relative" >&2
+    exit 2
+  fi
+done
+
+EVIDENCE_RAW=${IZANAGI_T2228_EVIDENCE_DIR:-}
+if [[ -z "$EVIDENCE_RAW" || "$EVIDENCE_RAW" != /* ]]; then
+  echo "IZANAGI_T2228_EVIDENCE_DIR must be an absolute existing directory" >&2
+  exit 2
+fi
+EVIDENCE_DIR=$(realpath -e -- "$EVIDENCE_RAW")
+if [[ "$EVIDENCE_DIR" != "$EVIDENCE_RAW" || ! -d "$EVIDENCE_DIR" ]]; then
+  echo "IZANAGI_T2228_EVIDENCE_DIR must be canonical" >&2
+  exit 2
+fi
+case "$EVIDENCE_DIR/" in
+  "$REPO_ROOT/"*)
+    echo "evidence directory must be outside PBS_O_WORKDIR" >&2
+    exit 2
+    ;;
+esac
+
+export TMPDIR="/scr/${PBS_JOBID//:/_}-t2228-driver-gate"
+if ! mkdir -m 700 -- "$TMPDIR"; then
+  echo "job scratch already exists or cannot be created: $TMPDIR" >&2
+  exit 2
+fi
+cleanup() {
+  find "$TMPDIR" -depth -delete 2>/dev/null || true
+}
+trap cleanup EXIT
+
+unset PYTHONPATH PYTHONHOME PYTHONSTARTUP
+PY=""
+for candidate in python3.10 python3.11 python3.12 python3; do
+  resolved=$(command -v -- "$candidate" 2>/dev/null || true)
+  [[ -n "$resolved" ]] || continue
+  if "$resolved" -I -S -B -c \
+      'import sys; raise SystemExit(0 if sys.version_info[:2] >= (3, 10) else 1)' \
+      >/dev/null 2>&1; then
+    PY=$(realpath -e -- "$resolved")
+    break
+  fi
+done
+if [[ -z "$PY" ]]; then
+  echo "Python 3.10 or newer is required" >&2
+  exit 2
+fi
+export PATH="$(dirname "$PY"):$PATH"
+
+POLICY="$REPO_ROOT/$POLICY_REL"
+readarray -t policy_values < <("$PY" -I -B - "$POLICY" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as stream:
+    policy = json.load(stream)
+print(policy["gflags_source_path"])
+print(policy["gflags_expected_head"])
+print(policy["glog_source_path"])
+print(policy["glog_expected_head"])
+PY
+)
+if [[ ${#policy_values[@]} -ne 4 ]]; then
+  echo "Pegasus dependency policy is incomplete" >&2
+  exit 2
+fi
+GFLAGS_SOURCE_PATH=${policy_values[0]}
+GFLAGS_EXPECTED_HEAD=${policy_values[1]}
+GLOG_SOURCE_PATH=${policy_values[2]}
+GLOG_EXPECTED_HEAD=${policy_values[3]}
+
+verify_pinned_clean() {
+  local source=$1 pin=$2 name=$3 head status
+  if [[ ! -d "$source" ]]; then
+    echo "$name source path is unavailable" >&2
+    return 1
+  fi
+  head=$(git -C "$source" rev-parse HEAD) || return 1
+  status=$(git -C "$source" status --porcelain --untracked-files=all) || return 1
+  if [[ "$head" != "$pin" || -n "$status" ]]; then
+    echo "$name source is not pinned-clean" >&2
+    return 1
+  fi
+}
+
+CC_PATH=$(realpath -e -- "$(command -v gcc)")
+CXX_PATH=$(realpath -e -- "$(command -v g++)")
+
+verify_pinned_clean "$GFLAGS_SOURCE_PATH" "$GFLAGS_EXPECTED_HEAD" gflags
+GFLAGS_BUILD_DIR="$TMPDIR/gflags-build"
+GFLAGS_INSTALL_DIR="$TMPDIR/gflags-install"
+mkdir -- "$GFLAGS_BUILD_DIR"
+gflags_configure_argv=(cmake -S "$GFLAGS_SOURCE_PATH" -B "$GFLAGS_BUILD_DIR"
+  -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
+  -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DREGISTER_INSTALL_PREFIX=OFF
+  "-DCMAKE_INSTALL_PREFIX=$GFLAGS_INSTALL_DIR"
+  "-DCMAKE_C_COMPILER=$CC_PATH" "-DCMAKE_CXX_COMPILER=$CXX_PATH")
+gflags_build_argv=(cmake --build "$GFLAGS_BUILD_DIR" -j 48)
+gflags_install_argv=(cmake --install "$GFLAGS_BUILD_DIR")
+timeout 60 "${gflags_configure_argv[@]}"
+timeout 60 "${gflags_build_argv[@]}"
+timeout 60 "${gflags_install_argv[@]}"
+
+verify_pinned_clean "$GLOG_SOURCE_PATH" "$GLOG_EXPECTED_HEAD" glog
+GLOG_BUILD_DIR="$TMPDIR/glog-build"
+GLOG_INSTALL_DIR="$TMPDIR/glog-install"
+mkdir -- "$GLOG_BUILD_DIR"
+glog_configure_argv=(cmake -S "$GLOG_SOURCE_PATH" -B "$GLOG_BUILD_DIR"
+  -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
+  -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DWITH_GTEST=OFF -DBUILD_TESTING=OFF
+  -DWITH_UNWIND=OFF "-DCMAKE_PREFIX_PATH=$GFLAGS_INSTALL_DIR"
+  "-DCMAKE_INSTALL_PREFIX=$GLOG_INSTALL_DIR"
+  "-DCMAKE_C_COMPILER=$CC_PATH" "-DCMAKE_CXX_COMPILER=$CXX_PATH")
+glog_build_argv=(cmake --build "$GLOG_BUILD_DIR" -j 48)
+glog_install_argv=(cmake --install "$GLOG_BUILD_DIR")
+timeout 120 "${glog_configure_argv[@]}"
+timeout 120 "${glog_build_argv[@]}"
+timeout 120 "${glog_install_argv[@]}"
+
+export CMAKE_PREFIX_PATH="$GFLAGS_INSTALL_DIR:$GLOG_INSTALL_DIR"
+export IZANAGI_PEGASUS_THIRDPARTY_CACHE=/work/1/SFC/tanab/izanagi-thirdparty-cache
+if [[ ! -d "$IZANAGI_PEGASUS_THIRDPARTY_CACHE" ]]; then
+  echo "Pegasus third-party source cache is unavailable" >&2
+  exit 2
+fi
+
+CCBENCH_SOURCE="$REPO_ROOT/external/ccbench"
+verify_pinned_clean "$CCBENCH_SOURCE" \
+  "$(git -C "$CCBENCH_SOURCE" rev-parse HEAD)" ccbench
+CURRENT_FULL=$(git -C "$CCBENCH_SOURCE" rev-parse '511c953^{commit}')
+REPRO_FULL=$(git -C "$CCBENCH_SOURCE" rev-parse 'dff0f1e^{commit}')
+if [[ "$CURRENT_FULL" != 511c953* || "$REPRO_FULL" != dff0f1e* ]]; then
+  echo "required ccbench pins do not resolve to the registered commits" >&2
+  exit 2
+fi
+GITLINK_HEAD=$(git -C "$REPO_ROOT" ls-tree HEAD external/ccbench | awk '{print $3}')
+if [[ "$GITLINK_HEAD" != "$CURRENT_FULL" ]]; then
+  echo "outer repository gitlink is not the current ccbench pin" >&2
+  exit 2
+fi
+FREEZE_PATH="$REPO_ROOT/output/s1-freeze/measurement_freeze.json"
+if [[ ! -f "$FREEZE_PATH" || -L "$FREEZE_PATH" ]]; then
+  echo "verified-freeze input is unavailable" >&2
+  exit 2
+fi
+FREEZE_PIN=$("$PY" -I -B - "$FREEZE_PATH" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as stream:
+    document = json.load(stream)
+value = document.get("ccbench_pin")
+if not isinstance(value, str) or not value:
+    raise SystemExit(2)
+print(value)
+PY
+)
+git -C "$CCBENCH_SOURCE" cat-file -e "$FREEZE_PIN^{commit}"
+
+REPOS_ROOT="$TMPDIR/driver-repositories"
+RUNTIME_OUTPUT_ROOT="$TMPDIR/runtime-output"
+mkdir -m 700 -- "$REPOS_ROOT" "$RUNTIME_OUTPUT_ROOT"
+
+clone_driver_repository() {
+  local driver=$1 destination="$REPOS_ROOT/$1"
+  if [[ -e "$destination" ]]; then
+    echo "driver scratch path already exists: $destination" >&2
+    return 1
+  fi
+  git clone --no-local --no-hardlinks --no-checkout \
+    "$REPO_ROOT" "$destination"
+  git -C "$destination" checkout --detach "$EXPECTED_HEAD"
+  mkdir -p -- "$destination/external"
+  if [[ -d "$destination/external/ccbench" \
+        && ! -L "$destination/external/ccbench" ]]; then
+    rmdir -- "$destination/external/ccbench" 2>/dev/null || {
+      echo "ccbench placeholder is not empty: $destination" >&2
+      return 1
+    }
+  fi
+  if [[ -e "$destination/external/ccbench" ]]; then
+    echo "ccbench clone path unexpectedly exists: $destination" >&2
+    return 1
+  fi
+  git clone --no-local --no-hardlinks --no-checkout \
+    "$CCBENCH_SOURCE" "$destination/external/ccbench"
+  git -C "$destination/external/ccbench" checkout --detach "$CURRENT_FULL"
+  git -C "$destination/external/ccbench" cat-file -e "$REPRO_FULL^{commit}"
+  git -C "$destination/external/ccbench" cat-file -e "$FREEZE_PIN^{commit}"
+  if [[ -e "$destination/.git/objects/info/alternates" \
+        || -e "$destination/external/ccbench/.git/objects/info/alternates" ]]; then
+    echo "self-contained clone unexpectedly uses alternates: $driver" >&2
+    return 1
+  fi
+  local outer_head outer_status sub_status
+  outer_head=$(git -C "$destination" rev-parse HEAD)
+  outer_status=$(git -C "$destination" status --porcelain --untracked-files=all)
+  sub_status=$(git -C "$destination/external/ccbench" \
+    status --porcelain --untracked-files=all)
+  if [[ "$outer_head" != "$EXPECTED_HEAD" || -n "$outer_status" \
+        || -n "$sub_status" ]]; then
+    echo "driver clone is not exact and clean: $driver" >&2
+    return 1
+  fi
+}
+
+clone_driver_repository s1
+clone_driver_repository repro
+clone_driver_repository sweep
+
+S1_REPO="$REPOS_ROOT/s1"
+REPRO_REPO="$REPOS_ROOT/repro"
+SWEEP_REPO="$REPOS_ROOT/sweep"
+DRIVER="$S1_REPO/$DRIVER_REL"
+if [[ ! -f "$DRIVER" || -L "$DRIVER" ]]; then
+  echo "probe is absent from the exact cloned HEAD" >&2
+  exit 2
+fi
+
+set +e
+"$PY" -I -S -B -u "$DRIVER" \
+  --s1-repo "$S1_REPO" \
+  --repro-repo "$REPRO_REPO" \
+  --sweep-repo "$SWEEP_REPO" \
+  --expected-repo-head "$EXPECTED_HEAD" \
+  --evidence-dir "$EVIDENCE_DIR" \
+  --scratch-output-root "$RUNTIME_OUTPUT_ROOT"
+PROBE_RC=$?
+set -e
+
+# Keep Python as a child so the shell EXIT trap removes this job's exact scratch.
+exit "$PROBE_RC"
