@@ -1,0 +1,167 @@
+{
+  "after": "working-tree",
+  "allow_to_deny": 9,
+  "base": "f486ff13c7f30cf41fdcb0574744968df4c01077",
+  "deny_to_allow": 0,
+  "reversals": {
+    "allow_to_deny": [
+      {
+        "after": {
+          "allow": false,
+          "reason": "リダイレクト先が末端防護対象、campaign tree、または固定の発行主体 root。WAL/campaign.lock/build-cache を書く唯一の経路は pipeline.evaluate() (規律2)"
+        },
+        "before": {
+          "allow": true,
+          "reason": ""
+        },
+        "guard": "guard_bash",
+        "id": "bash-authority-redirect",
+        "input": {
+          "command": "printf x > /work/1/SFC/tanab/dev-wave-authority/t2146-new.pem"
+        }
+      },
+      {
+        "after": {
+          "allow": false,
+          "reason": "末端防護対象または固定の発行主体 root に触れる非読み取りコマンド (cp）。WAL/campaign.lock/build-cache/namespace marker/発行主体 root の書き換え・削除・移動は不可 (規律2)。読み取りは cat/grep/jq/head/tail 等で"
+        },
+        "before": {
+          "allow": true,
+          "reason": ""
+        },
+        "guard": "guard_bash",
+        "id": "bash-authority-copy",
+        "input": {
+          "command": "cp /tmp/x /work/1/SFC/tanab/dev-wave-authority/t2146-new.pem"
+        }
+      },
+      {
+        "after": {
+          "allow": false,
+          "reason": "campaign dir / ccbench / hooks / 発行主体 root を破壊する操作 (rm)。proof chain を配下ごと削除/移動/展開するのは不可 (規律2)"
+        },
+        "before": {
+          "allow": true,
+          "reason": ""
+        },
+        "guard": "guard_bash",
+        "id": "bash-authority-remove",
+        "input": {
+          "command": "rm -rf /work/1/SFC/tanab/dev-wave-authority"
+        }
+      },
+      {
+        "after": {
+          "allow": false,
+          "reason": "campaign dir / ccbench / hooks / 発行主体 root を破壊する操作 (rm)。proof chain を配下ごと削除/移動/展開するのは不可 (規律2)"
+        },
+        "before": {
+          "allow": true,
+          "reason": ""
+        },
+        "guard": "guard_bash",
+        "id": "bash-authority-ancestor-remove",
+        "input": {
+          "command": "rm -rf /work/1/SFC/tanab"
+        }
+      },
+      {
+        "after": {
+          "allow": false,
+          "reason": "固定の発行主体 root への直接書き込みは拒否。受領証の鍵・発行物をWrite 系ツールから変更・削除・移動することは不可"
+        },
+        "before": {
+          "allow": true,
+          "reason": ""
+        },
+        "guard": "guard_write",
+        "id": "write-authority",
+        "input": {
+          "cwd": "",
+          "tool_input": {
+            "file_path": "/work/1/SFC/tanab/dev-wave-authority/acceptance-issuer-public-key.pem"
+          },
+          "tool_name": "Write"
+        }
+      },
+      {
+        "after": {
+          "allow": false,
+          "reason": "固定の発行主体 root への直接書き込みは拒否。受領証の鍵・発行物をWrite 系ツールから変更・削除・移動することは不可"
+        },
+        "before": {
+          "allow": true,
+          "reason": ""
+        },
+        "guard": "guard_write",
+        "id": "notebook-authority",
+        "input": {
+          "cwd": "",
+          "tool_input": {
+            "notebook_path": "/work/1/SFC/tanab/dev-wave-authority/t2146-new.pem"
+          },
+          "tool_name": "NotebookEdit"
+        }
+      },
+      {
+        "after": {
+          "allow": false,
+          "reason": "apply_patch の拒否対象: '/work/1/SFC/tanab/dev-wave-authority/t2146-new.pem': 固定の発行主体 root への直接書き込みは拒否。受領証の鍵・発行物をWrite 系ツールから変更・削除・移動することは不可"
+        },
+        "before": {
+          "allow": true,
+          "reason": ""
+        },
+        "guard": "guard_write",
+        "id": "patch-authority-add",
+        "input": {
+          "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2146-authority-guard",
+          "tool_input": {
+            "command": "*** Add File: /work/1/SFC/tanab/dev-wave-authority/t2146-new.pem\n"
+          },
+          "tool_name": "apply_patch"
+        }
+      },
+      {
+        "after": {
+          "allow": false,
+          "reason": "apply_patch の拒否対象: '/work/1/SFC/tanab/dev-wave-authority/acceptance-issuer-public-key.pem': 固定の発行主体 root への直接書き込みは拒否。受領証の鍵・発行物をWrite 系ツールから変更・削除・移動することは不可"
+        },
+        "before": {
+          "allow": true,
+          "reason": ""
+        },
+        "guard": "guard_write",
+        "id": "patch-authority-delete",
+        "input": {
+          "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2146-authority-guard",
+          "tool_input": {
+            "command": "*** Delete File: /work/1/SFC/tanab/dev-wave-authority/acceptance-issuer-public-key.pem\n"
+          },
+          "tool_name": "apply_patch"
+        }
+      },
+      {
+        "after": {
+          "allow": false,
+          "reason": "apply_patch の拒否対象: '/work/1/SFC/tanab/dev-wave-authority/acceptance-issuer-public-key.pem': 固定の発行主体 root への直接書き込みは拒否。受領証の鍵・発行物をWrite 系ツールから変更・削除・移動することは不可"
+        },
+        "before": {
+          "allow": true,
+          "reason": ""
+        },
+        "guard": "guard_write",
+        "id": "patch-authority-move-out",
+        "input": {
+          "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2146-authority-guard",
+          "tool_input": {
+            "command": "*** Update File: /work/1/SFC/tanab/dev-wave-authority/acceptance-issuer-public-key.pem\n*** Move to: /tmp/t2146-key\n"
+          },
+          "tool_name": "apply_patch"
+        }
+      }
+    ],
+    "deny_to_allow": []
+  },
+  "total": 61
+}

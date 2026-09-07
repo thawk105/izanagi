@@ -17,7 +17,7 @@
 | `fig2b_backoff_sweep_3workload.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_backoff.py` | `fig2_` の**後継図**。本 README が再現手順を持つ |
 | `fig2c_b10_extended_backoff.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_b10_extended_backoff.py` | B-10 拡張格子の**記述図**。1000 µs を F718 により除外した有効 28 点 |
 | `fig4_s1a_9pair_direct_comparison.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_s1_9pair.py` | 縮小主張 S' の**失敗報告図**。既存図の後継ではなく独立した新図 |
-| `fig5_a2_certification_reject.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_a2_certification.py` | A-2 正式 certification (outer `reject`) の**結果図**。既存図の後継ではなく独立した新図。判定は凍結 `certification.json` から読み、生成器は再計算しない |
+| `fig5_a2_certification_reject.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_a2_certification.py` | A-2 正式 certification (outer `reject`) の**結果図**。既存図の後継ではなく独立した新図。判定は凍結 `certification.json` から読み、生成器は再計算しない。**測定条件の記述に erratum あり (同節の Erratum)。測ったのは採用静的 backoff ではなく `BACK_OFF` の有効/無効であり、取り直しまで論文の A-2 の結論にも図にも使わない (D1645)** |
 
 ## 調整済み adaptive の実対照 (論文図へ未昇格)
 
@@ -402,13 +402,42 @@ provenance JSON の `facts.figure_conventions_compliance` は `"partial"` を記
 
 # `fig5_a2_certification_reject` — A-2 正式 certification の結果図 (outer `reject`)
 
+## Erratum — この図が比較したのは静的 backoff ではない (2026-09-07 追記、D1645)
+
+**この図を「採用静的 backoff が負けた」という論文の結論に使ってはならない。**
+図・キャプション正文・provenance JSON の bytes、描かれた値、outer `reject` はいずれも変更していない
+(凍結物であり、絶対規律 7 に従い訂正は追記でのみ行う)。誤っているのは条件の**記述**である。
+
+attempt `t2022-20260828c` の 4 cell は patch が当たっていない stock の CCBench 木で build された。
+adopted cell が要求した `BACKOFF_FIXED` (fixed 10 µs / 5 µs) は cmake の argv には渡っている。
+届かなかったのではなく、pin `511c9538` の CCBench に `CCBENCH_BACKOFF_FIXED` の定義が木全体のどこにも無いため、
+compile definition へ転送されず build の条件にならなかった (F707 の再発)。**この図が実際に比較したのは
+`BACK_OFF=1` (CCBench 内蔵の適応 backoff 有効) と `BACK_OFF=0` (無効) である。** 一次資料は当時の WAL の
+`build_start` record (`src_token`・`tracked_clean`・空の tracked diff・`tracked_paths`) と、
+`build_done` に記録された実 cmake 引数である。
+
+したがって**図中・provenance JSON・凍結キャプション正文に残る cell label (`fixed10` / `fixed5`) は、
+要求された genome の名前**であって効いた条件ではない。これらは凍結物なので訂正しない。
+下の「何を示す図か」以下の本文はこの erratum に合わせて既に直してある。
+`BACK_OFF=1` が有効にする機構は CCBench の `include/backoff.hh` にある適応制御 (スループット勾配で
+待機量を固定幅で増減する) であり、指数 backoff ではない。`cmake/Options.cmake` の option 説明文だけが
+`exponential backoff on abort` と呼んでいる。
+
+条件の正しい記述と現行の統制稿は `docs/paper-story/results/2026-09-07-a2-certification-reject.md` にある。
+論文素材からは、正しい identity で取り直した attempt が出るまで A-2 の結論を外す (D1645)。
+
 ## 何を示す図か
 
-A-2 が定義した exact 4 cell — write-heavy (rratio=5) と balanced (rratio=50) の 2 workload × {無 backoff, 採用静的 backoff} —
+A-2 が定義した exact 4 cell — write-heavy (rratio=5) と balanced (rratio=50) の 2 workload × 2 cell —
 を、現行 Pegasus・CCBench pin `511c953` の正式 protocol で測った attempt `t2022-20260828c` の結果である。
 **各 workload は独立に環境契約された campaign 1 本 (別 request・別 host・別時刻) であり、外側の certification status は
-その論理積で決まる** (D1169)。採用静的 backoff の median throughput は同一 workload の無 backoff 対照に対して
-write-heavy (fixed 10 µs) で −46.3902%、balanced (fixed 5 µs) で −65.9080% であり、**外側の status は `reject`** である。
+その論理積で決まる** (D1169)。
+
+**cell 名 (`fixed10` / `fixed5`) は要求された genome に由来する名前であって、効いた条件ではない** (上の Erratum)。
+実際に効いた条件差は `BACK_OFF` の有効/無効だけである。`BACK_OFF=1` (CCBench 内蔵の適応 backoff 有効) の
+median throughput は同一 workload の `BACK_OFF=0` (無効) 対照に対して write-heavy で −46.3902%、
+balanced で −65.9080% であり、**外側の status は `reject`** である。
+**この図を採用静的 backoff についての結果として読んではならない。**
 
 上段は各 cell の trace-disabled 性能 run 5 標本を全数表示し、短い横線が median、菱形と誤差棒が標本平均と t 分布 95% 信頼区間、
 灰色の破線が同一 workload の無 backoff median (効果の分母) である。**平均の信頼区間は標本分布の記述用であり、効果・判定・median の
@@ -481,5 +510,6 @@ descriptive と明記した別パネル)、§5 (図中用語は最小、展開�
 - 標本の由来 → durable authority の WAL `bench_done` と raw cell JSON (provenance の `external_inputs` に root-relative path と SHA-256)
 - 入力の束縛 → tracked `raw-manifest.json` の `files` (provenance の `tracked_inputs`)
 - それらが着地後もずれないこと → `orchestrator/tests/test_plot_a2_certification.py`
-- 結果節・表・限定の材料 → `docs/paper-story/results/2026-09-04-a2-certification-reject.md`
+- 結果節・表・限定の材料 → `docs/paper-story/results/2026-09-07-a2-certification-reject.md`
+  (2026-09-04 の稿は測定条件の記述を誤っており、append-only の履歴として残る。上の Erratum 節を参照)
 - 作図規約の正本 → `tools/plotting/FIGURE_CONVENTIONS.md`

@@ -60,20 +60,34 @@
 スナップショットは凍結物なので腐る。ここは腐らない入口として、最新版の記述が既に古くなった箇所を
 指す。**矛盾があればここが指す一次資料が勝つ。**
 
-**現在この節に積んでいる項目は 0 である。** 前版 (2026-09-02 版) に対して積んでいた 2 項目 —
-adaptive backoff の診断が「CCBench 既定 3 定数」に限られること (2026-09-02 追記)、A-2 の走行に
-測定条件の関門族 (D1198) が適用されていないこと (2026-09-04 追記) — は、いずれも 2026-09-05 版が
-本文へ取り込んだのでここから外した。前者は同版 §2 の肯定的結果 (書き直し) と冒頭の訂正 1、
-後者は同版 §2 (f) と §8 の A-2 が持つ。**関門族の未適用が実際に見逃していたもの (adopted cell が
-採用静的 backoff を build していなかったこと) も同版 §2 (f) にある。**
+前版 (2026-09-02 版) に対して積んでいた 2 項目 — adaptive backoff の診断が「CCBench 既定 3 定数」に
+限られること (2026-09-02 追記)、A-2 の走行に測定条件の関門族 (D1198) が適用されていないこと
+(2026-09-04 追記) — は、いずれも 2026-09-05 版が本文へ取り込んだのでここから外した。前者は同版 §2 の
+肯定的結果 (書き直し) と冒頭の訂正 1、後者は同版 §2 (f) と §8 の A-2 が持つ。**関門族の未適用が実際に
+見逃していたもの (adopted cell が採用静的 backoff を build していなかったこと) も同版 §2 (f) にある。**
 
-**次にここへ書く候補として分かっているものが 2 つある。** (1) D1645 が命じた A-2 の追記訂正と
-`results/` の新しい日付の file (AI 側の docs 作業、[T-2338])。新 file が置かれたら results 系列の表へ
-登録し、ここから指す。(2) D1644 の実装後に取り直す A-2 の新 attempt。その結果が出たとき、2026-09-05 版の
-§8 A-2「採用構成の現行環境での正式判定は無い」が古くなる。`results/2026-09-04-a2-certification-reject.md`
-と `figures/` の fig5 は凍結物であり、所見を含まないまま残る。
+**現在この節に積んでいる項目は 1 つである。**
 
-次にこの節へ書くのは、`2026-09-05.md` の記述を一次資料が覆したときである。
+1. **A-2 の走行が有効にしていた機構は「内蔵指数 backoff」ではなく「CCBench 内蔵の適応 backoff」である
+   (2026-09-07 追記、[T-2338])。** 2026-09-05 版の §2 (f)・§8・§9 と冒頭の訂正 2、および裁定 D1645 の
+   本文は、当該 cell が有効にしていた機構を「内蔵指数 backoff」と書いている。CCBench pin `511c9538` の
+   現物 (`include/backoff.hh` の `Backoff` クラス) は、スループット勾配を見て共有待機量を固定幅 100 で
+   増減し 0〜1000 に収める**適応制御**であり、指数的に増える機構ではない。`cmake/Options.cmake` の
+   option 説明文だけが `exponential backoff on abort` と呼んでおり、D1645 の文言はそこに由来すると
+   見られる。**支持する命題を `BACK_OFF` の有効/無効へ書き換えるという D1645 の決定内容は変わらない。**
+   **一次資料は CCBench pin `511c9538` の現物** (`include/backoff.hh` と `cmake/Options.cmake`) **だけである。**
+   この事実を説明した現行の統制稿は `results/2026-09-07-a2-certification-reject.md` の §1.4 にあるが、
+   統制稿は執筆者向けの散文であって一次資料ではない。
+
+**D1645 が命じた A-2 の追記訂正は 2026-09-07 に済んだ ([T-2338])。** 追記先は
+`output/insights/2026-08-28_t2022-a2-certification-run/README.md` と
+`output/insights/2026-08-24_paper-story-a2-certification/README.md`、改訂稿は
+`results/2026-09-07-a2-certification-reject.md` (results 系列の表へ登録済み)、
+fig5 の erratum は `figures/README.md` が持つ。
+
+**次にここへ書く候補として分かっているものが 1 つある。** D1644 の実装後に取り直す A-2 の新 attempt。
+その結果が出たとき、2026-09-05 版の §8 A-2「採用構成の現行環境での正式判定は無い」が古くなる。
+`results/2026-09-04-a2-certification-reject.md` と `figures/` の fig5 は凍結物であり、所見を含まないまま残る。
 
 **恒久の erratum は別の場所にある。**
 `figures/fig2_backoff_mechanism.png` の baseline 誤 label（横破線に `stock adaptive backoff` と
@@ -81,6 +95,11 @@ adaptive backoff の診断が「CCBench 既定 3 定数」に限られること 
 乗り換え指示は、腐らない入口として `figures/README.md` が持つ。**旧図と、旧図を載せた
 2026-07-10 版・2026-08-23 版のキャプションは凍結物なので訂正しない。**
 **論文で P2-4 の図を使うときは後継図を使い、旧図を使わない。**
+
+`figures/fig5_a2_certification_reject` の測定条件 erratum も同じく `figures/README.md` の fig5 節が持つ
+(2026-09-07、D1645)。図が実際に比較したのは採用静的 backoff ではなく `BACK_OFF` の有効/無効であり、
+**取り直しまで論文の A-2 の結論にも図にも使わない。** 図と provenance の bytes、キャプション正文は
+凍結物なので訂正しない。
 
 ## 読み方
 
@@ -123,7 +142,8 @@ claim-evidence が「主張ごとに何を書けて何が弱めているか」�
 
 | 日付 | ファイル | 対象 | protocol status |
 |---|---|---|---|
-| 2026-09-04 | `results/2026-09-04-a2-certification-reject.md` | A-2 正式 certification (attempt `t2022-20260828c`、write-heavy / balanced の exact 4 cell、図 5、限定 11 件) | outer `reject`。correctness は別の trace-enabled run で 4 cell とも certified (性能の判定ではない) |
+| 2026-09-04 | `results/2026-09-04-a2-certification-reject.md` | A-2 正式 certification (attempt `t2022-20260828c`、write-heavy / balanced の exact 4 cell、図 5、限定 11 件) | outer `reject`。correctness は別の trace-enabled run で 4 cell とも certified (性能の判定ではない)。**測定条件の記述に誤りがあり、2026-09-07 の稿が改めた (下記)。執筆材料には使わない** |
+| 2026-09-07 | `results/2026-09-07-a2-certification-reject.md` | 同じ attempt `t2022-20260828c` を一次資料全体から作り直した改訂稿。**測ったのは採用静的 backoff ではなく CCBench 内蔵 backoff の有効/無効** (`BACK_OFF=1` 対 `0`) である。限定 15 件 (D1645、F707 の再発) | outer `reject` は不変。**同じ attempt の執筆材料にはこの稿を使う。**2026-09-04 の稿は append-only の履歴として残る |
 
 **この系列の規則。**
 

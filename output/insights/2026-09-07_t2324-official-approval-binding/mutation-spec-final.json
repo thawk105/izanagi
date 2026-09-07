@@ -1,0 +1,189 @@
+{
+  "estimated_run_seconds": 180,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_unset_approval_omits_flag_from_actual_argv"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M1-unconditional-approval-append",
+      "replacements": [
+        {
+          "file": "tools/pegasus/floor_campaign.sh",
+          "new": "driver_argv+=(\n  --confirm-official-floor-run\n)\n",
+          "old": "if [[ \"$OFFICIAL_APPROVAL_BOUND\" -eq 1 ]]; then\n  driver_argv+=(\n    --confirm-official-floor-run\n  )\nfi\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_exact_approval_appends_flag_once_in_actual_argv",
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_protocol_resolution_is_shared_by_all_consumers"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M2-double-approval-append",
+      "replacements": [
+        {
+          "file": "tools/pegasus/floor_campaign.sh",
+          "new": "  driver_argv+=(\n    --confirm-official-floor-run\n    --confirm-official-floor-run\n  )\nfi\n",
+          "old": "  driver_argv+=(\n    --confirm-official-floor-run\n  )\nfi\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_public_wrapper_rejects_unapproved_official_before_private_core"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M3-drop-public-gate",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "new": "    authority_root = ROOT if repo_root is None else Path(repo_root)\n",
+          "old": "    if mode == \"official\":\n        _assert_official_permitted(mode, confirm_official_floor_run)\n    authority_root = ROOT if repo_root is None else Path(repo_root)\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_core_derives_refreeze_eligibility_at_entry_and_finalizes_without_args",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_private_core_rejects_unapproved_official_before_downstream"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M4-drop-private-core-gate",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "new": "\n    if not isinstance(freeze_doc, _freeze_io.VerifiedFreeze):\n",
+          "old": "    _assert_official_permitted(mode, confirm_official_floor_run)\n\n    if not isinstance(freeze_doc, _freeze_io.VerifiedFreeze):\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_official_permission_requires_exact_true"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M5-truthy-approval",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "new": "    if mode == \"official\" and not confirm_official_floor_run:\n",
+          "old": "    if mode == \"official\" and confirm_official_floor_run is not True:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_official_approval_binding_rejects_empty_before_downstream"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M6-drop-empty-approval-branch",
+      "replacements": [
+        {
+          "file": "tools/pegasus/floor_campaign.sh",
+          "new": "",
+          "old": "  if [[ -z \"$IZANAGI_CONFIRM_OFFICIAL_FLOOR_RUN\" ]]; then\n    write_failure 2 submit_binding \\\n      \"IZANAGI_CONFIRM_OFFICIAL_FLOOR_RUN is set but empty\"\n    exit 2\n  fi\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_has_nonce_bound_official_confirmation_dataflow_and_keeps_admission_order",
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_official_approval_binding_rejects_mismatch_before_downstream"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M7-drop-nonce-mismatch-branch",
+      "replacements": [
+        {
+          "file": "tools/pegasus/floor_campaign.sh",
+          "new": "",
+          "old": "  if [[ \"$IZANAGI_CONFIRM_OFFICIAL_FLOOR_RUN\" != \"$IZANAGI_SUBMISSION_NONCE\" ]]; then\n    write_failure 2 submit_binding \\\n      \"IZANAGI_CONFIRM_OFFICIAL_FLOOR_RUN must exactly match IZANAGI_SUBMISSION_NONCE\"\n    exit 2\n  fi\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_driver_mode_is_fixed_official_in_tokens_and_actual_argv",
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_unset_approval_omits_flag_from_actual_argv",
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_protocol_resolution_is_shared_by_all_consumers"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M8-driver-mode-back-to-pilot",
+      "replacements": [
+        {
+          "file": "tools/pegasus/floor_campaign.sh",
+          "new": "  --mode pilot\n  --protocol \"$REPO_ROOT/$PROTOCOL_PATH\"\n",
+          "old": "  --mode official\n  --protocol \"$REPO_ROOT/$PROTOCOL_PATH\"\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_submit_floor_real_run_requires_approval_before_staging_and_qsub"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M9-drop-submitter-approval-guard",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_floor.sh",
+          "new": "",
+          "old": "if [[ \"$DRY_RUN\" -eq 0 && \"$CONFIRM_OFFICIAL_FLOOR_RUN\" -ne 1 ]]; then\n  echo \"real official floor submission requires --confirm-official-floor-run\" >&2\n  exit 2\nfi\n\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_main_official_without_approval_is_refused_before_protocol_load"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M10-drop-cli-refusal",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "new": "    if args.mode == \"official\" and args.confirm_official_floor_run is None:\n",
+          "old": "    if args.mode == \"official\" and args.confirm_official_floor_run is not True:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_verify_rejects_unratified_generation_documents"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M11-drop-generation-rejection",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_freeze.py",
+          "new": "    present = []\n    if present:\n",
+          "old": "    present = sorted(GENERATION_SCHEMA_FIELDS & set(doc))\n    if present:\n"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 1200
+}

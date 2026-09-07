@@ -46,7 +46,7 @@
 | `pre_oracle_head` | 健在 | `77664079…` は現行 HEAD の ancestor (rc=0) |
 | T-080 移行受領証 | 健在 | bytes `b84f7832…` 一致、基準 commit `f04ae50b…` は HEAD ancestor |
 | oracle gate (実物 freeze) | 設計どおり | rc=2、拒否理由は `floor-null` と `budget-null` の 2 件 exact |
-| floor campaign の official 拒否 | 設計どおり | core と CLI の二重拒否が生きている |
+| floor campaign の official 承認 gate | 設計どおり | core と CLI が同じ明示承認を二重に要求する ([T-2324]) |
 
 **結論: 7 月実装分に腐りはない。** pin・封印・受領証はすべて現行 main と整合し、gate は設計どおりの
 拒否を返す。再開を塞いでいるのは腐りではなく **未実装の段** (§3) である。
@@ -162,39 +162,44 @@ P1〜P3 のいずれかが期待と違えば、その段へ進まず原因を先
 
 ## 3. 再開の順序 — 何が塞いでいるか
 
-**床値の実測は [T-748] 裁定 (c) の固定 pilot 経路で先行する。** 投入 script は
-`--mode pilot` を固定で渡すようになり、pilot 経路の欠落 (旧 blocker 3) は解消した。
-ただし pilot の成果物は `eligible_for_refreeze=false` なので、
-**再凍結 → oracle → certified は official 解禁まで閉じたままである。**
-official mode の guard は変更していない (受理集合は空のまま)。
+**床値の実測は固定 official 経路で行う** ([T-2324]、方式は D926)。投入 script は
+`--mode official` を固定で渡し、実投入に `--confirm-official-floor-run` を要求する。承認は
+submission nonce に束ねて運び、job script が exact 一致を確かめたときだけ driver へ承認 flag を
+1 個 append する。**pilot 経路は標準投入から外れた** — driver 側の pilot API は残るが、この
+wrapper からは起動できない。
+
+**[T-748] 裁定 (c) の固定 pilot 経路は、この wave までの現況記述である。** 当時の W-2 pilot 走行
+(request `945229.nqsv`、12 cell 完走) は事実として残るが、`eligible_for_refreeze=false` なので
+再凍結には使えない。**再凍結 → oracle → certified を開くのは official 走行である。**
+なお **[T-2324] の着地は測定の認可を兼ねない** (D1641)。走行の可否は別に判断する。
 
 ### W-1. [T-088] 段階 3・4 の実装 (承認済み・着手可)
 
-- **現状:** `s8b_floor_campaign._assert_official_permitted` が official を無条件で拒否し、CLI も
-  同じ判断を二重に返す。段階 1 は 2026-07-28 に実機で閉じている (job 873225 = rc=2)
+- **現状:** `s8b_floor_campaign._assert_official_permitted` は official に exact bool の明示承認を
+  要求し、CLI も同じ判断を二重に返す ([T-2324])。**無条件拒否ではなくなった。**
+  段階 1 は 2026-07-28 に実機で閉じている (job 873225 = rc=2。当時は無条件拒否)
 - **残:** 段階 3 = 単一 admission predicate + 実行 revision 束縛 + spool bytes 照合、
   段階 4 = CLI rc 翻訳。2026-07-28 (36) で 3 項とも推奨採用済み
-- **塞いでいた 3 点のうち 2 点は「維持する側」だと [T-748] 裁定 (c) で確定した
-  (2026-08-12)。** 現況は次のとおり。
-  1. `s8b_floor_campaign._assert_official_permitted` (`:209-219`) が `official` を無条件拒否する。
-     **維持する** (official は空集合のまま)
-  2. `assemble_result` (`:2572-2575`) は `eligible_for_refreeze=True` を `mode == "official"` に
-     限定する。**維持する。したがって pilot で測った床値は再凍結に使えない** — 測定値としてのみ使う
-  3. `tools/pegasus/floor_campaign.sh` が `--mode official` を固定で渡していた点は
-     **解消済み**。裁定 (c) により `--mode pilot` 固定へ変更した
-- **「投入できない」ではなく「完遂できない」である。** `submit_floor.sh` に mode の分岐は無く、
-  `--dry-run` を付けなければ `qsub` は実行され scheduler は job を受理する。
-  倒れるのは計算ノード上であり、**キュー資源は消費されうる。**
-  完遂できないのは再凍結適格な artifact である
-- **成果物への影響:** **再凍結適格な**床値が採れないので freeze v2 の floor/budget は null のまま
-  となり、oracle gate は 2 件拒否を返し続ける (certified 選択の結果が 1 件も出ない)。
-  **測定値としての床値は W-2 の pilot 経路で採れる** — 再凍結へ渡せないだけである
+- **3 点の現況** ([T-748] 裁定 (c) の 2 点は維持、3 点目は [T-2324] で入れ替わった)。
+  1. `s8b_floor_campaign._assert_official_permitted` は `official` に **exact bool の明示承認**を
+     要求する ([T-2324]、D926)。承認が無い official は core と CLI の両方が拒否する
+  2. `assemble_result` は `eligible_for_refreeze=True` を `mode == "official"` かつ fresh かつ
+     非既定 seam ゼロに限定する。**維持する。したがって pilot で測った床値は再凍結に使えない**
+  3. `tools/pegasus/floor_campaign.sh` は **固定 `--mode official`** に戻った ([T-2324])。
+     裁定 (c) の固定 pilot は、承認束縛が実装されるまでの過渡形だった
+- **未承認の実投入は成立しない。** `submit_floor.sh` は非 dry-run で承認引数が無ければ
+  `qsub` より前に rc=2 で止まる。**キュー資源も submission staging も消費しない。**
+  raw `qsub` で承認 env を省いた非標準経路だけは計算ノード上で倒れうる (D926 の保証範囲外)
+- **成果物への影響:** 承認付き official 走行が成立すれば再凍結適格な床値が採れ、freeze v2 の
+  floor/budget を埋められる。**実装の着地は測定の認可を兼ねない** (D1641) ので、走行の可否は
+  別に判断する。走らせるまでは oracle gate は 2 件拒否を返し続ける
 
-### W-2. 床値実測 (Pegasus 単独・pilot) — **W-1 の完了は前提ではない**
+### W-2. 床値実測 (Pegasus 単独・official) — **W-1 の完了は前提ではない**
 
-- **[T-748] 裁定 (c) (2026-08-12、authority: user) が順序を変えた。** 固定 pilot 経路で
-  W-2 を先行させる。W-1 (official 解禁) は W-2 の前提ではない。
-  **ただし pilot 成果物は再凍結へ渡せず、official 解禁 → 再凍結 → oracle の順序は閉じたまま**である。
+- **承認束縛が着地したので固定 official 経路で走らせる** ([T-2324]、方式は D926)。
+  W-1 の段階 3・4 (単一 admission predicate + CLI rc 翻訳) は W-2 の前提ではない。
+- **当時の pilot 走行は歴史として残る。** request `945229.nqsv` の 12 cell 完走は事実だが
+  `eligible_for_refreeze=false` であり、再凍結・oracle・certified の証拠にはできない。
 - **R-4 (B) の toolchain 束縛検査は実装済み** ([T-747]、worklog 455)。
   **pilot でも無条件に発火する** — `build_cells` が `_bind_current_toolchain` を呼ぶ経路に
   mode 分岐は無い。**拒否されたらそれは正しい fail-closed であり、緩めて通してはならない** (§5 R-4)。
@@ -219,7 +224,8 @@ official mode の guard は変更していない (受理集合は空のまま)�
   - **記録**: receipt を manifest と result へ create-only で残し、`result.md` にも
     perf 条件を出す。**比較は同条件内でのみ行う。**
   - **pilot 限定**: receipt の emit と perf 無し形は `mode == "pilot"` でだけ到達できる。
-    official は従来どおり perf あり形だけを期待し、**official の受理集合は 1 bit も変わらない**。
+    official は従来どおり perf あり形だけを期待する。**[T-2324] は承認 gate だけを変え、
+    perf 受理形は 1 bit も変えていない** — 固定 official wrapper で走る官製経路は perf あり形である。
 - campaign は `driver_rc=0` / `status: completed` を返しつつ床値が全 null になりうるので、
   **rc だけで成功と判定してはならない。** `floors` が実数を持つことまで確かめる。
   この確認は `floor_campaign.sh` が driver 終了後に機械強制する (欠損なら非 0 rc)。
@@ -227,29 +233,38 @@ official mode の guard は変更していない (受理集合は空のまま)�
   全滅していれば残り 10 時間を捨てずに止める (`smoke_probe.sh` は perf も ccbench も
   起動しないため direct 実行の canary にはならない。2026-08-12 実測)。
 - 投入手順は次の順で行う。**順序を崩さない。**
-  1. pilot 経路と docs の**全 tracked 変更を commit する** (未 commit の変更があると
+  1. official 経路と docs の**全 tracked 変更を commit する** (未 commit の変更があると
      `submit_floor.sh` の drift 検査が qsub 前に rc=2 で止める)
   2. **third-party staging root を供給する。** `submit_floor.sh` はこれを消費するが自分では
      作らない。新しい作業木では `--dry-run` が rc=0 でも実投入が
      `floor third-party source root is missing or unsafe` で qsub 前に落ちる。
      手順は `tools/pegasus/README.md` §6 (`fetch_third_party.py hydrate`) が正本
   3. `tools/pegasus/submit_floor.sh --dry-run` で submission record を確認する
-  4. 同 script を明示実行する。投入インタフェースは同 script が正本で、
-     `qsub -v VAR=value <script>` 形を自分で発明しない (runbook §8)
-  5. 床値 pilot の投入に**承認引数は要らない** (D1124)。測定の反復を拒否する関門を撤去したため、
-     承認すべき不可逆消費が無い。**同じ cell を何度でも測ってよく**、測定ごとに新しい測定世代を
-     発行して台帳へ追記する。挙動の正本は `tools/pegasus/README.md` の該当項
+  4. 同 script を `--confirm-official-floor-run` 付きで明示実行する。投入インタフェースは
+     同 script が正本で、`qsub -v VAR=value <script>` 形を自分で発明しない (runbook §8)。
+     **raw `qsub` は D926 の nonce 束縛の保証範囲外である**
+  5. **測定の反復そのものに承認は要らない** (D1124)。**同じ cell を何度でも測ってよく**、測定ごとに
+     新しい測定世代を発行して台帳へ追記する。official 走行に要るのは D926 の承認束縛だけで、
+     予算承認 (結果を freeze へ昇格させる段の閂) は別物である (D1161 / D1398)。
+     挙動の正本は `tools/pegasus/README.md` の該当項
 - 背景 job セッションからの投入は F49 (ii) の例外で許されるが、投入直後に有効性検査 3 点
   (計算ノード側 marker の実在 / `qstat` 可視 / 会計痕跡) を必ず行う
 - **成果物を repo へ commit しない。** driver は `out_root = repo_output_root()` で repo の
   `output/` 配下へ書き、`output/env/pegasus/calibration/s8b-floor-pilot/…` は gitignore されない。
-  holdout clean-scan の除外は `output/s8b-freeze/` だけなので、pilot result を repo に置くと
-  **将来の official 床値 job の起動証明 (`clean_scan_digest` の hit 0 件要求) が止まる**
+  holdout clean-scan の除外は `output/s8b-freeze/` だけなので、床値 result を repo に置いたまま
+  次の official 床値 job を起動すると **その起動証明 (`clean_scan_digest` の hit 0 件要求) が止まる**
   (worklog 131-132 が同じ性質を記録している)。使い捨ての作業木で走らせ、repo 外へ退避する。
   **退避は run directory だけでは足りない** — 次を 1 つの bundle にまとめ、構成 manifest と
   各 hash を残す。run directory / content-addressed の binary store
   (`output/env/<env>/binaries/<sha>`。manifest と result はここを `store_path` で参照する) /
   submission receipt / job staging。**run directory だけを残すと参照が dangling になる。**
+- **official result は、v2 candidate を生成する時点では repo 相対 path に在る必要がある。**
+  `s8b_holdout_freeze._validate_floor_inputs` は `_load_repo_object(root, floor_result_path, …)` で
+  repo 相対に解決し、`parse_official_run_path` が official run path であることを要求する。
+  したがって「走行直後に repo 外へ退避する」と「candidate 生成時に repo 相対で読む」は同じ artifact に
+  ついて両方成り立たせる必要がある。**clean-scan の要求は緩めない** (規律 2)。
+  **退避と再配置の順序をどう運用するかは [T-2324] では決めていない** — candidate 生成を実際に
+  走らせる wave で決める。起票済み。
 - **途中で死んだときの扱いは crash 点で分かれる。** wrapper は `--resume` を渡さず、
   reservation 再検査は余裕不足を `reservation-lost` terminal として numeric values を
   不適格にする。**「新規 job で最初から再実行する」が通るのは claim 発行前に死んだ場合だけである**
@@ -445,8 +460,10 @@ admission が次の ticket を渡さない。つまり **D739 の復帰機構は
 ## 4. 順序の争点 — [T-657] 世代交代との衝突 (**裁定済み**)
 
 > **決着 (2026-08-10 [T-748] 裁定、2026-08-12 裁定 (c) で投入経路まで確定)。**
-> **W-2 は第 1 世代のうちに固定 pilot 経路で走らせる。** 恒久機構 ([T-657] の世代交代) が
+> **W-2 は第 1 世代のうちに走らせる。** 恒久機構 ([T-657] の世代交代) が
 > 先に発効した場合の作り直しリスクは受容する。以下の争点記述は決着の背景として残す。
+> **2026-09-07 更新: 投入経路は [T-2324] で固定 official + 明示承認へ入れ替わった。**
+> 裁定 (c) の「固定 pilot 経路」は承認束縛が実装されるまでの過渡形だった。
 
 現行 floor protocol は pegasus **第 1 世代**の契約 hash を焼き込んでおり、いま有効な env 契約も
 第 1 世代なので整合している。しかし registry には**未発効の第 2 世代**が既に登録済みである。

@@ -1,0 +1,134 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "m3-m7-ancestor-overlap",
+      "category": "negative",
+      "replacements": [
+        {
+          "old": "        if include_ancestors and _inside(root, path):\n            return True\n",
+          "new": "        if False and _inside(root, path):\n            return True\n",
+          "file": "hooks/guard_bash.py"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m8-partial-glob-prefix",
+      "category": "negative",
+      "replacements": [
+        {
+          "old": "        return has_glob and root.startswith(path)\n",
+          "new": "        return False\n",
+          "file": "hooks/guard_bash.py"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m9-bash-inode-index",
+      "category": "negative",
+      "replacements": [
+        {
+          "old": "    index = authority_index or _HooksInodeIndex(canonical_root)\n    return index.protects(lexical_path)\n",
+          "new": "    index = authority_index or _HooksInodeIndex(canonical_root)\n    return False\n",
+          "file": "hooks/guard_bash.py"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m10-bash-canonical-side",
+      "category": "negative",
+      "replacements": [
+        {
+          "old": "    if (overlaps(lexical_path, lexical_root)\n            or overlaps(canonical_path, canonical_root)):\n",
+          "new": "    if (overlaps(lexical_path, lexical_root)\n            or False):\n",
+          "file": "hooks/guard_bash.py"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "mf1-perf-existing-tree",
+      "category": "negative",
+      "replacements": [
+        {
+          "old": "                        and (_existing_tree_violation(\n                            output_value, root, marker_cwd, hooks_index)\n",
+          "new": "                        and (False and _existing_tree_violation(\n                            output_value, root, marker_cwd, hooks_index)\n",
+          "file": "hooks/guard_bash.py"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m1-write-authority-union",
+      "category": "negative",
+      "replacements": [
+        {
+          "old": "    lexical_root = os.path.abspath(_AUTHORITY_ROOT)\n    canonical_root = os.path.realpath(_AUTHORITY_ROOT)\n    if (_inside(lexical_path, lexical_root)\n",
+          "new": "    lexical_root = os.path.abspath(_AUTHORITY_ROOT)\n    canonical_root = os.path.realpath(_AUTHORITY_ROOT)\n    if (False and _inside(lexical_path, lexical_root)\n",
+          "file": "hooks/guard_write.py"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m9w-write-inode-index",
+      "category": "negative",
+      "replacements": [
+        {
+          "old": "    index = authority_index or _HooksInodeIndex(canonical_root)\n    return index.protects(raw_path)\n",
+          "new": "    index = authority_index or _HooksInodeIndex(canonical_root)\n    return False\n",
+          "file": "hooks/guard_write.py"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m14w-resolve-final-source",
+      "category": "positive",
+      "replacements": [
+        {
+          "old": "        authority_resolve_final = not (kind == \"delete\" or is_move_source)\n",
+          "new": "        authority_resolve_final = True\n",
+          "file": "hooks/guard_write.py"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "equiv-control-no-behaviour-change",
+      "category": "positive",
+      "replacements": [
+        {
+          "old": "    lexical_root = os.path.abspath(_AUTHORITY_ROOT)\n    canonical_root = os.path.realpath(_AUTHORITY_ROOT)\n\n    def overlaps",
+          "new": "    canonical_root = os.path.realpath(_AUTHORITY_ROOT)\n    lexical_root = os.path.abspath(_AUTHORITY_ROOT)\n\n    def overlaps",
+          "file": "hooks/guard_bash.py"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

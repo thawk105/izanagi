@@ -1,0 +1,314 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-wall-20260907/output/pegasus-dispatch/299e1424375848c2b703e440c8f556d9/izdw-299e142437.o980499",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-wall-20260907/output/pegasus-dispatch/299e1424375848c2b703e440c8f556d9/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n...                                                                      [100%]\n3 passed in 5.52s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "62d9a0a81c216515e6ff10f532076318404086ec7384f70ccded542e3738acec"
+    },
+    "artifact_error": null,
+    "collection_sha256": "ec78133d40a87e7254b7190ebd3426037ba777c0e9f274e087e451a8b7ad6eb4",
+    "duration_s": 33.179,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "f8658d855a49260835b189b2f14796e8acb702d652f2ae0663d29817b6b2130b",
+    "repo_head": "6854fbfe9cbd2b47a6f67622b2280a59b83b2d1b",
+    "runner_sha256": "35328fb0a496a60b024a7cf22f2b758592e2a7be1a3bf22e3826b5ba6d06c650",
+    "spec_sha256": "dad0c41a455ee913af3f64b811f3a326b3583c017d37a77c337b24bf9f68c9ca",
+    "status": "PASSED",
+    "test_output_sha256": "62d9a0a81c216515e6ff10f532076318404086ec7384f70ccded542e3738acec",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "e4b97174fb93b145e879468ea854d5e1403c3f7e76606b7d51d03a1f950a6bf7"
+  },
+  "date": "2026-09-07T03:15:51.973288+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-wall-20260907/output/pegasus-dispatch/dbc0dbc36ba691e46c56d2847f300b9f/izdw-dbc0dbc36b.o980501",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-wall-20260907/output/pegasus-dispatch/dbc0dbc36ba691e46c56d2847f300b9f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..F                                                                      [100%]\n=================================== FAILURES ===================================\n_____________________ test_p3_role_invalid_partial_passes ______________________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_p3_role_invalid_partial_p0')\n\n    def test_p3_role_invalid_partial_passes(tmp_path) -> None:\n        run, _events, report = _role_invalid_trial(tmp_path)\n>       _verify(run, report)\n\norchestrator/tests/test_autonomous_trial_completeness.py:2021: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_autonomous_trial_completeness.py:2001: in _verify\n    C.assert_autonomous_trial_completeness(\norchestrator/campaign/autonomous_trial_completeness.py:3190: in assert_autonomous_trial_completeness\n    _require_unique_attempts(\norchestrator/campaign/autonomous_trial_completeness.py:1863: in _require_unique_attempts\n    logical = [\norchestrator/campaign/autonomous_trial_completeness.py:1864: in <listcomp>\n    _logical_id(\norchestrator/campaign/autonomous_trial_completeness.py:1836: in _logical_id\n    _check_role_event_shape(record, label=label, run_root=run_root)\norchestrator/campaign/autonomous_trial_completeness.py:1758: in _check_role_event_shape\n    _fail(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ngate = 'role-event-shape'\nmessage = 'journal role attempt.error_artifacts raw response pointer is required'\n\n    def _fail(gate: str, message: str) -> None:\n>       raise AutonomousTrialCompletenessError(f\"[{gate}] {message}\")\nE       orchestrator.campaign.autonomous_trial_completeness.AutonomousTrialCompletenessError: [role-event-shape] journal role attempt.error_artifacts raw response pointer is required\n\norchestrator/campaign/autonomous_trial_completeness.py:448: AutonomousTrialCompletenessError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_autonomous_trial_completeness.py::test_p3_role_invalid_partial_passes\n1 failed, 2 passed in 6.17s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_autonomous_trial_completeness.py::test_p3_role_invalid_partial_passes\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=1717 retained_bytes=1717 omitted_bytes=0 rendered_excerpt_bytes=1782 sha256=240146c857804f9d00c1fc8e42e5c5d0cc2c2d0d3f791871634279b252e4cea3\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_p3_role_invalid_partial_p0')\n> \n>     def test_p3_role_invalid_partial_passes(tmp_path) -> None:\n>         run, _events, report = _role_invalid_trial(tmp_path)\n> >       _verify(run, report)\n> \n> orchestrator/tests/test_autonomous_trial_completeness.py:2021: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_autonomous_trial_completeness.py:2001: in _verify\n>     C.assert_autonomous_trial_completeness(\n> orchestrator/campaign/autonomous_trial_completeness.py:3190: in assert_autonomous_trial_completeness\n>     _require_unique_attempts(\n> orchestrator/campaign/autonomous_trial_completeness.py:1863: in _require_unique_attempts\n>     logical = [\n> orchestrator/campaign/autonomous_trial_completeness.py:1864: in <listcomp>\n>     _logical_id(\n> orchestrator/campaign/autonomous_trial_completeness.py:1836: in _logical_id\n>     _check_role_event_shape(record, label=label, run_root=run_root)\n> orchestrator/campaign/autonomous_trial_completeness.py:1758: in _check_role_event_shape\n>     _fail(\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> gate = 'role-event-shape'\n> message = 'journal role attempt.error_artifacts raw response pointer is required'\n> \n>     def _fail(gate: str, message: str) -> None:\n> >       raise AutonomousTrialCompletenessError(f\"[{gate}] {message}\")\n> E       orchestrator.campaign.autonomous_trial_completeness.AutonomousTrialCompletenessError: [role-event-shape] journal role attempt.error_artifacts raw response pointer is required\n> \n> orchestrator/campaign/autonomous_trial_completeness.py:448: AutonomousTrialCompletenessError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1717 retained_bytes=1717 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2502 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "74bf1872c23f6f22b0aa78c99709d6c6192ff55a582c0c21bdba49a4d6169a6a"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ec78133d40a87e7254b7190ebd3426037ba777c0e9f274e087e451a8b7ad6eb4",
+      "duration_s": 28.43,
+      "expected_nodes": [
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_p3_role_invalid_partial_passes"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_p3_role_invalid_partial_passes"
+      ],
+      "hang_risk": false,
+      "id": "M1-require-raw-pointer-for-pre-raw-failure",
+      "injection_diff_sha256": "40a872465889f29ded845b487351d16858d803437a107ea535b0f7a41c93ccb7",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "03547ab9c983e958852c310a03e1b916787d840d29e776050bc7ce0bd6d19a11",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+          "new": "        if (\n            present_raw_keys != raw_keys\n        ):\n            _fail(\n                \"role-event-shape\",\n                f\"{label}.error_artifacts raw response pointer is required\",\n            )\n",
+          "old": "        if (\n            failure_phase in _ROLE_FAILURE_PHASES_AFTER_RAW_WRITE\n            and present_raw_keys != raw_keys\n        ):\n            _fail(\n                \"role-event-shape\",\n                f\"{label}.error_artifacts raw response pointer is required\",\n            )\n"
+        }
+      ],
+      "repo_head": "6854fbfe9cbd2b47a6f67622b2280a59b83b2d1b",
+      "runner_sha256": "35328fb0a496a60b024a7cf22f2b758592e2a7be1a3bf22e3826b5ba6d06c650",
+      "spec_sha256": "dad0c41a455ee913af3f64b811f3a326b3583c017d37a77c337b24bf9f68c9ca",
+      "status": "KILLED",
+      "test_output_sha256": "74bf1872c23f6f22b0aa78c99709d6c6192ff55a582c0c21bdba49a4d6169a6a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e4b97174fb93b145e879468ea854d5e1403c3f7e76606b7d51d03a1f950a6bf7"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-wall-20260907/output/pegasus-dispatch/4009023c829e1b0f4dbc75f0726a5662/izdw-4009023c82.o980502",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-wall-20260907/output/pegasus-dispatch/4009023c829e1b0f4dbc75f0726a5662/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..F                                                                      [100%]\n=================================== FAILURES ===================================\n____ test_f176_preserves_legitimate_opposite_mentions[go_condition_not_met] ____\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\nopening = 'NO-GO。GOの条件を満たさない。', decision = 'NO-GO'\n\n    @pytest.mark.parametrize(\n        (\"opening\", \"decision\"),\n        [\n            pytest.param(\n                \"NO-GO。GOの余地はあるが、結論はNO-GOである。\",\n                \"NO-GO\",\n                id=\"go_possibility\",\n            ),\n            pytest.param(\n                \"NO-GO。GOの条件を満たさない。\",\n                \"NO-GO\",\n                id=\"go_condition_not_met\",\n            ),\n            pytest.param(\n                \"NO-GO。GOへ倒す材料は見つからなかった。\",\n                \"NO-GO\",\n                id=\"no_material_for_go\",\n            ),\n            pytest.param(\n                \"NO-GO。前回のGO判定は本件に適用できない。\",\n                \"NO-GO\",\n                id=\"prior_go_inapplicable\",\n            ),\n            pytest.param(\n                \"NO-GO。GOの根拠として挙げられた3点はいずれも成立しない。\",\n                \"NO-GO\",\n                id=\"go_reasons_invalid\",\n            ),\n            pytest.param(\n                \"GO。NO-GO理由にはなりません。\",\n                \"GO\",\n                id=\"not_no_go_reason\",\n            ),\n            pytest.param(\n                \"GO。NO-GOの条件を満たす所見は無い。\",\n                \"GO\",\n                id=\"no_no_go_finding\",\n            ),\n            pytest.param(\n                \"GO。NO-GO側の懸念は解消済みである。\",\n                \"GO\",\n                id=\"no_go_concerns_resolved\",\n            ),\n            pytest.param(\n                \"GO。NO-GO寄りの解釈も検討したが採らない。\",\n                \"GO\",\n                id=\"no_go_interpretation_rejected\",\n            ),\n            pytest.param(\n                \"GO。NO-GO判定に必要な must-fix は残っていない。\",\n                \"GO\",\n                id=\"no_no_go_must_fix\",\n            ),\n        ],\n    )\n    def test_f176_preserves_legitimate_opposite_mentions(\n        opening: str, decision: str\n    ) -> None:\n        score = TOOL.score_text(\"## 総括\\n\" + opening + \"総括本文。\" * 100)\n>       assert score[\"valid\"] is True\nE       assert False is True\n\norchestrator/tests/test_codex_reasoning_ab.py:13313: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_codex_reasoning_ab.py::test_f176_preserves_legitimate_opposite_mentions[go_condition_not_met]\n1 failed, 2 passed in 6.37s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_codex_reasoning_ab.py::test_f176_preserves_legitimate_opposite_mentions[go_condition_not_met]\" nodeid_bytes=117 nodeid_omitted_bytes=0 source_bytes=2356 retained_bytes=2356 omitted_bytes=0 rendered_excerpt_bytes=3013 sha256=455ab2ba67470a094e29e245b4cc88f81b1832dccd0692e0d0ea513603757e29\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n> opening = 'NO-GO\\u3002GO\\u306e\\u6761\\u4ef6\\u3092\\u6e80\\u305f\\u3055\\u306a\\u3044\\u3002', decision = 'NO-GO'\n> \n>     @pytest.mark.parametrize(\n>         (\"opening\", \"decision\"),\n>         [\n>             pytest.param(\n>                 \"NO-GO\\u3002GO\\u306e\\u4f59\\u5730\\u306f\\u3042\\u308b\\u304c\\u3001\\u7d50\\u8ad6\\u306fNO-GO\\u3067\\u3042\\u308b\\u3002\",\n>                 \"NO-GO\",\n>                 id=\"go_possibility\",\n>             ),\n>             pytest.param(\n>                 \"NO-GO\\u3002GO\\u306e\\u6761\\u4ef6\\u3092\\u6e80\\u305f\\u3055\\u306a\\u3044\\u3002\",\n>                 \"NO-GO\",\n>                 id=\"go_condition_not_met\",\n>             ),\n>             pytest.param(\n>                 \"NO-GO\\u3002GO\\u3078\\u5012\\u3059\\u6750\\u6599\\u306f\\u898b\\u3064\\u304b\\u3089\\u306a\\u304b\\u3063\\u305f\\u3002\",\n>                 \"NO-GO\",\n>                 id=\"no_material_for_go\",\n>             ),\n>             pytest.param(\n>                 \"NO-GO\\u3002\\u524d\\u56de\\u306eGO\\u5224\\u5b9a\\u306f\\u672c\\u4ef6\\u306b\\u9069\\u7528\\u3067\\u304d\\u306a\\u3044\\u3002\",\n>                 \"NO-GO\",\n>                 id=\"prior_go_inapplicable\",\n>             ),\n>             pytest.param(\n>                 \"NO-GO\\u3002GO\\u306e\\u6839\\u62e0\\u3068\\u3057\\u3066\\u6319\\u3052\\u3089\\u308c\\u305f3\\u70b9\\u306f\\u3044\\u305a\\u308c\\u3082\\u6210\\u7acb\\u3057\\u306a\\u3044\\u3002\",\n>                 \"NO-GO\",\n>                 id=\"go_reasons_invalid\",\n>             ),\n>             pytest.param(\n>                 \"GO\\u3002NO-GO\\u7406\\u7531\\u306b\\u306f\\u306a\\u308a\\u307e\\u305b\\u3093\\u3002\",\n>                 \"GO\",\n>                 id=\"not_no_go_reason\",\n>             ),\n>             pytest.param(\n>                 \"GO\\u3002NO-GO\\u306e\\u6761\\u4ef6\\u3092\\u6e80\\u305f\\u3059\\u6240\\u898b\\u306f\\u7121\\u3044\\u3002\",\n>                 \"GO\",\n>                 id=\"no_no_go_finding\",\n>             ),\n>             pytest.param(\n>                 \"GO\\u3002NO-GO\\u5074\\u306e\\u61f8\\u5ff5\\u306f\\u89e3\\u6d88\\u6e08\\u307f\\u3067\\u3042\\u308b\\u3002\",\n>                 \"GO\",\n>                 id=\"no_go_concerns_resolved\",\n>             ),\n>             pytest.param(\n>                 \"GO\\u3002NO-GO\\u5bc4\\u308a\\u306e\\u89e3\\u91c8\\u3082\\u691c\\u8a0e\\u3057\\u305f\\u304c\\u63a1\\u3089\\u306a\\u3044\\u3002\",\n>                 \"GO\",\n>                 id=\"no_go_interpretation_rejected\",\n>             ),\n>             pytest.param(\n>                 \"GO\\u3002NO-GO\\u5224\\u5b9a\\u306b\\u5fc5\\u8981\\u306a must-fix \\u306f\\u6b8b\\u3063\\u3066\\u3044\\u306a\\u3044\\u3002\",\n>                 \"GO\",\n>                 id=\"no_no_go_must_fix\",\n>             ),\n>         ],\n>     )\n>     def test_f176_preserves_legitimate_opposite_mentions(\n>         opening: str, decision: str\n>     ) -> None:\n>         score = TOOL.score_text(\"## \\u7dcf\\u62ec\\x5cn\" + opening + \"\\u7dcf\\u62ec\\u672c\\u6587\\u3002\" * 100)\n> >       assert score[\"valid\"] is True\n> E       assert False is True\n> \n> orchestrator/tests/test_codex_reasoning_ab.py:13313: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2356 retained_bytes=2356 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3758 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "a2ad5403685609f16239d018ebac5e8b895714dd69bfffa30a18f8fbb659da02"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ec78133d40a87e7254b7190ebd3426037ba777c0e9f274e087e451a8b7ad6eb4",
+      "duration_s": 28.331,
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_f176_preserves_legitimate_opposite_mentions[go_condition_not_met]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_f176_preserves_legitimate_opposite_mentions[go_condition_not_met]"
+      ],
+      "hang_risk": false,
+      "id": "M2-decision-token-lookahead-drops-cjk",
+      "injection_diff_sha256": "0b40f3c4e75b6a8b9926865f2b4dec415e387deb68612fe2083c653a827b126a",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "ae7ea16b1b980a8e561b5fc725cf5d377f49abc959d077001ee9d340bbe67104",
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "new": "    r\"(?<![A-Za-z-])(NO-GO|GO)(?![A-Za-z-])\"\n",
+          "old": "    r\"(?<![A-Za-z-])(NO-GO|GO)(?![A-Za-z一-龯ぁ-んァ-ヶ-])\"\n"
+        }
+      ],
+      "repo_head": "6854fbfe9cbd2b47a6f67622b2280a59b83b2d1b",
+      "runner_sha256": "35328fb0a496a60b024a7cf22f2b758592e2a7be1a3bf22e3826b5ba6d06c650",
+      "spec_sha256": "dad0c41a455ee913af3f64b811f3a326b3583c017d37a77c337b24bf9f68c9ca",
+      "status": "KILLED",
+      "test_output_sha256": "a2ad5403685609f16239d018ebac5e8b895714dd69bfffa30a18f8fbb659da02",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e4b97174fb93b145e879468ea854d5e1403c3f7e76606b7d51d03a1f950a6bf7"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-wall-20260907/output/pegasus-dispatch/3fdee31d3d1bd6316b50428831e43927/izdw-3fdee31d3d.o980509",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-wall-20260907/output/pegasus-dispatch/3fdee31d3d1bd6316b50428831e43927/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..F                                                                      [100%]\n=================================== FAILURES ===================================\n_______ test_g7e_checked_in_ledger_has_valid_schema_and_finite_durations _______\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_g7e_checked_in_ledger_has_valid_schema_and_finite_durations() -> None:\n        path = Path(__file__).with_name(\"acceptance_duration_ledger.json\")\n        payload = json.loads(path.read_text(encoding=\"ascii\"))\n        assert set(payload) == {\n            \"duration_seconds_by_nodeid\",\n            \"nodeid_count\",\n            \"schema_version\",\n            \"unit\",\n        }\n        assert payload[\"schema_version\"] == 1\n        assert payload[\"unit\"] == \"seconds\"\n        durations = payload[\"duration_seconds_by_nodeid\"]\n        assert isinstance(durations, dict)\n>       assert payload[\"nodeid_count\"] == len(durations)\nE       AssertionError: assert 19519 == 19517\nE        +  where 19517 = len({'orchestrator/tests/test_a1_non_certifying_marker.py::test_balanced5_interruption_is_terminal_invalid_after_ident_res...est_a1_non_certifying_marker.py::test_ident_accepts_each_registered_exact_identity_tuple[balanced5-sized]': 0.001, ...})\n\norchestrator/tests/test_update_acceptance_duration_ledger.py:319: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_update_acceptance_duration_ledger.py::test_g7e_checked_in_ledger_has_valid_schema_and_finite_durations\n1 failed, 2 passed in 5.17s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_update_acceptance_duration_ledger.py::test_g7e_checked_in_ledger_has_valid_schema_and_finite_durations\" nodeid_bytes=126 nodeid_omitted_bytes=0 source_bytes=1079 retained_bytes=1079 omitted_bytes=0 rendered_excerpt_bytes=1120 sha256=d6121f49f0b6f34e2a71885efcc394c0c42d898c646c46ee0c689d193c8b1b9c\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_g7e_checked_in_ledger_has_valid_schema_and_finite_durations() -> None:\n>         path = Path(__file__).with_name(\"acceptance_duration_ledger.json\")\n>         payload = json.loads(path.read_text(encoding=\"ascii\"))\n>         assert set(payload) == {\n>             \"duration_seconds_by_nodeid\",\n>             \"nodeid_count\",\n>             \"schema_version\",\n>             \"unit\",\n>         }\n>         assert payload[\"schema_version\"] == 1\n>         assert payload[\"unit\"] == \"seconds\"\n>         durations = payload[\"duration_seconds_by_nodeid\"]\n>         assert isinstance(durations, dict)\n> >       assert payload[\"nodeid_count\"] == len(durations)\n> E       AssertionError: assert 19519 == 19517\n> E        +  where 19517 = len({'orchestrator/tests/test_a1_non_certifying_marker.py::test_balanced5_interruption_is_terminal_invalid_after_ident_res...est_a1_non_certifying_marker.py::test_ident_accepts_each_registered_exact_identity_tuple[balanced5-sized]': 0.001, ...})\n> \n> orchestrator/tests/test_update_acceptance_duration_ledger.py:319: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1079 retained_bytes=1079 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1874 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "274bcd45c0e3cf85b2b7aa52385b340522855d52d416301dc2853389bdf16dc0"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ec78133d40a87e7254b7190ebd3426037ba777c0e9f274e087e451a8b7ad6eb4",
+      "duration_s": 28.053,
+      "expected_nodes": [
+        "orchestrator/tests/test_update_acceptance_duration_ledger.py::test_g7e_checked_in_ledger_has_valid_schema_and_finite_durations"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_update_acceptance_duration_ledger.py::test_g7e_checked_in_ledger_has_valid_schema_and_finite_durations"
+      ],
+      "hang_risk": false,
+      "id": "M3-ledger-nodeid-count-drift",
+      "injection_diff_sha256": "1622a97891f60c99244d26e7dd54a7b2099e3fbab1e83527e3dd988049a8ab48",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "5a68d9c4e96c07e5cee8487f1b8d7901ca78cddc8d42e08129d1c605ca6bb451",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/acceptance_duration_ledger.json",
+          "new": "\"nodeid_count\": 19519",
+          "old": "\"nodeid_count\": 19517"
+        }
+      ],
+      "repo_head": "6854fbfe9cbd2b47a6f67622b2280a59b83b2d1b",
+      "runner_sha256": "35328fb0a496a60b024a7cf22f2b758592e2a7be1a3bf22e3826b5ba6d06c650",
+      "spec_sha256": "dad0c41a455ee913af3f64b811f3a326b3583c017d37a77c337b24bf9f68c9ca",
+      "status": "KILLED",
+      "test_output_sha256": "274bcd45c0e3cf85b2b7aa52385b340522855d52d416301dc2853389bdf16dc0",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e4b97174fb93b145e879468ea854d5e1403c3f7e76606b7d51d03a1f950a6bf7"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-wall-20260907/output/pegasus-dispatch/b48ac21922e2b6630a29e8f525b6d475/izdw-b48ac21922.o980496",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-wall-20260907/output/pegasus-dispatch/b48ac21922e2b6630a29e8f525b6d475/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_autonomous_trial_completeness.py::test_p3_role_invalid_partial_passes\norchestrator/tests/test_codex_reasoning_ab.py::test_f176_preserves_legitimate_opposite_mentions[go_condition_not_met]\norchestrator/tests/test_update_acceptance_duration_ledger.py::test_g7e_checked_in_ledger_has_valid_schema_and_finite_durations\nIZANAGI_GROWTH_HOLD_SUMMARY_V1 {\"collected_hold_functions\":2,\"opted_in\":false}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_codex_reasoning_ab.py::test_forbidden_commits_are_unreachable_in_both_cases\",\"reason\":\"Measured on 2026-08-23 in this worktree: corpus recursive enumeration Path.rglob(\\\"rollout-*.jsonl\\\") covered 5,505 files in 0.045 seconds, and tip index enumeration git ls-files --stage -z covered 13,908 entries in 0.031 seconds. This node's call took 0.01 seconds; this is a one-point observation under concurrent execution, not a permanent value. The hold remains because D451 does not apply: default-run barrier node test_codex_reasoning_ab.py::test_snapshot_submodule_object_store_is_recursive passes verify_snapshot over a clean POS snapshot. IZANAGI_HOLD_REEVAL_V1 {\\\"advisory\\\":\\\"This is a record, not an automatic release condition; no default-run evaluator exists for this sentinel, and release remains explicit-user-command-only.\\\",\\\"barrier_nodes\\\":[\\\"test_codex_reasoning_ab.py::test_snapshot_submodule_object_store_is_recursive\\\"],\\\"measured_on\\\":\\\"2026-08-23\\\",\\\"observed_call_seconds\\\":0.01}\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_codex_reasoning_ab.py::test_parent_numstat_controls_remain_pinned\",\"reason\":\"Measured on 2026-08-23 in this worktree: corpus recursive enumeration Path.rglob(\\\"rollout-*.jsonl\\\") covered 5,505 files in 0.045 seconds, and tip index enumeration git ls-files --stage -z covered 13,908 entries in 0.031 seconds. This node's call took 6.91 seconds; this is a one-point observation under concurrent execution, not a permanent value. The hold remains because D451 does not apply: default-run barrier node test_codex_reasoning_ab.py::test_snapshot_submodule_object_store_is_recursive passes verify_snapshot over a clean POS snapshot, and default-run barrier node test_codex_reasoning_ab.py::test_task_manifest_binds_frozen_provenance_to_literal_values pins the manifest literals. IZANAGI_HOLD_REEVAL_V1 {\\\"advisory\\\":\\\"This is a record, not an automatic release condition; no default-run evaluator exists for this sentinel, and release remains explicit-user-command-only.\\\",\\\"barrier_nodes\\\":[\\\"test_codex_reasoning_ab.py::test_snapshot_submodule_object_store_is_recursive\\\",\\\"test_codex_reasoning_ab.py::test_task_manifest_binds_frozen_provenance_to_literal_values\\\"],\\\"measured_on\\\":\\\"2026-08-23\\\",\\\"observed_call_seconds\\\":6.91}\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\n\n3/919 tests collected (916 deselected) in 1.77s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "e6209652d7d521845bc46d19e7149cfb7e97a4d8ad59220a28279686e9e71e7d"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_p3_role_invalid_partial_passes",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_f176_preserves_legitimate_opposite_mentions[go_condition_not_met]",
+        "orchestrator/tests/test_update_acceptance_duration_ledger.py::test_g7e_checked_in_ledger_has_valid_schema_and_finite_durations",
+        "IZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_codex_reasoning_ab.py::test_forbidden_commits_are_unreachable_in_both_cases\",\"reason\":\"Measured on 2026-08-23 in this worktree: corpus recursive enumeration Path.rglob(/\"rollout-*.jsonl/\") covered 5,505 files in 0.045 seconds, and tip index enumeration git ls-files --stage -z covered 13,908 entries in 0.031 seconds. This node's call took 0.01 seconds; this is a one-point observation under concurrent execution, not a permanent value. The hold remains because D451 does not apply: default-run barrier node test_codex_reasoning_ab.py::test_snapshot_submodule_object_store_is_recursive passes verify_snapshot over a clean POS snapshot. IZANAGI_HOLD_REEVAL_V1 {/\"advisory/\":/\"This is a record, not an automatic release condition; no default-run evaluator exists for this sentinel, and release remains explicit-user-command-only./\",/\"barrier_nodes/\":[/\"test_codex_reasoning_ab.py::test_snapshot_submodule_object_store_is_recursive/\"],/\"measured_on/\":/\"2026-08-23/\",/\"observed_call_seconds/\":0.01}\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings /u7b2c 3 /u675f\"}",
+        "IZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_codex_reasoning_ab.py::test_parent_numstat_controls_remain_pinned\",\"reason\":\"Measured on 2026-08-23 in this worktree: corpus recursive enumeration Path.rglob(/\"rollout-*.jsonl/\") covered 5,505 files in 0.045 seconds, and tip index enumeration git ls-files --stage -z covered 13,908 entries in 0.031 seconds. This node's call took 6.91 seconds; this is a one-point observation under concurrent execution, not a permanent value. The hold remains because D451 does not apply: default-run barrier node test_codex_reasoning_ab.py::test_snapshot_submodule_object_store_is_recursive passes verify_snapshot over a clean POS snapshot, and default-run barrier node test_codex_reasoning_ab.py::test_task_manifest_binds_frozen_provenance_to_literal_values pins the manifest literals. IZANAGI_HOLD_REEVAL_V1 {/\"advisory/\":/\"This is a record, not an automatic release condition; no default-run evaluator exists for this sentinel, and release remains explicit-user-command-only./\",/\"barrier_nodes/\":[/\"test_codex_reasoning_ab.py::test_snapshot_submodule_object_store_is_recursive/\",/\"test_codex_reasoning_ab.py::test_task_manifest_binds_frozen_provenance_to_literal_values/\"],/\"measured_on/\":/\"2026-08-23/\",/\"observed_call_seconds/\":6.91}\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings /u7b2c 3 /u675f\"}"
+      ],
+      "duration_s": 165.134,
+      "rc": 0,
+      "repo_head": "6854fbfe9cbd2b47a6f67622b2280a59b83b2d1b",
+      "runner_sha256": "35328fb0a496a60b024a7cf22f2b758592e2a7be1a3bf22e3826b5ba6d06c650",
+      "spec_sha256": "dad0c41a455ee913af3f64b811f3a326b3583c017d37a77c337b24bf9f68c9ca",
+      "status": "PASSED",
+      "tool_sha256": "e4b97174fb93b145e879468ea854d5e1403c3f7e76606b7d51d03a1f950a6bf7"
+    },
+    "hang_timeout_seconds": 900.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1-require-raw-pointer-for-pre-raw-failure": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_autonomous_trial_completeness.py::test_p3_role_invalid_partial_passes"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "40a872465889f29ded845b487351d16858d803437a107ea535b0f7a41c93ccb7",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+            "new": "        if (\n            present_raw_keys != raw_keys\n        ):\n            _fail(\n                \"role-event-shape\",\n                f\"{label}.error_artifacts raw response pointer is required\",\n            )\n",
+            "old": "        if (\n            failure_phase in _ROLE_FAILURE_PHASES_AFTER_RAW_WRITE\n            and present_raw_keys != raw_keys\n        ):\n            _fail(\n                \"role-event-shape\",\n                f\"{label}.error_artifacts raw response pointer is required\",\n            )\n"
+          }
+        ]
+      },
+      "M2-decision-token-lookahead-drops-cjk": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_codex_reasoning_ab.py::test_f176_preserves_legitimate_opposite_mentions[go_condition_not_met]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "0b40f3c4e75b6a8b9926865f2b4dec415e387deb68612fe2083c653a827b126a",
+        "replacements": [
+          {
+            "file": "tools/codex_reasoning_ab.py",
+            "new": "    r\"(?<![A-Za-z-])(NO-GO|GO)(?![A-Za-z-])\"\n",
+            "old": "    r\"(?<![A-Za-z-])(NO-GO|GO)(?![A-Za-z一-龯ぁ-んァ-ヶ-])\"\n"
+          }
+        ]
+      },
+      "M3-ledger-nodeid-count-drift": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_update_acceptance_duration_ledger.py::test_g7e_checked_in_ledger_has_valid_schema_and_finite_durations"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "1622a97891f60c99244d26e7dd54a7b2099e3fbab1e83527e3dd988049a8ab48",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/acceptance_duration_ledger.json",
+            "new": "\"nodeid_count\": 19519",
+            "old": "\"nodeid_count\": 19517"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "f8658d855a49260835b189b2f14796e8acb702d652f2ae0663d29817b6b2130b",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_autonomous_trial_completeness.py",
+      "orchestrator/tests/test_codex_reasoning_ab.py",
+      "orchestrator/tests/test_update_acceptance_duration_ledger.py",
+      "-k",
+      "p3_role_invalid_partial_passes or go_condition_not_met or g7e_checked_in_ledger_has_valid_schema_and_finite_durations",
+      "-q",
+      "-rf",
+      "-p",
+      "no:randomly",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 3600.0
+  },
+  "repo_head": "6854fbfe9cbd2b47a6f67622b2280a59b83b2d1b",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_autonomous_trial_completeness.py",
+      "orchestrator/tests/test_codex_reasoning_ab.py",
+      "orchestrator/tests/test_update_acceptance_duration_ledger.py",
+      "-k",
+      "p3_role_invalid_partial_passes or go_condition_not_met or g7e_checked_in_ledger_has_valid_schema_and_finite_durations",
+      "-q",
+      "-rf",
+      "-p",
+      "no:randomly",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-wall-20260907/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-wall-20260907/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "c0fb49d7e8909a8d1434f998b20c6b018a70d77f",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "35328fb0a496a60b024a7cf22f2b758592e2a7be1a3bf22e3826b5ba6d06c650",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "dad0c41a455ee913af3f64b811f3a326b3583c017d37a77c337b24bf9f68c9ca",
+  "summary": {
+    "KILLED": 3,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 3,
+    "matching": 3,
+    "recorded": 3,
+    "registered": 3
+  },
+  "tool_identity": {
+    "head_blob_sha256": "900a6500b112faec9702a147242427d6cc2ebcad1029149a689ff5999d5f5ab9",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-wall-20260907/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "900a6500b112faec9702a147242427d6cc2ebcad1029149a689ff5999d5f5ab9"
+  },
+  "tool_sha256": "e4b97174fb93b145e879468ea854d5e1403c3f7e76606b7d51d03a1f950a6bf7",
+  "updated_at": "2026-09-07T03:18:17.511992+00:00"
+}
