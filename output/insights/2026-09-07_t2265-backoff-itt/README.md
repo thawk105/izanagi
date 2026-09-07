@@ -154,6 +154,8 @@ probe → 本走の 2 段。詳細と erratum は `mutation-notes.md`。
   **10 変異すべてで赤が出た。生存 0。** KILLED 4 / MISMATCH 6。MISMATCH はすべて
   「親が予測した赤の node 集合が実際と違った」型である。
 - **本走** (`mutation-spec.json` / `mutation-main-report.json`): 観測された完全集合を登録し直して再走。
+  **baseline PASSED、10/10 KILLED、期待 node と完全一致 (matching 10/10)、MISMATCH 0・SURVIVED 0、
+  harness rc=0。** repo head `7adbd4048`、spec sha256 `cb25ef5d…`。
 
 ## 10. 未了と次の一手
 

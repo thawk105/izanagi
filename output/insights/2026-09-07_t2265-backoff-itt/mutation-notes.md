@@ -41,7 +41,20 @@ KILLED 4 / MISMATCH 6。**MISMATCH はすべて「親が予測した赤の node 
 そのため `test_ccbench_spawn_sites.py` の deferred gate 台帳 (行番号で sink を照合する層) は
 本走の赤に現れない。実装 fix の側では、同台帳の行番号を実体へ追随させている。
 
-## 本走
+## 本走の結果
 
-probe で観測した完全集合を `expected_nodes` へ登録し直して回した。結果は
-`mutation-main-report.json` を正本とする。
+probe で観測した完全集合を `expected_nodes` へ登録し直して回した。正本は `mutation-main-report.json`。
+
+**baseline PASSED、10 変異すべて KILLED、期待した赤の node と完全一致 (matching 10/10)。
+MISMATCH 0、SURVIVED 0、TIMEOUT 0、PARSE_ERROR 0、harness rc=0。**
+
+- repo head: `7adbd4048e3a8c2a9bf8d5f2b66231bb76b01c28`
+- spec sha256: `cb25ef5d27c70761b33e41204198b0c8d2ccc56aa30c8703241686af402806ae`
+
+**内側 timeout の erratum。** 1 回目の本走は spec の `timeout_seconds` (1800 秒) が、混雑対策で
+与えた投入待ち契約 (queue 待ち 3600 秒 + 猶予 600 秒) より短いため harness が fail-closed で拒否した。
+`timeout_seconds` を 5400 秒、`hang_timeout_seconds` を 6000 秒へ引き上げて整合させた。
+
+**もう 1 件の erratum。** 2 回目の本走は、親が走行中に repo へ notes を書いたため
+untracked file を検出して停止した。変異走行は走行中ずっと木が clean であることを要求する。
+docs を先に commit してから 3 回目で完走した。
