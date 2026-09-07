@@ -310,7 +310,7 @@ python3 tools/pegasus/fetch_third_party.py verify-deps  # policy の gflags/glog
   `submit_silo_ladder_rung1.sh` と `silo_ladder_rung1.sh` の pin/clean 検査のままで、
   取得経路は submit receipt にも evidence にも値として現れない。
 
-## 7. P3 段 4 loop の job body を投入する (2026-09-05 実装、[T-2232]、計算ノードでは未実測)
+## 7. P3 段 4 loop の job body を投入する (2026-09-05 実装、[T-2232]。初回投入 2026-09-07 job `981655.nqsv` は masstree 事前構築の `Could NOT find gflags` で停止し、[T-2406] で gflags/glog の供給経路を足した)
 
 `tools/pegasus/p3_s4_loop_pegasus.sh` は親が直接 `qsub` する compute-only の job body であり、
 投入器ではない (A-1 `paper_story_a1_paired.sh` と同じ型)。job body の義務は次のとおりで、
@@ -319,7 +319,14 @@ python3 tools/pegasus/fetch_third_party.py verify-deps  # policy の gflags/glog
 - `bnode` 以外の host、必須環境変数の欠落、repo 内の evidence root、`.claude/worktrees/` /
   `.codex/worktrees/` 配下の checkout は rc=2 で拒否する
 - `python3.10` を解決し、`python3` → 3.10 の shim (interpreter のみ) を PATH 先頭に置く。
-  `cmake` / compiler の wrapper・launcher・`CMAKE_PREFIX_PATH` は置かない (F813、D1517)
+  `cmake` / compiler の wrapper・launcher は置かない (F813、D1517)
+- `tools/pegasus/policy.json` の pin (`gflags_source_path` / `gflags_expected_head` /
+  `glog_source_path` / `glog_expected_head`) に exact 一致し clean な gflags / glog を `$TMPDIR`
+  (job 別 scratch) へ configure / build / install し、この 2 install prefix だけを
+  `CMAKE_PREFIX_PATH="$GFLAGS_INSTALL_DIR:$GLOG_INSTALL_DIR"` として masstree 事前構築の前から
+  driver 本走まで保持する (`floor_scoping.sh` の prologue の移植、D1773)。事前構築の
+  `configure_argv` にも同じ 2 prefix を `-DCMAKE_PREFIX_PATH=` で残す。別の provenance file は
+  作らない。契約テストはこの exact 1 行以外の `CMAKE_PREFIX_PATH` 代入と、export 後の unset を拒否する
 - expected HEAD、superproject の tracked clean (submodule 除外)、CCBench の `p3_s4_loop.PIN` 一致を検査する
 - `qstat -f` から reservation 束縛 (`IZANAGI_RESERVATION_*`) を組み、`<REPO_ROOT>/output/env/pegasus/claims`
   を provisioning する
