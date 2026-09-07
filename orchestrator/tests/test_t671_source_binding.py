@@ -232,6 +232,30 @@ def _canonical_json(value: object) -> str:
     )
 
 
+def _install_two_call_batch_fake(
+    monkeypatch: pytest.MonkeyPatch,
+    contract_loader_binding: object,
+    root: Path,
+    ls_tree_output: bytes,
+    batch_output: bytes,
+) -> list[tuple[tuple[str, ...], dict[str, object]]]:
+    calls: list[tuple[tuple[str, ...], dict[str, object]]] = []
+
+    def fake_run_git(
+        actual_root: Path, *args: str, **kwargs: object,
+    ) -> bytes:
+        assert actual_root == root
+        calls.append((args, dict(kwargs)))
+        if len(calls) == 1:
+            return ls_tree_output
+        if len(calls) == 2:
+            return batch_output
+        pytest.fail(f"unexpected _run_git call: {args!r} {kwargs!r}")
+
+    monkeypatch.setattr(contract_loader_binding, "_run_git", fake_run_git)
+    return calls
+
+
 def test_enforcement_source_closure_is_the_independent_exact_twenty_four_paths() -> None:
     from orchestrator.campaign import campaign_lock, contract_loader_binding
     from orchestrator.campaign import s8c_preregistration
@@ -419,6 +443,18 @@ def test_exact_twenty_four_clean_closure_capture_and_live_verify(
         tmp_path, copy_current_loaders=True,
     )
     monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+    real_disk_reader = contract_loader_binding._read_regular_file_no_follow
+    disk_reads: list[str] = []
+
+    def recording_disk_reader(root: Path, relative: str) -> bytes:
+        disk_reads.append(relative)
+        return real_disk_reader(root, relative)
+
+    monkeypatch.setattr(
+        contract_loader_binding,
+        "_read_regular_file_no_follow",
+        recording_disk_reader,
+    )
     binding = contract_loader_binding.capture_contract_loader_binding()
     contract_loader_binding.verify_live_contract_loader_binding(binding)
 
@@ -434,6 +470,10 @@ def test_exact_twenty_four_clean_closure_capture_and_live_verify(
     )
     assert set(binding.contract_loader_blob_sha256s) == set(
         _EXPECTED_ENFORCEMENT_SOURCE_PATHS
+    )
+    assert disk_reads == list(
+        _EXPECTED_ENFORCEMENT_SOURCE_PATHS
+        + _EXPECTED_ENFORCEMENT_SOURCE_PATHS
     )
     for relative in _EXPECTED_ENFORCEMENT_SOURCE_PATHS:
         committed_blob = _git(
@@ -597,7 +637,7 @@ def test_live_verification_rejects_each_dirty_enforcement_source(
     ) as caught:
         contract_loader_binding.verify_live_contract_loader_binding(binding)
     message = str(caught.value)
-    assert "contract-loader-drift" in message
+    assert message.startswith("contract-loader-drift:")
     assert drift_path in message
 
 
@@ -780,6 +820,933 @@ def test_production_contract_loader_binding_call_sites_are_exact() -> None:
                     actual[(name, function.name, func.attr)] += 1
 
     assert actual == expected
+
+
+def test_batch_blob_reader_accepts_ordered_binary_blobs_and_duplicates(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from orchestrator.campaign import contract_loader_binding
+
+    root = tmp_path / "recorded-root"
+    commit = "a" * 40
+    first_oid = b"1" * 40
+    empty_oid = b"2" * 40
+    last_oid = b"3" * 40
+    paths = (
+        "dir/first file\n.py",
+        "dir/empty.py",
+        "dir/first file\n.py",
+        "dir/no-final-lf.py",
+    )
+    ls_tree_output = (
+        b"100644 blob " + first_oid + b"\tdir/first file\n.py\0"
+        + b"100644 blob " + empty_oid + b"\tdir/empty.py\0"
+        + b"100644 blob " + last_oid + b"\tdir/no-final-lf.py\0"
+    )
+    batch_output = (
+        first_oid + b" blob 8\nbinary\0\n\n"
+        + empty_oid + b" blob 0\n\n"
+        + first_oid + b" blob 8\nbinary\0\n\n"
+        + last_oid + b" blob 11\nno-final-lf\n"
+    )
+    calls = _install_two_call_batch_fake(
+        monkeypatch,
+        contract_loader_binding,
+        root,
+        ls_tree_output,
+        batch_output,
+    )
+
+    assert tuple(contract_loader_binding._iter_blobs(root, commit, paths)) == (
+        (paths[0], b"binary\0\n"),
+        (paths[1], b""),
+        (paths[2], b"binary\0\n"),
+        (paths[3], b"no-final-lf"),
+    )
+    assert calls == [
+        (
+            (
+                "ls-tree", "-r", "-z", commit, "--",
+                ":(literal)dir/first file\n.py",
+                ":(literal)dir/empty.py",
+                ":(literal)dir/no-final-lf.py",
+            ),
+            {"timeout_seconds": 30},
+        ),
+        (
+            ("cat-file", "--batch"),
+            {
+                "input_bytes": (
+                    first_oid + b"\n" + empty_oid + b"\n"
+                    + first_oid + b"\n" + last_oid + b"\n"
+                ),
+                "timeout_seconds": 40,
+            },
+        ),
+    ]
+
+
+def test_blob_compatibility_wrapper_uses_one_batch_query(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from orchestrator.campaign import contract_loader_binding
+
+    root = tmp_path / "recorded-root"
+    commit = "a" * 40
+    oid = b"4" * 40
+    relative = "loader.py"
+    calls = _install_two_call_batch_fake(
+        monkeypatch,
+        contract_loader_binding,
+        root,
+        b"100644 blob " + oid + b"\tloader.py\0",
+        oid + b" blob 4\nbody\n",
+    )
+
+    assert contract_loader_binding._blob(root, commit, relative) == b"body"
+    assert calls == [
+        (
+            (
+                "ls-tree", "-r", "-z", commit, "--",
+                ":(literal)loader.py",
+            ),
+            {"timeout_seconds": 10},
+        ),
+        (
+            ("cat-file", "--batch"),
+            {"input_bytes": oid + b"\n", "timeout_seconds": 10},
+        ),
+    ]
+
+
+@pytest.mark.parametrize(
+    "corruption",
+    (
+        pytest.param("missing", id="missing-entry"),
+        pytest.param("unexpected", id="unexpected-entry"),
+        pytest.param("duplicate", id="duplicate-entry"),
+    ),
+)
+def test_batch_blob_reader_rejects_invalid_ls_tree_path_sets(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    corruption: str,
+) -> None:
+    from orchestrator.campaign import contract_loader_binding
+
+    root = tmp_path / "recorded-root"
+    commit = "a" * 40
+    first_oid = b"1" * 40
+    second_oid = b"2" * 40
+    first = b"100644 blob " + first_oid + b"\tdir/first.py\0"
+    second = b"100644 blob " + second_oid + b"\tdir/second.py\0"
+    if corruption == "missing":
+        ls_tree_output = first
+    elif corruption == "unexpected":
+        ls_tree_output = (
+            first + second
+            + b"100644 blob " + b"3" * 40 + b"\tdir/unexpected.py\0"
+        )
+    else:
+        ls_tree_output = first + second + first
+    calls = _install_two_call_batch_fake(
+        monkeypatch,
+        contract_loader_binding,
+        root,
+        ls_tree_output,
+        b"must not be reached",
+    )
+
+    with pytest.raises(
+        contract_loader_binding.ContractLoaderBindingError,
+        match="contract-loader-git-error",
+    ):
+        tuple(contract_loader_binding._iter_blobs(
+            root, commit, ("dir/first.py", "dir/second.py"),
+        ))
+
+    assert calls == [
+        (
+            (
+                "ls-tree", "-r", "-z", commit, "--",
+                ":(literal)dir/first.py", ":(literal)dir/second.py",
+            ),
+            {"timeout_seconds": 20},
+        ),
+    ]
+
+
+@pytest.mark.parametrize(
+    "object_type",
+    (
+        pytest.param(b"tree", id="tree-object"),
+        pytest.param(b"commit", id="commit-object"),
+    ),
+)
+def test_batch_blob_reader_rejects_non_blob_ls_tree_entries(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    object_type: bytes,
+) -> None:
+    from orchestrator.campaign import contract_loader_binding
+
+    root = tmp_path / "recorded-root"
+    commit = "a" * 40
+    oid = b"1" * 40
+    calls = _install_two_call_batch_fake(
+        monkeypatch,
+        contract_loader_binding,
+        root,
+        b"100644 " + object_type + b" " + oid + b"\tdir/loader.py\0",
+        b"must not be reached",
+    )
+
+    with pytest.raises(
+        contract_loader_binding.ContractLoaderBindingError,
+        match="contract-loader-git-error",
+    ):
+        tuple(contract_loader_binding._iter_blobs(
+            root, commit, ("dir/loader.py",),
+        ))
+
+    assert calls == [
+        (
+            (
+                "ls-tree", "-r", "-z", commit, "--",
+                ":(literal)dir/loader.py",
+            ),
+            {"timeout_seconds": 10},
+        ),
+    ]
+
+
+def test_committed_verifier_accepts_blob_entries_regardless_of_mode(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from orchestrator.campaign import contract_loader_binding
+
+    root = tmp_path / "recorded-root"
+    commit = "a" * 40
+    executable_oid = b"1" * 40
+    symlink_oid = b"2" * 40
+    paths = ("dir/executable.py", "dir/symlink.py")
+    executable_blob = b"executable"
+    symlink_blob = b"target.py"
+    calls: list[tuple[tuple[str, ...], dict[str, object]]] = []
+
+    def fake_run_git(
+        actual_root: Path, *args: str, **kwargs: object,
+    ) -> bytes:
+        assert actual_root == root
+        calls.append((args, dict(kwargs)))
+        if len(calls) == 1:
+            return (commit + "\n").encode("ascii")
+        if len(calls) == 2:
+            return (
+                b"100755 blob " + executable_oid + b"\tdir/executable.py\0"
+                + b"120000 blob " + symlink_oid + b"\tdir/symlink.py\0"
+            )
+        if len(calls) == 3:
+            return (
+                executable_oid + b" blob 10\nexecutable\n"
+                + symlink_oid + b" blob 9\ntarget.py\n"
+            )
+        pytest.fail(f"unexpected _run_git call: {args!r} {kwargs!r}")
+
+    monkeypatch.setattr(contract_loader_binding, "_validated_root", lambda: root)
+    monkeypatch.setattr(contract_loader_binding, "_run_git", fake_run_git)
+    digests = {
+        paths[0]: hashlib.sha256(executable_blob).hexdigest(),
+        paths[1]: hashlib.sha256(symlink_blob).hexdigest(),
+    }
+
+    contract_loader_binding.verify_committed_contract_loader_blobs(
+        commit, digests, paths,
+    )
+
+    assert calls == [
+        (("rev-parse", "--verify", f"{commit}^{{commit}}"), {}),
+        (
+            (
+                "ls-tree", "-r", "-z", commit, "--",
+                ":(literal)dir/executable.py", ":(literal)dir/symlink.py",
+            ),
+            {"timeout_seconds": 20},
+        ),
+        (
+            ("cat-file", "--batch"),
+            {
+                "input_bytes": executable_oid + b"\n" + symlink_oid + b"\n",
+                "timeout_seconds": 20,
+            },
+        ),
+    ]
+
+
+def test_committed_verifier_rejects_reordered_batch_oids_even_with_permuted_digests(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from orchestrator.campaign import contract_loader_binding
+
+    root = tmp_path / "recorded-root"
+    commit = "a" * 40
+    first_oid = b"1" * 40
+    second_oid = b"2" * 40
+    paths = ("dir/first.py", "dir/second.py")
+    first_blob = b"first"
+    second_blob = b"second"
+    calls: list[tuple[tuple[str, ...], dict[str, object]]] = []
+
+    def fake_run_git(
+        actual_root: Path, *args: str, **kwargs: object,
+    ) -> bytes:
+        assert actual_root == root
+        calls.append((args, dict(kwargs)))
+        if len(calls) == 1:
+            return (commit + "\n").encode("ascii")
+        if len(calls) == 2:
+            return (
+                b"100644 blob " + first_oid + b"\tdir/first.py\0"
+                + b"100644 blob " + second_oid + b"\tdir/second.py\0"
+            )
+        if len(calls) == 3:
+            return (
+                second_oid + b" blob 6\nsecond\n"
+                + first_oid + b" blob 5\nfirst\n"
+            )
+        pytest.fail(f"unexpected _run_git call: {args!r} {kwargs!r}")
+
+    monkeypatch.setattr(contract_loader_binding, "_validated_root", lambda: root)
+    monkeypatch.setattr(contract_loader_binding, "_run_git", fake_run_git)
+    permuted_digests = {
+        paths[0]: hashlib.sha256(second_blob).hexdigest(),
+        paths[1]: hashlib.sha256(first_blob).hexdigest(),
+    }
+
+    with pytest.raises(
+        contract_loader_binding.ContractLoaderBindingError,
+        match="contract-loader-git-error",
+    ):
+        contract_loader_binding.verify_committed_contract_loader_blobs(
+            commit, permuted_digests, paths,
+        )
+
+    assert calls == [
+        (("rev-parse", "--verify", f"{commit}^{{commit}}"), {}),
+        (
+            (
+                "ls-tree", "-r", "-z", commit, "--",
+                ":(literal)dir/first.py", ":(literal)dir/second.py",
+            ),
+            {"timeout_seconds": 20},
+        ),
+        (
+            ("cat-file", "--batch"),
+            {
+                "input_bytes": first_oid + b"\n" + second_oid + b"\n",
+                "timeout_seconds": 20,
+            },
+        ),
+    ]
+
+
+@pytest.mark.parametrize(
+    "response",
+    (
+        pytest.param(b"OID blob -1\n", id="negative-size"),
+        pytest.param(b"OID blob nope\n", id="nondigit-size"),
+        pytest.param(b"OID blob\n", id="two-fields"),
+        pytest.param(b"OID blob 0 extra\n", id="four-fields"),
+        pytest.param(b"OID missing\n", id="missing-status"),
+        pytest.param(b"OID dangling\n", id="dangling-status"),
+        pytest.param(b"OID ambiguous\n", id="ambiguous-status"),
+        pytest.param(b"OID tree 0\n\n", id="tree-object"),
+    ),
+)
+def test_batch_blob_reader_rejects_malformed_header_or_status(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    response: bytes,
+) -> None:
+    from orchestrator.campaign import contract_loader_binding
+
+    root = tmp_path / "recorded-root"
+    commit = "a" * 40
+    oid = b"1" * 40
+    batch_output = response.replace(b"OID", oid)
+    calls = _install_two_call_batch_fake(
+        monkeypatch,
+        contract_loader_binding,
+        root,
+        b"100644 blob " + oid + b"\tdir/loader.py\0",
+        batch_output,
+    )
+
+    with pytest.raises(
+        contract_loader_binding.ContractLoaderBindingError,
+        match="contract-loader-git-error",
+    ):
+        tuple(contract_loader_binding._iter_blobs(
+            root, commit, ("dir/loader.py",),
+        ))
+
+    assert calls == [
+        (
+            (
+                "ls-tree", "-r", "-z", commit, "--",
+                ":(literal)dir/loader.py",
+            ),
+            {"timeout_seconds": 10},
+        ),
+        (
+            ("cat-file", "--batch"),
+            {"input_bytes": oid + b"\n", "timeout_seconds": 10},
+        ),
+    ]
+
+
+def test_batch_blob_reader_rejects_truncated_output(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from orchestrator.campaign import contract_loader_binding
+
+    root = tmp_path / "recorded-root"
+    commit = "a" * 40
+    oid = b"1" * 40
+    calls = _install_two_call_batch_fake(
+        monkeypatch,
+        contract_loader_binding,
+        root,
+        b"100644 blob " + oid + b"\tdir/loader.py\0",
+        oid + b" blob 5\nabc",
+    )
+
+    with pytest.raises(
+        contract_loader_binding.ContractLoaderBindingError,
+        match="contract-loader-git-error",
+    ):
+        tuple(contract_loader_binding._iter_blobs(
+            root, commit, ("dir/loader.py",),
+        ))
+
+    assert calls == [
+        (
+            (
+                "ls-tree", "-r", "-z", commit, "--",
+                ":(literal)dir/loader.py",
+            ),
+            {"timeout_seconds": 10},
+        ),
+        (
+            ("cat-file", "--batch"),
+            {"input_bytes": oid + b"\n", "timeout_seconds": 10},
+        ),
+    ]
+
+
+@pytest.mark.parametrize(
+    "response",
+    (
+        pytest.param(b"OID blob 2\nabc\n", id="small-size"),
+        pytest.param(b"OID blob 4\nabc\n", id="large-size"),
+        pytest.param(b"OID blob 3\nabc", id="missing-record-lf"),
+    ),
+)
+def test_batch_blob_reader_rejects_size_or_record_lf_corruption(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    response: bytes,
+) -> None:
+    from orchestrator.campaign import contract_loader_binding
+
+    root = tmp_path / "recorded-root"
+    commit = "a" * 40
+    oid = b"1" * 40
+    calls = _install_two_call_batch_fake(
+        monkeypatch,
+        contract_loader_binding,
+        root,
+        b"100644 blob " + oid + b"\tdir/loader.py\0",
+        response.replace(b"OID", oid),
+    )
+
+    with pytest.raises(
+        contract_loader_binding.ContractLoaderBindingError,
+        match="contract-loader-git-error",
+    ):
+        tuple(contract_loader_binding._iter_blobs(
+            root, commit, ("dir/loader.py",),
+        ))
+
+    assert calls == [
+        (
+            (
+                "ls-tree", "-r", "-z", commit, "--",
+                ":(literal)dir/loader.py",
+            ),
+            {"timeout_seconds": 10},
+        ),
+        (
+            ("cat-file", "--batch"),
+            {"input_bytes": oid + b"\n", "timeout_seconds": 10},
+        ),
+    ]
+
+
+def test_batch_blob_reader_rejects_extra_output_after_last_record(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from orchestrator.campaign import contract_loader_binding
+
+    root = tmp_path / "recorded-root"
+    commit = "a" * 40
+    oid = b"1" * 40
+    calls = _install_two_call_batch_fake(
+        monkeypatch,
+        contract_loader_binding,
+        root,
+        b"100644 blob " + oid + b"\tdir/loader.py\0",
+        oid + b" blob 4\nbody\nextra",
+    )
+
+    with pytest.raises(
+        contract_loader_binding.ContractLoaderBindingError,
+        match="contract-loader-git-error",
+    ):
+        tuple(contract_loader_binding._iter_blobs(
+            root, commit, ("dir/loader.py",),
+        ))
+
+    assert calls == [
+        (
+            (
+                "ls-tree", "-r", "-z", commit, "--",
+                ":(literal)dir/loader.py",
+            ),
+            {"timeout_seconds": 10},
+        ),
+        (
+            ("cat-file", "--batch"),
+            {"input_bytes": oid + b"\n", "timeout_seconds": 10},
+        ),
+    ]
+
+
+def test_batch_blob_reader_rejects_nul_path_before_git(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from orchestrator.campaign import contract_loader_binding
+
+    calls: list[tuple[tuple[str, ...], dict[str, object]]] = []
+
+    def fake_run_git(
+        _root: Path, *args: str, **kwargs: object,
+    ) -> bytes:
+        calls.append((args, dict(kwargs)))
+        pytest.fail("NUL path reached _run_git")
+
+    monkeypatch.setattr(contract_loader_binding, "_run_git", fake_run_git)
+    with pytest.raises(
+        contract_loader_binding.ContractLoaderBindingError,
+        match="contract-loader-git-error",
+    ):
+        tuple(contract_loader_binding._iter_blobs(
+            tmp_path, "a" * 40, ("dir/nul\0path.py",),
+        ))
+    assert calls == []
+
+
+@pytest.mark.parametrize(
+    "path_count",
+    (
+        pytest.param(1, id="one-path"),
+        pytest.param(62, id="sixty-two-paths"),
+    ),
+)
+def test_batch_blob_reader_scales_both_timeouts_by_query_count(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    path_count: int,
+) -> None:
+    from orchestrator.campaign import contract_loader_binding
+
+    root = tmp_path / "recorded-root"
+    commit = "a" * 40
+    paths = tuple(f"dir/loader-{index}.py" for index in range(path_count))
+    oids = tuple(f"{index + 1:040x}".encode("ascii") for index in range(path_count))
+    ls_tree_output = b"".join(
+        b"100644 blob " + oid + b"\t" + os.fsencode(relative) + b"\0"
+        for relative, oid in zip(paths, oids, strict=True)
+    )
+    batch_output = b"".join(
+        oid + b" blob 1\nx\n" for oid in oids
+    )
+    calls = _install_two_call_batch_fake(
+        monkeypatch,
+        contract_loader_binding,
+        root,
+        ls_tree_output,
+        batch_output,
+    )
+
+    assert tuple(contract_loader_binding._iter_blobs(root, commit, paths)) == tuple(
+        (relative, b"x") for relative in paths
+    )
+    assert calls == [
+        (
+            (
+                "ls-tree", "-r", "-z", commit, "--",
+                *(f":(literal){relative}" for relative in paths),
+            ),
+            {"timeout_seconds": 10 * path_count},
+        ),
+        (
+            ("cat-file", "--batch"),
+            {
+                "input_bytes": b"".join(oid + b"\n" for oid in oids),
+                "timeout_seconds": 10 * path_count,
+            },
+        ),
+    ]
+
+
+def test_batch_blob_reader_uses_literal_pathspecs_for_git_metacharacters(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from orchestrator.campaign import contract_loader_binding
+
+    repo = tmp_path / "literal-repo"
+    repo.mkdir()
+    _git(repo, "init", "-q")
+    paths = (
+        "special/star*.py",
+        "special/question?.py",
+        "special/bracket[.py",
+        "special/colon:.py",
+    )
+    expected_blobs = {
+        paths[0]: b"star",
+        paths[1]: b"question",
+        paths[2]: b"bracket",
+        paths[3]: b"colon",
+    }
+    for relative in paths:
+        path = repo / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(expected_blobs[relative])
+    _git(repo, "add", "--", *paths)
+    _git(
+        repo,
+        "-c", "user.email=t671-fixture@example.invalid",
+        "-c", "user.name=T671 fixture",
+        "commit", "-q", "-m", "literal path fixture",
+    )
+    commit = _git(repo, "rev-parse", "--verify", "HEAD^{commit}").decode().strip()
+    oids = tuple(
+        _git(repo, "rev-parse", f"{commit}:{relative}").strip()
+        for relative in paths
+    )
+    real_run_git = contract_loader_binding._run_git
+    calls: list[tuple[tuple[str, ...], dict[str, object]]] = []
+
+    def recording_run_git(
+        root: Path, *args: str, **kwargs: object,
+    ) -> bytes:
+        assert root == repo
+        calls.append((args, dict(kwargs)))
+        return real_run_git(root, *args, **kwargs)
+
+    monkeypatch.setattr(contract_loader_binding, "_run_git", recording_run_git)
+
+    assert dict(contract_loader_binding._iter_blobs(repo, commit, paths)) == (
+        expected_blobs
+    )
+    assert calls == [
+        (
+            (
+                "ls-tree", "-r", "-z", commit, "--",
+                ":(literal)special/star*.py",
+                ":(literal)special/question?.py",
+                ":(literal)special/bracket[.py",
+                ":(literal)special/colon:.py",
+            ),
+            {"timeout_seconds": 40},
+        ),
+        (
+            ("cat-file", "--batch"),
+            {
+                "input_bytes": b"".join(oid + b"\n" for oid in oids),
+                "timeout_seconds": 40,
+            },
+        ),
+    ]
+
+
+def test_batch_reader_rejects_one_missing_path_of_sixty_two(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from orchestrator.campaign import contract_loader_binding
+
+    repo, _commit, _blob_sha256s = _committed_loader_repo(tmp_path)
+    missing = _EXPECTED_ENFORCEMENT_SOURCE_PATHS[len(
+        _EXPECTED_ENFORCEMENT_SOURCE_PATHS
+    ) // 2]
+    _git(repo, "rm", "--cached", "--", missing)
+    _git(
+        repo,
+        "-c", "user.email=t671-fixture@example.invalid",
+        "-c", "user.name=T671 fixture",
+        "commit", "-q", "-m", "remove one recorded blob",
+    )
+    commit = _git(repo, "rev-parse", "--verify", "HEAD^{commit}").decode().strip()
+    real_run_git = contract_loader_binding._run_git
+    calls: list[tuple[tuple[str, ...], dict[str, object]]] = []
+
+    def recording_run_git(
+        root: Path, *args: str, **kwargs: object,
+    ) -> bytes:
+        assert root == repo.resolve()
+        calls.append((args, dict(kwargs)))
+        return real_run_git(root, *args, **kwargs)
+
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+    monkeypatch.setattr(contract_loader_binding, "_run_git", recording_run_git)
+
+    with pytest.raises(
+        contract_loader_binding.ContractLoaderBindingError,
+        match="contract-loader-git-error",
+    ) as caught:
+        contract_loader_binding.capture_contract_loader_binding()
+    assert missing in str(caught.value)
+    assert calls == [
+        (("rev-parse", "--show-toplevel"), {}),
+        (("rev-parse", "--verify", "HEAD^{commit}"), {}),
+        (
+            (
+                "ls-tree", "-r", "-z", commit, "--",
+                *(
+                    f":(literal){relative}"
+                    for relative in _EXPECTED_ENFORCEMENT_SOURCE_PATHS
+                ),
+            ),
+            {"timeout_seconds": 620},
+        ),
+    ]
+
+
+def test_capture_batches_blobs_but_reads_all_sixty_two_disk_paths(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from orchestrator.campaign import contract_loader_binding
+
+    root = tmp_path / "capture-root"
+    root.mkdir()
+    commit = "a" * 40
+    paths = _EXPECTED_ENFORCEMENT_SOURCE_PATHS
+    oids = tuple(
+        f"{index + 1:040x}".encode("ascii") for index in range(len(paths))
+    )
+    blobs = {
+        relative: f"independent blob {index + 1}".encode("ascii")
+        for index, relative in enumerate(paths)
+    }
+    for relative in paths:
+        target = root / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(blobs[relative])
+    ls_tree_output = b"".join(
+        b"100644 blob " + oid + b"\t" + os.fsencode(relative) + b"\0"
+        for relative, oid in zip(paths, oids, strict=True)
+    )
+    batch_output = b"".join(
+        oid + b" blob " + str(len(blobs[relative])).encode("ascii") + b"\n"
+        + blobs[relative] + b"\n"
+        for relative, oid in zip(paths, oids, strict=True)
+    )
+    calls: list[tuple[tuple[str, ...], dict[str, object]]] = []
+
+    def fake_run_git(
+        actual_root: Path, *args: str, **kwargs: object,
+    ) -> bytes:
+        assert actual_root == root
+        calls.append((args, dict(kwargs)))
+        if len(calls) == 1:
+            return (commit + "\n").encode("ascii")
+        if len(calls) == 2:
+            return ls_tree_output
+        if len(calls) == 3:
+            return batch_output
+        pytest.fail(f"unexpected _run_git call: {args!r} {kwargs!r}")
+
+    real_disk_reader = contract_loader_binding._read_regular_file_no_follow
+    disk_reads: list[str] = []
+
+    def recording_disk_reader(actual_root: Path, relative: str) -> bytes:
+        disk_reads.append(relative)
+        return real_disk_reader(actual_root, relative)
+
+    monkeypatch.setattr(contract_loader_binding, "_validated_root", lambda: root)
+    monkeypatch.setattr(contract_loader_binding, "_run_git", fake_run_git)
+    monkeypatch.setattr(
+        contract_loader_binding,
+        "_read_regular_file_no_follow",
+        recording_disk_reader,
+    )
+
+    binding = contract_loader_binding.capture_contract_loader_binding()
+
+    assert tuple(binding.contract_loader_blob_sha256s) == paths
+    assert binding.contract_loader_blob_sha256s == {
+        relative: hashlib.sha256(blobs[relative]).hexdigest()
+        for relative in paths
+    }
+    assert disk_reads == list(paths)
+    assert calls == [
+        (("rev-parse", "--verify", "HEAD^{commit}"), {}),
+        (
+            (
+                "ls-tree", "-r", "-z", commit, "--",
+                *(f":(literal){relative}" for relative in paths),
+            ),
+            {"timeout_seconds": 620},
+        ),
+        (
+            ("cat-file", "--batch"),
+            {
+                "input_bytes": b"".join(oid + b"\n" for oid in oids),
+                "timeout_seconds": 620,
+            },
+        ),
+    ]
+
+
+def test_committed_verification_rejects_one_digest_mismatch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from orchestrator.campaign import contract_loader_binding
+
+    root = tmp_path / "recorded-root"
+    commit = "a" * 40
+    paths = _EXPECTED_ENFORCEMENT_SOURCE_PATHS
+    mismatch_path = paths[len(paths) // 2]
+    oids = tuple(
+        f"{index + 1:040x}".encode("ascii") for index in range(len(paths))
+    )
+    blobs = {
+        relative: f"recorded blob {index + 1}".encode("ascii")
+        for index, relative in enumerate(paths)
+    }
+    ls_tree_output = b"".join(
+        b"100644 blob " + oid + b"\t" + os.fsencode(relative) + b"\0"
+        for relative, oid in zip(paths, oids, strict=True)
+    )
+    batch_output = b"".join(
+        oid + b" blob " + str(len(blobs[relative])).encode("ascii") + b"\n"
+        + blobs[relative] + b"\n"
+        for relative, oid in zip(paths, oids, strict=True)
+    )
+    digests = {
+        relative: hashlib.sha256(blob).hexdigest()
+        for relative, blob in blobs.items()
+    }
+    digests[mismatch_path] = hashlib.sha256(
+        b"mismatch:" + blobs[mismatch_path]
+    ).hexdigest()
+    binding = contract_loader_binding.ContractLoaderBinding(commit, digests)
+    calls: list[tuple[tuple[str, ...], dict[str, object]]] = []
+
+    def fake_run_git(
+        actual_root: Path, *args: str, **kwargs: object,
+    ) -> bytes:
+        assert actual_root == root
+        calls.append((args, dict(kwargs)))
+        if len(calls) == 1:
+            return (commit + "\n").encode("ascii")
+        if len(calls) == 2:
+            return ls_tree_output
+        if len(calls) == 3:
+            return batch_output
+        pytest.fail(f"unexpected _run_git call: {args!r} {kwargs!r}")
+
+    def forbidden_disk_reader(_root: Path, relative: str) -> bytes:
+        pytest.fail(f"committed verifier read disk path: {relative}")
+
+    monkeypatch.setattr(contract_loader_binding, "_validated_root", lambda: root)
+    monkeypatch.setattr(contract_loader_binding, "_run_git", fake_run_git)
+    monkeypatch.setattr(
+        contract_loader_binding,
+        "_read_regular_file_no_follow",
+        forbidden_disk_reader,
+    )
+
+    with pytest.raises(
+        contract_loader_binding.ContractLoaderBindingError,
+        match="contract-loader-blob-mismatch",
+    ) as caught:
+        contract_loader_binding.verify_committed_contract_loader_binding(binding)
+    assert mismatch_path in str(caught.value)
+    assert calls == [
+        (("rev-parse", "--verify", f"{commit}^{{commit}}"), {}),
+        (
+            (
+                "ls-tree", "-r", "-z", commit, "--",
+                *(f":(literal){relative}" for relative in paths),
+            ),
+            {"timeout_seconds": 620},
+        ),
+        (
+            ("cat-file", "--batch"),
+            {
+                "input_bytes": b"".join(oid + b"\n" for oid in oids),
+                "timeout_seconds": 620,
+            },
+        ),
+    ]
+
+
+def test_run_git_forwards_exact_batch_stdin_and_timeout(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from orchestrator.campaign import contract_loader_binding
+
+    observed: list[tuple[list[str], dict[str, object]]] = []
+
+    def fake_subprocess_run(
+        argv: list[str], **kwargs: object,
+    ) -> subprocess.CompletedProcess[bytes]:
+        observed.append((argv, dict(kwargs)))
+        return subprocess.CompletedProcess(argv, 0, stdout=b"batch", stderr=b"")
+
+    for key in contract_loader_binding._FORBIDDEN_AMBIENT_GIT_ENV:
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setattr(contract_loader_binding.subprocess, "run", fake_subprocess_run)
+    root = tmp_path / "root"
+    input_bytes = b"1" * 40 + b"\n"
+
+    assert contract_loader_binding._run_git(
+        root,
+        "cat-file",
+        "--batch",
+        input_bytes=input_bytes,
+        timeout_seconds=30,
+    ) == b"batch"
+    assert len(observed) == 1
+    argv, kwargs = observed[0]
+    assert argv == [
+        "/usr/bin/git",
+        "--no-pager",
+        "-c", "core.useReplaceRefs=false",
+        "-c", "core.commitGraph=false",
+        "-c", "core.fsmonitor=false",
+        "--no-replace-objects",
+        "-C", str(root),
+        "cat-file", "--batch",
+    ]
+    assert kwargs["input"] == input_bytes
+    assert kwargs["timeout"] == 30
+    assert kwargs["stdout"] is subprocess.PIPE
+    assert kwargs["stderr"] is subprocess.PIPE
+    assert kwargs["check"] is False
 
 
 def _run() -> int:
