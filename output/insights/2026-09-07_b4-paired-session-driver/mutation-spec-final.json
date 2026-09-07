@@ -1,0 +1,123 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "MUT-B4PAIR-01-SINGLE-DENOMINATOR",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_floor_pair_driver.py::test_gain_difference_uses_two_side_specific_references_and_registry_is_closed",
+        "orchestrator/tests/test_floor_pair_driver.py::test_production_adapter_artifact_finalizes_from_raw_medians"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "    gain_2 = candidate_2 / reference_2 - 1.0\n",
+          "new": "    gain_2 = candidate_2 / reference_1 - 1.0\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-B4PAIR-02-MID-PROBE-NOT-GATING-RUN",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_floor_pair_driver.py::test_droppable_probe_statuses_run_and_finalize[mid-competing-mid_probe_competing]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_droppable_probe_statuses_run_and_finalize[mid-indeterminate-mid_probe_indeterminate]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "    elif mid_probe[\"status\"] != \"clear\":\n",
+          "new": "    elif False:\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-B4PAIR-03-MID-PROBE-NOT-GATING-FINALIZE",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_floor_pair_driver.py::test_droppable_probe_statuses_run_and_finalize[mid-competing-mid_probe_competing]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "    if mid_probe[\"status\"] == \"competing\":\n        return \"mid_probe_competing\", \"mid probe detected competing process\"\n",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "id": "MUT-B4PAIR-04-REFERENCE-COUNT-UNFROZEN",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_floor_pair_driver.py::test_frozen_pair_statistics_require_exact_module_constants[reference_measurements_per_pair_sample-1]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "    if reference_count != REFERENCE_MEASUREMENTS_PER_PAIR_SAMPLE:\n",
+          "new": "    if False:\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-B4PAIR-05-DIFFERENCE-FORMULA-UNFROZEN",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_floor_pair_driver.py::test_frozen_pair_statistics_require_exact_module_constants[difference_formula-D=forged]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "    if difference_formula != DIFFERENCE_FORMULA:\n",
+          "new": "    if False:\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-B4PAIR-06B-EXACT-TWO-MEASUREMENTS-FINALIZE",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_floor_pair_driver.py::test_complete_session_requires_exact_two_nested_measurements",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_rejects_duplicate_session_or_measurement_id[measurement]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "    if len(record[\"measurements\"]) != len(_MEASUREMENT_ROLES):\n        raise FloorPairBindingError(f\"{label} measurement が exact 2 件でない\")\n",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "id": "MUT-B4PAIR-07-SPEC-SCHEMA-UNCHECKED",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_floor_pair_driver.py::test_loader_rejects_v2_schema_on_v3_shaped_spec"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "    if schema != SPEC_SCHEMA:\n",
+          "new": "    if False:\n"
+        }
+      ]
+    }
+  ]
+}
