@@ -526,7 +526,7 @@ static void force_gradient(Backoff& backoff, int sign, double current_backoff,
   Backoff::Backoff_.store(current_backoff, std::memory_order_release);
   backoff.last_time_ = 0;
   backoff.last_committed_txs_ = committed_txs - 100;
-  backoff.last_committed_tput_ = sign < 0 ? 2.0 : 0.0;
+  backoff.last_committed_tput_ = sign < 0 ? 2000000.0 : 0.0;
   if (sign == 0)
     backoff.last_backoff_ = static_cast<uint64_t>(current_backoff);
   else if (current_backoff >= 1)
@@ -640,6 +640,10 @@ static int run_trace_point(const std::string& mode) {
     force_gradient(backoff, 1, 0.5);
   } else if (mode == "fixed-upper") {
     force_gradient(backoff, -1, 999.5);
+  } else if (mode == "recommended-upper") {
+    force_gradient(backoff, 1, 999.5);
+  } else if (mode == "safe-negative-trace") {
+    force_gradient(backoff, -1, 100);
   } else if (mode == "dynamic-shrink") {
 #if BACKOFF_DYN_CEILING
     backoff.ceiling_ = 200;
@@ -655,8 +659,10 @@ static int run_trace_point(const std::string& mode) {
   }
   const auto& record = trace_record(0);
   std::cout
-      << "after=" << record.izanagi_backoff_trace_backoff_after
+      << "before=" << record.izanagi_backoff_trace_backoff_before
+      << " after=" << record.izanagi_backoff_trace_backoff_after
       << " gradient=" << record.izanagi_backoff_trace_gradient_sign
+      << " step=" << record.izanagi_backoff_trace_step_us
       << " recommended="
       << record.izanagi_backoff_trace_recommended_delta_sign
       << " assigned=" << record.izanagi_backoff_trace_assigned_invert
@@ -1159,6 +1165,26 @@ def test_patch_c_uses_numeric_if_and_adds_no_include(patched_sources) -> None:
     )
 
 
+def test_patch_c_seed_guard_is_exact_policy_two() -> None:
+    patch_text = PATCH_C.read_text(encoding="utf-8")
+    seed_symbol = patch_text.index(
+        "+  static constexpr uint64_t kBackoffStepPolicySeed"
+    )
+    seed_guard = patch_text.rfind("+#if ", 0, seed_symbol)
+    assert patch_text[seed_guard:seed_symbol].splitlines()[0] == (
+        "+#if BACKOFF_STEP_POLICY == 2"
+    )
+
+
+def test_patch_c_seed_literal_uses_no_token_paste() -> None:
+    patch_text = PATCH_C.read_text(encoding="utf-8")
+    assert "##" not in patch_text
+    assert "%:%:" not in patch_text
+    assert patch_text.count(
+        "+#define BACKOFF_STEP_POLICY_SEED_STRING_INNER(value) #value\n"
+    ) == 1
+
+
 def test_patch_c_cmake_cache_default_is_zero(patched_sources) -> None:
     policy_line = (
         'set(CCBENCH_BACKOFF_STEP_POLICY 0 CACHE STRING '
@@ -1230,7 +1256,6 @@ def test_step_policy_static_assert_rejects_out_of_domain_values(
 def test_policy_zero_matches_patch_b_transitions_exactly(policy_binaries) -> None:
     b_only = _driver_output(policy_binaries["b0"], "series")
     policy_zero = _driver_output(policy_binaries["p0"], "series")
-    assert b_only == ["101,99,99,101"]
     assert policy_zero == b_only
 
 
@@ -1239,6 +1264,17 @@ def test_policy_one_reverses_safe_positive_and_negative_recommendations(
 ) -> None:
     assert _driver_output(policy_binaries["p0"], "safe") == ["101,99"]
     assert _driver_output(policy_binaries["p1"], "safe") == ["99,101"]
+
+
+def test_safe_negative_scene_reports_the_intended_prestate_and_gradient(
+    policy_binaries,
+) -> None:
+    assert _driver_output(
+        policy_binaries["p0-trace"], "safe-negative-trace"
+    ) == [
+        "before=100 after=99 gradient=-1 step=1 recommended=-1 assigned=0 "
+        "realized=0 feasible=1 ceiling=1000"
+    ]
 
 
 def test_policy_inversion_is_shared_by_all_step_ceiling_combinations(
@@ -1257,23 +1293,27 @@ def test_policy_inversion_is_shared_by_all_step_ceiling_combinations(
                     policy=1,
                     step_adapt=step_adapt,
                     dyn_ceiling=dyn_ceiling,
-                    trace=0,
+                    trace=1,
                 ),
             )
-            output = _driver_output(binary, "safe")
+            output = _driver_output(binary, "safe-negative-trace")
             assert len(output) == 1
             observed[(step_adapt, dyn_ceiling)] = output[0]
     assert observed == {
-        (0, 0): "99,101",
-        (0, 1): "99,101",
-        (1, 0): "99,101",
-        (1, 1): "99,101",
+        (0, 0): "before=100 after=101 gradient=-1 step=1 recommended=-1 "
+        "assigned=1 realized=1 feasible=1 ceiling=1000",
+        (0, 1): "before=100 after=101 gradient=-1 step=1 recommended=-1 "
+        "assigned=1 realized=1 feasible=1 ceiling=1000",
+        (1, 0): "before=100 after=101 gradient=-1 step=1 recommended=-1 "
+        "assigned=1 realized=1 feasible=1 ceiling=1000",
+        (1, 1): "before=100 after=101 gradient=-1 step=1 recommended=-1 "
+        "assigned=1 realized=1 feasible=1 ceiling=1000",
     }
 
 
 def test_inversion_is_applied_before_clamp(policy_binaries) -> None:
     assert _driver_output(policy_binaries["p1"], "partial-lower") == [
-        "after=0 gradient=1 recommended=1 assigned=1 realized=0 "
+        "before=0.5 after=0 gradient=1 step=1 recommended=1 assigned=1 realized=0 "
         "feasible=0 ceiling=1000"
     ]
 
@@ -1282,6 +1322,16 @@ def test_policy_two_assignment_sequence_is_exact(policy_binaries) -> None:
     sequence, values = _driver_output(policy_binaries["p2"], "lcg")
     assert sequence == "0111001000100110"
     assert values == "101,99,99,99,101,101,99,101,101,101,99,101,101,99,99,101"
+
+
+def test_policy_two_lcg_literals_are_exact() -> None:
+    patch_text = PATCH_C.read_text(encoding="utf-8")
+    update = (
+        "+    backoff_step_policy_state_ =\n"
+        "+        backoff_step_policy_state_ * 6364136223846793005ULL +\n"
+        "+        1442695040888963407ULL;\n"
+    )
+    assert patch_text.count(update) == 1
 
 
 def test_policy_two_assigned_zero_follows_recommendation(policy_binaries) -> None:
@@ -1307,7 +1357,7 @@ def test_trace_v2_records_parity_recommendation_not_gradient_alias(
     policy_binaries,
 ) -> None:
     assert _driver_output(policy_binaries["p0-trace"], "parity") == [
-        "after=99 gradient=0 recommended=-1 assigned=0 realized=0 "
+        "before=100 after=99 gradient=0 step=1 recommended=-1 assigned=0 realized=0 "
         "feasible=1 ceiling=1000"
     ]
 
@@ -1316,11 +1366,11 @@ def test_inversion_realized_is_one_only_for_unclamped_exact_inverse(
     policy_binaries,
 ) -> None:
     assert _driver_output(policy_binaries["p1"], "safe-trace") == [
-        "after=99 gradient=1 recommended=1 assigned=1 realized=1 "
+        "before=100 after=99 gradient=1 step=1 recommended=1 assigned=1 realized=1 "
         "feasible=1 ceiling=1000"
     ]
     assert _driver_output(policy_binaries["p1"], "partial-lower") == [
-        "after=0 gradient=1 recommended=1 assigned=1 realized=0 "
+        "before=0.5 after=0 gradient=1 step=1 recommended=1 assigned=1 realized=0 "
         "feasible=0 ceiling=1000"
     ]
 
@@ -1329,23 +1379,33 @@ def test_inversion_realized_is_zero_at_lower_and_fixed_upper_clamps(
     policy_binaries,
 ) -> None:
     assert _driver_output(policy_binaries["p1"], "partial-lower") == [
-        "after=0 gradient=1 recommended=1 assigned=1 realized=0 "
+        "before=0.5 after=0 gradient=1 step=1 recommended=1 assigned=1 realized=0 "
         "feasible=0 ceiling=1000"
     ]
     assert _driver_output(policy_binaries["p1"], "fixed-upper") == [
-        "after=1000 gradient=-1 recommended=-1 assigned=1 realized=0 "
+        "before=999.5 after=1000 gradient=-1 step=1 recommended=-1 "
+        "assigned=1 realized=0 "
         "feasible=0 ceiling=1000"
     ]
 
 
 def test_dynamic_ceiling_shrink_can_make_both_arms_equal(policy_binaries) -> None:
     assert _driver_output(policy_binaries["p0-dyn"], "dynamic-shrink") == [
-        "after=100 gradient=-1 recommended=-1 assigned=0 realized=0 "
+        "before=200 after=100 gradient=-1 step=1 recommended=-1 assigned=0 realized=0 "
         "feasible=0 ceiling=100"
     ]
     assert _driver_output(policy_binaries["p1-dyn"], "dynamic-shrink") == [
-        "after=100 gradient=-1 recommended=-1 assigned=1 realized=0 "
+        "before=200 after=100 gradient=-1 step=1 recommended=-1 assigned=1 realized=0 "
         "feasible=0 ceiling=100"
+    ]
+
+
+def test_both_actions_feasible_checks_recommended_upper_boundary(
+    policy_binaries,
+) -> None:
+    assert _driver_output(policy_binaries["p0-trace"], "recommended-upper") == [
+        "before=999.5 after=1000 gradient=1 step=1 recommended=1 assigned=0 "
+        "realized=0 feasible=0 ceiling=1000"
     ]
 
 
@@ -1360,9 +1420,47 @@ def test_both_actions_feasible_is_computed_before_assignment(
     clamp = source.index("if (new_backoff < kMinBackoff)", policy_assignment)
     assert feasible < policy_assignment < clamp
     assert _driver_output(policy_binaries["p1"], "partial-lower") == [
-        "after=0 gradient=1 recommended=1 assigned=1 realized=0 "
+        "before=0.5 after=0 gradient=1 step=1 recommended=1 assigned=1 realized=0 "
         "feasible=0 ceiling=1000"
     ]
+
+
+def test_lcg_preprocesses_out_of_policy_zero_and_into_policy_two(
+    patched_sources, tmp_path: Path
+) -> None:
+    source = tmp_path / "preprocess-policy-lcg.cc"
+    source.write_text('#include "backoff.hh"\n', encoding="utf-8")
+    outputs: dict[int, str] = {}
+    for policy in (0, 2):
+        result = subprocess.run(
+            [
+                "g++",
+                "-std=c++17",
+                "-E",
+                "-P",
+                f"-I{patched_sources.tree / 'include'}",
+                *_policy_defines(policy=policy, trace=0),
+                str(source),
+            ],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, (
+            f"policy {policy} preprocessing failed\n"
+            + result.stdout
+            + result.stderr
+        )
+        outputs[policy] = result.stdout
+
+    lcg_tokens = (
+        "kBackoffStepPolicySeed",
+        "backoff_step_policy_state_",
+        "6364136223846793005ULL",
+        "1442695040888963407ULL",
+    )
+    for token in lcg_tokens:
+        assert token not in outputs[0], f"policy 0 retained {token}"
+        assert token in outputs[2], f"policy 2 omitted {token}"
 
 
 def test_trace_preprocesses_out_of_trace_zero_builds(

@@ -119,10 +119,10 @@ index 4de9d23..47b3b2c 100644
    set(${out_var} "${_acc}" PARENT_SCOPE)
  endfunction()
 diff --git a/include/backoff.hh b/include/backoff.hh
-index 6acc20f..7f6ecb6 100644
+index 6acc20f..1b7d9a1 100644
 --- a/include/backoff.hh
 +++ b/include/backoff.hh
-@@ -1,234 +1,270 @@
+@@ -1,234 +1,278 @@
  #pragma once
  
  #include <x86intrin.h>
@@ -263,13 +263,21 @@ index 6acc20f..7f6ecb6 100644
    uint64_t ceiling_ = static_cast<uint64_t>(kMaxBackoff);
  #endif
 +#if BACKOFF_STEP_POLICY == 2
-+#define IZANAGI_BACKOFF_SEED_LITERAL_INNER(value) value##ULL
-+#define IZANAGI_BACKOFF_SEED_LITERAL(value) \
-+  IZANAGI_BACKOFF_SEED_LITERAL_INNER(value)
-+  static constexpr uint64_t kBackoffStepPolicySeed =
-+      IZANAGI_BACKOFF_SEED_LITERAL(BACKOFF_STEP_POLICY_SEED);
-+#undef IZANAGI_BACKOFF_SEED_LITERAL
-+#undef IZANAGI_BACKOFF_SEED_LITERAL_INNER
++#define BACKOFF_STEP_POLICY_SEED_STRING_INNER(value) #value
++#define BACKOFF_STEP_POLICY_SEED_STRING(value) \
++  BACKOFF_STEP_POLICY_SEED_STRING_INNER(value)
++  static constexpr uint64_t kBackoffStepPolicySeed = []() constexpr {
++    const char* cursor =
++        BACKOFF_STEP_POLICY_SEED_STRING(BACKOFF_STEP_POLICY_SEED);
++    uint64_t parsed = 0;
++    while (*cursor != '\0') {
++      parsed = parsed * 10 + static_cast<uint64_t>(*cursor - '0');
++      ++cursor;
++    }
++    return parsed;
++  }();
++#undef BACKOFF_STEP_POLICY_SEED_STRING
++#undef BACKOFF_STEP_POLICY_SEED_STRING_INNER
 +  uint64_t backoff_step_policy_state_ = kBackoffStepPolicySeed;
 +#endif
  #if BACKOFF_TRACE
@@ -395,7 +403,7 @@ index 6acc20f..7f6ecb6 100644
  #endif
    }
  
-@@ -257,220 +293,298 @@ public:
+@@ -257,220 +301,298 @@ public:
      double backoff_diff = new_backoff - last_backoff_;
  
      uint64_t committed_diff = committed_txs - last_committed_txs_;

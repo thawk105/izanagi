@@ -7330,45 +7330,105 @@ def test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted():
     """B-3: 新しい裸マクロ patch は ledger 登録なしでは patches/ に置けない。"""
     ledger = json.loads(_LEDGER.read_text(encoding="utf-8"))
     registered = {entry["path"] for entry in ledger["entries"]}
-    known_non_variant_patches = {
-        # Matches are diagnostic stdout marker string literals
-        # (IZANAGI_BACKOFF_TRACE*) inside #if BACKOFF_TRACE, not naked macros.
-        # Patch macros are registered in condition_meaning_gate.DefineSpec;
-        # ledger.json stays unregistered for the rung1 contract (exactly 1 entry),
-        # per the stage 4 ruling P7.
-        "patches/cicada-adaptive-dynamic.patch",
-        "patches/broken-silo-early-unlock-validation.patch",
-        "patches/broken-silo-highkey-validation.patch",
-        "patches/broken-silo-lockskip-validation.patch",
-        "patches/broken-silo-norw-validation.patch",
-        "patches/broken-silo-permutation-erase.patch",
-        "patches/broken-silo-permutation-swap.patch",
-        "patches/broken-silo-sort-nonswo.patch",
-        "patches/broken-silo-trigger-misattr.patch",
-        "patches/broken-silo-write-intent-erase.patch",
-        "patches/broken-silo-write-intent-forge.patch",
-        "patches/broken-silo-write-intent-opswap.patch",
-        "patches/broken-silo-write-intent-ptrswap.patch",
-        "patches/broken-mocc-lockskip-validation.patch",  # condition-gate control, not a ledger ability probe
-        "patches/broken-mocc-permutation-erase.patch",  # condition-gate control, not a ledger ability probe
-        "patches/broken-mocc-early-unlock.patch",  # condition-gate control, not a ledger ability probe
-        "patches/instr-silo-backoff-trigger-gating-tally.patch",
+    allowed_non_variant_tokens = {
+        # These are diagnostic stdout marker string literals inside
+        # #if BACKOFF_TRACE, not naked macros. Patch macros are registered in
+        # condition_meaning_gate.DefineSpec; ledger.json stays unregistered for
+        # the rung1 contract (exactly 1 entry), per the stage 4 ruling P7.
+        "patches/cicada-adaptive-dynamic.patch": frozenset({
+            "IZANAGI_BACKOFF_TRACE",
+            "IZANAGI_BACKOFF_TRACE_SUMMARY",
+        }),
+        "patches/cicada-adaptive-counterfactual.patch": frozenset({
+            "IZANAGI_BACKOFF_TRACE",
+            "IZANAGI_BACKOFF_TRACE_SUMMARY",
+        }),
+        "patches/broken-silo-early-unlock-validation.patch": frozenset({
+            "IZANAGI_BREAK_EARLY_UNLOCK",
+        }),
+        "patches/broken-silo-highkey-validation.patch": frozenset({
+            "IZANAGI_BREAK_HIGHKEY_VALIDATION",
+        }),
+        "patches/broken-silo-lockskip-validation.patch": frozenset({
+            "IZANAGI_BREAK_LOCK_COVERAGE",
+        }),
+        "patches/broken-silo-norw-validation.patch": frozenset({
+            "IZANAGI_BREAK_NOREAD_VALIDATION",
+        }),
+        "patches/broken-silo-permutation-erase.patch": frozenset({
+            "IZANAGI_BREAK_PERMUTATION",
+        }),
+        "patches/broken-silo-permutation-swap.patch": frozenset({
+            "IZANAGI_BREAK_PERMUTATION_SWAP",
+        }),
+        "patches/broken-silo-sort-nonswo.patch": frozenset(),
+        "patches/broken-silo-trigger-misattr.patch": frozenset({
+            "IZANAGI_BREAK_TRIGGER_MISATTR",
+        }),
+        "patches/broken-silo-write-intent-erase.patch": frozenset({
+            "IZANAGI_BREAK_WRITE_INTENT_ERASE",
+        }),
+        "patches/broken-silo-write-intent-forge.patch": frozenset({
+            "IZANAGI_BREAK_WRITE_INTENT_FORGE",
+        }),
+        "patches/broken-silo-write-intent-opswap.patch": frozenset({
+            "IZANAGI_BREAK_WRITE_INTENT_OPSWAP",
+        }),
+        "patches/broken-silo-write-intent-ptrswap.patch": frozenset({
+            "IZANAGI_BREAK_WRITE_INTENT_PTRSWAP",
+        }),
+        "patches/broken-mocc-lockskip-validation.patch": frozenset({
+            "IZANAGI_BREAK_MOCC_LOCK_COVERAGE",
+        }),
+        "patches/broken-mocc-permutation-erase.patch": frozenset({
+            "IZANAGI_BREAK_MOCC_PERMUTATION",
+        }),
+        "patches/broken-mocc-early-unlock.patch": frozenset({
+            "IZANAGI_BREAK_MOCC_EARLY_UNLOCK",
+        }),
+        "patches/instr-silo-backoff-trigger-gating-tally.patch": frozenset(),
+    }
+    literal_only_tokens = {
+        relative: allowed_non_variant_tokens[relative]
+        for relative in (
+            "patches/cicada-adaptive-dynamic.patch",
+            "patches/cicada-adaptive-counterfactual.patch",
+        )
     }
     unregistered = {}
     for patch_path in sorted((_ROOT / "patches").glob("*.patch")):
+        patch_text = patch_path.read_text(encoding="utf-8")
         macros = sorted(
             set(
                 re.findall(
                     r"\bIZANAGI_[A-Z0-9_]+\b",
-                    patch_path.read_text(encoding="utf-8"),
+                    patch_text,
                 )
             )
         )
         relative = patch_path.relative_to(_ROOT).as_posix()
-        if macros and relative not in registered | known_non_variant_patches:
-            unregistered[relative] = macros
+        if relative in literal_only_tokens:
+            literal_spans = [
+                match.span()
+                for match in re.finditer(r'"(?:\\.|[^"\\\n])*"', patch_text)
+            ]
+            for token in literal_only_tokens[relative]:
+                occurrences = list(
+                    re.finditer(rf"\b{re.escape(token)}\b", patch_text)
+                )
+                assert occurrences, f"{relative}: missing marker literal {token}"
+                assert all(
+                    any(start <= match.start() < end for start, end in literal_spans)
+                    for match in occurrences
+                ), f"{relative}: {token} must occur only in string literals"
+        if macros and relative not in registered:
+            unexpected = sorted(
+                set(macros) - allowed_non_variant_tokens.get(relative, frozenset())
+            )
+            if unexpected:
+                unregistered[relative] = unexpected
     assert not unregistered, (
-        "IZANAGI_ 裸マクロを持つ未登録 patch（既知 broken-silo/instr でもない）: "
+        "IZANAGI_ 裸マクロを持つ未登録 patch または path 別許容集合外 token: "
         f"{unregistered}"
     )
 
