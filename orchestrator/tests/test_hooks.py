@@ -8,6 +8,7 @@ EVOLVE-BLOCK 構造の検査は tmp に合成した骨格 (template patch と同
 """
 from __future__ import annotations
 
+from collections import Counter
 import errno
 import importlib.util
 import io
@@ -1193,9 +1194,12 @@ def test_t956_missing_hooks_root_allows_ordinary_writes_in_both_guards():
 
 
 def test_t956_hardlink_inode_index_is_built_once_per_decide():
+    """Each lazy inode index scans its own root at most once per decide()."""
     root = _mk_fixture_repo()
     outside, _, hardlink, _ = _mk_t956_aliases(root)
     real_walk = os.walk
+    hooks_root = os.path.realpath(os.path.join(root, "hooks"))
+    authority_root = os.path.realpath(GB._AUTHORITY_ROOT)
     try:
         command = (
             f"*** Update File: {hardlink}\n"
@@ -1203,14 +1207,26 @@ def test_t956_hardlink_inode_index_is_built_once_per_decide():
         )
         with patch.object(GW.os, "walk", wraps=real_walk) as walk:
             ok, _ = _patch(root, command)
-        assert not ok and walk.call_count == 1, \
-            f"guard_write inode scan count={walk.call_count}"
+        write_roots = Counter(
+            os.path.realpath(os.fspath(call.args[0]))
+            for call in walk.call_args_list)
+        assert not ok
+        assert walk.call_count == 1 and write_roots == Counter({hooks_root: 1}), \
+            (f"guard_write inode scans={dict(write_roots)} "
+             f"count={walk.call_count}")
 
         with patch.object(GB.os, "walk", wraps=real_walk) as walk:
             ok, _ = GB.decide(
                 f"printf bad > {hardlink} && rm -f {hardlink}", repo_root=root)
-        assert not ok and walk.call_count == 1, \
-            f"guard_bash inode scan count={walk.call_count}"
+        bash_roots = Counter(
+            os.path.realpath(os.fspath(call.args[0]))
+            for call in walk.call_args_list)
+        assert not ok
+        assert walk.call_count == 2 and bash_roots == Counter({
+            hooks_root: 1,
+            authority_root: 1,
+        }), (f"guard_bash inode scans={dict(bash_roots)} "
+             f"count={walk.call_count}")
     finally:
         shutil.rmtree(root)
         shutil.rmtree(outside)
@@ -1397,6 +1413,84 @@ def test_t2146_guard_bash_rejects_argument_writers_and_relative_cd_delete():
         for label, command in cases.items():
             _t2146_assert_denied(
                 GB.decide(command, repo_root=root), f"writer-{label}")
+    finally:
+        shutil.rmtree(root)
+
+
+def test_t2146_guard_bash_perf_output_keeps_all_protected_trees_denied():
+    """perf output parsing must retain every existing tree and authority denial."""
+    root = _mk_fixture_repo()
+    try:
+        protected_targets = {
+            "authority": _T2146_AUTHORITY_ROOT,
+            "leaf": os.path.join(
+                root, "output", "campaigns", "c", "runs", "wal.jsonl"),
+            "official-campaign": os.path.join(
+                root, "output", "campaigns", "c"),
+            "exploration-campaign": os.path.join(
+                root, "output", "exploration", "campaigns", "c"),
+            "namespace-marker": os.path.join(
+                root, "output", "exploration", "namespace.json"),
+            "hooks": os.path.join(root, "hooks", "guard_bash.py"),
+            "ccbench": os.path.join(root, "external", "ccbench"),
+        }
+        spellings = (
+            lambda target: f"perf stat -o {target} -- true",
+            lambda target: f"perf stat --output {target} -- true",
+            lambda target: f"perf stat --output={target} -- true",
+        )
+        for label, target in protected_targets.items():
+            for spelling in spellings:
+                command = spelling(target)
+                _t2146_assert_denied(
+                    GB.decide(command, repo_root=root),
+                    f"perf-{label}:{command}",
+                )
+        for spelling in spellings:
+            command = spelling("/tmp/t2146-perf-output.txt")
+            ok, why = GB.decide(command, repo_root=root)
+            assert ok, f"T-2146 unrelated perf output が誤拒否された: {command} ({why})"
+    finally:
+        shutil.rmtree(root)
+
+
+def test_t2146_guard_bash_builder_exception_excludes_authority_tree():
+    """The build-variants builder exception must not extend into authority."""
+    root = _mk_fixture_repo()
+    try:
+        legacy_build = os.path.join(
+            root, "external", "ccbench", "build-variants", "silo-t2146")
+        authority_build = os.path.join(
+            _T2146_AUTHORITY_ROOT, "build-variants", "silo-t2146")
+        ok, why = GB.decide(
+            f"cmake --build {legacy_build}", repo_root=root)
+        assert ok, f"T-2146 existing build-variants builder が誤拒否された: {why}"
+        _t2146_assert_denied(
+            GB.decide(f"cmake --build {authority_build}", repo_root=root),
+            "builder-authority",
+        )
+    finally:
+        shutil.rmtree(root)
+
+
+def test_t2146_guard_bash_filesystem_root_ancestor_and_siblings():
+    """Filesystem root is protected as an ancestor without catching siblings."""
+    root = _mk_fixture_repo()
+    try:
+        for command in ("rm -rf /", "rm -rf --no-preserve-root /"):
+            _t2146_assert_denied(
+                GB.decide(command, repo_root=root), f"filesystem-root:{command}")
+        allowed = (
+            "/tmp",
+            _T2146_AUTHORITY_ROOT + "-copy",
+            _T2146_AUTHORITY_ROOT + "2",
+            "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2146-authority-guard",
+            _REPO,
+        )
+        for target in allowed:
+            command = f"rm -rf {target}"
+            ok, why = GB.decide(command, repo_root=root)
+            assert ok, f"T-2146 non-ancestor が誤拒否された: {command} ({why})"
     finally:
         shutil.rmtree(root)
 
@@ -1588,6 +1682,28 @@ def test_t2146_both_guard_mains_fail_closed_on_authority_internal_errors():
         assert _guard_main(GW, write_payload) == 2
     with patch.object(GB, "decide", side_effect=RuntimeError("t2146 rule bug")):
         assert _guard_main(GB, bash_payload) == 2
+
+
+def test_t2146_both_guard_error_fallbacks_allow_authority_siblings():
+    """Fallback matching stays component-exact for -copy and numeric siblings."""
+    for sibling in (
+        _T2146_AUTHORITY_ROOT + "-copy",
+        _T2146_AUTHORITY_ROOT + "2",
+    ):
+        write_payload = json.dumps({
+            "tool_name": "Write",
+            "tool_input": {"file_path": os.path.join(sibling, "key.pem")},
+        })
+        bash_payload = json.dumps({
+            "tool_name": "Bash",
+            "tool_input": {"command": f"printf t2146 > {sibling}/key.pem"},
+        })
+        with patch.object(
+                GW, "decide", side_effect=RuntimeError("t2146 rule bug")):
+            assert _guard_main(GW, write_payload) == 0
+        with patch.object(
+                GB, "decide", side_effect=RuntimeError("t2146 rule bug")):
+            assert _guard_main(GB, bash_payload) == 0
 
 
 def test_t2146_authority_guards_run_as_subprocess_smoke():
