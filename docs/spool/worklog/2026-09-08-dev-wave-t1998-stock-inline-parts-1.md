@@ -51,7 +51,8 @@ title: [T-1998] balanced stock-inline 対照の最小 3 部品を実装した �
 
 - 設計判断は {{D:t1998-thin-launcher-single-job}}、{{D:t1998-diagnostic-build-rejection-by-source-digest}}、
   {{D:t1998-shape-binding-over-content-reading}} に記録した。
-  失敗は {{F:substring-presence-test-walks-past-disabled-predicate}} に記録した。
+  失敗は {{F:substring-presence-test-walks-past-disabled-predicate}} と
+  {{F:mutation-masked-by-asymmetric-negative-fixture}} に記録した。
 
 - **裁定パッケージ (本 wave では実装しない)。** (1) A-5 job body の global prune と投入器の
   2 job fan-out は F251 として既にユーザー裁定待ちであり触れていない。(2) 3 つの Pegasus 投入器に
@@ -59,6 +60,16 @@ title: [T-1998] balanced stock-inline 対照の最小 3 部品を実装した �
   `gen_S DIS INA` と `gen_L ENA ACT` が並ぶ出力で成功と誤判定する。誤った成果物は生まれない
   (qsub が失敗するだけ) ので must-fix にしていない。3 本まとめて直すのは別 wave の所有とする。
   (3) 事前登録の実値の固定と正式測定認可。
+
+- **段 8 の自己改善は候補 3 件を実測し、3 件とも収容できなかった。** (a) 同じ prompt の再投入は
+  receipt 衝突で rc=2 になるので `--job-id` を変える必要がある。(b) HEAD blob 束縛 file が未 commit だと
+  子が drift 拒否で起動できない。(c) dispatch した collection の stdout は切り詰められ、
+  報告された収集件数と抽出行数がずれる (実測: 37 件収集に対し 36 行)。
+  収容先は `docs/dev-wave/operations.md` の DW-O01 と `docs/dev-wave/mutation.md` の DW-M08 だが、
+  **L1.5 の unique footprint 予算 9,696 bytes に対し、(a)(b) を足しただけで 9,849 bytes になる。**
+  既存記述の縮約は安全義務を削らずには足りない (予算のために義務を削らない)。
+  D782 が委任した D730 の手順に従い、上限を引き上げず「実施しない」で閉じた。
+  3 件とも session memory には入っているので、次 wave が同じ轍を踏む確率は下がっている。
 
 ## 次の一手差分
 
