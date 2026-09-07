@@ -18,8 +18,11 @@ from orchestrator.campaign import backoff_counterfactual_analysis as analysis
 ROOT = Path(__file__).resolve().parents[2]
 PREREGISTRATION = ROOT / "docs" / "backoff-counterfactual-preregistration.md"
 SEEDS = sorted(analysis.PREREGISTERED_SEEDS)
-PREREGISTRATION_SHA256 = (
+MEASUREMENT_PREREGISTRATION_SHA256_V1 = (
     "ee7617f57bf6816fd8bfb42b5830926be1174ebcca617ed122c3fbca62f127a6"
+)
+ANALYSIS_PREREGISTRATION_SHA256_V2 = (
+    "526d9384d8a8c62f82b132c41672aa2eff32722788ad06858c09f80185ca495a"
 )
 CCBENCH_PIN = "511c9538e4e8efa54b45cda62e72389ed3b706ec"
 PATCH_A_SHA256 = (
@@ -145,7 +148,6 @@ def _write_artifacts(
     outcome_counts: list[int] | None = None,
 ) -> list[Path]:
     directory.mkdir()
-    preregistration_sha256 = hashlib.sha256(PREREGISTRATION.read_bytes()).hexdigest()
     effects = effects or [0.005 + index * 0.0002 for index in range(12)]
     outcome_counts = outcome_counts or [24] * 12
     paths = []
@@ -162,7 +164,7 @@ def _write_artifacts(
                             workload,
                             threads,
                             seed,
-                            preregistration_sha256,
+                            MEASUREMENT_PREREGISTRATION_SHA256_V1,
                             _events(effect, count),
                         )
                     )
@@ -177,7 +179,9 @@ def _write_artifacts(
             "records": 1_000_000,
             "extime_s": 3,
             "reps_per_job": 1,
-            "counterfactual_preregistration": preregistration_sha256,
+            "counterfactual_preregistration": (
+                MEASUREMENT_PREREGISTRATION_SHA256_V1
+            ),
             **_build_bindings(),
             "step_policy_seed": seed,
             "trace_runs": rows,
@@ -204,6 +208,65 @@ def _primary_row(document: dict) -> dict:
     )
 
 
+def test_seq_zero_is_excluded_before_pairing_and_membership_is_rebased() -> None:
+    events = [
+        {"seq": 0, "window_us": 1, "window_commits": 80, "assigned_invert": 0},
+        {"seq": 1, "window_us": 1, "window_commits": 100, "assigned_invert": 0},
+        {"seq": 2, "window_us": 1, "window_commits": 120, "assigned_invert": 1},
+        {"seq": 3, "window_us": 1, "window_commits": 90, "assigned_invert": 0},
+        {"seq": 4, "window_us": 1, "window_commits": 180, "assigned_invert": 1},
+    ]
+    membership_calls = []
+
+    def record_membership(event: dict, index: int, outcome_count: int) -> bool:
+        membership_calls.append((event["seq"], index, outcome_count))
+        return True
+
+    result = analysis._run_difference({"events": events}, record_membership)
+    expected_estimate = (
+        (math.log(120 / 100) + math.log(180 / 90)) / 2
+        - math.log(90 / 120)
+    )
+
+    assert membership_calls == [(1, 0, 3), (2, 1, 3), (3, 2, 3)]
+    assert membership_calls[0] == (1, 0, len(events) - 2)
+    assert membership_calls[-1][1] == membership_calls[-1][2] - 1
+    assert result["estimate_log"] == pytest.approx(expected_estimate)
+
+    changed_events = copy.deepcopy(events)
+    changed_events[0]["window_commits"] = 1
+    changed_events[0]["assigned_invert"] = 1
+    changed_calls = []
+
+    def record_changed(event: dict, index: int, outcome_count: int) -> bool:
+        changed_calls.append((event["seq"], index, outcome_count))
+        return True
+
+    changed = analysis._run_difference(
+        {"events": changed_events}, record_changed
+    )
+    assert changed_calls == [(1, 0, 3), (2, 1, 3), (3, 2, 3)]
+    assert changed["estimate_log"] == pytest.approx(expected_estimate)
+    assert changed["estimate_log"] == pytest.approx(result["estimate_log"])
+
+
+def test_seq_ge_one_zero_commit_remains_inconclusive_under_v2() -> None:
+    events = [
+        {"seq": 0, "window_us": 1, "window_commits": 80, "assigned_invert": 0},
+        {"seq": 1, "window_us": 1, "window_commits": 100, "assigned_invert": 0},
+        {"seq": 2, "window_us": 1, "window_commits": 120, "assigned_invert": 1},
+        {"seq": 3, "window_us": 1, "window_commits": 90, "assigned_invert": 0},
+        {"seq": 4, "window_us": 1, "window_commits": 0, "assigned_invert": 1},
+    ]
+    result = analysis._run_difference(
+        {"events": events},
+        lambda event, _index, _count: event["seq"] != 3,
+    )
+
+    assert result["reason"] == "window_commits_zero"
+    assert result["estimate_log"] is None
+
+
 def test_public_analysis_pairs_next_window_and_uses_equal_run_clusters(
     tmp_path: Path,
 ) -> None:
@@ -220,9 +283,11 @@ def test_public_analysis_pairs_next_window_and_uses_equal_run_clusters(
     assert estimates == pytest.approx(effects, abs=1e-10)
     assert primary["theta_log"] == pytest.approx(statistics.fmean(estimates))
     assert primary["theta_log"] > 0
+    outcome_counts_after_exclusion = [47] + [23] * 11
     event_weighted = sum(
-        estimate * count for estimate, count in zip(estimates, [48] + [24] * 11)
-    ) / sum([48] + [24] * 11)
+        estimate * count
+        for estimate, count in zip(estimates, outcome_counts_after_exclusion)
+    ) / sum(outcome_counts_after_exclusion)
     assert primary["theta_log"] != pytest.approx(event_weighted)
     assert primary["cluster_sd"] == pytest.approx(statistics.stdev(estimates))
     assert primary["ci90"]["critical_value"] == analysis.T90_DF11
@@ -234,6 +299,9 @@ def test_public_analysis_pairs_next_window_and_uses_equal_run_clusters(
         analysis.T95_DF11 * primary["cluster_sd"] / math.sqrt(12)
     )
     assert primary["decision"] == "equivalent"
+    assert result["analysis_version"] == (
+        "izanagi-backoff-counterfactual-analysis/v2"
+    )
     assert len(result["inputs"]) == 12
     assert all(len(item["sha256"]) == 64 for item in result["inputs"])
     assert len(result["secondary"]["workload_threads"]) == 5
@@ -244,7 +312,32 @@ def test_public_analysis_pairs_next_window_and_uses_equal_run_clusters(
     assert result == analysis.analyze_counterfactual(list(reversed(paths)), PREREGISTRATION)
 
 
-def test_only_final_assignment_is_dropped_and_post_treatment_fields_do_not_filter(
+def test_seq_zero_zero_commit_is_v1_inconclusive_but_v2_confirmatory(
+    tmp_path: Path,
+) -> None:
+    paths = _write_artifacts(tmp_path / "artifacts")
+
+    def zero_raw_seq_zero(document: dict) -> None:
+        _primary_row(document)["trace_events"][0]["window_commits"] = 0
+
+    for path in paths:
+        _rewrite(path, zero_raw_seq_zero)
+
+    v1_zero_predicate = []
+    for path in paths:
+        document = json.loads(path.read_text(encoding="utf-8"))
+        events = _primary_row(document)["trace_events"]
+        v1_zero_predicate.append(
+            any(event["window_commits"] == 0 for event in events)
+        )
+    assert v1_zero_predicate == [True] * 12
+
+    primary = analysis.analyze_counterfactual(paths, PREREGISTRATION)["primary"]
+    assert primary["confirmatory_complete"] is True
+    assert primary["decision"] == "equivalent"
+
+
+def test_final_assignment_is_dropped_and_remaining_post_treatment_fields_do_not_filter(
     tmp_path: Path,
 ) -> None:
     paths = _write_artifacts(tmp_path / "artifacts")
@@ -277,19 +370,19 @@ def test_only_final_assignment_is_dropped_and_post_treatment_fields_do_not_filte
 
     def extreme_included(document: dict) -> None:
         events = _primary_row(document)["trace_events"]
-        events[0].update(
+        events[1].update(
             recommended_delta_sign=0,
             both_actions_feasible=0,
             inversion_realized=0,
             backoff_before=0,
             backoff_after=0,
         )
-        events[1]["window_commits"] = 10**15
+        events[1]["window_commits"] = 10**30
 
     _rewrite(paths[0], extreme_included)
     included = analysis.analyze_counterfactual(paths, PREREGISTRATION)["primary"]
     extreme = next(row for row in included["run_estimates"] if row["run_identity"][1] == seed)
-    assert extreme["assigned_forward"] == 12
+    assert extreme["assigned_forward"] == 11
     assert extreme["assigned_invert"] == 12
     assert abs(extreme["estimate_log"] - before["estimate_log"]) > 1
 
@@ -332,6 +425,47 @@ def test_binding_seed_and_input_count_fail_closed_or_become_inconclusive(
     )
     with pytest.raises(ValueError, match="SHA-256 mismatch"):
         analysis.analyze_counterfactual(fresh, PREREGISTRATION)
+
+
+def test_artifacts_remain_bound_to_literal_v1_preregistration_sha(
+    tmp_path: Path,
+) -> None:
+    all_v2_paths = _write_artifacts(tmp_path / "all-v2")
+
+    def bind_top_and_rows_to_v2(document: dict) -> None:
+        document["counterfactual_preregistration"] = (
+            ANALYSIS_PREREGISTRATION_SHA256_V2
+        )
+        for row in document["trace_runs"]:
+            row["counterfactual_preregistration"] = (
+                ANALYSIS_PREREGISTRATION_SHA256_V2
+            )
+
+    _rewrite(all_v2_paths[0], bind_top_and_rows_to_v2)
+    with pytest.raises(ValueError, match="top-level counterfactual contract mismatch"):
+        analysis.analyze_counterfactual(all_v2_paths, PREREGISTRATION)
+
+    one_v2_row_paths = _write_artifacts(tmp_path / "one-v2-row")
+    _rewrite(
+        one_v2_row_paths[0],
+        lambda document: _primary_row(document).__setitem__(
+            "counterfactual_preregistration",
+            ANALYSIS_PREREGISTRATION_SHA256_V2,
+        ),
+    )
+    with pytest.raises(ValueError, match="row preregistration SHA-256 mismatch"):
+        analysis.analyze_counterfactual(one_v2_row_paths, PREREGISTRATION)
+
+    v2_top_only_paths = _write_artifacts(tmp_path / "v2-top-only")
+    _rewrite(
+        v2_top_only_paths[0],
+        lambda document: document.__setitem__(
+            "counterfactual_preregistration",
+            ANALYSIS_PREREGISTRATION_SHA256_V2,
+        ),
+    )
+    with pytest.raises(ValueError, match="top-level counterfactual contract mismatch"):
+        analysis.analyze_counterfactual(v2_top_only_paths, PREREGISTRATION)
 
 
 def test_missing_arm_and_zero_commit_make_whole_primary_inconclusive(
@@ -459,12 +593,18 @@ def test_genome_requires_exact_driver_flag_set(tmp_path: Path) -> None:
             analysis.analyze_counterfactual(paths, PREREGISTRATION)
 
 
-def test_preregistration_file_is_bound_to_frozen_sha256(tmp_path: Path) -> None:
+def test_analysis_preregistration_file_is_bound_to_literal_v2_sha256(
+    tmp_path: Path,
+) -> None:
     paths = _write_artifacts(tmp_path / "artifacts")
     changed = tmp_path / "changed-preregistration.md"
     changed.write_bytes(PREREGISTRATION.read_bytes() + b"\n")
     assert hashlib.sha256(PREREGISTRATION.read_bytes()).hexdigest() == (
-        PREREGISTRATION_SHA256
+        ANALYSIS_PREREGISTRATION_SHA256_V2
+    )
+    unchanged_result = analysis.analyze_counterfactual(paths, PREREGISTRATION)
+    assert unchanged_result["preregistration"]["sha256"] == (
+        ANALYSIS_PREREGISTRATION_SHA256_V2
     )
     with pytest.raises(ValueError, match="frozen specification"):
         analysis.analyze_counterfactual(paths, changed)
