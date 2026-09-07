@@ -13,7 +13,9 @@ ROOT = Path(__file__).resolve().parents[2]
 CCBENCH = ROOT / "external" / "ccbench"
 PATCH_A = ROOT / "patches" / "cicada-adaptive-params.patch"
 PATCH_B = ROOT / "patches" / "cicada-adaptive-dynamic.patch"
+PATCH_C = ROOT / "patches" / "cicada-adaptive-counterfactual.patch"
 PIN_FULL = "511c9538e4e8efa54b45cda62e72389ed3b706ec"
+STEP_POLICY_SEED = "11400714819323198485"
 
 DEFAULT_DEFINES = (
     "-DADD_ANALYSIS=0",
@@ -23,6 +25,8 @@ DEFAULT_DEFINES = (
     "-DBACKOFF_COUNT_WINDOW=0",
     "-DBACKOFF_COUNT_CAP_US=0",
     "-DBACKOFF_STEP_ADAPT=0",
+    "-DBACKOFF_STEP_POLICY=0",
+    f"-DBACKOFF_STEP_POLICY_SEED={STEP_POLICY_SEED}",
     "-DBACKOFF_STEP_MIN_MILLI=100000",
     "-DBACKOFF_STEP_MAX_MILLI=100000",
     "-DBACKOFF_DYN_CEILING=0",
@@ -38,12 +42,35 @@ RULING_COMMON_DEFINES = (
     "-DBACKOFF_COUNT_CAP_US=10240",
 )
 WARNING_COMPILE_VARIANTS = (
+    *(
+        (
+            f"policy={policy},step={step_adapt},ceiling={dyn_ceiling},trace={trace}",
+            RULING_COMMON_DEFINES
+            + (
+                f"-DBACKOFF_STEP_ADAPT={step_adapt}",
+                f"-DBACKOFF_STEP_POLICY={policy}",
+                f"-DBACKOFF_STEP_POLICY_SEED={STEP_POLICY_SEED}",
+                "-DBACKOFF_STEP_MIN_MILLI=1000",
+                "-DBACKOFF_STEP_MAX_MILLI=4000",
+                f"-DBACKOFF_DYN_CEILING={dyn_ceiling}",
+                f"-DBACKOFF_TRACE={trace}",
+            ),
+        )
+        for policy in (0, 1, 2)
+        for step_adapt in (0, 1)
+        for dyn_ceiling in (0, 1)
+        for trace in (0, 1)
+    ),
+)
+PREEXISTING_WARNING_COMPILE_VARIANTS = (
     ("default", DEFAULT_DEFINES),
     (
         "cw",
         RULING_COMMON_DEFINES
         + (
             "-DBACKOFF_STEP_ADAPT=0",
+            "-DBACKOFF_STEP_POLICY=0",
+            f"-DBACKOFF_STEP_POLICY_SEED={STEP_POLICY_SEED}",
             "-DBACKOFF_STEP_MIN_MILLI=100000",
             "-DBACKOFF_STEP_MAX_MILLI=100000",
             "-DBACKOFF_DYN_CEILING=0",
@@ -55,6 +82,8 @@ WARNING_COMPILE_VARIANTS = (
         RULING_COMMON_DEFINES
         + (
             "-DBACKOFF_STEP_ADAPT=1",
+            "-DBACKOFF_STEP_POLICY=0",
+            f"-DBACKOFF_STEP_POLICY_SEED={STEP_POLICY_SEED}",
             "-DBACKOFF_STEP_MIN_MILLI=1000",
             "-DBACKOFF_STEP_MAX_MILLI=4000",
             "-DBACKOFF_DYN_CEILING=0",
@@ -66,6 +95,8 @@ WARNING_COMPILE_VARIANTS = (
         RULING_COMMON_DEFINES
         + (
             "-DBACKOFF_STEP_ADAPT=1",
+            "-DBACKOFF_STEP_POLICY=0",
+            f"-DBACKOFF_STEP_POLICY_SEED={STEP_POLICY_SEED}",
             "-DBACKOFF_STEP_MIN_MILLI=1000",
             "-DBACKOFF_STEP_MAX_MILLI=4000",
             "-DBACKOFF_DYN_CEILING=1",
@@ -77,6 +108,8 @@ WARNING_COMPILE_VARIANTS = (
         RULING_COMMON_DEFINES
         + (
             "-DBACKOFF_STEP_ADAPT=1",
+            "-DBACKOFF_STEP_POLICY=0",
+            f"-DBACKOFF_STEP_POLICY_SEED={STEP_POLICY_SEED}",
             "-DBACKOFF_STEP_MIN_MILLI=1000",
             "-DBACKOFF_STEP_MAX_MILLI=4000",
             "-DBACKOFF_DYN_CEILING=1",
@@ -451,6 +484,210 @@ int main(int argc, char** argv) {
 }
 '''
 
+POLICY_DRIVER_SOURCE = r'''\
+#include <iostream>
+#include <string>
+#include <vector>
+
+#define GLOBAL_VALUE_DEFINE
+#include "backoff.hh"
+
+static void reset_backoff(Backoff& backoff) {
+  Backoff::Backoff_.store(0, std::memory_order_release);
+  backoff.last_committed_txs_ = 0;
+  backoff.last_committed_tput_ = 0;
+  backoff.last_backoff_ = 0;
+  backoff.last_time_ = 0;
+#if BACKOFF_COUNT_WINDOW > 0
+  backoff.last_count_check_time_ = 0;
+#endif
+#if BACKOFF_STEP_ADAPT
+  backoff.adaptive_step_ = 1;
+  backoff.last_gradient_sign_ = 0;
+  backoff.has_last_gradient_sign_ = false;
+#endif
+#if BACKOFF_DYN_CEILING
+  backoff.ceiling_ = static_cast<uint64_t>(Backoff::kMaxBackoff);
+#endif
+#if BACKOFF_STEP_POLICY == 2
+  backoff.backoff_step_policy_state_ = Backoff::kBackoffStepPolicySeed;
+#endif
+#if BACKOFF_TRACE
+  auto& state = Backoff::izanagi_backoff_trace_state_;
+  state.izanagi_backoff_trace_write = 0;
+  state.izanagi_backoff_trace_retained = 0;
+  state.izanagi_backoff_trace_updates = 0;
+  state.izanagi_backoff_trace_dropped = 0;
+#endif
+}
+
+static void force_gradient(Backoff& backoff, int sign, double current_backoff,
+                           uint64_t committed_txs = 100) {
+  Backoff::Backoff_.store(current_backoff, std::memory_order_release);
+  backoff.last_time_ = 0;
+  backoff.last_committed_txs_ = committed_txs - 100;
+  backoff.last_committed_tput_ = sign < 0 ? 2.0 : 0.0;
+  if (sign == 0)
+    backoff.last_backoff_ = static_cast<uint64_t>(current_backoff);
+  else if (current_backoff >= 1)
+    backoff.last_backoff_ = static_cast<uint64_t>(current_backoff - 1);
+  else
+    backoff.last_backoff_ = 0;
+  backoff.update_backoff_at(100, committed_txs);
+}
+
+static void print_values(const std::vector<double>& values) {
+  for (size_t i = 0; i < values.size(); ++i) {
+    if (i != 0)
+      std::cout << ',';
+    std::cout << values[i];
+  }
+  std::cout << '\n';
+}
+
+static int run_series() {
+  Backoff backoff(1);
+  std::vector<double> values;
+  for (const auto& input :
+       std::vector<std::pair<int, uint64_t>>{{1, 100}, {-1, 100},
+                                             {0, 100}, {0, 101}}) {
+    reset_backoff(backoff);
+    force_gradient(backoff, input.first, 100, input.second);
+    values.push_back(Backoff::Backoff_.load(std::memory_order_acquire));
+  }
+  print_values(values);
+  return 0;
+}
+
+static int run_safe() {
+  Backoff backoff(1);
+  reset_backoff(backoff);
+  force_gradient(backoff, 1, 100);
+  const double positive =
+      Backoff::Backoff_.load(std::memory_order_acquire);
+  reset_backoff(backoff);
+  force_gradient(backoff, -1, 100);
+  const double negative =
+      Backoff::Backoff_.load(std::memory_order_acquire);
+  std::cout << positive << ',' << negative << '\n';
+  return 0;
+}
+
+#if BACKOFF_TRACE
+static const Backoff::izanagi_backoff_trace_record& trace_record(size_t index) {
+  return Backoff::izanagi_backoff_trace_state_
+      .izanagi_backoff_trace_ring[index];
+}
+
+static int run_lcg() {
+  Backoff backoff(1);
+  reset_backoff(backoff);
+  std::string bits;
+  std::vector<double> values;
+  for (size_t i = 0; i < 16; ++i) {
+    force_gradient(backoff, 1, 100);
+    const auto& record = trace_record(i);
+    bits.push_back(static_cast<char>(
+        '0' + record.izanagi_backoff_trace_assigned_invert));
+    values.push_back(Backoff::Backoff_.load(std::memory_order_acquire));
+  }
+  std::cout << bits << '\n';
+  print_values(values);
+  return 0;
+}
+
+static int run_advance_special() {
+  Backoff backoff(1);
+  reset_backoff(backoff);
+  force_gradient(backoff, 1, 100);
+  force_gradient(backoff, 0, 100, 100);
+  force_gradient(backoff, 0, 9007199254740992.0, 101);
+  force_gradient(backoff, 1, 0.5);
+  const double clamp_after =
+      Backoff::Backoff_.load(std::memory_order_acquire);
+  force_gradient(backoff, 1, 100);
+
+  std::string bits;
+  std::string gradients;
+  std::string recommendations;
+  for (size_t i = 0; i < 5; ++i) {
+    const auto& record = trace_record(i);
+    bits.push_back(static_cast<char>(
+        '0' + record.izanagi_backoff_trace_assigned_invert));
+    if (i != 0) {
+      gradients.push_back(',');
+      recommendations.push_back(',');
+    }
+    gradients += std::to_string(
+        record.izanagi_backoff_trace_gradient_sign);
+    recommendations += std::to_string(
+        record.izanagi_backoff_trace_recommended_delta_sign);
+  }
+  std::cout << "bits=" << bits << " gradients=" << gradients
+            << " recommendations=" << recommendations
+            << " clamp_after=" << clamp_after << '\n';
+  return 0;
+}
+
+static int run_trace_point(const std::string& mode) {
+  Backoff backoff(1);
+  reset_backoff(backoff);
+  if (mode == "safe-trace") {
+    force_gradient(backoff, 1, 100);
+  } else if (mode == "parity") {
+    force_gradient(backoff, 0, 100, 100);
+  } else if (mode == "partial-lower") {
+    force_gradient(backoff, 1, 0.5);
+  } else if (mode == "fixed-upper") {
+    force_gradient(backoff, -1, 999.5);
+  } else if (mode == "dynamic-shrink") {
+#if BACKOFF_DYN_CEILING
+    backoff.ceiling_ = 200;
+    force_gradient(backoff, -1, 200);
+#else
+    return 3;
+#endif
+  } else if (mode == "emit") {
+    force_gradient(backoff, 1, 100);
+    return 0;
+  } else {
+    return 2;
+  }
+  const auto& record = trace_record(0);
+  std::cout
+      << "after=" << record.izanagi_backoff_trace_backoff_after
+      << " gradient=" << record.izanagi_backoff_trace_gradient_sign
+      << " recommended="
+      << record.izanagi_backoff_trace_recommended_delta_sign
+      << " assigned=" << record.izanagi_backoff_trace_assigned_invert
+      << " realized=" << record.izanagi_backoff_trace_inversion_realized
+      << " feasible="
+      << record.izanagi_backoff_trace_both_actions_feasible
+      << " ceiling=" << record.izanagi_backoff_trace_ceiling_us << '\n';
+  return 0;
+}
+#endif
+
+int main(int argc, char** argv) {
+  if (argc != 2)
+    return 2;
+  const std::string mode(argv[1]);
+  if (mode == "series")
+    return run_series();
+  if (mode == "safe")
+    return run_safe();
+#if BACKOFF_TRACE
+  if (mode == "lcg")
+    return run_lcg();
+  if (mode == "advance-special")
+    return run_advance_special();
+  return run_trace_point(mode);
+#else
+  return 2;
+#endif
+}
+'''
+
 
 def _run_patch(tree: Path, patch: Path, *, dry_run: bool = False):
     argv = ["patch", "--batch", "--forward"]
@@ -485,20 +722,43 @@ def patched_sources(tmp_path_factory: pytest.TempPathFactory):
     assert pin_only_b.returncode != 0, (
         "patch B unexpectedly applies without patch A\n" + pin_only_b.stdout + pin_only_b.stderr
     )
+    pin_only_c = _run_patch(tree, PATCH_C, dry_run=True)
+    assert pin_only_c.returncode != 0, (
+        "patch C unexpectedly applies to the pin alone\n"
+        + pin_only_c.stdout
+        + pin_only_c.stderr
+    )
     applied_a = _run_patch(tree, PATCH_A)
     assert applied_a.returncode == 0, applied_a.stdout + applied_a.stderr
     after_a = (tree / "include" / "backoff.hh").read_text(encoding="utf-8")
+    pin_a_c = _run_patch(tree, PATCH_C, dry_run=True)
+    assert pin_a_c.returncode != 0, (
+        "patch C unexpectedly applies to pin+A\n" + pin_a_c.stdout + pin_a_c.stderr
+    )
     pin_a_b = _run_patch(tree, PATCH_B, dry_run=True)
     assert pin_a_b.returncode == 0, pin_a_b.stdout + pin_a_b.stderr
     applied_b = _run_patch(tree, PATCH_B)
     assert applied_b.returncode == 0, applied_b.stdout + applied_b.stderr
     after_b = (tree / "include" / "backoff.hh").read_text(encoding="utf-8")
+    after_b_options = (tree / "cmake" / "Options.cmake").read_text(encoding="utf-8")
+    pin_a_b_c = _run_patch(tree, PATCH_C, dry_run=True)
+    assert pin_a_b_c.returncode == 0, pin_a_b_c.stdout + pin_a_b_c.stderr
+    applied_c = _run_patch(tree, PATCH_C)
+    assert applied_c.returncode == 0, applied_c.stdout + applied_c.stderr
+    after_c = (tree / "include" / "backoff.hh").read_text(encoding="utf-8")
+    after_c_options = (tree / "cmake" / "Options.cmake").read_text(encoding="utf-8")
     return SimpleNamespace(
         tree=tree,
         after_a=after_a,
         after_b=after_b,
+        after_b_options=after_b_options,
+        after_c=after_c,
+        after_c_options=after_c_options,
         pin_only_b=pin_only_b,
+        pin_only_c=pin_only_c,
+        pin_a_c=pin_a_c,
         pin_a_b=pin_a_b,
+        pin_a_b_c=pin_a_b_c,
     )
 
 
@@ -554,12 +814,123 @@ def _driver_output(binary: Path, mode: str) -> list[str]:
     ]
 
 
+def _policy_defines(
+    *,
+    policy: int,
+    step_adapt: int = 0,
+    dyn_ceiling: int = 0,
+    trace: int = 1,
+    max_us: str = "1000",
+) -> tuple[str, ...]:
+    return (
+        "-DADD_ANALYSIS=0",
+        "-DBACKOFF_INCR_MILLI=1000",
+        f"-DBACKOFF_MAX_US={max_us}",
+        "-DBACKOFF_UPDATE_US=10",
+        "-DBACKOFF_COUNT_WINDOW=0",
+        "-DBACKOFF_COUNT_CAP_US=0",
+        f"-DBACKOFF_STEP_ADAPT={step_adapt}",
+        f"-DBACKOFF_STEP_POLICY={policy}",
+        f"-DBACKOFF_STEP_POLICY_SEED={STEP_POLICY_SEED}",
+        "-DBACKOFF_STEP_MIN_MILLI=1000",
+        "-DBACKOFF_STEP_MAX_MILLI=4000",
+        f"-DBACKOFF_DYN_CEILING={dyn_ceiling}",
+        f"-DBACKOFF_TRACE={trace}",
+    )
+
+
+def _compile_policy_driver(
+    *,
+    work: Path,
+    name: str,
+    header_text: str,
+    dependency_include: Path,
+    defines: tuple[str, ...],
+) -> Path:
+    variant = work / name
+    variant.mkdir()
+    (variant / "backoff.hh").write_text(header_text, encoding="utf-8")
+    source = variant / "driver.cc"
+    source.write_text(POLICY_DRIVER_SOURCE, encoding="utf-8")
+    binary = variant / "driver"
+    compiled = subprocess.run(
+        [
+            "g++",
+            "-std=c++17",
+            "-O0",
+            *CCBENCH_WARNING_FLAGS,
+            f"-I{variant}",
+            f"-I{dependency_include}",
+            *defines,
+            str(source),
+            "-o",
+            str(binary),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert compiled.returncode == 0, (
+        f"{name} failed policy-driver compilation\n"
+        + compiled.stdout
+        + compiled.stderr
+    )
+    assert compiled.stderr == "", f"{name} emitted diagnostics\n{compiled.stderr}"
+    return binary
+
+
+@pytest.fixture(scope="session")
+def policy_binaries(patched_sources, tmp_path_factory: pytest.TempPathFactory):
+    work = tmp_path_factory.mktemp("backoff-policy-drivers")
+    include = patched_sources.tree / "include"
+    configs = {
+        "b0": (patched_sources.after_b, _policy_defines(policy=0, trace=0)),
+        "p0": (
+            patched_sources.after_c,
+            _policy_defines(policy=0, trace=0),
+        ),
+        "p0-trace": (patched_sources.after_c, _policy_defines(policy=0)),
+        "p1": (patched_sources.after_c, _policy_defines(policy=1)),
+        "p2": (patched_sources.after_c, _policy_defines(policy=2)),
+        "p0-dyn": (
+            patched_sources.after_c,
+            _policy_defines(policy=0, dyn_ceiling=1),
+        ),
+        "p1-dyn": (
+            patched_sources.after_c,
+            _policy_defines(policy=1, dyn_ceiling=1),
+        ),
+        "p2-special": (
+            patched_sources.after_c,
+            _policy_defines(
+                policy=2, max_us="18014398509481984"
+            ),
+        ),
+    }
+    return {
+        name: _compile_policy_driver(
+            work=work,
+            name=name,
+            header_text=header,
+            dependency_include=include,
+            defines=defines,
+        )
+        for name, (header, defines) in configs.items()
+    }
+
+
+def _raw_driver_output(binary: Path, mode: str) -> str:
+    result = subprocess.run(
+        [str(binary), mode], check=True, capture_output=True, text=True
+    )
+    return result.stdout
+
+
 def test_ruling_variants_compile_with_ccbench_warning_flags(
     patched_sources, tmp_path: Path
 ) -> None:
-    source = tmp_path / "warning_compile.cc"
+    source = tmp_path / "preexisting-warning-compile.cc"
     source.write_text('#include "backoff.hh"\n', encoding="utf-8")
-    for name, defines in WARNING_COMPILE_VARIANTS:
+    for variant_name, defines in PREEXISTING_WARNING_COMPILE_VARIANTS:
         result = subprocess.run(
             [
                 "g++",
@@ -575,10 +946,49 @@ def test_ruling_variants_compile_with_ccbench_warning_flags(
             text=True,
         )
         assert result.returncode == 0, (
-            f"{name} failed CCBench warning compilation\n"
+            f"{variant_name} failed CCBench warning compilation\n"
             + result.stdout
             + result.stderr
         )
+        assert result.stderr == "", (
+            f"{variant_name} emitted a diagnostic under -Werror\n"
+            + result.stderr
+        )
+
+
+@pytest.mark.parametrize(
+    ("variant_name", "defines"),
+    WARNING_COMPILE_VARIANTS,
+    ids=tuple(name for name, _ in WARNING_COMPILE_VARIANTS),
+)
+def test_all_24_step_policy_compile_variants_are_warning_clean(
+    patched_sources, tmp_path: Path, variant_name: str, defines: tuple[str, ...]
+) -> None:
+    safe_name = re.sub(r"[^a-zA-Z0-9]+", "-", variant_name)
+    source = tmp_path / f"warning-compile-{safe_name}.cc"
+    source.write_text('#include "backoff.hh"\n', encoding="utf-8")
+    result = subprocess.run(
+        [
+            "g++",
+            "-std=c++17",
+            "-O0",
+            *CCBENCH_WARNING_FLAGS,
+            "-fsyntax-only",
+            f"-I{patched_sources.tree / 'include'}",
+            *defines,
+            str(source),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, (
+        f"{variant_name} failed CCBench warning compilation\n"
+        + result.stdout
+        + result.stderr
+    )
+    assert result.stderr == "", (
+        f"{variant_name} emitted a diagnostic under -Werror\n" + result.stderr
+    )
 
 
 def test_count_window_fires_at_k_boundary_not_k_minus_one(transition_driver: Path) -> None:
@@ -719,6 +1129,287 @@ def test_patch_b_requires_a_and_preserves_include_lines(patched_sources) -> None
     assert patched_sources.pin_only_b.returncode != 0
     assert patched_sources.pin_a_b.returncode == 0
     assert _include_lines(patched_sources.after_b) == _include_lines(patched_sources.after_a)
+
+
+def test_patch_c_uses_numeric_if_and_adds_no_include(patched_sources) -> None:
+    patch_text = PATCH_C.read_text(encoding="utf-8")
+    changed_paths = tuple(
+        re.findall(r"^diff --git a/(\S+) b/(\S+)$", patch_text, re.MULTILINE)
+    )
+    assert changed_paths == (
+        ("cmake/Options.cmake", "cmake/Options.cmake"),
+        ("include/backoff.hh", "include/backoff.hh"),
+    )
+    assert re.search(
+        r"^\+#if BACKOFF_STEP_POLICY(?: == 2| > 0| == 1)$",
+        patch_text,
+        re.MULTILINE,
+    )
+    assert re.search(
+        r"^\+#ifdef BACKOFF_STEP_POLICY(?:\s|$)", patch_text, re.MULTILINE
+    ) is None
+    assert patch_text.count("+#ifndef BACKOFF_STEP_POLICY\n") == 1
+    assert patch_text.count("+#ifndef BACKOFF_STEP_POLICY_SEED\n") == 1
+    assert re.search(r"^\+\s*#\s*include", patch_text, re.MULTILINE) is None
+    assert patched_sources.pin_only_c.returncode != 0
+    assert patched_sources.pin_a_c.returncode != 0
+    assert patched_sources.pin_a_b_c.returncode == 0
+    assert _include_lines(patched_sources.after_c) == _include_lines(
+        patched_sources.after_b
+    )
+
+
+def test_patch_c_cmake_cache_default_is_zero(patched_sources) -> None:
+    policy_line = (
+        'set(CCBENCH_BACKOFF_STEP_POLICY 0 CACHE STRING '
+        '"backoff step policy (0=stock, 1=invert, 2=randomized)")'
+    )
+    seed_line = (
+        "set(CCBENCH_BACKOFF_STEP_POLICY_SEED 11400714819323198485 "
+        'CACHE STRING "deterministic backoff step policy seed")'
+    )
+    patch_text = PATCH_C.read_text(encoding="utf-8")
+    assert patch_text.count(f"+{policy_line}\n") == 1
+    assert patch_text.count(f"+{seed_line}\n") == 1
+    assert patched_sources.after_b_options.count(policy_line) == 0
+    assert patched_sources.after_b_options.count(seed_line) == 0
+    assert patched_sources.after_c_options.count(policy_line) == 1
+    assert patched_sources.after_c_options.count(seed_line) == 1
+
+
+def test_patch_c_universal_definition_is_inside_the_function(
+    patched_sources,
+) -> None:
+    options = patched_sources.after_c_options
+    match = re.search(
+        r"function\(ccbench_universal_definitions out_var\).*?endfunction\(\)",
+        options,
+        re.DOTALL,
+    )
+    assert match is not None
+    function_body = match.group(0)
+    expected_lines = (
+        "BACKOFF_STEP_POLICY=${CCBENCH_BACKOFF_STEP_POLICY}",
+        "BACKOFF_STEP_POLICY_SEED=${CCBENCH_BACKOFF_STEP_POLICY_SEED}",
+    )
+    for line in expected_lines:
+        assert options.count(line) == 1
+        assert function_body.count(line) == 1
+
+
+@pytest.mark.parametrize("invalid_policy", (-1, 3))
+def test_step_policy_static_assert_rejects_out_of_domain_values(
+    patched_sources, tmp_path: Path, invalid_policy: int
+) -> None:
+    source = tmp_path / f"invalid-policy-{invalid_policy}.cc"
+    source.write_text('#include "backoff.hh"\n', encoding="utf-8")
+    defines = tuple(
+        item
+        for item in DEFAULT_DEFINES
+        if not item.startswith("-DBACKOFF_STEP_POLICY=")
+    )
+    result = subprocess.run(
+        [
+            "g++",
+            "-std=c++17",
+            "-O0",
+            *CCBENCH_WARNING_FLAGS,
+            "-fsyntax-only",
+            f"-I{patched_sources.tree / 'include'}",
+            *defines,
+            f"-DBACKOFF_STEP_POLICY={invalid_policy}",
+            str(source),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    assert "backoff step policy must be 0, 1 or 2" in result.stderr
+
+
+def test_policy_zero_matches_patch_b_transitions_exactly(policy_binaries) -> None:
+    b_only = _driver_output(policy_binaries["b0"], "series")
+    policy_zero = _driver_output(policy_binaries["p0"], "series")
+    assert b_only == ["101,99,99,101"]
+    assert policy_zero == b_only
+
+
+def test_policy_one_reverses_safe_positive_and_negative_recommendations(
+    policy_binaries,
+) -> None:
+    assert _driver_output(policy_binaries["p0"], "safe") == ["101,99"]
+    assert _driver_output(policy_binaries["p1"], "safe") == ["99,101"]
+
+
+def test_policy_inversion_is_shared_by_all_step_ceiling_combinations(
+    patched_sources, tmp_path: Path
+) -> None:
+    observed: dict[tuple[int, int], str] = {}
+    for step_adapt in (0, 1):
+        for dyn_ceiling in (0, 1):
+            name = f"policy-one-step-{step_adapt}-ceiling-{dyn_ceiling}"
+            binary = _compile_policy_driver(
+                work=tmp_path,
+                name=name,
+                header_text=patched_sources.after_c,
+                dependency_include=patched_sources.tree / "include",
+                defines=_policy_defines(
+                    policy=1,
+                    step_adapt=step_adapt,
+                    dyn_ceiling=dyn_ceiling,
+                    trace=0,
+                ),
+            )
+            output = _driver_output(binary, "safe")
+            assert len(output) == 1
+            observed[(step_adapt, dyn_ceiling)] = output[0]
+    assert observed == {
+        (0, 0): "99,101",
+        (0, 1): "99,101",
+        (1, 0): "99,101",
+        (1, 1): "99,101",
+    }
+
+
+def test_inversion_is_applied_before_clamp(policy_binaries) -> None:
+    assert _driver_output(policy_binaries["p1"], "partial-lower") == [
+        "after=0 gradient=1 recommended=1 assigned=1 realized=0 "
+        "feasible=0 ceiling=1000"
+    ]
+
+
+def test_policy_two_assignment_sequence_is_exact(policy_binaries) -> None:
+    sequence, values = _driver_output(policy_binaries["p2"], "lcg")
+    assert sequence == "0111001000100110"
+    assert values == "101,99,99,99,101,101,99,101,101,101,99,101,101,99,99,101"
+
+
+def test_policy_two_assigned_zero_follows_recommendation(policy_binaries) -> None:
+    sequence, values = _driver_output(policy_binaries["p2"], "lcg")
+    assert sequence[0] == "0"
+    assert values.split(",")[0] == "101"
+
+
+def test_policy_two_assigned_one_reverses_recommendation(policy_binaries) -> None:
+    sequence, values = _driver_output(policy_binaries["p2"], "lcg")
+    assert sequence[1] == "1"
+    assert values.split(",")[1] == "99"
+
+
+def test_policy_two_lcg_advances_on_every_update(policy_binaries) -> None:
+    assert _driver_output(policy_binaries["p2-special"], "advance-special") == [
+        "bits=01110 gradients=1,0,0,1,1 "
+        "recommendations=1,-1,0,1,1 clamp_after=0"
+    ]
+
+
+def test_trace_v2_records_parity_recommendation_not_gradient_alias(
+    policy_binaries,
+) -> None:
+    assert _driver_output(policy_binaries["p0-trace"], "parity") == [
+        "after=99 gradient=0 recommended=-1 assigned=0 realized=0 "
+        "feasible=1 ceiling=1000"
+    ]
+
+
+def test_inversion_realized_is_one_only_for_unclamped_exact_inverse(
+    policy_binaries,
+) -> None:
+    assert _driver_output(policy_binaries["p1"], "safe-trace") == [
+        "after=99 gradient=1 recommended=1 assigned=1 realized=1 "
+        "feasible=1 ceiling=1000"
+    ]
+    assert _driver_output(policy_binaries["p1"], "partial-lower") == [
+        "after=0 gradient=1 recommended=1 assigned=1 realized=0 "
+        "feasible=0 ceiling=1000"
+    ]
+
+
+def test_inversion_realized_is_zero_at_lower_and_fixed_upper_clamps(
+    policy_binaries,
+) -> None:
+    assert _driver_output(policy_binaries["p1"], "partial-lower") == [
+        "after=0 gradient=1 recommended=1 assigned=1 realized=0 "
+        "feasible=0 ceiling=1000"
+    ]
+    assert _driver_output(policy_binaries["p1"], "fixed-upper") == [
+        "after=1000 gradient=-1 recommended=-1 assigned=1 realized=0 "
+        "feasible=0 ceiling=1000"
+    ]
+
+
+def test_dynamic_ceiling_shrink_can_make_both_arms_equal(policy_binaries) -> None:
+    assert _driver_output(policy_binaries["p0-dyn"], "dynamic-shrink") == [
+        "after=100 gradient=-1 recommended=-1 assigned=0 realized=0 "
+        "feasible=0 ceiling=100"
+    ]
+    assert _driver_output(policy_binaries["p1-dyn"], "dynamic-shrink") == [
+        "after=100 gradient=-1 recommended=-1 assigned=1 realized=0 "
+        "feasible=0 ceiling=100"
+    ]
+
+
+def test_both_actions_feasible_is_computed_before_assignment(
+    patched_sources, policy_binaries
+) -> None:
+    source = patched_sources.after_c
+    feasible = source.index(
+        "const int izanagi_backoff_trace_both_actions_feasible ="
+    )
+    policy_assignment = source.index("#if BACKOFF_STEP_POLICY == 1", feasible)
+    clamp = source.index("if (new_backoff < kMinBackoff)", policy_assignment)
+    assert feasible < policy_assignment < clamp
+    assert _driver_output(policy_binaries["p1"], "partial-lower") == [
+        "after=0 gradient=1 recommended=1 assigned=1 realized=0 "
+        "feasible=0 ceiling=1000"
+    ]
+
+
+def test_trace_preprocesses_out_of_trace_zero_builds(
+    patched_sources, tmp_path: Path
+) -> None:
+    source = tmp_path / "preprocess-policy.cc"
+    source.write_text('#include "backoff.hh"\n', encoding="utf-8")
+    forbidden = (
+        "izanagi_backoff_trace",
+        "IZANAGI_BACKOFF_TRACE",
+        "recommended_delta_sign",
+        "assigned_invert",
+        "inversion_realized",
+        "both_actions_feasible",
+    )
+    for policy in (0, 1, 2):
+        result = subprocess.run(
+            [
+                "g++",
+                "-std=c++17",
+                "-E",
+                "-P",
+                f"-I{patched_sources.tree / 'include'}",
+                *_policy_defines(policy=policy, trace=0),
+                str(source),
+            ],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, (
+            f"policy {policy} preprocessing failed\n"
+            + result.stdout
+            + result.stderr
+        )
+        for symbol in forbidden:
+            assert symbol not in result.stdout, (
+                f"policy {policy} trace=0 retained {symbol}"
+            )
+
+
+def test_emitter_stdout_parses_with_the_real_parser(policy_binaries) -> None:
+    from tools.pegasus.probes import t2187_adaptive_const_probe as driver
+
+    stdout = _raw_driver_output(policy_binaries["p2"], "emit")
+    assert stdout.startswith("IZANAGI_BACKOFF_TRACE v=2 ")
+    assert "IZANAGI_BACKOFF_TRACE_SUMMARY v=2 " in stdout
+    driver._parse_backoff_trace(stdout)
 
 
 def _run() -> int:
