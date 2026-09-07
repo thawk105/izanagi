@@ -1,0 +1,122 @@
+{
+  "estimated_run_seconds": 420,
+  "hang_timeout_seconds": 5400,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m1_exception_before_records_keeps_initial_result_false",
+        "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m5_run_sweep_rejects_aborted_summary_with_observed_production_records"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t2228.m1-initial-result-is-green",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2228_driver_gate_liveness_probe.py",
+          "new": "        \"ok\": True,\n        \"rc\": 1,\n",
+          "old": "        \"ok\": False,\n        \"rc\": 1,\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m2_production_integrity_rejects_tampered_issued_record",
+        "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m3_production_admission_is_bound_to_exact_record_ids"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t2228.m2-family-admission-skips-production-revalidation",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2228_driver_gate_liveness_probe.py",
+          "new": "    return admission\n",
+          "old": "    try:\n        expected = gate.require_condition_gate_family(\n            list(supply_records),\n            list(meaning_records),\n            use_class=admission.use_class,\n        )\n    except Exception:\n        return None\n    return admission if admission == expected else None\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_current_pin_control_requires_production_assert_pinned_clean_origin"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t2228.m3-current-pin-control-ignores-head-equality",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2228_driver_gate_liveness_probe.py",
+          "new": "    if completed or exception is None:\n",
+          "old": "    if completed or current_head == required_head or exception is None:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m4_runtime_error_without_attribute_keeps_reason_code_null"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t2228.m4-reason-code-guessed-from-message",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2228_driver_gate_liveness_probe.py",
+          "new": "            \"reason_code\": getattr(current, \"reason_code\", None) or str(current).split(\":\")[0],\n            \"traceback\": traceback_rows,\n",
+          "old": "            \"reason_code\": getattr(current, \"reason_code\", None),\n            \"traceback\": traceback_rows,\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m5_run_sweep_rejects_aborted_summary_with_observed_production_records"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t2228.m5-sweep-ignores-aborted",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2228_driver_gate_liveness_probe.py",
+          "new": "        and type(aborted) is int\n",
+          "old": "        and type(aborted) is int\n        and aborted == 0\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m6_atomic_writer_refuses_existing_evidence"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t2228.m6-evidence-writer-replaces-existing",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2228_driver_gate_liveness_probe.py",
+          "new": "        os.replace(temporary, path)\n",
+          "old": "        os.link(temporary, path)\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_t2228_driver_gate_liveness_probe.py::test_m7_reachability_counts_inert_request_from_freeze_data"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t2228.m7-reachability-count-is-constant",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2228_driver_gate_liveness_probe.py",
+          "new": "            inert_request_count += 0\n",
+          "old": "            inert_request_count += int(inert)\n"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 5400
+}

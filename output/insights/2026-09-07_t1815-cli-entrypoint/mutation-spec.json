@@ -1,0 +1,73 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 90,
+ "timeout_seconds": 1800,
+ "hang_timeout_seconds": 2400,
+ "mutations": [
+  {
+   "id": "M1-prereg-alias-removed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "old": "\nif __name__ == \"__main__\":  # pragma: no cover - direct CLI execution\n    sys.modules[\"orchestrator.campaign.s8c_preregistration\"] = sys.modules[__name__]\n",
+     "new": "\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_cli_entrypoint_matches_library_report[prereg-path]",
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_cli_entrypoint_matches_library_report[prereg-module]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M2-prereg-alias-inside-package-guard",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "old": "if __package__ in {None, \"\"}:  # pragma: no cover - direct CLI execution\n    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))\n    __package__ = \"orchestrator.campaign\"\n\nif __name__ == \"__main__\":  # pragma: no cover - direct CLI execution\n    sys.modules[\"orchestrator.campaign.s8c_preregistration\"] = sys.modules[__name__]\n",
+     "new": "if __package__ in {None, \"\"}:  # pragma: no cover - direct CLI execution\n    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))\n    __package__ = \"orchestrator.campaign\"\n    if __name__ == \"__main__\":  # pragma: no cover - direct CLI execution\n        sys.modules[\"orchestrator.campaign.s8c_preregistration\"] = sys.modules[__name__]\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_cli_entrypoint_matches_library_report[prereg-module]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M3-gate-package-assignment-removed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_gate_report.py",
+     "old": "    __package__ = \"orchestrator.campaign\"\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_cli_entrypoint_matches_library_report[gate-path]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M4-gate-syspath-insert-removed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_gate_report.py",
+     "old": "    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_cli_entrypoint_matches_library_report[gate-path]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}
