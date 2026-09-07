@@ -1,0 +1,148 @@
+{
+  "estimated_run_seconds": 600,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M1-pbs-accept-multiple-result-lines",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t1259_qsub_env_delivery_probe.pbs",
+          "new": "    if len(lines) < 1 or not lines[0].startswith(sys.argv[2]):\n",
+          "old": "    if len(lines) != 1 or not lines[0].startswith(sys.argv[2]):\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M2-pbs-reintroduce-err-trap-on-observer",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t1259_qsub_env_delivery_probe.pbs",
+          "new": "  set +e\n  \"$@\" >\"$output_path\"\n  observer_rc=$?\n  set -e\n",
+          "old": "  if \"$@\" >\"$output_path\"; then\n    observer_rc=0\n  else\n    observer_rc=$?\n  fi\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M3-projection-hardcoded-by-request-id",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t1259_qsub_env_delivery_probe.py",
+          "new": "    approval_bound = request_id == \"R1\"\n",
+          "old": "    approval_bound = approval_present and nonce is not None and approval == nonce\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M4-projection-drop-categorical-bool-invariant",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t1259_qsub_env_delivery_probe.py",
+          "new": "    return base\n",
+          "old": "    categorical_bound = base[\"projected_outcome\"] == \"approval-bound\"\n    if (categorical_bound is not base[\"official_approval_bound\"]\n            or base[\"confirm_flag_would_be_appended\"]\n            is not base[\"official_approval_bound\"]):\n        raise ProbeError(\"source projection categorical and boolean values disagree\")\n    return base\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M5-driver-argv-prefix-match-only",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t1259_qsub_env_delivery_probe.py",
+          "new": "    if tuple(argv)[:3] != expected_argv[:3]:\n",
+          "old": "    if tuple(argv) != expected_argv:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M6-driver-argv-allow-approval-flag",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t1259_qsub_env_delivery_probe.py",
+          "new": "    environment = dict(os.environ)\n",
+          "old": "    if \"--confirm-official-floor-run\" in argv:\n        raise ProbeError(\"R2 unapproved driver argv unexpectedly carries approval\")\n    environment = dict(os.environ)\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M7-explicit-comparison-presence-only",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t1259_qsub_env_delivery_probe.py",
+          "new": "            \"exact_match\": present,\n",
+          "old": "            \"exact_match\": present and observed == expected,\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M8-r3-drop-ambient-approval-literal-check",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t1259_qsub_env_delivery_probe.py",
+          "new": "        ambient_approval = caller_states[APPROVAL]\n        if not ambient_approval[\"present\"]:\n            raise ProbeError(\"R3 qsub caller did not carry the fixed mismatching approval literal\")\n",
+          "old": "        ambient_approval = caller_states[APPROVAL]\n        if (not ambient_approval[\"present\"]\n                or ambient_approval[\"value\"] != AMBIENT_APPROVAL_LITERAL):\n            raise ProbeError(\"R3 qsub caller did not carry the fixed mismatching approval literal\")\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M9-drop-job-start-clean-tree-recheck",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t1259_qsub_env_delivery_probe.py",
+          "new": "    if repo_snapshot[\"untracked_paths\"] != []:\n        raise ProbeError(\"job repository has untracked paths at observer start\")\n",
+          "old": "    if repo_snapshot[\"tracked_status\"] != \"\":\n        raise ProbeError(\"job repository is not tracked-clean at observer start\")\n    if repo_snapshot[\"untracked_paths\"] != []:\n        raise ProbeError(\"job repository has untracked paths at observer start\")\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M10-r1-drop-approval-nonce-binding",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t1259_qsub_env_delivery_probe.py",
+          "new": "    if request_id == \"R1\":\n        if ordered_values[APPROVAL] is None:\n            raise ProbeError(\"R1 approval is not exactly bound to its nonce\")\n",
+          "old": "    if request_id == \"R1\":\n        if ordered_values[APPROVAL] != ordered_values[SUBMISSION_NONCE]:\n            raise ProbeError(\"R1 approval is not exactly bound to its nonce\")\n"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 1800
+}

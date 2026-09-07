@@ -826,6 +826,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         verified_freeze = load_verified_freeze(args.freeze, args.freeze_sha256)
         root = Path(args.root)
         ratified = s8b_ratified_freeze.load_ratified_freeze(root)
+        s8b_ratified_freeze.assert_g1_floor_selection_identity(ratified, root)
         reverified = s8b_ratified_freeze.reverify_published_freeze(ratified, root)
         approved = s8b_oracle_spec.load_approved_spec(root)
         verified_manifest = s8b_oracle_manifest.verify_manifest(

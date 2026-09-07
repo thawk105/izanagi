@@ -1,0 +1,162 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 60,
+ "timeout_seconds": 1800,
+ "hang_timeout_seconds": 1800,
+ "mutations": [
+  {
+   "id": "MUT-T2067A-R1-REMOVED",
+   "category": "negative",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_oracle_report.py",
+     "old": "            s8b_ratified_freeze.assert_g1_floor_selection_identity(ratified, root)\n",
+     "new": "            pass\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2067A-R2-DOCUMENT-ARG",
+   "category": "negative",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_oracle_report.py",
+     "old": "            s8b_ratified_freeze.assert_g1_floor_selection_identity(ratified, root)\n",
+     "new": "            s8b_ratified_freeze.assert_g1_floor_selection_identity(ratified.document, root)\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2067A-R3-WRONG-ROOT",
+   "category": "negative",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_oracle_report.py",
+     "old": "            s8b_ratified_freeze.assert_g1_floor_selection_identity(ratified, root)\n",
+     "new": "            s8b_ratified_freeze.assert_g1_floor_selection_identity(ratified, root.parent)\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2067A-J1-REMOVED",
+   "category": "negative",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_oracle_judge.py",
+     "old": "        s8b_ratified_freeze.assert_g1_floor_selection_identity(ratified, root)\n",
+     "new": "        pass\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2067A-J2-DOCUMENT-ARG",
+   "category": "negative",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_oracle_judge.py",
+     "old": "        s8b_ratified_freeze.assert_g1_floor_selection_identity(ratified, root)\n",
+     "new": "        s8b_ratified_freeze.assert_g1_floor_selection_identity(ratified.document, root)\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2067A-J3-WRONG-ROOT",
+   "category": "negative",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_oracle_judge.py",
+     "old": "        s8b_ratified_freeze.assert_g1_floor_selection_identity(ratified, root)\n",
+     "new": "        s8b_ratified_freeze.assert_g1_floor_selection_identity(ratified, root.parent)\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2067A-V1-REMOVED",
+   "category": "negative",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_verdict.py",
+     "old": "        s8b_ratified_freeze.assert_g1_floor_selection_identity(ratified, root)\n",
+     "new": "        pass\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2067A-V2-DOCUMENT-ARG",
+   "category": "negative",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_verdict.py",
+     "old": "        s8b_ratified_freeze.assert_g1_floor_selection_identity(ratified, root)\n",
+     "new": "        s8b_ratified_freeze.assert_g1_floor_selection_identity(ratified.document, root)\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2067A-V3-WRONG-ROOT",
+   "category": "negative",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_verdict.py",
+     "old": "        s8b_ratified_freeze.assert_g1_floor_selection_identity(ratified, root)\n",
+     "new": "        s8b_ratified_freeze.assert_g1_floor_selection_identity(ratified, root.parent)\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2067A-P1-STALE-PIN",
+   "category": "negative",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_s8b_oracle_manifest.py",
+     "old": "    b'\"sha256\":\"30fe2b1bcad143f5a85ca32250744522d6049f4c71e9b853618e3af2dd0091c7\"}},'\n",
+     "new": "    b'\"sha256\":\"f7ef6259f8feb3a6ccd7812d85132f19bc36e10fa4cd10cea28ecd145769c93b\"}},'\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2067A-PC1-OVER-REJECT",
+   "category": "positive",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+     "old": "    if ratified.generation_number != 1:\n        return\n",
+     "new": "    if True:\n        raise RatifiedFreezeError(\n            \"floor-selection-rule-mismatch\", \"positive control over-rejection\",\n            cause=\"positive-control\",\n        )\n"
+    }
+   ]
+  }
+ ]
+}
