@@ -1966,6 +1966,23 @@
   **型は「手順書の不足」ではなく「必読に指定された逐語を読んだ上で適用しない」**であり、
   2026-09-04 の「逐語を親が守らなかった再発」と同じ位置にある。
   費用は受入全走 1 回分 + fix 子 1 本 + worktree 1 本。是正後の焦点走は 24 passed・赤 0。
+
+- **再発: 2026-09-08** — [T-1396] wave で発生。**新規 file ではなく既存 file へ足した 1 テスト**が
+  同型を起こした。実 repo を読む負例へ `@pytest.mark.xdist_group("s8c-predicate-snapshot")` を付けた
+  ところ、`orchestrator/tests/test_real_repo_serialization.py` の group golden に未登録のまま
+  受入全走まで露出せず、`test_real_repo_group_collection_exactly_matches_canonical_nodes` と
+  `test_acceptance_schedule_order.py::test_g6_all_real_repo_items_stay_one_unit_and_keep_relative_order`
+  の 2 件が赤になった (21568 collected / 2 failed)。親の焦点走は変更した production module 名で
+  consumer を引く形 (`DW-O26`) だったため、**mark の名前で引かねば当たらない登録簿**を落とした。
+  過去の再発が新設 file と自走 harness / duration ledger を対象にしていたのに対し、今回の入口は
+  **mark の付与**である。
+  さらに単純な登録追加では閉じなかった。group の golden
+  (`_LONG_LIVED_FIXTURE_GROUP_NODES_GOLDEN`) と、その group の共有 fixture の consumer 集合
+  (`_REAL_REPO_FIXTURE_ACCESS_GOLDEN` の `current_commit_snapshot[module]`) は**同一の
+  frozenset を共有**しており、group にだけ足すと fixture consumer 側の実測一致検査が破れる。
+  fixture を消費しない group 所属 node は、集合を分離しない限り登録できない。今回は負例を
+  共有 fixture の consumer へ変える形で両集合を一致させて閉じた (受入 21598 collected /
+  21530 passed / 赤 0)。
 ### F43. codex 子が exit 0 のまま最終メッセージへ推敲断片だけを残し、レビュー本文が失われた [手順漏れ]
 - 事象: [T-147] の敵対レビュー B (2026-07-28) が 168k tokens・exec 31 回の実検証を行いながら、
   `-o` の最終メッセージに出力書式の推敲メモ断片 194 bytes だけを残して exit 0 で終了した。
@@ -23011,3 +23028,20 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   job walltime 未満である `DW-M06` の制約と両立するかを起動前に確かめる。
 - 再発検知: `mutation harness aborted:` で始まり 3 つの秒数を並べる本文が出たら本項である。
   再試行の前に runner script の `export IZANAGI_DISPATCH_*` を読む。
+
+### F892. 成果物の非保証の逐語が test で守られておらず、偽の主張へ反転しても緑だった [恒真ゲート]
+
+- 事象: 権威 floor 成果物が「source summary の参照先を実在照合していない」と非保証欄へ書いていたが、
+  その本文を「照合済みである」という**偽の主張**へ書き換えても、どの test も落ちなかった。
+  敵対レビュー 2 本はこれを見つけられず、変異走行だけが暴いた。
+- 根本原因: 非保証を「定数として置いて成果物へ流す」ところまでは実装したが、
+  **その内容が何であるかを検査するものが無かった**。非保証は成果物の値や受理集合を変えないため、
+  受理・拒否を検査する既存 test の網に掛からない。
+- 恒久対応: 非保証の逐語を pin する test を置く。**逐語は module 定数を参照せず test 側へ
+  literal で書く。** 定数を参照すると、定数を書き換えたときに両辺が同時に変わって検査が空回りする。
+- 再発検知: 当該逐語を偽の向きへ反転する変異を登録し KILLED を要求する。
+  本 wave では probe 段で SURVIVED、fix 後の再走で KILLED を確認した。
+- 併記: 同じ型として、**非保証が事実に反する側へ古びる**場合がある。本 wave では producer の版が
+  走行中に上がった結果、「その版が要求を満たしていない」という非保証が偽になった。
+  偽の非保証を残すことは、検査していないことを検査済みと読ませるのと同じ向きの誤りである。
+  非保証は「現に証明していないこと」を述べる形へ保つ。

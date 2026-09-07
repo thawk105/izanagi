@@ -1,0 +1,4 @@
+leaf=AX1-20260902-E1-Q6-SY2015@openalex state=blocked_on_ruling requests=2 remaining=127
+leaf=AX1-20260902-E1-Q6-SY2016@openalex state=pass_complete requests=3 remaining=97
+leaf=AX1-20260902-E1-Q6-SY2017@openalex state=pass_complete requests=4 remaining=57
+STOP remaining=57 < 70 before phase=A leaf=AX1-20260902-E1-Q6-SY2018@openalex

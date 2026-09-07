@@ -1,0 +1,25 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 90,
+ "timeout_seconds": 5400,
+ "hang_timeout_seconds": 3000,
+ "mutations": [
+  {
+   "id": "M15",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+     "old": "    \"凍結が測定の結果を見る前に行われたことを証明しない。\"\n",
+     "new": "    \"凍結が測定の結果を見る前に行われたことを証明済みである。\"\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_authority_non_guarantees_pin_required_verbatim_limitations",
+    "orchestrator/tests/test_p3_b4_material_report.py::test_present_floor_projects_required_verbatim_non_guarantees@p3-b4-material-report"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}
