@@ -487,14 +487,13 @@ def _legacy_read_heavy_adapter_records(
     template["workload"] = "read-heavy"
     template["source_commit"] = B.LEGACY_READ_HEAVY_ANALYSIS_COMMIT
     template["preregistration_binding"] = {
-        "prereg_commit": prereg.binding.prereg_commit,
-        "prereg_blob_sha": prereg.binding.prereg_blob_sha,
-        "spec_sha256": prereg.binding.spec_sha256,
-        "patch_sha256": prereg.binding.patch_sha256,
-        "formula_sha256": prereg.binding.formula_sha256,
+        **_legacy_v4_preregistration_binding_literal(),
         "analysis_code_sha256": B.LEGACY_READ_HEAVY_ANALYSIS_SHA256,
         "binding_sha256": B.LEGACY_READ_HEAVY_BINDING_SHA256,
     }
+    template["spec_sha256"] = _legacy_v4_preregistration_binding_literal()[
+        "spec_sha256"
+    ]
     template["analysis_commit"] = B.LEGACY_READ_HEAVY_ANALYSIS_COMMIT
     template["analysis_code_sha256"] = B.LEGACY_READ_HEAVY_ANALYSIS_SHA256
     template["correctness_certified"] = True
@@ -2133,11 +2132,14 @@ def test_acf840c8_read_heavy_adapter_accepts_only_pinned_series(tmp_path: Path):
     assert meta_digest \
         == "27195442abce632ffae7a7241abd3cd8e765fe63fb590a62a37d4166049400c8"
     binding = B._legacy_read_heavy_binding(prereg)
-    assert set(binding) == {
-        "prereg_commit", "prereg_blob_sha", "spec_sha256", "patch_sha256",
-        "formula_sha256", "analysis_code_sha256", "binding_sha256",
+    assert binding == {
+        **_legacy_v4_preregistration_binding_literal(),
+        "analysis_code_sha256": B.LEGACY_READ_HEAVY_ANALYSIS_SHA256,
+        "binding_sha256": B.LEGACY_READ_HEAVY_BINDING_SHA256,
     }
     assert "analysis_commit" not in binding
+    assert prereg.binding.patch_sha256 != binding["patch_sha256"]
+    assert prereg.spec.spec_sha256 != records[0]["spec_sha256"]
     indexed = B._validate_legacy_read_heavy_records(
         records,
         campaign_id=B.LEGACY_READ_HEAVY_CAMPAIGN_ID,
@@ -2149,6 +2151,31 @@ def test_acf840c8_read_heavy_adapter_accepts_only_pinned_series(tmp_path: Path):
     assert all(
         re.fullmatch(r"[0-9a-f]{12}", str(row["variant_id"])) is not None
         for row in indexed.values()
+    )
+
+
+def test_acf840c8_read_heavy_adapter_rejects_current_v5_patch_binding(
+    tmp_path: Path,
+):
+    prereg, records = _legacy_read_heavy_adapter_records(tmp_path)
+    changed = records[0]
+    old_digest = changed["record_sha256"]
+    mixed_binding = dict(changed["preregistration_binding"])
+    mixed_binding["patch_sha256"] = prereg.binding.patch_sha256
+    assert mixed_binding["patch_sha256"] \
+        != _legacy_v4_preregistration_binding_literal()["patch_sha256"]
+    changed["preregistration_binding"] = mixed_binding
+    _rehash_record(changed)
+    expected_digests = {row["record_sha256"] for row in records}
+    assert changed["record_sha256"] != old_digest
+    _expect_code(
+        "legacy-record",
+        lambda: B._validate_legacy_read_heavy_records(
+            records,
+            campaign_id=B.LEGACY_READ_HEAVY_CAMPAIGN_ID,
+            prereg=prereg,
+            expected_record_digests=expected_digests,
+        ),
     )
 
 
@@ -2174,26 +2201,30 @@ def test_acf840c8_frozen_read_heavy_records_match_production_contract():
         == B.LEGACY_READ_HEAVY_RECORD_SHA256S
 
     frozen_preregistration = provenance["preregistration"]
-    frozen_spec = B.parse_preregistration(
-        _prereg_doc(frozen_preregistration["spec"]),
-    )
+    frozen_spec = frozen_preregistration["spec"]
+    assert frozen_spec["schema_version"] \
+        == "izanagi-b10-backoff-shape-preregistration/v4"
+    assert B._sha256_json(frozen_spec) \
+        == frozen_preregistration["spec_sha256"]
     frozen_binding = B.PreregistrationBinding(
         frozen_preregistration["prereg_commit"],
         frozen_preregistration["prereg_blob_sha"],
-        frozen_spec.spec_sha256,
-        frozen_spec.patch_sha256,
-        frozen_spec.formula_sha256,
+        frozen_preregistration["spec_sha256"],
+        frozen_preregistration["patch_sha256"],
+        frozen_preregistration["formula_sha256"],
         B.LEGACY_READ_HEAVY_ANALYSIS_COMMIT,
         B.LEGACY_READ_HEAVY_ANALYSIS_SHA256,
     )
-    frozen_prereg = B.Preregistration(
-        frozen_binding, B.PREREG_REL, frozen_spec,
+    current_prereg = B.Preregistration(
+        _binding(), B.PREREG_REL, _spec(),
     )
-    expected_binding = B._legacy_read_heavy_binding(frozen_prereg)
+    expected_binding = B._legacy_read_heavy_binding(current_prereg)
     assert set(expected_binding) == {
         "prereg_commit", "prereg_blob_sha", "spec_sha256", "patch_sha256",
         "formula_sha256", "analysis_code_sha256", "binding_sha256",
     }
+    assert current_prereg.binding.patch_sha256 \
+        != expected_binding["patch_sha256"]
     assert expected_binding == {
         key: frozen_preregistration[key] for key in expected_binding
     }
