@@ -23,6 +23,7 @@ from typing import Mapping, Sequence
 
 from . import reflux_origin_ledger as ledger
 from . import wal as wal_codec
+from .layout import validate_campaign_id
 from .reflux_origin_artifacts import (
     ArtifactError,
     canonical_json_bytes,
@@ -73,6 +74,7 @@ LEDGER_OUTER_COMMITMENT_LAYER = "ledger-result-evidence/salted-domain/v1"
 _RECORD_RAW_SHA256_ALGORITHM = "sha256"
 _LEDGER_EVIDENCE_DIGEST_ALGORITHM = "sha256"
 _SHA256_RE = re.compile(r"[0-9a-f]{64}\Z")
+_CAMPAIGN_ID_RE = re.compile(r".+-.+-[0-9a-f]{8}\Z")
 _TOP_LEVEL_KEYS = frozenset({
     "schema_version",
     "issuer",
@@ -121,7 +123,7 @@ _ORDERED_WAL_KEYS = frozenset({
     "build_attempt_id",
     "records",
 })
-_EXECUTION_PROVENANCE_KEYS = frozenset({
+_EXECUTION_PROVENANCE_V2_KEYS = frozenset({
     "schema_version",
     "build_attempt_id",
     "campaign_id",
@@ -129,6 +131,7 @@ _EXECUTION_PROVENANCE_KEYS = frozenset({
     "contract_sha256",
     "trigger_binding",
     "execution_receipt_sha256",
+    "campaign_run_identity",
 })
 
 
@@ -203,6 +206,16 @@ def _sha256(value: object, *, label: str) -> str:
     if type(value) is not str or _SHA256_RE.fullmatch(value) is None:
         _fail(f"{label} must be a lowercase sha256")
     return value
+
+
+def _campaign_identity(value: object, *, label: str) -> str:
+    identity = _text(value, label=label)
+    if _CAMPAIGN_ID_RE.fullmatch(identity) is None:
+        _fail(f"{label} is not an ident campaign identity")
+    try:
+        return validate_campaign_id(identity)
+    except ValueError as exc:
+        raise ResultEvidenceError(f"{label} is not a campaign identity") from exc
 
 
 def _ordinal(value: object, *, label: str) -> int:
@@ -550,12 +563,16 @@ def _parse_canonical_object(raw_bytes: bytes, *, label: str) -> dict:
 
 def _validate_execution_provenance(value: object) -> dict:
     provenance = _exact_object(
-        value, _EXECUTION_PROVENANCE_KEYS, label="execution provenance"
+        value, _EXECUTION_PROVENANCE_V2_KEYS, label="execution provenance"
     )
-    if provenance["schema_version"] != "execution-provenance/v1":
+    if provenance["schema_version"] != "execution-provenance/v2":
         _fail("unsupported execution provenance schema_version")
     for name in ("build_attempt_id", "campaign_id", "workload"):
         _text(provenance[name], label=f"execution provenance.{name}")
+    _campaign_identity(
+        provenance["campaign_run_identity"],
+        label="execution provenance.campaign_run_identity",
+    )
     _sha256(
         provenance["contract_sha256"],
         label="execution provenance.contract_sha256",

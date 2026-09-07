@@ -1,0 +1,256 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/silo-backoff-fixed.patch",
+          "old": "static_cast<double>(static_cast<uint64_t>(BACKOFF_FIXED) - 2000ULL)",
+          "new": "static_cast<double>(static_cast<uint64_t>(BACKOFF_FIXED) % 1000ULL)"
+        },
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "static_cast<double>(static_cast<uint64_t>(BACKOFF_FIXED) - 2000ULL)",
+          "new": "static_cast<double>(static_cast<uint64_t>(BACKOFF_FIXED) % 1000ULL)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_actual_cpp_expression_compiles_with_werror_and_matches_fraction_model",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_actual_patch_has_only_one_authorized_hole_line_and_exact_formula_sha",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_e3de15eb_legacy_adapter_enforces_injected_exact_digest_set",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_e3de15eb_legacy_adapter_rejects_current_v5_patch_binding",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_p06_canonical_v5_machine_spec_hashes_and_runtime_residual_are_accepted",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_formula_in_comment_with_changed_expression_is_rejected",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_inert_supply_green_but_nonstock_selected_branch_is_meaning_red",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_nonfinite_decoder_output_fails_closed",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_patch_target_decoder_and_fixture_holes_are_independently_anchored",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_result_identifier_must_be_exact_double",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_uniform_shift_decoder_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/silo-backoff-fixed.patch",
+          "old": "static_cast<double>(static_cast<uint64_t>(BACKOFF_FIXED) - 2000ULL)",
+          "new": "static_cast<double>(static_cast<uint64_t>(BACKOFF_FIXED) - 1999ULL)"
+        },
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "static_cast<double>(static_cast<uint64_t>(BACKOFF_FIXED) - 2000ULL)",
+          "new": "static_cast<double>(static_cast<uint64_t>(BACKOFF_FIXED) - 1999ULL)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_actual_cpp_expression_compiles_with_werror_and_matches_fraction_model",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_actual_patch_has_only_one_authorized_hole_line_and_exact_formula_sha",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_p06_canonical_v5_machine_spec_hashes_and_runtime_residual_are_accepted",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_formula_in_comment_with_changed_expression_is_rejected",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_inert_supply_green_but_nonstock_selected_branch_is_meaning_red",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_nonfinite_decoder_output_fails_closed",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_patch_target_decoder_and_fixture_holes_are_independently_anchored",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_result_identifier_must_be_exact_double",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_uniform_shift_decoder_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "    if code >= 3:\n        return Fraction(encoded - 2000)\n",
+          "new": "    if code >= 3:\n        return Fraction(mean_us)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_actual_cpp_expression_compiles_with_werror_and_matches_fraction_model",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_high_static_raw_values_and_exact_model_domain_are_literal_pins"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "old": "    return backoff_us if backoff_us <= 999 else backoff_us + 2000\n",
+          "new": "    return backoff_us if backoff_us <= 999 else backoff_us + 1000\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_extended_run_path_prepares_and_gates_the_same_patched_tree",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_mu2_grid_upper_endpoint_matches_adaptive_range",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_static_codec_is_bijective_on_its_exact_bounded_domain",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_grid_is_exact_eight_points_with_physical_1000_encoded_as_3000",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_requested_realized_and_unrealized_are_separate_identity_fields",
+        "orchestrator/tests/test_backoff_extended_sweep_report.py::test_measurement_tables_keep_the_two_observation_surfaces_separate",
+        "orchestrator/tests/test_backoff_extended_sweep_report.py::test_mu10_claim_boundary_is_fixed_and_contains_no_inverse_d496_field",
+        "orchestrator/tests/test_backoff_extended_sweep_report.py::test_mu14_aa_tps_cannot_change_peak_onset_or_gain_fields",
+        "orchestrator/tests/test_backoff_extended_sweep_report.py::test_mu16_aa_consumer_rebinds_rows_and_manifest_points",
+        "orchestrator/tests/test_backoff_extended_sweep_report.py::test_mu17_markdown_claim_boundary_is_exactly_the_verdict_projection",
+        "orchestrator/tests/test_backoff_extended_sweep_report.py::test_mu7_single_tail_drop_does_not_establish_onset",
+        "orchestrator/tests/test_backoff_extended_sweep_report.py::test_mu8_plateau_contrast_and_boundary_are_never_forced_resolved",
+        "orchestrator/tests/test_backoff_extended_sweep_report.py::test_perf_unavailable_and_probe_error_have_distinct_states",
+        "orchestrator/tests/test_backoff_extended_sweep_report.py::test_single_mid_grid_drop_then_recovery_keeps_onset_unresolved",
+        "orchestrator/tests/test_backoff_overthrottle.py::test_static_1000_generator_to_diagnostic_report_uses_physical_label",
+        "orchestrator/tests/test_backoff_requested_us.py::test_mu07_requested_and_admitted_intersections_keep_f718_1000_separate"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "old": "    if type(backoff_us) is not int or not 0 <= backoff_us <= STATIC_BACKOFF_MAX_US:\n",
+          "new": "    if type(backoff_us) is not int or backoff_us < 0:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_static_codec_is_bijective_on_its_exact_bounded_domain"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "old": "STATIC_BACKOFF_MAX_US = 9999\nSTATIC_BACKOFF_RAW_MAX = 11999\n",
+          "new": "STATIC_BACKOFF_MAX_US = 10000\nSTATIC_BACKOFF_RAW_MAX = 12000\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_static_codec_is_bijective_on_its_exact_bounded_domain"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_overthrottle.py",
+          "old": "        else f\"fixed-{decode_static_backoff_us(amount)}us\"\n",
+          "new": "        else f\"fixed-{amount}us\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_overthrottle.py::test_static_1000_generator_to_diagnostic_report_uses_physical_label"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_requested_us.py",
+          "old": "    expected_genomes = {\n        genome.canonical() for genome in _d1106_reference_genomes()\n    }\n",
+          "new": "    expected_genomes = {\n        genome.canonical() for genome in genomes()\n    }\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_requested_us.py::test_mu07_requested_and_admitted_intersections_keep_f718_1000_separate"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "old": "T2266_REPORT_SCHEMA = \"t2266-backoff-static-tail-report/v2\"\n",
+          "new": "T2266_REPORT_SCHEMA = \"t2266-backoff-static-tail-report/v3\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "static_cast<double>(static_cast<uint64_t>(BACKOFF_FIXED) - 2000ULL)",
+          "new": "static_cast<double>(static_cast<uint64_t>(BACKOFF_FIXED) - 2001ULL)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_actual_patch_has_only_one_authorized_hole_line_and_exact_formula_sha",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_actual_patch_is_applied_in_isolation_and_inert_gate_does_not_skip",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m06_nonstock_inert_token_is_rejected_for_one_reason",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_p01_registered_patch_hole_frame_and_inert_binding_are_accepted",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_p06_canonical_v5_machine_spec_hashes_and_runtime_residual_are_accepted",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_preregistration_matching_commit_blob_patch_and_formula_are_accepted",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_formula_in_comment_with_changed_expression_is_rejected",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_inert_supply_green_but_nonstock_selected_branch_is_meaning_red",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_nonfinite_decoder_output_fails_closed",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_patch_target_decoder_and_fixture_holes_are_independently_anchored",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_result_identifier_must_be_exact_double",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_uniform_shift_decoder_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "docs/b10-backoff-shape-preregistration.md",
+          "old": "    \"patch_sha256\": \"a5e0710c3f76744755b58ec66024c277daba00e49ce3cbf3d6d263cd7228580a\",\n",
+          "new": "    \"patch_sha256\": \"36cd974c56c6f103d894a53048ac734d9859def266c05898d3794d2c48470832\",\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_p06_canonical_v5_machine_spec_hashes_and_runtime_residual_are_accepted"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M12",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "old": "    if encoded >= 3000:\n        return encoded - 2000\n    raise ValueError(\"encoded BACKOFF_FIXED value is not in the static wire domain\")\n",
+          "new": "    if encoded >= 3000:\n        return encoded - 2000\n    return encoded\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_static_codec_is_bijective_on_its_exact_bounded_domain"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

@@ -1,0 +1,55 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 1500,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "M4b-current-also-accepts-legacy-raw-schema",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a2_certification.py",
+          "old": "    if raw.get(\"schema_version\") != raw_schema or raw.get(\"cell_id\") != certified.get(\"cell_id\"):\n",
+          "new": "    if raw.get(\"schema_version\") not in (raw_schema, LEGACY_RAW_SCHEMA) or raw.get(\"cell_id\") != certified.get(\"cell_id\"):\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5b-current-gate-note-uses-legacy-fixed-copy",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a2_certification.py",
+          "old": "    gate_note = GATE_NOTE if profile == \"legacy\" else (\n",
+          "new": "    gate_note = GATE_NOTE if profile in (\"legacy\", \"current-full\") else (\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6b-source-binding-status-both-layers-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a2_certification.py",
+          "old": "    if any(cell.get(\"source_binding_status\") != \"bound\" for cell in certification[\"cells\"]):\n        _fail(\"current certification source_binding_status is not bound\")\n",
+          "new": "    if False:\n        _fail(\"current certification source_binding_status is not bound\")\n"
+        },
+        {
+          "file": "tools/plotting/plot_a2_certification.py",
+          "old": "        if certified.get(\"source_binding_status\") != \"bound\":\n            _fail(\"current certification source_binding_status is not bound\")\n",
+          "new": "        if False:\n            _fail(\"current certification source_binding_status is not bound\")\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

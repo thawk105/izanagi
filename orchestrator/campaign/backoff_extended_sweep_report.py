@@ -23,6 +23,8 @@ from .backoff_extended_sweep import (  # noqa: E402
     WORKLOADS,
     WORKLOAD_BY_TAG,
     config_for,
+    decode_static_backoff_us,
+    encode_static_backoff_us,
     genomes,
 )
 from .backoff_overthrottle import JSONL_SCHEMA, MANIFEST_SCHEMA, REPS  # noqa: E402
@@ -262,10 +264,13 @@ def _expected_aa_binding(point: Mapping) -> dict[str, object]:
     label = "none" if kind == "none" else (
         "adaptive" if kind == "adaptive" else f"fixed-{amount}us"
     )
-    expected_amount = flags.get("BACKOFF_FIXED")
+    encoded_amount = flags.get("BACKOFF_FIXED")
+    expected_encoded = (
+        -1 if kind in {"none", "adaptive"} else encode_static_backoff_us(amount)
+    )
     if (
         flags.get("BACK_OFF") not in {0, 1}
-        or expected_amount != (-1 if kind in {"none", "adaptive"} else amount)
+        or encoded_amount != expected_encoded
     ):
         raise ValueError("normal point kind/backoff fields differ from full flags")
     return {
@@ -278,7 +283,7 @@ def _expected_aa_binding(point: Mapping) -> dict[str, object]:
         "label": label,
         "point_index": point.get("point_index"),
         "back_off": flags["BACK_OFF"],
-        "backoff_us": expected_amount,
+        "backoff_us": -1 if kind in {"none", "adaptive"} else amount,
         "certified": False,
         "diagnostic_only": True,
     }
@@ -485,7 +490,8 @@ def load_normal_points(tag: str, output_root: str) -> tuple[list[dict], str, obj
         elif flags["BACKOFF_FIXED"] < 0:
             kind, amount = "adaptive", None
         else:
-            kind, amount = "static", flags["BACKOFF_FIXED"]
+            kind = "static"
+            amount = decode_static_backoff_us(flags["BACKOFF_FIXED"])
         indicators = bench["leading_indicators"]
         points.append({
             "variant_id": variant,

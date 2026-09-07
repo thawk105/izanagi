@@ -1,0 +1,151 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 200,
+ "timeout_seconds": 2400,
+ "hang_timeout_seconds": 3000,
+ "mutations": [
+  {
+   "id": "M1-leaf-check-removed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+     "old": "        if receipt.schema_version == SCHEMA_VERSION:\n            rederived_leaf = _rederive_cross_binding_receipt_sha256(\n                root,\n                trial,\n                report_bytes=report_bytes,\n                journal_bytes=journal_bytes,\n            )\n            if trial.cross_binding_receipt_sha256 != rederived_leaf:\n                _fail(\n                    \"receipt-cross-binding\",\n                    f\"trial_id={trial.trial_id} leaf differs from independently \"\n                    \"rederived projection\",\n                )\n",
+     "new": "        if False:\n            rederived_leaf = _rederive_cross_binding_receipt_sha256(\n                root,\n                trial,\n                report_bytes=report_bytes,\n                journal_bytes=journal_bytes,\n            )\n            if trial.cross_binding_receipt_sha256 != rederived_leaf:\n                _fail(\n                    \"receipt-cross-binding\",\n                    f\"trial_id={trial.trial_id} leaf differs from independently \"\n                    \"rederived projection\",\n                )\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_v5_rejects_reaggregated_single_cross_binding_leaf_substitution"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M2-expected-is-stored-leaf",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+     "old": "            if trial.cross_binding_receipt_sha256 != rederived_leaf:\n",
+     "new": "            if trial.cross_binding_receipt_sha256 != trial.cross_binding_receipt_sha256:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_v5_rejects_reaggregated_single_cross_binding_leaf_substitution"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M3-comparison-inverted",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+     "old": "            if trial.cross_binding_receipt_sha256 != rederived_leaf:\n                _fail(\n",
+     "new": "            if trial.cross_binding_receipt_sha256 == rederived_leaf:\n                _fail(\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_m3_v5_rejects_predeclared_unit_without_final_terminal",
+    "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_m3b_v5_rejects_receipt_projection_divergent_from_registry",
+    "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_p1_v5_accepts_observed_and_terminal_failure_mix",
+    "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_p2_v5_accepts_retryable_failure_followed_by_next_attempt",
+    "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_v3_aggregate_is_recomputed_from_trial_leaves",
+    "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_v3_requires_cross_binding_receipt_sha256",
+    "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_v5_attempt_binding_accepts_all_predeclared_observed_units",
+    "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_v5_rejects_attempt_registry_bound_to_another_content_commit",
+    "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_v5_rejects_attempt_registry_bound_to_another_effective_commit",
+    "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_v5_rejects_attempt_registry_bound_to_another_manifest",
+    "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_v5_rejects_reaggregated_single_cross_binding_leaf_substitution",
+    "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_v5_rejects_registry_first_tracked_after_prereg_commit",
+    "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_v5_rejects_second_registry_root_on_another_ref",
+    "orchestrator/tests/test_trial_registry.py::test_p5_six_complete_terminal_reports_pass_acceptance",
+    "orchestrator/tests/test_trial_registry.py::test_s8c_acceptance_registered_build_reports_reach_receipt_for_h1_h2_workloads"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M4-schema-guard-shifted-to-v4",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+     "old": "        if receipt.schema_version == SCHEMA_VERSION:\n            rederived_leaf = _rederive_cross_binding_receipt_sha256(\n",
+     "new": "        if receipt.schema_version == CROSS_BINDING_V2_SCHEMA_VERSION:\n            rederived_leaf = _rederive_cross_binding_receipt_sha256(\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_v5_rejects_reaggregated_single_cross_binding_leaf_substitution"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M5b-last-trial-leaf-check-skipped",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+     "old": "        if receipt.schema_version == SCHEMA_VERSION:\n            rederived_leaf = _rederive_cross_binding_receipt_sha256(\n",
+     "new": "        if receipt.schema_version == SCHEMA_VERSION and trial is not receipt.trials[-1]:\n            rederived_leaf = _rederive_cross_binding_receipt_sha256(\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_v5_rejects_reaggregated_single_cross_binding_leaf_substitution"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M6-events-dropped",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+     "old": "    report = _reference_object(report_bytes, label=\"trial report\")\n    events = _journal_events(journal_bytes)\n",
+     "new": "    report = _reference_object(report_bytes, label=\"trial report\")\n    events = ()\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_trial_registry.py::test_p5_six_complete_terminal_reports_pass_acceptance",
+    "orchestrator/tests/test_trial_registry.py::test_s8c_acceptance_registered_build_reports_reach_receipt_for_h1_h2_workloads"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M7-run-root-is-repository-root",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+     "old": "    run_root = _resolved_reference(\n        root, trial.attempt_journal_path, \"attempt journal\",\n    ).parent\n",
+     "new": "    run_root = root\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_trial_registry.py::test_s8c_acceptance_registered_build_reports_reach_receipt_for_h1_h2_workloads"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M8-build-forced-to-no-build",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+     "old": "    output_root = run_root.parent.parent if report.get(\"do_build\") is True else None\n",
+     "new": "    report = {**report, \"do_build\": False}\n    output_root = None\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_trial_registry.py::test_s8c_acceptance_registered_build_reports_reach_receipt_for_h1_h2_workloads"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}
