@@ -747,6 +747,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             )
         root = Path(args.repo_root)
         ratified = s8b_ratified_freeze.load_ratified_freeze(root)
+        s8b_ratified_freeze.assert_g1_floor_selection_identity(ratified, root)
         reverified = s8b_ratified_freeze.reverify_published_freeze(ratified, root)
         approved = s8b_oracle_spec.load_approved_spec(root)
         verified = s8b_oracle_manifest.verify_manifest(
