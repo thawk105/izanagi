@@ -53164,3 +53164,160 @@ hole line) を変える wave は、**同じ変更単位で事前登録の次版�
 
 - **現行登録からの導出を残す** — 版が上がるたびに歴史系列の判定が変わる。
 - **旧系列を新版へ移す** — 遡及的な再ラベルであり、測定時点の事実を書き換える。
+
+## D1751. A-2 の file 公開は Lustre の EINVAL 時に create-only hard link へ退避する (2026-09-08)
+
+**決定:** `_atomic_write_bytes_noreplace` が `renameat2` の no-replace フラグで `EINVAL` を受けたときだけ、
+同一 directory 内の create-only な hard link による公開と staging の unlink へ退避する。
+`EINVAL` 以外の errno は従来どおり送出する。退避後も宛先が既に在れば必ず失敗する。
+
+**理由:**
+
+- 計測領域も repo も Lustre であり、Lustre はこのフラグを実装せず `EINVAL` を返す。
+  親が `stat -f` で両方 Lustre であることを実測し、attempt を実投入して 2 workload とも
+  約 50 秒で `driver_rc=2` で落ちることを観測した。この経路は環境と混雑によらず決定的に落ちる。
+- 親が Lustre 上で実測した結果、`ln` は成功し、既存名への `ln` は `EEXIST` で失敗する。
+  したがって hard link は「既存なら失敗する不可分な公開」をこの FS で正確に満たす。
+  受理集合を広げない。
+- directory 公開側の既存退避を流用しない。あちらは directory が hard link できないため
+  claim file で直列化しており、非協調 writer に対して不可分でないと docstring 自身が認めている。
+  **file にはリンク方式の方が強い。**
+- 変異試験で、退避を消す変異と「既存を置換する rename」へ変える変異の両方が KILLED になった。
+  退避が恒真な保証になっていないことを実測で確かめている。
+
+**却下した選択肢:**
+
+- `flags=0` の rename へ退避する — 既存を黙って置換するため、no-replace の意味が失われる。
+- directory 用の claim 方式を file にも流用する — 不可分性が落ちる。
+- 族として一般化する — 同型欠陥は A-1 でも独立に再現しており `DW-G03` の条件は満たされているが、
+  A-1 側は稼働中の別 wave の編集面であり、本 wave はユーザーが scope を明示的に絞っている。
+
+## D1752. A-2 図生成器の bytes pin は repo が所有し、呼び手は成果物を選ぶだけにする (2026-09-08)
+
+**決定:** 図生成器の bytes pin を CLI 引数で受け取らない。certification の repo 相対 path を key に
+した repo 所有の pin 表を引き、CLI が選べるのは「どの成果物か」だけとする。表に無い path は
+fail-closed で拒否し、既定値へ落とさない。新しい attempt を図にするには repo へ entry を足す
+commit を要する。
+
+**理由:**
+
+- 対象 file とその期待 hash を同じ呼び手が渡せる設計は、pin を「呼び手が言うとおり」を
+  確かめる恒真判定へ落とす。凍結 certification の `status` を書き換えて自分で計算した hash を
+  添えれば、偽の判定を載せた図を publish できる。段 3 の別系統レンズがこの具体例を示した。
+- pin を repo 所有にすると、新しい成果物を図にする操作が査読を通る commit になる。
+  これは凍結物の所定手続きと同じ形である。
+- 変異試験で、pin 表を迂回する変異が KILLED になった。
+- python の kwargs seam は test 専用として残すが、CLI からこの経路へ到達できないことを
+  検査で押さえる。
+
+**却下した選択肢:**
+
+- CLI 引数で hash を渡す — 上記のとおり恒真化する。
+- pin を省略可能にする — 未 pin の成果物から図を作れてしまう。
+- 成果物自身が申告する hash を信じる — 権威が差し替え可能になる。
+
+## D1753. 図 caption の図番号は出力 prefix から導く (2026-09-08)
+
+**決定:** A-2 図生成器の caption 先頭の図番号を、出力 prefix の basename `fig<N>_` から導く。
+`fig<N>_` の形でない prefix は出力前に fail-closed で拒否し、出力を 1 file も残さない。
+図番号を渡す CLI 引数は足さない。
+
+**理由:**
+
+- 決め打ちのままだと、新しい図が凍結済みの図と同じ番号を名乗る。論文素材に誤った相互参照が
+  入るため、放置できない。
+- 凍結図の prefix は `fig5_` なので導出結果は同じ文字列になり、**凍結図の caption は
+  1 byte も変わらない。** 子が UTF-8 1788 bytes の完全一致を確認した。
+- 引数で渡す形にすると、呼び手が任意の見出し文字列を caption へ注入できる。導出なら
+  出力先の名前と caption が必ず一致する。
+
+**却下した選択肢:**
+
+- 図番号の CLI 引数を足す — 呼び手が caption へ任意文字列を注入できる。
+- 新しい図の filename を `fig5` 系にする — 凍結図と衝突する。
+- caption の番号を人手で直す — 生成器の決定的な組み立てと README 収録の一致検査が壊れる。
+
+## D1754. 昔の A-2 成果物は hash の組で名指しした 1 件だけ、当時の policy 文法で読む (2026-09-08)
+
+**決定 (ユーザー指示による設計相談を経た親の裁定):** A-2 図生成器が成果物の埋め込み policy を
+検証するとき、**`(certification bytes の SHA-256, 埋め込み policy bytes の SHA-256)` の組**を主 key に
+した repo 所有の列挙を引き、完全一致した entry についてだけ当時の policy 文法で読む。
+一致しないものは従来どおり現行 `load_policy` へ渡す。**未知 hash への fallback は設けない。**
+列挙するのは実在する 1 件だけとする。
+
+**理由:**
+
+- 別 wave が producer の policy 文法へ必須 key を足した結果、本 wave が正しく取り直した認証成果物が
+  現行 validator に拒否され、焦点走が 35 件赤になった。**測定は当時の policy で正しく走り、当時の
+  検証を通っている。** 壊れていたのは「昔の成果物を今の検証器で読む」経路だけであり、絶対規律 7 の
+  「現行コードとの差だけを理由に記録された測定を無効にしない」に該当する。
+- 受理集合は列挙した 1 件にしか広がらない。cell の exact shape、順序と identity、
+  `source_binding_status`、受領証 / raw / WAL / effect の照合は historical 側でも一切外さない。
+  したがって絶対規律 2 に抵触しない。
+- hash は正しさの代替ではなく、**歴史的 validator を選択する束縛**としてだけ使う。これは規律 7 が
+  明示的に許す「成果物の完全性・入力と判定の対応づけ」の検査である。
+- 変異試験で、主 key を「policy hash だけ」に弱める変異が赤になることを確かめた。
+
+**却下した選択肢:**
+
+- 欠落 key を一般に optional 化する — 受理集合が開く。
+- policy version `v2` だけで旧形を許す — **旧も現行も `v2` なので識別子にならない。**
+- 当時の key 集合だけで分岐する — 同形の任意内容を許してしまう。
+- attempt を取り直す — 規律違反ではないが、規律 7 の趣旨に反し、次の文法変更まで同じ問題を
+  先送りするだけである。**この結合は取り直しても残る。**
+- producer 共通 loader へ一般的な版管理を入れる — 本 wave の scope を超える。裁定パッケージへ返す。
+
+## D1755. 判定後の材料再生成の禁止は、実効 build 根とその配下だけを build 中に書込み不能にして実装する (2026-09-08)
+
+**決定:** D984 の 2 手段のうち「判定後の source tree の書込み不能化」を採る。
+`buildcache._build_v2_impl` の post-oracle 束縛がある経路で、configure 成功後の既存 2 検査
+(`_assert_fetchcontent_fully_disconnected_effective` と `_assert_post_oracle_dependency_material`)
+の後に `_masstree_source_root_from_cmake_cache(staging)` で実効 build 根を読み、
+binding が指す `<fetchcontent_base_dir>/masstree-src` と **exact 一致**することを要求してから、
+その根**とその配下の全 node だけ**を `cmake --build` の間だけ書込み不能にする。
+
+- **親 directory (= `FETCHCONTENT_BASE_DIR` そのもの) には触れない。**
+  既存の汎用 snapshot 保護 (`s8b_expected_materialization.make_snapshot_non_writable()`) は
+  parent の write bit も外すため、`<base>` 直下への新規 entry 作成 (別依存の populate、
+  masstree prebuild directory) を巻き添えで壊す。as-is 再利用は採らない。
+- 保護に入る時点で**根 directory 自身が書込み可能であること**を要求し、そうでなければ
+  write bit を 1 つも触らずに拒否する。これは排他機構ではなく保護の前提条件であり、
+  同じ根への二重保護を構造的に起こさせない。
+- 既存の post-oracle 照合 (初期・configure 前・configure 後の disconnected + material・
+  build 後 material・build 後の実効根照合) は 1 つも削らず、緩めず、順序も変えない。
+  build 後の実効根は**保護用に読んだ値を流用せず改めて取得する**。
+- post-oracle 束縛の無い build の configure argv・cache identity・receipt schema・
+  受理集合は 1 byte も変えない。
+
+**理由:**
+
+- **D953 が塞いだのは再取得であって再生成ではない。** `FETCHCONTENT_FULLY_DISCONNECTED=ON` は
+  populate を止めるだけで、`masstree_build` の `add_custom_command` が source root 内で
+  `bootstrap.sh` / `configure` / `make` / `ar` / `ranlib` を走らせる経路は残る。
+  D953 自身が「実効的な排他は process 間 lock を要し、書込み権威の変更として別審査に属する」と
+  書いており、D984 がその別審査である。
+- **前後の hash 照合は検出であって禁止ではない。** 判定済み材料が**同一 bytes で**作り直された
+  場合、manifest・`config.h`・archive・HEAD の照合はすべて同じ値を見るため通る。
+  D984 は可能性そのものを残さないことを求めている。
+- **検査した根と build する根が食い違いうる。** 材料検査は `<base>/masstree-src` を固定導出する
+  一方、build 側は `FETCHCONTENT_SOURCE_DIR_MASSTREE` の override を受け、実効根は
+  CMakeCache が非空の SOURCE_DIR を優先する。現行の実効根照合は build **後**にしかないため、
+  保護を掛ける根が build に使われる根と同じであることを build 前に固定しなければ、
+  保護そのものが空振りする。official floor の呼び出しでは両者は常に一致する (恒真) が、
+  恒真でも保護の前提として必要である。
+- **private snapshot は同じ禁止をより高い費用で実現する。** floor は既に submission payload を
+  job-local base へ複製しており、判定後にもう一度 3 source を全複製すると、binding 導出・
+  postflight の期待値・cleanup lifetime が連動変更になり、変更面が
+  `s8b_floor_campaign.py` へ広がる。
+
+**却下した選択肢:**
+
+- 既存の汎用 snapshot 保護をそのまま呼ぶ — parent まで凍結し、無関係な正当 build を巻き込む。
+- private snapshot からの build — 上記の費用。D984 は両手段を許可しているので、
+  安い方を採って規律を満たす。
+- 実効根照合を build 後だけに残す — 保護対象の根が build に使われる保証がなくなる。
+- configure 後に読んだ実効根を build 後の検査へ流用する — 既存の root drift 検査を
+  実質的に消し、build 中の実効根変更を新たに受理する。絶対規律 2 に反する。
+- process 間 lock・復旧台帳・復旧 daemon を足す — D953 が別審査に属すると裁定済みであり、
+  本 wave の scope 外である。残る限界 (強制終了で復元が走らない、交差の一時 gap) は
+  実装と成果物へ明記する。

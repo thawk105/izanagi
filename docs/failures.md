@@ -7321,6 +7321,18 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   残さないことを検査するテストを追加した。**永続化先の filesystem が単体テストの tmp と
   異なる成果物では、その filesystem で機構を実測してから採用する。**
 
+
+- **再発: 2026-09-07** — A-2 の condition-gate 受領証の公開が、同じ `renameat2(RENAME_NOREPLACE)`
+  の Lustre EINVAL で決定的に失敗した。attempt `t2364-20260907a` は 2 workload とも約 50 秒で
+  `driver_rc=2` で終わり、bench に入らなかった。**F205 の恒久対応 (`os.link` + `unlink` による
+  create-only publish) は directory 公開側にしか適用されておらず、T-2337 が足した file 用の
+  新しい writer `_atomic_write_bytes_noreplace` が退避なしで同じ穴を再導入していた。**
+  単体テストが緑だったのも F205 と同じ理由で、pytest の一時領域が同フラグを実装する FS だった。
+  親が同じ Lustre 上で `ln` の成功と既存名での EEXIST を実測し、file 公開へ EINVAL 限定の
+  hard link 退避を実装した。退避を消す変異と「既存を置換する rename」へ変える変異の両方が
+  KILLED になることを変異試験で確かめた。
+  **同日、A-1 の wave も独立に同じ型を踏んでおり、`DW-G03` の「独立 2 件」が揃った。**
+  族としての一般化は別タスクへ送る。
 ### F206. 取り込み前の古い checker で incoming range を監査し、登録済みの既知違反を赤と誤認した [手順漏れ] [ドリフト]
 
 - 事象: 受入直前の `check_ai_provenance.py --range HEAD..main` が 4 違反で赤になり、
@@ -16739,6 +16751,14 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 変異の生存を「等価だから問題ない」で閉じない。実効 gate へ再照準し、初回結果を
   erratum として残したうえで再走する。
 
+
+- **再発: 2026-09-07** — 敵対レビュー 1 巡目が、足された検査 4 件について「外しても既存 test が
+  1 件も赤にならない」ことを名指しした。とくに新版 profile の正例が全部 test 用の kwargs seam を
+  通っており、repo 所有 pin 表を迂回する退行を検出できない形だった。fix で 4 件とも閉じ、
+  それぞれを殺す最小の変異 10 件を実際に当てて赤を確認した。さらに本走の probe 段で、
+  `source_binding_status` の検査が 2 層あり上位層が下位層を隠している構造が見つかった
+  (片層だけの変異は SURVIVED し、両層同時変異で KILLED)。**この mask は静的レビューでは
+  出ておらず、変異試験だけが明らかにした。**
 ### F582. 族へ自動編入する契約が単一 CLI 形状を暗黙前提にしており、別形状の driver が構造的に入れなかった [テスト代表性] [誤前提]
 
 - 事象: `orchestrator/tests/test_p3_exploration_namespace.py` は `orchestrator/campaign/*.py` を
@@ -22789,3 +22809,91 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: オブジェクト同一性・参照の異同で性質を確かめている検査を見たら、
   **「値が一致しても成立するか」を問う。** 成立しないなら、その検査は値が離れている間だけ
   効く近似である。
+
+### F883. 背景待ち手が条件未成立のまま「完了」を返し、未完了を完了と誤認しうる状態が続いた [捏造/幻覚] [手順漏れ]
+
+- 事象: 背景 job の `until [ -f <done> ]` ループと Monitor が、`.done` も台帳 file も存在しない
+  状態で「完了」「rc=0」「n=7」等の通知を返す事象が、1 セッション中に 10 回以上起きた。
+  producer は `ps` で生存が確認できた。通知本文だけで判定していれば、変異走の途中結果を
+  完走と読み、受入と land へ進んでいた。
+- 根本原因: 待ち手の通知は producer の実際の終了と束縛されていない。通知本文は待ち手 script の
+  出力ではなく、別経路で組み立てられうる。**通知は「見に行け」という合図であって、状態の証拠ではない。**
+- 恒久対応: 完了判定を通知本文から切り離し、**成果物の実在で行う** — producer 自身が書く `.done`
+  file の存在と中身、および成果物 (台帳 JSON・図・receipt) の実在を毎回 `ls` / `cat` で確かめる。
+  本 wave はこの規律で全判定を行い、10 件以上の誤通知をすべて弾いた。
+- 再発検知: 「完了通知は本文ごと誤りうる」を既存 memory が持つ。待ち手の rc・grep・通知の
+  いずれも判定にしない契約は `DW-C00` が既に定めており、本エントリはその契約が実測で
+  必要だったことの記録である。
+
+### F884. 成果物に保存した当時の policy を、consumer が版選択なしで現行 validator へ渡していた [テスト代表性] [ドリフト]
+
+- 事象: A-2 図生成器が、成果物の埋め込み policy bytes を現行 producer の `load_policy` へ
+  版選択なしで渡す設計だった。別 wave が producer の policy 文法へ必須 key を 1 つ足した結果、
+  その変更より前に作られた正当な認証成果物が拒否され、焦点走が 35 件赤になった。
+  **測定は当時の policy で正しく走り、当時の検証を通っている。** 壊れたのは読み手だけである。
+- 根本原因: producer は成果物へ当時の policy bytes を意図的に保存しているのに、
+  **consumer がその時点の文法を選ぶ情報を使っていない。** profile 選択は certification /
+  manifest の schema 名の組だけで行われ、policy の版は選択に関与しない。
+  したがって producer の必須 key・値制約が過去 bytes を満たさなくなる変更ごとに再発する。
+- 恒久対応: `(certification bytes の SHA-256, 埋め込み policy bytes の SHA-256)` の組を主 key にした
+  repo 所有の列挙を引き、完全一致した entry だけ当時の文法で読む
+  (D1754)。未知 hash への fallback は設けない。
+  version 欄と key 集合は entry 選択後の二次 assertion に留める
+  (旧も現行も policy version は同じ `v2` なので識別子にならない)。
+- 再発検知: 主 key を「policy hash だけ」に弱める変異が
+  `test_historical_rejects_changed_certification_bytes` を赤にすることを実測で確かめた。
+  **ただしこの対応は 1 件限定の adapter であり、構造そのものは残る。**
+  producer 共通 loader の版管理は本 wave の scope を超えるため裁定パッケージへ返す。
+
+### F885. 汎用 tree 保護 primitive を再利用したら、守りたい範囲の外まで凍結する設計になっていた [射程過大] [巻き添え]
+
+- 事象: 段 2 の plan は判定済み材料を書込み不能にするのに
+  `s8b_expected_materialization.make_snapshot_non_writable()` の as-is 再利用を提案した。
+  同関数は対象 root だけでなく **その parent** の write bit も外す。本件で parent にあたるのは
+  `FETCHCONTENT_BASE_DIR` そのものであり、`<base>` 直下への新規 entry 作成 (別依存の populate、
+  masstree prebuild directory の作成) を巻き添えで壊す。
+- 根本原因: primitive の射程 (何を守るか) を、呼び手の要求 (何を守りたいか) と照合せずに
+  「同じ形の処理があるから使える」で採ろうとした。primitive 側の parent 凍結は
+  元の用途 (使い捨て worktree の凍結) では正しく、共有 base では正しくない。
+- 恒久対応: D1755 が保護範囲を
+  「実効 build 根とその配下だけ、親には触れない」と定め、
+  `orchestrator/tests/test_sort_swo_dependency_material.py::test_post_oracle_protection_leaves_binding_base_writable_for_new_entry`
+  が保護中の `<base>` 直下への新規 entry 作成を実 filesystem で検査する。
+- 再発検知: 上記 test を狙う変異 M4 (保護を親まで広げる) を変異 matrix へ登録済み。
+  同 test だけが赤になることを実測した。
+
+### F886. 新しく足した保護機構が、二重に入ったときに共有材料を恒久的に読取専用にする形になっていた [自作機構の破れ] [並行]
+
+- 事象: 段 5 の実装は同じ根に対して 2 つ目の保護 context が入れる形だった。後から入った側は
+  1 つ目が既に落とした mode を「元の mode」として採取するため、非 LIFO で退出すると
+  **根が恒久的に読取専用のまま残る**。さらに 1 つ目が先に退出して write bit を戻すと、
+  2 つ目の build 中に保護が消え、その窓の再生成を禁止できない。
+- 根本原因: 「mode を採取して戻す」形の保護は、保護前の状態が素の状態であることを暗黙の前提に
+  している。その前提を検査していなかった。親は段 4 で交差を「限界として明記する」と裁定したが、
+  一時的な gap だけを見て**最終状態の破壊**を見落としていた。段 6 の敵対レビューが
+  実装の行から決定的に導いた。
+- 恒久対応: D1755 が「保護に入る時点で根 directory 自身が
+  書込み可能であること」を前提条件として要求し、満たさなければ write bit を 1 つも触らずに
+  拒否する (`post-oracle-protected-root-not-writable`)。後から入った側が必ず拒否されるため
+  交差自体が起こらない。process 間 lock は作らない (D953 が別審査と裁定済み)。
+- 再発検知: `orchestrator/tests/test_sort_swo_dependency_material.py::test_post_oracle_protection_rejects_overlapping_context_without_mode_change`
+  が、2 つ目の context が mode を 1 つも変えずに拒否されること、および 1 つ目の退出後に
+  exact 復元されることを検査する。この node を狙う変異 M5 (前提条件の恒真化) を
+  変異 matrix へ登録し、KILLED を実測した。
+
+### F887. 事前登録した変異が、同じ機構の内側の検査に先取りされて狙った経路へ到達しなかった [変異の帰属] [恒真]
+
+- 事象: 段 4 で「書込み不能化の呼出しを no-op にする」変異 (M2) を、
+  「保護中に同一 bytes を再書込みできてしまう」ことを示す単一理由の変異として事前登録した。
+  段 6 の敵対レビューが、その変異では**同じ関数の内側**にある
+  `post-oracle-write-bits-remain` 検査が `yield` の前に拒否するため、
+  狙った再書込みの成否まで到達しないと実測で示した。
+- 根本原因: 変異の位置を「機構の入口」で選び、その機構が自分の内側に持つ事後検査を
+  勘定に入れなかった。DW-M01 が要求する「同じ入力を拒否する層が前後にも**内側**にも無い」の
+  内側を見落とした形である。
+- 恒久対応: 変異を「保護後検査を通過した直後、`yield` の直前に復元を挿入する」形へ再照準した。
+  build 窓だけが書込み可能になり、内側の検査はすべて通り、狙った test だけが赤になる。
+  再照准後の M2 は KILLED、期待 node 完全一致で実測済み
+  (`output/insights/2026-09-08_t1799-post-oracle-regen-ban/mutation-matrix.json`)。
+- 再発検知: 変異 probe を全件 SURVIVED で先に走らせ、観測 node を集めてから本走の期待 node を
+  確定する手順 (DW-M07) を踏むこと。今回は probe が M2 の実際の赤 node を露出させた。

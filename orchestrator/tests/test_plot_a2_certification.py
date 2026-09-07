@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import collections
+import base64
 import hashlib
 import importlib.util
 import json
@@ -175,7 +176,224 @@ def _fixture(tmp_path: Path) -> dict:
     cert, manifest_path = tmp_path / "certification.json", tmp_path / "raw-manifest.json"
     _write(cert, _certification())
     _write(manifest_path, manifest)
-    return {"root": root, "cert": cert, "manifest": manifest_path, "prefix": tmp_path / "figure"}
+    return {"root": root, "cert": cert, "manifest": manifest_path, "prefix": tmp_path / "fig5_fixture"}
+
+
+def _producer():
+    from orchestrator.campaign import paper_story_a2_certification as producer
+    return producer
+
+
+def _current_fixture(tmp_path: Path, *, reverse_policy_order: bool = False) -> dict:
+    """Build the real producer's current full schema chain around local bytes."""
+    fixture = _fixture(tmp_path)
+    producer = _producer()
+    frozen = json.loads((REPO / "output/insights/2026-08-24_paper-story-a2-certification/certification.json").read_text())
+    policy_document = json.loads(base64.b64decode(frozen["policy_bytes_base64"], validate=True))
+    policy_document["trace0_cmake_argv"]["configure"][
+        "fetchcontent_path_argument_prefixes"
+    ] = [
+        "-DFETCHCONTENT_BASE_DIR=",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=",
+    ]
+    if reverse_policy_order:
+        policy_document["workloads"] = list(reversed(policy_document["workloads"]))
+        policy_document["cells"] = policy_document["cells"][2:] + policy_document["cells"][:2]
+    policy_bytes = (json.dumps(policy_document, ensure_ascii=True, indent=2) + "\n").encode()
+    policy_path = tmp_path / "embedded-policy.json"
+    policy_path.write_bytes(policy_bytes)
+    policy = producer.load_policy(policy_path)
+
+    tokens = {
+        cell.cell_id: (
+            producer.source_digest.STOCK if cell.role == "stock"
+            else hashlib.sha256(f"source:{cell.cell_id}".encode()).hexdigest()
+        )
+        for cell in policy.cells
+    }
+    evidences = {}
+    for cell in policy.cells:
+        genome = producer._genome_for_cell(policy, cell)
+        evidences[cell.cell_id] = producer.source_digest.SourceEvidence(
+            schema_version=producer.source_digest.SOURCE_EVIDENCE_SCHEMA,
+            source_root="/fixture/current-source",
+            ccbench_commit="511c953",
+            genome_sha256=hashlib.sha256(genome.canonical().encode()).hexdigest(),
+            src_token=tokens[cell.cell_id],
+            source_bytes_sha256=hashlib.sha256(f"bytes:{cell.cell_id}".encode()).hexdigest(),
+            tracked_clean=True,
+            tracked_diff_sha256=hashlib.sha256(b"").hexdigest(),
+            tracked_paths=(),
+        )
+
+    protocol = policy.protocol_sha256
+    for cell in policy.cells:
+        raw_path = fixture["root"] / f"jobs/{cell.workload_id}/raw/{cell.cell_id}.json"
+        raw = json.loads(raw_path.read_text())
+        raw["schema_version"] = producer.RAW_RESULT_SCHEMA
+        raw["protocol_sha256"] = protocol
+        raw["src_token"] = tokens[cell.cell_id]
+        _write(raw_path, raw)
+
+    for workload in (row["id"] for row in policy.document["workloads"]):
+        wal_path = fixture["root"] / f"jobs/{workload}/campaigns/{CAMPAIGNS[workload]}/runs/wal.jsonl"
+        records = [json.loads(line) for line in wal_path.read_text().splitlines()]
+        for cell in (cell for cell in policy.cells if cell.workload_id == workload):
+            start = next(row for row in records if row["stage"] == "build_start" and row["payload"]["build_attempt_id"] == IDS[cell.cell_id])
+            start["payload"]["src_token"] = tokens[cell.cell_id]
+            start["payload"]["build_admission"] = {"source": evidences[cell.cell_id].as_receipt()}
+        wal_path.write_text("".join(json.dumps(row, sort_keys=True) + "\n" for row in records), encoding="utf-8")
+
+    receipt_paths = {}
+    for workload in (row["id"] for row in policy.document["workloads"]):
+        frames = []
+        for cell in (cell for cell in policy.cells if cell.workload_id == workload):
+            admission = {
+                "admission_id": f"admission-{cell.cell_id}",
+                "admission_digest": hashlib.sha256(f"admission:{cell.cell_id}".encode()).hexdigest(),
+                "use_class": "paper", "admitted": True, "record_ids": [],
+                "unestablished_meaning_macros": [],
+            }
+            frames.extend((admission, evidences[cell.cell_id].as_receipt()))
+        receipt = fixture["root"] / f"receipts/condition-gate-{workload}.admissions.jsonl"
+        receipt.parent.mkdir(parents=True, exist_ok=True)
+        receipt.write_text("".join(json.dumps(row, sort_keys=True, separators=(",", ":")) + "\n" for row in frames), encoding="ascii")
+        receipt_paths[workload] = receipt
+
+    certification = _certification()
+    by_cell = {row["cell_id"]: row for row in certification["cells"]}
+    certification["cells"] = [by_cell[cell.cell_id] for cell in policy.cells]
+    for row in certification["cells"]:
+        row.update({
+            "src_token": tokens[row["cell_id"]], "source_binding_status": "bound",
+            "trace_bin_sha256": "trace-sha", "perf_bin_sha256": "perf-sha",
+        })
+    certification.update({
+        "schema_version": producer.CERTIFICATION_SCHEMA,
+        "protocol_schema": producer.POLICY_SCHEMA,
+        "protocol_sha256": protocol,
+        "policy_sha256": hashlib.sha256(policy_bytes).hexdigest(),
+        "policy_bytes_base64": base64.b64encode(policy_bytes).decode("ascii"),
+        "historical_context": {"ccbench_commit": "6656e93", "comparison_input": False},
+        "a4_noise_floor_status": "open",
+        "legacy_role": "historically inherited companion",
+        "smallest_observed_sufficient_in_this_two_point_protocol": None,
+        "global_minimality_established": False,
+        "compile_out_evidence_scope": producer.COMPILE_OUT_SCOPE,
+        "independent_observation_limits": {
+            "correctness_run_argv": "not-recorded-by-existing-pipeline",
+            "correctness_workload_binding": "campaign-lock-and-pipeline-constructor; not an independent argv observation",
+        },
+    })
+    certification["request_ids"] = {
+        workload: certification["request_ids"][workload]
+        for workload in (row["id"] for row in policy.document["workloads"])
+    }
+    fixture["cert"].write_text(
+        json.dumps(certification, separators=(",", ":")) + "\n", encoding="utf-8")
+
+    claims = {}
+    files = {}
+    for workload in (row["id"] for row in policy.document["workloads"]):
+        campaign = CAMPAIGNS[workload]
+        claim_path = fixture["root"] / f"jobs/{workload}/env/pegasus/claims/{campaign}.claim"
+        lock_path = fixture["root"] / f"jobs/{workload}/campaigns/{campaign}/campaign.lock"
+        _write(claim_path, {"campaign_identity": campaign, "workload": workload})
+        lock_path.write_text(f"lock:{campaign}\n", encoding="utf-8")
+        claims[workload] = {
+            "campaign_id": campaign,
+            "claim_path": claim_path.relative_to(fixture["root"]).as_posix(),
+            "claim": {"host": f"bnode-{workload}",
+                      "job_id": f"0:{100 if workload == 'rr5' else 101}.nqsv",
+                      "created_utc": f"2026-08-27T0{5 if workload == 'rr5' else 6}:00:00Z"},
+        }
+        paths = [
+            fixture["root"] / f"jobs/{workload}/campaigns/{campaign}/runs/wal.jsonl",
+            lock_path, claim_path, receipt_paths[workload],
+            *(fixture["root"] / f"jobs/{workload}/raw/{cell.cell_id}.json"
+              for cell in policy.cells if cell.workload_id == workload),
+        ]
+        files.update({path.relative_to(fixture["root"]).as_posix(): _sha(path) for path in paths})
+    manifest = {
+        "attempt_id": "fixture-attempt", "campaign_claims": claims,
+        "current_pin": "511c953", "files": files, "protocol_sha256": protocol,
+        "schema_version": producer.RAW_MANIFEST_SCHEMA, "study": "paper-story-a2-certification",
+    }
+    fixture["manifest"].write_text(
+        json.dumps(manifest, separators=(",", ":")) + "\n", encoding="utf-8")
+    fixture.update({"policy": policy, "tokens": tokens})
+    return fixture
+
+
+def _replace_embedded_policy_bytes(fixture: dict, policy_bytes: bytes) -> None:
+    certification = json.loads(fixture["cert"].read_text(encoding="utf-8"))
+    certification["policy_sha256"] = hashlib.sha256(policy_bytes).hexdigest()
+    certification["policy_bytes_base64"] = base64.b64encode(policy_bytes).decode("ascii")
+    fixture["cert"].write_text(
+        json.dumps(certification, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _historical_policy_fixture(plot, fixture: dict, monkeypatch) -> tuple[str, str]:
+    """Turn a valid current fixture into one exact pre-T2198 policy point."""
+    producer = _producer()
+    certification = json.loads(fixture["cert"].read_text(encoding="utf-8"))
+    document = json.loads(base64.b64decode(
+        certification["policy_bytes_base64"], validate=True))
+    del document["trace0_cmake_argv"]["configure"][
+        "fetchcontent_path_argument_prefixes"
+    ]
+    policy_bytes = (
+        json.dumps(document, ensure_ascii=True, indent=2) + "\n"
+    ).encode("utf-8")
+    policy_sha256 = hashlib.sha256(policy_bytes).hexdigest()
+    protocol_sha256 = hashlib.sha256(producer._canonical_json(
+        producer._protocol_preimage(document))).hexdigest()
+
+    for cell in SAMPLES:
+        raw_path = (
+            fixture["root"]
+            / f"jobs/{cell.split('-')[0]}/raw/{cell}.json"
+        )
+        raw = json.loads(raw_path.read_text(encoding="utf-8"))
+        raw["protocol_sha256"] = protocol_sha256
+        _write(raw_path, raw)
+    manifest = json.loads(fixture["manifest"].read_text(encoding="utf-8"))
+    manifest["protocol_sha256"] = protocol_sha256
+    for cell in SAMPLES:
+        raw_path = (
+            fixture["root"]
+            / f"jobs/{cell.split('-')[0]}/raw/{cell}.json"
+        )
+        manifest["files"][raw_path.relative_to(fixture["root"]).as_posix()] = _sha(raw_path)
+    fixture["manifest"].write_text(
+        json.dumps(manifest, separators=(",", ":")) + "\n", encoding="utf-8")
+
+    certification["protocol_sha256"] = protocol_sha256
+    certification["policy_sha256"] = policy_sha256
+    certification["policy_bytes_base64"] = base64.b64encode(
+        policy_bytes).decode("ascii")
+    fixture["cert"].write_text(
+        json.dumps(certification, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+    certification_sha256 = _sha(fixture["cert"])
+    monkeypatch.setattr(plot, "HISTORICAL_CURRENT_POLICY_VIEWS", {
+        (certification_sha256, policy_sha256): {
+            "protocol_schema": "paper-story-a2-certification-policy/v2",
+            "protocol_sha256": protocol_sha256,
+            "trace0_configure_keys": frozenset({
+                "source_option", "build_directory_option", "fixed_arguments",
+                "toolchain_arguments", "dependency_prefix_argument",
+                "controlled_define_argument",
+            }),
+        },
+    })
+    fixture["historical_policy_bytes"] = policy_bytes
+    return certification_sha256, policy_sha256
 
 
 def _hashes(fixture: dict) -> dict[str, str]:
@@ -195,6 +413,565 @@ def _change_raw(fixture, cell, change) -> None:
 
 def _change_cert(fixture, change) -> None:
     value = json.loads(fixture["cert"].read_text(encoding="utf-8")); change(value); _write(fixture["cert"], value)
+
+
+def _change_manifest(fixture, change) -> None:
+    value = json.loads(fixture["manifest"].read_text(encoding="utf-8")); change(value); _write(fixture["manifest"], value)
+
+
+def _rebind_member(fixture, path: Path) -> None:
+    _change_manifest(
+        fixture,
+        lambda manifest: manifest["files"].__setitem__(
+            path.relative_to(fixture["root"]).as_posix(), _sha(path)),
+    )
+
+
+def _change_wal_start(fixture, cell: str, change) -> None:
+    workload = cell.split("-")[0]
+    path = fixture["root"] / f"jobs/{workload}/campaigns/{CAMPAIGNS[workload]}/runs/wal.jsonl"
+    rows = [json.loads(line) for line in path.read_text().splitlines()]
+    start = next(row for row in rows if row["stage"] == "build_start" and row["payload"]["build_attempt_id"] == IDS[cell])
+    change(start)
+    path.write_text("".join(json.dumps(row, sort_keys=True) + "\n" for row in rows), encoding="utf-8")
+    _rebind_member(fixture, path)
+
+
+def _change_wal_start_payload_token(fixture, cell: str, token: str) -> None:
+    _change_wal_start(
+        fixture, cell,
+        lambda start: start["payload"].__setitem__("src_token", token),
+    )
+
+
+def _change_wal_admission_source_token(fixture, cell: str, token: str) -> None:
+    _change_wal_start(
+        fixture, cell,
+        lambda start: start["payload"]["build_admission"]["source"].__setitem__(
+            "src_token", token),
+    )
+
+
+def _duplicate_wal_build_start(fixture, cell: str) -> None:
+    workload = cell.split("-")[0]
+    path = fixture["root"] / f"jobs/{workload}/campaigns/{CAMPAIGNS[workload]}/runs/wal.jsonl"
+    rows = [json.loads(line) for line in path.read_text().splitlines()]
+    index = next(
+        index for index, row in enumerate(rows)
+        if row["stage"] == "build_start"
+        and row["payload"]["build_attempt_id"] == IDS[cell]
+    )
+    rows.insert(index + 1, json.loads(json.dumps(rows[index])))
+    path.write_text(
+        "".join(json.dumps(row, sort_keys=True) + "\n" for row in rows),
+        encoding="utf-8",
+    )
+    _rebind_member(fixture, path)
+
+
+def _change_receipt_frame(fixture, workload: str, index: int, change, *, canonical: bool = True) -> None:
+    path = fixture["root"] / f"receipts/condition-gate-{workload}.admissions.jsonl"
+    rows = [json.loads(line) for line in path.read_text().splitlines()]
+    change(rows[index])
+    separators = (",", ":") if canonical else None
+    path.write_text(
+        "".join(json.dumps(row, sort_keys=True, separators=separators) + "\n" for row in rows),
+        encoding="ascii",
+    )
+    _rebind_member(fixture, path)
+
+
+def _set_all_current_token_authorities(fixture, cell: str, token: str) -> None:
+    workload = cell.split("-")[0]
+    policy_cells = [item.cell_id for item in fixture["policy"].cells if item.workload_id == workload]
+    receipt_source_index = 2 * policy_cells.index(cell) + 1
+    _change_receipt_frame(
+        fixture, workload, receipt_source_index,
+        lambda row: row.__setitem__("src_token", token),
+    )
+    _change_raw(fixture, cell, lambda row: row.__setitem__("src_token", token))
+    _change_wal_start_payload_token(fixture, cell, token)
+    _change_wal_admission_source_token(fixture, cell, token)
+    _change_cert(
+        fixture,
+        lambda report: next(row for row in report["cells"] if row["cell_id"] == cell).__setitem__("src_token", token),
+    )
+
+
+def test_current_full_profile_uses_producer_policy_and_exact_twelve_file_closure(tmp_path):
+    plot, fixture = _plot(), _current_fixture(tmp_path)
+    data = _load(plot, fixture)
+    assert data["measurement_conditions"]["artifact_profile"] == "current-full"
+    assert [row["id"] for row in data["measurement_conditions"]["workloads"]] == ["rr5", "rr50"]
+    assert [row["cell_id"] for row in data["cells"]] == list(SAMPLES)
+    assert len(data["external_inputs"]) == 12
+    assert all(row["source_binding_status"] == "bound" for row in json.loads(fixture["cert"].read_text())["cells"])
+    assert data["effect_crosschecks"]["rr5"]["authority_matches"] is True
+    assert _run_main(plot, fixture, _hashes(fixture)) == 0
+    provenance = json.loads(Path(str(fixture["prefix"]) + ".provenance.json").read_text())
+    assert len(provenance["external_inputs"]) == 12
+    assert provenance["gate_note"] == data["gate_note"]
+
+
+def test_historical_policy_registry_contains_only_the_exact_t2364_pair():
+    plot = _plot()
+    pair = (
+        "e74d0f870497941b95ac4d1e244634188813e249f2821d571178e4854a3ed671",
+        "67dce5a785dfc52d5df9b773f7a65905a030b7bd61ab7706704e2ed8e85a0487",
+    )
+    assert set(plot.HISTORICAL_CURRENT_POLICY_VIEWS) == {pair}
+    assert plot.HISTORICAL_CURRENT_POLICY_VIEWS[pair] == {
+        "protocol_schema": "paper-story-a2-certification-policy/v2",
+        "protocol_sha256": "136b823e60a4b43e07dbbb4e3f8b5be48964226c955e143d59955325f0e0d9f4",
+        "trace0_configure_keys": frozenset({
+            "source_option", "build_directory_option", "fixed_arguments",
+            "toolchain_arguments", "dependency_prefix_argument",
+            "controlled_define_argument",
+        }),
+    }
+
+
+def test_historical_exact_hash_pair_uses_the_historical_policy_view(
+        tmp_path, monkeypatch):
+    plot, fixture = _plot(), _current_fixture(tmp_path)
+    _historical_policy_fixture(plot, fixture, monkeypatch)
+    data = _load(plot, fixture)
+    assert data["measurement_conditions"]["artifact_profile"] == "current-full"
+    assert [row["cell_id"] for row in data["cells"]] == list(SAMPLES)
+
+
+def test_historical_rejects_changed_certification_bytes(tmp_path, monkeypatch):
+    plot, fixture = _plot(), _current_fixture(tmp_path)
+    _historical_policy_fixture(plot, fixture, monkeypatch)
+    _change_cert(
+        fixture,
+        lambda report: report.__setitem__("source_commit", "changed-source"),
+    )
+    with pytest.raises(
+            plot.FigureDataError,
+            match="fetchcontent_path_argument_prefixes"):
+        _load(plot, fixture)
+
+
+def test_historical_rejects_changed_embedded_policy_hash(tmp_path, monkeypatch):
+    plot, fixture = _plot(), _current_fixture(tmp_path)
+    _historical_policy_fixture(plot, fixture, monkeypatch)
+    _change_cert(
+        fixture,
+        lambda report: report.__setitem__("policy_sha256", "0" * 64),
+    )
+    with pytest.raises(
+            plot.FigureDataError, match="embedded policy SHA-256 mismatch"):
+        _load(plot, fixture)
+
+
+def test_historical_rejects_unknown_bytes_with_the_same_v2_version(
+        tmp_path, monkeypatch):
+    plot, fixture = _plot(), _current_fixture(tmp_path)
+    _historical_policy_fixture(plot, fixture, monkeypatch)
+    unknown = fixture["historical_policy_bytes"] + b"\n"
+    _replace_embedded_policy_bytes(fixture, unknown)
+    assert json.loads(unknown)["schema_version"] == "paper-story-a2-certification-policy/v2"
+    with pytest.raises(
+            plot.FigureDataError,
+            match="fetchcontent_path_argument_prefixes"):
+        _load(plot, fixture)
+
+
+def test_historical_rejects_unknown_content_with_the_same_six_keys(
+        tmp_path, monkeypatch):
+    plot, fixture = _plot(), _current_fixture(tmp_path)
+    _historical_policy_fixture(plot, fixture, monkeypatch)
+    document = json.loads(fixture["historical_policy_bytes"])
+    document["tracked_destination"] = "output/insights/unknown-policy-content"
+    unknown = (json.dumps(document, ensure_ascii=True, indent=2) + "\n").encode()
+    _replace_embedded_policy_bytes(fixture, unknown)
+    assert set(document["trace0_cmake_argv"]["configure"]) == {
+        "source_option", "build_directory_option", "fixed_arguments",
+        "toolchain_arguments", "dependency_prefix_argument",
+        "controlled_define_argument",
+    }
+    with pytest.raises(
+            plot.FigureDataError,
+            match="fetchcontent_path_argument_prefixes"):
+        _load(plot, fixture)
+
+
+def test_unknown_policy_hash_flows_to_the_current_producer_loader(
+        tmp_path, monkeypatch):
+    plot, fixture = _plot(), _current_fixture(tmp_path)
+    _historical_policy_fixture(plot, fixture, monkeypatch)
+    unknown = fixture["historical_policy_bytes"] + b"\n"
+    _replace_embedded_policy_bytes(fixture, unknown)
+    producer = _producer()
+    original = producer.load_policy
+    observed = []
+
+    def observe(path):
+        observed.append(Path(path).read_bytes())
+        return original(path)
+
+    monkeypatch.setattr(producer, "load_policy", observe)
+    with pytest.raises(
+            plot.FigureDataError,
+            match="fetchcontent_path_argument_prefixes"):
+        _load(plot, fixture)
+    assert observed == [unknown]
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        ("delete-key", "fetchcontent_path_argument_prefixes"),
+        ("delete-element", "FetchContent path grammar"),
+    ],
+)
+def test_current_producer_still_rejects_fetchcontent_grammar_weakening(
+        tmp_path, mutation, message):
+    plot, fixture = _plot(), _current_fixture(tmp_path)
+    certification = json.loads(fixture["cert"].read_text(encoding="utf-8"))
+    document = json.loads(base64.b64decode(
+        certification["policy_bytes_base64"], validate=True))
+    prefixes = document["trace0_cmake_argv"]["configure"][
+        "fetchcontent_path_argument_prefixes"
+    ]
+    if mutation == "delete-key":
+        del document["trace0_cmake_argv"]["configure"][
+            "fetchcontent_path_argument_prefixes"
+        ]
+    else:
+        prefixes.pop()
+    policy_bytes = (
+        json.dumps(document, ensure_ascii=True, indent=2) + "\n"
+    ).encode("utf-8")
+    _replace_embedded_policy_bytes(fixture, policy_bytes)
+    with pytest.raises(plot.FigureDataError, match=message):
+        _load(plot, fixture)
+
+
+def test_current_rejects_embedded_policy_hash_mismatch(tmp_path):
+    plot, fixture = _plot(), _current_fixture(tmp_path)
+    _change_cert(fixture, lambda report: report.__setitem__("policy_sha256", "0" * 64))
+    with pytest.raises(plot.FigureDataError, match="embedded policy SHA-256 mismatch"):
+        _load(plot, fixture)
+
+
+def test_current_top_level_status_uses_verdict_vocabulary_not_bound(tmp_path):
+    plot, fixture = _plot(), _current_fixture(tmp_path)
+    _change_cert(fixture, lambda report: report.__setitem__("status", "bound"))
+    with pytest.raises(plot.FigureDataError, match="top-level status"):
+        _load(plot, fixture)
+
+
+def test_current_full_policy_order_is_artifact_derived(tmp_path):
+    plot, fixture = _plot(), _current_fixture(tmp_path, reverse_policy_order=True)
+    data = _load(plot, fixture)
+    assert [row["id"] for row in data["measurement_conditions"]["workloads"]] == ["rr50", "rr5"]
+    assert [row["cell_id"] for row in data["cells"]] == [
+        "rr50-stock", "rr50-fixed5", "rr5-stock", "rr5-fixed10",
+    ]
+
+
+@pytest.mark.parametrize(
+    ("target", "schema"),
+    [
+        ("cert", "paper-story-a2-certification-result/v3"),
+        ("manifest", "paper-story-a2-raw-manifest/v3"),
+        ("cert", "paper-story-a2-partial-result/v1"),
+        ("cert", "paper-story-a2-partial-result/v2"),
+        ("manifest", "paper-story-a2-raw-manifest/v4"),
+        ("manifest", "paper-story-a2-raw-manifest/v5"),
+    ],
+)
+def test_current_rejects_schema_crosses_and_partial_families(tmp_path, target, schema):
+    plot, fixture = _plot(), _current_fixture(tmp_path)
+    path = fixture[target]
+    value = json.loads(path.read_text()); value["schema_version"] = schema; _write(path, value)
+    with pytest.raises(plot.FigureDataError, match="schema pair"):
+        _load(plot, fixture)
+
+
+def test_current_rejects_legacy_raw_cell_schema(tmp_path):
+    plot, fixture = _plot(), _current_fixture(tmp_path)
+    _change_raw(
+        fixture, "rr5-fixed10",
+        lambda raw: raw.__setitem__("schema_version", plot.LEGACY_RAW_SCHEMA),
+    )
+    with pytest.raises(plot.FigureDataError, match="raw cell schema/identity mismatch"):
+        _load(plot, fixture)
+
+
+def test_current_rejects_embedded_policy_protocol_identity_mismatch(tmp_path):
+    plot, fixture = _plot(), _current_fixture(tmp_path)
+    other_protocol = "e" * 64
+    _change_cert(
+        fixture,
+        lambda certification: certification.__setitem__(
+            "protocol_sha256", other_protocol),
+    )
+    for cell in SAMPLES:
+        _change_raw(
+            fixture, cell,
+            lambda raw: raw.__setitem__("protocol_sha256", other_protocol),
+        )
+    _change_manifest(
+        fixture,
+        lambda manifest: manifest.__setitem__(
+            "protocol_sha256", other_protocol),
+    )
+    with pytest.raises(
+            plot.FigureDataError,
+            match="current certification and embedded policy identity mismatch"):
+        _load(plot, fixture)
+
+
+def test_current_rejects_duplicate_wal_build_start_mapping(tmp_path):
+    plot, fixture = _plot(), _current_fixture(tmp_path)
+    _duplicate_wal_build_start(fixture, "rr5-fixed10")
+    with pytest.raises(plot.FigureDataError, match="WAL build_start mapping is not unique"):
+        _load(plot, fixture)
+
+
+def test_current_rejects_policy_mismatched_workload_condition(tmp_path):
+    plot, fixture = _plot(), _current_fixture(tmp_path)
+    _change_raw(
+        fixture, "rr5-fixed10",
+        lambda raw: raw["performance"]["workload"].__setitem__("extime", 4),
+    )
+    with pytest.raises(plot.FigureDataError, match="structured workload conditions are missing"):
+        _load(plot, fixture)
+
+
+def test_current_rejects_noncanonical_campaign_claim_path(tmp_path):
+    plot, fixture = _plot(), _current_fixture(tmp_path)
+    workload = "rr5"
+    campaign = CAMPAIGNS[workload]
+    canonical_relative = f"jobs/{workload}/env/pegasus/claims/{campaign}.claim"
+    alias_relative = f"jobs/{workload}/env/pegasus/claims/{campaign}.alias"
+    canonical = fixture["root"] / canonical_relative
+    alias = fixture["root"] / alias_relative
+    alias.write_bytes(canonical.read_bytes())
+    canonical.unlink()
+
+    def change(manifest):
+        digest = manifest["files"].pop(canonical_relative)
+        manifest["files"][alias_relative] = digest
+        manifest["campaign_claims"][workload]["claim_path"] = alias_relative
+
+    _change_manifest(fixture, change)
+    with pytest.raises(plot.FigureDataError, match="current campaign claim path mismatch"):
+        _load(plot, fixture)
+
+
+def test_current_rejects_symlinked_campaign_claim_path(tmp_path):
+    plot, fixture = _plot(), _current_fixture(tmp_path)
+    workload = "rr5"
+    campaign = CAMPAIGNS[workload]
+    claim = fixture["root"] / f"jobs/{workload}/env/pegasus/claims/{campaign}.claim"
+    outside = tmp_path / "outside-claim"
+    outside.write_bytes(claim.read_bytes())
+    claim.unlink()
+    claim.symlink_to(outside)
+    with pytest.raises(plot.FigureDataError, match="external input path traverses a symlink"):
+        _load(plot, fixture)
+
+
+@pytest.mark.parametrize("change", ["missing", "extra"])
+def test_current_rejects_twelve_file_closure_underflow_and_overflow(tmp_path, change):
+    plot, fixture = _plot(), _current_fixture(tmp_path)
+    if change == "missing":
+        _change_manifest(fixture, lambda manifest: manifest["files"].pop(next(iter(manifest["files"]))))
+    else:
+        _change_manifest(fixture, lambda manifest: manifest["files"].__setitem__("unexpected", "0" * 64))
+    with pytest.raises(plot.FigureDataError, match="12-file closure"):
+        _load(plot, fixture)
+
+
+def test_current_rejects_missing_manifest_bound_condition_receipt(tmp_path):
+    plot, fixture = _plot(), _current_fixture(tmp_path)
+    path = fixture["root"] / "receipts/condition-gate-rr5.admissions.jsonl"
+    path.unlink()
+    with pytest.raises(plot.FigureDataError, match="external input missing"):
+        _load(plot, fixture)
+
+
+def test_current_rejects_condition_receipt_hash_mismatch(tmp_path):
+    plot, fixture = _plot(), _current_fixture(tmp_path)
+    path = fixture["root"] / "receipts/condition-gate-rr5.admissions.jsonl"
+    path.write_bytes(path.read_bytes() + b" ")
+    with pytest.raises(plot.FigureDataError, match="SHA-256 mismatch"):
+        _load(plot, fixture)
+
+
+def test_current_hash_checks_passive_campaign_closure_members(tmp_path):
+    plot, fixture = _plot(), _current_fixture(tmp_path)
+    path = fixture["root"] / f"jobs/rr5/campaigns/{CAMPAIGNS['rr5']}/campaign.lock"
+    path.write_bytes(path.read_bytes() + b"changed")
+    with pytest.raises(plot.FigureDataError, match="SHA-256 mismatch"):
+        _load(plot, fixture)
+
+
+def test_current_rejects_noncanonical_condition_receipt(tmp_path):
+    plot, fixture = _plot(), _current_fixture(tmp_path)
+    _change_receipt_frame(fixture, "rr5", 0, lambda row: None, canonical=False)
+    with pytest.raises(plot.FigureDataError, match="condition receipt is invalid"):
+        _load(plot, fixture)
+
+
+def test_current_rejects_condition_receipt_admitted_false(tmp_path):
+    plot, fixture = _plot(), _current_fixture(tmp_path)
+    _change_receipt_frame(fixture, "rr5", 0, lambda row: row.__setitem__("admitted", False))
+    with pytest.raises(plot.FigureDataError, match="condition receipt is invalid"):
+        _load(plot, fixture)
+
+
+@pytest.mark.parametrize("authority", ["receipt", "raw", "certification"])
+def test_current_rejects_each_src_token_authority_mismatch(tmp_path, authority):
+    plot, fixture = _plot(), _current_fixture(tmp_path)
+    other = "f" * 64
+    if authority == "receipt":
+        _change_receipt_frame(fixture, "rr5", 3, lambda row: row.__setitem__("src_token", other))
+    elif authority == "raw":
+        _change_raw(fixture, "rr5-fixed10", lambda row: row.__setitem__("src_token", other))
+    else:
+        _change_cert(fixture, lambda row: row["cells"][1].__setitem__("src_token", other))
+    with pytest.raises(plot.FigureDataError, match="src_token mismatch"):
+        _load(plot, fixture)
+
+
+def test_current_rejects_wal_build_start_payload_src_token_mismatch(tmp_path):
+    plot, fixture = _plot(), _current_fixture(tmp_path)
+    _change_wal_start_payload_token(fixture, "rr5-fixed10", "f" * 64)
+    with pytest.raises(plot.FigureDataError, match="src_token mismatch"):
+        _load(plot, fixture)
+
+
+def test_current_rejects_wal_build_admission_source_src_token_mismatch(tmp_path):
+    plot, fixture = _plot(), _current_fixture(tmp_path)
+    _change_wal_admission_source_token(fixture, "rr5-fixed10", "f" * 64)
+    with pytest.raises(plot.FigureDataError, match="src_token mismatch"):
+        _load(plot, fixture)
+
+
+def test_current_rejects_nonbound_source_binding_status(tmp_path):
+    plot, fixture = _plot(), _current_fixture(tmp_path)
+    _change_cert(fixture, lambda row: row["cells"][1].__setitem__("source_binding_status", "token-mismatch"))
+    with pytest.raises(plot.FigureDataError, match="source_binding_status is not bound"):
+        _load(plot, fixture)
+
+
+@pytest.mark.parametrize(
+    ("cell", "token", "message"),
+    [
+        ("rr5-stock", "e" * 64, "stock cell src_token is not stock"),
+        ("rr5-fixed10", "stock", "adopted cell src_token is not a non-stock"),
+    ],
+)
+def test_current_rejects_role_wrong_tokens_even_when_all_four_authorities_agree(
+        tmp_path, cell, token, message):
+    plot, fixture = _plot(), _current_fixture(tmp_path)
+    _set_all_current_token_authorities(fixture, cell, token)
+    with pytest.raises(plot.FigureDataError, match=message):
+        _load(plot, fixture)
+
+
+@pytest.mark.parametrize("projection", ["median", "effect"])
+def test_current_recomputes_certification_medians_and_effects(tmp_path, projection):
+    plot, fixture = _plot(), _current_fixture(tmp_path)
+    if projection == "median":
+        _change_cert(
+            fixture,
+            lambda report: report["cells"][0]["performance"].__setitem__(
+                "median_tps", report["cells"][0]["performance"]["median_tps"] + 1),
+        )
+        message = "certification median mismatch"
+    else:
+        _change_cert(
+            fixture,
+            lambda report: report["effects"].__setitem__("rr5", report["effects"]["rr5"] + .01),
+        )
+        message = "certification effect mismatch"
+    with pytest.raises(plot.FigureDataError, match=message):
+        _load(plot, fixture)
+
+
+def test_current_gate_copy_is_receipt_observation_not_legacy_fixed_copy(tmp_path):
+    plot, fixture = _plot(), _current_fixture(tmp_path)
+    data = _load(plot, fixture)
+    caption = plot._caption(data, fixture["prefix"])
+    expected_gate_note = (
+        "The raw manifest binds canonical condition-admission records reporting "
+        f'use_class="paper" and admitted=true for all {len(fixture["policy"].cells)} policy cells; '
+        "the original supply and meaning records are not retained in this artifact."
+    )
+    assert data["gate_note"] == expected_gate_note
+    assert caption.count(expected_gate_note) == 1
+    assert "gate family was not applied" not in caption
+
+
+def test_cli_has_no_caller_selected_hash_options():
+    plot = _plot()
+    destinations = {action.dest for action in plot._parser()._actions}
+    assert "certification_sha256" not in destinations
+    assert "raw_manifest_sha256" not in destinations
+
+
+def test_cli_rejects_exact_bytes_at_certification_path_missing_from_pin_table(tmp_path):
+    plot = _plot()
+    certification = tmp_path / "certification.json"
+    certification.write_bytes(plot.DEFAULT_CERT.read_bytes())
+    root = tmp_path / "empty-root"; root.mkdir(); prefix = tmp_path / "fig5_missing_pin"
+    completed = _run_script(certification, plot.DEFAULT_MANIFEST, root, prefix)
+    assert completed.returncode != 0
+    assert "repository-owned pin table" in completed.stderr
+    assert not any(Path(str(prefix) + suffix).exists() for suffix in (".png", ".pdf", ".provenance.json"))
+
+
+def test_current_cli_reads_repository_owned_pin_table(tmp_path, monkeypatch):
+    plot, fixture = _plot(), _current_fixture(tmp_path)
+    key = plot._display_path(fixture["cert"])
+
+    class ObservedPinTable(dict):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.lookups = []
+
+        def get(self, requested, default=None):
+            self.lookups.append(requested)
+            return super().get(requested, default)
+
+    pin_table = ObservedPinTable({key: _hashes(fixture)})
+    monkeypatch.setattr(plot, "CANONICAL_SHA256", pin_table)
+    argv = [
+        "--measurement-root", str(fixture["root"]),
+        "--certification", str(fixture["cert"]),
+        "--raw-manifest", str(fixture["manifest"]),
+        str(fixture["prefix"]),
+    ]
+    assert plot.main(argv) == 0
+    assert pin_table.lookups == [key]
+
+    rejected_prefix = tmp_path / "fig5_rejected_pin"
+    pin_table[key] = {
+        "certification": "0" * 64,
+        "raw_manifest": _sha(fixture["manifest"]),
+    }
+    argv[-1] = str(rejected_prefix)
+    assert plot.main(argv) == 2
+    assert pin_table.lookups == [key, key]
+    assert not any(
+        Path(str(rejected_prefix) + suffix).exists()
+        for suffix in (".png", ".pdf", ".provenance.json")
+    )
+
+
+def _assert_named_landed_bundle(plot, prefix: Path, figures_readme: Path) -> None:
+    """Reusable closure frame for the parent-owned current figure once landed."""
+    paths = [Path(f"{prefix}{suffix}") for suffix in (".png", ".pdf", ".provenance.json")]
+    assert all(path.is_file() for path in paths), "named figure integration bundle is incomplete"
+    provenance = json.loads(paths[-1].read_text(encoding="utf-8"))
+    plot.validate_repo_closure(provenance, REPO)
+    assert provenance["caption"] in figures_readme.read_text(encoding="utf-8")
 
 
 def test_fixture_has_production_shape_and_recomputes_statistics(tmp_path):
@@ -295,7 +1072,10 @@ def test_m7_outer_status_is_copied_into_provenance(tmp_path):
     plot, fixture = _plot(), _fixture(tmp_path)
     _change_cert(fixture, lambda d: d.__setitem__("status", "sentinel-status"))
     data = _load(plot, fixture)
-    assert plot.build_provenance(data, [], ["plot"])["outer_status"] == "sentinel-status"
+    outputs = [Path(f"{fixture['prefix']}.png"), Path(f"{fixture['prefix']}.pdf")]
+    for path in outputs:
+        path.write_bytes(b"fixture")
+    assert plot.build_provenance(data, outputs, ["plot"])["outer_status"] == "sentinel-status"
 
 
 def test_m8_artist_baseline_is_stock_median_with_stock_genome(tmp_path):
@@ -308,7 +1088,7 @@ def test_m8_artist_baseline_is_stock_median_with_stock_genome(tmp_path):
 
 def test_m9_caption_distinguishes_correctness_from_performance(tmp_path):
     plot, fixture = _plot(), _fixture(tmp_path)
-    caption = plot._caption(_load(plot, fixture))
+    caption = plot._caption(_load(plot, fixture), fixture["prefix"])
     assert "separate trace-enabled runs" in caption and "not a performance certification" in caption
     assert "no significance decision" in caption and "no causal mechanism claim" in caption
 
@@ -347,10 +1127,30 @@ def _run_script(certification: Path, manifest: Path, root: Path, prefix: Path):
         cwd=REPO, text=True, capture_output=True, check=False)
 
 
+def test_caption_uses_figure_number_from_output_prefix(tmp_path):
+    plot, fixture = _plot(), _fixture(tmp_path)
+    fixture["prefix"] = tmp_path / "fig6_a2_certification_observed_positive"
+    assert _run_main(plot, fixture, _hashes(fixture)) == 0
+    provenance = json.loads(
+        Path(f"{fixture['prefix']}.provenance.json").read_text(encoding="utf-8")
+    )
+    assert provenance["caption"].startswith("Figure 6.")
+
+
+def test_output_prefix_without_figure_number_is_rejected(tmp_path):
+    plot, fixture = _plot(), _fixture(tmp_path)
+    fixture["prefix"] = tmp_path / "a2_certification_without_figure_number"
+    assert _run_main(plot, fixture, _hashes(fixture)) == 2
+    assert not any(
+        Path(f"{fixture['prefix']}{suffix}").exists()
+        for suffix in (".png", ".pdf", ".provenance.json")
+    )
+
+
 def test_m11_whitespace_changed_certification_fails_cli_with_zero_outputs(tmp_path):
     plot = _plot(); certification = tmp_path / "certification.json"
     certification.write_text(plot.DEFAULT_CERT.read_text(encoding="utf-8") + "\n", encoding="utf-8")
-    root = tmp_path / "empty-root"; root.mkdir(); prefix = tmp_path / "figure"
+    root = tmp_path / "empty-root"; root.mkdir(); prefix = tmp_path / "fig5_changed_certification"
     completed = _run_script(certification, plot.DEFAULT_MANIFEST, root, prefix)
     assert completed.returncode != 0 and "canonical SHA-256 mismatch" in completed.stderr
     assert not any(Path(str(prefix) + suffix).exists() for suffix in (".png", ".pdf", ".provenance.json"))
@@ -359,7 +1159,7 @@ def test_m11_whitespace_changed_certification_fails_cli_with_zero_outputs(tmp_pa
 def test_m12_whitespace_changed_raw_manifest_fails_cli_with_zero_outputs(tmp_path):
     plot = _plot(); manifest = tmp_path / "raw-manifest.json"
     manifest.write_text(plot.DEFAULT_MANIFEST.read_text(encoding="utf-8") + "\n", encoding="utf-8")
-    root = tmp_path / "empty-root"; root.mkdir(); prefix = tmp_path / "figure"
+    root = tmp_path / "empty-root"; root.mkdir(); prefix = tmp_path / "fig5_changed_manifest"
     completed = _run_script(plot.DEFAULT_CERT, manifest, root, prefix)
     assert completed.returncode != 0 and "canonical SHA-256 mismatch" in completed.stderr
     assert not any(Path(str(prefix) + suffix).exists() for suffix in (".png", ".pdf", ".provenance.json"))
@@ -393,7 +1193,7 @@ def test_cli_writes_complete_provenance_with_repo_relative_argv(tmp_path, monkey
     assert conditions["izanagi_source_commit"] == "izanagi-source" and conditions["ccbench_pin"] == "511c953"
     argv = provenance["reproduction"]["argv"]
     assert argv[3] == str(fixture["root"].resolve())
-    assert argv[5:] == ["certification.json", "--raw-manifest", "raw-manifest.json", "figure"]
+    assert argv[5:] == ["certification.json", "--raw-manifest", "raw-manifest.json", "fig5_fixture"]
     assert str(REPO) not in " ".join(argv) and provenance["reproduction"]["cwd"] == "repository-root"
 
 
@@ -402,7 +1202,16 @@ def test_tracked_authority_literals_and_run_readme_record_agree():
     cert = REPO / "output/insights/2026-08-24_paper-story-a2-certification/certification.json"
     manifest = REPO / "output/insights/2026-08-24_paper-story-a2-certification/raw-manifest.json"
     run_readme = REPO / "output/insights/2026-08-28_t2022-a2-certification-run/README.md"
-    assert plot.CANONICAL_SHA256 == {"certification": CANONICAL_CERT, "raw_manifest": CANONICAL_MANIFEST}
+    assert len(plot.CANONICAL_SHA256) == 2
+    assert plot.CANONICAL_SHA256[
+        "output/insights/2026-08-24_paper-story-a2-certification/certification.json"
+    ] == {"certification": CANONICAL_CERT, "raw_manifest": CANONICAL_MANIFEST}
+    assert plot.CANONICAL_SHA256[
+        "output/insights/2026-09-07_t2364-paper-story-a2-certification/certification.json"
+    ] == {
+        "certification": "e74d0f870497941b95ac4d1e244634188813e249f2821d571178e4854a3ed671",
+        "raw_manifest": "b23ee2ee6ff36d2377da80c2cf4eccc925bae9c3d89aab8a6a8543edfe9ae319",
+    }
     assert _sha(cert) == CANONICAL_CERT and _sha(manifest) == CANONICAL_MANIFEST
     assert CANONICAL_CERT in run_readme.read_text(encoding="utf-8")
 
