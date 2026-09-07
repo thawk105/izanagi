@@ -1,0 +1,163 @@
+[
+  {
+    "id": "M01-or-to-and",
+    "diff_stat": [
+      "tools/dev_wave_wait.py | 2 +-",
+      " 1 file changed, 1 insertion(+), 1 deletion(-)"
+    ],
+    "returncode": 1,
+    "hang": false,
+    "failed_nodes": [
+      "orchestrator/tests/test_dev_wave_wait_compute.py::test_compute_main_does_not_enter_acceptance_lease_path",
+      "orchestrator/tests/test_dev_wave_wait_compute.py::test_compute_receipt_mtime_failure_uses_compute_stage",
+      "orchestrator/tests/test_dev_wave_wait_compute.py::test_compute_receipt_publish_failure_is_fail_closed",
+      "orchestrator/tests/test_dev_wave_wait_compute.py::test_compute_receipt_records_actual_evidence[accounting]",
+      "orchestrator/tests/test_dev_wave_wait_compute.py::test_compute_receipt_records_actual_evidence[done]",
+      "orchestrator/tests/test_dev_wave_wait_compute.py::test_done_evidence_controls_broken_accounting_import[done-short-circuits]",
+      "orchestrator/tests/test_dev_wave_wait_compute.py::test_done_success_does_not_call_effects_run_or_run_unbounded",
+      "orchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_accepts_accounting_evidence_alone",
+      "orchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_accepts_both_evidence_sources",
+      "orchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_accepts_done_evidence_alone"
+    ]
+  },
+  {
+    "id": "M02-ended-required-dropped",
+    "diff_stat": [
+      "orchestrator/scheduler_nqsv.py | 2 +-",
+      " 1 file changed, 1 insertion(+), 1 deletion(-)"
+    ],
+    "returncode": 1,
+    "hang": false,
+    "failed_nodes": [
+      "orchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_rejects_unbound_or_unended_records[no-ended-field]"
+    ]
+  },
+  {
+    "id": "M03-ended-scope-widened",
+    "diff_stat": [
+      "orchestrator/scheduler_nqsv.py | 2 +-",
+      " 1 file changed, 1 insertion(+), 1 deletion(-)"
+    ],
+    "returncode": 0,
+    "hang": false,
+    "failed_nodes": []
+  },
+  {
+    "id": "M04-ended-before-check-dropped",
+    "diff_stat": [
+      "orchestrator/scheduler_nqsv.py | 4 +---",
+      " 1 file changed, 1 insertion(+), 3 deletions(-)"
+    ],
+    "returncode": 1,
+    "hang": false,
+    "failed_nodes": [
+      "orchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_binds_ended_to_target_record[ended-before-target]"
+    ]
+  },
+  {
+    "id": "M05-id-count-relaxed",
+    "diff_stat": [
+      "orchestrator/scheduler_nqsv.py | 2 +-",
+      " 1 file changed, 1 insertion(+), 1 deletion(-)"
+    ],
+    "returncode": 1,
+    "hang": false,
+    "failed_nodes": [
+      "orchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_binds_ended_to_target_record[other-job-ended]",
+      "orchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_rejects_unbound_or_unended_records[duplicate-id]"
+    ]
+  },
+  {
+    "id": "M06-id-mismatch-allowed",
+    "diff_stat": [
+      "orchestrator/scheduler_nqsv.py | 2 +-",
+      " 1 file changed, 1 insertion(+), 1 deletion(-)"
+    ],
+    "returncode": 1,
+    "hang": false,
+    "failed_nodes": [
+      "orchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_rejects_unbound_or_unended_records[mismatch]",
+      "orchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_rejects_mismatched_accounting"
+    ]
+  },
+  {
+    "id": "M07-crlf-id-tolerance-dropped",
+    "diff_stat": [
+      "orchestrator/scheduler_nqsv.py | 2 +-",
+      " 1 file changed, 1 insertion(+), 1 deletion(-)"
+    ],
+    "returncode": 1,
+    "hang": false,
+    "failed_nodes": [
+      "orchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_binds_ended_to_target_record[all-crlf]",
+      "orchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_binds_ended_to_target_record[other-job-ended]"
+    ]
+  },
+  {
+    "id": "M08-done-nonempty-dropped",
+    "diff_stat": [
+      "tools/dev_wave_wait.py | 2 +-",
+      " 1 file changed, 1 insertion(+), 1 deletion(-)"
+    ],
+    "returncode": 1,
+    "hang": false,
+    "failed_nodes": [
+      "orchestrator/tests/test_dev_wave_wait_compute.py::test_compute_receipt_mtime_failure_uses_compute_stage",
+      "orchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_rejects_empty_done_file[empty]",
+      "orchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_rejects_empty_done_file[whitespace]",
+      "orchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_treats_done_read_oserror_as_no_evidence"
+    ]
+  },
+  {
+    "id": "M09-done-shortcircuit-dropped",
+    "diff_stat": [
+      "tools/dev_wave_wait.py | 2 +-",
+      " 1 file changed, 1 insertion(+), 1 deletion(-)"
+    ],
+    "returncode": 1,
+    "hang": false,
+    "failed_nodes": [
+      "orchestrator/tests/test_dev_wave_wait_compute.py::test_done_evidence_controls_broken_accounting_import[done-short-circuits]"
+    ]
+  },
+  {
+    "id": "M10-timeout-to-ok",
+    "diff_stat": [
+      "tools/dev_wave_wait.py | 2 +-",
+      " 1 file changed, 1 insertion(+), 1 deletion(-)"
+    ],
+    "returncode": 1,
+    "hang": false,
+    "failed_nodes": [
+      "orchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_rejects_done_directory",
+      "orchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_rejects_empty_done_file[empty]",
+      "orchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_rejects_empty_done_file[whitespace]",
+      "orchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_rejects_mismatched_accounting",
+      "orchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_timeout_is_fail_closed",
+      "orchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_treats_done_read_oserror_as_no_evidence"
+    ]
+  },
+  {
+    "id": "M11-request-id-validation-dropped",
+    "diff_stat": [
+      "tools/dev_wave_wait.py | 2 +-",
+      " 1 file changed, 1 insertion(+), 1 deletion(-)"
+    ],
+    "returncode": null,
+    "hang": true,
+    "failed_nodes": []
+  },
+  {
+    "id": "M12-receipt-done-mtime-dropped",
+    "diff_stat": [
+      "tools/dev_wave_wait.py | 2 +-",
+      " 1 file changed, 1 insertion(+), 1 deletion(-)"
+    ],
+    "returncode": 1,
+    "hang": false,
+    "failed_nodes": [
+      "orchestrator/tests/test_dev_wave_wait_compute.py::test_compute_receipt_mtime_failure_uses_compute_stage",
+      "orchestrator/tests/test_dev_wave_wait_compute.py::test_compute_receipt_records_actual_evidence[done]"
+    ]
+  }
+]
