@@ -4299,6 +4299,162 @@ def test_registered_admission_and_lifecycle_are_non_certifying_and_start_once(
     }
 
 
+@pytest.mark.parametrize(
+    ("terminal_status", "attempt_status", "failure_reason", "accepted"),
+    [
+        ("complete", "observed", None, False),
+        ("partial", "terminal-failure", "", False),
+        ("indeterminate", "not-consumed", "", False),
+        ("partial", "terminal-failure", "producer-failure", True),
+        ("indeterminate", "not-consumed", "producer-failure", True),
+    ],
+    ids=[
+        "complete-without-projection",
+        "partial-with-empty-reason",
+        "indeterminate-with-empty-reason",
+        "partial-with-reason",
+        "indeterminate-with-reason",
+    ],
+)
+def test_origin_lifecycle_terminal_without_projection_is_failure_reason_gated(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    terminal_status: str,
+    attempt_status: str,
+    failure_reason: str | None,
+    accepted: bool,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    trial = manifest.trials[0]
+    admission = _registered_admission(
+        repo, manifest_path, registry, manifest, monkeypatch,
+    )
+    capability = _issued_origin_binding(trial, _head(repo), monkeypatch)
+    attempt_slot = _lifecycle_attempt_slot(
+        repo, manifest, admission, origin_binding=capability,
+    )
+    lifecycle = repo / R.DEFAULT_LIFECYCLE_PATH
+    run_root = repo / "origin-failure-run"
+    token = R.record_trial_start_once(
+        admission=admission,
+        effective_preregistration=_effective_capability(manifest, monkeypatch),
+        manifest_path=manifest_path,
+        run_root=run_root,
+        repository_root=repo,
+        registry_path=registry,
+        lifecycle_path=lifecycle,
+        origin_binding=capability,
+        origin_run_plan_sha256="e" * 64,
+        attempt_slot=attempt_slot,
+    )
+    if terminal_status != "indeterminate":
+        run_root.mkdir()
+        (run_root / "report.json").write_bytes(b"{}\n")
+        (run_root / "attempts.jsonl").write_bytes(b"{}\n")
+    _classify_and_terminal(
+        attempt_slot,
+        failure_reason=(
+            "producer-failure" if attempt_status == "terminal-failure" else None
+        ),
+        terminal_status=attempt_status,
+    )
+
+    if not accepted:
+        with pytest.raises(R.TrialRegistryError, match=r"\[lifecycle-origin\] "):
+            R.record_trial_terminal(
+                token,
+                terminal_status=terminal_status,
+                failure_reason=failure_reason,
+            )
+        assert len(lifecycle.read_bytes().splitlines()) == 1
+        return
+
+    R.record_trial_terminal(
+        token,
+        terminal_status=terminal_status,
+        failure_reason=failure_reason,
+    )
+    rows = [json.loads(line) for line in lifecycle.read_bytes().splitlines()]
+    start, terminal = rows
+    assert "launch_admission" not in start
+    assert "origin_terminal_projection" not in terminal
+    assert terminal["failure_reason"] == failure_reason
+    assert frozenset(terminal) == (
+        R._LIFECYCLE_TERMINAL_BASE_KEYS | {"failure_reason"}
+    )
+    assert R._load_lifecycle_rows(lifecycle.read_bytes()) == tuple(rows)
+
+    empty_reason = copy.deepcopy(rows)
+    empty_reason[1]["failure_reason"] = ""
+    with pytest.raises(
+        R.TrialRegistryError,
+        match=(
+            r"\[lifecycle-origin\] origin failure without terminal projection "
+            r"requires a non-empty failure_reason$"
+        ),
+    ):
+        R._load_lifecycle_rows(
+            b"".join(_canonical(row) + b"\n" for row in empty_reason)
+        )
+    complete_without_projection = copy.deepcopy(rows)
+    complete_without_projection[1]["terminal_status"] = "complete"
+    with pytest.raises(
+        R.TrialRegistryError,
+        match=(
+            r"\[lifecycle-origin\] start run-plan digest and terminal origin "
+            r"projection presence differ$"
+        ),
+    ):
+        R._load_lifecycle_rows(
+            b"".join(
+                _canonical(row) + b"\n"
+                for row in complete_without_projection
+            )
+        )
+
+
+def test_originless_lifecycle_terminal_shape_and_projection_rejection_are_unchanged(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    admission = _registered_admission(
+        repo, manifest_path, registry, manifest, monkeypatch,
+    )
+    attempt_slot = _lifecycle_attempt_slot(repo, manifest, admission)
+    lifecycle = repo / R.DEFAULT_LIFECYCLE_PATH
+    token = R.record_trial_start_once(
+        admission=admission,
+        effective_preregistration=_effective_capability(manifest, monkeypatch),
+        manifest_path=manifest_path,
+        run_root=repo / "originless-indeterminate-run",
+        repository_root=repo,
+        registry_path=registry,
+        lifecycle_path=lifecycle,
+        attempt_slot=attempt_slot,
+    )
+    _finish_lifecycle_attempt(attempt_slot, terminal_status="not-consumed")
+    R.record_trial_terminal(token, terminal_status="indeterminate")
+    rows = [json.loads(line) for line in lifecycle.read_bytes().splitlines()]
+    start, terminal = rows
+    assert frozenset(start) == R._LIFECYCLE_START_BASE_KEYS
+    assert frozenset(terminal) == R._LIFECYCLE_TERMINAL_BASE_KEYS
+    assert R._load_lifecycle_rows(lifecycle.read_bytes()) == tuple(rows)
+
+    with_projection = copy.deepcopy(rows)
+    with_projection[1]["origin_terminal_projection"] = {}
+    with pytest.raises(R.TrialRegistryError, match=r"\[lifecycle-origin\] "):
+        R._load_lifecycle_rows(
+            b"".join(_canonical(row) + b"\n" for row in with_projection)
+        )
+    with_failure_reason = copy.deepcopy(rows)
+    with_failure_reason[1]["failure_reason"] = "producer-failure"
+    with pytest.raises(R.TrialRegistryError, match=r"\[lifecycle-origin\] "):
+        R._load_lifecycle_rows(
+            b"".join(_canonical(row) + b"\n" for row in with_failure_reason)
+        )
+
+
 @pytest.mark.parametrize("rejected", [True, False])
 def test_lifecycle_terminal_projects_the_formal_consumer_shape_by_bytes(
     tmp_path: Path,
@@ -4354,6 +4510,7 @@ def test_lifecycle_terminal_projects_the_formal_consumer_shape_by_bytes(
         admission,
         origin_binding=capability,
     )
+    assert "launch_admission" not in start
     assert start["launch_admission_sha256"] == hashlib.sha256(
         _canonical(expected_admission)
     ).hexdigest()

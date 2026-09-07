@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pytest
 
+from orchestrator.campaign import campaign_lock as CL
 from orchestrator.campaign import model as M
 from orchestrator.campaign import reflux_formal_consumer as C
 from orchestrator.campaign import reflux_origin_binding as B
@@ -626,6 +627,35 @@ def _relocate_ordered_wal(case: _Case, index: int, target_root: Path) -> None:
     _set_record(case, index, record)
 
 
+def _replace_planned_campaign_run_identities(
+    case: _Case,
+    identities: tuple[str, ...],
+) -> None:
+    case.run_plan = _run_plan(case.capability, identities)
+    envelope_raw = T.canonical_recovery_envelope_bytes(case.run_plan)
+    envelope_path = case.fixture.evidence_root / "origin/recovery-envelope.json"
+    envelope_path.write_bytes(envelope_raw)
+    case.origin_run_plan_sha256 = _digest(envelope_raw)
+
+
+def _assert_ordered_wals_stay_in_planned_canonical_leaves(case: _Case) -> None:
+    for member, record in zip(case.run_plan.members, case.records, strict=True):
+        planned_root = Path(exploration_campaign_layout(
+            member.planned_campaign_run_identity,
+            str(case.campaign_output_root),
+        ).root)
+        projection_path = (
+            case.fixture.evidence_root
+            / record["evidence"]["ordered_wal_ref"]["path"]
+        )
+        projection = json.loads(projection_path.read_bytes())
+        source_path = (
+            case.fixture.evidence_root / projection["source_wal_ref"]["path"]
+        )
+        assert projection_path.is_relative_to(planned_root)
+        assert source_path.is_relative_to(planned_root)
+
+
 def test_exact_fixture_contract_reaches_only_p6_unavailable(case: _Case) -> None:
     assert all(
         set(record["evidence"])
@@ -734,11 +764,28 @@ def test_formal_consumer_requires_all_physical_binding_kwargs() -> None:
     assert "campaign_lock_ref" not in signature.parameters
 
 
-def test_fc03_rejects_envelope_replaced_after_lifecycle_start(case: _Case) -> None:
+def test_fc03_rejects_envelope_digest_different_from_lifecycle_binding(
+    case: _Case,
+) -> None:
+    _assert_reason(
+        case,
+        C.FormalReasonCode.FC03,
+        origin_run_plan_sha256="e" * 64,
+    )
+
+
+def test_fc03_rejects_disk_envelope_different_from_in_memory_plan(
+    case: _Case,
+) -> None:
     changed = dataclasses.replace(case.run_plan, hypothesis_sha256="e" * 64)
     envelope_path = case.fixture.evidence_root / "origin/recovery-envelope.json"
-    envelope_path.write_bytes(T.canonical_recovery_envelope_bytes(changed))
-    _assert_reason(case, C.FormalReasonCode.FC03)
+    changed_raw = T.canonical_recovery_envelope_bytes(changed)
+    envelope_path.write_bytes(changed_raw)
+    _assert_reason(
+        case,
+        C.FormalReasonCode.FC03,
+        origin_run_plan_sha256=_digest(changed_raw),
+    )
 
 
 def test_fc03_rejects_same_envelope_at_a_different_path(case: _Case) -> None:
@@ -793,9 +840,10 @@ def test_fc03_physical_gate_rejects_claimed_campaign_run_identity_mismatch(
     _assert_reason(case, C.FormalReasonCode.FC03)
 
 
-def test_fc03_physical_gate_rejects_33_wals_reused_from_another_trial(
+def test_fc03_rejects_physical_runs_rederived_as_another_logical_trial(
     case: _Case,
 ) -> None:
+    donor_identities: list[str] = []
     for index in range(33):
         donor_lock = _physical_lock_identity(
             attempt_capability_sha256=case.attempt_capability_sha256,
@@ -809,22 +857,26 @@ def test_fc03_physical_gate_rejects_33_wals_reused_from_another_trial(
         donor_root.mkdir(parents=True)
         (donor_root / "campaign.lock").write_bytes(_canonical(donor_lock))
         _relocate_ordered_wal(case, index, donor_root)
+        donor_identities.append(donor_identity)
         provenance_path = (
             case.fixture.evidence_root
             / case.records[index]["evidence"]["execution_provenance_ref"]["path"]
         )
         provenance = json.loads(provenance_path.read_bytes())
-        provenance["campaign_run_identity"] = case.run_plan.members[
-            index
-        ].planned_campaign_run_identity
+        provenance["campaign_run_identity"] = donor_identity
         _rewrite_provenance(case, index, provenance)
 
+    _replace_planned_campaign_run_identities(case, tuple(donor_identities))
+    _assert_ordered_wals_stay_in_planned_canonical_leaves(case)
     _assert_gates_before_physical_binding_pass(case)
     _assert_reason(case, C.FormalReasonCode.FC03)
 
 
-def test_fc03_physical_gate_rejects_wals_from_a_past_attempt(case: _Case) -> None:
+def test_fc03_rejects_physical_runs_bound_to_a_past_attempt_at_canonical_leaves(
+    case: _Case,
+) -> None:
     past_attempt = _digest(b"fixture:past-attempt-slot-capability")
+    old_identities: list[str] = []
     for index in range(33):
         old_lock = _physical_lock_identity(
             attempt_capability_sha256=past_attempt,
@@ -837,21 +889,22 @@ def test_fc03_physical_gate_rejects_wals_from_a_past_attempt(case: _Case) -> Non
         old_root.mkdir(parents=True)
         (old_root / "campaign.lock").write_bytes(_canonical(old_lock))
         _relocate_ordered_wal(case, index, old_root)
+        old_identities.append(old_identity)
         provenance_path = (
             case.fixture.evidence_root
             / case.records[index]["evidence"]["execution_provenance_ref"]["path"]
         )
         provenance = json.loads(provenance_path.read_bytes())
-        provenance["campaign_run_identity"] = case.run_plan.members[
-            index
-        ].planned_campaign_run_identity
+        provenance["campaign_run_identity"] = old_identity
         _rewrite_provenance(case, index, provenance)
 
+    _replace_planned_campaign_run_identities(case, tuple(old_identities))
+    _assert_ordered_wals_stay_in_planned_canonical_leaves(case)
     _assert_gates_before_physical_binding_pass(case)
     _assert_reason(case, C.FormalReasonCode.FC03)
 
 
-def test_fc03_physical_gate_rejects_consistent_files_outside_canonical_root(
+def test_fc03_rejects_ordered_wal_refs_outside_planned_canonical_leaf(
     case: _Case,
 ) -> None:
     index = 0
@@ -861,11 +914,27 @@ def test_fc03_physical_gate_rejects_consistent_files_outside_canonical_root(
         / case.run_plan.members[index].planned_campaign_run_identity
     )
     relocated_root.mkdir(parents=True)
-    relocated_lock = relocated_root / "campaign.lock"
-    relocated_lock.write_bytes(
-        (case.physical_roots[index] / "campaign.lock").read_bytes()
-    )
     _relocate_ordered_wal(case, index, relocated_root)
+
+    _assert_gates_before_physical_binding_pass(case)
+    _assert_reason(case, C.FormalReasonCode.FC03)
+
+
+def test_fc03_rejects_noncanonical_v1_campaign_lock(case: _Case) -> None:
+    noncanonical = json.dumps(
+        _physical_lock_identity(
+            attempt_capability_sha256=case.attempt_capability_sha256,
+            query_ordinal=0,
+        ),
+        indent=2,
+    ).encode("utf-8")
+    decoded = CL.decode_campaign_lock_bytes(noncanonical)
+    assert decoded.schema_version == "campaign-lock/v1"
+    assert decoded.identity == _physical_lock_identity(
+        attempt_capability_sha256=case.attempt_capability_sha256,
+        query_ordinal=0,
+    )
+    (case.physical_roots[0] / "campaign.lock").write_bytes(noncanonical)
 
     _assert_gates_before_physical_binding_pass(case)
     _assert_reason(case, C.FormalReasonCode.FC03)

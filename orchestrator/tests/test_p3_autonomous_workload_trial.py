@@ -10597,6 +10597,71 @@ def _align_origin_result_records(
     return tuple(aligned)
 
 
+def _materialize_origin_physical_evidence(
+    frozen,
+    runtime: A.OriginTrialRuntime,
+) -> tuple[bytes, ...]:
+    evidence_root = runtime.campaign_output_root
+    aligned: list[bytes] = []
+    for run, record_path in zip(
+        runtime.campaign_runs, frozen.result_evidence_paths, strict=True
+    ):
+        record = json.loads(record_path.read_bytes())
+        assert record["ledger_member"]["query_ordinal"] == run.query_ordinal
+        root = Path(A.exploration_campaign_layout(
+            run.campaign_run_identity, str(evidence_root)
+        ).root)
+        (root / "runs").mkdir(parents=True, exist_ok=True)
+        (root / "reports").mkdir(exist_ok=True)
+        (root / "campaign.lock").write_bytes(
+            run.identity_preimage.encode("utf-8")
+        )
+
+        old_projection_path = (
+            frozen.evidence_root
+            / record["evidence"]["ordered_wal_ref"]["path"]
+        )
+        projection = json.loads(old_projection_path.read_bytes())
+        old_source_path = (
+            frozen.evidence_root / projection["source_wal_ref"]["path"]
+        )
+        source_raw = old_source_path.read_bytes()
+        source_path = root / "runs" / "wal.jsonl"
+        source_path.write_bytes(source_raw)
+        projection["source_wal_ref"] = {
+            "path": source_path.relative_to(evidence_root).as_posix(),
+            "sha256": hashlib.sha256(source_raw).hexdigest(),
+        }
+        projection_path = root / "reports" / "ordered-wal-projection.json"
+        projection_raw = _canonical_origin_test_bytes(projection)
+        projection_path.write_bytes(projection_raw)
+
+        old_provenance_path = (
+            frozen.evidence_root
+            / record["evidence"]["execution_provenance_ref"]["path"]
+        )
+        provenance = json.loads(old_provenance_path.read_bytes())
+        provenance["schema_version"] = "execution-provenance/v2"
+        provenance["campaign_id"] = runtime.capability.campaign_id
+        provenance["campaign_run_identity"] = run.campaign_run_identity
+        provenance_path = root / "reports" / "execution-provenance.json"
+        provenance_raw = _canonical_origin_test_bytes(provenance)
+        provenance_path.write_bytes(provenance_raw)
+
+        record["evidence"]["ordered_wal_ref"] = {
+            "path": projection_path.relative_to(evidence_root).as_posix(),
+            "sha256": hashlib.sha256(projection_raw).hexdigest(),
+        }
+        record["evidence"]["execution_provenance_ref"] = {
+            "path": provenance_path.relative_to(evidence_root).as_posix(),
+            "sha256": hashlib.sha256(provenance_raw).hexdigest(),
+        }
+        raw = _canonical_origin_test_bytes(record)
+        record_path.write_bytes(raw)
+        aligned.append(raw)
+    return tuple(aligned)
+
+
 def _seal_origin_fixture_ledger(
     client,
     capability,
@@ -10888,6 +10953,7 @@ def _origin_public_inputs(tmp_path, monkeypatch, registered):
         effective_preregistration=registered.capability,
         build_context=_no_build_context(),
         arm_execution=fresh_arm_execution,
+        campaign_output_root=frozen.evidence_root,
     )
     assert preliminary_runtime.producer_inputs.enforcement_arm == (
         fresh_arm_execution.resolved_input.arm
@@ -10903,26 +10969,33 @@ def _origin_public_inputs(tmp_path, monkeypatch, registered):
         provisional_producer,
         result_record_bytes=result_record_bytes,
     )
-    original_write = A.reflux_origin_topology.write_recovery_envelope_create_only
+    original_complete = A._complete_origin_runtime
     sealed = False
 
-    def write_then_seal_fixture_ledger(**kwargs):
+    def materialize_then_complete(runtime):
         nonlocal sealed
-        path = original_write(**kwargs)
         if not sealed:
+            materialized = _materialize_origin_physical_evidence(
+                frozen, runtime
+            )
+            runtime.producer_inputs = dataclasses.replace(
+                runtime.producer_inputs,
+                result_record_bytes=materialized,
+                evidence_root=runtime.campaign_output_root,
+            )
             _seal_origin_fixture_ledger(
                 client,
-                issued_capabilities[-1],
-                kwargs["envelope"],
-                result_record_bytes,
+                runtime.capability,
+                runtime.run_plan,
+                materialized,
             )
             sealed = True
-        return path
+        return original_complete(runtime)
 
     monkeypatch.setattr(
-        A.reflux_origin_topology,
-        "write_recovery_envelope_create_only",
-        write_then_seal_fixture_ledger,
+        A,
+        "_complete_origin_runtime",
+        materialize_then_complete,
     )
     return request, producer
 
@@ -10954,7 +11027,12 @@ def test_origin_public_path_preserves_capability_identity_and_projects_terminal(
     original_assert = A.trial_registry.assert_rederived_launch_admission
     original_finish = A._finish_trial
     original_run_workload = A._run_workload
+    original_write = A.reflux_origin_topology.write_recovery_envelope_create_only
+    original_evaluate = A.reflux_formal_consumer.evaluate_formal_origin
     snapshot_reads: list[object] = []
+    envelope_roots: list[Path] = []
+    formal_roots: list[str] = []
+    formal_attempt_digests: list[str] = []
     original_read = reflux_origin_client.OriginLedgerClient.read_origin
 
     def observe_issue(**kwargs):
@@ -10986,6 +11064,15 @@ def test_origin_public_path_preserves_capability_identity_and_projects_terminal(
         snapshot_reads.append(capability)
         return original_read(self, capability)
 
+    def observe_envelope_write(**kwargs):
+        envelope_roots.append(Path(kwargs["evidence_root"]))
+        return original_write(**kwargs)
+
+    def observe_formal_evaluation(**kwargs):
+        formal_roots.append(kwargs["campaign_output_root"])
+        formal_attempt_digests.append(kwargs["attempt_capability_sha256"])
+        return original_evaluate(**kwargs)
+
     monkeypatch.setattr(
         A.reflux_origin_binding, "issue_origin_binding_capability", observe_issue
     )
@@ -10994,6 +11081,16 @@ def test_origin_public_path_preserves_capability_identity_and_projects_terminal(
     )
     monkeypatch.setattr(A, "_finish_trial", observe_finish)
     monkeypatch.setattr(A, "_run_workload", observe_run_workload)
+    monkeypatch.setattr(
+        A.reflux_origin_topology,
+        "write_recovery_envelope_create_only",
+        observe_envelope_write,
+    )
+    monkeypatch.setattr(
+        A.reflux_formal_consumer,
+        "evaluate_formal_origin",
+        observe_formal_evaluation,
+    )
     monkeypatch.setattr(
         reflux_origin_client.OriginLedgerClient, "read_origin", observe_read
     )
@@ -11005,6 +11102,9 @@ def test_origin_public_path_preserves_capability_identity_and_projects_terminal(
     )
     assert type(outcome) is A.OriginCompletedTrialReport
     assert issued and all(capability is issued[0] for capability in snapshot_reads)
+    assert envelope_roots == [run_root.resolve()]
+    assert formal_roots == [str(envelope_roots[0])]
+    assert len(formal_attempt_digests) == 1
     envelope_path = run_root / "origin" / "recovery-envelope.json"
     envelope_bytes = envelope_path.read_bytes()
     envelope = json.loads(envelope_bytes)
@@ -11018,6 +11118,31 @@ def test_origin_public_path_preserves_capability_identity_and_projects_terminal(
         "fixture-run-" not in member["planned_campaign_run_identity"]
         for member in envelope["members"]
     )
+    for member in envelope["members"]:
+        campaign_run_identity = member["planned_campaign_run_identity"]
+        physical_root = Path(A.exploration_campaign_layout(
+            campaign_run_identity, formal_roots[0]
+        ).root)
+        decoded_lock = campaign_lock.decode_campaign_lock(
+            (physical_root / "campaign.lock").read_text(encoding="utf-8")
+        )
+        assert decoded_lock.identity["search_config"]["origin_campaign_run"] == {
+            "attempt_capability_sha256": formal_attempt_digests[0],
+            "query_ordinal": member["query_ordinal"],
+        }
+        projection = json.loads(
+            (physical_root / "reports" / "ordered-wal-projection.json")
+            .read_bytes()
+        )
+        assert (
+            run_root / projection["source_wal_ref"]["path"]
+        ).is_file()
+        provenance = json.loads(
+            (physical_root / "reports" / "execution-provenance.json")
+            .read_bytes()
+        )
+        assert provenance["campaign_run_identity"] == campaign_run_identity
+        assert "fixture-run-" not in provenance["campaign_run_identity"]
     report = outcome.report
     assert "origin_terminal_projection" in report
     projection = report["origin_terminal_projection"]
@@ -11262,6 +11387,22 @@ def test_origin_post_lifecycle_observation_failure_returns_reported_partial(
         trial_id=t325_registered_trial.trial_id,
         run_root=run_root,
     )
+    lifecycle_rows = [
+        json.loads(line)
+        for line in (
+            t325_registered_trial.repo
+            / A.trial_registry.DEFAULT_LIFECYCLE_PATH
+        ).read_bytes().splitlines()
+    ]
+    trial_rows = [
+        row
+        for row in lifecycle_rows
+        if row["trial_id"] == t325_registered_trial.trial_id
+    ]
+    assert [row["event"] for row in trial_rows] == ["start", "terminal"]
+    assert trial_rows[-1]["terminal_status"] == "indeterminate"
+    assert trial_rows[-1]["failure_reason"] == "origin-producer-failure"
+    assert "origin_terminal_projection" not in trial_rows[-1]
 
 
 def test_originless_lifecycle_start_omits_run_plan_digest(

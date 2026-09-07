@@ -17,10 +17,13 @@ seams directly.  Python code in the same process can otherwise bypass this
 consumer; closing that route would require a ledger acceptance change outside
 this unit's scope.
 
-The physical-layout checks below also retain D1674's trusted-writer
-assumption.  They cannot reject coherently forged locks and WAL evidence that
-are placed under the computed canonical roots after execution.  This unit
-does not narrow that limit.
+The physical-layout checks below establish artifact consistency only beneath
+the canonical leaves of the base selected by the caller through
+``campaign_output_root``.  They neither identify a unique deployment root,
+prove physical execution, nor authenticate a trusted harness.  D1674 assumes
+operationally that only the trusted harness can write the evidence root;
+coherent locks and WAL evidence placed under those leaves after execution
+cannot be rejected here.
 """
 from __future__ import annotations
 
@@ -403,18 +406,8 @@ def _campaign_config_from_lock(
 
     identity = decoded.identity
     search_tag = identity["search_tag"]
-    cfg_hash8 = hashlib.sha256(
-        decoded.identity_preimage.encode("utf-8")
-    ).hexdigest()[:8]
-    suffix = f"-{search_tag}-{cfg_hash8}"
-    slug = (
-        expected_campaign_run_identity[: -len(suffix)]
-        if expected_campaign_run_identity.endswith(suffix)
-        else ""
-    )
-    _require(FormalReasonCode.FC03, bool(slug))
     config = CampaignConfig(
-        spec_slug=slug,
+        spec_slug="",
         search_tag=search_tag,
         spec_content=identity["spec_content"],
         ccbench_commit=identity["ccbench_commit"],
@@ -423,13 +416,30 @@ def _campaign_config_from_lock(
     )
     try:
         reconstructed_preimage = ident.canonical_preimage(config)
+    except (TypeError, ValueError) as exc:
+        raise _ContractFailure(FormalReasonCode.FC03) from exc
+    # The v2 decoder already enforces this equality.  The v1 decoder preserves
+    # its original text, so the comparison is meaningful only for v1.
+    if decoded.schema_version == "campaign-lock/v1":
+        _require(
+            FormalReasonCode.FC03,
+            reconstructed_preimage == decoded.identity_preimage,
+        )
+    cfg_hash8 = hashlib.sha256(
+        reconstructed_preimage.encode("utf-8")
+    ).hexdigest()[:8]
+    suffix = f"-{search_tag}-{cfg_hash8}"
+    slug = (
+        expected_campaign_run_identity[: -len(suffix)]
+        if expected_campaign_run_identity.endswith(suffix)
+        else ""
+    )
+    _require(FormalReasonCode.FC03, bool(slug))
+    config = replace(config, spec_slug=slug)
+    try:
         reconstructed_identity = str(ident.campaign_id(config))
     except (TypeError, ValueError) as exc:
         raise _ContractFailure(FormalReasonCode.FC03) from exc
-    _require(
-        FormalReasonCode.FC03,
-        reconstructed_preimage == decoded.identity_preimage,
-    )
     _require(
         FormalReasonCode.FC03,
         reconstructed_identity == expected_campaign_run_identity,
@@ -863,7 +873,12 @@ def _validate_physical_campaign_bindings(
     paired: Sequence[_MemberRecord],
     resolved: Sequence[ResolvedResultEvidence],
 ) -> None:
-    """Bind every record to the lock and WAL below its computed run root."""
+    """Bind records below canonical leaves of the caller-selected base.
+
+    ``campaign_output_root`` is not authenticated as a deployment-wide root.
+    The checks here establish path and identity consistency under the base the
+    caller supplied, subject to the trusted-writer assumption stated above.
+    """
 
     try:
         expected_attempt = _sha256(
@@ -942,7 +957,7 @@ def _validate_physical_campaign_bindings(
         _require(
             FormalReasonCode.FC03,
             all(
-                path != computed_root and path.is_relative_to(computed_root)
+                path.is_relative_to(computed_root)
                 for path in (projection_path, source_wal_path)
             ),
         )
@@ -1235,7 +1250,12 @@ def evaluate_formal_origin(
     generator_closure: Mapping[str, object],
     operation_id: str,
 ) -> FormalConsumerResult:
-    """Evaluate conditions 1--7, 9--10 and §4.2, then stop at P6."""
+    """Evaluate conditions 1--7, 9--10 and §4.2, then stop at P6.
+
+    The physical-layout result is relative to the caller-selected
+    ``campaign_output_root`` base.  It does not certify a unique deployment
+    root, physical execution, or the identity of the evidence writer.
+    """
 
     if type(capability) is not OriginBindingCapability:
         raise TypeError("capability must be an exact OriginBindingCapability")

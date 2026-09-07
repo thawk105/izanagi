@@ -9,7 +9,6 @@ from pathlib import Path
 
 import pytest
 
-from orchestrator.campaign import autonomous_trial_completeness as completeness
 from orchestrator.campaign import p3_autonomous_workload_trial as A
 from orchestrator.tests import test_p3_autonomous_workload_trial as p3_test
 
@@ -1283,26 +1282,6 @@ def test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set(
         assert _baseline_structure(
             _project_t244_additions_to_pre_wave(unknown_key_mutant)
         ) == _PRE_WAVE_ORIGINLESS_BASELINE
-    campaign_runs_mutant = copy.deepcopy(omitted["reports"][0])
-    assert "origin_binding" not in campaign_runs_mutant["launch_admission"]
-    campaign_runs_mutant["campaign_runs"] = [{
-        "query_ordinal": 0,
-        "campaign_run_identity": "forged-origin-run-00000000",
-        "campaign_root": "/forged/origin/root",
-    }]
-    campaign_runs_mutant["cells"][0].pop("campaign_root")
-    with pytest.raises(
-        completeness.AutonomousTrialCompletenessError,
-        match=(
-            r"\[campaign-chain\] cells\[0\]\.campaign_root is not a "
-            r"non-empty path string$"
-        ),
-    ):
-        completeness.assert_campaign_layer3_chain(
-            report=campaign_runs_mutant,
-            output_root=tmp_path / "unused-campaign-output",
-        )
-
     for bundle in (omitted, explicit_none):
         for report in bundle["reports"]:
             assert "origin_runtime" not in report

@@ -481,6 +481,7 @@ class OriginTrialRuntime:
     producer_inputs: OriginProducerInputs
     launch_admission_record_sha256: str
     prepared_campaign: PreparedCampaignIdentity
+    campaign_output_root: Path
     initial_snapshot: reflux_origin_ledger.OriginSnapshot | None
     campaign_runs: tuple[OriginCampaignRun, ...] = ()
     run_plan: reflux_origin_topology.RecoveryEnvelope | None = None
@@ -1654,6 +1655,7 @@ def _prepare_origin_trial_runtime(
     ),
     build_context: BuildRunContext,
     arm_execution: trial_registry.TrialArmExecutionBinding,
+    campaign_output_root: Path,
     defer_initial_snapshot: bool = False,
 ) -> OriginTrialRuntime:
     """Issue the origin capability; optionally defer its first ledger read."""
@@ -1789,6 +1791,7 @@ def _prepare_origin_trial_runtime(
             _canonical_json_bytes(launch_record)
         ).hexdigest(),
         prepared_campaign=prepared_campaign,
+        campaign_output_root=Path(campaign_output_root),
         initial_snapshot=initial_snapshot,
     )
 
@@ -1863,6 +1866,13 @@ def _complete_origin_runtime(runtime: OriginTrialRuntime) -> None:
         capability=capability,
         source_closure=runtime.binding_request.validated_source_closure,
         run_plan=run_plan,
+        campaign_output_root=str(runtime.campaign_output_root),
+        origin_run_plan_sha256=runtime.run_plan_sha256,
+        attempt_capability_sha256=(
+            runtime.campaign_runs[0].campaign.search_config[
+                "origin_campaign_run"
+            ]["attempt_capability_sha256"]
+        ),
         authority_blob_bytes=runtime.binding_request.authority_blob_bytes,
         launch_admission_record_sha256=(
             runtime.launch_admission_record_sha256
@@ -4534,6 +4544,7 @@ def mark_experiment_indeterminate(
     origin_terminal_projection: (
         reflux_formal_consumer.OriginTerminalProjection | None
     ) = None,
+    failure_reason: str | None = None,
 ) -> None:
     """Record an experiment-wide indeterminate state and forbid a rerun.
 
@@ -4570,6 +4581,8 @@ def mark_experiment_indeterminate(
             terminal_arguments["origin_terminal_projection"] = (
                 origin_terminal_projection
             )
+        if failure_reason is not None:
+            terminal_arguments["failure_reason"] = failure_reason
         trial_registry.record_trial_terminal(token, **terminal_arguments)
     except BaseException as terminal_error:
         failures.append(("terminal-record", terminal_error))
@@ -4821,6 +4834,7 @@ def run_trial(
             effective_preregistration=effective_preregistration,
             build_context=preflight_build_context,
             arm_execution=arm_execution,
+            campaign_output_root=run_root,
             defer_initial_snapshot=True,
         )
     _assert_reservation_preflight(
@@ -4898,7 +4912,7 @@ def run_trial(
             (run_root / "origin").mkdir()
             envelope_path = (
                 reflux_origin_topology.write_recovery_envelope_create_only(
-                    evidence_root=run_root,
+                    evidence_root=origin_runtime.campaign_output_root,
                     envelope=origin_runtime.run_plan,
                     relative_path=Path("origin/recovery-envelope.json"),
                 )
@@ -4975,9 +4989,15 @@ def run_trial(
                     )
                     attempt_terminalized = True
                 if lifecycle_token is not None:
+                    terminal_arguments = {
+                        "terminal_status": "indeterminate",
+                    }
+                    if origin_runtime is not None:
+                        terminal_arguments["failure_reason"] = (
+                            "budget-insufficient"
+                        )
                     trial_registry.record_trial_terminal(
-                        lifecycle_token,
-                        terminal_status="indeterminate",
+                        lifecycle_token, **terminal_arguments
                     )
                     lifecycle_terminalized = True
                 return report
@@ -5087,6 +5107,12 @@ def run_trial(
                     None
                     if origin_runtime is None
                     else origin_runtime.terminal_projection
+                ),
+                failure_reason=(
+                    "origin-producer-failure"
+                    if origin_runtime is not None
+                    and origin_runtime.terminal_projection is None
+                    else None
                 ),
             )
         raise
@@ -5218,6 +5244,12 @@ def run_trial(
                     None
                     if origin_runtime is None
                     else origin_runtime.terminal_projection
+                ),
+                failure_reason=(
+                    "origin-producer-failure"
+                    if origin_runtime is not None
+                    and origin_runtime.terminal_projection is None
+                    else None
                 ),
             )
         else:
