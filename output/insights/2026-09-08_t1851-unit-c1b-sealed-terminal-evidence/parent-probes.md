@@ -15,6 +15,20 @@ probe 本体は repo 外 (背景 job の scratch) に置き、repo へは入れ�
 `load_attempt_registry()` へ v2 台帳を通した。変異は測定後に `git checkout --` で復元し、
 `git status --porcelain` が 0 行であることを確認した。
 
+> **erratum (段 4 で追記、規律 7)。** 下の「4 点だけ」という記載は不完全だった。
+> probe は同時に `dataclasses.replace(v2, terminal_row_validator=None)` を使い、
+> **v2 の無条件拒否 hook `_reject_unsealed_s8b_v2_terminal` を無効化して測っている。**
+> レンズ A の A-04 がこの欠落を突いた。
+>
+> **測定自体は有効である。** この hook は C1b が封印証拠 validator へ置き換える対象であり、
+> probe が測ったのは「hook を置き換えたあと、その手前にある core の等値検査・null matrix・
+> exact key 検査を 5 形が通るか」である。前 wave が「1 行も書けない」と測ったのは
+> まさにこの手前の 2 検査なので、probe はその問いに答えている。
+>
+> **ただし一般化は取り消す。** 「5 形が consumer を端から端まで通った」とは言えない。
+> probe は leaf・adapter・durable evidence 経路を測っていない。射程の正本は
+> `contract-v3.1.md` の 5.2.1 である。
+
 一時変異の中身は 4 点だけである。
 
 - `DomainProfile` へ `retryable_reason_field: str = "failure_reason"` (keyword-only) を追加
@@ -146,6 +160,17 @@ trigger valid workload
 ---
 
 ## P-7 pin 閉包 (DW-O09) と gate 入力の実在 (DW-O13)
+
+> **erratum (段 4 で追記、規律 7)。** 下の列挙は identifier / path / whole-file hash の
+> 3 種類しか引いておらず、**閉包として不完全だった。** レンズ B の B-07 が
+> `test_official_perf_closure.py` の semantic inventory を見つけた。
+> `:44` の `_REVIEWED_PERF_FILES` は exact frozenset で、`:531` の `_production_perf_files()` が
+> production を AST 走査し、`:903` が集合等値を assert する。**新しい leaf に perf 述語の分岐を
+> 置くと `unreviewed:` で落ちる。** 名前でも path でも hash でも掛からない型の pin である。
+>
+> また下の「変更予定 7 file」は、段 2 plan が確定させた 8 file (test 4 本を含む) を覆っていない。
+> レンズ B が 8 file すべてで whole-file hash を独立再検索し、0 件を確認した。
+> 対応は `contract-v3.1.md` の 9 節と `plan-v2.md` の 8 節にある。
 
 - 新しい識別子 (`terminal_evidence_sha256` / `measurement_retry_reason` /
   `retryable_reason_field` / `s8b_terminal_evidence` / `SealedTerminalEvidence` /

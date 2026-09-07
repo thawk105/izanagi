@@ -1,4 +1,10 @@
-# [T-1851] terminal 証拠の契約 v3 (確定版)
+# [T-1851] terminal 証拠の契約 v3 (段 1 版。**同 dir の `contract-v3.1.md` が supersede した**)
+
+> **この文書は正本ではない。** 段 3 の敵対レンズ 2 本が 6 件の訂正点を出したため、段 4 で
+> `contract-v3.1.md` を正本とした (規律 7 の追記訂正。本文は遡って改変しない)。
+> 変更の一覧は `contract-v3.1.md` の 0.1 節、裁定は `s4-adjudication.md` にある。
+> 特に 1.5 (identity の権威)、4 (E1 の入力値域)、5.2 (probe P-1 の射程)、5.3 (`not-consumed` の正例)、
+> 6.1 (draft の形)、7 (`finished_at`)、9 (semantic な pin) は本文書の記述が不足している。
 
 契約 v2 (`output/insights/2026-09-07_t1851-unit-c-launcher-raw-facts/s4-adjudication.md` 3 節) を
 規律 7 に従って**追記で訂正**した版である。v2 の判定を遡って無効化しない。訂正の根拠は
