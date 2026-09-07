@@ -1,0 +1,288 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1281-qsub-waiter/output/pegasus-dispatch/55c3b4027e2072e05cc2cc3bfcd056fb/izdw-55c3b4027e.o982495",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1281-qsub-waiter/output/pegasus-dispatch/55c3b4027e2072e05cc2cc3bfcd056fb/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1281-qsub-waiter\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [37 items]\n\n.....................................                                    [100%]\n============================== 37 passed in 3.82s ==============================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "4d2564c1d8887d82e0bba122059a0f776de9b69c127a2a0061420dd395e3f39e"
+    },
+    "artifact_error": null,
+    "collection_sha256": "1bbd337d3c7f08337b7161fa348e2e09cf2f4a8386a8f612d24097c9ec1027fb",
+    "duration_s": 27.151,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "1ec8cebb819a4791768321a29e3b2c6d875f651a6a14e45a9fef8de244e2ba5c",
+    "repo_head": "f9f1b0ae3ac63f788bd215f74c8dbfe86a925c06",
+    "runner_sha256": "21a9aa67e7fcba6a9c23a7c364e4e8b5a248c89ac78eca8bfdee39ce6b666374",
+    "spec_sha256": "8dce94c4a8d6db93ff427d23d7fc634b3399f0889ba04f758e9b832c29b56383",
+    "status": "PASSED",
+    "test_output_sha256": "4d2564c1d8887d82e0bba122059a0f776de9b69c127a2a0061420dd395e3f39e",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "299290170c0480c526475378357b748498d7a8ee5737a9ec1d88b05f6d6740f3"
+  },
+  "date": "2026-09-07T18:55:24.276582+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1281-qsub-waiter/output/pegasus-dispatch/f2f0ef43fcdf34aceca39c74efa8a2ec/izdw-f2f0ef43fc.o982496",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1281-qsub-waiter/output/pegasus-dispatch/f2f0ef43fcdf34aceca39c74efa8a2ec/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1281-qsub-waiter\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [37 items]\n\n...................................FF                                    [100%]\n=================================== FAILURES ===================================\n____________ test_compute_receipt_mtime_failure_uses_compute_stage _____________\n[gw28] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw28/test_compute_receipt_mtime_fai0')\ncapsys = <_pytest.capture.CaptureFixture object at 0x14e56f9c3010>\n\n    def test_compute_receipt_mtime_failure_uses_compute_stage(\n        tmp_path: Path,\n        capsys: pytest.CaptureFixture[str],\n    ) -> None:\n        done_file = tmp_path / \"done\"\n        done_file.write_text(\"complete\\n\", encoding=\"utf-8\")\n        receipt_file = tmp_path / \"receipt.json\"\n        clock = _Clock()\n    \n        def read_then_remove(path: Path) -> str:\n            text = path.read_text(encoding=\"utf-8\")\n            path.unlink()\n            return text\n    \n        rc = DW.main(\n            [\n                \"compute\",\n                \"--request-id\",\n                _REQUEST_ID,\n                \"--done-file\",\n                str(done_file),\n                \"--accounting-file\",\n                str(tmp_path / \"accounting\"),\n                \"--receipt-file\",\n                str(receipt_file),\n            ],\n            effects=_effects(clock, read_text=read_then_remove),\n        )\n    \n>       assert rc == DW.RC_FAIL_CLOSED\nE       assert 0 == 70\nE        +  where 70 = DW.RC_FAIL_CLOSED\n\norchestrator/tests/test_dev_wave_wait_compute.py:533: AssertionError\n______________ test_compute_receipt_records_actual_evidence[done] ______________\n[gw25] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw25/test_compute_receipt_records_a0')\nsource = 'done'\n\n    @pytest.mark.parametrize(\"source\", (\"done\", \"accounting\"))\n    def test_compute_receipt_records_actual_evidence(\n        tmp_path: Path,\n        source: str,\n    ) -> None:\n        done_file = tmp_path / \"done\"\n        accounting_file = tmp_path / \"accounting\"\n        receipt_file = tmp_path / \"compute-receipt.json\"\n        if source == \"done\":\n            done_file.write_text(\"complete\\n\", encoding=\"utf-8\")\n        else:\n            accounting_file.write_text(_ACCOUNTING_TEXT, encoding=\"utf-8\")\n        clock = _Clock()\n    \n        rc = DW.main(\n            [\n                \"compute\",\n                \"--request-id\",\n                _REQUEST_ID,\n                \"--done-file\",\n                str(done_file),\n                \"--accounting-file\",\n                str(accounting_file),\n                \"--max-wait-seconds\",\n                \"15\",\n                \"--receipt-file\",\n                str(receipt_file),\n            ],\n            effects=_effects(clock),\n        )\n    \n        assert rc == DW.RC_OK\n        payload = json.loads(receipt_file.read_text(encoding=\"utf-8\"))\n        done_mtime_ns = payload.pop(\"done_mtime_ns\")\n        accounting_mtime_ns = payload.pop(\"accounting_mtime_ns\")\n        assert payload == {\n            \"schema_version\": \"dev-wave-compute-receipt/v1\",\n            \"status\": \"success\",\n            \"request_id\": _REQUEST_ID,\n            \"done_file\": str(done_file),\n            \"accounting_file\": str(accounting_file),\n            \"done_evidence\": source == \"done\",\n            \"accounting_evidence\": source == \"accounting\",\n        }\n>       assert done_mtime_ns == (\n            done_file.stat().st_mtime_ns if source == \"done\" else None\n        )\nE       assert None == 1788807370572040654\n\norchestrator/tests/test_dev_wave_wait_compute.py:464: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dev_wave_wait_compute.py::test_compute_receipt_mtime_failure_uses_compute_stage\nFAILED orchestrator/tests/test_dev_wave_wait_compute.py::test_compute_receipt_records_actual_evidence[done]\n========================= 2 failed, 35 passed in 3.77s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_dev_wave_wait_compute.py::test_compute_receipt_records_actual_evidence[done]\" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=1972 retained_bytes=1972 omitted_bytes=0 rendered_excerpt_bytes=2086 sha256=a999e734ea604a273bfd1a4054c2c4ff2b44725aea1ee4f44d376cd618cbda9a\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw25] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw25/test_compute_receipt_records_a0')\n> source = 'done'\n> \n>     @pytest.mark.parametrize(\"source\", (\"done\", \"accounting\"))\n>     def test_compute_receipt_records_actual_evidence(\n>         tmp_path: Path,\n>         source: str,\n>     ) -> None:\n>         done_file = tmp_path / \"done\"\n>         accounting_file = tmp_path / \"accounting\"\n>         receipt_file = tmp_path / \"compute-receipt.json\"\n>         if source == \"done\":\n>             done_file.write_text(\"complete\\x5cn\", encoding=\"utf-8\")\n>         else:\n>             accounting_file.write_text(_ACCOUNTING_TEXT, encoding=\"utf-8\")\n>         clock = _Clock()\n>     \n>         rc = DW.main(\n>             [\n>                 \"compute\",\n>                 \"--request-id\",\n>                 _REQUEST_ID,\n>                 \"--done-file\",\n>                 str(done_file),\n>                 \"--accounting-file\",\n>                 str(accounting_file),\n>                 \"--max-wait-seconds\",\n>                 \"15\",\n>                 \"--receipt-file\",\n>                 str(receipt_file),\n>             ],\n>             effects=_effects(clock),\n>         )\n>     \n>         assert rc == DW.RC_OK\n>         payload = json.loads(receipt_file.read_text(encoding=\"utf-8\"))\n>         done_mtime_ns = payload.pop(\"done_mtime_ns\")\n>         accounting_mtime_ns = payload.pop(\"accounting_mtime_ns\")\n>         assert payload == {\n>             \"schema_version\": \"dev-wave-compute-receipt/v1\",\n>             \"status\": \"success\",\n>             \"request_id\": _REQUEST_ID,\n>             \"done_file\": str(done_file),\n>             \"accounting_file\": str(accounting_file),\n>             \"done_evidence\": source == \"done\",\n>             \"accounting_evidence\": source == \"accounting\",\n>         }\n> >       assert done_mtime_ns == (\n>             done_file.stat().st_mtime_ns if source == \"done\" else None\n>         )\n> E       assert None == 1788807370572040654\n> \n> orchestrator/tests/test_dev_wave_wait_compute.py:464: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_dev_wave_wait_compute.py::test_compute_receipt_mtime_failure_uses_compute_stage\" nodeid_bytes=103 nodeid_omitted_bytes=0 source_bytes=1299 retained_bytes=1299 omitted_bytes=0 rendered_excerpt_bytes=1381 sha256=0eaa0cf90924bb469c3bbc943b18b094caf2bc30c7e47d85b3461d93ed06b99a\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw28] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw28/test_compute_receipt_mtime_fai0')\n> capsys = <_pytest.capture.CaptureFixture object at 0x14e56f9c3010>\n> \n>     def test_compute_receipt_mtime_failure_uses_compute_stage(\n>         tmp_path: Path,\n>         capsys: pytest.CaptureFixture[str],\n>     ) -> None:\n>         done_file = tmp_path / \"done\"\n>         done_file.write_text(\"complete\\x5cn\", encoding=\"utf-8\")\n>         receipt_file = tmp_path / \"receipt.json\"\n>         clock = _Clock()\n>     \n>         def read_then_remove(path: Path) -> str:\n>             text = path.read_text(encoding=\"utf-8\")\n>             path.unlink()\n>             return text\n>     \n>         rc = DW.main(\n>             [\n>                 \"compute\",\n>                 \"--request-id\",\n>                 _REQUEST_ID,\n>                 \"--done-file\",\n>                 str(done_file),\n>                 \"--accounting-file\",\n>                 str(tmp_path / \"accounting\"),\n>                 \"--receipt-file\",\n>                 str(receipt_file),\n>             ],\n>             effects=_effects(clock, read_text=read_then_remove),\n>         )\n>     \n> >       assert rc == DW.RC_FAIL_CLOSED\n> E       assert 0 == 70\n> E        +  where 70 = DW.RC_FAIL_CLOSED\n> \n> orchestrator/tests/test_dev_wave_wait_compute.py:533: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=3271 retained_bytes=3271 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4639 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "74540afbfac6b29444612228ef28c5cb3f010294f0f303a48e6fc46c99c49129"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "1bbd337d3c7f08337b7161fa348e2e09cf2f4a8386a8f612d24097c9ec1027fb",
+      "duration_s": 27.103,
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_compute_receipt_mtime_failure_uses_compute_stage",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_compute_receipt_records_actual_evidence[done]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_compute_receipt_mtime_failure_uses_compute_stage",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_compute_receipt_records_actual_evidence[done]"
+      ],
+      "hang_risk": false,
+      "id": "M12-receipt-done-mtime-dropped",
+      "injection_diff_sha256": "c13920dd56b8f49b8aa2a7d5a7fc37993254f5b9cab19a4b93162bfdd74d8b4b",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "3426cb31893d031087887debaad76a92a728dddd6af59d3e963eabfad3a7d560",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "new": "            \"done_mtime_ns\": (\n                None",
+          "old": "            \"done_mtime_ns\": (\n                _producer_file_mtime_ns(done_file, effects)"
+        }
+      ],
+      "repo_head": "f9f1b0ae3ac63f788bd215f74c8dbfe86a925c06",
+      "runner_sha256": "21a9aa67e7fcba6a9c23a7c364e4e8b5a248c89ac78eca8bfdee39ce6b666374",
+      "spec_sha256": "8dce94c4a8d6db93ff427d23d7fc634b3399f0889ba04f758e9b832c29b56383",
+      "status": "KILLED",
+      "test_output_sha256": "74540afbfac6b29444612228ef28c5cb3f010294f0f303a48e6fc46c99c49129",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "299290170c0480c526475378357b748498d7a8ee5737a9ec1d88b05f6d6740f3"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1281-qsub-waiter/output/pegasus-dispatch/3d99794d6d9da0f739156f9115d6688b/izdw-3d99794d6d.o982497",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1281-qsub-waiter/output/pegasus-dispatch/3d99794d6d9da0f739156f9115d6688b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1281-qsub-waiter\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [37 items]\n\n....................................F                                    [100%]\n=================================== FAILURES ===================================\n_ test_accounting_ended_result_binds_ended_to_target_record[ended-before-target] _\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\ntext = 'Ended Request Time: old\\nRequest ID: 12345.pegasus\\n', ended = False\nreason = 'ended-before-target-request-id'\n\n    @pytest.mark.parametrize(\n        (\"text\", \"ended\", \"reason\"),\n        (\n            (\n                \"Request ID: 12345.pegasus\\n\"\n                \"Started Request Time: now\\n\"\n                \"Request ID: 99999.pegasus\\r\\n\"\n                \"Ended Request Time: old-job-time\\r\\n\",\n                False,\n                \"request-id-count\",\n            ),\n            (\n                \"Request ID: 12345.pegasus\\r\\n\"\n                \"Ended Request Time: t\\r\\n\",\n                True,\n                \"ok\",\n            ),\n            (\n                \"Ended Request Time: old\\n\"\n                \"Request ID: 12345.pegasus\\n\",\n                False,\n                \"ended-before-target-request-id\",\n            ),\n        ),\n        ids=(\"other-job-ended\", \"all-crlf\", \"ended-before-target\"),\n    )\n    def test_accounting_ended_result_binds_ended_to_target_record(\n        text: str,\n        ended: bool,\n        reason: str,\n    ) -> None:\n        result = accounting_ended_result(text, _REQUEST_ID)\n    \n>       assert result.ended is ended\nE       AssertionError: assert True is False\nE        +  where True = AccountingEndedResult(ended=True, reason='ok').ended\n\norchestrator/tests/test_dev_wave_wait_compute.py:152: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_binds_ended_to_target_record[ended-before-target]\n========================= 1 failed, 36 passed in 3.79s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_binds_ended_to_target_record[ended-before-target]\" nodeid_bytes=128 nodeid_omitted_bytes=0 source_bytes=1409 retained_bytes=1409 omitted_bytes=0 rendered_excerpt_bytes=1538 sha256=f9b9f51ba060aa68c36fefcebf2eb4281b4ecce770e5f6f119ccf8d21eb16b7d\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n> text = 'Ended Request Time: old\\x5cnRequest ID: 12345.pegasus\\x5cn', ended = False\n> reason = 'ended-before-target-request-id'\n> \n>     @pytest.mark.parametrize(\n>         (\"text\", \"ended\", \"reason\"),\n>         (\n>             (\n>                 \"Request ID: 12345.pegasus\\x5cn\"\n>                 \"Started Request Time: now\\x5cn\"\n>                 \"Request ID: 99999.pegasus\\x5cr\\x5cn\"\n>                 \"Ended Request Time: old-job-time\\x5cr\\x5cn\",\n>                 False,\n>                 \"request-id-count\",\n>             ),\n>             (\n>                 \"Request ID: 12345.pegasus\\x5cr\\x5cn\"\n>                 \"Ended Request Time: t\\x5cr\\x5cn\",\n>                 True,\n>                 \"ok\",\n>             ),\n>             (\n>                 \"Ended Request Time: old\\x5cn\"\n>                 \"Request ID: 12345.pegasus\\x5cn\",\n>                 False,\n>                 \"ended-before-target-request-id\",\n>             ),\n>         ),\n>         ids=(\"other-job-ended\", \"all-crlf\", \"ended-before-target\"),\n>     )\n>     def test_accounting_ended_result_binds_ended_to_target_record(\n>         text: str,\n>         ended: bool,\n>         reason: str,\n>     ) -> None:\n>         result = accounting_ended_result(text, _REQUEST_ID)\n>     \n> >       assert result.ended is ended\n> E       AssertionError: assert True is False\n> E        +  where True = AccountingEndedResult(ended=True, reason='ok').ended\n> \n> orchestrator/tests/test_dev_wave_wait_compute.py:152: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1409 retained_bytes=1409 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2294 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "3245c53b63f47dfef46545d6e8c9fbb151d9f339e2a2ef9c0321e6f95a6a613d"
+      },
+      "artifact_error": null,
+      "category": "both-layers",
+      "collection_sha256": "1bbd337d3c7f08337b7161fa348e2e09cf2f4a8386a8f612d24097c9ec1027fb",
+      "duration_s": 27.62,
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_binds_ended_to_target_record[ended-before-target]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_binds_ended_to_target_record[ended-before-target]"
+      ],
+      "hang_risk": false,
+      "id": "M13-ended-scope-and-precheck-dropped",
+      "injection_diff_sha256": "771bf05dd97a7ed02d368dcee0be1df67802bee2840e0c5d1fa7a51f071cb818",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "0e311376b250b79e226dcb1e9681da2a13a1394f98fb71a8bb9e2b0472476eda",
+      "replacements": [
+        {
+          "file": "orchestrator/scheduler_nqsv.py",
+          "new": "    if False:",
+          "old": "    if NQSV_ACCOUNTING_ENDED_RE.search(\n        text[:request_match.start()],\n    ) is not None:"
+        },
+        {
+          "file": "orchestrator/scheduler_nqsv.py",
+          "new": "    if NQSV_ACCOUNTING_ENDED_RE.search(text) is None:",
+          "old": "    if NQSV_ACCOUNTING_ENDED_RE.search(text[request_match.end():]) is None:"
+        }
+      ],
+      "repo_head": "f9f1b0ae3ac63f788bd215f74c8dbfe86a925c06",
+      "runner_sha256": "21a9aa67e7fcba6a9c23a7c364e4e8b5a248c89ac78eca8bfdee39ce6b666374",
+      "spec_sha256": "8dce94c4a8d6db93ff427d23d7fc634b3399f0889ba04f758e9b832c29b56383",
+      "status": "KILLED",
+      "test_output_sha256": "3245c53b63f47dfef46545d6e8c9fbb151d9f339e2a2ef9c0321e6f95a6a613d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "299290170c0480c526475378357b748498d7a8ee5737a9ec1d88b05f6d6740f3"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1281-qsub-waiter/output/pegasus-dispatch/2d95e1ed9f516cea576f5fe507826975/izdw-2d95e1ed9f.o982494",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1281-qsub-waiter/output/pegasus-dispatch/2d95e1ed9f516cea576f5fe507826975/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_accepts_target_bound_ended_record\norchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_binds_ended_to_target_record[other-job-ended]\norchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_binds_ended_to_target_record[all-crlf]\norchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_binds_ended_to_target_record[ended-before-target]\norchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_rejects_unbound_or_unended_records[no-id]\norchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_rejects_unbound_or_unended_records[duplicate-id]\norchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_rejects_unbound_or_unended_records[mismatch]\norchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_rejects_unbound_or_unended_records[no-ended-field]\norchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_normalizes_zero_prefix[observed-prefix]\norchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_normalizes_zero_prefix[target-prefix]\norchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_rejects_invalid_target_request_id\norchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_rejects_invalid_observed_request_id\norchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_accepts_done_evidence_alone\norchestrator/tests/test_dev_wave_wait_compute.py::test_done_evidence_controls_broken_accounting_import[done-short-circuits]\norchestrator/tests/test_dev_wave_wait_compute.py::test_done_evidence_controls_broken_accounting_import[accounting-failure-propagates]\norchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_accepts_accounting_evidence_alone\norchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_accepts_both_evidence_sources\norchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_rejects_empty_done_file[empty]\norchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_rejects_empty_done_file[whitespace]\norchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_rejects_done_directory\norchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_rejects_mismatched_accounting\norchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_timeout_is_fail_closed\norchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_clock_failure_is_fail_closed\norchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_treats_done_read_oserror_as_no_evidence\norchestrator/tests/test_dev_wave_wait_compute.py::test_done_success_does_not_call_effects_run_or_run_unbounded\norchestrator/tests/test_dev_wave_wait_compute.py::test_compute_receipt_records_actual_evidence[done]\norchestrator/tests/test_dev_wave_wait_compute.py::test_compute_receipt_records_actual_evidence[accounting]\norchestrator/tests/test_dev_wave_wait_compute.py::test_compute_receipt_publish_failure_is_fail_closed\norchestrator/tests/test_dev_wave_wait_compute.py::test_compute_receipt_mtime_failure_uses_compute_stage\norchestrator/tests/test_dev_wave_wait_compute.py::test_compute_cli_requires_each_mandatory_argument[request-id]\norchestrator/tests/test_dev_wave_wait_compute.py::test_compute_cli_requires_each_mandatory_argument[done-file]\norchestrator/tests/test_dev_wave_wait_compute.py::test_compute_cli_requires_each_mandatory_argument[accounting-file]\norchestrator/tests/test_dev_wave_wait_compute.py::test_compute_cli_rejects_child_command\norchestrator/tests/test_dev_wave_wait_compute.py::test_compute_cli_rejects_unnormalizable_request_id\norchestrator/tests/test_dev_wave_wait_compute.py::test_compute_cli_accepts_normal_request_id\norchestrator/tests/test_dev_wave_wait_compute.py::test_compute_cli_uses_six_hour_default\norchestrator/tests/test_dev_wave_wait_compute.py::test_compute_main_does_not_enter_acceptance_lease_path\n\n37 tests collected in 0.34s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "bbe9d5484198973ffad03b91232720e361350c6bab520c41502dd085a42f3ec9"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_accepts_target_bound_ended_record",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_binds_ended_to_target_record[other-job-ended]",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_binds_ended_to_target_record[all-crlf]",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_binds_ended_to_target_record[ended-before-target]",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_rejects_unbound_or_unended_records[no-id]",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_rejects_unbound_or_unended_records[duplicate-id]",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_rejects_unbound_or_unended_records[mismatch]",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_rejects_unbound_or_unended_records[no-ended-field]",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_normalizes_zero_prefix[observed-prefix]",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_normalizes_zero_prefix[target-prefix]",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_rejects_invalid_target_request_id",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_rejects_invalid_observed_request_id",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_accepts_done_evidence_alone",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_done_evidence_controls_broken_accounting_import[done-short-circuits]",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_done_evidence_controls_broken_accounting_import[accounting-failure-propagates]",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_accepts_accounting_evidence_alone",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_accepts_both_evidence_sources",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_rejects_empty_done_file[empty]",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_rejects_empty_done_file[whitespace]",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_rejects_done_directory",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_rejects_mismatched_accounting",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_timeout_is_fail_closed",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_clock_failure_is_fail_closed",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_treats_done_read_oserror_as_no_evidence",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_done_success_does_not_call_effects_run_or_run_unbounded",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_compute_receipt_records_actual_evidence[done]",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_compute_receipt_records_actual_evidence[accounting]",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_compute_receipt_publish_failure_is_fail_closed",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_compute_receipt_mtime_failure_uses_compute_stage",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_compute_cli_requires_each_mandatory_argument[request-id]",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_compute_cli_requires_each_mandatory_argument[done-file]",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_compute_cli_requires_each_mandatory_argument[accounting-file]",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_compute_cli_rejects_child_command",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_compute_cli_rejects_unnormalizable_request_id",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_compute_cli_accepts_normal_request_id",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_compute_cli_uses_six_hour_default",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_compute_main_does_not_enter_acceptance_lease_path"
+      ],
+      "duration_s": 21.901,
+      "rc": 0,
+      "repo_head": "f9f1b0ae3ac63f788bd215f74c8dbfe86a925c06",
+      "runner_sha256": "21a9aa67e7fcba6a9c23a7c364e4e8b5a248c89ac78eca8bfdee39ce6b666374",
+      "spec_sha256": "8dce94c4a8d6db93ff427d23d7fc634b3399f0889ba04f758e9b832c29b56383",
+      "status": "PASSED",
+      "tool_sha256": "299290170c0480c526475378357b748498d7a8ee5737a9ec1d88b05f6d6740f3"
+    },
+    "hang_timeout_seconds": 300.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M12-receipt-done-mtime-dropped": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_dev_wave_wait_compute.py::test_compute_receipt_mtime_failure_uses_compute_stage",
+          "orchestrator/tests/test_dev_wave_wait_compute.py::test_compute_receipt_records_actual_evidence[done]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "c13920dd56b8f49b8aa2a7d5a7fc37993254f5b9cab19a4b93162bfdd74d8b4b",
+        "replacements": [
+          {
+            "file": "tools/dev_wave_wait.py",
+            "new": "            \"done_mtime_ns\": (\n                None",
+            "old": "            \"done_mtime_ns\": (\n                _producer_file_mtime_ns(done_file, effects)"
+          }
+        ]
+      },
+      "M13-ended-scope-and-precheck-dropped": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_binds_ended_to_target_record[ended-before-target]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "771bf05dd97a7ed02d368dcee0be1df67802bee2840e0c5d1fa7a51f071cb818",
+        "replacements": [
+          {
+            "file": "orchestrator/scheduler_nqsv.py",
+            "new": "    if False:",
+            "old": "    if NQSV_ACCOUNTING_ENDED_RE.search(\n        text[:request_match.start()],\n    ) is not None:"
+          },
+          {
+            "file": "orchestrator/scheduler_nqsv.py",
+            "new": "    if NQSV_ACCOUNTING_ENDED_RE.search(text) is None:",
+            "old": "    if NQSV_ACCOUNTING_ENDED_RE.search(text[request_match.end():]) is None:"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "1ec8cebb819a4791768321a29e3b2c6d875f651a6a14e45a9fef8de244e2ba5c",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_dev_wave_wait_compute.py",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 600.0
+  },
+  "repo_head": "f9f1b0ae3ac63f788bd215f74c8dbfe86a925c06",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_dev_wave_wait_compute.py",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1281-qsub-waiter/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1281-qsub-waiter/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "f6d9b125612a708b0ad0c162f4e6a7b38071eb0e",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "21a9aa67e7fcba6a9c23a7c364e4e8b5a248c89ac78eca8bfdee39ce6b666374",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "8dce94c4a8d6db93ff427d23d7fc634b3399f0889ba04f758e9b832c29b56383",
+  "summary": {
+    "KILLED": 2,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 2,
+    "matching": 2,
+    "recorded": 2,
+    "registered": 2
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1281-qsub-waiter/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "299290170c0480c526475378357b748498d7a8ee5737a9ec1d88b05f6d6740f3",
+  "updated_at": "2026-09-07T18:57:00.410509+00:00"
+}
