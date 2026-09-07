@@ -240,3 +240,12 @@ def test_provenance_dispatch_rejects_invalid_overrides_before_launch(
 
     assert provenance._invoke_dispatch(None, []) == provenance.PEGASUS_DISPATCH_RC
     assert launched is False
+
+
+def _run() -> int:
+    """Keep this test file in the repository plain-runner contract."""
+    return pytest.main([__file__, "-q"])
+
+
+if __name__ == "__main__":
+    raise SystemExit(_run())
