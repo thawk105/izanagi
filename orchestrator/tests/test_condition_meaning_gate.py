@@ -299,6 +299,17 @@ def test_backoff_fixed_nonnegative_endpoints_match_pointwise():
     assert all(row.expected_bits == row.observed_bits for row in evidence.observations)
 
 
+def test_backoff_fixed_raw_3000_is_observed_as_static_1000():
+    captured = G.capture_backoff_fixed_inputs(_SUPPLIED)
+    evidence = G.assert_backoff_fixed_meaning(
+        captured, [_case(3000, 1000)], cxx=_any_cxx(),
+    )
+    assert [(row.start, row.expected_bits, row.observed_bits) for row in evidence.observations] == [
+        (1, _bits(1000), _bits(1000)),
+        (2, _bits(1000), _bits(1000)),
+    ]
+
+
 def test_f707_missing_mapping_rejected_before_compiler(monkeypatch: pytest.MonkeyPatch):
     assert _fixture_hole(_F707) == _fixture_hole(_SUPPLIED)
     captured = G.capture_backoff_fixed_inputs(_F707)

@@ -85,8 +85,8 @@ from .pipeline import (  # noqa: E402
 
 
 PIN = pin.CURRENT_PIN
-SPACE_VERSION = "b10-backoff-shape/v2"
-TRIAL = "b10-backoff-shape-v2"
+SPACE_VERSION = "b10-backoff-shape/v3"
+TRIAL = "b10-backoff-shape-v3"
 ENV_TAG = "pegasus"
 PATCH_REL = "patches/silo-backoff-fixed.patch"
 ANALYSIS_REL = "orchestrator/campaign/b10_backoff_shape_sweep.py"
@@ -318,7 +318,7 @@ WORKLOADS = {
 
 # This is the exact physical source line after applying PATCH_REL, including
 # indentation.  Its SHA-256 is part of the preregistration binding.
-EXPECTED_HOLE_LINE = "    double now_backoff = (static_cast<uint64_t>(BACKOFF_FIXED) / 1000ULL == 0ULL) ? static_cast<double>(BACKOFF_FIXED) : ((static_cast<uint64_t>(BACKOFF_FIXED) / 1000ULL == 1ULL) ? static_cast<double>((static_cast<uint64_t>(BACKOFF_FIXED) % 1000ULL) + (((start * 0x9e3779b97f4a7c15ULL) >> 63) ? (2ULL * (static_cast<uint64_t>(BACKOFF_FIXED) % 1000ULL) - ((((start * 0x9e3779b97f4a7c15ULL) << 1) >> 1) % (2ULL * (static_cast<uint64_t>(BACKOFF_FIXED) % 1000ULL) + 1ULL))) : ((((start * 0x9e3779b97f4a7c15ULL) << 1) >> 1) % (2ULL * (static_cast<uint64_t>(BACKOFF_FIXED) % 1000ULL) + 1ULL)))) / 2.0 : ((static_cast<uint64_t>(BACKOFF_FIXED) / 1000ULL == 2ULL) ? static_cast<double>((static_cast<uint64_t>(BACKOFF_FIXED) % 1000ULL) + (((start * 0x9e3779b97f4a7c15ULL) >> 63) * (2ULL * (static_cast<uint64_t>(BACKOFF_FIXED) % 1000ULL)))) / 2.0 : static_cast<double>(static_cast<uint64_t>(BACKOFF_FIXED) % 1000ULL)));"
+EXPECTED_HOLE_LINE = "    double now_backoff = (static_cast<uint64_t>(BACKOFF_FIXED) / 1000ULL == 0ULL) ? static_cast<double>(BACKOFF_FIXED) : ((static_cast<uint64_t>(BACKOFF_FIXED) / 1000ULL == 1ULL) ? static_cast<double>((static_cast<uint64_t>(BACKOFF_FIXED) % 1000ULL) + (((start * 0x9e3779b97f4a7c15ULL) >> 63) ? (2ULL * (static_cast<uint64_t>(BACKOFF_FIXED) % 1000ULL) - ((((start * 0x9e3779b97f4a7c15ULL) << 1) >> 1) % (2ULL * (static_cast<uint64_t>(BACKOFF_FIXED) % 1000ULL) + 1ULL))) : ((((start * 0x9e3779b97f4a7c15ULL) << 1) >> 1) % (2ULL * (static_cast<uint64_t>(BACKOFF_FIXED) % 1000ULL) + 1ULL)))) / 2.0 : ((static_cast<uint64_t>(BACKOFF_FIXED) / 1000ULL == 2ULL) ? static_cast<double>((static_cast<uint64_t>(BACKOFF_FIXED) % 1000ULL) + (((start * 0x9e3779b97f4a7c15ULL) >> 63) * (2ULL * (static_cast<uint64_t>(BACKOFF_FIXED) % 1000ULL)))) / 2.0 : static_cast<double>(static_cast<uint64_t>(BACKOFF_FIXED) - 2000ULL)));"
 FORMULA_SHA256 = hashlib.sha256(EXPECTED_HOLE_LINE.encode("utf-8")).hexdigest()
 EXPECTED_WAIT_LOOP = """    for (;;) {
       _mm_pause();
@@ -349,7 +349,7 @@ B10_BUILD_START_BINDING_KEY = "b10_preregistration_binding"
 _WAL_BINDING_LOCK = threading.Lock()
 _SPEC_BEGIN = "<!-- IZANAGI-B10-SPEC-BEGIN -->"
 _SPEC_END = "<!-- IZANAGI-B10-SPEC-END -->"
-_SPEC_SCHEMA = "izanagi-b10-backoff-shape-preregistration/v4"
+_SPEC_SCHEMA = "izanagi-b10-backoff-shape-preregistration/v5"
 _SPEC_BLOCK_RE = re.compile(
     re.escape(_SPEC_BEGIN)
     + r"[ \t]*\r?\n```json[ \t]*\r?\n(.*?)\r?\n```[ \t]*\r?\n"
@@ -781,15 +781,15 @@ def exact_model(encoded: int, start: int):
     """Exact Fraction model for the one-line expression."""
     from fractions import Fraction
 
-    if type(encoded) is not int or encoded < 0:
-        raise ValueError("encoded must be a non-negative exact integer")
+    if type(encoded) is not int or encoded < 0 or encoded > 11999:
+        raise ValueError("encoded must be an exact integer in [0, 11999]")
     if type(start) is not int or start < 0 or start > _MASK64:
         raise ValueError("start must be a uint64")
     code, mean_us = divmod(encoded, 1000)
     if code == 0:
         return Fraction(encoded)
     if code >= 3:
-        return Fraction(mean_us)
+        return Fraction(encoded - 2000)
     mixed = (start * MIXER) & _MASK64
     high = mixed >> 63
     if code == 2:
@@ -1095,7 +1095,7 @@ def parse_preregistration(raw: bytes) -> PreregistrationSpec:
         ),
     }
     if registration_rules != expected_registration_rules:
-        raise PreflightError("prereg-spec", "registration_rules が v4 閉集合と不一致")
+        raise PreflightError("prereg-spec", "registration_rules が v5 閉集合と不一致")
 
     grid = _exact_object(
         document["grid"], {"means_us", "shapes", "encoding", "references"}, "grid",
@@ -1367,7 +1367,7 @@ def parse_preregistration(raw: bytes) -> PreregistrationSpec:
         raise PreflightError("prereg-spec", "転記元 probe は exact 18 cell が必要")
     if residual_provenance != expected_residual_provenance:
         raise PreflightError(
-            "prereg-spec", "physical residual provenance が v4 正本値と不一致",
+            "prereg-spec", "physical residual provenance が v5 正本値と不一致",
         )
     residual_rows = residual["values"]
     expected_residual_cells = tuple(
@@ -2860,13 +2860,13 @@ def _write_trial_report_create_only(
     return report_path
 
 
-def _legacy_write_heavy_binding(prereg: Preregistration) -> dict[str, str]:
+def _legacy_write_heavy_binding(_prereg: Preregistration) -> dict[str, str]:
     return {
-        "prereg_commit": prereg.binding.prereg_commit,
-        "prereg_blob_sha": prereg.binding.prereg_blob_sha,
-        "spec_sha256": prereg.binding.spec_sha256,
-        "patch_sha256": prereg.binding.patch_sha256,
-        "formula_sha256": prereg.binding.formula_sha256,
+        "prereg_commit": "77b33e37d2d63b1f83d10652792c3c93eba9fe8f",
+        "prereg_blob_sha": "ea910de32df83c1bb320cbe62344dc5fb3b94684",
+        "spec_sha256": "9c59411476018d510c8fc5d57f203920ccd3b216e6c5f341ce6b97e45041a7c2",
+        "patch_sha256": "36cd974c56c6f103d894a53048ac734d9859def266c05898d3794d2c48470832",
+        "formula_sha256": "5b3d8deefed35d05597891592d7af442c96b2fa094cdebc8376b2e9bc9cd7662",
         "analysis_commit": LEGACY_WRITE_HEAVY_ANALYSIS_COMMIT,
         "analysis_code_sha256": LEGACY_WRITE_HEAVY_ANALYSIS_SHA256,
         "binding_sha256": LEGACY_WRITE_HEAVY_BINDING_SHA256,
@@ -2943,7 +2943,7 @@ def _validate_legacy_write_heavy_records(
                 or row.get("workload") != "write-heavy" \
                 or "execution_host" in row \
                 or row.get("preregistration_binding") != expected_binding \
-                or row.get("spec_sha256") != prereg.spec.spec_sha256 \
+                or row.get("spec_sha256") != expected_binding["spec_sha256"] \
                 or row.get("analysis_commit") != LEGACY_WRITE_HEAVY_ANALYSIS_COMMIT \
                 or row.get("analysis_code_sha256") != LEGACY_WRITE_HEAVY_ANALYSIS_SHA256 \
                 or type(request_id) is not str or not request_id \
@@ -2998,13 +2998,13 @@ def _validate_legacy_write_heavy_records(
     return indexed
 
 
-def _legacy_balanced_binding(prereg: Preregistration) -> dict[str, str]:
+def _legacy_balanced_binding(_prereg: Preregistration) -> dict[str, str]:
     return {
-        "prereg_commit": prereg.binding.prereg_commit,
-        "prereg_blob_sha": prereg.binding.prereg_blob_sha,
-        "spec_sha256": prereg.binding.spec_sha256,
-        "patch_sha256": prereg.binding.patch_sha256,
-        "formula_sha256": prereg.binding.formula_sha256,
+        "prereg_commit": "77b33e37d2d63b1f83d10652792c3c93eba9fe8f",
+        "prereg_blob_sha": "ea910de32df83c1bb320cbe62344dc5fb3b94684",
+        "spec_sha256": "9c59411476018d510c8fc5d57f203920ccd3b216e6c5f341ce6b97e45041a7c2",
+        "patch_sha256": "36cd974c56c6f103d894a53048ac734d9859def266c05898d3794d2c48470832",
+        "formula_sha256": "5b3d8deefed35d05597891592d7af442c96b2fa094cdebc8376b2e9bc9cd7662",
         "analysis_code_sha256": LEGACY_BALANCED_ANALYSIS_SHA256,
         "binding_sha256": LEGACY_BALANCED_BINDING_SHA256,
     }
@@ -3046,7 +3046,7 @@ def _validate_legacy_balanced_records(
                 or type(row.get("execution_host")) is not str \
                 or not row.get("execution_host") \
                 or row.get("preregistration_binding") != expected_binding \
-                or row.get("spec_sha256") != prereg.spec.spec_sha256 \
+                or row.get("spec_sha256") != expected_binding["spec_sha256"] \
                 or row.get("analysis_commit") != LEGACY_BALANCED_ANALYSIS_COMMIT \
                 or row.get("analysis_code_sha256") != LEGACY_BALANCED_ANALYSIS_SHA256 \
                 or type(request_id) is not str or not request_id \
@@ -3101,13 +3101,13 @@ def _validate_legacy_balanced_records(
     return indexed
 
 
-def _legacy_read_heavy_binding(prereg: Preregistration) -> dict[str, str]:
+def _legacy_read_heavy_binding(_prereg: Preregistration) -> dict[str, str]:
     return {
-        "prereg_commit": prereg.binding.prereg_commit,
-        "prereg_blob_sha": prereg.binding.prereg_blob_sha,
-        "spec_sha256": prereg.binding.spec_sha256,
-        "patch_sha256": prereg.binding.patch_sha256,
-        "formula_sha256": prereg.binding.formula_sha256,
+        "prereg_commit": "77b33e37d2d63b1f83d10652792c3c93eba9fe8f",
+        "prereg_blob_sha": "ea910de32df83c1bb320cbe62344dc5fb3b94684",
+        "spec_sha256": "9c59411476018d510c8fc5d57f203920ccd3b216e6c5f341ce6b97e45041a7c2",
+        "patch_sha256": "36cd974c56c6f103d894a53048ac734d9859def266c05898d3794d2c48470832",
+        "formula_sha256": "5b3d8deefed35d05597891592d7af442c96b2fa094cdebc8376b2e9bc9cd7662",
         "analysis_code_sha256": LEGACY_READ_HEAVY_ANALYSIS_SHA256,
         "binding_sha256": LEGACY_READ_HEAVY_BINDING_SHA256,
     }
@@ -3151,7 +3151,7 @@ def _validate_legacy_read_heavy_records(
                 or type(row.get("variant_id")) is not str \
                 or re.fullmatch(r"[0-9a-f]{12}", row["variant_id"]) is None \
                 or row.get("preregistration_binding") != expected_binding \
-                or row.get("spec_sha256") != prereg.spec.spec_sha256 \
+                or row.get("spec_sha256") != expected_binding["spec_sha256"] \
                 or row.get("analysis_commit") != LEGACY_READ_HEAVY_ANALYSIS_COMMIT \
                 or row.get("analysis_code_sha256") != LEGACY_READ_HEAVY_ANALYSIS_SHA256 \
                 or type(request_id) is not str or not request_id \

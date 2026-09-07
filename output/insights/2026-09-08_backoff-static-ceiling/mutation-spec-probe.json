@@ -1,0 +1,186 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/silo-backoff-fixed.patch",
+          "old": "static_cast<double>(static_cast<uint64_t>(BACKOFF_FIXED) - 2000ULL)",
+          "new": "static_cast<double>(static_cast<uint64_t>(BACKOFF_FIXED) % 1000ULL)"
+        },
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "static_cast<double>(static_cast<uint64_t>(BACKOFF_FIXED) - 2000ULL)",
+          "new": "static_cast<double>(static_cast<uint64_t>(BACKOFF_FIXED) % 1000ULL)"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/silo-backoff-fixed.patch",
+          "old": "static_cast<double>(static_cast<uint64_t>(BACKOFF_FIXED) - 2000ULL)",
+          "new": "static_cast<double>(static_cast<uint64_t>(BACKOFF_FIXED) - 1999ULL)"
+        },
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "static_cast<double>(static_cast<uint64_t>(BACKOFF_FIXED) - 2000ULL)",
+          "new": "static_cast<double>(static_cast<uint64_t>(BACKOFF_FIXED) - 1999ULL)"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "    if code >= 3:\n        return Fraction(encoded - 2000)\n",
+          "new": "    if code >= 3:\n        return Fraction(mean_us)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "old": "    return backoff_us if backoff_us <= 999 else backoff_us + 2000\n",
+          "new": "    return backoff_us if backoff_us <= 999 else backoff_us + 1000\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "old": "    if type(backoff_us) is not int or not 0 <= backoff_us <= STATIC_BACKOFF_MAX_US:\n",
+          "new": "    if type(backoff_us) is not int or backoff_us < 0:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "old": "STATIC_BACKOFF_MAX_US = 9999\nSTATIC_BACKOFF_RAW_MAX = 11999\n",
+          "new": "STATIC_BACKOFF_MAX_US = 10000\nSTATIC_BACKOFF_RAW_MAX = 12000\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_overthrottle.py",
+          "old": "        else f\"fixed-{decode_static_backoff_us(amount)}us\"\n",
+          "new": "        else f\"fixed-{amount}us\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_requested_us.py",
+          "old": "    expected_genomes = {\n        genome.canonical() for genome in _d1106_reference_genomes()\n    }\n",
+          "new": "    expected_genomes = {\n        genome.canonical() for genome in genomes()\n    }\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "old": "T2266_REPORT_SCHEMA = \"t2266-backoff-static-tail-report/v2\"\n",
+          "new": "T2266_REPORT_SCHEMA = \"t2266-backoff-static-tail-report/v3\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "static_cast<double>(static_cast<uint64_t>(BACKOFF_FIXED) - 2000ULL)",
+          "new": "static_cast<double>(static_cast<uint64_t>(BACKOFF_FIXED) - 2001ULL)"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "docs/b10-backoff-shape-preregistration.md",
+          "old": "    \"patch_sha256\": \"a5e0710c3f76744755b58ec66024c277daba00e49ce3cbf3d6d263cd7228580a\",\n",
+          "new": "    \"patch_sha256\": \"36cd974c56c6f103d894a53048ac734d9859def266c05898d3794d2c48470832\",\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M12",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "old": "    if encoded >= 3000:\n        return encoded - 2000\n    raise ValueError(\"encoded BACKOFF_FIXED value is not in the static wire domain\")\n",
+          "new": "    if encoded >= 3000:\n        return encoded - 2000\n    return encoded\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
