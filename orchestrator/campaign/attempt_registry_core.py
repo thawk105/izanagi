@@ -214,6 +214,9 @@ class DomainProfile(Generic[SlotT, BindingT]):
     terminal_row_validator: Callable[[Mapping[str, Any]], None] | None = field(
         default=None, kw_only=True,
     )
+    retryable_reason_field: str = field(
+        default="failure_reason", kw_only=True,
+    )
 
 
 def canonical_json_bytes(value: Any) -> bytes:
@@ -1019,6 +1022,18 @@ def _parse_row(
         echo = value.get("pre_observation_failure_reason_echo")
         if echo is not None:
             _text(echo, label=f"{label}.pre_observation_failure_reason_echo")
+    if "terminal_evidence_sha256" in expected:
+        _digest(
+            value.get("terminal_evidence_sha256"),
+            label=f"{label}.terminal_evidence_sha256",
+        )
+    if "measurement_retry_reason" in expected:
+        measurement_reason = value.get("measurement_retry_reason")
+        if measurement_reason is not None:
+            _text(
+                measurement_reason,
+                label=f"{label}.measurement_retry_reason",
+            )
     status = value.get("terminal_status")
     if status not in profile.statuses:
         _fail(
@@ -1048,7 +1063,8 @@ def _parse_row(
 
 
 def _assert_null_matrix(
-    row: Mapping[str, Any], *, retryable_reasons: frozenset[str], label: str,
+    row: Mapping[str, Any], *, retryable_reasons: frozenset[str],
+    retryable_reason_field: str = "failure_reason", label: str,
 ) -> None:
     status = row["terminal_status"]
     raw_output = row.get("raw_output_sha256")
@@ -1064,10 +1080,11 @@ def _assert_null_matrix(
             or row.get("observation_sha256") is None
             or row.get("primary_value") is None
             or row.get("failure_reason") is not None
+            or row.get(retryable_reason_field) is not None
         ):
             _fail("attempt-null-matrix", f"{label} observed null matrix differs")
     elif status == "retryable-failure":
-        reason = row.get("failure_reason")
+        reason = row.get(retryable_reason_field)
         if (
             row.get("report_sha256") is None
             or row.get("observation_sha256") is not None
@@ -1080,7 +1097,7 @@ def _assert_null_matrix(
                 f"{label} retryable-failure null matrix differs",
             )
     elif status == "terminal-failure":
-        reason = row.get("failure_reason")
+        reason = row.get(retryable_reason_field)
         if (
             row.get("observation_sha256") is not None
             or row.get("primary_value") is not None
@@ -1096,6 +1113,7 @@ def _assert_null_matrix(
         or row.get("observation_sha256") is not None
         or row.get("primary_value") is not None
         or row.get("failure_reason") is not None
+        or row.get(retryable_reason_field) is not None
     ):
         _fail("attempt-null-matrix", f"{label} not-consumed null matrix differs")
 
@@ -1431,6 +1449,7 @@ def _assert_registry_rows_with_budget_counts(
             _assert_null_matrix(
                 row,
                 retryable_reasons=frozenset(genesis["retryable_failure_reasons"]),
+                retryable_reason_field=profile.retryable_reason_field,
                 label=f"attempt registry line {line_number}",
             )
             if profile.terminal_row_validator is not None:
@@ -2004,6 +2023,8 @@ def record_attempt_terminal(
     raw_output_sha256: str, report_sha256: str | None,
     observation_sha256: str | None, primary_value: Any, finished_at: str,
     failure_reason: str | None = None,
+    measurement_retry_reason: str | None = None,
+    terminal_evidence_sha256: str | None = None,
 ) -> RegistryRows:
     """Return rows with one terminal event authorized by the profile."""
     checked = assert_registry_rows(rows, profile=profile, expected_binding=binding)
@@ -2028,6 +2049,12 @@ def record_attempt_terminal(
     _text(finished_at, label="finished_at")
     if failure_reason is not None:
         _text(failure_reason, label="failure_reason")
+    if measurement_retry_reason is not None:
+        _text(measurement_retry_reason, label="measurement_retry_reason")
+    if terminal_evidence_sha256 is not None:
+        _digest(
+            terminal_evidence_sha256, label="terminal_evidence_sha256",
+        )
     starts = [
         row for row in checked
         if row.get("event") == "start"
@@ -2068,6 +2095,23 @@ def record_attempt_terminal(
         "process_identity": dict(start["process_identity"]),
     }
     terminal_keys = profile.schema.event_keys[profile.schema.current]["terminal"]
+    optional_terminal_fields = {
+        "measurement_retry_reason": measurement_retry_reason,
+        "terminal_evidence_sha256": terminal_evidence_sha256,
+    }
+    for field_name, field_value in optional_terminal_fields.items():
+        if field_name in terminal_keys:
+            if field_name == "terminal_evidence_sha256" and field_value is None:
+                _fail(
+                    "attempt-terminal",
+                    "terminal_evidence_sha256 is required by the profile",
+                )
+            row_fields[field_name] = field_value
+        elif field_value is not None:
+            _fail(
+                "attempt-terminal",
+                f"{field_name} is not accepted by the profile",
+            )
     if "pre_observation_failure_reason_echo" in terminal_keys:
         row_fields.update({
             "pre_observation_failure_reason_echo": _classification_reason(classification),

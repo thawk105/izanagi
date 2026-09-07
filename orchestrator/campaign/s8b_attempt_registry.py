@@ -33,6 +33,7 @@ from . import attempt_registry_core as core
 from . import s8b_attempt_profile as profile8b
 from . import s8b_holdout_admission as admission
 from . import s8b_scheduler_accounting as scheduler_accounting
+from . import s8b_terminal_evidence as terminal_evidence
 
 
 class S8BAttemptRegistryError(RuntimeError):
@@ -69,6 +70,7 @@ _FLOOR_CONSUMED_MARKER_KEYS = frozenset({
 })
 _FLOOR_CONSUMED_MARKER_SCHEMA = "s8b-holdout-attempt-consumption/v1"
 _ZERO_OUTPUT_SHA256 = hashlib.sha256(b"").hexdigest()
+_TERMINAL_EVIDENCE_ISSUER_TOKEN = object()
 
 # Tests enumerate this exact set and prove that every point fires.  A raised
 # hook models process loss at the boundary; the authoritative path must still
@@ -383,6 +385,8 @@ def _assert_exact_profile(
         or not exact_string_frozenset(
             profile.retryable_reasons, expected.retryable_reasons,
         )
+        or type(profile.retryable_reason_field) is not str
+        or profile.retryable_reason_field != expected.retryable_reason_field
         or not exact_string_frozenset(
             profile.process_identity_keys, expected.process_identity_keys,
         )
@@ -971,11 +975,13 @@ def _replay_current_v2_attempt_registry(
             category="mismatch", reason="attempt-registry-replay-invalid",
         )
     try:
-        return core.load_attempt_registry(
-            payload,
+        rows, _counts, _evidence = _load_attempt_registry_with_evidence_locked(
+            root=root,
+            data=payload,
             profile=generation_profile,
             expected_binding=expected_binding,
         )
+        return rows
     except (core.AttemptRegistryCoreError, S8BAttemptRegistryError) as exc:
         raise admission.FloorHoldoutEvidenceError(
             category="mismatch", reason="attempt-registry-replay-invalid",
@@ -1074,6 +1080,416 @@ def _canonical_document(data: bytes, *, label: str) -> dict[str, Any]:
             f"{label} is not a canonical object",
         )
     return value
+
+
+def _strict_canonical_json_object(data: bytes, *, label: str) -> dict[str, Any]:
+    """Decode one LF-free canonical object while rejecting duplicate keys."""
+
+    if type(data) is not bytes or not data or data.endswith(b"\n"):
+        _fail(
+            "s8b-terminal-evidence",
+            f"{label} is not LF-free canonical JSON bytes",
+        )
+
+    def pairs_hook(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for key, value in pairs:
+            if key in result:
+                _fail(
+                    "s8b-terminal-evidence",
+                    f"{label} contains duplicate key: {key}",
+                )
+            result[key] = value
+        return result
+
+    try:
+        value = json.loads(
+            data.decode("utf-8"),
+            object_pairs_hook=pairs_hook,
+            parse_constant=lambda token: _fail(
+                "s8b-terminal-evidence",
+                f"{label} contains nonfinite token: {token}",
+            ),
+        )
+    except S8BAttemptRegistryError:
+        raise
+    except (UnicodeError, json.JSONDecodeError) as exc:
+        raise S8BAttemptRegistryError(
+            f"[s8b-terminal-evidence] {label} is not strict JSON"
+        ) from exc
+    if type(value) is not dict or core.canonical_json_bytes(value) != data:
+        _fail(
+            "s8b-terminal-evidence",
+            f"{label} is not one canonical object",
+        )
+    return value
+
+
+def _terminal_evidence_path(root: Path, digest: str) -> Path:
+    digest = _sha256(digest, label="terminal_evidence_sha256")
+    return root.joinpath(
+        *profile8b.S8B_REGISTRY_LAYOUT.classification_receipt_dir.parts,
+        "terminal-evidence",
+        f"{digest}.json",
+    )
+
+
+def _promote_draft_to_validated(
+    draft: terminal_evidence.SealedTerminalEvidenceDraft,
+    *,
+    classification_receipt_sha256: str,
+    classification_event_sha256: str,
+    observation_event_sha256: str,
+    issuer_token: object,
+) -> terminal_evidence.ValidatedTerminalEvidence:
+    """Rebuild draft bytes with the three durable phase digests."""
+
+    if type(draft) is not terminal_evidence.SealedTerminalEvidenceDraft:
+        _fail("s8b-terminal-evidence", "terminal evidence draft type differs")
+    if issuer_token is not _TERMINAL_EVIDENCE_ISSUER_TOKEN:
+        _fail("s8b-terminal-evidence", "terminal evidence issuer differs")
+    phase_digests = {
+        "classification_receipt_sha256": _sha256(
+            classification_receipt_sha256,
+            label="classification_receipt_sha256",
+        ),
+        "classification_event_sha256": _sha256(
+            classification_event_sha256,
+            label="classification_event_sha256",
+        ),
+        "observation_event_sha256": _sha256(
+            observation_event_sha256,
+            label="observation_event_sha256",
+        ),
+    }
+    source_bytes = draft.canonical_bytes
+    document = _strict_canonical_json_object(
+        source_bytes, label="terminal evidence draft",
+    )
+    binding = document.get("attempt_binding")
+    if type(binding) is not dict or len(binding) != 9:
+        _fail("s8b-terminal-evidence", "draft attempt binding differs")
+    document["attempt_binding"] = {**binding, **phase_digests}
+    promoted_bytes = core.canonical_json_bytes(document)
+    if promoted_bytes == source_bytes:
+        _fail("s8b-terminal-evidence", "draft bytes were not rebuilt")
+    validated = object.__new__(terminal_evidence.ValidatedTerminalEvidence)
+    object.__setattr__(validated, "_canonical_bytes", promoted_bytes)
+    object.__setattr__(validated, "_issuer_token", issuer_token)
+    try:
+        terminal_evidence.require_sealed_terminal_evidence(validated)
+    except terminal_evidence.TerminalEvidenceError as exc:
+        raise S8BAttemptRegistryError(
+            "[s8b-terminal-evidence] promoted evidence is invalid"
+        ) from exc
+    return validated
+
+
+def _validated_terminal_evidence_from_bytes(
+    data: bytes,
+    *,
+    expected_digest: str,
+    expected_binding: Mapping[str, object],
+) -> terminal_evidence.ValidatedTerminalEvidence:
+    """Issue a capability only after durable bytes pass every file check."""
+
+    digest = _sha256(expected_digest, label="terminal evidence filename")
+    if hashlib.sha256(data).hexdigest() != digest:
+        _fail("s8b-terminal-evidence", "terminal evidence bytes digest differs")
+    document = _strict_canonical_json_object(data, label="terminal evidence file")
+    validated = object.__new__(terminal_evidence.ValidatedTerminalEvidence)
+    object.__setattr__(validated, "_canonical_bytes", core.canonical_json_bytes(document))
+    object.__setattr__(
+        validated, "_issuer_token", _TERMINAL_EVIDENCE_ISSUER_TOKEN,
+    )
+    try:
+        terminal_evidence.require_sealed_terminal_evidence(validated)
+    except terminal_evidence.TerminalEvidenceError as exc:
+        raise S8BAttemptRegistryError(
+            "[s8b-terminal-evidence] durable evidence is invalid"
+        ) from exc
+    if validated.sha256 != digest:
+        _fail("s8b-terminal-evidence", "terminal evidence filename differs")
+    actual_binding = validated.document.get("attempt_binding")
+    if (
+        type(actual_binding) is not dict
+        or type(expected_binding) is not dict
+        or core.canonical_json_bytes(actual_binding)
+        != core.canonical_json_bytes(expected_binding)
+    ):
+        _fail("s8b-terminal-evidence", "terminal evidence binding differs")
+    return validated
+
+
+def _registry_documents_for_evidence(data: bytes) -> core.RegistryRows:
+    if type(data) is not bytes or not data or not data.endswith(b"\n"):
+        _fail("s8b-terminal-evidence", "registry bytes are not line complete")
+    lines = data.splitlines(keepends=True)
+    if b"".join(lines) != data:
+        _fail("s8b-terminal-evidence", "registry line framing differs")
+    return tuple(
+        _canonical_document(line, label=f"attempt registry line {index}")
+        for index, line in enumerate(lines, start=1)
+    )
+
+
+def _terminal_slot_from_documents(
+    rows: core.RegistryRows,
+    *,
+    row: Mapping[str, Any],
+    profile: core.DomainProfile[Any, Any],
+) -> profile8b.S8BV2AttemptSlot:
+    slots_value = rows[0].get("slots")
+    if type(slots_value) is not list:
+        _fail("s8b-terminal-evidence", "registry genesis slots differ")
+    matches: list[profile8b.S8BV2AttemptSlot] = []
+    for index, value in enumerate(slots_value):
+        slot = profile.slot_codec.parse(value, label=f"genesis slot {index}")
+        if _row_is_for_slot(row, slot, profile=profile):
+            if type(slot) is not profile8b.S8BV2AttemptSlot:
+                _fail("s8b-terminal-evidence", "terminal slot type differs")
+            matches.append(slot)
+    if len(matches) != 1:
+        _fail("s8b-terminal-evidence", "terminal slot identity is not unique")
+    return matches[0]
+
+
+def _expected_terminal_binding(
+    *,
+    root: Path,
+    rows: core.RegistryRows,
+    row: Mapping[str, Any],
+    profile: core.DomainProfile[Any, Any],
+    binding: profile8b.S8BAttemptBinding,
+) -> tuple[dict[str, object], Mapping[str, Any], profile8b.S8BV2AttemptSlot]:
+    slot = _terminal_slot_from_documents(rows, row=row, profile=profile)
+    classifications = _rows_for_event(
+        rows, slot=slot, event="classification", profile=profile,
+    )
+    observations = _rows_for_event(
+        rows, slot=slot, event="observation-start", profile=profile,
+    )
+    if len(classifications) != 1 or len(observations) != 1:
+        _fail(
+            "s8b-terminal-evidence",
+            "terminal evidence requires one classification and observation",
+        )
+    claim_result = _classification_claim(
+        root=root, binding=binding, slot=slot,
+    )
+    assert claim_result is not None
+    claim = claim_result[0]
+    expected = {
+        "admission_claim_digest": claim["admission_claim_digest"],
+        "attempt_id": claim["attempt_id"],
+        "campaign_run_id": claim["campaign_run_id"],
+        "freeze_sha256": binding.freeze_sha256,
+        "manifest_sha256": claim["manifest_sha256"],
+        "protocol_sha256": binding.protocol_sha256,
+        "run_relpath": claim["run_relpath"],
+        "schedule_row_sha256": slot.schedule_row_sha256,
+        "schedule_sha256": binding.schedule_sha256,
+        "classification_receipt_sha256": classifications[0][
+            "classification_receipt_sha256"
+        ],
+        "classification_event_sha256": classifications[0]["event_sha256"],
+        "observation_event_sha256": observations[0]["event_sha256"],
+    }
+    return expected, claim, slot
+
+
+def _assert_terminal_durable_identity(
+    *,
+    root: Path,
+    evidence: terminal_evidence.ValidatedTerminalEvidence,
+    claim: Mapping[str, Any],
+    slot: profile8b.S8BV2AttemptSlot,
+    binding: profile8b.S8BAttemptBinding,
+) -> None:
+    claim_digest = _sha256(
+        claim.get("admission_claim_digest"),
+        label="classification claim.admission_claim_digest",
+    )
+    try:
+        durable_claim = admission._read_canonical_document(
+            admission._measurement_generation_claim_path(root, claim_digest)
+        )
+        derived = admission._measurement_generation_claim_identity(durable_claim)
+    except admission.HoldoutAdmissionError as exc:
+        raise S8BAttemptRegistryError(
+            "[s8b-terminal-evidence] durable measurement claim is invalid"
+        ) from exc
+    if derived != claim_digest:
+        _fail("s8b-terminal-evidence", "durable claim path differs")
+    document = evidence.document
+    campaign_record = document["campaign_record"]
+    key = durable_claim.get("key")
+    attempt_ids = durable_claim.get("attempt_ids")
+    expected_values = {
+        "protocol_sha256": binding.protocol_sha256,
+        "manifest_sha256": claim["manifest_sha256"],
+        "campaign_run_id": claim["campaign_run_id"],
+        "run_relpath": claim["run_relpath"],
+        "cell_id": campaign_record["cell_id"],
+        "records": campaign_record["records"],
+        "threads": campaign_record["threads"],
+        "mode": document["mode"],
+    }
+    if not isinstance(key, Mapping):
+        _fail("s8b-terminal-evidence", "durable claim key differs")
+    key_expected = {
+        "freeze_sha256": binding.freeze_sha256,
+        "freeze_holdout_key": slot.freeze_holdout_key,
+        "configuration_id": slot.configuration_id,
+    }
+    for field_name, expected_value in key_expected.items():
+        if key.get(field_name) != expected_value:
+            _fail(
+                "s8b-terminal-evidence",
+                f"durable claim differs: key.{field_name}",
+            )
+    for field_name, expected_value in expected_values.items():
+        if durable_claim.get(field_name) != expected_value:
+            _fail(
+                "s8b-terminal-evidence",
+                f"durable claim differs: {field_name}",
+            )
+    attempt_id = campaign_record["attempt_id"]
+    if (
+        type(attempt_ids) is not list
+        or attempt_id != claim.get("attempt_id")
+        or attempt_id not in attempt_ids
+    ):
+        _fail("s8b-terminal-evidence", "durable claim attempt identity differs")
+    workload_sha256 = hashlib.sha256(
+        core.canonical_json_bytes(durable_claim.get("workload"))
+    ).hexdigest()
+    if document.get("workload_sha256") != workload_sha256:
+        _fail("s8b-terminal-evidence", "durable claim workload differs")
+
+
+def _terminal_validating_profile(
+    profile: core.DomainProfile[Any, Any],
+    evidence_by_digest: Mapping[
+        str, terminal_evidence.ValidatedTerminalEvidence
+    ],
+) -> core.DomainProfile[Any, Any]:
+    """Build the private v2 profile reachable only after evidence validation."""
+
+    if profile.schema is not profile8b.S8B_V2_SCHEMA_PROFILE:
+        return profile
+
+    def validate(row: Mapping[str, Any]) -> None:
+        digest = row.get("terminal_evidence_sha256")
+        evidence = evidence_by_digest.get(digest) if isinstance(digest, str) else None
+        if evidence is None:
+            _fail("s8b-terminal-evidence", "terminal evidence capability is absent")
+        if evidence._issuer_token is not _TERMINAL_EVIDENCE_ISSUER_TOKEN:
+            _fail("s8b-terminal-evidence", "terminal evidence issuer differs")
+        profile8b._require_sealed_s8b_v2_terminal(row, evidence)
+
+    return replace(profile, terminal_row_validator=validate)
+
+
+def _load_terminal_evidence_locked(
+    root: Path,
+    registry_bytes: bytes,
+    *,
+    profile: core.DomainProfile[Any, Any],
+    expected_binding: profile8b.S8BAttemptBinding,
+    evidence_overrides: Mapping[
+        str, terminal_evidence.ValidatedTerminalEvidence
+    ] | None = None,
+) -> dict[str, terminal_evidence.ValidatedTerminalEvidence]:
+    """Load every terminal file named by one v2 registry snapshot."""
+
+    if profile.schema is not profile8b.S8B_V2_SCHEMA_PROFILE:
+        return {}
+    rows = _registry_documents_for_evidence(registry_bytes)
+    overrides = {} if evidence_overrides is None else dict(evidence_overrides)
+    result: dict[str, terminal_evidence.ValidatedTerminalEvidence] = {}
+    for row in rows:
+        if row.get("event") != "terminal":
+            continue
+        digest = _sha256(
+            row.get("terminal_evidence_sha256"),
+            label="terminal row.terminal_evidence_sha256",
+        )
+        expected, claim, slot = _expected_terminal_binding(
+            root=root,
+            rows=rows,
+            row=row,
+            profile=profile,
+            binding=expected_binding,
+        )
+        supplied = overrides.pop(digest, None)
+        if supplied is None:
+            path = _terminal_evidence_path(root, digest)
+            if path.name != f"{digest}.json":
+                _fail("s8b-terminal-evidence", "terminal evidence filename differs")
+            data = _read_regular_bytes(path)
+            assert data is not None
+            supplied = _validated_terminal_evidence_from_bytes(
+                data,
+                expected_digest=digest,
+                expected_binding=expected,
+            )
+        else:
+            if (
+                type(supplied) is not terminal_evidence.ValidatedTerminalEvidence
+                or supplied._issuer_token is not _TERMINAL_EVIDENCE_ISSUER_TOKEN
+            ):
+                _fail("s8b-terminal-evidence", "terminal evidence override differs")
+            supplied = _validated_terminal_evidence_from_bytes(
+                supplied.canonical_bytes,
+                expected_digest=digest,
+                expected_binding=expected,
+            )
+        _assert_terminal_durable_identity(
+            root=root,
+            evidence=supplied,
+            claim=claim,
+            slot=slot,
+            binding=expected_binding,
+        )
+        result[digest] = supplied
+    if overrides:
+        _fail("s8b-terminal-evidence", "unused terminal evidence override")
+    return result
+
+
+def _load_attempt_registry_with_evidence_locked(
+    *,
+    root: Path,
+    data: bytes,
+    profile: core.DomainProfile[Any, Any],
+    expected_binding: profile8b.S8BAttemptBinding,
+    initial_started_budget_counts: Mapping[Hashable, int] | None = None,
+    evidence_overrides: Mapping[
+        str, terminal_evidence.ValidatedTerminalEvidence
+    ] | None = None,
+) -> tuple[
+    core.RegistryRows,
+    core.BudgetCounts,
+    Mapping[str, terminal_evidence.ValidatedTerminalEvidence],
+]:
+    evidence_by_digest = _load_terminal_evidence_locked(
+        root,
+        data,
+        profile=profile,
+        expected_binding=expected_binding,
+        evidence_overrides=evidence_overrides,
+    )
+    validating_profile = _terminal_validating_profile(
+        profile, evidence_by_digest,
+    )
+    rows, counts = core.load_attempt_registry_with_budget_counts(
+        data,
+        profile=validating_profile,
+        expected_binding=expected_binding,
+        initial_started_budget_counts=initial_started_budget_counts,
+    )
+    return rows, counts, evidence_by_digest
 
 
 def _fsync_directory(path: Path) -> None:
@@ -1644,11 +2060,14 @@ def _load_other_generation_budget_counts_locked(
                 path=generation_path, genesis=genesis,
             )
         )
-        _rows, counts = core.load_attempt_registry_with_budget_counts(
-            data,
-            profile=generation_profile,
-            expected_binding=generation_binding,
-            initial_started_budget_counts=counts,
+        _rows, counts, _evidence = (
+            _load_attempt_registry_with_evidence_locked(
+                root=root,
+                data=data,
+                profile=generation_profile,
+                expected_binding=generation_binding,
+                initial_started_budget_counts=counts,
+            )
         )
     return counts
 
@@ -1671,9 +2090,17 @@ def _atomic_update_locked(
     profile: core.DomainProfile[Any, Any],
     binding: profile8b.S8BAttemptBinding,
     transition: Callable[
-        [core.RegistryRows], tuple[core.RegistryRows, TransitionResultT]
+        [
+            core.RegistryRows,
+            Mapping[str, terminal_evidence.ValidatedTerminalEvidence],
+        ],
+        tuple[core.RegistryRows, TransitionResultT],
     ],
     prepare: Callable[[TransitionResultT, bytes], None] | None = None,
+    candidate_evidence: Callable[
+        [TransitionResultT],
+        Mapping[str, terminal_evidence.ValidatedTerminalEvidence],
+    ] | None = None,
 ) -> tuple[core.RegistryRows, TransitionResultT]:
     admission._assert_active_admission_root_lock(lock, root=root)
     other_counts = _load_other_generation_budget_counts_locked(
@@ -1684,22 +2111,30 @@ def _atomic_update_locked(
     old_bytes = _read_regular_bytes(path)
     assert old_bytes is not None
     _fault("after-authoritative-read")
-    rows, _old_counts = core.load_attempt_registry_with_budget_counts(
-        old_bytes,
-        profile=profile,
-        expected_binding=binding,
-        initial_started_budget_counts=other_counts,
-    )
-    _fault("after-replay")
-    candidate, result = transition(rows)
-    _fault("after-transition")
-    candidate_bytes = _registry_bytes(candidate)
-    validated, _candidate_counts = (
-        core.load_attempt_registry_with_budget_counts(
-            candidate_bytes,
+    rows, _old_counts, old_evidence = (
+        _load_attempt_registry_with_evidence_locked(
+            root=root,
+            data=old_bytes,
             profile=profile,
             expected_binding=binding,
             initial_started_budget_counts=other_counts,
+        )
+    )
+    _fault("after-replay")
+    candidate, result = transition(rows, old_evidence)
+    _fault("after-transition")
+    candidate_bytes = _registry_bytes(candidate)
+    overrides = (
+        None if candidate_evidence is None else candidate_evidence(result)
+    )
+    validated, _candidate_counts, _candidate_terminal_evidence = (
+        _load_attempt_registry_with_evidence_locked(
+            root=root,
+            data=candidate_bytes,
+            profile=profile,
+            expected_binding=binding,
+            initial_started_budget_counts=other_counts,
+            evidence_overrides=overrides,
         )
     )
     _fault("after-candidate-validation")
@@ -1743,9 +2178,17 @@ def _atomic_update(
     profile: core.DomainProfile[Any, Any],
     binding: profile8b.S8BAttemptBinding,
     transition: Callable[
-        [core.RegistryRows], tuple[core.RegistryRows, TransitionResultT]
+        [
+            core.RegistryRows,
+            Mapping[str, terminal_evidence.ValidatedTerminalEvidence],
+        ],
+        tuple[core.RegistryRows, TransitionResultT],
     ],
     prepare: Callable[[TransitionResultT, bytes], None] | None = None,
+    candidate_evidence: Callable[
+        [TransitionResultT],
+        Mapping[str, terminal_evidence.ValidatedTerminalEvidence],
+    ] | None = None,
 ) -> tuple[core.RegistryRows, TransitionResultT]:
     _run_prelock_snapshot_hook(path)
     with admission._locked(root) as lock:
@@ -1757,6 +2200,7 @@ def _atomic_update(
             binding=binding,
             transition=transition,
             prepare=prepare,
+            candidate_evidence=candidate_evidence,
         )
 
 
@@ -1775,9 +2219,17 @@ def _atomic_update_with_consumption_marker(
     run_relpath: str,
     cell_id: str,
     transition: Callable[
-        [core.RegistryRows], tuple[core.RegistryRows, TransitionResultT]
+        [
+            core.RegistryRows,
+            Mapping[str, terminal_evidence.ValidatedTerminalEvidence],
+        ],
+        tuple[core.RegistryRows, TransitionResultT],
     ],
     prepare: Callable[[TransitionResultT, bytes], None] | None = None,
+    candidate_evidence: Callable[
+        [TransitionResultT],
+        Mapping[str, terminal_evidence.ValidatedTerminalEvidence],
+    ] | None = None,
 ) -> tuple[core.RegistryRows, TransitionResultT]:
     """Update a v2 generation inside one marker-owned lock interval."""
 
@@ -1806,6 +2258,7 @@ def _atomic_update_with_consumption_marker(
                 binding=binding,
                 transition=transition,
                 prepare=prepare,
+                candidate_evidence=candidate_evidence,
             ),
         )
 
@@ -1880,9 +2333,13 @@ def read_attempt_registry(
     with admission._locked(root):
         payload = _read_regular_bytes(path)
         assert payload is not None
-        return core.load_attempt_registry(
-            payload, profile=profile, expected_binding=binding,
+        rows, _counts, _evidence = _load_attempt_registry_with_evidence_locked(
+            root=root,
+            data=payload,
+            profile=profile,
+            expected_binding=binding,
         )
+        return rows
 
 
 def reserve_attempt_slot(
@@ -1937,11 +2394,17 @@ def reserve_attempt_slot(
                 "s8b-attempt-registry-consume",
                 "v2 reservation requires a consumption marker",
             )
-        snapshot = _read_regular_bytes(path)
-        assert snapshot is not None
-        snapshot_rows = core.load_attempt_registry(
-            snapshot, profile=profile, expected_binding=binding,
-        )
+        with admission._locked(root):
+            snapshot = _read_regular_bytes(path)
+            assert snapshot is not None
+            snapshot_rows, _counts, _evidence = (
+                _load_attempt_registry_with_evidence_locked(
+                    root=root,
+                    data=snapshot,
+                    profile=profile,
+                    expected_binding=binding,
+                )
+            )
         candidate_slot = _slot_from_rows(
             snapshot_rows, profile=profile, slot_id=slot_id,
         )
@@ -1969,6 +2432,9 @@ def reserve_attempt_slot(
 
     def transition(
         rows: core.RegistryRows,
+        _evidence_by_digest: Mapping[
+            str, terminal_evidence.ValidatedTerminalEvidence
+        ],
     ) -> tuple[core.RegistryRows, tuple[profile8b.S8BAttemptSlot, str]]:
         slot = _slot_from_rows(rows, profile=profile, slot_id=slot_id)
         _consumption_identity(
@@ -2175,6 +2641,9 @@ def classify_attempt(
 
     def transition(
         rows: core.RegistryRows,
+        _evidence_by_digest: Mapping[
+            str, terminal_evidence.ValidatedTerminalEvidence
+        ],
     ) -> tuple[core.RegistryRows, _ClassificationResult]:
         slot = _slot_from_rows(rows, profile=state.profile, slot_id=state.slot_id)
         capability = core.capability_digest(
@@ -2397,6 +2866,9 @@ def _begin_attempt_observation(state: _AttemptState) -> CapturedObservation:
 
     def transition(
         rows: core.RegistryRows,
+        _evidence_by_digest: Mapping[
+            str, terminal_evidence.ValidatedTerminalEvidence
+        ],
     ) -> tuple[core.RegistryRows, str]:
         slot, classification, _receipt, _claim = _assert_classification_artifacts(
             root=root,
@@ -2434,11 +2906,17 @@ def _begin_attempt_observation(state: _AttemptState) -> CapturedObservation:
     if state.profile.schema is profile8b.S8B_V2_SCHEMA_PROFILE:
         marker = state.consumption_marker
         generation_claim = state.measurement_generation_claim_digest
-        snapshot = _read_regular_bytes(path)
-        assert snapshot is not None
-        snapshot_rows = core.load_attempt_registry(
-            snapshot, profile=state.profile, expected_binding=state.binding,
-        )
+        with admission._locked(root):
+            snapshot = _read_regular_bytes(path)
+            assert snapshot is not None
+            snapshot_rows, _counts, _evidence = (
+                _load_attempt_registry_with_evidence_locked(
+                    root=root,
+                    data=snapshot,
+                    profile=state.profile,
+                    expected_binding=state.binding,
+                )
+            )
         slot = _slot_from_rows(
             snapshot_rows, profile=state.profile, slot_id=state.slot_id,
         )
@@ -2565,7 +3043,12 @@ def record_attempt_terminal(
         requested_registry_path=state.registry_path,
     )
 
-    def transition(rows: core.RegistryRows) -> tuple[core.RegistryRows, None]:
+    def transition(
+        rows: core.RegistryRows,
+        _evidence_by_digest: Mapping[
+            str, terminal_evidence.ValidatedTerminalEvidence
+        ],
+    ) -> tuple[core.RegistryRows, None]:
         slot, _classification, _receipt, _claim = _assert_classification_artifacts(
             root=root,
             rows=rows,
@@ -2602,6 +3085,161 @@ def record_attempt_terminal(
     )
 
 
+def record_sealed_attempt_terminal(
+    observation: CapturedObservation,
+    evidence: terminal_evidence.SealedTerminalEvidenceDraft,
+) -> None:
+    """Promote and publish one v2 terminal under the authoritative root lock."""
+
+    state = _require_handle(observation, CapturedObservation)
+    if state.profile.schema is not profile8b.S8B_V2_SCHEMA_PROFILE:
+        _fail(
+            "s8b-v2-terminal",
+            "sealed terminal API requires the canonical v2 profile",
+        )
+    if type(evidence) is not terminal_evidence.SealedTerminalEvidenceDraft:
+        _fail("s8b-terminal-evidence", "terminal evidence draft type differs")
+    if state.raw_output_sha256 is None:
+        _fail("s8b-attempt-registry-handle", "captured output digest is absent")
+    phase_digests = (
+        state.classification_receipt_sha256,
+        state.classification_event_sha256,
+        state.observation_event_sha256,
+    )
+    if any(type(value) is not str for value in phase_digests):
+        _fail("s8b-terminal-evidence", "handle phase digests are incomplete")
+    root, path = _entry_paths(
+        state.repo_root,
+        freeze_sha256=state.freeze_id,
+        protocol_sha256=_profile_protocol_sha256(
+            state.profile, state.binding,
+        ),
+        requested_registry_path=state.registry_path,
+    )
+
+    def transition(
+        rows: core.RegistryRows,
+        evidence_by_digest: Mapping[
+            str, terminal_evidence.ValidatedTerminalEvidence
+        ],
+    ) -> tuple[
+        core.RegistryRows, terminal_evidence.ValidatedTerminalEvidence,
+    ]:
+        slot, classification, _receipt, claim = _assert_classification_artifacts(
+            root=root,
+            rows=rows,
+            profile=state.profile,
+            binding=state.binding,
+            slot_id=state.slot_id,
+            admission_claim_digest=state.admission_claim_digest,
+            attempt_id=state.attempt_id,
+            expected_receipt_bytes=state.classification_receipt_bytes,
+        )
+        if type(slot) is not profile8b.S8BV2AttemptSlot:
+            _fail("s8b-terminal-evidence", "sealed terminal slot type differs")
+        observation_row = _assert_observation_row(
+            rows, state=state, slot=slot,
+        )
+        classification_receipt_sha256 = str(
+            state.classification_receipt_sha256
+        )
+        classification_event_sha256 = str(state.classification_event_sha256)
+        observation_event_sha256 = str(state.observation_event_sha256)
+        validated = _promote_draft_to_validated(
+            evidence,
+            classification_receipt_sha256=classification_receipt_sha256,
+            classification_event_sha256=classification_event_sha256,
+            observation_event_sha256=observation_event_sha256,
+            issuer_token=_TERMINAL_EVIDENCE_ISSUER_TOKEN,
+        )
+        expected_binding = {
+            "admission_claim_digest": state.admission_claim_digest,
+            "attempt_id": state.attempt_id,
+            "campaign_run_id": state.campaign_run_id,
+            "freeze_sha256": state.binding.freeze_sha256,
+            "manifest_sha256": state.manifest_sha256,
+            "protocol_sha256": state.binding.protocol_sha256,
+            "run_relpath": state.run_relpath,
+            "schedule_row_sha256": slot.schedule_row_sha256,
+            "schedule_sha256": state.binding.schedule_sha256,
+            "classification_receipt_sha256": classification[
+                "classification_receipt_sha256"
+            ],
+            "classification_event_sha256": classification["event_sha256"],
+            "observation_event_sha256": observation_row["event_sha256"],
+        }
+        validated = _validated_terminal_evidence_from_bytes(
+            validated.canonical_bytes,
+            expected_digest=validated.sha256,
+            expected_binding=expected_binding,
+        )
+        _assert_terminal_durable_identity(
+            root=root,
+            evidence=validated,
+            claim=claim,
+            slot=slot,
+            binding=state.binding,
+        )
+        projection = validated.projection
+        if projection.raw_output_sha256 != state.raw_output_sha256:
+            _fail(
+                "s8b-terminal-evidence",
+                "sealed raw output differs from captured handle",
+            )
+        validating_profile = _terminal_validating_profile(
+            state.profile,
+            {**evidence_by_digest, validated.sha256: validated},
+        )
+        candidate = core.record_attempt_terminal(
+            rows,
+            profile=validating_profile,
+            freeze_id=state.freeze_id,
+            slot_id=state.slot_id,
+            binding=state.binding,
+            terminal_status=projection.terminal_status,
+            raw_output_sha256=projection.raw_output_sha256,
+            report_sha256=projection.report_sha256,
+            observation_sha256=projection.observation_sha256,
+            primary_value=projection.primary_value,
+            finished_at=projection.finished_at,
+            failure_reason=projection.failure_reason,
+            measurement_retry_reason=projection.measurement_retry_reason,
+            terminal_evidence_sha256=validated.sha256,
+        )
+        return candidate, validated
+
+    def prepare(
+        validated: terminal_evidence.ValidatedTerminalEvidence,
+        candidate_bytes: bytes,
+    ) -> None:
+        evidence_path = _terminal_evidence_path(root, validated.sha256)
+        evidence_name = PurePosixPath(
+            *evidence_path.relative_to(root).parts
+        ).as_posix()
+        registry_name = PurePosixPath(*path.relative_to(root).parts).as_posix()
+        evidence_bytes = validated.canonical_bytes
+        admission.assert_holdout_safe_bytes(evidence_name, evidence_bytes)
+        admission.assert_holdout_safe_bytes(registry_name, candidate_bytes)
+        _publish_create_only(
+            evidence_path,
+            evidence_bytes,
+            logical_name=evidence_name,
+            allow_exact_retry=True,
+        )
+
+    _atomic_update(
+        root=root,
+        path=path,
+        profile=state.profile,
+        binding=state.binding,
+        transition=transition,
+        prepare=prepare,
+        candidate_evidence=lambda validated: {
+            validated.sha256: validated,
+        },
+    )
+
+
 def record_classified_failure_terminal(
     failure: ClassifiedFailure,
     *,
@@ -2622,7 +3260,12 @@ def record_classified_failure_terminal(
         requested_registry_path=state.registry_path,
     )
 
-    def transition(rows: core.RegistryRows) -> tuple[core.RegistryRows, None]:
+    def transition(
+        rows: core.RegistryRows,
+        _evidence_by_digest: Mapping[
+            str, terminal_evidence.ValidatedTerminalEvidence
+        ],
+    ) -> tuple[core.RegistryRows, None]:
         _assert_classification_artifacts(
             root=root,
             rows=rows,
@@ -2681,7 +3324,12 @@ def record_attempt_recovery(
         requested_registry_path=state.registry_path,
     )
 
-    def transition(rows: core.RegistryRows) -> tuple[core.RegistryRows, None]:
+    def transition(
+        rows: core.RegistryRows,
+        _evidence_by_digest: Mapping[
+            str, terminal_evidence.ValidatedTerminalEvidence
+        ],
+    ) -> tuple[core.RegistryRows, None]:
         candidate = core.record_attempt_recovery(
             rows,
             profile=state.profile,
@@ -2788,8 +3436,11 @@ def resume_attempt(
     with admission._locked(root) as lock:
         payload = _read_regular_bytes(path)
         assert payload is not None
-        rows = core.load_attempt_registry(
-            payload, profile=profile, expected_binding=binding,
+        rows, _counts, _evidence = _load_attempt_registry_with_evidence_locked(
+            root=root,
+            data=payload,
+            profile=profile,
+            expected_binding=binding,
         )
         slot = _slot_from_rows(rows, profile=profile, slot_id=slot_id)
         if _rows_for_event(

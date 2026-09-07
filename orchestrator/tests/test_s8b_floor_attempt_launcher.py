@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 import hashlib
 import inspect
+import json
 from pathlib import Path
 import subprocess
 import sys
@@ -20,7 +21,9 @@ from orchestrator.campaign import attempt_registry_core  # noqa: E402
 from orchestrator.campaign import s8b_attempt_profile  # noqa: E402
 from orchestrator.campaign import s8b_attempt_registry  # noqa: E402
 from orchestrator.campaign import s8b_floor_attempt_launcher as launcher  # noqa: E402
+from orchestrator.campaign import s8b_floor_stats  # noqa: E402
 from orchestrator.campaign import s8b_holdout_admission  # noqa: E402
+from orchestrator.campaign import s8b_terminal_evidence  # noqa: E402
 
 
 @dataclass(frozen=True)
@@ -117,6 +120,7 @@ class _RecorderRegistry:
         self.genesis_binding: object | None = None
         self.create_calls = 0
         self.read_calls = 0
+        self.sealed_draft: object | None = None
 
     def create_attempt_registry(
         self, _repo_root: Path, **kwargs: object,
@@ -181,6 +185,18 @@ class _RecorderRegistry:
             "raw_output": observation.raw_output,
         }
 
+    def record_sealed_attempt_terminal(
+        self, observation: _Observation, evidence: object,
+    ) -> None:
+        self.events.append("sealed-draft")
+        self.sealed_draft = evidence
+        assert observation.raw_output
+        assert type(evidence) is s8b_terminal_evidence.SealedTerminalEvidenceDraft
+        raise launcher.FloorAttemptLauncherError(
+            "[s8b-launcher-v2-terminal] fake registry cannot issue "
+            "validated evidence"
+        )
+
 
 class _Token:
     def __init__(
@@ -239,6 +255,10 @@ def _reservation() -> launcher.FloorAttemptReservation:
         manifest_sha256="3" * 64,
         run_relpath="runs/launcher-run",
         cell_id="holdout-a::configuration-a",
+        schedule_row_sha256=_PLANNED_SLOT.schedule_row_sha256,
+        records=1000,
+        threads=4,
+        workload={"kind": "launcher-test"},
     )
 
 
@@ -665,6 +685,10 @@ def test_real_adapter_creates_and_exactly_reuses_complete_genesis(
         manifest_sha256="f" * 64,
         run_relpath="runs/launcher-run",
         cell_id="holdout-a::configuration-a",
+        schedule_row_sha256=planned.schedule_row_sha256,
+        records=1000,
+        threads=4,
+        workload={"kind": "launcher-test"},
     )
     complete = launcher.FloorAttemptRegistryGenesis(
         slots=(planned, retry),
@@ -889,29 +913,164 @@ def test_capture_uses_checked_kwargs_snapshot_after_source_mapping_mutates() -> 
     }
 
 
-def test_v2_profile_is_rejected_before_any_registry_side_effect() -> None:
-    class _V2Profile(_Profile):
+def test_v2_profile_reaches_draft_but_fake_cannot_issue_capability(
+    tmp_path: Path,
+) -> None:
+    class _V2Profile:
         schema = s8b_attempt_profile.S8B_V2_SCHEMA_PROFILE
+        slot_codec = s8b_attempt_profile.S8B_V2_SLOT_CODEC
+
+    class _V2Token(_Token):
+        def open(self) -> object:
+            self.events.append("open")
+            self.opened = True
+            assert self._rep_sink is not None
+            self._rep_sink.extend(
+                {
+                    "rep_index": rep,
+                    "returncode": 0,
+                    "counter_status": "not_required",
+                    "missing_perf_events": [],
+                    "perf_raw": {
+                        event: None for event in calibrator_runner.PERF_EVENTS
+                    },
+                    "throughput": throughput,
+                }
+                for rep, throughput in enumerate(self.throughputs)
+            )
+            return self
 
     events: list[str] = []
     registry = _RecorderRegistry(events)
-    reservations = (
-        replace(_reservation(), profile=_V2Profile()),
-        replace(_reservation(), consumption_marker=object()),
+    protocol = {"reps": 3, "session_cv_max": "0.10"}
+    workload = {"kind": "launcher-v2-test"}
+    binary = tmp_path / "ycsb-v2.exe"
+    binary.write_bytes(b"v2-binary")
+    slot = s8b_attempt_profile.S8BV2AttemptSlot(
+        freeze_holdout_key="holdout-a",
+        configuration_id="configuration-a",
+        repetition=7,
+        measurement_ordinal=0,
+        attempt_ordinal=0,
+        schedule_row_sha256="7" * 64,
     )
-    for reservation in reservations:
-        with pytest.raises(
-            launcher.FloorAttemptLauncherError,
-            match=r"^\[s8b-launcher-v2-terminal\]",
-        ):
-            launcher._launch_floor_attempt_for_test(
-                reservation, _genesis(), _measurement(), post_probe=pytest.fail,
-                classified_at=lambda: "2026-08-26T00:00:01+00:00",
-                terminal_builder=pytest.fail, registry=registry,
-                capture_measure_point=pytest.fail,
+    reservation = replace(
+        _reservation(),
+        profile=_V2Profile(),
+        binding=s8b_attempt_profile.S8BAttemptBinding(
+            freeze_sha256="a" * 64,
+            protocol_sha256=launcher.canonical_protocol_sha256(protocol),
+            schedule_sha256="b" * 64,
+        ),
+        slot_id=s8b_attempt_profile.S8B_V2_SLOT_CODEC.slot_id(slot),
+        protocol=protocol,
+        perf_preflight_receipt=_unavailable_receipt(),
+        consumption_marker=object(),
+        schedule_row_sha256=slot.schedule_row_sha256,
+        workload=workload,
+    )
+    genesis = launcher.FloorAttemptRegistryGenesis(slots=(slot,))
+    measurement = replace(
+        _measurement(),
+        binary=str(binary),
+        keyword_arguments={
+            **_measurement().keyword_arguments,
+            "use_perf": False,
+            "workload": workload,
+        },
+    )
+    token = _V2Token(events)
+    token.records = reservation.records
+    token.threads = reservation.threads
+
+    def build(
+        opened: launcher.OpenedFloorAttempt,
+    ) -> launcher.FloorAttemptTerminal:
+        assessment = s8b_floor_stats.assess_session(
+            [101.0, 102.0, 103.0], reps=3, session_cv_max="0.10",
+        )
+        record = {
+            "attempt_id": reservation.attempt_id,
+            "binary_sha256_at_measure": opened.binary_sha256_at_measure,
+            "cell_id": reservation.cell_id,
+            "configuration_id": "configuration-a",
+            "duration_s": opened.duration_s,
+            "event": "session",
+            "excluded_reason": None,
+            "exclusion_class": None,
+            "exec_failures": 0,
+            "holdout_id": "holdout-a",
+            "kind": "planned",
+            "notes": [],
+            "probe_after": dict(opened.probe_after or {}),
+            "probe_before": dict(opened.probe_before),
+            "records": reservation.records,
+            "rep_integrity_failures": 0,
+            "rep_observations": [
+                dict(item) for item in opened.repetition_evidence
+            ],
+            "reps_expected": 3,
+            "retry": False,
+            "retry_ordinal": 0,
+            "round": 8,
+            "run_cmd": "v2 command",
+            "seq": 7,
+            "session_cv": assessment.cv,
+            "session_median": 102.0,
+            "threads": reservation.threads,
+            "throughputs": [101.0, 102.0, 103.0],
+            "trigger": None,
+            "valid": True,
+            "workload": workload,
+        }
+        raw = (
+            json.dumps(record, ensure_ascii=False, sort_keys=True, allow_nan=False)
+            + "\n"
+        ).encode("utf-8")
+        observations_digest = hashlib.sha256(
+            attempt_registry_core.canonical_json_bytes(
+                record["rep_observations"]
             )
-    assert registry.create_calls == registry.read_calls == 0
-    assert events == []
+        ).hexdigest()
+        return launcher.FloorAttemptTerminal(
+            raw_output_bytes=raw,
+            terminal_status="observed",
+            report_sha256=hashlib.sha256(raw).hexdigest(),
+            observation_sha256=observations_digest,
+            primary_value=102.0,
+            finished_at=opened.finished_at,
+            campaign_record=record,
+        )
+
+    with pytest.raises(
+        launcher.FloorAttemptLauncherError,
+        match=r"^\[s8b-launcher-v2-terminal\] fake registry cannot issue",
+    ):
+        launcher._launch_floor_attempt_for_test(
+            reservation,
+            genesis,
+            measurement,
+            post_probe=_probe,
+            classified_at=lambda: "2026-08-26T00:00:01+00:00",
+            terminal_builder=build,
+            registry=registry,
+            capture_measure_point=_capture_token(token),
+        )
+    assert type(registry.sealed_draft) is (
+        s8b_terminal_evidence.SealedTerminalEvidenceDraft
+    )
+    assert registry.sealed_draft.document["attempt_binding"].keys() == {
+        "admission_claim_digest",
+        "attempt_id",
+        "campaign_run_id",
+        "freeze_sha256",
+        "manifest_sha256",
+        "protocol_sha256",
+        "run_relpath",
+        "schedule_row_sha256",
+        "schedule_sha256",
+    }
+    assert events[-2:] == ["observe-success", "sealed-draft"]
 
 
 def test_certified_api_owns_classification_authority(
@@ -1173,6 +1332,265 @@ def test_open_failure_cannot_be_reported_as_observed() -> None:
         launcher.FloorAttemptLauncherError, match="cannot be read before",
     ):
         registry.reader()
+
+
+def _v2_policy_case(
+    tmp_path: Path,
+) -> tuple[
+    launcher.FloorAttemptReservation,
+    launcher.FloorMeasurementCapture,
+    s8b_attempt_profile.S8BV2AttemptSlot,
+]:
+    class _V2PolicyProfile:
+        schema = s8b_attempt_profile.S8B_V2_SCHEMA_PROFILE
+        slot_codec = s8b_attempt_profile.S8B_V2_SLOT_CODEC
+
+    protocol = {"reps": 3, "session_cv_max": "0.10"}
+    workload = {"kind": "v2-policy"}
+    slot = s8b_attempt_profile.S8BV2AttemptSlot(
+        freeze_holdout_key="holdout-a",
+        configuration_id="configuration-a",
+        repetition=7,
+        measurement_ordinal=0,
+        attempt_ordinal=0,
+        schedule_row_sha256="7" * 64,
+    )
+    binary = tmp_path / "v2-policy.exe"
+    binary.write_bytes(b"v2-policy-binary")
+    reservation = replace(
+        _reservation(),
+        profile=_V2PolicyProfile(),
+        binding=s8b_attempt_profile.S8BAttemptBinding(
+            freeze_sha256="a" * 64,
+            protocol_sha256=launcher.canonical_protocol_sha256(protocol),
+            schedule_sha256="b" * 64,
+        ),
+        slot_id=s8b_attempt_profile.S8B_V2_SLOT_CODEC.slot_id(slot),
+        protocol=protocol,
+        perf_preflight_receipt=_unavailable_receipt(),
+        consumption_marker=object(),
+        schedule_row_sha256=slot.schedule_row_sha256,
+        records=1000,
+        threads=4,
+        workload=workload,
+    )
+    measurement = replace(
+        _measurement(),
+        binary=str(binary),
+        keyword_arguments={
+            **_measurement().keyword_arguments,
+            "use_perf": False,
+            "workload": workload,
+        },
+    )
+    return reservation, measurement, slot
+
+
+def test_v2_policy_accepts_exact_schema_marker_and_durable_coordinates(
+    tmp_path: Path,
+) -> None:
+    reservation, measurement, _slot = _v2_policy_case(tmp_path)
+    policy = launcher._checked_reservation_policy(reservation, measurement)
+    assert policy.is_v2 is True
+    assert policy.expected_use_perf is False
+    assert policy.reps_expected == 3
+    assert policy.capture_keyword_arguments == measurement.keyword_arguments
+    assert "rep_observations" not in policy.capture_keyword_arguments
+
+
+@pytest.mark.parametrize(
+    "reservation_mutation",
+    (
+        {"consumption_marker": None},
+        {"profile": _PROFILE, "consumption_marker": object()},
+    ),
+    ids=("v2-without-marker", "v1-with-marker"),
+)
+def test_schema_and_consumption_marker_must_be_biconditional_before_effects(
+    tmp_path: Path,
+    reservation_mutation: dict[str, object],
+) -> None:
+    reservation, measurement, _slot = _v2_policy_case(tmp_path)
+    with pytest.raises(
+        launcher.FloorAttemptLauncherError,
+        match=r"^\[s8b-launcher-v2-policy\]",
+    ):
+        launcher._checked_reservation_policy(
+            replace(reservation, **reservation_mutation), measurement,
+        )
+
+
+@pytest.mark.parametrize(
+    ("reservation_mutation", "measurement_mutation", "message"),
+    (
+        ({"slot_id": ("too", "short")}, {}, "durable identity"),
+        ({"schedule_row_sha256": "A" * 64}, {}, "durable identity"),
+        ({"records": 0}, {}, "durable identity"),
+        ({"threads": True}, {}, "durable identity"),
+        ({"workload": _CallableDict()}, {}, "durable identity"),
+        ({}, {"records": 999}, "capture coordinates"),
+        ({}, {"threads": 999}, "capture coordinates"),
+        (
+            {},
+            {"keyword_arguments": {
+                "extime": 3,
+                "reps": 3,
+                "use_perf": False,
+                "workload": {"kind": "different"},
+            }},
+            "capture coordinates",
+        ),
+    ),
+    ids=(
+        "slot-id",
+        "schedule-row",
+        "records-type",
+        "threads-type",
+        "workload-callable",
+        "capture-records",
+        "capture-threads",
+        "capture-workload",
+    ),
+)
+def test_v2_policy_rejects_each_local_durable_identity_mismatch(
+    tmp_path: Path,
+    reservation_mutation: dict[str, object],
+    measurement_mutation: dict[str, object],
+    message: str,
+) -> None:
+    reservation, measurement, _slot = _v2_policy_case(tmp_path)
+    with pytest.raises(launcher.FloorAttemptLauncherError, match=message):
+        launcher._checked_reservation_policy(
+            replace(reservation, **reservation_mutation),
+            replace(measurement, **measurement_mutation),
+        )
+
+
+def test_v2_genesis_rechecks_schedule_row_before_registry_create(
+    tmp_path: Path,
+) -> None:
+    reservation, _measurement_value, slot = _v2_policy_case(tmp_path)
+    fake = _RecorderRegistry([])
+    with pytest.raises(
+        launcher.FloorAttemptLauncherError,
+        match="schedule row differs from closed genesis",
+    ):
+        launcher._ensure_registry_genesis(
+            replace(reservation, schedule_row_sha256="f" * 64),
+            launcher.FloorAttemptRegistryGenesis(slots=(slot,)),
+            dependencies=launcher._LauncherDependencies(
+                registry=fake,
+                capture_measure_point=pytest.fail,
+            ),
+        )
+    assert fake.create_calls == fake.read_calls == 0
+
+
+def test_timeout_exception_name_is_qualified_only_for_v2_evidence() -> None:
+    failure = subprocess.TimeoutExpired(["measure"], timeout=1.0)
+    legacy = launcher._failure_evidence("capture", failure)
+    sealed = launcher._failure_evidence(
+        "capture", failure, qualify_timeout=True,
+    )
+    assert legacy["exception_type"] == "TimeoutExpired"
+    assert sealed["exception_type"] == "subprocess.TimeoutExpired"
+    assert legacy["stage"] == sealed["stage"] == "capture"
+
+
+def test_v2_terminal_builder_can_only_echo_launcher_duration_binary_and_clock(
+) -> None:
+    terminal = launcher.FloorAttemptTerminal(
+        raw_output_bytes=b"{}\n",
+        terminal_status="observed",
+        report_sha256="1" * 64,
+        observation_sha256="2" * 64,
+        primary_value=1.0,
+        finished_at="2026-09-08T00:00:02+00:00",
+        campaign_record={
+            "duration_s": 1.25,
+            "binary_sha256_at_measure": "3" * 64,
+        },
+    )
+    launcher._assert_v2_terminal_launcher_facts(
+        terminal,
+        duration_s=1.25,
+        finished_at="2026-09-08T00:00:02+00:00",
+        binary_sha256_at_measure="3" * 64,
+    )
+    mutations = (
+        (
+            replace(
+                terminal,
+                campaign_record={
+                    **terminal.campaign_record,
+                    "duration_s": 9.0,
+                },
+            ),
+            "duration_s",
+        ),
+        (
+            replace(
+                terminal,
+                campaign_record={
+                    **terminal.campaign_record,
+                    "binary_sha256_at_measure": "4" * 64,
+                },
+            ),
+            "binary_sha256_at_measure",
+        ),
+        (
+            replace(
+                terminal,
+                finished_at="2099-01-01T00:00:00+00:00",
+            ),
+            "finished_at",
+        ),
+    )
+    for mutated, message in mutations:
+        with pytest.raises(launcher.FloorAttemptLauncherError, match=message):
+            launcher._assert_v2_terminal_launcher_facts(
+                mutated,
+                duration_s=1.25,
+                finished_at="2026-09-08T00:00:02+00:00",
+                binary_sha256_at_measure="3" * 64,
+            )
+
+
+def test_binary_digest_reader_is_no_follow_and_hashes_exact_bytes(
+    tmp_path: Path,
+) -> None:
+    binary = tmp_path / "binary.exe"
+    binary.write_bytes(b"binary-at-measurement")
+    expected = hashlib.sha256(b"binary-at-measurement").hexdigest()
+    assert launcher._binary_sha256_at_measure(str(binary)) == expected
+
+    alias = tmp_path / "binary-alias.exe"
+    alias.symlink_to(binary.name)
+    with pytest.raises(
+        launcher.FloorAttemptLauncherError,
+        match="no-follow regular file",
+    ):
+        launcher._binary_sha256_at_measure(str(alias))
+
+    directory = tmp_path / "binary-directory"
+    directory.mkdir()
+    with pytest.raises(
+        launcher.FloorAttemptLauncherError,
+        match="no-follow regular file",
+    ):
+        launcher._binary_sha256_at_measure(str(directory))
+
+
+def test_certified_wrapper_fixes_the_sealed_adapter_and_exposes_no_registry(
+) -> None:
+    parameters = inspect.signature(launcher.launch_floor_attempt).parameters
+    assert "registry" not in parameters
+    assert "sealed_terminal_recorder" not in parameters
+    source = inspect.getsource(launcher.launch_floor_attempt)
+    assert (
+        "sealed_terminal_recorder="
+        "attempt_registry.record_sealed_attempt_terminal"
+    ) in source
 
 
 def test_certified_api_rejects_a_caller_callable_post_probe_without_effects(

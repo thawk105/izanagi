@@ -157,6 +157,8 @@ def _terminal(
     report_sha256: str | None = None,
     observation_sha256: str | None = None,
     primary_value: object = None,
+    measurement_retry_reason: str | None = None,
+    terminal_evidence_sha256: str | None = None,
 ) -> core.RegistryRows:
     return core.record_attempt_terminal(
         rows,
@@ -170,6 +172,8 @@ def _terminal(
         observation_sha256=observation_sha256,
         primary_value=primary_value,
         failure_reason=failure_reason,
+        measurement_retry_reason=measurement_retry_reason,
+        terminal_evidence_sha256=terminal_evidence_sha256,
         finished_at="2026-08-23T00:00:02+00:00",
     )
 
@@ -2204,14 +2208,33 @@ def test_v2_profile_is_additive_empty_retryable_and_budgeted_by_cell() -> None:
         "floor-attempt-registries/{freeze_sha256}/"
         "{protocol_sha256}/registry.jsonl"
     )
-    assert profile.retryable_reasons == frozenset()
-    assert s8b.S8B_V2_RETRYABLE_FAILURE_REASONS == frozenset()
+    expected_reasons = frozenset({
+        "measurement_environment_conflict",
+        "measurement_execution_unavailable",
+        "measurement_sample_incomplete",
+        "measurement_dispersion_exceeded",
+    })
+    assert profile.retryable_reasons == expected_reasons
+    assert s8b.S8B_V2_RETRYABLE_FAILURE_REASONS == expected_reasons
+    assert profile.retryable_reason_field == "measurement_retry_reason"
     assert profile.transition_policy.budget_key is not None
     assert profile.transition_policy.budget_key(slot) == (
         "holdout-a", "configuration-a",
     )
     event_keys = profile.schema.event_keys[profile.schema.current]
     assert all("measurement_ordinal" in keys for keys in event_keys.values())
+    v1_event_keys = s8b.S8B_SCHEMA_PROFILE.event_keys[
+        s8b.S8B_ATTEMPT_REGISTRY_SCHEMA_VERSION
+    ]
+    assert event_keys["terminal"] - v1_event_keys["terminal"] == {
+        "measurement_ordinal",
+        "measurement_retry_reason",
+        "terminal_evidence_sha256",
+    }
+    assert all(
+        event_keys[event] - v1_event_keys[event] == {"measurement_ordinal"}
+        for event in event_keys if event != "terminal"
+    )
     assert s8b.S8B_ATTEMPT_REGISTRY_SCHEMA_VERSION == (
         "s8b-floor-attempt-registry/v1"
     )
@@ -2224,16 +2247,23 @@ def test_profile_extension_fields_are_keyword_only_and_preserve_legacy_defaults(
         field for field in fields(core.DomainProfile)
         if field.name == "terminal_row_validator"
     )
+    reason_field = next(
+        field for field in fields(core.DomainProfile)
+        if field.name == "retryable_reason_field"
+    )
     transition_field = next(
         field for field in fields(core.TransitionPolicy)
         if field.name == "retryable_terminal_opens_next_attempt"
     )
     assert domain_field.kw_only is True
     assert domain_field.default is None
+    assert reason_field.kw_only is True
+    assert reason_field.default == "failure_reason"
     assert transition_field.kw_only is True
     assert transition_field.default is True
     legacy = _profile()
     assert legacy.terminal_row_validator is None
+    assert legacy.retryable_reason_field == "failure_reason"
     assert legacy.transition_policy.retryable_terminal_opens_next_attempt is True
     assert R._S8C_ATTEMPT_PROFILE.terminal_row_validator is None
     assert (
@@ -2248,6 +2278,117 @@ def test_profile_extension_fields_are_keyword_only_and_preserve_legacy_defaults(
     )
     assert v2.terminal_row_validator is not None
     assert v2.transition_policy.retryable_terminal_opens_next_attempt is False
+
+
+def test_v2_terminal_failure_null_matrix_reads_measurement_reason_directly(
+) -> None:
+    """D1522/S1: name the lower branch hidden by the sealed E1 surface."""
+
+    row = {
+        "terminal_status": "terminal-failure",
+        "raw_output_sha256": _RAW,
+        "classification_receipt_sha256": _REPORT,
+        "report_sha256": None,
+        "observation_sha256": None,
+        "primary_value": None,
+        "failure_reason": "classification-echo",
+        "measurement_retry_reason": "non-retryable-measurement-failure",
+    }
+    core._assert_null_matrix(
+        row,
+        retryable_reasons=s8b.S8B_V2_RETRYABLE_FAILURE_REASONS,
+        retryable_reason_field="measurement_retry_reason",
+        label="direct v2 terminal-failure",
+    )
+    mutated = {
+        **row,
+        "measurement_retry_reason": "measurement_execution_unavailable",
+    }
+    with pytest.raises(
+        core.AttemptRegistryCoreError,
+        match=r"^\[attempt-null-matrix\].*terminal-failure null matrix differs$",
+    ):
+        core._assert_null_matrix(
+            mutated,
+            retryable_reasons=s8b.S8B_V2_RETRYABLE_FAILURE_REASONS,
+            retryable_reason_field="measurement_retry_reason",
+            label="direct v2 terminal-failure",
+        )
+
+
+def test_v2_not_consumed_null_matrix_has_direct_positive_and_negative_pair(
+) -> None:
+    """D1522: E1 cannot produce this branch, so exercise it below E1."""
+
+    accepted = {
+        "terminal_status": "not-consumed",
+        "raw_output_sha256": _RAW,
+        "classification_receipt_sha256": _REPORT,
+        "report_sha256": None,
+        "observation_sha256": None,
+        "primary_value": None,
+        "failure_reason": None,
+        "measurement_retry_reason": None,
+    }
+    core._assert_null_matrix(
+        accepted,
+        retryable_reasons=s8b.S8B_V2_RETRYABLE_FAILURE_REASONS,
+        retryable_reason_field="measurement_retry_reason",
+        label="direct v2 not-consumed",
+    )
+    with pytest.raises(
+        core.AttemptRegistryCoreError,
+        match=r"^\[attempt-null-matrix\].*not-consumed null matrix differs$",
+    ):
+        core._assert_null_matrix(
+            {
+                **accepted,
+                "measurement_retry_reason": "measurement_sample_incomplete",
+            },
+            retryable_reasons=s8b.S8B_V2_RETRYABLE_FAILURE_REASONS,
+            retryable_reason_field="measurement_retry_reason",
+            label="direct v2 not-consumed",
+        )
+
+
+def test_v1_terminal_rejects_non_null_v2_only_fields_without_emitting_them(
+) -> None:
+    profile = _profile()
+    slot = _slot(0, 0)
+    rows = _classify(
+        _reserve(_genesis(profile, [slot]), profile=profile, slot=slot),
+        profile=profile,
+        slot=slot,
+        reason="legacy-failure",
+    )
+    for field_name, value in (
+        ("measurement_retry_reason", "measurement_execution_unavailable"),
+        ("terminal_evidence_sha256", "e" * 64),
+    ):
+        arguments = {
+            "measurement_retry_reason": None,
+            "terminal_evidence_sha256": None,
+        }
+        arguments[field_name] = value
+        with pytest.raises(
+            core.AttemptRegistryCoreError,
+            match=rf"^\[attempt-terminal\] {field_name} is not accepted",
+        ):
+            core.record_attempt_terminal(
+                rows,
+                profile=profile,
+                freeze_id=_FREEZE,
+                slot_id=profile.slot_codec.slot_id(slot),
+                binding=_BINDING,
+                terminal_status="terminal-failure",
+                raw_output_sha256=_RAW,
+                report_sha256=None,
+                observation_sha256=None,
+                primary_value=None,
+                failure_reason="legacy-failure",
+                finished_at="2026-08-23T00:00:02+00:00",
+                **arguments,
+            )
 
 
 def test_terminal_validator_direct_replay_and_producer_mapping_keep_v1_positive(
@@ -2279,6 +2420,8 @@ def test_terminal_validator_direct_replay_and_producer_mapping_keep_v1_positive(
         slot=v2_slot,
         status="terminal-failure",
         failure_reason="sealed-later",
+        measurement_retry_reason="sealed-later",
+        terminal_evidence_sha256="e" * 64,
     )
     assert v2.terminal_row_validator is not None
     with pytest.raises(

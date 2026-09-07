@@ -18,6 +18,10 @@ from .attempt_registry_core import (
     SeriesKey,
     TransitionPolicy,
 )
+from .s8b_terminal_evidence import (
+    ValidatedTerminalEvidence,
+    require_sealed_terminal_evidence,
+)
 
 
 S8B_ATTEMPT_REGISTRY_SCHEMA_VERSION = "s8b-floor-attempt-registry/v1"
@@ -488,7 +492,17 @@ S8B_SCHEMA_PROFILE = SchemaProfile(
 )
 
 _S8B_V2_EVENT_KEYS = MappingProxyType({
-    event: keys | frozenset({"measurement_ordinal"})
+    event: (
+        keys
+        | frozenset({"measurement_ordinal"})
+        | (
+            frozenset({
+                "measurement_retry_reason",
+                "terminal_evidence_sha256",
+            })
+            if event == "terminal" else frozenset()
+        )
+    )
     for event, keys in _S8B_EVENT_KEYS.items()
 })
 
@@ -530,7 +544,12 @@ S8B_ATTEMPT_STATUSES = (
 )
 
 S8B_RETRYABLE_FAILURE_REASONS: frozenset[str] = frozenset()
-S8B_V2_RETRYABLE_FAILURE_REASONS: frozenset[str] = frozenset()
+S8B_V2_RETRYABLE_FAILURE_REASONS: frozenset[str] = frozenset({
+    "measurement_environment_conflict",
+    "measurement_execution_unavailable",
+    "measurement_sample_incomplete",
+    "measurement_dispersion_exceeded",
+})
 S8B_RECOVERY_FAILURE_REASONS: frozenset[str] = frozenset({
     "node_failure",
     "scheduler_external_interruption",
@@ -561,6 +580,49 @@ def _reject_unsealed_s8b_v2_terminal(
     raise AttemptRegistryCoreError(
         "[s8b-v2-terminal] v2 terminal requires the sealed evidence API"
     )
+
+
+def _require_sealed_s8b_v2_terminal(
+    row: Mapping[str, Any],
+    evidence: ValidatedTerminalEvidence,
+) -> None:
+    """Require one adapter-issued capability to match all durable row facts."""
+
+    if type(evidence) is not ValidatedTerminalEvidence:
+        raise AttemptRegistryCoreError(
+            "[s8b-v2-terminal] terminal evidence capability type differs"
+        )
+    try:
+        validated = require_sealed_terminal_evidence(evidence)
+        projection = validated.projection
+        binding = validated.document["attempt_binding"]
+    except (TypeError, ValueError, KeyError) as exc:
+        raise AttemptRegistryCoreError(
+            "[s8b-v2-terminal] terminal evidence capability is invalid"
+        ) from exc
+    expected = {
+        "terminal_status": projection.terminal_status,
+        "failure_reason": projection.failure_reason,
+        "measurement_retry_reason": projection.measurement_retry_reason,
+        "primary_value": projection.primary_value,
+        "raw_output_sha256": projection.raw_output_sha256,
+        "report_sha256": projection.report_sha256,
+        "observation_sha256": projection.observation_sha256,
+        "classification_receipt_sha256": binding[
+            "classification_receipt_sha256"
+        ],
+        "observation_start_event_sha256": binding[
+            "observation_event_sha256"
+        ],
+        "finished_at": projection.finished_at,
+        "terminal_evidence_sha256": validated.sha256,
+    }
+    for field_name, expected_value in expected.items():
+        if row.get(field_name) != expected_value:
+            raise AttemptRegistryCoreError(
+                "[s8b-v2-terminal] terminal row differs from sealed evidence: "
+                f"{field_name}"
+            )
 
 
 def serialize_session_line(record: Mapping[str, Any]) -> bytes:
@@ -681,4 +743,5 @@ def make_s8b_v2_domain_profile(
         ),
         freeze_id_from_genesis=_s8b_freeze_id_from_genesis,
         terminal_row_validator=_reject_unsealed_s8b_v2_terminal,
+        retryable_reason_field="measurement_retry_reason",
     )
