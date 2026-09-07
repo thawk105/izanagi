@@ -880,6 +880,36 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
         unstable=rem.unstable, leading_indicators=leading_indicators)
 
 
+def _validate_fetchcontent_prebuild_inputs(
+        *, env_contract: Optional[ExecutionEnvironmentContract],
+        fetchcontent_base_dir: object = "",
+        masstree_source_dir: Optional[object] = None,
+        mimalloc_source_dir: Optional[object] = None,
+        googletest_source_dir: Optional[object] = None,
+        fetchcontent_dependency_receipt: Optional[
+            Mapping[str, object]
+        ] = None,
+) -> bool:
+    """Require the FetchContent prebuild transport as one v2-only tuple."""
+    present = (
+        bool(fetchcontent_base_dir),
+        masstree_source_dir is not None,
+        mimalloc_source_dir is not None,
+        googletest_source_dir is not None,
+        fetchcontent_dependency_receipt is not None,
+    )
+    if any(present) and not all(present):
+        raise ValueError(
+            "FetchContent prebuild は base/source 3 本/dependency receipt の "
+            "5 値同時指定が必要"
+        )
+    if all(present) and env_contract is None:
+        raise ValueError(
+            "FetchContent prebuild は env_contract 付き v2 build に限る"
+        )
+    return all(present)
+
+
 def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: str,
              ccbench_commit: str, perf: PerfConfig,
              clocks_per_us: int, numactl: Optional[Sequence[str]] = None,
@@ -894,7 +924,14 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
              env_contract: Optional[ExecutionEnvironmentContract] = None,
              record_rep_returncodes: bool = False,
              qualification_policy: Optional[QualificationPipelinePolicy] = None,
-             dependency_prefix: str = "", *,
+             dependency_prefix: str = "",
+             fetchcontent_base_dir: str = "",
+             masstree_source_dir: Optional[object] = None,
+             mimalloc_source_dir: Optional[object] = None,
+             googletest_source_dir: Optional[object] = None,
+             fetchcontent_dependency_receipt: Optional[
+                 Mapping[str, object]
+             ] = None, *,
              authorization_contract: _env_contract.AuthorizedContract,
              build_context: BuildRunContext,
              capability_resolver: Optional[AdmissionCapabilityResolver] = None,
@@ -963,6 +1000,14 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
     帰属できる (決定4-3)。S2 相当 (t48 フルロード規模) は bench 並みの負荷ゆえ
     bench_lock + bench と同一の launch prefix 下で回す (決定4-4)。既定 legacy は
     軽量ゆえ従来どおり並列可 (lock.py の設計方針)。"""
+    fetchcontent_prebuild = _validate_fetchcontent_prebuild_inputs(
+        env_contract=env_contract,
+        fetchcontent_base_dir=fetchcontent_base_dir,
+        masstree_source_dir=masstree_source_dir,
+        mimalloc_source_dir=mimalloc_source_dir,
+        googletest_source_dir=googletest_source_dir,
+        fetchcontent_dependency_receipt=fetchcontent_dependency_receipt,
+    )
     if type(build_context) is not BuildRunContext:
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
     if expected_toolchain_manifest is not None and env_contract is None:
@@ -1250,6 +1295,16 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
             }
             if dependency_prefix:
                 common["dependency_prefix"] = dependency_prefix
+            if fetchcontent_prebuild:
+                common.update({
+                    "fetchcontent_base_dir": fetchcontent_base_dir,
+                    "masstree_source_dir": masstree_source_dir,
+                    "mimalloc_source_dir": mimalloc_source_dir,
+                    "googletest_source_dir": googletest_source_dir,
+                    "fetchcontent_dependency_receipt": (
+                        fetchcontent_dependency_receipt
+                    ),
+                })
             if expected_toolchain_manifest is not None:
                 common["expected_toolchain_manifest"] = expected_toolchain_manifest
             if declared_use_class is not None:
@@ -1821,7 +1876,14 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
              env_contract: Optional[ExecutionEnvironmentContract] = None,
              record_rep_returncodes: bool = False,
              qualification_policy: Optional[QualificationPipelinePolicy] = None,
-             dependency_prefix: str = "", *,
+             dependency_prefix: str = "",
+             fetchcontent_base_dir: str = "",
+             masstree_source_dir: Optional[object] = None,
+             mimalloc_source_dir: Optional[object] = None,
+             googletest_source_dir: Optional[object] = None,
+             fetchcontent_dependency_receipt: Optional[
+                 Mapping[str, object]
+             ] = None, *,
              authorization_contract: _env_contract.AuthorizedContract,
              build_context: BuildRunContext,
              capability_resolver: Optional[AdmissionCapabilityResolver] = None,
@@ -1838,6 +1900,14 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
              perf_preflight_receipt: Optional[dict] = None,
              canonical_build_pin: Optional[str] = None) -> EvalResult:
     """Preserve the historical evaluate API as prepare, bench, then commit."""
+    fetchcontent_prebuild = _validate_fetchcontent_prebuild_inputs(
+        env_contract=env_contract,
+        fetchcontent_base_dir=fetchcontent_base_dir,
+        masstree_source_dir=masstree_source_dir,
+        mimalloc_source_dir=mimalloc_source_dir,
+        googletest_source_dir=googletest_source_dir,
+        fetchcontent_dependency_receipt=fetchcontent_dependency_receipt,
+    )
     if type(build_context) is not BuildRunContext:
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
     if expected_toolchain_manifest is not None and env_contract is None:
@@ -1864,6 +1934,17 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     if use_perf is not expected_use_perf:
         raise ValueError("use_perf と perf preflight receipt が不一致")
 
+    fetchcontent_options = {}
+    if fetchcontent_prebuild:
+        fetchcontent_options = {
+            "fetchcontent_base_dir": fetchcontent_base_dir,
+            "masstree_source_dir": masstree_source_dir,
+            "mimalloc_source_dir": mimalloc_source_dir,
+            "googletest_source_dir": googletest_source_dir,
+            "fetchcontent_dependency_receipt": (
+                fetchcontent_dependency_receipt
+            ),
+        }
     outcome = _prepare_evaluation_core(
         genome, layout, env_tag, ccbench_commit, perf, clocks_per_us,
         numactl=numactl, correctness=correctness,
@@ -1888,6 +1969,7 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
         use_perf=use_perf,
         perf_preflight_receipt=perf_preflight_receipt,
         canonical_build_pin=canonical_build_pin,
+        **fetchcontent_options,
     )
     passes = (outcome,)
     for prepared in passes:
