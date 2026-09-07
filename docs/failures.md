@@ -11351,6 +11351,17 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   待ち手そのものは機能している。縮退経路 (`/proc/<pid>/stat` が読めないときの pid-only 判定) が
   対象 pid を生存と判定できずに完了扱いで抜けている疑いがあるが、本 wave では切り分けていない。
   3 回とも `.done` の不在で偽完了を捕まえ、張り直した待ち手が正しい完了を拾った。
+
+- **再発: 2026-09-08** — [T-583] wave の変異本走の待ち手で 1 回観測した。producer 生存・
+  `.done` 不在・成果物不在のまま `tools/dev_wave_wait.py producer` が rc=0 で戻り、
+  標準出力は空だった (2026-09-02 の再発が記録した縮退メッセージすら出ていない)。
+  `--receipt-file` の receipt も書かれなかった。`.done` と成果物の不在で偽完了を捕まえ、
+  待ち手を張り直して正しい完了を拾った。**張り直しに使った自前の
+  `until [ -s <done> ] || ! kill -0 <pid>` ループも即座に離脱した** — `nohup setsid` で
+  detach した producer に対し、別 shell から `kill -0` が生存を判定できなかったためで、
+  これは待ち手 tool の欠陥ではなく張り直し側の作り方の誤りである。生死条件を外して
+  `.done` の実在だけを見るループにしたら正しく待てた。**縮退した待ち手を張り直すときは、
+  生死判定を pid でなく成果物の実在に寄せる。**
 ### F356. 過去の遷移を毎回再判定する chain に、可変な現行定数との比較を置いた [恒真ゲート] [誤前提]
 
 - 事象: 環境契約の後継判定へ「取得方式名が現行 probe 定数と一致すること」を足した。
@@ -21491,6 +21502,14 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   staged deletion を大量に抱えた壊れた状態で残っていた。同じ tool をもう 1 度走らせて復旧した。
   **rc は観測していない** — 出力を `| tail -3` へ通したためである (F37 の再発)。
   「2 回目で通る」点は既載と同じだが、本件は入れ子側だけが壊れていた点が異なる。
+
+- **再発: 2026-09-08** — [T-583] wave 用 worktree の初期化で 1 回観測した。
+  `tools/dev_wave_submodule_init.py --worktree <ABS>` の 1 回目が
+  `runtime-io-failure: detail={'label': 'submodule', 'kind': 'update-no-fetch'}` で rc=1 になった。
+  同 worktree で `git submodule update --init --recursive --no-fetch` を直接実行すると rc=0 で
+  何も出力せず、その後に同じ tool を再実行して rc=0 になった。実装子用 worktree では 1 回目から
+  rc=0 で通っており、本 wave では 2 worktree 中 1 回の発生だった。根本原因は本 wave でも
+  切り分けていない。
 ### F811. 変異 wrapper の事後検査が共有 main を観測し、並行 land で本走が全損する [手順漏れ] [観測者効果]
 
 - 事象: `tools/mutation_worktree.py` で変異本走を投じたところ、6 走の見積もりどおり最後まで
