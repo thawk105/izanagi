@@ -535,7 +535,8 @@ qstat_stdout = Path(qstat_stdout_text)
 qstat_stderr = Path(qstat_stderr_text)
 qstat_rc = int(qstat_rc_text)
 expected_job_name_prefix = "izanagi-"
-accepted_states = ("QUE", "RUN")
+# 実測値は STG のみ。他は qstat -Q header 由来の候補で未実測。
+accepted_states = ("STG", "ARR", "WAI", "QUE", "PRR", "RUN")
 matched_lines = []
 for line in qstat_stdout.read_text(encoding="utf-8", errors="replace").splitlines():
     fields = line.split()

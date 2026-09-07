@@ -1035,6 +1035,10 @@ def test_submitter_has_exact_three_request_design_and_create_only_witnesses() ->
     assert 'fields[1].startswith(expected_job_name_prefix)' in request_receipt_writer
     assert "observed_owner == expected_owner" in request_receipt_writer
     assert "observed_state in accepted_states" in request_receipt_writer
+    assert (
+        'accepted_states = ("STG", "ARR", "WAI", "QUE", "PRR", "RUN")'
+        in request_receipt_writer
+    )
     assert "write_request_receipt" in request_function
     assert 'with target.open("x"' in manifest_writer
     assert 'with target.open("x"' in group_intent_writer
@@ -1106,12 +1110,14 @@ def test_submitter_preflight_parses_gen_s_semantic_state(
 @pytest.mark.parametrize(
     ("qstat_rc", "qstat_body", "expected_rc", "expected_visible"),
     [
+        (0, "12345.nqsv izanagi- owner gen_S STG\n", 0, True),
         (0, "12345.nqsv izanagi- owner gen_S RUN\n", 0, True),
         (0, "12345.nqsv izanagi- owner gen_S QUE\n", 0, True),
         (0, "Request ID Name User Queue STT\n", 5, False),
         (1, "12345.nqsv izanagi- owner gen_S RUN\n", 5, True),
     ],
     ids=[
+        "visible-immediate-staging",
         "visible-eight-char-name",
         "visible-eight-char-name-queued",
         "rc-zero-but-absent",
@@ -1165,6 +1171,14 @@ def test_request_receipt_binds_qstat_body_visibility(
     document = json.loads(receipt.read_text(encoding="utf-8"))
     assert document["qstat_visibility"]["request_line_visible"] is expected_visible
     assert document["qstat_visibility"]["accepted"] is (expected_rc == 0)
+    assert document["qstat_visibility"]["accepted_states"] == [
+        "STG",
+        "ARR",
+        "WAI",
+        "QUE",
+        "PRR",
+        "RUN",
+    ]
 
 
 @pytest.mark.parametrize(
@@ -1176,8 +1190,9 @@ def test_request_receipt_binds_qstat_body_visibility(
             "different-owner",
         ),
         ("12345.nqsv izanagi- owner gen_S HLD\n", "state_accepted", "HLD"),
+        ("12345.nqsv izanagi- owner gen_S EXT\n", "state_accepted", "EXT"),
     ],
-    ids=["different-owner", "non-active-state"],
+    ids=["different-owner", "non-active-state", "terminal-state"],
 )
 def test_request_receipt_rejects_wrong_owner_or_non_active_state(
     tmp_path: Path,
