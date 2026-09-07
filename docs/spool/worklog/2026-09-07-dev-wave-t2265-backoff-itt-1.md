@@ -44,6 +44,14 @@ title: [T-2265] 反実仮想 ITT の事前登録を結果より先に凍結し�
   7 block とも腕の測定順が固定で job 内時刻と完全に交絡し、腕は未認証だからである。
 - **子はどの段でも pytest を 1 件も走らせられなかった** (sandbox の投入失敗)。実装子も fix 子も
   同じで、実測はすべて親の焦点走である。修正前 803 passed、修正後 820 passed / 1 skipped、赤なし。
+- **受入全走が赤 1 件を返し、それは自分起因だった (F42 の 7 回目)。** 新設した
+  `orchestrator/tests/test_backoff_counterfactual_analysis.py` が自走 harness を持たず、
+  `test_plain_runner_coverage.py` のメタテストが弾いた (21,309 passed / 68 skipped / 1 failed)。
+  **防壁は設計どおり機能している。** 抜けていたのは親の焦点走の集合で、`DW-O26` が
+  「新規 test file を足す走は file 集合列挙のメタテストも焦点走に含める」と逐語で書いており、
+  条件 18 で必読に指定されていたのに適用しなかった。fix 子が `_run()` と `__main__`、
+  import bootstrap の計 11 行を足し (assertion は 1 つも変えず、allowlist へも逃がさず)、
+  親の焦点走がメタテストを含めて 24 passed・赤 0 を確認した。
 - **段取りのつまずきを 4 件記録する。** (1) 生死確認の `pgrep` が別 session の変異走行に一致し、
   止まっているのに実行中と誤報告した。DW-M05 の「worktree path で一意化する」を守っていなかった。
   (2) 期待 node 名が parametrize の接尾辞 `[overflow]` を欠いて preflight で止まった。
