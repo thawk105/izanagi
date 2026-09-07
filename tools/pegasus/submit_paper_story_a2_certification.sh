@@ -189,6 +189,14 @@ DEPENDENCY_PREFIX_SOURCE=$(realpath -e -- "$DEPENDENCY_PREFIX_SOURCE")
   exit 2
 }
 THIRD_PARTY_SOURCE_ROOT=$(realpath -e -- "$THIRD_PARTY_SOURCE_ROOT")
+for value in "$REPO_ROOT" "$CCBENCH_ROOT" "$DEPENDENCY_PREFIX_SOURCE" \
+    "$THIRD_PARTY_SOURCE_ROOT"; do
+  [[ "$value" == /* && "$value" != *","* && "$value" != *"="* \
+      && "$value" != *$'\n'* ]] || {
+    echo "qsub environment path is not a safe absolute value" >&2
+    exit 2
+  }
+done
 [[ -d "$CCBENCH_ROOT" && ! -L "$CCBENCH_ROOT" \
     && -d "$DEPENDENCY_PREFIX_SOURCE" && ! -L "$DEPENDENCY_PREFIX_SOURCE" \
     && -d "$THIRD_PARTY_SOURCE_ROOT" && ! -L "$THIRD_PARTY_SOURCE_ROOT" \

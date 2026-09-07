@@ -27,7 +27,6 @@ import statistics
 import struct
 import subprocess
 import sys
-import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from types import SimpleNamespace
@@ -2170,17 +2169,18 @@ def _exact_trace0_configure_argv(
     if len(argv) < minimum_argv_length:
         raise CertificationError("configure argv is shorter than the v2 grammar")
     tail = list(argv[len(fixed):])
-    if len(tail) < len(path_prefixes):
-        raise CertificationError("configure argv path segment is incomplete")
     path_tokens = tail[:len(path_prefixes)]
     for index, (token, prefix) in enumerate(
             zip(path_tokens, path_prefixes, strict=True)):
         if not token.startswith(prefix) or not token[len(prefix):]:
             raise CertificationError("configure argv path segment is malformed")
-        if index > 0 and not os.path.isabs(token[len(prefix):]):
-            raise CertificationError(
-                "FetchContent configure path must be absolute"
-            )
+        if index > 0:
+            value = token[len(prefix):]
+            _lexical_absolute_path(value, "FetchContent configure path")
+            if "\0" in value:
+                raise CertificationError(
+                    "FetchContent configure path must not contain NUL"
+                )
     expected = fixed + path_tokens + ordered_define_tokens
     if list(argv) != expected:
         raise CertificationError("configure argv does not match the closed v2 grammar")

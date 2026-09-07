@@ -434,6 +434,13 @@ def _run_submitter_harness(
         link = tmp_path / "third-party-link"
         link.symlink_to(third_party, target_is_directory=True)
         third_party_argument = link
+    elif third_party_mutation == "canonical-comma":
+        unsafe_parent = tmp_path / "actual,parent"
+        unsafe_parent.mkdir()
+        third_party.rename(unsafe_parent / "third-party")
+        safe_alias = tmp_path / "safe-alias"
+        safe_alias.symlink_to(unsafe_parent, target_is_directory=True)
+        third_party_argument = safe_alias / "third-party"
     binary_dir = tmp_path / "bin"
     binary_dir.mkdir()
     driver_log = tmp_path / "driver.log"
@@ -841,6 +848,18 @@ def test_submitter_rejects_unsafe_or_nonphysical_third_party_source_root(
     completed, attempt_root, driver_log = _run_submitter_harness(
         tmp_path, **kwargs)
     assert completed.returncode == 2
+    assert " preregister " not in " " + driver_log
+    assert not attempt_root.exists()
+
+
+def test_submitter_rejects_unsafe_path_after_canonicalization(tmp_path):
+    completed, attempt_root, driver_log = _run_submitter_harness(
+        tmp_path, third_party_mutation="canonical-comma")
+
+    assert completed.returncode == 2
+    assert (
+        "qsub environment path is not a safe absolute value" in completed.stderr
+    )
     assert " preregister " not in " " + driver_log
     assert not attempt_root.exists()
 

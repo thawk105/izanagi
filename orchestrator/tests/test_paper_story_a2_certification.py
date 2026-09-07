@@ -4958,6 +4958,55 @@ def test_trace0_fetchcontent_segment_matches_v2_command_order(tmp_path):
             policy, raw["cell_id"], root.name, CURRENT_PIN, evidence)
 
 
+@pytest.mark.parametrize(
+    "invalid_path",
+    ("/fetchcontent/masstree\0-src", "/../", "relative/masstree-src"),
+    ids=("nul", "lexically-noncanonical", "relative"),
+)
+def test_trace0_fetchcontent_path_values_match_producer_domain(
+        tmp_path, invalid_path):
+    policy = _policy(tmp_path)
+    root = A2.create_attempt_root(policy, "attempt-fetch-path-domain")
+    raw = _raw_cell(policy, policy.cells[0], root)
+    evidence = raw["trace0_evidence"]
+    prefix = "-DFETCHCONTENT_SOURCE_DIR_MASSTREE="
+    index = next(
+        index for index, token in enumerate(evidence["configure_argv"])
+        if token.startswith(prefix)
+    )
+    evidence["configure_argv"][index] = prefix + invalid_path
+
+    with pytest.raises(A2.CertificationError):
+        A2.validate_trace0_evidence(
+            policy, raw["cell_id"], root.name, CURRENT_PIN, evidence)
+
+
+def test_trace0_accepts_canonical_argv_from_v2_producer(tmp_path):
+    policy = _policy(tmp_path)
+    root = A2.create_attempt_root(policy, "attempt-fetch-producer-positive")
+    cell = policy.cells[0]
+    raw = _raw_cell(policy, cell, root)
+    evidence = raw["trace0_evidence"]
+    fetchcontent_base = root / "fetchcontent"
+    staged_sources = _staged_sources(fetchcontent_base)
+    build_dir = root / "build" / cell.cell_id
+    configure, build = buildcache._v2_commands(
+        A2._genome_for_cell(policy, cell), False, "/source", str(build_dir),
+        evidence["toolchain"], jobs=48,
+        dependency_prefix="/pinned/dependencies",
+        fetchcontent_base_dir=os.fspath(fetchcontent_base),
+        masstree_source_dir=staged_sources["masstree"],
+        mimalloc_source_dir=staged_sources["mimalloc"],
+        googletest_source_dir=staged_sources["googletest"],
+    )
+    evidence["configure_argv"] = configure
+    evidence["build_argv"] = build
+
+    assert A2.validate_trace0_evidence(
+        policy, raw["cell_id"], root.name, CURRENT_PIN, evidence
+    ) == evidence
+
+
 def test_trace0_configure_argv_rejects_short_path_segment(tmp_path):
     policy = _policy(tmp_path)
     root = A2.create_attempt_root(policy, "attempt-fetch-short-segment")
@@ -4971,7 +5020,9 @@ def test_trace0_configure_argv_rejects_short_path_segment(tmp_path):
         :dependency_index + 4
     ]
 
-    with pytest.raises(A2.CertificationError, match="shorter|incomplete"):
+    with pytest.raises(
+            A2.CertificationError,
+            match="configure argv is shorter than the v2 grammar"):
         A2.validate_trace0_evidence(
             policy, raw["cell_id"], root.name, CURRENT_PIN, evidence)
 
