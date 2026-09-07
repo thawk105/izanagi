@@ -216,6 +216,12 @@ def test_positive_fixture_validates_all_issuance_checks(tmp_path: Path) -> None:
     assert issued.source_closure_sha256 == _digest(case.raw_record)
     assert issued.origin_id == case.record["origin_id"]
     assert issued.cell_key == case.record["cell_key"]
+    assert case.record["referents"]["verifier_policy_sha256"][
+        "runtime_field_paths"
+    ] == [
+        "wal.commit.payload.verify_configs",
+        "wal.abort.payload.verify.anomalies",
+    ]
     assert closure.assert_issued_validated_source_closure(issued) is issued
     with pytest.raises(TypeError):
         replace(issued, cell_key="e" * 64)
