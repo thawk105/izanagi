@@ -146,3 +146,51 @@ patch が当たっていない木で内蔵 backoff の有効/無効を測った�
 - **Lustre の `RENAME_NOREPLACE` 依存の族一般化。** 独立 2 件が揃ったので `DW-G03` の条件は
   満たされているが、A-1 側は別 wave の編集面であり本 wave の scope 外。
 - `full` certification の materializer への exact 再導出 ([T-2366])。本 wave が作った欠陥ではない。
+
+## 変異 matrix
+
+probe → 較正 → 本走 の 3 段で行った。台帳と spec は同 dir に置く。
+
+| 変異 | 内容 | 本走 |
+|---|---|---|
+| M1 | Lustre の EINVAL 退避を消し、EINVAL を送出したままにする | **KILLED** |
+| M2 | 退避の公開手段を hard link から「既存を置換する rename」へ変える | **KILLED** |
+| M3 | pin 表に key が無いとき、呼び手が計算した hash を期待値にする | **KILLED** |
+| M4b | 新版でも旧版の raw cell schema を受理する | **KILLED** |
+| M5b | 新版でも旧の固定 gate 文を出す | **KILLED** |
+| M6b | `source_binding_status` の検査を**両層とも**消す | **KILLED** |
+| M7 | policy の `tracked_destination` を旧 leaf へ戻す | **KILLED** |
+
+**7/7 KILLED、SURVIVED 0、baseline 緑 (rc=0)。**
+
+### probe 走が明らかにしたこと
+
+probe (全件 SURVIVED 登録で観測 node を集める段) で 3 件を再照準した。
+
+- **M4 は 15 node を落とし、単一理由に帰属しなかった。** 定数を変えると current profile 全体が
+  壊れるためである。受理を広げる向きの狭い変異 (新版でも旧版の raw schema を許す) へ変えた。
+  段 3 の lensB がこの型を事前に予告していた。
+- **M5 の SURVIVED は等価変異だった。** profile の値は `current-full` であって `current` ではなく、
+  親が書いた変異は挙動を変えていなかった。実装の欠陥ではない。
+- **M6 の SURVIVED は 2 層 mask だった。** `source_binding_status` の検査が 2 箇所にあり、
+  上位層が下位層を隠していた。`DW-M02` に従い両層同時変異へ再照準して KILLED を得た。
+  **この構造は変異試験だけが明らかにした。**
+
+### 本走の erratum
+
+本走 (`mutation-ledger-final.json`) で M3 が MISMATCH になった。原因は**親の登録ミス**である。
+
+段 6 の fix 子が M3 相当の変異を当てて 4 node を報告したが、子が当てたのは
+「pin 表を常に迂回する」形の変異であり、spec に登録した変異は
+「表に key が無いときだけ迂回する」形だった。**別の変異で測った node 集合を写したため、
+期待と実測が食い違った。**
+
+実装の欠陥ではない。実測された完全集合 2 件を期待値にして M3 だけ再走し
+(`mutation-spec-m3-rerun.json` / `mutation-ledger-m3-rerun.json`)、**KILLED を得た。**
+初回の MISMATCH は `DW-M02` に従い台帳に残す。
+
+### 親が走行中に犯した手順違反
+
+本走の 1 回目 (`final3`) は、**親が変異走の最中に repo へ記録 file を書いた**ため、harness が
+未追跡 file を検出して停止した。変異走は走行中の作業ツリー不変を要求する。記録を先に commit し、
+clean tree で走らせ直した。
