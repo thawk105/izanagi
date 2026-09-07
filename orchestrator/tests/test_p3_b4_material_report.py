@@ -920,13 +920,9 @@ def test_m9_four_authority_and_assembly_states_project_exactly(
             },
             "value": [0, 1],
         }
-        assert report["report_scope"]["expected_analysis_verdict"] == (
-            "not_fixed_by_floor_presence"
-        )
-        assert report["report_scope"]["expected_analysis_reason"] == (
-            "not_fixed_by_floor_presence"
-        )
-        assert "authoritative_floor_artifact" in (
+        assert report["report_scope"]["expected_analysis_verdict"] is None
+        assert report["report_scope"]["expected_analysis_reason"] is None
+        assert "authoritative_floor_artifact" not in (
             report["certification_scope"]["checked"]
         )
         assert "authoritative_floor_artifact" not in (
@@ -939,6 +935,9 @@ def test_m9_four_authority_and_assembly_states_project_exactly(
             assert limitation in (
                 report["provenance"]["report_non_guarantees"]
             )
+        assert floor_issuer.SOURCE_SUMMARY_REFERENCES_NOT_VERIFIED in (
+            report["certification_scope"]["not_guaranteed"]
+        )
         markdown = document.markdown_bytes.decode("utf-8")
         assert f"floor artifact path: `{artifact_path}`" in markdown
         assert f"floor artifact SHA-256: `{artifact_sha256}`" in markdown

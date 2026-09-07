@@ -982,15 +982,9 @@ def _apply_authoritative_floor_projection(
     }
     report_scope = report["report_scope"]
     report_scope["floor_availability"] = "present"
-    report_scope["expected_analysis_verdict"] = (
-        "not_fixed_by_floor_presence"
-    )
-    report_scope["expected_analysis_reason"] = (
-        "not_fixed_by_floor_presence"
-    )
+    report_scope["expected_analysis_verdict"] = None
+    report_scope["expected_analysis_reason"] = None
 
-    checked = report["certification_scope"]["checked"]
-    checked.append("authoritative_floor_artifact")
     not_guaranteed = report["certification_scope"]["not_guaranteed"]
     not_guaranteed.remove("authoritative_floor_artifact")
     not_guaranteed.extend(authoritative_floor.non_guarantees)
@@ -1063,8 +1057,8 @@ def _assert_authoritative_floor_projection(
         "kind": "evidence-only",
         "preregistration_section_5": "not_in_effect",
         "floor_availability": "present",
-        "expected_analysis_verdict": "not_fixed_by_floor_presence",
-        "expected_analysis_reason": "not_fixed_by_floor_presence",
+        "expected_analysis_verdict": None,
+        "expected_analysis_reason": None,
         "section_7_1_four_classifications_operationalized": False,
     }
     if report_scope != expected_scope:

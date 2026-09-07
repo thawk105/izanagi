@@ -39,40 +39,56 @@ def _write_bytes(root: Path, relpath: str, raw: bytes) -> str:
 
 def _synthetic_source(
     root: Path,
+    monkeypatch: pytest.MonkeyPatch,
     *,
     candidate_1: float = 130.0,
     candidate_2: float = 104.0,
     reference: float = 100.0,
-    receipt_has_protocol: bool = True,
+    receipt_has_protocol: bool = False,
 ) -> tuple[Path, dict[str, object]]:
-    """Write an explicitly synthetic, internally derived v2 summary fixture."""
+    """Write a closed-schema producer spec and an internally derived summary."""
 
-    receipt: dict[str, object] = {
-        "fixture_kind": "synthetic-identity-derivation-receipt"
-    }
+    hashes = driver_tests._write_inputs(root)
+    spec = driver_tests._valid_document(hashes)
+    spec["environment"]["env_tag"] = "synthetic-env"
+    spec["cells"][0]["perf_config"]["threads"] = 4
     if receipt_has_protocol:
-        receipt["protocol"] = "silo"
-    receipt_sha = _write_bytes(root, "refs/build-receipt.json", _canonical(receipt))
-    workload = {
-        "ycsb_zipf_skew": "0.9",
-        "ycsb_rratio": "50",
-        "ycsb_rmw": "0",
-    }
-    spec = {
-        "schema": floor_pair_driver.SPEC_SCHEMA,
-        "fixture_kind": "synthetic-summary-bound-spec",
-        "environment": {"env_tag": "synthetic-env"},
-        "artifacts": [
-            {
-                "build_receipt": {
-                    "path": "refs/build-receipt.json",
-                    "sha256": receipt_sha,
-                }
-            }
-        ],
-        "cells": [{"perf_config": {"threads": 4, "workload": workload}}],
-    }
+        for artifact in spec["artifacts"]:
+            receipt_path = artifact["build_receipt"]["path"]
+            receipt = json.loads((root / receipt_path).read_text(encoding="utf-8"))
+            receipt["protocol"] = "silo"
+            artifact["build_receipt"]["sha256"] = _write_bytes(
+                root, receipt_path, _canonical(receipt)
+            )
+    spec["outputs"]["summary_relpath"] = "out/summary.json"
     spec_sha = _write_bytes(root, "refs/spec.json", _canonical(spec))
+    driver_tests._install_git(monkeypatch, root)
+    if receipt_has_protocol:
+        # The portable receipt contract does not yet carry the protocol field.
+        # Preserve every real receipt check while isolating only that known
+        # unresolved outer-key delta for identity-positive issuer tests.
+        validate_portable_record = (
+            floor_pair_driver.s8b_binary_admission.validate_portable_binary_record
+        )
+
+        def validate_with_fixture_protocol(record, **kwargs):
+            record_without_protocol = dict(record)
+            assert record_without_protocol.pop("protocol") == "silo"
+            return validate_portable_record(record_without_protocol, **kwargs)
+
+        monkeypatch.setattr(
+            floor_pair_driver.s8b_binary_admission,
+            "validate_portable_binary_record",
+            validate_with_fixture_protocol,
+        )
+    monkeypatch.setattr(
+        floor_pair_driver.calibration_verify,
+        "load_verified_calibration",
+        lambda **_kwargs: driver_tests._verified_calibration(
+            env_tag="synthetic-env",
+            threads=4,
+        ),
+    )
 
     # The floor is always derived from named synthetic medians.  No measured or
     # plausible production floor is embedded as a fixture default.
@@ -94,16 +110,16 @@ def _synthetic_source(
         "candidate_floor": gain.difference,
         "window_artifacts": [
             {
-                "window_id": "window-synthetic",
-                "campaign_id": "campaign-synthetic",
+                "window_id": "window-a",
+                "campaign_id": "campaign-a",
                 "artifact_relpath": "out/window.jsonl",
                 "artifact_sha256": window_sha,
             }
         ],
         "campaigns": [
             {
-                "window_id": "window-synthetic",
-                "campaign_id": "campaign-synthetic",
+                "window_id": "window-a",
+                "campaign_id": "campaign-a",
                 "planned_sample_count": 1,
                 "dropped_sample_count": 0,
                 "dropped_fraction": {"numerator": 0, "denominator": 1},
@@ -111,8 +127,8 @@ def _synthetic_source(
                 "admissible": True,
                 "strata": [
                     {
-                        "window_id": "window-synthetic",
-                        "pair_id": "pair-synthetic",
+                        "window_id": "window-a",
+                        "pair_id": "pair-a",
                         "planned_sample_count": 1,
                         "dropped_sample_count": 0,
                         "retained_sample_count": 1,
@@ -127,8 +143,8 @@ def _synthetic_source(
             {
                 "samples": [
                     {
-                        "window_id": "window-synthetic",
-                        "pair_id": "pair-synthetic",
+                        "window_id": "window-a",
+                        "pair_id": "pair-a",
                         "sample_index": 0,
                         "session_medians": {
                             "candidate_1": candidate_1,
@@ -142,8 +158,8 @@ def _synthetic_source(
                 ],
                 "strata": [
                     {
-                        "window_id": "window-synthetic",
-                        "pair_id": "pair-synthetic",
+                        "window_id": "window-a",
+                        "pair_id": "pair-a",
                         "values": [gain.difference],
                         "upper_function": floor_pair_driver.STRATUM_UPPER_ID,
                         "upper": gain.difference,
@@ -153,7 +169,7 @@ def _synthetic_source(
         ],
         "proof_limitations": {
             "section": "synthetic fixture limitations",
-            "items": ["not a measurement"],
+            "items": ["not a measurement", "not producer-issued evidence"],
         },
     }
     summary_path = root / "out/summary.json"
@@ -220,14 +236,22 @@ def test_real_finalize_floor_summary_is_accepted_before_missing_protocol_blocks_
 
 def test_m01_exact_conversion_preserves_candidate_binary64_and_accepts_zero(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    summary_path, _summary = _synthetic_source(tmp_path)
+    summary_path, summary = _synthetic_source(tmp_path, monkeypatch)
     accepted = issuer.load_floor_pair_summary(
         repo_root=tmp_path, summary_path=summary_path
     )
-    expected = Fraction(
-        *accepted.candidate_floor.as_integer_ratio()
+    parsed_spec = floor_pair_driver.load_frozen_spec(
+        Path(summary["spec_relpath"]),
+        summary["spec_sha256"],
+        repo_root=tmp_path,
     )
+    assert type(parsed_spec) is floor_pair_driver.FloorPairSpec
+    assert parsed_spec.environment.env_tag == "synthetic-env"
+    original_candidate = summary["candidate_floor"]
+    assert type(original_candidate) is float
+    expected = Fraction(*original_candidate.as_integer_ratio())
     assert (
         p3_b4_analysis_contract.as_b4_exact_fraction(accepted.floor_exact)
         == expected
@@ -236,11 +260,12 @@ def test_m01_exact_conversion_preserves_candidate_binary64_and_accepts_zero(
         p3_b4_analysis_contract.as_b4_exact_fraction(accepted.candidate_floor)
         is None
     )
-    assert accepted.source_float_hex == accepted.candidate_floor.hex()
+    assert accepted.source_float_hex == original_candidate.hex()
 
     zero_root = tmp_path / "zero"
     zero_summary_path, _zero_summary = _synthetic_source(
         zero_root,
+        monkeypatch,
         candidate_1=100.0,
         candidate_2=100.0,
         reference=100.0,
@@ -252,8 +277,11 @@ def test_m01_exact_conversion_preserves_candidate_binary64_and_accepts_zero(
     assert zero.source_float_hex == 0.0.hex()
 
 
-def test_m02_difference_self_inconsistency_is_rejected(tmp_path: Path) -> None:
-    summary_path, summary = _synthetic_source(tmp_path)
+def test_m02_difference_self_inconsistency_is_rejected(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    summary_path, summary = _synthetic_source(tmp_path, monkeypatch)
     broken = copy.deepcopy(summary)
     broken["derivation"][0]["samples"][0]["difference"] += 0.125
     _rewrite_summary(tmp_path, broken)
@@ -263,8 +291,11 @@ def test_m02_difference_self_inconsistency_is_rejected(tmp_path: Path) -> None:
         )
 
 
-def test_gain_stratum_and_final_uppers_are_each_rederived(tmp_path: Path) -> None:
-    summary_path, summary = _synthetic_source(tmp_path)
+def test_gain_stratum_and_final_uppers_are_each_rederived(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    summary_path, summary = _synthetic_source(tmp_path, monkeypatch)
     mutations = (
         ("gain", lambda value: value["derivation"][0]["samples"][0].__setitem__("gain_1", 0.5)),
         ("values", lambda value: value["derivation"][0]["strata"][0].__setitem__("values", [0.125])),
@@ -282,10 +313,50 @@ def test_gain_stratum_and_final_uppers_are_each_rederived(tmp_path: Path) -> Non
             )
         _rewrite_summary(tmp_path, summary)
 
+    negative_root = tmp_path / "negative-zero"
+    negative_summary_path, zero_summary = _synthetic_source(
+        negative_root,
+        monkeypatch,
+        candidate_1=100.0,
+        candidate_2=100.0,
+        reference=100.0,
+    )
+    for field in (
+        "candidate_floor",
+        "upper",
+        "stratum_upper",
+        "difference",
+        "gain_1",
+        "gain_2",
+        "values",
+    ):
+        broken = copy.deepcopy(zero_summary)
+        sample = broken["derivation"][0]["samples"][0]
+        stratum = broken["derivation"][0]["strata"][0]
+        if field in {"candidate_floor", "upper"}:
+            broken[field] = -0.0
+        elif field == "stratum_upper":
+            stratum["upper"] = -0.0
+        elif field == "values":
+            stratum["values"] = [-0.0]
+        else:
+            sample[field] = -0.0
+        _rewrite_summary(negative_root, broken)
+        with pytest.raises(issuer.B4FloorArtifactError, match="negative zero"):
+            issuer.load_floor_pair_summary(
+                repo_root=negative_root,
+                summary_path=negative_summary_path,
+            )
+        _rewrite_summary(negative_root, zero_summary)
 
-def test_m03_bool_upper_is_rejected_even_when_it_equals_zero(tmp_path: Path) -> None:
+
+def test_m03_bool_upper_is_rejected_even_when_it_equals_zero(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     summary_path, summary = _synthetic_source(
         tmp_path,
+        monkeypatch,
         candidate_1=100.0,
         candidate_2=100.0,
         reference=100.0,
@@ -298,9 +369,13 @@ def test_m03_bool_upper_is_rejected_even_when_it_equals_zero(tmp_path: Path) -> 
         )
 
 
-def test_m11_exact_floor_domain_rejects_one_without_clamp(tmp_path: Path) -> None:
+def test_m11_exact_floor_domain_rejects_one_without_clamp(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     summary_path, _summary = _synthetic_source(
         tmp_path,
+        monkeypatch,
         candidate_1=200.0,
         candidate_2=100.0,
         reference=100.0,
@@ -320,11 +395,12 @@ def test_m11_exact_floor_domain_rejects_one_without_clamp(tmp_path: Path) -> Non
 )
 def test_summary_schema_and_generated_status_are_required(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
     field: str,
     value: object,
     message: str,
 ) -> None:
-    summary_path, summary = _synthetic_source(tmp_path)
+    summary_path, summary = _synthetic_source(tmp_path, monkeypatch)
     summary[field] = value
     _rewrite_summary(tmp_path, summary)
     with pytest.raises(issuer.B4FloorArtifactError, match=message):
@@ -333,32 +409,61 @@ def test_summary_schema_and_generated_status_are_required(
         )
 
 
-def test_summary_spec_hash_and_closed_top_level_are_required(tmp_path: Path) -> None:
-    summary_path, summary = _synthetic_source(tmp_path)
-    (tmp_path / "refs/spec.json").write_bytes(b"{}\n")
+def test_summary_spec_hash_and_closed_top_level_are_required(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    summary_path, summary = _synthetic_source(tmp_path, monkeypatch)
+    spec_path = tmp_path / "refs/spec.json"
+    original_spec_raw = spec_path.read_bytes()
+    spec_path.write_bytes(b"{}\n")
     with pytest.raises(issuer.B4FloorArtifactError, match="spec_hash_mismatch"):
         issuer.load_floor_pair_summary(
             repo_root=tmp_path, summary_path=summary_path
         )
 
-    _synthetic_source(tmp_path)
+    spec_path.write_bytes(original_spec_raw)
     summary["unexpected"] = "closed schema"
     _rewrite_summary(tmp_path, summary)
     with pytest.raises(issuer.B4FloorArtifactError, match="unknown"):
         issuer.load_floor_pair_summary(
             repo_root=tmp_path, summary_path=summary_path
         )
+    summary.pop("unexpected")
+    spec_path = tmp_path / summary["spec_relpath"]
+    spec = json.loads(spec_path.read_text(encoding="utf-8"))
+    spec["fixture_kind"] = "producer-must-reject-this-unknown-key"
+    spec_raw = _canonical(spec)
+    spec_path.write_bytes(spec_raw)
+    summary["spec_sha256"] = hashlib.sha256(spec_raw).hexdigest()
+    _rewrite_summary(tmp_path, summary)
+
+    with pytest.raises(
+        issuer.B4FloorArtifactError,
+        match="floor_pair_driver.load_frozen_spec",
+    ) as caught:
+        issuer.load_floor_pair_summary(
+            repo_root=tmp_path,
+            summary_path=summary_path,
+        )
+    assert caught.value.code == "spec_rejected_by_producer"
+    assert isinstance(caught.value.__cause__, floor_pair_driver.FloorPairSpecError)
 
 
 def test_identity_is_not_a_caller_surface_and_missing_protocol_is_named(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     assert set(inspect.signature(issuer.issue_authoritative_floor).parameters) == {
         "repo_root",
         "summary_path",
     }
+    loader_signature = inspect.signature(issuer.load_authoritative_floor)
+    assert loader_signature.parameters["expected_sha256"].default is (
+        inspect.Parameter.empty
+    )
     summary_path, _summary = _synthetic_source(
-        tmp_path, receipt_has_protocol=False
+        tmp_path, monkeypatch, receipt_has_protocol=False
     )
     accepted = issuer.load_floor_pair_summary(
         repo_root=tmp_path, summary_path=summary_path
@@ -372,8 +477,13 @@ def test_identity_is_not_a_caller_surface_and_missing_protocol_is_named(
     assert caught.value.missing_elements == ("protocol",)
 
 
-def test_authority_issue_is_create_only_exact_and_loadable(tmp_path: Path) -> None:
-    summary_path, _summary = _synthetic_source(tmp_path)
+def test_authority_issue_is_create_only_exact_and_loadable(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    summary_path, summary = _synthetic_source(
+        tmp_path, monkeypatch, receipt_has_protocol=True
+    )
     accepted_summary = issuer.load_floor_pair_summary(
         repo_root=tmp_path, summary_path=summary_path
     )
@@ -383,6 +493,11 @@ def test_authority_issue_is_create_only_exact_and_loadable(tmp_path: Path) -> No
     raw = (tmp_path / result.artifact_path).read_bytes()
     assert hashlib.sha256(raw).hexdigest() == result.artifact_sha256
     assert not list((tmp_path / "out").glob(".b4-floor-stage-*"))
+    with pytest.raises(TypeError, match="expected_sha256"):
+        issuer.load_authoritative_floor(
+            repo_root=tmp_path,
+            artifact_path=result.artifact_path,
+        )
 
     loaded = issuer.load_authoritative_floor(
         repo_root=tmp_path,
@@ -394,7 +509,15 @@ def test_authority_issue_is_create_only_exact_and_loadable(tmp_path: Path) -> No
     )
     assert loaded.source_float_hex == accepted_summary.candidate_floor.hex()
     assert loaded.identity == accepted_summary.identity
-    assert loaded.non_guarantees == issuer.NON_GUARANTEES
+    assert loaded.non_guarantees == (
+        *issuer.NON_GUARANTEES,
+        *summary["proof_limitations"]["items"],
+    )
+    assert issuer.SOURCE_SUMMARY_REFERENCES_NOT_VERIFIED in raw.decode()
+    authority = json.loads(raw)
+    assert authority["non_guarantees"][len(issuer.NON_GUARANTEES) :] == (
+        summary["proof_limitations"]["items"]
+    )
     assert issuer.BINARY64_INTERMEDIATE_ROUNDING_LIMITATION in raw.decode()
     assert issuer.D1699_VERSION_LIMITATION in raw.decode()
 
@@ -408,8 +531,11 @@ def test_authority_issue_is_create_only_exact_and_loadable(tmp_path: Path) -> No
 
 def test_authority_filename_contains_all_five_derived_components(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    summary_path, _summary = _synthetic_source(tmp_path)
+    summary_path, _summary = _synthetic_source(
+        tmp_path, monkeypatch, receipt_has_protocol=True
+    )
     accepted = issuer.load_floor_pair_summary(
         repo_root=tmp_path, summary_path=summary_path
     )
@@ -448,8 +574,13 @@ def test_resolver_exact_sentinel_is_the_only_absence(tmp_path: Path) -> None:
         assert caught.value.code == "preregistration_floor_grammar_error"
 
 
-def test_resolver_returns_exact_fraction_from_valid_pin(tmp_path: Path) -> None:
-    summary_path, _summary = _synthetic_source(tmp_path)
+def test_resolver_returns_exact_fraction_from_valid_pin(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    summary_path, _summary = _synthetic_source(
+        tmp_path, monkeypatch, receipt_has_protocol=True
+    )
     result = issuer.issue_authoritative_floor(
         repo_root=tmp_path, summary_path=summary_path
     )
@@ -473,9 +604,12 @@ def test_resolver_returns_exact_fraction_from_valid_pin(tmp_path: Path) -> None:
 @pytest.mark.parametrize("mode", ("missing", "hash", "schema"))
 def test_m05_m06_resolver_fails_closed_without_absence_fallback(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
     mode: str,
 ) -> None:
-    summary_path, _summary = _synthetic_source(tmp_path)
+    summary_path, _summary = _synthetic_source(
+        tmp_path, monkeypatch, receipt_has_protocol=True
+    )
     result = issuer.issue_authoritative_floor(
         repo_root=tmp_path, summary_path=summary_path
     )

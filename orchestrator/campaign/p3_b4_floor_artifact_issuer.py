@@ -25,6 +25,12 @@ from fractions import Fraction
 from pathlib import Path
 from typing import Final, Sequence
 
+if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
+
+from . import floor_pair_driver
+
 
 B4_FLOOR_ARTIFACT_SCHEMA_VERSION: Final[str] = (
     "p3-b4-authoritative-floor/v1"
@@ -33,7 +39,6 @@ ACCEPTED_FLOOR_PAIR_SUMMARY_SCHEMA_VERSION: Final[str] = (
     "floor-pair-summary/v2"
 )
 FLOOR_PAIR_SUMMARY_FORMAT: Final[str] = "floor-pair-summary-json/v1"
-FLOOR_PAIR_SPEC_SCHEMA_VERSION: Final[str] = "floor-pair-spec/v2"
 GENERATOR_IDENTITY: Final[str] = (
     "orchestrator/campaign/p3_b4_floor_artifact_issuer.py"
 )
@@ -44,9 +49,13 @@ BINARY64_INTERMEDIATE_ROUNDING_LIMITATION: Final[str] = (
 D1699_VERSION_LIMITATION: Final[str] = (
     "その版が D1699 適合をまだ満たしていない。"
 )
-NON_GUARANTEES: Final[tuple[str, str]] = (
+SOURCE_SUMMARY_REFERENCES_NOT_VERIFIED: Final[str] = (
+    "source summary の参照先を実在照合していない"
+)
+NON_GUARANTEES: Final[tuple[str, ...]] = (
     BINARY64_INTERMEDIATE_ROUNDING_LIMITATION,
     D1699_VERSION_LIMITATION,
+    SOURCE_SUMMARY_REFERENCES_NOT_VERIFIED,
 )
 
 PREREGISTRATION_FLOOR_LABEL: Final[str] = (
@@ -125,6 +134,7 @@ class B4ValidatedFloorPairSummary:
     plan_sha256: str
     campaign_ids: tuple[str, ...]
     workload_values: tuple[tuple[tuple[str, str], ...], ...]
+    proof_limitations: tuple[str, ...]
     identity: B4FloorArtifactIdentity | None
     missing_identity_elements: tuple[str, ...]
 
@@ -280,12 +290,28 @@ def _positive_int(value: object, *, label: str) -> int:
     return result
 
 
-def _float(value: object, *, label: str, nonnegative: bool = False) -> float:
+def _float(
+    value: object,
+    *,
+    label: str,
+    nonnegative: bool = False,
+    reject_negative_zero: bool = False,
+) -> float:
     if type(value) is not float or not math.isfinite(value):
         _fail("schema_error", f"{label} は exact finite float でなければならない")
     if nonnegative and value < 0.0:
         _fail("schema_error", f"{label} は non-negative でなければならない")
+    if (
+        reject_negative_zero
+        and value == 0.0
+        and math.copysign(1.0, value) < 0
+    ):
+        _fail("schema_error", f"{label} は negative zero であってはならない")
     return value
+
+
+def _same_float(left: float, right: float) -> bool:
+    return left == right and math.copysign(1.0, left) == math.copysign(1.0, right)
 
 
 def _relative_path(value: object, *, label: str) -> str:
@@ -530,16 +556,27 @@ def _rederive_summary(value: object) -> float:
         difference = abs(gain_1 - gain_2)
         if not all(math.isfinite(item) for item in (gain_1, gain_2, difference)):
             _fail("self_inconsistency", f"{label} の再導出値が finite でない")
-        recorded_gain_1 = _float(sample["gain_1"], label=f"{label}.gain_1")
-        recorded_gain_2 = _float(sample["gain_2"], label=f"{label}.gain_2")
-        recorded_difference = _float(
-            sample["difference"], label=f"{label}.difference", nonnegative=True
+        recorded_gain_1 = _float(
+            sample["gain_1"],
+            label=f"{label}.gain_1",
+            reject_negative_zero=True,
         )
-        if recorded_gain_1 != gain_1:
+        recorded_gain_2 = _float(
+            sample["gain_2"],
+            label=f"{label}.gain_2",
+            reject_negative_zero=True,
+        )
+        recorded_difference = _float(
+            sample["difference"],
+            label=f"{label}.difference",
+            nonnegative=True,
+            reject_negative_zero=True,
+        )
+        if not _same_float(recorded_gain_1, gain_1):
             _fail("self_inconsistency", f"{label}.gain_1 が再導出値と不一致")
-        if recorded_gain_2 != gain_2:
+        if not _same_float(recorded_gain_2, gain_2):
             _fail("self_inconsistency", f"{label}.gain_2 が再導出値と不一致")
-        if recorded_difference != difference:
+        if not _same_float(recorded_difference, difference):
             _fail("self_inconsistency", f"{label}.difference が再導出値と不一致")
         values_by_stratum.setdefault((window_id, pair_id), []).append(difference)
 
@@ -566,18 +603,34 @@ def _rederive_summary(value: object) -> float:
             stratum["values"], label=f"{label}.values", allow_empty=False
         )
         recorded_values = [
-            _float(value, label=f"{label}.values[{value_index}]", nonnegative=True)
+            _float(
+                value,
+                label=f"{label}.values[{value_index}]",
+                nonnegative=True,
+                reject_negative_zero=True,
+            )
             for value_index, value in enumerate(recorded_values_raw)
         ]
-        if recorded_values != values_by_stratum.get(key):
+        rederived_values = values_by_stratum.get(key)
+        if (
+            rederived_values is None
+            or len(recorded_values) != len(rederived_values)
+            or any(
+                not _same_float(recorded, rederived)
+                for recorded, rederived in zip(recorded_values, rederived_values)
+            )
+        ):
             _fail("self_inconsistency", f"{label}.values が sample 再導出値と不一致")
         if stratum["upper_function"] != "sample_max/v1":
             _fail("schema_error", f"{label}.upper_function が未対応")
         recorded_upper = _float(
-            stratum["upper"], label=f"{label}.upper", nonnegative=True
+            stratum["upper"],
+            label=f"{label}.upper",
+            nonnegative=True,
+            reject_negative_zero=True,
         )
         rederived_upper = max(recorded_values)
-        if recorded_upper != rederived_upper:
+        if not _same_float(recorded_upper, rederived_upper):
             _fail("self_inconsistency", f"{label}.upper が層内 max と不一致")
         stratum_uppers.append(rederived_upper)
     if seen_strata != set(values_by_stratum):
@@ -585,7 +638,9 @@ def _rederive_summary(value: object) -> float:
     return max(stratum_uppers)
 
 
-def _validate_summary_document(value: object) -> tuple[dict[str, object], float, tuple[str, ...]]:
+def _validate_summary_document(
+    value: object,
+) -> tuple[dict[str, object], float, tuple[str, ...], tuple[str, ...]]:
     summary = _exact_object(value, _SUMMARY_TOP_KEYS, label="floor-pair summary")
     if summary["schema"] != ACCEPTED_FLOOR_PAIR_SUMMARY_SCHEMA_VERSION:
         _fail(
@@ -617,22 +672,36 @@ def _validate_summary_document(value: object) -> tuple[dict[str, object], float,
         summary["proof_limitations"], {"section", "items"}, label="summary.proof_limitations"
     )
     _text(proof["section"], label="summary.proof_limitations.section")
-    for index, item in enumerate(
-        _exact_list(proof["items"], label="summary.proof_limitations.items", allow_empty=True)
-    ):
+    proof_items = tuple(
         _text(item, label=f"summary.proof_limitations.items[{index}]")
+        for index, item in enumerate(
+            _exact_list(
+                proof["items"],
+                label="summary.proof_limitations.items",
+                allow_empty=True,
+            )
+        )
+    )
 
     # type(...) is float is deliberate: bool compares equal to 0.0 in Python.
-    upper = _float(summary["upper"], label="summary.upper", nonnegative=True)
+    upper = _float(
+        summary["upper"],
+        label="summary.upper",
+        nonnegative=True,
+        reject_negative_zero=True,
+    )
     candidate_floor = _float(
-        summary["candidate_floor"], label="summary.candidate_floor", nonnegative=True
+        summary["candidate_floor"],
+        label="summary.candidate_floor",
+        nonnegative=True,
+        reject_negative_zero=True,
     )
     rederived_upper = _rederive_summary(summary["derivation"])
-    if upper != rederived_upper:
+    if not _same_float(upper, rederived_upper):
         _fail("self_inconsistency", "summary.upper が層間 max の再導出値と不一致")
-    if candidate_floor != upper:
+    if not _same_float(candidate_floor, upper):
         _fail("self_inconsistency", "summary.candidate_floor が summary.upper と不一致")
-    return summary, candidate_floor, campaign_ids
+    return summary, candidate_floor, campaign_ids, proof_items
 
 
 def _aggregate_identifier(prefix: str, value: object) -> str:
@@ -642,7 +711,7 @@ def _aggregate_identifier(prefix: str, value: object) -> str:
 
 def _derive_identity(
     root: Path,
-    spec: dict[str, object],
+    spec: floor_pair_driver.FloorPairSpec,
     campaign_ids: tuple[str, ...],
 ) -> tuple[
     B4FloorArtifactIdentity | None,
@@ -650,62 +719,23 @@ def _derive_identity(
     tuple[tuple[tuple[str, str], ...], ...],
 ]:
     missing: list[str] = []
-    environment = spec.get("environment")
-    env_tag: str | None = None
-    if type(environment) is dict and "env_tag" in environment:
-        try:
-            env_tag = _identifier(environment["env_tag"], label="spec.environment.env_tag")
-        except B4FloorArtifactError:
-            missing.append("env_tag")
-    else:
-        missing.append("env_tag")
+    env_tag = spec.environment.env_tag
 
-    threads_values: set[int] = set()
-    workloads: set[tuple[tuple[str, str], ...]] = set()
-    cells = spec.get("cells")
-    if type(cells) is list and cells:
-        for index, cell_value in enumerate(cells):
-            if type(cell_value) is not dict or type(cell_value.get("perf_config")) is not dict:
-                missing.extend(("threads", "workload_identifier"))
-                break
-            perf = cell_value["perf_config"]
-            threads = perf.get("threads")
-            workload = perf.get("workload")
-            if type(threads) is not int or isinstance(threads, bool) or threads <= 0:
-                missing.append("threads")
-            else:
-                threads_values.add(threads)
-            if (
-                type(workload) is not dict
-                or not workload
-                or any(type(key) is not str or type(item) is not str for key, item in workload.items())
-            ):
-                missing.append("workload_identifier")
-            else:
-                workloads.add(tuple(sorted(workload.items())))
-    else:
-        missing.extend(("threads", "workload_identifier"))
+    threads_values = {cell.perf_config.threads for cell in spec.cells}
+    workloads = {cell.perf_config.workload for cell in spec.cells}
     if len(threads_values) != 1:
         missing.append("threads")
     if not workloads:
         missing.append("workload_identifier")
 
     protocols: set[str] = set()
-    artifacts = spec.get("artifacts")
     protocol_failed = False
-    if type(artifacts) is list and artifacts:
-        for index, artifact_value in enumerate(artifacts):
-            if type(artifact_value) is not dict or type(artifact_value.get("build_receipt")) is not dict:
-                protocol_failed = True
-                continue
-            reference = artifact_value["build_receipt"]
+    if spec.artifacts:
+        for index, artifact in enumerate(spec.artifacts):
+            reference = artifact.build_receipt
             try:
-                receipt_path = _relative_path(
-                    reference.get("path"), label=f"spec.artifacts[{index}].build_receipt.path"
-                )
-                receipt_sha = _sha256(
-                    reference.get("sha256"), label=f"spec.artifacts[{index}].build_receipt.sha256"
-                )
+                receipt_path = reference.path
+                receipt_sha = reference.sha256
                 raw = _read_regular(root, receipt_path, label=f"build receipt {receipt_path}")
                 if hashlib.sha256(raw).hexdigest() != receipt_sha:
                     protocol_failed = True
@@ -753,6 +783,8 @@ def _derive_identity(
 def _exact_floor(candidate_floor: float) -> Fraction:
     if type(candidate_floor) is not float or not math.isfinite(candidate_floor):
         _fail("floor_domain_error", "candidate_floor は exact finite float でない")
+    if candidate_floor == 0.0 and math.copysign(1.0, candidate_floor) < 0:
+        _fail("floor_domain_error", "candidate_floor は negative zero であってはならない")
     floor_exact = Fraction(*candidate_floor.as_integer_ratio())
     if not (Fraction(0, 1) <= floor_exact < Fraction(1, 1)):
         _fail("floor_domain_error", "candidate_floor は exact 0 <= floor < 1 でない")
@@ -775,7 +807,9 @@ def load_floor_pair_summary(
     summary_relpath = _argument_relpath(root, summary_path, label="summary_path")
     raw = _read_regular(root, summary_relpath, label="floor-pair summary")
     value = _load_json_bytes(raw, label="floor-pair summary", require_canonical=True)
-    summary, candidate_floor, campaign_ids = _validate_summary_document(value)
+    summary, candidate_floor, campaign_ids, proof_limitations = (
+        _validate_summary_document(value)
+    )
     spec_relpath = _relative_path(summary["spec_relpath"], label="summary.spec_relpath")
     spec_raw = _read_regular(root, spec_relpath, label="summary-bound spec")
     spec_sha256 = _sha256(summary["spec_sha256"], label="summary.spec_sha256")
@@ -785,17 +819,21 @@ def load_floor_pair_summary(
             "spec_hash_mismatch",
             f"expected={spec_sha256}, observed={observed_spec_sha256}",
         )
-    spec_value = _load_json_bytes(
-        spec_raw, label="summary-bound spec", require_canonical=False
-    )
-    if type(spec_value) is not dict:
-        _fail("schema_error", "summary-bound spec は object でなければならない")
-    if spec_value.get("schema") != FLOOR_PAIR_SPEC_SCHEMA_VERSION:
-        _fail(
-            "spec_schema_error",
-            f"summary-bound spec.schema は {FLOOR_PAIR_SPEC_SCHEMA_VERSION!r} でない",
+    try:
+        spec = floor_pair_driver.load_frozen_spec(
+            Path(spec_relpath),
+            spec_sha256,
+            repo_root=root,
         )
-    identity, missing, workloads = _derive_identity(root, spec_value, campaign_ids)
+    except (
+        floor_pair_driver.FloorPairSpecError,
+        floor_pair_driver.FloorPairBindingError,
+    ) as exc:
+        raise B4FloorArtifactError(
+            "spec_rejected_by_producer",
+            f"summary-bound spec を floor_pair_driver.load_frozen_spec が拒否: {exc}",
+        ) from exc
+    identity, missing, workloads = _derive_identity(root, spec, campaign_ids)
     floor_exact = _exact_floor(candidate_floor)
     return B4ValidatedFloorPairSummary(
         summary_path=summary_relpath,
@@ -809,6 +847,7 @@ def load_floor_pair_summary(
         plan_sha256=_sha256(summary["plan_sha256"], label="summary.plan_sha256"),
         campaign_ids=campaign_ids,
         workload_values=workloads,
+        proof_limitations=proof_limitations,
         identity=identity,
         missing_identity_elements=missing,
     )
@@ -850,7 +889,7 @@ def _authority_value(summary: B4ValidatedFloorPairSummary) -> dict[str, object]:
             "loaded_head": summary.loaded_head,
             "plan_sha256": summary.plan_sha256,
         },
-        "non_guarantees": list(NON_GUARANTEES),
+        "non_guarantees": [*NON_GUARANTEES, *summary.proof_limitations],
     }
 
 
@@ -927,7 +966,6 @@ def issue_authoritative_floor(
     root = _repo_root(repo_root)
     summary = load_floor_pair_summary(repo_root=root, summary_path=summary_path)
     value = _authority_value(summary)
-    assert summary.identity is not None
     filename = _artifact_filename(summary.identity)
     artifact_relpath = (Path(summary.summary_path).parent / filename).as_posix()
     _relative_path(artifact_relpath, label="authority artifact path")
@@ -967,21 +1005,20 @@ def load_authoritative_floor(
     *,
     repo_root: Path,
     artifact_path: str,
-    expected_sha256: str | None = None,
+    expected_sha256: str,
 ) -> B4AuthoritativeFloor:
-    """Load one canonical authority artifact and optionally bind its digest."""
+    """Load one canonical authority artifact bound to its required digest."""
 
     root = _repo_root(repo_root)
     relpath = _relative_path(artifact_path, label="artifact_path")
     raw = _read_regular(root, relpath, label="authority artifact")
     observed_sha256 = hashlib.sha256(raw).hexdigest()
-    if expected_sha256 is not None:
-        expected = _sha256(expected_sha256, label="expected_sha256")
-        if observed_sha256 != expected:
-            _fail(
-                "artifact_hash_mismatch",
-                f"expected={expected}, observed={observed_sha256}",
-            )
+    expected = _sha256(expected_sha256, label="expected_sha256")
+    if observed_sha256 != expected:
+        _fail(
+            "artifact_hash_mismatch",
+            f"expected={expected}, observed={observed_sha256}",
+        )
     value = _load_json_bytes(raw, label="authority artifact", require_canonical=True)
     authority = _exact_object(
         value,
@@ -1108,8 +1145,11 @@ def load_authoritative_floor(
             )
         )
     )
-    if non_guarantees != NON_GUARANTEES:
-        _fail("artifact_schema_error", "authority.non_guarantees が exact contract と不一致")
+    if non_guarantees[: len(NON_GUARANTEES)] != NON_GUARANTEES:
+        _fail(
+            "artifact_schema_error",
+            "authority.non_guarantees の issuer 固定 prefix が exact contract と不一致",
+        )
     return B4AuthoritativeFloor(
         floor=floor,
         artifact_path=relpath,
