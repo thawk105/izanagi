@@ -7,6 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import importlib.util
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -21,6 +22,16 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 DRIVER = ROOT / "tools" / "pegasus" / "probes" / "t2187_adaptive_const_probe.py"
 PBS = ROOT / "tools" / "pegasus" / "probes" / "t2187_adaptive_const_probe.pbs"
+SUBMIT_T2417 = (
+    ROOT
+    / "tools"
+    / "pegasus"
+    / "probes"
+    / "submit_t2417_backoff_policy_performance.sh"
+)
+POLICY_PERFORMANCE_PREREGISTRATION = (
+    ROOT / "docs" / "backoff-policy-performance-preregistration.md"
+)
 PATCH = ROOT / "patches" / "cicada-adaptive-params.patch"
 PATCH_B = ROOT / "patches" / "cicada-adaptive-dynamic.patch"
 PATCH_C = ROOT / "patches" / "cicada-adaptive-counterfactual.patch"
@@ -53,6 +64,51 @@ COUNTERFACTUAL_TRACE_CELLS = (
     "cw-as-dyn-p0:1:1:1000:2560:10000:10240:1:1:4:1:0,"
     "cw-as-dyn-p1:1:1:1000:2560:10000:10240:1:1:4:1:1,"
     "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2"
+)
+EXPECTED_PERMUTATIONS = (
+    "cw-as-dyn-p0:1:1:1000:2560:10000:10240:1:1:4:1:0,"
+    "cw-as-dyn-p1:1:1:1000:2560:10000:10240:1:1:4:1:1,"
+    "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+    "cw-as-dyn-p0:1:1:1000:2560:10000:10240:1:1:4:1:0,"
+    "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2,"
+    "cw-as-dyn-p1:1:1:1000:2560:10000:10240:1:1:4:1:1",
+    "cw-as-dyn-p1:1:1:1000:2560:10000:10240:1:1:4:1:1,"
+    "cw-as-dyn-p0:1:1:1000:2560:10000:10240:1:1:4:1:0,"
+    "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+    "cw-as-dyn-p1:1:1:1000:2560:10000:10240:1:1:4:1:1,"
+    "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2,"
+    "cw-as-dyn-p0:1:1:1000:2560:10000:10240:1:1:4:1:0",
+    "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2,"
+    "cw-as-dyn-p0:1:1:1000:2560:10000:10240:1:1:4:1:0,"
+    "cw-as-dyn-p1:1:1:1000:2560:10000:10240:1:1:4:1:1",
+    "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2,"
+    "cw-as-dyn-p1:1:1:1000:2560:10000:10240:1:1:4:1:1,"
+    "cw-as-dyn-p0:1:1:1000:2560:10000:10240:1:1:4:1:0",
+)
+EXPECTED_SEEDS_BY_SLOT = {
+    0: 7170359757993337886,
+    1: 17989269546948137795,
+    2: 3716960512023197351,
+    3: 2309627334396074330,
+    4: 17927187949116432153,
+    5: 3065832495472073934,
+    6: 4312234405970990967,
+    7: 427285116805996036,
+    8: 3640648522570663905,
+    9: 6418011988295890983,
+    10: 8628608498907907249,
+    11: 3020250207517407008,
+    12: 2373385927424670485,
+    13: 12508141252750115867,
+    14: 5818589253263944573,
+    15: 13760661656174455019,
+    16: 16587099826641119208,
+    17: 13478069633953621058,
+}
+EXPECTED_POLICY_WORKLOADS = "write-heavy,balanced,read-heavy"
+EXPECTED_POLICY_THREADS = "6,12,18,24,30,36,42,48"
+EXPECTED_POLICY_PREREG_SHA256 = (
+    "2f5170c99dda9dd70647a611bff798b6e54c5e29b60e872cd755e5b8515cc25c"
 )
 
 
@@ -2531,6 +2587,584 @@ def test_pbs_marks_eleven_and_twelve_fields_extended(tmp_path: Path) -> None:
         "IZANAGI_T2187_OUT_DIR is required for dynamic-backoff output\n"
         in completed.stderr
     )
+
+
+def _policy_contract_values(rep_index: int, **changes):
+    seed = EXPECTED_SEEDS_BY_SLOT.get(rep_index, EXPECTED_SEEDS_BY_SLOT[0])
+    values = {
+        "mode": "performance",
+        "backoff_trace": False,
+        "cells": EXPECTED_PERMUTATIONS[rep_index % 6],
+        "workloads": EXPECTED_POLICY_WORKLOADS,
+        "threads": EXPECTED_POLICY_THREADS,
+        "rep_index": rep_index,
+        "reps_per_job": 1,
+        "extime": 3,
+        "stage": 1,
+        "step_policy_seed": seed,
+    }
+    values.update(changes)
+    args = SimpleNamespace(**values)
+    return (
+        args,
+        probe.parse_cells(args.cells),
+        probe._parse_workloads(args.workloads),
+        probe._parse_threads(args.threads),
+    )
+
+
+def _policy_metadata_values(rep_index: int, **changes) -> dict:
+    args, cells, workloads, threads = _policy_contract_values(rep_index, **changes)
+    return {
+        "mode": args.mode,
+        "backoff_trace": args.backoff_trace,
+        "cells_text": args.cells,
+        "cells": cells,
+        "workloads_text": args.workloads,
+        "workloads": workloads,
+        "threads_text": args.threads,
+        "threads": threads,
+        "rep_index": args.rep_index,
+        "reps_per_job": args.reps_per_job,
+        "extime": args.extime,
+        "stage": args.stage,
+        "step_policy_seed": args.step_policy_seed,
+    }
+
+
+def _pbs_policy_constants() -> tuple[tuple[str, ...], tuple[int, ...]]:
+    pbs_text = PBS.read_text(encoding="utf-8")
+    definitions = pbs_text.split('if [[ -z "${PBS_JOBID:-}"', 1)[0]
+    program = definitions + """
+printf '%s\\n' "${POLICY_PERFORMANCE_PERMUTATIONS_RAW[@]}"
+printf '%s\\n' --seeds--
+printf '%s\\n' "${POLICY_PERFORMANCE_SEEDS[@]}"
+"""
+    completed = subprocess.run(
+        ["/bin/bash", "-c", program],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    permutations_text, seeds_text = completed.stdout.split("--seeds--\n", 1)
+    return (
+        tuple(line.replace("+", ",") for line in permutations_text.splitlines()),
+        tuple(int(line) for line in seeds_text.splitlines()),
+    )
+
+
+def test_policy_performance_driver_literals_match_independent_contract_literals() -> None:
+    assert probe.POLICY_PERFORMANCE_PERMUTATIONS_TEXT == EXPECTED_PERMUTATIONS
+    assert probe.POLICY_PERFORMANCE_SEEDS == tuple(EXPECTED_SEEDS_BY_SLOT.values())
+
+
+def test_policy_performance_pbs_literals_match_independent_contract_literals() -> None:
+    pbs_permutations, pbs_seeds = _pbs_policy_constants()
+    assert pbs_permutations == EXPECTED_PERMUTATIONS
+    assert pbs_seeds == tuple(EXPECTED_SEEDS_BY_SLOT.values())
+    pbs_text = PBS.read_text(encoding="utf-8")
+    assert "IZANAGI_T2187_EXTIME" not in pbs_text
+    assert "IZANAGI_T2187_REPS_PER_JOB" not in pbs_text
+    performance_branch = pbs_text.split(
+        'if [[ "$MODE" == performance ]]; then', 1
+    )[1].split('OUT="$OUT_DIR/certify-', 1)[0]
+    assert "--extime" not in performance_branch
+    assert "--reps-per-job" not in performance_branch
+    assert (
+        "POLICY_PERFORMANCE_OUT_PREFIX=/work/1/SFC/tanab/"
+        "izanagi-job-evidence/dynamic-backoff/perf/t2417-policy/"
+    ) in pbs_text
+    assert (
+        'OUT="$OUT_DIR/policy-perf-rep${REP_INDEX}-${PBS_JOBID//:/_}.json"'
+        in pbs_text
+    )
+
+
+def test_policy_performance_driver_and_pbs_literals_are_byte_identical() -> None:
+    pbs_permutations, pbs_seeds = _pbs_policy_constants()
+    assert probe.POLICY_PERFORMANCE_PERMUTATIONS_TEXT == pbs_permutations
+    assert probe.POLICY_PERFORMANCE_SEEDS == pbs_seeds
+
+
+def test_policy_performance_preregistration_path_bytes_and_reader_are_independent() -> None:
+    assert probe.BACKOFF_POLICY_PERFORMANCE_PREREGISTRATION == (
+        ROOT / "docs" / "backoff-policy-performance-preregistration.md"
+    )
+    assert hashlib.sha256(POLICY_PERFORMANCE_PREREGISTRATION.read_bytes()).hexdigest() == (
+        EXPECTED_POLICY_PREREG_SHA256
+    )
+    assert probe._backoff_policy_performance_prereg_sha256() == (
+        EXPECTED_POLICY_PREREG_SHA256
+    )
+
+
+def test_policy_performance_contract_accepts_all_18_blocks_and_rep_modulo_six() -> None:
+    for rep_index in range(18):
+        values = _policy_contract_values(rep_index)
+        probe._validate_backoff_policy_performance_contract(*values)
+        assert values[0].cells == EXPECTED_PERMUTATIONS[rep_index % 6]
+
+
+def test_policy_performance_selector_uses_parsed_exact_three_cell_set() -> None:
+    for cells_text in EXPECTED_PERMUTATIONS:
+        assert probe._is_backoff_policy_performance_cell_set(
+            probe.parse_cells(cells_text)
+        )
+    raw_drift = EXPECTED_PERMUTATIONS[0].replace(",", ", ", 1)
+    parsed_drift = probe.parse_cells(raw_drift)
+    assert probe._is_backoff_policy_performance_cell_set(parsed_drift)
+    with pytest.raises(ValueError, match="policy-performance-contract-violation"):
+        probe._validate_backoff_policy_performance_contract(
+            *_policy_contract_values(0, cells=raw_drift)
+        )
+
+
+@pytest.mark.parametrize(
+    ("rep_index", "changes"),
+    (
+        (0, {"cells": EXPECTED_PERMUTATIONS[1]}),
+        (1, {"cells": EXPECTED_PERMUTATIONS[0]}),
+        (18, {"cells": EXPECTED_PERMUTATIONS[0]}),
+        (0, {"workloads": "balanced,write-heavy,read-heavy"}),
+        (0, {"threads": "6,12,18,24,30,36,42"}),
+        (0, {"extime": 4}),
+        (0, {"reps_per_job": 2}),
+        (0, {"stage": 2}),
+        (0, {"step_policy_seed": None}),
+        (0, {"step_policy_seed": EXPECTED_SEEDS_BY_SLOT[0] + 1}),
+        (0, {"mode": "certify"}),
+        (0, {"backoff_trace": True}),
+    ),
+    ids=(
+        "nonassigned-permutation",
+        "order-rep-mismatch",
+        "rep-18",
+        "workloads-axis",
+        "threads-axis",
+        "extime",
+        "reps-per-job",
+        "stage",
+        "seed-missing",
+        "seed-mismatch",
+        "mode",
+        "trace-enabled-helper",
+    ),
+)
+def test_policy_performance_contract_rejects_each_exact_condition_for_stable_reason(
+    rep_index: int, changes: dict
+) -> None:
+    with pytest.raises(ValueError, match="policy-performance-contract-violation"):
+        probe._validate_backoff_policy_performance_contract(
+            *_policy_contract_values(rep_index, **changes)
+        )
+
+
+def test_policy_performance_exact_three_cells_still_fail_legacy_grid_contract() -> None:
+    with pytest.raises(ValueError, match="exactly none:0:100:1000:10"):
+        probe._validate_grid_contract(probe.parse_cells(EXPECTED_PERMUTATIONS[0]))
+
+
+def test_public_dispatch_keeps_policy_grid_and_trace_validators_disjoint(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    class DispatchObserved(Exception):
+        pass
+
+    cases = (
+        (
+            "policy",
+            "_validate_backoff_policy_performance_contract",
+            [
+                "--cells",
+                EXPECTED_PERMUTATIONS[4],
+                "--workloads",
+                EXPECTED_POLICY_WORKLOADS,
+                "--threads",
+                EXPECTED_POLICY_THREADS,
+                "--rep-index",
+                "4",
+                "--step-policy-seed",
+                str(EXPECTED_SEEDS_BY_SLOT[4]),
+                "--out",
+                str(probe.DYNAMIC_POLICY_PERFORMANCE_PREFIX / "dispatch.json"),
+            ],
+        ),
+        (
+            "grid",
+            "_validate_grid_contract",
+            ["--cells", VALID_CELLS, "--out", str(tmp_path / "grid.json")],
+        ),
+        (
+            "trace",
+            "_validate_backoff_trace_contract",
+            [
+                "--backoff-trace",
+                "--cells",
+                COUNTERFACTUAL_TRACE_CELLS,
+                "--workloads",
+                EXPECTED_POLICY_WORKLOADS,
+                "--threads",
+                "24,48",
+                "--step-policy-seed",
+                "7",
+                "--out",
+                str(probe.DYNAMIC_OUT_PREFIX / "trace" / "dispatch.json"),
+            ],
+        ),
+    )
+    observed = []
+    for expected, validator_name, argv in cases:
+        with monkeypatch.context() as scoped:
+            real_validator = getattr(probe, validator_name)
+
+            def observe(*args, _name=expected, _real=real_validator):
+                _real(*args)
+                observed.append(_name)
+                raise DispatchObserved
+
+            scoped.setattr(probe, validator_name, observe)
+            with pytest.raises(DispatchObserved):
+                probe.main(argv)
+    assert observed == ["policy", "grid", "trace"]
+
+
+def test_policy_performance_output_requires_resolved_true_child() -> None:
+    prefix = probe.DYNAMIC_POLICY_PERFORMANCE_PREFIX
+    probe._validate_backoff_policy_performance_output_path(
+        prefix / "attempt" / ".." / "other" / "result.json"
+    )
+    for rejected in (prefix, prefix.parent / "other" / "result.json"):
+        with pytest.raises(
+            ValueError, match="policy-performance-output-prefix-violation"
+        ):
+            probe._validate_backoff_policy_performance_output_path(rejected)
+
+
+def test_public_policy_performance_rejects_output_outside_dedicated_prefix(
+    tmp_path: Path,
+) -> None:
+    args, _cells, _workloads, _threads = _policy_contract_values(0)
+    argv = [
+        "--cells",
+        args.cells,
+        "--workloads",
+        args.workloads,
+        "--threads",
+        args.threads,
+        "--rep-index",
+        str(args.rep_index),
+        "--step-policy-seed",
+        str(args.step_policy_seed),
+        "--out",
+        str(tmp_path / "outside.json"),
+    ]
+    with pytest.raises(
+        ValueError, match="policy-performance-output-prefix-violation"
+    ):
+        probe.main(argv)
+
+
+def test_public_policy_performance_missing_seed_uses_contract_reason() -> None:
+    args, _cells, _workloads, _threads = _policy_contract_values(0)
+    argv = [
+        "--cells",
+        args.cells,
+        "--workloads",
+        args.workloads,
+        "--threads",
+        args.threads,
+        "--rep-index",
+        "0",
+        "--out",
+        str(probe.DYNAMIC_POLICY_PERFORMANCE_PREFIX / "missing-seed.json"),
+    ]
+    with pytest.raises(ValueError, match="policy-performance-contract-violation"):
+        probe.main(argv)
+
+
+def test_policy_performance_fields_are_top_level_only_and_require_every_condition(
+    tmp_path: Path,
+) -> None:
+    exact = probe._artifact_contract_metadata(**_policy_metadata_values(7))
+    assert exact == {
+        "schema_version": probe.SCHEMA_VERSION,
+        "backoff_policy_performance_prereg_sha256": EXPECTED_POLICY_PREREG_SHA256,
+        "performance_contract": "backoff-policy-arm-perf/v1",
+        "headline_eligible": False,
+        "correctness_status": "uncertified",
+    }
+    assert "counterfactual_preregistration" not in exact
+    protected = {
+        "backoff_policy_performance_prereg_sha256",
+        "performance_contract",
+        "headline_eligible",
+        "correctness_status",
+    }
+    drifts = (
+        {"cells": EXPECTED_PERMUTATIONS[0]},
+        {"workloads": "write-heavy,balanced"},
+        {"threads": "6,12,18,24,30,36,42"},
+        {"extime": 4},
+        {"reps_per_job": 2},
+        {"stage": 2},
+        {"step_policy_seed": EXPECTED_SEEDS_BY_SLOT[7] + 1},
+    )
+    for drift in drifts:
+        metadata = probe._artifact_contract_metadata(
+            **_policy_metadata_values(7, **drift)
+        )
+        assert protected.isdisjoint(metadata)
+
+    row = probe._counterfactual_row_metadata(
+        preregistration_sha256=None,
+        cell=probe.parse_cells(EXPECTED_PERMUTATIONS[0])[2],
+        step_policy_seed=EXPECTED_SEEDS_BY_SLOT[0],
+    )
+    assert protected.isdisjoint(row)
+    journal_target = tmp_path / "policy.json"
+    probe._append_journal(journal_target, row)
+    journal_row = json.loads(
+        Path(str(journal_target) + ".journal.jsonl").read_text(encoding="utf-8")
+    )
+    assert protected.isdisjoint(journal_row)
+    driver_text = DRIVER.read_text(encoding="utf-8")
+    row_and_journal_block = driver_text.split("                        row = {", 1)[
+        1
+    ].split("                        shown = (", 1)[0]
+    assert all(field not in row_and_journal_block for field in protected)
+
+
+def test_policy_performance_artifact_is_rejected_by_existing_certification_identity(
+    tmp_path: Path,
+) -> None:
+    regular = tmp_path / "regular.json"
+    regular.write_text(
+        json.dumps(
+            {
+                "schema_version": probe.SCHEMA_VERSION,
+                "kind": "performance-only-probe",
+                "not_certified": probe.NOT_CERTIFIED,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    assert probe._performance_artifact_identity(
+        regular, hashlib.sha256(regular.read_bytes()).hexdigest()
+    )["path"] == str(regular.resolve(strict=True))
+
+    policy = tmp_path / "policy.json"
+    policy.write_text(
+        json.dumps(
+            {
+                "schema_version": probe.SCHEMA_VERSION,
+                "kind": "performance-only-probe",
+                "not_certified": probe.NOT_CERTIFIED,
+                "performance_contract": "backoff-policy-arm-perf/v1",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(probe.CertificationReject) as caught:
+        probe._performance_artifact_identity(
+            policy, hashlib.sha256(policy.read_bytes()).hexdigest()
+        )
+    assert caught.value.reason == "performance-artifact-contract-rejected"
+
+
+def _run_extracted_pbs_policy_gate(
+    tmp_path: Path, **changes: str
+) -> subprocess.CompletedProcess[str]:
+    pbs_text = PBS.read_text(encoding="utf-8")
+    definitions = pbs_text.split('if [[ -z "${PBS_JOBID:-}"', 1)[0]
+    gate = pbs_text.split("# T2417_POLICY_PERFORMANCE_GATE_BEGIN\n", 1)[1].split(
+        "# T2417_POLICY_PERFORMANCE_GATE_END", 1
+    )[0]
+    gate_script = tmp_path / "t2417-policy-gate.sh"
+    gate_script.write_text(definitions + gate, encoding="utf-8")
+    environment = {
+        **os.environ,
+        "MODE": "performance",
+        "BACKOFF_TRACE": "0",
+        "CELLS_RAW": EXPECTED_PERMUTATIONS[0].replace(",", "+"),
+        "WORKLOADS_RAW": EXPECTED_POLICY_WORKLOADS.replace(",", "+"),
+        "THREADS_RAW": EXPECTED_POLICY_THREADS.replace(",", "+"),
+        "REP_INDEX": "0",
+        "STAGE": "1",
+        "STEP_POLICY_SEED": str(EXPECTED_SEEDS_BY_SLOT[0]),
+        "OUT_DIR_RAW": (
+            "/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/"
+            "perf/t2417-policy/test-attempt"
+        ),
+    }
+    environment.update(changes)
+    return subprocess.run(
+        ["/bin/bash", str(gate_script)],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=environment,
+    )
+
+
+def test_extracted_pbs_policy_gate_accepts_all_18_blocks(tmp_path: Path) -> None:
+    for rep_index in range(18):
+        completed = _run_extracted_pbs_policy_gate(
+            tmp_path,
+            CELLS_RAW=EXPECTED_PERMUTATIONS[rep_index % 6].replace(",", "+"),
+            REP_INDEX=str(rep_index),
+            STEP_POLICY_SEED=str(EXPECTED_SEEDS_BY_SLOT[rep_index]),
+        )
+        assert completed.returncode == 0, (rep_index, completed.stderr)
+
+
+@pytest.mark.parametrize(
+    "changes",
+    (
+        {"CELLS_RAW": EXPECTED_PERMUTATIONS[1].replace(",", "+")},
+        {"REP_INDEX": "18"},
+        {"WORKLOADS_RAW": "balanced+write-heavy+read-heavy"},
+        {"THREADS_RAW": "6+12+18+24+30+36+42"},
+        {"STAGE": "2"},
+        {"STEP_POLICY_SEED": ""},
+        {"STEP_POLICY_SEED": str(EXPECTED_SEEDS_BY_SLOT[0] + 1)},
+        {"OUT_DIR_RAW": "/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/trace"},
+    ),
+    ids=(
+        "nonassigned-permutation",
+        "rep-18",
+        "workloads-axis",
+        "threads-axis",
+        "stage",
+        "seed-missing",
+        "seed-mismatch",
+        "output-prefix",
+    ),
+)
+def test_extracted_pbs_policy_gate_rejects_each_drift_before_build(
+    tmp_path: Path, changes: dict[str, str]
+) -> None:
+    completed = _run_extracted_pbs_policy_gate(tmp_path, **changes)
+    assert completed.returncode == 2
+    assert "policy-performance-" in completed.stderr
+    pbs_text = PBS.read_text(encoding="utf-8")
+    assert pbs_text.index("# T2417_POLICY_PERFORMANCE_GATE_END") < pbs_text.index(
+        'verify_pinned_clean "$GFLAGS_SOURCE_PATH"'
+    )
+
+
+def test_submit_t2417_uses_one_checkout_and_exact_18_block_ledger(
+    tmp_path: Path,
+) -> None:
+    subprocess.run(
+        ["/bin/bash", "-n", str(SUBMIT_T2417)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert SUBMIT_T2417.stat().st_mode & 0o111
+    submit_text = SUBMIT_T2417.read_text(encoding="utf-8")
+    assert 'git -C "$REPO_ROOT" symbolic-ref -q HEAD' in submit_text
+    assert 'git -C "$REPO_ROOT" status --porcelain --untracked-files=all' in (
+        submit_text
+    )
+    assert "qstat" not in submit_text
+    assert "sleep" not in submit_text
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    qsub_log = tmp_path / "qsub.log"
+    fake_git = fake_bin / "git"
+    fake_git.write_text(
+        "#!/bin/bash\n"
+        "case \"$*\" in\n"
+        "  *'rev-parse --show-toplevel'*) printf '%s\\n' \"$FAKE_REPO_ROOT\" ;;\n"
+        "  *'rev-parse HEAD'*) printf '%040d\\n' 0 ;;\n"
+        "  *'symbolic-ref -q HEAD'*) exit 1 ;;\n"
+        "  *'status --porcelain --untracked-files=all'*) exit 0 ;;\n"
+        "  *) exit 9 ;;\n"
+        "esac\n",
+        encoding="utf-8",
+    )
+    fake_qsub = fake_bin / "qsub"
+    fake_qsub.write_text(
+        "#!/bin/bash\n"
+        "printf '%s\\n' \"$*\" >> \"$QSUB_LOG\"\n"
+        "printf '%s.test\\n' \"$$\"\n",
+        encoding="utf-8",
+    )
+    fake_git.chmod(0o755)
+    fake_qsub.chmod(0o755)
+    completed = subprocess.run(
+        ["/bin/bash", str(SUBMIT_T2417), "test-attempt"],
+        check=False,
+        capture_output=True,
+        text=True,
+        env={
+            **os.environ,
+            "PATH": f"{fake_bin}:{os.environ['PATH']}",
+            "FAKE_REPO_ROOT": str(ROOT.resolve()),
+            "QSUB_LOG": str(qsub_log),
+        },
+    )
+    assert completed.returncode == 0, completed.stderr
+    ledger = [json.loads(line) for line in completed.stdout.splitlines()]
+    assert len(ledger) == 18
+    assert [entry["rep_index"] for entry in ledger] == list(range(18))
+    assert [entry["order_index"] for entry in ledger] == [
+        rep_index % 6 for rep_index in range(18)
+    ]
+    assert [entry["order"].replace("+", ",") for entry in ledger] == [
+        EXPECTED_PERMUTATIONS[rep_index % 6] for rep_index in range(18)
+    ]
+    assert [int(entry["seed"]) for entry in ledger] == list(
+        EXPECTED_SEEDS_BY_SLOT.values()
+    )
+
+    qsub_lines = qsub_log.read_text(encoding="utf-8").splitlines()
+    assert len(qsub_lines) == 18
+    environments = []
+    for line in qsub_lines:
+        option, environment_text, pbs_body = line.split(" ", 2)
+        assert option == "-v"
+        assert Path(pbs_body) == PBS
+        environments.append(
+            dict(item.split("=", 1) for item in environment_text.split(","))
+        )
+    assert set(environments[0]) == {
+        "IZANAGI_T2187_MODE",
+        "IZANAGI_T2187_BACKOFF_TRACE",
+        "IZANAGI_T2187_OUT_DIR",
+        "IZANAGI_T2187_CELLS",
+        "IZANAGI_T2187_WORKLOADS",
+        "IZANAGI_T2187_THREADS",
+        "IZANAGI_T2187_REP_INDEX",
+        "IZANAGI_T2187_STEP_POLICY_SEED",
+        "IZANAGI_T2187_STAGE",
+    }
+    changing = {
+        key
+        for key in environments[0]
+        if len({environment[key] for environment in environments}) > 1
+    }
+    assert changing == {
+        "IZANAGI_T2187_CELLS",
+        "IZANAGI_T2187_REP_INDEX",
+        "IZANAGI_T2187_STEP_POLICY_SEED",
+    }
+    assert [
+        int(environment["IZANAGI_T2187_REP_INDEX"])
+        for environment in environments
+    ] == list(range(18))
+    assert [
+        environment["IZANAGI_T2187_CELLS"].replace("+", ",")
+        for environment in environments
+    ] == [EXPECTED_PERMUTATIONS[rep_index % 6] for rep_index in range(18)]
+    assert [
+        int(environment["IZANAGI_T2187_STEP_POLICY_SEED"])
+        for environment in environments
+    ] == list(EXPECTED_SEEDS_BY_SLOT.values())
+    assert 'if [[ "$submitted" -ne 18 ]]' in submit_text
 
 
 def test_backoff_trace_mode_rejects_nonzero_rep_index_only(tmp_path: Path) -> None:
