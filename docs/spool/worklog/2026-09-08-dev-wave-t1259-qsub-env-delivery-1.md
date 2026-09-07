@@ -48,7 +48,13 @@ title: [T-1259] qsub -v の 2 本目以降は届き、NQSV は -v 外の ambient
   作れず dispatch preflight が rc=1 になり `rc=16` で落ちる。親が全て代走した。
 - 背景の待ち手として張った until ループが、条件未達のまま完了通知を出す事象を 2 度実測した。
   毎回 `.done` と成果物で検算していたので誤判定には至っていない。正本の
-  `tools/dev_wave_wait.py producer` へ切り替えて回復した。
+  `tools/dev_wave_wait.py producer` へ切り替えて回復した。既存の正本が既に
+  「待ち手は `tools/dev_wave_wait.py` を使う」と定めているので、文書は変えない。
+- **段 8 の改善候補 1 件は実施しないへ落とした。** 段 2 の plan 子が投入元を wave worktree に
+  置いた件で、submit-tree の既裁定が dev-wave の reference から引けないのが原因である。
+  `DW-C01` へ 1 行足すと節全体の exact 契約と単節予算 1000 bytes を破る (1114 bytes)。
+  D730 / D782 の手順に従い、既存記述の削減は安全義務の圧縮になるため採らず、
+  独立 3 例にも達していないので収容しない。上限引き上げには至っていない。
 
 ## 次の一手差分
 
