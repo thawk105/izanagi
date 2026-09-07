@@ -61,7 +61,7 @@ PIN_GATE_SCHEDULE_SHA256 = (
     "105bf4cb713f309fec174035814b7ab70ac892a70a51d62f028c31f6310c68d2"
 )
 PIN_GATE_SPEC_SHA256 = (
-    "63cd82787ebe361e4fc6c4335c542bf76ee10083f419fd0b47f09b97e3d64202"
+    "27ed67ab2f358725b9bf959a28fa79603dd4cf4ca470fd541a10a1b2ca7c59e0"
 )
 # production serializer から独立した reviewed-spec golden。UTF-8 非 ASCII、
 # sort 済み key 順、compact separator、末尾 LF 無しを raw bytes として固定する。

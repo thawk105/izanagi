@@ -184,7 +184,9 @@ def _fixture_expected_materialization_sha256(declaration) -> str:
     ).hexdigest()
 
 
-def _fixture_source_evidence(genome, ccbench_commit, *, ccbench_dir="", cxx="g++-13"):
+def _fixture_source_evidence(
+        genome, ccbench_commit, *, ccbench_dir="", cxx="g++-13",
+        sort_oracle_contract_id=None):
     del cxx
     source_root = str(Path(ccbench_dir or "/fixture/ccbench").resolve())
     token = _fixture_src_token(genome, source_root)
@@ -478,6 +480,7 @@ def _make_fake_build(build_root: Path, *, cached: bool = False):
                    expected_materialization_descriptor=None,
                    timeout_s=None, admission=None, build_context=None,
                    source_evidence=None, expected_toolchain_manifest=None,
+                   sort_oracle_contract_id=None,
                    fetchcontent_base_dir="", fetchcontent_dependency_receipt=None,
                    fetchcontent_archive_sha256=None,
                    post_oracle_dependency_binding=None,
@@ -2731,16 +2734,22 @@ class TestFloorToolchainBinding:
 def test_build_cells_resolves_site_compilers_and_binding_once_before_cell_loop(
         tmp_path, monkeypatch):
     freeze = _freeze_document()
-    cells = s8b_floor_campaign.enumerate_cells(
+    enumerated = s8b_floor_campaign.enumerate_cells(
         freeze, stock_configuration=_STOCK,
-    )[:2]
+    )
+    cells = [
+        next(cell for cell in enumerated if cell["configuration"] == "stock_common"),
+        next(cell for cell in enumerated if cell["configuration"] == "sort_best"),
+    ]
     contract = ec.lookup(ENV_TAG)
     verified = env_attestation.load_verified_calibration(contract, ROOT)
     compiler_calls = []
     binding_calls = []
     prepare_cxx = []
     evidence_cxx = []
+    evidence_contract_kwargs = []
     build_tools = []
+    build_contract_kwargs = []
     expected_manifest = {"sentinel": {"generation": "current"}}
     marker_root = tmp_path / "job-staging"
     marker_root.mkdir()
@@ -2753,8 +2762,9 @@ def test_build_cells_resolves_site_compilers_and_binding_once_before_cell_loop(
         binding_calls.append((candidate, cc, cxx))
         return expected_manifest
 
-    def evidence(genome, commit, *, ccbench_dir, cxx):
+    def evidence(genome, commit, *, ccbench_dir, cxx, **kwargs):
         evidence_cxx.append(cxx)
+        evidence_contract_kwargs.append(kwargs)
         return _fixture_source_evidence(
             genome, commit, ccbench_dir=ccbench_dir, cxx=cxx,
         )
@@ -2763,12 +2773,23 @@ def test_build_cells_resolves_site_compilers_and_binding_once_before_cell_loop(
     def prepare(cell, ccbench_pin, *, cxx):
         prepare_cxx.append(cxx)
         with _fake_prepare(cell, ccbench_pin, cxx=cxx) as prepared:
+            if cell["configuration"] == "sort_best":
+                prepared = dataclasses.replace(
+                    prepared,
+                    sort_oracle_contract_id=(
+                        sort_swo_oracle.ORACLE_CONTRACT_ID
+                    ),
+                )
             yield prepared
 
     fake_build = _make_fake_build(tmp_path / "bin")
 
     def build(genome, **kwargs):
         assert len(list(marker_root.glob("phase-build-*.json"))) == len(build_tools) + 1
+        build_contract_kwargs.append({
+            key: value for key, value in kwargs.items()
+            if key == "sort_oracle_contract_id"
+        })
         build_tools.append((
             kwargs["cc"], kwargs["cxx"], kwargs["expected_toolchain_manifest"],
         ))
@@ -2790,6 +2811,14 @@ def test_build_cells_resolves_site_compilers_and_binding_once_before_cell_loop(
     assert binding_calls == [(verified, "site-cc", "site-cxx")]
     assert prepare_cxx == ["site-cxx", "site-cxx"]
     assert evidence_cxx == ["site-cxx", "site-cxx"]
+    assert evidence_contract_kwargs == [
+        {},
+        {"sort_oracle_contract_id": sort_swo_oracle.ORACLE_CONTRACT_ID},
+    ]
+    assert build_contract_kwargs == [
+        {},
+        {"sort_oracle_contract_id": sort_swo_oracle.ORACLE_CONTRACT_ID},
+    ]
     assert build_tools == [
         ("site-cc", "site-cxx", expected_manifest),
         ("site-cc", "site-cxx", expected_manifest),
