@@ -453,13 +453,13 @@ def _failure_evidence(
     }
 
 
-def _external_evidence_sha256(
+def _external_evidence_bytes(
     *,
     probe_before: Mapping[str, object],
     probe_after: Mapping[str, object] | None,
     launch_failures: tuple[object, ...],
     capture_failure: Mapping[str, object] | None,
-) -> str:
+) -> bytes:
     payload = {
         "schema_version": _PRE_OUTPUT_EVIDENCE_SCHEMA,
         "probe_before": _post_probe(probe_before),
@@ -470,9 +470,22 @@ def _external_evidence_sha256(
         ],
         "capture_failure": None if capture_failure is None else dict(capture_failure),
     }
-    return hashlib.sha256(
-        _canonical_json_bytes(payload, label="pre-output evidence")
-    ).hexdigest()
+    return _canonical_json_bytes(payload, label="pre-output evidence")
+
+
+def _external_evidence_sha256(
+    *,
+    probe_before: Mapping[str, object],
+    probe_after: Mapping[str, object] | None,
+    launch_failures: tuple[object, ...],
+    capture_failure: Mapping[str, object] | None,
+) -> str:
+    return hashlib.sha256(_external_evidence_bytes(
+        probe_before=probe_before,
+        probe_after=probe_after,
+        launch_failures=launch_failures,
+        capture_failure=capture_failure,
+    )).hexdigest()
 
 
 def _pre_observation_failure_reason(
@@ -1011,13 +1024,17 @@ def _launch_floor_attempt(
         launch_failures=launch_failures,
         failure=failure,
     )
-    evidence_sha256 = _external_evidence_sha256(
+    evidence_bytes = _external_evidence_bytes(
         probe_before=probe_before,
         probe_after=probe_after,
         launch_failures=launch_failures,
         capture_failure=failure,
     )
+    evidence_sha256 = hashlib.sha256(evidence_bytes).hexdigest()
     registry = dependencies.registry
+    classification_extra: dict[str, object] = {}
+    if policy.is_v2:
+        classification_extra["external_evidence_bytes"] = evidence_bytes
     classification = registry.classify_attempt(
         reserved,
         pre_observation_failure_reason=reason,
@@ -1027,6 +1044,7 @@ def _launch_floor_attempt(
         ),
         external_evidence_sha256=evidence_sha256,
         classified_at=classified_at(),
+        **classification_extra,
     )
     durable = _DurablyClassifiedMeasurement(captured, classification)
     del captured

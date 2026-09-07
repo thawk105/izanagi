@@ -3,6 +3,7 @@ from __future__ import annotations
 import ast
 import copy
 from dataclasses import dataclass, replace
+from enum import IntEnum
 import hashlib
 import inspect
 import json
@@ -660,6 +661,42 @@ def test_opened_external_digest_is_rechecked_against_each_source() -> None:
         evidence.TerminalEvidenceError,
         match='external evidence digest differs from source facts',
     ):
+        _seal(case)
+
+
+@pytest.mark.parametrize(
+    ('field', 'replacement'),
+    (
+        ('rep_index', type('RepIndexSubclass', (int,), {})(0)),
+        ('returncode', IntEnum('ReturnCode', {'ZERO': 0}).ZERO),
+    ),
+)
+def test_rep_source_exact_integer_types_are_checked_before_canonical_copy(
+    field: str,
+    replacement: object,
+) -> None:
+    case = _case()
+    case.opened.repetition_evidence[0][field] = replacement
+    with pytest.raises(evidence.TerminalEvidenceError):
+        _seal(case)
+
+
+@pytest.mark.parametrize(
+    ('field', 'replacement', 'message'),
+    (
+        ('records', type('RecordCountSubclass', (int,), {})(1000000), 'records'),
+        ('retry_ordinal', IntEnum('RetryOrdinal', {'TWO': 2}).TWO, 'retry_ordinal'),
+        ('attempt_id', type('AttemptIdSubclass', (str,), {})('holdout-a::configuration-a::attempt-2'), 'attempt_id'),
+    ),
+)
+def test_campaign_source_exact_types_are_checked_before_canonical_copy(
+    field: str,
+    replacement: object,
+    message: str,
+) -> None:
+    case = _case()
+    case.terminal.campaign_record[field] = replacement
+    with pytest.raises(evidence.TerminalEvidenceError, match=message):
         _seal(case)
 
 def test_campaign_excluded_reason_must_equal_rederived_word() -> None:

@@ -1166,6 +1166,40 @@ def _terminal_evidence_path(root: Path, digest: str) -> Path:
     )
 
 
+def _external_evidence_path(root: Path, digest: str) -> Path:
+    digest = _sha256(digest, label="external_evidence_sha256")
+    return root.joinpath(
+        *profile8b.S8B_REGISTRY_LAYOUT.classification_receipt_dir.parts,
+        "external-evidence",
+        f"{digest}.json",
+    )
+
+
+def _validated_external_evidence_bytes(
+    data: bytes,
+    *,
+    expected_digest: str,
+    evidence: terminal_evidence.ValidatedTerminalEvidence | None = None,
+) -> bytes:
+    """Validate one digest-named pre-output source and optional terminal."""
+
+    digest = _sha256(expected_digest, label="external_evidence_sha256")
+    if type(data) is not bytes or hashlib.sha256(data).hexdigest() != digest:
+        _fail("s8b-terminal-evidence", "external evidence bytes digest differs")
+    try:
+        if evidence is None:
+            terminal_evidence._pre_output_evidence_document(data)
+        else:
+            terminal_evidence._assert_external_evidence_matches_terminal(
+                data,
+                expected_digest=digest,
+                terminal_document=evidence.document,
+            )
+    except terminal_evidence.TerminalEvidenceError as exc:
+        raise S8BAttemptRegistryError(str(exc)) from exc
+    return data
+
+
 def _promote_draft_to_validated(
     draft: terminal_evidence.SealedTerminalEvidenceDraft,
     *,
@@ -1293,7 +1327,12 @@ def _expected_terminal_binding(
     row: Mapping[str, Any],
     profile: core.DomainProfile[Any, Any],
     binding: profile8b.S8BAttemptBinding,
-) -> tuple[dict[str, object], Mapping[str, Any], profile8b.S8BV2AttemptSlot]:
+) -> tuple[
+    dict[str, object],
+    Mapping[str, Any],
+    profile8b.S8BV2AttemptSlot,
+    str,
+]:
     slot = _terminal_slot_from_documents(rows, row=row, profile=profile)
     classifications = _rows_for_event(
         rows, slot=slot, event="classification", profile=profile,
@@ -1310,7 +1349,29 @@ def _expected_terminal_binding(
         root=root, binding=binding, slot=slot,
     )
     assert claim_result is not None
-    claim = claim_result[0]
+    claim, claim_receipt_bytes = claim_result
+    receipt_sha256 = _sha256(
+        classifications[0]["classification_receipt_sha256"],
+        label="classification row.classification_receipt_sha256",
+    )
+    receipt_path = _receipt_path(root, receipt_sha256)
+    receipt_bytes = _read_regular_bytes(receipt_path)
+    assert receipt_bytes is not None
+    if (
+        hashlib.sha256(receipt_bytes).hexdigest() != receipt_sha256
+        or receipt_bytes != claim_receipt_bytes
+    ):
+        _fail(
+            "s8b-terminal-evidence",
+            "classification receipt differs during terminal replay",
+        )
+    receipt = _canonical_document(
+        receipt_bytes, label="classification receipt",
+    )
+    external_evidence_sha256 = _sha256(
+        receipt.get("external_evidence_sha256"),
+        label="classification receipt.external_evidence_sha256",
+    )
     expected = {
         "admission_claim_digest": claim["admission_claim_digest"],
         "attempt_id": claim["attempt_id"],
@@ -1327,7 +1388,7 @@ def _expected_terminal_binding(
         "classification_event_sha256": classifications[0]["event_sha256"],
         "observation_event_sha256": observations[0]["event_sha256"],
     }
-    return expected, claim, slot
+    return expected, claim, slot, external_evidence_sha256
 
 
 def _assert_terminal_durable_identity(
@@ -1458,12 +1519,14 @@ def _load_terminal_evidence_locked(
             row.get("terminal_evidence_sha256"),
             label="terminal row.terminal_evidence_sha256",
         )
-        expected, claim, slot = _expected_terminal_binding(
-            root=root,
-            rows=rows,
-            row=row,
-            profile=profile,
-            binding=expected_binding,
+        expected, claim, slot, external_evidence_sha256 = (
+            _expected_terminal_binding(
+                root=root,
+                rows=rows,
+                row=row,
+                profile=profile,
+                binding=expected_binding,
+            )
         )
         supplied = overrides.pop(digest, None)
         if supplied is None:
@@ -1494,6 +1557,18 @@ def _load_terminal_evidence_locked(
             claim=claim,
             slot=slot,
             binding=expected_binding,
+        )
+        external_path = _external_evidence_path(
+            root, external_evidence_sha256,
+        )
+        if external_path.name != f"{external_evidence_sha256}.json":
+            _fail("s8b-terminal-evidence", "external evidence filename differs")
+        external_data = _read_regular_bytes(external_path)
+        assert external_data is not None
+        _validated_external_evidence_bytes(
+            external_data,
+            expected_digest=external_evidence_sha256,
+            evidence=supplied,
         )
         result[digest] = supplied
     if overrides:
@@ -2665,6 +2740,7 @@ def classify_attempt(
     authority_policy_sha256: str,
     external_evidence_sha256: str,
     classified_at: str,
+    external_evidence_bytes: bytes | None = None,
 ) -> ClassifiedAttempt | ClassifiedFailure:
     """Publish slot claim, receipt, and row before issuing a classified handle."""
 
@@ -2677,6 +2753,17 @@ def classify_attempt(
         ),
         requested_registry_path=state.registry_path,
     )
+    durable_external_bytes: bytes | None = None
+    if external_evidence_bytes is not None:
+        if state.profile.schema is not profile8b.S8B_V2_SCHEMA_PROFILE:
+            _fail(
+                "s8b-terminal-evidence",
+                "external evidence bytes require the canonical v2 profile",
+            )
+        durable_external_bytes = _validated_external_evidence_bytes(
+            external_evidence_bytes,
+            expected_digest=external_evidence_sha256,
+        )
     desired_fields = {
         "capability_digest_sha256": None,
         "pre_observation_failure_reason": pre_observation_failure_reason,
@@ -2798,11 +2885,24 @@ def classify_attempt(
         registry_name = PurePosixPath(
             *path.relative_to(root).parts
         ).as_posix()
-        for logical_name, payload in (
+        preflight_payloads = [
             (claim_name, claim_bytes),
             (receipt_name, result.receipt_bytes),
-            (registry_name, candidate_bytes),
-        ):
+        ]
+        external_path: Path | None = None
+        external_name: str | None = None
+        if durable_external_bytes is not None:
+            external_path = _external_evidence_path(
+                root, external_evidence_sha256,
+            )
+            external_name = PurePosixPath(
+                *external_path.relative_to(root).parts
+            ).as_posix()
+            preflight_payloads.append(
+                (external_name, durable_external_bytes)
+            )
+        preflight_payloads.append((registry_name, candidate_bytes))
+        for logical_name, payload in preflight_payloads:
             admission.assert_holdout_safe_bytes(logical_name, payload)
         _publish_create_only(
             claim_path,
@@ -2818,6 +2918,17 @@ def classify_attempt(
             allow_exact_retry=True,
         )
         _fault("after-classification-receipt")
+        if (
+            external_path is not None
+            and external_name is not None
+            and durable_external_bytes is not None
+        ):
+            _publish_create_only(
+                external_path,
+                durable_external_bytes,
+                logical_name=external_name,
+                allow_exact_retry=True,
+            )
 
     _rows, result = _atomic_update(
         root=root,
@@ -3160,6 +3271,10 @@ def record_sealed_attempt_terminal(
     receipt = _canonical_document(
         receipt_bytes, label="classification receipt",
     )
+    external_evidence_sha256 = _sha256(
+        receipt.get("external_evidence_sha256"),
+        label="classification receipt.external_evidence_sha256",
+    )
     if receipt.get("external_evidence_sha256") != (
         evidence._external_evidence_sha256
     ):
@@ -3247,6 +3362,15 @@ def record_sealed_attempt_terminal(
             claim=claim,
             slot=slot,
             binding=state.binding,
+        )
+        external_data = _read_regular_bytes(
+            _external_evidence_path(root, external_evidence_sha256)
+        )
+        assert external_data is not None
+        _validated_external_evidence_bytes(
+            external_data,
+            expected_digest=external_evidence_sha256,
+            evidence=validated,
         )
         projection = validated.projection
         if projection.raw_output_sha256 != state.raw_output_sha256:

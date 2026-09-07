@@ -72,6 +72,14 @@ _PROBE_SUMMARY_KEYS = frozenset({
 _FAILURE_KEYS = frozenset({'stage', 'exception_type', 'errno', 'message'})
 _FAILURE_SUMMARY_KEYS = frozenset({'stage', 'exception_type', 'errno'})
 _LAUNCH_FAILURE_KEYS = frozenset({'exception_type', 'errno', 'message'})
+_PRE_OUTPUT_EVIDENCE_SCHEMA = 's8b-floor-pre-output-evidence/v2'
+_PRE_OUTPUT_EVIDENCE_KEYS = frozenset({
+    'schema_version',
+    'probe_before',
+    'probe_after',
+    'launch_failures',
+    'capture_failure',
+})
 _DRAFT_ATTEMPT_BINDING_KEYS = frozenset({
     'admission_claim_digest',
     'attempt_id',
@@ -480,6 +488,35 @@ def _reservation_source_document(
         _fail('reservation source snapshot type differs')
     return _strict_json_document(snapshot._canonical_bytes)
 
+def _pre_output_evidence_bytes(
+    *,
+    probe_before: Mapping[str, object],
+    probe_after: Mapping[str, object] | None,
+    launch_failures: Sequence[Mapping[str, object]],
+    failure: Mapping[str, object] | None,
+) -> bytes:
+    before = _probe(probe_before, label='pre-output probe_before')
+    after = None if probe_after is None else _probe(
+        probe_after, label='pre-output probe_after')
+    failures = [
+        _launch_failure(item, position=position)
+        for (position, item) in enumerate(launch_failures)
+    ]
+    checked_failure = _failure(failure)
+    payload = {
+        'schema_version': _PRE_OUTPUT_EVIDENCE_SCHEMA,
+        'probe_before': before,
+        'probe_after': after,
+        'launch_failures': failures,
+        'capture_failure': (
+            checked_failure
+            if checked_failure is not None
+            and checked_failure['stage'] == 'capture'
+            else None
+        ),
+    }
+    return _canonical(payload, label='pre-output evidence')
+
 def _pre_output_evidence_sha256(
     *,
     probe_before: Mapping[str, object],
@@ -487,18 +524,82 @@ def _pre_output_evidence_sha256(
     launch_failures: Sequence[Mapping[str, object]],
     failure: Mapping[str, object] | None,
 ) -> str:
-    payload = {
-        'schema_version': 's8b-floor-pre-output-evidence/v2',
-        'probe_before': dict(probe_before),
-        'probe_after': None if probe_after is None else dict(probe_after),
-        'launch_failures': [dict(item) for item in launch_failures],
-        'capture_failure': (
-            dict(failure)
-            if failure is not None and failure['stage'] == 'capture'
-            else None
+    return _sha256_bytes(_pre_output_evidence_bytes(
+        probe_before=probe_before,
+        probe_after=probe_after,
+        launch_failures=launch_failures,
+        failure=failure,
+    ))
+
+def _pre_output_evidence_document(data: bytes) -> dict[str, Any]:
+    document = _strict_json_document(data)
+    source = _exact_mapping(
+        document,
+        keys=_PRE_OUTPUT_EVIDENCE_KEYS,
+        label='pre-output evidence',
+    )
+    if source['schema_version'] != _PRE_OUTPUT_EVIDENCE_SCHEMA:
+        _fail('pre-output evidence schema_version differs')
+    source['probe_before'] = _probe(
+        source['probe_before'], label='pre-output probe_before')
+    after = source['probe_after']
+    source['probe_after'] = None if after is None else _probe(
+        after, label='pre-output probe_after')
+    failures = source['launch_failures']
+    if type(failures) is not list:
+        _fail('pre-output launch_failures is not an exact list')
+    source['launch_failures'] = [
+        _launch_failure(item, position=position)
+        for (position, item) in enumerate(failures)
+    ]
+    capture_failure = _failure(source['capture_failure'])
+    if capture_failure is not None and capture_failure['stage'] != 'capture':
+        _fail('pre-output capture_failure stage differs')
+    source['capture_failure'] = capture_failure
+    return source
+
+def _assert_external_evidence_matches_terminal(
+    data: bytes,
+    *,
+    expected_digest: str,
+    terminal_document: Mapping[str, Any],
+) -> None:
+    """Bind durable pre-output bytes to one canonical terminal document."""
+    digest = _sha256(expected_digest, label='external_evidence_sha256')
+    if _sha256_bytes(data) != digest:
+        _fail('external evidence bytes digest differs')
+    source = _pre_output_evidence_document(data)
+    checked, _assessment = _validated_document(terminal_document)
+    comparisons = {
+        'probe_before_sha256': _digest_value(
+            source['probe_before'], label='external probe_before'),
+        'probe_after_sha256': (
+            None
+            if source['probe_after'] is None
+            else _digest_value(
+                source['probe_after'], label='external probe_after')
         ),
+        'launch_failures_sha256': _digest_value(
+            source['launch_failures'], label='external launch_failures'),
     }
-    return _digest_value(payload, label='pre-output evidence')
+    for name, derived in comparisons.items():
+        if checked[name] != derived:
+            _fail(f'external evidence differs from terminal: {name}')
+    capture_failure = source['capture_failure']
+    terminal_failure = checked['failure']
+    if capture_failure is not None:
+        if terminal_failure != _failure_summary(capture_failure):
+            _fail('external capture failure differs from terminal summary')
+        if checked['failure_message_sha256'] != _digest_value(
+            capture_failure['message'], label='external failure message',
+        ):
+            _fail('external evidence differs from terminal: failure_message_sha256')
+    elif terminal_failure is not None and terminal_failure['stage'] == 'capture':
+        _fail('terminal capture failure is absent from external evidence')
+    elif terminal_failure is None and checked['failure_message_sha256'] != (
+        _digest_value(None, label='external null failure message')
+    ):
+        _fail('external evidence differs from terminal: failure_message_sha256')
 
 def _snapshot_opened_source(
     reservation: _ReservationSourceSnapshot,
@@ -521,10 +622,29 @@ def _snapshot_opened_source(
         opened, 'repetition_evidence', label='opened')
     if type(observations_value) is not tuple:
         _fail('opened.repetition_evidence is not an exact tuple')
-    observations = _canonical_copy([
+    source_observations = [
         dict(item) if isinstance(item, Mapping) else item
         for item in observations_value
-    ], label='opened.repetition_evidence')
+    ]
+    source_reps_expected = _positive_int(
+        _member(opened, 'reps_expected', label='opened'),
+        label='opened.reps_expected',
+    )
+    source_expected_use_perf = _exact_bool(
+        _member(opened, 'expected_use_perf', label='opened'),
+        label='opened.expected_use_perf',
+    )
+    (
+        _source_errors,
+        source_rep_integrity_failures,
+        source_qualified_throughputs,
+    ) = s8b_floor_stats._derive_rep_integrity(
+        source_observations,
+        reps=source_reps_expected,
+        expected_use_perf=source_expected_use_perf,
+    )
+    observations = _canonical_copy(
+        source_observations, label='opened.repetition_evidence')
     if type(observations) is not list:
         _fail('opened repetition snapshot is not an exact list')
     measurement = _member(opened, 'measurement', label='opened')
@@ -537,12 +657,13 @@ def _snapshot_opened_source(
                 '[s8b-terminal-evidence] opened measurement has no '
                 'throughput sequence'
             ) from exc
-    computed_external = _pre_output_evidence_sha256(
+    external_evidence_bytes = _pre_output_evidence_bytes(
         probe_before=before,
         probe_after=after,
         launch_failures=launch_failures,
         failure=failure,
     )
+    computed_external = _sha256_bytes(external_evidence_bytes)
     supplied_external = _sha256(
         _member(opened, 'external_evidence_sha256', label='opened'),
         label='opened.external_evidence_sha256',
@@ -559,10 +680,10 @@ def _snapshot_opened_source(
             opened, 'pre_observation_failure_reason', label='opened'),
         'external_evidence_sha256': computed_external,
         'repetition_evidence': observations,
-        'expected_use_perf': _member(
-            opened, 'expected_use_perf', label='opened'),
-        'reps_expected': _member(
-            opened, 'reps_expected', label='opened'),
+        'source_rep_integrity_failures': source_rep_integrity_failures,
+        'source_qualified_throughputs': list(source_qualified_throughputs),
+        'expected_use_perf': source_expected_use_perf,
+        'reps_expected': source_reps_expected,
     }
     canonical = _canonical(source, label='opened source')
     snapshot = object.__new__(_OpenedSourceSnapshot)
@@ -579,6 +700,9 @@ def _snapshot_terminal_source(terminal: object) -> _TerminalSourceSnapshot:
     """Strictly snapshot a builder result, including one campaign-record read."""
     record = _source_campaign_record(
         _member(terminal, 'campaign_record', label='terminal'))
+    _campaign_plaintext({
+        name: record[name] for name in _CAMPAIGN_PLAINTEXT_KEYS
+    })
     record_bytes = _canonical(record, label='campaign_record source')
     raw_output = _member(terminal, 'raw_output_bytes', label='terminal')
     if type(raw_output) is not bytes or not raw_output:
@@ -940,13 +1064,13 @@ def _source_throughputs_from_snapshot(
     ]
     if measurement_throughputs != raw_observed:
         _fail('measurement throughputs differ from the private repetition sink')
-    (_errors, integrity_failures, qualified) = (
-        s8b_floor_stats._derive_rep_integrity(
-            observations,
-            reps=reps_expected,
-            expected_use_perf=expected_use_perf,
-        )
+    integrity_failures = _nonnegative_int(
+        opened['source_rep_integrity_failures'],
+        label='opened.source_rep_integrity_failures',
     )
+    qualified = opened['source_qualified_throughputs']
+    if type(qualified) is not list:
+        _fail('opened source_qualified_throughputs is not an exact list')
     finite: list[float] = []
     nonfinite_count = 0
     for (position, value) in enumerate(qualified):

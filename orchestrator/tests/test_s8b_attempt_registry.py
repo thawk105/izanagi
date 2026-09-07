@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import ast
 from concurrent.futures import ThreadPoolExecutor
+import copy
 from dataclasses import replace
 import hashlib
 import inspect
@@ -431,12 +432,20 @@ def _sealed_v2_case(
         if capture_failure
         else None
     )
-    external_evidence_sha256 = evidence._pre_output_evidence_sha256(
+    external_evidence_bytes = evidence._pre_output_evidence_bytes(
         probe_before=probe,
         probe_after=probe,
         launch_failures=(),
         failure=failure,
     )
+    external_evidence_sha256 = hashlib.sha256(
+        external_evidence_bytes
+    ).hexdigest()
+    classification_extra = {}
+    if classification_external_override is None:
+        classification_extra["external_evidence_bytes"] = (
+            external_evidence_bytes
+        )
     classified = registry.classify_attempt(
         reserved,
         pre_observation_failure_reason=(
@@ -450,6 +459,7 @@ def _sealed_v2_case(
             else classification_external_override
         ),
         classified_at="2026-09-08T00:00:01+00:00",
+        **classification_extra,
     )
     if capture_failure:
         assert type(classified) is registry.ClassifiedFailure
@@ -3978,13 +3988,89 @@ def test_sealed_v2_terminal_publishes_evidence_and_replays_old_and_candidate(
     evidence_path = registry._terminal_evidence_path(
         admission.shared_admission_root(sealed["repo_root"]), digest,
     )
+    external_path = registry._external_evidence_path(
+        admission.shared_admission_root(sealed["repo_root"]),
+        sealed["external_evidence_sha256"],
+    )
     data = evidence_path.read_bytes()
     assert evidence_path.name == f"{digest}.json"
     assert hashlib.sha256(data).hexdigest() == digest
     assert not data.endswith(b"\n")
+    assert external_path.name == (
+        f"{sealed['external_evidence_sha256']}.json"
+    )
+    assert hashlib.sha256(external_path.read_bytes()).hexdigest() == (
+        sealed["external_evidence_sha256"]
+    )
     assert path.read_bytes() == _bytes(rows)
     assert terminal["measurement_retry_reason"] is None
     assert terminal["terminal_status"] == "observed"
+
+
+def test_sealed_v2_issuer_rederives_external_component_digests(
+    tmp_path: Path,
+) -> None:
+    sealed = _sealed_v2_case(tmp_path)
+    document = copy.deepcopy(sealed["draft"].document)
+    document["probe_before_sha256"] = "f" * 64
+    forged = object.__new__(evidence.SealedTerminalEvidenceDraft)
+    object.__setattr__(
+        forged, "_canonical_bytes", core.canonical_json_bytes(document),
+    )
+    object.__setattr__(
+        forged,
+        "_external_evidence_sha256",
+        sealed["draft"]._external_evidence_sha256,
+    )
+    object.__setattr__(
+        forged,
+        "_launcher_origin_capability",
+        sealed["draft"]._launcher_origin_capability,
+    )
+    with pytest.raises(
+        registry.S8BAttemptRegistryError,
+        match="external evidence differs from terminal: probe_before_sha256",
+    ):
+        registry.record_sealed_attempt_terminal(
+            sealed["observation"], forged,
+        )
+
+
+def test_sealed_v2_replay_rederives_external_component_digests(
+    tmp_path: Path,
+) -> None:
+    sealed = _sealed_v2_case(tmp_path)
+    registry.record_sealed_attempt_terminal(
+        sealed["observation"], sealed["draft"],
+    )
+    root = admission.shared_admission_root(sealed["repo_root"])
+    path = registry.registry_path(
+        sealed["repo_root"],
+        freeze_sha256=sealed["binding"].freeze_sha256,
+        protocol_sha256=sealed["binding"].protocol_sha256,
+    )
+    rows = list(registry._registry_documents_for_evidence(path.read_bytes()))
+    old_digest = rows[-1]["terminal_evidence_sha256"]
+    old_path = registry._terminal_evidence_path(root, old_digest)
+    document = json.loads(old_path.read_text(encoding="utf-8"))
+    document["probe_before_sha256"] = "f" * 64
+    payload = core.canonical_json_bytes(document)
+    digest = hashlib.sha256(payload).hexdigest()
+    registry._terminal_evidence_path(root, digest).write_bytes(payload)
+    terminal = dict(rows[-1])
+    terminal["terminal_evidence_sha256"] = digest
+    terminal["event_sha256"] = core.event_sha256(terminal)
+    rows[-1] = terminal
+    path.write_bytes(_bytes(tuple(rows)))
+    with pytest.raises(
+        registry.S8BAttemptRegistryError,
+        match="external evidence differs from terminal: probe_before_sha256",
+    ):
+        registry.read_attempt_registry(
+            sealed["repo_root"],
+            profile=sealed["profile"],
+            binding=sealed["binding"],
+        )
 
 
 @pytest.mark.parametrize(

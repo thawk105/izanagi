@@ -201,6 +201,18 @@ class _RecorderRegistry:
         )
 
 
+class _AcceptOnlyRecorderRegistry(_RecorderRegistry):
+    """Recorder whose terminal sink adds no rejection after the leaf gates."""
+
+    def record_sealed_attempt_terminal(
+        self, observation: _Observation, evidence: object,
+    ) -> None:
+        self.events.append("sealed-draft")
+        self.sealed_draft = evidence
+        assert observation.raw_output
+        assert type(evidence) is s8b_terminal_evidence.SealedTerminalEvidenceDraft
+
+
 class _Token:
     def __init__(
         self,
@@ -1720,6 +1732,7 @@ def test_v2_protocol_snapshot_precedes_builder_mutation(
             throughputs=(1.0, 100.0, 200.0),
         )
     )
+    registry = _AcceptOnlyRecorderRegistry([])
 
     def build(
         opened: launcher.OpenedFloorAttempt,
@@ -1734,16 +1747,19 @@ def test_v2_protocol_snapshot_precedes_builder_mutation(
         s8b_terminal_evidence.TerminalEvidenceError,
         match="terminal.terminal_status differs from E1",
     ):
-        launcher._launch_floor_attempt_for_test(
-            reservation,
-            genesis,
-            measurement,
-            post_probe=_probe,
-            classified_at=lambda: "2026-09-08T00:00:01+00:00",
-            terminal_builder=build,
-            registry=registry,
-            capture_measure_point=_capture_token(token),
-        )
+        try:
+            launcher._launch_floor_attempt_for_test(
+                reservation,
+                genesis,
+                measurement,
+                post_probe=_probe,
+                classified_at=lambda: "2026-09-08T00:00:01+00:00",
+                terminal_builder=build,
+                registry=registry,
+                capture_measure_point=_capture_token(token),
+            )
+        finally:
+            assert registry.sealed_draft is None
 
 
 def test_v2_perf_receipt_snapshot_precedes_builder_mutation(
@@ -1803,6 +1819,7 @@ def test_v2_builder_receives_detached_sources_not_private_snapshot(
     reservation, measurement, genesis, token, registry = (
         _v2_fake_launch_case(tmp_path)
     )
+    registry = _AcceptOnlyRecorderRegistry([])
 
     def build(
         opened: launcher.OpenedFloorAttempt,
@@ -1810,7 +1827,9 @@ def test_v2_builder_receives_detached_sources_not_private_snapshot(
         if mutation == "probe":
             opened.probe_before["stderr"] = "builder-forged"
         else:
-            opened.repetition_evidence[0]["throughput"] = 999.0
+            perf_raw = opened.repetition_evidence[0]["perf_raw"]
+            assert isinstance(perf_raw, dict)
+            perf_raw[next(iter(perf_raw))] = 999
         return _v2_terminal_from_opened(
             reservation, opened, session_cv_max="0.10",
         )
@@ -1819,16 +1838,19 @@ def test_v2_builder_receives_detached_sources_not_private_snapshot(
         s8b_terminal_evidence.TerminalEvidenceError,
         match=message,
     ):
-        launcher._launch_floor_attempt_for_test(
-            reservation,
-            genesis,
-            measurement,
-            post_probe=_probe,
-            classified_at=lambda: "2026-09-08T00:00:01+00:00",
-            terminal_builder=build,
-            registry=registry,
-            capture_measure_point=_capture_token(token),
-        )
+        try:
+            launcher._launch_floor_attempt_for_test(
+                reservation,
+                genesis,
+                measurement,
+                post_probe=_probe,
+                classified_at=lambda: "2026-09-08T00:00:01+00:00",
+                terminal_builder=build,
+                registry=registry,
+                capture_measure_point=_capture_token(token),
+            )
+        finally:
+            assert registry.sealed_draft is None
     assert token._rep_sink is not None
     assert token._rep_sink[0]["throughput"] == 100.0
 
@@ -1839,6 +1861,7 @@ def test_v2_campaign_record_snapshot_is_shared_by_launcher_and_sealer(
     reservation, measurement, genesis, token, registry = (
         _v2_fake_launch_case(tmp_path)
     )
+    registry = _AcceptOnlyRecorderRegistry([])
 
     class SplitRecord(Mapping[str, object]):
         def __init__(
@@ -1889,16 +1912,19 @@ def test_v2_campaign_record_snapshot_is_shared_by_launcher_and_sealer(
         launcher.FloorAttemptLauncherError,
         match="launcher fact: duration_s",
     ):
-        launcher._launch_floor_attempt_for_test(
-            reservation,
-            genesis,
-            measurement,
-            post_probe=_probe,
-            classified_at=lambda: "2026-09-08T00:00:01+00:00",
-            terminal_builder=build,
-            registry=registry,
-            capture_measure_point=_capture_token(token),
-        )
+        try:
+            launcher._launch_floor_attempt_for_test(
+                reservation,
+                genesis,
+                measurement,
+                post_probe=_probe,
+                classified_at=lambda: "2026-09-08T00:00:01+00:00",
+                terminal_builder=build,
+                registry=registry,
+                capture_measure_point=_capture_token(token),
+            )
+        finally:
+            assert registry.sealed_draft is None
 
 
 def test_test_seam_forwarding_registry_lacks_launcher_origin_capability(
