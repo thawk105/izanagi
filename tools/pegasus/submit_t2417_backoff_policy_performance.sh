@@ -4,7 +4,7 @@ set -Eeuo pipefail
 umask 077
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
-REPO_ROOT=$(realpath -e -- "$SCRIPT_DIR/../../..")
+REPO_ROOT=$(realpath -e -- "$SCRIPT_DIR/../..")
 CANONICAL_ROOT=$(git -C "$REPO_ROOT" rev-parse --show-toplevel)
 CANONICAL_ROOT=$(realpath -e -- "$CANONICAL_ROOT")
 if [[ "$REPO_ROOT" != "$CANONICAL_ROOT" ]]; then

@@ -3090,6 +3090,7 @@ _PEGASUS_EXPECTED_CLASSES = {
     "tools/pegasus/submit_paper_story_a2_certification.sh": "local-ok",
     "tools/pegasus/submit_silo_ladder_rung1.sh": "local-ok",
     "tools/pegasus/submit_t126_qualification.sh": "unknown",
+    "tools/pegasus/submit_t2417_backoff_policy_performance.sh": "local-ok",
     "tools/pegasus/t126_qualification.sh": "dispatch-required",
     "tools/pegasus/t139_a12_stress_check.pbs": "dispatch-required",
     "tools/pegasus/t141_region_profile.sh": "dispatch-required",
@@ -3461,6 +3462,12 @@ _PEGASUS_EXPECTED_ENTRIES = {
         "reason": "input caps and capped-input measurement are incomplete",
         "primary_gate": "hook deny pending admission evidence",
         "evidence": "unmeasured; preflight input surfaces remain"
+    },
+    "tools/pegasus/submit_t2417_backoff_policy_performance.sh": {
+      "class": "local-ok",
+      "reason": "login-side PBS T-2417 policy-arm performance submitter",
+      "primary_gate": "qsub submission; compute work stays in job body",
+      "evidence": "static login-side submitter classification"
     },
     "tools/pegasus/t126_qualification.sh": {
         "class": "dispatch-required",
@@ -3954,6 +3961,8 @@ def test_bash_pegasus_registry_schema_and_fixed_classes():
             "static login-side submitter classification",
         "tools/pegasus/submit_silo_ladder_rung1.sh":
             "legacy-admitted (未実測)",
+        "tools/pegasus/submit_t2417_backoff_policy_performance.sh":
+            "static login-side submitter classification",
     }
     actual = {
         path: entry["evidence"]

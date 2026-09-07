@@ -3433,8 +3433,8 @@ def main(argv: list[str] | None = None) -> int:
         and args.backoff_trace is False
         and _is_backoff_policy_performance_cell_set(cells)
     )
-    if not is_policy_performance_request:
-        _validate_step_policy_seed(cells, args.step_policy_seed)
+    # Missing policy-2 seeds stay under the generic gate for every mode.
+    _validate_step_policy_seed(cells, args.step_policy_seed)
     if args.mode == "certify":
         if args.backoff_trace:
             raise CertificationReject(
