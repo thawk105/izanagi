@@ -36,6 +36,16 @@ seq: 3
 
 ## 再発
 
+### F684
+
+- **再発: 2026-09-08** — 受入全走が 21591 passed / 1 failed で戻り、落ちたのは同じ
+  `test_g5_real_ledger_covers_at_least_90_percent_of_real_collection` だった。被覆率は
+  19438 / 21660 = 89.7415%。main (240ee6360) 単独では 19439 / 21596 = 90.0120% と
+  **閾値を 0.0120 point しか上回っておらず**、本 wave の 65 node 追加でそのまま割った。
+  F684 の恒久対応 (部分更新) はそのまま効き、`--add-only` で自 wave の 65 node だけを
+  実測値で足して 90.0416% へ戻した。**残差がこれだけ薄いので、test を足す wave は
+  今後もほぼ確実に同じ赤を踏む。**
+
 ### F245
 
 - **再発: 2026-09-08** — 変異 `b060.m23-length-exact-int` / `b060.m24-endpoint-exact-int`

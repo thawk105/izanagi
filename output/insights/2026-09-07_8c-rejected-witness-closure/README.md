@@ -168,6 +168,11 @@ job-id `s5-author-20260907a` は model call 上限 100 に達して SIGTERM で�
 - 変異 probe 走 2 本・本走 2 本: baseline すべて PASSED。
 - AI provenance 全史監査: rc=0。
 - `tools/check_docs.py`: rc=0。
+- 受入全走 1 回目: 21591 passed / 1 failed / 68 skipped。赤 1 件は受入所要台帳の被覆率 gate で、
+  実測で本 wave 起因と確定した (main 単独 90.0120% -> 本 wave 89.7415%)。新規 65 node を
+  単独走させた JUnit の実測値だけを `--add-only` で足し、既存 entry を変えずに 90.0416% へ戻した。
+- 受入全走 2 回目: **child-green**、21592 passed / 68 skipped / 0 failed、
+  tested_main = 240ee63602ee17334b28780b70587f345b2e0495。
 
 ## 11. 残る限界
 

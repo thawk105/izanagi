@@ -41,7 +41,17 @@ title: 8c formal consumer の rejected 枝を production の実在 field へ合�
   型検査そのものを取り除く形へ再照準して KILLED を得た。初回の SURVIVED は F245 へ再発として
   追記し、isinstance 版は
   「型の厳密さが負例で pin されていない」ことの実測として登録 SURVIVED のまま台帳に置いた。
-- 子は codex 9 本 (plan 1、consult 2、author 1、review 3、fix 2) と spec author 3 本。
+- **受入全走 1 回目が受入所要台帳の被覆率で 1 件赤になり、実測で本 wave 起因と確定して直した。**
+  main (240ee6360) 単独では 19439 / 21596 = 90.0120% で閾値を通り、本 wave の 65 node 追加で
+  89.7415% へ落ちる。新規 65 node を単独走させた JUnit の実測値だけを `--add-only` で足し、
+  既存 entry を 1 byte も変えずに 90.0416% へ戻した。閾値は下げていない。F684 の再発である。
+- **受入全走 2 回目は child-green。** 21592 passed / 68 skipped / 0 failed、
+  tested_main = 240ee63602ee17334b28780b70587f345b2e0495。
+- **段 8 の改善候補 2 件は docs へ入らなかった。** `docs/dev-wave/` の reference は 3 層とも
+  byte 予算が満杯で (L1.5 unique footprint 9869 > 予算 9696)、安全義務を削らずには 50 byte も
+  捻出できなかった。両候補 (変異 harness の runtime artifact は checkout 外、
+  `git worktree add` の未完了と起動 gate の赤) は memory へ回した。上限は引き上げていない。
+- 子は codex 12 本 (plan 1、consult 2、author 1、review 3、fix 4、spec author 3 のうち再掲を除く)。
   親は Claude で管理・統合・全実測を担った。
 
 ## 次の一手差分
