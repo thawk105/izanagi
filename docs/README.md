@@ -36,6 +36,11 @@
   事前登録。3 腕の全 6 permutation で位置と一次持越しを均衡させる 18 block、対内 log 比の判定式と
   対称等価域、標準偏差の 2 参照級にもとづく反復数の根拠、構造違反と測定欠測を分ける規則、
   18 seed の逐語一覧、未認証であることの機械的隔離と自動撤回機構が無いことの明示、束縛の正本
+- `backoff-policy-performance-preregistration-erratum-1.md` — 上記 v1 の正誤表 1。
+  腕をまたぐ source bytes 一致と block をまたぐ binary identity 一定が、どちらも
+  step policy の source 置換と build の非再現性ゆえに成立しえないことの実測と、
+  identity 述語だけを訂正して「3 腕は互いに異なる」正の対照を足した記録。
+  推定量・等価域・判定語・欠測規則・seed・巡回・block 数は v1 のまま
 - `b10-multinode-formal-run-design.md` — B-10 正式系列を複数ノードへ分散する設計 ([T-1905])。
   分散単位 4 案の判定、律速が正しさ検査であることと多重化が正しさ受領証の発行境界に当たる事実、
   投入前の必須修正、ユーザー裁定へ返す項目。**投入の承認ではない**
