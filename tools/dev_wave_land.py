@@ -3457,11 +3457,12 @@ def _registered_worktree_paths(repository: _Repository) -> tuple[Path, ...]:
         if not record.startswith(b"worktree "):
             continue
         try:
-            paths.append(
-                Path(os.fsdecode(record.removeprefix(b"worktree "))).resolve(
-                    strict=True
-                )
-            )
+            path = Path(os.fsdecode(record.removeprefix(b"worktree ")))
+            try:
+                path = path.resolve(strict=True)
+            except FileNotFoundError:
+                path = path.absolute()
+            paths.append(path)
         except (OSError, UnicodeError) as exc:
             raise _FoldGateFailure(
                 f"registered worktree path cannot be resolved: {exc}"
