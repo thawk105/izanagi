@@ -1,0 +1,41 @@
+{
+  "attempt_id": "dbad8fd394b38f46d06ce5cdbdd7d96a",
+  "attempt_root_leaf": "attempt-20260908c",
+  "authority": "diagnostic-only",
+  "campaign_script_sha256": "3987314f5d50a806a9b9107ec90fcf976b3f79803d1cf2dae728d8797703b651",
+  "expected_request_count": 3,
+  "intent_created_utc": "2026-09-07T18:34:59.371448+00:00",
+  "pbs_script_sha256": "9dc10a3250e93934be877aba2b0cb50f38087ed0970941dfebc0ab2a5f08dda8",
+  "preflight_path": "preflight/preflight.json",
+  "preflight_sha256": "74d409267fb1bf7086f8f8e2ee18febfeb34043130fa02d4b47979855acafe92",
+  "probe_script_sha256": "2ba838f48cc2d6a29172e538e0a607bda7b11b7e3e61d4f88c3896728db1932e",
+  "repo_head": "1813aa312b26d75b8c4050c6f26b8654a3e02175",
+  "requests": [
+    {
+      "evidence_directory": "r1-with-explicit-approval",
+      "receipt_path": "r1-with-explicit-approval/qsub-request.json",
+      "request_id": "R1",
+      "request_label": "with-explicit-approval",
+      "submission_order": 1
+    },
+    {
+      "evidence_directory": "r2-without-approval",
+      "receipt_path": "r2-without-approval/qsub-request.json",
+      "request_id": "R2",
+      "request_label": "without-approval-with-duplicate-second-name",
+      "submission_order": 2
+    },
+    {
+      "evidence_directory": "r3-ambient-approval-only",
+      "receipt_path": "r3-ambient-approval-only/qsub-request.json",
+      "request_id": "R3",
+      "request_label": "ambient-approval-name-only",
+      "submission_order": 3
+    }
+  ],
+  "schema_version": "izanagi-t1259-qsub-submission-group-intent/v1",
+  "started_utc": "2026-09-07T18:34:43Z",
+  "submitted_hostname": "pegasus02",
+  "submitter_text_path": "tools/pegasus/probes/t1259_qsub_env_delivery_submit.sh.txt",
+  "submitter_text_sha256": "b0c13979cf5c81f3d02f5204ce6ed1a4c0ef2e91b2e40d53538ad922f680fc51"
+}

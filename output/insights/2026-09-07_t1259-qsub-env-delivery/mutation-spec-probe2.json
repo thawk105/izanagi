@@ -1,0 +1,64 @@
+{
+  "estimated_run_seconds": 600,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M5-driver-argv-prefix-match-only",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t1259_qsub_env_delivery_probe.py",
+          "new": "    if tuple(argv)[:3] != expected_argv[:3]:\n",
+          "old": "    if tuple(argv) != expected_argv:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M6-driver-argv-allow-approval-flag",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t1259_qsub_env_delivery_probe.py",
+          "new": "    environment = dict(os.environ)\n",
+          "old": "    if \"--confirm-official-floor-run\" in argv:\n        raise ProbeError(\"R2 unapproved driver argv unexpectedly carries approval\")\n    environment = dict(os.environ)\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M8-r3-drop-ambient-approval-literal-check",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t1259_qsub_env_delivery_probe.py",
+          "new": "        ambient_approval = caller_states[APPROVAL]\n        if not ambient_approval[\"present\"]:\n            raise ProbeError(\"R3 qsub caller did not carry the fixed mismatching approval literal\")\n",
+          "old": "        ambient_approval = caller_states[APPROVAL]\n        if (not ambient_approval[\"present\"]\n                or ambient_approval[\"value\"] != AMBIENT_APPROVAL_LITERAL):\n            raise ProbeError(\"R3 qsub caller did not carry the fixed mismatching approval literal\")\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M10-r1-drop-approval-nonce-binding",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t1259_qsub_env_delivery_probe.py",
+          "new": "    if request_id == \"R1\":\n        if ordered_values[APPROVAL] is None:\n            raise ProbeError(\"R1 approval is not exactly bound to its nonce\")\n",
+          "old": "    if request_id == \"R1\":\n        if ordered_values[APPROVAL] != ordered_values[SUBMISSION_NONCE]:\n            raise ProbeError(\"R1 approval is not exactly bound to its nonce\")\n"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 1800
+}
