@@ -1,0 +1,100 @@
+{
+ "driver": "s1",
+ "drivers_completed_before_publish": [
+  "s1"
+ ],
+ "exception": {
+  "cause": null,
+  "context": null,
+  "message": "generator sha256 不一致: recorded=a7c41a8175b2edeef9e6bb7b8ad4b36991668d709e6d1f5604cd80a81287d0fa actual=54d95622e50d991410fa273a39aa12daa634c62be11f45262dc7c2aef4dde5b5",
+  "module": "orchestrator.campaign.s1_measurement_freeze",
+  "reason_code": null,
+  "suppress_context": false,
+  "type": "FreezeError"
+ },
+ "metadata": {
+  "cmake": {
+   "exception": null,
+   "path": "/usr/bin/cmake",
+   "returncode": 0,
+   "sha256": "fd22547781b64bb2db04370970b93db1f3fada1e41e60873b015ee0747009fc0",
+   "stderr": "",
+   "stdout_first_line": "cmake version 3.22.1"
+  },
+  "compiler": {
+   "cc": "gcc",
+   "cxx": "g++",
+   "manifest_exception": null,
+   "observed_toolchain_manifest": {
+    "cc": {
+     "realpath": "/usr/bin/x86_64-linux-gnu-gcc-11",
+     "requested": "gcc",
+     "version": "x86_64-linux-gnu-gcc-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0\nCopyright (C) 2021 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+     "version_first_line": "x86_64-linux-gnu-gcc-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0"
+    },
+    "cmake": {
+     "realpath": "/usr/bin/cmake",
+     "requested": "cmake",
+     "version": "cmake version 3.22.1\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake).",
+     "version_first_line": "cmake version 3.22.1"
+    },
+    "cxx": {
+     "realpath": "/usr/bin/x86_64-linux-gnu-g++-11",
+     "requested": "g++",
+     "version": "x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0\nCopyright (C) 2021 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+     "version_first_line": "x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0"
+    }
+   }
+  },
+  "driver_repo_root": "/scr/0_980554.nqsv-t2228-driver-gate/driver-repositories/s1",
+  "expected_repo_head": "e2df24048a1b8a16085d91a36d82a81e3011fbdc",
+  "hostname": "bnode018",
+  "network_observation": {
+   "exception": {
+    "cause": null,
+    "context": null,
+    "message": "[Errno -3] Temporary failure in name resolution",
+    "module": "socket",
+    "reason_code": null,
+    "suppress_context": false,
+    "type": "gaierror"
+   },
+   "host": "github.com",
+   "port": 443,
+   "reachable": false
+  },
+  "production_file_sha256": {
+   "orchestrator/campaign/backoff_repro.py": {
+    "path": "/scr/0_980554.nqsv-t2228-driver-gate/driver-repositories/s1/orchestrator/campaign/backoff_repro.py",
+    "sha256": "6aede5cff5af4fc912c4bde74b7bfa639294dc972c3ccc71332e827370b75b10"
+   },
+   "orchestrator/campaign/backoff_sweep.py": {
+    "path": "/scr/0_980554.nqsv-t2228-driver-gate/driver-repositories/s1/orchestrator/campaign/backoff_sweep.py",
+    "sha256": "1b64f897309d9104aa089353dfd7474ca50bc349fcb410d5f9807aa55b7b8773"
+   },
+   "orchestrator/campaign/condition_meaning_gate.py": {
+    "path": "/scr/0_980554.nqsv-t2228-driver-gate/driver-repositories/s1/orchestrator/campaign/condition_meaning_gate.py",
+    "sha256": "2fc0d490f464c09f9a717799eb4afabb1500eb15deca0fde3253f53bc7c820c9"
+   },
+   "orchestrator/campaign/s1_direct_comparison.py": {
+    "path": "/scr/0_980554.nqsv-t2228-driver-gate/driver-repositories/s1/orchestrator/campaign/s1_direct_comparison.py",
+    "sha256": "049642ca067d93b046df66b14ddfdda3782bb06c830f2803c71e0e60e42f316d"
+   }
+  },
+  "runtime_output_root": "/scr/0_980554.nqsv-t2228-driver-gate/runtime-output/s1",
+  "scratch_capacity_at_start": {
+   "free_bytes": 5863288676352,
+   "free_inodes": 577106671,
+   "total_bytes": 5908152188928,
+   "used_bytes": 44863512576
+  }
+ },
+ "ok": false,
+ "planned_driver_order": [
+  "s1",
+  "repro",
+  "sweep"
+ ],
+ "rc": 1,
+ "schema_version": "izanagi-t2228-driver-gate-liveness/v1"
+}
