@@ -1176,6 +1176,54 @@ python3 tools/dev_wave_wait.py producer \
 - producer の死後に `.done` か成果物が欠けていれば、最大 30 秒の猶予で再確認してから
   fail-closed で非 0 を返す (NFS の可視性遅延で成功済み producer を失敗扱いにしないため)。
 
+#### 計算ノード job (qsub) の待ち手 ([T-1281]、D1290)
+
+```
+python3 tools/dev_wave_wait.py compute \
+  --request-id <qsub が返した request ID> \
+  --done-file <job body が書く done-marker> \
+  --accounting-file <qsub の -e が返る会計本文の file> \
+  [--max-wait-seconds 21600] \
+  [--receipt-file <job>/<name>.compute-receipt.json]
+```
+
+論文のための実測 (A-1 / A-2 / B-4 / 床値) はすべて計算ノード job であり、**その完了待ちは
+この subcommand が正本である。shell で書き起こさない**。producer の待ち手は local の pid を
+必須とするので scheduler へ投げた job に対応しない。
+
+- **完了判定は 2 材料の論理和だけである** (D1290)。(i) done-marker が実在し非空、
+  (ii) 会計本文が対象 request ID に束縛された `Ended Request Time:` 行を持つ。
+  **`qstat` は rc も状態も見ない。この経路は `qstat` を 1 度も呼ばない。**
+  終了した request は数秒で `qstat` から消えるので、終了後に問い合わせる待ち手は作れない。
+- **会計本文の束縛は「ID 行がちょうど 1 本」かつ「その行より後ろに `Ended` 行がある」ことを要求する。**
+  他 job のレコードが同じ file に混ざると、ID 行が 2 本になって永久に偽になるか、
+  対象より前の `Ended` 行が `ended-before-target-request-id` で拒否される。
+  **会計の返り先 (`-e`) は request ごとに一意な path にする。**
+- **done-marker は request ごとに一意な path にし、投入前に消す。** 前回の走行の marker が
+  残っていると初回 poll で即座に完了と判定される。job body は成果物を flush した後、
+  最後に marker を公開する。**空白だけの内容は証拠にならない** (`echo done > $DONE` のように
+  空白以外を書く)。これは意図的に「非空」より厳しい側であり、緩めない。
+- **done 証拠が真になった poll では会計側を評価しない** (論理和の短絡)。受領証の
+  `accounting_evidence` はそのとき `false` になるが、これは「会計が終了を示さなかった」ではなく
+  「評価していない」の意味である。
+- poll 間隔は 15 秒、`--max-wait-seconds` の既定は 21,600 秒 (6 時間) で、**queue 待ち・実行時間・
+  会計の追記待ちをすべて含む**。deadline 超過は `stage=compute-timeout` の rc=70 で fail-closed。
+  producer と同じ式 (`経過 + 15 > 上限`) なので、**15 秒未満の値は sleep せず即 timeout し、
+  15 秒の倍数でない値は最大 14 秒早く終わる**。
+- **投入に失敗した job、起動前に消えた job、hold のままの job は早期に検知しない。** 上の 2 材料が
+  どちらも立たないまま deadline まで待って非 0 になる。早期離脱のための `qstat` 参照は D1290 の
+  外側なので持たない。
+- `--request-id` は parse 時に正規化可能性を検査し、不能なら rc=2 で投入前に落ちる
+  (`0:` 接頭辞と末尾ドットは正規化して同一視する)。
+- `--receipt-file` は省略可。渡すと成功時だけ `dev-wave-compute-receipt/v1` を atomic に publish し、
+  真になった側の証拠 file の `mtime_ns` を記録する (偽側は `null`)。**producer 受領証とは別 schema
+  なので path を分ける** — 同じ path を渡すと後の publish が前の受領証を置き換える。
+  失敗時に前回の成功受領証は消えないので、request ごとに新しい path を使い、**受領証の実在ではなく
+  待ち手自身の rc で完了を判定する**。
+- **rc=0 は「job が終端した」ことだけを意味する。** job の成功・成果物の正しさ・dispatcher の
+  受領証とは別である。`tools/pegasus/dispatch_compute.py` の私有述語は project 名・
+  `Started Request Time:`・`Elapse:` まで要求する別の判定であり、相互に代用しない。
+
 #### lease そのものの性質と既知限界
 
 - **待ち行列 (待ち札) は無い。** D662 で廃止し、2026-08-23 に `claim` から機構ごと除去した。
