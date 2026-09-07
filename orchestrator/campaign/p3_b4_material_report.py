@@ -2,9 +2,9 @@
 
 The command in this module is a read-only consumer of campaign evidence.  It
 does not launch campaigns, build binaries, measure performance, or certify a
-selection.  In the current preregistration state it deliberately supplies
-``floor=None`` to the frozen evaluator and reports the resulting protocol
-violation without inventing a replacement value.
+selection.  It resolves the authoritative floor only from preregistration §5:
+the verbatim sentinel preserves the legacy ``floor=None`` path, while a valid
+pin supplies its exact :class:`fractions.Fraction` to the frozen evaluator.
 """
 
 from __future__ import annotations
@@ -30,6 +30,11 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
 from .p3_b4_analysis_contract import B4AnalysisResult
 from .p3_b4_analysis_ledgers import B4LedgerError, build_contract_binding
 from .p3_b4_analysis_path import evaluate_b4_artifacts
+from .p3_b4_floor_artifact_issuer import (
+    B4AuthoritativeFloor,
+    B4FloorArtifactError,
+    resolve_preregistered_authoritative_floor,
+)
 from .p3_b4_prerun_issuer import (
     B4PrerunIssuerError,
     B4PrerunPublication,
@@ -75,6 +80,10 @@ _RECORDED_REJECTION_RATE_CAVEAT = (
     "the numerator an undercount."
 )
 _INITIAL_PROPOSAL_NON_GUARANTEE = B4_RAW_RECORD_NON_GUARANTEES[0]
+_REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+_PREREGISTRATION_RELATIVE_PATH = Path(
+    "docs/phase3-b4-reflux-ablation-preregistration.md"
+)
 
 
 class B4MaterialReportError(ValueError):
@@ -112,6 +121,7 @@ class B4MaterialReportInputs:
     contract_binding: object | None
     analysis_result: B4AnalysisResult | None
     campaign_root_discovery: _CampaignRootDiscovery
+    authoritative_floor: B4AuthoritativeFloor | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -202,6 +212,20 @@ def _load_and_evaluate(publication_root: Path) -> B4MaterialReportInputs:
     """Compose the existing issuer, producer, ledger, and evaluator APIs."""
 
     try:
+        authoritative_floor = resolve_preregistered_authoritative_floor(
+            repo_root=_REPOSITORY_ROOT,
+            preregistration_path=(
+                _REPOSITORY_ROOT / _PREREGISTRATION_RELATIVE_PATH
+            ),
+        )
+    except B4FloorArtifactError as exc:
+        _fail(
+            "authoritative_floor_rejected",
+            f"{exc.code}: {exc.detail}",
+            cause=exc,
+        )
+
+    try:
         publication = load_b4_prerun_publication(str(publication_root))
     except B4PrerunIssuerError as exc:
         _fail(
@@ -225,6 +249,7 @@ def _load_and_evaluate(publication_root: Path) -> B4MaterialReportInputs:
             contract_binding=None,
             analysis_result=None,
             campaign_root_discovery=discovery,
+            authoritative_floor=authoritative_floor,
         )
     if not isinstance(assembly, B4RawAnalysisAssembly):
         _fail("assembly_contract_error", "assembler returned an unknown result type")
@@ -240,7 +265,11 @@ def _load_and_evaluate(publication_root: Path) -> B4MaterialReportInputs:
         _fail("ledger_rejected", str(exc), cause=exc)
 
     result = evaluate_b4_artifacts(
-        floor=None,
+        floor=(
+            authoritative_floor.floor
+            if authoritative_floor is not None
+            else None
+        ),
         contract_binding=binding,
         scheduled_registry_bytes=publication.registry.canonical_bytes,
         analysis_manifest_bytes=publication.manifest.canonical_bytes,
@@ -254,6 +283,7 @@ def _load_and_evaluate(publication_root: Path) -> B4MaterialReportInputs:
         contract_binding=binding,
         analysis_result=result,
         campaign_root_discovery=discovery,
+        authoritative_floor=authoritative_floor,
     )
 
 
@@ -919,6 +949,55 @@ def _build_report_value(
     }
 
 
+def _authoritative_floor_source(
+    authoritative_floor: B4AuthoritativeFloor,
+) -> dict[str, str]:
+    return {
+        "artifact_path": authoritative_floor.artifact_path,
+        "artifact_sha256": authoritative_floor.artifact_sha256,
+        "schema_version": authoritative_floor.schema_version,
+        "generator_identity": authoritative_floor.generator_identity,
+    }
+
+
+def _apply_authoritative_floor_projection(
+    inputs: B4MaterialReportInputs,
+    report: dict[str, Any],
+) -> dict[str, Any]:
+    """Overlay only the present-floor fields on the unchanged absent report."""
+
+    authoritative_floor = inputs.authoritative_floor
+    if authoritative_floor is None:
+        return report
+
+    ratio = [
+        authoritative_floor.floor.numerator,
+        authoritative_floor.floor.denominator,
+    ]
+    report["floor"] = {
+        "availability": "present",
+        "reason": None,
+        "source": _authoritative_floor_source(authoritative_floor),
+        "value": ratio,
+    }
+    report_scope = report["report_scope"]
+    report_scope["floor_availability"] = "present"
+    report_scope["expected_analysis_verdict"] = None
+    report_scope["expected_analysis_reason"] = None
+
+    not_guaranteed = report["certification_scope"]["not_guaranteed"]
+    not_guaranteed.remove("authoritative_floor_artifact")
+    not_guaranteed.extend(authoritative_floor.non_guarantees)
+    report["provenance"]["report_non_guarantees"].extend(
+        authoritative_floor.non_guarantees
+    )
+
+    analysis = report["analysis"]
+    if analysis["status"] == "evaluated":
+        analysis["floor_argument"] = ratio
+    return report
+
+
 def _assert_report_provenance(
     inputs: B4MaterialReportInputs,
     report: Mapping[str, Any],
@@ -950,6 +1029,51 @@ def _assert_report_provenance(
             _fail("provenance_mismatch", "raw analysis UTF-8 does not round-trip")
         if raw["sha256"] != inputs.assembly.sha256:
             _fail("provenance_mismatch", "raw analysis SHA-256 differs")
+
+
+def _assert_authoritative_floor_projection(
+    inputs: B4MaterialReportInputs,
+    report: Mapping[str, Any],
+) -> None:
+    authoritative_floor = inputs.authoritative_floor
+    if authoritative_floor is None:
+        return
+
+    ratio = [
+        authoritative_floor.floor.numerator,
+        authoritative_floor.floor.denominator,
+    ]
+    expected_floor = {
+        "availability": "present",
+        "reason": None,
+        "source": _authoritative_floor_source(authoritative_floor),
+        "value": ratio,
+    }
+    if report["floor"] != expected_floor:
+        _fail("authoritative_floor_projection_mismatch", "floor projection differs")
+
+    report_scope = report["report_scope"]
+    expected_scope = {
+        "kind": "evidence-only",
+        "preregistration_section_5": "not_in_effect",
+        "floor_availability": "present",
+        "expected_analysis_verdict": None,
+        "expected_analysis_reason": None,
+        "section_7_1_four_classifications_operationalized": False,
+    }
+    if report_scope != expected_scope:
+        _fail(
+            "authoritative_floor_projection_mismatch",
+            "report scope differs",
+        )
+
+    analysis = report["analysis"]
+    expected_floor_argument = ratio if analysis["status"] == "evaluated" else None
+    if analysis["floor_argument"] != expected_floor_argument:
+        _fail(
+            "authoritative_floor_projection_mismatch",
+            "analysis floor argument differs from evaluator reachability",
+        )
 
 
 def _display(value: object) -> str:
@@ -1068,6 +1192,33 @@ def _render_markdown(report: Mapping[str, Any], json_sha256: str) -> bytes:
     return ("\n".join(lines) + "\n").encode("utf-8")
 
 
+def _render_markdown_with_authoritative_floor(
+    report: Mapping[str, Any],
+    json_sha256: str,
+    authoritative_floor: B4AuthoritativeFloor | None,
+) -> bytes:
+    rendered = _render_markdown(report, json_sha256)
+    if authoritative_floor is None:
+        return rendered
+
+    needle = b"- floor: unavailable\n"
+    if rendered.count(needle) != 1:
+        _fail(
+            "authoritative_floor_projection_mismatch",
+            "legacy floor Markdown row is not unique",
+        )
+    ratio = [
+        authoritative_floor.floor.numerator,
+        authoritative_floor.floor.denominator,
+    ]
+    replacement = (
+        f"- floor: `{_display(ratio)}`\n"
+        f"- floor artifact path: `{_display(authoritative_floor.artifact_path)}`\n"
+        f"- floor artifact SHA-256: `{authoritative_floor.artifact_sha256}`\n"
+    ).encode("utf-8")
+    return rendered.replace(needle, replacement)
+
+
 def build_material_report_document(
     publication_root: str | Path,
     *,
@@ -1084,11 +1235,19 @@ def build_material_report_document(
         GENERATOR_IDENTITY,
         inputs.publication.publication_root,
     ))
-    report = _build_report_value(inputs, rows, argv)
+    report = _apply_authoritative_floor_projection(
+        inputs,
+        _build_report_value(inputs, rows, argv),
+    )
     _assert_report_provenance(inputs, report)
+    _assert_authoritative_floor_projection(inputs, report)
     json_bytes = _canonical_json_bytes(report)
     json_sha256 = hashlib.sha256(json_bytes).hexdigest()
-    markdown_bytes = _render_markdown(report, json_sha256)
+    markdown_bytes = _render_markdown_with_authoritative_floor(
+        report,
+        json_sha256,
+        inputs.authoritative_floor,
+    )
     return B4MaterialReportDocument(
         json_value=report,
         json_bytes=json_bytes,
@@ -1405,11 +1564,19 @@ def write_material_report(
         argv.extend(("--output-root", str(resolved_output)))
     rows = _project_rows(inputs)
     _assert_complete_projection(inputs, rows)
-    report = _build_report_value(inputs, rows, argv)
+    report = _apply_authoritative_floor_projection(
+        inputs,
+        _build_report_value(inputs, rows, argv),
+    )
     _assert_report_provenance(inputs, report)
+    _assert_authoritative_floor_projection(inputs, report)
     json_bytes = _canonical_json_bytes(report)
     json_sha256 = hashlib.sha256(json_bytes).hexdigest()
-    markdown_bytes = _render_markdown(report, json_sha256)
+    markdown_bytes = _render_markdown_with_authoritative_floor(
+        report,
+        json_sha256,
+        inputs.authoritative_floor,
+    )
 
     _assert_output_disjoint_from_campaigns(
         resolved_output,
