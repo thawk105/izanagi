@@ -1,0 +1,130 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 4400,
+  "hang_timeout_seconds": 4600,
+  "mutations": [
+    {
+      "id": "M1-einval-fallback-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "old": "            if exc.errno != errno.EINVAL:\n                raise\n            os.link(staging, path)\n            staging.unlink()\n",
+          "new": "            raise\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_atomic_write_bytes_noreplace_einval_hard_link_refuses_existing_name",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_atomic_write_bytes_noreplace_einval_uses_create_only_hard_link"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-einval-fallback-replaces-existing",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "old": "            os.link(staging, path)\n            staging.unlink()\n",
+          "new": "            os.replace(staging, path)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_atomic_write_bytes_noreplace_einval_hard_link_refuses_existing_name",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_atomic_write_bytes_noreplace_einval_uses_create_only_hard_link"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-pin-table-bypassed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a2_certification.py",
+          "old": "        pinned = CANONICAL_SHA256.get(key)\n",
+          "new": "        pinned = CANONICAL_SHA256.get(key) or {\"certification\": _sha256(certification_path), \"raw_manifest\": _sha256(certification_path.parent / \"raw-manifest.json\")}\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_a2_certification.py::test_cli_rejects_exact_bytes_at_certification_path_missing_from_pin_table",
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_cli_reads_repository_owned_pin_table",
+        "orchestrator/tests/test_plot_a2_certification.py::test_m11_whitespace_changed_certification_fails_cli_with_zero_outputs",
+        "orchestrator/tests/test_plot_a2_certification.py::test_m12_whitespace_changed_raw_manifest_fails_cli_with_zero_outputs"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4b-current-also-accepts-legacy-raw-schema",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a2_certification.py",
+          "old": "    if raw.get(\"schema_version\") != raw_schema or raw.get(\"cell_id\") != certified.get(\"cell_id\"):\n",
+          "new": "    if raw.get(\"schema_version\") not in (raw_schema, LEGACY_RAW_SCHEMA) or raw.get(\"cell_id\") != certified.get(\"cell_id\"):\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_rejects_legacy_raw_cell_schema"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5b-current-gate-note-uses-legacy-fixed-copy",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a2_certification.py",
+          "old": "    gate_note = GATE_NOTE if profile == \"legacy\" else (\n",
+          "new": "    gate_note = GATE_NOTE if profile in (\"legacy\", \"current-full\") else (\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_gate_copy_is_receipt_observation_not_legacy_fixed_copy"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6b-source-binding-status-both-layers-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a2_certification.py",
+          "old": "    if any(cell.get(\"source_binding_status\") != \"bound\" for cell in certification[\"cells\"]):\n        _fail(\"current certification source_binding_status is not bound\")\n",
+          "new": "    if False:\n        _fail(\"current certification source_binding_status is not bound\")\n"
+        },
+        {
+          "file": "tools/plotting/plot_a2_certification.py",
+          "old": "        if certified.get(\"source_binding_status\") != \"bound\":\n            _fail(\"current certification source_binding_status is not bound\")\n",
+          "new": "        if False:\n            _fail(\"current certification source_binding_status is not bound\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_a2_certification.py::test_current_rejects_nonbound_source_binding_status"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-policy-destination-reverted",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.v2.json",
+          "old": "  \"tracked_destination\": \"output/insights/2026-09-07_t2364-paper-story-a2-certification\",\n",
+          "new": "  \"tracked_destination\": \"output/insights/2026-08-24_paper-story-a2-certification\",\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_p1_a2_default_policy_bytes_and_protocol_are_unchanged"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

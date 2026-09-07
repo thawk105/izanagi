@@ -2701,16 +2701,51 @@ def _build_v2_impl(
             if post_oracle_binding is not None:
                 _assert_fetchcontent_fully_disconnected_effective(staging)
                 _assert_post_oracle_dependency_material(post_oracle_binding)
-            try:
-                if site is None:
-                    _run(build_cmd, "build", timeout_s=timeout_s, **run_env)
-                else:
-                    _run(
-                        build_cmd, "build", timeout_s=timeout_s,
-                        site=resolved_site, **run_env,
+
+            if post_oracle_binding is not None:
+                # Protection evidence is pre-build only.  Post-build checks
+                # below intentionally re-read their own effective_root.
+                protected_root = _masstree_source_root_from_cmake_cache(
+                    staging
+                )
+                protection = (
+                    sort_swo_dependency_material
+                    .protect_post_oracle_dependency_material(
+                        Path(protected_root),
+                        fetchcontent_base_dir=Path(
+                            post_oracle_binding["fetchcontent_base_dir"]
+                        ),
                     )
-            except (OSError, subprocess.SubprocessError, RuntimeError) as exc:
-                raise BuildError(f"v2 build 実行失敗 (staging={staging}): {exc}") from exc
+                )
+                with protection:
+                    try:
+                        if site is None:
+                            _run(
+                                build_cmd, "build", timeout_s=timeout_s,
+                                **run_env,
+                            )
+                        else:
+                            _run(
+                                build_cmd, "build", timeout_s=timeout_s,
+                                site=resolved_site, **run_env,
+                            )
+                    except (
+                        OSError, subprocess.SubprocessError, RuntimeError,
+                    ) as exc:
+                        raise BuildError(
+                            f"v2 build 実行失敗 (staging={staging}): {exc}"
+                        ) from exc
+            else:
+                try:
+                    if site is None:
+                        _run(build_cmd, "build", timeout_s=timeout_s, **run_env)
+                    else:
+                        _run(
+                            build_cmd, "build", timeout_s=timeout_s,
+                            site=resolved_site, **run_env,
+                        )
+                except (OSError, subprocess.SubprocessError, RuntimeError) as exc:
+                    raise BuildError(f"v2 build 実行失敗 (staging={staging}): {exc}") from exc
 
             compiler_input_manifest = None
             compiler_input_manifest_sha256 = None
