@@ -1966,6 +1966,23 @@
   **型は「手順書の不足」ではなく「必読に指定された逐語を読んだ上で適用しない」**であり、
   2026-09-04 の「逐語を親が守らなかった再発」と同じ位置にある。
   費用は受入全走 1 回分 + fix 子 1 本 + worktree 1 本。是正後の焦点走は 24 passed・赤 0。
+
+- **再発: 2026-09-08** — [T-1396] wave で発生。**新規 file ではなく既存 file へ足した 1 テスト**が
+  同型を起こした。実 repo を読む負例へ `@pytest.mark.xdist_group("s8c-predicate-snapshot")` を付けた
+  ところ、`orchestrator/tests/test_real_repo_serialization.py` の group golden に未登録のまま
+  受入全走まで露出せず、`test_real_repo_group_collection_exactly_matches_canonical_nodes` と
+  `test_acceptance_schedule_order.py::test_g6_all_real_repo_items_stay_one_unit_and_keep_relative_order`
+  の 2 件が赤になった (21568 collected / 2 failed)。親の焦点走は変更した production module 名で
+  consumer を引く形 (`DW-O26`) だったため、**mark の名前で引かねば当たらない登録簿**を落とした。
+  過去の再発が新設 file と自走 harness / duration ledger を対象にしていたのに対し、今回の入口は
+  **mark の付与**である。
+  さらに単純な登録追加では閉じなかった。group の golden
+  (`_LONG_LIVED_FIXTURE_GROUP_NODES_GOLDEN`) と、その group の共有 fixture の consumer 集合
+  (`_REAL_REPO_FIXTURE_ACCESS_GOLDEN` の `current_commit_snapshot[module]`) は**同一の
+  frozenset を共有**しており、group にだけ足すと fixture consumer 側の実測一致検査が破れる。
+  fixture を消費しない group 所属 node は、集合を分離しない限り登録できない。今回は負例を
+  共有 fixture の consumer へ変える形で両集合を一致させて閉じた (受入 21598 collected /
+  21530 passed / 赤 0)。
 ### F43. codex 子が exit 0 のまま最終メッセージへ推敲断片だけを残し、レビュー本文が失われた [手順漏れ]
 - 事象: [T-147] の敵対レビュー B (2026-07-28) が 168k tokens・exec 31 回の実検証を行いながら、
   `-o` の最終メッセージに出力書式の推敲メモ断片 194 bytes だけを残して exit 0 で終了した。
@@ -23028,3 +23045,36 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   走行中に上がった結果、「その版が要求を満たしていない」という非保証が偽になった。
   偽の非保証を残すことは、検査していないことを検査済みと読ませるのと同じ向きの誤りである。
   非保証は「現に証明していないこと」を述べる形へ保つ。
+
+### F893. 測定は完走したのに認証成果物を公開できず 2 段で止まった [手順漏れ] [環境前提]
+
+- 事象: A-6 read-heavy の実走が `driver_rc=0` で完走し受領証も揃ったのに、`collect` が
+  2 回続けて非 0 で止まった。1 回目は
+  `qsub -v is not bound to workload and current pin`、2 回目は
+  `tracked destination is not a fresh exact leaf`。
+- 根本原因: 独立な 2 件が重なっていた。(1) `collect` は投入時に記録した policy の
+  **絶対 path** と、実行時に解決した policy の path を突き合わせる。投入は隔離した投入用
+  checkout から行い、`collect` を記録用 worktree から実行したので不一致になった
+  (**`collect` は投入した checkout から実行する**)。(2) policy の `tracked_destination` が、
+  前走失敗時に手で書いた insight directory を指していた。`collect` は空の新しい leaf を
+  要求するので、以後この policy では永久に公開できない状態だった。
+- 恒久対応: (2) は `tracked_destination` を空の新しい leaf へ更新して解いた。この key は
+  `_protocol_preimage` に含まれないので `protocol_sha256` は動かない (実計算で確認)。
+  **公開先と手書き insight の置き場を同じにしない。**
+- 再発検知: (1) は既存 A-2 受領証が現配置で再検証できない件と同じ族であり、
+  投入 checkout の path が生きているかに依存する。撤去前に `collect` を済ませる。
+
+### F894. Lustre の EINVAL 対策が兄弟 writer 1 箇所だけ取り残されていた [consumer 取り残し]
+
+- 事象: A-6 read-heavy の実走が、条件 gate を 2 cell とも通過した直後に
+  `[Errno 22] Invalid argument` で 36 秒で終了した。
+- 根本原因: Lustre に `renameat2(RENAME_NOREPLACE)` が無い (実測: /work・/home で EINVAL、
+  ノード内蔵 /tmp で成功)。同じ file の materialize 経路は先行 commit で代替を得ていたが、
+  regular file を publish する `_atomic_write_bytes_noreplace` は代替を持たないまま残っていた。
+- 恒久対応: D1762。
+- 再発検知: 許可 errno・上書き禁止・非許可 errno の伝播・後始末失敗時の非失敗を、
+  それぞれ 1 本のテストで固定し、変異 4 件で単独帰属を確認した。
+- 併発: 同じ欠陥へ main 側の別 wave が独立に、より弱い修復を先に着地させていた。
+  受入の post-claim merge が競合し、Codex `role=author` の合成子による合成が必要になった。
+  **同一の欠陥へ複数 wave が同時に着手していることを、着手前の編集面重複検査は捕まえられない**
+  — 検査は path の重なりを見るが、main 側 wave はその時点でまだ着地していなかった。

@@ -1993,7 +1993,7 @@ def test_a6_policy_is_exact_read_heavy_pair_with_twelve_hour_walltime():
         },
     }
     assert policy.bytes_sha256 == (
-        "8969a7e4ee740a94ec12084c89ef88a37ebd255073cfb0122245113a295b87a8")
+        "96ed47d0ea72811aa8ee8ced6740fa58c5896e026cb24fa4420a31919d12384a")
     assert policy.protocol_sha256 == (
         "21427e71793ea744777d11bd90429ce2db1a8d3333ea9e2e0f227ecf377c25dc")
 
@@ -3824,6 +3824,163 @@ def test_changed_campaign_wal_invalidates_the_manifest_bundle(tmp_path):
     assert "hash mismatch" in evidence["raw_manifest_reason"]
 
 
+@pytest.mark.parametrize(
+    "error_number", [errno.EINVAL, errno.ENOSYS, errno.ENOTSUP])
+def test_atomic_write_bytes_noreplace_unsupported_rename_uses_link_unlink(
+        tmp_path, monkeypatch, error_number):
+    path = tmp_path / "receipt.jsonl"
+    payload = b"exact receipt bytes\n"
+    original_link = A2.os.link
+    links = []
+
+    def unsupported_rename(_source, _destination):
+        raise OSError(error_number, os.strerror(error_number))
+
+    def observed_link(source, destination, *, follow_symlinks=True):
+        assert source.parent == destination.parent == tmp_path
+        assert destination == path
+        assert follow_symlinks is False
+        links.append((source, destination))
+        return original_link(
+            source, destination, follow_symlinks=follow_symlinks)
+
+    monkeypatch.setattr(A2, "_rename_noreplace", unsupported_rename)
+    monkeypatch.setattr(A2.os, "link", observed_link)
+
+    A2._atomic_write_bytes_noreplace(path, payload)
+
+    assert path.read_bytes() == payload
+    assert len(links) == 1
+    assert not list(tmp_path.glob(f".{path.name}.tmp-*"))
+
+
+def test_atomic_write_bytes_noreplace_einval_refuses_existing_destination(
+        tmp_path, monkeypatch):
+    path = tmp_path / "receipt.jsonl"
+    original_bytes = b"preexisting bytes\n"
+    path.write_bytes(original_bytes)
+
+    def unsupported_rename(_source, _destination):
+        raise OSError(errno.EINVAL, os.strerror(errno.EINVAL))
+
+    monkeypatch.setattr(A2, "_rename_noreplace", unsupported_rename)
+
+    with pytest.raises(FileExistsError):
+        A2._atomic_write_bytes_noreplace(path, b"replacement bytes\n")
+
+    assert path.read_bytes() == original_bytes
+    assert not list(tmp_path.glob(f".{path.name}.tmp-*"))
+
+
+def test_atomic_write_bytes_noreplace_nonfallback_errno_propagates(
+        tmp_path, monkeypatch):
+    path = tmp_path / "receipt.jsonl"
+    expected_error = OSError(errno.EACCES, os.strerror(errno.EACCES))
+
+    def denied_rename(_source, _destination):
+        raise expected_error
+
+    def forbidden_link(*_args, **_kwargs):
+        raise AssertionError("non-fallback errno reached os.link")
+
+    monkeypatch.setattr(A2, "_rename_noreplace", denied_rename)
+    monkeypatch.setattr(A2.os, "link", forbidden_link)
+
+    with pytest.raises(OSError) as caught:
+        A2._atomic_write_bytes_noreplace(path, b"rejected bytes\n")
+
+    assert caught.value is expected_error
+    assert caught.value.errno == errno.EACCES
+    assert not path.exists()
+    assert not list(tmp_path.glob(f".{path.name}.tmp-*"))
+
+
+def test_atomic_write_bytes_noreplace_link_publish_survives_unlink_error(
+        tmp_path, monkeypatch):
+    path = tmp_path / "receipt.jsonl"
+    payload = b"durable published bytes\n"
+    original_unlink = Path.unlink
+
+    def unsupported_rename(_source, _destination):
+        raise OSError(errno.EINVAL, os.strerror(errno.EINVAL))
+
+    def fail_staging_unlink(staging, *args, **kwargs):
+        if (staging.parent == tmp_path
+                and staging.name.startswith(f".{path.name}.tmp-")):
+            raise OSError(errno.EIO, os.strerror(errno.EIO))
+        return original_unlink(staging, *args, **kwargs)
+
+    monkeypatch.setattr(A2, "_rename_noreplace", unsupported_rename)
+    monkeypatch.setattr(Path, "unlink", fail_staging_unlink)
+
+    A2._atomic_write_bytes_noreplace(path, payload)
+
+    assert path.read_bytes() == payload
+    staging = list(tmp_path.glob(f".{path.name}.tmp-*"))
+    assert len(staging) == 1
+    assert staging[0].read_bytes() == payload
+
+
+def test_atomic_write_bytes_noreplace_einval_uses_create_only_hard_link(
+        tmp_path, monkeypatch):
+    path = tmp_path / "condition-gate-rr5.admissions.jsonl"
+    payload = b'{"admitted":true}\n'
+    link_calls = []
+    original_link = A2.os.link
+
+    def unsupported_noreplace(_source, _destination):
+        raise OSError(errno.EINVAL, "unsupported no-replace")
+
+    def observed_link(source, destination, *, follow_symlinks=True):
+        assert source.parent == destination.parent == tmp_path
+        assert destination == path
+        original_link(
+            source, destination, follow_symlinks=follow_symlinks)
+        assert source.stat().st_ino == destination.stat().st_ino
+        link_calls.append((source, destination))
+
+    monkeypatch.setattr(A2, "_rename_noreplace", unsupported_noreplace)
+    monkeypatch.setattr(A2.os, "link", observed_link)
+    A2._atomic_write_bytes_noreplace(path, payload)
+
+    assert link_calls and len(link_calls) == 1
+    assert path.read_bytes() == payload
+    assert not list(tmp_path.glob(f".{path.name}.tmp-*"))
+
+
+def test_atomic_write_bytes_noreplace_einval_hard_link_refuses_existing_name(
+        tmp_path, monkeypatch):
+    path = tmp_path / "condition-gate-rr5.admissions.jsonl"
+    original_bytes = b'{"writer":"first"}\n'
+    path.write_bytes(original_bytes)
+
+    def unsupported_noreplace(_source, _destination):
+        raise OSError(errno.EINVAL, "unsupported no-replace")
+
+    monkeypatch.setattr(A2, "_rename_noreplace", unsupported_noreplace)
+    with pytest.raises(FileExistsError):
+        A2._atomic_write_bytes_noreplace(path, b'{"writer":"second"}\n')
+
+    assert path.read_bytes() == original_bytes
+    assert not list(tmp_path.glob(f".{path.name}.tmp-*"))
+
+
+def test_atomic_write_bytes_noreplace_non_einval_is_not_fallback(
+        tmp_path, monkeypatch):
+    path = tmp_path / "condition-gate-rr5.admissions.jsonl"
+
+    def failed_noreplace(_source, _destination):
+        raise OSError(errno.EIO, "I/O failure")
+
+    monkeypatch.setattr(A2, "_rename_noreplace", failed_noreplace)
+    with pytest.raises(OSError) as raised:
+        A2._atomic_write_bytes_noreplace(path, b'{"admitted":true}\n')
+
+    assert raised.value.errno == errno.EIO
+    assert not path.exists()
+    assert not list(tmp_path.glob(f".{path.name}.tmp-*"))
+
+
 def test_condition_receipt_publish_is_atomic_noreplace_and_durable(
         tmp_path, monkeypatch):
     path = tmp_path / "condition-gate-rr5.admissions.jsonl"
@@ -3874,65 +4031,6 @@ def test_condition_receipt_publish_is_atomic_noreplace_and_durable(
         A2._write_condition_gate_admissions_x(
             path, [admission], [evidence])
     assert path.read_bytes() == original_bytes
-    assert not list(tmp_path.glob(f".{path.name}.tmp-*"))
-
-
-def test_atomic_write_bytes_noreplace_einval_uses_create_only_hard_link(
-        tmp_path, monkeypatch):
-    path = tmp_path / "condition-gate-rr5.admissions.jsonl"
-    payload = b'{"admitted":true}\n'
-    link_calls = []
-    original_link = A2.os.link
-
-    def unsupported_noreplace(_source, _destination):
-        raise OSError(errno.EINVAL, "unsupported no-replace")
-
-    def observed_link(source, destination):
-        assert source.parent == destination.parent == tmp_path
-        assert destination == path
-        original_link(source, destination)
-        assert source.stat().st_ino == destination.stat().st_ino
-        link_calls.append((source, destination))
-
-    monkeypatch.setattr(A2, "_rename_noreplace", unsupported_noreplace)
-    monkeypatch.setattr(A2.os, "link", observed_link)
-    A2._atomic_write_bytes_noreplace(path, payload)
-
-    assert link_calls and len(link_calls) == 1
-    assert path.read_bytes() == payload
-    assert not list(tmp_path.glob(f".{path.name}.tmp-*"))
-
-
-def test_atomic_write_bytes_noreplace_einval_hard_link_refuses_existing_name(
-        tmp_path, monkeypatch):
-    path = tmp_path / "condition-gate-rr5.admissions.jsonl"
-    original_bytes = b'{"writer":"first"}\n'
-    path.write_bytes(original_bytes)
-
-    def unsupported_noreplace(_source, _destination):
-        raise OSError(errno.EINVAL, "unsupported no-replace")
-
-    monkeypatch.setattr(A2, "_rename_noreplace", unsupported_noreplace)
-    with pytest.raises(FileExistsError):
-        A2._atomic_write_bytes_noreplace(path, b'{"writer":"second"}\n')
-
-    assert path.read_bytes() == original_bytes
-    assert not list(tmp_path.glob(f".{path.name}.tmp-*"))
-
-
-def test_atomic_write_bytes_noreplace_non_einval_is_not_fallback(
-        tmp_path, monkeypatch):
-    path = tmp_path / "condition-gate-rr5.admissions.jsonl"
-
-    def failed_noreplace(_source, _destination):
-        raise OSError(errno.EIO, "I/O failure")
-
-    monkeypatch.setattr(A2, "_rename_noreplace", failed_noreplace)
-    with pytest.raises(OSError) as raised:
-        A2._atomic_write_bytes_noreplace(path, b'{"admitted":true}\n')
-
-    assert raised.value.errno == errno.EIO
-    assert not path.exists()
     assert not list(tmp_path.glob(f".{path.name}.tmp-*"))
 
 
