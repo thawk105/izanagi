@@ -2429,6 +2429,9 @@ def test_p2_a6_full_v3_path_collects_and_materializes(tmp_path):
         frozen_files=evidence["raw_files"], attempt_root=root,
     )
     report["source_commit"] = evidence["source_commit"]
+    assert A2._canonical_full_report(
+        policy, evidence, attempt_id=root.name,
+        current_pin=CURRENT_PIN) == report
     repository = tmp_path / "a6-materialized-repository"
     repository.mkdir()
     destination = A2.materialize(
@@ -2990,6 +2993,115 @@ def _partial_materializer_forgery_case(tmp_path, attempt_id):
     report = A2._canonical_partial_report(
         policy, evidence, current_pin=CURRENT_PIN)
     return policy, root, evidence, report
+
+
+def _full_materializer_forgery_case(tmp_path, attempt_id):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(policy, attempt_id, CURRENT_PIN)
+    acquisition, _submission = _write_receipt_bundle(policy, root)
+    evidence = A2.validate_acquisition_bundle(
+        policy, acquisition, current_pin=CURRENT_PIN)
+    report = A2._canonical_full_report(
+        policy, evidence, attempt_id=root.name, current_pin=CURRENT_PIN)
+    assert report["status"] == "observed-positive"
+    return policy, root, evidence, report
+
+
+def test_full_materializer_writes_reread_receipt_bytes_not_supplied_bytes(
+        tmp_path):
+    policy, _root, evidence, report = _full_materializer_forgery_case(
+        tmp_path, "attempt-full-forged-receipt-bytes")
+    forged_evidence = copy.deepcopy(evidence)
+    forged_bytes = b'{"forged": true}\n'
+    for key in (
+            "acquisition_bytes", "submission_bytes", "completion_bytes"):
+        forged_evidence[key] = forged_bytes
+    repo = tmp_path / "full-forged-receipt-bytes-repo"
+    repo.mkdir()
+    destination = A2.materialize(
+        policy, report, forged_evidence, repo_root=repo)
+    receipt_files = {
+        "acquisition-receipt.json": "acquisition_bytes",
+        "submission-receipt.json": "submission_bytes",
+        "completion-receipt.json": "completion_bytes",
+    }
+    manifest = json.loads(
+        (destination / "artifact-manifest.json").read_text(encoding="utf-8"))
+    for name, key in receipt_files.items():
+        materialized = (destination / name).read_bytes()
+        assert materialized == evidence[key]
+        assert materialized != forged_evidence[key]
+        assert manifest["files"][name] == hashlib.sha256(evidence[key]).hexdigest()
+
+
+def test_full_materializer_rejects_reread_partial_receipt_chain_behind_forged_full_fields(
+        tmp_path):
+    policy, root, evidence, _report = _partial_materializer_forgery_case(
+        tmp_path, "attempt-full-forged-partial-receipt-chain")
+    forged_evidence = copy.deepcopy(evidence)
+    forged_evidence["acquisition_schema"] = A2.ACQUISITION_SCHEMA
+    forged_evidence["completion_schema"] = A2.COMPLETION_SCHEMA
+    forged_evidence["raw_manifest_valid"] = False
+    forged_evidence["raw_manifest_schema"] = None
+    forged = A2._canonical_full_report(
+        policy, forged_evidence, attempt_id=root.name,
+        current_pin=CURRENT_PIN)
+    repo = tmp_path / "full-forged-partial-receipt-chain-repo"
+    repo.mkdir()
+    with pytest.raises(
+            A2.SchemaChainError,
+            match="crossed with a re-read partial receipt chain"):
+        A2.materialize(policy, forged, forged_evidence, repo_root=repo)
+    assert not (repo / policy.tracked_destination).exists()
+
+
+def test_full_materializer_rejects_forged_status_from_positive_evidence(
+        tmp_path):
+    policy, _root, evidence, report = _full_materializer_forgery_case(
+        tmp_path, "attempt-full-forged-status")
+    forged = copy.deepcopy(report)
+    forged["status"] = "reject"
+    repo = tmp_path / "full-forged-status-repo"
+    repo.mkdir()
+    with pytest.raises(
+            A2.CertificationError, match="differs from evidence re-derivation"):
+        A2.materialize(policy, forged, evidence, repo_root=repo)
+    assert not (repo / policy.tracked_destination).exists()
+
+
+def test_full_materializer_rejects_forged_effects_from_positive_evidence(
+        tmp_path):
+    policy, _root, evidence, report = _full_materializer_forgery_case(
+        tmp_path, "attempt-full-forged-effects")
+    forged = copy.deepcopy(report)
+    first_workload = A2.workload_ids(policy)[0]
+    forged["effects"][first_workload] = report["effects"][first_workload] + 1.0
+    repo = tmp_path / "full-forged-effects-repo"
+    repo.mkdir()
+    with pytest.raises(
+            A2.CertificationError, match="differs from evidence re-derivation"):
+        A2.materialize(policy, forged, evidence, repo_root=repo)
+    assert not (repo / policy.tracked_destination).exists()
+
+
+def test_full_materializer_rejects_indeterminate_report_from_full_success_acquisition(
+        tmp_path):
+    policy, root, evidence, _report = _full_materializer_forgery_case(
+        tmp_path, "attempt-full-forged-indeterminate")
+    forged_evidence = copy.deepcopy(evidence)
+    first_workload = A2.workload_ids(policy)[0]
+    forged_evidence["driver_rcs"][first_workload] = 7
+    failed_drivers = {first_workload: 7}
+    forged = A2._indeterminate_report(
+        policy, forged_evidence, attempt_id=root.name,
+        current_pin=CURRENT_PIN,
+        reason=f"compute driver exited nonzero: {failed_drivers}")
+    repo = tmp_path / "full-forged-indeterminate-repo"
+    repo.mkdir()
+    with pytest.raises(
+            A2.CertificationError, match="differs from evidence re-derivation"):
+        A2.materialize(policy, forged, forged_evidence, repo_root=repo)
+    assert not (repo / policy.tracked_destination).exists()
 
 
 def test_m7_partial_materializer_rejects_forged_authority_and_status(tmp_path):
