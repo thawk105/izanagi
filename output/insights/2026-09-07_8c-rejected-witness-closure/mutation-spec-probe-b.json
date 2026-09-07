@@ -1,0 +1,36 @@
+{
+  "estimated_run_seconds": 600,
+  "hang_timeout_seconds": 5400,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "b060.m21-token-table-revert",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_source_closure.py",
+          "new": "        \"wal.abort.payload.witnesses\",\n",
+          "old": "        \"wal.abort.payload.verify.anomalies\",\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "b060.m22-baseline-digest-corruption",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/reflux_origin_fixture_baseline.json",
+          "new": "      \"canonical_sha256\": \"a729a84ea7a64fb724c61ae8e1cf47579d66b8749446902007cb0ba623698c2f\"\n",
+          "old": "      \"canonical_sha256\": \"9729a84ea7a64fb724c61ae8e1cf47579d66b8749446902007cb0ba623698c2f\"\n"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 5400
+}
