@@ -431,6 +431,9 @@ probe したところ、**guard_agent が PreToolUse で拒否し spawn は起�
   入れる — 入った瞬間に第 2 worktree でも `hooks/` が施錠される。(3) merge は競合するので、
   実装 branch 側を採ったうえで、結果が実装 branch の blob と byte 一致し、かつ他の file が
   1 本も動いていないことを親が検算する。受理集合を変えるので D428 の反転検査も要る。
+  (4) 第 2 worktree は tools も古い。段 5 の midflight gate は現行 checkout の
+  `check_wave_startup.py` を `--repo <第 2 worktree>` で起動する (古い版に `midflight` mode は
+  無い)。submodule も別途初期化しないと同 gate が赤になる。
   `.claude/settings.json` と一次防壁のコードは従来どおり防護対象外で、緩和は規律6 の監査 +
   人間のコミットレビュー。
 
