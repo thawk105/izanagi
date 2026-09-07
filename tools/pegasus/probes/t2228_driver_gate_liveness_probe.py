@@ -19,6 +19,7 @@ import socket
 import subprocess
 import sys
 import tempfile
+import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 from types import ModuleType
@@ -297,11 +298,23 @@ def _exception_document(exc: BaseException) -> dict[str, Any]:
                 "cycle": True,
             }
         seen.add(id(current))
+        traceback_rows = []
+        traceback = current.__traceback__
+        while traceback is not None:
+            frame = traceback.tb_frame
+            traceback_rows.append({
+                "module": frame.f_globals.get("__name__"),
+                "function": frame.f_code.co_name,
+                "filename": Path(frame.f_code.co_filename).name,
+                "line": traceback.tb_lineno,
+            })
+            traceback = traceback.tb_next
         return {
             "type": type(current).__name__,
             "module": type(current).__module__,
             "message": str(current),
             "reason_code": getattr(current, "reason_code", None),
+            "traceback": traceback_rows,
             "suppress_context": bool(current.__suppress_context__),
             "cause": visit(current.__cause__),
             "context": visit(current.__context__),
@@ -403,16 +416,44 @@ def _gate_success(gate: ModuleType, observed: _GateObservation) -> bool:
     ]
     if len(supply) != 1 or len(meaning) != 1:
         return False
-    if supply[0].terminal_status != "green" \
-            or meaning[0].terminal_status != "green":
+    if not all(
+        type(record) is gate.ConditionArmRecord
+        and record.driver_id == inert[0].driver_id
+        and record.macro == inert[0].macro
+        and record.request_digest == digest
+        and record.terminal_status == "green"
+        for record in (*supply, *meaning)
+    ):
         return False
-    required_ids = {supply[0].record_id, meaning[0].record_id}
-    return any(
-        type(admission) is gate.ConditionFamilyAdmission
-        and admission.admitted is True
-        and required_ids.issubset(admission.record_ids)
-        for admission in observed.admissions
+    admission = _validated_family_admission(
+        gate,
+        observed.supply_records,
+        observed.meaning_records,
+        observed.admissions,
     )
+    return admission is not None and admission.admitted is True
+
+
+def _validated_family_admission(
+    gate: ModuleType,
+    supply_records: Sequence[object],
+    meaning_records: Sequence[object],
+    admissions: Sequence[object],
+) -> object | None:
+    """Revalidate records and admission with the production family gate."""
+    if len(admissions) != 1 \
+            or type(admissions[0]) is not gate.ConditionFamilyAdmission:
+        return None
+    admission = admissions[0]
+    try:
+        expected = gate.require_condition_gate_family(
+            list(supply_records),
+            list(meaning_records),
+            use_class=admission.use_class,
+        )
+    except Exception:
+        return None
+    return admission if admission == expected else None
 
 
 def _s1_cell_success(
@@ -432,17 +473,36 @@ def _s1_cell_success(
             or len(observed.admissions) != 1:
         return False
     request = observed.requests[0]
-    admission = observed.admissions[0]
-    return (
-        type(request) is gate.DefineRequest
-        and request.macro == "BACKOFF_FIXED"
-        and request.requested_value == 10
-        and len(observed.supply_records) == 1
-        and len(observed.meaning_records) == 1
-        and observed.supply_records[0].macro == "BACKOFF_FIXED"
-        and observed.meaning_records[0].macro == "BACKOFF_FIXED"
-        and admission.admitted is True
+    if type(request) is not gate.DefineRequest \
+            or request.macro != "BACKOFF_FIXED" \
+            or request.requested_value != 10 \
+            or len(observed.supply_records) != 1 \
+            or len(observed.meaning_records) != 1:
+        return False
+    digest = _request_digest(gate, request)
+    supply = observed.supply_records[0]
+    meaning = observed.meaning_records[0]
+    expected_shapes = (
+        (supply, "supply-effectuation"),
+        (meaning, "runtime-meaning"),
     )
+    if not all(
+        type(record) is gate.ConditionArmRecord
+        and record.arm == arm
+        and record.terminal_status == "green"
+        and record.driver_id == request.driver_id
+        and record.macro == request.macro
+        and record.request_digest == digest
+        for record, arm in expected_shapes
+    ):
+        return False
+    admission = _validated_family_admission(
+        gate,
+        observed.supply_records,
+        observed.meaning_records,
+        observed.admissions,
+    )
+    return admission is not None and admission.admitted is True
 
 
 def _summary_document(summary: object) -> dict[str, Any]:
@@ -489,7 +549,7 @@ def _measure_call(
         with observer:
             value = call()
         completed = True
-    except BaseException as exc:
+    except Exception as exc:
         exception = _exception_document(exc)
     return value, observer.observed, completed, exception
 
@@ -513,7 +573,7 @@ def _network_observation() -> dict[str, Any]:
         connection.connect(address)
         document["reachable"] = True
         document["exception"] = None
-    except BaseException as exc:
+    except Exception as exc:
         document["exception"] = _exception_document(exc)
     finally:
         if connection is not None:
@@ -557,7 +617,7 @@ def _cmake_identity() -> dict[str, Any]:
             "stderr": completed.stderr,
             "exception": None,
         })
-    except BaseException as exc:
+    except Exception as exc:
         document["exception"] = _exception_document(exc)
     return document
 
@@ -579,7 +639,7 @@ def _compiler_metadata(bundle: _Production) -> tuple[dict[str, Any], str]:
         manifest = bundle.buildcache.observed_toolchain_manifest(cc, cxx)
         document["observed_toolchain_manifest"] = _json_safe(manifest)
         document["manifest_exception"] = None
-    except BaseException as exc:
+    except Exception as exc:
         document["observed_toolchain_manifest"] = None
         document["manifest_exception"] = _exception_document(exc)
     return document, cxx
@@ -799,7 +859,7 @@ def _run_s1(
             is True
         ):
             result["ok"] = True
-    except BaseException as exc:
+    except Exception as exc:
         result["exception"] = _exception_document(exc)
     return _finish_result(result)
 
@@ -814,6 +874,30 @@ def _ccbench_head_and_clean(root: Path, expected: str) -> str:
             f"ccbench checkout is not pinned-clean: expected={full} status={status!r}"
         )
     return full
+
+
+def _current_pin_control_success(
+    observed: _GateObservation,
+    *,
+    completed: bool,
+    exception: Mapping[str, Any] | None,
+    current_head: str,
+    required_head: str,
+) -> bool:
+    if completed or current_head == required_head or exception is None:
+        return False
+    if observed != _GateObservation():
+        return False
+    traceback_rows = exception.get("traceback")
+    return (
+        isinstance(traceback_rows, list)
+        and any(
+            isinstance(row, Mapping)
+            and row.get("module") == "orchestrator.campaign.patchharness"
+            and row.get("function") == "assert_pinned_clean"
+            for row in traceback_rows
+        )
+    )
 
 
 def _run_repro(
@@ -831,6 +915,9 @@ def _run_repro(
         ccbench = Path(bundle.buildcache._ccbench_dir()).resolve(strict=True)
         points = bundle.repro._genomes_reversed(10)
         current_full = _ccbench_head_and_clean(ccbench, CURRENT_CCBENCH_PIN)
+        required_full = _run_git(
+            ccbench, "rev-parse", f"{REPRO_CCBENCH_PIN}^{{commit}}",
+        )
 
         def current_pin_call() -> None:
             with bundle.repro._conditioned_backoff_patch(points, cxx=cxx):
@@ -842,19 +929,22 @@ def _run_repro(
                 driver_id=EXPECTED_DRIVER_IDS["repro"],
                 call=current_pin_call,
             )
+        current_control_ok = _current_pin_control_success(
+            current_observed,
+            completed=current_completed,
+            exception=current_exception,
+            current_head=current_full,
+            required_head=required_full,
+        )
         result["current_pin_pre_gate_control"] = {
             "ccbench_head": current_full,
+            "required_ccbench_head": required_full,
             "completed": current_completed,
             "exception": current_exception,
             "observation": _observation_document(bundle.gate, current_observed),
-            "failed_before_gate": (
-                not current_completed
-                and not current_observed.requests
-                and not current_observed.supply_records
-                and not current_observed.meaning_records
-                and not current_observed.admissions
-            ),
-            "used_for_ok": False,
+            "failed_before_gate": current_control_ok,
+            "pin_mismatch_before_gate": current_control_ok,
+            "used_for_ok": True,
         }
 
         historical_full = _ccbench_head_and_clean(ccbench, REPRO_CCBENCH_PIN)
@@ -883,12 +973,13 @@ def _run_repro(
         if (
             completed
             and exception is None
+            and current_control_ok
             and final_head == historical_full
             and not final_status
             and _gate_success(bundle.gate, observed)
         ):
             result["ok"] = True
-    except BaseException as exc:
+    except Exception as exc:
         result["exception"] = _exception_document(exc)
     return _finish_result(result)
 
@@ -940,7 +1031,7 @@ def _run_sweep(
             and _sweep_accepts(bundle.gate, observed, summary)
         ):
             result["ok"] = True
-    except BaseException as exc:
+    except Exception as exc:
         result["exception"] = _exception_document(exc)
     return _finish_result(result)
 
@@ -993,7 +1084,18 @@ def _argument_parser() -> argparse.ArgumentParser:
     parser.add_argument("--expected-repo-head", required=True)
     parser.add_argument("--evidence-dir", required=True, type=Path)
     parser.add_argument("--scratch-output-root", required=True, type=Path)
+    parser.add_argument("--pbs-job-id", required=True)
     return parser
+
+
+def _make_run_binding(pbs_job_id: str) -> dict[str, Any]:
+    if type(pbs_job_id) is not str or not pbs_job_id:
+        raise ValueError("--pbs-job-id must be a non-empty string")
+    return {
+        "run_id": uuid.uuid4().hex,
+        "pbs_job_id": pbs_job_id,
+        "process_id": os.getpid(),
+    }
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -1024,11 +1126,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         repo_roots=tuple(roots.values()),
         label="scratch output root",
     )
+    run_binding = _make_run_binding(args.pbs_job_id)
     common = {
         "hostname": socket.gethostname(),
         "network_observation": _network_observation(),
         "scratch_capacity_at_start": _scratch_capacity(scratch_output_root),
         "expected_repo_head": args.expected_repo_head,
+        "run_binding": run_binding,
     }
     runners = {
         "s1": _run_s1,
@@ -1046,26 +1150,28 @@ def main(argv: Sequence[str] | None = None) -> int:
                 result = runners[driver](
                     bundle, common=common, output_root=output_root,
                 )
-        except BaseException as exc:
+        except Exception as exc:
             result["exception"] = _exception_document(exc)
             result = _finish_result(result)
         completed_drivers.append(driver)
         result["planned_driver_order"] = list(DRIVER_ORDER)
         result["drivers_completed_before_publish"] = list(completed_drivers)
+        result["run_binding"] = run_binding
         destination = evidence_dir / RESULT_NAMES[driver]
         try:
             _write_atomic_create_only(destination, result)
-        except BaseException as exc:
-            overall_rc = 4
+        except Exception as exc:
             print(
                 json.dumps({
                     "driver": driver,
                     "published": False,
                     "path": os.fspath(destination),
+                    "run_binding": run_binding,
                     "exception": _exception_document(exc),
                 }, ensure_ascii=False, sort_keys=True),
                 flush=True,
             )
+            return 4
         else:
             print(
                 json.dumps({
@@ -1074,6 +1180,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "rc": result["rc"],
                     "published": True,
                     "path": os.fspath(destination),
+                    "run_binding": run_binding,
                 }, ensure_ascii=False, sort_keys=True),
                 flush=True,
             )

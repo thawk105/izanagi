@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+import contextlib
 import types
-import sys
 from pathlib import Path
 
 import pytest
@@ -13,61 +13,49 @@ from tools.pegasus.probes import t2228_driver_gate_liveness_probe as probe
 DRIVER_ID = "orchestrator/campaign/backoff_repro.py"
 
 
-def _record(
-    *,
-    arm: str,
-    status: str,
-    request_digest: str,
-    record_id: str,
-) -> gate.ConditionArmRecord:
-    return gate.ConditionArmRecord(
-        record_id=record_id,
-        record_digest="b" * 64,
-        arm=arm,
-        terminal_status=status,
-        reason_code=("test-green" if status == "green" else "test-red"),
-        driver_id=DRIVER_ID,
-        macro="BACKOFF_FIXED",
-        request_digest=request_digest,
-        evidence={},
-    )
-
-
-def _positive_observation() -> probe._GateObservation:
+def _issue_production_family(source: Path, *, driver_id: str) -> object:
+    source.mkdir()
     request = gate.make_define_request(
-        driver_id=DRIVER_ID,
+        driver_id=driver_id,
         macro="BACKOFF_FIXED",
         requested_value=-1,
         default_value=None,
         stock_comparison=True,
     )
-    digest = probe._request_digest(gate, request)
-    supply = _record(
-        arm="supply-effectuation",
-        status="green",
-        request_digest=digest,
-        record_id="supply-record",
+    captured = gate.capture_define_inputs(source)
+    supply = gate.evaluate_define_supply_effectuation(
+        captured,
+        request=request,
+        cxx="unused-cxx",
+        cmake="unused-cmake",
     )
-    meaning = _record(
-        arm="runtime-meaning",
-        status="green",
-        request_digest=digest,
-        record_id="meaning-record",
+    meaning = gate.evaluate_define_runtime_meaning(
+        captured,
+        request=request,
+        declaration=None,
+        cxx="unused-cxx",
     )
-    admission = gate.ConditionFamilyAdmission(
-        admission_id="admission",
-        admission_digest="c" * 64,
-        use_class="raw-measurement",
-        admitted=True,
-        record_ids=(supply.record_id, meaning.record_id),
-        unestablished_meaning_macros=(),
+    return gate.require_condition_gate_family(
+        [supply], [meaning], use_class="raw-measurement",
     )
-    return probe._GateObservation(
-        requests=[request],
-        supply_records=[supply],
-        meaning_records=[meaning],
-        admissions=[admission],
+
+
+def _production_observation(
+    source: Path, *, driver_id: str = DRIVER_ID,
+) -> probe._GateObservation:
+    value, observed, completed, exception = probe._measure_call(
+        gate,
+        driver_id=driver_id,
+        call=lambda: _issue_production_family(source, driver_id=driver_id),
     )
+    assert completed is True
+    assert exception is None
+    assert value is observed.admissions[0]
+    assert len(observed.requests) == 1
+    assert len(observed.supply_records) == 1
+    assert len(observed.meaning_records) == 1
+    assert len(observed.admissions) == 1
+    return observed
 
 
 def test_m1_exception_before_records_keeps_initial_result_false() -> None:
@@ -91,34 +79,46 @@ def test_m1_exception_before_records_keeps_initial_result_false() -> None:
     assert result["rc"] == 1
 
 
-def test_m2_red_supply_record_cannot_pass_gate_result() -> None:
-    observed = _positive_observation()
-    assert probe._gate_success(gate, observed) is True
-    original = observed.supply_records[0]
-    observed.supply_records[0] = _record(
-        arm="supply-effectuation",
-        status="red",
-        request_digest=original.request_digest,
-        record_id=original.record_id,
+def test_m2_production_integrity_rejects_tampered_issued_record(
+    tmp_path: Path,
+) -> None:
+    observed = _production_observation(tmp_path / "family")
+    admission = probe._validated_family_admission(
+        gate,
+        observed.supply_records,
+        observed.meaning_records,
+        observed.admissions,
     )
+    assert admission is observed.admissions[0]
 
+    supply = observed.supply_records[0]
+    object.__setattr__(supply, "record_digest", "0" * 64)
+
+    assert probe._validated_family_admission(
+        gate,
+        observed.supply_records,
+        observed.meaning_records,
+        observed.admissions,
+    ) is None
+
+
+def test_m3_production_admission_is_bound_to_exact_record_ids(
+    tmp_path: Path,
+) -> None:
+    observed = _production_observation(tmp_path / "family-a")
+    unrelated = _production_observation(
+        tmp_path / "family-b",
+        driver_id="orchestrator/campaign/other-driver.py",
+    )
+    assert observed.admissions[0].admitted is False
     assert probe._gate_success(gate, observed) is False
 
-
-def test_m3_false_production_admission_cannot_pass_gate_result() -> None:
-    observed = _positive_observation()
-    assert probe._gate_success(gate, observed) is True
-    original = observed.admissions[0]
-    observed.admissions[0] = gate.ConditionFamilyAdmission(
-        admission_id=original.admission_id,
-        admission_digest=original.admission_digest,
-        use_class=original.use_class,
-        admitted=False,
-        record_ids=original.record_ids,
-        unestablished_meaning_macros=original.unestablished_meaning_macros,
-    )
-
-    assert probe._gate_success(gate, observed) is False
+    assert probe._validated_family_admission(
+        gate,
+        observed.supply_records,
+        observed.meaning_records,
+        unrelated.admissions,
+    ) is None
 
 
 def test_m4_runtime_error_without_attribute_keeps_reason_code_null() -> None:
@@ -133,17 +133,136 @@ def test_m4_runtime_error_without_attribute_keeps_reason_code_null() -> None:
     assert document["context"] is None
 
 
-def test_m5_aborted_sweep_summary_cannot_pass() -> None:
-    observed = _positive_observation()
-    green = types.SimpleNamespace(
+@pytest.mark.parametrize(
+    "stop",
+    [KeyboardInterrupt(), SystemExit(9)],
+    ids=["keyboard-interrupt", "system-exit"],
+)
+def test_measure_call_propagates_process_control_exceptions(
+    stop: BaseException,
+) -> None:
+    def interrupt() -> None:
+        raise stop
+
+    with pytest.raises(type(stop)):
+        probe._measure_call(gate, driver_id=DRIVER_ID, call=interrupt)
+
+
+def test_network_observation_propagates_process_control_exception(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def interrupt(*_args: object, **_kwargs: object) -> object:
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(probe.socket, "getaddrinfo", interrupt)
+    with pytest.raises(KeyboardInterrupt):
+        probe._network_observation()
+
+
+def test_current_pin_control_requires_production_assert_pinned_clean_origin() -> None:
+    def assert_pinned_clean() -> None:
+        raise RuntimeError("controlled pin mismatch")
+
+    _value, observed, completed, exception = probe._measure_call(
+        gate, driver_id=DRIVER_ID, call=assert_pinned_clean,
+    )
+    assert exception is not None
+    assert any(
+        row["function"] == "assert_pinned_clean"
+        for row in exception["traceback"]
+    )
+    production_exception = {
+        **exception,
+        "traceback": [{
+            "module": "orchestrator.campaign.patchharness",
+            "function": "assert_pinned_clean",
+        }],
+    }
+    assert probe._current_pin_control_success(
+        observed,
+        completed=completed,
+        exception=production_exception,
+        current_head="a" * 40,
+        required_head="b" * 40,
+    ) is True
+    assert probe._current_pin_control_success(
+        observed,
+        completed=completed,
+        exception=production_exception,
+        current_head="a" * 40,
+        required_head="a" * 40,
+    ) is False
+
+
+def test_m5_run_sweep_rejects_aborted_summary_with_observed_production_records(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    summary = types.SimpleNamespace(
         campaign_id="campaign", committed=2, aborted=0, evaluated=2, skipped=0,
     )
-    aborted = types.SimpleNamespace(
-        campaign_id="campaign", committed=2, aborted=1, evaluated=2, skipped=0,
+    issue_count = 0
+
+    def run_workload(
+        workload_name: str,
+        workload: dict,
+        *,
+        screening_enabled: bool,
+        screening_fixed_us: int,
+    ) -> object:
+        nonlocal issue_count
+        assert workload_name == "write-heavy"
+        assert workload == {"fixture": "production-issued"}
+        assert screening_enabled is True
+        assert screening_fixed_us == 2
+        issue_count += 1
+        _issue_production_family(
+            tmp_path / f"family-{issue_count}",
+            driver_id=probe.EXPECTED_DRIVER_IDS["sweep"],
+        )
+        return summary
+
+    bundle = types.SimpleNamespace(
+        gate=gate,
+        buildcache=types.SimpleNamespace(
+            _ccbench_dir=lambda: str(tmp_path),
+        ),
+        sweep=types.SimpleNamespace(
+            WORKLOADS=(("write-heavy", {"fixture": "production-issued"}),),
+            run_workload=run_workload,
+        ),
+    )
+    monkeypatch.setattr(
+        probe,
+        "_driver_metadata",
+        lambda _bundle, *, common, output_root: ({}, "unused-cxx"),
+    )
+    monkeypatch.setattr(
+        probe, "_ccbench_head_and_clean", lambda _root, _expected: "f" * 40,
     )
 
-    assert probe._sweep_accepts(gate, observed, green) is True
-    assert probe._sweep_accepts(gate, observed, aborted) is False
+    def accept_production_records(
+        gate_module: types.ModuleType,
+        observed: probe._GateObservation,
+    ) -> bool:
+        return probe._validated_family_admission(
+            gate_module,
+            observed.supply_records,
+            observed.meaning_records,
+            observed.admissions,
+        ) is observed.admissions[0]
+
+    monkeypatch.setattr(probe, "_gate_success", accept_production_records)
+
+    green = probe._run_sweep(bundle, common={}, output_root=tmp_path / "green")
+    assert green["ok"] is True
+    assert green["rc"] == 0
+
+    summary.aborted = 1
+    aborted = probe._run_sweep(bundle, common={}, output_root=tmp_path / "aborted")
+    assert aborted["ok"] is False
+    assert aborted["rc"] == 1
+    assert aborted["summary"]["aborted"] == 1
 
 
 def test_m6_atomic_writer_refuses_existing_evidence(tmp_path: Path) -> None:
@@ -155,6 +274,130 @@ def test_m6_atomic_writer_refuses_existing_evidence(tmp_path: Path) -> None:
 
     assert destination.read_text(encoding="utf-8") == "existing\n"
     assert list(tmp_path.iterdir()) == [destination]
+
+
+def _stub_main_execution(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    calls: list[str],
+) -> list[str]:
+    roots = [tmp_path / name for name in ("s1", "repro", "sweep")]
+    for root in roots:
+        root.mkdir()
+    evidence = tmp_path / "evidence"
+    scratch = tmp_path / "scratch"
+    evidence.mkdir()
+    scratch.mkdir()
+
+    monkeypatch.setattr(
+        probe, "_validate_repo_root", lambda root, _expected: root,
+    )
+    monkeypatch.setattr(
+        probe,
+        "_canonical_external_directory",
+        lambda value, **_kwargs: value,
+    )
+    monkeypatch.setattr(probe, "_network_observation", lambda: {})
+    monkeypatch.setattr(probe, "_scratch_capacity", lambda _path: {})
+    monkeypatch.setattr(probe, "_load_production", lambda root: object())
+    monkeypatch.setattr(
+        probe,
+        "_driver_execution_context",
+        lambda _bundle, _output_root: contextlib.nullcontext(),
+    )
+
+    def runner(driver: str):
+        def run(
+            _bundle: object,
+            *,
+            common: dict,
+            output_root: Path,
+        ) -> dict:
+            calls.append(driver)
+            result = probe._base_result(driver)
+            result["metadata"] = {
+                "run_binding": common["run_binding"],
+                "output_root": str(output_root),
+            }
+            result["ok"] = True
+            return probe._finish_result(result)
+
+        return run
+
+    monkeypatch.setattr(probe, "_run_s1", runner("s1"))
+    monkeypatch.setattr(probe, "_run_repro", runner("repro"))
+    monkeypatch.setattr(probe, "_run_sweep", runner("sweep"))
+    return [
+        "--s1-repo", str(roots[0]),
+        "--repro-repo", str(roots[1]),
+        "--sweep-repo", str(roots[2]),
+        "--expected-repo-head", "a" * 40,
+        "--evidence-dir", str(evidence),
+        "--scratch-output-root", str(scratch),
+        "--pbs-job-id", "1234.pegasus",
+    ]
+
+
+def test_all_driver_payloads_share_one_process_run_binding(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[str] = []
+    argv = _stub_main_execution(tmp_path, monkeypatch, calls)
+    published: list[dict] = []
+    monkeypatch.setattr(
+        probe,
+        "_write_atomic_create_only",
+        lambda _path, payload: published.append(dict(payload)),
+    )
+
+    assert probe.main(argv) == 0
+    assert calls == list(probe.DRIVER_ORDER)
+    assert len(published) == 3
+    bindings = [payload["run_binding"] for payload in published]
+    assert bindings[0] == bindings[1] == bindings[2]
+    assert bindings[0]["pbs_job_id"] == "1234.pegasus"
+    assert all(
+        payload["metadata"]["run_binding"] == bindings[0]
+        for payload in published
+    )
+
+
+def test_publish_failure_stops_before_next_driver(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[str] = []
+    argv = _stub_main_execution(tmp_path, monkeypatch, calls)
+
+    def fail_publish(_path: Path, _payload: dict) -> None:
+        raise FileExistsError("existing evidence")
+
+    monkeypatch.setattr(probe, "_write_atomic_create_only", fail_publish)
+
+    assert probe.main(argv) == 4
+    assert calls == ["s1"]
+
+
+def test_pbs_closes_git_environment_and_rejects_repo_local_logs() -> None:
+    pbs = Path(probe.__file__).with_suffix(".pbs").read_text(encoding="utf-8")
+    first_git = pbs.index('REPO_HEAD=$(git')
+    pre_git = pbs[:first_git]
+    for variable in (
+        "GIT_DIR",
+        "GIT_WORK_TREE",
+        "GIT_INDEX_FILE",
+        "GIT_COMMON_DIR",
+        "GIT_OBJECT_DIRECTORY",
+        "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+        "GIT_CEILING_DIRECTORIES",
+    ):
+        assert variable in pre_git
+    assert pbs.index("validate_external_pbs_log 1 stdout") < first_git
+    assert pbs.index("validate_external_pbs_log 2 stderr") < first_git
+    assert '"/proc/$$/fd/$descriptor"' in pbs
+    assert '"$REPO_ROOT"|"$REPO_ROOT/"*' in pbs
+    assert '--pbs-job-id "$PBS_JOBID"' in pbs
 
 
 def _synthetic_freeze_with_one_inert_cell() -> dict:
