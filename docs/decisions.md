@@ -53502,3 +53502,258 @@ D1624 が採った「(1) 現 epoch のまま続ける」の判断自体を誤り
 - 対称性のために足す — 受理集合も report の reason も変えず、観測できる効果がない。
 - 後段の reason code を新設して到達させる — 到達不能な分岐へ名前を付けるだけで、
   恒真な関門を 1 つ増やす。
+
+## D1762. `renameat2(RENAME_NOREPLACE)` の無い filesystem では `os.link` へ落とし、link 成功時点で publish 完了とする (2026-09-08)
+
+**決定:** `_atomic_write_bytes_noreplace` は、`_rename_noreplace` が
+`EINVAL` / `ENOSYS` / `ENOTSUP` を返したときだけ
+`os.link(staging, path, follow_symlinks=False)` へ落ちる。**link が成功した時点で publish は
+完了**とみなし、以後 destination を削除も上書きもしない。staging の後始末は best-effort とし、
+その失敗を関数の失敗にしない。それ以外の errno はそのまま伝播する。
+
+**理由:**
+
+- Lustre には `renameat2(RENAME_NOREPLACE)` が無い (実測: /work と /home で errno 22 EINVAL、
+  ノード内蔵の /tmp では成功)。認証の受理証跡はこの経路でしか書けず、A-6 read-heavy の
+  実走が 36 秒で止まっていた。
+- `os.link` は既存名に対して `EEXIST` を返すので、regular file なら**上書き禁止の意味論を
+  弱めずに**原子的な create-only publish になる。directory を publish する materialize 側が
+  弱い代替 (排他 claim + 存在検査) を使っているのは link が directory に使えないためであり、
+  regular file に同じ弱い形を持ち込む理由は無い。同じ選択を `orchestrator/calibrator/cli.py` の
+  `_rename_noreplace` が既に採っている。
+- **後始末の失敗で publish を失敗にすると、受理集合を不当に狭める。** destination は正しい
+  bytes を持って durable なのに関数が失敗を返すと、再実行が `EEXIST` で永久に拒否され、
+  成立するはずの走行が indeterminate になる。
+
+**却下した選択肢:**
+
+- materialize 側の `_publish_staging_after_einval` を流用する — 非協調 writer に対して
+  原子的でないと docstring が明記しており、regular file には不要な弱体化になる。
+- `EINVAL` だけを代替へ落とす — `ENOSYS` / `ENOTSUP` を返す filesystem で同じ欠陥が残る。
+- `published` を後始末の後ろで立てる — 上記の再実行不能を招く。
+
+**残る限界 (主張せず明記する):** link と unlink の間で process が死ぬと staging の別名が残る。
+1 関数の局所修復では消せず、単一 syscall で無名 inode を publish する別 primitive が要る。
+consumer は destination の正確な名前しか見ないので、成果物の値も参照も変わらない。
+
+## D1763. 認証の分割可否は「ノード間の性能差」でなく「比べる量かどうか」で決める (2026-09-08)
+
+**決定:** 認証 campaign をノードへ分割してよいかは、**その工程が出すものがノード間で比較される
+量かどうか**で判定する。真偽値を返す正しさ検査は分割してよい。stock と採用版の性能比較は
+1 job・1 ノードに閉じたまま残す。
+
+**理由:**
+
+- `docs/pegasus-runbook.md`「ノード間の性能差は未測定である — これを禁止の根拠にしない」節が、
+  ノード間差の大きさを fan-out 禁止の根拠にすることを明示的に禁じている。CC ベンチの
+  ノード間比較は本 repo に存在しない。
+- 同節が残す禁止は**処置とノードの一対一割付け (完全交絡)** であり、これは差の大小に依らず
+  成立する。ただし成立するのは**量を比べる**場合だけである。直列性検査が返すのは
+  serializable か否かであって、ノード間で引き算も割り算もしない。
+- A-6 の実測では 73 分中約 70 分が正しさ検査 (48 スレッド × 約 7 分 × 10 回) で、性能計測は
+  17 秒だった。各検査が全コアを使うので 1 ノード内では並べられず、**ノードへ割るのが唯一の
+  短縮手段**である。
+
+**却下した選択肢:**
+
+- 検査の回数・強さを減らして短縮する — 正しさゲートの弱体化であり絶対規律 2 に反する。
+- stock と採用版を別ノードへ割る — 一処置一ノードの完全交絡。
+
+**未解決として残すもの:** 実行ファイルの同一性。認証は `perf_bin_sha256` を実ファイルと
+照合するので、検査を別ノードで走らせるには同一 bytes の実行ファイルが要る。ノードを跨いで
+建て直すと bytes が変わることは実測済みである。これは「技術的に不可能」ではなく
+「現行 protocol では禁止」に当たり、配布か再現可能ビルドかを決める別の裁定で解ける。
+
+## D1764. B-4 事前登録 §5 の primary outcome 欄は分析 source closure の path と sha256 で埋める (2026-09-08)
+
+**決定:** §5.1 が primary outcome 欄へ要求する「その artifact path と sha256」を、
+分析実装の source closure — `orchestrator/campaign/p3_b4_analysis_path.py` の
+`_SOURCE_CLOSURE_PATHS` が並べる 5 member — の path と sha256 と読み、その順序で記入する。
+consumer が成功時に返す source-closure receipt の path とは読まない。
+
+**理由:**
+- §5.1 は 2 つの実体を名指す。「raw な試行記録から §5.1.1 の入力型を作る経路」と
+  「その実装が §5.1.1 の定義と一致することを検査する consumer」である。前者は
+  `p3_b4_analysis_adapter.py` (raw artifact JSON から contract 入力型へ)、
+  後者は `p3_b4_analysis_prereg_consumer.py` であり、いずれも実在する。
+- `_SOURCE_CLOSURE_PATHS` は consumer 自身が AST で pin する機械権威の並びなので、
+  値は親の選択ではなく機械導出になる。欄の値が恣意になる余地を残さない。
+- receipt と読む場合、現行 consumer は receipt object を返すだけで path へ永続化しないため、
+  **この欄は原理的に埋められない**。§5.1 が本欄を解除可能な欄として書いている以上、
+  その読みは文書と整合しない。
+- §5.1 の警告「定義への参照だけで埋めると、実装が無いまま他の欄が揃った時点で関門が開く」は、
+  **参照だけで埋めること**を塞ぐものである。本決定が書くのは実装 artifact の bytes 束縛であり、
+  実装は実在するので警告の射程に当たらない。
+
+**限界 (主張しない):**
+- consumer が §5.1.1 との一致を検査するのは contract / ledgers / path の 3 source であり、
+  adapter の contract 一致は挙動検査していない。consumer 自身が宣言する AST 検査の限界も残る。
+  本決定はそれらが閉じたとは主張しない。
+- 記入後に closure member の bytes が変われば 5 値は同時に陳腐化する。実走前検査は
+  この欄の意味も freshness も検査しないので、parser 通過を新しさの証拠にしない。
+
+**却下した選択肢:**
+- 欄を空のまま残す — 解除条件の 3 conjunct がいずれも現物で満たされており、
+  未充足を理由にできない。
+- raw record producer を 6 番目の member として書き足す — §5.1 が名指す「経路」は
+  raw artifact JSON を入力型へ変える adapter であり、producer はその raw 記録を作る上流である。
+  機械権威の closure 並びを親の判断で拡張することになるので採らない。
+
+## D1765. 発効前の事前登録の陳腐化は、既存記述を消さず追記の erratum で訂正する (2026-09-08)
+
+**決定:** B-4 事前登録の記述が現在地と食い違ったときは、既存の文を削除・書き換えせず、
+直後へ日付と task ID を付けた追記を置き、何が変わって何が変わっていないかを両方書く。
+
+**理由:**
+- 同文書 §1 が「発効後の変更は旧版を git 履歴に残したまま新しい commit で行い、
+  変更理由と変更時点を本書へ明記する」と定める。発効前でも同じ形を採れば、
+  発効の前後で訂正の作法が変わらない。
+- 陳腐化の訂正は「解消済み」を増やす方向に働くため、消してしまうと
+  何が未決のまま残っているかを読み手が復元できない。追記なら旧記述が残り、
+  差分が読める。
+- 実測: §11 の 2 か所は「生成器は本書を読まず無条件に floor 不在を渡す」と書くが、
+  現行の生成器は §5 を読む。**ただし §5 が未記入なら従来どおり floor 不在を渡す**ので、
+  旧記述の結論部分 (「floor 行を埋めるだけでは正規経路は変わらない」) は
+  「有効な pin でない記入では変わらない」という形でなお真である。
+  消していれば、この「なお真である部分」が失われていた。
+
+**却下した選択肢:**
+- 旧記述の in-place 書き換え — 上のとおり未決の輪郭が失われる。
+- 訂正を worklog だけに書き文書は放置 — 文書を単独で読む consumer と人間が誤った現在地を読む。
+
+## D1766. A-1 の受領証 file は staging + `os.link` に統一し、directory 公開は現行のまま残す (2026-09-08)
+
+**決定:** D1732 が group submission receipt について決めた「完成した staging への `os.link`」を、
+**A-1 driver が公開する受領証 file の共通形**とする。`complete` の completion receipt (v2 / v3 の
+両経路) も同じ publisher を通す。materialize の bundle は **directory** を公開するため
+`os.link` を使えず、現行の probe + fallback をそのまま残す。`receipts/submission-failure.json` は
+本決定の対象外とする。staging の basename は kind ごとに分ける (submission と completion)。
+
+**理由:**
+
+- D1732 が「completion receipt と materialize 側も同族として同じ形へ棚卸しする」と定めた。
+  棚卸しの結果、file は同じ形にでき、directory はできない、という非対称が実体だった。
+- completion receipt は完成名を `O_EXCL` で直接開いてから bytes を書いていた。書込み途中で止まると
+  **千切れた bytes が create-only 名を占有し、その attempt の proof chain を二度と閉じられない。**
+  submission 側に staging がある理由と同型の欠陥である。
+- materialize の staging は `mkdir` で作る directory であり、通常の user process は directory の
+  hard link を作れない。同じ primitive へ置換できないことはコード上の事実である。
+- kind ごとに staging basename を分けるのは、将来 basename の共通 prefix が伸びたときの
+  衝突を防ぐためで、公開の受理集合は変えない。
+
+**却下した選択肢:**
+
+- 素の rename への退避 — 既存先を黙って上書きし create-only の排他性を落とす (D1732 が却下済み)。
+- `O_EXCL` で完成名へ直接書く — 部分公開の窓を作る (D1732 が却下済み)。
+- submission 受領証にも file system probe と機構選択の evidence を持たせる —
+  `os.link` は Lustre でも tmpfs でも通るので選択肢が要らない。発火経路の無い条件付き機能になる。
+- `receipts/submission-failure.json` まで同じ形へ広げる — D1732 の射程外であり、
+  失敗台帳の意味と retry policy が別論点になる。
+
+## D1767. hard link 公開後の staging 撤去は宛先の同一性を前提にし、撤去失敗で公開を巻き戻さない (2026-09-08)
+
+**決定:** 受領証を hard link で公開した後の staging 撤去は、**宛先が存在し、その `(st_dev, st_ino)` が
+staging identity と一致すること**を unlink の前提にする。不成立なら staging を unlink せず
+fail-closed で止める。撤去が失敗した場合は専用の例外型で報告し、**完成名を巻き戻さない**。
+rc は非ゼロのままとし、message で「受領証は公開済みである」ことを明示する。v3 submit は
+この例外では `submission-failure.json` を書かない。
+
+**理由:**
+
+- rename 公開では公開後に staging 名が消えるので撤去処理そのものが無かった。hard link 公開では
+  **staging と宛先が同じ inode になる**ため、公開後に第三者が
+  `unlink(staging)` と `rename(destination, staging)` を行うと、staging の identity 照合が通ってしまい
+  **撤去が受領証の最後の link を消す。** 本 wave の機構変更が新しく作る破れであり、
+  宛先の同一性を要求することで決定的な順序を閉じる。
+- 既に consumer から見えた create-only の受領証を消す方が、staging を残すより危険である。
+- 公開済みなのに失敗台帳を作るのは虚偽の記録になる。一方で rc を 0 にすると、
+  破れた「staging を残さない」不変条件を黙って通すことになる。両方を避ける唯一の形が
+  「非ゼロで報告し、失敗台帳は書かず、公開済みであることを message に書く」である。
+
+**却下した選択肢:**
+
+- 撤去失敗を非致命の診断にして rc=0 を返す — 不変条件の破れを黙らせる。
+- 撤去失敗時に完成名を unlink して「公開失敗」へ戻す — 公開済みの受領証を消す。
+- 宛先確認と unlink の間の競走まで閉じる — 非協調な同 uid writer を前提とし、その writer は
+  受領証を直接消すこともできるので file 操作では閉じられない。threat model 自体の裁定へ返す。
+
+## D1768. FC07 の rejected 枝は production の abort payload だけを読み、witness class を verifier 証拠から導く (2026-09-08)
+
+**決定:** `orchestrator/campaign/reflux_formal_consumer.py` の `_validate_wal_outcomes()` の
+rejected 枝から `candidate_attributable` / `truncated` / `witness_class_sha256s` の 3 field を
+**廃止する**。代わりに production の abort payload (`orchestrator/campaign/pipeline.py` の
+verifier reject 経路が書く `reason` と `verify`) だけを読み、3 つの述語を導く。
+
+- **candidate 帰属:** `reason` と `verify["verdict"]` がともに `"non-serializable"` であること。
+  `"indeterminate"` (空 trace または integrity 不成立) は candidate 起因に数えない。
+  併せて `verify` の内部整合 (`serializable is False`、`certified is False`、
+  `integrity["clean"] is True`、wire へ射影された 11 個の integrity counter がすべて exact int の 0)
+  を要求する。counter 条件は `Integrity.clean()` の**必要条件であって十分条件ではない** —
+  `proof_surfaces` と commit witness は wire へ射影されない。
+- **非切詰め:** `anomaly_count == len(anomalies)` かつ `total_cycles == anomaly_count`。
+  verifier は切詰め前の全 SCC 数と切詰め後の witness 列を別々に持つ
+  (`orchestrator/verifier/dsg.py` の `anomalies(max_report)` が両方を返す)。
+- **witness class:** `anomalies` はちょうど 1 件で、その anomaly の canonical JSON の sha256 が
+  `physical_result.constraint_sha256` と exact 一致すること。**list の順序は正規化しない。**
+
+witness anomaly は production の生成器から導ける形だけを受理する — key 集合の exact 一致、
+`phenomenon` が全 edge type からの再導出値と一致、`cycle` が長さ 2 以上の相異なる exact int 列、
+`length == len(cycle)`、edge が `cycle` の ring 位置に対応、reason の `type` が
+`orchestrator.verifier.model` の `WW` / `WR` / `RW` の閉集合の要素、edge の `types` が reasons の
+type の出現順重複除去と一致、version field の有無が reason type と対応、version が exact int 2 要素。
+`verify` / `stats` / `integrity` / `permutation_violation_details` の key 集合と値の型も
+production の `result_to_dict()` の形に閉じる。
+
+`reflux_source_closure.py` の token 表の `wal.abort.payload.witnesses` を、consumer が実際に読む
+`wal.abort.payload.verify.anomalies` へ改める。`_wal_field()` の root→payload fallback、
+FC07 以外の判定式、reason code、他の gate、terminal record の外枠は変えない。
+
+**理由:**
+- 廃止した 3 field には production producer が 1 つも存在しなかった (`orchestrator/campaign/`
+  全走査で 0 件)。token 表が挙げていた `witnesses` も存在せず、同じ表の commit 側
+  `wal.commit.payload.verify_configs` だけが実在していた。成果物が**指示対象の無い束縛**を
+  主張している状態であり、この束縛を信頼して producer を書けば虚構に対して実装することになる。
+- producer が書く boolean は自己申告であり、consumer はそれを検算する独立の証拠を持たない。
+  consumer 側で導けば、record が主張する `constraint_sha256` を WAL 上の実 verifier 証拠と
+  突き合わせる形になり、入力の 2 つの部分が互いを検算する。
+- 正規化 (整列・重複排除) を置かないのは、`cycle` が最短 cycle の**順序付き**節点列で、
+  `edges` がその ring 順に対応しているためである。整列すると同じ節点集合上の異なる cycle が
+  同じ digest へ落ち、受理集合が広がる。
+- `indeterminate` を除くのは、verifier 自身の契約が「integrity が unclean な run は辺が落ちて
+  real cycle を隠している恐れがあるため serializable を認証できない」としているためである。
+  同じ理由で `integrity["clean"] is True` を要求する — 壊れた trace 由来の cycle を
+  candidate-attributable として受理するのは正しさ防壁の直接的な拡張である。
+- 構造検査を置くのは、置かないと `anomalies=[{}]` のような production verifier が生成できない
+  任意の dict が witness class として通るためである。段 6 の敵対レビュー 2 本が独立に、
+  通る入力を具体的に示した。
+
+**却下した選択肢:**
+- producer 側に 3 field を新設する — record 層の producer が repo に 1 件も無いため
+  (`OriginProducerInputs` の構築は test 1 箇所だけ)、この方向は record 層 producer の新設まで
+  連鎖し「不整合の解消だけ」を超える。なお「producer が書くと必ず恒真になる」という
+  起草時の理由は誤りで、段 3 のレンズが反例を示した。方向の選択理由は上記へ狭めた。
+- 旧 3 field と production 形の両受け — 受理集合が広がり、fixture 由来の形が本番へ紛れ込む
+  経路を残す (規律 2)。D1665 と D1715 が同じ理由で却下したのと同型である。
+- witness class の正規化で anomaly の list 順序を吸収する — 上記のとおり受理集合を広げる。
+  加えて吸収すべき非決定性が同一 bytes に対しては存在しない。
+- terminal record の外枠を同じ変更単位で閉じる — D1730 が裁定済みの別項であり、
+  本 wave の名指し外である。
+- `orchestrator/verifier/dsg.py` の理由順を整列して決定的にする — producer 側の変更であり、
+  verifier の出力 bytes を変える。別項として裁定へ返す。
+
+**限界:**
+- 本決定が閉じたのは **WAL 側の不整合だけ**である。result-evidence record を発行する
+  production producer は依然存在しないため、rejected の本番 projection が端から端まで通るように
+  なったわけではない。record 側が同じ規則で `constraint_sha256` を導かなければ FC07 で止まる。
+- witness class は occurrence identity (txid) を含む。同じ構造の違反が別 txid で 2 回現れると
+  cardinality 2 で拒否される。構造同値類の定義は新しい一般化であり scope 外とした。
+- 同じ理由で、`dsg.py` の理由順が process 間で変わるため、同一 trace の 2 回の run が
+  別の class を生みうる。FC07 の検査は記録された bytes に対して行うのでこの決定は壊れないが、
+  class の意味は run 依存である。
+- `Integrity.clean()` の `proof_surfaces` と commit witness の条件は wire へ射影されないため、
+  consumer 単独では十分条件を再計算できない。
+- D338 のとおり consumer は全検査通過後も `P6Unavailable` を返す。certified 選択集合と
+  測定 cell、`OriginSealed` event payload は変わらない。変わるのは fixture 由来の record /
+  source-closure digest と、そこから連鎖する receipt・`formal_receipt_sha256` /
+  `evidence_root_sha256`、および report artifact・lifecycle terminal・acceptance receipt の bytes である。
+- 受理集合の変化は単調ではない。旧 3-field 形は除外され、production `verify` 形が追加される。

@@ -8405,6 +8405,14 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 変異本走で SURVIVED が出たら、まず `DW-M02` に従って他層 mask と**等価性**の両方を疑い、
   注入 diff を読んで「意味が変わっているか」を確認してから結論する。
 
+
+- **再発: 2026-09-08** — 変異 `b060.m23-length-exact-int` / `b060.m24-endpoint-exact-int`
+  (`type(x) is not int` を `not isinstance(x, int)` へ緩める) が probe 走で SURVIVED した。
+  `isinstance(2.0, int)` は False なので、float を使う既存の負例に対してこの緩和は
+  **何も変えていない**。開くのは bool の穴だけで、それを突く負例が集合に無かった。
+  F245 と同じく「緩和した方向を 1 件も持たない負例集合に対しては、その緩和が観測不能」である。
+  `DW-M02` に従い型検査そのものを取り除く形へ再照準して KILLED を実測し、
+  isinstance 版は「型の厳密さが負例で pin されていない」ことの実測として登録 SURVIVED で残した。
 ### F246. 「生きた consumer が居る」だけで凍結 artifact を現用と裁定し、逆向きに壊す再 pin を通した [手順漏れ]
 
 - 事象: [T-816] 手順 4 の段 4 で、親が `output/s1-freeze/*.json` と
@@ -19126,6 +19134,14 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   逆でないかを機械検査する仕組みが無い。** 本件は受入が赤になって初めて表面化した。
   向きの衝突を機械検出する gate は未実装で、次の一手として起票した。
 
+
+- **再発: 2026-09-08** — 受入全走が 21591 passed / 1 failed で戻り、落ちたのは同じ
+  `test_g5_real_ledger_covers_at_least_90_percent_of_real_collection` だった。被覆率は
+  19438 / 21660 = 89.7415%。main (240ee6360) 単独では 19439 / 21596 = 90.0120% と
+  **閾値を 0.0120 point しか上回っておらず**、本 wave の 65 node 追加でそのまま割った。
+  F684 の恒久対応 (部分更新) はそのまま効き、`--add-only` で自 wave の 65 node だけを
+  実測値で足して 90.0416% へ戻した。**残差がこれだけ薄いので、test を足す wave は
+  今後もほぼ確実に同じ赤を踏む。**
 ### F685. 編集面重複走査が、作成途中の worktree を「編集中」と誤検出した [手順漏れ]
 
 - 事象: [T-1434] の段 1 で、対象文書 `docs/phase3-t189-model-routing-preregistration.md` を触る
@@ -22655,6 +22671,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   advisory lock 等) を置く wave は、段 1 で対象の durable base 上に最小 probe を 1 回走らせ、
   fixture が代表していない環境差を投入前に出す。`docs/dev-wave/core.md` `DW-S01` の
   「別 program 起動物の実在棚卸し」の対象に、公開先 file system が primitive を受けるかを含める。
+- **supersede: 2026-09-08** — 恒久対応が指す実装が着地した。group submission receipt と `complete` の completion receipt は完成した staging への `os.link` で公開し、materialize の directory 公開は現行のまま残す (D1766)。
 
 ### F871. 棚卸しの発火窓を前回の裁定時刻で切り、照合を directory 単位で行って再訪条件 7 件を「発火 0 件」と誤判定しかけた [手順漏れ] [ドリフト]
 
@@ -23045,3 +23062,85 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   走行中に上がった結果、「その版が要求を満たしていない」という非保証が偽になった。
   偽の非保証を残すことは、検査していないことを検査済みと読ませるのと同じ向きの誤りである。
   非保証は「現に証明していないこと」を述べる形へ保つ。
+
+### F893. 測定は完走したのに認証成果物を公開できず 2 段で止まった [手順漏れ] [環境前提]
+
+- 事象: A-6 read-heavy の実走が `driver_rc=0` で完走し受領証も揃ったのに、`collect` が
+  2 回続けて非 0 で止まった。1 回目は
+  `qsub -v is not bound to workload and current pin`、2 回目は
+  `tracked destination is not a fresh exact leaf`。
+- 根本原因: 独立な 2 件が重なっていた。(1) `collect` は投入時に記録した policy の
+  **絶対 path** と、実行時に解決した policy の path を突き合わせる。投入は隔離した投入用
+  checkout から行い、`collect` を記録用 worktree から実行したので不一致になった
+  (**`collect` は投入した checkout から実行する**)。(2) policy の `tracked_destination` が、
+  前走失敗時に手で書いた insight directory を指していた。`collect` は空の新しい leaf を
+  要求するので、以後この policy では永久に公開できない状態だった。
+- 恒久対応: (2) は `tracked_destination` を空の新しい leaf へ更新して解いた。この key は
+  `_protocol_preimage` に含まれないので `protocol_sha256` は動かない (実計算で確認)。
+  **公開先と手書き insight の置き場を同じにしない。**
+- 再発検知: (1) は既存 A-2 受領証が現配置で再検証できない件と同じ族であり、
+  投入 checkout の path が生きているかに依存する。撤去前に `collect` を済ませる。
+
+### F894. Lustre の EINVAL 対策が兄弟 writer 1 箇所だけ取り残されていた [consumer 取り残し]
+
+- 事象: A-6 read-heavy の実走が、条件 gate を 2 cell とも通過した直後に
+  `[Errno 22] Invalid argument` で 36 秒で終了した。
+- 根本原因: Lustre に `renameat2(RENAME_NOREPLACE)` が無い (実測: /work・/home で EINVAL、
+  ノード内蔵 /tmp で成功)。同じ file の materialize 経路は先行 commit で代替を得ていたが、
+  regular file を publish する `_atomic_write_bytes_noreplace` は代替を持たないまま残っていた。
+- 恒久対応: D1762。
+- 再発検知: 許可 errno・上書き禁止・非許可 errno の伝播・後始末失敗時の非失敗を、
+  それぞれ 1 本のテストで固定し、変異 4 件で単独帰属を確認した。
+- 併発: 同じ欠陥へ main 側の別 wave が独立に、より弱い修復を先に着地させていた。
+  受入の post-claim merge が競合し、Codex `role=author` の合成子による合成が必要になった。
+  **同一の欠陥へ複数 wave が同時に着手していることを、着手前の編集面重複検査は捕まえられない**
+  — 検査は path の重なりを見るが、main 側 wave はその時点でまだ着地していなかった。
+
+### F895. hard link 公開への切替えが、staging と宛先を同一 inode にして撤去処理へ受領証削除の経路を開きかけた [恒真ゲート] [手順漏れ]
+
+- 事象: 受領証の公開を `renameat2(RENAME_NOREPLACE)` から `os.link` へ替える段 2 プランは、
+  公開成功後に staging を撤去する経路を足しつつ、撤去側の `(st_dev, st_ino)` 照合を
+  **rename 時代のまま**据え置いていた。段 3 の敵対相談が、公開後に第三者が
+  `unlink(staging)` と `rename(destination, staging)` を行うと照合が通り、
+  撤去が受領証の最後の link を消して**例外なしで成功が返る**並びを実証した。着地前に閉じた。
+- 根本原因: rename では公開後に staging 名が消えるため撤去処理そのものが存在せず、
+  identity 照合は「自分が作った staging か」だけを見ればよかった。hard link は
+  **2 つの名前が同じ inode を指す**ので、同じ照合が「宛先を staging 名へ移したもの」も
+  通してしまう。**公開 primitive を替えると、その primitive に紐づく不変条件も替わる**という
+  点がプランから抜けていた。既存テストも rename 時代の性質しか固定していなかった。
+- 恒久対応: D1767。公開済み経路の撤去は宛先の存在と
+  identity 一致を前提にし、不成立なら unlink せず fail-closed で止める。
+  正例・負例は `orchestrator/tests/test_paper_story_a1_job_contract.py` の
+  `test_published_receipt_cleanup_preserves_same_inode_after_destination_move` と
+  `test_published_receipt_cleanup_preserves_staging_when_destination_disappears`
+  が持ち、変異 `t2396.m01a` / `t2396.m01b` が両 guard を単独で殺せることを実測した。
+- 再発検知: 公開・施錠・claim の primitive を差し替える wave は、**差し替え前の primitive が
+  暗黙に与えていた不変条件**を 1 つずつ書き出して、差し替え後も成立するかを見る。
+  `os.link` のように 2 つの名前が同じ inode を指す形へ移す場合は、identity 照合が
+  「どちらの名前か」を区別できなくなる点を必ず攻撃面に入れる。
+
+### F896. 言語と自 repo の実行時挙動を実測せずに断定し、裁定の根拠に据えた [捏造/幻覚] [手順漏れ]
+
+- 事象: 段 4 裁定で親が 3 つの前提を実測せずに書き、いずれも子の実測で否定された。
+  (1)「`canonical_json_bytes()` が float を拒否するので witness に float は入らない」— 実際は
+  有限 float を許し、Python の `2.0 == 2` により型検査を素通りしていた。
+  (2)「verifier の出力は決定的なので正規化は不要」— 実際は
+  `orchestrator/verifier/dsg.py` の `_reasons()` が `u_writes.keys() & v_writes.keys()` を
+  未整列で走査するため、理由順が process 間で変わる。
+  (3)「producer が書く boolean は必ず恒真になる」— producer は untyped JSON へ潰れる前の
+  `VerifyResult` を持つので偽になりうる値を書ける。
+  (1) は受理集合を実際に広げており、段 6 の敵対レビュー 2 本が具体的に通る入力を示した。
+- 根本原因: いずれも**関数を 1 本呼べば 10 秒で確かめられる事実**を、名前と docstring からの
+  推測で断定した。`canonical_json_bytes` は「canonical JSON」という名前から float 拒否を
+  推測し、`_validate_json_value` の本体を読んでいない。決定性は「SCC を size 昇順に整列」
+  という別の決定性の記述から集合反復の決定性まで拡張した。
+- 恒久対応: `DW-S01` の既存義務「brief 前に承認済み裁定と引数の前提を実測し、覆す新事実は
+  brief に出して段 4 で再裁定する」と `DW-O13`「field の実在では足りない。その field が実環境で
+  取りうる値を実測し、要求する値が到達可能か確かめてから述語を採用する」の適用範囲に、
+  **判定式が依拠する言語・標準ライブラリ・自 repo helper の挙動**を含める。
+  memory `read-own-memory-before-deriving-from-source` と同じ向きで、
+  「source 導出より先に実行して確かめる」を優先する。
+- 再発検知: 裁定文へ「X は Y を拒否する / X は決定的である」の形の前提を書いたら、
+  その 1 文ごとに実行して確かめた出力を裁定パッケージへ貼る。貼れない前提は裁定の根拠にしない。
+  本件は段 3 と段 6 の敵対レビューが 3 件すべてを捕まえており、
+  独立の敵対検証子を省かない規律 (`DW-C00`) が実際に働いた例でもある。
