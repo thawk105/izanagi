@@ -41,6 +41,14 @@ title: A-2 の図生成器を新 schema へ通し、新しい identity で attem
 - **背景待ち手の異常。** 背景 job の `until` ループと Monitor の通知が、条件未成立のまま
   「完了」を返す事象がこのセッションで 10 回以上起きた。producer は生存していた。判定はすべて
   成果物 (`.done` と台帳 file) の実在で行った。{{F:background-waiter-false-completion}}。
+- **段 9 で合成の問題に当たり、ユーザー指示で codex に相談して裁定した。** 受入を通した後、
+  別 wave (T-2198) が同じ実装面を触って先に着地し、producer の policy 文法へ必須 key を足していた。
+  本 wave の認証成果物はその変更より前の policy で作られているので現行 validator に拒否され、
+  焦点走が 35 件赤になった。測定は当時の policy で正しく走っており、絶対規律 7 が名指しする状況である。
+  `(certification bytes hash, 埋め込み policy bytes hash)` の組で 1 件だけを名指しする互換分岐を採った
+  ({{D:a2-figure-historical-policy-hash-bound-adapter}}、{{F:consumer-validates-historical-artifact-with-current-grammar}})。
+  **相談は「これは繰り返し起きる型で、取り直してもこの結合は残る」と指摘した。** 一般的な版管理は
+  {{T:a2-consumer-policy-version-selection}} へ送る。
 
 ## 次の一手差分
 
@@ -68,3 +76,7 @@ title: A-2 の図生成器を新 schema へ通し、新しい identity で attem
 - {{T:lustre-noreplace-family-generalization}} **P2・新規**: `renameat2` の no-replace フラグに
   依存する公開経路を族として一般化する。A-2 と A-1 で独立に 2 件再現しており `DW-G03` の条件は
   満たされている。file の公開には hard link、directory には既存の claim 方式という差を保つこと。
+- {{T:a2-consumer-policy-version-selection}} **P2・新規**: A-2 の consumer が、成果物に保存された
+  当時の policy をその時点の文法で読めるようにする版選択を入れる。現状は版選択なしで現行
+  `load_policy` へ渡すため、producer の文法が厳しくなるたび過去成果物が読めなくなる。
+  本 wave は 1 件限定の hash 束縛 adapter で閉じており、構造は残っている。

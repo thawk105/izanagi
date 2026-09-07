@@ -194,3 +194,69 @@ probe (全件 SURVIVED 登録で観測 node を集める段) で 3 件を再照�
 本走の 1 回目 (`final3`) は、**親が変異走の最中に repo へ記録 file を書いた**ため、harness が
 未追跡 file を検出して停止した。変異走は走行中の作業ツリー不変を要求する。記録を先に commit し、
 clean tree で走らせ直した。
+
+## 段 9 で判明した合成の問題 — 昔の成果物を新しい検証器で読めない
+
+受入全走 (21346 passed / rc=0 / child-green) を通した後、land が `stale-main` を返した。進んだ main に
+別 wave (T-2198) の「A-2 / A-6 認証経路の測定 build をオフライン依存へ配線する」変更が入っており、
+**同じ実装面 3 file を両親が触っていた。**
+
+競合は 1 箇所 (policy の byte hash golden) だけで、Codex `role=author` が合成後の実 bytes から
+再計算して解消した。親も独立に同じ値へ到達した。**ただし合成後の焦点走で 35 件が赤になった。**
+
+```
+CertificationError: trace0_cmake_argv.configure keys mismatch:
+missing=['fetchcontent_path_argument_prefixes'], extra=[]
+```
+
+機序は次のとおりである。
+
+- 図生成器は current profile で、**成果物が埋め込んだ policy bytes を現行 producer の
+  `load_policy` へ渡す。** producer の exact な文法を再実装しないための設計である。
+- T-2198 が producer の policy 文法へ必須 key を足した。検証は `_exact_keys` の完全一致である。
+- 本 wave の認証成果物はその変更より前の policy で作られたので、この key を持たない。
+
+**測定そのものは無傷である。** 当時の policy で正しく走り、当時の検証を通っている。壊れていたのは
+「昔の成果物を今の検証器で読む」経路だけであり、**絶対規律 7 が名指しする状況そのもの**である。
+
+### ユーザー指示による設計相談と裁定
+
+ユーザーは「codex に相談して決めて」と指示した。read-only の設計相談を投げ、その推奨を採った。
+
+**採った設計**: 受理の主 key を policy の version 欄でも key 集合でもなく、
+**`(certification bytes の SHA-256, 埋め込み policy bytes の SHA-256)` の組**とする。
+列挙する entry はこの 1 件だけで、組が完全一致したときだけ plotter 内の historical policy view を
+構築する。**未知 hash への fallback は設けない。**
+
+**却下した案とその理由**:
+
+- 欠落 key を一般に optional 化する — 受理集合が開く (絶対規律 2)。
+- policy version `v2` だけで旧形を許す — **旧も現行も `v2` なので識別子にならない。**
+- 6 key 集合だけで分岐する — 同形の任意内容を許してしまう。
+- attempt を取り直す (案 2) — 規律違反ではないが、規律 7 の趣旨に反し、
+  **次の文法変更まで同じ問題を先送りするだけである。**
+
+version 欄と key 集合は entry 選択後の二次 assertion に留めた。full-byte hash は scheduler や path を
+含む policy 全体を一点に固定するので主 key に適する。**hash は正しさの代替ではなく、歴史的
+validator を選択する束縛としてだけ使う。** これは規律 7 が明示的に許す「成果物の完全性・
+入力と判定の対応づけ」の検査である。
+
+### 構造の判定 (相談が指摘した、より重い問題)
+
+**これは繰り返し起きる型である。** producer は成果物へ当時の policy bytes を意図的に保存して
+いるのに、consumer 側がその時点の文法を選ぶ情報を使っていない。図生成器の profile 選択は
+certification / manifest の schema 名の組だけで行われ、その後は版選択なしで現行 `load_policy` へ
+渡す。したがって **producer の必須 key・値制約が過去 bytes を満たさなくなる変更ごとに再発する。**
+attempt を取り直してもこの結合は残る。
+
+長期的には schema bump と旧 loader の保持が正道だが、本 wave は 1 件限定の hash 束縛 adapter に
+留め、**一般的な版管理は裁定パッケージへ返す。**
+
+### 実測
+
+- 焦点走 235 passed / 赤ゼロ。35 件はすべて閉じた。
+- **実成果物から図を再生成できることを親が実測した** (repo 外の一時 path、rc=0)。
+  判定 `observed-positive`、効果、caption はいずれも着地済みの図と一致した。
+- 子が「hash の組ではなく policy hash だけを見る」変異を当て、対応する node が
+  `DID NOT RAISE` で赤になることを確認した。
+- 凍結図 fig5 の bytes は不変。

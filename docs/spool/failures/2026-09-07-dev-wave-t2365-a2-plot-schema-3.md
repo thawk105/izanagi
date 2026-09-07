@@ -23,6 +23,26 @@ seq: 3
   いずれも判定にしない契約は `DW-C00` が既に定めており、本エントリはその契約が実測で
   必要だったことの記録である。
 
+### {{F:consumer-validates-historical-artifact-with-current-grammar}}. 成果物に保存した当時の policy を、consumer が版選択なしで現行 validator へ渡していた [テスト代表性] [ドリフト]
+
+- 事象: A-2 図生成器が、成果物の埋め込み policy bytes を現行 producer の `load_policy` へ
+  版選択なしで渡す設計だった。別 wave が producer の policy 文法へ必須 key を 1 つ足した結果、
+  その変更より前に作られた正当な認証成果物が拒否され、焦点走が 35 件赤になった。
+  **測定は当時の policy で正しく走り、当時の検証を通っている。** 壊れたのは読み手だけである。
+- 根本原因: producer は成果物へ当時の policy bytes を意図的に保存しているのに、
+  **consumer がその時点の文法を選ぶ情報を使っていない。** profile 選択は certification /
+  manifest の schema 名の組だけで行われ、policy の版は選択に関与しない。
+  したがって producer の必須 key・値制約が過去 bytes を満たさなくなる変更ごとに再発する。
+- 恒久対応: `(certification bytes の SHA-256, 埋め込み policy bytes の SHA-256)` の組を主 key にした
+  repo 所有の列挙を引き、完全一致した entry だけ当時の文法で読む
+  ({{D:a2-figure-historical-policy-hash-bound-adapter}})。未知 hash への fallback は設けない。
+  version 欄と key 集合は entry 選択後の二次 assertion に留める
+  (旧も現行も policy version は同じ `v2` なので識別子にならない)。
+- 再発検知: 主 key を「policy hash だけ」に弱める変異が
+  `test_historical_rejects_changed_certification_bytes` を赤にすることを実測で確かめた。
+  **ただしこの対応は 1 件限定の adapter であり、構造そのものは残る。**
+  producer 共通 loader の版管理は本 wave の scope を超えるため裁定パッケージへ返す。
+
 ## 再発
 
 ### F205
