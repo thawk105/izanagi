@@ -1,0 +1,16 @@
+diff --git a/cc/mocc/transaction.cc b/cc/mocc/transaction.cc
+--- a/cc/mocc/transaction.cc
++++ b/cc/mocc/transaction.cc
+@@ -1017,7 +1017,12 @@ bool TxExecutor::validation() {
+ #line 991
+   for (auto itr = write_set_.begin(); itr != write_set_.end(); ++itr) {
+     if (itr->op_ == OpType::INSERT) continue;
++#if IZANAGI_BREAK_MOCC_LOCK_COVERAGE
++    // Deliberately skip this validation-time writer acquisition.
++#else
+     lock((*itr).rcdptr_, true);
++#endif
++#line 994
+     if (this->status_ == TransactionStatus::aborted ||
+         (itr->op_ == OpType::UPDATE && itr->rcdptr_->tidword_.absent)) {
+       this->status_ = TransactionStatus::aborted;

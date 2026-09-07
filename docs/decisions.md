@@ -51359,3 +51359,187 @@ exact 閉包、probe payload の形と型の整合、measured record の binary 
 - 早期 parser を廃して late read だけにする — shell 変数側の期待値の出所を失う。
 - gate 順序 (M12) を実行時変異で所有する — 170 行 block の移動は置換で表せず、marker 削除は診断文字列だけの赤になるため、
   静的 test で所有する。
+
+## D1685. 待ちの長さは実所要に合わせ、無音は 30 分を上限とする (2026-09-07)
+
+**決定 (ユーザー裁定):** `CLAUDE.md`「作業の進め方」9 に、待機の長さを決める規則を 2 つ足す。
+順序も含めて確定であり、実行側で入れ替えない。
+
+1. **待つ長さは対象の実所要に合わせる。** これが第一原則である。3 分で終わる job を
+   30 分待つのは誤りである。
+2. **無音は 30 分を上限とする。** 所要が 30 分を超える待ちにだけ効く。30 分は確認間隔の
+   指定ではなく、黙っていてよい時間の上限である。
+
+あわせて、**ユーザーへの報告と、ターンを発生させることを別に扱う。** 報告は進捗が
+変化したときだけ行う。30 分以内の状態確認は 1 行で済ませ、変化が無ければユーザーへは書かない。
+
+現行文の「短周期の状態確認を繰り返さない」は「数秒〜1 分おきの状態確認を繰り返さない」へ
+具体化する。「N 分未満の確認を禁止」という形の下限規則は**書かない**。
+
+提供元ごとに違う倍率・保持時間の数値は共有 docs へ書かない。30 分はどの提供元でも
+安全な既定値なので書く。
+
+**理由:**
+- 現行文は下限 (連打の禁止) しか持たず、上限が無かった。上限が無いと、待ち手が
+  ブロックしている間ずっと沈黙し続ける運用が規律に適合してしまう。
+- `tools/dev_wave_wait.py` は `--poll-seconds` が no-op のブロックする作りである
+  (`docs/dev-wave/operations.md` `DW-O27`)。受入・変異走のような 1 時間級の待ちでは、
+  待ちの間にターンが 1 回も発生しない。無音が伸びるほど、次に口を開くときの
+  会話全文の送り直しが高くつく。30 分間隔なら 1 時間に 2 回で済む。
+- 1 分未満の連打が高くつくのは、送り直しがそのぶん増えるからである。数分規模の待ちを
+  1 本張るだけならターンは増えないので、同じ理由が当てはまらない。下限を規則の形で
+  書かないのはこのためである。
+- D676 は「無駄なポーリングでトークンを使わない」ことを目的に短周期の確認を禁じた。
+  本決定はその目的を反対側から補完する — 短すぎる確認と、長すぎる沈黙の両方が
+  同じ理由で高くつく。30 分は D676 の言う短周期ではない。
+
+**却下した選択肢:**
+- 上限だけを書き、実所要に合わせる原則を書かない — 3 分で終わる待ちに 30 分の
+  確認間隔が適用され、待ちそのものが不必要に伸びる。
+- 提供元固有の倍率・保持時間を根拠として docs へ書く — 値は提供元ごとに違い、
+  未確認の値を規律にすることになる。
+- `docs/dev-wave/` 側や command 入口へ書く — 待機は wave 固有の作法ではなく全作業に
+  かかる。加えて command 入口と `docs/dev-wave/core.md` は byte 予算が満杯である。
+- 他ファイルへ複製する — dev-wave の skill は `AGENTS.md` と `CLAUDE.md` の全文読了を
+  課すので、`CLAUDE.md` の 1 箇所で claude・codex 両方の wave に効く。
+
+## D1686. mocc の lock 被覆・permutation 計装は RWLOCK counter と CLL を真実源にし、保持検査を 3 点にする (2026-09-07)
+
+**決定:** mocc (`cc/mocc/transaction.cc`、preimage = submodule e9e477ca) の `#if TRACE` 計装は、Silo の Tidword ベース計装を転用せず、
+`ReaderWriterLock` の counter (`W_LOCKED`) と `CLL_` の `LockElement` (`key_` / `mode_` / `lock_` の一致) を真実源にする。
+X の検査点は (1) writePhase 入口 (`not-locked-at-entry`)、(2) payload 操作直前 (`lock-lost-before-write`)、(3) tidword publish 直前
+(`lock-lost-before-publish`) の 3 点とし、P は `sort(write_set_)` 前後の size と `rcdptr_` multiset の保存だけを主張する。
+歯の立証は負例 3 本 (`broken-mocc-{lockskip-validation,permutation-erase,early-unlock}.patch`) と compute 実走の 14 check で行い、
+early-unlock は unlock と relock を対にした balanced 形にする。
+
+**理由:**
+- mocc は payload 書き込み・tidword publish・`unlockCLL()` が別の場所にあり、Silo の 2 点 (入口・store 直前) では publish 前の
+  lock 喪失を見逃す。3 点目を足すことで保持検査が publish の直前まで届く。
+- counter は owner ID を持たないため入口検査だけでは「CLL が stale で他 worker が再取得した」状態を区別できない。CLL の `lock_`
+  pointer 一致を predicate に含めて、少なくとも CLL が指す lock と record の lock の不一致は捕まえる。残る限界は README に明記する。
+- `w_unlock()` は `counter_++` なので、単純な早期 unlock は counter を `0 → 1` に壊して次の writer が永久 spin する。balanced に
+  しないと負例が完走せず、保持検査だけの歯を独立に立証できない。
+- 負例の裸 directive は owner file に 1 回だけ置く (condition gate の exactly-one 契約)。early-unlock は file scope の
+  `static constexpr bool` 1 箇所と `if constexpr` 2 site で表現する。
+
+**却下した選択肢:**
+- 負例 2 本 (lockskip / perm-erase) で済ませる — 保持検査の歯を独立に立証しない gate は恒真ゲートの疑いが残る。
+- `#ifndef RWLOCK / #error` を置く — 裸 define 登録簿が `RWLOCK` を新設 interface と数えて赤になる。RWLOCK 無しでは `CLL_` が
+  宣言されず compile error になるので fail-closed は暗黙で成立する。
+- CLL の順序や施錠順まで P で主張する — P は write_set_ sort の permutation 保存しか見ていない。
+
+## D1687. D14 契約に `#line` の例外を認め、TRACE=0 同一性の正本 witness を「論理行列の一致」にする (2026-09-07)
+
+**決定:** `#if TRACE` 計装 patch は、各 `#endif` の直後に preimage の論理行番号を復元する `#line N` だけを literal `#if TRACE` の外に
+置いてよい。規律 1 (観測者効果ゼロ) の正本 witness は、無 patch と patch 適用後の source を `g++ -E -DTRACE=0` (line marker を残す) し、
+marker を論理行番号へ畳んだ「(行番号, 非空本文) 列」の一致とする。補助 witness として、無 patch と patch 適用の TRACE=0 binary の
+`objdump -d` (行頭アドレスだけ除去) と `.text` の一致を compute JSON に記録する。
+
+**理由:**
+- `#line` が無いと、計装の行数分だけ後続の `ERR` / `NNN` の `__LINE__` immediate と rip 相対 lea が動き、TRACE=0 binary が preimage と
+  一致しなくなる (login probe で 14 箇所)。`#line` は preprocessor 指令で code を生まず、これを許すことで「性能 build は bytes まで
+  同一」という最強の形で規律 1 を置ける。
+- `#line` 自体が `-E` 出力に `# N "file"` marker を増やすので、生 byte の一致は構造的に成立しない。一方 `-P` で marker を消すと
+  `__LINE__` の drift に盲目になる。marker を論理行へ畳んだ列は、`#line` の値が ±1 ずれても差になる。
+- build する dir 名の長さが違うだけで `__FILE__` 文字列長の差により `.rodata` が動き lea が 158 行ずれる (login 実測)。
+  binary 比較は source と build の path 長を揃えて行い、揃えられない環境では前処理の論理行列を正本とする。
+
+**却下した選択肢:**
+- `#line` を使わず計装を末尾へ寄せる — 検査点は writePhase / validation の途中にあり、位置を変えれば検査の意味が変わる。
+- `-ffile-prefix-map` で path 差を吸収する — 依存物 (gflags / masstree) の `__FILE__` は直らない。
+- 段 4 で書いた「line marker 込みの byte 一致」を維持する — 上記のとおり構造的に不可能で、fix 子の初回実装が必ず赤になった。
+
+## D1688. 認証経路のオフライン配線は閉じた trace0 文法に塞がれており、実装せずユーザー再裁定へ返す (2026-09-07)
+
+**決定:** D1524 が定めた「共有 measurement pipeline へ FetchContent の source dir 引数を通す」
+配線を、本 wave では実装しない。D1524 の理由節が根拠にした事実の 1 つが実コードで反証されたため、
+`DW-S04` に従い新事実を添えてユーザー再裁定へ戻す。
+
+**反証された前提:**
+
+D1524 は「保管庫と helper は既に在り、他の 2 driver が使っている。足りないのは引数の
+引き回しだけである」と書いている。引き回しだけでは A-6 の read-heavy は 1 件も測れない。
+`indeterminate` の原因が network から argv 文法へ移るだけである。連鎖は次のとおりで、
+いずれも現行 main で 1 行ずつ確認した。
+
+- `pipeline.py` は perf build の configure argv を WAL の `build_done.perf_configure_cmd` へ
+  そのまま記録する。この argv は `buildcache._v2_commands` が組むので、FetchContent の define を
+  足せばそれが記録される。
+- A-2 / A-6 の collector はその argv を `validate_trace0_evidence` へ渡す。
+- `paper_story_a2_certification._exact_trace0_configure_argv` は
+  `expected = fixed + prefix + ordered_define_tokens` を作り `list(argv) != expected` で
+  `CertificationError` を投げる。**tail に許されるのは dependency prefix と統制 define だけで、
+  FetchContent の token を置く場所が無い。**
+- 例外は collector で `indeterminate` へ変換され、cells と effects が空になる。
+
+**逃げ道が無いことも確認した:**
+
+- source dir を渡さず既定位置 `<base>/masstree-src` へ staging して
+  `-DFETCHCONTENT_BASE_DIR=` 1 本だけにする案も落ちる。文法は expected を完全に determine
+  しており、token が 1 本増えるだけで不一致になる。
+- 記録前に FetchContent token を argv から取り除く案は採らない。走らせた argv と記録した argv が
+  食い違い、provenance の偽造になる (絶対規律 2・3)。
+
+**なぜ親が独断で進めないか:**
+
+文法は policy JSON の `trace0_cmake_argv` にあり `_protocol_preimage` に含まれる。広げると
+A-2 / A-6 の `protocol_sha256` が動く。これは凍結された認証プロトコルの同一性であり、
+`bytes_sha256` と併せて golden literal が `orchestrator/tests/test_paper_story_a2_certification.py`
+に 4 値 (5 箇所) 焼き込まれている。D1524 は共有経路への引数の引き回しを許可したが、
+**認証プロトコルの凍結同一性を動かすことまでは書いていない。** D1396 が同型 (床値 official が
+seam 判定に塞がれた) で機構を変えずユーザーへ返した前例に従う。凍結物を動かすのは人間の手番である。
+
+**ユーザーへ返す解消案 (親の推奨は 1):**
+
+1. `trace0_cmake_argv.configure` へ FetchContent の枠を**厳密な期待値として**足し、
+   golden 4 値を張り直して凍結物の所定手続きで払う。過去の認証値は取り直さない (絶対規律 7) が、
+   過去の結果と現行 policy の protocol hash が一致しなくなる旨を成果物へ明記する。
+2. 文法を触らず A-6 を未充足のまま残す。配線もしない (配線だけでは `indeterminate` が続くため)。
+3. 文法の検査を緩めて余分 token を許す。**親は推奨しない** — 閉じた文法は「走った argv が
+   protocol の定めたものと完全に一致する」ことを証明する装置であり、緩めると証明力が落ちる
+   (絶対規律 2)。
+
+**却下した選択肢:**
+
+- 引数の引き回しだけ実装して文法は後続 wave へ送る — 発火経路の無い条件付き機能を main へ入れる
+  ことになり `DW-G04` に反する。`indeterminate` が続くので成果物も 1 mm も動かない。
+- 親の判断で文法と golden を張り直す — 凍結された認証プロトコルの同一性を無認可で動かす。
+
+## D1689. FetchContent の共有経路配線は 4 引数でなく 5 引数である (2026-09-07)
+
+**決定:** 将来 D1524 系の配線を実装するときに共有経路へ通す引数は、source dir 3 本と
+`fetchcontent_base_dir` の 4 本ではなく、`fetchcontent_dependency_receipt` を含む 5 本とする。
+
+**理由:**
+
+- `buildcache._build_v2_impl` は
+  `if bool(fetchcontent_base_dir) != (dependency_receipt is not None): raise` という
+  **同値条件**を持つ。base だけでも receipt だけでも拒否される。
+- `_v2_commands` は source dir 指定時に base の同時指定を要求するため、source dir を通すなら
+  base が要り、base を通すなら receipt が要る。4 本案では build 前に必ず失敗する。
+
+**却下した選択肢:**
+
+- 4 引数で足りるとする — 同値条件により base を渡した瞬間に全 cell が build-error になる。
+
+## D1690. FetchContent の build identity は依存内容を完全には束縛しない (2026-09-07)
+
+**決定:** 現行の v2 build identity は FetchContent 依存の内容を完全には束縛しないという事実を
+記録し、本 wave では是正しない。是正は別件として扱う。
+
+**理由:**
+
+- `_v2_identity` の pre-image に入る FetchContent 由来の項は
+  `fetchcontent_dependency_receipt` (masstree の HEAD と `config.h` の digest) と
+  `fetchcontent_transport_mode` (source-dir か否かの 1 bit) だけである。
+  base dir の path、source dir 3 本の path、mimalloc と googletest の内容はいずれも入らない。
+  mimalloc は実際に link されるため、出力に無関係な依存ではない。
+- したがって同じ masstree receipt のまま mimalloc の内容だけを変えた 2 つの要求は同じ digest に
+  なり、原理的には別依存の binary から certified 値が出る余地がある。
+- ただし A-2 / A-6 の cache root は job-local であり、同一 job 内で staged 依存の内容が変わることは
+  ない。**実際の露出は無く、本 wave の blocker ではない。**
+
+**却下した選択肢:**
+
+- 本 wave で identity を強化する — 主目的の外であり、`DW-G05` の scope 規律に反する。
+- 露出が無いことを理由に記録しない — 別 driver が共有 cache root で同じ経路を使えば露出する。

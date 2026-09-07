@@ -21276,6 +21276,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   ユーザー裁定へ返した。規律 2 により gate を緩めて通すことはしない。
 - 再発検知: A-6 attempt `a6-20260902a` の `certification.json` が `indeterminate` として保存され、
   reason に driver rc が残っている。
+- **supersede: 2026-09-07** — 恒久対応の「共有 measurement pipeline への横断的な引数追加になる」という見立ては必要条件でしかない。引数を通しても下流の閉じた trace0 argv 文法が全 cell を拒否し `indeterminate` が続く。詳細と解消案は D1688。
 
 ### F809. 投入の保留ファイルは 2 種類あり、片方だけ片付けると同じ理由で無限に弾かれる [手順漏れ]
 
@@ -22191,3 +22192,54 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 同じ変異 (gate policy open の `O_NONBLOCK` 削除) を変異 spec へ登録済み。回収経路が壊れれば
   この変異が再び walltime まで走り、期待 node と一致しない形で露見する。台帳は
   `output/insights/2026-09-07_t2195-policy-binding/mutation-ledger-final.json`。
+
+### F854. 負例 patch の裸 directive が 2 site に重複し、実 patch 束縛 test が set() で重複を許していた [恒真ゲート] [テスト代表性]
+
+- 事象: `broken-mocc-early-unlock.patch` が同じ `#if IZANAGI_BREAK_MOCC_EARLY_UNLOCK` を unlock site と relock site の 2 箇所に置いた。
+  production の condition gate (`_instrument_declared_owner_source`) は owner file 内で directive がちょうど 1 回であることを要求し、
+  driver は early 変異の build 前にそこで停止する。段 5 の test `_patch_added_branch_declaration` は `len(set(matches)) == 1` で
+  重複を畳んでいたため緑のまま、その後は directive 1 個の合成 source を検査していた。段 6 敵対レビュー B が静的に発見。
+- 根本原因: test が「実 patch の directive 集合」と「production gate が要求する一意性」を別々に見て、実 patch を production の
+  関数へ通していなかった。
+- 恒久対応: `len(matches) == 1` へ戻し、実 patch を materialize して production の uniqueness 関数へ通す node
+  `test_broken_mocc_patches_have_unique_production_condition_witnesses` を追加 (合成重複 source で `compile-time-branch-start-not-unique`
+  になる負例と対)。early-unlock は file scope の constexpr 1 箇所 + `if constexpr` 2 site へ書き換え (D1686)。
+- 再発検知: 同 node と変異 M15 (directive 重複) の KILLED。
+
+### F855. condition gate は configure 成功でも stderr 非空を red にし、driver が渡した未使用 CMake 変数の警告で compute 走が停止した [手順漏れ]
+
+- 事象: compute 1 回目 (job 979769) が `condition gate rejected IZANAGI_BREAK_MOCC_LOCK_COVERAGE: red/red` で 52 秒後に停止。
+  login で同じ引数で gate を呼ぶと supply / meaning とも `configure-failed`、detail は CMake の「Manually-specified variables were
+  not used by the project: RULE_LAUNCH_COMPILE」警告。driver の `_common_configure_args` が silo driver に無い `-DRULE_LAUNCH_COMPILE=`
+  を渡していた (gflags / glog の install build から流用)。
+- 根本原因: gate は fail-closed で正しい。driver 側が「CCBench の project が使う変数だけを渡す」という gate の暗黙契約を知らず、
+  driver は gate の status しか出力しないため理由が見えなかった。login の生死確認は CMake の警告を無視して build を通していた。
+- 恒久対応: driver から未使用変数を除去 (fix-2)。`patches/README.md` の driver 節に「CCBench が使わない CMake 変数を configure に渡さない、
+  gate は configure の stderr 警告を fail-closed で red にする」と明記。gate の red は driver で再現せず、
+  `_require_condition_gate` と同じ関数列を login で呼んで supply / meaning の全記録を出す probe (job dir の `gate-probe.py`) で読む。
+- 再発検知: compute JSON の `condition_gates` に 3 macro の green record が残ること (consumer test は all_pass を要求)。
+
+### F856. 上流への argv 追加が、下流の閉じた argv 文法に無効化される [手順漏れ] [恒真ゲート]
+
+- 事象: 認証経路をオフライン依存へ配線する wave で、段 3 の敵対レンズが「配線しても A-6 は
+  `indeterminate` のままである」ことを指摘した。親が実コードで裏を取り、段 4 で実装せずに
+  ユーザー再裁定へ返した。段 1 の brief も段 2 のプランも、この阻害要因を見落としていた。
+- 根本原因: 変更は共有 build 経路の configure argv を広げるものだった。この argv は WAL の
+  `build_done.perf_configure_cmd` へ記録され、下流の認証 collector が
+  `_exact_trace0_configure_argv` で**閉じた文法との完全一致**を検査する。文法は
+  `expected = fixed + prefix + ordered_define_tokens` を完全に determine しており、
+  token が 1 本増えるだけで不一致になる。**argv を作る側だけを見て、argv を検査する側を
+  見なかった**ことが見落としの原因である。
+- 波及: 文法は policy JSON の `trace0_cmake_argv` にあり `_protocol_preimage` に含まれるため、
+  広げると A-2 / A-6 の `protocol_sha256` が動く。凍結された認証プロトコルの同一性であり、
+  親の一存では変えられない。段 1 の pin 閉包は編集対象 4 file の内容 hash を値で走査して
+  「literal pin 0 件」と結論したが、**policy JSON の golden 4 値を閉包に入れていなかった。**
+  走査の射程が「編集すると決めた file」に限られており、「編集の結果 bytes が動く file」へ
+  広がっていなかった。
+- 恒久対応: D1688 でユーザー再裁定へ返した。
+  再発防止は memory `closure-and-search-discipline` の pin 閉包規律へ次を加える —
+  **producer の出力 (argv・payload・record) を広げる変更では、その出力を読む consumer を
+  1 つ残らず辿り、閉じた集合・完全一致・exact key 検査を持つものを列挙してから scope を決める。**
+  path と内容 hash の走査は「編集する file」しか見つけないので、これを代替にしない。
+- 再発検知: 段 3 の敵対レンズが独立に検出した (レンズ B 所見 1)。レンズに
+  「成果物が実際に効く全層が scope に入るか」を必ず入れる `DW-S03` の規定がそのまま機能した。
