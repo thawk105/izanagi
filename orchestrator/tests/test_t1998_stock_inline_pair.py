@@ -664,6 +664,59 @@ def test_toolchain_record_digest_drift_is_rejected(tmp_path: Path) -> None:
     assert excinfo.value.arm == "target"
 
 
+def test_shared_noncanonical_toolchain_digest_is_rejected(tmp_path: Path) -> None:
+    """The canonical-manifest digest layer alone rejects this shared digest."""
+    fixture = _write_producer(tmp_path)
+    wal_path = fixture.campaign / "runs/wal.jsonl"
+    records = [json.loads(line) for line in wal_path.read_text().splitlines()]
+    pair_attempts = {
+        record["payload"]["build_attempt_id"]
+        for record in records
+        if record["stage"] == "build_start"
+        and record["payload"]["genome"] in {
+            T.BASELINE_CANONICAL_GENOME,
+            T.TARGET_CANONICAL_GENOME,
+        }
+    }
+    result = _read_json(fixture.root / "result.json")
+    arbitrary_digest = "d" * 64
+    assert arbitrary_digest != _TOOLCHAIN_SHA
+    mutated = 0
+    for record in records:
+        if (
+            record["stage"] == "build_done"
+            and record["payload"]["build_attempt_id"] in pair_attempts
+        ):
+            assert record["payload"]["toolchain"] == result["toolchain"] == _TOOLCHAIN
+            assert record["payload"]["toolchain_record_sha256"] == _TOOLCHAIN_SHA
+            record["payload"]["toolchain_record_sha256"] = arbitrary_digest
+            mutated += 1
+    assert len(pair_attempts) == mutated == 2
+    wal_path.write_text(
+        "".join(
+            json.dumps(
+                record,
+                ensure_ascii=False,
+                separators=(",", ":"),
+                allow_nan=False,
+            ) + "\n"
+            for record in records
+        ),
+        encoding="utf-8",
+    )
+    _refresh_result_wal_sha(fixture)
+
+    with pytest.raises(T.T1998PairRejected) as excinfo:
+        _consume(fixture)
+    assert excinfo.value.as_dict() == {
+        "code": "toolchain-identity-mismatch",
+        "field": "wal.build_done.toolchain_record_sha256",
+        "expected": _TOOLCHAIN_SHA,
+        "actual": arbitrary_digest,
+        "arm": "baseline",
+    }
+
+
 def test_result_projection_drift_is_rejected(tmp_path: Path) -> None:
     """The T-1998 pair-value projection layer alone rejects this result field."""
     fixture = _write_producer(tmp_path)

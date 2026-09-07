@@ -1,6 +1,8 @@
 import json
 import re
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 
@@ -14,6 +16,30 @@ REGISTRY = PEGASUS / "admission_registry.json"
 def _normalized(source: str) -> str:
     source = re.sub(r"\\\n\s*", " ", source)
     return re.sub(r"[ \t]+", " ", source)
+
+
+def _python_heredoc_after(source: str, marker: str) -> str:
+    marker_offset = source.index(marker)
+    match = re.search(
+        r"<<'PY'\n(?P<body>.*?)\nPY(?:\n|$)",
+        source[marker_offset:],
+        flags=re.DOTALL,
+    )
+    if match is None:
+        raise AssertionError(f"missing Python heredoc after {marker!r}")
+    return match.group("body")
+
+
+def _run_python_heredoc(
+    program: str, *args: Path | str,
+) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        [sys.executable, "-I", "-B", "-", *(str(arg) for arg in args)],
+        input=program,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
 
 
 def test_submitter_launches_exactly_one_balanced_workload():
@@ -54,6 +80,7 @@ def test_qsub_passes_all_five_a5_job_body_bindings():
 
 
 def test_output_parent_is_existing_absolute_and_outside_every_repo_ancestor():
+    """The executed path-relationship layer alone rejects in-repo output parents."""
     submitter = SUBMITTER.read_text(encoding="utf-8")
     for fragment in (
         '"$OUTPUT_PARENT" == /*',
@@ -64,8 +91,36 @@ def test_output_parent_is_existing_absolute_and_outside_every_repo_ancestor():
     ):
         assert fragment in submitter
 
+    program = _python_heredoc_after(submitter, '"$REPO_ROOT" "$OUTPUT_PARENT"')
+    repo = Path("/usr")
+    inside = repo / "bin"
+    outside = Path("/etc")
+    assert not any(
+        (parent / ".git").exists() for parent in (inside, *inside.parents)
+    )
+    assert not any(
+        (parent / ".git").exists() for parent in (outside, *outside.parents)
+    )
+    rejected_inside = _run_python_heredoc(program, repo, inside)
+    accepted_outside = _run_python_heredoc(program, repo, outside)
+
+    with tempfile.TemporaryDirectory() as raw_tmp:
+        tmp_path = Path(raw_tmp)
+        repository_ancestor = tmp_path / "other-repo"
+        ancestor_output = repository_ancestor / "output"
+        ancestor_output.mkdir(parents=True)
+        (repository_ancestor / ".git").mkdir()
+        rejected_ancestor = _run_python_heredoc(program, repo, ancestor_output)
+
+    assert rejected_inside.returncode != 0
+    assert "output parent must be outside the repository" in rejected_inside.stderr
+    assert accepted_outside.returncode == 0, accepted_outside.stderr
+    assert rejected_ancestor.returncode != 0
+    assert "output parent has a repository ancestor" in rejected_ancestor.stderr
+
 
 def test_preflight_and_atomic_receipt_match_the_a5_submission_strength():
+    """The executed receipt-file layer alone rejects a multiply linked receipt."""
     submitter = SUBMITTER.read_text(encoding="utf-8")
     normalized = _normalized(submitter)
     for command in (
@@ -99,6 +154,31 @@ def test_preflight_and_atomic_receipt_match_the_a5_submission_strength():
     assert '"submitter_sha256": submitter_hash' in submitter
     assert '"job_script_sha256": job_script_hash' in submitter
     assert '"repository_commit": expected_head' in submitter
+
+    program = _python_heredoc_after(submitter, "append_submission_event() {")
+    with tempfile.TemporaryDirectory() as raw_tmp:
+        tmp_path = Path(raw_tmp)
+        regular_receipt = tmp_path / "regular.jsonl"
+        linked_source = tmp_path / "linked-source.jsonl"
+        linked_receipt = tmp_path / "linked-receipt.jsonl"
+        regular_receipt.write_text("{}\n", encoding="utf-8")
+        linked_source.write_text("{}\n", encoding="utf-8")
+        linked_receipt.hardlink_to(linked_source)
+        event_args = (
+            "submitted", "balanced", "fixture.1",
+            tmp_path / "root", tmp_path / "stdout", tmp_path / "stderr",
+        )
+
+        accepted_regular = _run_python_heredoc(
+            program, regular_receipt, *event_args,
+        )
+        rejected_link = _run_python_heredoc(
+            program, linked_receipt, *event_args,
+        )
+
+    assert accepted_regular.returncode == 0, accepted_regular.stderr
+    assert rejected_link.returncode != 0
+    assert "submission receipt is not a unique regular file" in rejected_link.stderr
 
 
 def test_all_submit_receipt_events_pin_the_t1998_schema():
