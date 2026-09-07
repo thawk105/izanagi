@@ -1,0 +1,37 @@
+{
+  "authority": "diagnostic-only",
+  "qstat_visibility": {
+    "accepted": true,
+    "accepted_states": [
+      "STG",
+      "ARR",
+      "WAI",
+      "QUE",
+      "PRR",
+      "RUN"
+    ],
+    "expected_job_name_prefix": "izanagi-",
+    "expected_owner": "tanab",
+    "job_name_prefix_matches": true,
+    "matched_line": "982469.nqsv     izanagi- tanab    gen_S       0 QUE -    0.00B     0.00        0 N Y Y    1 ",
+    "matching_line_count": 1,
+    "observed_owner": "tanab",
+    "observed_state": "QUE",
+    "owner_matches": true,
+    "request_id_at_line_start": true,
+    "request_line_visible": true,
+    "returncode": 0,
+    "state_accepted": true,
+    "stderr_path": "qstat-after-submit.stderr",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout_path": "qstat-after-submit.stdout",
+    "stdout_sha256": "d792773e831b21da2c67af3b85671f9bc90ca699b5f67e8890ebf1f6e90d6881"
+  },
+  "request_id": "R2",
+  "request_label": "without-approval-with-duplicate-second-name",
+  "scheduler_request_id": "982469.nqsv",
+  "schema_version": "izanagi-t1259-qsub-request/v1",
+  "submission_manifest_path": "submission-manifest.json",
+  "submission_manifest_sha256": "c8707f5871b933978fee8fceb3e9f0c3c77d46f7f8fcacbd51d6e41ebecc8099",
+  "submitted_utc": "2026-09-07T18:35:26Z"
+}
