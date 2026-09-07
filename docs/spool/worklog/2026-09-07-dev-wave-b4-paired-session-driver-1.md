@@ -46,6 +46,23 @@ call を浪費した要因は 2 つで、context 不一致による `apply_patch
 段 6 の fix 子には「テストの実走は親が行う。guard に拒否されたらそれ以上 call を使わず
 未実走と書け」と明記し、上限を 200 へ上げた。fix 子は 1 回で完走した。
 
+**受入 1 回目の非帰属赤 8 件と、その判定根拠 (DW-O18)。** 受入全走 1 回目は
+8 failed / 21293 passed / 68 skipped で rc=70 (`reason=child-verdict`) だった。
+赤 8 件はすべて `orchestrator/tests/test_codex_worker_launch.py` である。**非帰属と判定した。**
+
+1. 本 wave の差分は `orchestrator/campaign/floor_pair_driver.py` と
+   `orchestrator/tests/test_floor_pair_driver.py` の 2 file だけで、赤の対象である
+   `tools/codex_worker_launch.py` を 1 byte も変えていない。共有 fixture も変えていない。
+2. 同一 tip で当該 file を単独再走したところ **8 件中 7 件が緑**になり、再現しなかった。
+3. 再現した 1 件 `test_manifest_is_appended_while_correlated_session_is_running` は、
+   実プロセスを起動して **3 秒だけ** manifest の出現を待つ時間依存テストである
+   (`deadline = time.monotonic() + 3`)。判定時点の login node は load average 5.62 で、
+   他 wave の `run_tests.py` が 23 本、codex 子が 3 本走っていた。
+   署名一致ではなく assertion 本文 (`assert (None is not None)`、manifest 不出現) と
+   実時間予算の構造から判定した。
+
+同一 tip で受入を 1 回だけ再走する。
+
 ## 次の一手差分
 
 ### 新規
