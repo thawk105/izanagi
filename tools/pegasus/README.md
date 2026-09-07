@@ -311,11 +311,16 @@ python3 tools/pegasus/fetch_third_party.py verify-deps  # policy の gflags/glog
 - expected HEAD、superproject の tracked clean (submodule 除外)、CCBench の `p3_s4_loop.PIN` 一致を検査する
 - `qstat -f` から reservation 束縛 (`IZANAGI_RESERVATION_*`) を組み、`<REPO_ROOT>/output/env/pegasus/claims`
   を provisioning する
-- hydrate 済み third-party source 3 本を `/scr` の scratch へ複製し、masstree の `config.h` を
-  `buildcache.prepare_masstree_fetchcontent` で事前構築して receipt に束縛する。**現行の
-  `p3_s4_loop.py` にはこの成果を消費する seam が無く**、loop 本体の build は proxy 経由の
-  FetchContent clone に依存する (消費配線は後続 wave)
-- `p3_s4_loop` を `--allow-coder-derived-build --isolate-worktree` で起動する。
+- hydrate 済み third-party source 3 本を `/scr` の scratch へ `<base>/<name>-src` の形で複製し、
+  masstree の `config.h` を `buildcache.prepare_masstree_fetchcontent` で事前構築して receipt に
+  束縛する。`-src` の配置と base の一致は選択ではない — `buildcache` は dependency receipt 付き
+  build で実効 masstree source root が `<base>/masstree-src` と exact 一致することを要求する
+- driver はこの receipt を `--fetchcontent-prebuild-receipt` で受け取り、base・source dir 3 本・
+  `{masstree_head, config_sha256}` の 2 key receipt を共有 measurement pipeline
+  (`run_campaign` → `pipeline.evaluate` → `buildcache.build_v2`) へ通す。configure には
+  `-DFETCHCONTENT_BASE_DIR=` と `-DFETCHCONTENT_SOURCE_DIR_*` が入る (T-2356、D1524 / D1689)
+- `p3_s4_loop` を `--allow-coder-derived-build --isolate-worktree
+  --fetchcontent-prebuild-receipt <EVIDENCE_ROOT>/masstree-prebuild-receipt.json` で起動する。
   `IZANAGI_S4_PROPOSAL_PATH` があれば `--run-iteration`、無ければ fixture `--value`
 
 投入は login node から次の形で行う。`REPO_ROOT` は固定 SHA の専用 checkout (primary worktree や
@@ -337,6 +342,14 @@ qsub -v IZANAGI_S4_REPO_ROOT="$REPO_ROOT",IZANAGI_S4_EXPECTED_HEAD="$EXPECTED_HE
 実 proposal を渡すときだけ `-v` の値へ `IZANAGI_S4_PROPOSAL_PATH=/absolute/path/to/proposal.json` を
 足す。fixture 経路は `IZANAGI_S4_FIXTURE_VALUE` 無指定時に 20 を使う。
 
+**同じ `REPO_ROOT` へ同じ fixture 値で 2 度目を投入すると、事前構築は消費されない。** campaign WAL に
+同じ variant の terminal record が既にあると `run_campaign` は build より前に skip するので、receipt を
+渡しても configure まで到達しない。事前構築を実際に通す走行には、まだ terminal になっていない候補
+(別の fixture 値、または別 campaign) が要る。塞ぐには campaign identity か duplicate の意味論を
+変える必要があり、裁定待ちである (T-2356)。
+
 **未実測のもの (F660)。** 本 job body は main 着地後にしか投入できないため、計算ノードでの動作
-(proxy 経由の FetchContent clone、attestation の exact 照合、walltime 03:00:00 の充足) は測っていない。
+(事前構築 receipt を通した build の成立、attestation の exact 照合、walltime 03:00:00 の充足) は
+測っていない。seam は login node の probe で「production `_v2_commands` の configure argv まで
+5 値が届く」ところまで確認した。
 一次資料は `output/insights/2026-09-05_t2232-s4-loop-pegasus-job-script/README.md`。

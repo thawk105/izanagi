@@ -249,14 +249,20 @@ def _assert_static_job_contract(source: str) -> None:
         "source-head": "git -C \"$source\" rev-parse --verify 'HEAD^{commit}'",
         "source-clean": THIRDPARTY_STATUS_GATE,
         "prebuild-scratch-copy": 'cp -a "$source"/. "$destination"/',
+        "prebuild-copy-destination": (
+            "destination=$prebuild_source_root/${source_name}-src"
+        ),
+        "prebuild-base-equality": (
+            "fetchcontent_base_dir=$prebuild_source_root"
+        ),
         "prebuild-masstree-copy-root": (
-            "masstree_source_dir=$prebuild_source_root/masstree"
+            "masstree_source_dir=$prebuild_source_root/masstree-src"
         ),
         "prebuild-mimalloc-copy-root": (
-            "mimalloc_source_dir=$prebuild_source_root/mimalloc"
+            "mimalloc_source_dir=$prebuild_source_root/mimalloc-src"
         ),
         "prebuild-googletest-copy-root": (
-            "googletest_source_dir=$prebuild_source_root/googletest"
+            "googletest_source_dir=$prebuild_source_root/googletest-src"
         ),
         "prebuild-fresh-config": (
             '[[ -e "$masstree_source_dir/config.h" '
@@ -293,8 +299,14 @@ def _assert_static_job_contract(source: str) -> None:
         "driver": '"$PY" -B -m orchestrator.campaign.p3_s4_loop',
         "build-authority": "--allow-coder-derived-build",
         "isolation": "--isolate-worktree",
-        "proposal": '--run-iteration "$IZANAGI_S4_PROPOSAL_PATH"',
-        "fixture": '--value "${IZANAGI_S4_FIXTURE_VALUE:-20}"',
+        "proposal": (
+            '--fetchcontent-prebuild-receipt "$prebuild_receipt" \\\n'
+            '    --run-iteration "$IZANAGI_S4_PROPOSAL_PATH"'
+        ),
+        "fixture": (
+            '--fetchcontent-prebuild-receipt "$prebuild_receipt" \\\n'
+            '    --value "${IZANAGI_S4_FIXTURE_VALUE:-20}"'
+        ),
     }
     missing = [label for label, fragment in required.items() if fragment not in source]
     if missing:
@@ -431,6 +443,32 @@ def test_gate_refusals_share_the_fixed_rc2_boundary() -> None:
             'cp -a "$source"/. "$destination"/',
             'source=$destination',
         ),
+        pytest.param(
+            "prebuild-copy-destination",
+            "destination=$prebuild_source_root/${source_name}-src",
+            "destination=$prebuild_source_root/$source_name",
+            id="prebuild-copy-destination",
+        ),
+        pytest.param(
+            "prebuild-base-equality",
+            "fetchcontent_base_dir=$prebuild_source_root",
+            "fetchcontent_base_dir=$scratch/fetchcontent-base",
+            id="prebuild-base-equality",
+        ),
+        pytest.param(
+            "proposal",
+            '--fetchcontent-prebuild-receipt "$prebuild_receipt" \\\n'
+            '    --run-iteration "$IZANAGI_S4_PROPOSAL_PATH"',
+            '--run-iteration "$IZANAGI_S4_PROPOSAL_PATH"',
+            id="proposal",
+        ),
+        pytest.param(
+            "fixture",
+            '--fetchcontent-prebuild-receipt "$prebuild_receipt" \\\n'
+            '    --value "${IZANAGI_S4_FIXTURE_VALUE:-20}"',
+            '--value "${IZANAGI_S4_FIXTURE_VALUE:-20}"',
+            id="fixture",
+        ),
         (
             "receipt-create-only",
             'with open(receipt_path, "x", encoding="utf-8")',
@@ -457,7 +495,7 @@ def test_registered_fragment_mutants_have_one_static_failure(
     label: str, fragment: str, replacement: str
 ) -> None:
     source = JOB.read_text(encoding="utf-8")
-    assert source.count(fragment) <= 1
+    assert source.count(fragment) == 1
     mutant = source.replace(fragment, replacement, 1)
     with pytest.raises(AssertionError) as error:
         _assert_static_job_contract(mutant)
