@@ -2738,8 +2738,8 @@ def test_build_cells_resolves_site_compilers_and_binding_once_before_cell_loop(
         freeze, stock_configuration=_STOCK,
     )
     cells = [
-        next(cell for cell in enumerated if cell["configuration"] == "stock_common"),
-        next(cell for cell in enumerated if cell["configuration"] == "sort_best"),
+        next(cell for cell in enumerated if cell["configuration_id"] == "stock_common"),
+        next(cell for cell in enumerated if cell["configuration_id"] == "sort_best"),
     ]
     contract = ec.lookup(ENV_TAG)
     verified = env_attestation.load_verified_calibration(contract, ROOT)
