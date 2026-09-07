@@ -37,22 +37,27 @@ from ..scheduler_nqsv import (
     QSTAT_REQUEST_ID_RE,
     target_bound_qstat_state_result,
 )
-from . import buildcache, condition_meaning_gate, patchharness
+from . import buildcache, condition_meaning_gate, patchharness, source_digest
 from .pipeline import PerfConfig
 
 
 POLICY_SCHEMA = "paper-story-a2-certification-policy/v2"
-RAW_RESULT_SCHEMA = "paper-story-a2-cell-result/v2"
-CERTIFICATION_SCHEMA = "paper-story-a2-certification-result/v3"
-PARTIAL_CERTIFICATION_SCHEMA = "paper-story-a2-partial-result/v1"
+LEGACY_RAW_RESULT_SCHEMA = "paper-story-a2-cell-result/v2"
+RAW_RESULT_SCHEMA = "paper-story-a2-cell-result/v3"
+LEGACY_CERTIFICATION_SCHEMA = "paper-story-a2-certification-result/v3"
+CERTIFICATION_SCHEMA = "paper-story-a2-certification-result/v4"
+LEGACY_PARTIAL_CERTIFICATION_SCHEMA = "paper-story-a2-partial-result/v1"
+PARTIAL_CERTIFICATION_SCHEMA = "paper-story-a2-partial-result/v2"
 SUBMISSION_SCHEMA = "paper-story-a2-submission-receipt/v4"
 COMPLETION_SCHEMA = "paper-story-a2-completion-receipt/v3"
 PARTIAL_COMPLETION_SCHEMA = "paper-story-a2-completion-receipt/v4"
 ACQUISITION_SCHEMA = "paper-story-a2-acquisition-receipt/v3"
 PARTIAL_ACQUISITION_SCHEMA = "paper-story-a2-acquisition-receipt/v4"
 TRACE0_SCHEMA = "paper-story-a2-trace0-evidence/v2"
-RAW_MANIFEST_SCHEMA = "paper-story-a2-raw-manifest/v3"
-PARTIAL_RAW_MANIFEST_SCHEMA = "paper-story-a2-raw-manifest/v4"
+LEGACY_RAW_MANIFEST_SCHEMA = "paper-story-a2-raw-manifest/v3"
+RAW_MANIFEST_SCHEMA = "paper-story-a2-full-raw-manifest/v4"
+LEGACY_PARTIAL_RAW_MANIFEST_SCHEMA = "paper-story-a2-raw-manifest/v4"
+PARTIAL_RAW_MANIFEST_SCHEMA = "paper-story-a2-raw-manifest/v5"
 COMPUTE_RESULT_SCHEMA = "paper-story-a2-compute-result/v2"
 RESERVATION_RESULT_SCHEMA = "paper-story-a2-reservation-result/v1"
 COMPLETE_MARKER_SCHEMA = "paper-story-a2-materialization-complete/v1"
@@ -165,6 +170,10 @@ class CertificationError(RuntimeError):
 
 class SchemaChainError(CertificationError):
     """Partial evidence crosses or violates its closed schema chain."""
+
+
+class AuthorityError(CertificationError):
+    """Required source or manifest authority cannot support an artifact."""
 
 
 @dataclass(frozen=True)
@@ -578,10 +587,11 @@ def _condition_gate_family_context(
         source_root: Path, genomes: Sequence[object], *, cxx: str,
         dependency_prefix: Path, current_pin: str,
         expected_toolchain_manifest: Mapping[str, object],
-) -> Iterator[tuple[Path, list[dict[str, object]]]]:
+) -> Iterator[tuple[Path, list[dict[str, object]], tuple[str, ...]]]:
     """Yield a patched isolated tree after both paper condition arms pass."""
     defaults = {"BACKOFF_FIXED": -1, "BACKOFF_NOINLINE": 0}
     receipts: list[dict[str, object]] = []
+    admission_canonical_records: list[str] = []
     patch_path = os.fspath(
         Path(__file__).resolve().parents[2]
         / "patches/silo-backoff-fixed.patch"
@@ -697,7 +707,8 @@ def _condition_gate_family_context(
                     ],
                     "admission": json.loads(admission.canonical_json()),
                 })
-            yield variant_root, receipts
+                admission_canonical_records.append(admission.canonical_json())
+            yield variant_root, receipts, tuple(admission_canonical_records)
 
 
 def _generator_input_sha256(policy: Policy, workload_id: str,
@@ -925,6 +936,64 @@ def _fsync_dir(path: Path) -> None:
         os.close(descriptor)
 
 
+def _atomic_write_bytes_noreplace(path: Path, payload: bytes) -> None:
+    """Durably publish complete bytes without ever creating the final name early."""
+    staging = path.parent / (
+        f".{path.name}.tmp-{os.getpid()}-{os.urandom(8).hex()}"
+    )
+    published = False
+    try:
+        _write_bytes_x(staging, payload)
+        _rename_noreplace(staging, path)
+        published = True
+        _fsync_dir(path.parent)
+    finally:
+        if not published and staging.exists():
+            staging.unlink()
+            _fsync_dir(path.parent)
+
+
+_CONDITION_ADMISSION_KEYS = {
+    "admission_id", "admission_digest", "use_class", "admitted",
+    "record_ids", "unestablished_meaning_macros",
+}
+
+
+def _canonical_condition_admission_record(record: object) -> bytes:
+    if type(record) is not str or not record or "\n" in record or "\r" in record:
+        raise CertificationError(
+            "condition admission canonical record must be one nonempty line")
+    encoded = (record + "\n").encode("ascii")
+    parsed = _loads_json(encoded, "condition admission canonical record")
+    if (_canonical_json(parsed) != encoded
+            or type(parsed) is not dict
+            or set(parsed) != _CONDITION_ADMISSION_KEYS
+            or parsed.get("use_class") != "paper"
+            or parsed.get("admitted") is not True):
+        raise CertificationError(
+            "condition admission record is not an admitted canonical paper record")
+    return encoded
+
+
+def _write_condition_gate_admissions_x(
+        path: Path, admission_canonical_records: Sequence[str],
+        source_evidences: Sequence[source_digest.SourceEvidence]) -> None:
+    """Atomically retain one admission/source pair per campaign cell."""
+    if (not admission_canonical_records
+            or len(admission_canonical_records) != len(source_evidences)):
+        raise CertificationError(
+            "condition admission and source evidence counts differ")
+    frames: list[bytes] = []
+    for admission_record, evidence in zip(
+            admission_canonical_records, source_evidences, strict=True):
+        frames.append(_canonical_condition_admission_record(admission_record))
+        if type(evidence) is not source_digest.SourceEvidence:
+            raise CertificationError(
+                "source receipt needs exact SourceEvidence values")
+        frames.append(_canonical_json(evidence.as_receipt()))
+    _atomic_write_bytes_noreplace(path, b"".join(frames))
+
+
 def _canonical_child(path_value: object, parent: Path, label: str) -> Path:
     if type(path_value) is not str:
         raise CertificationError(f"{label} path must be a string")
@@ -959,6 +1028,130 @@ def _require_sha(value: object, label: str) -> str:
     if type(value) is not str or _SHA256_RE.fullmatch(value) is None:
         raise CertificationError(f"{label} is not a full lowercase sha256")
     return value
+
+
+def _require_src_token(value: object, label: str = "src_token") -> str:
+    if value == source_digest.STOCK:
+        return source_digest.STOCK
+    return _require_sha(value, label)
+
+
+def _condition_gate_receipt_relative(workload_id: str) -> str:
+    return f"receipts/condition-gate-{workload_id}.admissions.jsonl"
+
+
+def _source_evidence_for_cell(
+        policy: Policy, cell: CellSpec, value: object, *, current_pin: str,
+        expected_source_root: Optional[Path] = None,
+) -> source_digest.SourceEvidence:
+    if type(value) is source_digest.SourceEvidence:
+        evidence = value
+    else:
+        try:
+            evidence = source_digest.SourceEvidence.from_receipt(value)
+        except (TypeError, ValueError) as exc:
+            raise CertificationError(
+                f"source receipt is invalid for {cell.cell_id}") from exc
+    genome = _genome_for_cell(policy, cell)
+    expected_genome_sha = _sha256_bytes(genome.canonical().encode("utf-8"))
+    if (evidence.ccbench_commit != current_pin
+            or evidence.genome_sha256 != expected_genome_sha):
+        raise CertificationError(
+            f"source receipt identity differs for {cell.cell_id}")
+    _require_src_token(evidence.src_token, f"{cell.cell_id} source receipt token")
+    if (expected_source_root is not None
+            and evidence.source_root != os.fspath(expected_source_root.resolve())):
+        raise CertificationError(
+            f"source receipt root differs for {cell.cell_id}")
+    return evidence
+
+
+def _parse_condition_gate_admissions(
+        policy: Policy, workload_id: str, payload: bytes, *, current_pin: str,
+) -> dict[str, source_digest.SourceEvidence]:
+    cells = [
+        cell for cell in policy.cells if cell.workload_id == workload_id]
+    if (len(cells) != 2 or not payload or not payload.endswith(b"\n")
+            or any(not frame.endswith(b"\n")
+                   for frame in payload.splitlines(keepends=True))):
+        raise CertificationError(
+            "condition admission receipt framing is not exact")
+    frames = payload.splitlines(keepends=True)
+    if len(frames) != 2 * len(cells):
+        raise CertificationError(
+            "condition admission receipt record count is not exact")
+    evidences: dict[str, source_digest.SourceEvidence] = {}
+    for index, cell in enumerate(cells):
+        admission_frame = frames[2 * index]
+        try:
+            admission_text = admission_frame[:-1].decode("ascii")
+        except UnicodeError as exc:
+            raise CertificationError(
+                "condition admission record is not canonical ASCII") from exc
+        _canonical_condition_admission_record(admission_text)
+        source_frame = frames[2 * index + 1]
+        source_value = _loads_json(
+            source_frame, f"{cell.cell_id} source evidence receipt")
+        if _canonical_json(source_value) != source_frame:
+            raise CertificationError(
+                f"source evidence is not canonical JSON for {cell.cell_id}")
+        evidences[cell.cell_id] = _source_evidence_for_cell(
+            policy, cell, source_value, current_pin=current_pin)
+    return evidences
+
+
+def _cell_source_binding_status(cell: CellSpec, token: object) -> str:
+    try:
+        normalized = _require_src_token(token, f"{cell.cell_id} src_token")
+    except CertificationError:
+        return "token-missing" if token is None else "token-invalid"
+    if cell.role == "stock":
+        return "bound" if normalized == source_digest.STOCK else "role-mismatch"
+    return "bound" if normalized != source_digest.STOCK else "patch-unapplied"
+
+
+def _require_current_raw_source_authority(
+        policy: Policy, raw_results: Iterable[Mapping[str, Any]]) -> None:
+    """Reject missing/malformed tokens in the source-bound raw schema.
+
+    Legacy v2 raw deliberately has no token and remains classifiable as a
+    determinate patch-unapplied reject.  A current raw record, however, cannot
+    turn the same missing authority that stops a receipt-backed collection
+    into an artifact-bearing cell classification.
+    """
+    for raw in raw_results:
+        if type(raw) is not dict or raw.get("schema_version") != RAW_RESULT_SCHEMA:
+            continue
+        cell_id = raw.get("cell_id")
+        label = f"{cell_id} raw src_token"
+        if "src_token" not in raw:
+            raise AuthorityError(f"{label} is missing")
+        try:
+            _require_src_token(raw["src_token"], label)
+        except CertificationError as exc:
+            raise AuthorityError(f"{label} is invalid") from exc
+
+
+def _require_materializable_authority(
+        policy: Policy, evidence: Mapping[str, Any]) -> None:
+    """Stop authority failures before creating a tracked staging artifact."""
+    if evidence.get("raw_manifest_invalid_kind") == "authority":
+        raise AuthorityError(
+            "raw manifest authority is unavailable: "
+            + str(evidence.get("raw_manifest_reason")))
+    raw_results = evidence.get("raw_results")
+    if raw_results is not None:
+        if type(raw_results) is not list:
+            raise AuthorityError("raw result authority is not an exact list")
+        _require_current_raw_source_authority(policy, raw_results)
+
+
+def _require_cell_src_token_role(cell: CellSpec, token: object) -> str:
+    status = _cell_source_binding_status(cell, token)
+    if status != "bound":
+        raise CertificationError(
+            f"source token role rejected {cell.cell_id}: {status}")
+    return _require_src_token(token, f"{cell.cell_id} src_token")
 
 
 def _option_value(argv: Sequence[str], option: str) -> str:
@@ -1594,6 +1787,9 @@ def validate_acquisition_bundle(policy: Policy, acquisition_path: Path | str,
         "raw_results": (
             manifest_bundle["raw_results"] if manifest_bundle else None),
         "raw_files": manifest_bundle["files"] if manifest_bundle else None,
+        "condition_gate_receipts": (
+            manifest_bundle["condition_gate_receipts"]
+            if manifest_bundle else None),
         "reservation_results": {
             binding["workload"]: binding["reservation_result"]
             for binding in completion_binding["jobs"]},
@@ -2176,6 +2372,50 @@ def _classify_performance(policy: Policy, cell: CellSpec, raw: object,
     return "complete", median
 
 
+def _source_receipts_for_raw_cells(
+        policy: Policy, indexed: Mapping[str, Mapping[str, Any]], *,
+        selected_cells: Sequence[CellSpec], attempt_id: str,
+        current_pin: str, frozen_files: Optional[Mapping[str, bytes]],
+        attempt_root: Optional[Path],
+) -> dict[str, source_digest.SourceEvidence]:
+    by_workload: dict[str, set[str]] = {}
+    for cell in selected_cells:
+        by_workload.setdefault(cell.workload_id, set()).add(
+            str(indexed[cell.cell_id].get("schema_version")))
+    if any(len(schemas) != 1 for schemas in by_workload.values()):
+        raise CertificationError("one workload mixes raw cell schema versions")
+    receipt_root = attempt_root or policy.durable_base / attempt_id
+    result: dict[str, source_digest.SourceEvidence] = {}
+    for workload_id, schemas in by_workload.items():
+        if schemas == {LEGACY_RAW_RESULT_SCHEMA}:
+            continue
+        if schemas != {RAW_RESULT_SCHEMA}:
+            raise CertificationError("raw cell result schema mismatch")
+        relative = _condition_gate_receipt_relative(workload_id)
+        if frozen_files is not None:
+            try:
+                payload = frozen_files[relative]
+            except KeyError as exc:
+                raise CertificationError(
+                    "manifest-bound condition admission receipt is missing") from exc
+        else:
+            path = _canonical_child(
+                str(receipt_root / relative), receipt_root,
+                "condition admission receipt")
+            try:
+                payload = path.read_bytes()
+            except OSError as exc:
+                raise CertificationError(
+                    "condition admission receipt cannot be read") from exc
+        parsed = _parse_condition_gate_admissions(
+            policy, workload_id, payload, current_pin=current_pin)
+        overlap = set(result) & set(parsed)
+        if overlap:
+            raise CertificationError("source receipt cell identity is duplicated")
+        result.update(parsed)
+    return result
+
+
 def _classify_raw_cells(
         policy: Policy, raw_results: Iterable[Mapping[str, Any]], *,
         selected_cells: Sequence[CellSpec], attempt_id: str,
@@ -2190,15 +2430,22 @@ def _classify_raw_cells(
     if not selected or len(raw_list) != len(selected):
         raise CertificationError("raw result count does not match selected cells")
     indexed: dict[str, Mapping[str, Any]] = {}
+    legacy_raw_keys = {
+        "schema_version", "protocol_sha256", "attempt_id", "current_pin",
+        "cell_id", "genome", "campaign_preimage", "campaign_evidence",
+        "variant", "build_attempt_id", "build_evidence", "correctness",
+        "performance", "trace0_evidence", "terminal", "abort",
+    }
+    current_raw_keys = legacy_raw_keys | {"src_token"}
     for raw in raw_list:
-        required_raw = {
-            "schema_version", "protocol_sha256", "attempt_id", "current_pin",
-            "cell_id", "genome", "campaign_preimage", "campaign_evidence",
-            "variant", "build_attempt_id", "build_evidence", "correctness",
-            "performance", "trace0_evidence", "terminal", "abort",
-        }
-        if (type(raw) is not dict or not required_raw.issubset(raw)
-                or raw.get("schema_version") != RAW_RESULT_SCHEMA):
+        schema = raw.get("schema_version") if type(raw) is dict else None
+        keys = set(raw) if type(raw) is dict else set()
+        if (type(raw) is not dict
+                or schema not in {LEGACY_RAW_RESULT_SCHEMA, RAW_RESULT_SCHEMA}
+                or (schema == LEGACY_RAW_RESULT_SCHEMA
+                    and keys != legacy_raw_keys)
+                or (schema == RAW_RESULT_SCHEMA
+                    and keys not in (legacy_raw_keys, current_raw_keys))):
             raise CertificationError("raw cell result schema mismatch")
         cell_id = raw.get("cell_id")
         if cell_id in indexed:
@@ -2212,13 +2459,49 @@ def _classify_raw_cells(
     if set(indexed) != expected_cell_ids:
         raise CertificationError("cell result set is incomplete")
 
+    _require_current_raw_source_authority(
+        policy, (indexed[cell.cell_id] for cell in selected))
+
+    source_receipts = _source_receipts_for_raw_cells(
+        policy, indexed, selected_cells=selected, attempt_id=attempt_id,
+        current_pin=current_pin, frozen_files=frozen_files,
+        attempt_root=attempt_root)
+
     cells: list[dict[str, Any]] = []
     any_anomaly = False
+    any_source_reject = False
     any_indeterminate = False
     any_performance_indeterminate = False
     medians: dict[tuple[str, str], float] = {}
     for cell in selected:
         raw = indexed[cell.cell_id]
+        raw_schema = raw["schema_version"]
+        if raw_schema == LEGACY_RAW_RESULT_SCHEMA:
+            expected_src_token = source_digest.STOCK
+            observed_src_token = None
+            source_binding_status = "patch-unapplied"
+        else:
+            try:
+                expected_source = source_receipts[cell.cell_id]
+            except KeyError as exc:
+                raise CertificationError(
+                    f"pre-campaign source receipt is missing for {cell.cell_id}"
+                ) from exc
+            expected_src_token = expected_source.src_token
+            observed_src_token = raw.get("src_token")
+            if "src_token" not in raw:
+                source_binding_status = "token-missing"
+            elif _cell_source_binding_status(cell, observed_src_token) in {
+                    "token-missing", "token-invalid"}:
+                source_binding_status = _cell_source_binding_status(
+                    cell, observed_src_token)
+            elif observed_src_token != expected_src_token:
+                source_binding_status = "token-mismatch"
+            else:
+                source_binding_status = _cell_source_binding_status(
+                    cell, expected_src_token)
+        if source_binding_status != "bound":
+            any_source_reject = True
         expected_preimage = campaign_preimage(
             policy, cell.workload_id, attempt_id, current_pin)
         observed_preimage = raw.get("campaign_preimage")
@@ -2244,7 +2527,10 @@ def _classify_raw_cells(
             reconstructed = _raw_cell_from_wal(
                 policy, cell, result=SimpleNamespace(variant=raw.get("variant")),
                 layout_root=layout_root, attempt_id=attempt_id,
-                current_pin=current_pin, frozen_files=frozen_files,
+                current_pin=current_pin,
+                expected_src_token=expected_src_token,
+                raw_schema_version=raw_schema,
+                frozen_files=frozen_files,
                 attempt_root=attempt_root,
             )
             authority_keys = {
@@ -2302,13 +2588,16 @@ def _classify_raw_cells(
             )
         if perf_status != "complete":
             any_performance_indeterminate = True
-        elif correctness_status == "certified" and median is not None:
+        elif (correctness_status == "certified" and median is not None
+              and source_binding_status == "bound"):
             medians[(cell.workload_id, cell.role)] = median
         cells.append({
             "cell_id": cell.cell_id,
             "workload": cell.workload_id,
             "role": cell.role,
             "genome": dict(cell.genome),
+            "src_token": observed_src_token,
+            "source_binding_status": source_binding_status,
             "build_attempt_id": build_attempt_id,
             "correctness": {
                 "legacy": legacy_status,
@@ -2342,6 +2631,7 @@ def _classify_raw_cells(
         "cells": cells,
         "effects": effects,
         "any_anomaly": any_anomaly,
+        "any_source_reject": any_source_reject,
         "any_indeterminate": any_indeterminate,
         "any_performance_indeterminate": any_performance_indeterminate,
     }
@@ -2383,6 +2673,8 @@ def collect_results(policy: Policy, raw_results: Iterable[Mapping[str, Any]],
         _test_token=_test_token)
     effects = classified["effects"]
     if classified["any_anomaly"]:
+        status = "reject"
+    elif classified["any_source_reject"]:
         status = "reject"
     elif classified["any_indeterminate"]:
         status = "indeterminate"
@@ -2514,6 +2806,7 @@ def _canonical_partial_report(
         policy: Policy, evidence: Mapping[str, Any], *,
         current_pin: str) -> dict[str, Any]:
     """Re-derive partial authority and science only from frozen v4 evidence."""
+    _require_materializable_authority(policy, evidence)
     authority = _partial_workload_authority(policy, evidence)
     authoritative = [
         workload_id for workload_id in workload_ids(policy)
@@ -2535,6 +2828,8 @@ def _canonical_partial_report(
             frozen_files=evidence["raw_files"],
             attempt_root=Path(evidence["attempt_root"]),
         )
+    except AuthorityError:
+        raise
     except (CertificationError, OSError, ValueError, TypeError,
             KeyError, IndexError) as exc:
         authority[workload_id] = {
@@ -2550,7 +2845,10 @@ def _canonical_partial_report(
 
     cells = local["cells"]
     effects = local["effects"]
-    if any(cell["correctness"]["disposition"] == "reject" for cell in cells):
+    if local["any_source_reject"]:
+        status = "reject"
+        reason = f"authoritative-workload-source-reject:{workload_id}"
+    elif any(cell["correctness"]["disposition"] == "reject" for cell in cells):
         status = "reject"
         reason = f"authoritative-workload-anomaly:{workload_id}"
     elif (any(cell["correctness"]["disposition"] == "indeterminate"
@@ -2753,7 +3051,8 @@ def _observed_perf_workload(run_argv: Sequence[str], binary_index: int,
 
 def _raw_cell_from_wal(policy: Policy, cell: CellSpec, *, result: object,
                        layout_root: str, attempt_id: str,
-                       current_pin: str,
+                       current_pin: str, expected_src_token: str,
+                       raw_schema_version: str = RAW_RESULT_SCHEMA,
                        frozen_files: Optional[Mapping[str, bytes]] = None,
                        attempt_root: Optional[Path] = None) -> dict[str, Any]:
     from .layout import CampaignLayout
@@ -2810,8 +3109,15 @@ def _raw_cell_from_wal(policy: Policy, cell: CellSpec, *, result: object,
         ]
     except (UnicodeError, ValueError) as exc:
         raise CertificationError("campaign WAL cannot be parsed") from exc
+    if raw_schema_version not in {LEGACY_RAW_RESULT_SCHEMA, RAW_RESULT_SCHEMA}:
+        raise CertificationError("unsupported raw cell schema")
+    expected_token = _require_src_token(
+        expected_src_token, f"{cell.cell_id} expected src_token")
+    if (raw_schema_version == LEGACY_RAW_RESULT_SCHEMA
+            and expected_token != source_digest.STOCK):
+        raise CertificationError("legacy raw reconstruction must use stock identity")
     expected_genome = _genome_for_cell(policy, cell)
-    expected_variant = variant_id(expected_genome)
+    expected_variant = variant_id(expected_genome, expected_token)
     if result.variant != expected_variant:
         raise CertificationError("WAL variant is not the canonical cell variant")
     records = [record for record in all_records if record.variant == result.variant]
@@ -2823,6 +3129,17 @@ def _raw_cell_from_wal(policy: Policy, cell: CellSpec, *, result: object,
         raise CertificationError("WAL build attempt identity is missing")
     if starts[0].payload.get("genome") != expected_genome.canonical():
         raise CertificationError("WAL build start genome does not match cell policy")
+    if raw_schema_version == RAW_RESULT_SCHEMA:
+        if starts[0].payload.get("src_token") != expected_token:
+            raise CertificationError(
+                "WAL build start token differs from pre-campaign receipt")
+        admission = starts[0].payload.get("build_admission")
+        admission_source = (
+            admission.get("source") if type(admission) is dict else None)
+        if (type(admission_source) is not dict
+                or admission_source.get("src_token") != expected_token):
+            raise CertificationError(
+                "build admission token differs from pre-campaign receipt")
     allowed_stages = {
         STAGE_BUILD_START, STAGE_BUILD_DONE, STAGE_VERIFY_DONE,
         STAGE_BENCH_DONE, STAGE_COMMIT, STAGE_ABORT,
@@ -2985,8 +3302,8 @@ def _raw_cell_from_wal(policy: Policy, cell: CellSpec, *, result: object,
                 "unstable": bench_done.get("unstable"),
                 "rep_notes": bench_done.get("rep_notes"),
             }
-    return {
-        "schema_version": RAW_RESULT_SCHEMA,
+    raw_payload = {
+        "schema_version": raw_schema_version,
         "protocol_sha256": policy.protocol_sha256,
         "attempt_id": attempt_id,
         "current_pin": current_pin,
@@ -3011,6 +3328,9 @@ def _raw_cell_from_wal(policy: Policy, cell: CellSpec, *, result: object,
         "terminal": "commit" if commit is not None else "abort",
         "abort": dict(abort) if abort is not None else None,
     }
+    if raw_schema_version == RAW_RESULT_SCHEMA:
+        raw_payload["src_token"] = expected_token
+    return raw_payload
 
 
 def run_workload(policy: Policy, *, workload_id: str, attempt_root: Path | str,
@@ -3116,7 +3436,24 @@ def run_workload(policy: Policy, *, workload_id: str, attempt_root: Path | str,
             dependency_prefix=dependency,
             current_pin=current_pin,
             expected_toolchain_manifest=expected_toolchain_manifest,
-    ) as (variant_root, condition_gate_receipts):
+    ) as (variant_root, condition_gate_receipts,
+          admission_canonical_records):
+        source_evidences = []
+        for cell, genome in zip(cells, genomes, strict=True):
+            evidence = source_digest.resolve_evidence(
+                genome, current_pin, ccbench_dir=os.fspath(variant_root),
+                cxx=resolved_cxx,
+            )
+            evidence = _source_evidence_for_cell(
+                policy, cell, evidence, current_pin=current_pin,
+                expected_source_root=variant_root)
+            _require_cell_src_token_role(cell, evidence.src_token)
+            source_evidences.append(evidence)
+        condition_receipt_path = (
+            attempt / _condition_gate_receipt_relative(workload_id))
+        _write_condition_gate_admissions_x(
+            condition_receipt_path, admission_canonical_records,
+            source_evidences)
         build_context = build_run_context(generator_id=GeneratorId.BACKOFF_REPRO)
 
         def capability_resolver(evidence):
@@ -3144,10 +3481,12 @@ def run_workload(policy: Policy, *, workload_id: str, attempt_root: Path | str,
             raise CertificationError("fresh workload did not evaluate exactly two cells")
         summary.condition_gate_receipts = condition_gate_receipts
         raw_payloads = []
-        for cell, result in zip(cells, summary.results):
+        for cell, result, evidence in zip(
+                cells, summary.results, source_evidences, strict=True):
             payload = _raw_cell_from_wal(
                 policy, cell, result=result, layout_root=summary.layout_root,
                 attempt_id=attempt_name, current_pin=current_pin,
+                expected_src_token=evidence.src_token,
             )
             write_json_x(raw / f"{cell.cell_id}.json", payload)
             raw_payloads.append(payload)
@@ -3248,7 +3587,7 @@ def _finalize_workload_raw_authority(
         workload_id: str, raw_results: Sequence[Mapping[str, Any]],
         submission_job: Mapping[str, Any],
 ) -> dict[str, Any]:
-    """Validate and freeze one workload's raw pair and campaign triple."""
+    """Validate and freeze one workload's raw pair, receipt, and campaign triple."""
     attempt_id = attempt_root.name
     cells = [cell for cell in policy.cells if cell.workload_id == workload_id]
     if (len(cells) != 2 or len(raw_results) != 2
@@ -3261,6 +3600,18 @@ def _finalize_workload_raw_authority(
             / "raw" / f"{cell.cell_id}.json")
         for cell in cells
     }
+    receipt_relative = _condition_gate_receipt_relative(workload_id)
+    receipt_path = _canonical_child(
+        str(attempt_root / receipt_relative), attempt_root,
+        "condition admission receipt")
+    try:
+        receipt_bytes = receipt_path.read_bytes()
+    except OSError as exc:
+        raise CertificationError(
+            "condition admission receipt cannot be frozen") from exc
+    _parse_condition_gate_admissions(
+        policy, workload_id, receipt_bytes, current_pin=current_pin)
+    files[receipt_relative] = _sha256_bytes(receipt_bytes)
     evidence_keys = {
         "campaign_id", "lock_path", "lock_sha256", "wal_path",
         "wal_sha256", "claim_path", "claim_sha256",
@@ -3297,9 +3648,9 @@ def _finalize_workload_raw_authority(
             raise CertificationError("campaign member aliases raw evidence")
         files[relative] = expected_sha
         campaign_members.add(relative)
-    if len(files) != 5 or len(campaign_members) != 3:
+    if len(files) != 6 or len(campaign_members) != 3:
         raise CertificationError(
-            "workload authority is not an exact raw pair and campaign triple")
+            "workload authority is not an exact raw pair, receipt, and campaign triple")
 
     claim_path = _canonical_child(
         evidence["claim_path"], attempt_root, "campaign claim")
@@ -3339,7 +3690,8 @@ def finalize_raw_manifest(policy: Policy, attempt_root: Path | str,
     attempt_id, root = validate_attempt_root(policy, attempt_root)
     # Loading closes each independently owned job-local raw directory, without
     # enumerating the shared jobs/ parent, then opens the 2N policy paths.
-    # The manifest freezes those bytes and the N lock/WAL/claim triples.
+    # The manifest freezes those bytes, the N pre-campaign receipts, and the
+    # N lock/WAL/claim triples.
     raw_results = load_raw_results(policy, root)
     submission_payload, _ = _read_json(root / "receipts" / "submission.json")
     submission = _validate_submission_receipt(
@@ -3364,7 +3716,7 @@ def finalize_raw_manifest(policy: Policy, attempt_root: Path | str,
         campaign_paths.update(authority["campaign_members"])
         claims[workload_id] = authority["claim"]
     workload_count = len(workload_ids(policy))
-    if (len(files) != 5 * workload_count
+    if (len(files) != 6 * workload_count
             or len(campaign_paths) != 3 * workload_count):
         raise CertificationError(
             "raw results do not bind the policy-sized campaign closures")
@@ -3386,7 +3738,7 @@ def finalize_raw_manifest(policy: Policy, attempt_root: Path | str,
 def _finalize_partial_raw_manifest(
         policy: Policy, attempt_root: Path | str, current_pin: str,
         successful_workload: str) -> Path:
-    """Freeze the exact five members owned by one successful A-2 workload."""
+    """Freeze the exact six members owned by one successful A-2 workload."""
     attempt_id, root = validate_attempt_root(policy, attempt_root)
     raw_results = _load_workload_raw_results(
         policy, root, successful_workload)
@@ -3398,10 +3750,10 @@ def _finalize_partial_raw_manifest(
     authority = _finalize_workload_raw_authority(
         policy, root, current_pin, successful_workload, raw_results,
         submission_by_workload[successful_workload])
-    if (len(authority["files"]) != 5
+    if (len(authority["files"]) != 6
             or len(authority["campaign_members"]) != 3):
         raise CertificationError(
-            "partial manifest does not bind exact raw pair and campaign triple")
+            "partial manifest does not bind exact raw pair, receipt, and campaign triple")
     manifest = {
         "schema_version": PARTIAL_RAW_MANIFEST_SCHEMA,
         "study": policy.study,
@@ -3434,7 +3786,9 @@ def _load_partial_raw_manifest_bundle(
     }
     if type(manifest) is not dict or set(manifest) != required:
         raise SchemaChainError("partial raw manifest shape crosses its schema")
-    if manifest.get("schema_version") != PARTIAL_RAW_MANIFEST_SCHEMA:
+    manifest_schema = manifest.get("schema_version")
+    if manifest_schema not in {
+            LEGACY_PARTIAL_RAW_MANIFEST_SCHEMA, PARTIAL_RAW_MANIFEST_SCHEMA}:
         raise SchemaChainError("partial raw manifest schema chain mismatch")
     if (manifest.get("study") != policy.study
             or manifest.get("protocol_sha256") != policy.protocol_sha256
@@ -3458,13 +3812,19 @@ def _load_partial_raw_manifest_bundle(
     raw_names = {
         f"jobs/{successful_workload}/raw/{cell.cell_id}.json"
         for cell in cells}
+    receipt_names = (
+        {_condition_gate_receipt_relative(successful_workload)}
+        if manifest_schema == PARTIAL_RAW_MANIFEST_SCHEMA else set()
+    )
+    expected_file_count = 5 + len(receipt_names)
     if (len(cells) != 2 or not raw_names.issubset(files)
-            or len(files) != 5
+            or not receipt_names.issubset(files)
+            or len(files) != expected_file_count
             or any(type(name) is not str
                    or type(digest) is not str
                    or _SHA256_RE.fullmatch(digest) is None
                    for name, digest in files.items())):
-        raise CertificationError("partial raw manifest file inventory is not exact five")
+        raise CertificationError("partial raw manifest file inventory is not exact")
     frozen_files: dict[str, bytes] = {}
     for relative, digest in files.items():
         relative_path = Path(relative)
@@ -3505,9 +3865,18 @@ def _load_partial_raw_manifest_bundle(
                     "partial campaign evidence is not manifest-bound")
             campaign_members.add(member)
         raw_results.append(value)
-    if campaign_members != set(files) - raw_names or len(campaign_members) != 3:
+    if (campaign_members != set(files) - raw_names - receipt_names
+            or len(campaign_members) != 3):
         raise CertificationError(
             "partial campaign lock/WAL/claim members are not exact")
+    condition_gate_receipts: dict[str, bytes] = {}
+    if receipt_names:
+        receipt_relative = next(iter(receipt_names))
+        _parse_condition_gate_admissions(
+            policy, successful_workload, frozen_files[receipt_relative],
+            current_pin=current_pin)
+        condition_gate_receipts[successful_workload] = frozen_files[
+            receipt_relative]
     live_raw_results = _load_workload_raw_results(
         policy, attempt_root, successful_workload)
     if [raw.get("cell_id") for raw in live_raw_results] != [
@@ -3580,6 +3949,7 @@ def _load_partial_raw_manifest_bundle(
         "manifest": manifest,
         "files": frozen_files,
         "raw_results": raw_results,
+        "condition_gate_receipts": condition_gate_receipts,
     }
 
 
@@ -3594,10 +3964,12 @@ def _load_raw_manifest_bundle(
     manifest, manifest_bytes = _read_json(manifest_path)
     if _sha256_bytes(manifest_bytes) != manifest_sha256:
         raise CertificationError("completion raw manifest hash mismatch")
+    manifest_schema = manifest.get("schema_version")
     if (set(manifest) != {
             "schema_version", "study", "protocol_sha256", "attempt_id",
             "current_pin", "campaign_claims", "files"}
-            or manifest.get("schema_version") != RAW_MANIFEST_SCHEMA
+            or manifest_schema not in {
+                LEGACY_RAW_MANIFEST_SCHEMA, RAW_MANIFEST_SCHEMA}
             or manifest.get("study") != policy.study
             or manifest.get("protocol_sha256") != policy.protocol_sha256
             or manifest.get("attempt_id") != attempt_id
@@ -3609,8 +3981,16 @@ def _load_raw_manifest_bundle(
     raw_names = {
         f"jobs/{cell.workload_id}/raw/{cell.cell_id}.json"
         for cell in policy.cells}
+    receipt_names = (
+        {_condition_gate_receipt_relative(workload_id)
+         for workload_id in workload_ids(policy)}
+        if manifest_schema == RAW_MANIFEST_SCHEMA else set()
+    )
     if (not raw_names.issubset(files)
-            or len(files) != len(raw_names) + 3 * len(workload_ids(policy))
+            or not receipt_names.issubset(files)
+            or len(files) != (
+                len(raw_names) + len(receipt_names)
+                + 3 * len(workload_ids(policy)))
             or any(type(name) is not str
                    or type(digest) is not str
                    or _SHA256_RE.fullmatch(digest) is None
@@ -3658,9 +4038,18 @@ def _load_raw_manifest_bundle(
     if [raw.get("cell_id") for raw in live_raw_results] != [
             raw.get("cell_id") for raw in raw_results]:
         raise CertificationError("live and frozen raw cell order differs")
-    if campaign_members != set(files) - raw_names:
+    if campaign_members != set(files) - raw_names - receipt_names:
         raise CertificationError(
             "campaign lock/WAL/claim manifest members are not exact")
+    condition_gate_receipts: dict[str, bytes] = {}
+    for workload_id in workload_ids(policy):
+        relative = _condition_gate_receipt_relative(workload_id)
+        if relative not in receipt_names:
+            continue
+        _parse_condition_gate_admissions(
+            policy, workload_id, frozen_files[relative],
+            current_pin=current_pin)
+        condition_gate_receipts[workload_id] = frozen_files[relative]
     claims = manifest["campaign_claims"]
     expected_workloads = workload_ids(policy)
     if (set(claims) != set(expected_workloads)
@@ -3739,6 +4128,7 @@ def _load_raw_manifest_bundle(
         "manifest": manifest,
         "files": frozen_files,
         "raw_results": raw_results,
+        "condition_gate_receipts": condition_gate_receipts,
     }
 
 
@@ -3852,14 +4242,52 @@ _CERTIFICATION_RESULT_COMMON_KEYS = {
 _CERTIFICATION_RESULT_STATUSES = {
     "observed-positive", "reject", "indeterminate", "performance-indeterminate",
 }
+_LEGACY_CERTIFICATION_CELL_KEYS = {
+    "cell_id", "workload", "role", "genome", "build_attempt_id",
+    "correctness", "performance", "trace_bin_sha256", "perf_bin_sha256",
+}
+_CERTIFICATION_CELL_KEYS = _LEGACY_CERTIFICATION_CELL_KEYS | {
+    "src_token", "source_binding_status",
+}
+
+
+def _validate_certification_cells(report: Mapping[str, Any], *, legacy: bool) -> None:
+    cells = report.get("cells")
+    if type(cells) is not list:
+        raise CertificationError("certification cells must be a list")
+    expected = (
+        _LEGACY_CERTIFICATION_CELL_KEYS if legacy
+        else _CERTIFICATION_CELL_KEYS)
+    for cell in cells:
+        if type(cell) is not dict or set(cell) != expected:
+            raise CertificationError("certification cell fields are not exact")
+        if legacy:
+            continue
+        status = cell.get("source_binding_status")
+        if status not in {
+                "bound", "patch-unapplied", "role-mismatch",
+                "token-missing", "token-invalid", "token-mismatch"}:
+            raise CertificationError(
+                "certification source binding status is unknown")
+        token = cell.get("src_token")
+        if status == "token-missing":
+            if token is not None:
+                raise CertificationError(
+                    "missing source token status carries a token")
+        elif status == "patch-unapplied" and token is None:
+            pass
+        elif status != "token-invalid":
+            _require_src_token(token, "certification cell src_token")
 
 
 def _validate_certification_result(
         policy: Policy, report: Mapping[str, Any],
         evidence: Mapping[str, Any]) -> Mapping[str, Any]:
-    """Validate a legacy v3 result or re-derive an exact partial v4 result."""
-    if type(report) is dict and report.get(
-            "schema_version") == PARTIAL_CERTIFICATION_SCHEMA:
+    """Validate legacy result shapes or the current source-bound shapes."""
+    report_schema = report.get("schema_version") if type(report) is dict else None
+    if report_schema in {
+            LEGACY_PARTIAL_CERTIFICATION_SCHEMA,
+            PARTIAL_CERTIFICATION_SCHEMA}:
         partial_keys = (
             _CERTIFICATION_RESULT_COMMON_KEYS
             | {"historical_context", "reason", "workload_authority"})
@@ -3869,6 +4297,9 @@ def _validate_certification_result(
         if report.get("status") not in {
                 "success", "partial", "inconclusive", "reject"}:
             raise CertificationError("partial certification status is unknown")
+        _validate_certification_cells(
+            report, legacy=(
+                report_schema == LEGACY_PARTIAL_CERTIFICATION_SCHEMA))
         acquisition_path = evidence.get("acquisition_path")
         if type(acquisition_path) is not str:
             raise CertificationError(
@@ -3881,29 +4312,64 @@ def _validate_certification_result(
                 != PARTIAL_COMPLETION_SCHEMA):
             raise SchemaChainError(
                 "partial result is crossed with a legacy receipt chain")
+        expected_manifest_schemas = (
+            {LEGACY_PARTIAL_RAW_MANIFEST_SCHEMA}
+            if report_schema == LEGACY_PARTIAL_CERTIFICATION_SCHEMA
+            else {LEGACY_PARTIAL_RAW_MANIFEST_SCHEMA,
+                  PARTIAL_RAW_MANIFEST_SCHEMA})
+        if (canonical_evidence.get("raw_manifest_valid") is True
+                and canonical_evidence.get("raw_manifest_schema")
+                not in expected_manifest_schemas):
+            raise SchemaChainError(
+                "partial result is crossed with its raw manifest schema")
         if canonical_evidence.get("raw_manifest_invalid_kind") == "schema-chain":
             raise SchemaChainError(
                 "partial materialization rejects the raw schema chain: "
                 + str(canonical_evidence.get("raw_manifest_reason")))
-        expected = _canonical_partial_report(
-            policy, canonical_evidence, current_pin=report["current_pin"])
-        report_matches_rederived_evidence = report == expected
-        if not report_matches_rederived_evidence:
-            raise CertificationError(
-                "partial certification result differs from evidence re-derivation")
+        if report_schema == LEGACY_PARTIAL_CERTIFICATION_SCHEMA:
+            expected_policy_bytes = base64.b64encode(
+                policy.raw_bytes).decode("ascii")
+            if (report.get("study") != policy.study
+                    or report.get("protocol_schema") != POLICY_SCHEMA
+                    or report.get("protocol_sha256") != policy.protocol_sha256
+                    or report.get("policy_sha256") != policy.bytes_sha256
+                    or report.get("policy_bytes_base64") != expected_policy_bytes
+                    or report.get("attempt_id")
+                    != canonical_evidence.get("attempt_id")
+                    or report.get("current_pin")
+                    != canonical_evidence.get("acquisition", {}).get("current_pin")
+                    or report.get("source_commit")
+                    != canonical_evidence.get("source_commit")
+                    or report.get("request_ids")
+                    != canonical_evidence.get("request_ids")):
+                raise CertificationError(
+                    "legacy partial result identity differs from evidence")
+        if report_schema == PARTIAL_CERTIFICATION_SCHEMA:
+            expected = _canonical_partial_report(
+                policy, canonical_evidence, current_pin=report["current_pin"])
+            report_matches_rederived_evidence = report == expected
+            if not report_matches_rederived_evidence:
+                raise CertificationError(
+                    "partial certification result differs from evidence re-derivation")
         return canonical_evidence
 
     # Legacy v3 keeps its two existing result shapes and status vocabulary.
+    if report_schema not in {LEGACY_CERTIFICATION_SCHEMA, CERTIFICATION_SCHEMA}:
+        raise CertificationError(
+            "certification result and terminal evidence identity differ")
     analysis_keys = _CERTIFICATION_RESULT_COMMON_KEYS | {"historical_context"}
     indeterminate_keys = _CERTIFICATION_RESULT_COMMON_KEYS | {"reason"}
-    if type(report) is not dict or frozenset(report) not in {
-            frozenset(analysis_keys), frozenset(indeterminate_keys)}:
+    if (type(report) is not dict
+            or report_schema not in {
+                LEGACY_CERTIFICATION_SCHEMA, CERTIFICATION_SCHEMA}
+            or frozenset(report) not in {
+                frozenset(analysis_keys), frozenset(indeterminate_keys)}):
         raise CertificationError(
             "certification result is missing required or has extra fields")
     acquisition = evidence.get("acquisition")
     expected_policy_bytes = base64.b64encode(policy.raw_bytes).decode("ascii")
     if (type(acquisition) is not dict
-            or report["schema_version"] != CERTIFICATION_SCHEMA
+            or report["schema_version"] != report_schema
             or report["study"] != policy.study
             or report["protocol_schema"] != POLICY_SCHEMA
             or report["protocol_sha256"] != policy.protocol_sha256
@@ -3915,10 +4381,15 @@ def _validate_certification_result(
             or acquisition.get("protocol_sha256") != policy.protocol_sha256):
         raise CertificationError(
             "certification result and terminal evidence identity differ")
+    expected_manifest_schemas = (
+        {LEGACY_RAW_MANIFEST_SCHEMA}
+        if report_schema == LEGACY_CERTIFICATION_SCHEMA
+        else {LEGACY_RAW_MANIFEST_SCHEMA, RAW_MANIFEST_SCHEMA})
     if (evidence.get("acquisition_schema") != ACQUISITION_SCHEMA
             or evidence.get("completion_schema") != COMPLETION_SCHEMA
             or (evidence.get("raw_manifest_valid") is True
-                and evidence.get("raw_manifest_schema") != RAW_MANIFEST_SCHEMA)):
+                and evidence.get("raw_manifest_schema")
+                not in expected_manifest_schemas)):
         raise SchemaChainError(
             "legacy result is crossed with a partial receipt or manifest")
     request_ids = report["request_ids"]
@@ -3948,6 +4419,15 @@ def _validate_certification_result(
             or report["compile_out_evidence_scope"] != COMPILE_OUT_SCOPE
             or type(report["independent_observation_limits"]) is not dict):
         raise CertificationError("certification result required fields are malformed")
+    _validate_certification_cells(
+        report, legacy=(report_schema == LEGACY_CERTIFICATION_SCHEMA))
+    if (report_schema == CERTIFICATION_SCHEMA
+            and evidence.get("raw_manifest_schema") == LEGACY_RAW_MANIFEST_SCHEMA
+            and (report.get("status") != "reject"
+                 or any(cell.get("source_binding_status") != "patch-unapplied"
+                        for cell in report["cells"]))):
+        raise SchemaChainError(
+            "legacy raw manifest may only produce a source-rejected current result")
     if "historical_context" in report:
         historical = report["historical_context"]
         if (type(historical) is not dict
@@ -3968,6 +4448,7 @@ def _validate_certification_result(
 def materialize(policy: Policy, report: Mapping[str, Any], evidence: Mapping[str, Any],
                 *, repo_root: Path | str) -> Path:
     evidence = _validate_certification_result(policy, report, evidence)
+    _require_materializable_authority(policy, evidence)
     root = Path(repo_root).resolve(strict=True)
     destination = (root / policy.tracked_destination).resolve()
     expected = root.joinpath(*policy.tracked_destination.parts)
@@ -3995,6 +4476,21 @@ def materialize(policy: Policy, report: Mapping[str, Any], evidence: Mapping[str
         if evidence.get("raw_manifest_bytes") is not None:
             _write_bytes_x(stage / "raw-manifest.json",
                            evidence["raw_manifest_bytes"])
+        condition_receipts = evidence.get("condition_gate_receipts") or {}
+        if (type(condition_receipts) is not dict
+                or any(workload_id not in workload_ids(policy)
+                       or type(payload) is not bytes
+                       for workload_id, payload in condition_receipts.items())):
+            raise CertificationError(
+                "materialization condition receipt inventory is invalid")
+        materialized_condition_receipts: dict[str, bytes] = {}
+        for workload_id in workload_ids(policy):
+            if workload_id not in condition_receipts:
+                continue
+            name = f"condition-gate-{workload_id}.admissions.jsonl"
+            payload = condition_receipts[workload_id]
+            _write_bytes_x(stage / name, payload)
+            materialized_condition_receipts[name] = payload
         manifest = {
             "schema_version": "paper-story-a2-artifact-manifest/v1",
             "attempt_id": report["attempt_id"],
@@ -4009,6 +4505,8 @@ def materialize(policy: Policy, report: Mapping[str, Any], evidence: Mapping[str
         if evidence.get("raw_manifest_bytes") is not None:
             manifest["files"]["raw-manifest.json"] = _sha256_bytes(
                 evidence["raw_manifest_bytes"])
+        for name, payload in materialized_condition_receipts.items():
+            manifest["files"][name] = _sha256_bytes(payload)
         manifest_bytes = _canonical_json(manifest)
         _write_bytes_x(stage / "artifact-manifest.json", manifest_bytes)
         marker = {
@@ -4146,6 +4644,7 @@ def _collect_command(args: argparse.Namespace) -> int:
     if (attempt_id != evidence["attempt_id"]
             or str(attempt_root) != evidence["attempt_root"]):
         raise CertificationError("collector attempt differs from receipt attempt")
+    _require_materializable_authority(policy, evidence)
     if evidence["acquisition_schema"] == PARTIAL_ACQUISITION_SCHEMA:
         report = _canonical_partial_report(
             policy, evidence, current_pin=args.current_pin)
@@ -4174,6 +4673,8 @@ def _collect_command(args: argparse.Namespace) -> int:
                     request_ids=evidence["request_ids"],
                     frozen_files=evidence["raw_files"], attempt_root=attempt_root,
                 )
+            except AuthorityError:
+                raise
             except (CertificationError, OSError, ValueError, TypeError,
                     KeyError, IndexError) as exc:
                 report = _indeterminate_report(
