@@ -37,6 +37,7 @@ from orchestrator.campaign import (  # noqa: E402
     model,
     s8b_abort_reason_contract as abort_reason_contract,
     s8b_freeze_io,
+    s8b_holdout_freeze as holdout_freeze,
     s8b_outcome_stage_contract as outcome_stage_contract,
     s8b_oracle_judge as judge,
     s8b_oracle_manifest as oracle_manifest,
@@ -1655,13 +1656,47 @@ def test_report_session_issuer_alias_and_identity_use_model_authority(
         importlib.reload(report)
 
 
+def _install_scan_neutral_earlier_eligible_result(
+        root: Path, selected_rel: str, monkeypatch,
+) -> tuple[str, list[str]]:
+    earlier_rel = selected_rel.replace(
+        "20260718T120000Z", "20260718T115959Z",
+    )
+    assert earlier_rel != selected_rel
+    earlier_path = root / earlier_rel
+    earlier_path.parent.mkdir(parents=True, exist_ok=True)
+    earlier_path.write_bytes(b"{}")
+    ratified_fixture._commit_exact(
+        root,
+        [earlier_rel],
+        subject="scan-neutral earlier official result",
+        agent="fixture",
+    )
+    eligibility_calls: list[str] = []
+
+    def derive_eligibility(**kwargs):
+        eligibility_calls.append(kwargs["result_rel"])
+        return kwargs["result_rel"] == earlier_rel
+
+    monkeypatch.setattr(
+        holdout_freeze,
+        "_derive_floor_selection_eligibility",
+        derive_eligibility,
+    )
+    return earlier_rel, eligibility_calls
+
+
 def test_cli_official_resolves_ratified_freeze_and_verifies(tmp_path):
     root, manifest_path, _document, approved = _ratified_cli_manifest(tmp_path)
     output = tmp_path / "official-cli-observations.json"
+    real_selection = (
+        report.s8b_ratified_freeze.assert_g1_floor_selection_identity
+    )
     real_reverify = report.s8b_ratified_freeze.reverify_published_freeze
     real_verify = oracle_manifest.verify_manifest
     real_build = report.build_observations
     recorded: dict[str, object] = {}
+    call_order = mock.Mock()
 
     def reverify_recording_wrapper(ratified, reverify_root):
         reverified = real_reverify(ratified, reverify_root)
@@ -1688,14 +1723,20 @@ def test_cli_official_resolves_ratified_freeze_and_verifies(tmp_path):
             oracle_spec, "APPROVED_SPEC_SHA256", approved.sha256,
     ), mock.patch.object(
             report.s8b_ratified_freeze,
+            "assert_g1_floor_selection_identity",
+            wraps=real_selection,
+    ) as selection_spy, mock.patch.object(
+            report.s8b_ratified_freeze,
             "reverify_published_freeze",
             side_effect=reverify_recording_wrapper,
-    ) as reverify_spy, mock.patch.object(
-            oracle_manifest,
-            "verify_manifest",
-            side_effect=verify_recording_wrapper,
-    ) as verify_spy:
+    ) as reverify_spy:
+        call_order.attach_mock(selection_spy, "selection")
+        call_order.attach_mock(reverify_spy, "reverify")
         with mock.patch.object(
+                oracle_manifest,
+                "verify_manifest",
+                side_effect=verify_recording_wrapper,
+        ) as verify_spy, mock.patch.object(
                 report, "build_observations",
                 side_effect=build_recording_wrapper,
         ) as build_spy:
@@ -1709,7 +1750,11 @@ def test_cli_official_resolves_ratified_freeze_and_verifies(tmp_path):
 
     assert rc == 0
     assert output.exists()
+    assert selection_spy.call_count == 1
     assert reverify_spy.call_count == 1
+    assert [entry[0] for entry in call_order.mock_calls] == [
+        "selection", "reverify",
+    ]
     assert verify_spy.call_count == 1
     assert build_spy.call_count == 1
     reverified = recorded["reverified"]
@@ -1728,6 +1773,70 @@ def test_cli_official_resolves_ratified_freeze_and_verifies(tmp_path):
             "state": "match",
         } for cell_id in sorted(reverified.binaries_by_cell)],
     }
+
+
+def test_report_cli_real_g1_rule_mismatch_preserves_selection_reason(
+        tmp_path, monkeypatch, capsys):
+    root, manifest_path, _document, approved = _ratified_cli_manifest(tmp_path)
+    loaded = report.s8b_ratified_freeze.load_ratified_freeze(root)
+    selected_rel = loaded.document["floor_source"]["path"]
+    assert isinstance(selected_rel, str)
+    earlier_rel, eligibility_calls = (
+        _install_scan_neutral_earlier_eligible_result(
+            root, selected_rel, monkeypatch,
+        )
+    )
+    output = tmp_path / "selection-mismatch-must-not-exist.json"
+
+    with mock.patch.object(
+            oracle_spec, "APPROVED_SPEC_SHA256", approved.sha256):
+        rc = report.main([
+            "report",
+            "--manifest", str(manifest_path),
+            "--output-root", str(root.parent / "output"),
+            "--out", str(output),
+            "--repo-root", str(root),
+        ])
+
+    assert rc == 2
+    assert "floor-selection-rule-mismatch" in capsys.readouterr().err
+    assert eligibility_calls == [earlier_rel]
+    assert not output.exists()
+
+
+def test_report_cli_selection_gate_receives_loaded_ratified_and_root(tmp_path):
+    root, manifest_path, _document, approved = _ratified_cli_manifest(tmp_path)
+    loaded_ratified = report.s8b_ratified_freeze.load_ratified_freeze(root)
+    selection_calls: list[tuple[object, Path]] = []
+    output = tmp_path / "selection-arguments-observations.json"
+
+    with mock.patch.object(
+            oracle_spec, "APPROVED_SPEC_SHA256", approved.sha256,
+    ), mock.patch.object(
+            report.s8b_ratified_freeze,
+            "load_ratified_freeze",
+            return_value=loaded_ratified,
+    ), mock.patch.object(
+            report.s8b_ratified_freeze,
+            "assert_g1_floor_selection_identity",
+            side_effect=lambda candidate, candidate_root: selection_calls.append(
+                (candidate, candidate_root)
+            ),
+    ):
+        rc = report.main([
+            "report",
+            "--manifest", str(manifest_path),
+            "--output-root", str(root.parent / "output"),
+            "--out", str(output),
+            "--repo-root", str(root),
+        ])
+
+    assert rc == 0
+    assert output.exists()
+    assert selection_calls == [(loaded_ratified, root)]
+    assert selection_calls[0][0] is loaded_ratified
+    assert isinstance(selection_calls[0][1], Path)
+    assert selection_calls[0][1] == root
 
 
 def test_report_rejects_unverifiable_floor_admission_without_output(tmp_path):

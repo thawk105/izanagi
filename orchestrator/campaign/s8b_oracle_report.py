@@ -2545,6 +2545,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         build_kwargs: dict[str, object] = {}
         if type(manifest) is _artifacts.OfficialManifest:
             ratified = s8b_ratified_freeze.load_ratified_freeze(root)
+            s8b_ratified_freeze.assert_g1_floor_selection_identity(ratified, root)
             reverified = s8b_ratified_freeze.reverify_published_freeze(
                 ratified, root,
             )
