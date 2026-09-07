@@ -1110,11 +1110,35 @@ def test_submitter_preflight_parses_gen_s_semantic_state(
 @pytest.mark.parametrize(
     ("qstat_rc", "qstat_body", "expected_rc", "expected_visible"),
     [
-        (0, "12345.nqsv izanagi- owner gen_S STG\n", 0, True),
-        (0, "12345.nqsv izanagi- owner gen_S RUN\n", 0, True),
-        (0, "12345.nqsv izanagi- owner gen_S QUE\n", 0, True),
+        (
+            0,
+            "RequestID ReqName UserName Queue STT\n"
+            "12345.nqsv izanagi- owner gen_S STG\n",
+            0,
+            True,
+        ),
+        (
+            0,
+            "RequestID ReqName UserName Queue STT\n"
+            "12345.nqsv izanagi- owner gen_S RUN\n",
+            0,
+            True,
+        ),
+        (
+            0,
+            "RequestID ReqName UserName Queue STT\n"
+            "12345.nqsv izanagi- owner gen_S QUE\n",
+            0,
+            True,
+        ),
         (0, "Request ID Name User Queue STT\n", 5, False),
-        (1, "12345.nqsv izanagi- owner gen_S RUN\n", 5, True),
+        (
+            1,
+            "RequestID ReqName UserName Queue STT\n"
+            "12345.nqsv izanagi- owner gen_S RUN\n",
+            5,
+            True,
+        ),
     ],
     ids=[
         "visible-immediate-staging",
@@ -1181,16 +1205,76 @@ def test_request_receipt_binds_qstat_body_visibility(
     ]
 
 
+def test_request_receipt_accepts_measured_qstat_layout(tmp_path: Path) -> None:
+    submitter = (REPO_ROOT / SUBMITTER_TEXT_PATH).read_text(encoding="utf-8")
+    function_block = _shell_function_body(
+        submitter, "write_request_receipt", "submit_request"
+    )
+    code = _heredoc_python(function_block)
+    manifest = tmp_path / SUBMISSION_MANIFEST_NAME
+    receipt = tmp_path / "qsub-request.json"
+    qstat_stdout = tmp_path / "qstat-after-submit.stdout"
+    qstat_stderr = tmp_path / "qstat-after-submit.stderr"
+    manifest.write_text("{}\n", encoding="utf-8")
+    qstat_stdout.write_text(
+        "RequestID       ReqName  UserName Queue     Pri STT S   Memory      CPU   Elapse R H M Jobs\n"
+        "--------------- -------- -------- -------- ---- --- - -------- -------- -------- - - - ----\n"
+        "982450.nqsv     izanagi- tanab    gen_S       0 STG -    0.00B     0.00        0 N Y Y    1\n",
+        encoding="utf-8",
+    )
+    qstat_stderr.write_text("", encoding="utf-8")
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-I",
+            "-B",
+            "-",
+            str(manifest),
+            str(receipt),
+            str(qstat_stdout),
+            str(qstat_stderr),
+            "R1",
+            "with-explicit-approval",
+            "982450.nqsv",
+            "2026-09-08T00:00:00Z",
+            "0",
+            "tanab",
+        ],
+        input=code,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert completed.returncode == 0
+    visibility = json.loads(receipt.read_text(encoding="utf-8"))["qstat_visibility"]
+    assert visibility["observed_state"] == "STG"
+    assert visibility["observed_owner"] == "tanab"
+    assert visibility["accepted"] is True
+
+
 @pytest.mark.parametrize(
     ("qstat_body", "rejected_field", "observed_value"),
     [
         (
+            "RequestID ReqName UserName Queue STT\n"
             "12345.nqsv izanagi- different-owner gen_S RUN\n",
             "owner_matches",
             "different-owner",
         ),
-        ("12345.nqsv izanagi- owner gen_S HLD\n", "state_accepted", "HLD"),
-        ("12345.nqsv izanagi- owner gen_S EXT\n", "state_accepted", "EXT"),
+        (
+            "RequestID ReqName UserName Queue STT\n"
+            "12345.nqsv izanagi- owner gen_S HLD\n",
+            "state_accepted",
+            "HLD",
+        ),
+        (
+            "RequestID ReqName UserName Queue STT\n"
+            "12345.nqsv izanagi- owner gen_S EXT\n",
+            "state_accepted",
+            "EXT",
+        ),
     ],
     ids=["different-owner", "non-active-state", "terminal-state"],
 )

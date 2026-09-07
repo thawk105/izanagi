@@ -537,8 +537,26 @@ qstat_rc = int(qstat_rc_text)
 expected_job_name_prefix = "izanagi-"
 # 実測値は STG のみ。他は qstat -Q header 由来の候補で未実測。
 accepted_states = ("STG", "ARR", "WAI", "QUE", "PRR", "RUN")
+qstat_lines = qstat_stdout.read_text(
+    encoding="utf-8", errors="replace"
+).splitlines()
+# Header names are primary. The fallback indexes match this measured qstat body:
+# RequestID       ReqName  UserName Queue     Pri STT S   Memory      CPU   Elapse R H M Jobs
+# --------------- -------- -------- -------- ---- --- - -------- -------- -------- - - - ----
+# 982450.nqsv     izanagi- tanab    gen_S       0 STG -    0.00B     0.00        0 N Y Y    1
+# index:   0          1       2       3         4   5   6
+# meaning: RequestID  ReqName UserName Queue     Pri STT S
+column_indexes = {"UserName": 2, "STT": 5}
+for line in qstat_lines:
+    fields = line.split()
+    if fields and fields[0] == "RequestID":
+        if all(name in fields for name in column_indexes):
+            column_indexes = {
+                name: fields.index(name) for name in column_indexes
+            }
+        break
 matched_lines = []
-for line in qstat_stdout.read_text(encoding="utf-8", errors="replace").splitlines():
+for line in qstat_lines:
     fields = line.split()
     if (line.startswith(scheduler_id) and len(fields) >= 2
             and fields[0] == scheduler_id
@@ -546,8 +564,14 @@ for line in qstat_stdout.read_text(encoding="utf-8", errors="replace").splitline
         matched_lines.append(line)
 line_visible = len(matched_lines) == 1
 visible_fields = matched_lines[0].split() if line_visible else []
-observed_owner = visible_fields[2] if len(visible_fields) >= 3 else None
-observed_state = visible_fields[4] if len(visible_fields) >= 5 else None
+owner_index = column_indexes["UserName"]
+state_index = column_indexes["STT"]
+observed_owner = (
+    visible_fields[owner_index] if len(visible_fields) > owner_index else None
+)
+observed_state = (
+    visible_fields[state_index] if len(visible_fields) > state_index else None
+)
 owner_matches = observed_owner == expected_owner
 state_accepted = observed_state in accepted_states
 accepted = qstat_rc == 0 and line_visible and owner_matches and state_accepted
