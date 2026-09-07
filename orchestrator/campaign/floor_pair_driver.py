@@ -19,7 +19,7 @@ session 構成、runner 引数を閉じた専用 adapter である。
 * ``nm`` の PATH 解決先を binary identity として束縛しない。
 * 落ちた標本による残存標本数の減少を許容限界の被覆確率へ補正せず、残存標本で 95% 被覆を保つことを証明しない。
 * campaign 合算の 5% は pair 間の欠測の偏りを制限しない (stratum ごとの件数は報告する)。
-* source commit と spec-only child は spec path を除く tree の同値だけを保証する。commit OID の同値と、実行中 module bytes が記録 commit に対応することは保証しない。定数が D1699 の裁定値であることを証明する独立な pin も freeze receipt も無い。
+* spec bytes と loaded HEAD の tracked blob の byte 一致、および source_commit が loaded HEAD の真の祖先であることだけを保証する。その間の変更内容は制限しない。commit OID の同値と、実行中 module bytes が記録 commit に対応することは保証しない。定数が D1699 の裁定値であることを証明する独立な pin も freeze receipt も無い。
 * 測定実体は module 属性であり、同一 process 内でこれを差し替える経路は防がない。
 """
 from __future__ import annotations
@@ -83,7 +83,7 @@ NOT_PROVEN = (
     "``nm`` の PATH 解決先を binary identity として束縛しない。",
     "落ちた標本による残存標本数の減少を許容限界の被覆確率へ補正せず、残存標本で 95% 被覆を保つことを証明しない。",
     "campaign 合算の 5% は pair 間の欠測の偏りを制限しない (stratum ごとの件数は報告する)。",
-    "source commit と spec-only child は spec path を除く tree の同値だけを保証する。commit OID の同値と、実行中 module bytes が記録 commit に対応することは保証しない。定数が D1699 の裁定値であることを証明する独立な pin も freeze receipt も無い。",
+    "spec bytes と loaded HEAD の tracked blob の byte 一致、および source_commit が loaded HEAD の真の祖先であることだけを保証する。その間の変更内容は制限しない。commit OID の同値と、実行中 module bytes が記録 commit に対応することは保証しない。定数が D1699 の裁定値であることを証明する独立な pin も freeze receipt も無い。",
     "測定実体は module 属性であり、同一 process 内でこれを差し替える経路は防がない。",
 )
 
@@ -578,53 +578,17 @@ def _git_head(root: Path) -> str:
     return value
 
 
-def _git_parents(root: Path, loaded_head: str) -> tuple[str, ...]:
-    try:
-        completed = subprocess.run(
-            ["git", "-C", str(root), "show", "-s", "--format=%P", loaded_head],
-            capture_output=True,
-            check=False,
-            timeout=_GIT_TIMEOUT_S,
-        )
-    except (OSError, subprocess.SubprocessError) as exc:
-        raise FloorPairBindingError(
-            f"git show parents を起動または完了できない: {exc}"
-        ) from exc
-    if completed.returncode != 0:
-        raise FloorPairBindingError("git show parents に失敗した")
-    raw = bytes(completed.stdout)
-    if not raw.endswith(b"\n") or b"\n" in raw[:-1]:
-        raise FloorPairBindingError("git show parents の出力が単一行でない")
-    try:
-        line = raw[:-1].decode("ascii")
-    except UnicodeError as exc:
-        raise FloorPairBindingError("git show parents の出力が ASCII でない") from exc
-    if line == "":
-        return ()
-    parents = tuple(line.split(" "))
-    if any(_HEX40_RE.fullmatch(parent) is None for parent in parents):
-        raise FloorPairBindingError(
-            "git show parents の出力に 40 桁 lowercase hex でない OID がある"
-        )
-    return parents
-
-
-def _git_changed_paths(
+def _git_is_ancestor(
     root: Path, source_commit: str, loaded_head: str
-) -> tuple[bytes, ...]:
+) -> bool:
     try:
         completed = subprocess.run(
             [
                 "git",
                 "-C",
                 str(root),
-                "diff-tree",
-                "--no-commit-id",
-                "--name-only",
-                "-r",
-                "-z",
-                "--no-renames",
-                "--ignore-submodules=none",
+                "merge-base",
+                "--is-ancestor",
                 source_commit,
                 loaded_head,
             ],
@@ -634,19 +598,17 @@ def _git_changed_paths(
         )
     except (OSError, subprocess.SubprocessError) as exc:
         raise FloorPairBindingError(
-            f"git diff-tree を起動または完了できない: {exc}"
+            f"git merge-base --is-ancestor を起動または完了できない: {exc}"
         ) from exc
-    if completed.returncode != 0:
-        raise FloorPairBindingError("git diff-tree に失敗した")
-    raw = bytes(completed.stdout)
-    if raw == b"":
-        return ()
-    if not raw.endswith(b"\0"):
-        raise FloorPairBindingError("git diff-tree の path 出力が NUL 終端でない")
-    paths = tuple(raw[:-1].split(b"\0"))
-    if any(path == b"" for path in paths):
-        raise FloorPairBindingError("git diff-tree の path 出力に空 path がある")
-    return paths
+    if completed.returncode == 0:
+        return True
+    if completed.returncode == 1:
+        return False
+    stderr = bytes(completed.stderr).decode("utf-8", errors="replace")
+    raise FloorPairBindingError(
+        "git merge-base --is-ancestor に失敗した: "
+        f"rc={completed.returncode}: {stderr[-200:]}"
+    )
 
 
 def _read_tracked_bound(
@@ -1239,7 +1201,7 @@ def load_frozen_spec(
 
     この専用 driver は校正済み動作点だけを測るため、正常な legacy
     ``attestation_mode=none`` が返す ``calibration=None`` も意図的に受理しない。
-    ``provenance.source_commit`` は spec-only freeze commit の唯一の親を表す。
+    ``provenance.source_commit`` は loaded HEAD の真の祖先を表す。
     """
     if not isinstance(path, Path) or not isinstance(repo_root, Path):
         raise FloorPairBindingError("path と repo_root は Path でなければならない")
@@ -1320,16 +1282,14 @@ def load_frozen_spec(
         artifacts=artifacts,
         cells=cells,
     )
-    if _git_parents(root, loaded_head) != (provenance.source_commit,):
+    if provenance.source_commit == loaded_head:
         raise FloorPairBindingError(
-            "provenance.source_commit が loaded HEAD の唯一の親と一致しない"
+            "provenance.source_commit は loaded HEAD の真の祖先でなければならない: "
+            "同一 commit は許可しない"
         )
-    if _git_changed_paths(root, provenance.source_commit, loaded_head) != (
-        os.fsencode(relpath),
-    ):
+    if not _git_is_ancestor(root, provenance.source_commit, loaded_head):
         raise FloorPairBindingError(
-            "provenance.source_commit から loaded HEAD への changed paths が "
-            "frozen spec path だけでない"
+            "provenance.source_commit が loaded HEAD の祖先でない"
         )
     return FloorPairSpec(
         schema=schema,

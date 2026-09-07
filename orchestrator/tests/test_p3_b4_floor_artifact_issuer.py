@@ -63,7 +63,7 @@ def _synthetic_source(
             )
     spec["outputs"]["summary_relpath"] = "out/summary.json"
     spec_sha = _write_bytes(root, "refs/spec.json", _canonical(spec))
-    driver_tests._install_git(monkeypatch, root, spec_relpath="refs/spec.json")
+    driver_tests._install_git(monkeypatch, root)
     if receipt_has_protocol:
         # The portable receipt contract does not yet carry the protocol field.
         # Preserve every real receipt check while isolating only that known

@@ -1,5 +1,18 @@
 {
   "duration_seconds_by_nodeid": {
+    "orchestrator/tests/test_floor_pair_driver.py::test_git_ancestor_uses_stdoutless_returncode_result[0-True]": 0.001,
+    "orchestrator/tests/test_floor_pair_driver.py::test_git_ancestor_uses_stdoutless_returncode_result[1-False]": 0.001,
+    "orchestrator/tests/test_floor_pair_driver.py::test_git_nonzero_exit_is_normalized_to_driver_binding_error[ancestor]": 0.001,
+    "orchestrator/tests/test_floor_pair_driver.py::test_git_startup_and_timeout_failures_are_normalized_to_driver_binding_error[startup-ancestor]": 0.001,
+    "orchestrator/tests/test_floor_pair_driver.py::test_git_startup_and_timeout_failures_are_normalized_to_driver_binding_error[startup-head]": 0.001,
+    "orchestrator/tests/test_floor_pair_driver.py::test_git_startup_and_timeout_failures_are_normalized_to_driver_binding_error[startup-show]": 0.001,
+    "orchestrator/tests/test_floor_pair_driver.py::test_git_startup_and_timeout_failures_are_normalized_to_driver_binding_error[timeout-ancestor]": 0.001,
+    "orchestrator/tests/test_floor_pair_driver.py::test_git_startup_and_timeout_failures_are_normalized_to_driver_binding_error[timeout-head]": 0.001,
+    "orchestrator/tests/test_floor_pair_driver.py::test_git_startup_and_timeout_failures_are_normalized_to_driver_binding_error[timeout-show]": 0.001,
+    "orchestrator/tests/test_floor_pair_driver.py::test_real_git_nonancestor_source_commit_is_rejected": 0.047,
+    "orchestrator/tests/test_floor_pair_driver.py::test_real_git_source_commit_equal_to_loaded_head_is_rejected_as_nonstrict": 0.043,
+    "orchestrator/tests/test_floor_pair_driver.py::test_real_git_strict_ancestor_loads_after_later_unrelated_commit": 0.051,
+    "orchestrator/tests/test_floor_pair_driver.py::test_real_git_worktree_spec_bytes_changed_after_commit_are_rejected": 0.027,
     "orchestrator/tests/test_floor_pair_driver.py::test_real_git_spec_and_ignored_gitlink_in_freeze_commit_are_rejected": 0.05,
     "orchestrator/tests/test_floor_pair_driver.py::test_all_floor_pair_dataclass_fields_have_no_defaults": 0.001,
     "orchestrator/tests/test_floor_pair_driver.py::test_all_four_semantic_schema_identifiers_are_bumped": 0.001,
@@ -19752,7 +19765,7 @@
     "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m05_m06_resolver_fails_closed_without_absence_fallback[schema]": 0.0,
     "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_resolver_rejects_duplicate_floor_rows": 0.0
   },
-  "nodeid_count": 19751,
+  "nodeid_count": 19764,
   "schema_version": 1,
   "unit": "seconds"
 }
