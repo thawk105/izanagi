@@ -12,6 +12,7 @@ import hashlib
 import json
 import os
 import sys
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
@@ -23,8 +24,9 @@ from orchestrator.campaign import floor_pair_driver as F
 
 
 NOW = datetime(2030, 1, 1, 0, 30, tzinfo=timezone.utc)
-HEAD = "b" * 40
-SOURCE_COMMIT = HEAD
+PARENT = "b" * 40
+HEAD = "d" * 40
+SOURCE_COMMIT = PARENT
 REAL_SUBPROCESS_RUN = F.subprocess.run
 
 
@@ -306,13 +308,28 @@ def _install_git(
     monkeypatch: pytest.MonkeyPatch,
     root: Path,
     *,
-    head_overrides: dict[str, bytes] | None = None,
-) -> None:
-    overrides = {} if head_overrides is None else dict(head_overrides)
+    spec_relpath: str = "spec.json",
+    blob_overrides: dict[str, bytes] | None = None,
+    parents_stdout: bytes | None = None,
+    changed_paths_stdout: bytes | None = None,
+) -> list[tuple[str, ...]]:
+    overrides = {} if blob_overrides is None else dict(blob_overrides)
+    parent_output = (
+        (SOURCE_COMMIT + "\n").encode("ascii")
+        if parents_stdout is None
+        else parents_stdout
+    )
+    changed_output = (
+        os.fsencode(spec_relpath) + b"\0"
+        if changed_paths_stdout is None
+        else changed_paths_stdout
+    )
+    calls: list[tuple[str, ...]] = []
 
     def fake_run(cmd, **kwargs):
         if cmd[0] != "git":
             return REAL_SUBPROCESS_RUN(cmd, **kwargs)
+        calls.append(tuple(cmd))
         assert kwargs == {
             "capture_output": True,
             "check": False,
@@ -320,15 +337,25 @@ def _install_git(
         }
         assert cmd[:3] == ["git", "-C", str(root)]
         if cmd[3] == "rev-parse":
-            assert cmd[4] == "HEAD"
+            assert cmd[3:] == ["rev-parse", "HEAD"]
             return _fake_completed(0, (HEAD + "\n").encode("ascii"))
-        assert cmd[3] == "show"
-        assert cmd[4].startswith("HEAD:")
-        relpath = cmd[4][len("HEAD:") :]
-        raw = overrides[relpath] if relpath in overrides else (root / relpath).read_bytes()
-        return _fake_completed(0, raw)
+        if cmd[3:] == ["show", "-s", "--format=%P", HEAD]:
+            return _fake_completed(0, parent_output)
+        if cmd[3] == "show":
+            assert len(cmd) == 5
+            revision, separator, relpath = cmd[4].partition(":")
+            assert separator == ":"
+            assert revision in {"HEAD", HEAD}
+            raw = overrides[cmd[4]] if cmd[4] in overrides else (root / relpath).read_bytes()
+            return _fake_completed(0, raw)
+        assert cmd[3:] == [
+            "diff-tree", "--no-commit-id", "--name-only", "-r", "-z",
+            "--no-renames", "--ignore-submodules=none", SOURCE_COMMIT, HEAD,
+        ]
+        return _fake_completed(0, changed_output)
 
     monkeypatch.setattr(F.subprocess, "run", fake_run)
+    return calls
 
 
 def _verified_calibration(
@@ -362,6 +389,51 @@ def _verified_calibration(
     )
 
 
+def _real_git(root: Path, *args: str) -> bytes:
+    completed = REAL_SUBPROCESS_RUN(
+        ["git", "-C", str(root), *args],
+        capture_output=True,
+        check=False,
+    )
+    assert completed.returncode == 0, bytes(completed.stderr).decode(
+        "utf-8", errors="replace"
+    )
+    return bytes(completed.stdout)
+
+
+def _init_real_git_repo(tmp_path: Path) -> tuple[Path, dict[str, str], str, str]:
+    root = tmp_path / "repo"
+    root.mkdir()
+    _real_git(root, "init")
+    _real_git(root, "config", "user.name", "Floor Pair Test")
+    _real_git(root, "config", "user.email", "floor-pair@example.invalid")
+    hashes = _write_inputs(root)
+    (root / "out/.gitkeep").write_bytes(b"")
+    _real_git(root, "add", "--", "refs", "bin", "out/.gitkeep")
+    _real_git(root, "-c", "commit.gpgsign=false", "commit", "-m", "fixed inputs")
+    parent = _real_git(root, "rev-parse", "HEAD").decode("ascii").strip()
+    primary_branch = (
+        _real_git(root, "branch", "--show-current").decode("ascii").strip()
+    )
+    return root, hashes, parent, primary_branch
+
+
+def _write_real_spec(root: Path, hashes: dict[str, str], parent: str) -> bytes:
+    document = _valid_document(hashes)
+    document["provenance"]["source_commit"] = parent
+    raw = _canonical(document)
+    (root / "spec.json").write_bytes(raw)
+    return raw
+
+
+def _install_calibration_verifier(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        F.calibration_verify,
+        "load_verified_calibration",
+        lambda **kwargs: _verified_calibration(),
+    )
+
+
 def _prepare_spec(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -369,14 +441,14 @@ def _prepare_spec(
     document: dict[str, object] | None = None,
     raw: bytes | None = None,
     expected_sha256: str | None = None,
-    head_overrides: dict[str, bytes] | None = None,
+    blob_overrides: dict[str, bytes] | None = None,
     verified=None,
 ) -> tuple[F.FloorPairSpec, dict[str, object], bytes]:
     hashes = _write_inputs(tmp_path)
     effective_document = _valid_document(hashes) if document is None else document
     effective_raw = _canonical(effective_document) if raw is None else raw
     (tmp_path / "spec.json").write_bytes(effective_raw)
-    _install_git(monkeypatch, tmp_path, head_overrides=head_overrides)
+    _install_git(monkeypatch, tmp_path, blob_overrides=blob_overrides)
     verified_value = _verified_calibration() if verified is None else verified
     monkeypatch.setattr(
         F.calibration_verify,
@@ -419,6 +491,107 @@ def _prepare_configured_spec(
         Path("spec.json"), hashlib.sha256(raw).hexdigest(), repo_root=tmp_path
     )
     return spec, document, raw
+
+
+def test_real_git_spec_only_child_loads_from_fresh_checkout(tmp_path, monkeypatch):
+    root, hashes, parent, _primary_branch = _init_real_git_repo(tmp_path)
+    raw = _write_real_spec(root, hashes, parent)
+    _real_git(root, "add", "--", "spec.json")
+    _real_git(root, "-c", "commit.gpgsign=false", "commit", "-m", "freeze spec")
+    loaded_head = _real_git(root, "rev-parse", "HEAD").decode("ascii").strip()
+    checkout = tmp_path / "checkout"
+    _real_git(root, "worktree", "add", "--detach", str(checkout), loaded_head)
+    _install_calibration_verifier(monkeypatch)
+
+    spec = F.load_frozen_spec(
+        Path("spec.json"), hashlib.sha256(raw).hexdigest(), repo_root=checkout
+    )
+
+    assert (checkout / "out/.gitkeep").is_file()
+    assert spec.provenance.source_commit == parent
+    assert spec.loaded_head == loaded_head
+    assert spec.provenance.source_commit != spec.loaded_head
+
+
+def test_real_git_spec_and_another_path_in_freeze_commit_are_rejected(
+    tmp_path, monkeypatch
+):
+    root, hashes, parent, _primary_branch = _init_real_git_repo(tmp_path)
+    raw = _write_real_spec(root, hashes, parent)
+    (root / "unexpected.txt").write_bytes(b"not part of a spec-only freeze\n")
+    _real_git(root, "add", "--", "spec.json", "unexpected.txt")
+    _real_git(root, "-c", "commit.gpgsign=false", "commit", "-m", "mixed freeze")
+    _install_calibration_verifier(monkeypatch)
+
+    with pytest.raises(F.FloorPairBindingError, match="changed paths"):
+        F.load_frozen_spec(
+            Path("spec.json"), hashlib.sha256(raw).hexdigest(), repo_root=root
+        )
+
+
+def test_real_git_spec_and_ignored_gitlink_in_freeze_commit_are_rejected(
+    tmp_path, monkeypatch
+):
+    root, hashes, _initial_parent, _primary_branch = _init_real_git_repo(tmp_path)
+    (root / ".gitmodules").write_text(
+        "[submodule \"vendor/db\"]\n"
+        "\tpath = vendor/db\n"
+        "\turl = https://example.invalid/vendor-db.git\n"
+        "\tignore = all\n",
+        encoding="utf-8",
+    )
+    _real_git(root, "add", "--", ".gitmodules")
+    _real_git(
+        root,
+        "update-index",
+        "--add",
+        "--cacheinfo",
+        f"160000,{'1' * 40},vendor/db",
+    )
+    _real_git(root, "-c", "commit.gpgsign=false", "commit", "-m", "add submodule")
+    parent = _real_git(root, "rev-parse", "HEAD").decode("ascii").strip()
+
+    raw = _write_real_spec(root, hashes, parent)
+    _real_git(root, "add", "--", "spec.json")
+    _real_git(
+        root,
+        "update-index",
+        "--add",
+        "--cacheinfo",
+        f"160000,{'2' * 40},vendor/db",
+    )
+    _real_git(root, "-c", "commit.gpgsign=false", "commit", "-m", "mixed freeze")
+    _install_calibration_verifier(monkeypatch)
+
+    with pytest.raises(F.FloorPairBindingError, match="changed paths"):
+        F.load_frozen_spec(
+            Path("spec.json"), hashlib.sha256(raw).hexdigest(), repo_root=root
+        )
+
+
+def test_real_git_merge_commit_at_loaded_head_is_rejected(tmp_path, monkeypatch):
+    root, hashes, parent, primary_branch = _init_real_git_repo(tmp_path)
+    _real_git(root, "checkout", "-b", "freeze")
+    raw = _write_real_spec(root, hashes, parent)
+    _real_git(root, "add", "--", "spec.json")
+    _real_git(root, "-c", "commit.gpgsign=false", "commit", "-m", "freeze spec")
+    _real_git(root, "checkout", primary_branch)
+    _real_git(
+        root,
+        "-c",
+        "commit.gpgsign=false",
+        "merge",
+        "--no-ff",
+        "freeze",
+        "-m",
+        "merge freeze",
+    )
+    _install_calibration_verifier(monkeypatch)
+
+    with pytest.raises(F.FloorPairBindingError, match="唯一の親"):
+        F.load_frozen_spec(
+            Path("spec.json"), hashlib.sha256(raw).hexdigest(), repo_root=root
+        )
 
 
 PUBLIC_DATACLASSES = (
@@ -469,9 +642,10 @@ def test_module_docstring_names_limits_and_unrecorded_env_failure_is_not_a_statu
         "(stratum ごとの件数は報告する)。"
     ) in F.NOT_PROVEN
     assert (
-        "凍結項目の一致検査は同一 revision 内の自己整合を示すだけであり、"
-        "定数が D1699 の裁定値であることを証明しない。独立な pin も "
-        "freeze receipt も無い。"
+        "source commit と spec-only child は spec path を除く tree の同値だけを"
+        "保証する。commit OID の同値と、実行中 module bytes が記録 commit に"
+        "対応することは保証しない。定数が D1699 の裁定値であることを証明する"
+        "独立な pin も freeze receipt も無い。"
     ) in F.NOT_PROVEN
     assert (
         "測定実体は module 属性であり、同一 process 内でこれを差し替える経路は防がない。"
@@ -695,11 +869,53 @@ def test_mutation_03_head_blob_byte_mismatch_is_rejected(tmp_path, monkeypatch):
     document, _hashes = _document_only(tmp_path)
     raw = _canonical(document)
     (tmp_path / "spec.json").write_bytes(raw)
-    _install_git(monkeypatch, tmp_path, head_overrides={"spec.json": raw + b"\n"})
+    _install_git(
+        monkeypatch,
+        tmp_path,
+        blob_overrides={f"{HEAD}:spec.json": raw + b"\n"},
+    )
     with pytest.raises(F.FloorPairBindingError, match="HEAD tracked blob"):
         F.load_frozen_spec(
             Path("spec.json"), hashlib.sha256(raw).hexdigest(), repo_root=tmp_path
         )
+
+
+def test_blob_queries_use_the_once_resolved_loaded_head(tmp_path, monkeypatch):
+    document, _hashes = _document_only(tmp_path)
+    raw = _canonical(document)
+    (tmp_path / "spec.json").write_bytes(raw)
+    git_calls = _install_git(
+        monkeypatch,
+        tmp_path,
+        blob_overrides={
+            "HEAD:spec.json": raw + b"symbolic HEAD must not be queried",
+            f"{HEAD}:spec.json": raw,
+        },
+    )
+    _install_calibration_verifier(monkeypatch)
+
+    spec = F.load_frozen_spec(
+        Path("spec.json"), hashlib.sha256(raw).hexdigest(), repo_root=tmp_path
+    )
+
+    assert spec.loaded_head == HEAD
+    assert sum(call[3:] == ("rev-parse", "HEAD") for call in git_calls) == 1
+    blob_queries = [
+        call[4]
+        for call in git_calls
+        if len(call) == 5 and call[3] == "show" and ":" in call[4]
+    ]
+    unique_receipt_paths = {
+        artifact["build_receipt"]["path"] for artifact in document["artifacts"]
+    }
+    expected_blob_queries = Counter(
+        [
+            f"{HEAD}:spec.json",
+            f"{HEAD}:{document['provenance']['calibration']['path']}",
+            *(f"{HEAD}:{path}" for path in unique_receipt_paths),
+        ]
+    )
+    assert Counter(blob_queries) == expected_blob_queries
 
 
 def test_tracked_calibration_declared_sha_mismatch_is_rejected_for_sha_only(
@@ -718,7 +934,7 @@ def test_tracked_calibration_declared_sha_mismatch_is_rejected_for_sha_only(
     _install_git(
         monkeypatch,
         tmp_path,
-        head_overrides={"refs/calibration.json": calibration_raw},
+        blob_overrides={f"{HEAD}:refs/calibration.json": calibration_raw},
     )
     monkeypatch.setattr(
         F.calibration_verify,
@@ -734,7 +950,7 @@ def test_tracked_calibration_declared_sha_mismatch_is_rejected_for_sha_only(
         )
 
 
-@pytest.mark.parametrize("operation", ("head", "show"))
+@pytest.mark.parametrize("operation", ("head", "show", "parents", "changed-paths"))
 def test_git_startup_failure_is_normalized_to_driver_binding_error(
     tmp_path, monkeypatch, operation
 ):
@@ -745,8 +961,54 @@ def test_git_startup_failure_is_normalized_to_driver_binding_error(
     with pytest.raises(F.FloorPairBindingError, match="git"):
         if operation == "head":
             F._git_head(tmp_path)
+        elif operation == "show":
+            F._git_show_head(tmp_path, HEAD, "spec.json")
+        elif operation == "parents":
+            F._git_parents(tmp_path, HEAD)
         else:
-            F._git_show_head(tmp_path, "spec.json")
+            F._git_changed_paths(tmp_path, SOURCE_COMMIT, HEAD)
+
+
+@pytest.mark.parametrize("operation", ("head", "show", "parents", "changed-paths"))
+def test_git_nonzero_exit_is_normalized_to_driver_binding_error(
+    tmp_path, monkeypatch, operation
+):
+    monkeypatch.setattr(
+        F.subprocess,
+        "run",
+        lambda *args, **kwargs: _fake_completed(1, b"", b"git fixture failure"),
+    )
+    with pytest.raises(F.FloorPairBindingError, match="git"):
+        if operation == "head":
+            F._git_head(tmp_path)
+        elif operation == "show":
+            F._git_show_head(tmp_path, HEAD, "spec.json")
+        elif operation == "parents":
+            F._git_parents(tmp_path, HEAD)
+        else:
+            F._git_changed_paths(tmp_path, SOURCE_COMMIT, HEAD)
+
+
+@pytest.mark.parametrize(
+    ("operation", "stdout"),
+    [
+        ("parents", SOURCE_COMMIT.encode("ascii")),
+        ("changed-paths", b"spec.json"),
+    ],
+)
+def test_git_lineage_helpers_reject_malformed_raw_stdout(
+    tmp_path, monkeypatch, operation, stdout
+):
+    monkeypatch.setattr(
+        F.subprocess,
+        "run",
+        lambda *args, **kwargs: _fake_completed(0, stdout),
+    )
+    with pytest.raises(F.FloorPairBindingError, match="git"):
+        if operation == "parents":
+            F._git_parents(tmp_path, HEAD)
+        else:
+            F._git_changed_paths(tmp_path, SOURCE_COMMIT, HEAD)
 
 
 @pytest.mark.parametrize(
@@ -993,9 +1255,11 @@ def test_mutation_16_probe_command_is_not_a_spec_field(tmp_path, monkeypatch):
     assert F.COMPETING_PROBE_ARGV == ("pgrep", "-af", r"ycsb_.*\.exe")
 
 
-def test_mutation_19_source_commit_must_equal_loaded_head(tmp_path, monkeypatch):
+def test_mutation_19_source_commit_must_equal_loaded_head_only_parent(
+    tmp_path, monkeypatch
+):
     document, _hashes = _document_only(tmp_path)
-    document["provenance"]["source_commit"] = "a" * 40
+    document["provenance"]["source_commit"] = "c" * 40
     raw = _canonical(document)
     (tmp_path / "spec.json").write_bytes(raw)
     _install_git(monkeypatch, tmp_path)
@@ -1004,7 +1268,7 @@ def test_mutation_19_source_commit_must_equal_loaded_head(tmp_path, monkeypatch)
         "load_verified_calibration",
         lambda **kwargs: _verified_calibration(),
     )
-    with pytest.raises(F.FloorPairBindingError, match="source_commit"):
+    with pytest.raises(F.FloorPairBindingError, match="唯一の親"):
         F.load_frozen_spec(
             Path("spec.json"), hashlib.sha256(raw).hexdigest(), repo_root=tmp_path
         )
@@ -2000,9 +2264,7 @@ def test_mutation_10_exclusive_create_rejects_existing_path_before_measurement(
     assert calls == []
 
 
-def test_runtime_head_must_complete_source_commit_three_way_binding(
-    tmp_path, monkeypatch
-):
+def test_runtime_head_must_equal_loaded_head(tmp_path, monkeypatch):
     spec, _document, _raw = _prepare_spec(tmp_path, monkeypatch)
     plan = F.make_measurement_plan(spec)
     _install_live_and_trace(monkeypatch)
@@ -2011,7 +2273,7 @@ def test_runtime_head_must_complete_source_commit_three_way_binding(
         F.run_window(
             spec, plan, "window-a", probe_fn=_clear_probe, now_fn=lambda: NOW
         )
-    assert excinfo.value.status == "source_commit_mismatch"
+    assert excinfo.value.status == "loaded_head_mismatch"
     assert not (tmp_path / "out/window-a.jsonl").exists()
 
 

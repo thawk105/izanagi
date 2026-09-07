@@ -63,7 +63,7 @@ def _synthetic_source(
             )
     spec["outputs"]["summary_relpath"] = "out/summary.json"
     spec_sha = _write_bytes(root, "refs/spec.json", _canonical(spec))
-    driver_tests._install_git(monkeypatch, root)
+    driver_tests._install_git(monkeypatch, root, spec_relpath="refs/spec.json")
     if receipt_has_protocol:
         # The portable receipt contract does not yet carry the protocol field.
         # Preserve every real receipt check while isolating only that known
@@ -106,7 +106,7 @@ def _synthetic_source(
         "format": floor_pair_driver.SUMMARY_FORMAT_ID,
         "spec_relpath": "refs/spec.json",
         "spec_sha256": spec_sha,
-        "loaded_head": "b" * 40,
+        "loaded_head": driver_tests.HEAD,
         "plan_sha256": hashlib.sha256(b"synthetic plan").hexdigest(),
         "generated_at": "2030-01-01T00:30:00Z",
         "status": "generated",
@@ -507,6 +507,12 @@ def test_authority_issue_is_create_only_exact_and_loadable(
     accepted_summary = issuer.load_floor_pair_summary(
         repo_root=tmp_path, summary_path=summary_path
     )
+    parsed_spec = floor_pair_driver.load_frozen_spec(
+        Path(summary["spec_relpath"]),
+        summary["spec_sha256"],
+        repo_root=tmp_path,
+    )
+    assert summary["loaded_head"] == parsed_spec.loaded_head
     result = issuer.issue_authoritative_floor(
         repo_root=tmp_path, summary_path=summary_path
     )

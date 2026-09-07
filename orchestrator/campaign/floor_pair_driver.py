@@ -19,7 +19,7 @@ session 構成、runner 引数を閉じた専用 adapter である。
 * ``nm`` の PATH 解決先を binary identity として束縛しない。
 * 落ちた標本による残存標本数の減少を許容限界の被覆確率へ補正せず、残存標本で 95% 被覆を保つことを証明しない。
 * campaign 合算の 5% は pair 間の欠測の偏りを制限しない (stratum ごとの件数は報告する)。
-* 凍結項目の一致検査は同一 revision 内の自己整合を示すだけであり、定数が D1699 の裁定値であることを証明しない。独立な pin も freeze receipt も無い。
+* source commit と spec-only child は spec path を除く tree の同値だけを保証する。commit OID の同値と、実行中 module bytes が記録 commit に対応することは保証しない。定数が D1699 の裁定値であることを証明する独立な pin も freeze receipt も無い。
 * 測定実体は module 属性であり、同一 process 内でこれを差し替える経路は防がない。
 """
 from __future__ import annotations
@@ -83,7 +83,7 @@ NOT_PROVEN = (
     "``nm`` の PATH 解決先を binary identity として束縛しない。",
     "落ちた標本による残存標本数の減少を許容限界の被覆確率へ補正せず、残存標本で 95% 被覆を保つことを証明しない。",
     "campaign 合算の 5% は pair 間の欠測の偏りを制限しない (stratum ごとの件数は報告する)。",
-    "凍結項目の一致検査は同一 revision 内の自己整合を示すだけであり、定数が D1699 の裁定値であることを証明しない。独立な pin も freeze receipt も無い。",
+    "source commit と spec-only child は spec path を除く tree の同値だけを保証する。commit OID の同値と、実行中 module bytes が記録 commit に対応することは保証しない。定数が D1699 の裁定値であることを証明する独立な pin も freeze receipt も無い。",
     "測定実体は module 属性であり、同一 process 内でこれを差し替える経路は防がない。",
 )
 
@@ -535,22 +535,22 @@ def _validate_output_path(root: Path, relpath: str, *, label: str) -> Path:
     return target
 
 
-def _git_show_head(root: Path, relpath: str) -> bytes:
+def _git_show_head(root: Path, loaded_head: str, relpath: str) -> bytes:
     try:
         completed = subprocess.run(
-            ["git", "-C", str(root), "show", f"HEAD:{relpath}"],
+            ["git", "-C", str(root), "show", f"{loaded_head}:{relpath}"],
             capture_output=True,
             check=False,
             timeout=_GIT_TIMEOUT_S,
         )
     except (OSError, subprocess.SubprocessError) as exc:
         raise FloorPairBindingError(
-            f"git show HEAD を起動または完了できない: {relpath}: {exc}"
+            f"git show loaded HEAD を起動または完了できない: {relpath}: {exc}"
         ) from exc
     if completed.returncode != 0:
         stderr = bytes(completed.stderr).decode("utf-8", errors="replace")
         raise FloorPairBindingError(
-            f"HEAD に tracked blob がない: {relpath}: {stderr[-200:]}"
+            f"loaded HEAD に tracked blob がない: {relpath}: {stderr[-200:]}"
         )
     return bytes(completed.stdout)
 
@@ -578,8 +578,83 @@ def _git_head(root: Path) -> str:
     return value
 
 
+def _git_parents(root: Path, loaded_head: str) -> tuple[str, ...]:
+    try:
+        completed = subprocess.run(
+            ["git", "-C", str(root), "show", "-s", "--format=%P", loaded_head],
+            capture_output=True,
+            check=False,
+            timeout=_GIT_TIMEOUT_S,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise FloorPairBindingError(
+            f"git show parents を起動または完了できない: {exc}"
+        ) from exc
+    if completed.returncode != 0:
+        raise FloorPairBindingError("git show parents に失敗した")
+    raw = bytes(completed.stdout)
+    if not raw.endswith(b"\n") or b"\n" in raw[:-1]:
+        raise FloorPairBindingError("git show parents の出力が単一行でない")
+    try:
+        line = raw[:-1].decode("ascii")
+    except UnicodeError as exc:
+        raise FloorPairBindingError("git show parents の出力が ASCII でない") from exc
+    if line == "":
+        return ()
+    parents = tuple(line.split(" "))
+    if any(_HEX40_RE.fullmatch(parent) is None for parent in parents):
+        raise FloorPairBindingError(
+            "git show parents の出力に 40 桁 lowercase hex でない OID がある"
+        )
+    return parents
+
+
+def _git_changed_paths(
+    root: Path, source_commit: str, loaded_head: str
+) -> tuple[bytes, ...]:
+    try:
+        completed = subprocess.run(
+            [
+                "git",
+                "-C",
+                str(root),
+                "diff-tree",
+                "--no-commit-id",
+                "--name-only",
+                "-r",
+                "-z",
+                "--no-renames",
+                "--ignore-submodules=none",
+                source_commit,
+                loaded_head,
+            ],
+            capture_output=True,
+            check=False,
+            timeout=_GIT_TIMEOUT_S,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise FloorPairBindingError(
+            f"git diff-tree を起動または完了できない: {exc}"
+        ) from exc
+    if completed.returncode != 0:
+        raise FloorPairBindingError("git diff-tree に失敗した")
+    raw = bytes(completed.stdout)
+    if raw == b"":
+        return ()
+    if not raw.endswith(b"\0"):
+        raise FloorPairBindingError("git diff-tree の path 出力が NUL 終端でない")
+    paths = tuple(raw[:-1].split(b"\0"))
+    if any(path == b"" for path in paths):
+        raise FloorPairBindingError("git diff-tree の path 出力に空 path がある")
+    return paths
+
+
 def _read_tracked_bound(
-    root: Path, reference: BoundReference | CalibrationReference, *, label: str
+    root: Path,
+    loaded_head: str,
+    reference: BoundReference | CalibrationReference,
+    *,
+    label: str,
 ) -> bytes:
     target = _resolve_regular(root, reference.path, label=label)
     try:
@@ -591,9 +666,11 @@ def _read_tracked_bound(
         raise FloorPairBindingError(
             f"{label} sha256 不一致: expected={reference.sha256}, observed={actual}"
         )
-    head_raw = _git_show_head(root, reference.path)
+    head_raw = _git_show_head(root, loaded_head, reference.path)
     if raw != head_raw:
-        raise FloorPairBindingError(f"{label} が HEAD tracked blob と byte 一致しない")
+        raise FloorPairBindingError(
+            f"{label} が loaded HEAD tracked blob と byte 一致しない"
+        )
     return raw
 
 
@@ -1083,12 +1160,15 @@ def _validate_build_receipt(raw: bytes, artifact: ArtifactConfig) -> None:
 def _bind_checkout_inputs(
     *,
     root: Path,
+    loaded_head: str,
     provenance: ProvenanceConfig,
     environment: EnvironmentConfig,
     artifacts: tuple[ArtifactConfig, ...],
     cells: tuple[CellConfig, ...],
 ) -> None:
-    _read_tracked_bound(root, provenance.calibration, label="calibration artifact")
+    _read_tracked_bound(
+        root, loaded_head, provenance.calibration, label="calibration artifact"
+    )
     receipt_raw_by_reference: dict[BoundReference, bytes] = {}
     for artifact in artifacts:
         binary = _resolve_regular(root, artifact.binary_relpath, label=f"binary {artifact.artifact_id}")
@@ -1100,7 +1180,10 @@ def _bind_checkout_inputs(
             ) from exc
         if artifact.build_receipt not in receipt_raw_by_reference:
             receipt_raw_by_reference[artifact.build_receipt] = _read_tracked_bound(
-                root, artifact.build_receipt, label=f"build receipt {artifact.artifact_id}"
+                root,
+                loaded_head,
+                artifact.build_receipt,
+                label=f"build receipt {artifact.artifact_id}",
             )
         _validate_build_receipt(
             receipt_raw_by_reference[artifact.build_receipt], artifact
@@ -1152,10 +1235,11 @@ def _bind_checkout_inputs(
 def load_frozen_spec(
     path: Path, expected_sha256: str, *, repo_root: Path
 ) -> FloorPairSpec:
-    """HEAD tracked JSON と byte 一致する凍結 spec を strict に読み、参照を束縛する。
+    """loaded HEAD tracked JSON と byte 一致する凍結 spec を strict に読み、参照を束縛する。
 
     この専用 driver は校正済み動作点だけを測るため、正常な legacy
     ``attestation_mode=none`` が返す ``calibration=None`` も意図的に受理しない。
+    ``provenance.source_commit`` は spec-only freeze commit の唯一の親を表す。
     """
     if not isinstance(path, Path) or not isinstance(repo_root, Path):
         raise FloorPairBindingError("path と repo_root は Path でなければならない")
@@ -1163,6 +1247,7 @@ def load_frozen_spec(
         root = repo_root.resolve(strict=True)
     except OSError as exc:
         raise FloorPairBindingError(f"repo_root を解決できない: {exc}") from exc
+    loaded_head = _git_head(root)
     try:
         lexical = path if path.is_absolute() else root / path
         relpath = lexical.relative_to(root).as_posix()
@@ -1187,9 +1272,11 @@ def load_frozen_spec(
         raise FloorPairBindingError(
             f"frozen spec sha256 不一致: expected={expected_sha256}, observed={actual_sha256}"
         )
-    head_raw = _git_show_head(root, relpath)
+    head_raw = _git_show_head(root, loaded_head, relpath)
     if raw != head_raw:
-        raise FloorPairBindingError("frozen spec が HEAD tracked blob と byte 一致しない")
+        raise FloorPairBindingError(
+            "frozen spec が loaded HEAD tracked blob と byte 一致しない"
+        )
     document = _load_json(raw, label="frozen spec", error_type=FloorPairSpecError)
     top = _exact_object(
         document,
@@ -1227,15 +1314,22 @@ def load_frozen_spec(
         _validate_output_path(root, output_path, label=f"output[{index}]")
     _bind_checkout_inputs(
         root=root,
+        loaded_head=loaded_head,
         provenance=provenance,
         environment=environment,
         artifacts=artifacts,
         cells=cells,
     )
-    loaded_head = _git_head(root)
-    if provenance.source_commit != loaded_head:
+    if _git_parents(root, loaded_head) != (provenance.source_commit,):
         raise FloorPairBindingError(
-            "provenance.source_commit が spec load 時の HEAD と一致しない"
+            "provenance.source_commit が loaded HEAD の唯一の親と一致しない"
+        )
+    if _git_changed_paths(root, provenance.source_commit, loaded_head) != (
+        os.fsencode(relpath),
+    ):
+        raise FloorPairBindingError(
+            "provenance.source_commit から loaded HEAD への changed paths が "
+            "frozen spec path だけでない"
         )
     return FloorPairSpec(
         schema=schema,
@@ -2173,13 +2267,10 @@ def run_window(
     sessions = _window_sessions(plan, window_id)
     _assert_live_environment(spec)
     runtime_head = _git_head(spec.repo_root)
-    if (
-        runtime_head != spec.loaded_head
-        or runtime_head != spec.provenance.source_commit
-    ):
+    if runtime_head != spec.loaded_head:
         raise FloorPairRunError(
-            "runtime HEAD が loaded HEAD / provenance.source_commit と一致しない",
-            status="source_commit_mismatch",
+            "runtime HEAD が loaded HEAD と一致しない",
+            status="loaded_head_mismatch",
         )
     output_path = _validate_output_path(
         spec.repo_root, window.artifact_relpath, label=f"window {window.window_id} output"
@@ -2647,7 +2738,7 @@ def _validate_window_artifact(
         "spec_relpath": spec.spec_relpath,
         "spec_sha256": spec.spec_sha256,
         "loaded_head": spec.loaded_head,
-        "runtime_head": spec.provenance.source_commit,
+        "runtime_head": spec.loaded_head,
         "plan_sha256": plan.plan_sha256,
         "randomization_algorithm": plan.randomization_algorithm,
         "seed_hex": plan.seed_hex,
