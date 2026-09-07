@@ -66,6 +66,30 @@ repo-wide の mask はそもそも走行に入っていない。
 
 MU-3 の SURVIVED は、この matrix が「殺せないこと」も報告できる状態にあることの正例である。
 
+### 受入全走
+
+4 回投入した。緑は 4 回目 (tested_main `240ee6360` / tested_tip `160c6902d`)。
+
+| 回 | 結果 | 判定 |
+|---|---|---|
+| 1 | 21568 collected / 2 failed | **当 wave 起因**。新しい実 repo 負例へ付けた `xdist_group` mark が `test_real_repo_serialization.py` の group golden に未登録だった (F42 の再発) |
+| 2 | 21571 collected / 1 error | 非帰属。`parent` lock の EX 取得が他 6 process の READ 保持で deadline 超過。単独再走は緑 (`DW-O18`) |
+| 3 | merge-message-provenance rc=70 | main が進み、両親がともに `test_real_repo_serialization.py` を触ったため Codex `role=author` の merge message が必要になった |
+| 4 | 21598 collected / **21530 passed / 68 skipped / 赤 0** | `verdict=child-green` |
+
+1 回目の赤は、単純な登録追加では閉じなかった。group の golden
+(`_LONG_LIVED_FIXTURE_GROUP_NODES_GOLDEN`) と、その group の共有 fixture の consumer 集合
+(`_REAL_REPO_FIXTURE_ACCESS_GOLDEN` の `current_commit_snapshot[module]`) は**同一の
+frozenset を共有**しており、group にだけ足すと fixture consumer 側の実測一致検査が破れる。
+負例を共有 fixture の consumer へ変え、共有 snapshot の working tree は書き換えず
+tracked bytes を自前の repo へ複製して変異させる形で閉じた
+(`verbatim/s6-fix1.md`)。検査の内容は 1 つも弱めていない。
+
+3 回目の merge については Codex `role=author` が合成を監査した (`verbatim/s6-merge-author.md`)。
+両親の変更は同じ file の別々の frozenset に入り、group の exact golden も fixture consumer
+閉包も保たれる。集合から 1 要素だけ取り出す箇所で辞書順の先頭が変わるが、file と group が
+固定値なので意味は不変である。起草された message は `verbatim/merge-message.txt`。
+
 ## 判定器へ足さなかったもの
 
 registry 側の `_functions(registry)` 存在検査は足していない。段 3 の相談 2 本が独立に

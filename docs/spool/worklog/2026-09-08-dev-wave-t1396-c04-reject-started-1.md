@@ -35,6 +35,18 @@ title: [T-1396] 判定器 C04 の到達対象へ reject_started_trial を足し�
   テストの実測はすべて親が行った。
 - 段 1 で `--reasoning` を author 段へ渡して rc=2 で 1 回落とした (DW-C01 の argv 制約)。
   launcher は起動前に落ちるので receipt は残らず、同じ prompt のまま再投入できた。
+- **受入全走は 4 回投入した。** 1 回目が当 wave 起因の赤 2 件で、F42 の再発として台帳へ書いた。
+  新しい実 repo 負例へ付けた `xdist_group` mark が
+  `test_real_repo_serialization.py` の group golden に未登録だった。単純な登録追加では
+  閉じず、負例を共有 fixture `current_commit_snapshot` の consumer へ変えて閉じた。
+  2 回目は `parent` lock の EX 取得が他 6 process の READ 保持で deadline 超過する 1 error。
+  自分の差分は他 process の reader を作れないので単独再走で確かめ、緑だったので
+  負荷・配置由来と判定した (`DW-O18`)。3 回目は main が進んで
+  `merge-message-provenance` rc=70 で止まった — 両親がともに
+  `test_real_repo_serialization.py` を触ったためで、Codex `role=author` が合成を監査して
+  merge message を起草した。4 回目が緑 (21598 collected / 21530 passed / 68 skipped / 赤 0)。
+- **記録 commit は受入より先に作った。** そのため当初の本文は受入の経過を含まず、
+  この追記で実際の手順へ揃えた (`DW-O12`)。
 
 ## 次の一手差分
 
