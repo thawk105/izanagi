@@ -1,0 +1,32 @@
+=== 形状ゲート 4 本 ===
+A_stage1       旧 passed=False kendall_distance=6 上限=2
+               新 passed=False kendall_distance=6 上限=2
+A_d1475        旧 passed=False kendall_distance=10 上限=3
+               新 passed=False kendall_distance=10 上限=3
+B_flattening   旧 passed=True  ratio=1.1088646764700947 上限=1.5
+               新 passed=True  ratio=1.1088646764700947 上限=1.5
+C_valley       旧 passed=False relative_error=1.303127163583053 上限=0.2
+               新 passed=False relative_error=1.2768901074976113 上限=0.2
+shape.passed 旧/新: False / False
+4 本すべて合否不変: True
+上限 (R5) 不変: True
+B_flattening が読む条件 bit 単位で不変: True
+ゲートが読む predicted_mean_tps の最大変化: +1.77% @ ('A_stage1', '100.0')
+
+=== 母集合の特定 ===
+母集合 A = 変化した prediction (workload x scenario x condition): 61 / 214
+母集合 B = 変化した相異なる (workload, condition): 22
+  内訳: {'write-heavy': 13, 'read-heavy': 2, 'balanced': 7}
+  step_us: [0.5, 1.0, 2.0, 5.0, 10.0, 25.0, 50.0, 100.0]
+
+§4.3 の「61 件」は母集合 A、「write-heavy 13 条件 / balanced 7 / read-heavy 2」は母集合 B。
+両者は別の数え方であり、13+7+2=22 が 61 と一致しないのは誤りではない。
+
+母集合 C = 母集合 A の rep: 488 本 (= 61 x 8)
+  相対変化 中央値 -0.141%  最小 -14.361%  最大 41.929%
+  p>100us 旧中央 0.03804 / 新中央 0.06225
+  p>100us 旧平均 0.11519 / 新平均 0.10741
+  下がった本数: 147 / 488
+
+=== 全 214 予測を母集合にした場合 (参考) ===
+  rep 1712 本、相対変化 中央値 0.000% (変化しない 153 予測が中央値を 0 へ寄せる)
