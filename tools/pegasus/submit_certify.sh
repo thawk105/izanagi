@@ -85,6 +85,9 @@ if [[ -n "$(git -C "$REPO_ROOT" status --porcelain --untracked-files=all -- . ':
   echo "working tree is dirty; certification submission aborted" >&2
   exit 2
 fi
+GIT_COMMON_DIR=$(git -C "$REPO_ROOT" rev-parse --path-format=absolute --git-common-dir) || exit 2
+SCHEDULER_OUTPUT_ROOT="$(dirname "$(dirname "$GIT_COMMON_DIR")")/izanagi-job-evidence/calibration-certify"
+mkdir -p "$SCHEDULER_OUTPUT_ROOT"
 JOB_SCRIPT_SHA256=$(sha256sum "$JOB_SCRIPT" | awk '{print $1}')
 SUBMIT_EPOCH=$(date +%s)
 NONCE=$(python3 - <<'PY'
@@ -173,7 +176,9 @@ if [[ "$preflight_rc" -ne 0 ]]; then
 fi
 
 export_spec="IZANAGI_SUBMISSION_NONCE=$NONCE,IZANAGI_CALIBRATION_RRATIO=$RRATIO"
-qsub_cmd=(qsub -v "$export_spec" "$JOB_SCRIPT")
+SCHEDULER_STDOUT="$SCHEDULER_OUTPUT_ROOT/$NONCE.scheduler.stdout"
+SCHEDULER_STDERR="$SCHEDULER_OUTPUT_ROOT/$NONCE.scheduler.stderr"
+qsub_cmd=(qsub -o "$SCHEDULER_STDOUT" -e "$SCHEDULER_STDERR" -v "$export_spec" "$JOB_SCRIPT")
 printf 'qsub command:'
 printf ' %q' "${qsub_cmd[@]}"
 printf '\n'
