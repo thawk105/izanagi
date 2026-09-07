@@ -12,6 +12,7 @@ import fcntl
 import hashlib
 import importlib.util
 import json
+import math
 import os
 import re
 import secrets
@@ -31,9 +32,6 @@ if os.fspath(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, os.fspath(_REPO_ROOT))
 
 from orchestrator.campaign import mutation_attempt_marker, site_policy  # noqa: E402
-from tools.check_ai_provenance import (  # noqa: E402
-    _dispatch_timeout_overrides,
-)
 
 
 SPEC_SCHEMA = "izanagi-dev-wave-mutation-spec/v1"
@@ -44,6 +42,12 @@ ORPHAN_STOP_SCHEMA = "izanagi-dev-wave-mutation-orphan-stop/v1"
 ORPHAN_HOLD_SCHEMA = "pegasus-orphan-hold/v1"
 ORPHAN_HOLD_NAME = "orphan-hold.json"
 ORPHAN_HOLD_DIR_NAME = "orphan-holds"
+_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE_ENV = (
+    "IZANAGI_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE"
+)
+_DISPATCH_OVERALL_GRACE_OVERRIDE_ENV = (
+    "IZANAGI_DISPATCH_OVERALL_GRACE_OVERRIDE"
+)
 ANSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 RECEIPT_LINE_RE = re.compile(
     r"^\[Pegasus dispatch\] receipt を (.+) へ保存しました \(child rc=(-?\d+)\)$"
@@ -1386,6 +1390,32 @@ def _validate_artifact(
     if current != stdout:
         raise HarnessError(f"{label}.artifact stdout bytes が保存済み証拠と不一致")
     return stdout
+
+
+def _dispatch_timeout_overrides(
+    *, environ: Mapping[str, str]
+) -> dict[str, float]:
+    """D612 の opt-in dispatch timeout 上書きを純粋に解釈する。"""
+
+    # tools/check_ai_provenance.py の同名実装と同値
+    # (test_t2337_dispatch_timeout_overrides.py の meta-test で照合する)。
+    overrides: dict[str, float] = {}
+    for env_name, keyword in (
+        (_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE_ENV, "queue_wait_timeout_s"),
+        (_DISPATCH_OVERALL_GRACE_OVERRIDE_ENV, "overall_grace_s"),
+    ):
+        raw_value = environ.get(env_name)
+        if not raw_value:
+            continue
+        value = float(raw_value)
+        if (
+            not math.isfinite(value)
+            or value < 0
+            or math.copysign(1.0, value) < 0
+        ):
+            raise ValueError(f"{env_name} は有限な非負数でなければなりません")
+        overrides[keyword] = value
+    return overrides
 
 
 def _collection_command(

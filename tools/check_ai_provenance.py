@@ -2309,6 +2309,8 @@ def _dispatch_timeout_overrides(
 ) -> dict[str, float]:
     """D612 の opt-in dispatch timeout 上書きを純粋に解釈する。"""
 
+    # tools/mutation_harness.py の同名実装と同値
+    # (test_t2337_dispatch_timeout_overrides.py の meta-test で照合する)。
     overrides: dict[str, float] = {}
     for env_name, keyword in (
         (_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE_ENV, "queue_wait_timeout_s"),

@@ -13,6 +13,50 @@ QUEUE_ENV = "IZANAGI_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE"
 GRACE_ENV = "IZANAGI_DISPATCH_OVERALL_GRACE_OVERRIDE"
 
 
+def _parser_outcome(parser, environ: dict[str, str]) -> tuple[str, object]:
+    try:
+        return "accepted", parser(environ=environ)
+    except (TypeError, ValueError):
+        return "rejected", None
+
+
+@pytest.mark.parametrize(
+    ("environ", "expected"),
+    [
+        ({}, ("accepted", {})),
+        ({QUEUE_ENV: "", GRACE_ENV: ""}, ("accepted", {})),
+        (
+            {QUEUE_ENV: "1800", GRACE_ENV: "600.5"},
+            (
+                "accepted",
+                {"queue_wait_timeout_s": 1800.0, "overall_grace_s": 600.5},
+            ),
+        ),
+        (
+            {QUEUE_ENV: "0", GRACE_ENV: "+0"},
+            (
+                "accepted",
+                {"queue_wait_timeout_s": 0.0, "overall_grace_s": 0.0},
+            ),
+        ),
+        ({QUEUE_ENV: "nan"}, ("rejected", None)),
+        ({GRACE_ENV: "inf"}, ("rejected", None)),
+        ({QUEUE_ENV: "-1"}, ("rejected", None)),
+        ({GRACE_ENV: "-0"}, ("rejected", None)),
+    ],
+)
+def test_harness_and_provenance_timeout_parsers_are_equivalent(
+    environ: dict[str, str],
+    expected: tuple[str, object],
+) -> None:
+    harness_outcome = _parser_outcome(harness._dispatch_timeout_overrides, environ)
+    provenance_outcome = _parser_outcome(
+        provenance._dispatch_timeout_overrides, environ
+    )
+
+    assert harness_outcome == provenance_outcome == expected
+
+
 def _runner_command(repo: Path) -> list[str]:
     return [
         "/usr/bin/python3",
