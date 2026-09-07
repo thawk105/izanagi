@@ -1,0 +1,371 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1815-cli-entrypoint/output/pegasus-dispatch/aa73e84f6661eef89f813d478b56988e/izdw-aa73e84f66.o981479",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1815-cli-entrypoint/output/pegasus-dispatch/aa73e84f6661eef89f813d478b56988e/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n....                                                                     [100%]\n4 passed in 3.92s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "1502f1fe1ff198f870ead91b58b1ec78accda39271fb4686fb412874ebef652b"
+    },
+    "artifact_error": null,
+    "collection_sha256": "0f4fa2ba526fd73947e931eed033b8659222fdd2efe6b77445ae9ee32cefe01b",
+    "duration_s": 58.452,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "22339cdbf9fe31a6be1e3bc61bdaedb797bbb02b691ab07ab50a9e567c2fce37",
+    "repo_head": "d53c91a2bc55e58c0196f06e7d0079eca0a2052b",
+    "runner_sha256": "901f6857a377bbe49660ef9ae3276e1b4f4e7d939d57ebddc1620ae19580f70c",
+    "spec_sha256": "baf7792348fbe17439f0cab0e0cec44c16f236f5b8ab1b22ceea6a3334b73ad4",
+    "status": "PASSED",
+    "test_output_sha256": "1502f1fe1ff198f870ead91b58b1ec78accda39271fb4686fb412874ebef652b",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "e2ea78adaa3097133b7d2521398dee83aab29ba212ae0b4d9d89fb32f275791b"
+  },
+  "date": "2026-09-07T12:11:23.274700+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1815-cli-entrypoint/output/pegasus-dispatch/da97f9ae7b60190cf7d5646b2a1f34ad/izdw-da97f9ae7b.o981483",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1815-cli-entrypoint/output/pegasus-dispatch/da97f9ae7b60190cf7d5646b2a1f34ad/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..FF                                                                     [100%]\n=================================== FAILURES ===================================\n__________ test_cli_entrypoint_matches_library_report[prereg-module] ___________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\nkind = 'prereg', invocation = 'module'\ntiny_repo = (PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/s8c-cli-tiny-repo0'), '9bfdaf33a7a2791d5a40935eb98bad16b48ed7f6')\noracle = ActivationReport(commit='9bfdaf33a7a2791d5a40935eb98bad16b48ed7f6', condition_freeze_valid=False, freeze_generation=No...5d', projection_module_blob_sha256='5af4f45c371fca6c4f41ff927a2ef6302e050b9ca773184a3052281869003457', effective=False)\nclosed_environment = {'LC_CTYPE': 'C.UTF-8', 'PATH': '/usr/bin:/bin:/home/SFC/tanab/.local/bin:/system/apps/ubuntu/20.04-202210/oneapi/2022...ystem/tool/bin:/opt/nec/nqsv/bin:/opt/memverge/bin', 'GIT_CONFIG_GLOBAL': '/dev/null', 'GIT_CONFIG_NOSYSTEM': '1', ...}\n\n    @pytest.mark.parametrize(\n        (\"kind\", \"invocation\"),\n        [\n            pytest.param(\"prereg\", \"path\", id=\"prereg-path\"),\n            pytest.param(\"prereg\", \"module\", id=\"prereg-module\"),\n            pytest.param(\"gate\", \"path\", id=\"gate-path\"),\n            pytest.param(\"gate\", \"module\", id=\"gate-module\"),\n        ],\n    )\n    def test_cli_entrypoint_matches_library_report(\n        kind: str,\n        invocation: str,\n        tiny_repo: tuple[Path, str],\n        oracle: P.ActivationReport,\n        closed_environment: dict[str, str],\n    ) -> None:\n        repo_root, commit = tiny_repo\n        if kind == \"prereg\":\n            target = (\n                [sys.executable, str(_PREREG_PATH)]\n                if invocation == \"path\"\n                else [\n                    sys.executable,\n                    \"-m\",\n                    \"orchestrator.campaign.s8c_preregistration\",\n                ]\n            )\n            command = [\n                *target,\n                \"check\",\n                \"--json\",\n                \"--repo-root\",\n                str(repo_root),\n                \"--commit\",\n                commit,\n            ]\n        else:\n            target = (\n                [sys.executable, str(_GATE_PATH)]\n                if invocation == \"path\"\n                else [\n                    sys.executable,\n                    \"-m\",\n                    \"orchestrator.campaign.s8c_gate_report\",\n                ]\n            )\n            command = [\n                *target,\n                \"--repo-root\",\n                str(repo_root),\n                \"--commit\",\n                commit,\n            ]\n    \n        completed = subprocess.run(\n            command,\n            cwd=_ROOT,\n            check=False,\n            capture_output=True,\n            text=True,\n            env=closed_environment,\n        )\n        payload = json.loads(completed.stdout)\n        expected_predicates = tuple(\n            (item.id, item.status.value, item.reason_code)\n            for item in oracle.predicates\n        )\n    \n        if kind == \"prereg\":\n            actual_commit = payload[\"commit\"]\n            actual_predicates = tuple(\n                (item[\"id\"], item[\"status\"], item[\"reason_code\"])\n                for item in payload[\"predicates\"]\n            )\n            actual_effective = payload[\"effective\"]\n        else:\n            actual_commit = payload[\"source\"][\"commit\"]\n            actual_predicates = tuple(\n                (item[\"id\"], item[\"status\"], item[\"reason_code\"])\n                for item in payload[\"predicates\"][\"results\"]\n            )\n            actual_effective = payload[\"source\"][\"effective\"]\n    \n        assert actual_commit == commit\n>       assert actual_predicates == expected_predicates\nE       AssertionError: assert (('C01', 'ERR...eption'), ...) == (('C01', 'EVI...efined'), ...)\nE         \nE         At index 0 diff: ('C01', 'ERROR', 'evaluator-exception') != ('C01', 'EVIDENCE_UNDEFINED', 'workload-supervisor-absent')\nE         Use -v to get more diff\n\norchestrator/tests/test_s8c_cli_entrypoints.py:239: AssertionError\n___________ test_cli_entrypoint_matches_library_report[prereg-path] ____________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\nkind = 'prereg', invocation = 'path'\ntiny_repo = (PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/s8c-cli-tiny-repo0'), '9bfdaf33a7a2791d5a40935eb98bad16b48ed7f6')\noracle = ActivationReport(commit='9bfdaf33a7a2791d5a40935eb98bad16b48ed7f6', condition_freeze_valid=False, freeze_generation=No...5d', projection_module_blob_sha256='5af4f45c371fca6c4f41ff927a2ef6302e050b9ca773184a3052281869003457', effective=False)\nclosed_environment = {'LC_CTYPE': 'C.UTF-8', 'PATH': '/usr/bin:/bin:/home/SFC/tanab/.local/bin:/system/apps/ubuntu/20.04-202210/oneapi/2022...ystem/tool/bin:/opt/nec/nqsv/bin:/opt/memverge/bin', 'GIT_CONFIG_GLOBAL': '/dev/null', 'GIT_CONFIG_NOSYSTEM': '1', ...}\n\n    @pytest.mark.parametrize(\n        (\"kind\", \"invocation\"),\n        [\n            pytest.param(\"prereg\", \"path\", id=\"prereg-path\"),\n            pytest.param(\"prereg\", \"module\", id=\"prereg-module\"),\n            pytest.param(\"gate\", \"path\", id=\"gate-path\"),\n            pytest.param(\"gate\", \"module\", id=\"gate-module\"),\n        ],\n    )\n    def test_cli_entrypoint_matches_library_report(\n        kind: str,\n        invocation: str,\n        tiny_repo: tuple[Path, str],\n        oracle: P.ActivationReport,\n        closed_environment: dict[str, str],\n    ) -> None:\n        repo_root, commit = tiny_repo\n        if kind == \"prereg\":\n            target = (\n                [sys.executable, str(_PREREG_PATH)]\n                if invocation == \"path\"\n                else [\n                    sys.executable,\n                    \"-m\",\n                    \"orchestrator.campaign.s8c_preregistration\",\n                ]\n            )\n            command = [\n                *target,\n                \"check\",\n                \"--json\",\n                \"--repo-root\",\n                str(repo_root),\n                \"--commit\",\n                commit,\n            ]\n        else:\n            target = (\n                [sys.executable, str(_GATE_PATH)]\n                if invocation == \"path\"\n                else [\n                    sys.executable,\n                    \"-m\",\n                    \"orchestrator.campaign.s8c_gate_report\",\n                ]\n            )\n            command = [\n                *target,\n                \"--repo-root\",\n                str(repo_root),\n                \"--commit\",\n                commit,\n            ]\n    \n        completed = subprocess.run(\n            command,\n            cwd=_ROOT,\n            check=False,\n            capture_output=True,\n            text=True,\n            env=closed_environment,\n        )\n        payload = json.loads(completed.stdout)\n        expected_predicates = tuple(\n            (item.id, item.status.value, item.reason_code)\n            for item in oracle.predicates\n        )\n    \n        if kind == \"prereg\":\n            actual_commit = payload[\"commit\"]\n            actual_predicates = tuple(\n                (item[\"id\"], item[\"status\"], item[\"reason_code\"])\n                for item in payload[\"predicates\"]\n            )\n            actual_effective = payload[\"effective\"]\n        else:\n            actual_commit = payload[\"source\"][\"commit\"]\n            actual_predicates = tuple(\n                (item[\"id\"], item[\"status\"], item[\"reason_code\"])\n                for item in payload[\"predicates\"][\"results\"]\n            )\n            actual_effective = payload[\"source\"][\"effective\"]\n    \n        assert actual_commit == commit\n>       assert actual_predicates == expected_predicates\nE       AssertionError: assert (('C01', 'ERR...eption'), ...) == (('C01', 'EVI...efined'), ...)\nE         \nE         At index 0 diff: ('C01', 'ERROR', 'evaluator-exception') != ('C01', 'EVIDENCE_UNDEFINED', 'workload-supervisor-absent')\nE         Use -v to get more diff\n\norchestrator/tests/test_s8c_cli_entrypoints.py:239: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8c_cli_entrypoints.py::test_cli_entrypoint_matches_library_report[prereg-module]\nFAILED orchestrator/tests/test_s8c_cli_entrypoints.py::test_cli_entrypoint_matches_library_report[prereg-path]\n2 failed, 2 passed in 3.97s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_cli_entrypoints.py::test_cli_entrypoint_matches_library_report[prereg-module]\" nodeid_bytes=105 nodeid_omitted_bytes=0 source_bytes=3828 retained_bytes=3828 omitted_bytes=0 rendered_excerpt_bytes=4025 sha256=96a6a57adf8e729aeaff2ddd65d9825d52c99839bfa4129e8253bc9106e30c72\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n> kind = 'prereg', invocation = 'module'\n> tiny_repo = (PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/s8c-cli-tiny-repo0'), '9bfdaf33a7a2791d5a40935eb98bad16b48ed7f6')\n> oracle = ActivationReport(commit='9bfdaf33a7a2791d5a40935eb98bad16b48ed7f6', condition_freeze_valid=False, freeze_generation=No...5d', projection_module_blob_sha256='5af4f45c371fca6c4f41ff927a2ef6302e050b9ca773184a3052281869003457', effective=False)\n> closed_environment = {'LC_CTYPE': 'C.UTF-8', 'PATH': '/usr/bin:/bin:/home/SFC/tanab/.local/bin:/system/apps/ubuntu/20.04-202210/oneapi/2022...ystem/tool/bin:/opt/nec/nqsv/bin:/opt/memverge/bin', 'GIT_CONFIG_GLOBAL': '/dev/null', 'GIT_CONFIG_NOSYSTEM': '1', ...}\n> \n>     @pytest.mark.parametrize(\n>         (\"kind\", \"invocation\"),\n>         [\n>             pytest.param(\"prereg\", \"path\", id=\"prereg-path\"),\n>             pytest.param(\"prereg\", \"module\", id=\"prereg-module\"),\n>             pytest.param(\"gate\", \"path\", id=\"gate-path\"),\n>             pytest.param(\"gate\", \"module\", id=\"gate-module\"),\n>         ],\n>     )\n>     def test_cli_entrypoint_matches_library_report(\n>         kind: str,\n>         invocation: str,\n>         tiny_repo: tuple[Path, str],\n>         oracle: P.ActivationReport,\n>         closed_environment: dict[str, str],\n>     ) -> None:\n>         repo_root, commit = tiny_repo\n>         if kind == \"prereg\":\n>             target = (\n>                 [sys.executable, str(_PREREG_PATH)]\n>                 if invocation == \"path\"\n>                 else [\n>                     sys.executable,\n>                     \"-m\",\n>                     \"orchestrator.campaign.s8c_preregistration\",\n>                 ]\n>             )\n>             command = [\n>                 *target,\n>                 \"check\",\n>                 \"--json\",\n>                 \"--repo-root\",\n>                 str(repo_root),\n>                 \"--commit\",\n>                 commit,\n>             ]\n>         else:\n>             target = (\n>                 [sys.executable, str(_GATE_PATH)]\n>                 if invocation == \"path\"\n>                 else [\n>                     sys.executable,\n>                     \"-m\",\n>                     \"orchestrator.campaign.s8c_gate_report\",\n>                 ]\n>             )\n>             command = [\n>                 *target,\n>                 \"--repo-root\",\n>                 str(repo_root),\n>                 \"--commit\",\n>                 commit,\n>             ]\n>     \n>         completed = subprocess.run(\n>             command,\n>             cwd=_ROOT,\n>             check=False,\n>             capture_output=True,\n>             text=True,\n>             env=closed_environment,\n>         )\n>         payload = json.loads(completed.stdout)\n>         expected_predicates = tuple(\n>             (item.id, item.status.value, item.reason_code)\n>             for item in oracle.predicates\n>         )\n>     \n>         if kind == \"prereg\":\n>             actual_commit = payload[\"commit\"]\n>             actual_predicates = tuple(\n>                 (item[\"id\"], item[\"status\"], item[\"reason_code\"])\n>                 for item in payload[\"predicates\"]\n>             )\n>             actual_effective = payload[\"effective\"]\n>         else:\n>             actual_commit = payload[\"source\"][\"commit\"]\n>             actual_predicates = tuple(\n>                 (item[\"id\"], item[\"status\"], item[\"reason_code\"])\n>                 for item in payload[\"predicates\"][\"results\"]\n>             )\n>             actual_effective = payload[\"source\"][\"effective\"]\n>     \n>         assert actual_commit == commit\n> >       assert actual_predicates == expected_predicates\n> E       AssertionError: assert (('C01', 'ERR...eption'), ...) == (('C01', 'EVI...efined'), ...)\n> E         \n> E         At index 0 diff: ('C01', 'ERROR', 'evaluator-exception') != ('C01', 'EVIDENCE_UNDEFINED', 'workload-supervisor-absent')\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_s8c_cli_entrypoints.py:239: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_cli_entrypoints.py::test_cli_entrypoint_matches_library_report[prereg-path]\" nodeid_bytes=103 nodeid_omitted_bytes=0 source_bytes=3826 retained_bytes=3826 omitted_bytes=0 rendered_excerpt_bytes=4023 sha256=7060a9ad9eec352fb632efea51f571effe1c5d967f41458713e082e342e3433b\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> kind = 'prereg', invocation = 'path'\n> tiny_repo = (PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/s8c-cli-tiny-repo0'), '9bfdaf33a7a2791d5a40935eb98bad16b48ed7f6')\n> oracle = ActivationReport(commit='9bfdaf33a7a2791d5a40935eb98bad16b48ed7f6', condition_freeze_valid=False, freeze_generation=No...5d', projection_module_blob_sha256='5af4f45c371fca6c4f41ff927a2ef6302e050b9ca773184a3052281869003457', effective=False)\n> closed_environment = {'LC_CTYPE': 'C.UTF-8', 'PATH': '/usr/bin:/bin:/home/SFC/tanab/.local/bin:/system/apps/ubuntu/20.04-202210/oneapi/2022...ystem/tool/bin:/opt/nec/nqsv/bin:/opt/memverge/bin', 'GIT_CONFIG_GLOBAL': '/dev/null', 'GIT_CONFIG_NOSYSTEM': '1', ...}\n> \n>     @pytest.mark.parametrize(\n>         (\"kind\", \"invocation\"),\n>         [\n>             pytest.param(\"prereg\", \"path\", id=\"prereg-path\"),\n>             pytest.param(\"prereg\", \"module\", id=\"prereg-module\"),\n>             pytest.param(\"gate\", \"path\", id=\"gate-path\"),\n>             pytest.param(\"gate\", \"module\", id=\"gate-module\"),\n>         ],\n>     )\n>     def test_cli_entrypoint_matches_library_report(\n>         kind: str,\n>         invocation: str,\n>         tiny_repo: tuple[Path, str],\n>         oracle: P.ActivationReport,\n>         closed_environment: dict[str, str],\n>     ) -> None:\n>         repo_root, commit = tiny_repo\n>         if kind == \"prereg\":\n>             target = (\n>                 [sys.executable, str(_PREREG_PATH)]\n>                 if invocation == \"path\"\n>                 else [\n>                     sys.executable,\n>                     \"-m\",\n>                     \"orchestrator.campaign.s8c_preregistration\",\n>                 ]\n>             )\n>             command = [\n>                 *target,\n>                 \"check\",\n>                 \"--json\",\n>                 \"--repo-root\",\n>                 str(repo_root),\n>                 \"--commit\",\n>                 commit,\n>             ]\n>         else:\n>             target = (\n>                 [sys.executable, str(_GATE_PATH)]\n>                 if invocation == \"path\"\n>                 else [\n>                     sys.executable,\n>                     \"-m\",\n>                     \"orchestrator.campaign.s8c_gate_report\",\n>                 ]\n>             )\n>             command = [\n>                 *target,\n>                 \"--repo-root\",\n>                 str(repo_root),\n>                 \"--commit\",\n>                 commit,\n>             ]\n>     \n>         completed = subprocess.run(\n>             command,\n>             cwd=_ROOT,\n>             check=False,\n>             capture_output=True,\n>             text=True,\n>             env=closed_environment,\n>         )\n>         payload = json.loads(completed.stdout)\n>         expected_predicates = tuple(\n>             (item.id, item.status.value, item.reason_code)\n>             for item in oracle.predicates\n>         )\n>     \n>         if kind == \"prereg\":\n>             actual_commit = payload[\"commit\"]\n>             actual_predicates = tuple(\n>                 (item[\"id\"], item[\"status\"], item[\"reason_code\"])\n>                 for item in payload[\"predicates\"]\n>             )\n>             actual_effective = payload[\"effective\"]\n>         else:\n>             actual_commit = payload[\"source\"][\"commit\"]\n>             actual_predicates = tuple(\n>                 (item[\"id\"], item[\"status\"], item[\"reason_code\"])\n>                 for item in payload[\"predicates\"][\"results\"]\n>             )\n>             actual_effective = payload[\"source\"][\"effective\"]\n>     \n>         assert actual_commit == commit\n> >       assert actual_predicates == expected_predicates\n> E       AssertionError: assert (('C01', 'ERR...eption'), ...) == (('C01', 'EVI...efined'), ...)\n> E         \n> E         At index 0 diff: ('C01', 'ERROR', 'evaluator-exception') != ('C01', 'EVIDENCE_UNDEFINED', 'workload-supervisor-absent')\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_s8c_cli_entrypoints.py:239: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=7654 retained_bytes=7654 omitted_bytes=0 budget_bytes=49152 rendered_bytes=9225 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "65ad45f7a244a22506d8339051395e21f2046914d7bf41c621c7fdb6cf2636c9"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "0f4fa2ba526fd73947e931eed033b8659222fdd2efe6b77445ae9ee32cefe01b",
+      "duration_s": 367.002,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_cli_entrypoints.py::test_cli_entrypoint_matches_library_report[prereg-path]",
+        "orchestrator/tests/test_s8c_cli_entrypoints.py::test_cli_entrypoint_matches_library_report[prereg-module]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8c_cli_entrypoints.py::test_cli_entrypoint_matches_library_report[prereg-module]",
+        "orchestrator/tests/test_s8c_cli_entrypoints.py::test_cli_entrypoint_matches_library_report[prereg-path]"
+      ],
+      "hang_risk": false,
+      "id": "M1-prereg-alias-removed",
+      "injection_diff_sha256": "49d9a53a4c541132a30e7af2fab638beae4c438ec2538e26fc8d79798b4f1a70",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "0985ef54d43659c8fdc02a49cc24c7bc898ef0f58342479c7de5e713c54a7d3f",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration.py",
+          "new": "\n",
+          "old": "\nif __name__ == \"__main__\":  # pragma: no cover - direct CLI execution\n    sys.modules[\"orchestrator.campaign.s8c_preregistration\"] = sys.modules[__name__]\n"
+        }
+      ],
+      "repo_head": "d53c91a2bc55e58c0196f06e7d0079eca0a2052b",
+      "runner_sha256": "901f6857a377bbe49660ef9ae3276e1b4f4e7d939d57ebddc1620ae19580f70c",
+      "spec_sha256": "baf7792348fbe17439f0cab0e0cec44c16f236f5b8ab1b22ceea6a3334b73ad4",
+      "status": "KILLED",
+      "test_output_sha256": "65ad45f7a244a22506d8339051395e21f2046914d7bf41c621c7fdb6cf2636c9",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e2ea78adaa3097133b7d2521398dee83aab29ba212ae0b4d9d89fb32f275791b"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1815-cli-entrypoint/output/pegasus-dispatch/272f2c58ce4800f45591cf509384dcc6/izdw-272f2c58ce.o981496",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1815-cli-entrypoint/output/pegasus-dispatch/272f2c58ce4800f45591cf509384dcc6/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...F                                                                     [100%]\n=================================== FAILURES ===================================\n__________ test_cli_entrypoint_matches_library_report[prereg-module] ___________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\nkind = 'prereg', invocation = 'module'\ntiny_repo = (PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/s8c-cli-tiny-repo0'), '9f34be85c5085588a3373e2274b9cef58c962d26')\noracle = ActivationReport(commit='9f34be85c5085588a3373e2274b9cef58c962d26', condition_freeze_valid=False, freeze_generation=No...5d', projection_module_blob_sha256='5af4f45c371fca6c4f41ff927a2ef6302e050b9ca773184a3052281869003457', effective=False)\nclosed_environment = {'LC_CTYPE': 'C.UTF-8', 'PATH': '/usr/bin:/bin:/home/SFC/tanab/.local/bin:/system/apps/ubuntu/20.04-202210/oneapi/2022...ystem/tool/bin:/opt/nec/nqsv/bin:/opt/memverge/bin', 'GIT_CONFIG_GLOBAL': '/dev/null', 'GIT_CONFIG_NOSYSTEM': '1', ...}\n\n    @pytest.mark.parametrize(\n        (\"kind\", \"invocation\"),\n        [\n            pytest.param(\"prereg\", \"path\", id=\"prereg-path\"),\n            pytest.param(\"prereg\", \"module\", id=\"prereg-module\"),\n            pytest.param(\"gate\", \"path\", id=\"gate-path\"),\n            pytest.param(\"gate\", \"module\", id=\"gate-module\"),\n        ],\n    )\n    def test_cli_entrypoint_matches_library_report(\n        kind: str,\n        invocation: str,\n        tiny_repo: tuple[Path, str],\n        oracle: P.ActivationReport,\n        closed_environment: dict[str, str],\n    ) -> None:\n        repo_root, commit = tiny_repo\n        if kind == \"prereg\":\n            target = (\n                [sys.executable, str(_PREREG_PATH)]\n                if invocation == \"path\"\n                else [\n                    sys.executable,\n                    \"-m\",\n                    \"orchestrator.campaign.s8c_preregistration\",\n                ]\n            )\n            command = [\n                *target,\n                \"check\",\n                \"--json\",\n                \"--repo-root\",\n                str(repo_root),\n                \"--commit\",\n                commit,\n            ]\n        else:\n            target = (\n                [sys.executable, str(_GATE_PATH)]\n                if invocation == \"path\"\n                else [\n                    sys.executable,\n                    \"-m\",\n                    \"orchestrator.campaign.s8c_gate_report\",\n                ]\n            )\n            command = [\n                *target,\n                \"--repo-root\",\n                str(repo_root),\n                \"--commit\",\n                commit,\n            ]\n    \n        completed = subprocess.run(\n            command,\n            cwd=_ROOT,\n            check=False,\n            capture_output=True,\n            text=True,\n            env=closed_environment,\n        )\n        payload = json.loads(completed.stdout)\n        expected_predicates = tuple(\n            (item.id, item.status.value, item.reason_code)\n            for item in oracle.predicates\n        )\n    \n        if kind == \"prereg\":\n            actual_commit = payload[\"commit\"]\n            actual_predicates = tuple(\n                (item[\"id\"], item[\"status\"], item[\"reason_code\"])\n                for item in payload[\"predicates\"]\n            )\n            actual_effective = payload[\"effective\"]\n        else:\n            actual_commit = payload[\"source\"][\"commit\"]\n            actual_predicates = tuple(\n                (item[\"id\"], item[\"status\"], item[\"reason_code\"])\n                for item in payload[\"predicates\"][\"results\"]\n            )\n            actual_effective = payload[\"source\"][\"effective\"]\n    \n        assert actual_commit == commit\n>       assert actual_predicates == expected_predicates\nE       AssertionError: assert (('C01', 'ERR...eption'), ...) == (('C01', 'EVI...efined'), ...)\nE         \nE         At index 0 diff: ('C01', 'ERROR', 'evaluator-exception') != ('C01', 'EVIDENCE_UNDEFINED', 'workload-supervisor-absent')\nE         Use -v to get more diff\n\norchestrator/tests/test_s8c_cli_entrypoints.py:239: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8c_cli_entrypoints.py::test_cli_entrypoint_matches_library_report[prereg-module]\n1 failed, 3 passed in 4.02s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_cli_entrypoints.py::test_cli_entrypoint_matches_library_report[prereg-module]\" nodeid_bytes=105 nodeid_omitted_bytes=0 source_bytes=3828 retained_bytes=3828 omitted_bytes=0 rendered_excerpt_bytes=4025 sha256=1eb3be8d9fdba34e7441c79eed03faeb8888a3a70857df0b872dd38cb47aae3b\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n> kind = 'prereg', invocation = 'module'\n> tiny_repo = (PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/s8c-cli-tiny-repo0'), '9f34be85c5085588a3373e2274b9cef58c962d26')\n> oracle = ActivationReport(commit='9f34be85c5085588a3373e2274b9cef58c962d26', condition_freeze_valid=False, freeze_generation=No...5d', projection_module_blob_sha256='5af4f45c371fca6c4f41ff927a2ef6302e050b9ca773184a3052281869003457', effective=False)\n> closed_environment = {'LC_CTYPE': 'C.UTF-8', 'PATH': '/usr/bin:/bin:/home/SFC/tanab/.local/bin:/system/apps/ubuntu/20.04-202210/oneapi/2022...ystem/tool/bin:/opt/nec/nqsv/bin:/opt/memverge/bin', 'GIT_CONFIG_GLOBAL': '/dev/null', 'GIT_CONFIG_NOSYSTEM': '1', ...}\n> \n>     @pytest.mark.parametrize(\n>         (\"kind\", \"invocation\"),\n>         [\n>             pytest.param(\"prereg\", \"path\", id=\"prereg-path\"),\n>             pytest.param(\"prereg\", \"module\", id=\"prereg-module\"),\n>             pytest.param(\"gate\", \"path\", id=\"gate-path\"),\n>             pytest.param(\"gate\", \"module\", id=\"gate-module\"),\n>         ],\n>     )\n>     def test_cli_entrypoint_matches_library_report(\n>         kind: str,\n>         invocation: str,\n>         tiny_repo: tuple[Path, str],\n>         oracle: P.ActivationReport,\n>         closed_environment: dict[str, str],\n>     ) -> None:\n>         repo_root, commit = tiny_repo\n>         if kind == \"prereg\":\n>             target = (\n>                 [sys.executable, str(_PREREG_PATH)]\n>                 if invocation == \"path\"\n>                 else [\n>                     sys.executable,\n>                     \"-m\",\n>                     \"orchestrator.campaign.s8c_preregistration\",\n>                 ]\n>             )\n>             command = [\n>                 *target,\n>                 \"check\",\n>                 \"--json\",\n>                 \"--repo-root\",\n>                 str(repo_root),\n>                 \"--commit\",\n>                 commit,\n>             ]\n>         else:\n>             target = (\n>                 [sys.executable, str(_GATE_PATH)]\n>                 if invocation == \"path\"\n>                 else [\n>                     sys.executable,\n>                     \"-m\",\n>                     \"orchestrator.campaign.s8c_gate_report\",\n>                 ]\n>             )\n>             command = [\n>                 *target,\n>                 \"--repo-root\",\n>                 str(repo_root),\n>                 \"--commit\",\n>                 commit,\n>             ]\n>     \n>         completed = subprocess.run(\n>             command,\n>             cwd=_ROOT,\n>             check=False,\n>             capture_output=True,\n>             text=True,\n>             env=closed_environment,\n>         )\n>         payload = json.loads(completed.stdout)\n>         expected_predicates = tuple(\n>             (item.id, item.status.value, item.reason_code)\n>             for item in oracle.predicates\n>         )\n>     \n>         if kind == \"prereg\":\n>             actual_commit = payload[\"commit\"]\n>             actual_predicates = tuple(\n>                 (item[\"id\"], item[\"status\"], item[\"reason_code\"])\n>                 for item in payload[\"predicates\"]\n>             )\n>             actual_effective = payload[\"effective\"]\n>         else:\n>             actual_commit = payload[\"source\"][\"commit\"]\n>             actual_predicates = tuple(\n>                 (item[\"id\"], item[\"status\"], item[\"reason_code\"])\n>                 for item in payload[\"predicates\"][\"results\"]\n>             )\n>             actual_effective = payload[\"source\"][\"effective\"]\n>     \n>         assert actual_commit == commit\n> >       assert actual_predicates == expected_predicates\n> E       AssertionError: assert (('C01', 'ERR...eption'), ...) == (('C01', 'EVI...efined'), ...)\n> E         \n> E         At index 0 diff: ('C01', 'ERROR', 'evaluator-exception') != ('C01', 'EVIDENCE_UNDEFINED', 'workload-supervisor-absent')\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_s8c_cli_entrypoints.py:239: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=3828 retained_bytes=3828 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4758 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "171cfa1052823ba8c847b5b0aa7a3eaa417a82d9fcf4c81cbdacadf90c3c3bd7"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "0f4fa2ba526fd73947e931eed033b8659222fdd2efe6b77445ae9ee32cefe01b",
+      "duration_s": 73.534,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_cli_entrypoints.py::test_cli_entrypoint_matches_library_report[prereg-module]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8c_cli_entrypoints.py::test_cli_entrypoint_matches_library_report[prereg-module]"
+      ],
+      "hang_risk": false,
+      "id": "M2-prereg-alias-inside-package-guard",
+      "injection_diff_sha256": "61a78ba40c6c8be6f5524d77dd70c9743ec0c085221464f61243ee82a65c45a7",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "a6be945a40fbd26d060c5573dc29dc158bfeaf2be46a7c8279c328c11e85a541",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration.py",
+          "new": "if __package__ in {None, \"\"}:  # pragma: no cover - direct CLI execution\n    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))\n    __package__ = \"orchestrator.campaign\"\n    if __name__ == \"__main__\":  # pragma: no cover - direct CLI execution\n        sys.modules[\"orchestrator.campaign.s8c_preregistration\"] = sys.modules[__name__]\n",
+          "old": "if __package__ in {None, \"\"}:  # pragma: no cover - direct CLI execution\n    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))\n    __package__ = \"orchestrator.campaign\"\n\nif __name__ == \"__main__\":  # pragma: no cover - direct CLI execution\n    sys.modules[\"orchestrator.campaign.s8c_preregistration\"] = sys.modules[__name__]\n"
+        }
+      ],
+      "repo_head": "d53c91a2bc55e58c0196f06e7d0079eca0a2052b",
+      "runner_sha256": "901f6857a377bbe49660ef9ae3276e1b4f4e7d939d57ebddc1620ae19580f70c",
+      "spec_sha256": "baf7792348fbe17439f0cab0e0cec44c16f236f5b8ab1b22ceea6a3334b73ad4",
+      "status": "KILLED",
+      "test_output_sha256": "171cfa1052823ba8c847b5b0aa7a3eaa417a82d9fcf4c81cbdacadf90c3c3bd7",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e2ea78adaa3097133b7d2521398dee83aab29ba212ae0b4d9d89fb32f275791b"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1815-cli-entrypoint/output/pegasus-dispatch/86d22ccbfd5a893548e61b698e5b82fc/izdw-86d22ccbfd.o981499",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1815-cli-entrypoint/output/pegasus-dispatch/86d22ccbfd5a893548e61b698e5b82fc/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\nF...                                                                     [100%]\n=================================== FAILURES ===================================\n____________ test_cli_entrypoint_matches_library_report[gate-path] _____________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\nkind = 'gate', invocation = 'path'\ntiny_repo = (PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/s8c-cli-tiny-repo0'), '90baa8d1712c6e8a0d96de36548460c91f61938e')\noracle = ActivationReport(commit='90baa8d1712c6e8a0d96de36548460c91f61938e', condition_freeze_valid=False, freeze_generation=No...5d', projection_module_blob_sha256='5af4f45c371fca6c4f41ff927a2ef6302e050b9ca773184a3052281869003457', effective=False)\nclosed_environment = {'LC_CTYPE': 'C.UTF-8', 'PATH': '/usr/bin:/bin:/home/SFC/tanab/.local/bin:/system/apps/ubuntu/20.04-202210/oneapi/2022...ystem/tool/bin:/opt/nec/nqsv/bin:/opt/memverge/bin', 'GIT_CONFIG_GLOBAL': '/dev/null', 'GIT_CONFIG_NOSYSTEM': '1', ...}\n\n    @pytest.mark.parametrize(\n        (\"kind\", \"invocation\"),\n        [\n            pytest.param(\"prereg\", \"path\", id=\"prereg-path\"),\n            pytest.param(\"prereg\", \"module\", id=\"prereg-module\"),\n            pytest.param(\"gate\", \"path\", id=\"gate-path\"),\n            pytest.param(\"gate\", \"module\", id=\"gate-module\"),\n        ],\n    )\n    def test_cli_entrypoint_matches_library_report(\n        kind: str,\n        invocation: str,\n        tiny_repo: tuple[Path, str],\n        oracle: P.ActivationReport,\n        closed_environment: dict[str, str],\n    ) -> None:\n        repo_root, commit = tiny_repo\n        if kind == \"prereg\":\n            target = (\n                [sys.executable, str(_PREREG_PATH)]\n                if invocation == \"path\"\n                else [\n                    sys.executable,\n                    \"-m\",\n                    \"orchestrator.campaign.s8c_preregistration\",\n                ]\n            )\n            command = [\n                *target,\n                \"check\",\n                \"--json\",\n                \"--repo-root\",\n                str(repo_root),\n                \"--commit\",\n                commit,\n            ]\n        else:\n            target = (\n                [sys.executable, str(_GATE_PATH)]\n                if invocation == \"path\"\n                else [\n                    sys.executable,\n                    \"-m\",\n                    \"orchestrator.campaign.s8c_gate_report\",\n                ]\n            )\n            command = [\n                *target,\n                \"--repo-root\",\n                str(repo_root),\n                \"--commit\",\n                commit,\n            ]\n    \n        completed = subprocess.run(\n            command,\n            cwd=_ROOT,\n            check=False,\n            capture_output=True,\n            text=True,\n            env=closed_environment,\n        )\n>       payload = json.loads(completed.stdout)\n\norchestrator/tests/test_s8c_cli_entrypoints.py:217: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n/usr/lib/python3.10/json/__init__.py:346: in loads\n    return _default_decoder.decode(s)\n/usr/lib/python3.10/json/decoder.py:337: in decode\n    obj, end = self.raw_decode(s, idx=_w(s, 0).end())\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = <json.decoder.JSONDecoder object at 0x150fa66800a0>, s = '', idx = 0\n\n    def raw_decode(self, s, idx=0):\n        \"\"\"Decode a JSON document from ``s`` (a ``str`` beginning with\n        a JSON document) and return a 2-tuple of the Python\n        representation and the index in ``s`` where the document ended.\n    \n        This can be used to decode a JSON document from a string that may\n        have extraneous data at the end.\n    \n        \"\"\"\n        try:\n            obj, end = self.scan_once(s, idx)\n        except StopIteration as err:\n>           raise JSONDecodeError(\"Expecting value\", s, err.value) from None\nE           json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)\n\n/usr/lib/python3.10/json/decoder.py:355: JSONDecodeError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8c_cli_entrypoints.py::test_cli_entrypoint_matches_library_report[gate-path]\n1 failed, 3 passed in 3.98s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_cli_entrypoints.py::test_cli_entrypoint_matches_library_report[gate-path]\" nodeid_bytes=101 nodeid_omitted_bytes=0 source_bytes=3803 retained_bytes=3803 omitted_bytes=0 rendered_excerpt_bytes=3998 sha256=0f49e4d525963153ac836b676e48497a5bdde369dd6a49572932874a2f65c2af\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n> kind = 'gate', invocation = 'path'\n> tiny_repo = (PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/s8c-cli-tiny-repo0'), '90baa8d1712c6e8a0d96de36548460c91f61938e')\n> oracle = ActivationReport(commit='90baa8d1712c6e8a0d96de36548460c91f61938e', condition_freeze_valid=False, freeze_generation=No...5d', projection_module_blob_sha256='5af4f45c371fca6c4f41ff927a2ef6302e050b9ca773184a3052281869003457', effective=False)\n> closed_environment = {'LC_CTYPE': 'C.UTF-8', 'PATH': '/usr/bin:/bin:/home/SFC/tanab/.local/bin:/system/apps/ubuntu/20.04-202210/oneapi/2022...ystem/tool/bin:/opt/nec/nqsv/bin:/opt/memverge/bin', 'GIT_CONFIG_GLOBAL': '/dev/null', 'GIT_CONFIG_NOSYSTEM': '1', ...}\n> \n>     @pytest.mark.parametrize(\n>         (\"kind\", \"invocation\"),\n>         [\n>             pytest.param(\"prereg\", \"path\", id=\"prereg-path\"),\n>             pytest.param(\"prereg\", \"module\", id=\"prereg-module\"),\n>             pytest.param(\"gate\", \"path\", id=\"gate-path\"),\n>             pytest.param(\"gate\", \"module\", id=\"gate-module\"),\n>         ],\n>     )\n>     def test_cli_entrypoint_matches_library_report(\n>         kind: str,\n>         invocation: str,\n>         tiny_repo: tuple[Path, str],\n>         oracle: P.ActivationReport,\n>         closed_environment: dict[str, str],\n>     ) -> None:\n>         repo_root, commit = tiny_repo\n>         if kind == \"prereg\":\n>             target = (\n>                 [sys.executable, str(_PREREG_PATH)]\n>                 if invocation == \"path\"\n>                 else [\n>                     sys.executable,\n>                     \"-m\",\n>                     \"orchestrator.campaign.s8c_preregistration\",\n>                 ]\n>             )\n>             command = [\n>                 *target,\n>                 \"check\",\n>                 \"--json\",\n>                 \"--repo-root\",\n>                 str(repo_root),\n>                 \"--commit\",\n>                 commit,\n>             ]\n>         else:\n>             target = (\n>                 [sys.executable, str(_GATE_PATH)]\n>                 if invocation == \"path\"\n>                 else [\n>                     sys.executable,\n>                     \"-m\",\n>                     \"orchestrator.campaign.s8c_gate_report\",\n>                 ]\n>             )\n>             command = [\n>                 *target,\n>                 \"--repo-root\",\n>                 str(repo_root),\n>                 \"--commit\",\n>                 commit,\n>             ]\n>     \n>         completed = subprocess.run(\n>             command,\n>             cwd=_ROOT,\n>             check=False,\n>             capture_output=True,\n>             text=True,\n>             env=closed_environment,\n>         )\n> >       payload = json.loads(completed.stdout)\n> \n> orchestrator/tests/test_s8c_cli_entrypoints.py:217: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> /usr/lib/python3.10/json/__init__.py:346: in loads\n>     return _default_decoder.decode(s)\n> /usr/lib/python3.10/json/decoder.py:337: in decode\n>     obj, end = self.raw_decode(s, idx=_w(s, 0).end())\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> self = <json.decoder.JSONDecoder object at 0x150fa66800a0>, s = '', idx = 0\n> \n>     def raw_decode(self, s, idx=0):\n>         \"\"\"Decode a JSON document from ``s`` (a ``str`` beginning with\n>         a JSON document) and return a 2-tuple of the Python\n>         representation and the index in ``s`` where the document ended.\n>     \n>         This can be used to decode a JSON document from a string that may\n>         have extraneous data at the end.\n>     \n>         \"\"\"\n>         try:\n>             obj, end = self.scan_once(s, idx)\n>         except StopIteration as err:\n> >           raise JSONDecodeError(\"Expecting value\", s, err.value) from None\n> E           json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)\n> \n> /usr/lib/python3.10/json/decoder.py:355: JSONDecodeError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=3803 retained_bytes=3803 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4727 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "f64b61dafa691a09bd6bd7d68995b348e88ddd090e13351546e60a8e90faaa87"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "0f4fa2ba526fd73947e931eed033b8659222fdd2efe6b77445ae9ee32cefe01b",
+      "duration_s": 42.453,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_cli_entrypoints.py::test_cli_entrypoint_matches_library_report[gate-path]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8c_cli_entrypoints.py::test_cli_entrypoint_matches_library_report[gate-path]"
+      ],
+      "hang_risk": false,
+      "id": "M3-gate-package-assignment-removed",
+      "injection_diff_sha256": "b7647d0a1ad0ad26926dd4ab7c786e5526ca643e53d9cdede354a431a21df29c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "947129a9fd0c2672e9b6483b42232a3c0d4f490b75b2db9f78fa0d03bafeeb1c",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_gate_report.py",
+          "new": "",
+          "old": "    __package__ = \"orchestrator.campaign\"\n"
+        }
+      ],
+      "repo_head": "d53c91a2bc55e58c0196f06e7d0079eca0a2052b",
+      "runner_sha256": "901f6857a377bbe49660ef9ae3276e1b4f4e7d939d57ebddc1620ae19580f70c",
+      "spec_sha256": "baf7792348fbe17439f0cab0e0cec44c16f236f5b8ab1b22ceea6a3334b73ad4",
+      "status": "KILLED",
+      "test_output_sha256": "f64b61dafa691a09bd6bd7d68995b348e88ddd090e13351546e60a8e90faaa87",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e2ea78adaa3097133b7d2521398dee83aab29ba212ae0b4d9d89fb32f275791b"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1815-cli-entrypoint/output/pegasus-dispatch/b85d5b375a0c33492120d17c44064921/izdw-b85d5b375a.o981501",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1815-cli-entrypoint/output/pegasus-dispatch/b85d5b375a0c33492120d17c44064921/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\nF...                                                                     [100%]\n=================================== FAILURES ===================================\n____________ test_cli_entrypoint_matches_library_report[gate-path] _____________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\nkind = 'gate', invocation = 'path'\ntiny_repo = (PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/s8c-cli-tiny-repo0'), '335c9b3750ca95b3048adbf11dba54eed17f8307')\noracle = ActivationReport(commit='335c9b3750ca95b3048adbf11dba54eed17f8307', condition_freeze_valid=False, freeze_generation=No...5d', projection_module_blob_sha256='5af4f45c371fca6c4f41ff927a2ef6302e050b9ca773184a3052281869003457', effective=False)\nclosed_environment = {'LC_CTYPE': 'C.UTF-8', 'PATH': '/usr/bin:/bin:/home/SFC/tanab/.local/bin:/system/apps/ubuntu/20.04-202210/oneapi/2022...ystem/tool/bin:/opt/nec/nqsv/bin:/opt/memverge/bin', 'GIT_CONFIG_GLOBAL': '/dev/null', 'GIT_CONFIG_NOSYSTEM': '1', ...}\n\n    @pytest.mark.parametrize(\n        (\"kind\", \"invocation\"),\n        [\n            pytest.param(\"prereg\", \"path\", id=\"prereg-path\"),\n            pytest.param(\"prereg\", \"module\", id=\"prereg-module\"),\n            pytest.param(\"gate\", \"path\", id=\"gate-path\"),\n            pytest.param(\"gate\", \"module\", id=\"gate-module\"),\n        ],\n    )\n    def test_cli_entrypoint_matches_library_report(\n        kind: str,\n        invocation: str,\n        tiny_repo: tuple[Path, str],\n        oracle: P.ActivationReport,\n        closed_environment: dict[str, str],\n    ) -> None:\n        repo_root, commit = tiny_repo\n        if kind == \"prereg\":\n            target = (\n                [sys.executable, str(_PREREG_PATH)]\n                if invocation == \"path\"\n                else [\n                    sys.executable,\n                    \"-m\",\n                    \"orchestrator.campaign.s8c_preregistration\",\n                ]\n            )\n            command = [\n                *target,\n                \"check\",\n                \"--json\",\n                \"--repo-root\",\n                str(repo_root),\n                \"--commit\",\n                commit,\n            ]\n        else:\n            target = (\n                [sys.executable, str(_GATE_PATH)]\n                if invocation == \"path\"\n                else [\n                    sys.executable,\n                    \"-m\",\n                    \"orchestrator.campaign.s8c_gate_report\",\n                ]\n            )\n            command = [\n                *target,\n                \"--repo-root\",\n                str(repo_root),\n                \"--commit\",\n                commit,\n            ]\n    \n        completed = subprocess.run(\n            command,\n            cwd=_ROOT,\n            check=False,\n            capture_output=True,\n            text=True,\n            env=closed_environment,\n        )\n>       payload = json.loads(completed.stdout)\n\norchestrator/tests/test_s8c_cli_entrypoints.py:217: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n/usr/lib/python3.10/json/__init__.py:346: in loads\n    return _default_decoder.decode(s)\n/usr/lib/python3.10/json/decoder.py:337: in decode\n    obj, end = self.raw_decode(s, idx=_w(s, 0).end())\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = <json.decoder.JSONDecoder object at 0x1552cbaa80a0>, s = '', idx = 0\n\n    def raw_decode(self, s, idx=0):\n        \"\"\"Decode a JSON document from ``s`` (a ``str`` beginning with\n        a JSON document) and return a 2-tuple of the Python\n        representation and the index in ``s`` where the document ended.\n    \n        This can be used to decode a JSON document from a string that may\n        have extraneous data at the end.\n    \n        \"\"\"\n        try:\n            obj, end = self.scan_once(s, idx)\n        except StopIteration as err:\n>           raise JSONDecodeError(\"Expecting value\", s, err.value) from None\nE           json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)\n\n/usr/lib/python3.10/json/decoder.py:355: JSONDecodeError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8c_cli_entrypoints.py::test_cli_entrypoint_matches_library_report[gate-path]\n1 failed, 3 passed in 3.95s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_cli_entrypoints.py::test_cli_entrypoint_matches_library_report[gate-path]\" nodeid_bytes=101 nodeid_omitted_bytes=0 source_bytes=3803 retained_bytes=3803 omitted_bytes=0 rendered_excerpt_bytes=3998 sha256=739785664d9e3d7c9c7701c807c497802a2ccd6f73651ed077ad0e42da219cf5\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n> kind = 'gate', invocation = 'path'\n> tiny_repo = (PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/s8c-cli-tiny-repo0'), '335c9b3750ca95b3048adbf11dba54eed17f8307')\n> oracle = ActivationReport(commit='335c9b3750ca95b3048adbf11dba54eed17f8307', condition_freeze_valid=False, freeze_generation=No...5d', projection_module_blob_sha256='5af4f45c371fca6c4f41ff927a2ef6302e050b9ca773184a3052281869003457', effective=False)\n> closed_environment = {'LC_CTYPE': 'C.UTF-8', 'PATH': '/usr/bin:/bin:/home/SFC/tanab/.local/bin:/system/apps/ubuntu/20.04-202210/oneapi/2022...ystem/tool/bin:/opt/nec/nqsv/bin:/opt/memverge/bin', 'GIT_CONFIG_GLOBAL': '/dev/null', 'GIT_CONFIG_NOSYSTEM': '1', ...}\n> \n>     @pytest.mark.parametrize(\n>         (\"kind\", \"invocation\"),\n>         [\n>             pytest.param(\"prereg\", \"path\", id=\"prereg-path\"),\n>             pytest.param(\"prereg\", \"module\", id=\"prereg-module\"),\n>             pytest.param(\"gate\", \"path\", id=\"gate-path\"),\n>             pytest.param(\"gate\", \"module\", id=\"gate-module\"),\n>         ],\n>     )\n>     def test_cli_entrypoint_matches_library_report(\n>         kind: str,\n>         invocation: str,\n>         tiny_repo: tuple[Path, str],\n>         oracle: P.ActivationReport,\n>         closed_environment: dict[str, str],\n>     ) -> None:\n>         repo_root, commit = tiny_repo\n>         if kind == \"prereg\":\n>             target = (\n>                 [sys.executable, str(_PREREG_PATH)]\n>                 if invocation == \"path\"\n>                 else [\n>                     sys.executable,\n>                     \"-m\",\n>                     \"orchestrator.campaign.s8c_preregistration\",\n>                 ]\n>             )\n>             command = [\n>                 *target,\n>                 \"check\",\n>                 \"--json\",\n>                 \"--repo-root\",\n>                 str(repo_root),\n>                 \"--commit\",\n>                 commit,\n>             ]\n>         else:\n>             target = (\n>                 [sys.executable, str(_GATE_PATH)]\n>                 if invocation == \"path\"\n>                 else [\n>                     sys.executable,\n>                     \"-m\",\n>                     \"orchestrator.campaign.s8c_gate_report\",\n>                 ]\n>             )\n>             command = [\n>                 *target,\n>                 \"--repo-root\",\n>                 str(repo_root),\n>                 \"--commit\",\n>                 commit,\n>             ]\n>     \n>         completed = subprocess.run(\n>             command,\n>             cwd=_ROOT,\n>             check=False,\n>             capture_output=True,\n>             text=True,\n>             env=closed_environment,\n>         )\n> >       payload = json.loads(completed.stdout)\n> \n> orchestrator/tests/test_s8c_cli_entrypoints.py:217: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> /usr/lib/python3.10/json/__init__.py:346: in loads\n>     return _default_decoder.decode(s)\n> /usr/lib/python3.10/json/decoder.py:337: in decode\n>     obj, end = self.raw_decode(s, idx=_w(s, 0).end())\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> self = <json.decoder.JSONDecoder object at 0x1552cbaa80a0>, s = '', idx = 0\n> \n>     def raw_decode(self, s, idx=0):\n>         \"\"\"Decode a JSON document from ``s`` (a ``str`` beginning with\n>         a JSON document) and return a 2-tuple of the Python\n>         representation and the index in ``s`` where the document ended.\n>     \n>         This can be used to decode a JSON document from a string that may\n>         have extraneous data at the end.\n>     \n>         \"\"\"\n>         try:\n>             obj, end = self.scan_once(s, idx)\n>         except StopIteration as err:\n> >           raise JSONDecodeError(\"Expecting value\", s, err.value) from None\n> E           json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)\n> \n> /usr/lib/python3.10/json/decoder.py:355: JSONDecodeError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=3803 retained_bytes=3803 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4727 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "9c80fbadcc253261500465214cb3b6b06568734da88611449743488f02df4f3f"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "0f4fa2ba526fd73947e931eed033b8659222fdd2efe6b77445ae9ee32cefe01b",
+      "duration_s": 109.208,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_cli_entrypoints.py::test_cli_entrypoint_matches_library_report[gate-path]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8c_cli_entrypoints.py::test_cli_entrypoint_matches_library_report[gate-path]"
+      ],
+      "hang_risk": false,
+      "id": "M4-gate-syspath-insert-removed",
+      "injection_diff_sha256": "227727ae67bf9088e249426d80e4b9f8d9d62f079621a6ff428a244c6e9be44f",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "2ad07e3c68ba4b17f95a858d9907e9c137be9f2221b23e113b9c8ed8ea678536",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_gate_report.py",
+          "new": "",
+          "old": "    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))\n"
+        }
+      ],
+      "repo_head": "d53c91a2bc55e58c0196f06e7d0079eca0a2052b",
+      "runner_sha256": "901f6857a377bbe49660ef9ae3276e1b4f4e7d939d57ebddc1620ae19580f70c",
+      "spec_sha256": "baf7792348fbe17439f0cab0e0cec44c16f236f5b8ab1b22ceea6a3334b73ad4",
+      "status": "KILLED",
+      "test_output_sha256": "9c80fbadcc253261500465214cb3b6b06568734da88611449743488f02df4f3f",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e2ea78adaa3097133b7d2521398dee83aab29ba212ae0b4d9d89fb32f275791b"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1815-cli-entrypoint/output/pegasus-dispatch/0c46d5b19fc8a12ea8a8151ae36ea62f/izdw-0c46d5b19f.o981474",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1815-cli-entrypoint/output/pegasus-dispatch/0c46d5b19fc8a12ea8a8151ae36ea62f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_s8c_cli_entrypoints.py::test_cli_entrypoint_matches_library_report[prereg-path]\norchestrator/tests/test_s8c_cli_entrypoints.py::test_cli_entrypoint_matches_library_report[prereg-module]\norchestrator/tests/test_s8c_cli_entrypoints.py::test_cli_entrypoint_matches_library_report[gate-path]\norchestrator/tests/test_s8c_cli_entrypoints.py::test_cli_entrypoint_matches_library_report[gate-module]\n\n4 tests collected in 0.30s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "a2cbb14f24f4961015490105925cf1086aa4913dd40d9fcad527ec13ade75034"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_s8c_cli_entrypoints.py::test_cli_entrypoint_matches_library_report[prereg-path]",
+        "orchestrator/tests/test_s8c_cli_entrypoints.py::test_cli_entrypoint_matches_library_report[prereg-module]",
+        "orchestrator/tests/test_s8c_cli_entrypoints.py::test_cli_entrypoint_matches_library_report[gate-path]",
+        "orchestrator/tests/test_s8c_cli_entrypoints.py::test_cli_entrypoint_matches_library_report[gate-module]"
+      ],
+      "duration_s": 93.496,
+      "rc": 0,
+      "repo_head": "d53c91a2bc55e58c0196f06e7d0079eca0a2052b",
+      "runner_sha256": "901f6857a377bbe49660ef9ae3276e1b4f4e7d939d57ebddc1620ae19580f70c",
+      "spec_sha256": "baf7792348fbe17439f0cab0e0cec44c16f236f5b8ab1b22ceea6a3334b73ad4",
+      "status": "PASSED",
+      "tool_sha256": "e2ea78adaa3097133b7d2521398dee83aab29ba212ae0b4d9d89fb32f275791b"
+    },
+    "hang_timeout_seconds": 2400.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1-prereg-alias-removed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8c_cli_entrypoints.py::test_cli_entrypoint_matches_library_report[prereg-path]",
+          "orchestrator/tests/test_s8c_cli_entrypoints.py::test_cli_entrypoint_matches_library_report[prereg-module]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "49d9a53a4c541132a30e7af2fab638beae4c438ec2538e26fc8d79798b4f1a70",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8c_preregistration.py",
+            "new": "\n",
+            "old": "\nif __name__ == \"__main__\":  # pragma: no cover - direct CLI execution\n    sys.modules[\"orchestrator.campaign.s8c_preregistration\"] = sys.modules[__name__]\n"
+          }
+        ]
+      },
+      "M2-prereg-alias-inside-package-guard": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8c_cli_entrypoints.py::test_cli_entrypoint_matches_library_report[prereg-module]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "61a78ba40c6c8be6f5524d77dd70c9743ec0c085221464f61243ee82a65c45a7",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8c_preregistration.py",
+            "new": "if __package__ in {None, \"\"}:  # pragma: no cover - direct CLI execution\n    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))\n    __package__ = \"orchestrator.campaign\"\n    if __name__ == \"__main__\":  # pragma: no cover - direct CLI execution\n        sys.modules[\"orchestrator.campaign.s8c_preregistration\"] = sys.modules[__name__]\n",
+            "old": "if __package__ in {None, \"\"}:  # pragma: no cover - direct CLI execution\n    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))\n    __package__ = \"orchestrator.campaign\"\n\nif __name__ == \"__main__\":  # pragma: no cover - direct CLI execution\n    sys.modules[\"orchestrator.campaign.s8c_preregistration\"] = sys.modules[__name__]\n"
+          }
+        ]
+      },
+      "M3-gate-package-assignment-removed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8c_cli_entrypoints.py::test_cli_entrypoint_matches_library_report[gate-path]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "b7647d0a1ad0ad26926dd4ab7c786e5526ca643e53d9cdede354a431a21df29c",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8c_gate_report.py",
+            "new": "",
+            "old": "    __package__ = \"orchestrator.campaign\"\n"
+          }
+        ]
+      },
+      "M4-gate-syspath-insert-removed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8c_cli_entrypoints.py::test_cli_entrypoint_matches_library_report[gate-path]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "227727ae67bf9088e249426d80e4b9f8d9d62f079621a6ff428a244c6e9be44f",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8c_gate_report.py",
+            "new": "",
+            "old": "    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "22339cdbf9fe31a6be1e3bc61bdaedb797bbb02b691ab07ab50a9e567c2fce37",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-p",
+      "no:randomly",
+      "-q",
+      "-rf",
+      "orchestrator/tests/test_s8c_cli_entrypoints.py",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 1800.0
+  },
+  "repo_head": "d53c91a2bc55e58c0196f06e7d0079eca0a2052b",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-p",
+      "no:randomly",
+      "-q",
+      "-rf",
+      "orchestrator/tests/test_s8c_cli_entrypoints.py",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1815-cli-entrypoint/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1815-cli-entrypoint/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "5c609330e7d284ae15351cd5556b149877f76b03",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "901f6857a377bbe49660ef9ae3276e1b4f4e7d939d57ebddc1620ae19580f70c",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "baf7792348fbe17439f0cab0e0cec44c16f236f5b8ab1b22ceea6a3334b73ad4",
+  "summary": {
+    "KILLED": 4,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 4,
+    "matching": 4,
+    "recorded": 4,
+    "registered": 4
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1815-cli-entrypoint/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "e2ea78adaa3097133b7d2521398dee83aab29ba212ae0b4d9d89fb32f275791b",
+  "updated_at": "2026-09-07T12:22:53.548630+00:00"
+}

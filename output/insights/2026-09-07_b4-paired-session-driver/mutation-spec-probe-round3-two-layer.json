@@ -1,0 +1,27 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "MUT-B4PAIR-08B-PROBE-NONE-TWO-LAYER",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "    if pre_probe is None or mid_probe is None or post_probe is None:\n        raise FloorPairBindingError(f\"{label} probe 3 件が不完備\")\n",
+          "new": ""
+        },
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "    if type(value) is not dict or set(value) != _PROBE_FIELDS:\n        raise FloorPairBindingError(f\"{label} probe payload が不正\")\n",
+          "new": "    if value is None:\n        return \"clear\"\n    if type(value) is not dict or set(value) != _PROBE_FIELDS:\n        raise FloorPairBindingError(f\"{label} probe payload が不正\")\n"
+        }
+      ]
+    }
+  ]
+}
