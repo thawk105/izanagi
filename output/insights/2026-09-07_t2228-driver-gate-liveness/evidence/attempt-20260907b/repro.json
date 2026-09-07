@@ -1,0 +1,501 @@
+{
+ "current_pin_pre_gate_control": {
+  "ccbench_head": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+  "completed": false,
+  "exception": {
+   "cause": null,
+   "context": null,
+   "message": "patchharness: HEAD (511c9538e4e8) が pin (dff0f1e) と不一致 — 別版の tree に patch を当てない (fails-closed)",
+   "module": "builtins",
+   "reason_code": null,
+   "suppress_context": false,
+   "traceback": [
+    {
+     "filename": "t2228_driver_gate_liveness_probe.py",
+     "function": "_measure_call",
+     "line": 550,
+     "module": "__main__"
+    },
+    {
+     "filename": "t2228_driver_gate_liveness_probe.py",
+     "function": "current_pin_call",
+     "line": 923,
+     "module": "__main__"
+    },
+    {
+     "filename": "contextlib.py",
+     "function": "__enter__",
+     "line": 135,
+     "module": "contextlib"
+    },
+    {
+     "filename": "backoff_repro.py",
+     "function": "_conditioned_backoff_patch",
+     "line": 71,
+     "module": "orchestrator.campaign.backoff_repro"
+    },
+    {
+     "filename": "contextlib.py",
+     "function": "__enter__",
+     "line": 135,
+     "module": "contextlib"
+    },
+    {
+     "filename": "patchharness.py",
+     "function": "applied",
+     "line": 257,
+     "module": "orchestrator.campaign.patchharness"
+    },
+    {
+     "filename": "patchharness.py",
+     "function": "assert_pinned_clean",
+     "line": 193,
+     "module": "orchestrator.campaign.patchharness"
+    }
+   ],
+   "type": "RuntimeError"
+  },
+  "failed_before_gate": true,
+  "observation": {
+   "admissions": [],
+   "meaning_records": [],
+   "requests": [],
+   "supply_records": []
+  },
+  "pin_mismatch_before_gate": true,
+  "required_ccbench_head": "dff0f1ef2a4b84746f6463839e85b24301f4b16d",
+  "used_for_ok": true
+ },
+ "driver": "repro",
+ "drivers_completed_before_publish": [
+  "s1",
+  "repro"
+ ],
+ "exception": null,
+ "historical_pin_run": {
+  "ccbench_head": "dff0f1ef2a4b84746f6463839e85b24301f4b16d",
+  "completed": false,
+  "exception": {
+   "cause": null,
+   "context": null,
+   "message": "condition gate rejected the driver before build/measurement: BACKOFF_FIXED=red/preprocess-failed, BACKOFF_FIXED=red/preprocess-failed, BACKOFF_FIXED=red/preprocess-failed",
+   "module": "builtins",
+   "reason_code": null,
+   "suppress_context": false,
+   "traceback": [
+    {
+     "filename": "t2228_driver_gate_liveness_probe.py",
+     "function": "_measure_call",
+     "line": 550,
+     "module": "__main__"
+    },
+    {
+     "filename": "t2228_driver_gate_liveness_probe.py",
+     "function": "historical_call",
+     "line": 953,
+     "module": "__main__"
+    },
+    {
+     "filename": "contextlib.py",
+     "function": "__enter__",
+     "line": 135,
+     "module": "contextlib"
+    },
+    {
+     "filename": "backoff_repro.py",
+     "function": "_conditioned_backoff_patch",
+     "line": 72,
+     "module": "orchestrator.campaign.backoff_repro"
+    },
+    {
+     "filename": "backoff_sweep.py",
+     "function": "_require_backoff_condition_gate",
+     "line": 165,
+     "module": "orchestrator.campaign.backoff_sweep"
+    }
+   ],
+   "type": "RuntimeError"
+  },
+  "final_ccbench_head": "dff0f1ef2a4b84746f6463839e85b24301f4b16d",
+  "final_ccbench_status": "",
+  "observation": {
+   "admissions": [
+    {
+     "admission_id": "condition-gate/admission/cd031bc96af849a7d63c5187e941d2386cb14a8bf94bbc06c70fd866b4155aae",
+     "admitted": false,
+     "canonical_json": "{\"admission_digest\":\"cd031bc96af849a7d63c5187e941d2386cb14a8bf94bbc06c70fd866b4155aae\",\"admission_id\":\"condition-gate/admission/cd031bc96af849a7d63c5187e941d2386cb14a8bf94bbc06c70fd866b4155aae\",\"admitted\":false,\"record_ids\":[\"condition-gate/supply-effectuation/9044f8c8c0ee64f3351679176727a3889553f28ce8ac4d8d256951522c0031fd\",\"condition-gate/supply-effectuation/b95980d9c681b12d3195e1f9d861abaa5531af8e9b1c40a0a6156631c6047c58\",\"condition-gate/supply-effectuation/91444a0a45b98c316b0fb600447de60565df1908408f92941a2be417c907ab14\",\"condition-gate/runtime-meaning/a232d0b5bdb563b823b7f90ee40d80e3a95edb0a0249069f89f492ed3c1ba1e8\",\"condition-gate/runtime-meaning/88934848afeac182eedc708e5c2d232f2a2e07eb54de69ebecd25b26e4207c4c\",\"condition-gate/runtime-meaning/d45f7e119999229e3209b9313b9ac377adcf3298626437793ebaa6f90448d096\"],\"unestablished_meaning_macros\":[\"BACKOFF_FIXED\"],\"use_class\":\"raw-measurement\"}",
+     "document": {
+      "admission_digest": "cd031bc96af849a7d63c5187e941d2386cb14a8bf94bbc06c70fd866b4155aae",
+      "admission_id": "condition-gate/admission/cd031bc96af849a7d63c5187e941d2386cb14a8bf94bbc06c70fd866b4155aae",
+      "admitted": false,
+      "record_ids": [
+       "condition-gate/supply-effectuation/9044f8c8c0ee64f3351679176727a3889553f28ce8ac4d8d256951522c0031fd",
+       "condition-gate/supply-effectuation/b95980d9c681b12d3195e1f9d861abaa5531af8e9b1c40a0a6156631c6047c58",
+       "condition-gate/supply-effectuation/91444a0a45b98c316b0fb600447de60565df1908408f92941a2be417c907ab14",
+       "condition-gate/runtime-meaning/a232d0b5bdb563b823b7f90ee40d80e3a95edb0a0249069f89f492ed3c1ba1e8",
+       "condition-gate/runtime-meaning/88934848afeac182eedc708e5c2d232f2a2e07eb54de69ebecd25b26e4207c4c",
+       "condition-gate/runtime-meaning/d45f7e119999229e3209b9313b9ac377adcf3298626437793ebaa6f90448d096"
+      ],
+      "unestablished_meaning_macros": [
+       "BACKOFF_FIXED"
+      ],
+      "use_class": "raw-measurement"
+     },
+     "record_ids": [
+      "condition-gate/supply-effectuation/9044f8c8c0ee64f3351679176727a3889553f28ce8ac4d8d256951522c0031fd",
+      "condition-gate/supply-effectuation/b95980d9c681b12d3195e1f9d861abaa5531af8e9b1c40a0a6156631c6047c58",
+      "condition-gate/supply-effectuation/91444a0a45b98c316b0fb600447de60565df1908408f92941a2be417c907ab14",
+      "condition-gate/runtime-meaning/a232d0b5bdb563b823b7f90ee40d80e3a95edb0a0249069f89f492ed3c1ba1e8",
+      "condition-gate/runtime-meaning/88934848afeac182eedc708e5c2d232f2a2e07eb54de69ebecd25b26e4207c4c",
+      "condition-gate/runtime-meaning/d45f7e119999229e3209b9313b9ac377adcf3298626437793ebaa6f90448d096"
+     ],
+     "unestablished_meaning_macros": [
+      "BACKOFF_FIXED"
+     ]
+    }
+   ],
+   "meaning_records": [
+    {
+     "arm": "runtime-meaning",
+     "canonical_json": "{\"arm\":\"runtime-meaning\",\"driver_id\":\"orchestrator/campaign/backoff_repro.py\",\"evidence\":{\"witness_declared\":false},\"macro\":\"BACKOFF_FIXED\",\"reason_code\":\"meaning-witness-undeclared\",\"record_digest\":\"a232d0b5bdb563b823b7f90ee40d80e3a95edb0a0249069f89f492ed3c1ba1e8\",\"record_id\":\"condition-gate/runtime-meaning/a232d0b5bdb563b823b7f90ee40d80e3a95edb0a0249069f89f492ed3c1ba1e8\",\"request_digest\":\"f54e073297b9f24523e9b73acd30e8113dd2ec173e1ec2c1ad19061ffac46916\",\"terminal_status\":\"unestablished\"}",
+     "document": {
+      "arm": "runtime-meaning",
+      "driver_id": "orchestrator/campaign/backoff_repro.py",
+      "evidence": {
+       "witness_declared": false
+      },
+      "macro": "BACKOFF_FIXED",
+      "reason_code": "meaning-witness-undeclared",
+      "record_digest": "a232d0b5bdb563b823b7f90ee40d80e3a95edb0a0249069f89f492ed3c1ba1e8",
+      "record_id": "condition-gate/runtime-meaning/a232d0b5bdb563b823b7f90ee40d80e3a95edb0a0249069f89f492ed3c1ba1e8",
+      "request_digest": "f54e073297b9f24523e9b73acd30e8113dd2ec173e1ec2c1ad19061ffac46916",
+      "terminal_status": "unestablished"
+     },
+     "macro": "BACKOFF_FIXED",
+     "reason_code": "meaning-witness-undeclared",
+     "record_id": "condition-gate/runtime-meaning/a232d0b5bdb563b823b7f90ee40d80e3a95edb0a0249069f89f492ed3c1ba1e8",
+     "request_digest": "f54e073297b9f24523e9b73acd30e8113dd2ec173e1ec2c1ad19061ffac46916",
+     "terminal_status": "unestablished"
+    },
+    {
+     "arm": "runtime-meaning",
+     "canonical_json": "{\"arm\":\"runtime-meaning\",\"driver_id\":\"orchestrator/campaign/backoff_repro.py\",\"evidence\":{\"witness_declared\":false},\"macro\":\"BACKOFF_FIXED\",\"reason_code\":\"meaning-witness-undeclared\",\"record_digest\":\"88934848afeac182eedc708e5c2d232f2a2e07eb54de69ebecd25b26e4207c4c\",\"record_id\":\"condition-gate/runtime-meaning/88934848afeac182eedc708e5c2d232f2a2e07eb54de69ebecd25b26e4207c4c\",\"request_digest\":\"e00a225726dee0a9127250648c8c507b2a40e7a29d5aa67f1f6fe45c79a7d8df\",\"terminal_status\":\"unestablished\"}",
+     "document": {
+      "arm": "runtime-meaning",
+      "driver_id": "orchestrator/campaign/backoff_repro.py",
+      "evidence": {
+       "witness_declared": false
+      },
+      "macro": "BACKOFF_FIXED",
+      "reason_code": "meaning-witness-undeclared",
+      "record_digest": "88934848afeac182eedc708e5c2d232f2a2e07eb54de69ebecd25b26e4207c4c",
+      "record_id": "condition-gate/runtime-meaning/88934848afeac182eedc708e5c2d232f2a2e07eb54de69ebecd25b26e4207c4c",
+      "request_digest": "e00a225726dee0a9127250648c8c507b2a40e7a29d5aa67f1f6fe45c79a7d8df",
+      "terminal_status": "unestablished"
+     },
+     "macro": "BACKOFF_FIXED",
+     "reason_code": "meaning-witness-undeclared",
+     "record_id": "condition-gate/runtime-meaning/88934848afeac182eedc708e5c2d232f2a2e07eb54de69ebecd25b26e4207c4c",
+     "request_digest": "e00a225726dee0a9127250648c8c507b2a40e7a29d5aa67f1f6fe45c79a7d8df",
+     "terminal_status": "unestablished"
+    },
+    {
+     "arm": "runtime-meaning",
+     "canonical_json": "{\"arm\":\"runtime-meaning\",\"driver_id\":\"orchestrator/campaign/backoff_repro.py\",\"evidence\":{\"compiler_identities\":[{\"identity\":{\"ctime_ns\":1774938579403094019,\"device\":66311,\"inode\":47429,\"mtime_ns\":1766043084000000000,\"size\":932680},\"phase\":\"before-version\",\"sha256\":\"2360901d864cf10bfd6296e261cb2c14053552a80377761ab07146ec9ec9a2c0\"},{\"identity\":{\"ctime_ns\":1774938579403094019,\"device\":66311,\"inode\":47429,\"mtime_ns\":1766043084000000000,\"size\":932680},\"phase\":\"after-version\",\"sha256\":\"2360901d864cf10bfd6296e261cb2c14053552a80377761ab07146ec9ec9a2c0\"},{\"identity\":{\"ctime_ns\":1774938579403094019,\"device\":66311,\"inode\":47429,\"mtime_ns\":1766043084000000000,\"size\":932680},\"phase\":\"after-branch-preprocess\",\"sha256\":\"2360901d864cf10bfd6296e261cb2c14053552a80377761ab07146ec9ec9a2c0\"}],\"compiler_path\":\"/usr/bin/x86_64-linux-gnu-g++-11\",\"compiler_version\":\"x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0\",\"conditional_sha256\":\"d5a9a464f98e01ab53099d16e268f7ba7f075170b70a9678e07b678d9d733b26\",\"define_value\":-1,\"expected_branch\":\"stock-adaptive-backoff\",\"observed_branch\":\"stock-adaptive-backoff\",\"preprocess_argv\":[\"/usr/bin/x86_64-linux-gnu-g++-11\",\"-E\",\"-P\",\"-x\",\"c++\",\"-DBACKOFF_FIXED=-1\",\"/scr/0_980676.nqsv-t2228-driver-gate/izanagi_condition_branch_wfqx_kkw/materialized-conditional.cc\"],\"proof_kind\":\"compiler-preprocessed-materialized-conditional-selected-branch-witness\",\"source_sha256\":\"80455e84ecb4cff02f83f4c886ff01cdbe34e4e8bf3e68ae61a9806b92c6d029\",\"stock_branch_sha256\":\"a9e38b8ef5dbd8a866dacccd15c5785bb8d792dbac8a6d83fe98a522493e391e\",\"witness_id\":\"backoff-fixed-finite-pointwise\"},\"macro\":\"BACKOFF_FIXED\",\"reason_code\":\"declared-meaning-observed\",\"record_digest\":\"d45f7e119999229e3209b9313b9ac377adcf3298626437793ebaa6f90448d096\",\"record_id\":\"condition-gate/runtime-meaning/d45f7e119999229e3209b9313b9ac377adcf3298626437793ebaa6f90448d096\",\"request_digest\":\"bcce3bb5ae07653249d6078544e2d89e1bbfbb4e07b39697a296269f6309390f\",\"terminal_status\":\"green\"}",
+     "document": {
+      "arm": "runtime-meaning",
+      "driver_id": "orchestrator/campaign/backoff_repro.py",
+      "evidence": {
+       "compiler_identities": [
+        {
+         "identity": {
+          "ctime_ns": 1774938579403094019,
+          "device": 66311,
+          "inode": 47429,
+          "mtime_ns": 1766043084000000000,
+          "size": 932680
+         },
+         "phase": "before-version",
+         "sha256": "2360901d864cf10bfd6296e261cb2c14053552a80377761ab07146ec9ec9a2c0"
+        },
+        {
+         "identity": {
+          "ctime_ns": 1774938579403094019,
+          "device": 66311,
+          "inode": 47429,
+          "mtime_ns": 1766043084000000000,
+          "size": 932680
+         },
+         "phase": "after-version",
+         "sha256": "2360901d864cf10bfd6296e261cb2c14053552a80377761ab07146ec9ec9a2c0"
+        },
+        {
+         "identity": {
+          "ctime_ns": 1774938579403094019,
+          "device": 66311,
+          "inode": 47429,
+          "mtime_ns": 1766043084000000000,
+          "size": 932680
+         },
+         "phase": "after-branch-preprocess",
+         "sha256": "2360901d864cf10bfd6296e261cb2c14053552a80377761ab07146ec9ec9a2c0"
+        }
+       ],
+       "compiler_path": "/usr/bin/x86_64-linux-gnu-g++-11",
+       "compiler_version": "x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0",
+       "conditional_sha256": "d5a9a464f98e01ab53099d16e268f7ba7f075170b70a9678e07b678d9d733b26",
+       "define_value": -1,
+       "expected_branch": "stock-adaptive-backoff",
+       "observed_branch": "stock-adaptive-backoff",
+       "preprocess_argv": [
+        "/usr/bin/x86_64-linux-gnu-g++-11",
+        "-E",
+        "-P",
+        "-x",
+        "c++",
+        "-DBACKOFF_FIXED=-1",
+        "/scr/0_980676.nqsv-t2228-driver-gate/izanagi_condition_branch_wfqx_kkw/materialized-conditional.cc"
+       ],
+       "proof_kind": "compiler-preprocessed-materialized-conditional-selected-branch-witness",
+       "source_sha256": "80455e84ecb4cff02f83f4c886ff01cdbe34e4e8bf3e68ae61a9806b92c6d029",
+       "stock_branch_sha256": "a9e38b8ef5dbd8a866dacccd15c5785bb8d792dbac8a6d83fe98a522493e391e",
+       "witness_id": "backoff-fixed-finite-pointwise"
+      },
+      "macro": "BACKOFF_FIXED",
+      "reason_code": "declared-meaning-observed",
+      "record_digest": "d45f7e119999229e3209b9313b9ac377adcf3298626437793ebaa6f90448d096",
+      "record_id": "condition-gate/runtime-meaning/d45f7e119999229e3209b9313b9ac377adcf3298626437793ebaa6f90448d096",
+      "request_digest": "bcce3bb5ae07653249d6078544e2d89e1bbfbb4e07b39697a296269f6309390f",
+      "terminal_status": "green"
+     },
+     "macro": "BACKOFF_FIXED",
+     "reason_code": "declared-meaning-observed",
+     "record_id": "condition-gate/runtime-meaning/d45f7e119999229e3209b9313b9ac377adcf3298626437793ebaa6f90448d096",
+     "request_digest": "bcce3bb5ae07653249d6078544e2d89e1bbfbb4e07b39697a296269f6309390f",
+     "terminal_status": "green"
+    }
+   ],
+   "requests": [
+    {
+     "companion_defines": [],
+     "default_value": -1,
+     "driver_id": "orchestrator/campaign/backoff_repro.py",
+     "macro": "BACKOFF_FIXED",
+     "owner_tu": "cc/silo/transaction.cc",
+     "request_digest": "f54e073297b9f24523e9b73acd30e8113dd2ec173e1ec2c1ad19061ffac46916",
+     "requested_value": 10,
+     "route": "cmake-cache-option",
+     "stock_comparison": false,
+     "target": "ycsb_silo.exe"
+    },
+    {
+     "companion_defines": [],
+     "default_value": -1,
+     "driver_id": "orchestrator/campaign/backoff_repro.py",
+     "macro": "BACKOFF_FIXED",
+     "owner_tu": "cc/silo/transaction.cc",
+     "request_digest": "e00a225726dee0a9127250648c8c507b2a40e7a29d5aa67f1f6fe45c79a7d8df",
+     "requested_value": 5,
+     "route": "cmake-cache-option",
+     "stock_comparison": false,
+     "target": "ycsb_silo.exe"
+    },
+    {
+     "companion_defines": [],
+     "default_value": null,
+     "driver_id": "orchestrator/campaign/backoff_repro.py",
+     "macro": "BACKOFF_FIXED",
+     "owner_tu": "cc/silo/transaction.cc",
+     "request_digest": "bcce3bb5ae07653249d6078544e2d89e1bbfbb4e07b39697a296269f6309390f",
+     "requested_value": -1,
+     "route": "cmake-cache-option",
+     "stock_comparison": true,
+     "target": "ycsb_silo.exe"
+    }
+   ],
+   "supply_records": [
+    {
+     "arm": "supply-effectuation",
+     "canonical_json": "{\"arm\":\"supply-effectuation\",\"driver_id\":\"orchestrator/campaign/backoff_repro.py\",\"evidence\":{\"detail\":\"process returned rc=1; stderr=b'76.nqsv-t2228-driver-gate/driver-repositories/repro/external/ccbench/cc/silo/include/atomic_tool.hh:3,\\\\n                 from /scr/0_980676.nqsv-t2228-driver-gate/driver-repositories/repro/external/ccbench/cc/silo/transaction.cc:5:\\\\n/scr/0_980676.nqsv-t2228-driver-gate/driver-repositories/repro/external/ccbench/cc/silo/include/../../../include/masstree_wrapper.hh:20:10: fatal error: config.h: No such file or directory\\\\n   20 | #include <config.h>\\\\n      |          ^~~~~~~~~~\\\\ncompilation terminated.\\\\n'\",\"expected\":null,\"observed\":null},\"macro\":\"BACKOFF_FIXED\",\"reason_code\":\"preprocess-failed\",\"record_digest\":\"9044f8c8c0ee64f3351679176727a3889553f28ce8ac4d8d256951522c0031fd\",\"record_id\":\"condition-gate/supply-effectuation/9044f8c8c0ee64f3351679176727a3889553f28ce8ac4d8d256951522c0031fd\",\"request_digest\":\"f54e073297b9f24523e9b73acd30e8113dd2ec173e1ec2c1ad19061ffac46916\",\"terminal_status\":\"red\"}",
+     "document": {
+      "arm": "supply-effectuation",
+      "driver_id": "orchestrator/campaign/backoff_repro.py",
+      "evidence": {
+       "detail": "process returned rc=1; stderr=b'76.nqsv-t2228-driver-gate/driver-repositories/repro/external/ccbench/cc/silo/include/atomic_tool.hh:3,\\n                 from /scr/0_980676.nqsv-t2228-driver-gate/driver-repositories/repro/external/ccbench/cc/silo/transaction.cc:5:\\n/scr/0_980676.nqsv-t2228-driver-gate/driver-repositories/repro/external/ccbench/cc/silo/include/../../../include/masstree_wrapper.hh:20:10: fatal error: config.h: No such file or directory\\n   20 | #include <config.h>\\n      |          ^~~~~~~~~~\\ncompilation terminated.\\n'",
+       "expected": null,
+       "observed": null
+      },
+      "macro": "BACKOFF_FIXED",
+      "reason_code": "preprocess-failed",
+      "record_digest": "9044f8c8c0ee64f3351679176727a3889553f28ce8ac4d8d256951522c0031fd",
+      "record_id": "condition-gate/supply-effectuation/9044f8c8c0ee64f3351679176727a3889553f28ce8ac4d8d256951522c0031fd",
+      "request_digest": "f54e073297b9f24523e9b73acd30e8113dd2ec173e1ec2c1ad19061ffac46916",
+      "terminal_status": "red"
+     },
+     "macro": "BACKOFF_FIXED",
+     "reason_code": "preprocess-failed",
+     "record_id": "condition-gate/supply-effectuation/9044f8c8c0ee64f3351679176727a3889553f28ce8ac4d8d256951522c0031fd",
+     "request_digest": "f54e073297b9f24523e9b73acd30e8113dd2ec173e1ec2c1ad19061ffac46916",
+     "terminal_status": "red"
+    },
+    {
+     "arm": "supply-effectuation",
+     "canonical_json": "{\"arm\":\"supply-effectuation\",\"driver_id\":\"orchestrator/campaign/backoff_repro.py\",\"evidence\":{\"detail\":\"process returned rc=1; stderr=b'76.nqsv-t2228-driver-gate/driver-repositories/repro/external/ccbench/cc/silo/include/atomic_tool.hh:3,\\\\n                 from /scr/0_980676.nqsv-t2228-driver-gate/driver-repositories/repro/external/ccbench/cc/silo/transaction.cc:5:\\\\n/scr/0_980676.nqsv-t2228-driver-gate/driver-repositories/repro/external/ccbench/cc/silo/include/../../../include/masstree_wrapper.hh:20:10: fatal error: config.h: No such file or directory\\\\n   20 | #include <config.h>\\\\n      |          ^~~~~~~~~~\\\\ncompilation terminated.\\\\n'\",\"expected\":null,\"observed\":null},\"macro\":\"BACKOFF_FIXED\",\"reason_code\":\"preprocess-failed\",\"record_digest\":\"b95980d9c681b12d3195e1f9d861abaa5531af8e9b1c40a0a6156631c6047c58\",\"record_id\":\"condition-gate/supply-effectuation/b95980d9c681b12d3195e1f9d861abaa5531af8e9b1c40a0a6156631c6047c58\",\"request_digest\":\"e00a225726dee0a9127250648c8c507b2a40e7a29d5aa67f1f6fe45c79a7d8df\",\"terminal_status\":\"red\"}",
+     "document": {
+      "arm": "supply-effectuation",
+      "driver_id": "orchestrator/campaign/backoff_repro.py",
+      "evidence": {
+       "detail": "process returned rc=1; stderr=b'76.nqsv-t2228-driver-gate/driver-repositories/repro/external/ccbench/cc/silo/include/atomic_tool.hh:3,\\n                 from /scr/0_980676.nqsv-t2228-driver-gate/driver-repositories/repro/external/ccbench/cc/silo/transaction.cc:5:\\n/scr/0_980676.nqsv-t2228-driver-gate/driver-repositories/repro/external/ccbench/cc/silo/include/../../../include/masstree_wrapper.hh:20:10: fatal error: config.h: No such file or directory\\n   20 | #include <config.h>\\n      |          ^~~~~~~~~~\\ncompilation terminated.\\n'",
+       "expected": null,
+       "observed": null
+      },
+      "macro": "BACKOFF_FIXED",
+      "reason_code": "preprocess-failed",
+      "record_digest": "b95980d9c681b12d3195e1f9d861abaa5531af8e9b1c40a0a6156631c6047c58",
+      "record_id": "condition-gate/supply-effectuation/b95980d9c681b12d3195e1f9d861abaa5531af8e9b1c40a0a6156631c6047c58",
+      "request_digest": "e00a225726dee0a9127250648c8c507b2a40e7a29d5aa67f1f6fe45c79a7d8df",
+      "terminal_status": "red"
+     },
+     "macro": "BACKOFF_FIXED",
+     "reason_code": "preprocess-failed",
+     "record_id": "condition-gate/supply-effectuation/b95980d9c681b12d3195e1f9d861abaa5531af8e9b1c40a0a6156631c6047c58",
+     "request_digest": "e00a225726dee0a9127250648c8c507b2a40e7a29d5aa67f1f6fe45c79a7d8df",
+     "terminal_status": "red"
+    },
+    {
+     "arm": "supply-effectuation",
+     "canonical_json": "{\"arm\":\"supply-effectuation\",\"driver_id\":\"orchestrator/campaign/backoff_repro.py\",\"evidence\":{\"detail\":\"process returned rc=1; stderr=b'76.nqsv-t2228-driver-gate/driver-repositories/repro/external/ccbench/cc/silo/include/atomic_tool.hh:3,\\\\n                 from /scr/0_980676.nqsv-t2228-driver-gate/driver-repositories/repro/external/ccbench/cc/silo/transaction.cc:5:\\\\n/scr/0_980676.nqsv-t2228-driver-gate/driver-repositories/repro/external/ccbench/cc/silo/include/../../../include/masstree_wrapper.hh:20:10: fatal error: config.h: No such file or directory\\\\n   20 | #include <config.h>\\\\n      |          ^~~~~~~~~~\\\\ncompilation terminated.\\\\n'\",\"expected\":null,\"observed\":null},\"macro\":\"BACKOFF_FIXED\",\"reason_code\":\"preprocess-failed\",\"record_digest\":\"91444a0a45b98c316b0fb600447de60565df1908408f92941a2be417c907ab14\",\"record_id\":\"condition-gate/supply-effectuation/91444a0a45b98c316b0fb600447de60565df1908408f92941a2be417c907ab14\",\"request_digest\":\"bcce3bb5ae07653249d6078544e2d89e1bbfbb4e07b39697a296269f6309390f\",\"terminal_status\":\"red\"}",
+     "document": {
+      "arm": "supply-effectuation",
+      "driver_id": "orchestrator/campaign/backoff_repro.py",
+      "evidence": {
+       "detail": "process returned rc=1; stderr=b'76.nqsv-t2228-driver-gate/driver-repositories/repro/external/ccbench/cc/silo/include/atomic_tool.hh:3,\\n                 from /scr/0_980676.nqsv-t2228-driver-gate/driver-repositories/repro/external/ccbench/cc/silo/transaction.cc:5:\\n/scr/0_980676.nqsv-t2228-driver-gate/driver-repositories/repro/external/ccbench/cc/silo/include/../../../include/masstree_wrapper.hh:20:10: fatal error: config.h: No such file or directory\\n   20 | #include <config.h>\\n      |          ^~~~~~~~~~\\ncompilation terminated.\\n'",
+       "expected": null,
+       "observed": null
+      },
+      "macro": "BACKOFF_FIXED",
+      "reason_code": "preprocess-failed",
+      "record_digest": "91444a0a45b98c316b0fb600447de60565df1908408f92941a2be417c907ab14",
+      "record_id": "condition-gate/supply-effectuation/91444a0a45b98c316b0fb600447de60565df1908408f92941a2be417c907ab14",
+      "request_digest": "bcce3bb5ae07653249d6078544e2d89e1bbfbb4e07b39697a296269f6309390f",
+      "terminal_status": "red"
+     },
+     "macro": "BACKOFF_FIXED",
+     "reason_code": "preprocess-failed",
+     "record_id": "condition-gate/supply-effectuation/91444a0a45b98c316b0fb600447de60565df1908408f92941a2be417c907ab14",
+     "request_digest": "bcce3bb5ae07653249d6078544e2d89e1bbfbb4e07b39697a296269f6309390f",
+     "terminal_status": "red"
+    }
+   ]
+  }
+ },
+ "metadata": {
+  "cmake": {
+   "exception": null,
+   "path": "/usr/bin/cmake",
+   "returncode": 0,
+   "sha256": "fd22547781b64bb2db04370970b93db1f3fada1e41e60873b015ee0747009fc0",
+   "stderr": "",
+   "stdout_first_line": "cmake version 3.22.1"
+  },
+  "compiler": {
+   "cc": "gcc",
+   "cxx": "g++",
+   "manifest_exception": null,
+   "observed_toolchain_manifest": {
+    "cc": {
+     "realpath": "/usr/bin/x86_64-linux-gnu-gcc-11",
+     "requested": "gcc",
+     "version": "x86_64-linux-gnu-gcc-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0\nCopyright (C) 2021 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+     "version_first_line": "x86_64-linux-gnu-gcc-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0"
+    },
+    "cmake": {
+     "realpath": "/usr/bin/cmake",
+     "requested": "cmake",
+     "version": "cmake version 3.22.1\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake).",
+     "version_first_line": "cmake version 3.22.1"
+    },
+    "cxx": {
+     "realpath": "/usr/bin/x86_64-linux-gnu-g++-11",
+     "requested": "g++",
+     "version": "x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0\nCopyright (C) 2021 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+     "version_first_line": "x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0"
+    }
+   }
+  },
+  "driver_repo_root": "/scr/0_980676.nqsv-t2228-driver-gate/driver-repositories/repro",
+  "expected_repo_head": "c3447612e62ec7ec93d1662bfca45c594ff0a31b",
+  "hostname": "bnode020",
+  "network_observation": {
+   "exception": {
+    "cause": null,
+    "context": null,
+    "message": "[Errno -3] Temporary failure in name resolution",
+    "module": "socket",
+    "reason_code": null,
+    "suppress_context": false,
+    "traceback": [
+     {
+      "filename": "t2228_driver_gate_liveness_probe.py",
+      "function": "_network_observation",
+      "line": 566,
+      "module": "__main__"
+     },
+     {
+      "filename": "socket.py",
+      "function": "getaddrinfo",
+      "line": 955,
+      "module": "socket"
+     }
+    ],
+    "type": "gaierror"
+   },
+   "host": "github.com",
+   "port": 443,
+   "reachable": false
+  },
+  "production_file_sha256": {
+   "orchestrator/campaign/backoff_repro.py": {
+    "path": "/scr/0_980676.nqsv-t2228-driver-gate/driver-repositories/repro/orchestrator/campaign/backoff_repro.py",
+    "sha256": "6aede5cff5af4fc912c4bde74b7bfa639294dc972c3ccc71332e827370b75b10"
+   },
+   "orchestrator/campaign/backoff_sweep.py": {
+    "path": "/scr/0_980676.nqsv-t2228-driver-gate/driver-repositories/repro/orchestrator/campaign/backoff_sweep.py",
+    "sha256": "1b64f897309d9104aa089353dfd7474ca50bc349fcb410d5f9807aa55b7b8773"
+   },
+   "orchestrator/campaign/condition_meaning_gate.py": {
+    "path": "/scr/0_980676.nqsv-t2228-driver-gate/driver-repositories/repro/orchestrator/campaign/condition_meaning_gate.py",
+    "sha256": "2fc0d490f464c09f9a717799eb4afabb1500eb15deca0fde3253f53bc7c820c9"
+   },
+   "orchestrator/campaign/s1_direct_comparison.py": {
+    "path": "/scr/0_980676.nqsv-t2228-driver-gate/driver-repositories/repro/orchestrator/campaign/s1_direct_comparison.py",
+    "sha256": "049642ca067d93b046df66b14ddfdda3782bb06c830f2803c71e0e60e42f316d"
+   }
+  },
+  "run_binding": {
+   "pbs_job_id": "0:980676.nqsv",
+   "process_id": 1458816,
+   "run_id": "836ca45dacc74efd840e1fee65495432"
+  },
+  "runtime_output_root": "/scr/0_980676.nqsv-t2228-driver-gate/runtime-output/repro",
+  "scratch_capacity_at_start": {
+   "free_bytes": 5863212433408,
+   "free_inodes": 577106671,
+   "total_bytes": 5908152188928,
+   "used_bytes": 44939755520
+  }
+ },
+ "ok": false,
+ "planned_driver_order": [
+  "s1",
+  "repro",
+  "sweep"
+ ],
+ "rc": 1,
+ "run_binding": {
+  "pbs_job_id": "0:980676.nqsv",
+  "process_id": 1458816,
+  "run_id": "836ca45dacc74efd840e1fee65495432"
+ },
+ "schema_version": "izanagi-t2228-driver-gate-liveness/v1"
+}
