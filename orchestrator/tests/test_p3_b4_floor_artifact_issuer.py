@@ -692,3 +692,12 @@ def test_resolver_rejects_duplicate_floor_rows(tmp_path: Path) -> None:
         issuer.resolve_preregistered_authoritative_floor(
             repo_root=tmp_path, preregistration_path=prereg_path
         )
+
+
+def _run() -> int:
+    """pytest fixtures/parametrize を含む全 node を素の runner からも実行する。"""
+    return int(pytest.main(["-q", str(Path(__file__).resolve())]))
+
+
+if __name__ == "__main__":
+    raise SystemExit(_run())
