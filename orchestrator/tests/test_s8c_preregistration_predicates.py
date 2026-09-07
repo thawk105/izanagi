@@ -331,6 +331,57 @@ def test_current_repository_gap_reason_snapshot_requires_cross_wave_review(
     }
 
 
+@pytest.mark.xdist_group("s8c-predicate-snapshot")
+def test_current_repository_c04_rejects_missing_started_trial_preflight(
+    tmp_path: Path,
+    real_repo_fixture_lock,
+) -> None:
+    with real_repo_fixture_lock("read", None):
+        root, head, evaluated_head, _ = _snapshot_current_commit(tmp_path)
+        current_head = _git(_ROOT, "rev-parse", "HEAD").decode("ascii").strip()
+        _require_unchanged_head(evaluated_head, current_head)
+
+        baseline = _result(root, head, "C04")
+        assert baseline.status is core.PredicateStatus.EVIDENCE_UNDEFINED
+        assert baseline.reason_code == "completion-proof-not-machine-checkable"
+
+        workload_path = "orchestrator/campaign/p3_autonomous_workload_trial.py"
+        registry_path = "orchestrator/campaign/trial_registry.py"
+        workload_source = (root / workload_path).read_bytes()
+        registry_source = (root / registry_path).read_bytes()
+        started_trial_call = b"""    trial_registry.reject_started_trial(
+        trial_id=trial_id,
+        repository_root=ROOT,
+        lifecycle_path=ROOT / trial_registry.DEFAULT_LIFECYCLE_PATH,
+    )
+"""
+        assert (
+            workload_source.count(b"trial_registry.reject_started_trial(") == 1
+        )
+        assert workload_source.count(started_trial_call) == 1
+
+        mutated_workload = workload_source.replace(started_trial_call, b"", 1)
+        mark_call = b"            mark_experiment_indeterminate(\n"
+        forbid_call = b"trial_registry.forbid_trial_restart("
+        assert (
+            mutated_workload.count(b"trial_registry.reject_started_trial(") == 0
+        )
+        assert workload_source.count(mark_call) >= 1
+        assert mutated_workload.count(mark_call) == workload_source.count(
+            mark_call
+        )
+        assert workload_source.count(forbid_call) == 1
+        assert mutated_workload.count(forbid_call) == 1
+        assert registry_source.count(b"def reject_started_trial(") == 1
+        assert registry_source.count(b"def forbid_trial_restart(") == 1
+
+        _write(root, workload_path, mutated_workload)
+        mutated_head = _commit(root, "C04 reject-started preflight removed")
+        result = _result(root, mutated_head, "C04")
+        assert result.status is core.PredicateStatus.UNSATISFIED
+        assert result.reason_code == "crash-policy-cell-partial"
+
+
 def test_c02_missing_registry_preserves_capability_absent_reason(
     tmp_path: Path,
 ) -> None:
@@ -783,9 +834,11 @@ def assert_trial_registry_acceptance(*, manifest_path, registration, measurement
 
 TOKEN_ONLY_C04 = """
 from .trial_registry import forbid_trial_restart
+from .trial_registry import reject_started_trial
 def launch_cells(): pass
 def mark_experiment_indeterminate(): pass
 def run_trial():
+    reject_started_trial()
     try:
         launch_cells()
     except Exception:
@@ -1201,7 +1254,13 @@ def _negative_control_case(
         assert mutated.count(replacement) == 1
         return sources, registry, mutated
     if identifier == "nc_c04_partial_crash_survives":
-        sources = {p3: TOKEN_ONLY_C04, registry: "def forbid_trial_restart(): pass\n"}
+        sources = {
+            p3: TOKEN_ONLY_C04,
+            registry: (
+                "def forbid_trial_restart(): pass\n"
+                "def reject_started_trial(): pass\n"
+            ),
+        }
         return sources, p3, TOKEN_ONLY_C04.replace(
             "        mark_experiment_indeterminate()",
             "        keep_completed_cells_certifying()",
@@ -3123,6 +3182,41 @@ def test_noop_and_token_only_fixtures_never_satisfy(
     }
     assert mutated_result.status is core.PredicateStatus.UNSATISFIED
     assert mutated_result.reason_code == expected_reasons[identifier]
+
+
+def test_c04_rejects_missing_started_trial_preflight(tmp_path: Path) -> None:
+    sources, _, _ = _negative_control_case("nc_c04_partial_crash_survives")
+    p3 = "orchestrator/campaign/p3_autonomous_workload_trial.py"
+    registry = "orchestrator/campaign/trial_registry.py"
+    source = sources[p3]
+    registry_source = sources[registry]
+    assert isinstance(source, str)
+    assert isinstance(registry_source, str)
+    root, _, _ = _terminal_result(
+        tmp_path,
+        "c04-reject-started-baseline",
+        "C04",
+        {p3: source, registry: registry_source},
+    )
+    preflight_call = "    reject_started_trial()\n"
+    assert source.count(preflight_call) == 1
+
+    mutated_source = source.replace(preflight_call, "", 1)
+    assert mutated_source.count(preflight_call) == 0
+    assert (
+        mutated_source.count("from .trial_registry import reject_started_trial\n")
+        == 1
+    )
+    assert mutated_source.count("        mark_experiment_indeterminate()\n") == 1
+    assert mutated_source.count("        forbid_trial_restart()\n") == 1
+    assert registry_source.count("def forbid_trial_restart()") == 1
+    assert registry_source.count("def reject_started_trial()") == 1
+
+    _write(root, p3, mutated_source)
+    head = _commit(root, "C04 reject-started preflight removed")
+    result = _result(root, head, "C04")
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "crash-policy-cell-partial"
 
 
 def test_c10_token_only_fixture_never_satisfies(tmp_path: Path) -> None:
