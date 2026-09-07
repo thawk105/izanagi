@@ -77,7 +77,13 @@ if [[ "$LEDGER_ROOT" != /* ]]; then
   echo "ledger root must be absolute" >&2
   exit 2
 fi
-mkdir -p -m 700 -- "$LEDGER_ROOT"
+SCHEDULER_DIR=$(realpath -m -- "$LEDGER_ROOT/$ATTEMPT_ID/scheduler")
+if [[ "$SCHEDULER_DIR" == "$REPO_ROOT" ||
+      "$SCHEDULER_DIR" == "$REPO_ROOT/"* ]]; then
+  echo "scheduler output directory must be outside the repository" >&2
+  exit 2
+fi
+mkdir -p -m 700 -- "$LEDGER_ROOT" "$SCHEDULER_DIR"
 LEDGER_FILE="$LEDGER_ROOT/$ATTEMPT_ID.submission-ledger.jsonl"
 if ! (set -o noclobber; : > "$LEDGER_FILE") 2>/dev/null; then
   echo "attempt id already has a submission ledger: $ATTEMPT_ID" >&2
@@ -127,13 +133,48 @@ for rep in {0..17}; do
   order=${PERMUTATIONS[$order_index]}
   seed=${SEEDS[$rep]}
   qsub_environment="IZANAGI_T2187_MODE=performance,IZANAGI_T2187_BACKOFF_TRACE=0,IZANAGI_T2187_EXPECTED_REPO_HEAD=$REPO_HEAD,IZANAGI_T2187_OUT_DIR=$OUT_DIR,IZANAGI_T2187_CELLS=$order,IZANAGI_T2187_WORKLOADS=$WORKLOADS,IZANAGI_T2187_THREADS=$THREADS,IZANAGI_T2187_REP_INDEX=$rep,IZANAGI_T2187_STEP_POLICY_SEED=$seed,IZANAGI_T2187_STAGE=1"
-  if ! job_id=$(qsub -v "$qsub_environment" "$PBS_BODY"); then
+  scheduler_stdout="$SCHEDULER_DIR/rep${rep}.stdout"
+  scheduler_stderr="$SCHEDULER_DIR/rep${rep}.stderr"
+  if ! qsub_output=$(qsub -o "$scheduler_stdout" -e "$scheduler_stderr" \
+      -v "$qsub_environment" "$PBS_BODY"); then
     echo "qsub failed for rep $rep after $submitted successful submissions" >&2
     report_partial_submission "$rep" "qsub-failed"
     exit 1
   fi
-  if [[ ! "$job_id" =~ ^([0-9]+:)?[A-Za-z0-9._-]+$ ]]; then
+  if ! job_id=$(python3 -I -B - "$qsub_output" <<'PY'
+import re
+import sys
+
+text = sys.argv[1]
+match = re.search(r"Request\s+(\S+)\s+submitted", text)
+tokens = text.split()
+if match:
+    candidate = match.group(1).rstrip(".")
+elif len(tokens) == 1 and re.fullmatch(
+    r"(?:[0-9]+:)?[0-9][A-Za-z0-9._-]*", tokens[0].rstrip(".")
+):
+    candidate = tokens[0].rstrip(".")
+else:
+    raise SystemExit(2)
+if re.fullmatch(r"(?:[0-9]+:)?[A-Za-z0-9._-]+", candidate) is None:
+    raise SystemExit(2)
+print(candidate)
+PY
+  ); then
+    raw_ledger_row=$(python3 -I -B - "$rep" "$qsub_output" <<'PY'
+import json
+import sys
+
+print(json.dumps({
+    "event": "qsub-output-unparsed",
+    "rep_index": int(sys.argv[1]),
+    "raw_output": sys.argv[2],
+}, sort_keys=True, separators=(",", ":")))
+PY
+    )
+    append_ledger "$raw_ledger_row" || true
     echo "qsub returned an invalid job id for rep $rep" >&2
+    printf 'qsub raw output for rep %d:\n%s\n' "$rep" "$qsub_output" >&2
     report_partial_submission "$rep" "invalid-job-id"
     exit 1
   fi

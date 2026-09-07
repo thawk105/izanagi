@@ -3524,7 +3524,7 @@ def test_submit_t2417_uses_one_checkout_and_exact_18_block_ledger(
     fake_qsub.write_text(
         "#!/bin/bash\n"
         "printf '%s\\n' \"$*\" >> \"$QSUB_LOG\"\n"
-        "printf '%s.test\\n' \"$$\"\n",
+        "printf '%s\\n' 'Request 982971.nqsv submitted to queue: gen_S.'\n",
         encoding="utf-8",
     )
     fake_git.chmod(0o755)
@@ -3545,6 +3545,7 @@ def test_submit_t2417_uses_one_checkout_and_exact_18_block_ledger(
     assert completed.returncode == 0, completed.stderr
     ledger = [json.loads(line) for line in completed.stdout.splitlines()]
     assert len(ledger) == 18
+    assert [entry["job_id"] for entry in ledger] == ["982971.nqsv"] * 18
     assert [entry["rep_index"] for entry in ledger] == list(range(18))
     assert [entry["order_index"] for entry in ledger] == [
         rep_index % 6 for rep_index in range(18)
@@ -3576,8 +3577,22 @@ def test_submit_t2417_uses_one_checkout_and_exact_18_block_ledger(
     qsub_lines = qsub_log.read_text(encoding="utf-8").splitlines()
     assert len(qsub_lines) == 18
     environments = []
-    for line in qsub_lines:
-        option, environment_text, pbs_body = line.split(" ", 2)
+    scheduler_dir = (ledger_root / "test-attempt" / "scheduler").resolve()
+    for rep_index, line in enumerate(qsub_lines):
+        arguments = line.split(" ")
+        assert len(arguments) == 7
+        stdout_option, stdout_text, stderr_option, stderr_text = arguments[:4]
+        option, environment_text, pbs_body = arguments[4:]
+        assert stdout_option == "-o"
+        assert stderr_option == "-e"
+        scheduler_stdout = Path(stdout_text)
+        scheduler_stderr = Path(stderr_text)
+        assert scheduler_stdout == scheduler_dir / f"rep{rep_index}.stdout"
+        assert scheduler_stderr == scheduler_dir / f"rep{rep_index}.stderr"
+        assert scheduler_stdout.is_absolute()
+        assert scheduler_stderr.is_absolute()
+        assert not scheduler_stdout.resolve().is_relative_to(ROOT.resolve())
+        assert not scheduler_stderr.resolve().is_relative_to(ROOT.resolve())
         assert option == "-v"
         assert Path(pbs_body) == PBS
         environments.append(
@@ -3622,6 +3637,24 @@ def test_submit_t2417_uses_one_checkout_and_exact_18_block_ledger(
         for environment in environments
     ] == list(EXPECTED_SEEDS_BY_SLOT.values())
     assert 'if [[ "$submitted" -ne 18 ]]' in submit_text
+
+    repo_internal = subprocess.run(
+        ["/bin/bash", str(SUBMIT_T2417), "repo-internal-scheduler"],
+        check=False,
+        capture_output=True,
+        text=True,
+        env={
+            **os.environ,
+            "PATH": f"{fake_bin}:{os.environ['PATH']}",
+            "FAKE_REPO_ROOT": str(ROOT.resolve()),
+            "QSUB_LOG": str(qsub_log),
+            "IZANAGI_T2417_LEDGER_ROOT": str(ROOT / "scheduler-must-not-land-here"),
+        },
+    )
+    assert repo_internal.returncode == 2
+    assert repo_internal.stdout == ""
+    assert "scheduler output directory must be outside" in repo_internal.stderr
+    assert len(qsub_log.read_text(encoding="utf-8").splitlines()) == 18
 
 
 def test_submit_t2417_records_partial_jobs_prints_qdel_and_rejects_attempt_reuse(
@@ -3699,6 +3732,36 @@ def test_submit_t2417_records_partial_jobs_prints_qdel_and_rejects_attempt_reuse
     assert reused.stdout == ""
     assert "attempt id already has a submission ledger" in reused.stderr
     assert len(qsub_log.read_text(encoding="utf-8").splitlines()) == 4
+
+    fake_qsub.write_text(
+        "#!/bin/bash\n"
+        "printf '%s\\n' \"$*\" >> \"$QSUB_LOG\"\n"
+        "printf '%s\\n' garbage\n",
+        encoding="utf-8",
+    )
+    invalid = subprocess.run(
+        ["/bin/bash", str(SUBMIT_T2417), "invalid-qsub-output"],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=environment,
+    )
+    assert invalid.returncode == 1
+    assert "qsub raw output for rep 0:\ngarbage\n" in invalid.stderr
+    invalid_persisted = [
+        json.loads(line)
+        for line in (ledger_root / "invalid-qsub-output.submission-ledger.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()
+    ]
+    assert invalid_persisted[1] == {
+        "event": "qsub-output-unparsed",
+        "raw_output": "garbage",
+        "rep_index": 0,
+    }
+    assert invalid_persisted[-1]["event"] == "submission-failed"
+    assert invalid_persisted[-1]["reason"] == "invalid-job-id"
+    assert all(entry["event"] != "job-submitted" for entry in invalid_persisted)
 
 
 def test_backoff_trace_mode_rejects_nonzero_rep_index_only(tmp_path: Path) -> None:
