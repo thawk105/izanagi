@@ -48,10 +48,12 @@ from orchestrator.campaign.pin import CURRENT_PIN  # noqa: E402
 
 LEGACY_SCHEMA_VERSION = "izanagi-cicada-adaptive-3const-probe/v2"
 LEGACY_TRACE_SCHEMA_VERSION = "izanagi-dynamic-backoff-trace/v2"
-LEGACY_CERTIFICATION_SCHEMA_VERSION = (
+# v2 read compatibility ends at performance artifacts.  These reject-only
+# sentinels make the unsupported certification/group boundary explicit.
+UNSUPPORTED_V2_CERTIFICATION_SCHEMA_VERSION = (
     "izanagi-cicada-adaptive-3const-certification/v2"
 )
-LEGACY_GROUP_RECEIPT_SCHEMA_VERSION = (
+UNSUPPORTED_V2_GROUP_RECEIPT_SCHEMA_VERSION = (
     "izanagi-cicada-adaptive-3const-certification-group/v2"
 )
 SCHEMA_VERSION = "izanagi-cicada-adaptive-3const-probe/v3"
@@ -1924,6 +1926,16 @@ def _validated_certification_row(
             "group-result-invalid", f"certification result is unreadable: {path}"
         ) from exc
     if (
+        type(document) is dict
+        and document.get("schema_version")
+        == UNSUPPORTED_V2_CERTIFICATION_SCHEMA_VERSION
+    ):
+        raise CertificationReject(
+            "legacy-certification-schema-unsupported",
+            "v2 certification artifacts are unsupported; group aggregation "
+            "accepts v3 certification artifacts only",
+        )
+    if (
         type(document) is not dict
         or document.get("schema_version") != CERTIFICATION_SCHEMA_VERSION
         or document.get("kind") != "correctness-certification-request"
@@ -2375,6 +2387,15 @@ def _validate_published_group(
     if type(receipt) is not dict:
         raise CertificationReject(
             "group-receipt-collision", "published group receipt is not an object"
+        )
+    if (
+        receipt.get("schema_version")
+        == UNSUPPORTED_V2_GROUP_RECEIPT_SCHEMA_VERSION
+    ):
+        raise CertificationReject(
+            "legacy-group-receipt-schema-unsupported",
+            "v2 group receipt artifacts are unsupported; published receipt "
+            "validation accepts v3 group receipt artifacts only",
         )
     expected_paths = {str(path.resolve(strict=True)): path for path in result_files}
     rows = receipt.get("results")

@@ -1905,10 +1905,10 @@ def test_counterfactual_stack_artifacts_use_schema_v3() -> None:
     assert probe.LEGACY_TRACE_SCHEMA_VERSION == (
         "izanagi-dynamic-backoff-trace/v2"
     )
-    assert probe.LEGACY_CERTIFICATION_SCHEMA_VERSION == (
+    assert probe.UNSUPPORTED_V2_CERTIFICATION_SCHEMA_VERSION == (
         "izanagi-cicada-adaptive-3const-certification/v2"
     )
-    assert probe.LEGACY_GROUP_RECEIPT_SCHEMA_VERSION == (
+    assert probe.UNSUPPORTED_V2_GROUP_RECEIPT_SCHEMA_VERSION == (
         "izanagi-cicada-adaptive-3const-certification-group/v2"
     )
     assert probe.SCHEMA_VERSION == "izanagi-cicada-adaptive-3const-probe/v3"
@@ -1966,6 +1966,56 @@ def test_legacy_v2_performance_artifact_remains_readable(tmp_path: Path) -> None
         "path": str(artifact.resolve(strict=True)),
         "sha256": hashlib.sha256(artifact.read_bytes()).hexdigest(),
     }
+
+
+def test_v2_certification_and_group_artifacts_are_explicitly_unsupported(
+    tmp_path: Path,
+) -> None:
+    certification = tmp_path / "certification-v2.json"
+    certification.write_text(
+        json.dumps(
+            {"schema_version": probe.UNSUPPORTED_V2_CERTIFICATION_SCHEMA_VERSION}
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(probe.CertificationReject) as caught:
+        probe._validated_certification_row(
+            certification,
+            attempt_id="attempt-test",
+            expected_verifier_identity={},
+            expected_verifier_identity_file_sha256="a" * 64,
+            performance_identity={},
+        )
+    assert caught.value.reason == "legacy-certification-schema-unsupported"
+    assert caught.value.detail == (
+        "v2 certification artifacts are unsupported; group aggregation accepts "
+        "v3 certification artifacts only"
+    )
+
+    group = tmp_path / "group-v2.json"
+    group.write_text(
+        json.dumps(
+            {"schema_version": probe.UNSUPPORTED_V2_GROUP_RECEIPT_SCHEMA_VERSION}
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(probe.CertificationReject) as caught:
+        probe._validate_published_group(
+            group,
+            [],
+            tmp_path / "unused-performance.json",
+            "b" * 64,
+            "attempt-test",
+            {},
+            "c" * 64,
+        )
+    assert caught.value.reason == "legacy-group-receipt-schema-unsupported"
+    assert caught.value.detail == (
+        "v2 group receipt artifacts are unsupported; published receipt validation "
+        "accepts v3 group receipt artifacts only"
+    )
 
 
 def test_counterfactual_artifacts_record_pending_preregistration() -> None:
@@ -2279,14 +2329,60 @@ def test_two_layer_trace_literals_are_byte_identical() -> None:
     ) == ["TRACE_CELLS_RAW", "COUNTERFACTUAL_TRACE_CELLS_RAW"]
 
 
-def test_pbs_marks_eleven_and_twelve_fields_extended() -> None:
-    text = PBS.read_text(encoding="utf-8")
+def test_pbs_marks_eleven_and_twelve_fields_extended(tmp_path: Path) -> None:
+    pbs_text = PBS.read_text(encoding="utf-8")
+    start = pbs_text.index("HAS_EXTENDED_CELL=0\n")
+    end = pbs_text.index("OUT_DIR=${OUT_DIR_RAW:-$DEFAULT_OUT_DIR}\n", start)
+    classification_block = pbs_text[start:end]
+    classification_script = tmp_path / "classify-pbs-cells.sh"
+    classification_script.write_text(classification_block, encoding="utf-8")
+    assert classification_script.read_text(encoding="utf-8") in pbs_text
+
+    def classify(cell: str, out_dir: str = "") -> subprocess.CompletedProcess[str]:
+        command = ["/bin/bash", "-x", str(classification_script)]
+        assert str(PBS) not in command
+        return subprocess.run(
+            command,
+            check=False,
+            capture_output=True,
+            text=True,
+            env={
+                "CELLS_RAW": cell,
+                "MODE": "performance",
+                "BACKOFF_TRACE": "0",
+                "WORKLOADS_RAW": "balanced",
+                "THREADS_RAW": "48",
+                "OUT_DIR_RAW": out_dir,
+            },
+        )
+
+    def assignments(
+        completed: subprocess.CompletedProcess[str], name: str
+    ) -> list[str]:
+        return re.findall(rf"^\+ {name}=([01])$", completed.stderr, re.MULTILINE)
+
+    eleven_fields = "extended-11:1:1:1000:2560:10000:10240:1:1:4:1"
+    twelve_fields = "extended-12:1:1:1000:2560:10000:10240:1:1:4:1:2"
+    four_colons = "five-fields:1:1:1000:2560"
+    for cell in (eleven_fields, twelve_fields):
+        completed = classify(cell, "/dynamic-output")
+        assert completed.returncode == 0, completed.stderr
+        assert assignments(completed, "HAS_EXTENDED_CELL") == ["0", "1"]
+        assert assignments(completed, "NEEDS_DYNAMIC_OUT") == ["0", "1"]
+    completed = classify(four_colons)
+    assert completed.returncode == 0, completed.stderr
+    assert assignments(completed, "HAS_EXTENDED_CELL") == ["0"]
+    assert assignments(completed, "NEEDS_DYNAMIC_OUT") == ["0"]
+
+    completed = classify(eleven_fields)
+    assert completed.returncode == 2
+    assert completed.stdout == ""
+    assert assignments(completed, "HAS_EXTENDED_CELL") == ["0", "1"]
+    assert assignments(completed, "NEEDS_DYNAMIC_OUT") == ["0", "1"]
     assert (
-        "if [[ ${#colon_text} -eq 10 || ${#colon_text} -eq 11 ]]; then"
-        in text
+        "IZANAGI_T2187_OUT_DIR is required for dynamic-backoff output\n"
+        in completed.stderr
     )
-    assert "if [[ ${#colon_text} -eq 10 ]]; then" not in text
-    assert "${#colon_text} -eq 4" not in text
 
 
 def test_backoff_trace_mode_rejects_nonzero_rep_index_only(tmp_path: Path) -> None:
