@@ -1,0 +1,7 @@
+{
+  "sha": "c12e25078ad155486c19eae633fde14e59753272",
+  "kind": "missing-codex-author",
+  "value": "",
+  "ruling": "系統 blocker (全 land の全史 provenance 監査 rc=1・全新規 worktree の submodule 初期化失敗) を解除するため、next-tasks command 移設 wave の親 (claude) が 2026-09-08 に登録した。原因 session ([T-2412] wave) は前進修正を本 wave へ委ねた。ユーザー承認は事後報告 (本 wave の worklog fragment)。",
+  "note": "commit c12e25078 は [T-2412] wave の親 (claude, role=manager) が主 checkout で `git add -A` を実行した際、untracked だった `.codex/worktrees/` 配下の Codex 子 worktree 110 本を gitlink (mode 160000) として誤って追加したもの。message が言う mutation-ledger-n-final.json は含まれず、変更は gitlink 110 本だけ (`git diff-tree -r --name-status c12e25078`)。`.codex/` 配下の非 .md path なので checker は実装面と判定し、Codex role=author が無いため missing-codex-author を検出した (2026-09-08 job 982930.nqsv、8802 件中 1 新規違反)。gitlink は本登録と同じ commit で `git rm --cached -r .codex/worktrees` により index から除去した。"
+}
