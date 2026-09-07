@@ -31,6 +31,14 @@ title: [T-1281] 計算ノード job の完了を待つ待ち手を正本へ載�
 - 非帰属の赤 2 件を実測で切り分けた。実装子が見た `test_pegasus_dispatch_compute.py` の 14 件は
   codex sandbox の隔離失敗で、親の login 環境では素の base でも patch 適用後でも 334 全緑。
   fix 子が見た `test_mutation_worktree.py` の 3 件は fix 前の同じ木でも同数・同テストで再現した。
+- **新規 test file を足したことで受入所要時間台帳の被覆 gate に掛かった。** attempt 1 が
+  `coverage too low: 89.849780%` の 1 件だけで赤。37 node を除くと 90.0037% で緑になるため
+  本 wave 起因と実測で確定し、正本 producer の `--add-only` で 37 node を登録した。さらに
+  main 側 wave も同台帳へ追記していたため、main 取り込みで 2 回連続して content conflict になり、
+  その都度 main を固定 SHA で取り込んで和集合に合成した (最終 19694 entry = 共通 19592 +
+  main のみ 65 + 本 wave のみ 37、両親の全 entry で欠落 0・値不一致 0・和集合外 0)。
+  詳細は {{F:new-test-file-hits-duration-ledger-gate}}。
+- 台帳を和集合に合成した後の受入全走 (attempt 3) は `child-green`、21,644 passed / 68 skipped / 0 failed、`tested_main` = `a916458d8`、`tested_tip` = `41888b526`。本記録は DW-O16 に従いこの後の最終受入より前に commit する。
 
 ## 次の一手差分
 
