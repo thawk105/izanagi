@@ -23,6 +23,7 @@ from orchestrator.campaign import (  # noqa: E402
     s1_verify_extime_calibration,
     s2_verify_calibration,
     s3_lock_coverage,
+    s3_mocc_lock_coverage,
 )
 
 _PRODUCTION_DIRS = (
@@ -53,6 +54,8 @@ _DIRECT_SAFE_ALLOWLIST = Counter({
     ("campaign/s2_verify_calibration.py", "<module>._run_once"): 1,
     # Both module-level SINGLE_FLAGS and HIGH_FLAGS are fixed at rr50.
     ("campaign/s3_lock_coverage.py", "<module>._run_trace"): 1,
+    # Both module-level mocc workloads are fixed at rr0.
+    ("campaign/s3_mocc_lock_coverage.py", "<module>._run_trace"): 1,
     # Public profile paths runtime-reject protected ratios before build/profile.
     ("campaign/backoff_profile.py", "<module>._profile_run"): 1,
     # Fixed argv, no shell expansion, sanitized env, read-only Git tree query.
@@ -180,6 +183,8 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     ("campaign/s3_lock_coverage.py", "<module>._build_broken"): 1,
     ("campaign/s3_lock_coverage.py", "<module>._run_cmake_build"): 1,
     ("campaign/s3_lock_coverage.py", "<module>._verify"): 1,
+    # Bounded toolchain, dependency, build, verifier, and binary-inspection runner.
+    ("campaign/s3_mocc_lock_coverage.py", "<module>._run_checked"): 1,
     ("campaign/s5_permutation_coverage.py", "<module>._build_broken"): 1,
     ("campaign/s5_permutation_coverage.py", "<module>._run_cmake_build"): 1,
     ("campaign/s5_permutation_coverage.py", "<module>._verify"): 1,
@@ -874,7 +879,7 @@ _DEFERRED_GATE_MEMBERS = (
         "active wave owns this driver",
         "campaign",
         "<module>.run_measurement",
-        7103,
+        7146,
     ),
     _DeferredGateMember(
         "orchestrator/campaign/s8b_floor_campaign.py",
@@ -890,7 +895,7 @@ _DEFERRED_GATE_MEMBERS = (
         "稼働 wave t2027 の所有面。動的 protocol 経由の campaign sink",
         "campaign",
         "<module>.main",
-        8625,
+        8632,
     ),
     _DeferredGateMember(
         "orchestrator/campaign/s8b_oracle_n_pilot.py",
@@ -907,26 +912,26 @@ _DEFERRED_GATE_MEMBERS = (
         "tools/pegasus/probes/t2187_adaptive_const_probe.py",
         "wave dynamic-backoff-mechanism",
         (
-            "明示 certify mode の A+B stack、exact 2 cell の各一値 build。"
+            "明示 certify mode の A+B+C stack、exact 2 cell の各一値 build。"
             "workload contract、実 verifier 陽性対照、target gate、closure "
             "identity に束縛される。condition-gate family admission は本 wave "
             "の scope 外"
         ),
         "buildcache",
         "<module>._certify_main._build_trace_binary",
-        2718,
+        2940,
     ),
     _DeferredGateMember(
         "tools/pegasus/probes/t2187_adaptive_const_probe.py",
         "wave dynamic-backoff-mechanism",
         (
-            "A+B stack の performance / diagnostic build。performance は "
+            "A+B+C stack の performance / diagnostic build。performance は "
             "trace-disabled、diagnostic は別 schema / headline 不適格であり、"
             "certify の exact 2 cell contract と分離される"
         ),
         "buildcache",
         "<module>.main",
-        3074,
+        3296,
     ),
 )
 
@@ -2652,7 +2657,7 @@ def test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink():
         ),
         (
             "orchestrator/campaign/paper_story_a1_paired.py",
-            "wave t1819", "campaign", "<module>.run_measurement", 7103,
+            "wave t1819", "campaign", "<module>.run_measurement", 7146,
         ),
         (
             "orchestrator/campaign/s8b_floor_campaign.py",
@@ -2661,7 +2666,7 @@ def test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink():
         ),
         (
             "orchestrator/campaign/s8b_floor_campaign.py",
-            "wave t2027", "campaign", "<module>.main", 8625,
+            "wave t2027", "campaign", "<module>.main", 8632,
         ),
         (
             "orchestrator/campaign/s8b_oracle_n_pilot.py",
@@ -2671,11 +2676,11 @@ def test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink():
         (
             "tools/pegasus/probes/t2187_adaptive_const_probe.py",
             "wave dynamic-backoff-mechanism", "buildcache",
-            "<module>._certify_main._build_trace_binary", 2718,
+            "<module>._certify_main._build_trace_binary", 2940,
         ),
         (
             "tools/pegasus/probes/t2187_adaptive_const_probe.py",
-            "wave dynamic-backoff-mechanism", "buildcache", "<module>.main", 3074,
+            "wave dynamic-backoff-mechanism", "buildcache", "<module>.main", 3296,
         ),
     }
     assert all(item.reason for item in _DEFERRED_GATE_MEMBERS)
@@ -2687,14 +2692,14 @@ def test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink():
     ] == [
         (
             "<module>._certify_main._build_trace_binary",
-            "明示 certify mode の A+B stack、exact 2 cell の各一値 build。"
+            "明示 certify mode の A+B+C stack、exact 2 cell の各一値 build。"
             "workload contract、実 verifier 陽性対照、target gate、closure "
             "identity に束縛される。condition-gate family admission は本 wave "
             "の scope 外",
         ),
         (
             "<module>.main",
-            "A+B stack の performance / diagnostic build。performance は "
+            "A+B+C stack の performance / diagnostic build。performance は "
             "trace-disabled、diagnostic は別 schema / headline 不適格であり、"
             "certify の exact 2 cell contract と分離される",
         ),
@@ -2911,11 +2916,11 @@ def test_define_sink_cross_product_classifies_t2155_production_sinks_exactly():
     )
     assert classifications[s1_sink] == Counter({
         "covered": 4,
-        # Patch B adds seven define interfaces that cannot reach this sink.
-        "proven-unreachable": 28,
+        # Patches B and C plus the mocc controls cannot reach this sink.
+        "proven-unreachable": 33,
     })
-    # Patch B's seven define interfaces are also covered by the s8b sink.
-    assert classifications[s8b_sink] == Counter({"covered": 32})
+    # Patch-derived define interfaces are covered by the s8b sink.
+    assert classifications[s8b_sink] == Counter({"covered": 37})
     assert failures == []
 
 
@@ -3476,6 +3481,12 @@ def test_direct_spawn_allowlist_constants_cannot_reach_protected_ratios():
     ) is None
     assert classify_minimal_holdout_signature(
         _flags(s3_lock_coverage.HIGH_FLAGS)
+    ) is None
+    assert classify_minimal_holdout_signature(
+        _flags(s3_mocc_lock_coverage.SINGLE_FLAGS)
+    ) is None
+    assert classify_minimal_holdout_signature(
+        _flags(s3_mocc_lock_coverage.HIGH_FLAGS)
     ) is None
     assert {
         point[1]["ycsb_rratio"] for point in backoff_profile.POINTS

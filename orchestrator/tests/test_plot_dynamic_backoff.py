@@ -22,6 +22,8 @@ REPO = Path(__file__).resolve().parents[2]
 SCRIPT = REPO / "tools" / "plotting" / "plot_dynamic_backoff.py"
 PERFORMANCE_SCHEMA = "izanagi-cicada-adaptive-3const-probe/v2"
 DIAGNOSTIC_SCHEMA = "izanagi-dynamic-backoff-trace/v2"
+COUNTERFACTUAL_PERFORMANCE_SCHEMA = "izanagi-cicada-adaptive-3const-probe/v3"
+COUNTERFACTUAL_DIAGNOSTIC_SCHEMA = "izanagi-dynamic-backoff-trace/v3"
 WORKLOADS = ("write-heavy", "balanced", "read-heavy")
 THREADS = (6, 12, 18, 24, 30, 36, 42, 48)
 CELLS = (
@@ -32,11 +34,19 @@ PIN = "511c953"
 FULL_PIN = "511c9538e4e8efa54b45cda62e72389ed3b706ec"
 PATCH_A = "9b2153e0547e167888ba2616750951365c4a075a80f9a95be6000e60b6f8f54b"
 PATCH_B = "3" * 64
+PATCH_C = "6" * 64
 DRIVER_SHA = "4" * 64
 PBS_SHA = "5" * 64
 PATCH_STACK = [
     {"path": "patches/cicada-adaptive-params.patch", "sha256": PATCH_A},
     {"path": "patches/cicada-adaptive-dynamic.patch", "sha256": PATCH_B},
+]
+COUNTERFACTUAL_PATCH_STACK = [
+    *PATCH_STACK,
+    {
+        "path": "patches/cicada-adaptive-counterfactual.patch",
+        "sha256": PATCH_C,
+    },
 ]
 
 CELL_CONFIGS = {
@@ -55,9 +65,9 @@ CONFIG_FIELDS = (
 )
 
 
-def _stack_sha() -> str:
+def _stack_sha(stack: list[dict[str, str]] = PATCH_STACK) -> str:
     text = "izanagi-patch-stack/v1\n" + "".join(
-        f"{row['path']} {row['sha256']}\n" for row in PATCH_STACK
+        f"{row['path']} {row['sha256']}\n" for row in stack
     )
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
@@ -92,6 +102,26 @@ def _execution(rep_index: int, *, diagnostic: bool = False) -> dict:
         "prologue_cpu_s": 2.0 + rep_index / 10.0,
         "job_total_seconds": 100.0 + rep_index,
     }
+
+
+def _use_counterfactual_stack(document: dict) -> None:
+    schema = document["schema_version"]
+    if schema == PERFORMANCE_SCHEMA:
+        document["schema_version"] = COUNTERFACTUAL_PERFORMANCE_SCHEMA
+    elif schema == DIAGNOSTIC_SCHEMA:
+        document["schema_version"] = COUNTERFACTUAL_DIAGNOSTIC_SCHEMA
+    else:
+        raise AssertionError(schema)
+    document["counterfactual_patch_sha256"] = PATCH_C
+    document["patch_stack"] = COUNTERFACTUAL_PATCH_STACK
+    document["patch_stack_sha256"] = _stack_sha(COUNTERFACTUAL_PATCH_STACK)
+
+
+def _counterfactualize_inputs(performance: list[Path], diagnostic: Path) -> None:
+    for path in [*performance, diagnostic]:
+        document = json.loads(path.read_text(encoding="utf-8"))
+        _use_counterfactual_stack(document)
+        _write(path, document)
 
 
 def _near_margin_ratio(mean_ratio: float, rep_index: int) -> float:
@@ -353,6 +383,69 @@ def test_full_size_fixture_writes_three_figures_and_frozen_statistics(tmp_path: 
     assert math.isclose(actual_half, expected_half, rel_tol=0.0, abs_tol=1e-12)
     wrong_half = 1.96 * statistics.stdev(samples) / math.sqrt(7)
     assert not math.isclose(actual_half, wrong_half, rel_tol=0.0, abs_tol=1e-5)
+
+
+def test_plot_accepts_both_ab_and_abc_stacks(tmp_path: Path):
+    performance, diagnostic = _fixture_inputs(tmp_path)
+    ab_data = plot.load_inputs(performance, diagnostic)
+    assert ab_data["identity"]["patch_stack"] == PATCH_STACK
+    assert ab_data["identity"]["patch_stack_version"] == "A+B"
+    assert ab_data["performance_schema_version"] == PERFORMANCE_SCHEMA
+    assert ab_data["diagnostic_schema_version"] == DIAGNOSTIC_SCHEMA
+
+    _counterfactualize_inputs(performance, diagnostic)
+    abc_data = plot.load_inputs(performance, diagnostic)
+    assert abc_data["identity"]["patch_stack"] == COUNTERFACTUAL_PATCH_STACK
+    assert abc_data["identity"]["patch_stack_version"] == "A+B+C"
+    assert (
+        abc_data["performance_schema_version"]
+        == COUNTERFACTUAL_PERFORMANCE_SCHEMA
+    )
+    assert (
+        abc_data["diagnostic_schema_version"]
+        == COUNTERFACTUAL_DIAGNOSTIC_SCHEMA
+    )
+
+    invalid = _performance_document(0)
+    invalid["counterfactual_patch_sha256"] = PATCH_C
+    invalid["patch_stack"] = [
+        PATCH_STACK[0], COUNTERFACTUAL_PATCH_STACK[-1],
+    ]
+    invalid["patch_stack_sha256"] = _stack_sha(invalid["patch_stack"])
+    with pytest.raises(
+        plot.FigureDataError, match=r"ordered A\+B or A\+B\+C stack",
+    ):
+        plot._common_identity(invalid, "invalid")
+
+
+def test_plot_propagates_patch_c_hash_when_present(tmp_path: Path):
+    performance, diagnostic = _fixture_inputs(tmp_path)
+    _counterfactualize_inputs(performance, diagnostic)
+    data = plot.load_inputs(performance, diagnostic)
+    staged = tmp_path / "staged-output"
+    staged.write_bytes(b"staged")
+    provenance = plot.build_provenance(
+        data,
+        [(staged, tmp_path / "published-output")],
+        ["python3", str(SCRIPT)],
+    )
+    assert provenance["counterfactual_patch_sha256"] == PATCH_C
+    assert provenance["patch_stack"] == COUNTERFACTUAL_PATCH_STACK
+    assert provenance["patch_stack"][2]["sha256"] == PATCH_C
+
+
+def test_plot_still_accepts_existing_ab_artifacts(tmp_path: Path):
+    performance, diagnostic = _fixture_inputs(tmp_path)
+    result, prefix = _run(tmp_path, "existing-ab", performance, diagnostic)
+    assert result.returncode == 0, result.stderr
+    assert all(path.is_file() for path in _output_paths(prefix))
+    provenance = json.loads(
+        Path(f"{prefix}.provenance.json").read_text(encoding="utf-8")
+    )
+    assert provenance["performance_schema_version"] == PERFORMANCE_SCHEMA
+    assert provenance["diagnostic_schema_version"] == DIAGNOSTIC_SCHEMA
+    assert provenance["patch_stack"] == PATCH_STACK
+    assert "counterfactual_patch_sha256" not in provenance
 
 
 def test_practical_margin_fixture_controls_verdicts_and_robust_endpoint(

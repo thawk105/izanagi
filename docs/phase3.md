@@ -115,10 +115,13 @@ ancestry の typed 化、D73 の ccbench_pin・機械再構成検査は維持、
 receipt が active-valid でなければ機械拒否されるため、凍結成立自体が receipt 発効の機械証明でもある)。
 予測封印実走と [T-011] の §5-(viii) 受諾も完了 (worklog 2026-07-24 (2) / (6))。**D79 (7) のうち
 exemption 拡張 + cert 束縛のコード機構は 2026-07-23 に実装完了 (wave3、D80)、統合 E2E は 2026-07-24 に
-部分閉鎖 — 残 = lineage 照合 (oracle 結線 wave 再評価)。** **床値の実測自体は 2026-08-12 の
-[T-748] 裁定 (c) により固定 pilot 経路で先行できるようになった** (投入 script が `--mode pilot` を
-固定で渡す。official の受理集合は空のまま、pilot 成果物は `eligible_for_refreeze=false` なので
-再凍結には使えない)。**再凍結 → oracle → certified を開く gate は依然 official guard 解禁**
+部分閉鎖 — 残 = lineage 照合 (oracle 結線 wave 再評価)。** **床値の実測は 2026-09-07 の [T-2324] で
+固定 official + 明示承認の経路へ入れ替わった** (方式は D926 の submission nonce 束縛。投入 script が
+`--mode official` を固定で渡し、実投入に `--confirm-official-floor-run` を要求する。
+**起動と API の受理集合はこの時点で変わったが、実投入していないので測定値と freeze / certified の
+選択結果は変わっていない。実装の着地は測定認可を兼ねない** (D1641)。2026-08-12 の [T-748] 裁定 (c)
+による固定 pilot 経路は、承認束縛が実装されるまでの過渡形だった。pilot 成果物は
+`eligible_for_refreeze=false` なので再凍結には使えない)。**再凍結 → oracle → certified を開く gate は依然 official guard 解禁**
 ([T-088]。設計は 2026-07-25 にユーザー承認済 = D86) → **Pegasus PBS floor wrapper は 2026-07-25 に
 実装完了 (D87)、段階 1 は 2026-07-28 に実機で閉鎖** (job 873225 = rc=2 で official guard の実機拒否を
 確認。正本 = worklog (33)。qsub の投入規則は F49 (ii) 裁定 (2026-07-29) により「書込永続が実証された
@@ -1067,6 +1070,14 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
   判定器が解決した実体の identity を green record へ束縛する現行形 (記録であって拒否ではない、
   D1586) を維持する。2026-08-12 の粗い provenance 方針に従う。
   再訪条件 = 未承認の CMake による測定が実害を出した 1 件。
+
+- [T-2328] `BUILD_START` payload への平文契約 ID 再掲 — 理由: D1680 の
+  照合で、per-attempt 単独監査の実需が未観測と確認した。campaign.lock との併読で契約 ID は得られ、
+  成果物影響は監査の手間だけで certified 値・受理集合・参照は変わらない。再訪条件 = campaign.lock を
+  併読できない状況で per-attempt 監査が実際に要求されたとき。
+- [T-2345] 旧 grammar 8 / 12 / 14 / 25 / 27 の歴史 decoder への追加収載 — 理由: D1653 が「収載する grammar は
+  実在 corpus が確認できたものだけ」と定めており、当該 5 grammar の実在成果物は未観測で条件が成立しない。
+  該当 grammar の成果物が現れるまで何も読めなくならない。再訪条件 = 当該 grammar の成果物を 1 件観測したとき。
 
 ### 研究・計測系
 

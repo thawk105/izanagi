@@ -1,0 +1,134 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 300,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "    return sorted(received, key=lambda outcome: outcome.task_index)\n",
+          "new": "    return sorted(\n        received, key=lambda outcome: outcome.task_index, reverse=True,\n    )\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "                adjacency[source].update(outcome.run_dst[start:end])\n",
+          "new": "                adjacency[source].update(outcome.run_dst[start:end][::-1])\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "        sccs.sort(key=len)\n",
+          "new": "        sccs.sort(key=lambda component: (len(component), min(component)))\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "        for root in list(self.adj.keys()):\n",
+          "new": "        for root in sorted(self.adj):\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "                    elif on_stack.get(w):\n                        if index[w] < low[node]:\n                            low[node] = index[w]\n",
+          "new": "                    elif on_stack.get(w):\n                        pass\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8b",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "    if (len(indices) != task_count\n            or sorted(indices) != list(range(task_count))):\n        return None\n",
+          "new": "    if not indices:\n        return None\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "    for source, destinations in destinations_by_source.items():\n        run_src.append(source)\n",
+          "new": "    for source, destinations in sorted(destinations_by_source.items()):\n        run_src.append(source)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6p",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "                        work.append((w, iter(self.adj.get(w, ()))))\n",
+          "new": "                        work.append((w, iter(self.adj[w])))\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "E1",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "            or sorted(indices) != list(range(task_count))):\n",
+          "new": "            or sorted(indices) != [*range(task_count)]):\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

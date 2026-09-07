@@ -930,14 +930,15 @@ GENERATION_SCHEMA_FIELDS = frozenset({
 
 
 def _reject_unratified_generation(doc: Mapping) -> None:
-    """世代 schema field を持つ新世代 document を承認束縛未裁定として拒否する。"""
+    """世代別承認を検証しない v1 経路では世代 schema document を拒否する。"""
     if not isinstance(doc, Mapping):
         return
     present = sorted(GENERATION_SCHEMA_FIELDS & set(doc))
     if present:
         raise FreezeError(
-            "未承認世代 document は発効しない: 世代 schema field "
-            f"{present} を検出したが、承認束縛方式が §8 で未裁定 (fail-closed)"
+            "世代 document は v1 verify_document 経路では発効しない: 世代 schema field "
+            f"{present} を検出したが、この v1 経路は世代別承認を検証しない "
+            "(fail-closed)"
         )
 
 
@@ -947,9 +948,10 @@ def _verify_source(doc: Mapping, field: str, root: Path, rel: str) -> None:
     v1 単一 filename freeze は常に唯一の発効中 (active) 世代であり、その source は
     worktree の現物と完全一致しなければならない (ドリフト検知)。record と不一致なら
     拒否 (fail-closed)。frozen_at_head 時点の git blob への救済照合は、世代別不変
-    filename + supersedes 連鎖 + 承認束縛を伴う v2 の「旧世代」再検証専用であり、その
-    束縛方式は §8 で未裁定 (未承認世代は _reject_unratified_generation が拒否) のため
-    発効しない。唯一の active 世代へ blob 救済を適用すると、設計本文・known_axes・
+    filename + supersedes 連鎖 + 承認束縛を伴う v2 の「旧世代」再検証専用であり、v2 側の
+    authority は ``s8b_ratified_freeze.load_ratified_freeze`` が持つ。この v1 経路は
+    世代別承認を検証しないので世代 schema document を発効させない。唯一の active 世代へ
+    blob 救済を適用すると、設計本文・known_axes・
     generator を worktree で改変しても (recorded が frozen_at_head の blob と一致する
     限り) verify が通り、active 世代のドリフト検知が骨抜きになる (fail-open) ため、
     ここでは worktree 完全一致のみを正とする。"""

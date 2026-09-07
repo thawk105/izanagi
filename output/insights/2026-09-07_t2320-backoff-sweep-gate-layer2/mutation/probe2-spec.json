@@ -1,0 +1,36 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 300,
+  "timeout_seconds": 3600,
+  "hang_timeout_seconds": 3600,
+  "mutations": [
+    {
+      "id": "MUT-T2320-M8-REPS-FOR-LIST-TUPLE-MISMATCH",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "old": "        normalized_tps = tuple(tps) if type(tps) in {list, tuple} else None\n        matches = [\n            item for item in self.rounds\n            if (\n                item[\"run_cmd\"] == run_cmd\n                and tuple(item[\"throughput_tps\"]) == normalized_tps\n            )\n        ]\n",
+          "new": "        matches = [\n            item for item in self.rounds\n            if item[\"run_cmd\"] == run_cmd and item[\"throughput_tps\"] == tps\n        ]\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "MUT-T2320-M9-INDICATORS-DICT-ONLY",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "old": "        if type(indicators) not in {dict, MappingProxyType}:\n",
+          "new": "        if type(indicators) is not dict:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

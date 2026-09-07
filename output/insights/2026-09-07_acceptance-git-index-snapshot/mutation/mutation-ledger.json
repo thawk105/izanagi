@@ -1,0 +1,466 @@
+{
+ "schema": "izanagi-dev-wave-mutation/v4",
+ "date": "2026-09-06T22:57:41.869052+00:00",
+ "repo_head": "45aad0e7b71822c4f8257fa48dabe0e79fd07d67",
+ "spec_sha256": "83a056a9faaabc6e78b48e5091a7fa05a7b16dbfb9fe4cd2ca787fb6e85ba02d",
+ "runner_identity": {
+  "command": [
+   "python3",
+   "tools/run_tests.py",
+   "orchestrator/tests/test_s8b_floor_campaign.py",
+   "orchestrator/tests/test_acceptance_schedule_order.py",
+   "-k",
+   "snapshot or nul_parsers or g5_real_ledger or g6_all_real_repo",
+   "-p",
+   "no:randomly",
+   "-rf",
+   "--force-dispatch",
+   "-p",
+   "no:cacheprovider"
+  ],
+  "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-speedup-20260905/tools/pegasus/dispatch_compute.py",
+  "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+  "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+  "entrypoint_kind": "izanagi-run-tests",
+  "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-speedup-20260905/tools/run_tests.py",
+  "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+  "executable_path": "/usr/bin/python3.10",
+  "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+  "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+  "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+  "repo_path": "tools/run_tests.py",
+  "repo_tree": "fab538f107df3e5842f75267f7b77790d24c5999",
+  "runner_mode": "dispatch"
+ },
+ "runner_sha256": "3e9d4cc59f8e15c404663ac6e31607811a0001227b5d615ebbab3941d490d6c2",
+ "tool_identity": {
+  "head_blob_sha256": "900a6500b112faec9702a147242427d6cc2ebcad1029149a689ff5999d5f5ab9",
+  "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-speedup-20260905/tools/mutation_harness.py",
+  "repo_path": "tools/mutation_harness.py",
+  "sha256": "900a6500b112faec9702a147242427d6cc2ebcad1029149a689ff5999d5f5ab9"
+ },
+ "tool_sha256": "4e6148a69164afccd6749731e2de73a64b41aba63037d331ad17129f3c79d4a3",
+ "summary": {
+  "KILLED": 8,
+  "MISMATCH": 4,
+  "PARSE_ERROR": 0,
+  "SURVIVED": 1,
+  "TIMEOUT": 0,
+  "completed": 13,
+  "matching": 9,
+  "recorded": 13,
+  "registered": 13
+ },
+ "procedure": {
+  "collection": {
+   "artifact": {
+    "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-speedup-20260905/output/pegasus-dispatch/9dfb67148f26001d1eb6efd00cb9e6ef/izdw-9dfb67148f.o979926",
+    "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-speedup-20260905/output/pegasus-dispatch/9dfb67148f26001d1eb6efd00cb9e6ef/receipt.json",
+    "runner_mode": "dispatch",
+    "stdout": "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_matches_reference_and_is_deterministic\norchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_git_index_fast_path_matches_reference\norchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_git_index_cache_performance_model\norchestrator/tests/test_s8b_floor_campaign.py::test_git_snapshot_nul_parsers_fail_closed\norchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_detects_git_visible_real_output_changes\norchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_excludes_git_ignored_real_output_changes\norchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_default_root_reobserves_dependencies\norchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_propagates_digest_failure\norchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_reference_is_independent\norchestrator/tests/test_s8b_floor_campaign.py::test_floor_third_party_pin_snapshot_uses_masstree_seam_without_reread\norchestrator/tests/test_acceptance_schedule_order.py::test_g5_real_ledger_covers_at_least_90_percent_of_real_collection\norchestrator/tests/test_acceptance_schedule_order.py::test_g6_all_real_repo_items_stay_one_unit_and_keep_relative_order\norchestrator/tests/test_acceptance_schedule_order.py::test_g7_live_worker_uses_controller_snapshot_not_mutated_file\norchestrator/tests/test_acceptance_schedule_order.py::test_g2a_configure_node_only_sends_snapshot_controller_actually_read\norchestrator/tests/test_acceptance_schedule_order.py::test_g2c_enabled_worker_rejects_missing_snapshot_but_disabled_accepts_it\norchestrator/tests/test_acceptance_schedule_order.py::test_g7_worker_consumes_snapshot_without_reading_file\n\n16/567 tests collected (551 deselected) in 0.82s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+    "stdout_sha256": "c1cb44d76401bf363d6379b33bced09c47ea71a36d7f96a3b1d8e1bf779a701f"
+   },
+   "collected_nodes": [
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_matches_reference_and_is_deterministic",
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_git_index_fast_path_matches_reference",
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_git_index_cache_performance_model",
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_git_snapshot_nul_parsers_fail_closed",
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_detects_git_visible_real_output_changes",
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_excludes_git_ignored_real_output_changes",
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_default_root_reobserves_dependencies",
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_propagates_digest_failure",
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_reference_is_independent",
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_floor_third_party_pin_snapshot_uses_masstree_seam_without_reread",
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g5_real_ledger_covers_at_least_90_percent_of_real_collection",
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g6_all_real_repo_items_stay_one_unit_and_keep_relative_order",
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g7_live_worker_uses_controller_snapshot_not_mutated_file",
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g2a_configure_node_only_sends_snapshot_controller_actually_read",
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g2c_enabled_worker_rejects_missing_snapshot_but_disabled_accepts_it",
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g7_worker_consumes_snapshot_without_reading_file"
+   ],
+   "duration_s": 26.956,
+   "rc": 0,
+   "repo_head": "45aad0e7b71822c4f8257fa48dabe0e79fd07d67",
+   "runner_sha256": "3e9d4cc59f8e15c404663ac6e31607811a0001227b5d615ebbab3941d490d6c2",
+   "spec_sha256": "83a056a9faaabc6e78b48e5091a7fa05a7b16dbfb9fe4cd2ca787fb6e85ba02d",
+   "status": "PASSED",
+   "tool_sha256": "4e6148a69164afccd6749731e2de73a64b41aba63037d331ad17129f3c79d4a3"
+  },
+  "hang_timeout_seconds": 1200.0,
+  "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+  "registration_preflight": {
+   "C1": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [],
+    "expected_status": "SURVIVED",
+    "injection_diff_sha256": "038cbaafe5031e8809339c984d74c37078893b6cacd2615e03fa23105b84bf76",
+    "replacements": [
+     {
+      "file": "orchestrator/tests/output_snapshot_ignores.py",
+      "new": "    \"\"\"rglob と同じ entry 集合を symlink 非追跡で列挙する (control)。\"\"\"\n",
+      "old": "    \"\"\"``rglob`` と同じ entry 集合を symlink 非追跡で列挙する。\"\"\"\n"
+     }
+    ]
+   },
+   "M1": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_git_index_fast_path_matches_reference"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "a1d3715c8353525109d1d4f4b1c44ccfcac437afcd6eaf6f5ec524a3da07c1c3",
+    "replacements": [
+     {
+      "file": "orchestrator/tests/output_snapshot_ignores.py",
+      "new": "",
+      "old": "            and not _path_is_changed(relative, changed)\n"
+     }
+    ]
+   },
+   "M10": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_s8b_floor_campaign.py::test_git_snapshot_nul_parsers_fail_closed"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "d9aa28b67f528fe94b76305e298d985ed3211084bd999b843fbf274e849479ff",
+    "replacements": [
+     {
+      "file": "orchestrator/tests/output_snapshot_ignores.py",
+      "new": "",
+      "old": "    if not stdout.endswith(b\"\\0\"):\n        raise AssertionError(\n            f\"{' '.join(command)} が末尾 NUL のない出力を返した: {stdout!r}\"\n        )\n"
+     }
+    ]
+   },
+   "M11": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_git_index_cache_performance_model"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "15574181f417ac38f00014dd1d1109efa993bc32479a01fa37c8ad20c4079047",
+    "replacements": [
+     {
+      "file": "orchestrator/tests/output_snapshot_ignores.py",
+      "new": "",
+      "old": "        if (\n                relative == \".gitattributes\"\n                or relative.endswith(\"/.gitattributes\")\n        ):\n            fallback_reasons.append(\"subtree-gitattributes\")\n"
+     }
+    ]
+   },
+   "M12": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_git_index_cache_performance_model"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "4b9225c62b05998ca974ca16235c51ea139fe878518cac51cd4de201ac38f2be",
+    "replacements": [
+     {
+      "file": "orchestrator/tests/output_snapshot_ignores.py",
+      "new": "",
+      "old": "    if _root_attributes_enable_checkout_conversion(\n            worktree_root, root_attributes_blob,\n    ):\n        fallback_reasons.append(\"root-gitattributes-conversion\")\n"
+     }
+    ]
+   },
+   "M2": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_git_index_fast_path_matches_reference"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "eb01857d940e4bb0a8fc66fb97d167e8c4b193e1daf4a839876da7b35d068a36",
+    "replacements": [
+     {
+      "file": "orchestrator/tests/output_snapshot_ignores.py",
+      "new": "        index_entry = tracked.get(relative)\n        if index_entry is None:\n            continue\n",
+      "old": "        index_entry = tracked.get(relative)\n"
+     }
+    ]
+   },
+   "M3": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_git_index_fast_path_matches_reference"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "adcb63f64fbd7b3e2fe9b59791296abbe639c87046b4db9da7b3cc05f2ec283f",
+    "replacements": [
+     {
+      "file": "orchestrator/tests/output_snapshot_ignores.py",
+      "new": "        else:\n            continue\n",
+      "old": "        else:\n            snapshot.append((\"dir\", relative))\n"
+     }
+    ]
+   },
+   "M4": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_git_index_cache_performance_model"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "d2bc04e61cd1a9d703bbea7bb996816225a1c17bdeb7321eda194b926260dca3",
+    "replacements": [
+     {
+      "file": "orchestrator/tests/output_snapshot_ignores.py",
+      "new": "        cache_key = (blob_sha, \"\")\n",
+      "old": "        cache_key = (blob_sha, repo_relative)\n"
+     }
+    ]
+   },
+   "M5": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_git_index_fast_path_matches_reference"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "9625e900ccfeed7ff377aeb4e16b9698f3e36c6c4baffaa9396b6b0a9a9d7ef3",
+    "replacements": [
+     {
+      "file": "orchestrator/tests/output_snapshot_ignores.py",
+      "new": "        digest = _INDEX_BLOB_SHA256_CACHE.get(cache_key)\n        if digest is None:\n            digest = blob_sha.decode(\"ascii\")\n",
+      "old": "        digest = _INDEX_BLOB_SHA256_CACHE.get(cache_key)\n        if digest is None:\n            digest = digester(absolute)\n"
+     }
+    ]
+   },
+   "M6": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_git_index_cache_performance_model"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "ba1a021c68ed71acef21a7890fa5f5112a125bb8208509f0d78f58985d1079a6",
+    "replacements": [
+     {
+      "file": "orchestrator/tests/output_snapshot_ignores.py",
+      "new": "",
+      "old": "    if _core_autocrlf_enables_checkout_conversion(worktree_root):\n        fallback_reasons.append(\"core.autocrlf\")\n"
+     }
+    ]
+   },
+   "M7": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_acceptance_schedule_order.py::test_g5_real_ledger_covers_at_least_90_percent_of_real_collection",
+     "orchestrator/tests/test_acceptance_schedule_order.py::test_g6_all_real_repo_items_stay_one_unit_and_keep_relative_order"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "48ec32d7e59ee1279a25c4885cd7ba9f3ea93b1a410b6cc9a6fbf109aed71bbe",
+    "replacements": [
+     {
+      "file": "orchestrator/tests/conftest.py",
+      "new": "        relative_path = next(\n            iter(_ACCEPTANCE_LEDGER_RELATIVE_PATH_CACHE.values()), None,\n        )\n",
+      "old": "        relative_path = _ACCEPTANCE_LEDGER_RELATIVE_PATH_CACHE.get(path_key)\n"
+     }
+    ]
+   },
+   "M8": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_acceptance_schedule_order.py::test_g5_real_ledger_covers_at_least_90_percent_of_real_collection"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "b023dc6ed9a4173f71a1d7b6b6c3372639abe44738baf8ff2d17a248eaac8637",
+    "replacements": [
+     {
+      "file": "orchestrator/tests/conftest.py",
+      "new": "            relative_path = Path(path_key).resolve(strict=False).as_posix()\n",
+      "old": "            relative_path = Path(path_key).resolve(strict=False).relative_to(\n                _ACCEPTANCE_DURATION_LEDGER_REPO_ROOT\n            ).as_posix()\n"
+     }
+    ]
+   },
+   "M9": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_git_index_cache_performance_model"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "f8995cc247e90b6c44bdecddeaa2f456024bd19a855501af959cdc2093d4cbc6",
+    "replacements": [
+     {
+      "file": "orchestrator/tests/output_snapshot_ignores.py",
+      "new": "",
+      "old": "        if flag == b\"S\":\n            fallback_reasons.append(\"skip-worktree\")\n        elif b\"a\" <= flag <= b\"z\":\n            fallback_reasons.append(\"assume-unchanged\")\n"
+     }
+    ]
+   }
+  },
+  "registration_sha256": "a12dac8e63f9af691843c22e6206fd87166540662c3e9a4b47a62cd629724ebb",
+  "restore_policy": "write fixed repo_head text then exact read_text equality",
+  "runner_mode": "dispatch",
+  "source_policy": "fixed repo_head blob plus startup/read-back equality",
+  "test_command": [
+   "python3",
+   "tools/run_tests.py",
+   "orchestrator/tests/test_s8b_floor_campaign.py",
+   "orchestrator/tests/test_acceptance_schedule_order.py",
+   "-k",
+   "snapshot or nul_parsers or g5_real_ledger or g6_all_real_repo",
+   "-p",
+   "no:randomly",
+   "-rf",
+   "--force-dispatch",
+   "-p",
+   "no:cacheprovider"
+  ],
+  "timeout_seconds": 3600.0
+ },
+ "updated_at": "2026-09-06T23:15:09.929499+00:00",
+ "baseline_rc": 0,
+ "mutations": [
+  {
+   "id": "M1",
+   "expected_status": "KILLED",
+   "status": "KILLED",
+   "rc": 1,
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_git_index_fast_path_matches_reference"
+   ],
+   "observed_nodes": []
+  },
+  {
+   "id": "M2",
+   "expected_status": "KILLED",
+   "status": "MISMATCH",
+   "rc": 1,
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_git_index_fast_path_matches_reference"
+   ],
+   "observed_nodes": []
+  },
+  {
+   "id": "M3",
+   "expected_status": "KILLED",
+   "status": "MISMATCH",
+   "rc": 1,
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_git_index_fast_path_matches_reference"
+   ],
+   "observed_nodes": []
+  },
+  {
+   "id": "M4",
+   "expected_status": "KILLED",
+   "status": "KILLED",
+   "rc": 1,
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_git_index_cache_performance_model"
+   ],
+   "observed_nodes": []
+  },
+  {
+   "id": "M5",
+   "expected_status": "KILLED",
+   "status": "MISMATCH",
+   "rc": 1,
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_git_index_fast_path_matches_reference"
+   ],
+   "observed_nodes": []
+  },
+  {
+   "id": "M6",
+   "expected_status": "KILLED",
+   "status": "KILLED",
+   "rc": 1,
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_git_index_cache_performance_model"
+   ],
+   "observed_nodes": []
+  },
+  {
+   "id": "M9",
+   "expected_status": "KILLED",
+   "status": "KILLED",
+   "rc": 1,
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_git_index_cache_performance_model"
+   ],
+   "observed_nodes": []
+  },
+  {
+   "id": "M10",
+   "expected_status": "KILLED",
+   "status": "KILLED",
+   "rc": 1,
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_git_snapshot_nul_parsers_fail_closed"
+   ],
+   "observed_nodes": []
+  },
+  {
+   "id": "M11",
+   "expected_status": "KILLED",
+   "status": "KILLED",
+   "rc": 1,
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_git_index_cache_performance_model"
+   ],
+   "observed_nodes": []
+  },
+  {
+   "id": "M12",
+   "expected_status": "KILLED",
+   "status": "KILLED",
+   "rc": 1,
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_git_index_cache_performance_model"
+   ],
+   "observed_nodes": []
+  },
+  {
+   "id": "M7",
+   "expected_status": "KILLED",
+   "status": "KILLED",
+   "rc": 1,
+   "expected_nodes": [
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g5_real_ledger_covers_at_least_90_percent_of_real_collection",
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g6_all_real_repo_items_stay_one_unit_and_keep_relative_order"
+   ],
+   "observed_nodes": []
+  },
+  {
+   "id": "M8",
+   "expected_status": "KILLED",
+   "status": "MISMATCH",
+   "rc": 1,
+   "expected_nodes": [
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g5_real_ledger_covers_at_least_90_percent_of_real_collection"
+   ],
+   "observed_nodes": []
+  },
+  {
+   "id": "C1",
+   "expected_status": "SURVIVED",
+   "status": "SURVIVED",
+   "rc": 0,
+   "expected_nodes": [],
+   "observed_nodes": []
+  }
+ ]
+}

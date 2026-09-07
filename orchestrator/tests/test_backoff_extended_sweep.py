@@ -10,7 +10,7 @@ import subprocess
 import sys
 from contextlib import contextmanager
 from pathlib import Path
-from types import SimpleNamespace
+from types import MappingProxyType, SimpleNamespace
 
 import pytest
 
@@ -111,13 +111,21 @@ def _stub_patch_and_prebuild(monkeypatch, events=None):
         lambda _ccbench_dir: observed.append(("patch-materialized",)),
     )
     monkeypatch.setattr(
-        M, "_prebuild_backoff_binaries",
-        lambda *_args, **_kwargs: observed.append(("prebuild",)) or {},
+        M.buildcache,
+        "prepare_masstree_fetchcontent",
+        lambda **kwargs: observed.append(("masstree-prepare", kwargs)),
     )
+
+    def prebuild(*args, **kwargs):
+        observed.append(("prebuild", args, kwargs))
+        return {}
+
+    monkeypatch.setattr(M, "_prebuild_backoff_binaries", prebuild)
     monkeypatch.setattr(
         M,
         "_require_condition_gate_before_measurement",
-        lambda *_args, **_kwargs: observed.append(("condition-gate",)) or object(),
+        lambda *args, **kwargs:
+            observed.append(("condition-gate", args, kwargs)) or object(),
     )
     return observed
 
@@ -249,9 +257,10 @@ def _t2266_certified_view(tmp_path: Path, capture: M._T2266RepCapture):
     epoch = artifact_admission.CampaignVerifierEpoch(
         f"E1:{digest}", "E1", "recorded-closure",
     )
+    immutable_records = artifact_admission._immutable_records(tuple(records))
     return artifact_admission.CertifiedCampaignView(
         layout=artifact_admission.CampaignLayout(str(root)),
-        records=tuple(records),
+        records=immutable_records,
         decision=decision,
         campaign_verifier_epoch=epoch,
         persisted_certified_commit_count=8,
@@ -351,6 +360,17 @@ def test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep(
         for point_index in range(8):
             expected_abort_rates.append(_measure_t2266_round(capture, point_index))
     view = _t2266_certified_view(tmp_path, capture)
+    bench_payloads = [
+        record.payload
+        for record in view.records
+        if record.stage == M.wal.STAGE_BENCH_DONE
+    ]
+    assert len(bench_payloads) == 8
+    assert all(type(payload["tps"]) is tuple for payload in bench_payloads)
+    assert all(
+        type(payload["leading_indicators"]) is MappingProxyType
+        for payload in bench_payloads
+    )
 
     def discover(slug, search_tag, output_root, *, purpose):
         assert slug == "t2266-backoff-static-tail-silo-balanced"
@@ -376,6 +396,9 @@ def test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep(
     assert len(document["points"]) == 8
     for point_index, point in enumerate(document["points"]):
         assert len(point["reps"]) == p2_2.REPS
+        assert point["throughput_tps_reps"] == (
+            capture.rounds[point_index]["throughput_tps"]
+        )
         assert point["throughput_tps_reps"] == [
             rep["throughput_tps"] for rep in point["reps"]
         ]
@@ -551,6 +574,28 @@ def test_real_extended_driver_gate_recomputes_preprocessed_file_digest():
     assert _independent_replay_digest(supply) == supply.evidence["requested_digest"]
 
 
+def test_extended_gate_wrapper_forwards_configure_args(monkeypatch):
+    observed = []
+    configure_args = ("-DFETCHCONTENT_BASE_DIR=/canonical/base",)
+
+    def require_gate(*args, **kwargs):
+        observed.append((args, kwargs))
+        return object()
+
+    monkeypatch.setattr(M, "_require_backoff_condition_gate", require_gate)
+    result = M._require_condition_gate_before_measurement(
+        "/patched",
+        stock_root="/stock",
+        points=[M.Genome("silo", {"BACKOFF_FIXED": 5})],
+        cxx="c++",
+        configure_args=configure_args,
+    )
+
+    assert result is not None
+    assert len(observed) == 1
+    assert observed[0][1]["configure_args"] is configure_args
+
+
 def test_duplicate_static_binary_hash_stops_before_campaign(monkeypatch):
     points = [
         M.Genome("silo", {"BACK_OFF": 1, "BACKOFF_FIXED": amount})
@@ -710,11 +755,81 @@ def test_mu13_run_path_uses_the_calibration_bound_records(monkeypatch):
     assert observed["config"].search_config["records"] == 1_000_000
     assert observed["cache_root"] == "/tmp/b10-test-cache"
     assert [event[0] for event in events] == [
-        "patch-enter", "patch-materialized", "condition-gate", "prebuild",
-        "campaign", "patch-exit",
+        "patch-enter", "patch-materialized", "masstree-prepare",
+        "condition-gate", "prebuild", "campaign", "patch-exit",
     ]
     argv = O._flags(M.WORKLOAD_BY_TAG["balanced"], contract)
     assert "-ycsb_tuple_num=1000000" in argv
+
+
+def test_extended_run_path_prepares_and_gates_the_same_patched_tree(
+        tmp_path, monkeypatch):
+    contract = p2_2._legacy_linux_contract()
+    authorization = env_contract.authorize(contract.env_tag)
+    events = _stub_patch_and_prebuild(monkeypatch)
+    patched_root = tmp_path / "ccbench"
+    patched_root.mkdir()
+    monkeypatch.setattr(M, "_resolve_ccbench_dir", lambda _value: str(patched_root))
+    monkeypatch.setattr(M.p2_2, "_assert_single_tenant", lambda: None)
+    monkeypatch.setattr(
+        M.p2_2,
+        "resolve_site_runtime",
+        lambda: (site_policy.OTHER, contract, authorization),
+    )
+    monkeypatch.setattr(M.p2_2, "_assert_matches_calibration", lambda _contract: None)
+    monkeypatch.setattr(
+        M.buildcache, "compilers_for_current_site", lambda: ("cc", "c++"),
+    )
+    monkeypatch.setattr(
+        M.buildcache,
+        "observed_toolchain_manifest",
+        lambda *_args: {"cc": {}, "cxx": {}},
+    )
+
+    def run_campaign(*args, **kwargs):
+        events.append(("campaign", args, kwargs))
+        return SimpleNamespace(total=8, committed=7, aborted=0, campaign_id="cid")
+
+    monkeypatch.setattr(M, "run_campaign", run_campaign)
+
+    M.run_workload(
+        "balanced",
+        M.WORKLOAD_BY_TAG["balanced"],
+        log=lambda *_args: None,
+        cache_root=str(tmp_path / "cache"),
+        ccbench_dir=str(patched_root),
+        run_kind=M.T2266_RUN_KIND,
+    )
+
+    prepare_events = [event for event in events if event[0] == "masstree-prepare"]
+    gate_events = [event for event in events if event[0] == "condition-gate"]
+    prebuild_events = [event for event in events if event[0] == "prebuild"]
+    campaign_events = [event for event in events if event[0] == "campaign"]
+    assert len(prepare_events) == 1
+    assert len(gate_events) == 1
+    assert len(prebuild_events) == 1
+    assert len(campaign_events) == 1
+    prepare = prepare_events[0][1]
+    gate_args, gate_kwargs = gate_events[0][1:]
+    prebuild_kwargs = prebuild_events[0][2]
+    campaign_kwargs = campaign_events[0][2]
+    canonical_base = prepare["fetchcontent_base_dir"]
+    assert gate_kwargs["configure_args"] == (
+        f"-DFETCHCONTENT_BASE_DIR={canonical_base}",
+    )
+    observed_roots = {
+        Path(prepare["ccbench_dir"]).resolve(),
+        Path(gate_args[0]).resolve(),
+        Path(prebuild_kwargs["ccbench_dir"]).resolve(),
+        Path(campaign_kwargs["ccbench_dir"]).resolve(),
+    }
+    assert observed_roots == {patched_root.resolve()}
+    assert patched_root.resolve() != Path(gate_kwargs["stock_root"]).resolve()
+    assert {
+        point.flags["BACKOFF_FIXED"] for point in gate_kwargs["points"]
+    } == {-1, 150, 200, 300, 500, 750, 999}
+    assert prepare["site"] == site_policy.OTHER
+    assert "dependency_prefix" not in prepare
 
 
 def test_all_genomes_must_be_committed_and_none_aborted(monkeypatch):

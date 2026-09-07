@@ -5,7 +5,7 @@
 PreToolUse (Write|Edit|MultiEdit|NotebookEdit) で発火し、対象パスが管轄内なら
 書き込み**前**に検査して exit 2 (拒否, stderr が Claude に返る) / exit 0 (許可)。
 
-管轄 = **明白な直接書き込みの拒否、この 3 本だけ** (方針 A, D30/D33。これ以外のパスは
+管轄 = **明白な直接書き込みの拒否、この 4 本だけ** (方針 A, D30/D33。これ以外のパスは
 即許可 — 通常の開発作業を妨げない):
 1. **成果物の proof chain (規律2):** official / exploration campaign の `runs/`
    (WAL)・`campaign.lock` と `build-variants/` への Edit/Write を拒否する。また、
@@ -16,6 +16,8 @@ PreToolUse (Write|Edit|MultiEdit|NotebookEdit) で発火し、対象パスが管
    人間 template 専有 — template 改訂は patches/ + git apply (Bash) 経由で行う。
 3. **hook 実行面:** `hooks/` subtree 自身への直接変更を拒否する。文書更新用の exact
    `hooks/README.md` だけは、現物が regular non-symlink かつ単一 link の場合に許可する。
+4. **受領証の発行主体:** 固定の発行主体 root への直接変更を拒否する。lexical path と
+   canonical path の両方、および配下の regular file と同じ inode を持つ別名を照合する。
 
 **旧設計 (payload/skeleton のテキスト検査) は方針 A で削除した (D33):** #ifdef・build 時
 マクロ・TRACE 混入の保証は、テキスト検査の完全性 (GW2R-1 の backslash-newline splice が
@@ -33,6 +35,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import stat
 import sys
 
@@ -40,6 +43,11 @@ import sys
 # しない)。ドリフトは orchestrator/tests/test_hooks.py が両者の一致を assert して防ぐ。
 EVOLVE_BLOCK_SOURCES = (
     "include/backoff.hh", "cc/silo/transaction.cc", "cc/mocc/transaction.cc")
+
+_AUTHORITY_ROOT = "/work/1/SFC/tanab/dev-wave-authority"
+_AUTHORITY_LITERAL_RE = re.compile(
+    rf"(?<![-\w./]){re.escape(_AUTHORITY_ROOT)}"
+    r"(?=$|[/\s\"'`=,:;(){}<>|&])")
 
 
 def _repo_root() -> str:
@@ -171,6 +179,30 @@ def _protected_hooks(
     return hooks_index.protects(raw_path)
 
 
+def _authority_path_violation(
+    raw_path: str,
+    authority_index=None,
+    *,
+    resolve_final: bool = True,
+) -> bool:
+    """固定発行主体 root と lexical/canonical/inode のいずれかで重なるか。"""
+    lexical_path = os.path.abspath(raw_path)
+    legacy_canonical = _canonical_path(
+        lexical_path, lexical_path, resolve_final)
+    raw_canonical = _canonical_path(raw_path, lexical_path, resolve_final)
+    canonical_paths = tuple(dict.fromkeys((legacy_canonical, raw_canonical)))
+    lexical_root = os.path.abspath(_AUTHORITY_ROOT)
+    canonical_root = os.path.realpath(_AUTHORITY_ROOT)
+    if (_inside(lexical_path, lexical_root)
+            or any(_inside(canonical, canonical_root)
+                   for canonical in canonical_paths)):
+        return True
+    if not resolve_final:
+        return False
+    index = authority_index or _HooksInodeIndex(canonical_root)
+    return index.protects(raw_path)
+
+
 def _string_values(value):
     """JSON decode 済み payload の string value を再帰走査する。"""
     if isinstance(value, str):
@@ -219,8 +251,10 @@ def classify_path(
     *,
     resolve_final: bool = True,
     hooks_index=None,
+    authority_index=None,
+    authority_resolve_final=None,
 ) -> tuple[bool, str]:
-    """path を hooks と既存 artifact / namespace / freeze / ccbench 核で判定する。
+    """path を hooks / 発行主体と既存 artifact / namespace / freeze / ccbench で判定する。
 
     legacy canonical = ``realpath(abspath(raw))`` と raw canonical =
     ``realpath(raw)`` を両方保持し、既存 4 判定は deny union にする。hooks 判定は
@@ -241,6 +275,17 @@ def classify_path(
         return False, (
             "hooks/ subtree への直接書き込みは拒否。exact hooks/README.md は regular "
             "non-symlink かつ st_nlink == 1 の場合だけ Write 系ツールで更新可能")
+
+    authority_final = (
+        resolve_final if authority_resolve_final is None
+        else authority_resolve_final)
+    authority_inode_index = authority_index or _HooksInodeIndex(
+        os.path.realpath(_AUTHORITY_ROOT))
+    if _authority_path_violation(
+            abs_path, authority_inode_index, resolve_final=authority_final):
+        return False, (
+            "固定の発行主体 root への直接書き込みは拒否。受領証の鍵・発行物を"
+            "Write 系ツールから変更・削除・移動することは不可")
 
     camp_roots = (
         os.path.realpath(os.path.join(root, "output", "campaigns")),
@@ -293,6 +338,7 @@ def _decide_apply_patch(
     root: str,
     cwd: str,
     hooks_index: _HooksInodeIndex,
+    authority_index: _HooksInodeIndex,
 ) -> tuple[bool, str]:
     operations = parse_apply_patch(tool_input.get("command") or "")
     cwd_valid = bool(cwd) and os.path.isabs(cwd) and os.path.isdir(cwd)
@@ -307,20 +353,23 @@ def _decide_apply_patch(
         candidate_path = (
             raw_path if os.path.isabs(raw_path) else os.path.join(cwd, raw_path))
         reasons = []
-        allow, reason = classify_path(
-            candidate_path, root, hooks_index=hooks_index)
-        if not allow:
-            reasons.append(reason)
-
         is_move_source = (
             kind == "update"
             and index + 1 < len(operations)
             and operations[index + 1][0] == "move_to"
         )
+        authority_resolve_final = not (kind == "delete" or is_move_source)
+        allow, reason = classify_path(
+            candidate_path, root, hooks_index=hooks_index,
+            authority_index=authority_index,
+            authority_resolve_final=authority_resolve_final)
+        if not allow:
+            reasons.append(reason)
+
         if kind == "delete" or is_move_source:
             lexical_allow, lexical_reason = classify_path(
                 candidate_path, root, resolve_final=False,
-                hooks_index=hooks_index)
+                hooks_index=hooks_index, authority_index=authority_index)
             if not lexical_allow and lexical_reason not in reasons:
                 reasons.append(lexical_reason)
 
@@ -342,8 +391,10 @@ def decide(
     root = os.path.realpath(repo_root or _repo_root())
     hooks_index = _HooksInodeIndex(
         os.path.realpath(os.path.join(root, "hooks")))
+    authority_index = _HooksInodeIndex(os.path.realpath(_AUTHORITY_ROOT))
     if tool_name == "apply_patch":
-        return _decide_apply_patch(tool_input, root, cwd, hooks_index)
+        return _decide_apply_patch(
+            tool_input, root, cwd, hooks_index, authority_index)
 
     # NotebookEdit の実書込先は notebook_path。file_path decoy より優先する。
     if tool_name == "NotebookEdit":
@@ -354,7 +405,8 @@ def decide(
         return True, ""
     candidate_path = path if os.path.isabs(path) else os.path.join(root, path)
     allow, reason = classify_path(
-        candidate_path, root, hooks_index=hooks_index)
+        candidate_path, root, hooks_index=hooks_index,
+        authority_index=authority_index)
     if tool_name == "NotebookEdit":
         lexical_path = os.path.abspath(candidate_path)
         canonical_paths = (
@@ -392,7 +444,12 @@ def main() -> int:
             "hooks/" in raw or '"hooks"' in raw
             or any(value == "hooks" or "hooks/" in value
                    for value in decoded_values))
-        if raw_protected or decoded_protected or hooks_protected:
+        authority_protected = (
+            bool(_AUTHORITY_LITERAL_RE.search(raw))
+            or any(_AUTHORITY_LITERAL_RE.search(value)
+                   for value in decoded_values))
+        if (raw_protected or decoded_protected or hooks_protected
+                or authority_protected):
             print(
                 f"guard_write hook 内部エラー ({type(exc).__name__}: {exc}) — 管轄パスを"
                 "含むため fails-closed で拒否", file=sys.stderr)

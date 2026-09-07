@@ -10,8 +10,10 @@ import os
 import random
 import subprocess
 import sys
+import tempfile
 from contextlib import contextmanager, nullcontext
 from pathlib import Path
+from types import MappingProxyType
 from typing import Mapping, Optional, Sequence
 
 if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
@@ -422,6 +424,7 @@ def t2266_genomes(tag: str) -> list[Genome]:
 
 def _require_condition_gate_before_measurement(
         source_root: str, *, stock_root: str, points: list[Genome], cxx: str,
+        configure_args: Sequence[str] = (),
 ):
     """Bind this driver's concrete BACKOFF_FIXED requests to the family gate."""
     return _require_backoff_condition_gate(
@@ -435,6 +438,7 @@ def _require_condition_gate_before_measurement(
         },
         cxx=cxx,
         use_class="raw-measurement",
+        configure_args=configure_args,
     )
 
 
@@ -594,9 +598,13 @@ class _T2266RepCapture:
     def reps_for(self, bench: Mapping[str, object]) -> list[dict[str, object]]:
         run_cmd = bench.get("run_cmd")
         tps = bench.get("tps")
+        normalized_tps = tuple(tps) if type(tps) in {list, tuple} else None
         matches = [
             item for item in self.rounds
-            if item["run_cmd"] == run_cmd and item["throughput_tps"] == tps
+            if (
+                item["run_cmd"] == run_cmd
+                and tuple(item["throughput_tps"]) == normalized_tps
+            )
         ]
         if not matches:
             raise RuntimeError("T-2266 adopted bench round lacks rep capture")
@@ -680,7 +688,7 @@ def _load_t2266_report_points(
                 "T-2266 report requires finite throughput and abort rate per rep"
             )
         indicators = bench.get("leading_indicators")
-        if type(indicators) is not dict:
+        if type(indicators) not in {dict, MappingProxyType}:
             raise RuntimeError("T-2266 committed bench lacks leading indicators")
         correctness_verified = bool(state.committed_verify) and all(
             record.payload.get("certified") is True
@@ -875,12 +883,28 @@ def run_workload(
         ) as stock_root:
             with patchharness.applied(patch_path, pin.CURRENT_PIN, ccbench_dir):
                 _assert_backoff_fixed_materialized(ccbench_dir)
-                _require_condition_gate_before_measurement(
-                    ccbench_dir,
-                    stock_root=stock_root,
-                    points=ordered_genomes,
-                    cxx=resolved_cxx,
-                )
+                canonical_ccbench_dir = os.fspath(Path(ccbench_dir).resolve())
+                with tempfile.TemporaryDirectory(
+                        prefix="izanagi-backoff-condition-gate-",
+                ) as fetchcontent_base:
+                    canonical_base = os.fspath(Path(fetchcontent_base).resolve())
+                    buildcache.prepare_masstree_fetchcontent(
+                        ccbench_dir=canonical_ccbench_dir,
+                        fetchcontent_base_dir=canonical_base,
+                        expected_toolchain_manifest=expected_toolchain_manifest,
+                        configure_timeout_s=900,
+                        target_timeout_s=900,
+                        site=site,
+                    )
+                    _require_condition_gate_before_measurement(
+                        canonical_ccbench_dir,
+                        stock_root=stock_root,
+                        points=ordered_genomes,
+                        cxx=resolved_cxx,
+                        configure_args=(
+                            f"-DFETCHCONTENT_BASE_DIR={canonical_base}",
+                        ),
+                    )
                 _prebuild_backoff_binaries(
                     ordered_genomes,
                     contract=contract,

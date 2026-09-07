@@ -85,6 +85,8 @@ def test_backoff_minimal_screening_selection_and_identity():
 def test_backoff_minimal_screening_runs_only_baseline_and_selected(
         monkeypatch, tmp_path):
     seen = {}
+    prepare_calls = []
+    gate_calls = []
     compilers = condition_gate_compilers()
     if compilers is None:
         pytest.skip("condition gate fixture requires real compilers and CMake")
@@ -117,6 +119,19 @@ def test_backoff_minimal_screening_runs_only_baseline_and_selected(
             for role in ("cc", "cxx", "cmake")
         },
     )
+    monkeypatch.setattr(
+        B.buildcache,
+        "prepare_masstree_fetchcontent",
+        lambda **kwargs: prepare_calls.append(kwargs),
+    )
+    real_gate = B._require_backoff_condition_gate
+
+    def tracked_gate(*args, **kwargs):
+        result = real_gate(*args, **kwargs)
+        gate_calls.append((args, kwargs, result))
+        return result
+
+    monkeypatch.setattr(B, "_require_backoff_condition_gate", tracked_gate)
 
     def fake_screened(cfg, gs, perf, workload, calibration_dir, log, **kwargs):
         seen["canonical"] = [g.canonical() for g in gs]
@@ -126,6 +141,19 @@ def test_backoff_minimal_screening_runs_only_baseline_and_selected(
     monkeypatch.setattr(B, "_run_screened_workload", fake_screened)
     B.run_workload("read-heavy", B.WORKLOADS[-1][1], log=lambda *_: None,
                    screening_enabled=True, screening_fixed_us=100)
+    assert len(prepare_calls) == 1
+    assert len(gate_calls) == 1
+    prepare = prepare_calls[0]
+    gate_args, gate_kwargs, gate_run = gate_calls[0]
+    base_arg = f"-DFETCHCONTENT_BASE_DIR={prepare['fetchcontent_base_dir']}"
+    assert Path(prepare["ccbench_dir"]).resolve() == patched_root.resolve()
+    assert Path(gate_args[0]).resolve() == patched_root.resolve()
+    assert gate_kwargs["configure_args"] == (base_arg,)
+    assert all(
+        base_arg in record.evidence["requested_configure_argv"]
+        and base_arg in record.evidence["control_configure_argv"]
+        for record in gate_run.supply_records
+    )
     assert seen["canonical"] == [
         "silo|BACKOFF_FIXED=-1,BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=1,"
         "NO_WAIT_OF_TICTOC=0,WAL=0",

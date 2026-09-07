@@ -186,9 +186,12 @@ python3 tools/plotting/plot_t2187_adaptive_consts.py threads OUT_PREFIX \
 
 ## 動的 adaptive backoff (dynamic-backoff-mechanism)
 
-`plot_dynamic_backoff.py` は、拡張 cell 書式の probe (`t2187_adaptive_const_probe.py`、結果 schema
-`izanagi-cicada-adaptive-3const-probe/v2`) が出す性能 JSON 7 file (1 file = 1 ノード = 1 block) と、
-`--backoff-trace` の診断 JSON 1 file (`izanagi-dynamic-backoff-trace/v2`) から 3 図を描く。
+`plot_dynamic_backoff.py` は、拡張 cell 書式の probe (`t2187_adaptive_const_probe.py`、結果 schema は
+`izanagi-cicada-adaptive-3const-probe/v2` (A+B) または
+`izanagi-cicada-adaptive-3const-probe/v3` (A+B+C)) が出す性能 JSON 7 file
+(1 file = 1 ノード = 1 block) と、`--backoff-trace` の診断 JSON 1 file
+(`izanagi-dynamic-backoff-trace/v2` (A+B) または
+`izanagi-dynamic-backoff-trace/v3` (A+B+C)) から 3 図を描く。
 事前登録は `docs/dynamic-backoff-preregistration.md`。
 
 ```bash

@@ -701,3 +701,21 @@ linux-baremetal の 0.11% は別環境の値なので参考として併記する
 この案は formula と patch の SHA を変えるので、D1098 に従って旧 formula の消費者を別名で凍結し、
 新しい placeholder を凍結してから物理残差 probe を走らせ直す必要がある。
 **本書では実装せず、設計として記録するに留める。**
+
+## 10. Erratum (2026-09-04) — §7 の perf 不在記述
+
+§7 の「perf に依存する診断は本実験の範囲外とする」という**範囲の決定は変えない**。
+括弧内の理由「この計算ノードに perf は無い」だけが事実として誤っていた。正しくは
+「本実験の運用経路が probe する PATH の literal `perf` は、現行 kernel 用 linux-tools が
+無いため動かなかった」である。
+
+2026-09-04 の同一 node・同一 run の対測定では、kernel `5.15.0-173-generic` の
+6 distinct bnode / 23 job で literal `perf` の `stat` は 23/23 が rc=2、4 event は 0/4 だった。
+一方、既設の `/usr/lib/linux-tools/5.15.0-100-generic/perf` と
+`/usr/lib/linux-tools/5.15.0-135-generic/perf` は 46/46 の測定で `--version` / `stat` とも rc=0、
+4 event は 4/4 だった。証拠は `output/insights/2026-09-04_f241-perf-attribution/` に固定した。
+
+本節は発効後に判明した事実の訂正であり、**事前登録ではない**。§5 の機械可読 spec、登録 grid、
+解析 field、実行・報告規則、過去の成果物の束縛を変更せず、絶対 path の採用も認可しない。
+本実験で perf 依存診断を行わないという範囲、literal `perf` だけを probe する現行運用、
+perf 不在で測定を進める裁定はいずれも不変である。

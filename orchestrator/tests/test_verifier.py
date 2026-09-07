@@ -414,9 +414,15 @@ _V2_FIXTURE_FILES = (
     "g5_silo_real_prefix/trace_2.log",
     "g5_silo_real_prefix/trace_3.log",
     "g6_silo_serial_1thread/trace_0.log",
+    "g7_mocc_minimal_2thread/trace_0.log",
+    "g7_mocc_minimal_2thread/trace_1.log",
     "integrity_orphan/trace_0.log",
     "m1_commit_at_genesis/trace_0.log",
     "m2_version_dup/trace_0.log",
+    "m3_mocc_lock_coverage/trace_0.log",
+    "m3_mocc_lock_coverage/trace_1.log",
+    "m4_mocc_permutation/trace_0.log",
+    "m4_mocc_permutation/trace_1.log",
     "p1_phantom_skew/trace_0.log",
     "p1_phantom_skew/trace_1.log",
     "r1_write_skew/trace_0.log",
@@ -2444,6 +2450,233 @@ def test_parallel_edge_replay_uses_global_logical_ordinal():
         parallel = verify_trace_dir(d, workers=3)
         assert result_to_dict(parallel) == result_to_dict(sequential)
         assert parallel.anomalies[0].cycle == [1, 8]
+    finally:
+        dsg_module._edge_candidates_for_task = original
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def _serial_parent_optimization_trace() -> str:
+    """Four-file trace with two ordered SCCs and colliding destinations."""
+    files = [[], [], [], []]
+    for txid in range(33):
+        file_index = min(txid // 8, 3)
+        if txid == 0:
+            files[file_index].append(
+                "C 0 0 2 1 1 5\n"
+                "R 0 aa 1 0\n"
+                "W 0 10 U 2 1\nW 0 12 U 2 1\n"
+                "W 0 14 U 2 1\nW 0 16 U 2 1\n"
+                "W 0 18 U 2 1\nE 0\n")
+        elif txid == 8:
+            files[file_index].append(
+                "C 8 1 2 9 4 0\n"
+                "R 8 b0 1 0\nR 8 aa 1 0\n"
+                "R 8 10 2 1\nR 8 12 1 0\nE 8\n")
+        elif txid == 16:
+            files[file_index].append(
+                "C 16 2 2 17 5 0\n"
+                "R 16 b2 1 0\nR 16 b4 1 0\nR 16 aa 1 0\n"
+                "R 16 14 2 1\nR 16 16 1 0\nE 16\n")
+        elif txid == 17:
+            files[file_index].append(
+                "C 17 2 2 18 1 4\n"
+                "R 17 18 2 1\n"
+                "W 17 20 U 2 18\nW 17 22 U 2 18\n"
+                "W 17 24 U 2 18\nW 17 26 U 2 18\nE 17\n")
+        elif txid == 24:
+            files[file_index].append(
+                "C 24 3 2 25 6 0\n"
+                "R 24 b6 1 0\nR 24 b8 1 0\nR 24 ba 1 0\n"
+                "R 24 aa 1 0\nR 24 20 2 18\nR 24 22 1 0\nE 24\n")
+        elif txid == 32:
+            files[file_index].append(
+                "C 32 3 2 33 2 0\n"
+                "R 32 24 2 18\nR 32 26 1 0\nE 32\n")
+        else:
+            files[file_index].append(
+                f"C {txid} {file_index} 3 {txid + 1} 0 0\nE {txid}\n")
+    return _tmp_trace(*["".join(rows) for rows in files])
+
+
+def test_serial_parent_optimizations_match_workers_and_pin_witness_order():
+    import importlib
+    import shutil
+    parse_module = importlib.import_module("orchestrator.verifier.parse")
+    dsg_module = importlib.import_module("orchestrator.verifier.dsg")
+    d = _serial_parent_optimization_trace()
+    try:
+        compact = parse_module._parse_trace_dir_compact(d, workers=1)
+        local_shared_key_ids = []
+        for columns in compact.files:
+            tokens = [
+                columns.token_blob[columns.token_offsets[index]:
+                                   columns.token_offsets[index + 1]].decode("ascii")
+                for index in range(len(columns.token_offsets) - 1)
+            ]
+            local_shared_key_ids.append(tokens.index("aa"))
+        assert local_shared_key_ids == [0, 1, 2, 3]
+        compact_graph = DSG.from_compact(compact)
+        assert compact_graph.adj[0] == (8, 16, 17)
+        assert 0 not in compact_graph.adj[17]
+        assert [set(component) for component in compact_graph._sccs()] == [
+            {17, 24, 32}, {0, 8, 16},
+        ]
+
+        # The workers=4 split puts ranks 8 and 16 in different tasks, so pin
+        # M2's structural premise with one fixed read task spanning both ranks
+        # while excluding rank 17 (which contributes the later 0->17 edge).
+        from array import array
+        edge_state = dsg_module._EdgeWorkerState(
+            trace=compact,
+            producer=compact_graph.producer,
+            versions=compact_graph.versions,
+            keys=tuple(compact_graph.versions),
+        )
+        edge_outcome = dsg_module._edge_candidates_for_task(
+            dsg_module._EdgeTask(0, "read", 0, 17), edge_state,
+        )
+        source_run = edge_outcome.run_src.index(0)
+        run_start = edge_outcome.run_offsets[source_run]
+        run_end = edge_outcome.run_offsets[source_run + 1]
+        assert edge_outcome.run_dst[run_start:run_end] == array("q", [8, 16])
+
+        source_order_dir = _ordinal_witness_trace()
+        try:
+            source_order_compact = parse_module._parse_trace_dir_compact(
+                source_order_dir, workers=1,
+            )
+            source_order_graph = DSG.from_compact(source_order_compact)
+            source_order_state = dsg_module._EdgeWorkerState(
+                trace=source_order_compact,
+                producer=source_order_graph.producer,
+                versions=source_order_graph.versions,
+                keys=tuple(source_order_graph.versions),
+            )
+            source_order_outcome = dsg_module._edge_candidates_for_task(
+                dsg_module._EdgeTask(0, "read", 0, 17), source_order_state,
+            )
+            assert source_order_outcome.run_src == array("q", [8, 16, 1])
+        finally:
+            shutil.rmtree(source_order_dir, ignore_errors=True)
+
+        sequential = verify_trace_dir(d, workers=1)
+        default = verify_trace_dir(d)
+        parallel = verify_trace_dir(d, workers=4)
+        assert result_to_dict(default) == result_to_dict(sequential)
+        assert result_to_dict(parallel) == result_to_dict(sequential)
+        assert parse_module._LAST_PARSE_WORKER_PIDS
+        assert dsg_module._LAST_DSG_WORKER_PIDS
+        assert os.getpid() not in parse_module._LAST_PARSE_WORKER_PIDS
+        assert os.getpid() not in dsg_module._LAST_DSG_WORKER_PIDS
+
+        assert parallel.total_cycles == 2
+        assert len(parallel.anomalies) == 2
+        assert [anomaly.cycle for anomaly in parallel.anomalies] == [
+            [17, 24], [0, 8],
+        ]
+        assert parallel.n_edges == 9
+        assert [
+            [str(reason) for edge in anomaly.edges for reason in edge.reasons]
+            for anomaly in parallel.anomalies
+        ] == [
+            [
+                "EdgeReason(etype='wr', key='20', u_ver=(2, 18), v_ver=None)",
+                "EdgeReason(etype='rw', key='22', u_ver=(1, 0), v_ver=(2, 18))",
+            ],
+            [
+                "EdgeReason(etype='wr', key='10', u_ver=(2, 1), v_ver=None)",
+                "EdgeReason(etype='rw', key='12', u_ver=(1, 0), v_ver=(2, 1))",
+            ],
+        ]
+
+        capped = verify_trace_dir(d, workers=1, max_report=1)
+        assert capped.total_cycles == 2
+        assert capped.anomalies == parallel.anomalies[:1]
+
+        txns, _issues = parse_trace_dir(d)
+        legacy_anomalies, legacy_total = DSG(txns).anomalies()
+        assert legacy_total == parallel.total_cycles
+        assert legacy_anomalies == parallel.anomalies
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_scc_dense_arrays_keep_root_emission_order_for_both_adjacency_types():
+    from collections import defaultdict
+
+    legacy_adjacency = defaultdict(set)
+    legacy_adjacency[2].add(1)  # destination-only node 1 must be dense-mapped.
+    legacy_adjacency[9].add(10)
+    legacy_adjacency[10].add(9)
+    legacy_adjacency[4].add(5)
+    legacy_adjacency[5].add(4)
+    compact_adjacency = {
+        source: tuple(destinations)
+        for source, destinations in legacy_adjacency.items()
+    }
+
+    actual = []
+    for adjacency in (legacy_adjacency, compact_adjacency):
+        graph = DSG.__new__(DSG)
+        graph.adj = adjacency
+        actual.append(graph._sccs())
+    assert actual == [
+        [[10, 9], [5, 4]],
+        [[10, 9], [5, 4]],
+    ]
+
+
+def test_version_dup_keeps_first_writer_note_and_edge():
+    import importlib
+    import shutil
+    parse_module = importlib.import_module("orchestrator.verifier.parse")
+    d = _tmp_trace(
+        "C 0 0 2 1 0 2\n"
+        "W 0 aa U 2 1\nW 0 aa U 2 1\nE 0\n",
+        "C 1 1 2 1 0 1\nW 1 aa U 2 1\nE 1\n"
+        "C 2 1 2 2 1 0\nR 2 aa 2 1\nE 2\n",
+    )
+    try:
+        sequential = verify_trace_dir(d, workers=1)
+        parallel = verify_trace_dir(d, workers=2)
+        assert result_to_dict(parallel) == result_to_dict(sequential)
+        assert sequential.integrity.version_dups == 1
+        assert sequential.integrity.notes == [
+            "version dup: key=aa ver=(2, 1) by txid 0 and 1",
+        ]
+
+        compact = parse_module._parse_trace_dir_compact(d, workers=1)
+        graph = DSG.from_compact(compact)
+        assert graph.producer[("aa", (2, 1))] == 0
+        assert graph.adj == {0: (2,)}
+        assert graph._reasons(0, 2) == [
+            EdgeReason(WR, "aa", (2, 1), None),
+        ]
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_edge_worker_failure_discards_partial_tasks_and_recomputes_all():
+    import importlib
+    import shutil
+    dsg_module = importlib.import_module("orchestrator.verifier.dsg")
+    d = _ordinal_witness_trace()
+    baseline = verify_trace_dir(d, workers=1)
+    original = dsg_module._edge_candidates_for_task
+    parent_pid = os.getpid()
+
+    def fail_cycle_closing_task(task, state=None):
+        if (task.kind == "read" and task.start <= 8 < task.end
+                and os.getpid() != parent_pid):
+            raise RuntimeError("edge-task failure sentinel")
+        return original(task, state)
+
+    dsg_module._edge_candidates_for_task = fail_cycle_closing_task
+    try:
+        recovered = verify_trace_dir(d, workers=3)
+        assert result_to_dict(recovered) == result_to_dict(baseline)
+        assert recovered.anomalies[0].cycle == [1, 8]
+        assert dsg_module._LAST_DSG_WORKER_PIDS == frozenset({parent_pid})
     finally:
         dsg_module._edge_candidates_for_task = original
         shutil.rmtree(d, ignore_errors=True)

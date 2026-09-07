@@ -7330,42 +7330,105 @@ def test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted():
     """B-3: 新しい裸マクロ patch は ledger 登録なしでは patches/ に置けない。"""
     ledger = json.loads(_LEDGER.read_text(encoding="utf-8"))
     registered = {entry["path"] for entry in ledger["entries"]}
-    known_non_variant_patches = {
-        # Matches are diagnostic stdout marker string literals
-        # (IZANAGI_BACKOFF_TRACE*) inside #if BACKOFF_TRACE, not naked macros.
-        # Patch macros are registered in condition_meaning_gate.DefineSpec;
-        # ledger.json stays unregistered for the rung1 contract (exactly 1 entry),
-        # per the stage 4 ruling P7.
-        "patches/cicada-adaptive-dynamic.patch",
-        "patches/broken-silo-early-unlock-validation.patch",
-        "patches/broken-silo-highkey-validation.patch",
-        "patches/broken-silo-lockskip-validation.patch",
-        "patches/broken-silo-norw-validation.patch",
-        "patches/broken-silo-permutation-erase.patch",
-        "patches/broken-silo-permutation-swap.patch",
-        "patches/broken-silo-sort-nonswo.patch",
-        "patches/broken-silo-trigger-misattr.patch",
-        "patches/broken-silo-write-intent-erase.patch",
-        "patches/broken-silo-write-intent-forge.patch",
-        "patches/broken-silo-write-intent-opswap.patch",
-        "patches/broken-silo-write-intent-ptrswap.patch",
-        "patches/instr-silo-backoff-trigger-gating-tally.patch",
+    allowed_non_variant_tokens = {
+        # These are diagnostic stdout marker string literals inside
+        # #if BACKOFF_TRACE, not naked macros. Patch macros are registered in
+        # condition_meaning_gate.DefineSpec; ledger.json stays unregistered for
+        # the rung1 contract (exactly 1 entry), per the stage 4 ruling P7.
+        "patches/cicada-adaptive-dynamic.patch": frozenset({
+            "IZANAGI_BACKOFF_TRACE",
+            "IZANAGI_BACKOFF_TRACE_SUMMARY",
+        }),
+        "patches/cicada-adaptive-counterfactual.patch": frozenset({
+            "IZANAGI_BACKOFF_TRACE",
+            "IZANAGI_BACKOFF_TRACE_SUMMARY",
+        }),
+        "patches/broken-silo-early-unlock-validation.patch": frozenset({
+            "IZANAGI_BREAK_EARLY_UNLOCK",
+        }),
+        "patches/broken-silo-highkey-validation.patch": frozenset({
+            "IZANAGI_BREAK_HIGHKEY_VALIDATION",
+        }),
+        "patches/broken-silo-lockskip-validation.patch": frozenset({
+            "IZANAGI_BREAK_LOCK_COVERAGE",
+        }),
+        "patches/broken-silo-norw-validation.patch": frozenset({
+            "IZANAGI_BREAK_NOREAD_VALIDATION",
+        }),
+        "patches/broken-silo-permutation-erase.patch": frozenset({
+            "IZANAGI_BREAK_PERMUTATION",
+        }),
+        "patches/broken-silo-permutation-swap.patch": frozenset({
+            "IZANAGI_BREAK_PERMUTATION_SWAP",
+        }),
+        "patches/broken-silo-sort-nonswo.patch": frozenset(),
+        "patches/broken-silo-trigger-misattr.patch": frozenset({
+            "IZANAGI_BREAK_TRIGGER_MISATTR",
+        }),
+        "patches/broken-silo-write-intent-erase.patch": frozenset({
+            "IZANAGI_BREAK_WRITE_INTENT_ERASE",
+        }),
+        "patches/broken-silo-write-intent-forge.patch": frozenset({
+            "IZANAGI_BREAK_WRITE_INTENT_FORGE",
+        }),
+        "patches/broken-silo-write-intent-opswap.patch": frozenset({
+            "IZANAGI_BREAK_WRITE_INTENT_OPSWAP",
+        }),
+        "patches/broken-silo-write-intent-ptrswap.patch": frozenset({
+            "IZANAGI_BREAK_WRITE_INTENT_PTRSWAP",
+        }),
+        "patches/broken-mocc-lockskip-validation.patch": frozenset({
+            "IZANAGI_BREAK_MOCC_LOCK_COVERAGE",
+        }),
+        "patches/broken-mocc-permutation-erase.patch": frozenset({
+            "IZANAGI_BREAK_MOCC_PERMUTATION",
+        }),
+        "patches/broken-mocc-early-unlock.patch": frozenset({
+            "IZANAGI_BREAK_MOCC_EARLY_UNLOCK",
+        }),
+        "patches/instr-silo-backoff-trigger-gating-tally.patch": frozenset(),
+    }
+    literal_only_tokens = {
+        relative: allowed_non_variant_tokens[relative]
+        for relative in (
+            "patches/cicada-adaptive-dynamic.patch",
+            "patches/cicada-adaptive-counterfactual.patch",
+        )
     }
     unregistered = {}
     for patch_path in sorted((_ROOT / "patches").glob("*.patch")):
+        patch_text = patch_path.read_text(encoding="utf-8")
         macros = sorted(
             set(
                 re.findall(
                     r"\bIZANAGI_[A-Z0-9_]+\b",
-                    patch_path.read_text(encoding="utf-8"),
+                    patch_text,
                 )
             )
         )
         relative = patch_path.relative_to(_ROOT).as_posix()
-        if macros and relative not in registered | known_non_variant_patches:
-            unregistered[relative] = macros
+        if relative in literal_only_tokens:
+            literal_spans = [
+                match.span()
+                for match in re.finditer(r'"(?:\\.|[^"\\\n])*"', patch_text)
+            ]
+            for token in literal_only_tokens[relative]:
+                occurrences = list(
+                    re.finditer(rf"\b{re.escape(token)}\b", patch_text)
+                )
+                assert occurrences, f"{relative}: missing marker literal {token}"
+                assert all(
+                    any(start <= match.start() < end for start, end in literal_spans)
+                    for match in occurrences
+                ), f"{relative}: {token} must occur only in string literals"
+        if macros and relative not in registered:
+            unexpected = sorted(
+                set(macros) - allowed_non_variant_tokens.get(relative, frozenset())
+            )
+            if unexpected:
+                unregistered[relative] = unexpected
     assert not unregistered, (
-        "IZANAGI_ 裸マクロを持つ未登録 patch（既知 broken-silo/instr でもない）: "
+        "IZANAGI_ 裸マクロを持つ未登録 patch または path 別許容集合外 token: "
         f"{unregistered}"
     )
 
@@ -7682,6 +7745,542 @@ def test_resolve_duplicate_keeps_verdict_when_attempt_ids_match():
     out = L._resolve_duplicate(lay, pl, state, _dup_summary(v))
     assert out["outcome"] == "duplicate"
     assert out["verdict"] == "serializable"
+
+
+# ==== FetchContent prebuild receipt seam (T-2356) =============================
+
+_FETCHCONTENT_KEYS = (
+    "fetchcontent_base_dir",
+    "masstree_source_dir",
+    "mimalloc_source_dir",
+    "googletest_source_dir",
+    "fetchcontent_dependency_receipt",
+)
+
+
+class _PrebuildProbeStop(RuntimeError):
+    pass
+
+
+def _prebuild_toolchain_manifest() -> dict[str, dict[str, str]]:
+    return {
+        role: {
+            "requested": f"test-{role}",
+            "realpath": f"/test/{role}",
+            "version_first_line": f"{role} fixture",
+            "version": f"{role} fixture\n",
+        }
+        for role in ("cc", "cxx", "cmake")
+    }
+
+
+def _write_prebuild_receipt(
+    tmp_path: Path,
+    *,
+    call_prepare: bool = False,
+) -> tuple[Path, dict[str, object], tuple[object, ...]]:
+    from orchestrator.campaign import buildcache
+
+    base = (tmp_path / "prebuild").resolve()
+    base.mkdir()
+    source_dirs = tuple(base / f"{name}-src" for name in ("masstree", "mimalloc", "googletest"))
+    for source_dir in source_dirs:
+        source_dir.mkdir()
+    manifest = _prebuild_toolchain_manifest()
+    if call_prepare:
+        with unittest.mock.patch.object(buildcache, "_run", return_value=None):
+            prepared = buildcache.prepare_masstree_fetchcontent(
+                ccbench_dir=str(tmp_path.resolve()),
+                fetchcontent_base_dir=str(base),
+                expected_toolchain_manifest=manifest,
+                configure_timeout_s=1,
+                target_timeout_s=1,
+                site=site_policy.OTHER,
+                masstree_source_dir=str(source_dirs[0]),
+                mimalloc_source_dir=str(source_dirs[1]),
+                googletest_source_dir=str(source_dirs[2]),
+            )
+    else:
+        prepared = SimpleNamespace(
+            fetchcontent_base_dir=str(base),
+            configure_argv=("cmake", "-S", str(tmp_path.resolve())),
+            build_argv=("cmake", "--build", str(base / "prebuild-build")),
+        )
+    config_h = source_dirs[0] / "config.h"
+    config_h.write_bytes(b"prebuild config fixture\n")
+    config_sha256 = hashlib.sha256(config_h.read_bytes()).hexdigest()
+    record: dict[str, object] = {
+        "schema_version": "p3-s4-loop-masstree-prebuild/v1",
+        "fetchcontent_base_dir": prepared.fetchcontent_base_dir,
+        "source_root": str(base),
+        "sources": [
+            {"name": "masstree", "head_commit": "a" * 40},
+            {"name": "mimalloc", "head_commit": "b" * 40},
+            {"name": "googletest", "head_commit": "c" * 40},
+        ],
+        "config_h_path": str(config_h),
+        "config_h_sha256": config_sha256,
+        "configure_argv": list(prepared.configure_argv),
+        "build_argv": list(prepared.build_argv),
+        "toolchain_manifest": manifest,
+        "pbs_jobid": "fixture-job",
+    }
+    receipt = tmp_path / "prebuild-receipt.json"
+    receipt.write_text(json.dumps(record), encoding="utf-8")
+    expected = (
+        str(base), *(str(source_dir) for source_dir in source_dirs),
+        {"masstree_head": "a" * 40, "config_sha256": config_sha256},
+    )
+    return receipt, record, expected
+
+
+def _rewrite_prebuild_receipt(path: Path, record: dict[str, object]) -> None:
+    path.write_text(json.dumps(record), encoding="utf-8")
+
+
+def _prebuild_source_evidence(genome: Genome, source_root: Path, commit: str) -> SourceEvidence:
+    return SourceEvidence(
+        schema_version=source_digest.SOURCE_EVIDENCE_SCHEMA,
+        source_root=str(source_root.resolve()),
+        ccbench_commit=commit,
+        genome_sha256=hashlib.sha256(genome.canonical().encode("utf-8")).hexdigest(),
+        src_token="d" * 64,
+        source_bytes_sha256="e" * 64,
+        tracked_clean=False,
+        tracked_diff_sha256="f" * 64,
+        tracked_paths=(L.SOURCE_REL,),
+    )
+
+
+def test_prebuild_receipt_loader_returns_exact_atomic_five_tuple(tmp_path):
+    receipt, record, expected = _write_prebuild_receipt(tmp_path)
+    assert L._load_masstree_prebuild_receipt(receipt) == expected
+    volatile_nontransport_fields = {
+        "pbs_jobid": "different-job",
+        "configure_argv": ["cmake", "different-configure-root"],
+        "build_argv": ["cmake", "--build", "different-build-root"],
+    }
+    record.update(volatile_nontransport_fields)
+    _rewrite_prebuild_receipt(receipt, record)
+    assert L._load_masstree_prebuild_receipt(receipt) == expected
+
+
+def test_prebuild_receipt_loader_rejects_config_hash_mismatch(tmp_path):
+    receipt, record, _expected = _write_prebuild_receipt(tmp_path)
+    record["config_h_sha256"] = "0" * 64
+    _rewrite_prebuild_receipt(receipt, record)
+    with pytest.raises(ValueError, match="config.h hash"):
+        L._load_masstree_prebuild_receipt(receipt)
+
+
+@pytest.mark.parametrize("mutation", ("extra", "missing"))
+def test_prebuild_receipt_loader_rejects_nonexact_top_level_keys(tmp_path, mutation):
+    receipt, record, _expected = _write_prebuild_receipt(tmp_path)
+    if mutation == "extra":
+        record["unknown"] = "not admitted"
+    else:
+        record.pop("build_argv")
+    _rewrite_prebuild_receipt(receipt, record)
+    with pytest.raises(ValueError, match="exact key"):
+        L._load_masstree_prebuild_receipt(receipt)
+
+
+@pytest.mark.parametrize("mutation", ("duplicate", "missing"))
+def test_prebuild_receipt_loader_rejects_nonexact_source_names(tmp_path, mutation):
+    receipt, record, _expected = _write_prebuild_receipt(tmp_path)
+    sources = list(record["sources"])
+    if mutation == "duplicate":
+        sources[2] = dict(sources[1])
+    else:
+        sources.pop()
+    record["sources"] = sources
+    _rewrite_prebuild_receipt(receipt, record)
+    with pytest.raises(ValueError, match="source"):
+        L._load_masstree_prebuild_receipt(receipt)
+
+
+@pytest.mark.parametrize("mutation", ("noncanonical", "source-symlink", "config-symlink"))
+def test_prebuild_receipt_loader_rejects_noncanonical_or_symlink_paths(
+    tmp_path, mutation,
+):
+    receipt, record, _expected = _write_prebuild_receipt(tmp_path)
+    base = Path(record["source_root"])
+    if mutation == "noncanonical":
+        record["source_root"] = str(base) + "/."
+        record["fetchcontent_base_dir"] = str(base) + "/."
+    elif mutation == "source-symlink":
+        source = base / "mimalloc-src"
+        target = base / "mimalloc-source-target"
+        source.rename(target)
+        source.symlink_to(target, target_is_directory=True)
+    else:
+        config_h = Path(record["config_h_path"])
+        target = base / "config-target.h"
+        config_h.rename(target)
+        config_h.symlink_to(target)
+    _rewrite_prebuild_receipt(receipt, record)
+    with pytest.raises(ValueError, match="canonical|symlink"):
+        L._load_masstree_prebuild_receipt(receipt)
+
+
+def test_prebuild_receipt_loader_rejects_symlink_receipt_file(tmp_path):
+    receipt, _record, _expected = _write_prebuild_receipt(tmp_path)
+    link = tmp_path / "receipt-link.json"
+    link.symlink_to(receipt)
+    with pytest.raises(ValueError, match="non-symlink regular file"):
+        L._load_masstree_prebuild_receipt(link)
+
+
+def test_prebuild_receipt_loader_rejects_invalid_field_type(tmp_path):
+    receipt, record, _expected = _write_prebuild_receipt(tmp_path)
+    record["configure_argv"] = ["cmake", 1]
+    _rewrite_prebuild_receipt(receipt, record)
+    with pytest.raises(ValueError, match=r"list\[str\]"):
+        L._load_masstree_prebuild_receipt(receipt)
+
+
+@pytest.mark.parametrize(
+    "suffix",
+    (
+        ("--no-build",),
+        ("--emit-planner-context", "unused.json"),
+    ),
+    ids=("no-build", "emit-planner-context"),
+)
+def test_prebuild_receipt_cli_rejects_routes_without_a_build(suffix, monkeypatch):
+    loader = unittest.mock.Mock(
+        side_effect=AssertionError("incompatible route reached receipt loader"),
+    )
+    monkeypatch.setattr(L, "_load_masstree_prebuild_receipt", loader)
+    with pytest.raises(SystemExit) as error:
+        L.main(["--fetchcontent-prebuild-receipt", "missing.json", *suffix])
+    assert error.value.code == 2
+    loader.assert_not_called()
+
+
+@pytest.mark.parametrize("case", ("four-without-receipt", "five-without-contract"))
+def test_run_campaign_rejects_invalid_prebuild_tuple_before_side_effects(
+    monkeypatch, case,
+):
+    from orchestrator.campaign import loop as campaign_loop
+
+    forbidden = unittest.mock.Mock(side_effect=AssertionError("side effect reached"))
+    monkeypatch.setattr(campaign_loop, "_authorize_measurement", forbidden)
+    monkeypatch.setattr(campaign_loop, "campaign_layout", forbidden)
+    monkeypatch.setattr(campaign_loop, "exploration_campaign_layout", forbidden)
+    monkeypatch.setattr(campaign_loop.source_digest, "resolve_evidence", forbidden)
+    context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    kwargs = {
+        "fetchcontent_base_dir": "/prebuild",
+        "masstree_source_dir": "/prebuild/masstree-src",
+        "mimalloc_source_dir": "/prebuild/mimalloc-src",
+        "googletest_source_dir": "/prebuild/googletest-src",
+    }
+    if case == "four-without-receipt":
+        kwargs["env_contract"] = env_contract.lookup(L.ENV_TAG)
+    else:
+        kwargs["fetchcontent_dependency_receipt"] = {
+            "masstree_head": "a" * 40,
+            "config_sha256": "b" * 64,
+        }
+    with pytest.raises(ValueError, match="FetchContent prebuild"):
+        campaign_loop.run_campaign(
+            L.default_cfg(), [], L.default_perf(), L.ENV_TAG, L.CLK,
+            authorization_contract=object(),
+            build_context=context,
+            declared_use_class="exploration",
+            backoff_grammar_version=BHG.BACKOFF_GRAMMAR_VERSION,
+            **kwargs,
+        )
+    forbidden.assert_not_called()
+
+
+@pytest.mark.parametrize("case", ("four-without-receipt", "two-sources-with-receipt"))
+def test_pipeline_rejects_invalid_prebuild_tuple_before_build_or_wal(
+    tmp_path, monkeypatch, case,
+):
+    from orchestrator.campaign import buildcache
+    from orchestrator.campaign import pipeline as campaign_pipeline
+
+    build = unittest.mock.Mock(side_effect=AssertionError("build reached"))
+    emit = unittest.mock.Mock(side_effect=AssertionError("WAL reached"))
+    monkeypatch.setattr(buildcache, "build_v2", build)
+    monkeypatch.setattr(campaign_pipeline.wal, "log", emit)
+    contract = env_contract.lookup(L.ENV_TAG)
+    kwargs = {
+        "fetchcontent_base_dir": "/prebuild",
+        "masstree_source_dir": "/prebuild/masstree-src",
+        "mimalloc_source_dir": "/prebuild/mimalloc-src",
+    }
+    if case == "four-without-receipt":
+        kwargs["googletest_source_dir"] = "/prebuild/googletest-src"
+    else:
+        kwargs["fetchcontent_dependency_receipt"] = {
+            "masstree_head": "a" * 40,
+            "config_sha256": "b" * 64,
+        }
+    with pytest.raises(ValueError, match="5 値同時指定"):
+        campaign_pipeline._prepare_evaluation_core(
+            Genome("silo", {"BACK_OFF": 1}),
+            CampaignLayout(str(tmp_path / "layout")),
+            contract.env_tag,
+            L.PIN,
+            L.default_perf(),
+            contract.clocks_per_us,
+            numactl=list(contract.numactl),
+            env_contract=contract,
+            authorization_contract=env_contract.authorize(contract.env_tag),
+            build_context=build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP),
+            **kwargs,
+        )
+    build.assert_not_called()
+    emit.assert_not_called()
+
+
+def test_default_prebuild_values_do_not_enter_loop_evaluate_options(
+    tmp_path, monkeypatch,
+):
+    from orchestrator.campaign import loop as campaign_loop
+    from orchestrator.campaign import pipeline as campaign_pipeline
+    from orchestrator.campaign.model import CampaignConfig
+
+    context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    contract = env_contract.lookup(L.ENV_TAG)
+    cfg = ident.bind_admission_policy(CampaignConfig(
+        spec_slug="t2356-default", search_tag="default",
+        spec_content="default prebuild compatibility", ccbench_commit=L.PIN,
+    ), context.policy)
+    genome = Genome("silo", {"BACK_OFF": 1})
+    source_root = (tmp_path / "ccbench").resolve()
+    source_root.mkdir()
+    evidence = _prebuild_source_evidence(genome, source_root, L.PIN)
+    layout = CampaignLayout(str(tmp_path / "campaign"))
+    observed = {}
+    evaluate_call_count = 0
+
+    def evaluate_spy(candidate, *_args, **kwargs):
+        nonlocal evaluate_call_count
+        evaluate_call_count += 1
+        observed.update(kwargs)
+        return campaign_pipeline.EvalResult(
+            genome=candidate,
+            variant=variant_id(candidate, evidence.src_token),
+            certified=False,
+            aborted=True,
+        )
+
+    monkeypatch.setattr(campaign_loop, "exploration_campaign_layout", lambda *_a: layout)
+    monkeypatch.setattr(campaign_loop.source_digest, "resolve_evidence", lambda *_a, **_k: evidence)
+    monkeypatch.setattr(campaign_loop, "evaluate", evaluate_spy)
+    monkeypatch.setattr(
+        campaign_loop.ident,
+        "ensure_resumable_wal",
+        lambda *_a, **_k: SimpleNamespace(status="clean"),
+    )
+    campaign_loop.run_campaign(
+        cfg, [genome], L.default_perf(), contract.env_tag,
+        contract.clocks_per_us, numactl=list(contract.numactl),
+        do_bench=False, authorization_contract=env_contract.authorize(contract.env_tag),
+        build_context=context, declared_use_class="exploration",
+    )
+    assert evaluate_call_count >= 1
+    assert set(observed).isdisjoint(_FETCHCONTENT_KEYS)
+
+
+def test_default_prebuild_values_do_not_enter_pipeline_build_v2_kwargs(
+    tmp_path, monkeypatch,
+):
+    from orchestrator.campaign import buildcache
+    from orchestrator.campaign import pipeline as campaign_pipeline
+
+    context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    contract = env_contract.lookup(L.ENV_TAG)
+    genome = Genome("silo", {"BACK_OFF": 1})
+    source_root = (tmp_path / "ccbench").resolve()
+    source_root.mkdir()
+    evidence = _prebuild_source_evidence(genome, source_root, L.PIN)
+    receipt = attest_generator_output(
+        context, evidence, generator_input_sha256="a" * 64,
+    )
+    monkeypatch.setattr(campaign_pipeline.source_digest, "resolve_evidence", lambda *_a, **_k: evidence)
+    monkeypatch.setattr(campaign_pipeline, "_compilers_for_current_site", lambda: ("test-cc", "test-cxx"))
+    monkeypatch.setattr(buildcache, "_build_v2_impl", unittest.mock.Mock(side_effect=_PrebuildProbeStop))
+    real_build_v2 = buildcache.build_v2
+    with unittest.mock.patch.object(buildcache, "build_v2", wraps=real_build_v2) as build_spy:
+        result = campaign_pipeline.evaluate(
+            genome, CampaignLayout(str(tmp_path / "layout")).ensure(),
+            contract.env_tag, L.PIN, L.default_perf(), contract.clocks_per_us,
+            numactl=list(contract.numactl), do_bench=False,
+            src_token=evidence.src_token, ccbench_dir=str(source_root),
+            cache_root=str(tmp_path / "cache"), env_contract=contract,
+            authorization_contract=env_contract.authorize(contract.env_tag),
+            build_context=context, source_evidence=evidence,
+            capability_resolver=lambda _evidence: receipt,
+            declared_use_class="exploration",
+        )
+    assert result.aborted
+    assert build_spy.call_count == 1
+    assert set(build_spy.call_args.kwargs).isdisjoint(_FETCHCONTENT_KEYS)
+
+
+@pytest.mark.parametrize("route", ("fixture", "proposal"))
+def test_prebuild_reaches_production_build_v2_and_v2_commands_in_both_main_routes(
+    tmp_path, monkeypatch, route,
+):
+    import contextlib
+    from orchestrator.campaign import buildcache
+    from orchestrator.campaign import loop as campaign_loop
+    from orchestrator.campaign import p2_2, patchharness
+    from orchestrator.campaign import pipeline as campaign_pipeline
+
+    receipt_path, _record, expected = _write_prebuild_receipt(
+        tmp_path, call_prepare=True,
+    )
+    repo = (tmp_path / "repo").resolve()
+    source_root = repo / "external" / "ccbench"
+    (source_root / "include").mkdir(parents=True)
+    (source_root / L.SOURCE_REL).write_text(_TEMPLATE, encoding="utf-8")
+    layout = CampaignLayout(str(tmp_path / f"campaign-{route}"))
+    monkeypatch.setattr(L, "_repo_root", lambda: str(repo))
+    monkeypatch.setattr(L, "_current_site", lambda: site_policy.OTHER)
+    monkeypatch.setattr(L, "exploration_campaign_layout", lambda *_a: layout)
+    monkeypatch.setattr(campaign_loop, "exploration_campaign_layout", lambda *_a: layout)
+    monkeypatch.setattr(campaign_loop, "_perform_perf_preflight", lambda *_a, **_k: (None, True))
+    monkeypatch.setattr(patchharness, "assert_pinned_clean", lambda *_a, **_k: None)
+    monkeypatch.setattr(patchharness, "applied", lambda *_a, **_k: contextlib.nullcontext())
+    monkeypatch.setattr(patchharness, "checkout", lambda *_a, **_k: contextlib.nullcontext(str(source_root)))
+    monkeypatch.setattr(p2_2, "_assert_single_tenant", lambda: None)
+    monkeypatch.setattr(L, "require_admitted_campaign", lambda *_a, **_k: object())
+    monkeypatch.setattr(L, "make_critic_identity_projection", lambda *_a, **_k: object())
+    monkeypatch.setattr(L, "make_critic_digest", lambda *_a, **_k: "probe\n")
+    monkeypatch.setattr(L, "load_diff_rejections", lambda *_a, **_k: [])
+    monkeypatch.setattr(L.ident, "ensure_resumable_attempts", lambda *_a, **_k: None)
+    monkeypatch.setattr(
+        campaign_loop.ident,
+        "ensure_resumable_wal",
+        lambda *_a, **_k: SimpleNamespace(status="clean"),
+    )
+
+    def resolve_evidence(genome, commit, **_kwargs):
+        return _prebuild_source_evidence(genome, source_root, commit)
+
+    monkeypatch.setattr(source_digest, "resolve_evidence", resolve_evidence)
+    monkeypatch.setattr(campaign_loop, "_compilers_for_current_site", lambda: ("test-cc", "test-cxx"))
+    monkeypatch.setattr(campaign_pipeline, "_compilers_for_current_site", lambda: ("test-cc", "test-cxx"))
+    monkeypatch.setattr(buildcache, "_require_secure_fs_contract", lambda: None)
+    monkeypatch.setattr(buildcache, "_verify_ccbench_commit", lambda *_a, **_k: None)
+    monkeypatch.setattr(source_digest, "assert_worktree_within_allowlist", lambda *_a, **_k: None)
+    monkeypatch.setattr(buildcache, "_resolve_site", lambda _site=None: site_policy.OTHER)
+    toolchain = {
+        role: {"requested": f"test-{role}", "realpath": f"/test/{role}", "version_first_line": role}
+        for role in ("cc", "cxx", "cmake")
+    }
+    monkeypatch.setattr(buildcache, "_toolchain_manifest", lambda *_a, **_k: toolchain)
+    monkeypatch.delenv("CMAKE_PREFIX_PATH", raising=False)
+    captured_argv = []
+    real_commands = buildcache._v2_commands
+
+    def commands_probe(*args, **kwargs):
+        configure, build = real_commands(*args, **kwargs)
+        captured_argv.append(configure)
+        raise _PrebuildProbeStop("configure argv captured")
+
+    monkeypatch.setattr(buildcache, "_v2_commands", commands_probe)
+    argv = [
+        "--allow-coder-derived-build", "--isolate-worktree",
+        "--fetchcontent-prebuild-receipt", str(receipt_path),
+    ]
+    if route == "fixture":
+        argv.extend(["--value", "20"])
+    else:
+        proposal = tmp_path / "proposal.json"
+        proposal.write_text(json.dumps({
+            "planner": {"axis": L.MARKER_ID, "direction": "increase", "magnitude": "small"},
+            "coder": {"axis": L.MARKER_ID, "value": 20, "implementation": "double now_backoff = 20;"},
+            "prior_critic_reverse": None,
+        }), encoding="utf-8")
+        argv.extend(["--run-iteration", str(proposal)])
+    real_build_v2 = buildcache.build_v2
+    with unittest.mock.patch.object(buildcache, "build_v2", wraps=real_build_v2) as build_spy:
+        assert L.main(argv) == 0
+    assert build_spy.call_count == 1
+    actual = {key: build_spy.call_args.kwargs[key] for key in _FETCHCONTENT_KEYS}
+    assert actual == dict(zip(_FETCHCONTENT_KEYS, expected))
+    assert len(captured_argv) == 1
+    for prefix in (
+        "-DFETCHCONTENT_BASE_DIR=",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=",
+    ):
+        assert sum(item.startswith(prefix) for item in captured_argv[0]) == 1
+
+
+def test_terminal_variant_still_skips_prebuild_transport_without_build(
+    tmp_path, monkeypatch,
+):
+    from orchestrator.campaign import buildcache
+    from orchestrator.campaign import loop as campaign_loop
+    from orchestrator.campaign.model import CampaignConfig
+
+    context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    contract = env_contract.lookup(L.ENV_TAG)
+    cfg = ident.bind_admission_policy(CampaignConfig(
+        spec_slug="t2356-terminal", search_tag="terminal",
+        spec_content="terminal prebuild transport pin", ccbench_commit=L.PIN,
+    ), context.policy)
+    bound_cfg = ident.bind_environment_contract(cfg, contract)
+    genome = Genome("silo", {"BACK_OFF": 1})
+    source_root = (tmp_path / "ccbench").resolve()
+    source_root.mkdir()
+    evidence = _prebuild_source_evidence(genome, source_root, L.PIN)
+    admission = derive_build_admission(
+        context,
+        evidence,
+        generator_receipt=attest_generator_output(
+            context, evidence, generator_input_sha256="a" * 64,
+        ),
+    )
+    layout = CampaignLayout(str(tmp_path / "campaign")).ensure()
+    wal.write_lock(layout, build_v2_lock(ident.canonical_preimage(bound_cfg)))
+    variant = variant_id(genome, evidence.src_token)
+    attempt = "terminal-prebuild-attempt"
+    wal.log(layout, variant, STAGE_BUILD_START, contract.env_tag, {
+        "genome": genome.canonical(), "src_token": evidence.src_token,
+        "build_attempt_id": attempt, "build_admission": admission.as_wal_receipt(),
+        "build_admission_receipt_sha256": admission.receipt_sha256,
+    })
+    wal.log(layout, variant, STAGE_ABORT, contract.env_tag, {
+        "reason": "verifier-red", "build_attempt_id": attempt,
+        "build_admission_receipt_sha256": admission.receipt_sha256,
+    })
+    forbidden = unittest.mock.Mock(side_effect=AssertionError("terminal variant evaluated"))
+    monkeypatch.setattr(campaign_loop, "exploration_campaign_layout", lambda *_a: layout)
+    monkeypatch.setattr(campaign_loop.source_digest, "resolve_evidence", lambda *_a, **_k: evidence)
+    monkeypatch.setattr(campaign_loop, "evaluate", forbidden)
+    monkeypatch.setattr(buildcache, "build_v2", forbidden)
+    monkeypatch.setattr(
+        campaign_loop.ident,
+        "ensure_resumable_wal",
+        lambda *_a, **_k: SimpleNamespace(status="clean"),
+    )
+    summary = campaign_loop.run_campaign(
+        cfg, [genome], L.default_perf(), contract.env_tag,
+        contract.clocks_per_us, numactl=list(contract.numactl), do_bench=False,
+        env_contract=contract,
+        fetchcontent_base_dir="/prebuild",
+        masstree_source_dir="/prebuild/masstree-src",
+        mimalloc_source_dir="/prebuild/mimalloc-src",
+        googletest_source_dir="/prebuild/googletest-src",
+        fetchcontent_dependency_receipt={
+            "masstree_head": "a" * 40, "config_sha256": "b" * 64,
+        },
+        authorization_contract=env_contract.authorize(contract.env_tag),
+        build_context=context, declared_use_class="exploration",
+    )
+    forbidden.assert_not_called()
+    assert summary.skipped == 1 and summary.evaluated == 0
+    assert summary.skipped_variants == [variant]
 
 
 if __name__ == "__main__":

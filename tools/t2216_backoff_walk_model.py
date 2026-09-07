@@ -50,6 +50,10 @@ _MAX_INTERNAL_REPETITIONS = 32
 BASE_SEED = 221_620_260_902
 UINT64_MASK = (1 << 64) - 1
 STATIC_BACKOFFS = (0.0, 2.0, 5.0, 10.0, 25.0, 50.0, 100.0)
+TAIL_BACKOFFS = (150, 200, 300, 500, 750, 999)
+TAIL_REPORT_SCHEMA = "t2266-backoff-static-tail-report/v1"
+TAIL_RUN_KIND = "t2266-tail"
+TAIL_REPETITIONS = 5
 STAGE1_STEPS = (0.1, 0.25, 0.5, 1.0, 5.0, 100.0)
 D1475_STEPS = (0.5, 1.0, 2.0, 5.0, 10.0, 25.0, 50.0, 100.0)
 UPDATE_INTERVALS_US = (10, 40, 160, 640, 2560)
@@ -276,7 +280,106 @@ def _raw_cell(cell: object, label: str) -> tuple[list[float], list[float], list[
     return throughputs, abort_rates, jobids
 
 
-def build_calibration(document: Mapping[str, Any], workload: str) -> Calibration:
+def _tail_calibration_rows(
+    document: Mapping[str, Any], workload: str,
+) -> list[tuple[float, float, float, dict[str, Any]]]:
+    """Validate one T-2266 report and return its six static mean rows."""
+    required = {
+        "schema_version": TAIL_REPORT_SCHEMA,
+        "run_kind": TAIL_RUN_KIND,
+        "status": "complete",
+        "workload": workload,
+        "source_measurement": "trace_disabled",
+        "performance_certified": False,
+    }
+    for key, expected in required.items():
+        if document.get(key) != expected or (
+            key == "performance_certified"
+            and document.get(key) is not False
+        ):
+            _fail(f"tail report {key} must equal {expected!r}")
+    campaign_id = document.get("campaign_id")
+    if type(campaign_id) is not str or not campaign_id:
+        _fail("tail report campaign_id must be a non-empty string")
+    realized = document.get("realized_us")
+    if (
+        type(realized) is not list
+        or any(type(value) is not int for value in realized)
+        or realized != list(TAIL_BACKOFFS)
+    ):
+        _fail(f"tail report realized_us must equal {list(TAIL_BACKOFFS)}")
+    points = document.get("points")
+    if type(points) is not list:
+        _fail("tail report points must be a list")
+
+    rows: list[tuple[float, float, float, dict[str, Any]]] = []
+    for index, point in enumerate(points):
+        if type(point) is not dict:
+            _fail(f"tail report points[{index}] must be an object")
+        kind = point.get("kind")
+        if kind not in ("static", "none", "adaptive"):
+            _fail(f"tail report points[{index}].kind is unsupported")
+        if kind != "static":
+            continue
+        backoff = point.get("backoff_us")
+        if type(backoff) is not int:
+            _fail(f"tail report points[{index}].backoff_us must be an integer")
+        throughputs = point.get("throughput_tps_reps")
+        abort_rates = point.get("abort_rate_reps")
+        for label, values in (
+            ("throughput_tps_reps", throughputs),
+            ("abort_rate_reps", abort_rates),
+        ):
+            if type(values) is not list or len(values) != TAIL_REPETITIONS:
+                _fail(
+                    f"tail report points[{index}].{label} must contain "
+                    f"{TAIL_REPETITIONS} values"
+                )
+        throughput_values = [
+            _finite(
+                value,
+                f"tail report points[{index}].throughput_tps_reps",
+            )
+            for value in throughputs
+        ]
+        if any(value <= 0.0 for value in throughput_values):
+            _fail(f"tail report points[{index}] throughput must be > 0")
+        abort_values = [
+            _finite(
+                value,
+                f"tail report points[{index}].abort_rate_reps",
+                lower=0.0,
+            )
+            for value in abort_rates
+        ]
+        if any(value > 1.0 for value in abort_values):
+            _fail(f"tail report points[{index}] abort rate must be <= 1")
+        throughput_mean = statistics.fmean(throughput_values)
+        abort_mean = statistics.fmean(abort_values)
+        rows.append((
+            float(backoff), throughput_mean, abort_mean, {
+                "cell": f"tail-{backoff}us",
+                "backoff_us": backoff,
+                "throughputs_tps": throughput_values,
+                "abort_rates": abort_values,
+                "pbs_jobids": [],
+                "throughput_mean_tps": throughput_mean,
+                "abort_rate_mean": abort_mean,
+                "source": TAIL_RUN_KIND,
+                "campaign_id": campaign_id,
+            },
+        ))
+    if len(rows) != len(TAIL_BACKOFFS) or {
+        int(row[0]) for row in rows
+    } != set(TAIL_BACKOFFS):
+        _fail("tail report static points must equal the six realized backoffs")
+    return rows
+
+
+def build_calibration(
+    document: Mapping[str, Any], workload: str,
+    tail: Mapping[str, Any] | None = None,
+) -> Calibration:
     """Build one workload curve without touching any adaptive target section."""
     if workload not in WORKLOADS:
         _fail(f"unsupported workload: {workload!r}")
@@ -315,12 +418,30 @@ def build_calibration(document: Mapping[str, Any], workload: str) -> Calibration
             "throughput_mean_tps": throughput_means[-1],
             "abort_rate_mean": abort_means[-1],
         })
-    return Calibration(
+    calibration = Calibration(
         workload=workload,
         backoffs_us=STATIC_BACKOFFS,
         throughput_tps=tuple(throughput_means),
         abort_rate=tuple(abort_means),
         raw_cells=tuple(raw_cells),
+    )
+    if tail is None:
+        return calibration
+    combined = [
+        (backoff, throughput, abort, raw)
+        for backoff, throughput, abort, raw in zip(
+            calibration.backoffs_us, calibration.throughput_tps,
+            calibration.abort_rate, calibration.raw_cells, strict=True,
+        )
+    ]
+    combined.extend(_tail_calibration_rows(tail, workload))
+    combined.sort(key=lambda row: row[0])
+    return Calibration(
+        workload=workload,
+        backoffs_us=tuple(row[0] for row in combined),
+        throughput_tps=tuple(row[1] for row in combined),
+        abort_rate=tuple(row[2] for row in combined),
+        raw_cells=tuple(row[3] for row in combined),
     )
 
 
@@ -1228,9 +1349,53 @@ def _evaluation_jobids(
     return sorted(jobs)
 
 
+def _load_tail_inputs(
+    arguments: Sequence[str] | None,
+) -> tuple[dict[str, dict[str, Any]], list[dict[str, Any]]]:
+    entries = tuple(arguments or ())
+    if not entries:
+        return {}, []
+    paths: dict[str, Path] = {}
+    for entry in entries:
+        if type(entry) is not str or "=" not in entry:
+            _fail("--tail-json must have the form WORKLOAD=PATH")
+        workload, raw_path = entry.split("=", 1)
+        if workload not in WORKLOADS:
+            _fail(f"--tail-json workload is unsupported: {workload!r}")
+        if workload in paths:
+            _fail(f"--tail-json workload is duplicated: {workload!r}")
+        if not raw_path:
+            _fail("--tail-json path must not be empty")
+        paths[workload] = Path(raw_path).resolve()
+    if len(entries) != len(WORKLOADS) or set(paths) != set(WORKLOADS):
+        _fail(
+            "--tail-json requires all three workloads: "
+            "write-heavy, balanced, and read-heavy"
+        )
+
+    documents: dict[str, dict[str, Any]] = {}
+    provenance: list[dict[str, Any]] = []
+    for workload in WORKLOADS:
+        path = paths.get(workload)
+        if path is None:
+            continue
+        tail = strict_json(path)
+        _tail_calibration_rows(tail, workload)
+        documents[workload] = tail
+        provenance.append({
+            "workload": workload,
+            "path": str(path),
+            "sha256": _sha256(path),
+            "campaign_id": tail["campaign_id"],
+            "backoffs_us": list(TAIL_BACKOFFS),
+        })
+    return documents, provenance
+
+
 def build_document(
     measured_path: Path, backoff_copy: Path, *, score_h2: bool = False,
     repetitions: int = REPETITIONS, duration_us: float = DURATION_US,
+    tail_json: Sequence[str] | None = None,
 ) -> dict[str, Any]:
     _require_frozen_config(repetitions, duration_us)
     measured_path = measured_path.resolve()
@@ -1243,8 +1408,12 @@ def build_document(
     if _sha256(measured_path) != MEASURED_INPUT_SHA256:
         _fail("measured JSON SHA256 differs from the frozen input")
     measured = strict_json(measured_path)
+    tail_documents, tail_provenance = _load_tail_inputs(tail_json)
     calibrations = {
-        workload: build_calibration(measured, workload) for workload in WORKLOADS
+        workload: build_calibration(
+            measured, workload, tail_documents.get(workload),
+        )
+        for workload in WORKLOADS
     }
     runs = predict_all(
         calibrations, repetitions=repetitions, duration_us=duration_us,
@@ -1303,6 +1472,7 @@ def build_document(
                 "sha256": _sha256(Path(__file__).resolve()),
             },
             "static_calibration_jobids": static_jobs,
+            "tail_inputs": tail_provenance,
             "evaluation_jobids": _evaluation_jobids(
                 measured, score_h2=score_h2,
             ),
@@ -1338,7 +1508,7 @@ def _atomic_json(path: Path, document: Mapping[str, Any]) -> None:
 
 
 def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False)
     parser.add_argument("measured_json", type=Path)
     parser.add_argument("backoff_copy", type=Path)
     parser.add_argument("output_json", type=Path)
@@ -1349,6 +1519,10 @@ def _parser() -> argparse.ArgumentParser:
             "consistency check"
         ),
     )
+    parser.add_argument(
+        "--tail-json", action="append", default=[], metavar="WORKLOAD=PATH",
+        help="add all three T-2266 static-tail workload reports",
+    )
     return parser
 
 
@@ -1357,6 +1531,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         document = build_document(
             args.measured_json, args.backoff_copy, score_h2=args.score_h2,
+            tail_json=args.tail_json,
         )
         document["provenance"]["reproduction"] = {
             "argv": [
@@ -1364,6 +1539,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                 str(args.measured_json.resolve()), str(args.backoff_copy.resolve()),
                 str(args.output_json.resolve()),
                 *(["--score-h2"] if args.score_h2 else []),
+                *[
+                    value
+                    for entry in args.tail_json
+                    for value in ("--tail-json", entry)
+                ],
             ]
         }
         _atomic_json(args.output_json, document)

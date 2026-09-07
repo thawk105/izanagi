@@ -1,0 +1,11 @@
+# T-2266 static backoff tail: read-heavy
+# columns: backoff_us throughput_tps abort_rate latency_ns cv
+# provenance: {"campaign":"t2266-backoff-static-tail-silo-read-heavy-sweep-7e90afbe","claim_scope":"descriptive_backoff_shape_only","correctness_verified":true,"performance_certified":false,"realized_us":[150,200,300,500,750,999],"requested_us":[150,200,300,500,750,1000],"run_kind":"t2266-tail","source_measurement":"trace_disabled","unrealized":[{"backoff_us":1000,"reason":"F718 \u2014 \u73fe\u7b26\u53f7\u5316\u3067\u306f\u5546 1\u30fb\u632f\u5e45 0 \u3068\u306a\u308a\u56fa\u5b9a 0 \u3078\u5fa9\u53f7\u3055\u308c\u308b"}],"workload":"read-heavy"}
+# build command: orchestrator/campaign/backoff_extended_sweep.py
+# reproduce data: python -m orchestrator.campaign.backoff_extended_sweep read-heavy --run-kind t2266-tail
+150 3817247.0 0.0545 12574.5072 0.0011153596795311757
+200 3400656.0 0.0486 14114.9237 0.0013899558562721524
+300 2871204.0 0.041 16717.7254 0.0022769178485983177
+500 2309341.0 0.0327 20785.1504 0.002233000737375927
+750 1937612.0 0.0272 24772.7615 0.0015542161068930356
+999 1710644.0 0.0237 28059.608 0.0019983868779424978

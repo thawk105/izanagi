@@ -1,0 +1,198 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 300,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "    return sorted(received, key=lambda outcome: outcome.task_index)\n",
+          "new": "    return sorted(\n        received, key=lambda outcome: outcome.task_index, reverse=True,\n    )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_verifier.py::test_edge_worker_failure_discards_partial_tasks_and_recomputes_all",
+        "orchestrator/tests/test_verifier.py::test_parallel_edge_replay_uses_global_logical_ordinal",
+        "orchestrator/tests/test_verifier.py::test_serial_parent_optimizations_match_workers_and_pin_witness_order"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "                adjacency[source].update(outcome.run_dst[start:end])\n",
+          "new": "                adjacency[source].update(outcome.run_dst[start:end][::-1])\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_verifier.py::test_edge_worker_failure_discards_partial_tasks_and_recomputes_all",
+        "orchestrator/tests/test_verifier.py::test_parallel_edge_replay_uses_global_logical_ordinal",
+        "orchestrator/tests/test_verifier.py::test_serial_parent_optimizations_match_workers_and_pin_witness_order"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "        sccs.sort(key=len)\n",
+          "new": "        sccs.sort(key=lambda component: (len(component), min(component)))\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_verifier.py::test_serial_parent_optimizations_match_workers_and_pin_witness_order"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "        for root in list(self.adj.keys()):\n",
+          "new": "        for root in sorted(self.adj):\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_verifier.py::test_scc_dense_arrays_keep_root_emission_order_for_both_adjacency_types"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "                    elif on_stack.get(w):\n                        if index[w] < low[node]:\n                            low[node] = index[w]\n",
+          "new": "                    elif on_stack.get(w):\n                        pass\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_verifier.py::test_broken_silo_norw_fixture_contract",
+        "orchestrator/tests/test_verifier.py::test_broken_silo_norw_structured_report_is_exact",
+        "orchestrator/tests/test_verifier.py::test_compact_dsg_keeps_rw_edge_and_detects_g2_cycle",
+        "orchestrator/tests/test_verifier.py::test_concurrent_verifications_keep_edge_worker_inputs_isolated",
+        "orchestrator/tests/test_verifier.py::test_cycle3_g2",
+        "orchestrator/tests/test_verifier.py::test_cycle_verdict_takes_priority_over_framing_violation",
+        "orchestrator/tests/test_verifier.py::test_dense_cycle4_clean_g2",
+        "orchestrator/tests/test_verifier.py::test_edge_worker_failure_discards_partial_tasks_and_recomputes_all",
+        "orchestrator/tests/test_verifier.py::test_epoch_rw_successor_order_g2",
+        "orchestrator/tests/test_verifier.py::test_epoch_version_order_g2",
+        "orchestrator/tests/test_verifier.py::test_lost_update_g2",
+        "orchestrator/tests/test_verifier.py::test_mixed_cycle_g2_all_three_edge_types",
+        "orchestrator/tests/test_verifier.py::test_nonlatest_read_caught_via_ww_transitivity",
+        "orchestrator/tests/test_verifier.py::test_parallel_edge_replay_uses_global_logical_ordinal",
+        "orchestrator/tests/test_verifier.py::test_parallel_worker_exit_discards_partial_results_and_rereads_all_files",
+        "orchestrator/tests/test_verifier.py::test_scc_dense_arrays_keep_root_emission_order_for_both_adjacency_types",
+        "orchestrator/tests/test_verifier.py::test_serial_parent_optimizations_match_workers_and_pin_witness_order",
+        "orchestrator/tests/test_verifier.py::test_structured_report_has_edge_detail",
+        "orchestrator/tests/test_verifier.py::test_total_cycles_survives_witness_cap",
+        "orchestrator/tests/test_verifier.py::test_write_skew_g2"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8b",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "    if (len(indices) != task_count\n            or sorted(indices) != list(range(task_count))):\n        return None\n",
+          "new": "    if not indices:\n        return None\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_verifier.py::test_edge_worker_failure_discards_partial_tasks_and_recomputes_all",
+        "orchestrator/tests/test_verifier.py::test_empty_trace_indeterminate_not_certified",
+        "orchestrator/tests/test_verifier.py::test_permutation_violation_details_bound_large_known_sample",
+        "orchestrator/tests/test_verifier.py::test_permutation_violation_details_follow_parse_verify_report_path"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "    for source, destinations in destinations_by_source.items():\n        run_src.append(source)\n",
+          "new": "    for source, destinations in sorted(destinations_by_source.items()):\n        run_src.append(source)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_verifier.py::test_serial_parent_optimizations_match_workers_and_pin_witness_order"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6p",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "                        work.append((w, iter(self.adj.get(w, ()))))\n",
+          "new": "                        work.append((w, iter(self.adj[w])))\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_verifier.py::test_all_v2_fixture_files_have_clean_framing",
+        "orchestrator/tests/test_verifier.py::test_broken_silo_norw_fixture_contract",
+        "orchestrator/tests/test_verifier.py::test_broken_silo_norw_structured_report_is_exact",
+        "orchestrator/tests/test_verifier.py::test_cli_expected_commits_accepts_single_trace_dir",
+        "orchestrator/tests/test_verifier.py::test_cli_expected_commits_mismatch_is_indeterminate_json",
+        "orchestrator/tests/test_verifier.py::test_commit_at_genesis_indeterminate_and_wr_edge_kept",
+        "orchestrator/tests/test_verifier.py::test_concurrent_verifications_keep_edge_worker_inputs_isolated",
+        "orchestrator/tests/test_verifier.py::test_current_pin_proof_surfaces_accept_silo_and_reject_mocc_same_trace",
+        "orchestrator/tests/test_verifier.py::test_daemon_process_falls_back_to_sequential_verification",
+        "orchestrator/tests/test_verifier.py::test_g4_has_rw_edge_but_no_cycle",
+        "orchestrator/tests/test_verifier.py::test_green_fixtures",
+        "orchestrator/tests/test_verifier.py::test_parallel_capability_remains_bound_to_parent_pid",
+        "orchestrator/tests/test_verifier.py::test_parallel_production_path_matches_certified_result_and_runs_workers",
+        "orchestrator/tests/test_verifier.py::test_proof_surface_emitters_inside_if_zero_are_not_evidence",
+        "orchestrator/tests/test_verifier.py::test_proof_surfaces_unavailable_source_fails_closed",
+        "orchestrator/tests/test_verifier.py::test_proof_surfaces_unspecified_fail_closed",
+        "orchestrator/tests/test_verifier.py::test_real_silo_serializable",
+        "orchestrator/tests/test_verifier.py::test_result_to_dict_commit_witness_changes_notes_without_new_keys",
+        "orchestrator/tests/test_verifier.py::test_result_to_dict_without_commit_witness_matches_frozen_json_bytes",
+        "orchestrator/tests/test_verifier.py::test_scc_dense_arrays_keep_root_emission_order_for_both_adjacency_types",
+        "orchestrator/tests/test_verifier.py::test_silo_serial_1thread_fixture_contract",
+        "orchestrator/tests/test_verifier.py::test_total_cycles_survives_witness_cap",
+        "orchestrator/tests/test_verifier.py::test_version_dup_keeps_first_writer_note_and_edge"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "E1",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "            or sorted(indices) != list(range(task_count))):\n",
+          "new": "            or sorted(indices) != [*range(task_count)]):\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

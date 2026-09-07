@@ -1,11 +1,14 @@
-"""Frozen, production-independent fixtures for the reflux origin wiring tests.
+"""Frozen fixtures for the reflux origin wiring tests.
 
 The values in this module are deliberately synthetic.  In particular, no
 working-tree bytes, clock, absolute path, or production canonicalizer is used
-to derive an expected digest.  A ``__`` in an override name descends into a
-nested mapping or sequence, so every exact-schema leaf can be changed by a
-consumer test without changing this shared fixture.  The value ``...`` removes
-the selected key or sequence element for an exact-key missing-field negative.
+to derive an expected outer-artifact digest.  The trigger binding commitment
+is derived through the production binding contract so the raw WAL binding and
+ledger projection describe the same value.  A ``__`` in an override name
+descends into a nested mapping or sequence, so every exact-schema leaf can be
+changed by a consumer test without changing this shared fixture.  The value
+``...`` removes the selected key or sequence element for an exact-key
+missing-field negative.
 """
 from __future__ import annotations
 
@@ -15,6 +18,9 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping, Sequence
+
+from orchestrator.campaign import trigger_gate_binding
+from orchestrator.campaign.model import STAGE_ABORT
 
 
 __all__ = [
@@ -39,6 +45,7 @@ _TRIAL_WORKLOAD = "ycsb-a"
 _CONSTRAINT_SHA256 = hashlib.sha256(
     b"fixture:single-candidate-attributable-witness-class"
 ).hexdigest()
+_FIXTURE_TRIGGER_NONCE = "a" * 64
 
 
 @dataclass(frozen=True, slots=True)
@@ -333,30 +340,50 @@ def build_source_closure_record(**overrides) -> dict:
     return _apply_overrides(base, overrides)
 
 
+def _fixture_trigger_gate_binding(
+    mask: int,
+) -> trigger_gate_binding.TriggerGateBinding:
+    return trigger_gate_binding.TriggerGateBinding(
+        mask=mask,
+        predicate_sha256=trigger_gate_binding.expected_predicate_sha256(mask),
+        nonce=_FIXTURE_TRIGGER_NONCE,
+        source=None,
+    )
+
+
 def _trigger_binding(mask: int) -> dict:
-    wire = _wire(mask)
+    binding = _fixture_trigger_gate_binding(mask)
     return {
         "mask": mask,
-        "candidate_wire": wire,
-        "trigger_gate_binding_commitment": _sha256(
-            {"mask": mask, "candidate_wire": wire, "source": "fixture-run-plan"}
-        ),
+        "candidate_wire": _wire(mask),
+        "trigger_gate_binding_commitment": trigger_gate_binding.commitment(binding),
     }
 
 
 def _wal_records(build_attempt_id: str, mask: int) -> list[dict]:
+    binding = _fixture_trigger_gate_binding(mask)
     return [
         {
-            "kind": "TriggerGateBinding",
-            "build_attempt_id": build_attempt_id,
-            "trigger_binding": _trigger_binding(mask),
+            "variant": "fixture-v",
+            "stage": trigger_gate_binding.WAL_RECORD_STAGE,
+            "env_tag": "fixture-env",
+            "ts": 0,
+            "payload": {
+                "build_attempt_id": build_attempt_id,
+                "trigger_gate_binding": trigger_gate_binding.to_record(binding),
+            },
         },
         {
-            "kind": "abort",
-            "build_attempt_id": build_attempt_id,
-            "candidate_attributable": True,
-            "truncated": False,
-            "witness_class_sha256s": [_CONSTRAINT_SHA256],
+            "variant": "fixture-v",
+            "stage": STAGE_ABORT,
+            "env_tag": "fixture-env",
+            "ts": 0,
+            "payload": {
+                "build_attempt_id": build_attempt_id,
+                "candidate_attributable": True,
+                "truncated": False,
+                "witness_class_sha256s": [_CONSTRAINT_SHA256],
+            },
         },
     ]
 

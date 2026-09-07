@@ -1,0 +1,330 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 40,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "MUT-T2341-01-OLD-POLICY-ID",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "    if policy != FAILURE_POLICY_ID:\n        raise FloorPairSpecError(f\"failure_policy.policy は {FAILURE_POLICY_ID!r} でなければならない\")",
+          "new": "    if policy not in {FAILURE_POLICY_ID, \"all_planned_samples_required/v1\"}:\n        raise FloorPairSpecError(f\"failure_policy.policy は {FAILURE_POLICY_ID!r} でなければならない\")"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2341-02-FRACTION-WIRE",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "    if max_dropped_fraction != MAX_DROPPED_FRACTION_WIRE:",
+          "new": "    if False:"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2341-03-CONTINUE-SAME-SAMPLE",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "            elif sample_key in dropped_causes:\n                record = _sample_dropped_record(",
+          "new": "            elif False:\n                record = _sample_dropped_record("
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2341-04-GLOBAL-STOP",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "                if record[\"status\"] in DROPPABLE_STATUSES:\n                    dropped_causes[sample_key] = session.session_id\n                elif record[\"status\"] in FATAL_STATUSES:\n                    fatal = True",
+          "new": "                if record[\"status\"] in DROPPABLE_STATUSES:\n                    fatal = True\n                elif record[\"status\"] in FATAL_STATUSES:\n                    fatal = True"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2341-05-NOT-RUN-ERROR",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "            \"error\": \"sample_dropped\",\n            \"dropped_by_session_id\": dropped_by_session_id,",
+          "new": "            \"error\": \"not_run_after_fail_closed\",\n            \"dropped_by_session_id\": dropped_by_session_id,"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2341-06-COUNT-ROLES",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "    return {\n        (record[\"window_id\"], record[\"pair_id\"], record[\"sample_index\"])\n        for record in records\n        if record[\"status\"] in DROPPABLE_STATUSES\n    }",
+          "new": "    return [\n        (record[\"window_id\"], record[\"pair_id\"], record[\"sample_index\"])\n        for record in records\n        if record[\"status\"] in DROPPABLE_STATUSES\n    ]"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2341-07-GE-THRESHOLD",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "        admissible = fraction <= spec.failure_policy.max_dropped_fraction",
+          "new": "        admissible = fraction < spec.failure_policy.max_dropped_fraction"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2341-08-NO-THRESHOLD",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "        threshold_exceeded = threshold_exceeded or not admissible",
+          "new": "        threshold_exceeded = threshold_exceeded and False"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2341-09-GLOBAL-SUM",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "        window_dropped = {\n            key for key in dropped_keys if key[0] == window.window_id\n        }\n        fraction = Fraction(len(window_dropped), planned)",
+          "new": "        window_dropped = {\n            key for key in dropped_keys if key[0] == window.window_id\n        }\n        fraction = Fraction(\n            len(dropped_keys),\n            sum(w.sample_count * len(w.pair_ids) for w in spec.windows),\n        )"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2341-10-PAIR-DENOM",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "        planned = window.sample_count * len(window.pair_ids)",
+          "new": "        planned = window.sample_count"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2341-11-MIX-DROPPED",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "        if (window_id, pair_id, sample_index) in dropped_sample_keys:\n            continue",
+          "new": "        if False:\n            continue"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2341-12-NO-EMPTY-STRATUM",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "            empty_stratum = empty_stratum or retained == 0",
+          "new": "            empty_stratum = empty_stratum and retained == 0"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2341-13-NO-TERMINAL-RECOUNT",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "        \"planned_sample_count\": len(planned_sample_keys),\n        \"dropped_sample_count\": len(dropped_keys),\n        \"complete_sample_count\": len(complete_keys),\n    }\n    if terminal != expected_terminal:",
+          "new": "        \"planned_sample_count\": terminal.get(\"planned_sample_count\"),\n        \"dropped_sample_count\": terminal.get(\"dropped_sample_count\"),\n        \"complete_sample_count\": terminal.get(\"complete_sample_count\"),\n    }\n    if terminal != expected_terminal:"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2341-14-NO-STATUS-REDERIVE",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "        derived = _derived_record_status(spec=spec, session=session, record=record)\n        if record[\"status\"] != derived:",
+          "new": "        derived = _derived_record_status(spec=spec, session=session, record=record)\n        derived = record[\"status\"]\n        if record[\"status\"] != derived:"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2341-15-NO-CAUSALITY",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "        if derived == \"not_run_sample_dropped\":\n            raise FloorPairBindingError(\"先行失敗のない not_run_sample_dropped\")",
+          "new": "        if False:\n            raise FloorPairBindingError(\"先行失敗のない not_run_sample_dropped\")"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2341-16-CANDIDATE-ZERO-INCOMPLETE",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "        if role != \"reference\" and negative:\n            return False, \"candidate throughput が有限非負数でない\", None",
+          "new": "        if role != \"reference\" and numeric <= 0:\n            return False, \"candidate throughput が有限非負数でない\", None"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2341-17-REFERENCE-ZERO-DROPPABLE",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "        if role == \"reference\" and numeric is not None and numeric == 0:\n            return \"reference throughput が 0\"",
+          "new": "        if False:\n            return \"reference throughput が 0\""
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2341-18-FATAL-DROPPABLE",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "FATAL_STATUSES = frozenset(\n    {\"binary_binding_failed\", \"outside_window\", \"protocol_violation\"}\n)",
+          "new": "FATAL_STATUSES = frozenset({\"protocol_violation\"})\nDROPPABLE_STATUSES = DROPPABLE_STATUSES | {\"binary_binding_failed\", \"outside_window\"}"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2341-19-SUMMARY-V1",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "SUMMARY_SCHEMA = \"floor-pair-summary/v2\"",
+          "new": "SUMMARY_SCHEMA = \"floor-pair-summary/v1\""
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2341-20-NOT-PROVEN-ONE-SIDE",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "    \"落ちた標本による残存標本数の減少を許容限界の被覆確率へ補正せず、残存標本で 95% 被覆を保つことを証明しない。\",\n",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2341-21-MEDIAN-OVERFLOW",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "    low = ordered[middle - 1]\n    high = ordered[middle]\n    return low + (high - low) / 2.0",
+          "new": "    return (ordered[middle - 1] + ordered[middle]) / 2.0"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2341-22-UNGUARDED-FLOAT",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "    try:\n        return float(value), False\n    except (OverflowError, ValueError):\n        return None, False",
+          "new": "    return float(value), False"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2341-23-EQUIVALENT",
+      "category": "positive",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "    campaigns: list[dict[str, object]] = []\n    threshold_exceeded = False",
+          "new": "    campaigns: list[dict[str, object]] = list()\n    threshold_exceeded = False"
+        }
+      ]
+    }
+  ]
+}
