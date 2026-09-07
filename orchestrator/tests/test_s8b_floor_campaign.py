@@ -777,6 +777,8 @@ def _private_run_campaign(protocol, freeze_doc, **kwargs):
         _test_holdout_authority(kwargs["out_root"], protocol, freeze_doc)
         if "durable_root_policy" in kwargs else ROOT
     )
+    if kwargs.get("mode") == "official":
+        kwargs.setdefault("confirm_official_floor_run", True)
     return s8b_floor_campaign._run_campaign_core(
         protocol, freeze_doc,
         _holdout_repo_root=authority,
@@ -808,12 +810,11 @@ def _run_campaign(protocol, freeze_doc, *, out_root, build_root, measure_fn, pro
     )
     kwargs["_holdout_signature_source"] = freeze_doc.document["holdouts"]
     if mode == "official":
+        kwargs["confirm_official_floor_run"] = True
         official_preflight = (
             perf_preflight_fn or (lambda **_kwargs: _perf_receipt(available=True))
         )
-        with mock.patch.object(
-                s8b_floor_campaign, "_assert_official_permitted", lambda _mode: None), \
-                mock.patch.object(s8b_floor_campaign.buildcache, "build_v2", fake_build), \
+        with mock.patch.object(s8b_floor_campaign.buildcache, "build_v2", fake_build), \
                 mock.patch.object(
                     s8b_floor_campaign._perf_preflight,
                     "probe_perf_availability", official_preflight,
@@ -6345,9 +6346,8 @@ def test_two_floor_subprocesses_same_protocol_different_runs_never_both_succeed(
 
 @contextlib.contextmanager
 def _official_test_seam(monkeypatch, *, clean_digest="d" * 64):
-    """production official 拒否を局所 scope だけで外し、clean scan を tmp-only test stub にする。"""
+    """承認済み official fixture の clean scan だけを tmp-only stub にする。"""
     with monkeypatch.context() as scoped:
-        scoped.setattr(s8b_floor_campaign, "_assert_official_permitted", lambda mode: None)
         scoped.setattr(
             s8b_floor_campaign, "clean_scan_digest",
             lambda root, *, freeze_allowlist: clean_digest,
@@ -6488,9 +6488,7 @@ def _deterministic_official_artifacts(base: Path) -> dict:
             )
         )
 
-    with mock.patch.object(
-            s8b_floor_campaign, "_assert_official_permitted", lambda _mode: None), \
-            mock.patch.object(s8b_floor_campaign.buildcache, "build_v2", fake_build), \
+    with mock.patch.object(s8b_floor_campaign.buildcache, "build_v2", fake_build), \
             mock.patch.object(
                 s8b_floor_campaign, "_bind_current_toolchain",
                 _fixture_toolchain_binding,
@@ -7078,7 +7076,7 @@ def test_assemble_result_requires_holdout_admission_keyword():
 
 
 # =========================================================================== #
-# 3. official mode は常に拒否 (§8 未裁定) — CLI + core 直接 (δ-3)               #
+# 3. official mode は明示承認必須 — CLI + public + private core (δ-3)           #
 # =========================================================================== #
 
 @pytest.mark.parametrize("mode", ["pilot", "official"])
@@ -7121,14 +7119,49 @@ def test_validate_mode_directly_rejects_str_subclass():
         s8b_floor_campaign._validate_mode(StatefulMode("official"))
 
 
-def test_main_official_mode_always_refused(tmp_path, capsys):
+def test_main_official_without_approval_is_refused_before_protocol_load(
+        tmp_path, monkeypatch, capsys):
     protocol_path = tmp_path / "protocol.json"
     protocol_path.write_text("{}", encoding="utf-8")
+    protocol_loader = mock.Mock(side_effect=AssertionError("protocol loader reached"))
+    monkeypatch.setattr(s8b_floor_campaign, "load_protocol", protocol_loader)
     rc = s8b_floor_campaign.main(["--mode", "official", "--protocol", str(protocol_path)])
     assert rc == 2
     payload = json.loads(capsys.readouterr().out)
     assert payload["status"] == "refused"
-    assert "§8" in payload["reason"]
+    assert "--confirm-official-floor-run" in payload["reason"]
+    assert "§8" not in payload["reason"]
+    assert "pilot のみ実行可" not in payload["reason"]
+    protocol_loader.assert_not_called()
+
+
+def test_main_official_with_approval_forwards_exact_bool_to_run_campaign(
+        tmp_path, monkeypatch, capsys):
+    protocol_path = tmp_path / s8b_floor_campaign._FLOOR_PROTOCOL_REL
+    protocol_path.parent.mkdir(parents=True)
+    protocol_path.write_text("{}", encoding="utf-8")
+    protocol = {"freeze": {"path": "freeze.json", "sha256": "f" * 64}}
+    verified = object()
+    run_campaign = mock.Mock(return_value={
+        "status": "completed", "run_dir": str(tmp_path / "run"),
+    })
+    monkeypatch.setattr(s8b_floor_campaign, "load_protocol", lambda _path: {})
+    monkeypatch.setattr(s8b_floor_campaign, "validate_protocol", lambda _raw: protocol)
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_load_verified_freeze", lambda *_args, **_kwargs: verified,
+    )
+    monkeypatch.setattr(s8b_floor_campaign, "repo_output_root", lambda: str(tmp_path))
+    monkeypatch.setattr(s8b_floor_campaign, "run_campaign", run_campaign)
+    monkeypatch.setattr(s8b_floor_campaign, "ROOT", tmp_path)
+
+    rc = s8b_floor_campaign.main([
+        "--mode", "official", "--protocol", str(protocol_path),
+        "--confirm-official-floor-run",
+    ])
+    assert rc == 0
+    assert json.loads(capsys.readouterr().out)["status"] == "completed"
+    assert run_campaign.call_count == 1
+    assert run_campaign.call_args.kwargs["confirm_official_floor_run"] is True
 
 
 def test_main_pilot_rejects_noncanonical_protocol_path_before_loading(tmp_path, capsys):
@@ -7278,25 +7311,89 @@ def test_run_campaign_core_rejects_official_materializer_injection_before_side_e
         s8b_floor_campaign._run_campaign_core(
             None, None, out_root=out_root, mode="official",
             build_fn=lambda *_args, **_kwargs: None,
+            confirm_official_floor_run=True,
         )
     assert not out_root.exists()
 
 
-def test_run_campaign_core_rejects_official_with_zero_side_effects(tmp_path):
-    """production wrapper は default official も従来どおり拒否し副作用 0。"""
+def test_public_wrapper_rejects_unapproved_official_before_private_core(
+        tmp_path, monkeypatch):
+    """public gate 削除時は実 authority を通って private core sentinel が発火する。"""
     freeze = _freeze_document()
     out_root = tmp_path / "out"
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    authority = _test_holdout_authority(out_root, protocol, verified)
+    private_core = mock.Mock(side_effect=AssertionError("private core reached"))
+    monkeypatch.setattr(s8b_floor_campaign, "ROOT", authority)
+    monkeypatch.setattr(s8b_floor_campaign, "_run_campaign_core", private_core)
 
-    def forbid_build(*a, **k):
-        raise AssertionError("official 拒否より前に build してはいけない")
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError) as caught:
+        s8b_floor_campaign.run_campaign(
+            protocol, verified, out_root=out_root, mode="official",
+            protocol_path=authority / "output/s8b-freeze/floor_protocol.json",
+        )
+    assert str(caught.value) == (
+        "official mode は明示承認がないため core で拒否する "
+        "(--confirm-official-floor-run が必要)"
+    )
+    private_core.assert_not_called()
+    assert not out_root.exists()
 
-    with mock.patch.object(s8b_floor_campaign.buildcache, "build", forbid_build):
-        with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="official"):
-            s8b_floor_campaign.run_campaign(
-                _protocol(freeze_sha=_freeze_sha(freeze)), _verified_freeze(freeze),
-                out_root=out_root, mode="official",
-            )
-    assert not out_root.exists()  # 書き込み 0 回
+
+def test_public_wrapper_approved_official_forwards_exact_true_to_private_core(
+        tmp_path, monkeypatch):
+    freeze = _freeze_document()
+    out_root = tmp_path / "out"
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    authority = _test_holdout_authority(out_root, protocol, verified)
+    private_core = mock.Mock(return_value={"status": "sentinel"})
+    monkeypatch.setattr(s8b_floor_campaign, "ROOT", authority)
+    monkeypatch.setattr(s8b_floor_campaign, "_run_campaign_core", private_core)
+
+    outcome = s8b_floor_campaign.run_campaign(
+        protocol, verified, out_root=out_root, mode="official",
+        protocol_path=authority / "output/s8b-freeze/floor_protocol.json",
+        confirm_official_floor_run=True,
+    )
+    assert outcome == {"status": "sentinel"}
+    assert private_core.call_count == 1
+    assert private_core.call_args.kwargs["confirm_official_floor_run"] is True
+
+
+def test_private_core_rejects_unapproved_official_before_downstream(
+        tmp_path, monkeypatch):
+    """private core gate 自身の exact 拒否と下流未到達を独立に固定する。"""
+    freeze = _freeze_document()
+    downstream = mock.Mock(side_effect=AssertionError("downstream reached"))
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_validate_protocol_against_current", downstream,
+    )
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError) as caught:
+        s8b_floor_campaign._run_campaign_core(
+            _protocol(freeze_sha=_freeze_sha(freeze)), _verified_freeze(freeze),
+            out_root=tmp_path / "out", mode="official",
+        )
+    assert str(caught.value) == (
+        "official mode は明示承認がないため core で拒否する "
+        "(--confirm-official-floor-run が必要)"
+    )
+    downstream.assert_not_called()
+    assert not (tmp_path / "out").exists()
+
+
+def test_official_permission_requires_exact_true():
+    expected = (
+        "official mode は明示承認がないため core で拒否する "
+        "(--confirm-official-floor-run が必要)"
+    )
+    for unapproved in (False, None, 1):
+        with pytest.raises(s8b_floor_campaign.FloorCampaignError) as caught:
+            s8b_floor_campaign._assert_official_permitted("official", unapproved)
+        assert str(caught.value) == expected
+    s8b_floor_campaign._assert_official_permitted("official", True)
+    s8b_floor_campaign._assert_official_permitted("pilot", 1)
 
 
 def test_materializer_registry_covers_all_python_build_launches():
@@ -7545,7 +7642,7 @@ def test_public_pilot_rejects_effect_capable_seams_without_calling_them(
 
 
 def test_refreeze_seam_classifier_covers_and_classifies_every_core_seam():
-    excluded = {"out_root", "mode", "resume_dir"}
+    excluded = {"out_root", "mode", "resume_dir", "confirm_official_floor_run"}
     core_keyword_only = {
         name for name, parameter in inspect.signature(
             s8b_floor_campaign._run_campaign_core,
@@ -7802,7 +7899,7 @@ def test_core_derives_refreeze_eligibility_at_entry_and_finalizes_without_args()
     assert finalizer.args.vararg is None
     assert finalizer.args.kwarg is None
     assert source.index("eligible_for_refreeze = _derive_refreeze_eligibility(") < source.index(
-        "    _assert_official_permitted(mode)"
+        "    _assert_official_permitted(mode, confirm_official_floor_run)"
     )
     assert source.index("eligible_for_refreeze = _derive_refreeze_eligibility(") < source.index(
         "    try:\n        runner.run()"
@@ -11064,9 +11161,7 @@ def test_repo_root_seam_runs_production_clean_scan_on_real_tmp_repo(tmp_path):
     )
     assert expected == _expected_clean_digest(repository_files, bounded_allowlist)
     fake_build = _make_fake_build(tmp_path / "ignored")
-    with mock.patch.object(
-            s8b_floor_campaign, "_assert_official_permitted", lambda _mode: None), \
-            mock.patch.object(s8b_floor_campaign.buildcache, "build_v2", fake_build):
+    with mock.patch.object(s8b_floor_campaign.buildcache, "build_v2", fake_build):
         outcome = _private_run_campaign(
             protocol, _verified_freeze(freeze), out_root=tmp_path / "out",
             mode="official",
@@ -11505,7 +11600,6 @@ def test_real_seal_protocol_to_floor_official_core_e2e(tmp_path, monkeypatch):
         reps=5, value_fn=lambda _cell_id: 1000.0,
         env_tag="pegasus", extime_s=5,
     )
-    monkeypatch.setattr(s8b_floor_campaign, "_assert_official_permitted", lambda _mode: None)
     monkeypatch.setattr(s8b_floor_campaign.buildcache, "build_v2", recording_build)
     outcome = s8b_floor_campaign._run_campaign_core(
         protocol, freeze, out_root=out_root, mode="official",
@@ -11516,6 +11610,7 @@ def test_real_seal_protocol_to_floor_official_core_e2e(tmp_path, monkeypatch):
         execution_receipt_fn=None,
         repo_root=clone_root, durable_root_policy=_durable_policy(out_root),
         _floor_preflight_fn=None,
+        confirm_official_floor_run=True,
     )
 
     assert outcome["status"] == "completed"
@@ -11784,16 +11879,14 @@ def test_new_seam_defaults_delegate_to_production_functions(tmp_path, monkeypatc
     monkeypatch.setattr(s8b_floor_campaign.buildcache, "build_v2", build_spy)
     monkeypatch.setattr(
         s8b_floor_campaign, "_after_certificate_issued_noop", after_spy)
-    with mock.patch.object(
-            s8b_floor_campaign, "_assert_official_permitted", lambda _mode: None):
-        outcome = _private_run_campaign(
-            protocol, _verified_freeze(freeze), out_root=tmp_path / "out", mode="official",
-            measure_fn=_make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid]),
-            probe_fn=lambda: (1, "", ""), sleep_fn=lambda _seconds: None,
-            monotonic_fn=lambda: 0.0, prepare_fn=_fake_prepare, now_fn=lambda: _FIXED_NOW,
-            durable_root_policy=_durable_policy(tmp_path / "out"),
-            _floor_preflight_fn=_fixture_floor_preflight,
-        )
+    outcome = _private_run_campaign(
+        protocol, _verified_freeze(freeze), out_root=tmp_path / "out", mode="official",
+        measure_fn=_make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid]),
+        probe_fn=lambda: (1, "", ""), sleep_fn=lambda _seconds: None,
+        monotonic_fn=lambda: 0.0, prepare_fn=_fake_prepare, now_fn=lambda: _FIXED_NOW,
+        durable_root_policy=_durable_policy(tmp_path / "out"),
+        _floor_preflight_fn=_fixture_floor_preflight,
+    )
     assert outcome["status"] == "completed"
     assert calls == {
         "calibration": 1, "machine_pin": 1, "host": 1, "process": 1,
@@ -12632,19 +12725,17 @@ def test_second_scan_digest_shift_persists_claim_but_issues_no_certificate(
         s8b_floor_campaign, "clean_scan_digest",
         lambda root, *, freeze_allowlist: next(digests),
     )
-    with mock.patch.object(
-            s8b_floor_campaign, "_assert_official_permitted", lambda _mode: None):
-        with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="clean_scan_digest"):
-            _private_run_campaign(
-                ctx["protocol"], _verified_freeze(ctx["freeze"]),
-                out_root=ctx["out_root"], mode="official", measure_fn=_forbid_measure,
-                probe_fn=lambda: (1, "", ""), sleep_fn=lambda _seconds: None,
-                monotonic_fn=lambda: 0.0, prepare_fn=_fake_prepare,
-                now_fn=lambda: _FIXED_NOW, host_provenance_fn=_fixed_host,
-                process_identity_fn=_fixed_process, repo_root=ctx["repo_root"],
-                durable_root_policy=_durable_policy(ctx["out_root"]),
-                _floor_preflight_fn=lambda *args, **kwargs: {},
-            )
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="clean_scan_digest"):
+        _private_run_campaign(
+            ctx["protocol"], _verified_freeze(ctx["freeze"]),
+            out_root=ctx["out_root"], mode="official", measure_fn=_forbid_measure,
+            probe_fn=lambda: (1, "", ""), sleep_fn=lambda _seconds: None,
+            monotonic_fn=lambda: 0.0, prepare_fn=_fake_prepare,
+            now_fn=lambda: _FIXED_NOW, host_provenance_fn=_fixed_host,
+            process_identity_fn=_fixed_process, repo_root=ctx["repo_root"],
+            durable_root_policy=_durable_policy(ctx["out_root"]),
+            _floor_preflight_fn=lambda *args, **kwargs: {},
+        )
     assert len(list(claim_root.glob("*.claim"))) == 1
     assert not list(ctx["out_root"].rglob("launch_certificate.json"))
 
@@ -12773,8 +12864,6 @@ def test_official_scan_rejection_has_zero_filesystem_side_effects(tmp_path, monk
     freeze = _freeze_document()
     out_root = tmp_path / "out"
     with monkeypatch.context() as scoped:
-        scoped.setattr(s8b_floor_campaign, "_assert_official_permitted", lambda mode: None)
-
         def reject_scan(root, *, freeze_allowlist):
             raise s8b_floor_campaign.FloorCampaignError("fixture scan hit")
 
