@@ -223,9 +223,12 @@ monotonic 再検査する。
 ```bash
 # admission-site: login-direct
 tools/pegasus/submit_floor.sh --dry-run   # scheduler を一切呼ばない。副作用あり (下記)
-tools/pegasus/submit_floor.sh             # 床値 pilot を実際に走らせる。内部で qsub する
+tools/pegasus/submit_floor.sh --confirm-official-floor-run   # 床値 official を実際に走らせる
 ```
 
+- **実投入は `--confirm-official-floor-run` を必須とする** ([T-2324]、方式は D926)。引数が無い
+  実投入は、submission staging root の検査・`SUBMISSION_DIR` の作成・payload staging・
+  `output/claims` の作成・`qsub` のいずれよりも前に rc=2 で止まる。`--dry-run` は免除する。
 - `--repo-root` / `--attempts-root` / `--job-script` の override は `--dry-run` 専用で、実投入では拒否する。
 - dry-run でも submission staging と `output/claims` (mode 0700) を作る。副作用ゼロではない。
 - **dry-run は third-party payload staging を飛ばすので、緑を投入可能性の証拠にしない。**
@@ -244,20 +247,29 @@ tools/pegasus/submit_floor.sh             # 床値 pilot を実際に走らせ�
   この環境変数が依存を渡す唯一の seam である。
 - **submit receipt は submission の記録であり、人間性の証明ではない。** 実行者が人間か AI かは
   生成物から区別できない。authorization として扱ってはならない。
-- **床値 pilot の投入に承認引数は要らない** (D1124)。性能測定の反復を機械的に拒否する関門を
-  撤去したため、承認すべき不可逆消費が無くなった。`qsub -v` に載るのは submission nonce と
-  (override 時のみ) evidence root だけである。**測定ごとに新しい測定世代を発行して台帳へ追記する**
-  ため、同じ cell を何度でも測ってよい。**official の予算承認は人間手番のまま残る** (D1161)。
-- **wrapper は driver を固定 `--mode pilot` で起動する** ([T-748] 裁定 (c))。mode を環境変数・argv・
-  `eval` から受け取る口は持たない。`job-result.json` には driver rc と `"mode": "pilot"` を記録する。
-  **official の受理集合は空のままである** — driver 側の CLI / core による official の二重拒否は
-  変更していない。将来 official を開くには wrapper・job-result・失敗文言・guard・手順書を
-  改めて変更して**別の source commit と script hash で再投入**する必要があり、
-  現行の pilot job をそのまま official と解釈することはできない。
-- **pilot の成果物は `eligible_for_refreeze=false` であり、再凍結・oracle・certified の証拠にはできない。**
-  測定値としてのみ使う。
+- **測定の反復そのものに承認は要らない** (D1124)。性能測定の反復を機械的に拒否する関門は撤去済みで、
+  **測定ごとに新しい測定世代を発行して台帳へ追記する**ため同じ cell を何度でも測ってよい。
+  official 走行に要るのは D926 の承認束縛だけである。**official の予算承認 (結果を freeze へ
+  昇格させる段の閂) は別物で、`output/s8b-freeze-budget-approvals/` が正本** (D1161 / D1398)。
+- **承認は submission nonce へ束ねて運ぶ** (D926)。`--confirm-official-floor-run` を渡した実投入は
+  `qsub -v` へ `IZANAGI_CONFIRM_OFFICIAL_FLOOR_RUN=<submission nonce>` を足す。job script は
+  `IZANAGI_SUBMISSION_NONCE` との exact 一致を確かめ、一致したときだけ driver argv の末尾へ
+  `--confirm-official-floor-run` を 1 個 append する。**設定済みで空文字または不一致なら、
+  build と driver より前に `submit_binding` で fail-closed** (それぞれ別の文言)。未設定なら flag を
+  渡さず、driver 側の CLI / core が拒否する。承認 env は driver 起動前に export 属性を外すので、
+  子 process へ ambient 値として渡らない。
+- **この束縛が保証するのは「標準投入経路で、その source commit と script blob を明示承認して
+  起動した」までである** (D926)。承認者が人間であること (D356)、raw `qsub`・driver 直接起動・
+  Python API 直接呼出しを含む全経路、床値の科学的妥当性は保証しない。
+- **wrapper は driver を固定 `--mode official` で起動する** ([T-2324]。D323 の「mode の受け口を
+  作らない」は不変)。mode を環境変数・argv・`eval` から受け取る口は持たない。`job-result.json` には
+  driver rc と `"mode": "official"` を記録する。**pilot 経路は標準投入から外れた** — pilot API
+  そのものは driver 側に残るが、この wrapper からは起動できない。
+- **official でも `eligible_for_refreeze` が真になるのは fresh かつ非既定 seam ゼロのときだけである。**
+  判定式と 18 名の不適格 seam 集合は変更していない。pilot の成果物は従来どおり
+  `eligible_for_refreeze=false` で、再凍結・oracle・certified の証拠にはできない。
 - driver が非 zero を返したとき、wrapper は `failure.json` へ
-  `pilot floor driver returned nonzero` の記録を試み、同じ rc で終了する。
+  `official floor driver returned nonzero` の記録を試み、同じ rc で終了する。
 - **`failure.json` は best-effort であり、存在も内容も保証しない。** 実装は次のとおり。
   - 記録は**最初の失敗 1 件だけ** (`failure_written` guard)。job-result の書込み失敗が先に起きた
     場合、後続の driver 失敗文言は**記録されない**。

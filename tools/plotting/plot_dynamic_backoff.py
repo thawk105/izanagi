@@ -56,6 +56,8 @@ except ModuleNotFoundError:  # pragma: no cover - direct-script import route.
 
 PERFORMANCE_SCHEMA = "izanagi-cicada-adaptive-3const-probe/v2"
 DIAGNOSTIC_SCHEMA = "izanagi-dynamic-backoff-trace/v2"
+COUNTERFACTUAL_PERFORMANCE_SCHEMA = "izanagi-cicada-adaptive-3const-probe/v3"
+COUNTERFACTUAL_DIAGNOSTIC_SCHEMA = "izanagi-dynamic-backoff-trace/v3"
 PROVENANCE_SCHEMA = "izanagi-dynamic-backoff-figure-provenance/v1"
 PERFORMANCE_KIND = "performance-only-probe"
 DIAGNOSTIC_KIND = "diagnostic-backoff-trace"
@@ -215,6 +217,15 @@ def _validate_patch_stack(document: Mapping[str, Any], label: str) -> list[dict[
 
 
 def _common_identity(document: Mapping[str, Any], label: str) -> dict[str, Any]:
+    raw_counterfactual_sha256 = document.get("counterfactual_patch_sha256")
+    counterfactual_sha256 = (
+        None
+        if raw_counterfactual_sha256 is None
+        else _hex(
+            raw_counterfactual_sha256,
+            f"{label}.counterfactual_patch_sha256",
+        )
+    )
     identity = {
         "repo_head": _hex(document.get("repo_head"), f"{label}.repo_head", 40),
         "prereg_sha256": _hex(document.get("prereg_sha256"), f"{label}.prereg_sha256"),
@@ -229,6 +240,7 @@ def _common_identity(document: Mapping[str, Any], label: str) -> dict[str, Any]:
         "dynamic_patch_sha256": _hex(
             document.get("dynamic_patch_sha256"), f"{label}.dynamic_patch_sha256"
         ),
+        "counterfactual_patch_sha256": counterfactual_sha256,
         "patch_stack": _validate_patch_stack(document, label),
         "patch_stack_sha256": _hex(
             document.get("patch_stack_sha256"), f"{label}.patch_stack_sha256"
@@ -251,7 +263,7 @@ def _common_identity(document: Mapping[str, Any], label: str) -> dict[str, Any]:
         _fail(f"{label}.repo_status_clean must be true")
     if identity["patch_sha256"] != PATCH_A_SHA256:
         _fail(f"{label}.patch_sha256 differs from the preregistered patch A")
-    expected_stack = [
+    expected_ab_stack = [
         {
             "path": "patches/cicada-adaptive-params.patch",
             "sha256": identity["patch_sha256"],
@@ -261,8 +273,29 @@ def _common_identity(document: Mapping[str, Any], label: str) -> dict[str, Any]:
             "sha256": identity["dynamic_patch_sha256"],
         },
     ]
-    if identity["patch_stack"] != expected_stack:
-        _fail(f"{label}.patch_stack must be the preregistered ordered A+B stack")
+    expected_abc_stack = [
+        *expected_ab_stack,
+        {
+            "path": "patches/cicada-adaptive-counterfactual.patch",
+            "sha256": counterfactual_sha256,
+        },
+    ]
+    if identity["patch_stack"] == expected_ab_stack:
+        if counterfactual_sha256 is not None:
+            _fail(
+                f"{label}.counterfactual_patch_sha256 must be absent for A+B"
+            )
+        identity["patch_stack_version"] = "A+B"
+    elif (
+        counterfactual_sha256 is not None
+        and identity["patch_stack"] == expected_abc_stack
+    ):
+        identity["patch_stack_version"] = "A+B+C"
+    else:
+        _fail(
+            f"{label}.patch_stack must be the preregistered ordered A+B "
+            "or A+B+C stack"
+        )
     return identity
 
 
@@ -358,8 +391,14 @@ def _parse_performance_cell(
 def _parse_performance(path: Path) -> dict[str, Any]:
     sha_before = _sha256(path)
     document = _strict_json(path)
-    if document.get("schema_version") != PERFORMANCE_SCHEMA:
-        _fail(f"schema_version must exactly equal {PERFORMANCE_SCHEMA!r}: {path}")
+    schema_version = document.get("schema_version")
+    if schema_version not in (
+        PERFORMANCE_SCHEMA, COUNTERFACTUAL_PERFORMANCE_SCHEMA,
+    ):
+        _fail(
+            "schema_version must exactly identify a supported A+B or A+B+C "
+            f"performance artifact: {path}"
+        )
     if document.get("kind") != PERFORMANCE_KIND:
         _fail(f"kind must exactly equal {PERFORMANCE_KIND!r}: {path}")
     rep_index = _integer(document.get("rep_index"), f"{path}.rep_index")
@@ -372,6 +411,16 @@ def _parse_performance(path: Path) -> dict[str, Any]:
     if order != expected_order:
         _fail(f"{path}.cell_order must be the preregistered rotation {expected_order!r}")
     identity = _common_identity(document, str(path))
+    expected_schema = (
+        PERFORMANCE_SCHEMA
+        if identity["patch_stack_version"] == "A+B"
+        else COUNTERFACTUAL_PERFORMANCE_SCHEMA
+    )
+    if schema_version != expected_schema:
+        _fail(
+            f"{path}.schema_version does not match "
+            f"{identity['patch_stack_version']}"
+        )
     execution = _execution_provenance(document, str(path))
     cells = _require_list(document.get("cells"), f"{path}.cells")
     if not 1 <= len(cells) <= len(CELLS) * len(WORKLOADS) * len(THREADS):
@@ -396,6 +445,7 @@ def _parse_performance(path: Path) -> dict[str, Any]:
     return {
         "path": str(path),
         "sha256": sha_after,
+        "schema_version": schema_version,
         "rep_index": rep_index,
         "hostname": hostname,
         "pbs_jobid": pbs_jobid,
@@ -552,8 +602,14 @@ def _parse_trace_run(raw: object, path: Path, index: int) -> tuple[tuple[str, st
 def _parse_diagnostic(path: Path) -> dict[str, Any]:
     sha_before = _sha256(path)
     document = _strict_json(path)
-    if document.get("schema_version") != DIAGNOSTIC_SCHEMA:
-        _fail(f"schema_version must exactly equal {DIAGNOSTIC_SCHEMA!r}: {path}")
+    schema_version = document.get("schema_version")
+    if schema_version not in (
+        DIAGNOSTIC_SCHEMA, COUNTERFACTUAL_DIAGNOSTIC_SCHEMA,
+    ):
+        _fail(
+            "schema_version must exactly identify a supported A+B or A+B+C "
+            f"diagnostic artifact: {path}"
+        )
     if document.get("kind") != DIAGNOSTIC_KIND:
         _fail(f"kind must exactly equal {DIAGNOSTIC_KIND!r}: {path}")
     if document.get("headline_eligible") is not False:
@@ -564,6 +620,16 @@ def _parse_diagnostic(path: Path) -> dict[str, Any]:
     hostname = _string(document.get("hostname"), f"{path}.hostname")
     pbs_jobid = _string(document.get("pbs_jobid"), f"{path}.pbs_jobid")
     identity = _common_identity(document, str(path))
+    expected_schema = (
+        DIAGNOSTIC_SCHEMA
+        if identity["patch_stack_version"] == "A+B"
+        else COUNTERFACTUAL_DIAGNOSTIC_SCHEMA
+    )
+    if schema_version != expected_schema:
+        _fail(
+            f"{path}.schema_version does not match "
+            f"{identity['patch_stack_version']}"
+        )
     execution = _execution_provenance(document, str(path))
     raw_runs = _require_list(document.get("trace_runs"), f"{path}.trace_runs")
     if len(raw_runs) != len(TRACE_CELLS) * len(WORKLOADS) * len(TRACE_THREADS):
@@ -586,6 +652,7 @@ def _parse_diagnostic(path: Path) -> dict[str, Any]:
     return {
         "path": str(path),
         "sha256": sha_after,
+        "schema_version": schema_version,
         "hostname": hostname,
         "pbs_jobid": pbs_jobid,
         "rep_index": rep_index,
@@ -974,6 +1041,11 @@ def load_inputs(
     identities = [row["identity"] for row in performance] + [diagnostic["identity"]]
     if any(identity != identities[0] for identity in identities[1:]):
         _fail("common identity fields must be identical across all inputs")
+    performance_schema_versions = {
+        row["schema_version"] for row in performance
+    }
+    if len(performance_schema_versions) != 1:
+        _fail("performance schema versions must be identical across all inputs")
     aggregates = _aggregate_performance(performance)
     contrasts = _contrast_points(performance)
     abort_contrasts = _abort_contrast_points(performance)
@@ -981,6 +1053,8 @@ def load_inputs(
         "performance": performance,
         "diagnostic": diagnostic,
         "identity": identities[0],
+        "performance_schema_version": performance_schema_versions.pop(),
+        "diagnostic_schema_version": diagnostic["schema_version"],
         "aggregates": aggregates,
         "contrasts": contrasts,
         "abort_contrasts": abort_contrasts,
@@ -1376,8 +1450,8 @@ def build_provenance(
     identity = data["identity"]
     return {
         "provenance_schema_version": PROVENANCE_SCHEMA,
-        "performance_schema_version": PERFORMANCE_SCHEMA,
-        "diagnostic_schema_version": DIAGNOSTIC_SCHEMA,
+        "performance_schema_version": data["performance_schema_version"],
+        "diagnostic_schema_version": data["diagnostic_schema_version"],
         "generated_utc": dt.datetime.now(dt.timezone.utc).isoformat().replace(
             "+00:00", "Z"
         ),
@@ -1396,6 +1470,11 @@ def build_provenance(
         "repo_status_clean": identity["repo_status_clean"],
         "patch_sha256": identity["patch_sha256"],
         "dynamic_patch_sha256": identity["dynamic_patch_sha256"],
+        **(
+            {"counterfactual_patch_sha256": identity["counterfactual_patch_sha256"]}
+            if identity["counterfactual_patch_sha256"] is not None
+            else {}
+        ),
         "patch_stack": identity["patch_stack"],
         "patch_stack_sha256": identity["patch_stack_sha256"],
         "pbs_jobids": [

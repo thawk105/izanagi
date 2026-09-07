@@ -52181,3 +52181,226 @@ consumer test 全部を走らせる形にしない。絞った範囲を insight 
 - したがって「この 1 本を直せば受入が速くなる」という形の主張は、**一次資料で否定される。**
   次の床は `test_t080_stub_free_e2e_single_defects...[ccbench-current...]` (44/63 走) と
   `test_role_sink_bytes_vary_only_at_declared_declassifications` である。
+
+## D1715. 8c formal consumer の FC07 は terminal record の `stage` を読み、旧 root `kind` 形状を拒否する — terminal の外枠は閉じない (2026-09-07)
+
+**決定:** `orchestrator/campaign/reflux_formal_consumer.py` の `_validate_wal_outcomes()` は、
+ordered WAL projection の末尾 record について `terminal.get("stage")` を
+`orchestrator/campaign/model.py` の `STAGE_COMMIT` / `STAGE_ABORT` と比較する。旧形状の root `kind` は
+受理しない。fixture (`orchestrator/tests/reflux_origin_fixture_builder.py`) の terminal record も
+production の外枠 `{variant, stage, env_tag, ts, payload}` へ揃え、witness 系 field を payload 内へ移す。
+`_wal_field()` の root→payload fallback、FC07 以外の判定式、reason code、他の gate は変えない。
+**terminal record の外枠 key 集合・値の型・重複・root shadow を exact に閉じる gate は本決定では置かない。**
+
+**理由:**
+- production producer (`orchestrator/campaign/pipeline.py`) は commit / abort とも
+  `stage` + `payload` 形状しか書かず、outer に `kind` を持たない。D1665 が trigger 側 (FC05C) を直した後も、
+  本番 projection はこの 1 点で FC07 に落ちていた。
+- `_wal_field()` は既に root→payload の順に読むので、`build_attempt_id` / `verify_configs` /
+  witness 系は production 形状でも引ける。落ちていたのは root `kind` を直接読む 2 箇所だけだった。
+- 定数を literal でなく production 正本から import することで、`model.py` 側が段名を変えたときに
+  consumer の逐語 literal だけが取り残される経路を作らない。
+- 外枠を閉じないのは、その緩さが**本決定で新たに生じたものではない**ためである。旧 `kind` 版でも
+  production 形状でない flat record は同じだけ通っていた。閉じるかどうかは FC07 の受理集合を変える
+  独立の判断であり、ユーザー裁定へ返す。変異 B-057-M5 (`terminal.get("stage")` を
+  `_wal_field(terminal, "stage")` へ緩める) が焦点走 11 file で生存したことが、外枠が pin されていない
+  ことの実測である。
+
+**却下した選択肢:**
+- 旧形状 (root `kind`) と production 形状の両受け — 受理集合が広がり、fixture 由来の形が本番へ紛れ込む
+  経路を残す (規律 2、DW-G05)。D1665 が trigger 側で却下したのと同じ理由である。
+- 同じ wave で terminal の exact outer-shape gate を新設する — 依頼の名指し外で、FC07 の受理集合まで
+  変わる。段 3 の両レンズは拡張を推奨したが、scope 外として裁定パッケージへ送った。
+- rejected 側 witness 系 field の producer を新設する — 同じく名指し外。別項として起票した。
+- 段 2 / 段 3 が計算したと称する pin の hash 値をそのまま採用する — 別 context が計算した値であって
+  実物ではない。実装子に変更後の実物から再計算させ、親が焦点走で検算した。
+
+**限界 (DW-O13):** rejected 側が要求する `candidate_attributable` / `truncated` /
+`witness_class_sha256s` には production producer が存在しない (`orchestrator/campaign/` 全走査で 0 件)。
+`reflux_source_closure.py` の token 表は `wal.abort.payload.witnesses` という別名を挙げており、
+consumer が読む名前とも一致しない。したがって本決定の後も、rejected の本番 projection は FC07 で止まる。
+本決定が通すようにしたのは accepted 側だけである。また consumer は全検査通過後も `P6Unavailable` を返すため、
+certified 選択集合は本決定では変わらない — 変わるのは report の reason と receipt / evidence-root 参照だけである。
+
+## D1716. 床値 official の投入器は実投入で承認引数を必須にし、job script は D926 の形を保つ (2026-09-07)
+
+**決定:** D926 は「不一致 (空文字を含む) は build と driver より前に fail-closed で止める」を定めたが、
+**承認 env が未設定の場合について何も定めていない。** 投入 script が固定 official になった以上、
+承認なしの実投入は必ず driver 拒否で終わるので、この穴を次の層分けで閉じる。
+
+- **投入器 `tools/pegasus/submit_floor.sh` は、非 dry-run で承認引数が無ければ拒否する。** 位置は
+  argv 検証の直後、submission staging root の検査・`SUBMISSION_DIR` の作成・payload staging・
+  claim root 作成・`qsub` のいずれよりも前。`--dry-run` は免除する。
+- **job script `tools/pegasus/floor_campaign.sh` は D926 の形を literal に保つ。** 承認 env が
+  未設定なら flag を渡さず (driver が拒否する)、設定済みで空文字または submission nonce と不一致なら
+  build と driver より前に `submit_binding` で停止し、一致したときだけ driver argv へ承認 flag を
+  1 個 append する。空文字と不一致は別の文言にする。
+
+**理由:**
+
+- 未設定のまま job を通すと、承認なしの通常投入が payload staging・PBS 投入・receipt 照合・
+  割当予約・依存 build を消費してから driver で拒否され、しかも失敗記録の段が
+  「driver が非 0」と誤分類される。段 3 の敵対レンズが独立に構成し、親が行順で検算した。
+- 投入器で止めれば標準投入経路では何も消費されない。人間が引数を渡さない限り投入が成立しないだけで、
+  flag の付与は job 側の nonce 一致に依然として従属するので、D461 が却下した
+  「wrapper で無条件に承認 flag を渡す」には当たらない。
+- job 側で未設定も止めると、標準経路では append が実質無条件になり、D926 が却下した
+  「固定 official wrapper が承認を無条件 append する」と静的検査で見分けが付かなくなる。
+  条件付き append を条件付きのまま保つ。
+- 空文字と不一致を同じ文言にまとめると、輸送欠落・空値輸送・別 nonce 輸送を failure artifact から
+  判別できない。文言を分ければ診断が識別可能になる。**ただし受理集合の歯にはならない** —
+  承認値は 32 桁小文字 hex と検証済みの nonce と比較されるので、空文字は不一致分岐でも必ず拒否される。
+- raw `qsub` で承認 env を省いた非標準経路は build を消費してから driver で止まるが、
+  D461 / D926 がその経路を明示的に保証範囲外としているので機構を足さない。
+
+**却下した選択肢:**
+
+- **job 側でも未設定を fail-closed にする** — 上記のとおり append が実質無条件になる。
+- **brief の不変条件を弱めて未設定を driver 拒否に委ねるだけにする** — 標準投入経路で
+  確定した無駄と誤分類された failure artifact を作り続ける。
+- **raw `qsub` 経路のために failure stage を精密化する** — 保証範囲外の経路へ機構を足すことになる。
+- **`--dry-run` も承認引数を要求する** — 投入 interface の点検が承認を要求することになり、
+  PBS を消費しない操作に承認の意味を持ち込む。
+
+## D1717. 床値 official の承認 gate は診断 env の取り込みより後の現在位置から動かさない (2026-09-07)
+
+**決定:** `s8b_floor_campaign._assert_official_permitted` の呼出し位置を変更しない。
+`floor_job_checkpoint.take_checkpoint_environment` が `os.environ.pop` を行う位置より後のままとする。
+`orchestrator/tests/test_pegasus_floor_tools.py` の
+`test_floor_driver_consumes_checkpoint_environment_before_core_dispatch` も変更しない。
+
+**理由:**
+
+- 前倒しが解決するのは「未承認 official の直接 API 呼出しで `os.environ` が pop されること」だけで、
+  artifact も一回性 key も filesystem も動かない。拒否後は process が終わる。
+- この pop は**計測される子 process に診断用 env を継承させない**ための無条件の隔離であり、
+  上記テストが番人を 1 つ据えた 1 本の無条件テストで押さえている。gate を前倒しすると、
+  このテストを承認状態で条件分岐する 2 本に割る必要があり、無条件の保証が条件付きへ弱まる。
+- D926 が要求するのは「承認検証を claim 予約より後へ置かないこと」であり、現在位置は
+  `campaign_claim.acquire_claim` と holdout observation reservation の両方より前である。
+  既存テストが public 経路の書き込み 0 回を既に固定している。
+- 段 2 plan と段 3 の 2 レンズはいずれも前倒しを妥当と判定したが、**3 者とも親 brief の
+  誤った不変条件 (「副作用より前」) を基準にしていた。** 直すべきは不変条件の書き方である。
+  正しい不変条件は「build 呼出し・driver 子 process 起動・cell claim 予約・一回性 key の消費・
+  filesystem 書き込みより前」である。
+
+**却下した選択肢:**
+
+- **gate を `take_checkpoint_environment` より前へ動かす** — 上記のとおり無条件の隔離保証を
+  条件付きへ弱める対価に見合う利得が無い。
+- **診断 env の取り込み自体を承認後へ遅らせる** — 隔離の目的 (計測される子への継承を防ぐ) から
+  すると、取り込みは早いほうが正しい。
+
+## D1718. 発行主体 subtree の防護は既存の防護対象と同型にし、新機構は作らない (2026-09-07)
+
+**決定:** 着地受領証の署名鍵と issuer 運用複製を置く固定 subtree を、hooks の 2 つの書込み防壁の
+拒否対象へ加える。加えるのは**既存の防護対象 tree が既に持っている性質だけ**とする。
+
+- 固定の絶対 path を module 定数として持つ。argv・環境変数・repo root から導出しない。
+- lexical と canonical (realpath) の両側で path 要素の境界照合を行う。部分文字列一致にしない。
+- 祖先を対象にした削除・移動・展開も拒否する。filesystem root も祖先に含む。
+- 部分 glob はメタ文字前のリテラル prefix で重なりを判定する。
+- 配下の regular file の (st_dev, st_ino) 索引を張り、hardlink 別名への書込みを捕える。
+- 削除・移動元は最終要素を解決しない。subtree を指す外部 symlink entry 自身の unlink は通す。
+- 読取りは通す。検証器が公開鍵を読む経路を止めないため。
+
+**既存の防護対象にも同じ穴があるものは足さない。** 閉じるには新機構が要り、発行主体だけ閉じると
+設計が非対称になる。族一般化は独立 2 例を要する (DW-G03)。該当するのは cwd 追跡漏れ
+(`pushd` / `env --chdir` / subshell / 条件実行)、ANSI-C quote と brace 展開、archive 内容や
+source basename からの生成、`perf` の密着短 option、内部例外 fallback の別名対応、
+読取り防護、別 tool surface、OS 権限境界。これらは `hooks/README.md` の残余へ明記する。
+
+**理由:**
+
+- 依頼が「本題の防護追加だけ。仮想リスク向けの gate・検査・台帳・一般化の追加は scope 外」と
+  定めており、この線が scope の境界そのものになる。
+- 既存対象が持つ性質を落とすと、新しい subtree だけ弱い防護になる。段 3 の敵対相談 2 本は
+  「0700 だから inode 索引は不要」という親の暫定判断を独立に倒した。同一 uid は隔離されず、
+  配置が防護追加より先である以上、有効化前の別名の存在可能性は構造上ゼロにできない。
+- 逆に既存対象にも無い機構を発行主体だけに入れると、2 つの防護対象で受理集合の形が食い違い、
+  以後の保守で片方だけ直る事故を招く。
+
+**却下した選択肢:**
+
+- **読取りも同時に閉じる** — `guard_read` は fail-open のコンテキスト衛生層であり正しさ防壁では
+  ない。閉じるには新機構が要り、しかも同一 uid の別 process には届かない。実効層の設計は
+  ユーザー裁定へ返す。
+- **shell 状態模型を発行主体だけに入れる** — 既存対象が同じ穴を持つため非対称になる。
+- **一時的な無効化 flag / 環境変数 / argv 上書き** — 受理集合を縮める目的と矛盾し、
+  fail-open 経路を残す。
+
+**成果物影響:** 放置すると、AI が編集できる領域に「AI が書けないはずの鍵と発行主体」が置かれた
+ままになり、D906 が要求する境界が書込み側で機械的に成立しない。ただし**本決定の着地をもって
+D906 を満たしたとは主張しない** — 秘密鍵の読取りは通り、読める主体は署名を作れる。
+言える上限は「信頼済み PreToolUse が観測する直接書込み面から発行主体 subtree を追加で除外した」
+までである。
+
+## D1719. guard を変更する wave の運用知見を 3 点に確定する (2026-09-07)
+
+**決定:** D427 が定める「有効化前 commit を base にした第 2 worktree で実装し、親が統合 commit を
+作り、wave branch へ merge」の運用手順に、実測で確定した次の 3 点を加える。所在は
+`hooks/README.md` の「guard 自身の保守境界」とする。
+
+1. 第 2 worktree の作業ツリー版は古い。実装子には現行 main の全文を射影して渡し、
+   親が同期後の bytes を sha256 で検算する。
+2. `guard_write` は**最後の 1 回**で入れる。入った瞬間に第 2 worktree でも `hooks/` が施錠され、
+   以後その worktree では誰も何も直せない。修正が要るときは `guard_write` に判定が入る前の
+   commit から fix 用 branch を作って作業場を復活させる。
+3. merge は競合する。実装 branch 側を採ったうえで、結果が実装 branch の blob と byte 一致し、
+   かつ他の file が 1 本も動いていないことを親が検算する。
+
+**理由:**
+
+- 3 点とも本 wave で実際に踏んだ。とくに 2 は段 6 の fix 子が施錠に当たって適用できず、
+  正しく「未適用」と報告して止まった実例がある。手順を知らなければ迂回を試みる誘因になる。
+- D427 は経路を定めるが、この 3 点は書かれていない。次に guard を触る wave が同じ壁で止まる。
+
+**却下した選択肢:**
+
+- **script 経由や path literal を持たない Git 操作で `hooks/` を書く** — D427 が明示的に却下した
+  迂回である。防壁を狭める wave がその防壁を迂回して実装するのは筋が通らない。
+- **記録しない** — 本 wave で 1 巡分の子を失った原因がまさにこれである。
+
+## D1720. 別走行の反転腕が答えるのは方策の総効果であり、同一状態の一歩の効果ではない (2026-09-07)
+
+**決定:** adaptive backoff の反転腕 (`CCBENCH_BACKOFF_STEP_POLICY=1`) と stock (`=0`) の比較が
+答える命題は「制御器が選んだ向きの**方策全体**が throughput に効くか」までとする。
+**「同じ状態で逆の一歩を取ったときの効果」を主張してはならない。** 同一 pre-state の対照に
+近づくのは更新ごとに 1/2 で割り当てる腕 (`=2`) であり、それも新規事前登録と複数の独立 seed の
+試験を伴って初めて機序の直接確認に使える。
+
+**理由:**
+- 両腕は別走行であり、最初の更新から状態分布・境界滞在・後続の勾配・刻み・更新時刻が分岐する。
+  推定できるのは各腕が到達した異なる状態分布の上での方策の総効果である。
+- 固定 seed のまま割り当てると、割当が「何回目の更新か」の決定関数になり走行を跨いで同じになる。
+  更新番号は throughput と負荷が決めるので、処置が pre-state と独立でなくなる。
+  種は build option にして走行ごとに独立に選べるようにした。
+- 方向的中率が 0.5 でも両腕の throughput 分布が一致するとは限らない。clamp の当たり方、
+  上下限での飽和、動的上限が縮小して両腕が同じ方向へ動く経路、刻み適応の滞在比、
+  parity 分岐の偏りのいずれもが分布を分ける。
+
+**却下した選択肢:**
+- 反転腕だけを作って機序の確認とする — 上記のとおり別命題に答えてしまう。
+- 方向的中率の差を処置効果の推定量として使う — 的中率が両腕で同じでも潜在 outcome の差が
+  最大になる状態列を構成できる。要るのは割当についての ITT である。
+- 反転が実現した更新だけに層別して主解析とする — 実現の可否は処置の後に決まるので選択が偏る。
+  偏らない副解析のために、割当の**前**に決まる「両方向とも clamp を受けずに適用できるか」を
+  診断記録へ足した。
+
+## D1721. 診断入力の受理集合の拡張は「緩めていない」とは呼ばない (2026-09-07)
+
+**決定:** 正しさゲート (直列性認証が受ける exact な cell 契約、patch の hard な sha pin、
+既存の逐語 pin) を 1 byte も変えないことと、診断走行の入力言語へ exact literal を 1 本足すことは
+別の事柄である。後者は**受理集合の制御された拡張**であり、台帳と成果物には拡張として記録する。
+「受理域を緩めていない」という表現を、拡張を伴う変更に対して使ってはならない。
+
+**理由:**
+- 既存の exact 述語へ 2 本目の literal を OR で足せば、受理される入力の集合は真に大きくなる。
+  正しさに関する gate が不変であることは、入力言語が不変であることを含意しない。
+- 監査で「緩めていない」と記録すると、受理集合が広がった事実が検査から落ちる。
+- 拡張分を exact literal ちょうど 1 本に限り、それ以外を従来どおり拒否することは維持できる。
+  制約は保てるので、記録の言い方だけを正す。
+
+**却下した選択肢:**
+- 述語を緩めて範囲で受理する — 拡張分が literal 1 本に限られなくなる。
+- 拡張せずに既存 literal を書き換える — 既に着地した証拠との対応が切れる。

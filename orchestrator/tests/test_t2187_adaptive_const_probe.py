@@ -22,6 +22,7 @@ DRIVER = ROOT / "tools" / "pegasus" / "probes" / "t2187_adaptive_const_probe.py"
 PBS = ROOT / "tools" / "pegasus" / "probes" / "t2187_adaptive_const_probe.pbs"
 PATCH = ROOT / "patches" / "cicada-adaptive-params.patch"
 PATCH_B = ROOT / "patches" / "cicada-adaptive-dynamic.patch"
+PATCH_C = ROOT / "patches" / "cicada-adaptive-counterfactual.patch"
 CCBENCH = ROOT / "external" / "ccbench"
 PIN_FULL = "511c9538e4e8efa54b45cda62e72389ed3b706ec"
 
@@ -46,6 +47,11 @@ TRACE_CELLS = (
     "cw:1:1:1000:2560:10000:10240:0:100:100:0,"
     "cw-as:1:1:1000:2560:10000:10240:1:1:4:0,"
     "cw-as-dyn:1:1:1000:2560:10000:10240:1:1:4:1"
+)
+COUNTERFACTUAL_TRACE_CELLS = (
+    "cw-as-dyn-p0:1:1:1000:2560:10000:10240:1:1:4:1:0,"
+    "cw-as-dyn-p1:1:1:1000:2560:10000:10240:1:1:4:1:1,"
+    "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2"
 )
 
 
@@ -84,7 +90,7 @@ def _certify_argv(
     performance = tmp_path / "performance.json"
     if not performance.exists():
         # The A+B patch/source identity fields make old v1 fixtures ambiguous;
-        # this current-code fixture intentionally follows the v2 schema.
+        # this current-code fixture intentionally follows the current schema.
         performance.write_text(
             json.dumps(
                 {
@@ -303,6 +309,17 @@ def test_is_stock_control_requires_exact_three_constants_and_backoff() -> None:
     assert not probe.is_stock_control(probe.Cell("ceiling-drift", 1, 100.0, 999, 10))
     assert not probe.is_stock_control(probe.Cell("update-drift", 1, 100.0, 1000, 11))
     assert not probe.is_stock_control(probe.Cell("disabled", 0, 100.0, 1000, 10))
+    assert not probe.is_stock_control(
+        probe.Cell(
+            "inverted",
+            1,
+            100.0,
+            1000,
+            10,
+            step_policy=1,
+            has_step_policy=True,
+        )
+    )
 
 
 def test_existing_out_is_rejected_before_site_or_measurement(tmp_path: Path) -> None:
@@ -1036,6 +1053,9 @@ def test_group_receipt_requires_exact_24_terminal_request_set(
     } == {probe.CERT_PROTOCOL}
     assert all(row["build_trace_enabled"] is True for row in receipt["results"])
     assert len({row["patch_sha256"] for row in receipt["results"]}) == 1
+    assert len(
+        {row["counterfactual_patch_sha256"] for row in receipt["results"]}
+    ) == 1
     assert len({row["ccbench_commit"] for row in receipt["results"]}) == 1
     assert len({row["trace_dir"] for row in receipt["results"]}) == 24
     assert all(row["build_cache_key"].endswith("_t1") for row in receipt["results"])
@@ -1058,6 +1078,7 @@ def test_group_receipt_requires_exact_24_terminal_request_set(
         "genome",
         "patch-sha256",
         "dynamic-patch-sha256",
+        "counterfactual-patch-sha256",
         "patch-stack-order",
         "ccbench-commit",
         "repo-head",
@@ -1086,6 +1107,8 @@ def test_group_receipt_requires_exact_24_terminal_request_set(
             candidates[0]["patch_sha256"] = "0" * 64
         elif mutation == "dynamic-patch-sha256":
             candidates[0]["dynamic_patch_sha256"] = "0" * 64
+        elif mutation == "counterfactual-patch-sha256":
+            candidates[0]["counterfactual_patch_sha256"] = "0" * 64
         elif mutation == "patch-stack-order":
             candidates[0]["patch_stack"] = list(
                 reversed(candidates[0]["patch_stack"])
@@ -1330,6 +1353,129 @@ def test_five_field_cells_preserve_legacy_cell_and_genome_bytes() -> None:
     ]
 
 
+def test_parse_cells_accepts_legacy_dynamic_and_policy_forms() -> None:
+    legacy, dynamic, policy = probe.parse_cells(
+        "legacy:1:1:1000:2560,"
+        "dynamic:1:1:1000:2560:10000:10240:1:1:4:1,"
+        "policy:1:1:1000:2560:10000:10240:1:1:4:1:2"
+    )
+    assert legacy.label == "legacy"
+    assert legacy.extended is False
+    assert legacy.has_step_policy is False
+    assert probe._cell_identity(legacy)["cell_format_fields"] == 5
+    assert dynamic.label == "dynamic"
+    assert dynamic.extended is True
+    assert dynamic.has_step_policy is False
+    assert probe._cell_identity(dynamic)["cell_format_fields"] == 11
+    assert policy.label == "policy"
+    assert policy.extended is True
+    assert policy.has_step_policy is True
+    assert policy.step_policy == 2
+    assert probe._cell_identity(policy)["cell_format_fields"] == 12
+
+
+@pytest.mark.parametrize(
+    "suffix",
+    ("-1", "3", "", "2:extra"),
+    ids=("negative", "too-large", "empty", "thirteen-fields"),
+)
+def test_parse_cells_rejects_invalid_step_policy(suffix: str) -> None:
+    with pytest.raises(ValueError):
+        probe.parse_cells(
+            "policy:1:1:1000:2560:10000:10240:1:1:4:1:" + suffix
+        )
+
+
+def test_eleven_and_explicit_policy_zero_have_distinct_identity() -> None:
+    eleven, explicit_zero = probe.parse_cells(
+        "eleven:1:1:1000:2560:10000:10240:1:1:4:1,"
+        "explicit-zero:1:1:1000:2560:10000:10240:1:1:4:1:0"
+    )
+    eleven_identity = probe._cell_identity(eleven)
+    zero_identity = probe._cell_identity(explicit_zero)
+    assert eleven.has_step_policy is False
+    assert eleven_identity["cell_format_fields"] == 11
+    assert "step_policy" not in eleven_identity
+    assert explicit_zero.has_step_policy is True
+    assert explicit_zero.step_policy == 0
+    assert zero_identity["cell_format_fields"] == 12
+    assert zero_identity["step_policy"] == 0
+    assert eleven_identity != zero_identity
+
+
+def test_grid_distinguishes_policy_builds() -> None:
+    grid = probe.parse_cells(
+        "none:0:100:1000:10,stock:1:100:1000:10,"
+        "forward:1:1:1000:2560:10000:10240:1:1:4:1:0,"
+        "invert:1:1:1000:2560:10000:10240:1:1:4:1:1,"
+        "randomized:1:1:1000:2560:10000:10240:1:1:4:1:2"
+    )
+    probe._validate_grid_contract(grid)
+    duplicate_policy = probe.parse_cells(
+        "forward-again:1:1:1000:2560:10000:10240:1:1:4:1:0"
+    )[0]
+    with pytest.raises(ValueError, match="duplicate build configurations"):
+        probe._validate_grid_contract((*grid, duplicate_policy))
+
+
+def test_cell_document_round_trip_requires_policy_key_presence_to_match_format() -> None:
+    five, eleven, twelve = probe.parse_cells(
+        "five:1:1:1000:2560,"
+        "eleven:1:1:1000:2560:10000:10240:1:1:4:1,"
+        "twelve:1:1:1000:2560:10000:10240:1:1:4:1:0"
+    )
+    assert probe._cell_from_document(probe._cell_identity(twelve)) == twelve
+
+    twelve_without_key = probe._cell_identity(twelve)
+    del twelve_without_key["step_policy"]
+    eleven_with_key = {**probe._cell_identity(eleven), "step_policy": 0}
+    five_with_key = {**probe._cell_identity(five), "step_policy": 0}
+    twelve_with_bool = {**probe._cell_identity(twelve), "step_policy": False}
+    for document in (
+        twelve_without_key,
+        eleven_with_key,
+        five_with_key,
+        twelve_with_bool,
+    ):
+        with pytest.raises(
+            probe.CertificationReject,
+            match="group-workload-contract-mismatch",
+        ):
+            probe._cell_from_document(document)
+
+
+def test_genome_for_policy_cell_supplies_real_build_define() -> None:
+    legacy, dynamic, policy_zero, policy = probe.parse_cells(
+        "legacy:1:1:1000:2560,"
+        "dynamic:1:1:1000:2560:10000:10240:1:1:4:1,"
+        "policy-zero:1:1:1000:2560:10000:10240:1:1:4:1:0,"
+        "policy:1:1:1000:2560:10000:10240:1:1:4:1:2"
+    )
+    legacy_flags = probe.genome_for(legacy).flags
+    dynamic_flags = probe.genome_for(dynamic).flags
+    policy_genome = probe.genome_for(policy)
+    assert "BACKOFF_STEP_POLICY" not in legacy_flags
+    assert "BACKOFF_STEP_POLICY_SEED" not in legacy_flags
+    assert "BACKOFF_STEP_POLICY" not in dynamic_flags
+    assert "BACKOFF_STEP_POLICY_SEED" not in dynamic_flags
+    assert {
+        key: probe.genome_for(policy_zero).flags[key]
+        for key in ("BACKOFF_STEP_POLICY", "BACKOFF_STEP_POLICY_SEED")
+    } == {
+        "BACKOFF_STEP_POLICY": 0,
+        "BACKOFF_STEP_POLICY_SEED": 11_400_714_819_323_198_485,
+    }
+    assert policy_genome.flags["BACKOFF_STEP_POLICY"] == 2
+    assert policy_genome.flags["BACKOFF_STEP_POLICY_SEED"] == (
+        11_400_714_819_323_198_485
+    )
+    assert "BACKOFF_STEP_POLICY=2" in policy_genome.canonical()
+    assert (
+        "BACKOFF_STEP_POLICY_SEED=11400714819323198485"
+        in policy_genome.canonical()
+    )
+
+
 def test_extended_cells_parse_all_dynamic_fields() -> None:
     cells = probe.parse_cells(TRACE_CELLS)
     assert cells == probe.TRACE_CELLS
@@ -1416,11 +1562,17 @@ def test_expected_patch_a_sha256_is_checked_before_patch_b(
     assert probe.EXPECTED_PATCH_A_SHA256 == hashlib.sha256(PATCH.read_bytes()).hexdigest()
 
 
-def test_patch_b_requires_a_and_stack_reverts_cleanly(
+def test_patch_stack_identity_is_exact_ordered_a_b_c(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     assert PATCH_B.is_file()
+    assert PATCH_C.is_file()
     identity = probe._patch_stack_identity()
+    assert [entry["path"] for entry in identity["patch_stack"]] == [
+        "patches/cicada-adaptive-params.patch",
+        "patches/cicada-adaptive-dynamic.patch",
+        "patches/cicada-adaptive-counterfactual.patch",
+    ]
     stack_bytes = "izanagi-patch-stack/v1\n" + "".join(
         f"{entry['path']} {entry['sha256']}\n"
         for entry in identity["patch_stack"]
@@ -1429,6 +1581,14 @@ def test_patch_b_requires_a_and_stack_reverts_cleanly(
     assert identity["dynamic_patch_sha256"] == hashlib.sha256(
         PATCH_B.read_bytes()
     ).hexdigest()
+    assert identity["counterfactual_patch_sha256"] == hashlib.sha256(
+        PATCH_C.read_bytes()
+    ).hexdigest()
+    assert [entry["sha256"] for entry in identity["patch_stack"]] == [
+        hashlib.sha256(PATCH.read_bytes()).hexdigest(),
+        hashlib.sha256(PATCH_B.read_bytes()).hexdigest(),
+        hashlib.sha256(PATCH_C.read_bytes()).hexdigest(),
+    ]
     assert identity["patch_stack_sha256"] == hashlib.sha256(
         stack_bytes.encode("utf-8")
     ).hexdigest()
@@ -1438,10 +1598,24 @@ def test_patch_b_requires_a_and_stack_reverts_cleanly(
         text=True,
     )
     assert pure_pin.returncode != 0
+    pure_pin_c = subprocess.run(
+        ["git", "-C", str(CCBENCH), "apply", "--check", str(PATCH_C)],
+        capture_output=True,
+        text=True,
+    )
+    assert pure_pin_c.returncode != 0
     monkeypatch.setenv("TMPDIR", str(tmp_path))
     with probe.isolated_checkout(CCBENCH, probe.CURRENT_PIN) as work_root:
-        with probe._applied_patch_stack(work_root) as b_files:
-            assert set(b_files) == {"cmake/Options.cmake", "include/backoff.hh"}
+        with probe._applied_patch_stack(work_root) as c_files:
+            assert set(c_files) == {"cmake/Options.cmake", "include/backoff.hh"}
+            diff = subprocess.run(
+                ["git", "-C", work_root, "diff", "--"],
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout
+            assert "BACKOFF_STEP_POLICY" in diff
+            assert "both_actions_feasible" in diff
         probe.assert_pinned_clean(work_root, probe.CURRENT_PIN)
 
 
@@ -1563,6 +1737,138 @@ IZANAGI_BACKOFF_TRACE_SUMMARY v=1 updates=3 retained=3 dropped=0
             probe._parse_backoff_trace(mutated)
 
 
+def test_parse_backoff_trace_accepts_v1_and_exact_v2() -> None:
+    v1_record = (
+        "IZANAGI_BACKOFF_TRACE v=1 seq=0 tsc=100 window_us=10 "
+        "window_commits=100 trigger=1 backoff_before=100 backoff_after=101 "
+        "gradient_sign=1 step_us=1 ceiling_us=1000 ceiling_changed=0 "
+        "parity_branch=-1"
+    )
+    v1_stdout = (
+        v1_record
+        + "\nIZANAGI_BACKOFF_TRACE_SUMMARY v=1 updates=1 retained=1 dropped=0\n"
+    )
+    v2_record = (
+        "IZANAGI_BACKOFF_TRACE v=2 seq=0 tsc=100 window_us=10 "
+        "window_commits=100 trigger=1 backoff_before=100 backoff_after=99 "
+        "gradient_sign=1 step_us=1 ceiling_us=1000 ceiling_changed=0 "
+        "parity_branch=-1 recommended_delta_sign=1 assigned_invert=1 "
+        "inversion_realized=1 both_actions_feasible=1"
+    )
+    v2_stdout = (
+        v2_record
+        + "\nIZANAGI_BACKOFF_TRACE_SUMMARY v=2 updates=1 retained=1 dropped=0\n"
+    )
+
+    v1_events, v1_summary, v1_directional = probe._parse_backoff_trace(v1_stdout)
+    v2_events, v2_summary, v2_directional = probe._parse_backoff_trace(v2_stdout)
+    assert set(v1_events[0]) == {
+        "seq",
+        "tsc",
+        "window_us",
+        "window_commits",
+        "trigger",
+        "backoff_before",
+        "backoff_after",
+        "gradient_sign",
+        "step_us",
+        "ceiling_us",
+        "ceiling_changed",
+        "parity_branch",
+    }
+    assert v1_summary == {"updates": 1, "retained": 1, "dropped": 0}
+    assert v1_directional == {"scored": 0, "successes": 0, "rate": None}
+    assert {
+        key: v2_events[0][key]
+        for key in (
+            "recommended_delta_sign",
+            "assigned_invert",
+            "inversion_realized",
+            "both_actions_feasible",
+        )
+    } == {
+        "recommended_delta_sign": 1,
+        "assigned_invert": 1,
+        "inversion_realized": 1,
+        "both_actions_feasible": 1,
+    }
+    assert v2_summary == {"updates": 1, "retained": 1, "dropped": 0}
+    assert set(v2_directional) == {
+        "scored",
+        "successes",
+        "rate",
+        "assigned_forward",
+        "assigned_invert",
+        "realized_invert",
+    }
+
+    mixed_records = (
+        v1_record
+        + "\n"
+        + v2_record.replace("seq=0", "seq=1")
+        + "\nIZANAGI_BACKOFF_TRACE_SUMMARY v=2 updates=2 retained=2 dropped=0\n"
+    )
+    malformed = (
+        v2_record.rsplit(" both_actions_feasible=1", 1)[0]
+        + "\nIZANAGI_BACKOFF_TRACE_SUMMARY v=2 updates=1 retained=1 dropped=0\n",
+        v1_stdout.replace("v=1", "v=2"),
+        v2_stdout.replace("v=2", "v=1"),
+        mixed_records,
+        v2_stdout.replace("TRACE_SUMMARY v=2", "TRACE_SUMMARY v=1"),
+        v2_stdout.replace("assigned_invert=1", "assigned_invert=0"),
+        v2_stdout.replace("recommended_delta_sign=1", "recommended_delta_sign=0"),
+        v2_stdout.replace("backoff_after=99", "backoff_after=98"),
+    )
+    for candidate in malformed:
+        with pytest.raises(ValueError):
+            probe._parse_backoff_trace(candidate)
+
+
+def test_directional_success_v2_is_stratified_by_current_assignment() -> None:
+    events = [
+        {
+            "backoff_before": 100.0,
+            "backoff_after": 101.0,
+            "window_commits": 100,
+            "window_us": 10,
+            "assigned_invert": 0,
+            "inversion_realized": 0,
+        },
+        {
+            "backoff_before": 100.0,
+            "backoff_after": 99.0,
+            "window_commits": 90,
+            "window_us": 10,
+            "assigned_invert": 1,
+            "inversion_realized": 1,
+        },
+        {
+            "backoff_before": 100.0,
+            "backoff_after": 101.0,
+            "window_commits": 80,
+            "window_us": 10,
+            "assigned_invert": 1,
+            "inversion_realized": 0,
+        },
+        {
+            "backoff_before": 100.0,
+            "backoff_after": 99.0,
+            "window_commits": 90,
+            "window_us": 10,
+            "assigned_invert": 1,
+            "inversion_realized": 0,
+        },
+    ]
+    assert probe._directional_success(events) == {
+        "scored": 3,
+        "successes": 2,
+        "rate": 2 / 3,
+        "assigned_forward": {"scored": 1, "successes": 0, "rate": 0.0},
+        "assigned_invert": {"scored": 2, "successes": 2, "rate": 1.0},
+        "realized_invert": {"scored": 1, "successes": 1, "rate": 1.0},
+    }
+
+
 def test_trace_parser_rejects_summary_without_any_event() -> None:
     with pytest.raises(ValueError, match="at least one event"):
         probe._parse_backoff_trace(
@@ -1592,11 +1898,33 @@ def test_directional_success_does_not_score_zero_action() -> None:
     }
 
 
-def test_v2_schemas_and_cell_identity_fields_are_exact() -> None:
-    assert probe.SCHEMA_VERSION.endswith("/v2")
-    assert probe.TRACE_SCHEMA_VERSION == "izanagi-dynamic-backoff-trace/v2"
-    assert probe.CERTIFICATION_SCHEMA_VERSION.endswith("/v2")
-    assert probe.GROUP_RECEIPT_SCHEMA_VERSION.endswith("/v2")
+def test_counterfactual_stack_artifacts_use_schema_v3() -> None:
+    assert probe.LEGACY_SCHEMA_VERSION == (
+        "izanagi-cicada-adaptive-3const-probe/v2"
+    )
+    assert probe.LEGACY_TRACE_SCHEMA_VERSION == (
+        "izanagi-dynamic-backoff-trace/v2"
+    )
+    assert probe.UNSUPPORTED_V2_CERTIFICATION_SCHEMA_VERSION == (
+        "izanagi-cicada-adaptive-3const-certification/v2"
+    )
+    assert probe.UNSUPPORTED_V2_GROUP_RECEIPT_SCHEMA_VERSION == (
+        "izanagi-cicada-adaptive-3const-certification-group/v2"
+    )
+    assert probe.SCHEMA_VERSION == "izanagi-cicada-adaptive-3const-probe/v3"
+    assert probe.TRACE_SCHEMA_VERSION == "izanagi-dynamic-backoff-trace/v3"
+    assert probe.CERTIFICATION_SCHEMA_VERSION == (
+        "izanagi-cicada-adaptive-3const-certification/v3"
+    )
+    assert probe.GROUP_RECEIPT_SCHEMA_VERSION == (
+        "izanagi-cicada-adaptive-3const-certification-group/v3"
+    )
+    assert probe._artifact_contract_metadata(
+        backoff_trace=False, cells_text=TRACE_CELLS
+    ) == {"schema_version": probe.SCHEMA_VERSION}
+    assert probe._artifact_contract_metadata(
+        backoff_trace=True, cells_text=TRACE_CELLS
+    ) == {"schema_version": probe.TRACE_SCHEMA_VERSION}
     assert set(probe.CERT_CLAIMS) == set(probe.CERT_CELLS)
     assert probe.CERT_CLAIMS[probe.CERT_TUNED_CELL] == probe.ALLOWED_GROUP_CLAIM
     assert "cw-as-dyn" in probe.CERT_CLAIMS[probe.CERT_DYNAMIC_CELL]
@@ -1617,6 +1945,95 @@ def test_v2_schemas_and_cell_identity_fields_are_exact() -> None:
         "dyn_ceiling": 1,
         "cell_format_fields": 11,
     }
+
+
+def test_legacy_v2_performance_artifact_remains_readable(tmp_path: Path) -> None:
+    artifact = tmp_path / "legacy-v2.json"
+    artifact.write_text(
+        json.dumps(
+            {
+                "schema_version": probe.LEGACY_SCHEMA_VERSION,
+                "kind": "performance-only-probe",
+                "not_certified": probe.NOT_CERTIFIED,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    assert probe._performance_artifact_identity(
+        artifact, hashlib.sha256(artifact.read_bytes()).hexdigest()
+    ) == {
+        "path": str(artifact.resolve(strict=True)),
+        "sha256": hashlib.sha256(artifact.read_bytes()).hexdigest(),
+    }
+
+
+def test_v2_certification_and_group_artifacts_are_explicitly_unsupported(
+    tmp_path: Path,
+) -> None:
+    certification = tmp_path / "certification-v2.json"
+    certification.write_text(
+        json.dumps(
+            {"schema_version": probe.UNSUPPORTED_V2_CERTIFICATION_SCHEMA_VERSION}
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(probe.CertificationReject) as caught:
+        probe._validated_certification_row(
+            certification,
+            attempt_id="attempt-test",
+            expected_verifier_identity={},
+            expected_verifier_identity_file_sha256="a" * 64,
+            performance_identity={},
+        )
+    assert caught.value.reason == "legacy-certification-schema-unsupported"
+    assert caught.value.detail == (
+        "v2 certification artifacts are unsupported; group aggregation accepts "
+        "v3 certification artifacts only"
+    )
+
+    group = tmp_path / "group-v2.json"
+    group.write_text(
+        json.dumps(
+            {"schema_version": probe.UNSUPPORTED_V2_GROUP_RECEIPT_SCHEMA_VERSION}
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(probe.CertificationReject) as caught:
+        probe._validate_published_group(
+            group,
+            [],
+            tmp_path / "unused-performance.json",
+            "b" * 64,
+            "attempt-test",
+            {},
+            "c" * 64,
+        )
+    assert caught.value.reason == "legacy-group-receipt-schema-unsupported"
+    assert caught.value.detail == (
+        "v2 group receipt artifacts are unsupported; published receipt validation "
+        "accepts v3 group receipt artifacts only"
+    )
+
+
+def test_counterfactual_artifacts_record_pending_preregistration() -> None:
+    assert probe._artifact_contract_metadata(
+        backoff_trace=True,
+        cells_text=probe.COUNTERFACTUAL_TRACE_CELLS_TEXT,
+    ) == {
+        "schema_version": probe.TRACE_SCHEMA_VERSION,
+        "counterfactual_preregistration": "pending",
+    }
+    assert "counterfactual_preregistration" not in probe._artifact_contract_metadata(
+        backoff_trace=True, cells_text=probe.TRACE_CELLS_TEXT
+    )
+    driver_text = DRIVER.read_text(encoding="utf-8")
+    assert driver_text.count("**_artifact_contract_metadata(") == 1
+    assert driver_text.count(
+        'row["counterfactual_preregistration"] = "pending"'
+    ) == 1
 
 
 def test_perf_and_diagnostic_binary_trace_counts_fail_closed() -> None:
@@ -1831,6 +2248,141 @@ def test_backoff_trace_mode_requires_exact_diagnostic_axes(tmp_path: Path) -> No
             probe._validate_backoff_trace_contract(
                 args, cells, workloads, threads
             )
+
+
+def test_backoff_trace_contract_accepts_only_two_exact_cell_literals(
+    tmp_path: Path,
+) -> None:
+    parser = probe._argument_parser()
+
+    def inputs(cells_text: str, threads_text: str = "24,48"):
+        args = parser.parse_args(
+            [
+                "--backoff-trace",
+                "--cells",
+                cells_text,
+                "--workloads",
+                "write-heavy,balanced,read-heavy",
+                "--threads",
+                threads_text,
+                "--reps-per-job",
+                "1",
+                "--extime",
+                "3",
+                "--out",
+                str(tmp_path / "unused.json"),
+            ]
+        )
+        return (
+            args,
+            probe.parse_cells(args.cells),
+            probe._parse_workloads(args.workloads),
+            probe._parse_threads(args.threads),
+        )
+
+    for exact in (TRACE_CELLS, COUNTERFACTUAL_TRACE_CELLS):
+        probe._validate_backoff_trace_contract(*inputs(exact))
+
+    counterfactual_items = COUNTERFACTUAL_TRACE_CELLS.split(",")
+    negative_inputs = (
+        inputs(COUNTERFACTUAL_TRACE_CELLS[:-1] + "1"),
+        inputs(",".join((counterfactual_items[0], counterfactual_items[2]))),
+        inputs(TRACE_CELLS + "," + COUNTERFACTUAL_TRACE_CELLS),
+        inputs(COUNTERFACTUAL_TRACE_CELLS, "24"),
+        (
+            inputs(TRACE_CELLS)[0],
+            probe.COUNTERFACTUAL_TRACE_CELLS,
+            probe.TRACE_WORKLOADS,
+            probe.TRACE_THREADS,
+        ),
+    )
+    for values in negative_inputs:
+        with pytest.raises(ValueError, match="one exact diagnostic cell set"):
+            probe._validate_backoff_trace_contract(*values)
+
+    pbs_text = PBS.read_text(encoding="utf-8")
+    exact_gate = """\
+  if [[ "$CELLS_RAW" != "$TRACE_CELLS_RAW" &&
+        "$CELLS_RAW" != "$COUNTERFACTUAL_TRACE_CELLS_RAW" ]] ||
+     [[ "$WORKLOADS_RAW" != write-heavy+balanced+read-heavy ||
+        "$THREADS_RAW" != 24+48 ]]; then
+"""
+    assert pbs_text.count(exact_gate) == 1
+
+
+def test_two_layer_trace_literals_are_byte_identical() -> None:
+    pbs_text = PBS.read_text(encoding="utf-8")
+
+    def raw(name: str) -> str:
+        match = re.search(rf"^{name}='([^']*)'$", pbs_text, re.MULTILINE)
+        assert match is not None
+        return match.group(1)
+
+    assert probe.TRACE_CELLS_TEXT.replace(",", "+") == raw(
+        "TRACE_CELLS_RAW"
+    )
+    assert probe.COUNTERFACTUAL_TRACE_CELLS_TEXT.replace(",", "+") == raw(
+        "COUNTERFACTUAL_TRACE_CELLS_RAW"
+    )
+    assert re.findall(
+        r"^([A-Z_]*TRACE_CELLS_RAW)=", pbs_text, re.MULTILINE
+    ) == ["TRACE_CELLS_RAW", "COUNTERFACTUAL_TRACE_CELLS_RAW"]
+
+
+def test_pbs_marks_eleven_and_twelve_fields_extended(tmp_path: Path) -> None:
+    pbs_text = PBS.read_text(encoding="utf-8")
+    start = pbs_text.index("HAS_EXTENDED_CELL=0\n")
+    end = pbs_text.index("OUT_DIR=${OUT_DIR_RAW:-$DEFAULT_OUT_DIR}\n", start)
+    classification_block = pbs_text[start:end]
+    classification_script = tmp_path / "classify-pbs-cells.sh"
+    classification_script.write_text(classification_block, encoding="utf-8")
+    assert classification_script.read_text(encoding="utf-8") in pbs_text
+
+    def classify(cell: str, out_dir: str = "") -> subprocess.CompletedProcess[str]:
+        command = ["/bin/bash", "-x", str(classification_script)]
+        assert str(PBS) not in command
+        return subprocess.run(
+            command,
+            check=False,
+            capture_output=True,
+            text=True,
+            env={
+                "CELLS_RAW": cell,
+                "MODE": "performance",
+                "BACKOFF_TRACE": "0",
+                "WORKLOADS_RAW": "balanced",
+                "THREADS_RAW": "48",
+                "OUT_DIR_RAW": out_dir,
+            },
+        )
+
+    def assignments(
+        completed: subprocess.CompletedProcess[str], name: str
+    ) -> list[str]:
+        return re.findall(rf"^\+ {name}=([01])$", completed.stderr, re.MULTILINE)
+
+    eleven_fields = "extended-11:1:1:1000:2560:10000:10240:1:1:4:1"
+    twelve_fields = "extended-12:1:1:1000:2560:10000:10240:1:1:4:1:2"
+    four_colons = "five-fields:1:1:1000:2560"
+    for cell in (eleven_fields, twelve_fields):
+        completed = classify(cell, "/dynamic-output")
+        assert completed.returncode == 0, completed.stderr
+        assert assignments(completed, "HAS_EXTENDED_CELL") == ["0", "1"]
+        assert assignments(completed, "NEEDS_DYNAMIC_OUT") == ["0", "1"]
+    completed = classify(four_colons)
+    assert completed.returncode == 0, completed.stderr
+    assert assignments(completed, "HAS_EXTENDED_CELL") == ["0"]
+    assert assignments(completed, "NEEDS_DYNAMIC_OUT") == ["0"]
+
+    completed = classify(eleven_fields)
+    assert completed.returncode == 2
+    assert completed.stdout == ""
+    assert assignments(completed, "HAS_EXTENDED_CELL") == ["0", "1"]
+    assert assignments(completed, "NEEDS_DYNAMIC_OUT") == ["0", "1"]
+    assert (
+        "IZANAGI_T2187_OUT_DIR is required for dynamic-backoff output\n"
+        in completed.stderr
+    )
 
 
 def test_backoff_trace_mode_rejects_nonzero_rep_index_only(tmp_path: Path) -> None:

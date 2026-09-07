@@ -1,0 +1,707 @@
+diff --git a/cmake/Options.cmake b/cmake/Options.cmake
+index 4de9d23..47b3b2c 100644
+--- a/cmake/Options.cmake
++++ b/cmake/Options.cmake
+@@ -1,111 +1,115 @@
+ # Build-time tunables for ccbench.
+ #
+ # Every value below is a CACHE entry, so it can be overridden once on the
+ # CMake command line, e.g.
+ #   cmake -S . -B build -DCCBENCH_KEY_SIZE=16 -DCCBENCH_BACK_OFF=0
+ # without editing this file.
+ #
+ # Replaces the ~180 directory-scoped `add_definitions(...)` calls
+ # previously copy-pasted into every protocol's CMakeLists.txt.
+ # `ccbench_add_protocol(...)` (cmake/ProtocolHelpers.cmake) maps each
+ # CCBENCH_FOO into a target-private `-DFOO=<value>`.
+ 
+ # ----- universal (every protocol uses these) -----
+ set(CCBENCH_ADD_ANALYSIS  0 CACHE STRING "extra per-tx analysis counters")
+ # izanagi: correctness trace. Tested with `#if TRACE` (NOT #ifdef), so 0 (perf
+ # build, the default) compiles the trace hooks out entirely. Build the
+ # trace-enabled correctness binary with -DCCBENCH_TRACE=1 in a SEPARATE build
+ # dir; never mix into a perf build (absolute discipline #1 / decisions.md D14).
+ set(CCBENCH_TRACE         0 CACHE STRING "izanagi correctness trace (0=off, perf)")
+ set(CCBENCH_BACK_OFF      1 CACHE STRING "exponential backoff on abort")
+ # Cicada's adaptive backoff constants. Defaults reproduce the stock source.
+ # INCR_MILLI uses thousandths of a microsecond so sub-microsecond steps remain
+ # integer CMake cache values (100000 = 100us).
+ set(CCBENCH_BACKOFF_INCR_MILLI 100000 CACHE STRING "adaptive backoff step, thousandths of us (100000=stock)")
+ set(CCBENCH_BACKOFF_MAX_US 1000 CACHE STRING "adaptive backoff ceiling in us (1000=stock)")
+ set(CCBENCH_BACKOFF_UPDATE_US 10 CACHE STRING "adaptive backoff update interval in us (10=stock)")
+ set(CCBENCH_BACKOFF_COUNT_WINDOW 0 CACHE STRING "commits per update window (0=time-only stock)")
+ set(CCBENCH_BACKOFF_COUNT_CAP_US 0 CACHE STRING "count-window time cap in us (0=BACKOFF_UPDATE_US)")
+ set(CCBENCH_BACKOFF_STEP_ADAPT 0 CACHE STRING "adaptive hill-climb step (0=off, 1=on)")
++set(CCBENCH_BACKOFF_STEP_POLICY 0 CACHE STRING "backoff step policy (0=stock, 1=invert, 2=randomized)")
++set(CCBENCH_BACKOFF_STEP_POLICY_SEED 11400714819323198485 CACHE STRING "deterministic backoff step policy seed")
+ set(CCBENCH_BACKOFF_STEP_MIN_MILLI 100000 CACHE STRING "minimum adaptive step, thousandths of us")
+ set(CCBENCH_BACKOFF_STEP_MAX_MILLI 100000 CACHE STRING "maximum adaptive step, thousandths of us")
+ set(CCBENCH_BACKOFF_DYN_CEILING 0 CACHE STRING "dynamic backoff ceiling (0=off, 1=on)")
+ set(CCBENCH_BACKOFF_TRACE 0 CACHE STRING "bounded adaptive-backoff diagnostic trace (0=off, 1=on)")
+ set(CCBENCH_KEY_SIZE      8 CACHE STRING "key size in bytes (YCSB)")
+ set(CCBENCH_MASSTREE_USE  1 CACHE STRING "use Masstree as the index")
+ set(CCBENCH_VAL_SIZE      4 CACHE STRING "value size in bytes (YCSB)")
+ 
+ # ----- multi-protocol (used by 2+ protocols) -----
+ set(CCBENCH_KEY_SORT                       0 CACHE STRING "")
+ set(CCBENCH_NO_WAIT_LOCKING_IN_VALIDATION  1 CACHE STRING "")
+ set(CCBENCH_NO_WAIT_OF_TICTOC              0 CACHE STRING "")
+ set(CCBENCH_PARTITION_TABLE                0 CACHE STRING "")
+ set(CCBENCH_SLEEP_READ_PHASE               0 CACHE STRING "")
+ set(CCBENCH_INLINE_VERSION_PROMOTION       1 CACHE STRING "")
+ set(CCBENCH_REUSE_VERSION                  1 CACHE STRING "")
+ set(CCBENCH_SINGLE_EXEC                    0 CACHE STRING "")
+ set(CCBENCH_WRITE_LATEST_ONLY              0 CACHE STRING "")
+ # These two are intentionally unset by default (the original code used
+ # remove_definitions when not provided; an empty cache entry maps the
+ # same way in `ccbench_add_protocol`).
+ set(CCBENCH_INSERT_READ_DELAY_MS  "" CACHE STRING "ms; empty = unset")
+ set(CCBENCH_INSERT_BATCH_DELAY_MS "" CACHE STRING "ms; empty = unset")
+ 
+ # ----- protocol-specific defaults (live here for centralized override) -----
+ set(CCBENCH_DEBUG_MSG                     0 CACHE STRING "oze")
+ set(CCBENCH_MERGE_ON_READ                 0 CACHE STRING "oze")
+ set(CCBENCH_PREEMPTIVE_ABORTS             1 CACHE STRING "tictoc")
+ set(CCBENCH_TIMESTAMP_HISTORY             1 CACHE STRING "tictoc")
+ set(CCBENCH_PROCEDURE_SORT                0 CACHE STRING "silo")
+ set(CCBENCH_WAL                           0 CACHE STRING "silo")
+ set(CCBENCH_TEMPERATURE_RESET_OPT         1 CACHE STRING "mocc")
+ set(CCBENCH_WORKER1_INSERT_DELAY_RPHASE   0 CACHE STRING "cicada")
+ 
+ # Cicada and Oze share many flags but disagree on this one's default.
+ # Keep two separate cache entries; protocols pick the one they want.
+ set(CCBENCH_INLINE_VERSION_OPT_CICADA     0 CACHE STRING "cicada")
+ set(CCBENCH_INLINE_VERSION_OPT_OZE        1 CACHE STRING "oze")
+ 
+ # ----- helpers --------------------------------------------------------------
+ 
+ # Emit the universal flag list as `KEY=VALUE` items (suitable for
+ # target_compile_definitions). One item per call site.
+ function(ccbench_universal_definitions out_var)
+   set(${out_var}
+     ADD_ANALYSIS=${CCBENCH_ADD_ANALYSIS}
+     BACK_OFF=${CCBENCH_BACK_OFF}
+     BACKOFF_COUNT_CAP_US=${CCBENCH_BACKOFF_COUNT_CAP_US}
+     BACKOFF_COUNT_WINDOW=${CCBENCH_BACKOFF_COUNT_WINDOW}
+     BACKOFF_DYN_CEILING=${CCBENCH_BACKOFF_DYN_CEILING}
+     BACKOFF_INCR_MILLI=${CCBENCH_BACKOFF_INCR_MILLI}
+     BACKOFF_MAX_US=${CCBENCH_BACKOFF_MAX_US}
+     BACKOFF_STEP_ADAPT=${CCBENCH_BACKOFF_STEP_ADAPT}
++    BACKOFF_STEP_POLICY=${CCBENCH_BACKOFF_STEP_POLICY}
++    BACKOFF_STEP_POLICY_SEED=${CCBENCH_BACKOFF_STEP_POLICY_SEED}
+     BACKOFF_STEP_MAX_MILLI=${CCBENCH_BACKOFF_STEP_MAX_MILLI}
+     BACKOFF_STEP_MIN_MILLI=${CCBENCH_BACKOFF_STEP_MIN_MILLI}
+     BACKOFF_TRACE=${CCBENCH_BACKOFF_TRACE}
+     BACKOFF_UPDATE_US=${CCBENCH_BACKOFF_UPDATE_US}
+     KEY_SIZE=${CCBENCH_KEY_SIZE}
+     MASSTREE_USE=${CCBENCH_MASSTREE_USE}
+     VAL_SIZE=${CCBENCH_VAL_SIZE}
+     TRACE=${CCBENCH_TRACE}
+     PARENT_SCOPE)
+ endfunction()
+ 
+ # Convenience: turn `<NAME>=<VALUE>` into `-D<NAME>=<VALUE>` and append to
+ # `out_var`. If VALUE is empty, the entry is dropped (mimics the previous
+ # `remove_definitions(-DFLAG)` behavior).
+ function(ccbench_normalize_options out_var)
+   set(_acc "")
+   foreach(item IN LISTS ARGN)
+     if(item MATCHES "^([^=]+)=(.*)$")
+       set(_k "${CMAKE_MATCH_1}")
+       set(_v "${CMAKE_MATCH_2}")
+       if(NOT _v STREQUAL "")
+         list(APPEND _acc "${_k}=${_v}")
+       endif()
+     else()
+       list(APPEND _acc "${item}")
+     endif()
+   endforeach()
+   set(${out_var} "${_acc}" PARENT_SCOPE)
+ endfunction()
+diff --git a/include/backoff.hh b/include/backoff.hh
+index 6acc20f..1b7d9a1 100644
+--- a/include/backoff.hh
++++ b/include/backoff.hh
+@@ -1,234 +1,278 @@
+ #pragma once
+ 
+ #include <x86intrin.h>
+ 
+ #include <atomic>
+ #include <cmath>
+ #include <iostream>
+ 
+ #include "atomic_wrapper.hh"
+ #include "result.hh"
+ #include "tsc.hh"
+ #include "util.hh"
+ 
+ // CMake supplies stock-equivalent defaults. Missing definitions must stop the
+ // build: an absent tuning macro can otherwise silently become zero in an
+ // arithmetic expression and turn the adaptive controller into fixed zero.
+ #ifndef BACKOFF_INCR_MILLI
+ #error "BACKOFF_INCR_MILLI must be defined (100000 = stock 100us step)"
+ #endif
+ #ifndef BACKOFF_MAX_US
+ #error "BACKOFF_MAX_US must be defined (1000 = stock ceiling)"
+ #endif
+ #ifndef BACKOFF_UPDATE_US
+ #error "BACKOFF_UPDATE_US must be defined (10 = stock update interval)"
+ #endif
+ #ifndef BACKOFF_COUNT_WINDOW
+ #error "BACKOFF_COUNT_WINDOW must be defined (0 = stock time-only window)"
+ #endif
+ #ifndef BACKOFF_COUNT_CAP_US
+ #error "BACKOFF_COUNT_CAP_US must be defined (0 = BACKOFF_UPDATE_US)"
+ #endif
+ #ifndef BACKOFF_STEP_ADAPT
+ #error "BACKOFF_STEP_ADAPT must be defined (0 = stock fixed step)"
+ #endif
++#ifndef BACKOFF_STEP_POLICY
++#error "BACKOFF_STEP_POLICY must be defined (0 = stock step policy)"
++#endif
++#ifndef BACKOFF_STEP_POLICY_SEED
++#error "BACKOFF_STEP_POLICY_SEED must be defined"
++#endif
+ #ifndef BACKOFF_STEP_MIN_MILLI
+ #error "BACKOFF_STEP_MIN_MILLI must be defined (100000 = stock step)"
+ #endif
+ #ifndef BACKOFF_STEP_MAX_MILLI
+ #error "BACKOFF_STEP_MAX_MILLI must be defined (100000 = stock step)"
+ #endif
+ #ifndef BACKOFF_DYN_CEILING
+ #error "BACKOFF_DYN_CEILING must be defined (0 = stock fixed ceiling)"
+ #endif
+ #ifndef BACKOFF_TRACE
+ #error "BACKOFF_TRACE must be defined (0 = no diagnostic instrumentation)"
+ #endif
+ 
+ using namespace std;
+ 
+ class Backoff {
+ public:
+   static std::atomic<double> Backoff_;
+   static constexpr double kMinBackoff = 0;
+   static constexpr double kMaxBackoff = static_cast<double>(BACKOFF_MAX_US);
+   static constexpr double kIncrBackoff =
+       static_cast<double>(BACKOFF_INCR_MILLI) / 1000.0;
+   static constexpr size_t kUpdateBackoffUs =
+       static_cast<size_t>(BACKOFF_UPDATE_US);
+   static_assert(kIncrBackoff > 0, "hill-climb step must be positive");
+   static_assert(kMaxBackoff > 0, "backoff ceiling must be positive");
+   static_assert(BACKOFF_UPDATE_US > 0 &&
+                     kUpdateBackoffUs == BACKOFF_UPDATE_US,
+                 "update interval must be a positive whole number of us");
+   static constexpr uint64_t kCountWindow =
+       static_cast<uint64_t>(BACKOFF_COUNT_WINDOW);
+   static constexpr size_t kCountCapUs =
+       static_cast<size_t>(BACKOFF_COUNT_CAP_US);
+   static constexpr uint64_t kStepMinMilli =
+       static_cast<uint64_t>(BACKOFF_STEP_MIN_MILLI);
+   static constexpr uint64_t kStepMaxMilli =
+       static_cast<uint64_t>(BACKOFF_STEP_MAX_MILLI);
+   static constexpr uint64_t kStepMin = kStepMinMilli / 1000;
+   static constexpr uint64_t kStepMax = kStepMaxMilli / 1000;
+   static_assert(BACKOFF_COUNT_WINDOW >= 0 &&
+                     kCountWindow == BACKOFF_COUNT_WINDOW,
+                 "count window must be a nonnegative whole number");
+   static_assert(BACKOFF_COUNT_CAP_US >= 0 &&
+                     kCountCapUs == BACKOFF_COUNT_CAP_US,
+                 "count cap must be a nonnegative whole number of us");
+   static_assert(BACKOFF_COUNT_CAP_US == 0 ||
+                     BACKOFF_COUNT_CAP_US >= BACKOFF_UPDATE_US,
+                 "count cap must be zero or at least the update interval");
+   static_assert(BACKOFF_STEP_ADAPT == 0 || BACKOFF_STEP_ADAPT == 1,
+                 "step adaptation must be 0 or 1");
+   static_assert(BACKOFF_STEP_MIN_MILLI >= 0 &&
+                     kStepMinMilli == BACKOFF_STEP_MIN_MILLI &&
+                     kStepMinMilli % 1000 == 0,
+                 "minimum step must be a nonnegative whole number of us");
+   static_assert(BACKOFF_STEP_MAX_MILLI >= 0 &&
+                     kStepMaxMilli == BACKOFF_STEP_MAX_MILLI &&
+                     kStepMaxMilli % 1000 == 0,
+                 "maximum step must be a nonnegative whole number of us");
+   static_assert(kStepMin <= kStepMax,
+                 "adaptive step bounds must be ordered");
+   static_assert(!BACKOFF_STEP_ADAPT || kStepMin > 0,
+                 "adaptive minimum step must be positive");
+   static_assert(!BACKOFF_STEP_ADAPT ||
+                     (kIncrBackoff ==
+                          static_cast<uint64_t>(kIncrBackoff) &&
+                      kStepMin <= kIncrBackoff &&
+                      kIncrBackoff <= kStepMax),
+                 "initial adaptive step must be a whole us within its bounds");
+   static_assert(BACKOFF_DYN_CEILING == 0 || BACKOFF_DYN_CEILING == 1,
+                 "dynamic ceiling must be 0 or 1");
+   static_assert(!BACKOFF_DYN_CEILING || kStepMax <= 50 / 4,
+                 "dynamic ceiling maximum step must fit below the 50us floor");
+   static_assert(!BACKOFF_DYN_CEILING ||
+                     (kMaxBackoff == static_cast<uint64_t>(kMaxBackoff) &&
+                      kMaxBackoff >= 50),
+                 "dynamic ceiling must be a whole us at or above its floor");
+   static_assert(BACKOFF_TRACE == 0 || BACKOFF_TRACE == 1,
+                 "backoff trace must be 0 or 1");
++  static_assert(BACKOFF_STEP_POLICY == 0 ||
++                    BACKOFF_STEP_POLICY == 1 ||
++                    BACKOFF_STEP_POLICY == 2,
++                "backoff step policy must be 0, 1 or 2");
+ 
+   uint64_t last_committed_txs_ = 0;
+   double last_committed_tput_ = 0;
+   uint64_t last_backoff_ = 0;
+   uint64_t last_time_ = 0;
+   size_t clocks_per_us_;
+ #if BACKOFF_COUNT_WINDOW > 0
+   uint64_t last_count_check_time_ = 0;
+ #endif
+ #if BACKOFF_STEP_ADAPT
+   uint64_t adaptive_step_ = static_cast<uint64_t>(kIncrBackoff);
+   int last_gradient_sign_ = 0;
+   bool has_last_gradient_sign_ = false;
+ #endif
+ #if BACKOFF_DYN_CEILING
+   uint64_t ceiling_ = static_cast<uint64_t>(kMaxBackoff);
+ #endif
++#if BACKOFF_STEP_POLICY == 2
++#define BACKOFF_STEP_POLICY_SEED_STRING_INNER(value) #value
++#define BACKOFF_STEP_POLICY_SEED_STRING(value) \
++  BACKOFF_STEP_POLICY_SEED_STRING_INNER(value)
++  static constexpr uint64_t kBackoffStepPolicySeed = []() constexpr {
++    const char* cursor =
++        BACKOFF_STEP_POLICY_SEED_STRING(BACKOFF_STEP_POLICY_SEED);
++    uint64_t parsed = 0;
++    while (*cursor != '\0') {
++      parsed = parsed * 10 + static_cast<uint64_t>(*cursor - '0');
++      ++cursor;
++    }
++    return parsed;
++  }();
++#undef BACKOFF_STEP_POLICY_SEED_STRING
++#undef BACKOFF_STEP_POLICY_SEED_STRING_INNER
++  uint64_t backoff_step_policy_state_ = kBackoffStepPolicySeed;
++#endif
+ #if BACKOFF_TRACE
+   struct izanagi_backoff_trace_record {
+     uint64_t izanagi_backoff_trace_seq;
+     uint64_t izanagi_backoff_trace_tsc;
+     uint64_t izanagi_backoff_trace_window_us;
+     uint64_t izanagi_backoff_trace_window_commits;
+     int izanagi_backoff_trace_trigger;
+     double izanagi_backoff_trace_backoff_before;
+     double izanagi_backoff_trace_backoff_after;
+     int izanagi_backoff_trace_gradient_sign;
+     double izanagi_backoff_trace_step_us;
+     double izanagi_backoff_trace_ceiling_us;
+     int izanagi_backoff_trace_ceiling_changed;
+     int izanagi_backoff_trace_parity_branch;
++    int izanagi_backoff_trace_recommended_delta_sign;
++    int izanagi_backoff_trace_assigned_invert;
++    int izanagi_backoff_trace_inversion_realized;
++    int izanagi_backoff_trace_both_actions_feasible;
+   };
+ 
+   static constexpr size_t izanagi_backoff_trace_capacity = 65536;
+   struct alignas(64) izanagi_backoff_trace_state {
+     izanagi_backoff_trace_record
+         izanagi_backoff_trace_ring[izanagi_backoff_trace_capacity]{};
+     size_t izanagi_backoff_trace_write = 0;
+     size_t izanagi_backoff_trace_retained = 0;
+     uint64_t izanagi_backoff_trace_updates = 0;
+     uint64_t izanagi_backoff_trace_dropped = 0;
+ 
+     ~izanagi_backoff_trace_state() {
+       const size_t izanagi_backoff_trace_first =
+           izanagi_backoff_trace_retained == izanagi_backoff_trace_capacity
+               ? izanagi_backoff_trace_write
+               : 0;
+       for (size_t izanagi_backoff_trace_offset = 0;
+            izanagi_backoff_trace_offset < izanagi_backoff_trace_retained;
+            ++izanagi_backoff_trace_offset) {
+         const izanagi_backoff_trace_record& izanagi_backoff_trace_item =
+             izanagi_backoff_trace_ring[
+                 (izanagi_backoff_trace_first + izanagi_backoff_trace_offset) %
+                 izanagi_backoff_trace_capacity];
+         std::cout
+-            << "IZANAGI_BACKOFF_TRACE v=1 seq="
++            << "IZANAGI_BACKOFF_TRACE v=2 seq="
+             << izanagi_backoff_trace_item.izanagi_backoff_trace_seq
+             << " tsc="
+             << izanagi_backoff_trace_item.izanagi_backoff_trace_tsc
+             << " window_us="
+             << izanagi_backoff_trace_item.izanagi_backoff_trace_window_us
+             << " window_commits="
+             << izanagi_backoff_trace_item.izanagi_backoff_trace_window_commits
+             << " trigger="
+             << izanagi_backoff_trace_item.izanagi_backoff_trace_trigger
+             << " backoff_before="
+             << izanagi_backoff_trace_item.izanagi_backoff_trace_backoff_before
+             << " backoff_after="
+             << izanagi_backoff_trace_item.izanagi_backoff_trace_backoff_after
+             << " gradient_sign="
+             << izanagi_backoff_trace_item.izanagi_backoff_trace_gradient_sign
+             << " step_us="
+             << izanagi_backoff_trace_item.izanagi_backoff_trace_step_us
+             << " ceiling_us="
+             << izanagi_backoff_trace_item.izanagi_backoff_trace_ceiling_us
+             << " ceiling_changed="
+             << izanagi_backoff_trace_item.izanagi_backoff_trace_ceiling_changed
+             << " parity_branch="
+             << izanagi_backoff_trace_item.izanagi_backoff_trace_parity_branch
++            << " recommended_delta_sign="
++            << izanagi_backoff_trace_item
++                   .izanagi_backoff_trace_recommended_delta_sign
++            << " assigned_invert="
++            << izanagi_backoff_trace_item
++                   .izanagi_backoff_trace_assigned_invert
++            << " inversion_realized="
++            << izanagi_backoff_trace_item
++                   .izanagi_backoff_trace_inversion_realized
++            << " both_actions_feasible="
++            << izanagi_backoff_trace_item
++                   .izanagi_backoff_trace_both_actions_feasible
+             << '\n';
+       }
+-      std::cout << "IZANAGI_BACKOFF_TRACE_SUMMARY v=1 updates="
++      std::cout << "IZANAGI_BACKOFF_TRACE_SUMMARY v=2 updates="
+                 << izanagi_backoff_trace_updates
+                 << " retained=" << izanagi_backoff_trace_retained
+                 << " dropped=" << izanagi_backoff_trace_dropped << '\n';
+     }
+   };
+   alignas(64) static izanagi_backoff_trace_state
+       izanagi_backoff_trace_state_;
+ #endif
+ 
+   Backoff(size_t clocks_per_us) { init(clocks_per_us); }
+ 
+   void init(size_t clocks_per_us) {
+     last_time_ = rdtscp();
+     clocks_per_us_ = clocks_per_us;
+ #if BACKOFF_COUNT_WINDOW > 0
+     last_count_check_time_ = last_time_;
+ #endif
+   }
+ 
+   bool check_update_backoff_at(uint64_t now,
+                                [[maybe_unused]] uint64_t committed_txs) {
+ #if BACKOFF_COUNT_WINDOW > 0
+     const uint64_t elapsed = now - last_time_;
+     if (elapsed < clocks_per_us_ * kUpdateBackoffUs)
+       return false;
+     const size_t cap_us =
+         kCountCapUs == 0 ? kUpdateBackoffUs : kCountCapUs;
+     if (committed_txs - last_committed_txs_ >= kCountWindow ||
+         elapsed >= clocks_per_us_ * cap_us)
+       return true;
+     else
+       return false;
+ #else
+     if (chkClkSpan(last_time_, now, clocks_per_us_ * kUpdateBackoffUs))
+       return true;
+     else
+       return false;
+ #endif
+   }
+ 
+@@ -257,220 +301,298 @@ public:
+     double backoff_diff = new_backoff - last_backoff_;
+ 
+     uint64_t committed_diff = committed_txs - last_committed_txs_;
+     double committed_tput = static_cast<double>(committed_diff) /
+                             (static_cast<double>(time_diff) / clocks_per_us_) *
+                             pow(10.0, 6);
+     double committed_tput_diff = committed_tput - last_committed_tput_;
+ 
+     last_committed_txs_ = committed_txs;
+     last_committed_tput_ = committed_tput;
+     last_backoff_ = new_backoff;
+     /*
+     cout << "=====" << endl;
+     cout << "committed_tput_diff:\t" <<
+     static_cast<int64_t>(committed_tput_diff) << endl; cout <<
+     "last_backoff_:\t" << last_backoff_ << endl; cout << "backoff_diff:\t" <<
+     backoff_diff << endl;
+     */
+ 
+     double gradient;
+     if (backoff_diff != 0)
+       gradient = committed_tput_diff / backoff_diff;
+     else
+       gradient = 0;
+ 
+ #if BACKOFF_STEP_ADAPT || BACKOFF_DYN_CEILING || BACKOFF_TRACE
+     const int gradient_sign = (gradient > 0) - (gradient < 0);
+ #endif
+ #if BACKOFF_TRACE
+     const double izanagi_backoff_trace_backoff_before = new_backoff;
+     const uint64_t izanagi_backoff_trace_window_us =
+         time_diff / clocks_per_us_;
+     const uint64_t izanagi_backoff_trace_window_commits = committed_diff;
+ #if BACKOFF_COUNT_WINDOW > 0
+     const int izanagi_backoff_trace_trigger =
+         committed_diff >= kCountWindow ? 1 : 2;
+ #else
+     const int izanagi_backoff_trace_trigger = 0;
+ #endif
+     int izanagi_backoff_trace_parity_branch = -1;
++    int izanagi_backoff_trace_assigned_invert = 0;
+ #endif
+ #if BACKOFF_STEP_ADAPT
+     if (has_last_gradient_sign_) {
+       if (gradient_sign != 0 && gradient_sign == last_gradient_sign_)
+         adaptive_step_ = adaptive_step_ * 2 > kStepMax
+                              ? kStepMax
+                              : adaptive_step_ * 2;
+       else
+         adaptive_step_ = adaptive_step_ / 2 < kStepMin
+                              ? kStepMin
+                              : adaptive_step_ / 2;
+     }
+     last_gradient_sign_ = gradient_sign;
+     has_last_gradient_sign_ = true;
+ #endif
+ #if BACKOFF_DYN_CEILING
+     [[maybe_unused]] const uint64_t old_ceiling = ceiling_;
+     if (new_backoff == ceiling_) {
+       if (gradient_sign < 0) {
+         const uint64_t halved_ceiling = ceiling_ / 2;
+         ceiling_ = halved_ceiling < 50 ? 50 : halved_ceiling;
+       } else if (gradient_sign > 0) {
+         const uint64_t doubled_ceiling = ceiling_ * 2;
+         ceiling_ = doubled_ceiling > kMaxBackoff
+                        ? static_cast<uint64_t>(kMaxBackoff)
+                        : doubled_ceiling;
+       }
+     }
+ #endif
+ 
++#if BACKOFF_STEP_POLICY > 0
++    const double izanagi_backoff_step_policy_origin = new_backoff;
++#endif
++
+ #if BACKOFF_STEP_ADAPT
+     if (gradient < 0)
+       new_backoff -= adaptive_step_;
+     else if (gradient > 0)
+       new_backoff += adaptive_step_;
+     else {
+       if ((committed_txs & 1) == 0 ||
+ #if BACKOFF_DYN_CEILING
+           new_backoff == ceiling_)
+ #else
+           new_backoff == kMaxBackoff)
+ #endif
+         new_backoff -= adaptive_step_;
+       else if ((committed_txs & 1) == 1 || new_backoff == kMinBackoff)
+         new_backoff += adaptive_step_;
+     }
+ #else
+     if (gradient < 0)
+       new_backoff -= kIncrBackoff;
+     else if (gradient > 0)
+       new_backoff += kIncrBackoff;
+     else {
+       if ((committed_txs & 1) == 0 ||
+ #if BACKOFF_DYN_CEILING
+           new_backoff == ceiling_) // 確率はおよそ 1/2, すなわちランダム．
+ #else
+           new_backoff == kMaxBackoff) // 確率はおよそ 1/2, すなわちランダム．
+ #endif
+         new_backoff -= kIncrBackoff;
+       else if ((committed_txs & 1) == 1 || new_backoff == kMinBackoff)
+         new_backoff += kIncrBackoff;
+     }
+ #endif
+ 
++#if BACKOFF_TRACE
++    const double izanagi_backoff_trace_recommended_delta =
++        new_backoff - izanagi_backoff_trace_backoff_before;
++    const int izanagi_backoff_trace_recommended_delta_sign =
++        (izanagi_backoff_trace_recommended_delta > 0) -
++        (izanagi_backoff_trace_recommended_delta < 0);
++    const double izanagi_backoff_trace_inverse_candidate =
++        izanagi_backoff_trace_backoff_before -
++        izanagi_backoff_trace_recommended_delta;
++#if BACKOFF_DYN_CEILING
++    const double izanagi_backoff_trace_clamp_ceiling = ceiling_;
++#else
++    const double izanagi_backoff_trace_clamp_ceiling = kMaxBackoff;
++#endif
++    const int izanagi_backoff_trace_both_actions_feasible =
++        new_backoff >= kMinBackoff &&
++                new_backoff <= izanagi_backoff_trace_clamp_ceiling &&
++                izanagi_backoff_trace_inverse_candidate >= kMinBackoff &&
++                izanagi_backoff_trace_inverse_candidate <=
++                    izanagi_backoff_trace_clamp_ceiling
++            ? 1
++            : 0;
++#endif
++
++#if BACKOFF_STEP_POLICY == 1
++    const double izanagi_backoff_step_policy_delta =
++        new_backoff - izanagi_backoff_step_policy_origin;
++    new_backoff =
++        izanagi_backoff_step_policy_origin - izanagi_backoff_step_policy_delta;
++#if BACKOFF_TRACE
++    izanagi_backoff_trace_assigned_invert = 1;
++#endif
++#elif BACKOFF_STEP_POLICY == 2
++    backoff_step_policy_state_ =
++        backoff_step_policy_state_ * 6364136223846793005ULL +
++        1442695040888963407ULL;
++    const int izanagi_backoff_step_policy_invert =
++        static_cast<int>((backoff_step_policy_state_ >> 63) & 1ULL);
++#if BACKOFF_TRACE
++    izanagi_backoff_trace_assigned_invert =
++        izanagi_backoff_step_policy_invert;
++#endif
++    if (izanagi_backoff_step_policy_invert == 1) {
++      const double izanagi_backoff_step_policy_delta =
++          new_backoff - izanagi_backoff_step_policy_origin;
++      new_backoff = izanagi_backoff_step_policy_origin -
++                    izanagi_backoff_step_policy_delta;
++    }
++#endif
++
+     if (new_backoff < kMinBackoff)
+       new_backoff = kMinBackoff;
+ #if BACKOFF_DYN_CEILING
+     else if (new_backoff > ceiling_)
+       new_backoff = ceiling_;
+ #else
+     else if (new_backoff > kMaxBackoff)
+       new_backoff = kMaxBackoff;
++#endif
++#if BACKOFF_TRACE
++    const double izanagi_backoff_trace_applied_delta =
++        new_backoff - izanagi_backoff_trace_backoff_before;
++    const int izanagi_backoff_trace_inversion_realized =
++        izanagi_backoff_trace_assigned_invert == 1 &&
++                izanagi_backoff_trace_recommended_delta_sign != 0 &&
++                izanagi_backoff_trace_applied_delta ==
++                    -izanagi_backoff_trace_recommended_delta
++            ? 1
++            : 0;
+ #endif
+     Backoff_.store(new_backoff, std::memory_order_release);
+ #if BACKOFF_TRACE
+     if (gradient == 0) {
+       if ((committed_txs & 1) == 0 ||
+ #if BACKOFF_DYN_CEILING
+           izanagi_backoff_trace_backoff_before == ceiling_)
+ #else
+           izanagi_backoff_trace_backoff_before == kMaxBackoff)
+ #endif
+         izanagi_backoff_trace_parity_branch = 0;
+       else
+         izanagi_backoff_trace_parity_branch = 1;
+     }
+ #if BACKOFF_STEP_ADAPT
+     const double izanagi_backoff_trace_step_us = adaptive_step_;
+ #else
+     const double izanagi_backoff_trace_step_us = kIncrBackoff;
+ #endif
+ #if BACKOFF_DYN_CEILING
+     const double izanagi_backoff_trace_ceiling_us = ceiling_;
+     const int izanagi_backoff_trace_ceiling_changed =
+         ceiling_ == old_ceiling ? 0 : 1;
+ #else
+     const double izanagi_backoff_trace_ceiling_us = kMaxBackoff;
+     const int izanagi_backoff_trace_ceiling_changed = 0;
+ #endif
+     izanagi_backoff_trace_record_update(
+         now, izanagi_backoff_trace_window_us,
+         izanagi_backoff_trace_window_commits, izanagi_backoff_trace_trigger,
+         izanagi_backoff_trace_backoff_before, new_backoff, gradient_sign,
+         izanagi_backoff_trace_step_us, izanagi_backoff_trace_ceiling_us,
+         izanagi_backoff_trace_ceiling_changed,
+-        izanagi_backoff_trace_parity_branch);
++        izanagi_backoff_trace_parity_branch,
++        izanagi_backoff_trace_recommended_delta_sign,
++        izanagi_backoff_trace_assigned_invert,
++        izanagi_backoff_trace_inversion_realized,
++        izanagi_backoff_trace_both_actions_feasible);
+ #endif
+   }
+ 
+ #if BACKOFF_TRACE
+   static void izanagi_backoff_trace_record_update(
+       uint64_t izanagi_backoff_trace_tsc,
+       uint64_t izanagi_backoff_trace_window_us,
+       uint64_t izanagi_backoff_trace_window_commits,
+       int izanagi_backoff_trace_trigger,
+       double izanagi_backoff_trace_backoff_before,
+       double izanagi_backoff_trace_backoff_after,
+       int izanagi_backoff_trace_gradient_sign,
+       double izanagi_backoff_trace_step_us,
+       double izanagi_backoff_trace_ceiling_us,
+       int izanagi_backoff_trace_ceiling_changed,
+-      int izanagi_backoff_trace_parity_branch) {
++      int izanagi_backoff_trace_parity_branch,
++      int izanagi_backoff_trace_recommended_delta_sign,
++      int izanagi_backoff_trace_assigned_invert,
++      int izanagi_backoff_trace_inversion_realized,
++      int izanagi_backoff_trace_both_actions_feasible) {
+     izanagi_backoff_trace_state& izanagi_backoff_trace_state =
+         izanagi_backoff_trace_state_;
+     izanagi_backoff_trace_record& izanagi_backoff_trace_slot =
+         izanagi_backoff_trace_state.izanagi_backoff_trace_ring[
+             izanagi_backoff_trace_state.izanagi_backoff_trace_write];
+     izanagi_backoff_trace_slot = {
+         izanagi_backoff_trace_state.izanagi_backoff_trace_updates,
+         izanagi_backoff_trace_tsc,
+         izanagi_backoff_trace_window_us,
+         izanagi_backoff_trace_window_commits,
+         izanagi_backoff_trace_trigger,
+         izanagi_backoff_trace_backoff_before,
+         izanagi_backoff_trace_backoff_after,
+         izanagi_backoff_trace_gradient_sign,
+         izanagi_backoff_trace_step_us,
+         izanagi_backoff_trace_ceiling_us,
+         izanagi_backoff_trace_ceiling_changed,
+-        izanagi_backoff_trace_parity_branch};
++        izanagi_backoff_trace_parity_branch,
++        izanagi_backoff_trace_recommended_delta_sign,
++        izanagi_backoff_trace_assigned_invert,
++        izanagi_backoff_trace_inversion_realized,
++        izanagi_backoff_trace_both_actions_feasible};
+     izanagi_backoff_trace_state.izanagi_backoff_trace_write =
+         (izanagi_backoff_trace_state.izanagi_backoff_trace_write + 1) %
+         izanagi_backoff_trace_capacity;
+     ++izanagi_backoff_trace_state.izanagi_backoff_trace_updates;
+     if (izanagi_backoff_trace_state.izanagi_backoff_trace_retained <
+         izanagi_backoff_trace_capacity)
+       ++izanagi_backoff_trace_state.izanagi_backoff_trace_retained;
+     else
+       ++izanagi_backoff_trace_state.izanagi_backoff_trace_dropped;
+   }
+ #endif
+ 
+   static void backoff(size_t clocks_per_us) {
+     uint64_t start(rdtscp()), stop;
+     double now_backoff = Backoff_.load(std::memory_order_acquire);
+ 
+     // printf("clocks_per_us * now_backoff:\t%lu\n",
+     // static_cast<uint64_t>(static_cast<double>(clocks_per_us) * now_backoff));
+     for (;;) {
+       _mm_pause();
+       stop = rdtscp();
+       if (chkClkSpan(start, stop,
+                      static_cast<uint64_t>(static_cast<double>(clocks_per_us) *
+                                            now_backoff)))
+         break;
+     }
+   }
+ };
+ 
+ #if BACKOFF_TRACE
+ inline Backoff::izanagi_backoff_trace_state
+     Backoff::izanagi_backoff_trace_state_{};
+ #endif
+ 
+ [[maybe_unused]] inline void
+ leaderBackoffWork([[maybe_unused]] Backoff& backoff,
+                   [[maybe_unused]] std::vector<Result>& res) {
+ #if BACKOFF_COUNT_WINDOW > 0
+   const uint64_t gate_now = rdtscp();
+   if (!backoff.check_count_window_at(gate_now))

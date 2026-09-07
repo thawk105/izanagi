@@ -1,0 +1,162 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 180,
+  "timeout_seconds": 1200,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "M1-unconditional-approval-append",
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/floor_campaign.sh",
+          "old": "if [[ \"$OFFICIAL_APPROVAL_BOUND\" -eq 1 ]]; then\n  driver_argv+=(\n    --confirm-official-floor-run\n  )\nfi\n",
+          "new": "driver_argv+=(\n  --confirm-official-floor-run\n)\n"
+        }
+      ]
+    },
+    {
+      "id": "M2-double-approval-append",
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/floor_campaign.sh",
+          "old": "  driver_argv+=(\n    --confirm-official-floor-run\n  )\nfi\n",
+          "new": "  driver_argv+=(\n    --confirm-official-floor-run\n    --confirm-official-floor-run\n  )\nfi\n"
+        }
+      ]
+    },
+    {
+      "id": "M3-drop-public-gate",
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "    if mode == \"official\":\n        _assert_official_permitted(mode, confirm_official_floor_run)\n    authority_root = ROOT if repo_root is None else Path(repo_root)\n",
+          "new": "    authority_root = ROOT if repo_root is None else Path(repo_root)\n"
+        }
+      ]
+    },
+    {
+      "id": "M4-drop-private-core-gate",
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "    _assert_official_permitted(mode, confirm_official_floor_run)\n\n    if not isinstance(freeze_doc, _freeze_io.VerifiedFreeze):\n",
+          "new": "\n    if not isinstance(freeze_doc, _freeze_io.VerifiedFreeze):\n"
+        }
+      ]
+    },
+    {
+      "id": "M5-truthy-approval",
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "    if mode == \"official\" and confirm_official_floor_run is not True:\n",
+          "new": "    if mode == \"official\" and not confirm_official_floor_run:\n"
+        }
+      ]
+    },
+    {
+      "id": "M6-drop-empty-approval-branch",
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/floor_campaign.sh",
+          "old": "  if [[ -z \"$IZANAGI_CONFIRM_OFFICIAL_FLOOR_RUN\" ]]; then\n    write_failure 2 submit_binding \\\n      \"IZANAGI_CONFIRM_OFFICIAL_FLOOR_RUN is set but empty\"\n    exit 2\n  fi\n",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "id": "M7-drop-nonce-mismatch-branch",
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/floor_campaign.sh",
+          "old": "  if [[ \"$IZANAGI_CONFIRM_OFFICIAL_FLOOR_RUN\" != \"$IZANAGI_SUBMISSION_NONCE\" ]]; then\n    write_failure 2 submit_binding \\\n      \"IZANAGI_CONFIRM_OFFICIAL_FLOOR_RUN must exactly match IZANAGI_SUBMISSION_NONCE\"\n    exit 2\n  fi\n",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "id": "M8-driver-mode-back-to-pilot",
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/floor_campaign.sh",
+          "old": "  --mode official\n  --protocol \"$REPO_ROOT/$PROTOCOL_PATH\"\n",
+          "new": "  --mode pilot\n  --protocol \"$REPO_ROOT/$PROTOCOL_PATH\"\n"
+        }
+      ]
+    },
+    {
+      "id": "M9-drop-submitter-approval-guard",
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_floor.sh",
+          "old": "if [[ \"$DRY_RUN\" -eq 0 && \"$CONFIRM_OFFICIAL_FLOOR_RUN\" -ne 1 ]]; then\n  echo \"real official floor submission requires --confirm-official-floor-run\" >&2\n  exit 2\nfi\n\n",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "id": "M10-drop-cli-refusal",
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "    if args.mode == \"official\" and args.confirm_official_floor_run is not True:\n",
+          "new": "    if args.mode == \"official\" and args.confirm_official_floor_run is None:\n"
+        }
+      ]
+    },
+    {
+      "id": "M11-drop-generation-rejection",
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_freeze.py",
+          "old": "    present = sorted(GENERATION_SCHEMA_FIELDS & set(doc))\n    if present:\n",
+          "new": "    present = []\n    if present:\n"
+        }
+      ]
+    }
+  ]
+}

@@ -531,6 +531,13 @@
   (`< /dev/null` を明示) を反映しないまま残っており、codex consult 子が
   「Reading additional input from stdin...」で無言停止 (.done 未生成) する事故を実測した。
   DW-O01 の定型へ `< /dev/null` を明記して閉じる。
+
+- **再発: 2026-09-07** — 子の producer script を包む runner shell が外側から落とされ、
+  `.done` が書かれないまま子だけが正常完走した。receipt は `outcome=accepted` /
+  `stop_reason=completed` / `codex_exit_code=0` / `validator_rc=0` で、成果物は
+  `attempt-0001.output.md` に残っていた。`.done` 不在を子の失敗と読むと、完走した 410 秒・
+  22 model call を捨てて投げ直すことになる。**`.done` が無いときは receipt と attempt file を
+  先に見る。** 本 wave では attempt file から成果物を回収して先へ進めた。
 ### F24. サブプロセス完了検知をログ本文 grep に頼り誤検知 — 偽完了 2 回 + 空振りタイムアウト 2 回 [手順漏れ]
 - 事象: codex exec のバッチ監視で「tokens used」等の完了マーカーをログ全文 (のち末尾 2KB) から
   grep したところ、子が読んだファイル内容 (過去ログの逐語凍結、さらに**この落とし穴を記した handoff
@@ -4527,6 +4534,18 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   必ず同時に持ち込む。本 wave の後続 focus / fix prompt はこの 3 点
   (冒頭の防御目的と自チーム文脈、手口の段取りを被覆の記述へ置換、依頼の動詞を「確認せよ」へ)
   で書き換えて rc=0 で完走した。差分は working tree に残るため、再投入でやり直さず回収して継続する。
+
+- **再発: 2026-09-07** — 同じ署名 (rc=1・出力 0 bytes) を **author 子**で観測した。原因は flag では
+  なく model call 上限で、`stop_reason=max_model_calls` / `codex_exit_code=-15` /
+  `failure_class=f45_missing_output` (100 call・1587 秒)。**この型が既存 3 件と決定的に違うのは、
+  報告が 0 bytes でも所有 9 file の編集が完全に残っていたことである** — 親が blob hash 照合で
+  確認した。既存の再発検知 (「events 末尾の `turn.failed` で flag か上限かを切り分ける」) は
+  consult / review 子だけを名指ししていたため、author / fix 子に適用する動機が弱かった。
+  恒久対応の追加: 対象を author / fix 子へ広げ、**上限による中断と分かった場合は再投入の前に
+  所有 file を base commit の blob hash と照合する** (`sha1("blob <len>\0" + bytes)` を自 worktree で
+  計算して `ls-tree` の値と比べる)。完成していれば再投入せず回収し、完成度の確定を段 6 の
+  レビューへ渡す (`DW-O01` の「中断子は未完了と記して保全し、次の子に監査させる」の実行形)。
+  重い巡では `--max-model-calls` を先に上げる。
 ### F103. 背景 job の codex 子を detach せずに起動し、tool call の終了に巻き込まれて消えた [手順漏れ]
 
 - 事象: 段 2 の plan 子を `bash run-stage2.sh` として背景 Bash tool で起動したところ、
@@ -10983,6 +11002,18 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 2 サイクル目の投入前に `status --lease-dir <dir> --wave <slug> --json` を 1 回実行し、
   `state` が `held` かつ `main_sha` が現行 main と異なれば解放漏れである。
 
+
+- **再発: 2026-09-07** — 今回は `land rc=0` の後ではなく、land が
+  `status=rejected` / `release_safe=false` を返して**意図的に lease を保持した**経路で起きた
+  (`lease_release state=retained reason=land-result-not-release-safe`)。
+  修正後の受入再投入が `stage=claim-self-unverified rc=70` で 1 回空振りした。
+  F344 の恒久対応は「`land rc=0` の直後に release する」であり、**land が成功しなかった経路を
+  覆っていない。** land が `landed` / `already-landed` 以外を返して lease を保持したまま
+  受入を取り直すときは、投入前に
+  `python3 tools/wave_land_window.py status --lease-dir <dir> --wave <slug> --json` を 1 回実行し、
+  `state=held` かつ `main_sha` が現行 main と異なれば
+  `python3 tools/wave_land_window.py release --lease-dir <dir> --wave <slug>` で解放してから
+  投入する。同じ検知手順が F344 の再発検知節に既にある。
 ### F345. 生きた成果物から導出した hash の literal pin が path 検索にも値検索にも掛からず、実走でだけ露見した [手順漏れ]
 
 - 事象: 8c 事前登録の証拠契約を改訂する wave で、親は着手前に pin 閉包を取った。成果物 path で
@@ -22372,3 +22403,104 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   git 起動回数・5 種のフォールバック条件での挙動 (変更が検出されること) を固定する。
 - 再発検知: 上記の性能モデルテストは、静かなフォールバック (速くなったつもり) と
   検出力の低下 (速さのための緩め) の両方を赤にする。
+
+### F864. 生成器の出力を固定する pin を、対象 file 自身の path 検索と hex literal 検索が取り逃した [閉包漏れ] [near miss]
+
+- 事象: 親が段 1 で pin 閉包を引き、対象 3 file への path 参照と 64 桁 hex literal を検索して
+  「bytes を pin する凍結 manifest・golden は不在」と brief に書いた。実際には fixture 生成器の
+  **出力**を固定する凍結 snapshot (`orchestrator/tests/reflux_origin_fixture_baseline.json`) と
+  golden literal 4 個 (`orchestrator/tests/test_reflux_result_evidence.py`) が実在し、
+  合計 7 個の値が変更で stale になる状態だった。段 2 のプランと段 3 の 2 レンズが独立に検出した。
+- 根本原因: 検索の起点を「変更する file」に置き、「その file の関数が返す値を hash して pin している
+  箇所」へ辿らなかった。この種の pin は対象 file の path でも、変更前後どちらの hash 値でも引けない。
+  生成物に path が無い (in-memory で作られる) 場合は、DW-O09 が言う成果物 path 検索がそもそも
+  空振りする。
+- 恒久対応: 依存グラフを起点にした引き直しを memory `closure-and-search-discipline` へ追記した。
+  引き方は、変更する生成関数の全 caller を辿り、その戻り値に hash / 長さ / canonical bytes を
+  適用している箇所を列挙する。値でも path でも引けないため、caller 追跡だけが見つける。
+- 再発検知: 本 wave では段 2 と段 3 の 2 レンズが 3 者独立に検出した。閉包の再検査を段 3 のレンズへ
+  明示的に入れる (「まだ他にあるはずだと疑え」と 4 通りの独立な引き方を指定する) 形が発火した。
+
+### F865. 防護を足す変更が、無関係な既存の防護対象を弱めた [受理集合の後退] [検査 corpus の穴]
+
+- 事象: 発行主体 subtree の防護を `perf` の出力先判定へ足した際、出力値を後段の既存判定から
+  除外したため、**末端でない既存の防護対象**が `perf` の出力先として通るようになった。
+  退化した形は 6 つ (official / exploration の campaign tree、exploration の namespace marker、
+  `hooks/` 配下 2 本、ccbench)。拒否だけを増やすはずの変更が既存の拒否を解いており、規律 2 に
+  直接触れる。
+- 根本原因: 出力 option とその値の index を記録して後段の走査から除く実装にしたが、
+  除く前の直接検査が末端判定と新しい発行主体判定しか見ていなかった。末端でない既存の防護 tree が
+  どちらの網にも掛からない隙間に落ちた。
+- **検査が取り逃した理由**: 親が D428 の反転検査を回したが、corpus 61 件に
+  「既存の防護対象を `perf` の出力先に取る形」が 1 件も入っていなかった。反転検査は仕組みとして
+  正しく動いたが、入力集合が薄かった。見つけたのは段 6 の敵対レビューである。
+- 恒久対応: `orchestrator/tests/test_hooks.py` の
+  `test_t2146_guard_bash_perf_output_keeps_all_protected_trees_denied` が、3 つの option 形について
+  発行主体と既存の防護対象 5 種の拒否を固定する。変異 `mf1-perf-existing-tree` (この判定を無効化)
+  が本走で KILLED になることを実測し、歯が立っていることを確かめた。
+- 再発検知: 上記テストと変異。加えて D1718 が
+  「既存対象が持つ性質だけを足す」線を引いており、既存判定を迂回する実装はこの線から外れる。
+- 併せて記録する対の教訓: **D428 の反転検査は corpus の広さが命である。**
+  受理集合を変える wave では、変更した分岐が触る**既存の防護対象すべて**を corpus に入れる。
+  「発行主体だけを対象にした corpus」は、まさに今回の型を構造的に見逃す。
+
+### F866. guard 編集用の第 2 worktree が、自分自身の変更で施錠されて fix を適用できなくなった [作業場の自己施錠] [手順漏れ]
+
+- 事象: D427 の経路で第 2 worktree に `guard_write` の新版 (発行主体判定入り) を commit した後、
+  段 6 の fix 子を同じ worktree へ投入したところ、`hooks/` への apply_patch が自己保護で拒否され、
+  fix を適用できなかった。子は迂回を試みず「原因と修正案は特定したが未適用」と正しく報告して
+  止まった (この挙動自体は正しい fail-closed)。
+- 根本原因: `guard_write` に hooks 判定が入った瞬間から、その worktree でも `hooks/` 配下が
+  どのツールからも編集できなくなる。D427 は経路を定めるが、「第 2 worktree も 1 度きりで
+  使い切りになる」ことは書いていない。
+- 恒久対応: `hooks/README.md` の「guard 自身の保守境界」へ運用知見 3 点として記録した
+  (D1719)。修正が要るときは `guard_write` に判定が入る前の commit から
+  fix 用 branch を作って作業場を復活させる。本 wave では実際にこの手順で復旧し、
+  復旧後の worktree で `hooks/` への apply_patch が通ることを実測してから再投入した。
+- 再発検知: 同じ状況に入った子は apply_patch の拒否で必ず止まる (fail-closed)。
+  親が README の 3 点を読めば復旧手順が引ける。
+
+### F867. 行番号で sink を照合する台帳が実装 fix のたびに失効し、変異 baseline を 2 度落とした [手順漏れ]
+
+- 事象: `orchestrator/tests/test_ccbench_spawn_sites.py` の deferred gate 台帳が赤になった。
+  段 6 の 1 回目の fix で行番号を当て直したが、その後の別の fix が同じ driver へ 127 行足したため
+  **再び失効**し、変異本走が baseline 赤 (`status=FAILED`) で中止した。
+- 根本原因: この台帳は sink を `path・kind・scope・line` の**完全一致**で照合する。行番号は
+  対象 file の行数が変わるだけで動くので、その file を触る fix が 1 つ入るたびに失効する。
+  親は初回の赤を「新しい define が新しい build sink を作った」と誤って帰属し、段 6 のレビューに
+  訂正された (実際は同一 sink の移動で、件数の差も新 define 2 本が同じ sink で到達不能になった分)。
+- 恒久対応: 行番号 pin を持つ台帳の追随は、**その file を触る実装 fix をすべて終えた後に、
+  最後の 1 回として当てる**。fix を 1 本入れるたびに当て直さない。帰属を書く前に、増えた組が
+  新しい sink か既存 sink の移動かを現物で数えて確かめる。
+- 再発検知: 変異本走の直前に、変異と同じ argv で baseline を 1 回実走して緑を確認する
+  (harness も baseline 緑を要求するが、その中止は 25 変異ぶんの待ち時間の後に来る)。
+
+### F868. 変異 spec の置き場所と field 集合で本走が 2 度 rc=2 で中止した [手順漏れ]
+
+- 事象: (a) repo 内へ commit した変異 spec をそのまま `--spec` に渡したところ
+  `runtime artifact は試験対象 checkout 外でなければならない: --spec` で中止した。
+  (b) probe の観測で期待集合を確定させた版に 1 行の `note` field を足したところ
+  `mutations[0] の field 集合が不正: missing=[], unknown=['note']` で中止した。
+- 根本原因: harness は runtime artifact が試験対象 checkout の外にあることを要求し、
+  変異 entry の field 集合を完全一致で検査する。どちらも `DW-M05` / `DW-M07` に記載が無く、
+  親は前 wave の spec の**中身**だけを手本にして置き場所と field 契約を確かめなかった。
+  spec を書いた子は harness を走らせられないので、どちらも実行時まで露見しない。
+- 恒久対応: 記録用の現物は repo 内に commit し、**走行には checkout 外へ写した同一 bytes を渡す**
+  (sha256 は同じなので `--expected-spec-sha256` はそのまま使える)。注記は spec の field ではなく
+  別 file (`mutation-notes.md` 等) に置く。
+- 再発検知: spec を書き終えた時点で `--plan-only` を 1 回通し、置き場所と field 契約を
+  25 変異ぶんの待ち時間の前に確かめる。
+- 記載場所: `docs/dev-wave/mutation.md` の L1.5 byte 予算が満杯 (追記で 9908 > 9696) だったため、
+  安全義務を削らずに本台帳へ置いた。
+
+### F869. 計算ノード用実行体を bash に渡す指示を親が書き、fix 子が防壁拒否で不受理になった [手順漏れ]
+
+- 事象: 親が fix 子へ「投入スクリプトを実際に bash で走らせて分類を確かめよ」と指示した。
+  子は `bash -n tools/pegasus/probes/<name>.pbs` を実行しようとして
+  `[guard_bash] 拒否: Pegasus dispatch-required 実行体` で止まり、その子は `not_accepted` で終わった。
+- 根本原因: 機械防壁は dispatch-required 実行体の path が bash の引数に現れるだけで拒否する。
+  構文検査だけの `-n` でも同じである。親はその射程を確かめずに指示を書いた。
+- 恒久対応: 実挙動の歯が要るときは、**判定に関わる行の塊を現物から逐語で抜き出し、別名の script
+  として書き出して実行し、抜き出しが現物の逐語部分列であることを同じテストで固定する**。
+  防壁を迂回する書き方 (別 path へ copy して同名で叩く、絶対 path で呼ぶ) は取らない。
+- 再発検知: 子へ「実際に走らせて確かめよ」と書く前に、その対象が防壁の管轄下にないかを親が確かめる。

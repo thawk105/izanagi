@@ -1,0 +1,27 @@
+# Mutation notes
+
+- M1-policy-seed-ifdef: probe の観測完全集合は事前登録した完全集合と一致した。
+- M2-policy-cache-default-one: probe の観測完全集合は事前登録した完全集合と一致した。
+- M3-policy-definition-outside-function: policy define の関数外移動が実 patch の適用と public certification・group receipt の検証経路にも連動した。
+- M4-policy-one-keeps-recommendation: probe の観測完全集合は事前登録した完全集合と一致した。
+- M5-inversion-after-clamp: clamp 後への反転移動が policy 2 の LCG 前進検査にも連動した。
+- M6-inversion-only-with-step-adapt: probe の観測完全集合は事前登録した完全集合と一致した。
+- M7-policy-two-condition-zero: probe の観測完全集合は事前登録した完全集合と一致した。
+- M8-lcg-addend-minus-five: probe の観測完全集合は事前登録した完全集合と一致した。
+- M9-lcg-skips-special-updates: probe の観測完全集合は事前登録した完全集合と一致した。
+- M10-recommendation-aliases-gradient: probe の観測完全集合は事前登録した完全集合と一致した。
+- M11-realized-uses-sign-only: 実現判定の符号比較化が反転位置検査と両腕 feasible 判定にも連動した。
+- M12-feasibility-after-assignment: probe の観測完全集合は事前登録した完全集合と一致した。
+- M13-v2-emitter-drops-feasibility-field: probe の観測完全集合は事前登録した完全集合と一致した。
+- M14-emitter-renames-assigned-field: probe の観測完全集合は事前登録した完全集合と一致した。
+- M15-parser-rejects-runtime-twelve-field-cells: driver の行数変化で付随発火する層。単独変異の独立証拠には数えない。
+- M16-grid-omits-step-policy: driver の行数変化で付随発火する層。単独変異の独立証拠には数えない。
+- M17-document-ignores-policy-key-presence: driver の行数変化で付随発火する層。単独変異の独立証拠には数えない。
+- M18-python-drops-counterfactual-trace-literal: driver の行数変化で付随発火する層。単独変異の独立証拠には数えない。
+- M19-pbs-counterfactual-literal-byte-drift: probe の観測完全集合は事前登録した完全集合と一致した。
+- M20-pbs-classifies-only-eleven-fields: probe の観測完全集合は事前登録した完全集合と一致した。
+- M21-patch-stack-omits-c: driver の行数変化で付随発火する層。単独変異の独立証拠には数えない。
+- M22-counterfactual-performance-schema-v2: probe の観測完全集合は事前登録した完全集合と一致した。
+- M23-registry-drops-policy-seed: probe の観測完全集合は事前登録した完全集合と一致した。
+- M24-plot-rejects-ab-stack: probe の観測完全集合は事前登録した完全集合と一致した。
+- M25-equivalent-comment-wording: probe の観測完全集合は事前登録した完全集合と一致した。

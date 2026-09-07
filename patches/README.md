@@ -256,6 +256,45 @@ HEAD と逐語比較するため)。CMake option 7 つ (既定はすべて stock
 - driver は既存の `tools/pegasus/probes/t2187_adaptive_const_probe.py` / `.pbs` (拡張 cell 書式 11 field、`--backoff-trace`
   の診断 mode、certify の exact 2 値)。事前登録は `docs/dynamic-backoff-preregistration.md`。
 
+## cicada-adaptive-counterfactual.patch — 方向的中の反実仮想対照 (合成 variant, D18 第 3 類, [T-2265])
+
+**C = `cicada-adaptive-counterfactual.patch`** は **pin `511c9538` + A + B を当てた木だけを preimage
+とし、B の上に重ねる** (pin 単独にも pin+A にも当たらない)。触るのは A / B と同じ
+`cmake/Options.cmake` と `include/backoff.hh` の 2 file で、**`#include` 行を 1 行も足さない**。
+CMake option は 2 つ (既定はどちらも stock 同値、`#ifndef ... #error` で欠落を止める)。
+
+| option | 既定 | 意味 |
+|---|---|---|
+| `CCBENCH_BACKOFF_STEP_POLICY` | 0 | 0 = stock / 1 = 常に反転 / 2 = 更新ごとに 1/2 で無作為に反転。`static_assert` で 0/1/2 に限る |
+| `CCBENCH_BACKOFF_STEP_POLICY_SEED` | 11400714819323198485 | policy 2 の決定的 LCG の種。`STEP_POLICY != 2` のとき inert |
+
+- **反転点は 1 箇所。** `#if BACKOFF_STEP_ADAPT` 枝と非 `STEP_ADAPT` 枝の共通の出口の後、clamp の前。
+  反転するのは `new_backoff` に付いた差分の符号だけで、parity 分岐 (`gradient == 0`) が選んだ一歩も含む。
+- **真の勾配のまま更新するもの:** 窓の発火判定・勾配・`adaptive_step_`・`last_gradient_sign_`・`ceiling_`。
+- policy 2 の割当は `state = state * 6364136223846793005 + 1442695040888963407 (mod 2^64)` の bit 63。
+  勾配 0・推奨差分 0・clamp のときも毎更新で進める。既定 seed の最初の 16 割当は `0111001000100110`
+  (実装を読まずに式から独立再計算して一致を確認)。
+- **診断 trace は v=2 へ上がる** (`#if BACKOFF_TRACE` の中だけ。規律 1)。既存 12 項目の書式と順序は
+  変えず、`recommended_delta_sign` / `assigned_invert` / `inversion_realized` / `both_actions_feasible`
+  の 4 項目を足す。**`both_actions_feasible` は割当を適用する前**に pre-state から求める
+  (`inversion_realized` での層別は処置後選択になり偏るため、偏らない副解析の材料を先に残す)。
+  driver の parser は v=1 と v=2 を版ごとの連言で受理し、混在・版不一致・項目欠け・余分な項目を拒否する。
+- cell 書式は 5 / 11 field を不変のまま **12 field** を足す (12 番目 = `step_policy` ∈ {0,1,2})。
+  11 field と明示 policy 0 の 12 field は identity 上も区別する。
+- 診断走行の exact 述語には **2 本目の literal** を足した (Python と `.pbs` の 2 層に同じもの)。
+  **正しさゲート (認証の exact 2 cell 契約、A の hard pin、既存の逐語 pin) は 1 byte も変えていない。**
+  診断入力の受理集合は exact literal 1 本ぶんの**制御された拡張**であり、「緩めていない」とは言わない。
+- 登録簿: 2 define は `orchestrator/campaign/condition_meaning_gate.py` の `DefineSpec`
+  (patch_rel = C) と `screening_driver.py` の `_CONDITION_DEFAULTS` に登録。
+- patch stack は A → B → C の exact 順序。C を含む走行の artifact は schema v3 とし、
+  反実仮想 literal の走行には `counterfactual_preregistration: "pending"` を記録する
+  (旧事前登録が新しい実験を覆っているように見せないため)。
+- **科学的な限界:** policy 1 と policy 0 は別走行で最初の更新から軌跡が分岐するので、
+  答えられるのは「制御器が選んだ向きの方策全体が throughput に効くか」までであり、
+  **同一軌跡上の反実仮想ではない。** policy 2 が同一 pre-state の対照に近づくが、
+  **[T-2265] wave では一切測定していない** (F660 により機構の着地と実測を分けた)。
+  一次資料は `output/insights/2026-09-07_t2265-backoff-counterfactual/README.md`。
+
 ## variant-*.patch — coder 編集の固定 (Phase 3)
 
 coder (LLM) の EVOLVE-BLOCK 編集を orchestrator が diff 監査のうえ patch 化したもの
