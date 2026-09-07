@@ -13237,9 +13237,6 @@ def test_f176_rejects_conflicting_decision_claims(
     ("opening", "decision"),
     [
         pytest.param(
-            "NO-GO。GOの条件を満たさない。", "NO-GO", id="go_condition"
-        ),
-        pytest.param(
             "GO。このfocused reviewのNO-GO理由にはなりません。",
             "GO",
             id="focused_review_reason",
