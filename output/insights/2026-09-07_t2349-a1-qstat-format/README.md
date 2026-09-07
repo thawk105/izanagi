@@ -158,6 +158,24 @@ kill 期待を本走前に登録していた。最終台帳で M4 は KILLED (�
 - **実装子と fix 子は pytest を実走できていない** (`tools/run_tests.py` が
   `NQSconnect: [API EACCTAUTH] Unknown user-id` で rc=16)。上記は親の実走結果である。
 
+## 8.1 受入全走で 1 件赤 — 行番号 pin の閉包漏れ (親の手順ミス)
+
+初回の受入全走は **21044 passed / 1 failed** で rc=70 (`reason=child-verdict`) になった。
+落ちたのは
+`orchestrator/tests/test_ccbench_spawn_sites.py::test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink`。
+
+- 原因: 同 file の deferred gate 台帳が `paper_story_a1_paired.py` の
+  `<module>.run_measurement` 内 campaign sink を **行番号 7103 で pin** していた。本 wave の driver 変更は
+  net +43 行で、同じ sink (`summary = run_campaign(`) は 7146 行へ動いた。sink 自体は同一である。
+- **本 wave の変更に帰属する赤であり、非帰属赤ではない。**
+- **なぜ着手前の DW-O09 pin 閉包で拾えなかったか:** `git grep 'paper_story_a1_paired\.py'` は
+  この参照を含んでいたが、親が出力を `| head -40` で打ち切っており、
+  `acceptance_duration_ledger.json` の多数 entry に押し出されて視野に入らなかった。
+  **件数を確かめずに検索結果を切ったこと**が原因である。path 検索そのものは正しかった。
+- 対処: Codex `role=author` が台帳 literal と同テストの期待集合の 2 箇所を 7146 へ更新した
+  (親が別に実測した値と一致)。行番号以外 (owner / reason / sink_kind / sink_scope / 他 entry) は
+  変更していない。焦点走 `test_ccbench_spawn_sites.py` 44 passed。その後に受入を取り直した。
+
 ## 9. 本 wave が主張しないこと
 
 **「A-1 が bench へ到達する」とは主張しない。** 閉じたのは F852 の投入 blocker と、
