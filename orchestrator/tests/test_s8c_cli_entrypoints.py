@@ -1,12 +1,18 @@
 # -*- coding: utf-8 -*-
-"""Real-process regression tests for the stage 8c CLI entrypoints."""
+"""Real-process regression tests for the stage 8c CLI entrypoints.
+
+These tests pin CLI/library transport equivalence, not decision semantics;
+the existing predicate and invariant tests own semantic correctness.
+"""
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import sys
 from pathlib import Path
+from unittest import mock
 
 import pytest
 
@@ -26,21 +32,46 @@ _TINY_REPO_FILES = (
     P.PROJECTION_MODULE_PATH,
     P.EVIDENCE_CONTRACT_PATH,
 )
+_ENV_ALLOWLIST = (
+    "LANG",
+    "LC_ALL",
+    "LC_CTYPE",
+    "PATH",
+    "SYSTEMROOT",
+    "TMPDIR",
+    "TZ",
+)
 
 
-def _git(repo_root: Path, *args: str) -> str:
+def _git(repo_root: Path, env: dict[str, str], *args: str) -> str:
     completed = subprocess.run(
         ["git", *args],
         cwd=repo_root,
         check=True,
         capture_output=True,
         text=True,
+        env=env,
     )
     return completed.stdout.strip()
 
 
 @pytest.fixture(scope="module")
-def tiny_repo(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, str]:
+def closed_environment() -> dict[str, str]:
+    env = {key: os.environ[key] for key in _ENV_ALLOWLIST if key in os.environ}
+    env.update({
+        "GIT_CONFIG_GLOBAL": os.devnull,
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_NO_REPLACE_OBJECTS": "1",
+        "GIT_OPTIONAL_LOCKS": "0",
+    })
+    return env
+
+
+@pytest.fixture(scope="module")
+def tiny_repo(
+    tmp_path_factory: pytest.TempPathFactory,
+    closed_environment: dict[str, str],
+) -> tuple[Path, str]:
     repo_root = tmp_path_factory.mktemp("s8c-cli-tiny-repo")
     for relative_path in _TINY_REPO_FILES:
         source = _ROOT / relative_path
@@ -48,10 +79,11 @@ def tiny_repo(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, str]:
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(source, destination)
 
-    _git(repo_root, "init", "-q")
-    _git(repo_root, "add", "-A")
+    _git(repo_root, closed_environment, "init", "-q")
+    _git(repo_root, closed_environment, "add", "-A")
     _git(
         repo_root,
+        closed_environment,
         "-c",
         "user.email=s8c-cli@example.invalid",
         "-c",
@@ -61,23 +93,52 @@ def tiny_repo(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, str]:
         "-m",
         "s8c CLI fixture",
     )
-    commit = _git(repo_root, "rev-parse", "--verify", "HEAD^{commit}")
+    commit = _git(
+        repo_root, closed_environment, "rev-parse", "--verify", "HEAD^{commit}"
+    )
+
+    (repo_root / "HEAD_ONLY.txt").write_text(
+        "This file is unrelated to the stage 8c evaluation inputs.\n",
+        encoding="utf-8",
+    )
+    _git(repo_root, closed_environment, "add", "-A")
+    _git(
+        repo_root,
+        closed_environment,
+        "-c",
+        "user.email=s8c-cli@example.invalid",
+        "-c",
+        "user.name=S8C CLI test",
+        "commit",
+        "-q",
+        "-m",
+        "advance fixture HEAD",
+    )
+    head = _git(
+        repo_root, closed_environment, "rev-parse", "--verify", "HEAD^{commit}"
+    )
+    assert head != commit
     return repo_root, commit
 
 
 @pytest.fixture(scope="module")
-def oracle(tiny_repo: tuple[Path, str]) -> P.ActivationReport:
+def oracle(
+    tiny_repo: tuple[Path, str],
+    closed_environment: dict[str, str],
+) -> P.ActivationReport:
+    """Evaluate once per worker: once serially, at most four times under xdist."""
     repo_root, commit = tiny_repo
-    for relative_path in (
-        P.CORE_MODULE_PATH,
-        P.EVALUATOR_MODULE_PATH,
-        P.PROJECTION_MODULE_PATH,
-    ):
-        assert P.read_blob_at(repo_root, commit, relative_path) == (
-            _ROOT / relative_path
-        ).read_bytes()
+    with mock.patch.dict(os.environ, closed_environment, clear=True):
+        for relative_path in (
+            P.CORE_MODULE_PATH,
+            P.EVALUATOR_MODULE_PATH,
+            P.PROJECTION_MODULE_PATH,
+        ):
+            assert P.read_blob_at(repo_root, commit, relative_path) == (
+                _ROOT / relative_path
+            ).read_bytes()
 
-    report = P.activation_report_at(repo_root, commit)
+        report = P.activation_report_at(repo_root, commit)
     reasons = tuple(item.reason_code for item in report.predicates)
     assert len(reasons) == 12
     assert len(set(reasons)) > 1
@@ -87,6 +148,7 @@ def oracle(tiny_repo: tuple[Path, str]) -> P.ActivationReport:
         or reason.endswith("-absent-at-commit")
         for reason in reasons
     )
+    assert report.effective is False
     return report
 
 
@@ -104,6 +166,7 @@ def test_cli_entrypoint_matches_library_report(
     invocation: str,
     tiny_repo: tuple[Path, str],
     oracle: P.ActivationReport,
+    closed_environment: dict[str, str],
 ) -> None:
     repo_root, commit = tiny_repo
     if kind == "prereg":
@@ -149,6 +212,7 @@ def test_cli_entrypoint_matches_library_report(
         check=False,
         capture_output=True,
         text=True,
+        env=closed_environment,
     )
     payload = json.loads(completed.stdout)
     expected_predicates = tuple(
