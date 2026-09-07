@@ -193,7 +193,7 @@ def _physical_residual_provenance() -> dict[str, object]:
 def _spec_dict() -> dict[str, object]:
     patch_sha = _sha(_patch_bytes())
     return {
-        "schema_version": "izanagi-b10-backoff-shape-preregistration/v4",
+        "schema_version": "izanagi-b10-backoff-shape-preregistration/v5",
         "artifacts": {
             "patch_sha256": patch_sha,
             "formula_sha256": B.FORMULA_SHA256,
@@ -390,13 +390,31 @@ def _prior_block_record(
     return prereg, row
 
 
+def _legacy_v4_preregistration_binding_literal() -> dict[str, str]:
+    return {
+        "prereg_commit": "77b33e37d2d63b1f83d10652792c3c93eba9fe8f",
+        "prereg_blob_sha": "ea910de32df83c1bb320cbe62344dc5fb3b94684",
+        "spec_sha256": "9c59411476018d510c8fc5d57f203920ccd3b216e6c5f341ce6b97e45041a7c2",
+        "patch_sha256": "36cd974c56c6f103d894a53048ac734d9859def266c05898d3794d2c48470832",
+        "formula_sha256": "5b3d8deefed35d05597891592d7af442c96b2fa094cdebc8376b2e9bc9cd7662",
+    }
+
+
 def _legacy_adapter_records(
     tmp_path: Path,
 ) -> tuple[B.Preregistration, list[dict[str, object]]]:
     prereg, template = _prior_block_record(tmp_path)
     template.pop("execution_host")
     template["source_commit"] = B.LEGACY_WRITE_HEAVY_ANALYSIS_COMMIT
-    template["preregistration_binding"] = B._legacy_write_heavy_binding(prereg)
+    template["preregistration_binding"] = {
+        **_legacy_v4_preregistration_binding_literal(),
+        "analysis_commit": B.LEGACY_WRITE_HEAVY_ANALYSIS_COMMIT,
+        "analysis_code_sha256": B.LEGACY_WRITE_HEAVY_ANALYSIS_SHA256,
+        "binding_sha256": B.LEGACY_WRITE_HEAVY_BINDING_SHA256,
+    }
+    template["spec_sha256"] = _legacy_v4_preregistration_binding_literal()[
+        "spec_sha256"
+    ]
     template["analysis_commit"] = B.LEGACY_WRITE_HEAVY_ANALYSIS_COMMIT
     template["analysis_code_sha256"] = B.LEGACY_WRITE_HEAVY_ANALYSIS_SHA256
     template["correctness_certified"] = True
@@ -428,14 +446,13 @@ def _legacy_balanced_adapter_records(
     template["workload"] = "balanced"
     template["source_commit"] = B.LEGACY_BALANCED_ANALYSIS_COMMIT
     template["preregistration_binding"] = {
-        "prereg_commit": prereg.binding.prereg_commit,
-        "prereg_blob_sha": prereg.binding.prereg_blob_sha,
-        "spec_sha256": prereg.binding.spec_sha256,
-        "patch_sha256": prereg.binding.patch_sha256,
-        "formula_sha256": prereg.binding.formula_sha256,
+        **_legacy_v4_preregistration_binding_literal(),
         "analysis_code_sha256": B.LEGACY_BALANCED_ANALYSIS_SHA256,
         "binding_sha256": B.LEGACY_BALANCED_BINDING_SHA256,
     }
+    template["spec_sha256"] = _legacy_v4_preregistration_binding_literal()[
+        "spec_sha256"
+    ]
     template["analysis_commit"] = B.LEGACY_BALANCED_ANALYSIS_COMMIT
     template["analysis_code_sha256"] = B.LEGACY_BALANCED_ANALYSIS_SHA256
     template["correctness_certified"] = True
@@ -470,14 +487,13 @@ def _legacy_read_heavy_adapter_records(
     template["workload"] = "read-heavy"
     template["source_commit"] = B.LEGACY_READ_HEAVY_ANALYSIS_COMMIT
     template["preregistration_binding"] = {
-        "prereg_commit": prereg.binding.prereg_commit,
-        "prereg_blob_sha": prereg.binding.prereg_blob_sha,
-        "spec_sha256": prereg.binding.spec_sha256,
-        "patch_sha256": prereg.binding.patch_sha256,
-        "formula_sha256": prereg.binding.formula_sha256,
+        **_legacy_v4_preregistration_binding_literal(),
         "analysis_code_sha256": B.LEGACY_READ_HEAVY_ANALYSIS_SHA256,
         "binding_sha256": B.LEGACY_READ_HEAVY_BINDING_SHA256,
     }
+    template["spec_sha256"] = _legacy_v4_preregistration_binding_literal()[
+        "spec_sha256"
+    ]
     template["analysis_commit"] = B.LEGACY_READ_HEAVY_ANALYSIS_COMMIT
     template["analysis_code_sha256"] = B.LEGACY_READ_HEAVY_ANALYSIS_SHA256
     template["correctness_certified"] = True
@@ -922,7 +938,7 @@ def test_m14_dormant_cpp_code2_mixer_must_match_registered_symmetric_mixer():
         1,
     )
     assert mutated_line != B.EXPECTED_HOLE_LINE
-    # Code 2 is absent from the v4 grid, Holm families, and throughput report.
+    # Code 2 is absent from the v5 grid, Holm families, and throughput report.
     # This checks only compatibility of the byte-pinned formula's dormant code-2
     # branch with the registered symmetric branch's mixer.
     _expect_code("mixer", lambda: B.validate_formula_contract(mutated_line))
@@ -939,7 +955,7 @@ def test_dormant_cpp_code2_pair_average_is_exact_for_alternate_odd_mixer(
     )
     binary = _compile_expression(tmp_path, mutated_line, "alternate_odd_mixer")
     inverse = pow(B.MIXER, -1, 1 << 64)
-    # Dormant code 2 is byte-pinned C++ compatibility, not a registered v4 shape.
+    # Dormant code 2 is byte-pinned C++ compatibility, not a registered v5 shape.
     encoded = 2025
     for low in range(1000):
         starts = (
@@ -1127,10 +1143,16 @@ def test_analysis_commit_drift_is_resumable_but_analysis_code_drift_is_not(
     )
 
 
-def test_p06_canonical_v4_machine_spec_and_runtime_residual_are_accepted():
+def test_p06_canonical_v5_machine_spec_hashes_and_runtime_residual_are_accepted():
     spec = B.parse_preregistration(
         (ROOT / B.PREREG_REL).read_bytes(),
     )
+    assert spec.patch_sha256 == hashlib.sha256(
+        (ROOT / "patches/silo-backoff-fixed.patch").read_bytes(),
+    ).hexdigest()
+    assert spec.formula_sha256 == hashlib.sha256(
+        B.EXPECTED_HOLE_LINE.encode("utf-8"),
+    ).hexdigest()
     assert spec.means_us == B.MEANS_US
     assert tuple(name for name, _code, _support in spec.shapes) == (
         "constant", "symmetric-modulo",
@@ -1178,7 +1200,7 @@ def test_p06_canonical_v4_machine_spec_and_runtime_residual_are_accepted():
         == pytest.approx(0.5616942857142844)
 
 
-def test_v4_spec_including_binary_shape_is_rejected():
+def test_v5_spec_including_binary_shape_is_rejected():
     B.parse_preregistration(_prereg_doc())
     mutated = copy.deepcopy(_spec_dict())
     mutated["grid"]["shapes"].append({
@@ -1260,10 +1282,10 @@ def test_registration_rules_values_are_checked_exactly():
     )
 
 
-def test_schema_v3_document_is_rejected_after_v4_positive_control():
+def test_schema_v4_document_is_rejected_after_v5_positive_control():
     B.parse_preregistration(_prereg_doc())
     mutated = copy.deepcopy(_spec_dict())
-    mutated["schema_version"] = "izanagi-b10-backoff-shape-preregistration/v3"
+    mutated["schema_version"] = "izanagi-b10-backoff-shape-preregistration/v4"
     _expect_code("prereg-spec", lambda: B.parse_preregistration(_prereg_doc(mutated)))
 
 
@@ -1884,6 +1906,16 @@ def test_e3de15eb_legacy_adapter_enforces_injected_exact_digest_set(
     assert len(frozen_digests) == len(set(frozen_digests)) == 45
     assert "ceeb007ffca91a254bc261e2ff2e8b2f3255edd07d5e5409b47a2d8900496349" \
         in frozen_digests
+    expected_binding = {
+        **_legacy_v4_preregistration_binding_literal(),
+        "analysis_commit": B.LEGACY_WRITE_HEAVY_ANALYSIS_COMMIT,
+        "analysis_code_sha256": B.LEGACY_WRITE_HEAVY_ANALYSIS_SHA256,
+        "binding_sha256": B.LEGACY_WRITE_HEAVY_BINDING_SHA256,
+    }
+    assert B._legacy_write_heavy_binding(prereg) == expected_binding
+    assert records[0]["preregistration_binding"] == expected_binding
+    assert prereg.binding.patch_sha256 != expected_binding["patch_sha256"]
+    assert prereg.spec.spec_sha256 != records[0]["spec_sha256"]
     B._require_legacy_record_digests(frozen_digests)
     assert len(records) == len(expected_digests) == 45
     indexed = B._validate_legacy_write_heavy_records(
@@ -1905,6 +1937,31 @@ def test_e3de15eb_legacy_adapter_enforces_injected_exact_digest_set(
         "legacy-record",
         lambda: B._validate_legacy_write_heavy_records(
             mutated,
+            campaign_id=B.LEGACY_WRITE_HEAVY_CAMPAIGN_ID,
+            prereg=prereg,
+            expected_record_digests=expected_digests,
+        ),
+    )
+
+
+def test_e3de15eb_legacy_adapter_rejects_current_v5_patch_binding(
+    tmp_path: Path,
+):
+    prereg, records = _legacy_adapter_records(tmp_path)
+    changed = records[0]
+    old_digest = changed["record_sha256"]
+    mixed_binding = dict(changed["preregistration_binding"])
+    mixed_binding["patch_sha256"] = prereg.binding.patch_sha256
+    assert mixed_binding["patch_sha256"] \
+        != _legacy_v4_preregistration_binding_literal()["patch_sha256"]
+    changed["preregistration_binding"] = mixed_binding
+    _rehash_record(changed)
+    expected_digests = {row["record_sha256"] for row in records}
+    assert changed["record_sha256"] != old_digest
+    _expect_code(
+        "legacy-record",
+        lambda: B._validate_legacy_write_heavy_records(
+            records,
             campaign_id=B.LEGACY_WRITE_HEAVY_CAMPAIGN_ID,
             prereg=prereg,
             expected_record_digests=expected_digests,
@@ -1941,9 +1998,10 @@ def test_143a3f74_balanced_adapter_accepts_only_pinned_series(tmp_path: Path):
     assert meta_digest \
         == "8e5f0b48ba9e635e3d0e4e6c9c312c7436008dbe1a34f91a5763300920c37bad"
     binding = B._legacy_balanced_binding(prereg)
-    assert set(binding) == {
-        "prereg_commit", "prereg_blob_sha", "spec_sha256", "patch_sha256",
-        "formula_sha256", "analysis_code_sha256", "binding_sha256",
+    assert binding == {
+        **_legacy_v4_preregistration_binding_literal(),
+        "analysis_code_sha256": B.LEGACY_BALANCED_ANALYSIS_SHA256,
+        "binding_sha256": B.LEGACY_BALANCED_BINDING_SHA256,
     }
     assert "analysis_commit" not in binding
     indexed = B._validate_legacy_balanced_records(
@@ -2074,11 +2132,14 @@ def test_acf840c8_read_heavy_adapter_accepts_only_pinned_series(tmp_path: Path):
     assert meta_digest \
         == "27195442abce632ffae7a7241abd3cd8e765fe63fb590a62a37d4166049400c8"
     binding = B._legacy_read_heavy_binding(prereg)
-    assert set(binding) == {
-        "prereg_commit", "prereg_blob_sha", "spec_sha256", "patch_sha256",
-        "formula_sha256", "analysis_code_sha256", "binding_sha256",
+    assert binding == {
+        **_legacy_v4_preregistration_binding_literal(),
+        "analysis_code_sha256": B.LEGACY_READ_HEAVY_ANALYSIS_SHA256,
+        "binding_sha256": B.LEGACY_READ_HEAVY_BINDING_SHA256,
     }
     assert "analysis_commit" not in binding
+    assert prereg.binding.patch_sha256 != binding["patch_sha256"]
+    assert prereg.spec.spec_sha256 != records[0]["spec_sha256"]
     indexed = B._validate_legacy_read_heavy_records(
         records,
         campaign_id=B.LEGACY_READ_HEAVY_CAMPAIGN_ID,
@@ -2090,6 +2151,31 @@ def test_acf840c8_read_heavy_adapter_accepts_only_pinned_series(tmp_path: Path):
     assert all(
         re.fullmatch(r"[0-9a-f]{12}", str(row["variant_id"])) is not None
         for row in indexed.values()
+    )
+
+
+def test_acf840c8_read_heavy_adapter_rejects_current_v5_patch_binding(
+    tmp_path: Path,
+):
+    prereg, records = _legacy_read_heavy_adapter_records(tmp_path)
+    changed = records[0]
+    old_digest = changed["record_sha256"]
+    mixed_binding = dict(changed["preregistration_binding"])
+    mixed_binding["patch_sha256"] = prereg.binding.patch_sha256
+    assert mixed_binding["patch_sha256"] \
+        != _legacy_v4_preregistration_binding_literal()["patch_sha256"]
+    changed["preregistration_binding"] = mixed_binding
+    _rehash_record(changed)
+    expected_digests = {row["record_sha256"] for row in records}
+    assert changed["record_sha256"] != old_digest
+    _expect_code(
+        "legacy-record",
+        lambda: B._validate_legacy_read_heavy_records(
+            records,
+            campaign_id=B.LEGACY_READ_HEAVY_CAMPAIGN_ID,
+            prereg=prereg,
+            expected_record_digests=expected_digests,
+        ),
     )
 
 
@@ -2115,26 +2201,30 @@ def test_acf840c8_frozen_read_heavy_records_match_production_contract():
         == B.LEGACY_READ_HEAVY_RECORD_SHA256S
 
     frozen_preregistration = provenance["preregistration"]
-    frozen_spec = B.parse_preregistration(
-        _prereg_doc(frozen_preregistration["spec"]),
-    )
+    frozen_spec = frozen_preregistration["spec"]
+    assert frozen_spec["schema_version"] \
+        == "izanagi-b10-backoff-shape-preregistration/v4"
+    assert B._sha256_json(frozen_spec) \
+        == frozen_preregistration["spec_sha256"]
     frozen_binding = B.PreregistrationBinding(
         frozen_preregistration["prereg_commit"],
         frozen_preregistration["prereg_blob_sha"],
-        frozen_spec.spec_sha256,
-        frozen_spec.patch_sha256,
-        frozen_spec.formula_sha256,
+        frozen_preregistration["spec_sha256"],
+        frozen_preregistration["patch_sha256"],
+        frozen_preregistration["formula_sha256"],
         B.LEGACY_READ_HEAVY_ANALYSIS_COMMIT,
         B.LEGACY_READ_HEAVY_ANALYSIS_SHA256,
     )
-    frozen_prereg = B.Preregistration(
-        frozen_binding, B.PREREG_REL, frozen_spec,
+    current_prereg = B.Preregistration(
+        _binding(), B.PREREG_REL, _spec(),
     )
-    expected_binding = B._legacy_read_heavy_binding(frozen_prereg)
+    expected_binding = B._legacy_read_heavy_binding(current_prereg)
     assert set(expected_binding) == {
         "prereg_commit", "prereg_blob_sha", "spec_sha256", "patch_sha256",
         "formula_sha256", "analysis_code_sha256", "binding_sha256",
     }
+    assert current_prereg.binding.patch_sha256 \
+        != expected_binding["patch_sha256"]
     assert expected_binding == {
         key: frozen_preregistration[key] for key in expected_binding
     }
@@ -2919,6 +3009,36 @@ def test_p03_legacy_zero_through_999_is_numerically_identical():
         assert B.exact_model(value, (1 << 64) - 1) == Fraction(value)
 
 
+def test_legacy_encoded_shape_ranges_keep_their_closed_forms():
+    starts = (0, 1, 17, B._MASK64)
+    for encoded in range(1000, 2000):
+        mean_us = encoded % 1000
+        for start in starts:
+            mixed = (start * 0x9E3779B97F4A7C15) & B._MASK64
+            high = mixed >> 63
+            low = mixed & ((1 << 63) - 1)
+            residue = low % (2 * mean_us + 1)
+            offset = 2 * mean_us - residue if high else residue
+            assert B.exact_model(encoded, start) == Fraction(mean_us + offset, 2)
+    for encoded in range(2000, 3000):
+        mean_us = encoded % 1000
+        for start in starts:
+            high = ((start * 0x9E3779B97F4A7C15) & B._MASK64) >> 63
+            assert B.exact_model(encoded, start) == Fraction(
+                mean_us + high * 2 * mean_us, 2,
+            )
+
+
+def test_high_static_raw_values_and_exact_model_domain_are_literal_pins():
+    for encoded, expected in ((3000, 1000), (3001, 1001), (3999, 1999)):
+        assert B.exact_model(encoded, 0) == Fraction(expected)
+        assert B.exact_model(encoded, B._MASK64) == Fraction(expected)
+    assert B.exact_model(11999, 0) == Fraction(9999)
+    for invalid in (-1, True, 12000):
+        with pytest.raises(ValueError, match=r"\[0, 11999\]"):
+            B.exact_model(invalid, 0)
+
+
 def test_p04_three_reference_points_and_full_grid_are_accepted():
     refs = dict(B.reference_genomes())
     assert set(refs) == {"none", "adaptive", "zero-loop"}
@@ -2942,7 +3062,7 @@ def test_exact_finite_models_distinguish_registered_shapes_and_dormant_code2():
             B.encode("symmetric-modulo", mean_us),
             2000 + mean_us,
         )
-        # constant/symmetric are registered v4 shapes. Code 2 is retained only
+        # constant/symmetric are registered v5 shapes. Code 2 is retained only
         # as a byte-pinned dormant C++ compatibility branch.
         for low in range(1 << width):
             starts = (
@@ -3172,6 +3292,9 @@ def test_actual_patch_has_only_one_authorized_hole_line_and_exact_formula_sha():
     assert B.validate_patch_bytes(patch, _sha(patch)) == _sha(patch)
     assert patch.count(b"+" + B.EXPECTED_HOLE_LINE.encode("utf-8")) == 1
     assert hashlib.sha256(B.EXPECTED_HOLE_LINE.encode("utf-8")).hexdigest() == B.FORMULA_SHA256
+    assert B.FORMULA_SHA256 == "1205b1ffb4fa6740873f1aa1ecf50bfc484239fb74aa28464dcb2e3a19fbe8df"
+    assert B.SPACE_VERSION == "b10-backoff-shape/v3"
+    assert B.TRIAL == "b10-backoff-shape-v3"
 
 
 def test_actual_cpp_expression_compiles_with_werror_and_matches_fraction_model(tmp_path: Path):
@@ -3185,7 +3308,7 @@ def test_actual_cpp_expression_compiles_with_werror_and_matches_fraction_model(t
 
     # Independent semantic oracle: odd MIXER is a permutation. Construct y,
     # invert it to start, and pair equal low63 values with opposite high bits.
-    # symmetric-modulo is registered; code 2 is absent from the v4 grid, Holm
+    # symmetric-modulo is registered; code 2 is absent from the v5 grid, Holm
     # families, and throughput report, and remains only for byte-pinned formula
     # compatibility.
     assert B.MIXER & 1
@@ -3214,6 +3337,13 @@ def test_actual_cpp_expression_compiles_with_werror_and_matches_fraction_model(t
     for encoded in range(1000):
         assert _cpp_value(binary, encoded, 0) == Fraction(encoded)
         assert _cpp_value(binary, encoded, B._MASK64) == Fraction(encoded)
+
+    # Independent literals prevent a matching Python/C++ decoder bug from
+    # blessing the new static escape range.
+    for encoded, expected in ((3000, 1000), (3001, 1001), (3999, 1999)):
+        assert _cpp_value(binary, encoded, 0) == Fraction(expected)
+        assert _cpp_value(binary, encoded, B._MASK64) == Fraction(expected)
+        assert _cpp_value(binary, encoded, 17) == B.exact_model(encoded, 17)
 
 
 def test_t1905_m1_job_exports_official_root_and_missing_env_fails_closed(

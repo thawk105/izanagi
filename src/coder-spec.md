@@ -37,8 +37,11 @@
 ### 骨格の hole に入っている式と、coder が書ける式は別物である
 
 骨格 patch の hole には、現在 B-10 (待ち方 / 待ち量の直交切り分け) の**固定式**が入っている。
-逐語は `orchestrator/campaign/b10_backoff_shape_sweep.py` の `EXPECTED_HOLE_LINE` が正本で、
-`BACKOFF_FIXED` の千の位で待機の形を選び、0〜999 では従来の一定値と数値的に同一になる。
+逐語は `orchestrator/campaign/b10_backoff_shape_sweep.py` の `EXPECTED_HOLE_LINE` が正本である。
+`BACKOFF_FIXED` の千の位が 1 と 2 のときは待機の**形**を選び、0 のときは従来の一定値と
+数値的に同一になる。**千の位が 3 以上のときは一定値であり、待つ量は生値から 2000 を引いた値
+(物理 1000〜9999 マイクロ秒) である** (2026-09-07 更新)。したがって「千の位で待機の形を選ぶ」は
+生値 0〜2999 に限った説明である。
 
 **この式は coder が提案できる文法ではない。** 二層を混同しないこと。
 
