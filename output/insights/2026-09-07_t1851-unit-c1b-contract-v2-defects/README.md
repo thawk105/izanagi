@@ -48,13 +48,16 @@ E2 の 4 語のうち `measurement_sample_incomplete` と `measurement_dispersio
 (f) capability の権威を canonical bytes にし table membership を権威にしない、
 (g) claim v4 / `_AttemptState.mode` / core 8 surface 伝播は自発的拡張として不採用。
 
-## 5. ユーザー裁定待ち 4 件
+## 5. 未裁定だった 4 件 (**2026-09-07 に codex 2 本へ諮って決着済み**)
 
 `s4-adjudication.md` の 3 節が正本。
 (1) core の等値検査と E2 語彙の衝突をどう解くか (最重)、
 (2) `exec_failures` の出所 — campaign 側を変えるか契約側を合わせるか (計測の意味論に触る)、
 (3) 封印の信頼境界をどこに引くか (同一 process 内の module 改変を脅威に含めるか)、
 (4) C1b の単位 — 縦 1 単位で実装するか、契約 v3 だけを積んで次 wave へ送るか。
+
+**この 4 件はユーザー指示により codex 2 本 (lane sol / luna) へ諮り、親が決めた。
+裁定の正本は `rulings-resolved.md`、逐語は `verbatim/rulings-lens{A,B}.md`。着手を塞ぐものは無い。**
 
 ## 6. 親が撤回した主張
 
@@ -93,4 +96,5 @@ V6 で足した運び手 (`run_cmd` / `notes` / probe stdout) は有効で、運
 - `s4-adjudication.md` — 段 4 裁定 (正本)
 - `parent-verification.md` — 親の独立検算 V1〜V6 と V3 の撤回
 - `verbatim/` — 段 2 plan、段 3 レンズ A / B の逐語出力と各 receipt
-- `prompts/` — 3 子へ渡した prompt の逐語
+- `rulings-resolved.md` — 未裁定 4 件の裁定 (codex 2 本に諮り親が決定)
+- `prompts/` — 全 6 子へ渡した prompt の逐語
