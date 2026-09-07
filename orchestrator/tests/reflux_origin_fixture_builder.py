@@ -409,9 +409,10 @@ def build_ordered_wal_projection(**overrides) -> dict:
 def build_execution_provenance(**overrides) -> dict:
     manifest = build_authority_manifest()
     base = {
-        "schema_version": "execution-provenance/v1",
+        "schema_version": "execution-provenance/v2",
         "build_attempt_id": "fixture-build-attempt-0000",
         "campaign_id": _CAMPAIGN_ID,
+        "campaign_run_identity": "fixture-run-00000000",
         "workload": _TRIAL_WORKLOAD,
         "contract_sha256": manifest["environment_contract_sha256"],
         "trigger_binding": _trigger_binding(_SOURCE_MASK),
@@ -624,6 +625,7 @@ def _record_for_query(root: Path, query_ordinal: int, mask: int) -> dict:
     )
     provenance = build_execution_provenance(
         build_attempt_id=attempt,
+        campaign_run_identity=f"fixture-run-{query_ordinal:08x}",
         trigger_binding=_trigger_binding(mask),
         execution_receipt_sha256=_label_sha256(
             f"execution-receipt-{query_ordinal:04d}"
