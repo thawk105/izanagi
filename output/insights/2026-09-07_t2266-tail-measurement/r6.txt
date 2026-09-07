@@ -1,0 +1,37 @@
+旧 model: izanagi-t2216-backoff-walk/v2 2026-09-02T20:02:28.990426Z
+
+== write-heavy
+旧較正の末端 2 点: 50 µs 2,910,478 tps / 100 µs 2,353,026 tps、log 勾配 -0.0042523 /µs、100 µs の abort 0.1374
+| b (µs) | 旧 model 外挿 (tps) | 実測 5 rep 平均 (tps) | 外挿/実測 | 実測 abort 率 |
+| --- | ---: | ---: | ---: | ---: |
+| 150 | 1,902,344 | 2,049,534 | 0.928 | 0.1128 |
+| 200 | 1,537,983 | 1,849,492 | 0.832 | 0.0976 |
+| 300 | 1,005,255 | 1,590,852 | 0.632 | 0.0796 |
+| 500 | 429,463 | 1,309,859 | 0.328 | 0.0610 |
+| 750 | 148,333 | 1,112,250 | 0.133 | 0.0495 |
+| 999 | 51,451 | 992,863 | 0.052 | 0.0424 |
+入力 report: /work/1/SFC/tanab/b10-backoff-grid-runs6/b10-backoff-grid-20260906T181718Z-1158057-write-heavy/campaigns/t2266-backoff-static-tail-silo-write-heavy-sweep-9cce192b/reports/t2266-backoff-static-tail-write-heavy.json
+
+== balanced
+旧較正の末端 2 点: 50 µs 2,427,678 tps / 100 µs 1,865,202 tps、log 勾配 -0.00527132 /µs、100 µs の abort 0.1729
+| b (µs) | 旧 model 外挿 (tps) | 実測 5 rep 平均 (tps) | 外挿/実測 | 実測 abort 率 |
+| --- | ---: | ---: | ---: | ---: |
+| 150 | 1,433,048 | 1,587,861 | 0.903 | 0.1453 |
+| 200 | 1,101,021 | 1,411,488 | 0.780 | 0.1280 |
+| 300 | 649,928 | 1,195,115 | 0.544 | 0.1061 |
+| 500 | 226,467 | 960,241 | 0.236 | 0.0833 |
+| 750 | 60,629 | 812,127 | 0.075 | 0.0679 |
+| 999 | 16,317 | 721,214 | 0.023 | 0.0586 |
+入力 report: /work/1/SFC/tanab/b10-backoff-grid-runs6/b10-backoff-grid-20260906T181718Z-1158057-balanced/campaigns/t2266-backoff-static-tail-silo-balanced-sweep-0ffee20c/reports/t2266-backoff-static-tail-balanced.json
+
+== read-heavy
+旧較正の末端 2 点: 50 µs 5,631,740 tps / 100 µs 4,442,242 tps、log 勾配 -0.00474519 /µs、100 µs の abort 0.0640
+| b (µs) | 旧 model 外挿 (tps) | 実測 5 rep 平均 (tps) | 外挿/実測 | 実測 abort 率 |
+| --- | ---: | ---: | ---: | ---: |
+| 150 | 3,503,981 | 3,815,756 | 0.918 | 0.0546 |
+| 200 | 2,763,894 | 3,400,664 | 0.813 | 0.0486 |
+| 300 | 1,719,652 | 2,871,506 | 0.599 | 0.0410 |
+| 500 | 665,701 | 2,309,855 | 0.288 | 0.0327 |
+| 750 | 203,272 | 1,937,139 | 0.105 | 0.0272 |
+| 999 | 62,364 | 1,709,480 | 0.036 | 0.0237 |
+入力 report: /work/1/SFC/tanab/b10-backoff-grid-runs6/b10-backoff-grid-20260906T181718Z-1158057-read-heavy/campaigns/t2266-backoff-static-tail-silo-read-heavy-sweep-7e90afbe/reports/t2266-backoff-static-tail-read-heavy.json
