@@ -1973,7 +1973,12 @@ def test_counterfactual_stack_artifacts_use_schema_v3() -> None:
         rep_index=0,
         reps_per_job=1,
         extime=3,
-    ) == {"schema_version": probe.SCHEMA_VERSION}
+    ) == {
+        "schema_version": probe.SCHEMA_VERSION,
+        "not_certified": (
+            "trace-disabled performance runs only; no serializability check was run"
+        ),
+    }
     assert probe._artifact_contract_metadata(
         backoff_trace=True,
         cells_text=TRACE_CELLS,
@@ -1982,7 +1987,12 @@ def test_counterfactual_stack_artifacts_use_schema_v3() -> None:
         rep_index=0,
         reps_per_job=1,
         extime=3,
-    ) == {"schema_version": probe.TRACE_SCHEMA_VERSION}
+    ) == {
+        "schema_version": probe.TRACE_SCHEMA_VERSION,
+        "not_certified": (
+            "trace-enabled diagnostic runs only; no serializability check was run"
+        ),
+    }
     assert set(probe.CERT_CLAIMS) == set(probe.CERT_CELLS)
     assert probe.CERT_CLAIMS[probe.CERT_TUNED_CELL] == probe.ALLOWED_GROUP_CLAIM
     assert "cw-as-dyn" in probe.CERT_CLAIMS[probe.CERT_DYNAMIC_CELL]
@@ -2012,7 +2022,57 @@ def test_legacy_v2_performance_artifact_remains_readable(tmp_path: Path) -> None
             {
                 "schema_version": probe.LEGACY_SCHEMA_VERSION,
                 "kind": "performance-only-probe",
-                "not_certified": probe.NOT_CERTIFIED,
+                "not_certified": (
+                    "trace-disabled performance runs only; "
+                    "no serializability check was run"
+                ),
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    assert probe._performance_artifact_identity(
+        artifact, hashlib.sha256(artifact.read_bytes()).hexdigest()
+    ) == {
+        "path": str(artifact.resolve(strict=True)),
+        "sha256": hashlib.sha256(artifact.read_bytes()).hexdigest(),
+    }
+
+
+def test_not_certified_text_is_mode_specific_without_changing_performance_identity(
+    tmp_path: Path,
+) -> None:
+    common = {
+        "cells_text": TRACE_CELLS,
+        "workloads_text": "write-heavy,balanced,read-heavy",
+        "threads_text": "24,48",
+        "rep_index": 0,
+        "reps_per_job": 1,
+        "extime": 3,
+    }
+    performance = probe._artifact_contract_metadata(
+        backoff_trace=False, **common
+    )
+    diagnostic = probe._artifact_contract_metadata(
+        backoff_trace=True, **common
+    )
+    assert performance["not_certified"] == (
+        "trace-disabled performance runs only; no serializability check was run"
+    )
+    assert diagnostic["not_certified"] == (
+        "trace-enabled diagnostic runs only; no serializability check was run"
+    )
+
+    artifact = tmp_path / "performance.json"
+    artifact.write_text(
+        json.dumps(
+            {
+                "schema_version": probe.SCHEMA_VERSION,
+                "kind": "performance-only-probe",
+                "not_certified": (
+                    "trace-disabled performance runs only; "
+                    "no serializability check was run"
+                ),
             }
         )
         + "\n",
@@ -2093,6 +2153,9 @@ def test_counterfactual_artifacts_record_exact_preregistration_sha_only_on_exact
     }
     assert probe._artifact_contract_metadata(**exact) == {
         "schema_version": probe.TRACE_SCHEMA_VERSION,
+        "not_certified": (
+            "trace-enabled diagnostic runs only; no serializability check was run"
+        ),
         "counterfactual_preregistration": expected,
     }
     assert re.fullmatch(r"[0-9a-f]{64}", expected)
