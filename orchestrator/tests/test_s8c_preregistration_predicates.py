@@ -334,52 +334,51 @@ def test_current_repository_gap_reason_snapshot_requires_cross_wave_review(
 @pytest.mark.xdist_group("s8c-predicate-snapshot")
 def test_current_repository_c04_rejects_missing_started_trial_preflight(
     tmp_path: Path,
-    real_repo_fixture_lock,
+    current_commit_snapshot: _CurrentCommitSnapshot,
 ) -> None:
-    with real_repo_fixture_lock("read", None):
-        root, head, evaluated_head, _ = _snapshot_current_commit(tmp_path)
-        current_head = _git(_ROOT, "rev-parse", "HEAD").decode("ascii").strip()
-        _require_unchanged_head(evaluated_head, current_head)
+    root, head, _, evaluated_head, _ = current_commit_snapshot
+    current_head = _git(_ROOT, "rev-parse", "HEAD").decode("ascii").strip()
+    _require_unchanged_head(evaluated_head, current_head)
 
-        baseline = _result(root, head, "C04")
-        assert baseline.status is core.PredicateStatus.EVIDENCE_UNDEFINED
-        assert baseline.reason_code == "completion-proof-not-machine-checkable"
+    baseline = _result(root, head, "C04")
+    assert baseline.status is core.PredicateStatus.EVIDENCE_UNDEFINED
+    assert baseline.reason_code == "completion-proof-not-machine-checkable"
 
-        workload_path = "orchestrator/campaign/p3_autonomous_workload_trial.py"
-        registry_path = "orchestrator/campaign/trial_registry.py"
-        workload_source = (root / workload_path).read_bytes()
-        registry_source = (root / registry_path).read_bytes()
-        started_trial_call = b"""    trial_registry.reject_started_trial(
+    workload_path = "orchestrator/campaign/p3_autonomous_workload_trial.py"
+    registry_path = "orchestrator/campaign/trial_registry.py"
+    workload_source = (root / workload_path).read_bytes()
+    registry_source = (root / registry_path).read_bytes()
+    started_trial_call = b"""    trial_registry.reject_started_trial(
         trial_id=trial_id,
         repository_root=ROOT,
         lifecycle_path=ROOT / trial_registry.DEFAULT_LIFECYCLE_PATH,
     )
 """
-        assert (
-            workload_source.count(b"trial_registry.reject_started_trial(") == 1
-        )
-        assert workload_source.count(started_trial_call) == 1
+    assert workload_source.count(b"trial_registry.reject_started_trial(") == 1
+    assert workload_source.count(started_trial_call) == 1
 
-        mutated_workload = workload_source.replace(started_trial_call, b"", 1)
-        mark_call = b"            mark_experiment_indeterminate(\n"
-        forbid_call = b"trial_registry.forbid_trial_restart("
-        assert (
-            mutated_workload.count(b"trial_registry.reject_started_trial(") == 0
-        )
-        assert workload_source.count(mark_call) >= 1
-        assert mutated_workload.count(mark_call) == workload_source.count(
-            mark_call
-        )
-        assert workload_source.count(forbid_call) == 1
-        assert mutated_workload.count(forbid_call) == 1
-        assert registry_source.count(b"def reject_started_trial(") == 1
-        assert registry_source.count(b"def forbid_trial_restart(") == 1
+    mutated_workload = workload_source.replace(started_trial_call, b"", 1)
+    mark_call = b"            mark_experiment_indeterminate(\n"
+    forbid_call = b"trial_registry.forbid_trial_restart("
+    assert mutated_workload.count(b"trial_registry.reject_started_trial(") == 0
+    assert workload_source.count(mark_call) >= 1
+    assert mutated_workload.count(mark_call) == workload_source.count(mark_call)
+    assert workload_source.count(forbid_call) == 1
+    assert mutated_workload.count(forbid_call) == 1
+    assert registry_source.count(b"def reject_started_trial(") == 1
+    assert registry_source.count(b"def forbid_trial_restart(") == 1
 
-        _write(root, workload_path, mutated_workload)
-        mutated_head = _commit(root, "C04 reject-started preflight removed")
-        result = _result(root, mutated_head, "C04")
-        assert result.status is core.PredicateStatus.UNSATISFIED
-        assert result.reason_code == "crash-policy-cell-partial"
+    mutated_root = _init_repo(tmp_path, "current-snapshot-c04-mutation")
+    tracked_paths = (
+        _git(root, "ls-tree", "-r", "--name-only", head).decode().splitlines()
+    )
+    for path in tracked_paths:
+        _write(mutated_root, path, (root / path).read_bytes())
+    _write(mutated_root, workload_path, mutated_workload)
+    mutated_head = _commit(mutated_root, "C04 reject-started preflight removed")
+    result = _result(mutated_root, mutated_head, "C04")
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "crash-policy-cell-partial"
 
 
 def test_c02_missing_registry_preserves_capability_absent_reason(
