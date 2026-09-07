@@ -279,6 +279,10 @@ def _valid_document(hashes: dict[str, str]) -> dict[str, object]:
             "stratum_upper": F.STRATUM_UPPER_ID,
             "closed_strata": [{"window_id": "window-a", "pair_id": "pair-a"}],
             "final_combiner": F.FINAL_COMBINER_ID,
+            "reference_measurements_per_pair_sample": (
+                F.REFERENCE_MEASUREMENTS_PER_PAIR_SAMPLE
+            ),
+            "difference_formula": F.DIFFERENCE_FORMULA,
         },
         "failure_policy": {
             "policy": F.FAILURE_POLICY_ID,
@@ -433,6 +437,7 @@ PUBLIC_DATACLASSES = (
     F.FailurePolicy,
     F.OutputsConfig,
     F.FloorPairSpec,
+    F.PlannedMeasurement,
     F.PlannedSession,
     F.MeasurementPlan,
     F.MeasurementRequest,
@@ -463,7 +468,50 @@ def test_module_docstring_names_limits_and_unrecorded_env_failure_is_not_a_statu
         "campaign 合算の 5% は pair 間の欠測の偏りを制限しない "
         "(stratum ごとの件数は報告する)。"
     ) in F.NOT_PROVEN
+    assert (
+        "凍結項目の一致検査は同一 revision 内の自己整合を示すだけであり、"
+        "定数が D1699 の裁定値であることを証明しない。独立な pin も "
+        "freeze receipt も無い。"
+    ) in F.NOT_PROVEN
+    assert (
+        "測定実体は module 属性であり、同一 process 内でこれを差し替える経路は防がない。"
+    ) in F.NOT_PROVEN
+    assert len(F.NOT_PROVEN) == 10
     assert "environment_mismatch" not in F.SESSION_STATUSES
+
+
+def test_all_four_semantic_schema_identifiers_are_bumped():
+    assert F.SPEC_SCHEMA == "floor-pair-spec/v3"
+    assert F.PLAN_SCHEMA == "floor-pair-plan/v2"
+    assert F.WINDOW_SCHEMA == "floor-pair-window/v3"
+    assert F.SUMMARY_SCHEMA == "floor-pair-summary/v3"
+
+
+def test_loader_rejects_v2_schema_on_v3_shaped_spec(tmp_path, monkeypatch):
+    document, _hashes = _document_only(tmp_path)
+    document["schema"] = "floor-pair-spec/v2"
+    raw = _canonical(document)
+    (tmp_path / "spec.json").write_bytes(raw)
+    _install_git(monkeypatch, tmp_path)
+    monkeypatch.setattr(
+        F.calibration_verify,
+        "load_verified_calibration",
+        lambda **kwargs: pytest.fail("v2 schema must fail before calibration"),
+    )
+
+    with pytest.raises(F.FloorPairSpecError, match="schema"):
+        F.load_frozen_spec(
+            Path("spec.json"), hashlib.sha256(raw).hexdigest(), repo_root=tmp_path
+        )
+
+
+def test_plan_v1_schema_is_rejected_with_current_plan_shape(tmp_path, monkeypatch):
+    spec, _document, _raw = _prepare_spec(tmp_path, monkeypatch)
+    plan = F.make_measurement_plan(spec)
+    stale_plan = dataclasses.replace(plan, schema="floor-pair-plan/v1")
+
+    with pytest.raises(F.FloorPairBindingError, match="canonical plan"):
+        F._assert_plan_exact(spec, stale_plan, error_type=F.FloorPairBindingError)
 
 
 REQUIRED_FIELD_PATHS = (
@@ -513,6 +561,7 @@ REQUIRED_FIELD_PATHS = (
     ("randomization", "seed_hex"),
     *(("statistics", key) for key in (
         "session_reducer", "stratum_upper", "closed_strata", "final_combiner",
+        "reference_measurements_per_pair_sample", "difference_formula",
     )),
     ("statistics", "closed_strata", 0, "window_id"),
     ("statistics", "closed_strata", 0, "pair_id"),
@@ -563,6 +612,27 @@ def test_d1641_failure_policy_is_the_only_accepted_wire_policy(
 ):
     document, _hashes = _document_only(tmp_path)
     document["failure_policy"][field] = value
+    raw = _canonical(document)
+    (tmp_path / "spec.json").write_bytes(raw)
+    _install_git(monkeypatch, tmp_path)
+    with pytest.raises(F.FloorPairSpecError, match=field):
+        F.load_frozen_spec(
+            Path("spec.json"), hashlib.sha256(raw).hexdigest(), repo_root=tmp_path
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("reference_measurements_per_pair_sample", 1),
+        ("difference_formula", "D=forged"),
+    ],
+)
+def test_frozen_pair_statistics_require_exact_module_constants(
+    tmp_path, monkeypatch, field, value
+):
+    document, _hashes = _document_only(tmp_path)
+    document["statistics"][field] = value
     raw = _canonical(document)
     (tmp_path / "spec.json").write_bytes(raw)
     _install_git(monkeypatch, tmp_path)
@@ -1016,29 +1086,62 @@ def test_mutation_11_hmac_rank_has_multiple_pair_sample_golden_order(
         Path("spec.json"), hashlib.sha256(raw).hexdigest(), repo_root=tmp_path
     )
     plan = F.make_measurement_plan(spec)
-    assert [item.session_id for item in plan.sessions] == [
+    assert [session.session_id for session in plan.sessions] == [
         "window-a.pair-a.s000000.candidate_1",
-        "window-a.pair-a.s000000.reference",
         "window-a.pair-a.s000000.candidate_2",
-        "window-a.pair-b.s000000.reference",
-        "window-a.pair-b.s000000.candidate_2",
-        "window-a.pair-b.s000000.candidate_1",
-        "window-a.pair-a.s000001.candidate_1",
-        "window-a.pair-a.s000001.candidate_2",
-        "window-a.pair-a.s000001.reference",
         "window-a.pair-b.s000001.candidate_2",
         "window-a.pair-b.s000001.candidate_1",
-        "window-a.pair-b.s000001.reference",
+        "window-a.pair-a.s000001.candidate_1",
+        "window-a.pair-a.s000001.candidate_2",
+        "window-a.pair-b.s000000.candidate_1",
+        "window-a.pair-b.s000000.candidate_2",
     ]
-    for offset in range(0, len(plan.sessions), 3):
-        sample = plan.sessions[offset:offset + 3]
-        assert len(sample) == 3
+    expected_measurement_roles = [
+        ("reference", "candidate"),
+        ("reference", "candidate"),
+        ("candidate", "reference"),
+        ("reference", "candidate"),
+        ("candidate", "reference"),
+        ("candidate", "reference"),
+        ("reference", "candidate"),
+        ("reference", "candidate"),
+    ]
+    assert [
+        tuple(measurement.role for measurement in session.measurements)
+        for session in plan.sessions
+    ] == expected_measurement_roles
+    for offset in range(0, len(plan.sessions), 2):
+        sample = plan.sessions[offset:offset + 2]
+        assert len(sample) == 2
         assert len(
             {(item.window_id, item.pair_id, item.sample_index) for item in sample}
         ) == 1
-        assert {item.role for item in sample} == set(F._ROLES)
-    assert [item.schedule_index for item in plan.sessions] == list(range(12))
-    assert len({item.session_id for item in plan.sessions}) == 12
+        assert {item.side_id for item in sample} == set(F._SIDE_IDS)
+        assert sum(
+            measurement.role == "reference"
+            for item in sample
+            for measurement in item.measurements
+        ) == F.REFERENCE_MEASUREMENTS_PER_PAIR_SAMPLE
+    assert all(
+        {measurement.role for measurement in session.measurements}
+        == set(F._MEASUREMENT_ROLES)
+        and [measurement.order_index for measurement in session.measurements] == [0, 1]
+        and {
+            measurement.role: measurement.artifact_id
+            for measurement in session.measurements
+        }
+        == {"candidate": "candidate-a", "reference": "reference-a"}
+        for session in plan.sessions
+    )
+    assert [item.schedule_index for item in plan.sessions] == list(range(8))
+    assert len({item.session_id for item in plan.sessions}) == 8
+    assert len(
+        {
+            measurement.measurement_id
+            for session in plan.sessions
+            for measurement in session.measurements
+        }
+    ) == 16
     assert F.make_measurement_plan(spec) == plan
     changed = dataclasses.replace(
         spec,
@@ -1049,24 +1152,36 @@ def test_mutation_11_hmac_rank_has_multiple_pair_sample_golden_order(
     ]
 
 
-def test_gain_difference_uses_one_common_reference_and_registry_is_closed():
-    result = F.compute_gain_difference(120.0, 90.0, 100.0)
+def test_gain_difference_uses_two_side_specific_references_and_registry_is_closed():
+    result = F.compute_gain_difference(
+        candidate_1_tps=120.0,
+        reference_1_tps=100.0,
+        candidate_2_tps=90.0,
+        reference_2_tps=75.0,
+    )
     assert result.gain_1 == pytest.approx(0.2)
-    assert result.gain_2 == pytest.approx(-0.1)
-    assert result.difference == pytest.approx(0.3)
+    assert result.gain_2 == pytest.approx(0.2)
+    assert result.difference == pytest.approx(0.0)
     assert F.apply_upper_statistic(F.STRATUM_UPPER_ID, [0.1, 0.3, 0.2]) == 0.3
     assert F.apply_upper_statistic(F.FINAL_COMBINER_ID, [0.4, 0.2]) == 0.4
     with pytest.raises(ValueError, match="未登録"):
         F.apply_upper_statistic("quantile/v1", [0.1])
     with pytest.raises(ValueError):
-        F.compute_gain_difference(True, 1.0, 1.0)
+        F.compute_gain_difference(
+            candidate_1_tps=True,
+            reference_1_tps=1.0,
+            candidate_2_tps=1.0,
+            reference_2_tps=1.0,
+        )
     with pytest.raises(ValueError):
         F.apply_upper_statistic(F.STRATUM_UPPER_ID, [float("nan")])
 
 
-def _request(spec: F.FloorPairSpec, session_id: str = "session-a") -> F.MeasurementRequest:
+def _request(
+    spec: F.FloorPairSpec, measurement_id: str = "measurement-a"
+) -> F.MeasurementRequest:
     return F.MeasurementRequest(
-        session_id=session_id,
+        measurement_id=measurement_id,
         binary_path=str(spec.repo_root / "bin/candidate.exe"),
         perf_config=spec.cells[0].perf_config,
         clocks_per_us=spec.environment.clocks_per_us,
@@ -1391,7 +1506,7 @@ def _run_campaign_shape(
     pair_count: int,
     dropped_by_window: dict[str, int],
     window_count: int = 1,
-    values_by_role: dict[str, tuple[float, float]] | None = None,
+    values_by_measurement: dict[tuple[str, str], tuple[float, float]] | None = None,
 ) -> tuple[F.FloorPairSpec, F.MeasurementPlan]:
     spec, _document, _raw = _prepare_configured_spec(
         tmp_path,
@@ -1405,18 +1520,24 @@ def _run_campaign_shape(
     )
     plan = F.make_measurement_plan(spec)
     _install_live_and_trace(monkeypatch)
-    role_values = (
+    measurement_values = (
         {
-            "candidate_1": (120.0, 120.0),
-            "candidate_2": (110.0, 110.0),
-            "reference": (100.0, 100.0),
+            ("candidate_1", "candidate"): (120.0, 120.0),
+            ("candidate_1", "reference"): (100.0, 100.0),
+            ("candidate_2", "candidate"): (110.0, 110.0),
+            ("candidate_2", "reference"): (100.0, 100.0),
         }
-        if values_by_role is None
-        else values_by_role
+        if values_by_measurement is None
+        else values_by_measurement
     )
     for window in spec.windows:
         sessions = [
             session for session in plan.sessions if session.window_id == window.window_id
+        ]
+        planned_measurements = [
+            (session, measurement)
+            for session in sessions
+            for measurement in session.measurements
         ]
         ordered_sample_keys = list(
             dict.fromkeys(
@@ -1431,11 +1552,11 @@ def _run_campaign_shape(
 
         def measure_point(*args, **kwargs):
             nonlocal cursor
-            session = sessions[cursor]
+            session, measurement = planned_measurements[cursor]
             sample_key = (session.window_id, session.pair_id, session.sample_index)
             if sample_key in drop_keys:
-                while cursor < len(sessions):
-                    current = sessions[cursor]
+                while cursor < len(planned_measurements):
+                    current, _measurement = planned_measurements[cursor]
                     current_key = (
                         current.window_id,
                         current.pair_id,
@@ -1449,7 +1570,7 @@ def _run_campaign_shape(
             return _complete_scale_point(
                 args,
                 kwargs,
-                throughputs=role_values[session.role],
+                throughputs=measurement_values[(session.side_id, measurement.role)],
             )
 
         monkeypatch.setattr(F.runner, "measure_point", measure_point)
@@ -1466,11 +1587,14 @@ def _run_campaign_shape(
     return spec, plan
 
 
-def test_run_window_orders_pre_measure_post_and_records_all_sessions(tmp_path, monkeypatch):
+def test_run_window_orders_three_probes_and_two_measurements_per_side_session(
+    tmp_path, monkeypatch
+):
     spec, _document, _raw = _prepare_spec(tmp_path, monkeypatch)
     plan = F.make_measurement_plan(spec)
     _install_live_and_trace(monkeypatch)
     events = []
+    measurement_paths = []
 
     def probe(argv, timeout_s):
         events.append("probe")
@@ -1478,6 +1602,7 @@ def test_run_window_orders_pre_measure_post_and_records_all_sessions(tmp_path, m
 
     def measure_point(*args, **kwargs):
         events.append("measure")
+        measurement_paths.append(args[0])
         return _complete_scale_point(args, kwargs)
 
     monkeypatch.setattr(F.runner, "measure_point", measure_point)
@@ -1490,21 +1615,41 @@ def test_run_window_orders_pre_measure_post_and_records_all_sessions(tmp_path, m
         now_fn=lambda: NOW,
     )
     assert result.status == "complete"
-    assert len(events) == 9
-    for offset in range(0, 9, 3):
-        assert events[offset] == "probe"
-        assert events[offset + 1] == "measure"
-        assert events[offset + 2] == "probe"
+    assert events == ["probe", "measure", "probe", "measure", "probe"] * 2
+    artifacts = {artifact.artifact_id: artifact for artifact in spec.artifacts}
+    assert measurement_paths == [
+        str(tmp_path / artifacts[measurement.artifact_id].binary_relpath)
+        for session in plan.sessions
+        for measurement in session.measurements
+    ]
     records = _load_jsonl(tmp_path / "out/window-a.jsonl")
     assert [record["event"] for record in records] == [
-        "header", "session", "session", "session", "terminal"
+        "header", "session", "session", "terminal"
     ]
+    assert records[0]["planned_measurement_count"] == 4
+    assert records[0]["measurements_per_session"] == 2
+    assert records[0]["reference_measurements_per_pair_sample"] == 2
+    assert records[0]["difference_formula"] == F.DIFFERENCE_FORMULA
+    assert records[0]["reps_per_measurement"] == {"cell-a": 2}
+    assert "reps_per_session" not in records[0]
+    for session, record in zip(plan.sessions, records[1:-1], strict=True):
+        assert record["side_id"] == session.side_id
+        assert record["status"] == "complete"
+        assert [item["measurement_id"] for item in record["measurements"]] == [
+            measurement.measurement_id for measurement in session.measurements
+        ]
+        assert all(
+            record[name]["status"] == "clear"
+            for name in ("pre_probe", "mid_probe", "post_probe")
+        )
     assert records[-1] == {
         "event": "terminal",
         "status": "complete",
         "window_id": "window-a",
-        "planned_session_count": 3,
-        "recorded_session_count": 3,
+        "planned_session_count": 2,
+        "recorded_session_count": 2,
+        "planned_measurement_count": 4,
+        "recorded_measurement_count": 4,
         "planned_sample_count": 1,
         "dropped_sample_count": 0,
         "complete_sample_count": 1,
@@ -1545,32 +1690,27 @@ def test_pre_probe_drop_closes_sample_and_continues_next_sample(
         now_fn=lambda: NOW,
     )
     assert result.status == "complete"
-    assert probes == list(range(8))
-    assert len(measure_calls) == 3
+    assert probes == list(range(9))
+    assert len(measure_calls) == 4
     records = _load_jsonl(tmp_path / "out/window-a.jsonl")
     sessions = records[1:-1]
-    first_sample = sessions[:3]
+    first_sample = sessions[:2]
     assert [record["status"] for record in first_sample] == [
         "pre_probe_competing",
         "not_run_sample_dropped",
-        "not_run_sample_dropped",
     ]
-    assert [record["error"] for record in first_sample[1:]] == [
-        "sample_dropped",
-        "sample_dropped",
-    ]
+    assert [record["error"] for record in first_sample[1:]] == ["sample_dropped"]
     assert [record["dropped_by_session_id"] for record in first_sample] == [
         None,
         first_sample[0]["session_id"],
-        first_sample[0]["session_id"],
     ]
-    assert [record["status"] for record in sessions[3:]] == ["complete"] * 3
+    assert [record["status"] for record in sessions[2:]] == ["complete"] * 2
     assert records[-1]["planned_sample_count"] == 2
     assert records[-1]["dropped_sample_count"] == 1
     assert records[-1]["complete_sample_count"] == 1
 
 
-def test_measure_exception_runs_post_probe_drops_remaining_roles_and_continues(
+def test_measure_exception_runs_post_probe_drops_remaining_side_session_and_continues(
     tmp_path, monkeypatch
 ):
     spec, _document, _raw = _prepare_configured_spec(
@@ -1607,27 +1747,22 @@ def test_measure_exception_runs_post_probe_drops_remaining_roles_and_continues(
         now_fn=lambda: NOW,
     )
     assert result.status == "complete"
-    assert events[:3] == ["probe", "measure", "probe"]
-    assert probes == list(range(8))
-    assert len(measure_calls) == 4
+    assert events[:4] == ["probe", "measure", "probe", "probe"]
+    assert probes == list(range(9))
+    assert len(measure_calls) == 5
     records = _load_jsonl(tmp_path / "out/window-a.jsonl")
     sessions = records[1:-1]
-    first_sample = sessions[:3]
+    first_sample = sessions[:2]
     assert [record["status"] for record in first_sample] == [
         "measure_failed",
         "not_run_sample_dropped",
-        "not_run_sample_dropped",
     ]
-    assert [record["error"] for record in first_sample[1:]] == [
-        "sample_dropped",
-        "sample_dropped",
-    ]
+    assert [record["error"] for record in first_sample[1:]] == ["sample_dropped"]
     assert [record["dropped_by_session_id"] for record in first_sample] == [
         None,
         first_sample[0]["session_id"],
-        first_sample[0]["session_id"],
     ]
-    assert [record["status"] for record in sessions[3:]] == ["complete"] * 3
+    assert [record["status"] for record in sessions[2:]] == ["complete"] * 2
     assert records[-1]["planned_sample_count"] == 2
     assert records[-1]["dropped_sample_count"] == 1
     assert records[-1]["complete_sample_count"] == 1
@@ -1638,6 +1773,8 @@ def test_measure_exception_runs_post_probe_drops_remaining_roles_and_continues(
     [
         ("pre", "competing", "pre_probe_competing"),
         ("pre", "indeterminate", "pre_probe_indeterminate"),
+        ("mid", "competing", "mid_probe_competing"),
+        ("mid", "indeterminate", "mid_probe_indeterminate"),
         ("post", "competing", "post_probe_competing"),
         ("post", "indeterminate", "post_probe_indeterminate"),
     ],
@@ -1654,7 +1791,7 @@ def test_droppable_probe_statuses_run_and_finalize(
     _install_live_and_trace(monkeypatch)
     _install_complete_measurement(monkeypatch)
     probe_calls = []
-    special_index = 0 if phase == "pre" else 1
+    special_index = {"pre": 0, "mid": 1, "post": 2}[phase]
 
     def probe(argv, timeout_s):
         index = len(probe_calls)
@@ -1678,11 +1815,17 @@ def test_droppable_probe_statuses_run_and_finalize(
     assert [record["status"] for record in sessions] == [
         expected_status,
         "not_run_sample_dropped",
-        "not_run_sample_dropped",
-        *(["complete"] * 60),
+        *(["complete"] * 40),
     ]
     assert records[-1]["dropped_sample_count"] == 1
     assert records[-1]["complete_sample_count"] == 20
+    if phase == "mid":
+        assert sessions[0]["pre_probe"]["status"] == "clear"
+        assert sessions[0]["post_probe"]["status"] == "clear"
+        assert sessions[0]["mid_probe"]["status"] == probe_status
+        assert len(sessions[0]["measurements"][0]["throughputs"]) == 2
+        assert sessions[0]["measurements"][1]["throughputs"] == []
+        assert sessions[0]["measurements"][1]["error"] == "not_run_mid_probe"
     result = F.finalize_floor(spec, plan, now_fn=lambda: NOW)
     assert result.status == "generated"
     assert result.upper == 0.0
@@ -1690,8 +1833,9 @@ def test_droppable_probe_statuses_run_and_finalize(
     assert summary["dropped_sample_count"] == 1
 
 
-def test_mutation_05_real_trace_inspection_call_rejects_before_probe_and_measure(
-    tmp_path, monkeypatch
+@pytest.mark.parametrize("trace_artifact_id", ("candidate-a", "reference-a"))
+def test_mutation_05_real_trace_inspection_call_rejects_each_binary_before_measure(
+    tmp_path, monkeypatch, trace_artifact_id
 ):
     spec, _document, _raw = _prepare_spec(tmp_path, monkeypatch)
     plan = F.make_measurement_plan(spec)
@@ -1703,9 +1847,18 @@ def test_mutation_05_real_trace_inspection_call_rejects_before_probe_and_measure
         if cmd[0] == "nm":
             inspected.append(cmd)
             assert kwargs == {"capture_output": True, "text": True}
+            artifact = next(
+                item
+                for item in spec.artifacts
+                if str(tmp_path / item.binary_relpath) == cmd[2]
+            )
             return SimpleNamespace(
                 returncode=0,
-                stdout="0000 T izanagi_trace_fixture\n",
+                stdout=(
+                    "0000 T izanagi_trace_fixture\n"
+                    if artifact.artifact_id == trace_artifact_id
+                    else "0000 T ordinary_symbol\n"
+                ),
                 stderr="",
             )
         return git_run(cmd, **kwargs)
@@ -1727,18 +1880,23 @@ def test_mutation_05_real_trace_inspection_call_rejects_before_probe_and_measure
     F.run_window(spec, plan, "window-a", probe_fn=probe, now_fn=lambda: NOW)
     sessions = _load_jsonl(tmp_path / "out/window-a.jsonl")[1:-1]
     first_session = plan.sessions[0]
-    first_artifact = next(
-        artifact
-        for artifact in spec.artifacts
-        if artifact.artifact_id == first_session.artifact_id
+    artifact_by_id = {artifact.artifact_id: artifact for artifact in spec.artifacts}
+    target_index = next(
+        index
+        for index, measurement in enumerate(first_session.measurements)
+        if measurement.artifact_id == trace_artifact_id
     )
     assert inspected == [
-        ["nm", "-C", str(tmp_path / first_artifact.binary_relpath)]
+        [
+            "nm",
+            "-C",
+            str(tmp_path / artifact_by_id[measurement.artifact_id].binary_relpath),
+        ]
+        for measurement in first_session.measurements[:target_index + 1]
     ]
     assert sessions[0]["status"] == "binary_binding_failed"
     assert [record["status"] for record in sessions[1:]] == [
-        "not_run_after_fail_closed",
-        "not_run_after_fail_closed",
+        "not_run_after_fail_closed"
     ]
     terminal = _load_jsonl(tmp_path / "out/window-a.jsonl")[-1]
     assert terminal["status"] == "incomplete"
@@ -1881,21 +2039,43 @@ def test_output_open_uses_all_five_required_flags(tmp_path, monkeypatch):
     assert observed == [required]
 
 
+def _pair_measurement_values(
+    *,
+    candidate_1: tuple[float, float],
+    reference_1: tuple[float, float],
+    candidate_2: tuple[float, float],
+    reference_2: tuple[float, float],
+) -> dict[tuple[str, str], tuple[float, float]]:
+    return {
+        ("candidate_1", "candidate"): candidate_1,
+        ("candidate_1", "reference"): reference_1,
+        ("candidate_2", "candidate"): candidate_2,
+        ("candidate_2", "reference"): reference_2,
+    }
+
+
 def _run_production(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-    values_by_role: dict[str, tuple[float, float]],
+    values_by_measurement: dict[tuple[str, str], tuple[float, float]],
 ) -> tuple[F.FloorPairSpec, F.MeasurementPlan]:
     spec, _document, _raw = _prepare_spec(tmp_path, monkeypatch)
     plan = F.make_measurement_plan(spec)
     _install_live_and_trace(monkeypatch)
-    roles = [session.role for session in plan.sessions]
+    planned = [
+        (session, measurement)
+        for session in plan.sessions
+        for measurement in session.measurements
+    ]
+    artifacts = {artifact.artifact_id: artifact for artifact in spec.artifacts}
     calls = []
 
     def fake_measure_point(*args, **kwargs):
-        role = roles[len(calls)]
-        calls.append(role)
-        values = values_by_role[role]
+        session, measurement = planned[len(calls)]
+        artifact = artifacts[measurement.artifact_id]
+        assert args[0] == str(tmp_path / artifact.binary_relpath)
+        calls.append(measurement.measurement_id)
+        values = values_by_measurement[(session.side_id, measurement.role)]
         kwargs["rep_returncodes"].extend([0, 0])
         kwargs["rep_observations"].extend(
             [
@@ -1922,7 +2102,7 @@ def _run_production(
         now_fn=lambda: NOW,
     )
     assert result.status == "complete"
-    assert calls == roles
+    assert calls == [measurement.measurement_id for _session, measurement in planned]
     return spec, plan
 
 
@@ -1955,7 +2135,7 @@ def _run_multi_pair_sample_production(
         spec, plan, "window-a", probe_fn=_clear_probe, now_fn=lambda: NOW
     )
     assert result.status == "complete"
-    assert len(calls) == 12
+    assert len(calls) == 16
     return spec, plan
 
 
@@ -1963,18 +2143,23 @@ def test_production_adapter_artifact_finalizes_from_raw_medians(tmp_path, monkey
     spec, plan = _run_production(
         tmp_path,
         monkeypatch,
-        {
-            "candidate_1": (120.0, 120.0),
-            "candidate_2": (110.0, 110.0),
-            "reference": (100.0, 100.0),
-        },
+        _pair_measurement_values(
+            candidate_1=(120.0, 120.0),
+            reference_1=(100.0, 100.0),
+            candidate_2=(110.0, 110.0),
+            reference_2=(110.0, 110.0),
+        ),
     )
     result = F.finalize_floor(spec, plan, now_fn=lambda: NOW)
     assert result.status == "generated"
-    assert result.upper == pytest.approx(0.1)
-    assert result.candidate_floor == pytest.approx(0.1)
+    assert result.upper == pytest.approx(0.2)
+    assert result.candidate_floor == pytest.approx(0.2)
     summary = json.loads((tmp_path / "out/summary.json").read_text(encoding="utf-8"))
-    assert summary["schema"] == "floor-pair-summary/v2"
+    assert summary["schema"] == "floor-pair-summary/v3"
+    assert summary["statistics"] == {
+        "reference_measurements_per_pair_sample": 2,
+        "difference_formula": F.DIFFERENCE_FORMULA,
+    }
     assert summary["dropped_sample_count"] == 0
     assert summary["dropped_record_count"] == 0
     assert summary["dropped"] == []
@@ -2004,9 +2189,8 @@ def test_production_adapter_artifact_finalizes_from_raw_medians(tmp_path, monkey
     }
     sample = summary["derivation"][0]["samples"][0]
     assert sample["session_medians"] == {
-        "candidate_1": 120.0,
-        "candidate_2": 110.0,
-        "reference": 100.0,
+        "candidate_1": {"candidate": 120.0, "reference": 100.0},
+        "candidate_2": {"candidate": 110.0, "reference": 110.0},
     }
 
 
@@ -2017,10 +2201,15 @@ def test_mutation_21_max_finite_even_medians_generate_zero_upper(
     spec, plan = _run_production(
         tmp_path,
         monkeypatch,
-        {role: (maximum, maximum) for role in F._ROLES},
+        _pair_measurement_values(
+            candidate_1=(maximum, maximum),
+            reference_1=(maximum, maximum),
+            candidate_2=(maximum, maximum),
+            reference_2=(maximum, maximum),
+        ),
     )
     records = _load_jsonl(tmp_path / "out/window-a.jsonl")
-    assert [record["status"] for record in records[1:-1]] == ["complete"] * 3
+    assert [record["status"] for record in records[1:-1]] == ["complete"] * 2
     result = F.finalize_floor(spec, plan, now_fn=lambda: NOW)
     assert result.status == "generated"
     assert result.upper == 0.0
@@ -2071,7 +2260,6 @@ def test_mutation_22_large_exact_int_is_total_in_run_and_artifact_rederivation(
     assert [record["status"] for record in records[1:-1]] == [
         expected_status,
         remaining_status,
-        remaining_status,
     ]
     assert run_result.status == terminal_status
     assert records[-1]["dropped_sample_count"] == (
@@ -2089,7 +2277,14 @@ def test_mutation_22_large_exact_int_is_total_in_run_and_artifact_rederivation(
         ("header", "runtime_head", "a" * 40),
         ("header", "randomization_algorithm", "fixed-order/v1"),
         ("header", "seed_hex", "02" * 32),
+        ("header", "planned_measurement_count", 3),
+        ("header", "measurements_per_session", 1),
+        ("header", "reference_measurements_per_pair_sample", 1),
+        ("header", "difference_formula", "D=forged"),
+        ("header", "reps_per_measurement", {"cell-a": 3}),
         ("terminal", "status", "incomplete"),
+        ("terminal", "planned_measurement_count", 3),
+        ("terminal", "recorded_measurement_count", 3),
         ("terminal", "planned_sample_count", 2),
         ("terminal", "dropped_sample_count", 1),
         ("terminal", "complete_sample_count", 0),
@@ -2101,11 +2296,12 @@ def test_finalizer_revalidates_complete_header_and_terminal_contract(
     spec, plan = _run_production(
         tmp_path,
         monkeypatch,
-        {
-            "candidate_1": (120.0, 120.0),
-            "candidate_2": (110.0, 110.0),
-            "reference": (100.0, 100.0),
-        },
+        _pair_measurement_values(
+            candidate_1=(120.0, 120.0),
+            reference_1=(100.0, 100.0),
+            candidate_2=(110.0, 110.0),
+            reference_2=(100.0, 100.0),
+        ),
     )
     artifact = tmp_path / "out/window-a.jsonl"
     records = _load_jsonl(artifact)
@@ -2117,8 +2313,30 @@ def test_finalizer_revalidates_complete_header_and_terminal_contract(
     assert not (tmp_path / "out/summary.json").exists()
 
 
+def test_finalizer_rejects_v2_schema_on_v3_shaped_window(tmp_path, monkeypatch):
+    spec, plan = _run_production(
+        tmp_path,
+        monkeypatch,
+        _pair_measurement_values(
+            candidate_1=(120.0, 120.0),
+            reference_1=(100.0, 100.0),
+            candidate_2=(110.0, 110.0),
+            reference_2=(100.0, 100.0),
+        ),
+    )
+    artifact = tmp_path / "out/window-a.jsonl"
+    records = _load_jsonl(artifact)
+    records[0]["schema"] = "floor-pair-window/v2"
+    _rewrite_jsonl(artifact, records)
+
+    with pytest.raises(F.FloorPairBindingError, match="header"):
+        F.finalize_floor(spec, plan, now_fn=lambda: NOW)
+    assert not (tmp_path / "out/summary.json").exists()
+
+
+@pytest.mark.parametrize("mutation", ("session-order", "measurement-order"))
 def test_mutation_18_recorded_multiple_pair_sample_order_must_match_plan(
-    tmp_path, monkeypatch
+    tmp_path, monkeypatch, mutation
 ):
     spec, plan = _run_multi_pair_sample_production(tmp_path, monkeypatch)
     artifact = tmp_path / "out/window-a.jsonl"
@@ -2126,9 +2344,14 @@ def test_mutation_18_recorded_multiple_pair_sample_order_must_match_plan(
     assert [record["session_id"] for record in records[1:-1]] == [
         session.session_id for session in plan.sessions
     ]
-    records[1], records[2] = records[2], records[1]
+    if mutation == "session-order":
+        records[1], records[2] = records[2], records[1]
+        message = "session 順"
+    else:
+        records[1]["measurements"].reverse()
+        message = "metadata"
     _rewrite_jsonl(artifact, records)
-    with pytest.raises(F.FloorPairBindingError, match="session 順"):
+    with pytest.raises(F.FloorPairBindingError, match=message):
         F.finalize_floor(spec, plan, now_fn=lambda: NOW)
     assert not (tmp_path / "out/summary.json").exists()
 
@@ -2139,11 +2362,12 @@ def test_mutation_07_status_only_rewrite_is_rejected_by_payload_derivation(
     spec, plan = _run_production(
         tmp_path,
         monkeypatch,
-        {
-            "candidate_1": (120.0, 120.0),
-            "candidate_2": (110.0, 110.0),
-            "reference": (100.0, 100.0),
-        },
+        _pair_measurement_values(
+            candidate_1=(120.0, 120.0),
+            reference_1=(100.0, 100.0),
+            candidate_2=(110.0, 110.0),
+            reference_2=(100.0, 100.0),
+        ),
     )
     artifact = tmp_path / "out/window-a.jsonl"
     records = _load_jsonl(artifact)
@@ -2152,6 +2376,51 @@ def test_mutation_07_status_only_rewrite_is_rejected_by_payload_derivation(
     with pytest.raises(F.FloorPairBindingError, match="再導出"):
         F.finalize_floor(spec, plan, now_fn=lambda: NOW)
     assert not (tmp_path / "out/summary.json").exists()
+
+
+def test_complete_session_requires_exact_two_nested_measurements(
+    tmp_path, monkeypatch
+):
+    spec, plan = _run_production(
+        tmp_path,
+        monkeypatch,
+        _pair_measurement_values(
+            candidate_1=(120.0, 120.0),
+            reference_1=(100.0, 100.0),
+            candidate_2=(110.0, 110.0),
+            reference_2=(100.0, 100.0),
+        ),
+    )
+    artifact = tmp_path / "out/window-a.jsonl"
+    records = _load_jsonl(artifact)
+    records[1]["measurements"].pop()
+    records[-1]["recorded_measurement_count"] = 3
+    _rewrite_jsonl(artifact, records)
+    with pytest.raises(F.FloorPairBindingError, match="exact 2"):
+        F.finalize_floor(spec, plan, now_fn=lambda: NOW)
+
+
+def test_raw_candidate_reference_exchange_cannot_override_canonical_plan(
+    tmp_path, monkeypatch
+):
+    spec, plan = _run_production(
+        tmp_path,
+        monkeypatch,
+        _pair_measurement_values(
+            candidate_1=(120.0, 120.0),
+            reference_1=(100.0, 100.0),
+            candidate_2=(110.0, 110.0),
+            reference_2=(100.0, 100.0),
+        ),
+    )
+    artifact = tmp_path / "out/window-a.jsonl"
+    records = _load_jsonl(artifact)
+    first, second = records[1]["measurements"]
+    for field in ("role", "artifact_id", "binary_sha256"):
+        first[field], second[field] = second[field], first[field]
+    _rewrite_jsonl(artifact, records)
+    with pytest.raises(F.FloorPairBindingError, match="metadata.role"):
+        F.finalize_floor(spec, plan, now_fn=lambda: NOW)
 
 
 _CAMPAIGN_BOUNDARY_CASES = (
@@ -2221,8 +2490,8 @@ def test_campaign_boundary_summary_causality_and_derivation_are_exact(
         expected_status != "not_generated_dropped_fraction_exceeded"
     )
     assert summary["dropped_sample_count"] == dropped_count
-    assert summary["dropped_record_count"] == dropped_count * 3
-    assert len(summary["dropped"]) == dropped_count * 3
+    assert summary["dropped_record_count"] == dropped_count * 2
+    assert len(summary["dropped"]) == dropped_count * 2
     dropped_groups = {}
     for record in summary["dropped"]:
         key = (record["window_id"], record["pair_id"], record["sample_index"])
@@ -2232,7 +2501,7 @@ def test_campaign_boundary_summary_causality_and_derivation_are_exact(
         failure = next(record for record in records if record["status"] == "measure_failed")
         cause_session_id = (
             f"{failure['window_id']}.{failure['pair_id']}."
-            f"s{failure['sample_index']:06d}.{failure['role']}"
+            f"s{failure['sample_index']:06d}.{failure['side_id']}"
         )
         assert sum(record["status"] == "measure_failed" for record in records) == 1
         for record in records:
@@ -2271,7 +2540,7 @@ def test_campaign_threshold_is_local_to_each_window_not_global_sum(
     assert sum(campaign["dropped_sample_count"] for campaign in summary["campaigns"]) == 2
 
 
-def test_dropped_summary_includes_complete_role_before_failure(
+def test_dropped_summary_includes_complete_side_before_failure(
     tmp_path, monkeypatch
 ):
     spec, _document, _raw = _prepare_configured_spec(
@@ -2281,21 +2550,26 @@ def test_dropped_summary_includes_complete_role_before_failure(
     )
     plan = F.make_measurement_plan(spec)
     _install_live_and_trace(monkeypatch)
-    sessions = list(plan.sessions)
+    planned = [
+        (session, measurement)
+        for session in plan.sessions
+        for measurement in session.measurements
+    ]
     cursor = 0
 
     def measure_point(*args, **kwargs):
         nonlocal cursor
-        session = sessions[cursor]
-        if cursor == 1:
-            cursor = 3
-            raise RuntimeError("second role failure")
+        session, measurement = planned[cursor]
+        if cursor == 2:
+            cursor = 4
+            raise RuntimeError("second side failure")
         cursor += 1
-        values = {
-            "candidate_1": (120.0, 120.0),
-            "candidate_2": (110.0, 110.0),
-            "reference": (100.0, 100.0),
-        }[session.role]
+        values = _pair_measurement_values(
+            candidate_1=(120.0, 120.0),
+            reference_1=(100.0, 100.0),
+            candidate_2=(110.0, 110.0),
+            reference_2=(100.0, 100.0),
+        )[(session.side_id, measurement.role)]
         return _complete_scale_point(args, kwargs, throughputs=values)
 
     monkeypatch.setattr(F.runner, "measure_point", measure_point)
@@ -2310,11 +2584,10 @@ def test_dropped_summary_includes_complete_role_before_failure(
     assert result.status == "generated"
     summary = json.loads((tmp_path / "out/summary.json").read_text(encoding="utf-8"))
     assert summary["dropped_sample_count"] == 1
-    assert summary["dropped_record_count"] == 3
+    assert summary["dropped_record_count"] == 2
     assert [record["status"] for record in summary["dropped"]] == [
         "complete",
         "measure_failed",
-        "not_run_sample_dropped",
     ]
     assert summary["dropped"][0]["error"] is None
     assert summary["dropped"][0]["dropped_by_session_id"] is None
@@ -2331,6 +2604,11 @@ def test_mutation_11_post_probe_drop_excludes_high_difference_sample(
     plan = F.make_measurement_plan(spec)
     _install_live_and_trace(monkeypatch)
     sessions = list(plan.sessions)
+    planned = [
+        (session, measurement)
+        for session in sessions
+        for measurement in session.measurements
+    ]
     first_sample_key = (
         sessions[0].window_id,
         sessions[0].pair_id,
@@ -2340,22 +2618,24 @@ def test_mutation_11_post_probe_drop_excludes_high_difference_sample(
 
     def measure_point(*args, **kwargs):
         nonlocal cursor
-        session = sessions[cursor]
+        session, measurement = planned[cursor]
         cursor += 1
         sample_key = (session.window_id, session.pair_id, session.sample_index)
         values = (
-            {
-                "candidate_1": (175.0, 175.0),
-                "candidate_2": (100.0, 100.0),
-                "reference": (100.0, 100.0),
-            }
+            _pair_measurement_values(
+                candidate_1=(175.0, 175.0),
+                reference_1=(100.0, 100.0),
+                candidate_2=(100.0, 100.0),
+                reference_2=(100.0, 100.0),
+            )
             if sample_key == first_sample_key
-            else {
-                "candidate_1": (125.0, 125.0),
-                "candidate_2": (100.0, 100.0),
-                "reference": (100.0, 100.0),
-            }
-        )[session.role]
+            else _pair_measurement_values(
+                candidate_1=(125.0, 125.0),
+                reference_1=(100.0, 100.0),
+                candidate_2=(100.0, 100.0),
+                reference_2=(100.0, 100.0),
+            )
+        )[(session.side_id, measurement.role)]
         return _complete_scale_point(args, kwargs, throughputs=values)
 
     monkeypatch.setattr(F.runner, "measure_point", measure_point)
@@ -2372,17 +2652,25 @@ def test_mutation_11_post_probe_drop_excludes_high_difference_sample(
         spec, plan, "window-a", probe_fn=probe, now_fn=lambda: NOW
     )
     artifact_records = _load_jsonl(tmp_path / "out/window-a.jsonl")[1:-1]
-    first_sample = artifact_records[:3]
+    first_sample = artifact_records[:2]
     assert [record["status"] for record in first_sample] == [
-        "complete",
         "complete",
         "post_probe_competing",
     ]
-    assert all(len(record["throughputs"]) == 2 for record in first_sample)
+    assert all(
+        len(measurement["throughputs"]) == 2
+        for record in first_sample
+        for measurement in record["measurements"]
+    )
     result = F.finalize_floor(spec, plan, now_fn=lambda: NOW)
     summary = json.loads((tmp_path / "out/summary.json").read_text(encoding="utf-8"))
     retained = summary["derivation"][0]["samples"]
-    dropped_difference = F.compute_gain_difference(175.0, 100.0, 100.0).difference
+    dropped_difference = F.compute_gain_difference(
+        candidate_1_tps=175.0,
+        reference_1_tps=100.0,
+        candidate_2_tps=100.0,
+        reference_2_tps=100.0,
+    ).difference
     assert dropped_difference == 0.75
     assert len(retained) == 20
     assert {sample["difference"] for sample in retained} == {0.25}
@@ -2432,11 +2720,12 @@ def test_not_run_sample_dropped_without_prior_failure_is_rejected(
     spec, plan = _run_production(
         tmp_path,
         monkeypatch,
-        {
-            "candidate_1": (120.0, 120.0),
-            "candidate_2": (110.0, 110.0),
-            "reference": (100.0, 100.0),
-        },
+        _pair_measurement_values(
+            candidate_1=(120.0, 120.0),
+            reference_1=(100.0, 100.0),
+            candidate_2=(110.0, 110.0),
+            reference_2=(100.0, 100.0),
+        ),
     )
     artifact = tmp_path / "out/window-a.jsonl"
     records = _load_jsonl(artifact)
@@ -2444,12 +2733,9 @@ def test_not_run_sample_dropped_without_prior_failure_is_rejected(
     record.update(
         {
             "status": "not_run_sample_dropped",
-            "throughputs": [],
-            "rep_returncodes": [],
-            "rep_observations": [],
-            "rep_timestamps": [],
-            "binary_sha256": None,
+            "measurements": [],
             "pre_probe": None,
+            "mid_probe": None,
             "post_probe": None,
             "error": "sample_dropped",
             "dropped_by_session_id": "forged-cause",
@@ -2474,16 +2760,18 @@ def test_drop_selection_is_invariant_under_complete_throughput_changes(
     for root, values in zip(
         roots,
         (
-            {
-                "candidate_1": (120.0, 120.0),
-                "candidate_2": (110.0, 110.0),
-                "reference": (100.0, 100.0),
-            },
-            {
-                "candidate_1": (1.0, 1.0),
-                "candidate_2": (500.0, 500.0),
-                "reference": (250.0, 250.0),
-            },
+            _pair_measurement_values(
+                candidate_1=(120.0, 120.0),
+                reference_1=(100.0, 100.0),
+                candidate_2=(110.0, 110.0),
+                reference_2=(100.0, 100.0),
+            ),
+            _pair_measurement_values(
+                candidate_1=(1.0, 1.0),
+                reference_1=(250.0, 250.0),
+                candidate_2=(500.0, 500.0),
+                reference_2=(125.0, 125.0),
+            ),
         ),
         strict=True,
     ):
@@ -2493,7 +2781,7 @@ def test_drop_selection_is_invariant_under_complete_throughput_changes(
             sample_count=59,
             pair_count=1,
             dropped_by_window={"window-0": 2},
-            values_by_role=values,
+            values_by_measurement=values,
         )
         F.finalize_floor(spec, plan, now_fn=lambda: NOW)
         summaries.append(
@@ -2512,56 +2800,60 @@ def test_candidate_zero_is_complete_and_contributes_gain_minus_one(
         sample_count=1,
         pair_count=1,
         dropped_by_window={"window-0": 0},
-        values_by_role={
-            "candidate_1": (0.0, 0.0),
-            "candidate_2": (100.0, 100.0),
-            "reference": (100.0, 100.0),
-        },
+        values_by_measurement=_pair_measurement_values(
+            candidate_1=(0.0, 0.0),
+            reference_1=(100.0, 100.0),
+            candidate_2=(100.0, 100.0),
+            reference_2=(100.0, 100.0),
+        ),
     )
     sessions = _load_jsonl(tmp_path / "out/window-0.jsonl")[1:-1]
-    assert [record["status"] for record in sessions] == ["complete"] * 3
+    assert [record["status"] for record in sessions] == ["complete"] * 2
     result = F.finalize_floor(spec, plan, now_fn=lambda: NOW)
     assert result.status == "not_generated_upper_out_of_domain"
     sample = json.loads(
         (tmp_path / "out/summary.json").read_text(encoding="utf-8")
     )["derivation"][0]["samples"][0]
-    assert sample["session_medians"]["candidate_1"] == 0.0
+    assert sample["session_medians"]["candidate_1"]["candidate"] == 0.0
     assert sample["gain_1"] == -1.0
     assert sample["difference"] == 1.0
 
 
 @pytest.mark.parametrize(
-    "values_by_role",
+    ("target", "invalid_values"),
     [
-        {
-            "candidate_1": (120.0, 120.0),
-            "candidate_2": (110.0, 110.0),
-            "reference": (0.0, 0.0),
-        },
-        {
-            "candidate_1": (-1.0, -1.0),
-            "candidate_2": (110.0, 110.0),
-            "reference": (100.0, 100.0),
-        },
+        (("candidate_1", "reference"), (0.0, 0.0)),
+        (("candidate_1", "candidate"), (-1.0, -1.0)),
     ],
 )
 def test_reference_zero_and_negative_values_are_fatal_protocol_violations(
-    tmp_path, monkeypatch, values_by_role
+    tmp_path, monkeypatch, target, invalid_values
 ):
     spec, _document, _raw = _prepare_spec(tmp_path, monkeypatch)
     plan = F.make_measurement_plan(spec)
     _install_live_and_trace(monkeypatch)
-    sessions = list(plan.sessions)
+    planned = [
+        (session, measurement)
+        for session in plan.sessions
+        for measurement in session.measurements
+    ]
+    values_by_measurement = _pair_measurement_values(
+        candidate_1=(120.0, 120.0),
+        reference_1=(100.0, 100.0),
+        candidate_2=(110.0, 110.0),
+        reference_2=(100.0, 100.0),
+    )
+    values_by_measurement[target] = invalid_values
     cursor = 0
 
     def measure_point(*args, **kwargs):
         nonlocal cursor
-        session = sessions[cursor]
+        session, measurement = planned[cursor]
         cursor += 1
         return _complete_scale_point(
             args,
             kwargs,
-            throughputs=values_by_role[session.role],
+            throughputs=values_by_measurement[(session.side_id, measurement.role)],
         )
 
     monkeypatch.setattr(F.runner, "measure_point", measure_point)
@@ -2602,7 +2894,6 @@ def test_outside_window_is_fatal_and_not_counted_as_dropped(tmp_path, monkeypatc
     assert [record["status"] for record in records[1:-1]] == [
         "outside_window",
         "not_run_after_fail_closed",
-        "not_run_after_fail_closed",
     ]
     assert records[-1]["dropped_sample_count"] == 0
     final = F.finalize_floor(spec, plan, now_fn=lambda: NOW)
@@ -2634,9 +2925,9 @@ def test_nonfinite_measurement_is_recorded_incomplete_not_serialized_as_nan(
     assert "NaN" not in raw
     sessions = _load_jsonl(tmp_path / "out/window-a.jsonl")[1:-1]
     assert sessions[0]["status"] == "measure_incomplete"
-    assert sessions[0]["throughputs"] == [100.0, None]
+    assert sessions[0]["measurements"][0]["throughputs"] == [100.0, None]
+    assert sessions[0]["measurements"][1]["throughputs"] == []
     assert [record["status"] for record in sessions[1:]] == [
-        "not_run_sample_dropped",
         "not_run_sample_dropped",
     ]
 
@@ -2647,11 +2938,12 @@ def test_mutation_08_upper_at_or_above_one_is_preserved_and_not_clamped(
     spec, plan = _run_production(
         tmp_path,
         monkeypatch,
-        {
-            "candidate_1": (300.0, 300.0),
-            "candidate_2": (100.0, 100.0),
-            "reference": (100.0, 100.0),
-        },
+        _pair_measurement_values(
+            candidate_1=(300.0, 300.0),
+            reference_1=(100.0, 100.0),
+            candidate_2=(100.0, 100.0),
+            reference_2=(100.0, 100.0),
+        ),
     )
     result = F.finalize_floor(spec, plan, now_fn=lambda: NOW)
     assert result.status == "not_generated_upper_out_of_domain"
@@ -2686,24 +2978,35 @@ def test_mutations_09_and_13_forged_production_named_high_measure_is_rejected(
     assert not (tmp_path / "out/window-a.jsonl").exists()
 
 
-def test_finalizer_rejects_duplicate_session_id_even_when_set_matches(
-    tmp_path, monkeypatch
+@pytest.mark.parametrize("level", ("session", "measurement"))
+def test_finalizer_rejects_duplicate_session_or_measurement_id(
+    tmp_path, monkeypatch, level
 ):
     spec, plan = _run_production(
         tmp_path,
         monkeypatch,
-        {
-            "candidate_1": (120.0, 120.0),
-            "candidate_2": (110.0, 110.0),
-            "reference": (100.0, 100.0),
-        },
+        _pair_measurement_values(
+            candidate_1=(120.0, 120.0),
+            reference_1=(100.0, 100.0),
+            candidate_2=(110.0, 110.0),
+            reference_2=(100.0, 100.0),
+        ),
     )
     artifact = tmp_path / "out/window-a.jsonl"
     records = _load_jsonl(artifact)
-    records.insert(2, copy.deepcopy(records[1]))
-    records[-1]["recorded_session_count"] = 4
+    if level == "session":
+        records.insert(2, copy.deepcopy(records[1]))
+        records[-1]["recorded_session_count"] = 3
+        records[-1]["recorded_measurement_count"] = 6
+        message = "session ID/count"
+    else:
+        records[1]["measurements"].append(
+            copy.deepcopy(records[1]["measurements"][0])
+        )
+        records[-1]["recorded_measurement_count"] = 5
+        message = "exact 2"
     _rewrite_jsonl(artifact, records)
-    with pytest.raises(F.FloorPairBindingError, match="session ID/count"):
+    with pytest.raises(F.FloorPairBindingError, match=message):
         F.finalize_floor(spec, plan, now_fn=lambda: NOW)
     assert not (tmp_path / "out/summary.json").exists()
 
@@ -2712,11 +3015,12 @@ def test_summary_is_exclusive_create(tmp_path, monkeypatch):
     spec, plan = _run_production(
         tmp_path,
         monkeypatch,
-        {
-            "candidate_1": (120.0, 120.0),
-            "candidate_2": (110.0, 110.0),
-            "reference": (100.0, 100.0),
-        },
+        _pair_measurement_values(
+            candidate_1=(120.0, 120.0),
+            reference_1=(100.0, 100.0),
+            candidate_2=(110.0, 110.0),
+            reference_2=(100.0, 100.0),
+        ),
     )
     summary = tmp_path / "out/summary.json"
     summary.write_bytes(b"existing summary\n")
@@ -2741,7 +3045,7 @@ def test_cli_execute_window_selects_the_named_production_adapter(
             window_id=window_id,
             artifact_relpath="out/window-a.jsonl",
             artifact_sha256="0" * 64,
-            session_count=3,
+            session_count=2,
         )
 
     monkeypatch.setattr(F, "run_window", run_window)

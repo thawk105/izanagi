@@ -1,0 +1,296 @@
+{
+  "estimated_run_seconds": 180,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_rejects_wrong_fetchcontent_prefix_with_valid_value"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t2198.m01-path-prefix-match-dropped",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "new": "        if not token[len(prefix):]:\n",
+          "old": "        if not token.startswith(prefix) or not token[len(prefix):]:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_rejects_empty_dependency_prefix_value"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t2198.m02-path-nonempty-dropped",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "new": "        if not token.startswith(prefix):\n            raise CertificationError(\"configure argv path segment is malformed\")\n",
+          "old": "        if not token.startswith(prefix) or not token[len(prefix):]:\n            raise CertificationError(\"configure argv path segment is malformed\")\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_fetchcontent_path_values_match_producer_domain[lexically-noncanonical]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_fetchcontent_path_values_match_producer_domain[relative]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_fetchcontent_prefix_mutations_are_rejected[relative]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t2198.m03-lexical-canonical-check-dropped",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "new": "            pass\n",
+          "old": "            _lexical_absolute_path(value, \"FetchContent configure path\")\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_fetchcontent_path_values_match_producer_domain[nul]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t2198.m04-nul-check-dropped",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "new": "            pass\n",
+          "old": "            if \"\\0\" in value:\n                raise CertificationError(\n                    \"FetchContent configure path must not contain NUL\"\n                )\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_configure_argv_rejects_short_path_segment"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t2198.m05-minimum-length-check-disabled",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "new": "    if len(argv) < 0 * minimum_argv_length:\n",
+          "old": "    if len(argv) < minimum_argv_length:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[duplicate-configure-token]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[fully-disconnected]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[unknown-configure-token]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t2198.m06-final-equality-weakened-to-prefix",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "new": "    expected = fixed + path_tokens + ordered_define_tokens\n    if list(argv)[:len(expected)] != expected:\n",
+          "old": "    expected = fixed + path_tokens + ordered_define_tokens\n    if list(argv) != expected:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_policy_loader_rejects_each_malformed_fetchcontent_prefix_list[missing-equals-value6]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t2198.m07-loader-trailing-equals-dropped",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "new": "",
+          "old": "                and prefix.endswith(\"=\")\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_policy_loader_rejects_each_malformed_fetchcontent_prefix_list[length-five-with-one-duplicate]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t2198.m08-loader-length-check-dropped",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "new": "",
+          "old": "            or len(fetchcontent_path_argument_prefixes) != 4\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_policy_loader_rejects_each_malformed_fetchcontent_prefix_list[duplicate-value7]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t2198.m09-loader-uniqueness-check-dropped",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "new": "            or False):\n",
+          "old": "            or len(set(fetchcontent_path_argument_prefixes)) != 4):\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "t2198.m10-prebuild-mimalloc-source-wrong",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "new": "                mimalloc_source_dir=os.fspath(staged_sources[\"masstree\"]),\n",
+          "old": "                mimalloc_source_dir=os.fspath(staged_sources[\"mimalloc\"]),\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "t2198.m11-condition-configure-mimalloc-wrong",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "new": "                    \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\"\n                    f\"{staged_sources['masstree']}\",\n",
+          "old": "                    \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\"\n                    f\"{staged_sources['mimalloc']}\",\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "t2198.m12-condition-configure-order-swapped",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "new": "                    \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\"\n                    f\"{staged_sources['masstree']}\",\n                    f\"-DFETCHCONTENT_BASE_DIR={fetchcontent_base_dir}\",\n",
+          "old": "                    f\"-DFETCHCONTENT_BASE_DIR={fetchcontent_base_dir}\",\n                    \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\"\n                    f\"{staged_sources['masstree']}\",\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "t2198.m13-staged-source-verifier-bypassed",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "new": "        staged_sources = {\n            name: third_party_root / f\"{name}-src\"\n            for name in (\"masstree\", \"mimalloc\", \"googletest\")\n        }\n",
+          "old": "        staged_sources = (\n            s8b_floor_campaign._verify_pristine_floor_dependency_sources(\n                third_party_root,\n                repo_root=POLICY_PATH.parents[2],\n            )\n        )\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "t2198.m14-dependency-receipt-observation-bypassed",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "new": "        dependency_receipt = {\n            \"masstree_head\": \"0\" * 40,\n            \"config_sha256\": \"0\" * 64,\n        }\n",
+          "old": "        dependency_receipt = (\n            buildcache._observe_fetchcontent_dependency_receipt(\n                os.fspath(staged_sources[\"masstree\"])\n            )\n        )\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "t2198.m15-campaign-forward-mimalloc-wrong",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "new": "            mimalloc_source_dir=os.fspath(staged_sources[\"masstree\"]),\n            googletest_source_dir=os.fspath(staged_sources[\"googletest\"]),\n",
+          "old": "            mimalloc_source_dir=os.fspath(staged_sources[\"mimalloc\"]),\n            googletest_source_dir=os.fspath(staged_sources[\"googletest\"]),\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "t2198.m16-qsub-env-key-removed",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "new": "",
+          "old": "    \"IZANAGI_A2_THIRD_PARTY_SOURCE_ROOT\",\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "t2198.m17-job-body-googletest-copy-removed",
+      "replacements": [
+        {
+          "file": "tools/pegasus/paper_story_a2_certification.sh",
+          "new": "",
+          "old": "cp -a \"$third_party_source/googletest\" \"$third_party_root/googletest-src\"\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "t2198.m18-job-body-src-suffix-dropped",
+      "replacements": [
+        {
+          "file": "tools/pegasus/paper_story_a2_certification.sh",
+          "new": "cp -a \"$third_party_source/masstree\" \"$third_party_root/masstree\"\n",
+          "old": "cp -a \"$third_party_source/masstree\" \"$third_party_root/masstree-src\"\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "t2198.m19-submitter-post-canonical-recheck-removed",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_paper_story_a2_certification.sh",
+          "new": "THIRD_PARTY_SOURCE_ROOT=$(realpath -e -- \"$THIRD_PARTY_SOURCE_ROOT\")\n",
+          "old": "THIRD_PARTY_SOURCE_ROOT=$(realpath -e -- \"$THIRD_PARTY_SOURCE_ROOT\")\nfor value in \"$REPO_ROOT\" \"$CCBENCH_ROOT\" \"$DEPENDENCY_PREFIX_SOURCE\" \\\n    \"$THIRD_PARTY_SOURCE_ROOT\"; do\n  [[ \"$value\" == /* && \"$value\" != *\",\"* && \"$value\" != *\"=\"* \\\n      && \"$value\" != *$'\\n'* ]] || {\n    echo \"qsub environment path is not a safe absolute value\" >&2\n    exit 2\n  }\ndone\n"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 1800
+}

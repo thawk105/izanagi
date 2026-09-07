@@ -1,0 +1,92 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 600,
+  "timeout_seconds": 300,
+  "hang_timeout_seconds": 300,
+  "mutations": [
+    {
+      "id": "m1-drop-o",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_certify.sh",
+          "old": "qsub_cmd=(qsub -o \"$SCHEDULER_STDOUT\" -e \"$SCHEDULER_STDERR\" -v \"$export_spec\" \"$JOB_SCRIPT\")",
+          "new": "qsub_cmd=(qsub -e \"$SCHEDULER_STDERR\" -v \"$export_spec\" \"$JOB_SCRIPT\")"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-drop-e",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_certify.sh",
+          "old": "qsub_cmd=(qsub -o \"$SCHEDULER_STDOUT\" -e \"$SCHEDULER_STDERR\" -v \"$export_spec\" \"$JOB_SCRIPT\")",
+          "new": "qsub_cmd=(qsub -o \"$SCHEDULER_STDOUT\" -v \"$export_spec\" \"$JOB_SCRIPT\")"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-leaf-into-repo",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_certify.sh",
+          "old": "SCHEDULER_STDOUT=\"$SCHEDULER_OUTPUT_ROOT/$NONCE.scheduler.stdout\"",
+          "new": "SCHEDULER_STDOUT=\"$REPO_ROOT/$NONCE.scheduler.stdout\""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-pass-directory",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_certify.sh",
+          "old": "qsub_cmd=(qsub -o \"$SCHEDULER_STDOUT\" -e \"$SCHEDULER_STDERR\" -v \"$export_spec\" \"$JOB_SCRIPT\")",
+          "new": "qsub_cmd=(qsub -o \"$SCHEDULER_OUTPUT_ROOT\" -e \"$SCHEDULER_STDERR\" -v \"$export_spec\" \"$JOB_SCRIPT\")"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m5-single-dirname",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_certify.sh",
+          "old": "SCHEDULER_OUTPUT_ROOT=\"$(dirname \"$(dirname \"$GIT_COMMON_DIR\")\")/izanagi-job-evidence/calibration-certify\"",
+          "new": "SCHEDULER_OUTPUT_ROOT=\"$(dirname \"$GIT_COMMON_DIR\")/izanagi-job-evidence/calibration-certify\""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m6-drop-mkdir",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_certify.sh",
+          "old": "mkdir -p \"$SCHEDULER_OUTPUT_ROOT\"\n",
+          "new": ": \"$SCHEDULER_OUTPUT_ROOT\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

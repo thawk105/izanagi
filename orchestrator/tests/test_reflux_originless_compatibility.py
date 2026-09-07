@@ -1282,7 +1282,6 @@ def test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set(
         assert _baseline_structure(
             _project_t244_additions_to_pre_wave(unknown_key_mutant)
         ) == _PRE_WAVE_ORIGINLESS_BASELINE
-
     for bundle in (omitted, explicit_none):
         for report in bundle["reports"]:
             assert "origin_runtime" not in report
@@ -1293,6 +1292,7 @@ def test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set(
                     cell["admission_decision"] == {"admission_status": "not-applicable"}
                 )
         for row in bundle["lifecycle"]:
+            assert "origin_run_plan_sha256" not in row
             assert "origin_terminal_projection" not in row
         for trial in bundle["acceptance"]["trials"]:
             assert "origin_terminal_projection" not in trial

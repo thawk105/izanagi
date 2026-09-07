@@ -1,0 +1,235 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 90,
+ "timeout_seconds": 5400,
+ "hang_timeout_seconds": 3000,
+ "mutations": [
+  {
+   "id": "M2",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+     "old": "        if not _same_float(recorded_difference, difference):\n            _fail(\"self_inconsistency\", f\"{label}.difference が再導出値と不一致\")\n",
+     "new": "        if False:\n            _fail(\"self_inconsistency\", f\"{label}.difference が再導出値と不一致\")\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m02_difference_self_inconsistency_is_rejected"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M3",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+     "old": "    if type(value) is not float or not math.isfinite(value):\n        _fail(\"schema_error\", f\"{label} は exact finite float でなければならない\")\n",
+     "new": "    if not isinstance(value, (int, float)) or not math.isfinite(value):\n        _fail(\"schema_error\", f\"{label} は exact finite float でなければならない\")\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m03_bool_upper_is_rejected_even_when_it_equals_zero"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M4",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+     "old": "    if summary[\"schema\"] != ACCEPTED_FLOOR_PAIR_SUMMARY_SCHEMA_VERSION:\n",
+     "new": "    if False:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_summary_schema_and_generated_status_are_required[schema-floor-pair-summary/v2-pinned]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M5",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+     "old": "    match = _FLOOR_PIN_RE.fullmatch(cell)\n    if match is None:\n",
+     "new": "    match = _FLOOR_PIN_RE.fullmatch(cell)\n    if match is None:\n        return None\n    if match is None:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_resolver_exact_sentinel_is_the_only_absence"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M6",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+     "old": "    if observed_sha256 != expected:\n",
+     "new": "    if False:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m05_m06_resolver_fails_closed_without_absence_fallback[hash]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M7",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_material_report.py",
+     "old": "    except B4FloorArtifactError as exc:\n        _fail(\n            \"authoritative_floor_rejected\",\n            f\"{exc.code}: {exc.detail}\",\n            cause=exc,\n        )\n",
+     "new": "    except B4FloorArtifactError:\n        authoritative_floor = None\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_material_report.py::test_m7_non_sentinel_resolver_failure_never_falls_back_or_calls_evaluator"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M8",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_material_report.py",
+     "old": "            \"expected_analysis_reason\": \"floor_domain_error\",\n",
+     "new": "            \"expected_analysis_reason\": \"floor_absent\",\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_material_report.py::test_m8_absent_authority_public_bytes_match_pre_change_golden@p3-b4-material-report",
+    "orchestrator/tests/test_p3_b4_material_report.py::test_m08_floor_absence_runs_existing_evaluator_as_protocol_violation@p3-b4-material-report"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M9",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_material_report.py",
+     "old": "    analysis = report[\"analysis\"]\n    if analysis[\"status\"] == \"evaluated\":\n        analysis[\"floor_argument\"] = ratio\n",
+     "new": "    analysis = report[\"analysis\"]\n    analysis[\"floor_argument\"] = ratio\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_material_report.py::test_m9_four_authority_and_assembly_states_project_exactly[True-False]@p3-b4-material-report"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M11",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+     "old": "    if not (Fraction(0, 1) <= floor_exact < Fraction(1, 1)):\n",
+     "new": "    if not (Fraction(0, 1) <= floor_exact <= Fraction(1, 1)):\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m11_exact_floor_domain_rejects_one_without_clamp"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M12a",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+     "old": "    if (\n        reject_negative_zero\n        and value == 0.0\n        and math.copysign(1.0, value) < 0\n    ):\n",
+     "new": "    if (\n        reject_negative_zero\n        and value == 0.0\n        and False\n    ):\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_gain_stratum_and_final_uppers_are_each_rederived"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M14",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+     "old": "    artifact_path: str,\n    expected_sha256: str,\n) -> B4AuthoritativeFloor:\n",
+     "new": "    artifact_path: str,\n    expected_sha256: str | None = None,\n) -> B4AuthoritativeFloor:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_identity_is_not_a_caller_surface_and_missing_protocol_is_named",
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_authority_issue_is_create_only_exact_and_loadable"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M15",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+     "old": "    \"凍結が測定の結果を見る前に行われたことを証明しない。\"\n",
+     "new": "    \"凍結が測定の結果を見る前に行われたことを証明済みである。\"\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_authority_non_guarantees_pin_required_verbatim_limitations"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M16",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+     "old": "        \"non_guarantees\": [*NON_GUARANTEES, *summary.proof_limitations],\n",
+     "new": "        \"non_guarantees\": [*NON_GUARANTEES],\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_authority_issue_is_create_only_exact_and_loadable"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M17",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_material_report.py",
+     "old": "    report_scope[\"expected_analysis_verdict\"] = None\n    report_scope[\"expected_analysis_reason\"] = None\n",
+     "new": "    report_scope[\"expected_analysis_verdict\"] = \"not_fixed_by_floor_presence\"\n    report_scope[\"expected_analysis_reason\"] = \"not_fixed_by_floor_presence\"\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_material_report.py::test_m9_four_authority_and_assembly_states_project_exactly[True-True]@p3-b4-material-report",
+    "orchestrator/tests/test_p3_b4_material_report.py::test_m9_four_authority_and_assembly_states_project_exactly[True-False]@p3-b4-material-report"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

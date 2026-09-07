@@ -15,9 +15,10 @@ import shutil
 import stat
 import subprocess
 import tempfile
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from typing import Optional
+from typing import Iterator, Optional
 
 from . import sort_swo_oracle
 
@@ -487,6 +488,140 @@ def assert_source_matches_canonical(
         manifest_sha256=verified.manifest_sha256,
         config_sha256=verified.config_sha256,
     )
+
+
+@contextmanager
+def protect_post_oracle_dependency_material(
+        effective_build_root: Path, *, fetchcontent_base_dir: Path,
+) -> Iterator[Path]:
+    """Make only the exact post-oracle Masstree build tree non-writable."""
+    protected_root = _canonical_source_root(Path(effective_build_root))
+    binding_source_root = _canonical_source_root(
+        Path(fetchcontent_base_dir) / "masstree-src"
+    )
+    if protected_root != binding_source_root:
+        raise CanonicalDependencyMaterialError(
+            "post-oracle-effective-root-mismatch", path=protected_root,
+        )
+
+    try:
+        root_info = protected_root.lstat()
+    except OSError as exc:
+        raise CanonicalDependencyMaterialError(
+            "post-oracle-permission-inspection-failed",
+            path=protected_root,
+        ) from exc
+    if not stat.S_IMODE(root_info.st_mode) & 0o222:
+        raise CanonicalDependencyMaterialError(
+            "post-oracle-protected-root-not-writable",
+            path=protected_root,
+        )
+
+    def permission_nodes() -> list[tuple[Path, int, tuple[int, int, int]]]:
+        nodes: list[tuple[Path, int, tuple[int, int, int]]] = []
+
+        def visit(directory: Path) -> None:
+            try:
+                with os.scandir(directory) as scan:
+                    entries = sorted(
+                        list(scan), key=lambda item: os.fsencode(item.name),
+                    )
+            except OSError as exc:
+                raise CanonicalDependencyMaterialError(
+                    "post-oracle-permission-inspection-failed",
+                    path=directory,
+                ) from exc
+            for entry in entries:
+                path = directory / entry.name
+                try:
+                    info = path.lstat()
+                except OSError as exc:
+                    raise CanonicalDependencyMaterialError(
+                        "post-oracle-permission-inspection-failed", path=path,
+                    ) from exc
+                if stat.S_ISDIR(info.st_mode):
+                    visit(path)
+                nodes.append((
+                    path,
+                    stat.S_IMODE(info.st_mode),
+                    (info.st_dev, info.st_ino, stat.S_IFMT(info.st_mode)),
+                ))
+
+        visit(protected_root)
+        try:
+            root_info = protected_root.lstat()
+        except OSError as exc:
+            raise CanonicalDependencyMaterialError(
+                "post-oracle-permission-inspection-failed",
+                path=protected_root,
+            ) from exc
+        nodes.append((
+            protected_root,
+            stat.S_IMODE(root_info.st_mode),
+            (
+                root_info.st_dev, root_info.st_ino,
+                stat.S_IFMT(root_info.st_mode),
+            ),
+        ))
+        return nodes
+
+    def restore_modes(
+            modes: list[tuple[Path, int, tuple[int, int, int]]]) -> None:
+        failures = 0
+        for path, mode, identity in modes:
+            try:
+                os.chmod(path, mode, follow_symlinks=False)
+                restored = path.lstat()
+                if (
+                    stat.S_IMODE(restored.st_mode) != mode
+                    or (
+                        restored.st_dev, restored.st_ino,
+                        stat.S_IFMT(restored.st_mode),
+                    ) != identity
+                ):
+                    failures += 1
+            except (NotImplementedError, OSError):
+                failures += 1
+        if failures:
+            raise CanonicalDependencyMaterialError(
+                "post-oracle-permission-restore-failed",
+                path=protected_root,
+            )
+
+    modes = permission_nodes()
+    changed: list[tuple[Path, int, tuple[int, int, int]]] = []
+    try:
+        for path, mode, identity in modes:
+            try:
+                os.chmod(path, mode & ~0o222, follow_symlinks=False)
+            except (NotImplementedError, OSError) as exc:
+                raise CanonicalDependencyMaterialError(
+                    "post-oracle-permission-protection-failed", path=path,
+                ) from exc
+            changed.append((path, mode, identity))
+
+        protected_nodes = permission_nodes()
+        original_identities = {
+            path: identity for path, _mode, identity in modes
+        }
+        protected_identities = {
+            path: identity for path, _mode, identity in protected_nodes
+        }
+        if protected_identities != original_identities:
+            raise CanonicalDependencyMaterialError(
+                "post-oracle-permission-tree-changed", path=protected_root,
+            )
+        writable = [
+            path for path, mode, _identity in protected_nodes
+            if mode & 0o222
+        ]
+        if writable:
+            raise CanonicalDependencyMaterialError(
+                "post-oracle-write-bits-remain", path=writable[0],
+            )
+        yield protected_root
+    finally:
+        restore_modes(changed)
 
 
 def materialize_canonical_dependency(
