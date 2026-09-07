@@ -148,6 +148,11 @@ _PERMUTATION_VIOLATION_DETAILS_KEYS = frozenset({
     "sample",
     "unknown_reason_sample",
 })
+_PERMUTATION_VIOLATION_COUNT_KEYS = frozenset({
+    "size-changed",
+    "rcdptr-set-changed",
+    "unknown",
+})
 _CLEAN_WIRE_COUNTER_KEYS = frozenset({
     "orphan_reads",
     "version_dups",
@@ -950,7 +955,11 @@ def _valid_witness_anomaly(anomaly: object) -> bool:
                 or type(reason["key"]) is not str
             ):
                 return False
-            if keys & _REASON_OPTIONAL_KEYS != _REASON_VERSION_KEYS[reason_type]:
+            expected_version_keys = _REASON_VERSION_KEYS.get(reason_type)
+            if (
+                expected_version_keys is not None
+                and keys & _REASON_OPTIONAL_KEYS != expected_version_keys
+            ):
                 return False
             for optional in _REASON_OPTIONAL_KEYS:
                 if optional in reason and (
@@ -1026,18 +1035,36 @@ def _validate_wal_outcomes(
             verify = _wal_field(terminal, "verify")
             _require(FormalReasonCode.FC07, type(verify) is dict)
             _require(FormalReasonCode.FC07, set(verify) == _VERIFY_KEYS)
-            stats = verify["stats"]
+            stats = verify.get("stats")
             _require(
                 FormalReasonCode.FC07,
                 type(stats) is dict and set(stats) == _VERIFY_STATS_KEYS,
             )
-            integrity = verify["integrity"]
+            _require(
+                FormalReasonCode.FC07,
+                all(
+                    type(stats[key]) is int and stats[key] >= 0
+                    for key in ("txns", "reads", "writes", "keys", "edges")
+                ),
+            )
+            abort_reasons = stats["abort_reasons"]
+            _require(
+                FormalReasonCode.FC07,
+                type(abort_reasons) is dict
+                and all(
+                    type(reason) is str
+                    and type(count) is int
+                    and count >= 0
+                    for reason, count in abort_reasons.items()
+                ),
+            )
+            integrity = verify.get("integrity")
             _require(
                 FormalReasonCode.FC07,
                 type(integrity) is dict
                 and set(integrity) == _VERIFY_INTEGRITY_KEYS,
             )
-            permutation_details = integrity["permutation_violation_details"]
+            permutation_details = integrity.get("permutation_violation_details")
             _require(
                 FormalReasonCode.FC07,
                 type(permutation_details) is dict
@@ -1064,18 +1091,36 @@ def _validate_wal_outcomes(
             )
             _require(
                 FormalReasonCode.FC07,
-                integrity["framing_violations"] != 0
-                or integrity["framing_violation_details"] == [],
+                type(integrity["framing_violation_details"]) is list
+                and (
+                    integrity["framing_violations"] != 0
+                    or not integrity["framing_violation_details"]
+                ),
             )
-            permutation_counts = permutation_details["counts"]
+            _require(
+                FormalReasonCode.FC07,
+                type(integrity["notes"]) is list
+                and all(type(note) is str for note in integrity["notes"]),
+            )
+            permutation_counts = permutation_details.get("counts")
             _require(
                 FormalReasonCode.FC07,
                 type(permutation_counts) is dict
+                and set(permutation_counts) == _PERMUTATION_VIOLATION_COUNT_KEYS
                 and all(
-                    type(count) is int for count in permutation_counts.values()
+                    type(count) is int and count >= 0
+                    for count in permutation_counts.values()
                 )
                 and sum(permutation_counts.values())
                 == integrity["permutation_violations"],
+            )
+            _require(
+                FormalReasonCode.FC07,
+                type(permutation_details["sample"]) is list,
+            )
+            _require(
+                FormalReasonCode.FC07,
+                type(permutation_details["unknown_reason_sample"]) is list,
             )
             anomalies = verify.get("anomalies")
             _require(

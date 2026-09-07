@@ -986,6 +986,12 @@ def test_real_dense_cycle4_report_schema_matches_consumer_key_sets() -> None:
         frozenset(report["integrity"]["permutation_violation_details"])
         == C._PERMUTATION_VIOLATION_DETAILS_KEYS
     )
+    assert (
+        frozenset(
+            report["integrity"]["permutation_violation_details"]["counts"]
+        )
+        == C._PERMUTATION_VIOLATION_COUNT_KEYS
+    )
 
 
 def test_fc07_rejects_legacy_root_kind_terminal_shape(case: _Case) -> None:
@@ -1248,6 +1254,45 @@ def test_fc07_rejects_stats_with_missing_key(case: _Case) -> None:
     _assert_reason(case, C.FormalReasonCode.FC07)
 
 
+def test_fc07_rejects_string_stats_count(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    wal[-1]["payload"]["verify"]["stats"]["txns"] = "bad"
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_negative_stats_count(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    wal[-1]["payload"]["verify"]["stats"]["txns"] = -1
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_non_dict_abort_reasons(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    wal[-1]["payload"]["verify"]["stats"]["abort_reasons"] = []
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_string_abort_reason_count(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    wal[-1]["payload"]["verify"]["stats"]["abort_reasons"] = {
+        "fixture-abort": "bad"
+    }
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_negative_abort_reason_count(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    wal[-1]["payload"]["verify"]["stats"]["abort_reasons"] = {
+        "fixture-abort": -1
+    }
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
 def test_fc07_rejects_integrity_with_missing_key(case: _Case) -> None:
     wal = _projection_records(case, 0)
     wal[-1]["payload"]["verify"]["integrity"].pop("notes")
@@ -1285,12 +1330,98 @@ def test_fc07_rejects_zero_framing_count_with_nonempty_details(
     _assert_reason(case, C.FormalReasonCode.FC07)
 
 
+def test_fc07_rejects_non_list_framing_violation_details(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    wal[-1]["payload"]["verify"]["integrity"][
+        "framing_violation_details"
+    ] = {}
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_non_string_integrity_note(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    wal[-1]["payload"]["verify"]["integrity"]["notes"] = [1]
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_non_list_integrity_notes(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    wal[-1]["payload"]["verify"]["integrity"]["notes"] = {}
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
 def test_fc07_rejects_permutation_count_sum_mismatch(case: _Case) -> None:
     wal = _projection_records(case, 0)
     details = wal[-1]["payload"]["verify"]["integrity"][
         "permutation_violation_details"
     ]
     details["counts"]["size-changed"] = 1
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_permutation_count_key_set_mismatch(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    details = wal[-1]["payload"]["verify"]["integrity"][
+        "permutation_violation_details"
+    ]
+    details["counts"]["not-production"] = 0
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_non_dict_permutation_counts(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    details = wal[-1]["payload"]["verify"]["integrity"][
+        "permutation_violation_details"
+    ]
+    details["counts"] = []
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_float_permutation_count(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    details = wal[-1]["payload"]["verify"]["integrity"][
+        "permutation_violation_details"
+    ]
+    details["counts"]["size-changed"] = 0.0
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_negative_permutation_count_with_matching_sum(
+    case: _Case,
+) -> None:
+    wal = _projection_records(case, 0)
+    details = wal[-1]["payload"]["verify"]["integrity"][
+        "permutation_violation_details"
+    ]
+    details["counts"]["size-changed"] = -1
+    details["counts"]["rcdptr-set-changed"] = 1
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_non_list_permutation_sample(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    details = wal[-1]["payload"]["verify"]["integrity"][
+        "permutation_violation_details"
+    ]
+    details["sample"] = "bad"
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_non_list_unknown_reason_sample(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    details = wal[-1]["payload"]["verify"]["integrity"][
+        "permutation_violation_details"
+    ]
+    details["unknown_reason_sample"] = {}
     _rewrite_wal(case, 0, wal)
     _assert_reason(case, C.FormalReasonCode.FC07)
 
