@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 from dataclasses import dataclass, replace
 from decimal import Decimal
+from fractions import Fraction
 import hashlib
 import inspect
 import json
@@ -10,6 +11,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+from types import SimpleNamespace
 from unittest import mock
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -20,6 +22,7 @@ import pytest
 
 from orchestrator.campaign import p3_b4_analysis_ledgers as ledgers
 from orchestrator.campaign import p3_b4_closed_critic as closed_critic
+from orchestrator.campaign import p3_b4_floor_artifact_issuer as floor_issuer
 from orchestrator.campaign import p3_b4_material_report as R
 from orchestrator.campaign import p3_b4_raw_record_producer as producer
 from orchestrator.campaign import p3_s4_loop as loop
@@ -49,6 +52,95 @@ class _ImmutablePublication:
 
 _INPUT_CACHE: dict[str, R.B4MaterialReportInputs] = {}
 _DOCUMENT_CACHE: dict[str, R.B4MaterialReportDocument] = {}
+# Captured once from the pre-wiring public builder with the stable fixture below.
+_ABSENT_LEGACY_JSON_SHA256 = (
+    "7b73826656dc301565713cca8a74f3ccc523ce5659ccae6c7c0247be07864e74"
+)
+_ABSENT_LEGACY_MARKDOWN_SHA256 = (
+    "46c130753462da2ff825f152ce36ff3c85f3bc04ba3c6d4388d5ba33651ead6b"
+)
+
+
+def _independent_canonical_json_bytes(value: object) -> bytes:
+    return (
+        json.dumps(
+            value,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+            allow_nan=False,
+        )
+        + "\n"
+    ).encode("utf-8")
+
+
+def _write_floor_preregistration(
+    repo_root: Path,
+    *,
+    present: bool,
+) -> tuple[str, str] | None:
+    docs = repo_root / "docs"
+    docs.mkdir(parents=True)
+    preregistration = docs / R._PREREGISTRATION_RELATIVE_PATH.name
+    if not present:
+        cell = "未記入"
+        expected_source = None
+    else:
+        # Zero is the accepted lower-bound control, not an estimated floor.
+        workloads = [{"fixture": "zero-boundary-control"}]
+        workload_identifier = (
+            "set-"
+            + hashlib.sha256(
+                _independent_canonical_json_bytes(workloads)
+            ).hexdigest()[:20]
+        )
+        artifact_relpath = "artifacts/b4-floor-zero-boundary.json"
+        authority = {
+            "schema": floor_issuer.B4_FLOOR_ARTIFACT_SCHEMA_VERSION,
+            "generator_identity": floor_issuer.GENERATOR_IDENTITY,
+            "floor_exact": [0, 1],
+            "source_float_hex": 0.0.hex(),
+            "artifact_identity": {
+                "env_tag": "fixture",
+                "protocol": "fixture",
+                "threads": 1,
+                "workload_identifier": workload_identifier,
+                "campaign_identifier": "fixture-campaign",
+            },
+            "identity_derivation": {
+                "workloads": workloads,
+                "campaign_ids": ["fixture-campaign"],
+            },
+            "source_summary": {
+                "artifact_path": "artifacts/source-summary.json",
+                "artifact_sha256": "1" * 64,
+                "schema": (
+                    floor_issuer.ACCEPTED_FLOOR_PAIR_SUMMARY_SCHEMA_VERSION
+                ),
+                "status": "generated",
+                "spec_relpath": "artifacts/spec.json",
+                "spec_sha256": "2" * 64,
+                "loaded_head": "3" * 40,
+                "plan_sha256": "4" * 64,
+            },
+            "non_guarantees": list(floor_issuer.NON_GUARANTEES),
+        }
+        raw = _independent_canonical_json_bytes(authority)
+        artifact = repo_root / artifact_relpath
+        artifact.parent.mkdir()
+        artifact.write_bytes(raw)
+        artifact_sha256 = hashlib.sha256(raw).hexdigest()
+        cell = (
+            f"artifact_path={artifact_relpath}; sha256={artifact_sha256}"
+        )
+        expected_source = (artifact_relpath, artifact_sha256)
+    preregistration.write_text(
+        "|floor (対象動作点で再実測した between-run floor) の artifact パスと hash|"
+        + cell
+        + "|\n",
+        encoding="utf-8",
+    )
+    return expected_source
 
 
 @pytest.fixture(scope="module")
@@ -630,6 +722,318 @@ def test_input_artifact_projection_rejects_one_byte_rewrite_through_public_build
         R.build_material_report_document(
             immutable_publication.publication.publication_root
         )
+
+
+def test_m8_absent_authority_public_bytes_match_pre_change_golden(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    publication = SimpleNamespace(
+        publication_root="fixture/publication",
+        issuer_commitment_sha256="0" * 64,
+        registry_path="fixture/registry.json",
+        registry=SimpleNamespace(canonical_bytes=b"{}\n"),
+        manifest_path="fixture/manifest.json",
+        manifest=SimpleNamespace(canonical_bytes=b"{}\n", rows=()),
+        receipt_path="fixture/receipt.json",
+        receipt_canonical_bytes=b"{}\n",
+        non_guarantees=(),
+    )
+    inputs = R.B4MaterialReportInputs(
+        publication=publication,
+        planned_frames=(),
+        assembly=producer.B4RawRecordRejection(
+            schema_version="fixture-rejection/v1",
+            attempt_id=None,
+            issues=(),
+        ),
+        contract_binding=None,
+        analysis_result=None,
+        campaign_root_discovery=R._CampaignRootDiscovery(
+            status="complete",
+            roots=(),
+            unresolved=(),
+        ),
+        authoritative_floor=None,
+    )
+    rejection_history = SimpleNamespace(status="readable")
+    producer_rejections = {
+        "rejection_history_status": {
+            "path": "fixture/rejections.jsonl",
+            "status": "readable",
+            "readable": True,
+            "fragment_discarded": False,
+            "detail": None,
+        },
+        "recorded_rejection_event_count": {
+            "value": 0,
+            "population": "events_in_observed_readable_ledger_prefix",
+            "caveat": "stable fixture caveat",
+        },
+        "recorded_scheduled_attempt_rejection_rate": {
+            "numerator": 0,
+            "denominator": 0,
+            "population": "issuer_scheduled_attempts_joined_to_recorded_events",
+            "caveat": "stable fixture caveat",
+        },
+        "unresolved_absent_attempts": [],
+        "not_selected": [],
+        "events": [],
+        "scheduled_attempt_count": 0,
+        "planned_result_artifact_count": 0,
+        "manifest_selected_block_count": 0,
+    }
+    assembly = {
+        "status": "rejected",
+        "analysis_status": "not_evaluated",
+        "reason": {"code": "fixture_rejection"},
+    }
+    monkeypatch.setattr(R, "_load_and_evaluate", lambda _root: inputs)
+    monkeypatch.setattr(R, "_project_rows", lambda _inputs: ())
+    monkeypatch.setattr(
+        R,
+        "_assert_complete_projection",
+        lambda _inputs, _rows: None,
+    )
+    monkeypatch.setattr(
+        R,
+        "_assert_report_provenance",
+        lambda _inputs, _report: None,
+    )
+    monkeypatch.setattr(
+        R,
+        "_rejection_history",
+        lambda _inputs: rejection_history,
+    )
+    monkeypatch.setattr(
+        R,
+        "_producer_rejections_projection",
+        lambda _inputs: producer_rejections,
+    )
+    monkeypatch.setattr(
+        R,
+        "_assembly_projection",
+        lambda _inputs: assembly,
+    )
+
+    document = R.build_material_report_document(
+        "fixture/publication",
+        reproduction_argv=(
+            "python3",
+            R.GENERATOR_IDENTITY,
+            "fixture/publication",
+        ),
+    )
+
+    assert hashlib.sha256(document.json_bytes).hexdigest() == (
+        _ABSENT_LEGACY_JSON_SHA256
+    )
+    assert hashlib.sha256(document.markdown_bytes).hexdigest() == (
+        _ABSENT_LEGACY_MARKDOWN_SHA256
+    )
+    combined = document.json_bytes + document.markdown_bytes
+    assert str(_REPOSITORY_ROOT).encode("utf-8") not in combined
+    assert b"/tmp/" not in combined
+
+
+@pytest.mark.parametrize(
+    ("authority_present", "assembly_succeeds"),
+    (
+        (False, True),
+        (False, False),
+        (True, True),
+        (True, False),
+    ),
+)
+def test_m9_four_authority_and_assembly_states_project_exactly(
+    tmp_path: Path,
+    immutable_publication: _ImmutablePublication,
+    monkeypatch: pytest.MonkeyPatch,
+    authority_present: bool,
+    assembly_succeeds: bool,
+) -> None:
+    publication = _fresh_publication_from_shared_evidence(
+        tmp_path,
+        immutable_publication,
+    )
+    if not assembly_succeeds:
+        Path(publication.planned_result_artifacts[-1].artifact_path).unlink()
+
+    authority_repo = tmp_path / "authority-repo"
+    expected_source = _write_floor_preregistration(
+        authority_repo,
+        present=authority_present,
+    )
+    monkeypatch.setattr(R, "_REPOSITORY_ROOT", authority_repo)
+    original_evaluator = R.evaluate_b4_artifacts
+    observed_floor_arguments: list[object] = []
+
+    def record_floor_argument(**kwargs):
+        observed_floor_arguments.append(kwargs["floor"])
+        return original_evaluator(**kwargs)
+
+    monkeypatch.setattr(R, "evaluate_b4_artifacts", record_floor_argument)
+    document = R.build_material_report_document(
+        publication.publication_root,
+    )
+    report = document.json_value
+
+    assert report["floor"]["availability"] == (
+        "present" if authority_present else "absent"
+    )
+    assert report["analysis"]["status"] == (
+        "evaluated" if assembly_succeeds else "not_evaluated"
+    )
+    assert report["analysis"]["floor_argument"] == (
+        [0, 1] if authority_present and assembly_succeeds else None
+    )
+    assert report["report_scope"]["kind"] == "evidence-only"
+    assert report["report_scope"]["preregistration_section_5"] == (
+        "not_in_effect"
+    )
+    assert report["report_scope"][
+        "section_7_1_four_classifications_operationalized"
+    ] is False
+
+    if assembly_succeeds:
+        assert len(observed_floor_arguments) == 1
+        if authority_present:
+            assert type(observed_floor_arguments[0]) is Fraction
+            assert observed_floor_arguments[0] == Fraction(0, 1)
+        else:
+            assert observed_floor_arguments == [None]
+    else:
+        assert observed_floor_arguments == []
+
+    if authority_present:
+        assert expected_source is not None
+        artifact_path, artifact_sha256 = expected_source
+        assert report["floor"] == {
+            "availability": "present",
+            "reason": None,
+            "source": {
+                "artifact_path": artifact_path,
+                "artifact_sha256": artifact_sha256,
+                "schema_version": (
+                    floor_issuer.B4_FLOOR_ARTIFACT_SCHEMA_VERSION
+                ),
+                "generator_identity": floor_issuer.GENERATOR_IDENTITY,
+            },
+            "value": [0, 1],
+        }
+        assert report["report_scope"]["expected_analysis_verdict"] is None
+        assert report["report_scope"]["expected_analysis_reason"] is None
+        assert "authoritative_floor_artifact" not in (
+            report["certification_scope"]["checked"]
+        )
+        assert "authoritative_floor_artifact" not in (
+            report["certification_scope"]["not_guaranteed"]
+        )
+        for limitation in floor_issuer.NON_GUARANTEES:
+            assert limitation in (
+                report["certification_scope"]["not_guaranteed"]
+            )
+            assert limitation in (
+                report["provenance"]["report_non_guarantees"]
+            )
+        assert floor_issuer.SOURCE_SUMMARY_REFERENCES_NOT_VERIFIED in (
+            report["certification_scope"]["not_guaranteed"]
+        )
+        markdown = document.markdown_bytes.decode("utf-8")
+        assert f"floor artifact path: `{artifact_path}`" in markdown
+        assert f"floor artifact SHA-256: `{artifact_sha256}`" in markdown
+    else:
+        assert expected_source is None
+        assert report["floor"] == {
+            "availability": "absent",
+            "reason": "preregistration_section_5_unfilled",
+            "source": None,
+            "value": None,
+        }
+
+
+def test_present_floor_projects_required_verbatim_non_guarantees(
+    tmp_path: Path,
+) -> None:
+    authority_repo = tmp_path / "authority-repo"
+    _write_floor_preregistration(authority_repo, present=True)
+    authoritative_floor = floor_issuer.resolve_preregistered_authoritative_floor(
+        repo_root=authority_repo,
+        preregistration_path=R._PREREGISTRATION_RELATIVE_PATH,
+    )
+    assert authoritative_floor is not None
+    report = {
+        "floor": {
+            "availability": "absent",
+            "reason": "preregistration_section_5_unfilled",
+            "source": None,
+            "value": None,
+        },
+        "report_scope": {
+            "floor_availability": "absent",
+            "expected_analysis_verdict": "protocol_violation",
+            "expected_analysis_reason": "floor_domain_error",
+        },
+        "certification_scope": {
+            "not_guaranteed": ["authoritative_floor_artifact"],
+        },
+        "provenance": {"report_non_guarantees": []},
+        "analysis": {"status": "not_evaluated", "floor_argument": None},
+    }
+
+    projected = R._apply_authoritative_floor_projection(
+        SimpleNamespace(authoritative_floor=authoritative_floor),
+        report,
+    )
+    expected = [
+        "binary64 の中間丸めにより、記録された float D が同じ入力の exact D より小さいことがある。",
+        "凍結が測定の結果を見る前に行われたことを証明しない。",
+        "source summary の参照先を実在照合していない",
+    ]
+    assert projected["floor"]["availability"] == "present"
+    assert projected["certification_scope"]["not_guaranteed"] == expected
+    assert projected["provenance"]["report_non_guarantees"] == expected
+
+
+def test_m7_non_sentinel_resolver_failure_never_falls_back_or_calls_evaluator(
+    tmp_path: Path,
+    immutable_publication: _ImmutablePublication,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    authority_repo = tmp_path / "authority-repo"
+    docs = authority_repo / "docs"
+    docs.mkdir(parents=True)
+    (authority_repo / "artifacts").mkdir()
+    preregistration = docs / R._PREREGISTRATION_RELATIVE_PATH.name
+    preregistration.write_text(
+        "|floor (対象動作点で再実測した between-run floor) の artifact パスと hash|"
+        "artifact_path=artifacts/missing.json; sha256="
+        + "0" * 64
+        + "|\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(R, "_REPOSITORY_ROOT", authority_repo)
+    evaluator_called = False
+
+    def record_unexpected_evaluator_call(**_kwargs):
+        nonlocal evaluator_called
+        evaluator_called = True
+        raise AssertionError("evaluator must not run after resolver rejection")
+
+    monkeypatch.setattr(
+        R,
+        "evaluate_b4_artifacts",
+        record_unexpected_evaluator_call,
+    )
+
+    with pytest.raises(R.B4MaterialReportError) as raised:
+        R.build_material_report_document(
+            immutable_publication.publication.publication_root
+        )
+    assert raised.value.reason == "authoritative_floor_rejected"
+    assert isinstance(raised.value.__cause__, floor_issuer.B4FloorArtifactError)
+    assert raised.value.__cause__.code == "path_error"
+    assert "存在しない" in raised.value.__cause__.detail
+    assert evaluator_called is False
 
 
 def test_m08_floor_absence_runs_existing_evaluator_as_protocol_violation(

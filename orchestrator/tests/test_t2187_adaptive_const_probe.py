@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import ast
 import copy
 from concurrent.futures import ThreadPoolExecutor
@@ -1474,6 +1475,51 @@ def test_genome_for_policy_cell_supplies_real_build_define() -> None:
         "BACKOFF_STEP_POLICY_SEED=11400714819323198485"
         in policy_genome.canonical()
     )
+    custom_seed = 18_446_744_073_709_551_615
+    assert probe.genome_for(
+        policy, step_policy_seed=custom_seed
+    ).flags["BACKOFF_STEP_POLICY_SEED"] == custom_seed
+    policy_one = probe.parse_cells(
+        "policy-one:1:1:1000:2560:10000:10240:1:1:4:1:1"
+    )[0]
+    for inert_cell in (policy_zero, policy_one):
+        assert probe.genome_for(
+            inert_cell, step_policy_seed=custom_seed
+        ).flags["BACKOFF_STEP_POLICY_SEED"] == probe.STOCK_STEP_POLICY_SEED
+
+
+@pytest.mark.parametrize(
+    "text",
+    ("-1", "0x1", "+1", "1_0", "18446744073709551616", "１２"),
+    ids=("negative", "hex", "plus", "underscore", "overflow", "non-ascii"),
+)
+def test_step_policy_seed_rejects_non_decimal_or_out_of_uint64(text: str) -> None:
+    parser = probe._argument_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(
+            [
+                "--cells",
+                COUNTERFACTUAL_TRACE_CELLS,
+                "--step-policy-seed",
+                text,
+                "--out",
+                "unused.json",
+            ]
+        )
+    with pytest.raises(argparse.ArgumentTypeError):
+        probe._uint64_decimal(False)
+
+
+def test_policy_two_requires_seed_before_build_dispatch(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="step-policy-seed is required"):
+        probe.main(
+            [
+                "--cells",
+                COUNTERFACTUAL_TRACE_CELLS,
+                "--out",
+                str(tmp_path / "must-not-build.json"),
+            ]
+        )
 
 
 def test_extended_cells_parse_all_dynamic_fields() -> None:
@@ -1920,10 +1966,22 @@ def test_counterfactual_stack_artifacts_use_schema_v3() -> None:
         "izanagi-cicada-adaptive-3const-certification-group/v3"
     )
     assert probe._artifact_contract_metadata(
-        backoff_trace=False, cells_text=TRACE_CELLS
+        backoff_trace=False,
+        cells_text=TRACE_CELLS,
+        workloads_text="write-heavy,balanced,read-heavy",
+        threads_text="24,48",
+        rep_index=0,
+        reps_per_job=1,
+        extime=3,
     ) == {"schema_version": probe.SCHEMA_VERSION}
     assert probe._artifact_contract_metadata(
-        backoff_trace=True, cells_text=TRACE_CELLS
+        backoff_trace=True,
+        cells_text=TRACE_CELLS,
+        workloads_text="write-heavy,balanced,read-heavy",
+        threads_text="24,48",
+        rep_index=0,
+        reps_per_job=1,
+        extime=3,
     ) == {"schema_version": probe.TRACE_SCHEMA_VERSION}
     assert set(probe.CERT_CLAIMS) == set(probe.CERT_CELLS)
     assert probe.CERT_CLAIMS[probe.CERT_TUNED_CELL] == probe.ALLOWED_GROUP_CLAIM
@@ -2018,22 +2076,99 @@ def test_v2_certification_and_group_artifacts_are_explicitly_unsupported(
     )
 
 
-def test_counterfactual_artifacts_record_pending_preregistration() -> None:
-    assert probe._artifact_contract_metadata(
-        backoff_trace=True,
-        cells_text=probe.COUNTERFACTUAL_TRACE_CELLS_TEXT,
-    ) == {
-        "schema_version": probe.TRACE_SCHEMA_VERSION,
-        "counterfactual_preregistration": "pending",
+def test_counterfactual_artifacts_record_exact_preregistration_sha_only_on_exact_axes(
+    tmp_path: Path,
+) -> None:
+    expected = hashlib.sha256(
+        probe.COUNTERFACTUAL_PREREGISTRATION.read_bytes()
+    ).hexdigest()
+    exact = {
+        "backoff_trace": True,
+        "cells_text": probe.COUNTERFACTUAL_TRACE_CELLS_TEXT,
+        "workloads_text": "write-heavy,balanced,read-heavy",
+        "threads_text": "24,48",
+        "rep_index": 0,
+        "reps_per_job": 1,
+        "extime": 3,
     }
+    assert probe._artifact_contract_metadata(**exact) == {
+        "schema_version": probe.TRACE_SCHEMA_VERSION,
+        "counterfactual_preregistration": expected,
+    }
+    assert re.fullmatch(r"[0-9a-f]{64}", expected)
     assert "counterfactual_preregistration" not in probe._artifact_contract_metadata(
-        backoff_trace=True, cells_text=probe.TRACE_CELLS_TEXT
+        backoff_trace=True,
+        cells_text=probe.TRACE_CELLS_TEXT,
+        workloads_text=exact["workloads_text"],
+        threads_text=exact["threads_text"],
+        rep_index=0,
+        reps_per_job=1,
+        extime=3,
     )
-    driver_text = DRIVER.read_text(encoding="utf-8")
-    assert driver_text.count("**_artifact_contract_metadata(") == 1
-    assert driver_text.count(
-        'row["counterfactual_preregistration"] = "pending"'
-    ) == 1
+    for field, drift in (
+        ("backoff_trace", False),
+        ("cells_text", probe.COUNTERFACTUAL_TRACE_CELLS_TEXT[:-1] + "1"),
+        ("workloads_text", "write-heavy"),
+        ("threads_text", "48"),
+        ("rep_index", 1),
+        ("reps_per_job", 2),
+        ("extime", 4),
+    ):
+        changed = {**exact, field: drift}
+        assert "counterfactual_preregistration" not in (
+            probe._artifact_contract_metadata(**changed)
+        )
+
+    rows = [
+        {
+            **probe._cell_identity(cell),
+            **probe._counterfactual_row_metadata(
+                preregistration_sha256=expected,
+                cell=cell,
+                step_policy_seed=7,
+            ),
+        }
+        for cell in probe.COUNTERFACTUAL_TRACE_CELLS
+    ]
+    assert all(row["counterfactual_preregistration"] == expected for row in rows)
+    assert "step_policy_seed" not in rows[0]
+    assert "step_policy_seed" not in rows[1]
+    assert rows[2]["step_policy_seed"] == 7
+    out = tmp_path / "counterfactual.json"
+    probe._append_journal(out, rows[2])
+    journal_row = json.loads(
+        Path(str(out) + ".journal.jsonl").read_text(encoding="utf-8")
+    )
+    assert journal_row["counterfactual_preregistration"] == expected
+    assert journal_row["step_policy_seed"] == 7
+
+
+def test_step_policy_seed_accepts_uint64_endpoints_and_default_calls() -> None:
+    parser = probe._argument_parser()
+    for text, expected in (("0", 0), ("18446744073709551615", 2**64 - 1)):
+        args = parser.parse_args(
+            [
+                "--cells",
+                COUNTERFACTUAL_TRACE_CELLS,
+                "--step-policy-seed",
+                text,
+                "--out",
+                "unused.json",
+            ]
+        )
+        assert args.step_policy_seed == expected
+    args = parser.parse_args(["--cells", VALID_CELLS, "--out", "unused.json"])
+    assert args.step_policy_seed is None
+
+
+def test_public_certification_rejects_step_policy_seed_before_dispatch(
+    tmp_path: Path,
+) -> None:
+    argv = _certify_argv(tmp_path)
+    argv.extend(("--step-policy-seed", "7"))
+    with pytest.raises(probe.CertificationReject) as caught:
+        probe.main(argv)
+    assert caught.value.reason == "step-policy-seed-certification-conflict"
 
 
 def test_perf_and_diagnostic_binary_trace_counts_fail_closed() -> None:
@@ -2060,6 +2195,18 @@ def test_pbs_dynamic_output_and_plus_transport_are_fail_closed() -> None:
     assert '"${BACKOFF_TRACE_ARGS[@]}"' in text
     assert 'export IZANAGI_T2187_REPO_HEAD="$REPO_HEAD"' in text
     assert '--repo-head "$REPO_HEAD"' in text
+    assert "STEP_POLICY_SEED=${IZANAGI_T2187_STEP_POLICY_SEED:-}" in text
+    assert '! "$STEP_POLICY_SEED" =~ ^[0-9]+$' in text
+    assert "IZANAGI_T2187_STEP_POLICY_SEED is required for policy 2" in text
+    assert text.count("--step-policy-seed") == 1
+    performance_branch = text.split(
+        'if [[ "$MODE" == performance ]]; then', 1
+    )[1].split('OUT="$OUT_DIR/certify-', 1)[0]
+    certification_branch = text.split(
+        'OUT="$OUT_DIR/certify-', 1
+    )[1]
+    assert '"${STEP_POLICY_SEED_ARGS[@]}"' in performance_branch
+    assert "--step-policy-seed" not in certification_branch
 
 
 def test_execution_identity_fields_have_exact_types_and_file_hashes(
@@ -2353,6 +2500,7 @@ def test_pbs_marks_eleven_and_twelve_fields_extended(tmp_path: Path) -> None:
                 "WORKLOADS_RAW": "balanced",
                 "THREADS_RAW": "48",
                 "OUT_DIR_RAW": out_dir,
+                "STEP_POLICY_SEED": "7",
             },
         )
 
