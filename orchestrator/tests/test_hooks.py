@@ -2601,6 +2601,8 @@ _PEGASUS_EXPECTED_CLASSES = {
     "tools/pegasus/probes/t1683_rr5_cost_probe.py": "dispatch-required",
     "tools/pegasus/probes/t2187_adaptive_const_probe.pbs": "dispatch-required",
     "tools/pegasus/probes/t2187_adaptive_const_probe.py": "dispatch-required",
+    "tools/pegasus/probes/t2228_driver_gate_liveness_probe.pbs": "dispatch-required",
+    "tools/pegasus/probes/t2228_driver_gate_liveness_probe.py": "dispatch-required",
     "tools/pegasus/probes/t293_perf_site_probe.pbs": "unknown",
     "tools/pegasus/probes/t293_perf_site_probe.py": "unknown",
     "tools/pegasus/probes/t316_sandbox_backend_probe.pbs": "dispatch-required",
@@ -2824,6 +2826,18 @@ _PEGASUS_EXPECTED_ENTRIES = {
         "class": "dispatch-required",
         "reason": "compute-side Cicada adaptive-backoff performance measurement and correctness certification driver",
         "primary_gate": "compute allocation owned by t2187_adaptive_const_probe.pbs",
+        "evidence": "static compute-side call-site classification"
+    },
+    "tools/pegasus/probes/t2228_driver_gate_liveness_probe.pbs": {
+        "class": "dispatch-required",
+        "reason": "PBS T-2228 condition-meaning-gate driver liveness measurement job body",
+        "primary_gate": "PBS allocation and job-body compute-host, repository, log-path, and evidence-path validation",
+        "evidence": "static job-body classification"
+    },
+    "tools/pegasus/probes/t2228_driver_gate_liveness_probe.py": {
+        "class": "dispatch-required",
+        "reason": "compute-side T-2228 condition-meaning-gate liveness measurement driver",
+        "primary_gate": "compute allocation owned by t2228_driver_gate_liveness_probe.pbs",
         "evidence": "static compute-side call-site classification"
     },
     "tools/pegasus/probes/t293_perf_site_probe.pbs": {
