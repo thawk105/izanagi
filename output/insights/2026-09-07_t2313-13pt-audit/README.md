@@ -171,10 +171,25 @@ B_flattening が読む条件は bit 単位で 1 つも動いていない。
 
 ## 5. 受入と検査
 
-本節は実測後に記入した。
+本節の各行は実走の後に書いた。実施していないものは「未実施」とそう書く。
 
-- 受入全走: §5 の表を参照 (worklog へも記録)。
-- `python3 tools/check_docs.py`: 記録 commit の後に実走。
+| 検査 | 対象 tip | 結果 |
+| --- | --- | --- |
+| `python3 tools/check_docs.py` | 記録 commit 前の作業木 | rc=0、違反なし |
+| `python3 tools/spool_fold.py --dry-run` | 同上 | rc=0 (`status` planned) |
+| `python3 tools/check_ai_provenance.py --message-file` | 記録 commit の message | rc=0、1 件、違反なし |
+| `python3 tools/check_ai_provenance.py` (全史) | `636d88a9` | rc=0、**8396 件、新規違反なし** (計算ノード job 980378、Elapse 66 秒) |
+| 受入全走 1 回目 | `636d88a9` | **21020 passed / 68 skipped / 0 failed** (collected 21088)、`child-green`、rc=0 |
+| 受入全走 2 回目 | 本節を書いた追記 commit | 結果は land の receipt に残る (理由は下の段落) |
+
+受入 1 回目の `claimed_main` は `d19d2182fbc324f67b47f600be70136d6503aa59` で、tested main と一致する。
+全史 provenance が挙げた既知違反 1 件は `9e6e4ee9` (2026-08-27 の親 probe) で、本 wave とは無関係、
+後続 commit `f87a06cf7` で削除済みである。
+
+**受入を 2 回走らせている理由。** 受入の結果は、それを載せる commit より後にしか存在しない。
+記録 commit `636d88a9` を 1 回目で受入し、その結果を本節へ書いた追記 commit を 2 回目で受入して、
+その tip を land する。2 回目の結果は land の receipt に残る (本文へ書くと同じ前後関係が
+もう一段生まれるだけなので書かない)。
 
 ---
 
