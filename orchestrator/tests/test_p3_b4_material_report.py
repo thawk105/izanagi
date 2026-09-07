@@ -986,7 +986,7 @@ def test_present_floor_projects_required_verbatim_non_guarantees(
     )
     expected = [
         "binary64 の中間丸めにより、記録された float D が同じ入力の exact D より小さいことがある。",
-        "その版が D1699 適合をまだ満たしていない。",
+        "凍結が測定の結果を見る前に行われたことを証明しない。",
         "source summary の参照先を実在照合していない",
     ]
     assert projected["floor"]["availability"] == "present"

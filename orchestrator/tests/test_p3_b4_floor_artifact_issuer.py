@@ -539,7 +539,7 @@ def test_authority_issue_is_create_only_exact_and_loadable(
         summary["proof_limitations"]["items"]
     )
     assert issuer.BINARY64_INTERMEDIATE_ROUNDING_LIMITATION in raw.decode()
-    assert issuer.D1699_VERSION_LIMITATION in raw.decode()
+    assert issuer.FREEZE_TIMING_NOT_PROVEN in raw.decode()
 
     before = raw
     with pytest.raises(issuer.B4FloorArtifactError, match="artifact_exists"):
@@ -565,7 +565,7 @@ def test_authority_non_guarantees_pin_required_verbatim_limitations(
 
     assert authority["non_guarantees"][:3] == [
         "binary64 の中間丸めにより、記録された float D が同じ入力の exact D より小さいことがある。",
-        "その版が D1699 適合をまだ満たしていない。",
+        "凍結が測定の結果を見る前に行われたことを証明しない。",
         "source summary の参照先を実在照合していない",
     ]
 

@@ -6,8 +6,8 @@ and upper with the producer's binary64 operation order, and preserves the
 accepted ``candidate_floor`` exactly as a :class:`fractions.Fraction`.
 
 It does not infer a missing identity component, adopt a floor on the caller's
-behalf, edit the preregistration, or make the producer's D1699-incompatible
-measurement design conforming.
+behalf, edit the preregistration, or prove that the measurement design was
+frozen before its results were observed.
 """
 from __future__ import annotations
 
@@ -46,15 +46,15 @@ GENERATOR_IDENTITY: Final[str] = (
 BINARY64_INTERMEDIATE_ROUNDING_LIMITATION: Final[str] = (
     "binary64 の中間丸めにより、記録された float D が同じ入力の exact D より小さいことがある。"
 )
-D1699_VERSION_LIMITATION: Final[str] = (
-    "その版が D1699 適合をまだ満たしていない。"
+FREEZE_TIMING_NOT_PROVEN: Final[str] = (
+    "凍結が測定の結果を見る前に行われたことを証明しない。"
 )
 SOURCE_SUMMARY_REFERENCES_NOT_VERIFIED: Final[str] = (
     "source summary の参照先を実在照合していない"
 )
 NON_GUARANTEES: Final[tuple[str, ...]] = (
     BINARY64_INTERMEDIATE_ROUNDING_LIMITATION,
-    D1699_VERSION_LIMITATION,
+    FREEZE_TIMING_NOT_PROVEN,
     SOURCE_SUMMARY_REFERENCES_NOT_VERIFIED,
 )
 
