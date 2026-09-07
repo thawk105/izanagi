@@ -1,6 +1,7 @@
 """Ordering and ownership tests for the trusted 8b floor attempt launcher."""
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, replace
 import hashlib
 import inspect
@@ -24,6 +25,8 @@ from orchestrator.campaign import s8b_floor_attempt_launcher as launcher  # noqa
 from orchestrator.campaign import s8b_floor_stats  # noqa: E402
 from orchestrator.campaign import s8b_holdout_admission  # noqa: E402
 from orchestrator.campaign import s8b_terminal_evidence  # noqa: E402
+from orchestrator.tests import test_s8b_attempt_registry as registry_cases  # noqa: E402
+from orchestrator.tests import test_s8b_holdout_admission as admission_cases  # noqa: E402
 
 
 @dataclass(frozen=True)
@@ -1386,6 +1389,228 @@ def _v2_policy_case(
     return reservation, measurement, slot
 
 
+class _OpenedV2Token(_Token):
+    def open(self) -> object:
+        self.events.append("open")
+        self.opened = True
+        assert self._rep_sink is not None
+        self._rep_sink.extend(
+            {
+                "rep_index": rep,
+                "returncode": 0,
+                "counter_status": "not_required",
+                "missing_perf_events": [],
+                "perf_raw": {
+                    event: None for event in calibrator_runner.PERF_EVENTS
+                },
+                "throughput": throughput,
+            }
+            for rep, throughput in enumerate(self.throughputs)
+        )
+        if self.open_error is not None:
+            raise self.open_error
+        if not hasattr(self, "records"):
+            self.records = 1000
+        if not hasattr(self, "threads"):
+            self.threads = 4
+        return self
+
+
+def _v2_terminal_from_opened(
+    reservation: launcher.FloorAttemptReservation,
+    opened: launcher.OpenedFloorAttempt,
+    *,
+    session_cv_max: str,
+) -> launcher.FloorAttemptTerminal:
+    values = [] if opened.measurement is None else list(
+        opened.measurement.throughputs
+    )
+    assessment = s8b_floor_stats.assess_session(
+        values,
+        reps=opened.reps_expected,
+        session_cv_max=session_cv_max,
+    )
+    competing = opened.probe_before["competing"] is True or (
+        opened.probe_after is not None
+        and opened.probe_after["competing"] is True
+    )
+    if competing:
+        excluded_reason = exclusion_class = "competing_process"
+    elif opened.failure is not None or opened.launch_failures:
+        excluded_reason = exclusion_class = "launch_failure"
+    else:
+        excluded_reason = assessment.required_reason
+        exclusion_class = assessment.required_reason
+    observed = excluded_reason is None
+    observations = [dict(item) for item in opened.repetition_evidence]
+    record = {
+        "attempt_id": reservation.attempt_id,
+        "binary_sha256_at_measure": opened.binary_sha256_at_measure,
+        "cell_id": reservation.cell_id,
+        "configuration_id": reservation.slot_id[1],
+        "duration_s": opened.duration_s,
+        "event": "session",
+        "excluded_reason": excluded_reason,
+        "exclusion_class": exclusion_class,
+        "exec_failures": (
+            opened.reps_expected if opened.failure is not None else 0
+        ),
+        "holdout_id": reservation.slot_id[0],
+        "kind": "planned",
+        "notes": [],
+        "probe_after": (
+            None if opened.probe_after is None else dict(opened.probe_after)
+        ),
+        "probe_before": dict(opened.probe_before),
+        "records": reservation.records,
+        "rep_integrity_failures": (
+            None if opened.measurement is None else 0
+        ),
+        "rep_observations": observations,
+        "reps_expected": opened.reps_expected,
+        "retry": False,
+        "retry_ordinal": reservation.slot_id[4],
+        "round": 8,
+        "run_cmd": "v2 command",
+        "seq": 7,
+        "session_cv": assessment.cv,
+        "session_median": (
+            float(assessment.median) if observed else None
+        ),
+        "threads": reservation.threads,
+        "throughputs": values,
+        "trigger": None,
+        "valid": observed,
+        "workload": dict(reservation.workload),
+    }
+    raw = s8b_attempt_profile.serialize_session_line(record)
+    return launcher.FloorAttemptTerminal(
+        raw_output_bytes=raw,
+        terminal_status="observed" if observed else "retryable-failure",
+        report_sha256=hashlib.sha256(raw).hexdigest(),
+        observation_sha256=(
+            hashlib.sha256(
+                attempt_registry_core.canonical_json_bytes(observations)
+            ).hexdigest()
+            if observed
+            else None
+        ),
+        primary_value=(
+            float(assessment.median) if observed else None
+        ),
+        finished_at=opened.finished_at,
+        campaign_record=record,
+    )
+
+
+def _v2_fake_launch_case(
+    tmp_path: Path,
+    *,
+    throughputs: tuple[float, float, float] = (100.0, 101.0, 102.0),
+) -> tuple[
+    launcher.FloorAttemptReservation,
+    launcher.FloorMeasurementCapture,
+    launcher.FloorAttemptRegistryGenesis,
+    _OpenedV2Token,
+    _RecorderRegistry,
+]:
+    reservation, measurement, slot = _v2_policy_case(tmp_path)
+    token = _OpenedV2Token([])
+    token.throughputs = list(throughputs)
+    token.records = reservation.records
+    token.threads = reservation.threads
+    registry = _RecorderRegistry([])
+    return (
+        reservation,
+        measurement,
+        launcher.FloorAttemptRegistryGenesis(slots=(slot,)),
+        token,
+        registry,
+    )
+
+
+def _real_v2_launch_case(
+    tmp_path: Path,
+) -> tuple[
+    launcher.FloorAttemptReservation,
+    launcher.FloorMeasurementCapture,
+    launcher.FloorAttemptRegistryGenesis,
+    _OpenedV2Token,
+]:
+    original_documents = admission_cases._fixture_documents
+
+    def full_protocol_documents(master_seed: str = "seed-a") -> tuple[dict, dict]:
+        protocol, freeze = original_documents(master_seed)
+        return ({**protocol, "session_cv_max": "0.10"}, freeze)
+
+    admission_cases._fixture_documents = full_protocol_documents
+    try:
+        case, profile, binding, slot = (
+            registry_cases._v2_registry_capability_case(tmp_path)
+        )
+    finally:
+        admission_cases._fixture_documents = original_documents
+    claim = s8b_holdout_admission._read_canonical_document(
+        case["claim_path"]
+    )
+    protocol_path = (
+        case["repo_root"] / "output/s8b-freeze/floor_protocol.json"
+    )
+    protocol = json.loads(protocol_path.read_text(encoding="utf-8"))
+    binary = tmp_path / "certified-v2.exe"
+    binary.write_bytes(b"certified-v2-binary")
+    reservation = launcher.FloorAttemptReservation(
+        repo_root=case["repo_root"],
+        profile=profile,
+        binding=binding,
+        slot_id=profile.slot_codec.slot_id(slot),
+        protocol=protocol,
+        mode=str(claim["mode"]),
+        perf_preflight_receipt=_unavailable_receipt(),
+        consumption_marker=case["capability"],
+        run_start_receipt_sha256="4" * 64,
+        process_identity={
+            "pid": 1234,
+            "starttime": "launcher-real-start",
+            "execution_uuid": "launcher-real-execution",
+        },
+        started_at="2026-09-08T00:00:00+00:00",
+        admission_claim_digest=case["marker"][
+            "measurement_generation_claim_digest"
+        ],
+        attempt_id=case["marker"]["attempt_id"],
+        campaign_run_id=case["marker"]["campaign_run_id"],
+        manifest_sha256=case["marker"]["manifest_sha256"],
+        run_relpath=case["marker"]["run_relpath"],
+        cell_id=case["marker"]["cell_id"],
+        schedule_row_sha256=slot.schedule_row_sha256,
+        records=int(claim["records"]),
+        threads=int(claim["threads"]),
+        workload=dict(claim["workload"]),
+    )
+    measurement = launcher.FloorMeasurementCapture(
+        binary=str(binary),
+        records=reservation.records,
+        threads=reservation.threads,
+        clocks_per_us=2400,
+        keyword_arguments={
+            "reps": int(protocol["reps"]),
+            "use_perf": False,
+            "workload": dict(reservation.workload),
+        },
+    )
+    token = _OpenedV2Token([])
+    token.throughputs = [100.0] * int(protocol["reps"])
+    token.records = reservation.records
+    token.threads = reservation.threads
+    return (
+        reservation,
+        measurement,
+        launcher.FloorAttemptRegistryGenesis(slots=(slot,)),
+        token,
+    )
+
+
 def test_v2_policy_accepts_exact_schema_marker_and_durable_coordinates(
     tmp_path: Path,
 ) -> None:
@@ -1486,6 +1711,288 @@ def test_v2_genesis_rechecks_schedule_row_before_registry_create(
     assert fake.create_calls == fake.read_calls == 0
 
 
+def test_v2_protocol_snapshot_precedes_builder_mutation(
+    tmp_path: Path,
+) -> None:
+    reservation, measurement, genesis, token, registry = (
+        _v2_fake_launch_case(
+            tmp_path,
+            throughputs=(1.0, 100.0, 200.0),
+        )
+    )
+
+    def build(
+        opened: launcher.OpenedFloorAttempt,
+    ) -> launcher.FloorAttemptTerminal:
+        assert isinstance(reservation.protocol, dict)
+        reservation.protocol["session_cv_max"] = "1.0"
+        return _v2_terminal_from_opened(
+            reservation, opened, session_cv_max="1.0",
+        )
+
+    with pytest.raises(
+        s8b_terminal_evidence.TerminalEvidenceError,
+        match="terminal.terminal_status differs from E1",
+    ):
+        launcher._launch_floor_attempt_for_test(
+            reservation,
+            genesis,
+            measurement,
+            post_probe=_probe,
+            classified_at=lambda: "2026-09-08T00:00:01+00:00",
+            terminal_builder=build,
+            registry=registry,
+            capture_measure_point=_capture_token(token),
+        )
+
+
+def test_v2_perf_receipt_snapshot_precedes_builder_mutation(
+    tmp_path: Path,
+) -> None:
+    reservation, measurement, genesis, token, registry = (
+        _v2_fake_launch_case(tmp_path)
+    )
+    original_receipt = dict(reservation.perf_preflight_receipt or {})
+
+    def build(
+        opened: launcher.OpenedFloorAttempt,
+    ) -> launcher.FloorAttemptTerminal:
+        assert isinstance(reservation.perf_preflight_receipt, dict)
+        reservation.perf_preflight_receipt["reason"] = "builder-forged"
+        return _v2_terminal_from_opened(
+            reservation, opened, session_cv_max="0.10",
+        )
+
+    with pytest.raises(
+        launcher.FloorAttemptLauncherError,
+        match="fake registry cannot issue validated evidence",
+    ):
+        launcher._launch_floor_attempt_for_test(
+            reservation,
+            genesis,
+            measurement,
+            post_probe=_probe,
+            classified_at=lambda: "2026-09-08T00:00:01+00:00",
+            terminal_builder=build,
+            registry=registry,
+            capture_measure_point=_capture_token(token),
+        )
+    assert isinstance(
+        registry.sealed_draft,
+        s8b_terminal_evidence.SealedTerminalEvidenceDraft,
+    )
+    assert registry.sealed_draft.document[
+        "perf_preflight_receipt_sha256"
+    ] == hashlib.sha256(
+        attempt_registry_core.canonical_json_bytes(original_receipt)
+    ).hexdigest()
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    (
+        ("probe", "campaign_record.probe_before differs"),
+        ("repetition", "terminal.observation_sha256 differs"),
+    ),
+)
+def test_v2_builder_receives_detached_sources_not_private_snapshot(
+    tmp_path: Path,
+    mutation: str,
+    message: str,
+) -> None:
+    reservation, measurement, genesis, token, registry = (
+        _v2_fake_launch_case(tmp_path)
+    )
+
+    def build(
+        opened: launcher.OpenedFloorAttempt,
+    ) -> launcher.FloorAttemptTerminal:
+        if mutation == "probe":
+            opened.probe_before["stderr"] = "builder-forged"
+        else:
+            opened.repetition_evidence[0]["throughput"] = 999.0
+        return _v2_terminal_from_opened(
+            reservation, opened, session_cv_max="0.10",
+        )
+
+    with pytest.raises(
+        s8b_terminal_evidence.TerminalEvidenceError,
+        match=message,
+    ):
+        launcher._launch_floor_attempt_for_test(
+            reservation,
+            genesis,
+            measurement,
+            post_probe=_probe,
+            classified_at=lambda: "2026-09-08T00:00:01+00:00",
+            terminal_builder=build,
+            registry=registry,
+            capture_measure_point=_capture_token(token),
+        )
+    assert token._rep_sink is not None
+    assert token._rep_sink[0]["throughput"] == 100.0
+
+
+def test_v2_campaign_record_snapshot_is_shared_by_launcher_and_sealer(
+    tmp_path: Path,
+) -> None:
+    reservation, measurement, genesis, token, registry = (
+        _v2_fake_launch_case(tmp_path)
+    )
+
+    class SplitRecord(Mapping[str, object]):
+        def __init__(
+            self,
+            snapshot_values: dict[str, object],
+            launcher_values: dict[str, object],
+        ) -> None:
+            self.snapshot_values = snapshot_values
+            self.launcher_values = launcher_values
+
+        def __iter__(self):
+            return iter(self.snapshot_values)
+
+        def __len__(self) -> int:
+            return len(self.snapshot_values)
+
+        def __getitem__(self, key: str) -> object:
+            return self.snapshot_values[key]
+
+        def get(self, key: str, default: object = None) -> object:
+            return self.launcher_values.get(key, default)
+
+    def build(
+        opened: launcher.OpenedFloorAttempt,
+    ) -> launcher.FloorAttemptTerminal:
+        terminal = _v2_terminal_from_opened(
+            reservation, opened, session_cv_max="0.10",
+        )
+        snapshot_values = dict(terminal.campaign_record)
+        snapshot_values["duration_s"] = 99.0
+        raw = s8b_attempt_profile.serialize_session_line(snapshot_values)
+        return replace(
+            terminal,
+            raw_output_bytes=raw,
+            report_sha256=hashlib.sha256(raw).hexdigest(),
+            campaign_record=SplitRecord(
+                snapshot_values,
+                {
+                    "duration_s": opened.duration_s,
+                    "binary_sha256_at_measure": (
+                        opened.binary_sha256_at_measure
+                    ),
+                },
+            ),
+        )
+
+    with pytest.raises(
+        launcher.FloorAttemptLauncherError,
+        match="launcher fact: duration_s",
+    ):
+        launcher._launch_floor_attempt_for_test(
+            reservation,
+            genesis,
+            measurement,
+            post_probe=_probe,
+            classified_at=lambda: "2026-09-08T00:00:01+00:00",
+            terminal_builder=build,
+            registry=registry,
+            capture_measure_point=_capture_token(token),
+        )
+
+
+def test_test_seam_forwarding_registry_lacks_launcher_origin_capability(
+    tmp_path: Path,
+) -> None:
+    reservation, measurement, genesis, token = _real_v2_launch_case(
+        tmp_path
+    )
+
+    class ForwardEveryRegistryMethod:
+        def __getattr__(self, name: str) -> object:
+            return getattr(s8b_attempt_registry, name)
+
+    forwarding_registry = ForwardEveryRegistryMethod()
+    with pytest.raises(
+        s8b_attempt_registry.S8BAttemptRegistryError,
+        match="sealed terminal requires a certified launcher origin",
+    ):
+        launcher._launch_floor_attempt_for_test(
+            reservation,
+            genesis,
+            measurement,
+            post_probe=_probe,
+            classified_at=lambda: "2026-09-08T00:00:01+00:00",
+            terminal_builder=lambda opened: _v2_terminal_from_opened(
+                reservation, opened, session_cv_max="0.10",
+            ),
+            registry=forwarding_registry,
+            capture_measure_point=_capture_token(token),
+        )
+    rows = s8b_attempt_registry.read_attempt_registry(
+        reservation.repo_root,
+        profile=reservation.profile,
+        binding=reservation.binding,
+    )
+    assert rows[-1]["event"] == "observation-start"
+    evidence_dir = (
+        s8b_holdout_admission.shared_admission_root(reservation.repo_root)
+        / "floor-attempt-registry-receipts/terminal-evidence"
+    )
+    assert not evidence_dir.exists()
+
+
+def test_certified_pre_probe_competing_branch_publishes_sealed_terminal(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    reservation, measurement, genesis, _token = _real_v2_launch_case(
+        tmp_path
+    )
+    monkeypatch.setattr(
+        launcher,
+        "_owned_post_probe",
+        lambda: _probe(competing=True),
+    )
+    monkeypatch.setattr(
+        launcher,
+        "_PRODUCTION_DEPENDENCIES",
+        launcher._LauncherDependencies(
+            registry=s8b_attempt_registry,
+            capture_measure_point=lambda *_args, **_kwargs: pytest.fail(
+                "pre-probe competing branch must not capture"
+            ),
+        ),
+    )
+    result = launcher.launch_floor_attempt(
+        reservation,
+        genesis,
+        measurement,
+        post_probe=launcher.floor_post_probe_capability(),
+        classified_at=lambda: "2026-09-08T00:00:01+00:00",
+        terminal_builder=lambda opened: _v2_terminal_from_opened(
+            reservation, opened, session_cv_max="0.10",
+        ),
+    )
+    assert result.opened.measurement is None
+    assert result.opened.probe_after is None
+    rows = s8b_attempt_registry.read_attempt_registry(
+        reservation.repo_root,
+        profile=reservation.profile,
+        binding=reservation.binding,
+    )
+    assert rows[-1]["terminal_status"] == "retryable-failure"
+    assert rows[-1]["failure_reason"] == "competing_process"
+    assert rows[-1]["measurement_retry_reason"] == (
+        "measurement_environment_conflict"
+    )
+    evidence_path = s8b_attempt_registry._terminal_evidence_path(
+        s8b_holdout_admission.shared_admission_root(reservation.repo_root),
+        rows[-1]["terminal_evidence_sha256"],
+    )
+    assert evidence_path.is_file()
+
+
 def test_timeout_exception_name_is_qualified_only_for_v2_evidence() -> None:
     failure = subprocess.TimeoutExpired(["measure"], timeout=1.0)
     legacy = launcher._failure_evidence("capture", failure)
@@ -1495,6 +2002,104 @@ def test_timeout_exception_name_is_qualified_only_for_v2_evidence() -> None:
     assert legacy["exception_type"] == "TimeoutExpired"
     assert sealed["exception_type"] == "subprocess.TimeoutExpired"
     assert legacy["stage"] == sealed["stage"] == "capture"
+
+
+@pytest.mark.parametrize(
+    ("failure", "legacy_name", "sealed_name"),
+    (
+        (FileNotFoundError(2, "missing"), "FileNotFoundError", "OSError"),
+        (PermissionError(13, "denied"), "PermissionError", "OSError"),
+        (
+            type("CaptureRuntimeSubclass", (RuntimeError,), {})("failed"),
+            "CaptureRuntimeSubclass",
+            "RuntimeError",
+        ),
+    ),
+)
+def test_v2_exception_names_normalize_to_captured_base_categories(
+    failure: BaseException,
+    legacy_name: str,
+    sealed_name: str,
+) -> None:
+    assert launcher._failure_evidence(
+        "capture", failure,
+    )["exception_type"] == legacy_name
+    assert launcher._failure_evidence(
+        "capture", failure, qualify_timeout=True,
+    )["exception_type"] == sealed_name
+
+
+@pytest.mark.parametrize(
+    ("failure", "sealed_name"),
+    (
+        (FileNotFoundError(2, "missing"), "OSError"),
+        (PermissionError(13, "denied"), "OSError"),
+        (
+            type("IssuedRuntimeSubclass", (RuntimeError,), {})("failed"),
+            "RuntimeError",
+        ),
+    ),
+)
+def test_v2_capture_subclasses_reach_a_sealed_draft(
+    tmp_path: Path,
+    failure: BaseException,
+    sealed_name: str,
+) -> None:
+    reservation, measurement, genesis, _token, registry = (
+        _v2_fake_launch_case(tmp_path)
+    )
+
+    def fail_capture(*_args: object, **_kwargs: object) -> object:
+        raise failure
+
+    with pytest.raises(
+        launcher.FloorAttemptLauncherError,
+        match="fake registry cannot issue validated evidence",
+    ):
+        launcher._launch_floor_attempt_for_test(
+            reservation,
+            genesis,
+            measurement,
+            post_probe=_probe,
+            classified_at=lambda: "2026-09-08T00:00:01+00:00",
+            terminal_builder=lambda opened: _v2_terminal_from_opened(
+                reservation, opened, session_cv_max="0.10",
+            ),
+            registry=registry,
+            capture_measure_point=fail_capture,
+        )
+    assert isinstance(
+        registry.sealed_draft,
+        s8b_terminal_evidence.SealedTerminalEvidenceDraft,
+    )
+    assert registry.sealed_draft.document["failure"] == {
+        "stage": "capture",
+        "exception_type": sealed_name,
+        "errno": getattr(failure, "errno", None),
+    }
+
+
+def test_v2_open_exception_outside_captured_set_is_not_terminalized(
+    tmp_path: Path,
+) -> None:
+    reservation, measurement, genesis, token, registry = (
+        _v2_fake_launch_case(tmp_path)
+    )
+    token.open_error = ValueError("outside v2 captured set")
+    with pytest.raises(ValueError, match="outside v2 captured set"):
+        launcher._launch_floor_attempt_for_test(
+            reservation,
+            genesis,
+            measurement,
+            post_probe=_probe,
+            classified_at=lambda: "2026-09-08T00:00:01+00:00",
+            terminal_builder=lambda _opened: pytest.fail(
+                "out-of-domain open error must not terminalize"
+            ),
+            registry=registry,
+            capture_measure_point=_capture_token(token),
+        )
+    assert "sealed-draft" not in registry.events
 
 
 def test_v2_terminal_builder_can_only_echo_launcher_duration_binary_and_clock(

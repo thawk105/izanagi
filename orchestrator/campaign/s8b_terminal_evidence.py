@@ -220,6 +220,11 @@ def _copy_bytes(value: bytes) -> bytes:
     """Return equal bytes without exposing the stored bytes object itself."""
     return bytes(bytearray(value))
 
+def _canonical_copy(value: object, *, label: str) -> Any:
+    """Detach a JSON value through its canonical bytes."""
+    data = _canonical(value, label=label)
+    return json.loads(data.decode('utf-8'))
+
 def _exact_mapping(value: object, *, keys: frozenset[str], label: str) -> dict[str, Any]:
     if not isinstance(value, Mapping):
         _fail(f'{label} is not an object')
@@ -393,6 +398,220 @@ def _strict_json_document(data: object) -> dict[str, Any]:
         _fail('terminal evidence bytes are not canonical')
     return value
 
+@dataclass(frozen=True, slots=True, init=False)
+class _ReservationSourceSnapshot:
+    """Private canonical reservation facts captured before launch effects."""
+    _canonical_bytes: bytes = field(repr=False)
+    _launcher_origin_capability: object | None = field(
+        repr=False, compare=False,
+    )
+
+@dataclass(frozen=True, slots=True, init=False)
+class _OpenedSourceSnapshot:
+    """Private canonical opened facts never exposed to the terminal builder."""
+    _reservation: _ReservationSourceSnapshot = field(repr=False)
+    _canonical_bytes: bytes = field(repr=False)
+
+@dataclass(frozen=True, slots=True, init=False)
+class _TerminalSourceSnapshot:
+    """One canonical read of the terminal builder's returned facts."""
+    _canonical_bytes: bytes = field(repr=False)
+    _campaign_record_bytes: bytes = field(repr=False)
+    _raw_output_bytes: bytes = field(repr=False)
+
+def _snapshot_reservation_source(
+    reservation: object,
+    *,
+    launcher_origin_capability: object | None = None,
+) -> _ReservationSourceSnapshot:
+    """Read every reservation fact used by the sealer exactly once."""
+    protocol_value = _member(reservation, 'protocol', label='reservation')
+    if not isinstance(protocol_value, Mapping):
+        _fail('reservation.protocol is not an object')
+    protocol_snapshot = _canonical_copy(
+        dict(protocol_value), label='reservation.protocol')
+    receipt_value = _member(
+        reservation, 'perf_preflight_receipt', label='reservation')
+    receipt_snapshot = _nullable_mapping_snapshot(
+        receipt_value, label='reservation.perf_preflight_receipt')
+    workload_value = _member(reservation, 'workload', label='reservation')
+    if not isinstance(workload_value, Mapping):
+        _fail('reservation.workload is not an object')
+    workload_snapshot = _canonical_copy(
+        dict(workload_value), label='reservation.workload')
+    slot_id = _member(reservation, 'slot_id', label='reservation')
+    if type(slot_id) is not tuple or len(slot_id) not in {4, 5}:
+        _fail('reservation.slot_id is not an exact slot identity')
+    source = {
+        'attempt_binding': _source_attempt_binding(reservation),
+        'slot_id': list(slot_id),
+        'protocol': protocol_snapshot,
+        'mode': _member(reservation, 'mode', label='reservation'),
+        'perf_preflight_receipt': receipt_snapshot,
+        'attempt_id': _member(reservation, 'attempt_id', label='reservation'),
+        'cell_id': _member(reservation, 'cell_id', label='reservation'),
+        'records': _member(reservation, 'records', label='reservation'),
+        'threads': _member(reservation, 'threads', label='reservation'),
+        'workload': workload_snapshot,
+    }
+    canonical = _canonical(source, label='reservation source')
+    snapshot = object.__new__(_ReservationSourceSnapshot)
+    object.__setattr__(snapshot, '_canonical_bytes', canonical)
+    object.__setattr__(
+        snapshot, '_launcher_origin_capability', launcher_origin_capability,
+    )
+    return snapshot
+
+def _nullable_mapping_snapshot(
+    value: object, *, label: str,
+) -> dict[str, object] | None:
+    if value is None:
+        return None
+    if not isinstance(value, Mapping):
+        _fail(f'{label} is not an object or null')
+    result = _canonical_copy(dict(value), label=label)
+    assert type(result) is dict
+    return result
+
+def _reservation_source_document(
+    snapshot: _ReservationSourceSnapshot,
+) -> dict[str, Any]:
+    if type(snapshot) is not _ReservationSourceSnapshot:
+        _fail('reservation source snapshot type differs')
+    return _strict_json_document(snapshot._canonical_bytes)
+
+def _pre_output_evidence_sha256(
+    *,
+    probe_before: Mapping[str, object],
+    probe_after: Mapping[str, object] | None,
+    launch_failures: Sequence[Mapping[str, object]],
+    failure: Mapping[str, object] | None,
+) -> str:
+    payload = {
+        'schema_version': 's8b-floor-pre-output-evidence/v2',
+        'probe_before': dict(probe_before),
+        'probe_after': None if probe_after is None else dict(probe_after),
+        'launch_failures': [dict(item) for item in launch_failures],
+        'capture_failure': (
+            dict(failure)
+            if failure is not None and failure['stage'] == 'capture'
+            else None
+        ),
+    }
+    return _digest_value(payload, label='pre-output evidence')
+
+def _snapshot_opened_source(
+    reservation: _ReservationSourceSnapshot,
+    opened: object,
+) -> _OpenedSourceSnapshot:
+    """Freeze all mutable launcher-owned evidence before builder effects."""
+    if type(reservation) is not _ReservationSourceSnapshot:
+        _fail('reservation source snapshot type differs')
+    before = _probe(
+        _member(opened, 'probe_before', label='opened'),
+        label='probe_before',
+    )
+    after_value = _member(opened, 'probe_after', label='opened')
+    after = None if after_value is None else _probe(
+        after_value, label='probe_after')
+    failure = _failure(_member(opened, 'failure', label='opened'))
+    launch_failures = _launch_failures(
+        _member(opened, 'launch_failures', label='opened'))
+    observations_value = _member(
+        opened, 'repetition_evidence', label='opened')
+    if type(observations_value) is not tuple:
+        _fail('opened.repetition_evidence is not an exact tuple')
+    observations = _canonical_copy([
+        dict(item) if isinstance(item, Mapping) else item
+        for item in observations_value
+    ], label='opened.repetition_evidence')
+    if type(observations) is not list:
+        _fail('opened repetition snapshot is not an exact list')
+    measurement = _member(opened, 'measurement', label='opened')
+    measurement_throughputs: list[object] | None = None
+    if measurement is not None:
+        try:
+            measurement_throughputs = list(measurement.throughputs)
+        except (AttributeError, TypeError) as exc:
+            raise TerminalEvidenceError(
+                '[s8b-terminal-evidence] opened measurement has no '
+                'throughput sequence'
+            ) from exc
+    computed_external = _pre_output_evidence_sha256(
+        probe_before=before,
+        probe_after=after,
+        launch_failures=launch_failures,
+        failure=failure,
+    )
+    supplied_external = _sha256(
+        _member(opened, 'external_evidence_sha256', label='opened'),
+        label='opened.external_evidence_sha256',
+    )
+    if supplied_external != computed_external:
+        _fail('opened external evidence digest differs from source facts')
+    source = {
+        'measurement_throughputs': measurement_throughputs,
+        'failure': failure,
+        'probe_before': before,
+        'probe_after': after,
+        'launch_failures': launch_failures,
+        'pre_observation_failure_reason': _member(
+            opened, 'pre_observation_failure_reason', label='opened'),
+        'external_evidence_sha256': computed_external,
+        'repetition_evidence': observations,
+        'expected_use_perf': _member(
+            opened, 'expected_use_perf', label='opened'),
+        'reps_expected': _member(
+            opened, 'reps_expected', label='opened'),
+    }
+    canonical = _canonical(source, label='opened source')
+    snapshot = object.__new__(_OpenedSourceSnapshot)
+    object.__setattr__(snapshot, '_reservation', reservation)
+    object.__setattr__(snapshot, '_canonical_bytes', canonical)
+    return snapshot
+
+def _opened_source_document(snapshot: _OpenedSourceSnapshot) -> dict[str, Any]:
+    if type(snapshot) is not _OpenedSourceSnapshot:
+        _fail('opened source snapshot type differs')
+    return _strict_json_document(snapshot._canonical_bytes)
+
+def _snapshot_terminal_source(terminal: object) -> _TerminalSourceSnapshot:
+    """Strictly snapshot a builder result, including one campaign-record read."""
+    record = _source_campaign_record(
+        _member(terminal, 'campaign_record', label='terminal'))
+    record_bytes = _canonical(record, label='campaign_record source')
+    raw_output = _member(terminal, 'raw_output_bytes', label='terminal')
+    if type(raw_output) is not bytes or not raw_output:
+        _fail('terminal.raw_output_bytes is not non-empty exact bytes')
+    source = {
+        'terminal_status': _member(
+            terminal, 'terminal_status', label='terminal'),
+        'report_sha256': _member(
+            terminal, 'report_sha256', label='terminal'),
+        'observation_sha256': _member(
+            terminal, 'observation_sha256', label='terminal'),
+        'primary_value': _member(
+            terminal, 'primary_value', label='terminal'),
+        'finished_at': _member(terminal, 'finished_at', label='terminal'),
+    }
+    snapshot = object.__new__(_TerminalSourceSnapshot)
+    object.__setattr__(
+        snapshot, '_canonical_bytes', _canonical(source, label='terminal source'))
+    object.__setattr__(snapshot, '_campaign_record_bytes', record_bytes)
+    object.__setattr__(snapshot, '_raw_output_bytes', _copy_bytes(raw_output))
+    return snapshot
+
+def _terminal_source_document(
+    snapshot: _TerminalSourceSnapshot,
+) -> tuple[dict[str, Any], dict[str, Any], bytes]:
+    if type(snapshot) is not _TerminalSourceSnapshot:
+        _fail('terminal source snapshot type differs')
+    return (
+        _strict_json_document(snapshot._canonical_bytes),
+        _strict_json_document(snapshot._campaign_record_bytes),
+        _copy_bytes(snapshot._raw_output_bytes),
+    )
+
 def _attempt_binding(value: object, *, expected_keys: frozenset[str] | None=None) -> dict[str, object]:
     if not isinstance(value, Mapping):
         _fail('attempt_binding is not an object')
@@ -513,6 +732,8 @@ def _assert_mutual_consistency(*, probe_before: Mapping[str, bool], probe_after:
         if len(throughputs) + nonfinite_count + exec_failures != reps_expected:
             _fail('finite/nonfinite/exec repetition sum differs from reps_expected')
     if failure is not None:
+        if failure['stage'] == 'capture' and launch_failures_count != 0:
+            _fail('capture failure has nonzero launch_failures_count')
         if throughputs or nonfinite_count != 0:
             _fail('failure evidence contains measurement values')
         if exec_failures != reps_expected:
@@ -542,6 +763,10 @@ class TerminalEvidenceProjection:
 class SealedTerminalEvidenceDraft:
     """Canonical draft whose attempt binding has exactly nine keys."""
     _canonical_bytes: bytes = field(repr=False)
+    _external_evidence_sha256: str = field(repr=False, compare=False)
+    _launcher_origin_capability: object | None = field(
+        repr=False, compare=False,
+    )
 
     @property
     def canonical_bytes(self) -> bytes:
@@ -656,9 +881,8 @@ def derive_terminal_projection(document: Mapping[str, Any]) -> TerminalEvidenceP
     return TerminalEvidenceProjection(terminal_status=status, failure_reason=failure_reason, measurement_retry_reason=retry_reason, campaign_excluded_reason=campaign_reason, primary_value=primary, raw_output_sha256=checked['raw_output_sha256'], report_sha256=checked['report_sha256'], observation_sha256=checked['observation_sha256'], finished_at=checked['finished_at'])
 
 def _source_campaign_record(value: object) -> dict[str, Any]:
-    record = _exact_mapping(value, keys=_CAMPAIGN_RECORD_KEYS, label='campaign_record source')
-    _canonical(record, label='campaign_record source')
-    return record
+    return _exact_mapping(
+        value, keys=_CAMPAIGN_RECORD_KEYS, label='campaign_record source')
 
 def _source_throughputs(opened: object, *, reps_expected: int, expected_use_perf: bool, failure: Mapping[str, object] | None, pre_probe_competing: bool) -> tuple[list[dict[str, object]], tuple[float, ...], int, int | None, bool]:
     observations_value = _member(opened, 'repetition_evidence', label='opened')
@@ -691,6 +915,55 @@ def _source_throughputs(opened: object, *, reps_expected: int, expected_use_perf
             nonfinite_count += 1
     return (observations, tuple(finite), nonfinite_count, integrity_failures, True)
 
+def _source_throughputs_from_snapshot(
+    opened: Mapping[str, Any],
+    *,
+    reps_expected: int,
+    expected_use_perf: bool,
+    failure: Mapping[str, object] | None,
+    pre_probe_competing: bool,
+) -> tuple[list[dict[str, object]], tuple[float, ...], int, int | None, bool]:
+    observations = opened['repetition_evidence']
+    if type(observations) is not list:
+        _fail('opened repetition snapshot is not an exact list')
+    measurement_throughputs = opened['measurement_throughputs']
+    if failure is not None or pre_probe_competing:
+        if measurement_throughputs is not None or observations:
+            _fail('unopened evidence contains measurement data')
+        return ([], (), 0, None, False)
+    if type(measurement_throughputs) is not list:
+        _fail('opened evidence has no measurement')
+    raw_observed = [
+        item.get('throughput')
+        for item in observations
+        if isinstance(item, Mapping) and item.get('throughput') is not None
+    ]
+    if measurement_throughputs != raw_observed:
+        _fail('measurement throughputs differ from the private repetition sink')
+    (_errors, integrity_failures, qualified) = (
+        s8b_floor_stats._derive_rep_integrity(
+            observations,
+            reps=reps_expected,
+            expected_use_perf=expected_use_perf,
+        )
+    )
+    finite: list[float] = []
+    nonfinite_count = 0
+    for (position, value) in enumerate(qualified):
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            _fail(f'qualified throughput {position} is not numeric')
+        if math.isfinite(value):
+            finite.append(float(value))
+        else:
+            nonfinite_count += 1
+    return (
+        observations,
+        tuple(finite),
+        nonfinite_count,
+        integrity_failures,
+        True,
+    )
+
 def _source_attempt_binding(reservation: object) -> dict[str, object]:
     binding = _member(reservation, 'binding', label='reservation')
     result = {
@@ -710,43 +983,85 @@ def _source_attempt_binding(reservation: object) -> dict[str, object]:
     }
     return _attempt_binding(result, expected_keys=_DRAFT_ATTEMPT_BINDING_KEYS)
 
-def _assert_authoritative_identity(reservation: object, record: Mapping[str, Any]) -> None:
-    slot_id = _member(reservation, 'slot_id', label='reservation')
-    if type(slot_id) is not tuple or len(slot_id) != 5:
+def _assert_authoritative_identity(
+    reservation: Mapping[str, Any], record: Mapping[str, Any],
+) -> None:
+    slot_id = reservation['slot_id']
+    if type(slot_id) is not list or len(slot_id) != 5:
         _fail('reservation.slot_id is not an exact v2 slot identity')
-    expected = {'attempt_id': _member(reservation, 'attempt_id', label='reservation'), 'cell_id': _member(reservation, 'cell_id', label='reservation'), 'configuration_id': slot_id[1], 'holdout_id': slot_id[0], 'records': _member(reservation, 'records', label='reservation'), 'retry_ordinal': slot_id[4], 'threads': _member(reservation, 'threads', label='reservation')}
+    expected = {
+        'attempt_id': reservation['attempt_id'],
+        'cell_id': reservation['cell_id'],
+        'configuration_id': slot_id[1],
+        'holdout_id': slot_id[0],
+        'records': reservation['records'],
+        'retry_ordinal': slot_id[4],
+        'threads': reservation['threads'],
+    }
     for (name, value) in expected.items():
         if record[name] != value:
             _fail(f'campaign_record.{name} differs from durable identity')
-    workload = _member(reservation, 'workload', label='reservation')
+    workload = reservation['workload']
     if _canonical(record['workload'], label='campaign workload') != _canonical(workload, label='durable workload'):
         _fail('campaign_record.workload differs from durable identity')
 
 def seal_terminal_evidence(reservation: object, opened: object, terminal: object) -> SealedTerminalEvidenceDraft:
-    """Seal launcher facts into a nine-binding-key canonical evidence draft."""
-    protocol = _member(reservation, 'protocol', label='reservation')
-    if not isinstance(protocol, Mapping):
-        _fail('reservation.protocol is not an object')
+    """Seal private snapshots into a nine-binding-key canonical draft.
+
+    The three-argument public surface remains available for direct leaf use.
+    The certified launcher passes private source snapshots in ``opened`` and
+    ``terminal`` so this function never rereads caller-owned reservation data
+    after the terminal builder has run.
+    """
+    if type(opened) is _OpenedSourceSnapshot:
+        opened_snapshot = opened
+        if type(terminal) is not _TerminalSourceSnapshot:
+            _fail('terminal source snapshot type differs')
+        terminal_snapshot = terminal
+    else:
+        reservation_snapshot = _snapshot_reservation_source(reservation)
+        opened_snapshot = _snapshot_opened_source(
+            reservation_snapshot, opened)
+        terminal_snapshot = _snapshot_terminal_source(terminal)
+    reservation_source = _reservation_source_document(
+        opened_snapshot._reservation)
+    opened_source = _opened_source_document(opened_snapshot)
+    terminal_source, record, raw_output = _terminal_source_document(
+        terminal_snapshot)
+    protocol = reservation_source['protocol']
     reps_expected = _positive_int(protocol.get('reps'), label='protocol.reps')
     session_cv_max = _text(protocol.get('session_cv_max'), label='protocol.session_cv_max')
-    opened_reps = _positive_int(_member(opened, 'reps_expected', label='opened'), label='opened.reps_expected')
+    opened_reps = _positive_int(
+        opened_source['reps_expected'], label='opened.reps_expected')
     if opened_reps != reps_expected:
         _fail('opened.reps_expected differs from protocol.reps')
-    expected_use_perf = _exact_bool(_member(opened, 'expected_use_perf', label='opened'), label='opened.expected_use_perf')
-    mode = _text(_member(reservation, 'mode', label='reservation'), label='mode')
+    expected_use_perf = _exact_bool(
+        opened_source['expected_use_perf'], label='opened.expected_use_perf')
+    mode = _text(reservation_source['mode'], label='mode')
     if mode not in {'pilot', 'official'}:
         _fail('reservation.mode is outside the closed vocabulary')
-    before_raw = _probe(_member(opened, 'probe_before', label='opened'), label='probe_before')
-    after_value = _member(opened, 'probe_after', label='opened')
+    before_raw = _probe(opened_source['probe_before'], label='probe_before')
+    after_value = opened_source['probe_after']
     after_raw = None if after_value is None else _probe(after_value, label='probe_after')
-    failure = _failure(_member(opened, 'failure', label='opened'))
-    launch_failures = _launch_failures(_member(opened, 'launch_failures', label='opened'))
-    (observations, throughputs, nonfinite_count, rep_integrity, measurement_present) = _source_throughputs(opened, reps_expected=reps_expected, expected_use_perf=expected_use_perf, failure=failure, pre_probe_competing=before_raw['competing'] is True)
-    record = _source_campaign_record(_member(terminal, 'campaign_record', label='terminal'))
-    _assert_authoritative_identity(reservation, record)
-    raw_output = _member(terminal, 'raw_output_bytes', label='terminal')
-    if type(raw_output) is not bytes or not raw_output:
-        _fail('terminal.raw_output_bytes is not non-empty exact bytes')
+    failure = _failure(opened_source['failure'])
+    launch_failures = [
+        _launch_failure(item, position=position)
+        for (position, item) in enumerate(opened_source['launch_failures'])
+    ]
+    (
+        observations,
+        throughputs,
+        nonfinite_count,
+        rep_integrity,
+        measurement_present,
+    ) = _source_throughputs_from_snapshot(
+        opened_source,
+        reps_expected=reps_expected,
+        expected_use_perf=expected_use_perf,
+        failure=failure,
+        pre_probe_competing=before_raw['competing'] is True,
+    )
+    _assert_authoritative_identity(reservation_source, record)
     serialized = _serialize_session_line(record)
     if raw_output != serialized:
         _fail('raw output differs from serialize_session_line(campaign_record)')
@@ -768,21 +1083,21 @@ def seal_terminal_evidence(reservation: object, opened: object, terminal: object
     assessment = _assess_finite_throughputs(throughputs, reps_expected=reps_expected, session_cv_max=session_cv_max)
     (retry_reason, campaign_reason, status, primary) = _derive_e1(probe_before=before_summary, probe_after=after_summary, failure=_failure_summary(failure), exec_failures=exec_failures, reps_expected=reps_expected, rep_integrity_failures=rep_integrity, assessment=assessment)
     expected_echo = _derive_classification_echo(probe_before=before_summary, probe_after=after_summary, failure=_failure_summary(failure), launch_failures_count=len(launch_failures))
-    if _member(opened, 'pre_observation_failure_reason', label='opened') != expected_echo:
+    if opened_source['pre_observation_failure_reason'] != expected_echo:
         _fail('pre-observation failure reason differs from launcher facts')
-    terminal_status = _member(terminal, 'terminal_status', label='terminal')
+    terminal_status = terminal_source['terminal_status']
     if terminal_status != status:
         _fail('terminal.terminal_status differs from E1')
-    terminal_primary = _member(terminal, 'primary_value', label='terminal')
+    terminal_primary = terminal_source['primary_value']
     if terminal_primary != primary or (terminal_primary is not None and type(terminal_primary) is not float):
         _fail('terminal.primary_value differs from E1')
-    report_sha256 = _member(terminal, 'report_sha256', label='terminal')
+    report_sha256 = terminal_source['report_sha256']
     if report_sha256 != raw_output_sha256:
         _fail('terminal.report_sha256 differs from raw output digest')
     observation_sha256 = rep_observations_sha256 if status == 'observed' else None
-    if _member(terminal, 'observation_sha256', label='terminal') != observation_sha256:
+    if terminal_source['observation_sha256'] != observation_sha256:
         _fail('terminal.observation_sha256 differs from E1')
-    finished_at = _text(_member(terminal, 'finished_at', label='terminal'), label='finished_at')
+    finished_at = _text(terminal_source['finished_at'], label='finished_at')
     if checked_plaintext['excluded_reason'] != campaign_reason:
         _fail('campaign_record.excluded_reason differs from E1')
     expected_cv = assessment.cv
@@ -806,10 +1121,10 @@ def seal_terminal_evidence(reservation: object, opened: object, terminal: object
         _fail('campaign_record.probe_after differs from opened probe')
     if _digest_value(record['rep_observations'], label='campaign observations') != rep_observations_sha256:
         _fail('campaign_record.rep_observations differs from private sink')
-    perf_receipt = _member(reservation, 'perf_preflight_receipt', label='reservation')
+    perf_receipt = reservation_source['perf_preflight_receipt']
     document = {
         'schema_version': _SCHEMA_VERSION,
-        'attempt_binding': _source_attempt_binding(reservation),
+        'attempt_binding': reservation_source['attempt_binding'],
         'mode': mode,
         'expected_use_perf': expected_use_perf,
         'finished_at': finished_at,
@@ -824,8 +1139,8 @@ def seal_terminal_evidence(reservation: object, opened: object, terminal: object
         'probe_before': before_summary,
         'probe_after': after_summary,
         'campaign_record': checked_plaintext,
-        'campaign_record_sha256': _digest_value(
-            record, label='campaign record'),
+        'campaign_record_sha256': _sha256_bytes(
+            terminal_snapshot._campaign_record_bytes),
         'workload_sha256': _digest_value(record['workload'], label='workload'),
         'run_cmd_sha256': _digest_value(record['run_cmd'], label='run command'),
         'notes_sha256': _digest_value(record['notes'], label='notes'),
@@ -854,6 +1169,16 @@ def seal_terminal_evidence(reservation: object, opened: object, terminal: object
     _validated_document(parsed, expected_binding_keys=_DRAFT_ATTEMPT_BINDING_KEYS)
     draft = object.__new__(SealedTerminalEvidenceDraft)
     object.__setattr__(draft, '_canonical_bytes', canonical)
+    object.__setattr__(
+        draft,
+        '_external_evidence_sha256',
+        opened_source['external_evidence_sha256'],
+    )
+    object.__setattr__(
+        draft,
+        '_launcher_origin_capability',
+        opened_snapshot._reservation._launcher_origin_capability,
+    )
     return draft
 
 def require_sealed_terminal_evidence(value: object) -> ValidatedTerminalEvidence:

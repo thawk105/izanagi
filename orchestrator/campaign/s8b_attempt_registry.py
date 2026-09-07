@@ -71,6 +71,36 @@ _FLOOR_CONSUMED_MARKER_KEYS = frozenset({
 _FLOOR_CONSUMED_MARKER_SCHEMA = "s8b-holdout-attempt-consumption/v1"
 _ZERO_OUTPUT_SHA256 = hashlib.sha256(b"").hexdigest()
 _TERMINAL_EVIDENCE_ISSUER_TOKEN = object()
+_LAUNCHER_ORIGIN_ISSUER_TOKEN = object()
+
+
+@dataclass(frozen=True, slots=True, init=False)
+class _LauncherOriginCapability:
+    """Private proof that a reservation came from the certified wrapper."""
+
+    _seal: object
+
+
+def _new_launcher_origin_capability() -> _LauncherOriginCapability:
+    capability = object.__new__(_LauncherOriginCapability)
+    object.__setattr__(
+        capability, "_seal", _LAUNCHER_ORIGIN_ISSUER_TOKEN,
+    )
+    return capability
+
+
+def _require_launcher_origin_capability(
+    value: object,
+) -> _LauncherOriginCapability:
+    if (
+        type(value) is not _LauncherOriginCapability
+        or value._seal is not _LAUNCHER_ORIGIN_ISSUER_TOKEN
+    ):
+        _fail(
+            "s8b-launcher-origin",
+            "sealed terminal requires a certified launcher origin",
+        )
+    return value
 
 # Tests enumerate this exact set and prove that every point fires.  A raised
 # hook models process loss at the boundary; the authoritative path must still
@@ -178,6 +208,7 @@ class _AttemptState:
     run_relpath: str
     cell_id: str
     deferred_output_reader: Callable[[], bytes]
+    launcher_origin_capability: _LauncherOriginCapability | None = None
     consumption_marker: admission.FloorAttemptConsumptionMarker | None = None
     measurement_generation_claim_digest: str | None = None
     classification_receipt_bytes: bytes | None = None
@@ -247,6 +278,7 @@ def _state_fingerprint(state: _AttemptState) -> tuple[object, ...]:
         state.run_relpath,
         state.cell_id,
         id(state.deferred_output_reader),
+        id(state.launcher_origin_capability),
         id(state.consumption_marker),
         state.measurement_generation_claim_digest,
         state.classification_receipt_bytes,
@@ -1323,6 +1355,17 @@ def _assert_terminal_durable_identity(
         _fail("s8b-terminal-evidence", "durable claim path differs")
     document = evidence.document
     campaign_record = document["campaign_record"]
+    slot_identity = {
+        "holdout_id": slot.freeze_holdout_key,
+        "configuration_id": slot.configuration_id,
+        "retry_ordinal": slot.attempt_ordinal,
+    }
+    for field_name, expected_value in slot_identity.items():
+        if campaign_record.get(field_name) != expected_value:
+            _fail(
+                "s8b-terminal-evidence",
+                f"campaign record differs from slot: {field_name}",
+            )
     key = durable_claim.get("key")
     attempt_ids = durable_claim.get("attempt_ids")
     expected_values = {
@@ -2358,6 +2401,7 @@ def reserve_attempt_slot(
     run_relpath: str,
     cell_id: str,
     deferred_output_reader: Callable[[], bytes],
+    launcher_origin_capability: _LauncherOriginCapability | None = None,
     consumption_marker: admission.FloorAttemptConsumptionMarker | None = None,
 ) -> ReservedAttempt:
     """Persist reservation and return the only handle accepted by classify."""
@@ -2379,6 +2423,8 @@ def reserve_attempt_slot(
     )
     if not callable(deferred_output_reader):
         _fail("s8b-attempt-registry-handle", "deferred output reader is not callable")
+    if launcher_origin_capability is not None:
+        _require_launcher_origin_capability(launcher_origin_capability)
     canonical_repo_root = Path(repo_root).resolve()
     root, path = _entry_paths(
         canonical_repo_root,
@@ -2514,6 +2560,7 @@ def reserve_attempt_slot(
         run_relpath=run_relpath,
         cell_id=cell_id,
         deferred_output_reader=deferred_output_reader,
+        launcher_origin_capability=launcher_origin_capability,
         consumption_marker=consumption_marker,
         measurement_generation_claim_digest=(
             measurement_generation_claim_digest
@@ -3099,6 +3146,27 @@ def record_sealed_attempt_terminal(
         )
     if type(evidence) is not terminal_evidence.SealedTerminalEvidenceDraft:
         _fail("s8b-terminal-evidence", "terminal evidence draft type differs")
+    launcher_origin = _require_launcher_origin_capability(
+        state.launcher_origin_capability,
+    )
+    if evidence._launcher_origin_capability is not launcher_origin:
+        _fail(
+            "s8b-launcher-origin",
+            "terminal evidence launcher origin differs from reservation",
+        )
+    receipt_bytes = state.classification_receipt_bytes
+    if type(receipt_bytes) is not bytes:
+        _fail("s8b-terminal-evidence", "classification receipt is absent")
+    receipt = _canonical_document(
+        receipt_bytes, label="classification receipt",
+    )
+    if receipt.get("external_evidence_sha256") != (
+        evidence._external_evidence_sha256
+    ):
+        _fail(
+            "s8b-terminal-evidence",
+            "classification external evidence differs from terminal sources",
+        )
     if state.raw_output_sha256 is None:
         _fail("s8b-attempt-registry-handle", "captured output digest is absent")
     phase_digests = (

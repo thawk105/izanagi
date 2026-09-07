@@ -27,6 +27,16 @@ from . import s8b_attempt_registry as attempt_registry
 from . import s8b_attempt_profile as profile8b
 from .s8b_terminal_evidence import (
     SealedTerminalEvidenceDraft,
+    TerminalEvidenceError,
+    _OpenedSourceSnapshot,
+    _ReservationSourceSnapshot,
+    _TerminalSourceSnapshot,
+    _opened_source_document,
+    _reservation_source_document,
+    _snapshot_opened_source,
+    _snapshot_reservation_source,
+    _snapshot_terminal_source,
+    _terminal_source_document,
     seal_terminal_evidence,
 )
 from .s8b_floor_contract import canonical_protocol_sha256
@@ -194,6 +204,7 @@ class _ReservationPolicy:
     reps_expected: int
     capture_keyword_arguments: dict[str, object]
     is_v2: bool
+    terminal_source_snapshot: _ReservationSourceSnapshot | None
 
 
 _PRODUCTION_DEPENDENCIES = _LauncherDependencies(
@@ -427,8 +438,13 @@ def _failure_evidence(
     if type(error_number) is not int:
         error_number = None
     exception_type = type(failure).__name__
-    if qualify_timeout and isinstance(failure, subprocess.TimeoutExpired):
-        exception_type = "subprocess.TimeoutExpired"
+    if qualify_timeout:
+        if isinstance(failure, subprocess.TimeoutExpired):
+            exception_type = "subprocess.TimeoutExpired"
+        elif isinstance(failure, OSError):
+            exception_type = "OSError"
+        elif isinstance(failure, RuntimeError):
+            exception_type = "RuntimeError"
     return {
         "stage": stage,
         "exception_type": exception_type,
@@ -534,6 +550,8 @@ def _snapshot_keyword_argument(value: object) -> object:
 def _checked_reservation_policy(
     reservation: FloorAttemptReservation,
     measurement: FloorMeasurementCapture,
+    *,
+    launcher_origin_capability: object | None = None,
 ) -> _ReservationPolicy:
     """Validate policy before effects and retain the exact capture kwargs copy.
 
@@ -551,39 +569,68 @@ def _checked_reservation_policy(
         raise FloorAttemptLauncherError(
             "[s8b-launcher-v2-policy] v2 schema and consumption marker differ"
         )
+    if is_v2 and (
+        type(reservation.slot_id) is not tuple
+        or len(reservation.slot_id) != 5
+        or type(reservation.schedule_row_sha256) is not str
+        or len(reservation.schedule_row_sha256) != 64
+        or any(
+            character not in "0123456789abcdef"
+            for character in reservation.schedule_row_sha256
+        )
+        or type(reservation.records) is not int
+        or reservation.records <= 0
+        or type(reservation.threads) is not int
+        or reservation.threads <= 0
+        or not isinstance(reservation.workload, Mapping)
+        or callable(reservation.workload)
+    ):
+        raise FloorAttemptLauncherError(
+            "v2 reservation durable identity is invalid"
+        )
     if (
-        _contains_callable(reservation.protocol)
-        or _contains_callable(reservation.perf_preflight_receipt)
+        callable(reservation.protocol)
+        or callable(reservation.perf_preflight_receipt)
+        or (
+            not is_v2
+            and (
+                _contains_callable(reservation.protocol)
+                or _contains_callable(reservation.perf_preflight_receipt)
+            )
+        )
     ):
         raise FloorAttemptLauncherError(
             "reservation policy contains a callable"
         )
-    if not isinstance(reservation.protocol, Mapping):
+    terminal_source_snapshot: _ReservationSourceSnapshot | None = None
+    if is_v2:
+        try:
+            terminal_source_snapshot = _snapshot_reservation_source(
+                reservation,
+                launcher_origin_capability=launcher_origin_capability,
+            )
+            reservation_source = _reservation_source_document(
+                terminal_source_snapshot)
+        except TerminalEvidenceError as exc:
+            raise FloorAttemptLauncherError(
+                "reservation policy is not canonical evidence data"
+            ) from exc
+        protocol = reservation_source["protocol"]
+        perf_preflight_receipt = reservation_source[
+            "perf_preflight_receipt"
+        ]
+        workload = reservation_source["workload"]
+    else:
+        protocol = reservation.protocol
+        perf_preflight_receipt = reservation.perf_preflight_receipt
+        workload = reservation.workload
+    if not isinstance(protocol, Mapping):
         raise FloorAttemptLauncherError("reservation protocol is not a mapping")
     if type(reservation.mode) is not str or reservation.mode not in {"pilot", "official"}:
         raise FloorAttemptLauncherError(
             "reservation mode must be pilot or official"
         )
     if is_v2:
-        if (
-            type(reservation.slot_id) is not tuple
-            or len(reservation.slot_id) != 5
-            or type(reservation.schedule_row_sha256) is not str
-            or len(reservation.schedule_row_sha256) != 64
-            or any(
-                character not in "0123456789abcdef"
-                for character in reservation.schedule_row_sha256
-            )
-            or type(reservation.records) is not int
-            or reservation.records <= 0
-            or type(reservation.threads) is not int
-            or reservation.threads <= 0
-            or not isinstance(reservation.workload, Mapping)
-            or _contains_callable(reservation.workload)
-        ):
-            raise FloorAttemptLauncherError(
-                "v2 reservation durable identity is invalid"
-            )
         if (
             measurement.records != reservation.records
             or measurement.threads != reservation.threads
@@ -592,22 +639,22 @@ def _checked_reservation_policy(
                 label="capture workload",
             )
             != _canonical_json_bytes(
-                reservation.workload, label="reservation workload",
+                workload, label="reservation workload",
             )
         ):
             raise FloorAttemptLauncherError(
                 "v2 capture coordinates differ from durable identity"
             )
     if (
-        reservation.perf_preflight_receipt is not None and
-        not isinstance(reservation.perf_preflight_receipt, Mapping)
+        perf_preflight_receipt is not None and
+        not isinstance(perf_preflight_receipt, Mapping)
     ):
         raise FloorAttemptLauncherError(
             "perf preflight receipt is not a mapping"
         )
     try:
         bound_protocol_sha256 = reservation.binding.protocol_sha256
-        actual_protocol_sha256 = canonical_protocol_sha256(reservation.protocol)
+        actual_protocol_sha256 = canonical_protocol_sha256(protocol)
     except (AttributeError, TypeError, ValueError, RuntimeError) as exc:
         raise FloorAttemptLauncherError(
             "reservation protocol binding is invalid"
@@ -616,14 +663,14 @@ def _checked_reservation_policy(
         raise FloorAttemptLauncherError(
             "reservation protocol is not bound to binding.protocol_sha256"
         )
-    reps_expected = reservation.protocol.get("reps")
+    reps_expected = protocol.get("reps")
     if type(reps_expected) is not int or reps_expected <= 0:
         raise FloorAttemptLauncherError(
             "reservation protocol.reps is not a positive exact integer"
         )
     try:
         expected_use_perf = use_perf_from_receipt(
-            reservation.perf_preflight_receipt
+            perf_preflight_receipt
         )
     except (TypeError, ValueError) as exc:
         raise FloorAttemptLauncherError(
@@ -655,6 +702,7 @@ def _checked_reservation_policy(
         reps_expected=reps_expected,
         capture_keyword_arguments=keyword_arguments,
         is_v2=is_v2,
+        terminal_source_snapshot=terminal_source_snapshot,
     )
 
 
@@ -680,6 +728,7 @@ def _reserve(
     *,
     output: _OwnedRawOutput,
     dependencies: _LauncherDependencies,
+    launcher_origin_capability: object | None = None,
 ) -> object:
     if type(request) is not FloorAttemptReservation:
         raise FloorAttemptLauncherError(
@@ -699,6 +748,7 @@ def _reserve(
         "run_relpath": request.run_relpath,
         "cell_id": request.cell_id,
         "deferred_output_reader": output.read,
+        "launcher_origin_capability": launcher_origin_capability,
         "consumption_marker": request.consumption_marker,
     }
     return dependencies.registry.reserve_attempt_slot(
@@ -836,17 +886,28 @@ def _binary_sha256_at_measure(path_value: str) -> str:
 
 
 def _assert_v2_terminal_launcher_facts(
-    terminal: FloorAttemptTerminal,
+    terminal: FloorAttemptTerminal | _TerminalSourceSnapshot,
     *,
     duration_s: float,
     finished_at: str,
     binary_sha256_at_measure: str,
 ) -> None:
-    record = terminal.campaign_record
-    if not isinstance(record, Mapping):
-        raise FloorAttemptLauncherError(
-            "[s8b-launcher-terminal] campaign record is not a mapping"
-        )
+    if type(terminal) is _TerminalSourceSnapshot:
+        try:
+            terminal_source, record, _raw_output = _terminal_source_document(
+                terminal)
+        except TerminalEvidenceError as exc:
+            raise FloorAttemptLauncherError(
+                "[s8b-launcher-terminal] campaign record cannot be snapshotted"
+            ) from exc
+        terminal_finished_at = terminal_source["finished_at"]
+    else:
+        record = terminal.campaign_record
+        if not isinstance(record, Mapping):
+            raise FloorAttemptLauncherError(
+                "[s8b-launcher-terminal] campaign record is not a mapping"
+            )
+        terminal_finished_at = terminal.finished_at
     expected = {
         "duration_s": duration_s,
         "binary_sha256_at_measure": binary_sha256_at_measure,
@@ -857,7 +918,7 @@ def _assert_v2_terminal_launcher_facts(
                 "[s8b-launcher-terminal] campaign record differs from "
                 f"launcher fact: {field_name}"
             )
-    if terminal.finished_at != finished_at:
+    if terminal_finished_at != finished_at:
         raise FloorAttemptLauncherError(
             "[s8b-launcher-terminal] finished_at differs from launcher clock"
         )
@@ -879,6 +940,7 @@ def _launch_floor_attempt(
     sealed_terminal_recorder: Callable[
         [object, SealedTerminalEvidenceDraft], None
     ] | None,
+    launcher_origin_capability: object | None,
 ) -> FloorAttemptLaunchResult:
     """Reserve, probe, capture, classify, open, observe, and terminalize.
 
@@ -897,14 +959,21 @@ def _launch_floor_attempt(
         raise FloorAttemptLauncherError("classified_at is not callable")
     if not callable(terminal_builder):
         raise FloorAttemptLauncherError("terminal_builder is not callable")
-    policy = _checked_reservation_policy(reservation, measurement)
+    policy = _checked_reservation_policy(
+        reservation,
+        measurement,
+        launcher_origin_capability=launcher_origin_capability,
+    )
 
     output = _OwnedRawOutput()
     _ensure_registry_genesis(
         reservation, registry_genesis, dependencies=dependencies,
     )
     reserved = _reserve(
-        reservation, output=output, dependencies=dependencies,
+        reservation,
+        output=output,
+        dependencies=dependencies,
+        launcher_origin_capability=launcher_origin_capability,
     )
     measurement_started_monotonic = time.monotonic()
     binary_sha256_at_measure = (
@@ -918,7 +987,9 @@ def _launch_floor_attempt(
     failure: Mapping[str, object] | None = None
     launch_failures: tuple[object, ...] = ()
     private_rep_sink: list[dict[str, object]] = []
+    capture_executed = False
     if probe_before["competing"] is not True:
+        capture_executed = True
         try:
             captured = _capture(
                 measurement,
@@ -964,11 +1035,16 @@ def _launch_floor_attempt(
     if failure is None:
         try:
             opened_measurement = durable.open()
-        except Exception as exc:  # output-derived failures still terminalize
+        except Exception as exc:
+            if policy.is_v2 and not isinstance(
+                exc,
+                (subprocess.TimeoutExpired, OSError, RuntimeError),
+            ):
+                raise
             failure = _failure_evidence(
                 "open", exc, qualify_timeout=policy.is_v2,
             )
-    if policy.is_v2 and failure is None and (
+    if policy.is_v2 and capture_executed and failure is None and (
         getattr(opened_measurement, "records", None) != reservation.records
         or getattr(opened_measurement, "threads", None) != reservation.threads
     ):
@@ -1001,28 +1077,76 @@ def _launch_floor_attempt(
         capture_keyword_arguments=capture_keyword_arguments,
         finished_at=terminal_finished_at,
     )
-    terminal = terminal_builder(opened)
+    opened_snapshot: _OpenedSourceSnapshot | None = None
+    if policy.is_v2:
+        assert policy.terminal_source_snapshot is not None
+        try:
+            opened_snapshot = _snapshot_opened_source(
+                policy.terminal_source_snapshot, opened,
+            )
+            opened_source = _opened_source_document(opened_snapshot)
+        except TerminalEvidenceError as exc:
+            raise FloorAttemptLauncherError(
+                "[s8b-launcher-terminal] opened facts cannot be snapshotted"
+            ) from exc
+        builder_opened = OpenedFloorAttempt(
+            measurement=opened_measurement,
+            failure=opened_source["failure"],
+            probe_before=opened_source["probe_before"],
+            probe_after=opened_source["probe_after"],
+            launch_failures=tuple(opened_source["launch_failures"]),
+            pre_observation_failure_reason=opened_source[
+                "pre_observation_failure_reason"
+            ],
+            external_evidence_sha256=opened_source[
+                "external_evidence_sha256"
+            ],
+            repetition_evidence=tuple(opened_source["repetition_evidence"]),
+            expected_use_perf=policy.expected_use_perf,
+            reps_expected=policy.reps_expected,
+            measurement_started_monotonic=measurement_started_monotonic,
+            measurement_finished_monotonic=measurement_finished_monotonic,
+            duration_s=duration_s,
+            binary_sha256_at_measure=binary_sha256_at_measure,
+            capture_keyword_arguments=dict(capture_keyword_arguments),
+            finished_at=terminal_finished_at,
+        )
+    else:
+        builder_opened = opened
+    terminal = terminal_builder(builder_opened)
     if type(terminal) is not FloorAttemptTerminal:
         raise FloorAttemptLauncherError(
             "terminal_builder returned an invalid type"
         )
-    if opened.failure is not None and terminal.terminal_status == "observed":
+    if failure is not None and terminal.terminal_status == "observed":
         raise FloorAttemptLauncherError(
             "[s8b-launcher-terminal] observed terminal contradicts a capture "
             "or open failure"
         )
     sealed_draft: SealedTerminalEvidenceDraft | None = None
     if policy.is_v2:
+        assert opened_snapshot is not None
+        try:
+            terminal_snapshot = _snapshot_terminal_source(terminal)
+        except TerminalEvidenceError as exc:
+            raise FloorAttemptLauncherError(
+                "[s8b-launcher-terminal] terminal facts cannot be snapshotted"
+            ) from exc
         _assert_v2_terminal_launcher_facts(
-            terminal,
+            terminal_snapshot,
             duration_s=duration_s,
             finished_at=terminal_finished_at,
             binary_sha256_at_measure=binary_sha256_at_measure,
         )
         sealed_draft = seal_terminal_evidence(
-            reservation, opened, terminal,
+            reservation, opened_snapshot, terminal_snapshot,
         )
-    output.seal(terminal.raw_output_bytes)
+        _terminal_source, _record, sealed_raw_output = (
+            _terminal_source_document(terminal_snapshot)
+        )
+        output.seal(sealed_raw_output)
+    else:
+        output.seal(terminal.raw_output_bytes)
     observation = _begin_observation(
         durable.classification, dependencies=dependencies,
     )
@@ -1041,7 +1165,7 @@ def _launch_floor_attempt(
             primary_value=terminal.primary_value,
             finished_at=terminal.finished_at,
         )
-    return FloorAttemptLaunchResult(opened=opened, terminal=terminal)
+    return FloorAttemptLaunchResult(opened=builder_opened, terminal=terminal)
 
 
 def launch_floor_attempt(
@@ -1055,6 +1179,9 @@ def launch_floor_attempt(
 ) -> FloorAttemptLaunchResult:
     """Certified launcher surface with no caller-provided result callback."""
     _assert_owned_post_probe_capability(post_probe)
+    launcher_origin_capability = (
+        attempt_registry._new_launcher_origin_capability()
+    )
     return _launch_floor_attempt(
         reservation,
         registry_genesis,
@@ -1066,6 +1193,7 @@ def launch_floor_attempt(
         terminal_builder=terminal_builder,
         dependencies=_PRODUCTION_DEPENDENCIES,
         sealed_terminal_recorder=attempt_registry.record_sealed_attempt_terminal,
+        launcher_origin_capability=launcher_origin_capability,
     )
 
 
@@ -1113,4 +1241,5 @@ def _launch_floor_attempt_for_test(
             capture_measure_point=capture_measure_point,
         ),
         sealed_terminal_recorder=record_sealed_for_test,
+        launcher_origin_capability=None,
     )

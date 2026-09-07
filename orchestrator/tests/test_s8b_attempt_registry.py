@@ -329,6 +329,8 @@ def _sealed_v2_case(
     tmp_path: Path,
     *,
     durable_identity_override: Mapping[str, object] | None = None,
+    classification_external_override: str | None = None,
+    capture_failure: bool = False,
 ) -> dict[str, Any]:
     case, profile, binding, slot = _v2_registry_capability_case(tmp_path)
     claim = admission._read_canonical_document(case["claim_path"])
@@ -354,6 +356,9 @@ def _sealed_v2_case(
         for index, value in enumerate(values)
     ]
     probe = {"rc": 1, "stdout": "", "stderr": "", "competing": False}
+    if capture_failure:
+        values = []
+        observations = []
     assessment = floor_stats.assess_session(
         values, reps=reps, session_cv_max=session_cv_max,
     )
@@ -364,16 +369,16 @@ def _sealed_v2_case(
         "configuration_id": slot.configuration_id,
         "duration_s": 1.25,
         "event": "session",
-        "excluded_reason": None,
-        "exclusion_class": None,
-        "exec_failures": 0,
+        "excluded_reason": "launch_failure" if capture_failure else None,
+        "exclusion_class": "launch_failure" if capture_failure else None,
+        "exec_failures": reps if capture_failure else 0,
         "holdout_id": slot.freeze_holdout_key,
         "kind": "planned",
         "notes": ["sealed adapter test"],
         "probe_after": dict(probe),
         "probe_before": dict(probe),
         "records": claim["records"],
-        "rep_integrity_failures": 0,
+        "rep_integrity_failures": None if capture_failure else 0,
         "rep_observations": observations,
         "reps_expected": reps,
         "retry": False,
@@ -382,11 +387,11 @@ def _sealed_v2_case(
         "run_cmd": ["ycsb_test.exe"],
         "seq": slot.repetition,
         "session_cv": assessment.cv,
-        "session_median": assessment.median,
+        "session_median": None if capture_failure else assessment.median,
         "threads": claim["threads"],
         "throughputs": values,
         "trigger": None,
-        "valid": True,
+        "valid": not capture_failure,
         "workload": claim["workload"],
     }
     evidence_mode = claim["mode"]
@@ -395,6 +400,7 @@ def _sealed_v2_case(
         evidence_mode = override.pop("mode", evidence_mode)
         record.update(override)
     raw_output = profile8b.serialize_session_line(record)
+    launcher_origin = registry._new_launcher_origin_capability()
     reserved = registry.reserve_attempt_slot(
         case["repo_root"],
         profile=profile,
@@ -412,21 +418,58 @@ def _sealed_v2_case(
         run_relpath=case["marker"]["run_relpath"],
         cell_id=case["marker"]["cell_id"],
         deferred_output_reader=lambda: raw_output,
+        launcher_origin_capability=launcher_origin,
         consumption_marker=case["capability"],
+    )
+    failure = (
+        {
+            "stage": "capture",
+            "exception_type": "OSError",
+            "errno": 5,
+            "message": "capture unavailable",
+        }
+        if capture_failure
+        else None
+    )
+    external_evidence_sha256 = evidence._pre_output_evidence_sha256(
+        probe_before=probe,
+        probe_after=probe,
+        launch_failures=(),
+        failure=failure,
     )
     classified = registry.classify_attempt(
         reserved,
-        pre_observation_failure_reason=None,
+        pre_observation_failure_reason=(
+            "launch_failure" if capture_failure else None
+        ),
         authority_id=_CLASSIFICATION_AUTHORITY,
         authority_policy_sha256=_POLICY,
-        external_evidence_sha256=_EXTERNAL,
+        external_evidence_sha256=(
+            external_evidence_sha256
+            if classification_external_override is None
+            else classification_external_override
+        ),
         classified_at="2026-09-08T00:00:01+00:00",
     )
-    assert type(classified) is registry.ClassifiedAttempt
-    observation = registry.begin_attempt_observation(classified)
+    if capture_failure:
+        assert type(classified) is registry.ClassifiedFailure
+        observation = registry.begin_classified_failure_observation(classified)
+    else:
+        assert type(classified) is registry.ClassifiedAttempt
+        observation = registry.begin_attempt_observation(classified)
+    evidence_slot_id = list(profile.slot_codec.slot_id(slot))
+    if durable_identity_override is not None:
+        if "holdout_id" in durable_identity_override:
+            evidence_slot_id[0] = durable_identity_override["holdout_id"]
+        if "configuration_id" in durable_identity_override:
+            evidence_slot_id[1] = durable_identity_override[
+                "configuration_id"
+            ]
+        if "retry_ordinal" in durable_identity_override:
+            evidence_slot_id[4] = durable_identity_override["retry_ordinal"]
     reservation = SimpleNamespace(
         binding=binding,
-        slot_id=profile.slot_codec.slot_id(slot),
+        slot_id=tuple(evidence_slot_id),
         protocol=protocol,
         mode=evidence_mode,
         perf_preflight_receipt=None,
@@ -444,29 +487,52 @@ def _sealed_v2_case(
         workload=record["workload"],
     )
     opened = SimpleNamespace(
-        measurement=SimpleNamespace(throughputs=values),
-        failure=None,
+        measurement=(
+            None
+            if capture_failure
+            else SimpleNamespace(throughputs=values)
+        ),
+        failure=failure,
         probe_before=probe,
         probe_after=probe,
         launch_failures=(),
-        pre_observation_failure_reason=None,
+        pre_observation_failure_reason=(
+            "launch_failure" if capture_failure else None
+        ),
+        external_evidence_sha256=external_evidence_sha256,
         repetition_evidence=tuple(observations),
         expected_use_perf=False,
         reps_expected=reps,
     )
     terminal = SimpleNamespace(
         raw_output_bytes=raw_output,
-        terminal_status="observed",
+        terminal_status=(
+            "retryable-failure" if capture_failure else "observed"
+        ),
         report_sha256=hashlib.sha256(raw_output).hexdigest(),
-        observation_sha256=hashlib.sha256(
-            core.canonical_json_bytes(observations)
-        ).hexdigest(),
-        primary_value=float(assessment.median),
+        observation_sha256=(
+            None
+            if capture_failure
+            else hashlib.sha256(
+                core.canonical_json_bytes(observations)
+            ).hexdigest()
+        ),
+        primary_value=(
+            None if capture_failure else float(assessment.median)
+        ),
         finished_at="2026-09-08T00:00:02+00:00",
         campaign_record=record,
     )
+    reservation_snapshot = evidence._snapshot_reservation_source(
+        reservation,
+        launcher_origin_capability=launcher_origin,
+    )
+    opened_snapshot = evidence._snapshot_opened_source(
+        reservation_snapshot, opened,
+    )
+    terminal_snapshot = evidence._snapshot_terminal_source(terminal)
     draft = evidence.seal_terminal_evidence(
-        reservation, opened, terminal,
+        reservation, opened_snapshot, terminal_snapshot,
     )
     return {
         **case,
@@ -476,6 +542,8 @@ def _sealed_v2_case(
         "observation": observation,
         "draft": draft,
         "record": record,
+        "external_evidence_sha256": external_evidence_sha256,
+        "launcher_origin": launcher_origin,
     }
 
 
@@ -4140,6 +4208,163 @@ def test_sealed_issuer_rechecks_durable_claim_identity(
         admission.shared_admission_root(sealed["repo_root"])
         / "floor-attempt-registry-receipts/terminal-evidence"
     ).exists()
+
+
+@pytest.mark.parametrize(
+    ("field_name", "replacement"),
+    (
+        ("holdout_id", "transplanted-holdout"),
+        ("configuration_id", "transplanted-configuration"),
+        ("retry_ordinal", 9),
+    ),
+)
+def test_sealed_issuer_rejects_structural_reservation_identity_transplant(
+    tmp_path: Path,
+    field_name: str,
+    replacement: object,
+) -> None:
+    sealed = _sealed_v2_case(
+        tmp_path,
+        durable_identity_override={field_name: replacement},
+    )
+    path = registry.registry_path(
+        sealed["repo_root"],
+        freeze_sha256=sealed["binding"].freeze_sha256,
+        protocol_sha256=sealed["binding"].protocol_sha256,
+    )
+    before = path.read_bytes()
+    with pytest.raises(
+        registry.S8BAttemptRegistryError,
+        match=rf"campaign record differs from slot: {field_name}",
+    ):
+        registry.record_sealed_attempt_terminal(
+            sealed["observation"], sealed["draft"],
+        )
+    assert path.read_bytes() == before
+
+
+@pytest.mark.parametrize(
+    ("field_name", "replacement"),
+    (
+        ("holdout_id", "transplanted-holdout"),
+        ("configuration_id", "transplanted-configuration"),
+        ("retry_ordinal", 9),
+    ),
+)
+def test_durable_replay_rejects_campaign_identity_transplant(
+    tmp_path: Path,
+    field_name: str,
+    replacement: object,
+) -> None:
+    sealed = _sealed_v2_case(tmp_path)
+    registry.record_sealed_attempt_terminal(
+        sealed["observation"], sealed["draft"],
+    )
+    root = admission.shared_admission_root(sealed["repo_root"])
+    path = registry.registry_path(
+        sealed["repo_root"],
+        freeze_sha256=sealed["binding"].freeze_sha256,
+        protocol_sha256=sealed["binding"].protocol_sha256,
+    )
+    rows = list(registry._registry_documents_for_evidence(path.read_bytes()))
+    old_digest = rows[-1]["terminal_evidence_sha256"]
+    old_path = registry._terminal_evidence_path(root, old_digest)
+    document = json.loads(old_path.read_text(encoding="utf-8"))
+    document["campaign_record"][field_name] = replacement
+    payload = core.canonical_json_bytes(document)
+    digest = hashlib.sha256(payload).hexdigest()
+    registry._terminal_evidence_path(root, digest).write_bytes(payload)
+    terminal = dict(rows[-1])
+    terminal["terminal_evidence_sha256"] = digest
+    terminal["event_sha256"] = core.event_sha256(terminal)
+    rows[-1] = terminal
+    path.write_bytes(_bytes(tuple(rows)))
+    with pytest.raises(
+        registry.S8BAttemptRegistryError,
+        match=rf"campaign record differs from slot: {field_name}",
+    ):
+        registry.read_attempt_registry(
+            sealed["repo_root"],
+            profile=sealed["profile"],
+            binding=sealed["binding"],
+        )
+
+
+def test_classification_receipt_rechecks_terminal_source_digest(
+    tmp_path: Path,
+) -> None:
+    sealed = _sealed_v2_case(
+        tmp_path,
+        classification_external_override="f" * 64,
+    )
+    with pytest.raises(
+        registry.S8BAttemptRegistryError,
+        match="classification external evidence differs from terminal sources",
+    ):
+        registry.record_sealed_attempt_terminal(
+            sealed["observation"], sealed["draft"],
+        )
+
+
+def test_capture_failure_zero_launch_count_issues_and_replays(
+    tmp_path: Path,
+) -> None:
+    sealed = _sealed_v2_case(tmp_path, capture_failure=True)
+    assert sealed["draft"].document["launch_failures_count"] == 0
+    assert sealed["draft"].document["failure"]["stage"] == "capture"
+    registry.record_sealed_attempt_terminal(
+        sealed["observation"], sealed["draft"],
+    )
+    rows = registry.read_attempt_registry(
+        sealed["repo_root"],
+        profile=sealed["profile"],
+        binding=sealed["binding"],
+    )
+    assert rows[-1]["terminal_status"] == "retryable-failure"
+
+
+def test_durable_replay_rejects_capture_failure_with_nonzero_launch_count(
+    tmp_path: Path,
+) -> None:
+    sealed = _sealed_v2_case(tmp_path, capture_failure=True)
+    registry.record_sealed_attempt_terminal(
+        sealed["observation"], sealed["draft"],
+    )
+    root = admission.shared_admission_root(sealed["repo_root"])
+    path = registry.registry_path(
+        sealed["repo_root"],
+        freeze_sha256=sealed["binding"].freeze_sha256,
+        protocol_sha256=sealed["binding"].protocol_sha256,
+    )
+    rows = list(registry._registry_documents_for_evidence(path.read_bytes()))
+    old_digest = rows[-1]["terminal_evidence_sha256"]
+    old_path = registry._terminal_evidence_path(root, old_digest)
+    document = json.loads(old_path.read_text(encoding="utf-8"))
+    document["launch_failures_count"] = 1
+    document["launch_failures_sha256"] = hashlib.sha256(
+        core.canonical_json_bytes([{
+            "exception_type": "OSError",
+            "errno": 5,
+            "message": "contradictory launch failure",
+        }])
+    ).hexdigest()
+    payload = core.canonical_json_bytes(document)
+    digest = hashlib.sha256(payload).hexdigest()
+    registry._terminal_evidence_path(root, digest).write_bytes(payload)
+    terminal = dict(rows[-1])
+    terminal["terminal_evidence_sha256"] = digest
+    terminal["event_sha256"] = core.event_sha256(terminal)
+    rows[-1] = terminal
+    path.write_bytes(_bytes(tuple(rows)))
+    with pytest.raises(
+        registry.S8BAttemptRegistryError,
+        match="durable evidence is invalid",
+    ):
+        registry.read_attempt_registry(
+            sealed["repo_root"],
+            profile=sealed["profile"],
+            binding=sealed["binding"],
+        )
 
 
 def test_sealed_profile_directly_checks_all_eleven_row_equalities(

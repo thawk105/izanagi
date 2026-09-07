@@ -70,6 +70,7 @@ class _Opened:
     probe_after: dict[str, object] | None
     launch_failures: tuple[object, ...]
     pre_observation_failure_reason: str | None
+    external_evidence_sha256: str
     repetition_evidence: tuple[dict[str, object], ...]
     expected_use_perf: bool
     reps_expected: int
@@ -277,6 +278,14 @@ def _case(kind: str='observed') -> _Case:
         probe_after=after,
         launch_failures=launch_failures,
         pre_observation_failure_reason=reason,
+        external_evidence_sha256=evidence._pre_output_evidence_sha256(
+            probe_before=before,
+            probe_after=after,
+            launch_failures=tuple(
+                dict(item) for item in launch_failures
+            ),
+            failure=failure,
+        ),
         repetition_evidence=tuple(observations),
         expected_use_perf=False,
         reps_expected=3,
@@ -539,6 +548,14 @@ def test_mutation_l13_launcher_captured_set_is_exact(
     case = _case('oserror')
     assert case.opened.failure is not None
     case.opened.failure['exception_type'] = exception_name
+    case.opened.external_evidence_sha256 = (
+        evidence._pre_output_evidence_sha256(
+            probe_before=case.opened.probe_before,
+            probe_after=case.opened.probe_after,
+            launch_failures=(),
+            failure=case.opened.failure,
+        )
+    )
     projection = _seal(case).projection
     assert projection.measurement_retry_reason == 'measurement_execution_unavailable'
     assert _seal(case).document['failure_message_sha256'] == _digest(
@@ -610,6 +627,40 @@ def test_failure_requires_unavailable_projection() -> None:
 def test_launch_failure_count_contradicts_zero_exec_failures() -> None:
     with pytest.raises(evidence.TerminalEvidenceError, match='contradict'):
         evidence._assert_mutual_consistency(probe_before={'competing': False}, probe_after={'competing': False}, failure=None, launch_failures_count=1, throughputs=(100.0, 101.0, 102.0), nonfinite_count=0, exec_failures=0, reps_expected=3, rep_integrity_failures=0, rep_observations_sha256='a' * 64, sink_length=3, measurement_present=True)
+
+def test_capture_failure_requires_zero_launch_failure_count_pair() -> None:
+    positive = _case('oserror')
+    assert _seal(positive).document['launch_failures_count'] == 0
+
+    negative = _case('oserror')
+    contradictory = {
+        'exception_type': 'OSError',
+        'errno': 5,
+        'message': 'contradictory launch failure',
+    }
+    negative.opened.launch_failures = (contradictory,)
+    negative.opened.external_evidence_sha256 = (
+        evidence._pre_output_evidence_sha256(
+            probe_before=negative.opened.probe_before,
+            probe_after=negative.opened.probe_after,
+            launch_failures=(contradictory,),
+            failure=negative.opened.failure,
+        )
+    )
+    with pytest.raises(
+        evidence.TerminalEvidenceError,
+        match='capture failure has nonzero launch_failures_count',
+    ):
+        _seal(negative)
+
+def test_opened_external_digest_is_rechecked_against_each_source() -> None:
+    case = _case()
+    case.opened.probe_before['stderr'] = 'builder-forged'
+    with pytest.raises(
+        evidence.TerminalEvidenceError,
+        match='external evidence digest differs from source facts',
+    ):
+        _seal(case)
 
 def test_campaign_excluded_reason_must_equal_rederived_word() -> None:
     case = _case()
