@@ -5,6 +5,7 @@ import ast
 import copy
 import dataclasses
 import hashlib
+import inspect
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -19,7 +20,7 @@ from orchestrator.campaign import reflux_origin_topology as T
 from orchestrator.campaign import reflux_source_closure as S
 from orchestrator.campaign import trigger_gate_binding as G
 from orchestrator.campaign import wal as W
-from orchestrator.campaign.layout import CampaignLayout
+from orchestrator.campaign.layout import CampaignLayout, exploration_campaign_layout
 from orchestrator.tests import reflux_origin_fixture_builder as F
 
 
@@ -141,7 +142,10 @@ def _capability_digest(capability: B.OriginBindingCapability) -> str:
     return _digest(_canonical(record))
 
 
-def _run_plan(capability: B.OriginBindingCapability) -> T.RecoveryEnvelope:
+def _run_plan(
+    capability: B.OriginBindingCapability,
+    planned_campaign_run_identities: tuple[str, ...],
+) -> T.RecoveryEnvelope:
     raw = F.build_recovery_envelope_inputs()
     operations = T.EventOperationIds(**raw["event_operation_ids"])
     materials = tuple(
@@ -150,7 +154,7 @@ def _run_plan(capability: B.OriginBindingCapability) -> T.RecoveryEnvelope:
             result_evidence_salt=item["result_evidence_salt"],
             constraint_salt=item["constraint_salt"],
             evidence_path=item["evidence_path"],
-            planned_campaign_run_identity=f"fixture-run-{index:04d}",
+            planned_campaign_run_identity=planned_campaign_run_identities[index],
         )
         for index, item in enumerate(raw["members"])
     )
@@ -179,6 +183,111 @@ def _sealed_member(record: dict, raw: bytes) -> L.SealedBatchMember:
     )
 
 
+def _logical_lock_identity() -> dict:
+    return {
+        "spec_content": "fixture origin physical campaign",
+        "ccbench_commit": "c" * 40,
+        "search_tag": "origin-physical",
+        "search_config": {
+            "build_admission": {"policy": "fixture"},
+            "descriptor_sha256": "a" * 64,
+        },
+        "trial": "fixture-origin-trial",
+    }
+
+
+def _campaign_identity(spec_slug: str, identity: dict) -> str:
+    return (
+        f"{spec_slug}-{identity['search_tag']}-"
+        f"{_digest(_canonical(identity))[:8]}"
+    )
+
+
+def _physical_lock_identity(
+    *, attempt_capability_sha256: str, query_ordinal: int
+) -> dict:
+    identity = copy.deepcopy(_logical_lock_identity())
+    identity["search_config"]["origin_campaign_run"] = {
+        "attempt_capability_sha256": attempt_capability_sha256,
+        "query_ordinal": query_ordinal,
+    }
+    return identity
+
+
+def _relative_to_evidence_root(fixture: F.FixtureRepository, path: Path) -> str:
+    return path.relative_to(fixture.evidence_root).as_posix()
+
+
+def _materialize_physical_evidence(
+    fixture: F.FixtureRepository,
+    *,
+    logical_campaign_id: str,
+    attempt_capability_sha256: str,
+    campaign_output_root: Path,
+) -> tuple[tuple[str, ...], tuple[Path, ...]]:
+    identities: list[str] = []
+    roots: list[Path] = []
+    spec_slug = "fixture-origin"
+    for query_ordinal, record_path in enumerate(fixture.result_evidence_paths):
+        record = json.loads(record_path.read_bytes())
+        physical_lock = _physical_lock_identity(
+            attempt_capability_sha256=attempt_capability_sha256,
+            query_ordinal=query_ordinal,
+        )
+        campaign_run_identity = _campaign_identity(spec_slug, physical_lock)
+        root = Path(exploration_campaign_layout(
+            campaign_run_identity, str(campaign_output_root)
+        ).root)
+        (root / "runs").mkdir(parents=True, exist_ok=True)
+        (root / "reports").mkdir(exist_ok=True)
+        (root / "campaign.lock").write_bytes(_canonical(physical_lock))
+
+        old_projection_path = (
+            fixture.evidence_root
+            / record["evidence"]["ordered_wal_ref"]["path"]
+        )
+        projection = json.loads(old_projection_path.read_bytes())
+        old_source_path = (
+            fixture.evidence_root / projection["source_wal_ref"]["path"]
+        )
+        source_raw = old_source_path.read_bytes()
+        source_path = root / "runs" / "wal.jsonl"
+        source_path.write_bytes(source_raw)
+        projection["source_wal_ref"] = {
+            "path": _relative_to_evidence_root(fixture, source_path),
+            "sha256": _digest(source_raw),
+        }
+        projection_path = root / "reports" / "ordered-wal-projection.json"
+        projection_raw = _canonical(projection)
+        projection_path.write_bytes(projection_raw)
+
+        old_provenance_path = (
+            fixture.evidence_root
+            / record["evidence"]["execution_provenance_ref"]["path"]
+        )
+        provenance = json.loads(old_provenance_path.read_bytes())
+        provenance["schema_version"] = "execution-provenance/v2"
+        provenance["campaign_id"] = logical_campaign_id
+        provenance["campaign_run_identity"] = campaign_run_identity
+        provenance_path = root / "reports" / "execution-provenance.json"
+        provenance_raw = _canonical(provenance)
+        provenance_path.write_bytes(provenance_raw)
+
+        record["trial_binding"]["campaign_id"] = logical_campaign_id
+        record["evidence"]["ordered_wal_ref"] = {
+            "path": _relative_to_evidence_root(fixture, projection_path),
+            "sha256": _digest(projection_raw),
+        }
+        record["evidence"]["execution_provenance_ref"] = {
+            "path": _relative_to_evidence_root(fixture, provenance_path),
+            "sha256": _digest(provenance_raw),
+        }
+        record_path.write_bytes(_canonical(record))
+        identities.append(campaign_run_identity)
+        roots.append(root)
+    return tuple(identities), tuple(roots)
+
+
 @dataclass
 class _Case:
     fixture: F.FixtureRepository
@@ -189,6 +298,10 @@ class _Case:
     raw_records: list[bytes]
     batches: tuple[L.SealedBatch, ...]
     snapshot: L.OriginSnapshot
+    campaign_output_root: Path
+    attempt_capability_sha256: str
+    origin_run_plan_sha256: str
+    physical_roots: tuple[Path, ...]
     operation_id: str = "fixture-formal-terminal-operation"
 
     def kwargs(self) -> dict:
@@ -197,6 +310,9 @@ class _Case:
             "capability": self.capability,
             "source_closure": self.closure,
             "run_plan": self.run_plan,
+            "campaign_output_root": str(self.campaign_output_root),
+            "origin_run_plan_sha256": self.origin_run_plan_sha256,
+            "attempt_capability_sha256": self.attempt_capability_sha256,
             "authority_blob_bytes": self.fixture.authority_manifest_path.read_bytes(),
             "launch_admission_record_sha256": first["trial_binding"][
                 "launch_admission_record_sha256"
@@ -230,6 +346,17 @@ def _clear_process_local_receipt_state():
 @pytest.fixture
 def case(tmp_path: Path) -> _Case:
     fixture = F.build_fixture_repository(tmp_path / "formal-consumer")
+    campaign_output_root = fixture.root
+    attempt_capability_sha256 = _digest(b"fixture:attempt-slot-capability")
+    logical_campaign_id = _campaign_identity(
+        "fixture-origin", _logical_lock_identity()
+    )
+    campaign_run_identities, physical_roots = _materialize_physical_evidence(
+        fixture,
+        logical_campaign_id=logical_campaign_id,
+        attempt_capability_sha256=attempt_capability_sha256,
+        campaign_output_root=campaign_output_root,
+    )
     raw_records = [path.read_bytes() for path in fixture.result_evidence_paths]
     records = [json.loads(raw) for raw in raw_records]
     members = tuple(
@@ -265,16 +392,25 @@ def case(tmp_path: Path) -> _Case:
         reserved_member_row_count=None,
         reserved_query_ordinal_start=None,
     )
-    capability = _issued_capability()
+    capability = _issued_capability(campaign_id=logical_campaign_id)
+    run_plan = _run_plan(capability, campaign_run_identities)
+    envelope_path = fixture.evidence_root / "origin" / "recovery-envelope.json"
+    envelope_path.parent.mkdir(exist_ok=True)
+    envelope_bytes = T.canonical_recovery_envelope_bytes(run_plan)
+    envelope_path.write_bytes(envelope_bytes)
     return _Case(
         fixture=fixture,
         capability=capability,
         closure=_issued_closure(),
-        run_plan=_run_plan(capability),
+        run_plan=run_plan,
         records=records,
         raw_records=raw_records,
         batches=(batch,),
         snapshot=snapshot,
+        campaign_output_root=campaign_output_root,
+        attempt_capability_sha256=attempt_capability_sha256,
+        origin_run_plan_sha256=_digest(envelope_bytes),
+        physical_roots=physical_roots,
     )
 
 
@@ -420,7 +556,82 @@ def _assert_reason(case: _Case, expected: C.FormalReasonCode, **overrides) -> No
     assert payload["constraint_class_sha256s"] == []
 
 
+def _assert_gates_before_physical_binding_pass(case: _Case) -> None:
+    paired = C._pair_records(
+        sealed_batches=case.batches,
+        result_record_bytes=case.raw_records,
+    )
+    manifest = C._authority_manifest(
+        case.fixture.authority_manifest_path.read_bytes(), case.capability
+    )
+    C._validate_bindings(
+        capability=case.capability,
+        source_closure=case.closure,
+        manifest=manifest,
+        run_plan=case.run_plan,
+        launch_admission_record_sha256=case.records[0]["trial_binding"][
+            "launch_admission_record_sha256"
+        ],
+        snapshot=case.snapshot,
+        sealed_batches=case.batches,
+        paired=paired,
+    )
+    C._validate_bound_recovery_envelope(
+        evidence_root=case.fixture.evidence_root,
+        run_plan=case.run_plan,
+        origin_run_plan_sha256=case.origin_run_plan_sha256,
+    )
+    C._validate_exact_rejected_classes(paired)
+    C._validate_member_mapping(paired)
+    resolved = C._resolved_records(
+        paired, evidence_root=case.fixture.evidence_root
+    )
+    C._validate_execution_provenance_bindings(
+        case.capability, paired, resolved
+    )
+    C._validate_bijection(paired, resolved)
+    C._validate_topology(paired, case.run_plan)
+
+
+def _relocate_ordered_wal(case: _Case, index: int, target_root: Path) -> None:
+    record = copy.deepcopy(case.records[index])
+    projection_path = (
+        case.fixture.evidence_root
+        / record["evidence"]["ordered_wal_ref"]["path"]
+    )
+    projection = json.loads(projection_path.read_bytes())
+    source_path = (
+        case.fixture.evidence_root / projection["source_wal_ref"]["path"]
+    )
+    source_raw = source_path.read_bytes()
+    target_source = target_root / "runs" / f"wal-reused-{index:04d}.jsonl"
+    target_projection = (
+        target_root
+        / "reports"
+        / f"ordered-wal-projection-reused-{index:04d}.json"
+    )
+    target_source.parent.mkdir(parents=True, exist_ok=True)
+    target_projection.parent.mkdir(parents=True, exist_ok=True)
+    target_source.write_bytes(source_raw)
+    projection["source_wal_ref"] = {
+        "path": _relative_to_evidence_root(case.fixture, target_source),
+        "sha256": _digest(source_raw),
+    }
+    projection_raw = _canonical(projection)
+    target_projection.write_bytes(projection_raw)
+    record["evidence"]["ordered_wal_ref"] = {
+        "path": _relative_to_evidence_root(case.fixture, target_projection),
+        "sha256": _digest(projection_raw),
+    }
+    _set_record(case, index, record)
+
+
 def test_exact_fixture_contract_reaches_only_p6_unavailable(case: _Case) -> None:
+    assert all(
+        set(record["evidence"])
+        == {"ordered_wal_ref", "execution_provenance_ref"}
+        for record in case.records
+    )
     result = _evaluate(case)
     assert type(result) is C.P6Unavailable
     assert result.reason_code is C.FormalReasonCode.P6_UNAVAILABLE
@@ -507,6 +718,157 @@ def test_fc03_rejects_run_plan_capability_digest_mismatch(case: _Case) -> None:
         case.run_plan, origin_binding_capability_sha256="e" * 64
     )
     _assert_reason(case, C.FormalReasonCode.FC03, run_plan=changed)
+
+
+def test_formal_consumer_requires_all_physical_binding_kwargs() -> None:
+    signature = inspect.signature(C.evaluate_formal_origin)
+    for name in (
+        "campaign_output_root",
+        "origin_run_plan_sha256",
+        "attempt_capability_sha256",
+    ):
+        parameter = signature.parameters[name]
+        assert parameter.kind is inspect.Parameter.KEYWORD_ONLY
+        assert parameter.default is inspect.Parameter.empty
+    assert "recovery_envelope_path" not in signature.parameters
+    assert "campaign_lock_ref" not in signature.parameters
+
+
+def test_fc03_rejects_envelope_replaced_after_lifecycle_start(case: _Case) -> None:
+    changed = dataclasses.replace(case.run_plan, hypothesis_sha256="e" * 64)
+    envelope_path = case.fixture.evidence_root / "origin/recovery-envelope.json"
+    envelope_path.write_bytes(T.canonical_recovery_envelope_bytes(changed))
+    _assert_reason(case, C.FormalReasonCode.FC03)
+
+
+def test_fc03_rejects_same_envelope_at_a_different_path(case: _Case) -> None:
+    envelope_path = case.fixture.evidence_root / "origin/recovery-envelope.json"
+    alternate_path = case.fixture.evidence_root / "alternate/recovery-envelope.json"
+    alternate_path.parent.mkdir()
+    envelope_path.rename(alternate_path)
+    assert alternate_path.read_bytes() == T.canonical_recovery_envelope_bytes(
+        case.run_plan
+    )
+    _assert_reason(case, C.FormalReasonCode.FC03)
+
+
+def test_fc03_physical_gate_rejects_swapped_q10_q11_root_configs(
+    case: _Case,
+) -> None:
+    left, right = 10, 11
+    left_lock = (case.physical_roots[left] / "campaign.lock").read_bytes()
+    right_lock = (case.physical_roots[right] / "campaign.lock").read_bytes()
+    (case.physical_roots[left] / "campaign.lock").write_bytes(right_lock)
+    (case.physical_roots[right] / "campaign.lock").write_bytes(left_lock)
+    for index in (left, right):
+        provenance_path = (
+            case.fixture.evidence_root
+            / case.records[index]["evidence"]["execution_provenance_ref"]["path"]
+        )
+        provenance = json.loads(provenance_path.read_bytes())
+        provenance["campaign_run_identity"] = case.run_plan.members[
+            index
+        ].planned_campaign_run_identity
+        _rewrite_provenance(case, index, provenance)
+
+    _assert_gates_before_physical_binding_pass(case)
+    _assert_reason(case, C.FormalReasonCode.FC03)
+
+
+def test_fc03_physical_gate_rejects_claimed_campaign_run_identity_mismatch(
+    case: _Case,
+) -> None:
+    index = 0
+    provenance_path = (
+        case.fixture.evidence_root
+        / case.records[index]["evidence"]["execution_provenance_ref"]["path"]
+    )
+    provenance = json.loads(provenance_path.read_bytes())
+    provenance["campaign_run_identity"] = case.run_plan.members[
+        1
+    ].planned_campaign_run_identity
+    _rewrite_provenance(case, index, provenance)
+
+    _assert_gates_before_physical_binding_pass(case)
+    _assert_reason(case, C.FormalReasonCode.FC03)
+
+
+def test_fc03_physical_gate_rejects_33_wals_reused_from_another_trial(
+    case: _Case,
+) -> None:
+    for index in range(33):
+        donor_lock = _physical_lock_identity(
+            attempt_capability_sha256=case.attempt_capability_sha256,
+            query_ordinal=index,
+        )
+        donor_lock["trial"] = "fixture-other-trial"
+        donor_identity = _campaign_identity("fixture-origin", donor_lock)
+        donor_root = Path(exploration_campaign_layout(
+            donor_identity, str(case.campaign_output_root)
+        ).root)
+        donor_root.mkdir(parents=True)
+        (donor_root / "campaign.lock").write_bytes(_canonical(donor_lock))
+        _relocate_ordered_wal(case, index, donor_root)
+        provenance_path = (
+            case.fixture.evidence_root
+            / case.records[index]["evidence"]["execution_provenance_ref"]["path"]
+        )
+        provenance = json.loads(provenance_path.read_bytes())
+        provenance["campaign_run_identity"] = case.run_plan.members[
+            index
+        ].planned_campaign_run_identity
+        _rewrite_provenance(case, index, provenance)
+
+    _assert_gates_before_physical_binding_pass(case)
+    _assert_reason(case, C.FormalReasonCode.FC03)
+
+
+def test_fc03_physical_gate_rejects_wals_from_a_past_attempt(case: _Case) -> None:
+    past_attempt = _digest(b"fixture:past-attempt-slot-capability")
+    for index in range(33):
+        old_lock = _physical_lock_identity(
+            attempt_capability_sha256=past_attempt,
+            query_ordinal=index,
+        )
+        old_identity = _campaign_identity("fixture-origin", old_lock)
+        old_root = Path(exploration_campaign_layout(
+            old_identity, str(case.campaign_output_root)
+        ).root)
+        old_root.mkdir(parents=True)
+        (old_root / "campaign.lock").write_bytes(_canonical(old_lock))
+        _relocate_ordered_wal(case, index, old_root)
+        provenance_path = (
+            case.fixture.evidence_root
+            / case.records[index]["evidence"]["execution_provenance_ref"]["path"]
+        )
+        provenance = json.loads(provenance_path.read_bytes())
+        provenance["campaign_run_identity"] = case.run_plan.members[
+            index
+        ].planned_campaign_run_identity
+        _rewrite_provenance(case, index, provenance)
+
+    _assert_gates_before_physical_binding_pass(case)
+    _assert_reason(case, C.FormalReasonCode.FC03)
+
+
+def test_fc03_physical_gate_rejects_consistent_files_outside_canonical_root(
+    case: _Case,
+) -> None:
+    index = 0
+    relocated_root = (
+        case.fixture.evidence_root
+        / "relocated"
+        / case.run_plan.members[index].planned_campaign_run_identity
+    )
+    relocated_root.mkdir(parents=True)
+    relocated_lock = relocated_root / "campaign.lock"
+    relocated_lock.write_bytes(
+        (case.physical_roots[index] / "campaign.lock").read_bytes()
+    )
+    _relocate_ordered_wal(case, index, relocated_root)
+
+    _assert_gates_before_physical_binding_pass(case)
+    _assert_reason(case, C.FormalReasonCode.FC03)
 
 
 @pytest.mark.parametrize(
@@ -696,6 +1058,20 @@ def test_fc05c_rejects_legacy_root_trigger_binding_shape(case: _Case) -> None:
         "trigger_binding": copy.deepcopy(case.records[0]["trigger_binding"]),
     }
     _rewrite_wal(case, 0, [legacy, terminal])
+    _assert_reason(case, C.FormalReasonCode.FC05C)
+
+
+def test_fc05c_rejects_mixed_native_and_legacy_trigger_shape_families(
+    case: _Case,
+) -> None:
+    wal = _projection_records(case, 0)
+    legacy = {
+        "kind": "TriggerGateBinding",
+        "build_attempt_id": "placeholder",
+        "trigger_binding": copy.deepcopy(case.records[0]["trigger_binding"]),
+    }
+    wal.insert(1, legacy)
+    _rewrite_wal(case, 0, wal)
     _assert_reason(case, C.FormalReasonCode.FC05C)
 
 

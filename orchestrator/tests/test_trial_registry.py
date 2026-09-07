@@ -2629,6 +2629,71 @@ def test_acceptance_projects_identical_terminal_bytes_in_all_json_boundaries(
             ] is None
 
 
+@pytest.mark.parametrize("report_has_origin_binding", [True, False])
+def test_acceptance_lifecycle_requires_origin_binding_and_run_plan_digest_iff(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    report_has_origin_binding: bool,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    reports = _reports(repo / "reports", manifest, _head(repo), complete=True)
+    trial = manifest.trials[0]
+    binding_record = _fixture_origin_binding(trial, _head(repo))
+    projection = formal.origin_terminal_projection_record(
+        _origin_terminal_projection(
+            rejected=True,
+            origin_binding_record=binding_record,
+            arm_binding_digest_sha256=_fixture_arm_execution(trial)[
+                "arm_binding_digest_sha256"
+            ],
+        )
+    )
+    if report_has_origin_binding:
+        events, report = _load_report_bundle(reports[0])
+        for target in (events[0], report):
+            target["launch_admission"]["origin_binding"] = copy.deepcopy(
+                binding_record
+            )
+        report.update(copy.deepcopy(projection))
+        _persist(reports[0].parent, events, report)
+    capability = _effective_capability(manifest, monkeypatch)
+    lifecycle = _write_acceptance_lifecycle(
+        repo, manifest, reports, capability.report_digest_sha256,
+    )
+    rows = [json.loads(line) for line in lifecycle.read_bytes().splitlines()]
+    start = next(
+        row for row in rows
+        if row["event"] == "start" and row["trial_id"] == trial.trial_id
+    )
+    terminal = next(
+        row for row in rows
+        if row["event"] == "terminal" and row["trial_id"] == trial.trial_id
+    )
+    if report_has_origin_binding:
+        start.pop("origin_run_plan_sha256")
+        terminal.pop("origin_terminal_projection")
+    else:
+        start["origin_run_plan_sha256"] = "e" * 64
+        terminal.update(copy.deepcopy(projection))
+    lifecycle.write_bytes(b"".join(_canonical(row) + b"\n" for row in rows))
+
+    with pytest.raises(
+        R.TrialRegistryError,
+        match=(
+            r"\[acceptance-lifecycle\] trial .* launch origin binding and "
+            r"lifecycle run-plan digest presence differ$"
+        ),
+    ):
+        R.assert_trial_registry_acceptance(
+            effective_preregistration=capability,
+            manifest_path=manifest_path,
+            report_paths=reports,
+            repository_root=repo,
+            registry_path=registry,
+            lifecycle_path=lifecycle,
+        )
+
+
 @pytest.mark.parametrize("mutation", ["missing-report", "run-start-mismatch"])
 def test_acceptance_independently_requires_exact_rederived_launch_admission(
     tmp_path: Path,
@@ -3227,7 +3292,7 @@ def _write_acceptance_lifecycle(
         slot_id = report.get("slot_id", _fixture_slot_id(trial))
         attempt_start = attempt_starts.get(slot_id)
         attempt_terminal = attempt_terminals.get(slot_id)
-        rows.append({
+        start = {
             "schema_version": R.LIFECYCLE_SCHEMA_VERSION,
             "event": "start",
             "trial_id": trial.trial_id,
@@ -3255,7 +3320,10 @@ def _write_acceptance_lifecycle(
                 if attempt_start is not None
                 else _fixture_process_identity(trial)
             ),
-        })
+        }
+        if "origin_binding" in report["launch_admission"]:
+            start["origin_run_plan_sha256"] = "e" * 64
+        rows.append(start)
         if trial.trial_id == omit_terminal_trial_id:
             continue
         journal = path.with_name("attempts.jsonl")
@@ -3862,10 +3930,65 @@ def test_formal_noncertifying_lifecycle_start_consumes_reserved_attempt_slot(
     assert row["mode"] == "registered-formal-non-certifying"
     assert row["activation_report_digest_sha256"] is None
     assert R._load_lifecycle_rows(lifecycle.read_bytes())[0] == row
+    assert len(R._LIFECYCLE_START_BASE_KEYS) == 15
+    assert R._LIFECYCLE_START_KEYS == frozenset({
+        R._LIFECYCLE_START_BASE_KEYS,
+        R._LIFECYCLE_START_BASE_KEYS | {"origin_run_plan_sha256"},
+    })
+    origin_digest_parameter = inspect.signature(
+        R.record_trial_start_once
+    ).parameters["origin_run_plan_sha256"]
+    assert origin_digest_parameter.kind is inspect.Parameter.KEYWORD_ONLY
+    assert origin_digest_parameter.default is None
     assert sum(
         item.get("event") == "start" and item.get("slot_id") == attempt_slot.slot_id
         for item in R.load_attempt_registry(repo)
     ) == 1
+
+
+@pytest.mark.parametrize(
+    ("with_origin", "origin_run_plan_sha256"),
+    [
+        (True, None),
+        (False, "a" * 64),
+        (True, "not-a-sha256"),
+    ],
+    ids=["binding-without-digest", "digest-without-binding", "invalid-digest"],
+)
+def test_lifecycle_start_requires_origin_binding_and_run_plan_digest_iff(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    with_origin: bool,
+    origin_run_plan_sha256: str | None,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    trial = manifest.trials[0]
+    admission = _registered_admission(
+        repo, manifest_path, registry, manifest, monkeypatch,
+    )
+    capability = (
+        _issued_origin_binding(trial, _head(repo), monkeypatch)
+        if with_origin else None
+    )
+    attempt_slot = _lifecycle_attempt_slot(
+        repo, manifest, admission, origin_binding=capability,
+    )
+    lifecycle = repo / R.DEFAULT_LIFECYCLE_PATH
+
+    with pytest.raises(R.TrialRegistryError, match=r"\[lifecycle-origin\] "):
+        R.record_trial_start_once(
+            admission=admission,
+            effective_preregistration=_effective_capability(manifest, monkeypatch),
+            manifest_path=manifest_path,
+            run_root=repo / "rejected-origin-run",
+            repository_root=repo,
+            registry_path=registry,
+            lifecycle_path=lifecycle,
+            origin_binding=capability,
+            origin_run_plan_sha256=origin_run_plan_sha256,
+            attempt_slot=attempt_slot,
+        )
+    assert not lifecycle.exists()
 
 
 def test_m07_outer_manifest_capability_commit_check_is_unmasked(
@@ -4207,6 +4330,7 @@ def test_lifecycle_terminal_projects_the_formal_consumer_shape_by_bytes(
         registry_path=registry,
         lifecycle_path=lifecycle,
         origin_binding=capability,
+        origin_run_plan_sha256="e" * 64,
         attempt_slot=attempt_slot,
     )
     projection = _origin_terminal_projection(
@@ -4224,6 +4348,8 @@ def test_lifecycle_terminal_projects_the_formal_consumer_shape_by_bytes(
     )
     rows = [json.loads(line) for line in lifecycle.read_bytes().splitlines()]
     start, terminal = rows
+    assert token.origin_run_plan_sha256 == "e" * 64
+    assert start["origin_run_plan_sha256"] == "e" * 64
     expected_admission = R.launch_admission_record(
         admission,
         origin_binding=capability,
@@ -4241,6 +4367,27 @@ def test_lifecycle_terminal_projects_the_formal_consumer_shape_by_bytes(
         assert terminal["origin_terminal_projection"][
             "evidence_root_sha256"
         ] is None
+    without_digest = copy.deepcopy(rows)
+    without_digest[0].pop("origin_run_plan_sha256")
+    with pytest.raises(R.TrialRegistryError, match=r"\[lifecycle-origin\] "):
+        R._load_lifecycle_rows(
+            b"".join(_canonical(row) + b"\n" for row in without_digest)
+        )
+    without_projection = copy.deepcopy(rows)
+    without_projection[1].pop("origin_terminal_projection")
+    with pytest.raises(R.TrialRegistryError, match=r"\[lifecycle-origin\] "):
+        R._load_lifecycle_rows(
+            b"".join(_canonical(row) + b"\n" for row in without_projection)
+        )
+    invalid_digest = copy.deepcopy(rows)
+    invalid_digest[0]["origin_run_plan_sha256"] = "not-a-sha256"
+    with pytest.raises(
+        R.TrialRegistryError,
+        match=r"\[lifecycle-schema\] start origin_run_plan_sha256 is invalid$",
+    ):
+        R._load_lifecycle_rows(
+            b"".join(_canonical(row) + b"\n" for row in invalid_digest)
+        )
 
 
 def test_lifecycle_updates_take_exclusive_flock_and_fsync(

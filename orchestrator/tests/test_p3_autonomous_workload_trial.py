@@ -8972,6 +8972,12 @@ def test_registered_slot_is_reserved_before_first_performance_observation(
     original_classify = A.trial_registry.classify_attempt
     original_observation_start = A.trial_registry.begin_attempt_observation
     original_read = reflux_origin_client.OriginLedgerClient.read_origin
+    original_derive = A._derive_origin_campaign_runs
+    original_build_envelope = A._build_origin_recovery_envelope
+    original_write_envelope = (
+        A.reflux_origin_topology.write_recovery_envelope_create_only
+    )
+    original_lifecycle_start = A.trial_registry.record_trial_start_once
 
     def observe_reservation(**kwargs):
         events.append("slot-reservation")
@@ -8988,6 +8994,32 @@ def test_registered_slot_is_reserved_before_first_performance_observation(
     def observe_origin_read(self, capability):
         events.append("origin-read")
         return original_read(self, capability)
+
+    def observe_derivation(*args, **kwargs):
+        events.append("identity-derivation")
+        return original_derive(*args, **kwargs)
+
+    def observe_envelope_build(**kwargs):
+        events.append("envelope-build")
+        return original_build_envelope(**kwargs)
+
+    def observe_envelope_write(**kwargs):
+        events.append("envelope-write")
+        return original_write_envelope(**kwargs)
+
+    def observe_lifecycle_start(**kwargs):
+        events.append("lifecycle-start")
+        envelope_path = Path(kwargs["run_root"]) / "origin" / (
+            "recovery-envelope.json"
+        )
+        assert kwargs["origin_run_plan_sha256"] == hashlib.sha256(
+            envelope_path.read_bytes()
+        ).hexdigest()
+        if "origin_run_plan_sha256" not in inspect.signature(
+            original_lifecycle_start
+        ).parameters:
+            kwargs.pop("origin_run_plan_sha256")
+        return original_lifecycle_start(**kwargs)
 
     def observe_performance(*args, **kwargs):
         events.append("performance-observation")
@@ -9007,6 +9039,18 @@ def test_registered_slot_is_reserved_before_first_performance_observation(
         "read_origin",
         observe_origin_read,
     )
+    monkeypatch.setattr(A, "_derive_origin_campaign_runs", observe_derivation)
+    monkeypatch.setattr(
+        A, "_build_origin_recovery_envelope", observe_envelope_build,
+    )
+    monkeypatch.setattr(
+        A.reflux_origin_topology,
+        "write_recovery_envelope_create_only",
+        observe_envelope_write,
+    )
+    monkeypatch.setattr(
+        A.trial_registry, "record_trial_start_once", observe_lifecycle_start,
+    )
     report = _t325_run(
         t325_registered_trial,
         tmp_path / "reservation-before-performance",
@@ -9017,10 +9061,16 @@ def test_registered_slot_is_reserved_before_first_performance_observation(
     assert report["status"] == "complete"
     assert events[0] == "slot-reservation"
     assert events.index("classification") > events.index("slot-reservation")
+    assert events.index("origin-read") > events.index("classification")
+    assert events.index("identity-derivation") > events.index("origin-read")
+    assert events.index("envelope-build") > events.index("identity-derivation")
+    assert events.index("envelope-write") > events.index("envelope-build")
+    assert events.index("lifecycle-start") > events.index("envelope-write")
     assert events.index("observation-start") > events.index("classification")
-    assert events.index("observation-start") < events.index("origin-read")
-    assert events.index("origin-read") > 0
-    assert events.index("performance-observation") > 0
+    assert events.index("observation-start") > events.index("lifecycle-start")
+    assert events.index("performance-observation") > events.index(
+        "observation-start"
+    )
 
 
 def _s8c_budget_test_setup(tmp_path, monkeypatch, scheduled_holdouts):
@@ -10277,35 +10327,18 @@ def _canonical_origin_test_bytes(value: object) -> bytes:
     ).encode("utf-8")
 
 
-def _origin_recovery_envelope(
-    *,
-    capability=None,
-    initial_expected_state_commitment: str | None = None,
-):
+def _origin_run_plan_input():
     raw = origin_fixtures.build_recovery_envelope_inputs()
     materials = tuple(
-        reflux_origin_topology.MemberRecoveryMaterial(
+        A.OriginMemberPlanInput(
             candidate_salt=item["candidate_salt"],
             result_evidence_salt=item["result_evidence_salt"],
             constraint_salt=item["constraint_salt"],
             evidence_path=item["evidence_path"],
-            planned_campaign_run_identity=f"fixture-run-{index:04d}",
         )
-        for index, item in enumerate(raw["members"])
+        for item in raw["members"]
     )
-    return reflux_origin_topology.build_recovery_envelope(
-        capability_digest=(
-            raw["origin_binding_capability_sha256"]
-            if capability is None
-            else hashlib.sha256(_canonical_origin_test_bytes(
-                A.reflux_origin_binding.origin_binding_capability_record(capability)
-            )).hexdigest()
-        ),
-        source_closure_digest=(
-            raw["source_closure_sha256"]
-            if capability is None
-            else capability.source_closure_sha256
-        ),
+    return A.OriginRunPlanInput(
         hypothesis_sha256=raw["hypothesis_sha256"],
         validation_plan_sha256=raw["validation_plan_sha256"],
         attempt_0_batch_id=raw["reserve_attempts"][0]["batch_id"],
@@ -10315,12 +10348,189 @@ def _origin_recovery_envelope(
         ),
         source_mask=7,
         member_materials=materials,
-        initial_expected_state_commitment=(
-            raw["expected_state_commitment"]
-            if initial_expected_state_commitment is None
-            else initial_expected_state_commitment
-        ),
     )
+
+
+def _origin_logical_campaign() -> A.CampaignConfig:
+    context = _no_build_context()
+    return A.ident.bind_admission_policy(
+        A.CampaignConfig(
+            spec_slug="origin-identity-test",
+            search_tag="logical",
+            spec_content="origin physical identity test",
+            ccbench_commit="1" * 40,
+            search_config={"logical": True},
+            trial="origin-logical-trial",
+        ),
+        context.policy,
+    )
+
+
+def test_origin_campaign_runs_are_deterministic_distinct_and_structured() -> None:
+    logical = _origin_logical_campaign()
+    digest = "a" * 64
+    first = A._derive_origin_campaign_runs(
+        logical, attempt_capability_sha256=digest,
+    )
+    second = A._derive_origin_campaign_runs(
+        logical, attempt_capability_sha256=digest,
+    )
+    assert first == second
+    assert tuple(run.query_ordinal for run in first) == tuple(range(33))
+    assert len({run.identity_preimage for run in first}) == 33
+    assert len({run.campaign_run_identity for run in first}) == 33
+    assert logical.trial == first[0].campaign.trial
+    assert "origin_campaign_run" not in logical.search_config
+    for query_ordinal, run in enumerate(first):
+        assert run.campaign.search_config["origin_campaign_run"] == {
+            "attempt_capability_sha256": digest,
+            "query_ordinal": query_ordinal,
+        }
+        assert run.identity_preimage == A.ident.canonical_preimage(run.campaign)
+        assert run.campaign_run_identity == str(A.ident.campaign_id(run.campaign))
+
+
+def test_origin_campaign_runs_change_with_attempt_slot_digest() -> None:
+    logical = _origin_logical_campaign()
+    first = A._derive_origin_campaign_runs(
+        logical, attempt_capability_sha256="a" * 64,
+    )
+    second = A._derive_origin_campaign_runs(
+        logical, attempt_capability_sha256="b" * 64,
+    )
+    assert all(
+        left.campaign_run_identity != right.campaign_run_identity
+        for left, right in zip(first, second, strict=True)
+    )
+
+
+@pytest.mark.parametrize("query_ordinal", [-1, 33, True, 1.0])
+def test_origin_campaign_run_rejects_non_exact_query_ordinal(
+    query_ordinal,
+) -> None:
+    with pytest.raises(
+        A.AutonomousTrialError, match="exact int in 0..32",
+    ):
+        A._derive_origin_campaign_run(
+            _origin_logical_campaign(),
+            attempt_capability_sha256="a" * 64,
+            query_ordinal=query_ordinal,
+        )
+
+
+def test_origin_campaign_run_does_not_overwrite_existing_physical_component() -> None:
+    logical = _origin_logical_campaign()
+    already_physical = dataclasses.replace(
+        logical,
+        search_config={
+            **logical.search_config,
+            "origin_campaign_run": {
+                "attempt_capability_sha256": "a" * 64,
+                "query_ordinal": 0,
+            },
+        },
+    )
+    with pytest.raises(
+        A.AutonomousTrialError, match="already contains origin_campaign_run",
+    ):
+        A._derive_origin_campaign_run(
+            already_physical,
+            attempt_capability_sha256="a" * 64,
+            query_ordinal=0,
+        )
+
+
+def test_origin_campaign_run_preimage_duplicates_fail_closed(monkeypatch) -> None:
+    monkeypatch.setattr(A.ident, "canonical_preimage", lambda _cfg: "same")
+    with pytest.raises(
+        A.AutonomousTrialError, match="preimages must be pairwise distinct",
+    ):
+        A._derive_origin_campaign_runs(
+            _origin_logical_campaign(),
+            attempt_capability_sha256="a" * 64,
+        )
+
+
+def test_origin_campaign_run_identity_duplicates_fail_closed(monkeypatch) -> None:
+    monkeypatch.setattr(A.ident, "campaign_id", lambda _cfg: "same")
+    with pytest.raises(
+        A.AutonomousTrialError, match="identities must be pairwise distinct",
+    ):
+        A._derive_origin_campaign_runs(
+            _origin_logical_campaign(),
+            attempt_capability_sha256="a" * 64,
+        )
+
+
+def test_origin_campaign_run_identity_mismatch_fails_closed(monkeypatch) -> None:
+    original = A.ident.campaign_id
+    calls = 0
+
+    def change_after_derivation(cfg):
+        nonlocal calls
+        calls += 1
+        value = str(original(cfg))
+        return value if calls <= 33 else value + "-changed"
+
+    monkeypatch.setattr(A.ident, "campaign_id", change_after_derivation)
+    with pytest.raises(
+        A.AutonomousTrialError,
+        match="identity differs from its physical config",
+    ):
+        A._derive_origin_campaign_runs(
+            _origin_logical_campaign(),
+            attempt_capability_sha256="a" * 64,
+        )
+
+
+def test_origin_run_plan_inputs_have_no_caller_supplied_physical_identity() -> None:
+    assert "planned_campaign_run_identity" not in inspect.signature(
+        A.OriginMemberPlanInput
+    ).parameters
+    assert "run_plan" not in inspect.signature(A.OriginProducerInputs).parameters
+    assert "run_plan_input" in inspect.signature(
+        A.OriginProducerInputs
+    ).parameters
+
+
+def test_registry_campaign_binding_rejects_physical_origin_identity(
+    t325_registered_trial,
+) -> None:
+    admission = A._trial_launch_admission(
+        trial_manifest=t325_registered_trial.manifest_path,
+        trial_id=t325_registered_trial.trial_id,
+        workloads=["rr80"],
+        generations=2,
+        allow_unregistered_exploratory=False,
+        effective_preregistration=t325_registered_trial.capability,
+    )
+    arm_execution = A.trial_registry.bind_trial_arm(
+        admission.binding,
+        repository_root=t325_registered_trial.repo,
+    )
+    prepared = A._prepare_campaign_identity(
+        workload="rr80",
+        trial_id=t325_registered_trial.trial_id,
+        generations=2,
+        site=A.trigger.site_policy.OTHER,
+        contract=_T530_CONTRACT,
+        build_context=_no_build_context(),
+        arm_execution=arm_execution,
+    )
+    physical = A._derive_origin_campaign_run(
+        prepared.campaign,
+        attempt_capability_sha256="a" * 64,
+        query_ordinal=0,
+    )
+    assert physical.campaign_run_identity != prepared.campaign_id
+    with pytest.raises(
+        A.trial_registry.TrialRegistryError, match=r"\[campaign-binding\]",
+    ):
+        A.trial_registry.assert_campaign_binding(
+            admission.binding,
+            arm_execution=arm_execution,
+            actual_campaign_id=physical.campaign_run_identity,
+        )
 
 
 def _origin_salted_commitment(salt: str, value: bytes) -> str:
@@ -10622,7 +10832,7 @@ def _origin_public_inputs(tmp_path, monkeypatch, registered):
         provisioning_receipt=provisioning_receipt,
     )
     provisional_producer = A.OriginProducerInputs(
-        run_plan=_origin_recovery_envelope(),
+        run_plan_input=_origin_run_plan_input(),
         result_record_bytes=tuple(
             path.read_bytes() for path in frozen.result_evidence_paths
         ),
@@ -10638,6 +10848,22 @@ def _origin_public_inputs(tmp_path, monkeypatch, registered):
             "public-origin-terminal-"
             + hashlib.sha256(str(tmp_path).encode("utf-8")).hexdigest()
         ),
+    )
+    issued_capabilities: list[object] = []
+    original_issue = A.reflux_origin_binding.issue_origin_binding_capability
+
+    def capture_issued_capability(**kwargs):
+        assert "origin_campaign_run" not in (
+            kwargs["prepared_campaign"].campaign.search_config
+        )
+        capability = original_issue(**kwargs)
+        issued_capabilities.append(capability)
+        return capability
+
+    monkeypatch.setattr(
+        A.reflux_origin_binding,
+        "issue_origin_binding_capability",
+        capture_issued_capability,
     )
     fresh_admission = A._trial_launch_admission(
         trial_manifest=registered.manifest_path,
@@ -10673,22 +10899,30 @@ def _origin_public_inputs(tmp_path, monkeypatch, registered):
             preliminary_runtime.launch_admission_record_sha256
         ),
     )
-    run_plan = _origin_recovery_envelope(
-        capability=preliminary_runtime.capability,
-        initial_expected_state_commitment=(
-            preliminary_runtime.initial_snapshot.state_commitment
-        ),
-    )
-    _seal_origin_fixture_ledger(
-        client,
-        preliminary_runtime.capability,
-        run_plan,
-        result_record_bytes,
-    )
     producer = dataclasses.replace(
         provisional_producer,
-        run_plan=run_plan,
         result_record_bytes=result_record_bytes,
+    )
+    original_write = A.reflux_origin_topology.write_recovery_envelope_create_only
+    sealed = False
+
+    def write_then_seal_fixture_ledger(**kwargs):
+        nonlocal sealed
+        path = original_write(**kwargs)
+        if not sealed:
+            _seal_origin_fixture_ledger(
+                client,
+                issued_capabilities[-1],
+                kwargs["envelope"],
+                result_record_bytes,
+            )
+            sealed = True
+        return path
+
+    monkeypatch.setattr(
+        A.reflux_origin_topology,
+        "write_recovery_envelope_create_only",
+        write_then_seal_fixture_ledger,
     )
     return request, producer
 
@@ -10724,6 +10958,9 @@ def test_origin_public_path_preserves_capability_identity_and_projects_terminal(
     original_read = reflux_origin_client.OriginLedgerClient.read_origin
 
     def observe_issue(**kwargs):
+        assert "origin_campaign_run" not in (
+            kwargs["prepared_campaign"].campaign.search_config
+        )
         capability = original_issue(**kwargs)
         issued.append(capability)
         return capability
@@ -10769,10 +11006,17 @@ def test_origin_public_path_preserves_capability_identity_and_projects_terminal(
     assert type(outcome) is A.OriginCompletedTrialReport
     assert issued and all(capability is issued[0] for capability in snapshot_reads)
     envelope_path = run_root / "origin" / "recovery-envelope.json"
-    assert envelope_path.read_bytes() == (
-        reflux_origin_topology.canonical_recovery_envelope_bytes(
-            producer.run_plan
-        )
+    envelope_bytes = envelope_path.read_bytes()
+    envelope = json.loads(envelope_bytes)
+    assert envelope_bytes == _canonical_origin_test_bytes(envelope)
+    assert len(envelope["members"]) == 33
+    assert len({
+        member["planned_campaign_run_identity"]
+        for member in envelope["members"]
+    }) == 33
+    assert all(
+        "fixture-run-" not in member["planned_campaign_run_identity"]
+        for member in envelope["members"]
     )
     report = outcome.report
     assert "origin_terminal_projection" in report
@@ -10790,6 +11034,10 @@ def test_origin_public_path_preserves_capability_identity_and_projects_terminal(
         ).read_bytes().splitlines()
     ]
     terminal = lifecycle_rows[-1]
+    start = lifecycle_rows[-2]
+    assert start["origin_run_plan_sha256"] == hashlib.sha256(
+        envelope_bytes
+    ).hexdigest()
     assert _canonical_origin_test_bytes({
         "origin_terminal_projection": report["origin_terminal_projection"]
     }) == _canonical_origin_test_bytes({
@@ -10923,6 +11171,119 @@ def test_origin_public_result_distinguishes_partial_from_completed(
     assert outcome.report is not None
     assert outcome.report["status"] == "partial"
     assert "origin_terminal_projection" in outcome.report
+
+
+def test_origin_envelope_create_failure_is_preflight_and_pre_observation(
+    tmp_path, monkeypatch, t325_registered_trial,
+) -> None:
+    request, producer = _origin_public_inputs(
+        tmp_path, monkeypatch, t325_registered_trial
+    )
+    reached: list[str] = []
+
+    def fail_envelope_write(**_kwargs):
+        reached.append("envelope-write")
+        raise reflux_origin_topology.TopologyError("fixture create-only failure")
+
+    def forbidden_lifecycle_start(**_kwargs):
+        pytest.fail("envelope failure reached lifecycle start")
+
+    def forbidden_observation(*_args, **_kwargs):
+        pytest.fail("envelope failure reached observation start")
+
+    monkeypatch.setattr(
+        A.reflux_origin_topology,
+        "write_recovery_envelope_create_only",
+        fail_envelope_write,
+    )
+    monkeypatch.setattr(
+        A.trial_registry,
+        "record_trial_start_once",
+        forbidden_lifecycle_start,
+    )
+    monkeypatch.setattr(
+        A.trial_registry,
+        "begin_attempt_observation",
+        forbidden_observation,
+    )
+    run_root = tmp_path / "origin-envelope-preflight-failure"
+    outcome = A.run_origin_trial(
+        origin_binding_request=request,
+        origin_producer_inputs=producer,
+        **_origin_trial_arguments(t325_registered_trial, run_root),
+    )
+    assert type(outcome) is A.OriginPreflightFailure
+    assert reached == ["envelope-write"]
+    assert not A._origin_lifecycle_started(
+        trial_id=t325_registered_trial.trial_id,
+        run_root=run_root,
+    )
+
+
+def test_origin_post_lifecycle_observation_failure_returns_reported_partial(
+    tmp_path, monkeypatch, t325_registered_trial,
+) -> None:
+    request, producer = _origin_public_inputs(
+        tmp_path, monkeypatch, t325_registered_trial
+    )
+    original_lifecycle_start = A.trial_registry.record_trial_start_once
+
+    def compatible_lifecycle_start(**kwargs):
+        if "origin_run_plan_sha256" not in inspect.signature(
+            original_lifecycle_start
+        ).parameters:
+            kwargs.pop("origin_run_plan_sha256")
+        return original_lifecycle_start(**kwargs)
+
+    def fail_observation(*_args, **_kwargs):
+        raise RuntimeError("fixture observation start failure")
+
+    monkeypatch.setattr(
+        A.trial_registry,
+        "record_trial_start_once",
+        compatible_lifecycle_start,
+    )
+    monkeypatch.setattr(
+        A.trial_registry,
+        "begin_attempt_observation",
+        fail_observation,
+    )
+    run_root = tmp_path / "origin-observation-partial"
+    outcome = A.run_origin_trial(
+        origin_binding_request=request,
+        origin_producer_inputs=producer,
+        **_origin_trial_arguments(t325_registered_trial, run_root),
+    )
+    assert type(outcome) is A.OriginPartialTrialReport
+    assert outcome.report is not None
+    assert outcome.report["status"] == "partial"
+    assert outcome.report["fatal_error"]["type"] == "RuntimeError"
+    assert A._origin_lifecycle_started(
+        trial_id=t325_registered_trial.trial_id,
+        run_root=run_root,
+    )
+
+
+def test_originless_lifecycle_start_omits_run_plan_digest(
+    tmp_path, monkeypatch, t325_registered_trial,
+) -> None:
+    observed: list[dict[str, object]] = []
+    original = A.trial_registry.record_trial_start_once
+
+    def observe_start(**kwargs):
+        observed.append(dict(kwargs))
+        return original(**kwargs)
+
+    monkeypatch.setattr(
+        A.trial_registry, "record_trial_start_once", observe_start,
+    )
+    report = _t325_run(
+        t325_registered_trial, tmp_path / "originless-no-plan-digest",
+    )
+    assert report["status"] == "complete"
+    assert len(observed) == 1
+    assert "origin_binding" not in observed[0]
+    assert "origin_run_plan_sha256" not in observed[0]
 
 
 if __name__ == "__main__":  # pragma: no cover - plain-runner false-green guard
