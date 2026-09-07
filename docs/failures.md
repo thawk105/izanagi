@@ -21332,6 +21332,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: A-6 attempt `a6-20260902a` の `certification.json` が `indeterminate` として保存され、
   reason に driver rc が残っている。
 - **supersede: 2026-09-07** — 恒久対応の「共有 measurement pipeline への横断的な引数追加になる」という見立ては必要条件でしかない。引数を通しても下流の閉じた trace0 argv 文法が全 cell を拒否し `indeterminate` が続く。詳細と解消案は D1688。
+- **supersede: 2026-09-07** — 根本原因節の「`run_campaign` は FetchContent の source dir を受け取る引数を持たない」は現行 main では偽である。`orchestrator/campaign/loop.py` の `run_campaign` は 5 引数すべてを持ち `pipeline.evaluate` 経由で `buildcache` へ素通ししており、T-2356 の commit `466528512` で着地している。残っていたのは認証経路の呼び手が 5 引数を渡していないことと、閉じた trace0 argv 文法が FetchContent token を拒否することの 2 点で、いずれも D1693 と D1740 の実装で解消した。
 
 ### F809. 投入の保留ファイルは 2 種類あり、片方だけ片付けると同じ理由で無限に弾かれる [手順漏れ]
 
@@ -22643,3 +22644,46 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   **逐語で 1 回実行して rc を記録する**。実行できない事情があるなら、recipe が要求する前提を
   1 つずつ列挙して job body の必須検査と突き合わせ、突き合わせた件数を段 1 brief に書く。
   0 件と書くならその根拠を示す。
+
+### F876. 二段述語の片側だけを変異させると、もう片側が負例を先に捕まえ、赤くなるのは行番号 pin の冗長 gate だけになる [テスト代表性] [手順漏れ]
+
+- 事象: read-heavy 限定受理の変異事前登録 m08 は `execution_host` の**非空検査だけ**を削る形だった。
+  probe で観測された赤 node は `test_ccbench_spawn_sites.py` の行番号 pin 3 件だけで、
+  意図した semantic 負例 (`...semantic_gates_reject_mutated_digest_injected[execution-host-missing]`)
+  は 1 件も発火しなかった。probe を「期待 node の収集」としか見ていなければ、この 3 node を
+  期待値に焼いて本走で KILLED と記録し、**何も守っていない節を防壁として数えるところだった。**
+- 根本原因: 述語が `type(row.get("execution_host")) is not str` と `not row.get("execution_host")` の
+  二段で、負例が作る値が「キー欠落 (= `None`)」だったため、残した型検査が先に捕まえた。
+  非空検査が単独で守る値域 (空文字列) を撃つ負例が存在しなかった。
+  さらに、行数を変える変異はすべて行番号 pin を赤にするため、**冗長 gate の赤が
+  「kill された」という見かけを作る**。この 2 つが重なると帰属不成立が緑の顔で通過する。
+- 恒久対応: memory `mutation-probe-must-check-attribution-not-just-nodes` —
+  probe 台帳を読むとき変異ごとに冗長 gate の node を引き、残りが空なら帰属不成立として
+  `DW-M01` に従い実効 gate へ再照準する。本件は host 検査 2 行をまとめて削る形へ再照準し、
+  単独 probe で semantic 負例の発火を実測してから本走へ登録した (15 / 15 KILLED、期待 node 完全一致)。
+  初回 probe の台帳は `DW-M02` に従い
+  `output/insights/2026-09-07_t1905-b10-readheavy-admit/mutation-ledger-probe.json` に残す。
+- 再発検知: probe 台帳の `failed_nodes` から行番号 pin 3 node を引いた残りが空である変異。
+  この差し引きは probe の読み取り手順そのものであり、走らせれば必ず目に入る。
+
+### F877. 新設した検査 3 本が隣接する別の検査に隠れ、テストに固定されていなかった [テスト代表性] [恒真ゲート]
+
+- 事象: A-2 / A-6 の trace0 文法拡張で新設した検査のうち 3 本が、変異走行の probe 巡で
+  **どのテストにも殺されなかった** (SURVIVED)。段 6 の敵対レビュー 2 本は静的検査でこれを
+  1 件も指摘できなかった。負例テスト自体は存在していたのに、いずれも別の検査に先に拒否されて
+  対象の検査へ届いていなかった。
+- 根本原因: 負例が「その検査だけを撃つ」形になっていなかった。3 件とも隣接する検査が同じ入力を
+  先に拒否する。(1) path token の非空検査 — 値が空の FetchContent token は直後の正規絶対 path 判定が
+  拒否するため隠れる。判定を持たないのは dependency prefix (先頭 1 本) だけで、その空値の負例が
+  無かった。(2) path token の prefix 一致検査 — 期待値が受け取った token をそのまま写す構造のため、
+  最終の全一致比較でも捕まらない。統制 define の抽出器も対象外の接頭辞しか見ない。「位置は正しいが
+  prefix が違い、値は正規絶対 path」という負例が無かった。(3) policy の要素数検査 — 既存の負例が
+  3 要素だったため要素の重複を見る一意性検査にも掛かって隠れる。長さ検査だけを撃つには
+  「5 要素でうち 1 つが重複」(集合サイズは 4) が要る。
+- 恒久対応: `docs/dev-wave/mutation.md` の `DW-M01` (単一理由性) と `DW-M02` (所見ゼロの裏取り) の
+  fails-closed 適用。**新設検査には、その検査の項だけを一時的に落として当該負例が赤になることを
+  実測してから登録する。** 本 wave では 3 件すべてでこの実測を行い、復元後に production 差分ゼロを
+  確認した (`output/insights/2026-09-07_t2198-trace0-fetchcontent/verbatim/s6-fix2.md`)。
+- 再発検知: 変異走行の SURVIVED。静的レビューでは検出できないことが本件で実証された
+  (敵対レビュー 2 本がいずれも見落とした)。`DW-M02` の「変異が生存したらまず他層の mask と
+  等価変異を疑う」が発火点である。

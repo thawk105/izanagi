@@ -27,7 +27,6 @@ import statistics
 import struct
 import subprocess
 import sys
-import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from types import SimpleNamespace
@@ -37,7 +36,13 @@ from ..scheduler_nqsv import (
     QSTAT_REQUEST_ID_RE,
     target_bound_qstat_state_result,
 )
-from . import buildcache, condition_meaning_gate, patchharness, source_digest
+from . import (
+    buildcache,
+    condition_meaning_gate,
+    patchharness,
+    s8b_floor_campaign,
+    source_digest,
+)
 from .pipeline import PerfConfig
 
 
@@ -123,6 +128,7 @@ _TRACE0_CMAKE_ARGV_KEYS = {"configure", "build"}
 _TRACE0_CONFIGURE_ARGV_KEYS = {
     "source_option", "build_directory_option", "fixed_arguments",
     "toolchain_arguments", "dependency_prefix_argument",
+    "fetchcontent_path_argument_prefixes",
     "controlled_define_argument",
 }
 _TRACE0_TOOLCHAIN_ARGUMENT_KEYS = {"role", "prefix"}
@@ -148,6 +154,7 @@ _QSUB_ENV_KEYS = {
     "IZANAGI_A2_CCBENCH_ROOT",
     "IZANAGI_A2_REPO_ROOT",
     "IZANAGI_A2_DEPENDENCY_PREFIX_SOURCE",
+    "IZANAGI_A2_THIRD_PARTY_SOURCE_ROOT",
 }
 _RESERVATION_ENV_KEYS = {
     "IZANAGI_RESERVATION_JOB_ID",
@@ -441,6 +448,22 @@ def load_policy(path: Path | str = POLICY_PATH) -> Policy:
                        for token in fixed_arguments)
             or len(set(fixed_arguments)) != len(fixed_arguments)):
         raise CertificationError("trace0 configure fixed arguments are malformed")
+    fetchcontent_path_argument_prefixes = configure_argv[
+        "fetchcontent_path_argument_prefixes"
+    ]
+    if (type(fetchcontent_path_argument_prefixes) is not list
+            or len(fetchcontent_path_argument_prefixes) != 4
+            or not all(
+                type(prefix) is str
+                and prefix
+                and not any(character.isspace() for character in prefix)
+                and prefix.endswith("=")
+                for prefix in fetchcontent_path_argument_prefixes
+            )
+            or len(set(fetchcontent_path_argument_prefixes)) != 4):
+        raise CertificationError(
+            "trace0 configure FetchContent path grammar is malformed"
+        )
     toolchain_arguments = configure_argv["toolchain_arguments"]
     if type(toolchain_arguments) is not list or len(toolchain_arguments) != 2:
         raise CertificationError("trace0 configure toolchain grammar is malformed")
@@ -587,6 +610,8 @@ def _condition_gate_family_context(
         source_root: Path, genomes: Sequence[object], *, cxx: str,
         dependency_prefix: Path, current_pin: str,
         expected_toolchain_manifest: Mapping[str, object],
+        fetchcontent_base_dir: Path,
+        staged_sources: Mapping[str, Path],
 ) -> Iterator[tuple[Path, list[dict[str, object]], tuple[str, ...]]]:
     """Yield a patched isolated tree after both paper condition arms pass."""
     defaults = {"BACKOFF_FIXED": -1, "BACKOFF_NOINLINE": 0}
@@ -601,13 +626,13 @@ def _condition_gate_family_context(
         variant_root = Path(variant_worktree)
         with patchharness.applied(
                 patch_path, current_pin,
-                ccbench_dir=os.fspath(variant_root)), \
-                tempfile.TemporaryDirectory(
-                    prefix="izanagi-a2-condition-gate-"
-                ) as fetchcontent_base:
+                ccbench_dir=os.fspath(variant_root)):
             buildcache.prepare_masstree_fetchcontent(
                 ccbench_dir=os.fspath(variant_root.resolve()),
-                fetchcontent_base_dir=fetchcontent_base,
+                fetchcontent_base_dir=os.fspath(fetchcontent_base_dir),
+                masstree_source_dir=os.fspath(staged_sources["masstree"]),
+                mimalloc_source_dir=os.fspath(staged_sources["mimalloc"]),
+                googletest_source_dir=os.fspath(staged_sources["googletest"]),
                 expected_toolchain_manifest=expected_toolchain_manifest,
                 configure_timeout_s=900,
                 target_timeout_s=900,
@@ -617,7 +642,13 @@ def _condition_gate_family_context(
                 variant_root, stock_root=source_root,
                 configure_args=(
                     f"-DCMAKE_PREFIX_PATH={dependency_prefix}",
-                    f"-DFETCHCONTENT_BASE_DIR={fetchcontent_base}",
+                    f"-DFETCHCONTENT_BASE_DIR={fetchcontent_base_dir}",
+                    "-DFETCHCONTENT_SOURCE_DIR_MASSTREE="
+                    f"{staged_sources['masstree']}",
+                    "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC="
+                    f"{staged_sources['mimalloc']}",
+                    "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST="
+                    f"{staged_sources['googletest']}",
                 ),
             )
             for index, genome in enumerate(genomes):
@@ -2101,8 +2132,6 @@ def _exact_trace0_configure_argv(
                               for value in toolchain[role].values())
                    for role in roles)):
         raise CertificationError("toolchain observation is not the v2 producer shape")
-    if len(argv) < 10:
-        raise CertificationError("configure argv is shorter than the v2 grammar")
     grammar = policy.document["trace0_cmake_argv"]["configure"]
     source_positions = [
         index for index, token in enumerate(argv)
@@ -2130,12 +2159,29 @@ def _exact_trace0_configure_argv(
     ] + [
         f"{define_argument}CCBENCH_TRACE={expected_defines['CCBENCH_TRACE']}"
     ]
+    path_prefixes = (
+        grammar["dependency_prefix_argument"],
+        *grammar["fetchcontent_path_argument_prefixes"],
+    )
+    minimum_argv_length = (
+        len(fixed) + len(path_prefixes) + len(ordered_define_tokens)
+    )
+    if len(argv) < minimum_argv_length:
+        raise CertificationError("configure argv is shorter than the v2 grammar")
     tail = list(argv[len(fixed):])
-    dependency_prefix = grammar["dependency_prefix_argument"]
-    prefix = [token for token in tail if token.startswith(dependency_prefix)]
-    if len(prefix) != 1 or not prefix[0].partition("=")[2]:
-        raise CertificationError("configure argv needs one dependency prefix")
-    expected = fixed + prefix + ordered_define_tokens
+    path_tokens = tail[:len(path_prefixes)]
+    for index, (token, prefix) in enumerate(
+            zip(path_tokens, path_prefixes, strict=True)):
+        if not token.startswith(prefix) or not token[len(prefix):]:
+            raise CertificationError("configure argv path segment is malformed")
+        if index > 0:
+            value = token[len(prefix):]
+            _lexical_absolute_path(value, "FetchContent configure path")
+            if "\0" in value:
+                raise CertificationError(
+                    "FetchContent configure path must not contain NUL"
+                )
+    expected = fixed + path_tokens + ordered_define_tokens
     if list(argv) != expected:
         raise CertificationError("configure argv does not match the closed v2 grammar")
     if _argv_controlled_defines(argv, define_argument) != expected_defines:
@@ -3336,6 +3382,7 @@ def _raw_cell_from_wal(policy: Policy, cell: CellSpec, *, result: object,
 def run_workload(policy: Policy, *, workload_id: str, attempt_root: Path | str,
                  raw_root: Path | str, current_pin: str,
                  dependency_prefix: Path | str, ccbench_dir: Path | str,
+                 third_party_source_root: Path | str,
                  log=print) -> object:
     """Run one ordered stock/adopted workload pair through run_campaign()."""
     from . import env_contract, pin
@@ -3362,6 +3409,18 @@ def run_workload(policy: Policy, *, workload_id: str, attempt_root: Path | str,
     source_root = Path(ccbench_dir).resolve(strict=True)
     if source_root.is_symlink() or not source_root.is_dir():
         raise CertificationError("CCBench source root is unavailable")
+    third_party_root = Path(third_party_source_root)
+    try:
+        staged_sources = (
+            s8b_floor_campaign._verify_pristine_floor_dependency_sources(
+                third_party_root,
+                repo_root=POLICY_PATH.parents[2],
+            )
+        )
+    except s8b_floor_campaign.FloorCampaignError as exc:
+        raise CertificationError(
+            "staged FetchContent dependency sources are unavailable"
+        ) from exc
     if (type(current_pin) is not str
             or _SHORT_COMMIT_RE.fullmatch(current_pin) is None
             or current_pin != pin.CURRENT_PIN):
@@ -3436,8 +3495,15 @@ def run_workload(policy: Policy, *, workload_id: str, attempt_root: Path | str,
             dependency_prefix=dependency,
             current_pin=current_pin,
             expected_toolchain_manifest=expected_toolchain_manifest,
+            fetchcontent_base_dir=third_party_root,
+            staged_sources=staged_sources,
     ) as (variant_root, condition_gate_receipts,
           admission_canonical_records):
+        dependency_receipt = (
+            buildcache._observe_fetchcontent_dependency_receipt(
+                os.fspath(staged_sources["masstree"])
+            )
+        )
         source_evidences = []
         for cell, genome in zip(cells, genomes, strict=True):
             evidence = source_digest.resolve_evidence(
@@ -3469,6 +3535,11 @@ def run_workload(policy: Policy, *, workload_id: str, attempt_root: Path | str,
             numactl=contract.numactl, do_bench=True, output_root=str(output_root),
             log=log, ccbench_dir=os.fspath(variant_root), env_contract=contract,
             dependency_prefix=str(dependency),
+            fetchcontent_base_dir=os.fspath(third_party_root),
+            masstree_source_dir=os.fspath(staged_sources["masstree"]),
+            mimalloc_source_dir=os.fspath(staged_sources["mimalloc"]),
+            googletest_source_dir=os.fspath(staged_sources["googletest"]),
+            fetchcontent_dependency_receipt=dependency_receipt,
             authorization_contract=authorization,
             cache_root=str(cache_root),
             build_context=build_context,
@@ -4706,6 +4777,7 @@ def _run_workload_command(args: argparse.Namespace) -> int:
         policy, workload_id=args.workload, attempt_root=args.attempt_root,
         raw_root=args.raw_root, current_pin=args.current_pin,
         dependency_prefix=args.dependency_prefix, ccbench_dir=args.ccbench_dir,
+        third_party_source_root=args.third_party_source_root,
     )
     # A workload-level abort is scientific/evidence data.  The final collector
     # determines whether the outer attempt is determinate after all policy cells.
@@ -4826,6 +4898,7 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("--current-pin", required=True)
     run.add_argument("--dependency-prefix", required=True)
     run.add_argument("--ccbench-dir", required=True)
+    run.add_argument("--third-party-source-root", required=True)
     run.set_defaults(handler=_run_workload_command)
     finalize = sub.add_parser("finalize-raw")
     finalize.add_argument("--attempt-root", required=True)

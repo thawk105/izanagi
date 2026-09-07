@@ -1,0 +1,1472 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2198-trace0-fetchcontent/output/pegasus-dispatch/b9303ff4299e25d05cb9166f41e5efef/izdw-b9303ff429.o981521",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2198-trace0-fetchcontent/output/pegasus-dispatch/b9303ff4299e25d05cb9166f41e5efef/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 33%]\n........................................................................ [ 66%]\n.......................................................................  [100%]\n215 passed in 9.79s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "fcc3b5a9a9168ece686b9be37dacfe3189652cb33777eb247f393bf8b36b06d3"
+    },
+    "artifact_error": null,
+    "collection_sha256": "96e587d49eb17464bfdf9185e50e1d057b150877741b3b9719e2ed2b7b3444ec",
+    "duration_s": 32.562,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "ce8132e7828ca96584429080cc3f9b62111f8b9c4020003119399027ced4dab2",
+    "repo_head": "1a0abbc98fd7d2d5c840a58a9cd9f74a2c7cf2da",
+    "runner_sha256": "93fd3c5bb1aaf4b0de97cc32753f5cf3356cb4e9efafe92e8d507e934e1a1d9a",
+    "spec_sha256": "143038ea820e850728a47e73441297d9efd2f5a882efd05b1e6d79c50957e569",
+    "status": "PASSED",
+    "test_output_sha256": "fcc3b5a9a9168ece686b9be37dacfe3189652cb33777eb247f393bf8b36b06d3",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "d5d4a2b9ba75675f377428a89941d86a4a9a1a7d1ff45cbd01acedc20e7f09c5"
+  },
+  "date": "2026-09-07T12:28:19.751551+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2198-trace0-fetchcontent/output/pegasus-dispatch/b767da6ceae283f9c0eab77aa90c6390/izdw-b767da6cea.o981524",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2198-trace0-fetchcontent/output/pegasus-dispatch/b767da6ceae283f9c0eab77aa90c6390/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 33%]\n........................................................................ [ 66%]\n.......................................................................  [100%]\n215 passed in 14.74s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "9a36c882dd330d46c1d2498d3e6f832c0de1b168f82514bdfdbc6eb11e692230"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "96e587d49eb17464bfdf9185e50e1d057b150877741b3b9719e2ed2b7b3444ec",
+      "duration_s": 37.441,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "t2198.m01-path-prefix-match-dropped",
+      "injection_diff_sha256": "504cfdde8e17e82f3629ceb46bbfdc6bcab0fa944be46e8a4decd943c47ce20e",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "b7f6ba605ac658a10cce7e17e50184a07e642c62c8ab30a09d772a0b0ac23150",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "new": "        if not token[len(prefix):]:\n",
+          "old": "        if not token.startswith(prefix) or not token[len(prefix):]:\n"
+        }
+      ],
+      "repo_head": "1a0abbc98fd7d2d5c840a58a9cd9f74a2c7cf2da",
+      "runner_sha256": "93fd3c5bb1aaf4b0de97cc32753f5cf3356cb4e9efafe92e8d507e934e1a1d9a",
+      "spec_sha256": "143038ea820e850728a47e73441297d9efd2f5a882efd05b1e6d79c50957e569",
+      "status": "SURVIVED",
+      "test_output_sha256": "9a36c882dd330d46c1d2498d3e6f832c0de1b168f82514bdfdbc6eb11e692230",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "d5d4a2b9ba75675f377428a89941d86a4a9a1a7d1ff45cbd01acedc20e7f09c5"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2198-trace0-fetchcontent/output/pegasus-dispatch/4d9f8692d7d94679369f28e4e6a9af43/izdw-4d9f8692d7.o981531",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2198-trace0-fetchcontent/output/pegasus-dispatch/4d9f8692d7d94679369f28e4e6a9af43/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 33%]\n........................................................................ [ 66%]\n.......................................................................  [100%]\n215 passed in 14.79s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "1393af8158514e94b3126ea0a97f3f11cee568d7953cf0202eb5c6087bd5bfe5"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "96e587d49eb17464bfdf9185e50e1d057b150877741b3b9719e2ed2b7b3444ec",
+      "duration_s": 63.126,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "t2198.m02-path-nonempty-dropped",
+      "injection_diff_sha256": "5de35a85966ac5f23eb410b8261f53cac9ca4c7832681f4ec82cf35175afb137",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "b42c73ba8bdccd404358b62d1275599ce37c8bf3ea47f8e0103cc3212b1a8719",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "new": "        if not token.startswith(prefix):\n            raise CertificationError(\"configure argv path segment is malformed\")\n",
+          "old": "        if not token.startswith(prefix) or not token[len(prefix):]:\n            raise CertificationError(\"configure argv path segment is malformed\")\n"
+        }
+      ],
+      "repo_head": "1a0abbc98fd7d2d5c840a58a9cd9f74a2c7cf2da",
+      "runner_sha256": "93fd3c5bb1aaf4b0de97cc32753f5cf3356cb4e9efafe92e8d507e934e1a1d9a",
+      "spec_sha256": "143038ea820e850728a47e73441297d9efd2f5a882efd05b1e6d79c50957e569",
+      "status": "SURVIVED",
+      "test_output_sha256": "1393af8158514e94b3126ea0a97f3f11cee568d7953cf0202eb5c6087bd5bfe5",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "d5d4a2b9ba75675f377428a89941d86a4a9a1a7d1ff45cbd01acedc20e7f09c5"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2198-trace0-fetchcontent/output/pegasus-dispatch/ddf149416797dacdea7f5ae222a84d17/izdw-ddf1494167.o981535",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2198-trace0-fetchcontent/output/pegasus-dispatch/ddf149416797dacdea7f5ae222a84d17/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 33%]\n..............................................................F.F.F..... [ 66%]\n.......................................................................  [100%]\n=================================== FAILURES ===================================\n_______ test_trace0_fetchcontent_prefix_mutations_are_rejected[relative] _______\n[gw33] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_trace0_fetchcontent_prefi0')\nmutation = 'relative'\n\n    @pytest.mark.parametrize(\"mutation\", (\"wrong-prefix\", \"empty-value\", \"relative\"))\n    def test_trace0_fetchcontent_prefix_mutations_are_rejected(tmp_path, mutation):\n        policy = _policy(tmp_path)\n        root = A2.create_attempt_root(policy, \"attempt-fetch-prefix-\" + mutation)\n        raw = _raw_cell(policy, policy.cells[0], root)\n        evidence = raw[\"trace0_evidence\"]\n        prefix = \"-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=\"\n        index = next(\n            index for index, token in enumerate(evidence[\"configure_argv\"])\n            if token.startswith(prefix)\n        )\n        if mutation == \"wrong-prefix\":\n            evidence[\"configure_argv\"][index] = (\n                \"-DFETCHCONTENT_SOURCE_DIR_GOOGLE_TEST=\"\n                + evidence[\"configure_argv\"][index][len(prefix):]\n            )\n        elif mutation == \"empty-value\":\n            evidence[\"configure_argv\"][index] = prefix\n        else:\n            evidence[\"configure_argv\"][index] = prefix + \"relative/googletest\"\n    \n>       with pytest.raises(A2.CertificationError):\nE       Failed: DID NOT RAISE CertificationError\n\norchestrator/tests/test_paper_story_a2_certification.py:4933: Failed\n_ test_trace0_fetchcontent_path_values_match_producer_domain[lexically-noncanonical] _\n[gw23] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw23/test_trace0_fetchcontent_path_0')\ninvalid_path = '/../'\n\n    @pytest.mark.parametrize(\n        \"invalid_path\",\n        (\"/fetchcontent/masstree\\0-src\", \"/../\", \"relative/masstree-src\"),\n        ids=(\"nul\", \"lexically-noncanonical\", \"relative\"),\n    )\n    def test_trace0_fetchcontent_path_values_match_producer_domain(\n            tmp_path, invalid_path):\n        policy = _policy(tmp_path)\n        root = A2.create_attempt_root(policy, \"attempt-fetch-path-domain\")\n        raw = _raw_cell(policy, policy.cells[0], root)\n        evidence = raw[\"trace0_evidence\"]\n        prefix = \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\"\n        index = next(\n            index for index, token in enumerate(evidence[\"configure_argv\"])\n            if token.startswith(prefix)\n        )\n        evidence[\"configure_argv\"][index] = prefix + invalid_path\n    \n>       with pytest.raises(A2.CertificationError):\nE       Failed: DID NOT RAISE CertificationError\n\norchestrator/tests/test_paper_story_a2_certification.py:4979: Failed\n_____ test_trace0_fetchcontent_path_values_match_producer_domain[relative] _____\n[gw44] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw44/test_trace0_fetchcontent_path_0')\ninvalid_path = 'relative/masstree-src'\n\n    @pytest.mark.parametrize(\n        \"invalid_path\",\n        (\"/fetchcontent/masstree\\0-src\", \"/../\", \"relative/masstree-src\"),\n        ids=(\"nul\", \"lexically-noncanonical\", \"relative\"),\n    )\n    def test_trace0_fetchcontent_path_values_match_producer_domain(\n            tmp_path, invalid_path):\n        policy = _policy(tmp_path)\n        root = A2.create_attempt_root(policy, \"attempt-fetch-path-domain\")\n        raw = _raw_cell(policy, policy.cells[0], root)\n        evidence = raw[\"trace0_evidence\"]\n        prefix = \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\"\n        index = next(\n            index for index, token in enumerate(evidence[\"configure_argv\"])\n            if token.startswith(prefix)\n        )\n        evidence[\"configure_argv\"][index] = prefix + invalid_path\n    \n>       with pytest.raises(A2.CertificationError):\nE       Failed: DID NOT RAISE CertificationError\n\norchestrator/tests/test_paper_story_a2_certification.py:4979: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_fetchcontent_prefix_mutations_are_rejected[relative]\nFAILED orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_fetchcontent_path_values_match_producer_domain[lexically-noncanonical]\nFAILED orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_fetchcontent_path_values_match_producer_domain[relative]\n3 failed, 212 passed in 14.95s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_fetchcontent_prefix_mutations_are_rejected[relative]\" nodeid_bytes=121 nodeid_omitted_bytes=0 source_bytes=1345 retained_bytes=1345 omitted_bytes=0 rendered_excerpt_bytes=1406 sha256=8a8a1b96414ef73f63e4069d66ed3b879d1ee5b557738f2d8d3c728edf11d4f2\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw33] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_trace0_fetchcontent_prefi0')\n> mutation = 'relative'\n> \n>     @pytest.mark.parametrize(\"mutation\", (\"wrong-prefix\", \"empty-value\", \"relative\"))\n>     def test_trace0_fetchcontent_prefix_mutations_are_rejected(tmp_path, mutation):\n>         policy = _policy(tmp_path)\n>         root = A2.create_attempt_root(policy, \"attempt-fetch-prefix-\" + mutation)\n>         raw = _raw_cell(policy, policy.cells[0], root)\n>         evidence = raw[\"trace0_evidence\"]\n>         prefix = \"-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=\"\n>         index = next(\n>             index for index, token in enumerate(evidence[\"configure_argv\"])\n>             if token.startswith(prefix)\n>         )\n>         if mutation == \"wrong-prefix\":\n>             evidence[\"configure_argv\"][index] = (\n>                 \"-DFETCHCONTENT_SOURCE_DIR_GOOGLE_TEST=\"\n>                 + evidence[\"configure_argv\"][index][len(prefix):]\n>             )\n>         elif mutation == \"empty-value\":\n>             evidence[\"configure_argv\"][index] = prefix\n>         else:\n>             evidence[\"configure_argv\"][index] = prefix + \"relative/googletest\"\n>     \n> >       with pytest.raises(A2.CertificationError):\n> E       Failed: DID NOT RAISE CertificationError\n> \n> orchestrator/tests/test_paper_story_a2_certification.py:4933: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_fetchcontent_path_values_match_producer_domain[relative]\" nodeid_bytes=125 nodeid_omitted_bytes=0 source_bytes=1134 retained_bytes=1134 omitted_bytes=0 rendered_excerpt_bytes=1192 sha256=c19d436fcf39c56bc660f07259d45d2d8c75c1936b95399865c096113136bb5b\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw44] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw44/test_trace0_fetchcontent_path_0')\n> invalid_path = 'relative/masstree-src'\n> \n>     @pytest.mark.parametrize(\n>         \"invalid_path\",\n>         (\"/fetchcontent/masstree\\x5c0-src\", \"/../\", \"relative/masstree-src\"),\n>         ids=(\"nul\", \"lexically-noncanonical\", \"relative\"),\n>     )\n>     def test_trace0_fetchcontent_path_values_match_producer_domain(\n>             tmp_path, invalid_path):\n>         policy = _policy(tmp_path)\n>         root = A2.create_attempt_root(policy, \"attempt-fetch-path-domain\")\n>         raw = _raw_cell(policy, policy.cells[0], root)\n>         evidence = raw[\"trace0_evidence\"]\n>         prefix = \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\"\n>         index = next(\n>             index for index, token in enumerate(evidence[\"configure_argv\"])\n>             if token.startswith(prefix)\n>         )\n>         evidence[\"configure_argv\"][index] = prefix + invalid_path\n>     \n> >       with pytest.raises(A2.CertificationError):\n> E       Failed: DID NOT RAISE CertificationError\n> \n> orchestrator/tests/test_paper_story_a2_certification.py:4979: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_fetchcontent_path_values_match_producer_domain[lexically-noncanonical]\" nodeid_bytes=139 nodeid_omitted_bytes=0 source_bytes=1117 retained_bytes=1117 omitted_bytes=0 rendered_excerpt_bytes=1175 sha256=9eaeb40ea6a8ffa1ce535957ac97f1147047f43eaedbb97ca03bd657183ecf78\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw23] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw23/test_trace0_fetchcontent_path_0')\n> invalid_path = '/../'\n> \n>     @pytest.mark.parametrize(\n>         \"invalid_path\",\n>         (\"/fetchcontent/masstree\\x5c0-src\", \"/../\", \"relative/masstree-src\"),\n>         ids=(\"nul\", \"lexically-noncanonical\", \"relative\"),\n>     )\n>     def test_trace0_fetchcontent_path_values_match_producer_domain(\n>             tmp_path, invalid_path):\n>         policy = _policy(tmp_path)\n>         root = A2.create_attempt_root(policy, \"attempt-fetch-path-domain\")\n>         raw = _raw_cell(policy, policy.cells[0], root)\n>         evidence = raw[\"trace0_evidence\"]\n>         prefix = \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\"\n>         index = next(\n>             index for index, token in enumerate(evidence[\"configure_argv\"])\n>             if token.startswith(prefix)\n>         )\n>         evidence[\"configure_argv\"][index] = prefix + invalid_path\n>     \n> >       with pytest.raises(A2.CertificationError):\n> E       Failed: DID NOT RAISE CertificationError\n> \n> orchestrator/tests/test_paper_story_a2_certification.py:4979: Failed\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=3596 retained_bytes=3596 omitted_bytes=0 budget_bytes=49152 rendered_bytes=5468 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "67f5e5e7d8270971b1234194722bbe87643ade14573dc9c6cc3198159369d2bd"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "96e587d49eb17464bfdf9185e50e1d057b150877741b3b9719e2ed2b7b3444ec",
+      "duration_s": 42.685,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_fetchcontent_prefix_mutations_are_rejected[relative]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_fetchcontent_path_values_match_producer_domain[lexically-noncanonical]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_fetchcontent_path_values_match_producer_domain[relative]"
+      ],
+      "hang_risk": false,
+      "id": "t2198.m03-lexical-canonical-check-dropped",
+      "injection_diff_sha256": "8e1eb45a5454e8fd429c7d8c6f03c855b6a79b4ca4fc74e7409854002a1aeaa0",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "6c8e758dc6403d296447dbdfa39a0b408f5929dd90c66920cfe0309289b93810",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "new": "            pass\n",
+          "old": "            _lexical_absolute_path(value, \"FetchContent configure path\")\n"
+        }
+      ],
+      "repo_head": "1a0abbc98fd7d2d5c840a58a9cd9f74a2c7cf2da",
+      "runner_sha256": "93fd3c5bb1aaf4b0de97cc32753f5cf3356cb4e9efafe92e8d507e934e1a1d9a",
+      "spec_sha256": "143038ea820e850728a47e73441297d9efd2f5a882efd05b1e6d79c50957e569",
+      "status": "MISMATCH",
+      "test_output_sha256": "67f5e5e7d8270971b1234194722bbe87643ade14573dc9c6cc3198159369d2bd",
+      "test_output_tail": [
+        ">             index for index, token in enumerate(evidence[\"configure_argv\"])",
+        ">             if token.startswith(prefix)",
+        ">         )",
+        ">         if mutation == \"wrong-prefix\":",
+        ">             evidence[\"configure_argv\"][index] = (",
+        ">                 \"-DFETCHCONTENT_SOURCE_DIR_GOOGLE_TEST=\"",
+        ">                 + evidence[\"configure_argv\"][index][len(prefix):]",
+        ">             )",
+        ">         elif mutation == \"empty-value\":",
+        ">             evidence[\"configure_argv\"][index] = prefix",
+        ">         else:",
+        ">             evidence[\"configure_argv\"][index] = prefix + \"relative/googletest\"",
+        ">     ",
+        "> >       with pytest.raises(A2.CertificationError):",
+        "> E       Failed: DID NOT RAISE CertificationError",
+        "> ",
+        "> orchestrator/tests/test_paper_story_a2_certification.py:4933: Failed",
+        "--- IZANAGI FAILURE EXCERPT rank=1 END ---",
+        "IZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_fetchcontent_path_values_match_producer_domain[relative]\" nodeid_bytes=125 nodeid_omitted_bytes=0 source_bytes=1134 retained_bytes=1134 omitted_bytes=0 rendered_excerpt_bytes=1192 sha256=c19d436fcf39c56bc660f07259d45d2d8c75c1936b95399865c096113136bb5b",
+        "--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---",
+        "> [gw44] linux -- Python 3.10.12 /bin/python3.10",
+        "> ",
+        "> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw44/test_trace0_fetchcontent_path_0')",
+        "> invalid_path = 'relative/masstree-src'",
+        "> ",
+        ">     @pytest.mark.parametrize(",
+        ">         \"invalid_path\",",
+        ">         (\"/fetchcontent/masstree\\x5c0-src\", \"/../\", \"relative/masstree-src\"),",
+        ">         ids=(\"nul\", \"lexically-noncanonical\", \"relative\"),",
+        ">     )",
+        ">     def test_trace0_fetchcontent_path_values_match_producer_domain(",
+        ">             tmp_path, invalid_path):",
+        ">         policy = _policy(tmp_path)",
+        ">         root = A2.create_attempt_root(policy, \"attempt-fetch-path-domain\")",
+        ">         raw = _raw_cell(policy, policy.cells[0], root)",
+        ">         evidence = raw[\"trace0_evidence\"]",
+        ">         prefix = \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\"",
+        ">         index = next(",
+        ">             index for index, token in enumerate(evidence[\"configure_argv\"])",
+        ">             if token.startswith(prefix)",
+        ">         )",
+        ">         evidence[\"configure_argv\"][index] = prefix + invalid_path",
+        ">     ",
+        "> >       with pytest.raises(A2.CertificationError):",
+        "> E       Failed: DID NOT RAISE CertificationError",
+        "> ",
+        "> orchestrator/tests/test_paper_story_a2_certification.py:4979: Failed",
+        "--- IZANAGI FAILURE EXCERPT rank=2 END ---",
+        "IZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_fetchcontent_path_values_match_producer_domain[lexically-noncanonical]\" nodeid_bytes=139 nodeid_omitted_bytes=0 source_bytes=1117 retained_bytes=1117 omitted_bytes=0 rendered_excerpt_bytes=1175 sha256=9eaeb40ea6a8ffa1ce535957ac97f1147047f43eaedbb97ca03bd657183ecf78",
+        "--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---",
+        "> [gw23] linux -- Python 3.10.12 /bin/python3.10",
+        "> ",
+        "> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw23/test_trace0_fetchcontent_path_0')",
+        "> invalid_path = '/../'",
+        "> ",
+        ">     @pytest.mark.parametrize(",
+        ">         \"invalid_path\",",
+        ">         (\"/fetchcontent/masstree\\x5c0-src\", \"/../\", \"relative/masstree-src\"),",
+        ">         ids=(\"nul\", \"lexically-noncanonical\", \"relative\"),",
+        ">     )",
+        ">     def test_trace0_fetchcontent_path_values_match_producer_domain(",
+        ">             tmp_path, invalid_path):",
+        ">         policy = _policy(tmp_path)",
+        ">         root = A2.create_attempt_root(policy, \"attempt-fetch-path-domain\")",
+        ">         raw = _raw_cell(policy, policy.cells[0], root)",
+        ">         evidence = raw[\"trace0_evidence\"]",
+        ">         prefix = \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\"",
+        ">         index = next(",
+        ">             index for index, token in enumerate(evidence[\"configure_argv\"])",
+        ">             if token.startswith(prefix)",
+        ">         )",
+        ">         evidence[\"configure_argv\"][index] = prefix + invalid_path",
+        ">     ",
+        "> >       with pytest.raises(A2.CertificationError):",
+        "> E       Failed: DID NOT RAISE CertificationError",
+        "> ",
+        "> orchestrator/tests/test_paper_story_a2_certification.py:4979: Failed",
+        "--- IZANAGI FAILURE EXCERPT rank=3 END ---",
+        "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=3596 retained_bytes=3596 omitted_bytes=0 budget_bytes=49152 rendered_bytes=5468 omitted_manifest_sha256=-",
+        "=== IZANAGI FAILURE DIGEST v1 END ==="
+      ],
+      "timed_out": false,
+      "tool_sha256": "d5d4a2b9ba75675f377428a89941d86a4a9a1a7d1ff45cbd01acedc20e7f09c5"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2198-trace0-fetchcontent/output/pegasus-dispatch/d5c4e78908f4e1cc21f00763e9fb7089/izdw-d5c4e78908.o981536",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2198-trace0-fetchcontent/output/pegasus-dispatch/d5c4e78908f4e1cc21f00763e9fb7089/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 33%]\n............................................................F........... [ 66%]\n.......................................................................  [100%]\n=================================== FAILURES ===================================\n_______ test_trace0_fetchcontent_path_values_match_producer_domain[nul] ________\n[gw31] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_trace0_fetchcontent_path_0')\ninvalid_path = '/fetchcontent/masstree\\x00-src'\n\n    @pytest.mark.parametrize(\n        \"invalid_path\",\n        (\"/fetchcontent/masstree\\0-src\", \"/../\", \"relative/masstree-src\"),\n        ids=(\"nul\", \"lexically-noncanonical\", \"relative\"),\n    )\n    def test_trace0_fetchcontent_path_values_match_producer_domain(\n            tmp_path, invalid_path):\n        policy = _policy(tmp_path)\n        root = A2.create_attempt_root(policy, \"attempt-fetch-path-domain\")\n        raw = _raw_cell(policy, policy.cells[0], root)\n        evidence = raw[\"trace0_evidence\"]\n        prefix = \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\"\n        index = next(\n            index for index, token in enumerate(evidence[\"configure_argv\"])\n            if token.startswith(prefix)\n        )\n        evidence[\"configure_argv\"][index] = prefix + invalid_path\n    \n>       with pytest.raises(A2.CertificationError):\nE       Failed: DID NOT RAISE CertificationError\n\norchestrator/tests/test_paper_story_a2_certification.py:4979: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_fetchcontent_path_values_match_producer_domain[nul]\n1 failed, 214 passed in 16.50s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_fetchcontent_path_values_match_producer_domain[nul]\" nodeid_bytes=120 nodeid_omitted_bytes=0 source_bytes=1143 retained_bytes=1143 omitted_bytes=0 rendered_excerpt_bytes=1204 sha256=0df6fa4f224513fc63d3f2def858a7e610c56faafabc9c61fa04af235e81216c\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw31] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_trace0_fetchcontent_path_0')\n> invalid_path = '/fetchcontent/masstree\\x5cx00-src'\n> \n>     @pytest.mark.parametrize(\n>         \"invalid_path\",\n>         (\"/fetchcontent/masstree\\x5c0-src\", \"/../\", \"relative/masstree-src\"),\n>         ids=(\"nul\", \"lexically-noncanonical\", \"relative\"),\n>     )\n>     def test_trace0_fetchcontent_path_values_match_producer_domain(\n>             tmp_path, invalid_path):\n>         policy = _policy(tmp_path)\n>         root = A2.create_attempt_root(policy, \"attempt-fetch-path-domain\")\n>         raw = _raw_cell(policy, policy.cells[0], root)\n>         evidence = raw[\"trace0_evidence\"]\n>         prefix = \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\"\n>         index = next(\n>             index for index, token in enumerate(evidence[\"configure_argv\"])\n>             if token.startswith(prefix)\n>         )\n>         evidence[\"configure_argv\"][index] = prefix + invalid_path\n>     \n> >       with pytest.raises(A2.CertificationError):\n> E       Failed: DID NOT RAISE CertificationError\n> \n> orchestrator/tests/test_paper_story_a2_certification.py:4979: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1143 retained_bytes=1143 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1952 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "eb00bb30de649930b0aeeaf46bb5c92e6f8c00b0c21b550ff46a15d2a85dd24c"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "96e587d49eb17464bfdf9185e50e1d057b150877741b3b9719e2ed2b7b3444ec",
+      "duration_s": 42.47,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_fetchcontent_path_values_match_producer_domain[nul]"
+      ],
+      "hang_risk": false,
+      "id": "t2198.m04-nul-check-dropped",
+      "injection_diff_sha256": "71549591a427f524be0396e074797df3cb0799922d6d8b816264639ca6012644",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "6d6b8a54a01f6370aab4cc1cca04f22f7a142e01b6f05e882f0d53b6160c68b9",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "new": "            pass\n",
+          "old": "            if \"\\0\" in value:\n                raise CertificationError(\n                    \"FetchContent configure path must not contain NUL\"\n                )\n"
+        }
+      ],
+      "repo_head": "1a0abbc98fd7d2d5c840a58a9cd9f74a2c7cf2da",
+      "runner_sha256": "93fd3c5bb1aaf4b0de97cc32753f5cf3356cb4e9efafe92e8d507e934e1a1d9a",
+      "spec_sha256": "143038ea820e850728a47e73441297d9efd2f5a882efd05b1e6d79c50957e569",
+      "status": "MISMATCH",
+      "test_output_sha256": "eb00bb30de649930b0aeeaf46bb5c92e6f8c00b0c21b550ff46a15d2a85dd24c",
+      "test_output_tail": [
+        "bringing up nodes...",
+        "bringing up nodes...",
+        "",
+        "........................................................................ [ 33%]",
+        "............................................................F........... [ 66%]",
+        ".......................................................................  [100%]",
+        "=================================== FAILURES ===================================",
+        "_______ test_trace0_fetchcontent_path_values_match_producer_domain[nul] ________",
+        "[gw31] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_trace0_fetchcontent_path_0')",
+        "invalid_path = '/fetchcontent/masstree\\x00-src'",
+        "",
+        "    @pytest.mark.parametrize(",
+        "        \"invalid_path\",",
+        "        (\"/fetchcontent/masstree\\0-src\", \"/../\", \"relative/masstree-src\"),",
+        "        ids=(\"nul\", \"lexically-noncanonical\", \"relative\"),",
+        "    )",
+        "    def test_trace0_fetchcontent_path_values_match_producer_domain(",
+        "            tmp_path, invalid_path):",
+        "        policy = _policy(tmp_path)",
+        "        root = A2.create_attempt_root(policy, \"attempt-fetch-path-domain\")",
+        "        raw = _raw_cell(policy, policy.cells[0], root)",
+        "        evidence = raw[\"trace0_evidence\"]",
+        "        prefix = \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\"",
+        "        index = next(",
+        "            index for index, token in enumerate(evidence[\"configure_argv\"])",
+        "            if token.startswith(prefix)",
+        "        )",
+        "        evidence[\"configure_argv\"][index] = prefix + invalid_path",
+        "    ",
+        ">       with pytest.raises(A2.CertificationError):",
+        "E       Failed: DID NOT RAISE CertificationError",
+        "",
+        "orchestrator/tests/test_paper_story_a2_certification.py:4979: Failed",
+        "=========================== short test summary info ============================",
+        "FAILED orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_fetchcontent_path_values_match_producer_domain[nul]",
+        "1 failed, 214 passed in 16.50s",
+        "IZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}",
+        "=== IZANAGI FAILURE DIGEST v1 BEGIN ===",
+        "IZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_fetchcontent_path_values_match_producer_domain[nul]\" nodeid_bytes=120 nodeid_omitted_bytes=0 source_bytes=1143 retained_bytes=1143 omitted_bytes=0 rendered_excerpt_bytes=1204 sha256=0df6fa4f224513fc63d3f2def858a7e610c56faafabc9c61fa04af235e81216c",
+        "--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---",
+        "> [gw31] linux -- Python 3.10.12 /bin/python3.10",
+        "> ",
+        "> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_trace0_fetchcontent_path_0')",
+        "> invalid_path = '/fetchcontent/masstree\\x5cx00-src'",
+        "> ",
+        ">     @pytest.mark.parametrize(",
+        ">         \"invalid_path\",",
+        ">         (\"/fetchcontent/masstree\\x5c0-src\", \"/../\", \"relative/masstree-src\"),",
+        ">         ids=(\"nul\", \"lexically-noncanonical\", \"relative\"),",
+        ">     )",
+        ">     def test_trace0_fetchcontent_path_values_match_producer_domain(",
+        ">             tmp_path, invalid_path):",
+        ">         policy = _policy(tmp_path)",
+        ">         root = A2.create_attempt_root(policy, \"attempt-fetch-path-domain\")",
+        ">         raw = _raw_cell(policy, policy.cells[0], root)",
+        ">         evidence = raw[\"trace0_evidence\"]",
+        ">         prefix = \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\"",
+        ">         index = next(",
+        ">             index for index, token in enumerate(evidence[\"configure_argv\"])",
+        ">             if token.startswith(prefix)",
+        ">         )",
+        ">         evidence[\"configure_argv\"][index] = prefix + invalid_path",
+        ">     ",
+        "> >       with pytest.raises(A2.CertificationError):",
+        "> E       Failed: DID NOT RAISE CertificationError",
+        "> ",
+        "> orchestrator/tests/test_paper_story_a2_certification.py:4979: Failed",
+        "--- IZANAGI FAILURE EXCERPT rank=1 END ---",
+        "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1143 retained_bytes=1143 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1952 omitted_manifest_sha256=-",
+        "=== IZANAGI FAILURE DIGEST v1 END ==="
+      ],
+      "timed_out": false,
+      "tool_sha256": "d5d4a2b9ba75675f377428a89941d86a4a9a1a7d1ff45cbd01acedc20e7f09c5"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2198-trace0-fetchcontent/output/pegasus-dispatch/7b654fe65ebda94bf5777b1595988eb5/izdw-7b654fe65e.o981537",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2198-trace0-fetchcontent/output/pegasus-dispatch/7b654fe65ebda94bf5777b1595988eb5/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 33%]\n........................................................................ [ 66%]\n...........F...........................................................  [100%]\n=================================== FAILURES ===================================\n____________ test_trace0_configure_argv_rejects_short_path_segment _____________\n[gw24] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw24/test_trace0_configure_argv_rej0')\n\n    def test_trace0_configure_argv_rejects_short_path_segment(tmp_path):\n        policy = _policy(tmp_path)\n        root = A2.create_attempt_root(policy, \"attempt-fetch-short-segment\")\n        raw = _raw_cell(policy, policy.cells[0], root)\n        evidence = raw[\"trace0_evidence\"]\n        dependency_index = next(\n            index for index, token in enumerate(evidence[\"configure_argv\"])\n            if token.startswith(\"-DCMAKE_PREFIX_PATH=\")\n        )\n        evidence[\"configure_argv\"] = evidence[\"configure_argv\"][\n            :dependency_index + 4\n        ]\n    \n        with pytest.raises(\n                A2.CertificationError,\n                match=\"configure argv is shorter than the v2 grammar\"):\n>           A2.validate_trace0_evidence(\n                policy, raw[\"cell_id\"], root.name, CURRENT_PIN, evidence)\n\norchestrator/tests/test_paper_story_a2_certification.py:5026: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/paper_story_a2_certification.py:2288: in validate_trace0_evidence\n    _exact_trace0_configure_argv(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\npolicy = Policy(path=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw24/test_trace0_configure_argv_rej0/policy.json'), documen...oad': {'ycsb_zipf_skew': '0.9', 'ycsb_rratio': '50', 'ycsb_rmw': '0', 'ycsb_max_ope': '10'}, 'extime': 3, 'reps': 5})))\ncell_id = 'rr5-stock'\nargv = ['/usr/bin/cmake', '-S', '/source', '-B', '/tmp/pytest-of-tanab/pytest-0/popen-gw24/test_trace0_configure_argv_rej0/durable-a2/attempt-fetch-short-segment/build/rr5-stock', '-DCMAKE_BUILD_TYPE=Release', ...]\nbuild_dir = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw24/test_trace0_configure_argv_rej0/durable-a2/attempt-fetch-short-segment/build/rr5-stock')\ntoolchain = {'cc': {'requested': 'gcc', 'realpath': '/usr/bin/gcc', 'version_first_line': 'gcc fixture'}, 'cxx': {'requested': 'g+...: 'g++ fixture'}, 'cmake': {'requested': 'cmake', 'realpath': '/usr/bin/cmake', 'version_first_line': 'cmake fixture'}}\n\n    def _exact_trace0_configure_argv(\n            policy: Policy, cell_id: str, argv: Sequence[str], build_dir: Path,\n            toolchain: Mapping[str, Any],\n    ) -> None:\n        roles = {\"cc\", \"cxx\", \"cmake\"}\n        entry_keys = {\"requested\", \"realpath\", \"version_first_line\"}\n        if (type(toolchain) is not dict or set(toolchain) != roles\n                or any(type(toolchain[role]) is not dict\n                       or set(toolchain[role]) != entry_keys\n                       or not all(type(value) is str and value\n                                  for value in toolchain[role].values())\n                       for role in roles)):\n            raise CertificationError(\"toolchain observation is not the v2 producer shape\")\n        grammar = policy.document[\"trace0_cmake_argv\"][\"configure\"]\n        source_positions = [\n            index for index, token in enumerate(argv)\n            if token == grammar[\"source_option\"]\n        ]\n        if len(source_positions) != 1 or source_positions[0] + 1 >= len(argv):\n            raise CertificationError(\"configure argv needs one CCBench source root\")\n        source_root = _lexical_absolute_path(\n            argv[source_positions[0] + 1], \"CCBench source root\")\n        fixed = [\n            toolchain[\"cmake\"][\"realpath\"], grammar[\"source_option\"],\n            str(source_root), grammar[\"build_directory_option\"], str(build_dir),\n            *grammar[\"fixed_arguments\"],\n            *[\n                argument[\"prefix\"] + toolchain[argument[\"role\"]][\"realpath\"]\n                for argument in grammar[\"toolchain_arguments\"]\n            ],\n        ]\n        expected_defines = expected_controlled_defines(policy, cell_id)\n        define_argument = grammar[\"controlled_define_argument\"]\n        ordered_define_tokens = [\n            f\"{define_argument}{key}={expected_defines[key]}\"\n            for key in sorted(expected_defines)\n            if key != \"CCBENCH_TRACE\"\n        ] + [\n            f\"{define_argument}CCBENCH_TRACE={expected_defines['CCBENCH_TRACE']}\"\n        ]\n        path_prefixes = (\n            grammar[\"dependency_prefix_argument\"],\n            *grammar[\"fetchcontent_path_argument_prefixes\"],\n        )\n        minimum_argv_length = (\n            len(fixed) + len(path_prefixes) + len(ordered_define_tokens)\n        )\n        if len(argv) < 0 * minimum_argv_length:\n            raise CertificationError(\"configure argv is shorter than the v2 grammar\")\n        tail = list(argv[len(fixed):])\n        path_tokens = tail[:len(path_prefixes)]\n>       for index, (token, prefix) in enumerate(\n                zip(path_tokens, path_prefixes, strict=True)):\nE               ValueError: zip() argument 2 is longer than argument 1\n\norchestrator/campaign/paper_story_a2_certification.py:2173: ValueError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_configure_argv_rejects_short_path_segment\n1 failed, 214 passed in 16.36s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_configure_argv_rejects_short_path_segment\" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=4991 retained_bytes=3959 omitted_bytes=1032 rendered_excerpt_bytes=4096 sha256=aaef9fdb8cb89bb41071a6bc3ccde4d2ec1578428a0e248ab98ea392b090e929\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> : \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/paper_story_a2_certification.py:2288: in validate_trace0_evidence\n>     _exact_trace0_configure_argv(\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> policy = Policy(path=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw24/test_trace0_configure_argv_rej0/policy.json'), documen...oad': {'ycsb_zipf_skew': '0.9', 'ycsb_rratio': '50', 'ycsb_rmw': '0', 'ycsb_max_ope': '10'}, 'extime': 3, 'reps': 5})))\n> cell_id = 'rr5-stock'\n> argv = ['/usr/bin/cmake', '-S', '/source', '-B', '/tmp/pytest-of-tanab/pytest-0/popen-gw24/test_trace0_configure_argv_rej0/durable-a2/attempt-fetch-short-segment/build/rr5-stock', '-DCMAKE_BUILD_TYPE=Release', ...]\n> build_dir = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw24/test_trace0_configure_argv_rej0/durable-a2/attempt-fetch-short-segment/build/rr5-stock')\n> toolchain = {'cc': {'requested': 'gcc', 'realpath': '/usr/bin/gcc', 'version_first_line': 'gcc fixture'}, 'cxx': {'requested': 'g+...: 'g++ fixture'}, 'cmake': {'requested': 'cmake', 'realpath': '/usr/bin/cmake', 'version_first_line': 'cmake fixture'}}\n> \n>     def _exact_trace0_configure_argv(\n>             policy: Policy, cell_id: str, argv: Sequence[str], build_dir: Path,\n>             toolchain: Mapping[str, Any],\n>     ) -> None:\n>         roles = {\"cc\", \"cxx\", \"cmake\"}\n>         entry_keys = {\"requested\", \"realpath\", \"version_first_line\"}\n>         if (type(toolchain) is not dict or set(toolchain) != roles\n>                 or any(type(toolchain[role]) is not dict\n>                        or set(toolchain[role]) != entry_keys\n>                        or not all(type(value) is str and value\n>                                   for value in toolchain[role].values())\n>                        for role in roles)):\n>             raise CertificationError(\"toolchain observation is not the v2 producer shape\")\n>         grammar = policy.document[\"trace0_cmake_argv\"][\"configure\"]\n>         source_positions = [\n>             index for index, token in enumerate(argv)\n>             if token == grammar[\"source_option\"]\n>         ]\n>         if len(source_positions) != 1 or source_positions[0] + 1 >= len(argv):\n>             raise CertificationError(\"configure argv needs one CCBench source root\")\n>         source_root = _lexical_absolute_path(\n>             argv[source_positions[0] + 1], \"CCBench source root\")\n>         fixed = [\n>             toolchain[\"cmake\"][\"realpath\"], grammar[\"source_option\"],\n>             str(source_root), grammar[\"build_directory_option\"], str(build_dir),\n>             *grammar[\"fixed_arguments\"],\n>             *[\n>                 argument[\"prefix\"] + toolchain[argument[\"role\"]][\"realpath\"]\n>                 for argument in grammar[\"toolchain_arguments\"]\n>             ],\n>         ]\n>         expected_defines = expected_controlled_defines(policy, cell_id)\n>         define_argument = grammar[\"controlled_define_argument\"]\n>         ordered_define_tokens = [\n>             f\"{define_argument}{key}={expected_defines[key]}\"\n>             for key in sorted(expected_defines)\n>             if key != \"CCBENCH_TRACE\"\n>         ] + [\n>             f\"{define_argument}CCBENCH_TRACE={expected_defines['CCBENCH_TRACE']}\"\n>         ]\n>         path_prefixes = (\n>             grammar[\"dependency_prefix_argument\"],\n>             *grammar[\"fetchcontent_path_argument_prefixes\"],\n>         )\n>         minimum_argv_length = (\n>             len(fixed) + len(path_prefixes) + len(ordered_define_tokens)\n>         )\n>         if len(argv) < 0 * minimum_argv_length:\n>             raise CertificationError(\"configure argv is shorter than the v2 grammar\")\n>         tail = list(argv[len(fixed):])\n>         path_tokens = tail[:len(path_prefixes)]\n> >       for index, (token, prefix) in enumerate(\n>                 zip(path_tokens, path_prefixes, strict=True)):\n> E               ValueError: zip() argument 2 is longer than argument 1\n> \n> orchestrator/campaign/paper_story_a2_certification.py:2173: ValueError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=4991 retained_bytes=3959 omitted_bytes=1032 budget_bytes=49152 rendered_bytes=4840 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "ee757a0eadfc283d9c36160e01486088ecd77bd3f011f9a7e1bf4182b913fba5"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "96e587d49eb17464bfdf9185e50e1d057b150877741b3b9719e2ed2b7b3444ec",
+      "duration_s": 42.857,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_configure_argv_rejects_short_path_segment"
+      ],
+      "hang_risk": false,
+      "id": "t2198.m05-minimum-length-check-disabled",
+      "injection_diff_sha256": "43707dc8a1a8aea20341dadf4f6d82f2a1e95f9049135c6128362813ea4d575e",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "619fb7ee1ddec43e36b9330eba9306bf53f64f5c8670df5da34d39b521544edd",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "new": "    if len(argv) < 0 * minimum_argv_length:\n",
+          "old": "    if len(argv) < minimum_argv_length:\n"
+        }
+      ],
+      "repo_head": "1a0abbc98fd7d2d5c840a58a9cd9f74a2c7cf2da",
+      "runner_sha256": "93fd3c5bb1aaf4b0de97cc32753f5cf3356cb4e9efafe92e8d507e934e1a1d9a",
+      "spec_sha256": "143038ea820e850728a47e73441297d9efd2f5a882efd05b1e6d79c50957e569",
+      "status": "MISMATCH",
+      "test_output_sha256": "ee757a0eadfc283d9c36160e01486088ecd77bd3f011f9a7e1bf4182b913fba5",
+      "test_output_tail": [
+        "",
+        "orchestrator/campaign/paper_story_a2_certification.py:2173: ValueError",
+        "=========================== short test summary info ============================",
+        "FAILED orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_configure_argv_rejects_short_path_segment",
+        "1 failed, 214 passed in 16.36s",
+        "IZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}",
+        "=== IZANAGI FAILURE DIGEST v1 BEGIN ===",
+        "IZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_configure_argv_rejects_short_path_segment\" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=4991 retained_bytes=3959 omitted_bytes=1032 rendered_excerpt_bytes=4096 sha256=aaef9fdb8cb89bb41071a6bc3ccde4d2ec1578428a0e248ab98ea392b090e929",
+        "--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---",
+        "> : ",
+        "> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ",
+        "> orchestrator/campaign/paper_story_a2_certification.py:2288: in validate_trace0_evidence",
+        ">     _exact_trace0_configure_argv(",
+        "> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ",
+        "> ",
+        "> policy = Policy(path=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw24/test_trace0_configure_argv_rej0/policy.json'), documen...oad': {'ycsb_zipf_skew': '0.9', 'ycsb_rratio': '50', 'ycsb_rmw': '0', 'ycsb_max_ope': '10'}, 'extime': 3, 'reps': 5})))",
+        "> cell_id = 'rr5-stock'",
+        "> argv = ['/usr/bin/cmake', '-S', '/source', '-B', '/tmp/pytest-of-tanab/pytest-0/popen-gw24/test_trace0_configure_argv_rej0/durable-a2/attempt-fetch-short-segment/build/rr5-stock', '-DCMAKE_BUILD_TYPE=Release', ...]",
+        "> build_dir = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw24/test_trace0_configure_argv_rej0/durable-a2/attempt-fetch-short-segment/build/rr5-stock')",
+        "> toolchain = {'cc': {'requested': 'gcc', 'realpath': '/usr/bin/gcc', 'version_first_line': 'gcc fixture'}, 'cxx': {'requested': 'g+...: 'g++ fixture'}, 'cmake': {'requested': 'cmake', 'realpath': '/usr/bin/cmake', 'version_first_line': 'cmake fixture'}}",
+        "> ",
+        ">     def _exact_trace0_configure_argv(",
+        ">             policy: Policy, cell_id: str, argv: Sequence[str], build_dir: Path,",
+        ">             toolchain: Mapping[str, Any],",
+        ">     ) -> None:",
+        ">         roles = {\"cc\", \"cxx\", \"cmake\"}",
+        ">         entry_keys = {\"requested\", \"realpath\", \"version_first_line\"}",
+        ">         if (type(toolchain) is not dict or set(toolchain) != roles",
+        ">                 or any(type(toolchain[role]) is not dict",
+        ">                        or set(toolchain[role]) != entry_keys",
+        ">                        or not all(type(value) is str and value",
+        ">                                   for value in toolchain[role].values())",
+        ">                        for role in roles)):",
+        ">             raise CertificationError(\"toolchain observation is not the v2 producer shape\")",
+        ">         grammar = policy.document[\"trace0_cmake_argv\"][\"configure\"]",
+        ">         source_positions = [",
+        ">             index for index, token in enumerate(argv)",
+        ">             if token == grammar[\"source_option\"]",
+        ">         ]",
+        ">         if len(source_positions) != 1 or source_positions[0] + 1 >= len(argv):",
+        ">             raise CertificationError(\"configure argv needs one CCBench source root\")",
+        ">         source_root = _lexical_absolute_path(",
+        ">             argv[source_positions[0] + 1], \"CCBench source root\")",
+        ">         fixed = [",
+        ">             toolchain[\"cmake\"][\"realpath\"], grammar[\"source_option\"],",
+        ">             str(source_root), grammar[\"build_directory_option\"], str(build_dir),",
+        ">             *grammar[\"fixed_arguments\"],",
+        ">             *[",
+        ">                 argument[\"prefix\"] + toolchain[argument[\"role\"]][\"realpath\"]",
+        ">                 for argument in grammar[\"toolchain_arguments\"]",
+        ">             ],",
+        ">         ]",
+        ">         expected_defines = expected_controlled_defines(policy, cell_id)",
+        ">         define_argument = grammar[\"controlled_define_argument\"]",
+        ">         ordered_define_tokens = [",
+        ">             f\"{define_argument}{key}={expected_defines[key]}\"",
+        ">             for key in sorted(expected_defines)",
+        ">             if key != \"CCBENCH_TRACE\"",
+        ">         ] + [",
+        ">             f\"{define_argument}CCBENCH_TRACE={expected_defines['CCBENCH_TRACE']}\"",
+        ">         ]",
+        ">         path_prefixes = (",
+        ">             grammar[\"dependency_prefix_argument\"],",
+        ">             *grammar[\"fetchcontent_path_argument_prefixes\"],",
+        ">         )",
+        ">         minimum_argv_length = (",
+        ">             len(fixed) + len(path_prefixes) + len(ordered_define_tokens)",
+        ">         )",
+        ">         if len(argv) < 0 * minimum_argv_length:",
+        ">             raise CertificationError(\"configure argv is shorter than the v2 grammar\")",
+        ">         tail = list(argv[len(fixed):])",
+        ">         path_tokens = tail[:len(path_prefixes)]",
+        "> >       for index, (token, prefix) in enumerate(",
+        ">                 zip(path_tokens, path_prefixes, strict=True)):",
+        "> E               ValueError: zip() argument 2 is longer than argument 1",
+        "> ",
+        "> orchestrator/campaign/paper_story_a2_certification.py:2173: ValueError",
+        "--- IZANAGI FAILURE EXCERPT rank=1 END ---",
+        "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=4991 retained_bytes=3959 omitted_bytes=1032 budget_bytes=49152 rendered_bytes=4840 omitted_manifest_sha256=-",
+        "=== IZANAGI FAILURE DIGEST v1 END ==="
+      ],
+      "timed_out": false,
+      "tool_sha256": "d5d4a2b9ba75675f377428a89941d86a4a9a1a7d1ff45cbd01acedc20e7f09c5"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2198-trace0-fetchcontent/output/pegasus-dispatch/3082980b9031158daa7136b4d7dd5fb0/izdw-3082980b90.o981540",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2198-trace0-fetchcontent/output/pegasus-dispatch/3082980b9031158daa7136b4d7dd5fb0/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 33%]\n...........................................................F............ [ 66%]\n...........F.......F...................................................  [100%]\n=================================== FAILURES ===================================\n_ test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[duplicate-configure-token] _\n[gw21] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw21/test_trace0_argv_closed_gramma0')\nmutation = 'duplicate-configure-token'\n\n    @pytest.mark.parametrize(\"mutation\", (\n        \"separated-define\", \"duplicate-configure-token\", \"unknown-configure-token\",\n        \"fully-disconnected\",\n        \"build-subcommand\", \"unknown-build-token\", \"unknown-run-flag\",\n        \"clocks-per-us\",\n    ))\n    def test_trace0_argv_closed_grammar_rejects_unconsumed_tokens(tmp_path, mutation):\n        policy = _policy(tmp_path)\n        root = A2.create_attempt_root(policy, \"attempt-argv-\" + mutation)\n        raw = _raw_cell(policy, policy.cells[0], root)\n        evidence = raw[\"trace0_evidence\"]\n        if mutation == \"separated-define\":\n            evidence[\"configure_argv\"].extend([\"-D\", \"CCBENCH_TRACE=0\"])\n        elif mutation == \"duplicate-configure-token\":\n            evidence[\"configure_argv\"].append(\"-DENABLE_SANITIZER=OFF\")\n        elif mutation == \"unknown-configure-token\":\n            evidence[\"configure_argv\"].append(\"-DUNKNOWN=1\")\n        elif mutation == \"fully-disconnected\":\n            evidence[\"configure_argv\"].append(\"-DFETCHCONTENT_FULLY_DISCONNECTED=ON\")\n        elif mutation == \"build-subcommand\":\n            evidence[\"build_argv\"][1] = \"--install\"\n        elif mutation == \"unknown-build-token\":\n            evidence[\"build_argv\"].append(\"--verbose\")\n        elif mutation == \"unknown-run-flag\":\n            evidence[\"run_argv\"].append(\"-unknown_flag=1\")\n        else:\n            clock_index = next(\n                index for index, token in enumerate(evidence[\"run_argv\"])\n                if token.startswith(\"-clocks_per_us=\"))\n            evidence[\"run_argv\"][clock_index] = \"-clocks_per_us=1\"\n>       with pytest.raises(A2.CertificationError):\nE       Failed: DID NOT RAISE CertificationError\n\norchestrator/tests/test_paper_story_a2_certification.py:5060: Failed\n_ test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[fully-disconnected] _\n[gw25] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw25/test_trace0_argv_closed_gramma0')\nmutation = 'fully-disconnected'\n\n    @pytest.mark.parametrize(\"mutation\", (\n        \"separated-define\", \"duplicate-configure-token\", \"unknown-configure-token\",\n        \"fully-disconnected\",\n        \"build-subcommand\", \"unknown-build-token\", \"unknown-run-flag\",\n        \"clocks-per-us\",\n    ))\n    def test_trace0_argv_closed_grammar_rejects_unconsumed_tokens(tmp_path, mutation):\n        policy = _policy(tmp_path)\n        root = A2.create_attempt_root(policy, \"attempt-argv-\" + mutation)\n        raw = _raw_cell(policy, policy.cells[0], root)\n        evidence = raw[\"trace0_evidence\"]\n        if mutation == \"separated-define\":\n            evidence[\"configure_argv\"].extend([\"-D\", \"CCBENCH_TRACE=0\"])\n        elif mutation == \"duplicate-configure-token\":\n            evidence[\"configure_argv\"].append(\"-DENABLE_SANITIZER=OFF\")\n        elif mutation == \"unknown-configure-token\":\n            evidence[\"configure_argv\"].append(\"-DUNKNOWN=1\")\n        elif mutation == \"fully-disconnected\":\n            evidence[\"configure_argv\"].append(\"-DFETCHCONTENT_FULLY_DISCONNECTED=ON\")\n        elif mutation == \"build-subcommand\":\n            evidence[\"build_argv\"][1] = \"--install\"\n        elif mutation == \"unknown-build-token\":\n            evidence[\"build_argv\"].append(\"--verbose\")\n        elif mutation == \"unknown-run-flag\":\n            evidence[\"run_argv\"].append(\"-unknown_flag=1\")\n        else:\n            clock_index = next(\n                index for index, token in enumerate(evidence[\"run_argv\"])\n                if token.startswith(\"-clocks_per_us=\"))\n            evidence[\"run_argv\"][clock_index] = \"-clocks_per_us=1\"\n>       with pytest.raises(A2.CertificationError):\nE       Failed: DID NOT RAISE CertificationError\n\norchestrator/tests/test_paper_story_a2_certification.py:5060: Failed\n_ test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[unknown-configure-token] _\n[gw43] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw43/test_trace0_argv_closed_gramma0')\nmutation = 'unknown-configure-token'\n\n    @pytest.mark.parametrize(\"mutation\", (\n        \"separated-define\", \"duplicate-configure-token\", \"unknown-configure-token\",\n        \"fully-disconnected\",\n        \"build-subcommand\", \"unknown-build-token\", \"unknown-run-flag\",\n        \"clocks-per-us\",\n    ))\n    def test_trace0_argv_closed_grammar_rejects_unconsumed_tokens(tmp_path, mutation):\n        policy = _policy(tmp_path)\n        root = A2.create_attempt_root(policy, \"attempt-argv-\" + mutation)\n        raw = _raw_cell(policy, policy.cells[0], root)\n        evidence = raw[\"trace0_evidence\"]\n        if mutation == \"separated-define\":\n            evidence[\"configure_argv\"].extend([\"-D\", \"CCBENCH_TRACE=0\"])\n        elif mutation == \"duplicate-configure-token\":\n            evidence[\"configure_argv\"].append(\"-DENABLE_SANITIZER=OFF\")\n        elif mutation == \"unknown-configure-token\":\n            evidence[\"configure_argv\"].append(\"-DUNKNOWN=1\")\n        elif mutation == \"fully-disconnected\":\n            evidence[\"configure_argv\"].append(\"-DFETCHCONTENT_FULLY_DISCONNECTED=ON\")\n        elif mutation == \"build-subcommand\":\n            evidence[\"build_argv\"][1] = \"--install\"\n        elif mutation == \"unknown-build-token\":\n            evidence[\"build_argv\"].append(\"--verbose\")\n        elif mutation == \"unknown-run-flag\":\n            evidence[\"run_argv\"].append(\"-unknown_flag=1\")\n        else:\n            clock_index = next(\n                index for index, token in enumerate(evidence[\"run_argv\"])\n                if token.startswith(\"-clocks_per_us=\"))\n            evidence[\"run_argv\"][clock_index] = \"-clocks_per_us=1\"\n>       with pytest.raises(A2.CertificationError):\nE       Failed: DID NOT RAISE CertificationError\n\norchestrator/tests/test_paper_story_a2_certification.py:5060: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[duplicate-configure-token]\nFAILED orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[fully-disconnected]\nFAILED orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[unknown-configure-token]\n3 failed, 212 passed in 15.30s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[duplicate-configure-token]\" nodeid_bytes=141 nodeid_omitted_bytes=0 source_bytes=1942 retained_bytes=1942 omitted_bytes=0 rendered_excerpt_bytes=2021 sha256=aab393bc3d0c87ea99d9227c02678d8d8a133734648b650599259161d1c2c364\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw21] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw21/test_trace0_argv_closed_gramma0')\n> mutation = 'duplicate-configure-token'\n> \n>     @pytest.mark.parametrize(\"mutation\", (\n>         \"separated-define\", \"duplicate-configure-token\", \"unknown-configure-token\",\n>         \"fully-disconnected\",\n>         \"build-subcommand\", \"unknown-build-token\", \"unknown-run-flag\",\n>         \"clocks-per-us\",\n>     ))\n>     def test_trace0_argv_closed_grammar_rejects_unconsumed_tokens(tmp_path, mutation):\n>         policy = _policy(tmp_path)\n>         root = A2.create_attempt_root(policy, \"attempt-argv-\" + mutation)\n>         raw = _raw_cell(policy, policy.cells[0], root)\n>         evidence = raw[\"trace0_evidence\"]\n>         if mutation == \"separated-define\":\n>             evidence[\"configure_argv\"].extend([\"-D\", \"CCBENCH_TRACE=0\"])\n>         elif mutation == \"duplicate-configure-token\":\n>             evidence[\"configure_argv\"].append(\"-DENABLE_SANITIZER=OFF\")\n>         elif mutation == \"unknown-configure-token\":\n>             evidence[\"configure_argv\"].append(\"-DUNKNOWN=1\")\n>         elif mutation == \"fully-disconnected\":\n>             evidence[\"configure_argv\"].append(\"-DFETCHCONTENT_FULLY_DISCONNECTED=ON\")\n>         elif mutation == \"build-subcommand\":\n>             evidence[\"build_argv\"][1] = \"--install\"\n>         elif mutation == \"unknown-build-token\":\n>             evidence[\"build_argv\"].append(\"--verbose\")\n>         elif mutation == \"unknown-run-flag\":\n>             evidence[\"run_argv\"].append(\"-unknown_flag=1\")\n>         else:\n>             clock_index = next(\n>                 index for index, token in enumerate(evidence[\"run_argv\"])\n>                 if token.startswith(\"-clocks_per_us=\"))\n>             evidence[\"run_argv\"][clock_index] = \"-clocks_per_us=1\"\n> >       with pytest.raises(A2.CertificationError):\n> E       Failed: DID NOT RAISE CertificationError\n> \n> orchestrator/tests/test_paper_story_a2_certification.py:5060: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[unknown-configure-token]\" nodeid_bytes=139 nodeid_omitted_bytes=0 source_bytes=1940 retained_bytes=1940 omitted_bytes=0 rendered_excerpt_bytes=2019 sha256=338113d53f3c30522f7844fea10399a0ec5059e59f14194de1e0f992437c24c9\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw43] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw43/test_trace0_argv_closed_gramma0')\n> mutation = 'unknown-configure-token'\n> \n>     @pytest.mark.parametrize(\"mutation\", (\n>         \"separated-define\", \"duplicate-configure-token\", \"unknown-configure-token\",\n>         \"fully-disconnected\",\n>         \"build-subcommand\", \"unknown-build-token\", \"unknown-run-flag\",\n>         \"clocks-per-us\",\n>     ))\n>     def test_trace0_argv_closed_grammar_rejects_unconsumed_tokens(tmp_path, mutation):\n>         policy = _policy(tmp_path)\n>         root = A2.create_attempt_root(policy, \"attempt-argv-\" + mutation)\n>         raw = _raw_cell(policy, policy.cells[0], root)\n>         evidence = raw[\"trace0_evidence\"]\n>         if mutation == \"separated-define\":\n>             evidence[\"configure_argv\"].extend([\"-D\", \"CCBENCH_TRACE=0\"])\n>         elif mutation == \"duplicate-configure-token\":\n>             evidence[\"configure_argv\"].append(\"-DENABLE_SANITIZER=OFF\")\n>         elif mutation == \"unknown-configure-token\":\n>             evidence[\"configure_argv\"].append(\"-DUNKNOWN=1\")\n>         elif mutation == \"fully-disconnected\":\n>             evidence[\"configure_argv\"].append(\"-DFETCHCONTENT_FULLY_DISCONNECTED=ON\")\n>         elif mutation == \"build-subcommand\":\n>             evidence[\"build_argv\"][1] = \"--install\"\n>         elif mutation == \"unknown-build-token\":\n>             evidence[\"build_argv\"].append(\"--verbose\")\n>         elif mutation == \"unknown-run-flag\":\n>             evidence[\"run_argv\"].append(\"-unknown_flag=1\")\n>         else:\n>             clock_index = next(\n>                 index for index, token in enumerate(evidence[\"run_argv\"])\n>                 if token.startswith(\"-clocks_per_us=\"))\n>             evidence[\"run_argv\"][clock_index] = \"-clocks_per_us=1\"\n> >       with pytest.raises(A2.CertificationError):\n> E       Failed: DID NOT RAISE CertificationError\n> \n> orchestrator/tests/test_paper_story_a2_certification.py:5060: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[fully-disconnected]\" nodeid_bytes=134 nodeid_omitted_bytes=0 source_bytes=1935 retained_bytes=1935 omitted_bytes=0 rendered_excerpt_bytes=2014 sha256=898f999d06e89b34a0c927b1e7fd3123a25bb7b7fa0f6093df4740c2822cfb12\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw25] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw25/test_trace0_argv_closed_gramma0')\n> mutation = 'fully-disconnected'\n> \n>     @pytest.mark.parametrize(\"mutation\", (\n>         \"separated-define\", \"duplicate-configure-token\", \"unknown-configure-token\",\n>         \"fully-disconnected\",\n>         \"build-subcommand\", \"unknown-build-token\", \"unknown-run-flag\",\n>         \"clocks-per-us\",\n>     ))\n>     def test_trace0_argv_closed_grammar_rejects_unconsumed_tokens(tmp_path, mutation):\n>         policy = _policy(tmp_path)\n>         root = A2.create_attempt_root(policy, \"attempt-argv-\" + mutation)\n>         raw = _raw_cell(policy, policy.cells[0], root)\n>         evidence = raw[\"trace0_evidence\"]\n>         if mutation == \"separated-define\":\n>             evidence[\"configure_argv\"].extend([\"-D\", \"CCBENCH_TRACE=0\"])\n>         elif mutation == \"duplicate-configure-token\":\n>             evidence[\"configure_argv\"].append(\"-DENABLE_SANITIZER=OFF\")\n>         elif mutation == \"unknown-configure-token\":\n>             evidence[\"configure_argv\"].append(\"-DUNKNOWN=1\")\n>         elif mutation == \"fully-disconnected\":\n>             evidence[\"configure_argv\"].append(\"-DFETCHCONTENT_FULLY_DISCONNECTED=ON\")\n>         elif mutation == \"build-subcommand\":\n>             evidence[\"build_argv\"][1] = \"--install\"\n>         elif mutation == \"unknown-build-token\":\n>             evidence[\"build_argv\"].append(\"--verbose\")\n>         elif mutation == \"unknown-run-flag\":\n>             evidence[\"run_argv\"].append(\"-unknown_flag=1\")\n>         else:\n>             clock_index = next(\n>                 index for index, token in enumerate(evidence[\"run_argv\"])\n>                 if token.startswith(\"-clocks_per_us=\"))\n>             evidence[\"run_argv\"][clock_index] = \"-clocks_per_us=1\"\n> >       with pytest.raises(A2.CertificationError):\n> E       Failed: DID NOT RAISE CertificationError\n> \n> orchestrator/tests/test_paper_story_a2_certification.py:5060: Failed\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=5817 retained_bytes=5817 omitted_bytes=0 budget_bytes=49152 rendered_bytes=7778 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "76f866d22c8436bd1e869d65f46a113c5086098728d3ff1ee3cc6c806b1b0ac2"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "96e587d49eb17464bfdf9185e50e1d057b150877741b3b9719e2ed2b7b3444ec",
+      "duration_s": 88.683,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[duplicate-configure-token]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[fully-disconnected]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[unknown-configure-token]"
+      ],
+      "hang_risk": false,
+      "id": "t2198.m06-final-equality-weakened-to-prefix",
+      "injection_diff_sha256": "9af12fcadd3da47e7e250198135567a4304e270403be4093947e7448406479e6",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "e476a886b1aff7cc06153473a74d71767b9457b1dd78611dff314a6601ca2084",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "new": "    expected = fixed + path_tokens + ordered_define_tokens\n    if list(argv)[:len(expected)] != expected:\n",
+          "old": "    expected = fixed + path_tokens + ordered_define_tokens\n    if list(argv) != expected:\n"
+        }
+      ],
+      "repo_head": "1a0abbc98fd7d2d5c840a58a9cd9f74a2c7cf2da",
+      "runner_sha256": "93fd3c5bb1aaf4b0de97cc32753f5cf3356cb4e9efafe92e8d507e934e1a1d9a",
+      "spec_sha256": "143038ea820e850728a47e73441297d9efd2f5a882efd05b1e6d79c50957e569",
+      "status": "MISMATCH",
+      "test_output_sha256": "76f866d22c8436bd1e869d65f46a113c5086098728d3ff1ee3cc6c806b1b0ac2",
+      "test_output_tail": [
+        "> ",
+        ">     @pytest.mark.parametrize(\"mutation\", (",
+        ">         \"separated-define\", \"duplicate-configure-token\", \"unknown-configure-token\",",
+        ">         \"fully-disconnected\",",
+        ">         \"build-subcommand\", \"unknown-build-token\", \"unknown-run-flag\",",
+        ">         \"clocks-per-us\",",
+        ">     ))",
+        ">     def test_trace0_argv_closed_grammar_rejects_unconsumed_tokens(tmp_path, mutation):",
+        ">         policy = _policy(tmp_path)",
+        ">         root = A2.create_attempt_root(policy, \"attempt-argv-\" + mutation)",
+        ">         raw = _raw_cell(policy, policy.cells[0], root)",
+        ">         evidence = raw[\"trace0_evidence\"]",
+        ">         if mutation == \"separated-define\":",
+        ">             evidence[\"configure_argv\"].extend([\"-D\", \"CCBENCH_TRACE=0\"])",
+        ">         elif mutation == \"duplicate-configure-token\":",
+        ">             evidence[\"configure_argv\"].append(\"-DENABLE_SANITIZER=OFF\")",
+        ">         elif mutation == \"unknown-configure-token\":",
+        ">             evidence[\"configure_argv\"].append(\"-DUNKNOWN=1\")",
+        ">         elif mutation == \"fully-disconnected\":",
+        ">             evidence[\"configure_argv\"].append(\"-DFETCHCONTENT_FULLY_DISCONNECTED=ON\")",
+        ">         elif mutation == \"build-subcommand\":",
+        ">             evidence[\"build_argv\"][1] = \"--install\"",
+        ">         elif mutation == \"unknown-build-token\":",
+        ">             evidence[\"build_argv\"].append(\"--verbose\")",
+        ">         elif mutation == \"unknown-run-flag\":",
+        ">             evidence[\"run_argv\"].append(\"-unknown_flag=1\")",
+        ">         else:",
+        ">             clock_index = next(",
+        ">                 index for index, token in enumerate(evidence[\"run_argv\"])",
+        ">                 if token.startswith(\"-clocks_per_us=\"))",
+        ">             evidence[\"run_argv\"][clock_index] = \"-clocks_per_us=1\"",
+        "> >       with pytest.raises(A2.CertificationError):",
+        "> E       Failed: DID NOT RAISE CertificationError",
+        "> ",
+        "> orchestrator/tests/test_paper_story_a2_certification.py:5060: Failed",
+        "--- IZANAGI FAILURE EXCERPT rank=2 END ---",
+        "IZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[fully-disconnected]\" nodeid_bytes=134 nodeid_omitted_bytes=0 source_bytes=1935 retained_bytes=1935 omitted_bytes=0 rendered_excerpt_bytes=2014 sha256=898f999d06e89b34a0c927b1e7fd3123a25bb7b7fa0f6093df4740c2822cfb12",
+        "--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---",
+        "> [gw25] linux -- Python 3.10.12 /bin/python3.10",
+        "> ",
+        "> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw25/test_trace0_argv_closed_gramma0')",
+        "> mutation = 'fully-disconnected'",
+        "> ",
+        ">     @pytest.mark.parametrize(\"mutation\", (",
+        ">         \"separated-define\", \"duplicate-configure-token\", \"unknown-configure-token\",",
+        ">         \"fully-disconnected\",",
+        ">         \"build-subcommand\", \"unknown-build-token\", \"unknown-run-flag\",",
+        ">         \"clocks-per-us\",",
+        ">     ))",
+        ">     def test_trace0_argv_closed_grammar_rejects_unconsumed_tokens(tmp_path, mutation):",
+        ">         policy = _policy(tmp_path)",
+        ">         root = A2.create_attempt_root(policy, \"attempt-argv-\" + mutation)",
+        ">         raw = _raw_cell(policy, policy.cells[0], root)",
+        ">         evidence = raw[\"trace0_evidence\"]",
+        ">         if mutation == \"separated-define\":",
+        ">             evidence[\"configure_argv\"].extend([\"-D\", \"CCBENCH_TRACE=0\"])",
+        ">         elif mutation == \"duplicate-configure-token\":",
+        ">             evidence[\"configure_argv\"].append(\"-DENABLE_SANITIZER=OFF\")",
+        ">         elif mutation == \"unknown-configure-token\":",
+        ">             evidence[\"configure_argv\"].append(\"-DUNKNOWN=1\")",
+        ">         elif mutation == \"fully-disconnected\":",
+        ">             evidence[\"configure_argv\"].append(\"-DFETCHCONTENT_FULLY_DISCONNECTED=ON\")",
+        ">         elif mutation == \"build-subcommand\":",
+        ">             evidence[\"build_argv\"][1] = \"--install\"",
+        ">         elif mutation == \"unknown-build-token\":",
+        ">             evidence[\"build_argv\"].append(\"--verbose\")",
+        ">         elif mutation == \"unknown-run-flag\":",
+        ">             evidence[\"run_argv\"].append(\"-unknown_flag=1\")",
+        ">         else:",
+        ">             clock_index = next(",
+        ">                 index for index, token in enumerate(evidence[\"run_argv\"])",
+        ">                 if token.startswith(\"-clocks_per_us=\"))",
+        ">             evidence[\"run_argv\"][clock_index] = \"-clocks_per_us=1\"",
+        "> >       with pytest.raises(A2.CertificationError):",
+        "> E       Failed: DID NOT RAISE CertificationError",
+        "> ",
+        "> orchestrator/tests/test_paper_story_a2_certification.py:5060: Failed",
+        "--- IZANAGI FAILURE EXCERPT rank=3 END ---",
+        "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=5817 retained_bytes=5817 omitted_bytes=0 budget_bytes=49152 rendered_bytes=7778 omitted_manifest_sha256=-",
+        "=== IZANAGI FAILURE DIGEST v1 END ==="
+      ],
+      "timed_out": false,
+      "tool_sha256": "d5d4a2b9ba75675f377428a89941d86a4a9a1a7d1ff45cbd01acedc20e7f09c5"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2198-trace0-fetchcontent/output/pegasus-dispatch/2b5497a0ef23b63a7c9104277b2d3328/izdw-2b5497a0ef.o981546",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2198-trace0-fetchcontent/output/pegasus-dispatch/2b5497a0ef23b63a7c9104277b2d3328/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 33%]\n....F................................................................... [ 66%]\n.......................................................................  [100%]\n=================================== FAILURES ===================================\n_ test_policy_loader_rejects_each_malformed_fetchcontent_prefix_list[missing-equals-value5] _\n[gw18] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw18/test_policy_loader_rejects_eac0')\nmutation = 'missing-equals'\nvalue = ['-DFETCHCONTENT_BASE_DIR=', '-DFETCHCONTENT_SOURCE_DIR_MASSTREE=', '-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=', '-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST']\n\n    @pytest.mark.parametrize(\n        (\"mutation\", \"value\"),\n        (\n            (\"not-list\", {\"prefix\": \"-DFETCHCONTENT_BASE_DIR=\"}),\n            (\"wrong-length\", [\n                \"-DFETCHCONTENT_BASE_DIR=\",\n                \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\",\n                \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\",\n            ]),\n            (\"non-string\", [\n                \"-DFETCHCONTENT_BASE_DIR=\",\n                \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\",\n                \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\",\n                7,\n            ]),\n            (\"empty\", [\n                \"-DFETCHCONTENT_BASE_DIR=\",\n                \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\",\n                \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\",\n                \"\",\n            ]),\n            (\"whitespace\", [\n                \"-DFETCHCONTENT_BASE_DIR=\",\n                \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\",\n                \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\",\n                \"-DFETCHCONTENT SOURCE_DIR_GOOGLETEST=\",\n            ]),\n            (\"missing-equals\", [\n                \"-DFETCHCONTENT_BASE_DIR=\",\n                \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\",\n                \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\",\n                \"-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST\",\n            ]),\n            (\"duplicate\", [\n                \"-DFETCHCONTENT_BASE_DIR=\",\n                \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\",\n                \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\",\n                \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\",\n            ]),\n        ),\n    )\n    def test_policy_loader_rejects_each_malformed_fetchcontent_prefix_list(\n            tmp_path, mutation, value):\n        document = json.loads(A2.POLICY_PATH.read_text(encoding=\"utf-8\"))\n        document[\"trace0_cmake_argv\"][\"configure\"][\n            \"fetchcontent_path_argument_prefixes\"\n        ] = value\n        path = tmp_path / f\"malformed-fetchcontent-prefix-{mutation}.json\"\n        path.write_text(json.dumps(document, indent=2) + \"\\n\", encoding=\"utf-8\")\n    \n>       with pytest.raises(A2.CertificationError, match=\"FetchContent path grammar\"):\nE       Failed: DID NOT RAISE CertificationError\n\norchestrator/tests/test_paper_story_a2_certification.py:1879: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_paper_story_a2_certification.py::test_policy_loader_rejects_each_malformed_fetchcontent_prefix_list[missing-equals-value5]\n1 failed, 214 passed in 16.46s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a2_certification.py::test_policy_loader_rejects_each_malformed_fetchcontent_prefix_list[missing-equals-value5]\" nodeid_bytes=146 nodeid_omitted_bytes=0 source_bytes=2559 retained_bytes=2559 omitted_bytes=0 rendered_excerpt_bytes=2683 sha256=f4783d5e5fcfe4b711b7ce7dd4a5745acd09cb2274572b17720ab9e3cb27a246\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw18] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw18/test_policy_loader_rejects_eac0')\n> mutation = 'missing-equals'\n> value = ['-DFETCHCONTENT_BASE_DIR=', '-DFETCHCONTENT_SOURCE_DIR_MASSTREE=', '-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=', '-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST']\n> \n>     @pytest.mark.parametrize(\n>         (\"mutation\", \"value\"),\n>         (\n>             (\"not-list\", {\"prefix\": \"-DFETCHCONTENT_BASE_DIR=\"}),\n>             (\"wrong-length\", [\n>                 \"-DFETCHCONTENT_BASE_DIR=\",\n>                 \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\",\n>                 \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\",\n>             ]),\n>             (\"non-string\", [\n>                 \"-DFETCHCONTENT_BASE_DIR=\",\n>                 \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\",\n>                 \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\",\n>                 7,\n>             ]),\n>             (\"empty\", [\n>                 \"-DFETCHCONTENT_BASE_DIR=\",\n>                 \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\",\n>                 \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\",\n>                 \"\",\n>             ]),\n>             (\"whitespace\", [\n>                 \"-DFETCHCONTENT_BASE_DIR=\",\n>                 \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\",\n>                 \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\",\n>                 \"-DFETCHCONTENT SOURCE_DIR_GOOGLETEST=\",\n>             ]),\n>             (\"missing-equals\", [\n>                 \"-DFETCHCONTENT_BASE_DIR=\",\n>                 \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\",\n>                 \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\",\n>                 \"-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST\",\n>             ]),\n>             (\"duplicate\", [\n>                 \"-DFETCHCONTENT_BASE_DIR=\",\n>                 \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\",\n>                 \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\",\n>                 \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\",\n>             ]),\n>         ),\n>     )\n>     def test_policy_loader_rejects_each_malformed_fetchcontent_prefix_list(\n>             tmp_path, mutation, value):\n>         document = json.loads(A2.POLICY_PATH.read_text(encoding=\"utf-8\"))\n>         document[\"trace0_cmake_argv\"][\"configure\"][\n>             \"fetchcontent_path_argument_prefixes\"\n>         ] = value\n>         path = tmp_path / f\"malformed-fetchcontent-prefix-{mutation}.json\"\n>         path.write_text(json.dumps(document, indent=2) + \"\\x5cn\", encoding=\"utf-8\")\n>     \n> >       with pytest.raises(A2.CertificationError, match=\"FetchContent path grammar\"):\n> E       Failed: DID NOT RAISE CertificationError\n> \n> orchestrator/tests/test_paper_story_a2_certification.py:1879: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2559 retained_bytes=2559 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3457 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "086380c321e3d0ca49a44fdec49d31ebbd59d4aa747326b6d689f31a4c047379"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "96e587d49eb17464bfdf9185e50e1d057b150877741b3b9719e2ed2b7b3444ec",
+      "duration_s": 206.141,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_policy_loader_rejects_each_malformed_fetchcontent_prefix_list[missing-equals-value5]"
+      ],
+      "hang_risk": false,
+      "id": "t2198.m07-loader-trailing-equals-dropped",
+      "injection_diff_sha256": "a1f29c9b584d55aa80bdbf0eefa2444a24a95b7007f6b33ddc2123c25666457f",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "a49f7f52a1bdca0c7b821075fd9cad8981a6ed7b0356e3c9d043f3eabdb8e9d4",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "new": "",
+          "old": "                and prefix.endswith(\"=\")\n"
+        }
+      ],
+      "repo_head": "1a0abbc98fd7d2d5c840a58a9cd9f74a2c7cf2da",
+      "runner_sha256": "93fd3c5bb1aaf4b0de97cc32753f5cf3356cb4e9efafe92e8d507e934e1a1d9a",
+      "spec_sha256": "143038ea820e850728a47e73441297d9efd2f5a882efd05b1e6d79c50957e569",
+      "status": "MISMATCH",
+      "test_output_sha256": "086380c321e3d0ca49a44fdec49d31ebbd59d4aa747326b6d689f31a4c047379",
+      "test_output_tail": [
+        "        document[\"trace0_cmake_argv\"][\"configure\"][",
+        "            \"fetchcontent_path_argument_prefixes\"",
+        "        ] = value",
+        "        path = tmp_path / f\"malformed-fetchcontent-prefix-{mutation}.json\"",
+        "        path.write_text(json.dumps(document, indent=2) + \"\\n\", encoding=\"utf-8\")",
+        "    ",
+        ">       with pytest.raises(A2.CertificationError, match=\"FetchContent path grammar\"):",
+        "E       Failed: DID NOT RAISE CertificationError",
+        "",
+        "orchestrator/tests/test_paper_story_a2_certification.py:1879: Failed",
+        "=========================== short test summary info ============================",
+        "FAILED orchestrator/tests/test_paper_story_a2_certification.py::test_policy_loader_rejects_each_malformed_fetchcontent_prefix_list[missing-equals-value5]",
+        "1 failed, 214 passed in 16.46s",
+        "IZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}",
+        "=== IZANAGI FAILURE DIGEST v1 BEGIN ===",
+        "IZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a2_certification.py::test_policy_loader_rejects_each_malformed_fetchcontent_prefix_list[missing-equals-value5]\" nodeid_bytes=146 nodeid_omitted_bytes=0 source_bytes=2559 retained_bytes=2559 omitted_bytes=0 rendered_excerpt_bytes=2683 sha256=f4783d5e5fcfe4b711b7ce7dd4a5745acd09cb2274572b17720ab9e3cb27a246",
+        "--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---",
+        "> [gw18] linux -- Python 3.10.12 /bin/python3.10",
+        "> ",
+        "> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw18/test_policy_loader_rejects_eac0')",
+        "> mutation = 'missing-equals'",
+        "> value = ['-DFETCHCONTENT_BASE_DIR=', '-DFETCHCONTENT_SOURCE_DIR_MASSTREE=', '-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=', '-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST']",
+        "> ",
+        ">     @pytest.mark.parametrize(",
+        ">         (\"mutation\", \"value\"),",
+        ">         (",
+        ">             (\"not-list\", {\"prefix\": \"-DFETCHCONTENT_BASE_DIR=\"}),",
+        ">             (\"wrong-length\", [",
+        ">                 \"-DFETCHCONTENT_BASE_DIR=\",",
+        ">                 \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\",",
+        ">                 \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\",",
+        ">             ]),",
+        ">             (\"non-string\", [",
+        ">                 \"-DFETCHCONTENT_BASE_DIR=\",",
+        ">                 \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\",",
+        ">                 \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\",",
+        ">                 7,",
+        ">             ]),",
+        ">             (\"empty\", [",
+        ">                 \"-DFETCHCONTENT_BASE_DIR=\",",
+        ">                 \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\",",
+        ">                 \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\",",
+        ">                 \"\",",
+        ">             ]),",
+        ">             (\"whitespace\", [",
+        ">                 \"-DFETCHCONTENT_BASE_DIR=\",",
+        ">                 \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\",",
+        ">                 \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\",",
+        ">                 \"-DFETCHCONTENT SOURCE_DIR_GOOGLETEST=\",",
+        ">             ]),",
+        ">             (\"missing-equals\", [",
+        ">                 \"-DFETCHCONTENT_BASE_DIR=\",",
+        ">                 \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\",",
+        ">                 \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\",",
+        ">                 \"-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST\",",
+        ">             ]),",
+        ">             (\"duplicate\", [",
+        ">                 \"-DFETCHCONTENT_BASE_DIR=\",",
+        ">                 \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\",",
+        ">                 \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\",",
+        ">                 \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\",",
+        ">             ]),",
+        ">         ),",
+        ">     )",
+        ">     def test_policy_loader_rejects_each_malformed_fetchcontent_prefix_list(",
+        ">             tmp_path, mutation, value):",
+        ">         document = json.loads(A2.POLICY_PATH.read_text(encoding=\"utf-8\"))",
+        ">         document[\"trace0_cmake_argv\"][\"configure\"][",
+        ">             \"fetchcontent_path_argument_prefixes\"",
+        ">         ] = value",
+        ">         path = tmp_path / f\"malformed-fetchcontent-prefix-{mutation}.json\"",
+        ">         path.write_text(json.dumps(document, indent=2) + \"\\x5cn\", encoding=\"utf-8\")",
+        ">     ",
+        "> >       with pytest.raises(A2.CertificationError, match=\"FetchContent path grammar\"):",
+        "> E       Failed: DID NOT RAISE CertificationError",
+        "> ",
+        "> orchestrator/tests/test_paper_story_a2_certification.py:1879: Failed",
+        "--- IZANAGI FAILURE EXCERPT rank=1 END ---",
+        "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2559 retained_bytes=2559 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3457 omitted_manifest_sha256=-",
+        "=== IZANAGI FAILURE DIGEST v1 END ==="
+      ],
+      "timed_out": false,
+      "tool_sha256": "d5d4a2b9ba75675f377428a89941d86a4a9a1a7d1ff45cbd01acedc20e7f09c5"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2198-trace0-fetchcontent/output/pegasus-dispatch/c182d2b9a544f587faaf1030677f570d/izdw-c182d2b9a5.o981551",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2198-trace0-fetchcontent/output/pegasus-dispatch/c182d2b9a544f587faaf1030677f570d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 33%]\n........................................................................ [ 66%]\n.......................................................................  [100%]\n215 passed in 14.57s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "d38e582f9e9a2539b3cd4f69178b461238e7cb85b63fbffb366526a6a052c215"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "96e587d49eb17464bfdf9185e50e1d057b150877741b3b9719e2ed2b7b3444ec",
+      "duration_s": 88.533,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "t2198.m08-loader-length-check-dropped",
+      "injection_diff_sha256": "6c7785ae027fd32ff6dbdc74b8ba1a798e72b5c0a5563aa14797889a96e024c5",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "fbdbff994117712fe3c4be3e19bf01ea00ad790fe3b78f8479116b35936cfb41",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "new": "",
+          "old": "            or len(fetchcontent_path_argument_prefixes) != 4\n"
+        }
+      ],
+      "repo_head": "1a0abbc98fd7d2d5c840a58a9cd9f74a2c7cf2da",
+      "runner_sha256": "93fd3c5bb1aaf4b0de97cc32753f5cf3356cb4e9efafe92e8d507e934e1a1d9a",
+      "spec_sha256": "143038ea820e850728a47e73441297d9efd2f5a882efd05b1e6d79c50957e569",
+      "status": "SURVIVED",
+      "test_output_sha256": "d38e582f9e9a2539b3cd4f69178b461238e7cb85b63fbffb366526a6a052c215",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "d5d4a2b9ba75675f377428a89941d86a4a9a1a7d1ff45cbd01acedc20e7f09c5"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2198-trace0-fetchcontent/output/pegasus-dispatch/3fe47e25627e51440c3670691f2b73b1/izdw-3fe47e2562.o981554",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2198-trace0-fetchcontent/output/pegasus-dispatch/3fe47e25627e51440c3670691f2b73b1/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 33%]\n.......F................................................................ [ 66%]\n.......................................................................  [100%]\n=================================== FAILURES ===================================\n_ test_policy_loader_rejects_each_malformed_fetchcontent_prefix_list[duplicate-value6] _\n[gw46] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw46/test_policy_loader_rejects_eac0')\nmutation = 'duplicate'\nvalue = ['-DFETCHCONTENT_BASE_DIR=', '-DFETCHCONTENT_SOURCE_DIR_MASSTREE=', '-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=', '-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=']\n\n    @pytest.mark.parametrize(\n        (\"mutation\", \"value\"),\n        (\n            (\"not-list\", {\"prefix\": \"-DFETCHCONTENT_BASE_DIR=\"}),\n            (\"wrong-length\", [\n                \"-DFETCHCONTENT_BASE_DIR=\",\n                \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\",\n                \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\",\n            ]),\n            (\"non-string\", [\n                \"-DFETCHCONTENT_BASE_DIR=\",\n                \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\",\n                \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\",\n                7,\n            ]),\n            (\"empty\", [\n                \"-DFETCHCONTENT_BASE_DIR=\",\n                \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\",\n                \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\",\n                \"\",\n            ]),\n            (\"whitespace\", [\n                \"-DFETCHCONTENT_BASE_DIR=\",\n                \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\",\n                \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\",\n                \"-DFETCHCONTENT SOURCE_DIR_GOOGLETEST=\",\n            ]),\n            (\"missing-equals\", [\n                \"-DFETCHCONTENT_BASE_DIR=\",\n                \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\",\n                \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\",\n                \"-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST\",\n            ]),\n            (\"duplicate\", [\n                \"-DFETCHCONTENT_BASE_DIR=\",\n                \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\",\n                \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\",\n                \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\",\n            ]),\n        ),\n    )\n    def test_policy_loader_rejects_each_malformed_fetchcontent_prefix_list(\n            tmp_path, mutation, value):\n        document = json.loads(A2.POLICY_PATH.read_text(encoding=\"utf-8\"))\n        document[\"trace0_cmake_argv\"][\"configure\"][\n            \"fetchcontent_path_argument_prefixes\"\n        ] = value\n        path = tmp_path / f\"malformed-fetchcontent-prefix-{mutation}.json\"\n        path.write_text(json.dumps(document, indent=2) + \"\\n\", encoding=\"utf-8\")\n    \n>       with pytest.raises(A2.CertificationError, match=\"FetchContent path grammar\"):\nE       Failed: DID NOT RAISE CertificationError\n\norchestrator/tests/test_paper_story_a2_certification.py:1879: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_paper_story_a2_certification.py::test_policy_loader_rejects_each_malformed_fetchcontent_prefix_list[duplicate-value6]\n1 failed, 214 passed in 14.65s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a2_certification.py::test_policy_loader_rejects_each_malformed_fetchcontent_prefix_list[duplicate-value6]\" nodeid_bytes=141 nodeid_omitted_bytes=0 source_bytes=2553 retained_bytes=2553 omitted_bytes=0 rendered_excerpt_bytes=2677 sha256=43d2d7f433d6574bc47f2f138771b1a52eb0216f11fc4887585bbd9ef6f41565\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw46] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw46/test_policy_loader_rejects_eac0')\n> mutation = 'duplicate'\n> value = ['-DFETCHCONTENT_BASE_DIR=', '-DFETCHCONTENT_SOURCE_DIR_MASSTREE=', '-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=', '-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=']\n> \n>     @pytest.mark.parametrize(\n>         (\"mutation\", \"value\"),\n>         (\n>             (\"not-list\", {\"prefix\": \"-DFETCHCONTENT_BASE_DIR=\"}),\n>             (\"wrong-length\", [\n>                 \"-DFETCHCONTENT_BASE_DIR=\",\n>                 \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\",\n>                 \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\",\n>             ]),\n>             (\"non-string\", [\n>                 \"-DFETCHCONTENT_BASE_DIR=\",\n>                 \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\",\n>                 \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\",\n>                 7,\n>             ]),\n>             (\"empty\", [\n>                 \"-DFETCHCONTENT_BASE_DIR=\",\n>                 \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\",\n>                 \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\",\n>                 \"\",\n>             ]),\n>             (\"whitespace\", [\n>                 \"-DFETCHCONTENT_BASE_DIR=\",\n>                 \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\",\n>                 \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\",\n>                 \"-DFETCHCONTENT SOURCE_DIR_GOOGLETEST=\",\n>             ]),\n>             (\"missing-equals\", [\n>                 \"-DFETCHCONTENT_BASE_DIR=\",\n>                 \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\",\n>                 \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\",\n>                 \"-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST\",\n>             ]),\n>             (\"duplicate\", [\n>                 \"-DFETCHCONTENT_BASE_DIR=\",\n>                 \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\",\n>                 \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\",\n>                 \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\",\n>             ]),\n>         ),\n>     )\n>     def test_policy_loader_rejects_each_malformed_fetchcontent_prefix_list(\n>             tmp_path, mutation, value):\n>         document = json.loads(A2.POLICY_PATH.read_text(encoding=\"utf-8\"))\n>         document[\"trace0_cmake_argv\"][\"configure\"][\n>             \"fetchcontent_path_argument_prefixes\"\n>         ] = value\n>         path = tmp_path / f\"malformed-fetchcontent-prefix-{mutation}.json\"\n>         path.write_text(json.dumps(document, indent=2) + \"\\x5cn\", encoding=\"utf-8\")\n>     \n> >       with pytest.raises(A2.CertificationError, match=\"FetchContent path grammar\"):\n> E       Failed: DID NOT RAISE CertificationError\n> \n> orchestrator/tests/test_paper_story_a2_certification.py:1879: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2553 retained_bytes=2553 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3446 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "f5194af0332307224cdee888b6afeb244e372aed9b1b83d28f13bd645c02d524"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "96e587d49eb17464bfdf9185e50e1d057b150877741b3b9719e2ed2b7b3444ec",
+      "duration_s": 503.261,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_policy_loader_rejects_each_malformed_fetchcontent_prefix_list[duplicate-value6]"
+      ],
+      "hang_risk": false,
+      "id": "t2198.m09-loader-uniqueness-check-dropped",
+      "injection_diff_sha256": "8a8d0cae6e3a2df48be43a20b6cff92a889eea378a26f305b6f1a69a4652b74b",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "36c07329911d00fededa522b21725884e047bb67bad27b94fd19a211f04bc14e",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "new": "            or False):\n",
+          "old": "            or len(set(fetchcontent_path_argument_prefixes)) != 4):\n"
+        }
+      ],
+      "repo_head": "1a0abbc98fd7d2d5c840a58a9cd9f74a2c7cf2da",
+      "runner_sha256": "93fd3c5bb1aaf4b0de97cc32753f5cf3356cb4e9efafe92e8d507e934e1a1d9a",
+      "spec_sha256": "143038ea820e850728a47e73441297d9efd2f5a882efd05b1e6d79c50957e569",
+      "status": "MISMATCH",
+      "test_output_sha256": "f5194af0332307224cdee888b6afeb244e372aed9b1b83d28f13bd645c02d524",
+      "test_output_tail": [
+        "        document[\"trace0_cmake_argv\"][\"configure\"][",
+        "            \"fetchcontent_path_argument_prefixes\"",
+        "        ] = value",
+        "        path = tmp_path / f\"malformed-fetchcontent-prefix-{mutation}.json\"",
+        "        path.write_text(json.dumps(document, indent=2) + \"\\n\", encoding=\"utf-8\")",
+        "    ",
+        ">       with pytest.raises(A2.CertificationError, match=\"FetchContent path grammar\"):",
+        "E       Failed: DID NOT RAISE CertificationError",
+        "",
+        "orchestrator/tests/test_paper_story_a2_certification.py:1879: Failed",
+        "=========================== short test summary info ============================",
+        "FAILED orchestrator/tests/test_paper_story_a2_certification.py::test_policy_loader_rejects_each_malformed_fetchcontent_prefix_list[duplicate-value6]",
+        "1 failed, 214 passed in 14.65s",
+        "IZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}",
+        "=== IZANAGI FAILURE DIGEST v1 BEGIN ===",
+        "IZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a2_certification.py::test_policy_loader_rejects_each_malformed_fetchcontent_prefix_list[duplicate-value6]\" nodeid_bytes=141 nodeid_omitted_bytes=0 source_bytes=2553 retained_bytes=2553 omitted_bytes=0 rendered_excerpt_bytes=2677 sha256=43d2d7f433d6574bc47f2f138771b1a52eb0216f11fc4887585bbd9ef6f41565",
+        "--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---",
+        "> [gw46] linux -- Python 3.10.12 /bin/python3.10",
+        "> ",
+        "> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw46/test_policy_loader_rejects_eac0')",
+        "> mutation = 'duplicate'",
+        "> value = ['-DFETCHCONTENT_BASE_DIR=', '-DFETCHCONTENT_SOURCE_DIR_MASSTREE=', '-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=', '-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=']",
+        "> ",
+        ">     @pytest.mark.parametrize(",
+        ">         (\"mutation\", \"value\"),",
+        ">         (",
+        ">             (\"not-list\", {\"prefix\": \"-DFETCHCONTENT_BASE_DIR=\"}),",
+        ">             (\"wrong-length\", [",
+        ">                 \"-DFETCHCONTENT_BASE_DIR=\",",
+        ">                 \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\",",
+        ">                 \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\",",
+        ">             ]),",
+        ">             (\"non-string\", [",
+        ">                 \"-DFETCHCONTENT_BASE_DIR=\",",
+        ">                 \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\",",
+        ">                 \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\",",
+        ">                 7,",
+        ">             ]),",
+        ">             (\"empty\", [",
+        ">                 \"-DFETCHCONTENT_BASE_DIR=\",",
+        ">                 \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\",",
+        ">                 \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\",",
+        ">                 \"\",",
+        ">             ]),",
+        ">             (\"whitespace\", [",
+        ">                 \"-DFETCHCONTENT_BASE_DIR=\",",
+        ">                 \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\",",
+        ">                 \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\",",
+        ">                 \"-DFETCHCONTENT SOURCE_DIR_GOOGLETEST=\",",
+        ">             ]),",
+        ">             (\"missing-equals\", [",
+        ">                 \"-DFETCHCONTENT_BASE_DIR=\",",
+        ">                 \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\",",
+        ">                 \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\",",
+        ">                 \"-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST\",",
+        ">             ]),",
+        ">             (\"duplicate\", [",
+        ">                 \"-DFETCHCONTENT_BASE_DIR=\",",
+        ">                 \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\",",
+        ">                 \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\",",
+        ">                 \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\",",
+        ">             ]),",
+        ">         ),",
+        ">     )",
+        ">     def test_policy_loader_rejects_each_malformed_fetchcontent_prefix_list(",
+        ">             tmp_path, mutation, value):",
+        ">         document = json.loads(A2.POLICY_PATH.read_text(encoding=\"utf-8\"))",
+        ">         document[\"trace0_cmake_argv\"][\"configure\"][",
+        ">             \"fetchcontent_path_argument_prefixes\"",
+        ">         ] = value",
+        ">         path = tmp_path / f\"malformed-fetchcontent-prefix-{mutation}.json\"",
+        ">         path.write_text(json.dumps(document, indent=2) + \"\\x5cn\", encoding=\"utf-8\")",
+        ">     ",
+        "> >       with pytest.raises(A2.CertificationError, match=\"FetchContent path grammar\"):",
+        "> E       Failed: DID NOT RAISE CertificationError",
+        "> ",
+        "> orchestrator/tests/test_paper_story_a2_certification.py:1879: Failed",
+        "--- IZANAGI FAILURE EXCERPT rank=1 END ---",
+        "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2553 retained_bytes=2553 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3446 omitted_manifest_sha256=-",
+        "=== IZANAGI FAILURE DIGEST v1 END ==="
+      ],
+      "timed_out": false,
+      "tool_sha256": "d5d4a2b9ba75675f377428a89941d86a4a9a1a7d1ff45cbd01acedc20e7f09c5"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2198-trace0-fetchcontent/output/pegasus-dispatch/abf9f91d0392fef590b7452ab3566344/izdw-abf9f91d03.o981518",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2198-trace0-fetchcontent/output/pegasus-dispatch/abf9f91d0392fef590b7452ab3566344/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_paper_story_a2_certification.py::test_paper_condition_gate_is_p_strict_and_precedes_campaign\norchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_uses_exact_offline_fetchcontent_argv\norchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_context_cleans_up_on_body_exception\norchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_context_cleans_up_on_prebuild_exception\norchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_prebuild_runs_once_for_multiple_cells\norchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_family_real_records_positive_then_issued_red_negative\norchestrator/tests/test_paper_story_a2_certification.py::test_raw_cell_requires_persisted_certification[a2]\norchestrator/tests/test_paper_story_a2_certification.py::test_policy_is_the_exact_literal_four_cell_protocol\norchestrator/tests/test_paper_story_a2_certification.py::test_p1_a2_default_policy_bytes_and_protocol_are_unchanged\norchestrator/tests/test_paper_story_a2_certification.py::test_policy_loader_rejects_each_malformed_fetchcontent_prefix_list[not-list-value0]\norchestrator/tests/test_paper_story_a2_certification.py::test_policy_loader_rejects_each_malformed_fetchcontent_prefix_list[wrong-length-value1]\norchestrator/tests/test_paper_story_a2_certification.py::test_policy_loader_rejects_each_malformed_fetchcontent_prefix_list[non-string-value2]\norchestrator/tests/test_paper_story_a2_certification.py::test_policy_loader_rejects_each_malformed_fetchcontent_prefix_list[empty-value3]\norchestrator/tests/test_paper_story_a2_certification.py::test_policy_loader_rejects_each_malformed_fetchcontent_prefix_list[whitespace-value4]\norchestrator/tests/test_paper_story_a2_certification.py::test_policy_loader_rejects_each_malformed_fetchcontent_prefix_list[missing-equals-value5]\norchestrator/tests/test_paper_story_a2_certification.py::test_policy_loader_rejects_each_malformed_fetchcontent_prefix_list[duplicate-value6]\norchestrator/tests/test_paper_story_a2_certification.py::test_m3_combined_count_layers_reject_three_workload_a6_policy\norchestrator/tests/test_paper_story_a2_certification.py::test_policy_loader_rejects_unknown_study\norchestrator/tests/test_paper_story_a2_certification.py::test_m4_cli_policy_selection_rejects_noncanonical_path\norchestrator/tests/test_paper_story_a2_certification.py::test_m5_workloads_remain_in_protocol_preimage\norchestrator/tests/test_paper_story_a2_certification.py::test_a6_policy_is_exact_read_heavy_pair_with_twelve_hour_walltime\norchestrator/tests/test_paper_story_a2_certification.py::test_production_policy_protocol_maps_to_real_silo_layout_and_artifacts\norchestrator/tests/test_paper_story_a2_certification.py::test_uppercase_silo_protocol_is_rejected_by_policy_loader\norchestrator/tests/test_paper_story_a2_certification.py::test_m1_closed_verify_mode_wires_performance_and_rejects_unknown\norchestrator/tests/test_paper_story_a2_certification.py::test_m2_performance_constructor_is_exact_and_rejects_shrinkage\norchestrator/tests/test_paper_story_a2_certification.py::test_m3_campaign_preimage_and_perfconfig_must_both_match\norchestrator/tests/test_paper_story_a2_certification.py::test_m4_full_scale_verify_is_required_for_cell_completion\norchestrator/tests/test_paper_story_a2_certification.py::test_m5_collector_rejects_non_exact_cell_sets[missing]\norchestrator/tests/test_paper_story_a2_certification.py::test_m5_collector_rejects_non_exact_cell_sets[extra]\norchestrator/tests/test_paper_story_a2_certification.py::test_m5_collector_rejects_non_exact_cell_sets[duplicate]\norchestrator/tests/test_paper_story_a2_certification.py::test_m5_collector_rejects_non_exact_cell_sets[cross-attempt]\norchestrator/tests/test_paper_story_a2_certification.py::test_m6_positive_report_never_claims_global_minimality\norchestrator/tests/test_paper_story_a2_certification.py::test_anomaly_is_determinate_reject_and_performance_incomplete_is_not_pass\norchestrator/tests/test_paper_story_a2_certification.py::test_m8_controlled_define_map_and_argv_are_independent_gates[map]\norchestrator/tests/test_paper_story_a2_certification.py::test_m8_controlled_define_map_and_argv_are_independent_gates[argv]\norchestrator/tests/test_paper_story_a2_certification.py::test_m9_run_argv_zero_must_be_the_canonical_binary\norchestrator/tests/test_paper_story_a2_certification.py::test_perf_sha_is_recomputed_from_binary_bytes\norchestrator/tests/test_paper_story_a2_certification.py::test_m10_full_submission_and_completion_receipts_are_cross_bound\norchestrator/tests/test_paper_story_a2_certification.py::test_scheduler_request_id_diagnostic_is_create_only_and_non_symlink\norchestrator/tests/test_paper_story_a2_certification.py::test_qsub_diagnostics_fsync_both_files_then_scheduler_directory\norchestrator/tests/test_paper_story_a2_certification.py::test_m1_a6_single_workload_full_success_stays_v3\norchestrator/tests/test_paper_story_a2_certification.py::test_m2_partial_v4_completion_requires_exact_two_workloads\norchestrator/tests/test_paper_story_a2_certification.py::test_p2_a6_full_v3_path_collects_and_materializes\norchestrator/tests/test_paper_story_a2_certification.py::test_a6_anomaly_is_immediate_reject\norchestrator/tests/test_paper_story_a2_certification.py::test_m4_finish_rejects_compute_request_mismatch_without_raw_manifest\norchestrator/tests/test_paper_story_a2_certification.py::test_m5_finish_prevalidates_each_job_against_its_own_request\norchestrator/tests/test_paper_story_a2_certification.py::test_pc2_canonical_finish_creates_manifest_completion_and_acquisition\norchestrator/tests/test_paper_story_a2_certification.py::test_authority_none_production_finish_and_collect_remain_v3_indeterminate\norchestrator/tests/test_paper_story_a2_certification.py::test_legacy_v3_one_failed_driver_consumer_remains_indeterminate\norchestrator/tests/test_paper_story_a2_certification.py::test_partial_anomaly_production_chain_rejects_without_failed_raw\norchestrator/tests/test_paper_story_a2_certification.py::test_partial_positive_and_nonpositive_effect_statuses[1.1-partial-authoritative-workload-positive:rr50]\norchestrator/tests/test_paper_story_a2_certification.py::test_partial_positive_and_nonpositive_effect_statuses[1.0-reject-authoritative-workload-effect-nonpositive:rr50]\norchestrator/tests/test_paper_story_a2_certification.py::test_partial_positive_and_nonpositive_effect_statuses[0.9-reject-authoritative-workload-effect-nonpositive:rr50]\norchestrator/tests/test_paper_story_a2_certification.py::test_partial_authoritative_science_can_remain_inconclusive\norchestrator/tests/test_paper_story_a2_certification.py::test_partial_invalid_authority_stops_before_report_or_artifact\norchestrator/tests/test_paper_story_a2_certification.py::test_partial_materializer_rejects_cross_schema_and_failed_raw_mixing[cross-version]\norchestrator/tests/test_paper_story_a2_certification.py::test_partial_materializer_rejects_cross_schema_and_failed_raw_mixing[failed-raw-member]\norchestrator/tests/test_paper_story_a2_certification.py::test_partial_v4_chain_rejects_noncanonical_authority_path_before_read[manifest]\norchestrator/tests/test_paper_story_a2_certification.py::test_partial_v4_chain_rejects_noncanonical_authority_path_before_read[submission]\norchestrator/tests/test_paper_story_a2_certification.py::test_partial_v4_chain_rejects_noncanonical_authority_path_before_read[completion]\norchestrator/tests/test_paper_story_a2_certification.py::test_materializer_rejects_v3_v4_result_receipt_cross_chain\norchestrator/tests/test_paper_story_a2_certification.py::test_m7_partial_materializer_rejects_forged_authority_and_status\norchestrator/tests/test_paper_story_a2_certification.py::test_m8_partial_materializer_rejects_failed_workload_cells_and_effects\norchestrator/tests/test_paper_story_a2_certification.py::test_m10_each_canonical_qsub_and_submit_observation_field_is_required[qsub_argv]\norchestrator/tests/test_paper_story_a2_certification.py::test_m10_each_canonical_qsub_and_submit_observation_field_is_required[qstat_visibility]\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_argv_environment_nodes_and_job_body_are_exact[extra-env]\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_argv_environment_nodes_and_job_body_are_exact[nodes]\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_argv_environment_nodes_and_job_body_are_exact[job-body]\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_rejects_missing_or_changed_third_party_source_root[missing]\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_rejects_missing_or_changed_third_party_source_root[changed]\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_uses_the_full_real_qstat_fixture\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_another_request_block\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_conflicting_state_fields\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_state_before_target_id\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_non_none_ended_time\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_requires_one_ended_time_after_request_id[missing-ended request time is missing]\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_requires_one_ended_time_after_request_id[duplicated-ended request time is duplicated]\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_requires_one_ended_time_after_request_id[before-request-id-ended request time precedes request ID]\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_disappearance_with_visible_block\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_receipt_state_mismatch\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_finished_request_stdout\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_nonaccepted_vocabulary[Held-outside the submission acceptance set]\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_nonaccepted_vocabulary[Suspended-state vocabulary is unknown]\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_vocabulary_sets_are_nonvacuous_and_exact\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_requires_timestamped_nonterminal_state\norchestrator/tests/test_paper_story_a2_certification.py::test_m11_materializer_stages_marker_before_single_noreplace_rename\norchestrator/tests/test_paper_story_a2_certification.py::test_materialize_einval_uses_exclusive_claim_and_flags_zero_rename\norchestrator/tests/test_paper_story_a2_certification.py::test_materialize_einval_refuses_destination_created_before_recheck\norchestrator/tests/test_paper_story_a2_certification.py::test_materialize_einval_fails_closed_on_publish_claim_collision\norchestrator/tests/test_paper_story_a2_certification.py::test_materialize_non_einval_publish_error_does_not_enter_fallback\norchestrator/tests/test_paper_story_a2_certification.py::test_materialize_noreplace_success_does_not_enter_fallback\norchestrator/tests/test_paper_story_a2_certification.py::test_m12_attempt_root_must_be_direct_child_of_pinned_durable_base\norchestrator/tests/test_paper_story_a2_certification.py::test_m12_durable_base_rejects_symlinked_ancestor\norchestrator/tests/test_paper_story_a2_certification.py::test_correctness_requires_every_ratified_repetition\norchestrator/tests/test_paper_story_a2_certification.py::test_nonfinite_json_and_samples_are_fail_closed\norchestrator/tests/test_paper_story_a2_certification.py::test_collector_never_calls_positive_path_for_failed_or_manifestless_compute[authority-none-driver_rc0-False]\norchestrator/tests/test_paper_story_a2_certification.py::test_collector_never_calls_positive_path_for_failed_or_manifestless_compute[manifestless-full-0-False]\norchestrator/tests/test_paper_story_a2_certification.py::test_completion_driver_rc_request_and_pin_are_bound_to_compute_result\norchestrator/tests/test_paper_story_a2_certification.py::test_completion_accepts_both_canonical_terminal_observations[scheduler-end-state]\norchestrator/tests/test_paper_story_a2_certification.py::test_completion_accepts_both_canonical_terminal_observations[request-disappeared-after-visibility]\norchestrator/tests/test_paper_story_a2_certification.py::test_disappeared_terminal_rejects_noncanonical_observations[empty-output]\norchestrator/tests/test_paper_story_a2_certification.py::test_disappeared_terminal_rejects_noncanonical_observations[visible-output]\norchestrator/tests/test_paper_story_a2_certification.py::test_disappeared_terminal_rejects_noncanonical_observations[nonzero-rc]\norchestrator/tests/test_paper_story_a2_certification.py::test_disappeared_terminal_rejects_noncanonical_observations[stderr]\norchestrator/tests/test_paper_story_a2_certification.py::test_raw_manifest_binds_campaign_lock_and_wal_and_freezes_raw_bytes\norchestrator/tests/test_paper_story_a2_certification.py::test_changed_campaign_wal_invalidates_the_manifest_bundle\norchestrator/tests/test_paper_story_a2_certification.py::test_condition_receipt_publish_is_atomic_noreplace_and_durable\norchestrator/tests/test_paper_story_a2_certification.py::test_source_role_and_missing_token_are_determinate_cell_rejects[adopted-stock-patch-unapplied]\norchestrator/tests/test_paper_story_a2_certification.py::test_source_role_and_missing_token_are_determinate_cell_rejects[missing-token-token-missing]\norchestrator/tests/test_paper_story_a2_certification.py::test_source_role_and_missing_token_are_determinate_cell_rejects[legacy-v2-patch-unapplied]\norchestrator/tests/test_paper_story_a2_certification.py::test_patched_adopted_source_binding_positive_control\norchestrator/tests/test_paper_story_a2_certification.py::test_raw_token_is_checked_against_precampaign_receipt_not_itself\norchestrator/tests/test_paper_story_a2_certification.py::test_precampaign_token_cross_checks_wal_admission_and_variant[wal-token-WAL build start token]\norchestrator/tests/test_paper_story_a2_certification.py::test_precampaign_token_cross_checks_wal_admission_and_variant[admission-token-build admission token]\norchestrator/tests/test_paper_story_a2_certification.py::test_precampaign_token_cross_checks_wal_admission_and_variant[variant-canonical cell variant]\norchestrator/tests/test_paper_story_a2_certification.py::test_manifest_bound_condition_receipt_is_required_and_hash_checked[missing]\norchestrator/tests/test_paper_story_a2_certification.py::test_manifest_bound_condition_receipt_is_required_and_hash_checked[changed]\norchestrator/tests/test_paper_story_a2_certification.py::test_source_authority_failure_stops_before_tracked_artifact[receipt-file-missing]\norchestrator/tests/test_paper_story_a2_certification.py::test_source_authority_failure_stops_before_tracked_artifact[receipt-corrupt]\norchestrator/tests/test_paper_story_a2_certification.py::test_source_authority_failure_stops_before_tracked_artifact[receipt-token-missing]\norchestrator/tests/test_paper_story_a2_certification.py::test_source_authority_failure_stops_before_tracked_artifact[receipt-token-invalid]\norchestrator/tests/test_paper_story_a2_certification.py::test_source_authority_failure_stops_before_tracked_artifact[receipt-hash-mismatch]\norchestrator/tests/test_paper_story_a2_certification.py::test_source_authority_failure_stops_before_tracked_artifact[raw-token-missing]\norchestrator/tests/test_paper_story_a2_certification.py::test_source_authority_failure_stops_before_tracked_artifact[raw-token-invalid]\norchestrator/tests/test_paper_story_a2_certification.py::test_full_and_legacy_partial_manifest_identifiers_and_loaders_are_distinct\norchestrator/tests/test_paper_story_a2_certification.py::test_frozen_v3_certification_bytes_and_legacy_cell_shape_remain_accepted\norchestrator/tests/test_paper_story_a2_certification.py::test_p3_cli_selects_default_a2_and_explicit_a6_policy\norchestrator/tests/test_paper_story_a2_certification.py::test_run_workload_production_pin_gate_rejects_noncanonical_source[wrong-prefix]\norchestrator/tests/test_paper_story_a2_certification.py::test_run_workload_production_pin_gate_rejects_noncanonical_source[resolver-failure]\norchestrator/tests/test_paper_story_a2_certification.py::test_run_workload_production_pin_gate_rejects_noncanonical_source[dirty]\norchestrator/tests/test_paper_story_a2_certification.py::test_run_workload_requires_exact_repository_canonical_short_pin[1111111111111111111111111111111111111111]\norchestrator/tests/test_paper_story_a2_certification.py::test_run_workload_requires_exact_repository_canonical_short_pin[abcdef0]\norchestrator/tests/test_paper_story_a2_certification.py::test_run_workload_verifies_staged_sources_before_condition_gate\norchestrator/tests/test_paper_story_a2_certification.py::test_official_run_observes_dependency_receipt_after_condition_prebuild\norchestrator/tests/test_paper_story_a2_certification.py::test_official_run_forwards_exact_fetchcontent_five_tuple\norchestrator/tests/test_paper_story_a2_certification.py::test_live_precampaign_source_role_predicate_rejects_before_campaign[adopted-stock]\norchestrator/tests/test_paper_story_a2_certification.py::test_live_precampaign_source_role_predicate_rejects_before_campaign[stock-non-stock]\norchestrator/tests/test_paper_story_a2_certification.py::test_pipeline_runs_correctness_workload_repetitions_without_new_wal_fields\norchestrator/tests/test_paper_story_a2_certification.py::test_trace0_fetchcontent_prefix_mutations_are_rejected[wrong-prefix]\norchestrator/tests/test_paper_story_a2_certification.py::test_trace0_fetchcontent_prefix_mutations_are_rejected[empty-value]\norchestrator/tests/test_paper_story_a2_certification.py::test_trace0_fetchcontent_prefix_mutations_are_rejected[relative]\norchestrator/tests/test_paper_story_a2_certification.py::test_trace0_fetchcontent_segment_matches_v2_command_order\norchestrator/tests/test_paper_story_a2_certification.py::test_trace0_fetchcontent_path_values_match_producer_domain[nul]\norchestrator/tests/test_paper_story_a2_certification.py::test_trace0_fetchcontent_path_values_match_producer_domain[lexically-noncanonical]\norchestrator/tests/test_paper_story_a2_certification.py::test_trace0_fetchcontent_path_values_match_producer_domain[relative]\norchestrator/tests/test_paper_story_a2_certification.py::test_trace0_accepts_canonical_argv_from_v2_producer\norchestrator/tests/test_paper_story_a2_certification.py::test_trace0_configure_argv_rejects_short_path_segment\norchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[separated-define]\norchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[duplicate-configure-token]\norchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[unknown-configure-token]\norchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[fully-disconnected]\norchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[build-subcommand]\norchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[unknown-build-token]\norchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[unknown-run-flag]\norchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[clocks-per-us]\norchestrator/tests/test_paper_story_a2_certification.py::test_wal_configure_locator_comes_from_versioned_grammar\norchestrator/tests/test_paper_story_a2_certification.py::test_synthetic_pbs_free_preregister_through_analyze_positive\norchestrator/tests/test_paper_story_a2_certification.py::test_volatile_diagnostics_are_not_fixture_authority\norchestrator/tests/test_paper_story_a2_job_contract.py::test_job_body_is_compute_only_sequential_and_never_submits\norchestrator/tests/test_paper_story_a2_job_contract.py::test_m8_full_pin_forwarding_and_missing_exact_resolver_are_killed\norchestrator/tests/test_paper_story_a2_job_contract.py::test_job_body_exports_the_exact_reservation_schema_from_job_observations\norchestrator/tests/test_paper_story_a2_job_contract.py::test_interpreter_resolver_prepends_selected_path_for_child_processes\norchestrator/tests/test_paper_story_a2_job_contract.py::test_interpreter_resolver_rejects_version_ok_but_a2_unimportable_candidate\norchestrator/tests/test_paper_story_a2_job_contract.py::test_interpreter_resolver_call_precedes_first_python_use\norchestrator/tests/test_paper_story_a2_job_contract.py::test_pbs_jobid_path_sanitization_is_load_bearing\norchestrator/tests/test_paper_story_a2_job_contract.py::test_m7_each_expected_head_compute_only_clean_and_fresh_gate_is_load_bearing[^bnode[0-9]+([.].*)?$]\norchestrator/tests/test_paper_story_a2_job_contract.py::test_m7_each_expected_head_compute_only_clean_and_fresh_gate_is_load_bearing[git rev-parse HEAD]\norchestrator/tests/test_paper_story_a2_job_contract.py::test_m7_each_expected_head_compute_only_clean_and_fresh_gate_is_load_bearing[git status --porcelain --untracked-files=no]\norchestrator/tests/test_paper_story_a2_job_contract.py::test_m7_each_expected_head_compute_only_clean_and_fresh_gate_is_load_bearing[if [[ -e \"$raw_root\" || -L \"$raw_root\" ]]]\norchestrator/tests/test_paper_story_a2_job_contract.py::test_m7_each_expected_head_compute_only_clean_and_fresh_gate_is_load_bearing[sys.version_info >= (3, 10)]\norchestrator/tests/test_paper_story_a2_job_contract.py::test_m7_each_expected_head_compute_only_clean_and_fresh_gate_is_load_bearing[import orchestrator.campaign.paper_story_a2_certification]\norchestrator/tests/test_paper_story_a2_job_contract.py::test_m7_each_expected_head_compute_only_clean_and_fresh_gate_is_load_bearing[export PATH=\"$(dirname \"$selected\"):$PATH\"]\norchestrator/tests/test_paper_story_a2_job_contract.py::test_job_body_is_registered_only_as_dispatch_required\norchestrator/tests/test_paper_story_a2_job_contract.py::test_submitter_production_path_rejects_noncanonical_ccbench_source[wrong-prefix]\norchestrator/tests/test_paper_story_a2_job_contract.py::test_submitter_production_path_rejects_noncanonical_ccbench_source[resolver-failure]\norchestrator/tests/test_paper_story_a2_job_contract.py::test_submitter_production_path_rejects_noncanonical_ccbench_source[dirty]\norchestrator/tests/test_paper_story_a2_job_contract.py::test_submitter_rejects_unsafe_or_nonphysical_third_party_source_root[comma]\norchestrator/tests/test_paper_story_a2_job_contract.py::test_submitter_rejects_unsafe_or_nonphysical_third_party_source_root[equals]\norchestrator/tests/test_paper_story_a2_job_contract.py::test_submitter_rejects_unsafe_or_nonphysical_third_party_source_root[newline]\norchestrator/tests/test_paper_story_a2_job_contract.py::test_submitter_rejects_unsafe_or_nonphysical_third_party_source_root[symlink-root]\norchestrator/tests/test_paper_story_a2_job_contract.py::test_submitter_rejects_unsafe_or_nonphysical_third_party_source_root[symlink-child]\norchestrator/tests/test_paper_story_a2_job_contract.py::test_submitter_rejects_unsafe_or_nonphysical_third_party_source_root[missing-child]\norchestrator/tests/test_paper_story_a2_job_contract.py::test_submitter_rejects_unsafe_path_after_canonicalization\norchestrator/tests/test_paper_story_a2_job_contract.py::test_compute_job_production_path_rejects_noncanonical_ccbench_source[wrong-prefix]\norchestrator/tests/test_paper_story_a2_job_contract.py::test_compute_job_production_path_rejects_noncanonical_ccbench_source[resolver-failure]\norchestrator/tests/test_paper_story_a2_job_contract.py::test_compute_job_production_path_rejects_noncanonical_ccbench_source[dirty]\norchestrator/tests/test_paper_story_a2_job_contract.py::test_compute_job_production_path_rejects_noncanonical_ccbench_source[ambient-pin]\norchestrator/tests/test_paper_story_a2_job_contract.py::test_a6_compute_job_accepts_rr95_membership_before_source_gate\norchestrator/tests/test_paper_story_a2_job_contract.py::test_job_body_stages_exact_three_src_suffixed_dependencies\norchestrator/tests/test_paper_story_a2_job_contract.py::test_compute_job_trap_records_policy_resolution_failure\norchestrator/tests/test_paper_story_a2_job_contract.py::test_prereg_m1_submitter_fails_closed_when_inventory_qstat_fails\norchestrator/tests/test_paper_story_a2_job_contract.py::test_submitter_fails_closed_when_inventory_qstat_writes_stderr\norchestrator/tests/test_paper_story_a2_job_contract.py::test_submitter_requires_selected_queue_line_to_be_enabled_and_active\norchestrator/tests/test_paper_story_a2_job_contract.py::test_prereg_pc1_submitter_continues_after_empty_request_inventory\norchestrator/tests/test_paper_story_a2_job_contract.py::test_submitter_rejects_an_existing_a2_request_before_preregistration\norchestrator/tests/test_paper_story_a2_job_contract.py::test_m6_submitter_duplicate_detection_is_study_scoped[a2-same-study]\norchestrator/tests/test_paper_story_a2_job_contract.py::test_m6_submitter_duplicate_detection_is_study_scoped[a2-other-study]\norchestrator/tests/test_paper_story_a2_job_contract.py::test_m6_submitter_duplicate_detection_is_study_scoped[p4-a6-other-study-and-unrelated]\norchestrator/tests/test_paper_story_a2_job_contract.py::test_m6_submitter_duplicate_detection_is_study_scoped[p5-a6-prefix-collision]\norchestrator/tests/test_paper_story_a2_job_contract.py::test_m6_submitter_duplicate_detection_is_study_scoped[p6-a6-same-study]\norchestrator/tests/test_paper_story_a2_job_contract.py::test_prereg_m2_m3_request_is_durable_before_visibility_failure\norchestrator/tests/test_paper_story_a2_job_contract.py::test_submitter_retains_both_sidecars_on_rr50_visibility_failure\norchestrator/tests/test_paper_story_a2_job_contract.py::test_submitter_durably_records_each_qsub_failure_before_stopping[rr5]\norchestrator/tests/test_paper_story_a2_job_contract.py::test_submitter_durably_records_each_qsub_failure_before_stopping[rr50]\norchestrator/tests/test_paper_story_a2_job_contract.py::test_submitter_rejects_clean_rc_with_qsub_stderr_after_durability\norchestrator/tests/test_paper_story_a2_job_contract.py::test_submitter_qsub_diagnostics_are_create_only\norchestrator/tests/test_paper_story_a2_job_contract.py::test_submitter_success_uses_production_cli_qsub_and_exact_stdout_contract\norchestrator/tests/test_paper_story_a2_job_contract.py::test_p3_a6_submitter_uses_one_rr95_job_and_policy_scheduler\norchestrator/tests/test_paper_story_a2_job_contract.py::test_compute_preflight_accepts_exact_compute_head_and_fresh_raw\norchestrator/tests/test_paper_story_a2_job_contract.py::test_compute_preflight_rejects_each_m7_boundary[login-host]\norchestrator/tests/test_paper_story_a2_job_contract.py::test_compute_preflight_rejects_each_m7_boundary[wrong-head]\norchestrator/tests/test_paper_story_a2_job_contract.py::test_compute_preflight_rejects_each_m7_boundary[dirty]\norchestrator/tests/test_paper_story_a2_job_contract.py::test_compute_preflight_rejects_each_m7_boundary[stale-raw]\norchestrator/tests/test_paper_story_a2_job_contract.py::test_compute_preflight_requires_real_pbs_and_reservation_bindings\norchestrator/tests/test_paper_story_a2_job_contract.py::test_job_body_mode_is_executable\n\n215 tests collected in 0.99s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "f4156e4bb1bc8c5ab190167c440f2fdcf479fe1d5221a89b210928bb75bc54c1"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_paper_condition_gate_is_p_strict_and_precedes_campaign",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_uses_exact_offline_fetchcontent_argv",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_context_cleans_up_on_body_exception",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_context_cleans_up_on_prebuild_exception",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_prebuild_runs_once_for_multiple_cells",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_family_real_records_positive_then_issued_red_negative",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_raw_cell_requires_persisted_certification[a2]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_policy_is_the_exact_literal_four_cell_protocol",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_p1_a2_default_policy_bytes_and_protocol_are_unchanged",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_policy_loader_rejects_each_malformed_fetchcontent_prefix_list[not-list-value0]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_policy_loader_rejects_each_malformed_fetchcontent_prefix_list[wrong-length-value1]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_policy_loader_rejects_each_malformed_fetchcontent_prefix_list[non-string-value2]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_policy_loader_rejects_each_malformed_fetchcontent_prefix_list[empty-value3]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_policy_loader_rejects_each_malformed_fetchcontent_prefix_list[whitespace-value4]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_policy_loader_rejects_each_malformed_fetchcontent_prefix_list[missing-equals-value5]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_policy_loader_rejects_each_malformed_fetchcontent_prefix_list[duplicate-value6]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m3_combined_count_layers_reject_three_workload_a6_policy",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_policy_loader_rejects_unknown_study",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m4_cli_policy_selection_rejects_noncanonical_path",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m5_workloads_remain_in_protocol_preimage",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_a6_policy_is_exact_read_heavy_pair_with_twelve_hour_walltime",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_production_policy_protocol_maps_to_real_silo_layout_and_artifacts",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_uppercase_silo_protocol_is_rejected_by_policy_loader",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m1_closed_verify_mode_wires_performance_and_rejects_unknown",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m2_performance_constructor_is_exact_and_rejects_shrinkage",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m3_campaign_preimage_and_perfconfig_must_both_match",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m4_full_scale_verify_is_required_for_cell_completion",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m5_collector_rejects_non_exact_cell_sets[missing]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m5_collector_rejects_non_exact_cell_sets[extra]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m5_collector_rejects_non_exact_cell_sets[duplicate]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m5_collector_rejects_non_exact_cell_sets[cross-attempt]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m6_positive_report_never_claims_global_minimality",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_anomaly_is_determinate_reject_and_performance_incomplete_is_not_pass",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m8_controlled_define_map_and_argv_are_independent_gates[map]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m8_controlled_define_map_and_argv_are_independent_gates[argv]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m9_run_argv_zero_must_be_the_canonical_binary",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_perf_sha_is_recomputed_from_binary_bytes",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m10_full_submission_and_completion_receipts_are_cross_bound",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_scheduler_request_id_diagnostic_is_create_only_and_non_symlink",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_qsub_diagnostics_fsync_both_files_then_scheduler_directory",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m1_a6_single_workload_full_success_stays_v3",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m2_partial_v4_completion_requires_exact_two_workloads",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_p2_a6_full_v3_path_collects_and_materializes",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_a6_anomaly_is_immediate_reject",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m4_finish_rejects_compute_request_mismatch_without_raw_manifest",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m5_finish_prevalidates_each_job_against_its_own_request",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_pc2_canonical_finish_creates_manifest_completion_and_acquisition",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_authority_none_production_finish_and_collect_remain_v3_indeterminate",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_legacy_v3_one_failed_driver_consumer_remains_indeterminate",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_anomaly_production_chain_rejects_without_failed_raw",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_positive_and_nonpositive_effect_statuses[1.1-partial-authoritative-workload-positive:rr50]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_positive_and_nonpositive_effect_statuses[1.0-reject-authoritative-workload-effect-nonpositive:rr50]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_positive_and_nonpositive_effect_statuses[0.9-reject-authoritative-workload-effect-nonpositive:rr50]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_authoritative_science_can_remain_inconclusive",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_invalid_authority_stops_before_report_or_artifact",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_materializer_rejects_cross_schema_and_failed_raw_mixing[cross-version]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_materializer_rejects_cross_schema_and_failed_raw_mixing[failed-raw-member]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_v4_chain_rejects_noncanonical_authority_path_before_read[manifest]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_v4_chain_rejects_noncanonical_authority_path_before_read[submission]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_v4_chain_rejects_noncanonical_authority_path_before_read[completion]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materializer_rejects_v3_v4_result_receipt_cross_chain",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m7_partial_materializer_rejects_forged_authority_and_status",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m8_partial_materializer_rejects_failed_workload_cells_and_effects",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m10_each_canonical_qsub_and_submit_observation_field_is_required[qsub_argv]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m10_each_canonical_qsub_and_submit_observation_field_is_required[qstat_visibility]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_argv_environment_nodes_and_job_body_are_exact[extra-env]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_argv_environment_nodes_and_job_body_are_exact[nodes]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_argv_environment_nodes_and_job_body_are_exact[job-body]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_rejects_missing_or_changed_third_party_source_root[missing]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_rejects_missing_or_changed_third_party_source_root[changed]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_uses_the_full_real_qstat_fixture",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_another_request_block",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_conflicting_state_fields",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_state_before_target_id",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_non_none_ended_time",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_requires_one_ended_time_after_request_id[missing-ended request time is missing]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_requires_one_ended_time_after_request_id[duplicated-ended request time is duplicated]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_requires_one_ended_time_after_request_id[before-request-id-ended request time precedes request ID]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_disappearance_with_visible_block",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_receipt_state_mismatch",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_finished_request_stdout",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_nonaccepted_vocabulary[Held-outside the submission acceptance set]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_nonaccepted_vocabulary[Suspended-state vocabulary is unknown]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_vocabulary_sets_are_nonvacuous_and_exact",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_requires_timestamped_nonterminal_state",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m11_materializer_stages_marker_before_single_noreplace_rename",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_einval_uses_exclusive_claim_and_flags_zero_rename",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_einval_refuses_destination_created_before_recheck",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_einval_fails_closed_on_publish_claim_collision",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_non_einval_publish_error_does_not_enter_fallback",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_noreplace_success_does_not_enter_fallback",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m12_attempt_root_must_be_direct_child_of_pinned_durable_base",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m12_durable_base_rejects_symlinked_ancestor",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_correctness_requires_every_ratified_repetition",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_nonfinite_json_and_samples_are_fail_closed",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_collector_never_calls_positive_path_for_failed_or_manifestless_compute[authority-none-driver_rc0-False]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_collector_never_calls_positive_path_for_failed_or_manifestless_compute[manifestless-full-0-False]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_completion_driver_rc_request_and_pin_are_bound_to_compute_result",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_completion_accepts_both_canonical_terminal_observations[scheduler-end-state]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_completion_accepts_both_canonical_terminal_observations[request-disappeared-after-visibility]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_disappeared_terminal_rejects_noncanonical_observations[empty-output]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_disappeared_terminal_rejects_noncanonical_observations[visible-output]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_disappeared_terminal_rejects_noncanonical_observations[nonzero-rc]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_disappeared_terminal_rejects_noncanonical_observations[stderr]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_raw_manifest_binds_campaign_lock_and_wal_and_freezes_raw_bytes",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_changed_campaign_wal_invalidates_the_manifest_bundle",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_condition_receipt_publish_is_atomic_noreplace_and_durable",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_source_role_and_missing_token_are_determinate_cell_rejects[adopted-stock-patch-unapplied]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_source_role_and_missing_token_are_determinate_cell_rejects[missing-token-token-missing]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_source_role_and_missing_token_are_determinate_cell_rejects[legacy-v2-patch-unapplied]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_patched_adopted_source_binding_positive_control",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_raw_token_is_checked_against_precampaign_receipt_not_itself",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_precampaign_token_cross_checks_wal_admission_and_variant[wal-token-WAL build start token]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_precampaign_token_cross_checks_wal_admission_and_variant[admission-token-build admission token]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_precampaign_token_cross_checks_wal_admission_and_variant[variant-canonical cell variant]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_manifest_bound_condition_receipt_is_required_and_hash_checked[missing]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_manifest_bound_condition_receipt_is_required_and_hash_checked[changed]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_source_authority_failure_stops_before_tracked_artifact[receipt-file-missing]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_source_authority_failure_stops_before_tracked_artifact[receipt-corrupt]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_source_authority_failure_stops_before_tracked_artifact[receipt-token-missing]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_source_authority_failure_stops_before_tracked_artifact[receipt-token-invalid]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_source_authority_failure_stops_before_tracked_artifact[receipt-hash-mismatch]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_source_authority_failure_stops_before_tracked_artifact[raw-token-missing]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_source_authority_failure_stops_before_tracked_artifact[raw-token-invalid]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_full_and_legacy_partial_manifest_identifiers_and_loaders_are_distinct",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_frozen_v3_certification_bytes_and_legacy_cell_shape_remain_accepted",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_p3_cli_selects_default_a2_and_explicit_a6_policy",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_run_workload_production_pin_gate_rejects_noncanonical_source[wrong-prefix]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_run_workload_production_pin_gate_rejects_noncanonical_source[resolver-failure]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_run_workload_production_pin_gate_rejects_noncanonical_source[dirty]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_run_workload_requires_exact_repository_canonical_short_pin[1111111111111111111111111111111111111111]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_run_workload_requires_exact_repository_canonical_short_pin[abcdef0]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_run_workload_verifies_staged_sources_before_condition_gate",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_official_run_observes_dependency_receipt_after_condition_prebuild",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_official_run_forwards_exact_fetchcontent_five_tuple",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_live_precampaign_source_role_predicate_rejects_before_campaign[adopted-stock]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_live_precampaign_source_role_predicate_rejects_before_campaign[stock-non-stock]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_pipeline_runs_correctness_workload_repetitions_without_new_wal_fields",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_fetchcontent_prefix_mutations_are_rejected[wrong-prefix]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_fetchcontent_prefix_mutations_are_rejected[empty-value]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_fetchcontent_prefix_mutations_are_rejected[relative]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_fetchcontent_segment_matches_v2_command_order",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_fetchcontent_path_values_match_producer_domain[nul]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_fetchcontent_path_values_match_producer_domain[lexically-noncanonical]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_fetchcontent_path_values_match_producer_domain[relative]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_accepts_canonical_argv_from_v2_producer",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_configure_argv_rejects_short_path_segment",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[separated-define]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[duplicate-configure-token]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[unknown-configure-token]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[fully-disconnected]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[build-subcommand]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[unknown-build-token]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[unknown-run-flag]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[clocks-per-us]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_wal_configure_locator_comes_from_versioned_grammar",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_synthetic_pbs_free_preregister_through_analyze_positive",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_volatile_diagnostics_are_not_fixture_authority",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_job_body_is_compute_only_sequential_and_never_submits",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m8_full_pin_forwarding_and_missing_exact_resolver_are_killed",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_job_body_exports_the_exact_reservation_schema_from_job_observations",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_interpreter_resolver_prepends_selected_path_for_child_processes",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_interpreter_resolver_rejects_version_ok_but_a2_unimportable_candidate",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_interpreter_resolver_call_precedes_first_python_use",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_pbs_jobid_path_sanitization_is_load_bearing",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m7_each_expected_head_compute_only_clean_and_fresh_gate_is_load_bearing[^bnode[0-9]+([.].*)?$]",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m7_each_expected_head_compute_only_clean_and_fresh_gate_is_load_bearing[git rev-parse HEAD]",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m7_each_expected_head_compute_only_clean_and_fresh_gate_is_load_bearing[git status --porcelain --untracked-files=no]",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m7_each_expected_head_compute_only_clean_and_fresh_gate_is_load_bearing[if [[ -e \"$raw_root\" || -L \"$raw_root\" ]]]",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m7_each_expected_head_compute_only_clean_and_fresh_gate_is_load_bearing[sys.version_info >= (3, 10)]",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m7_each_expected_head_compute_only_clean_and_fresh_gate_is_load_bearing[import orchestrator.campaign.paper_story_a2_certification]",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m7_each_expected_head_compute_only_clean_and_fresh_gate_is_load_bearing[export PATH=\"$(dirname \"$selected\"):$PATH\"]",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_job_body_is_registered_only_as_dispatch_required",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_submitter_production_path_rejects_noncanonical_ccbench_source[wrong-prefix]",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_submitter_production_path_rejects_noncanonical_ccbench_source[resolver-failure]",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_submitter_production_path_rejects_noncanonical_ccbench_source[dirty]",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_submitter_rejects_unsafe_or_nonphysical_third_party_source_root[comma]",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_submitter_rejects_unsafe_or_nonphysical_third_party_source_root[equals]",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_submitter_rejects_unsafe_or_nonphysical_third_party_source_root[newline]",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_submitter_rejects_unsafe_or_nonphysical_third_party_source_root[symlink-root]",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_submitter_rejects_unsafe_or_nonphysical_third_party_source_root[symlink-child]",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_submitter_rejects_unsafe_or_nonphysical_third_party_source_root[missing-child]",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_submitter_rejects_unsafe_path_after_canonicalization",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_compute_job_production_path_rejects_noncanonical_ccbench_source[wrong-prefix]",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_compute_job_production_path_rejects_noncanonical_ccbench_source[resolver-failure]",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_compute_job_production_path_rejects_noncanonical_ccbench_source[dirty]",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_compute_job_production_path_rejects_noncanonical_ccbench_source[ambient-pin]",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_a6_compute_job_accepts_rr95_membership_before_source_gate",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_job_body_stages_exact_three_src_suffixed_dependencies",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_compute_job_trap_records_policy_resolution_failure",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_prereg_m1_submitter_fails_closed_when_inventory_qstat_fails",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_submitter_fails_closed_when_inventory_qstat_writes_stderr",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_submitter_requires_selected_queue_line_to_be_enabled_and_active",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_prereg_pc1_submitter_continues_after_empty_request_inventory",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_submitter_rejects_an_existing_a2_request_before_preregistration",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m6_submitter_duplicate_detection_is_study_scoped[a2-same-study]",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m6_submitter_duplicate_detection_is_study_scoped[a2-other-study]",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m6_submitter_duplicate_detection_is_study_scoped[p4-a6-other-study-and-unrelated]",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m6_submitter_duplicate_detection_is_study_scoped[p5-a6-prefix-collision]",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m6_submitter_duplicate_detection_is_study_scoped[p6-a6-same-study]",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_prereg_m2_m3_request_is_durable_before_visibility_failure",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_submitter_retains_both_sidecars_on_rr50_visibility_failure",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_submitter_durably_records_each_qsub_failure_before_stopping[rr5]",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_submitter_durably_records_each_qsub_failure_before_stopping[rr50]",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_submitter_rejects_clean_rc_with_qsub_stderr_after_durability",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_submitter_qsub_diagnostics_are_create_only",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_submitter_success_uses_production_cli_qsub_and_exact_stdout_contract",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_p3_a6_submitter_uses_one_rr95_job_and_policy_scheduler",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_compute_preflight_accepts_exact_compute_head_and_fresh_raw",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_compute_preflight_rejects_each_m7_boundary[login-host]",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_compute_preflight_rejects_each_m7_boundary[wrong-head]",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_compute_preflight_rejects_each_m7_boundary[dirty]",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_compute_preflight_rejects_each_m7_boundary[stale-raw]",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_compute_preflight_requires_real_pbs_and_reservation_bindings",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_job_body_mode_is_executable"
+      ],
+      "duration_s": 52.593,
+      "rc": 0,
+      "repo_head": "1a0abbc98fd7d2d5c840a58a9cd9f74a2c7cf2da",
+      "runner_sha256": "93fd3c5bb1aaf4b0de97cc32753f5cf3356cb4e9efafe92e8d507e934e1a1d9a",
+      "spec_sha256": "143038ea820e850728a47e73441297d9efd2f5a882efd05b1e6d79c50957e569",
+      "status": "PASSED",
+      "tool_sha256": "d5d4a2b9ba75675f377428a89941d86a4a9a1a7d1ff45cbd01acedc20e7f09c5"
+    },
+    "hang_timeout_seconds": 1800.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "t2198.m01-path-prefix-match-dropped": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "504cfdde8e17e82f3629ceb46bbfdc6bcab0fa944be46e8a4decd943c47ce20e",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/paper_story_a2_certification.py",
+            "new": "        if not token[len(prefix):]:\n",
+            "old": "        if not token.startswith(prefix) or not token[len(prefix):]:\n"
+          }
+        ]
+      },
+      "t2198.m02-path-nonempty-dropped": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "5de35a85966ac5f23eb410b8261f53cac9ca4c7832681f4ec82cf35175afb137",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/paper_story_a2_certification.py",
+            "new": "        if not token.startswith(prefix):\n            raise CertificationError(\"configure argv path segment is malformed\")\n",
+            "old": "        if not token.startswith(prefix) or not token[len(prefix):]:\n            raise CertificationError(\"configure argv path segment is malformed\")\n"
+          }
+        ]
+      },
+      "t2198.m03-lexical-canonical-check-dropped": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "8e1eb45a5454e8fd429c7d8c6f03c855b6a79b4ca4fc74e7409854002a1aeaa0",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/paper_story_a2_certification.py",
+            "new": "            pass\n",
+            "old": "            _lexical_absolute_path(value, \"FetchContent configure path\")\n"
+          }
+        ]
+      },
+      "t2198.m04-nul-check-dropped": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "71549591a427f524be0396e074797df3cb0799922d6d8b816264639ca6012644",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/paper_story_a2_certification.py",
+            "new": "            pass\n",
+            "old": "            if \"\\0\" in value:\n                raise CertificationError(\n                    \"FetchContent configure path must not contain NUL\"\n                )\n"
+          }
+        ]
+      },
+      "t2198.m05-minimum-length-check-disabled": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "43707dc8a1a8aea20341dadf4f6d82f2a1e95f9049135c6128362813ea4d575e",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/paper_story_a2_certification.py",
+            "new": "    if len(argv) < 0 * minimum_argv_length:\n",
+            "old": "    if len(argv) < minimum_argv_length:\n"
+          }
+        ]
+      },
+      "t2198.m06-final-equality-weakened-to-prefix": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "9af12fcadd3da47e7e250198135567a4304e270403be4093947e7448406479e6",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/paper_story_a2_certification.py",
+            "new": "    expected = fixed + path_tokens + ordered_define_tokens\n    if list(argv)[:len(expected)] != expected:\n",
+            "old": "    expected = fixed + path_tokens + ordered_define_tokens\n    if list(argv) != expected:\n"
+          }
+        ]
+      },
+      "t2198.m07-loader-trailing-equals-dropped": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "a1f29c9b584d55aa80bdbf0eefa2444a24a95b7007f6b33ddc2123c25666457f",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/paper_story_a2_certification.py",
+            "new": "",
+            "old": "                and prefix.endswith(\"=\")\n"
+          }
+        ]
+      },
+      "t2198.m08-loader-length-check-dropped": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "6c7785ae027fd32ff6dbdc74b8ba1a798e72b5c0a5563aa14797889a96e024c5",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/paper_story_a2_certification.py",
+            "new": "",
+            "old": "            or len(fetchcontent_path_argument_prefixes) != 4\n"
+          }
+        ]
+      },
+      "t2198.m09-loader-uniqueness-check-dropped": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "8a8d0cae6e3a2df48be43a20b6cff92a889eea378a26f305b6f1a69a4652b74b",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/paper_story_a2_certification.py",
+            "new": "            or False):\n",
+            "old": "            or len(set(fetchcontent_path_argument_prefixes)) != 4):\n"
+          }
+        ]
+      },
+      "t2198.m10-prebuild-mimalloc-source-wrong": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "ac07eb47fe7413965a5f80b7ba7b5de13134ca116f22f73c7d152fa7d854b1bc",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/paper_story_a2_certification.py",
+            "new": "                mimalloc_source_dir=os.fspath(staged_sources[\"masstree\"]),\n",
+            "old": "                mimalloc_source_dir=os.fspath(staged_sources[\"mimalloc\"]),\n"
+          }
+        ]
+      },
+      "t2198.m11-condition-configure-mimalloc-wrong": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "4cbae47181180ebf2f8db0f2e0dfce34a8f4631272450fb45c5d8dcfa0aaa8da",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/paper_story_a2_certification.py",
+            "new": "                    \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\"\n                    f\"{staged_sources['masstree']}\",\n",
+            "old": "                    \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\"\n                    f\"{staged_sources['mimalloc']}\",\n"
+          }
+        ]
+      },
+      "t2198.m12-condition-configure-order-swapped": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "8a91d5e5a728d63fba104b18fcca726d2da5e5cc45e8f3c19f1c77bc49416d34",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/paper_story_a2_certification.py",
+            "new": "                    \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\"\n                    f\"{staged_sources['masstree']}\",\n                    f\"-DFETCHCONTENT_BASE_DIR={fetchcontent_base_dir}\",\n",
+            "old": "                    f\"-DFETCHCONTENT_BASE_DIR={fetchcontent_base_dir}\",\n                    \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\"\n                    f\"{staged_sources['masstree']}\",\n"
+          }
+        ]
+      },
+      "t2198.m13-staged-source-verifier-bypassed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "8643c69660f90990441efb8dc2a149c410db9fa7a494f8ff1b78500a05aef43e",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/paper_story_a2_certification.py",
+            "new": "        staged_sources = {\n            name: third_party_root / f\"{name}-src\"\n            for name in (\"masstree\", \"mimalloc\", \"googletest\")\n        }\n",
+            "old": "        staged_sources = (\n            s8b_floor_campaign._verify_pristine_floor_dependency_sources(\n                third_party_root,\n                repo_root=POLICY_PATH.parents[2],\n            )\n        )\n"
+          }
+        ]
+      },
+      "t2198.m14-dependency-receipt-observation-bypassed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "c27ca7402d0e82d608ef5f017a2bc63c4bc79acdbd113ce193819238a9bab024",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/paper_story_a2_certification.py",
+            "new": "        dependency_receipt = {\n            \"masstree_head\": \"0\" * 40,\n            \"config_sha256\": \"0\" * 64,\n        }\n",
+            "old": "        dependency_receipt = (\n            buildcache._observe_fetchcontent_dependency_receipt(\n                os.fspath(staged_sources[\"masstree\"])\n            )\n        )\n"
+          }
+        ]
+      },
+      "t2198.m15-campaign-forward-mimalloc-wrong": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "0362fb8625d632f8a7f8c7071db06f5f3642a3fccd7665d510c3c0091e4c3c92",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/paper_story_a2_certification.py",
+            "new": "            mimalloc_source_dir=os.fspath(staged_sources[\"masstree\"]),\n            googletest_source_dir=os.fspath(staged_sources[\"googletest\"]),\n",
+            "old": "            mimalloc_source_dir=os.fspath(staged_sources[\"mimalloc\"]),\n            googletest_source_dir=os.fspath(staged_sources[\"googletest\"]),\n"
+          }
+        ]
+      },
+      "t2198.m16-qsub-env-key-removed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "e150a77c8886e1107e21b24eea97487ac666a60ed5bf68843161f4c46f8e1a23",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/paper_story_a2_certification.py",
+            "new": "",
+            "old": "    \"IZANAGI_A2_THIRD_PARTY_SOURCE_ROOT\",\n"
+          }
+        ]
+      },
+      "t2198.m17-job-body-googletest-copy-removed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "b92abf23edd10a9386c2682e50fb9b23cea90513bfc7116da526050cbc0be6ca",
+        "replacements": [
+          {
+            "file": "tools/pegasus/paper_story_a2_certification.sh",
+            "new": "",
+            "old": "cp -a \"$third_party_source/googletest\" \"$third_party_root/googletest-src\"\n"
+          }
+        ]
+      },
+      "t2198.m18-job-body-src-suffix-dropped": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "e1dec038237f9b338fa1f64f9e05c0795e9138c7181d999618b275302169ffec",
+        "replacements": [
+          {
+            "file": "tools/pegasus/paper_story_a2_certification.sh",
+            "new": "cp -a \"$third_party_source/masstree\" \"$third_party_root/masstree\"\n",
+            "old": "cp -a \"$third_party_source/masstree\" \"$third_party_root/masstree-src\"\n"
+          }
+        ]
+      },
+      "t2198.m19-submitter-post-canonical-recheck-removed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "bb598e55155ec641059ab28c1cbda63e46af2efdaff47fdf1111f6e69f427843",
+        "replacements": [
+          {
+            "file": "tools/pegasus/submit_paper_story_a2_certification.sh",
+            "new": "THIRD_PARTY_SOURCE_ROOT=$(realpath -e -- \"$THIRD_PARTY_SOURCE_ROOT\")\n",
+            "old": "THIRD_PARTY_SOURCE_ROOT=$(realpath -e -- \"$THIRD_PARTY_SOURCE_ROOT\")\nfor value in \"$REPO_ROOT\" \"$CCBENCH_ROOT\" \"$DEPENDENCY_PREFIX_SOURCE\" \\\n    \"$THIRD_PARTY_SOURCE_ROOT\"; do\n  [[ \"$value\" == /* && \"$value\" != *\",\"* && \"$value\" != *\"=\"* \\\n      && \"$value\" != *$'\\n'* ]] || {\n    echo \"qsub environment path is not a safe absolute value\" >&2\n    exit 2\n  }\ndone\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "ce8132e7828ca96584429080cc3f9b62111f8b9c4020003119399027ced4dab2",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "/usr/bin/python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_paper_story_a2_certification.py",
+      "orchestrator/tests/test_paper_story_a2_job_contract.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider",
+      "--force-dispatch"
+    ],
+    "timeout_seconds": 1800.0
+  },
+  "repo_head": "1a0abbc98fd7d2d5c840a58a9cd9f74a2c7cf2da",
+  "runner_identity": {
+    "command": [
+      "/usr/bin/python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_paper_story_a2_certification.py",
+      "orchestrator/tests/test_paper_story_a2_job_contract.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider",
+      "--force-dispatch"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2198-trace0-fetchcontent/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2198-trace0-fetchcontent/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "735f4353aa70413b92e973cc8f68eb3e12279350",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "93fd3c5bb1aaf4b0de97cc32753f5cf3356cb4e9efafe92e8d507e934e1a1d9a",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "143038ea820e850728a47e73441297d9efd2f5a882efd05b1e6d79c50957e569",
+  "summary": {
+    "KILLED": 0,
+    "MISMATCH": 6,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 3,
+    "TIMEOUT": 0,
+    "completed": 9,
+    "matching": 3,
+    "recorded": 9,
+    "registered": 19
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2198-trace0-fetchcontent/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "d5d4a2b9ba75675f377428a89941d86a4a9a1a7d1ff45cbd01acedc20e7f09c5",
+  "updated_at": "2026-09-07T12:48:35.757979+00:00"
+}

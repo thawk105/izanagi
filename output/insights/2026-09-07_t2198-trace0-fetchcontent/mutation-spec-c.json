@@ -1,0 +1,261 @@
+{
+  "estimated_run_seconds": 180,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_context_cleans_up_on_body_exception",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_family_real_records_positive_then_issued_red_negative",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_prebuild_runs_once_for_multiple_cells",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_uses_exact_offline_fetchcontent_argv",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_paper_condition_gate_is_p_strict_and_precedes_campaign"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t2198.m10-prebuild-mimalloc-source-wrong",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "new": "                mimalloc_source_dir=os.fspath(staged_sources[\"masstree\"]),\n",
+          "old": "                mimalloc_source_dir=os.fspath(staged_sources[\"mimalloc\"]),\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_context_cleans_up_on_body_exception",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_family_real_records_positive_then_issued_red_negative",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_uses_exact_offline_fetchcontent_argv",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_paper_condition_gate_is_p_strict_and_precedes_campaign"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t2198.m11-condition-configure-mimalloc-wrong",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "new": "                    \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\"\n                    f\"{staged_sources['masstree']}\",\n",
+          "old": "                    \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=\"\n                    f\"{staged_sources['mimalloc']}\",\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_context_cleans_up_on_body_exception",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_family_real_records_positive_then_issued_red_negative",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_uses_exact_offline_fetchcontent_argv",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_paper_condition_gate_is_p_strict_and_precedes_campaign"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t2198.m12-condition-configure-order-swapped",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "new": "                    \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\"\n                    f\"{staged_sources['masstree']}\",\n                    f\"-DFETCHCONTENT_BASE_DIR={fetchcontent_base_dir}\",\n",
+          "old": "                    f\"-DFETCHCONTENT_BASE_DIR={fetchcontent_base_dir}\",\n                    \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=\"\n                    f\"{staged_sources['masstree']}\",\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_run_workload_verifies_staged_sources_before_condition_gate"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t2198.m13-staged-source-verifier-bypassed",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "new": "        staged_sources = {\n            name: third_party_root / f\"{name}-src\"\n            for name in (\"masstree\", \"mimalloc\", \"googletest\")\n        }\n",
+          "old": "        staged_sources = (\n            s8b_floor_campaign._verify_pristine_floor_dependency_sources(\n                third_party_root,\n                repo_root=POLICY_PATH.parents[2],\n            )\n        )\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_official_run_forwards_exact_fetchcontent_five_tuple",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_official_run_observes_dependency_receipt_after_condition_prebuild"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t2198.m14-dependency-receipt-observation-bypassed",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "new": "        dependency_receipt = {\n            \"masstree_head\": \"0\" * 40,\n            \"config_sha256\": \"0\" * 64,\n        }\n",
+          "old": "        dependency_receipt = (\n            buildcache._observe_fetchcontent_dependency_receipt(\n                os.fspath(staged_sources[\"masstree\"])\n            )\n        )\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_official_run_forwards_exact_fetchcontent_five_tuple",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_official_run_observes_dependency_receipt_after_condition_prebuild"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t2198.m15-campaign-forward-mimalloc-wrong",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "new": "            mimalloc_source_dir=os.fspath(staged_sources[\"masstree\"]),\n            googletest_source_dir=os.fspath(staged_sources[\"googletest\"]),\n",
+          "old": "            mimalloc_source_dir=os.fspath(staged_sources[\"mimalloc\"]),\n            googletest_source_dir=os.fspath(staged_sources[\"googletest\"]),\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_authority_none_production_finish_and_collect_remain_v3_indeterminate",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_changed_campaign_wal_invalidates_the_manifest_bundle",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_collector_never_calls_positive_path_for_failed_or_manifestless_compute[authority-none-driver_rc0-False]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_collector_never_calls_positive_path_for_failed_or_manifestless_compute[manifestless-full-0-False]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_completion_accepts_both_canonical_terminal_observations[request-disappeared-after-visibility]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_completion_accepts_both_canonical_terminal_observations[scheduler-end-state]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_completion_driver_rc_request_and_pin_are_bound_to_compute_result",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_disappeared_terminal_rejects_noncanonical_observations[empty-output]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_disappeared_terminal_rejects_noncanonical_observations[nonzero-rc]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_disappeared_terminal_rejects_noncanonical_observations[stderr]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_disappeared_terminal_rejects_noncanonical_observations[visible-output]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_full_and_legacy_partial_manifest_identifiers_and_loaders_are_distinct",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_legacy_v3_one_failed_driver_consumer_remains_indeterminate",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m10_each_canonical_qsub_and_submit_observation_field_is_required[qstat_visibility]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m10_each_canonical_qsub_and_submit_observation_field_is_required[qsub_argv]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m10_full_submission_and_completion_receipts_are_cross_bound",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m11_materializer_stages_marker_before_single_noreplace_rename",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m1_a6_single_workload_full_success_stays_v3",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m2_partial_v4_completion_requires_exact_two_workloads",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m4_finish_rejects_compute_request_mismatch_without_raw_manifest",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m5_finish_prevalidates_each_job_against_its_own_request",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m7_partial_materializer_rejects_forged_authority_and_status",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m8_partial_materializer_rejects_failed_workload_cells_and_effects",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_manifest_bound_condition_receipt_is_required_and_hash_checked[changed]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_manifest_bound_condition_receipt_is_required_and_hash_checked[missing]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_einval_fails_closed_on_publish_claim_collision",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_einval_refuses_destination_created_before_recheck",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_einval_uses_exclusive_claim_and_flags_zero_rename",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_non_einval_publish_error_does_not_enter_fallback",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_noreplace_success_does_not_enter_fallback",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materializer_rejects_v3_v4_result_receipt_cross_chain",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_p2_a6_full_v3_path_collects_and_materializes",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_anomaly_production_chain_rejects_without_failed_raw",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_authoritative_science_can_remain_inconclusive",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_invalid_authority_stops_before_report_or_artifact",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_materializer_rejects_cross_schema_and_failed_raw_mixing[cross-version]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_materializer_rejects_cross_schema_and_failed_raw_mixing[failed-raw-member]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_positive_and_nonpositive_effect_statuses[0.9-reject-authoritative-workload-effect-nonpositive:rr50]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_positive_and_nonpositive_effect_statuses[1.0-reject-authoritative-workload-effect-nonpositive:rr50]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_positive_and_nonpositive_effect_statuses[1.1-partial-authoritative-workload-positive:rr50]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_v4_chain_rejects_noncanonical_authority_path_before_read[completion]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_v4_chain_rejects_noncanonical_authority_path_before_read[manifest]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_v4_chain_rejects_noncanonical_authority_path_before_read[submission]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_pc2_canonical_finish_creates_manifest_completion_and_acquisition",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_raw_manifest_binds_campaign_lock_and_wal_and_freezes_raw_bytes",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_source_authority_failure_stops_before_tracked_artifact[raw-token-invalid]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_source_authority_failure_stops_before_tracked_artifact[raw-token-missing]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_source_authority_failure_stops_before_tracked_artifact[receipt-corrupt]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_source_authority_failure_stops_before_tracked_artifact[receipt-file-missing]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_source_authority_failure_stops_before_tracked_artifact[receipt-hash-mismatch]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_source_authority_failure_stops_before_tracked_artifact[receipt-token-invalid]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_source_authority_failure_stops_before_tracked_artifact[receipt-token-missing]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_argv_environment_nodes_and_job_body_are_exact[extra-env]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_argv_environment_nodes_and_job_body_are_exact[job-body]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_argv_environment_nodes_and_job_body_are_exact[nodes]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_rejects_missing_or_changed_third_party_source_root[changed]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_rejects_missing_or_changed_third_party_source_root[missing]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_another_request_block",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_conflicting_state_fields",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_disappearance_with_visible_block",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_finished_request_stdout",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_non_none_ended_time",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_nonaccepted_vocabulary[Held-outside the submission acceptance set]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_nonaccepted_vocabulary[Suspended-state vocabulary is unknown]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_receipt_state_mismatch",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_state_before_target_id",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_requires_one_ended_time_after_request_id[before-request-id-ended request time precedes request ID]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_requires_one_ended_time_after_request_id[duplicated-ended request time is duplicated]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_requires_one_ended_time_after_request_id[missing-ended request time is missing]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_requires_timestamped_nonterminal_state",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_uses_the_full_real_qstat_fixture",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_synthetic_pbs_free_preregister_through_analyze_positive",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_p3_a6_submitter_uses_one_rr95_job_and_policy_scheduler",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_submitter_success_uses_production_cli_qsub_and_exact_stdout_contract"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t2198.m16-qsub-env-key-removed",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "new": "",
+          "old": "    \"IZANAGI_A2_THIRD_PARTY_SOURCE_ROOT\",\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_interpreter_resolver_call_precedes_first_python_use",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_job_body_is_compute_only_sequential_and_never_submits",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_job_body_stages_exact_three_src_suffixed_dependencies",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m8_full_pin_forwarding_and_missing_exact_resolver_are_killed",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_pbs_jobid_path_sanitization_is_load_bearing"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t2198.m17-job-body-googletest-copy-removed",
+      "replacements": [
+        {
+          "file": "tools/pegasus/paper_story_a2_certification.sh",
+          "new": "",
+          "old": "cp -a \"$third_party_source/googletest\" \"$third_party_root/googletest-src\"\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_interpreter_resolver_call_precedes_first_python_use",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_job_body_is_compute_only_sequential_and_never_submits",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_job_body_stages_exact_three_src_suffixed_dependencies",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m8_full_pin_forwarding_and_missing_exact_resolver_are_killed",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_pbs_jobid_path_sanitization_is_load_bearing"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t2198.m18-job-body-src-suffix-dropped",
+      "replacements": [
+        {
+          "file": "tools/pegasus/paper_story_a2_certification.sh",
+          "new": "cp -a \"$third_party_source/masstree\" \"$third_party_root/masstree\"\n",
+          "old": "cp -a \"$third_party_source/masstree\" \"$third_party_root/masstree-src\"\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_submitter_rejects_unsafe_path_after_canonicalization"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t2198.m19-submitter-post-canonical-recheck-removed",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_paper_story_a2_certification.sh",
+          "new": "THIRD_PARTY_SOURCE_ROOT=$(realpath -e -- \"$THIRD_PARTY_SOURCE_ROOT\")\n",
+          "old": "THIRD_PARTY_SOURCE_ROOT=$(realpath -e -- \"$THIRD_PARTY_SOURCE_ROOT\")\nfor value in \"$REPO_ROOT\" \"$CCBENCH_ROOT\" \"$DEPENDENCY_PREFIX_SOURCE\" \\\n    \"$THIRD_PARTY_SOURCE_ROOT\"; do\n  [[ \"$value\" == /* && \"$value\" != *\",\"* && \"$value\" != *\"=\"* \\\n      && \"$value\" != *$'\\n'* ]] || {\n    echo \"qsub environment path is not a safe absolute value\" >&2\n    exit 2\n  }\ndone\n"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 1800
+}
