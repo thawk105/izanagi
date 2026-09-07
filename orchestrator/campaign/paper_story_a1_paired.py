@@ -31,7 +31,7 @@ from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any, Mapping, Sequence
+from typing import Any, Literal, Mapping, Sequence
 
 if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -417,6 +417,10 @@ _NON_CERTIFYING_VIEW_TOKEN = object()
 
 class PaperStoryError(RuntimeError):
     """The A-1 preregistered contract is not satisfied."""
+
+
+class _PublishedReceiptCleanupError(PaperStoryError):
+    """Receipt publication succeeded, but owned staging cleanup failed."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -833,61 +837,116 @@ def _exclusive_write(path: Path, value: object) -> None:
             os.close(fd)
 
 
-def _submission_receipt_staging_path(path: Path) -> Path:
-    """Derive a PID staging basename no longer than the valid final basename."""
-    suffix = f".s-{os.getpid():x}"
+def _receipt_staging_path(
+    path: Path,
+    *,
+    receipt_kind: Literal["submission", "completion"],
+) -> Path:
+    """Derive a kind-separated PID staging basename within the final-name budget."""
+    marker = receipt_kind[0]
+    suffix = f".{marker}-{os.getpid():x}"
     basename_budget = len(os.fsencode(path.name))
     stem_budget = basename_budget - len(os.fsencode(f".{suffix}"))
     stem = path.name
     while stem and len(os.fsencode(stem)) > stem_budget:
         stem = stem[:-1]
     if not stem:
-        raise PaperStoryError("submission receipt basename cannot fit staging name")
+        raise PaperStoryError("receipt basename cannot fit staging name")
     return path.parent / f".{stem}{suffix}"
 
 
-def _remove_submission_receipt_staging(
-    staging: Path, identity: tuple[int, int]
+def _remove_receipt_staging(
+    staging: Path,
+    identity: tuple[int, int],
+    *,
+    destination: Path,
+    published: bool,
 ) -> None:
+    if published:
+        try:
+            destination_info = destination.lstat()
+        except FileNotFoundError:
+            raise PaperStoryError(
+                "published receipt destination is missing during staging cleanup"
+            ) from None
+        except OSError as exc:
+            raise PaperStoryError(
+                f"published receipt destination cleanup stat failed: {exc}"
+            ) from exc
+        if (
+            not stat.S_ISREG(destination_info.st_mode)
+            or (destination_info.st_dev, destination_info.st_ino) != identity
+        ):
+            raise PaperStoryError(
+                "published receipt destination identity differs during staging cleanup"
+            )
     try:
         info = staging.lstat()
     except FileNotFoundError:
         return
     except OSError as exc:
         raise PaperStoryError(
-            f"submission receipt staging cleanup stat failed: {exc}"
+            f"receipt staging cleanup stat failed: {exc}"
         ) from exc
     if (
         not stat.S_ISREG(info.st_mode)
         or (info.st_dev, info.st_ino) != identity
     ):
-        raise PaperStoryError("submission receipt staging cleanup identity differs")
+        raise PaperStoryError("receipt staging cleanup identity differs")
     try:
-        staging.unlink()
+        os.unlink(staging)
         _fsync_directory(staging.parent)
     except OSError as exc:
         raise PaperStoryError(
-            f"submission receipt staging cleanup failed: {exc}"
+            f"receipt staging cleanup failed: {exc}"
         ) from exc
 
 
-def _publish_submission_receipt(path: Path, value: object) -> None:
+def _publish_receipt(
+    path: Path,
+    value: object,
+    *,
+    receipt_kind: Literal["submission", "completion"],
+) -> None:
     raw = _canonical_json_bytes(value)
-    staging = _submission_receipt_staging_path(path)
+    staging = _receipt_staging_path(path, receipt_kind=receipt_kind)
     staging_identity = _exclusive_write_bytes(staging, raw)
     published = False
     try:
         try:
-            _renameat2_directory(staging, path, _RENAME_NOREPLACE)
+            os.link(staging, path, follow_symlinks=False)
+        except FileExistsError as exc:
+            raise PaperStoryError(
+                f"no-replace {receipt_kind} receipt publish failed: {exc.strerror}"
+            ) from exc
         except OSError as exc:
             raise PaperStoryError(
-                f"no-replace submission receipt publish failed: {exc.strerror}"
+                f"no-replace {receipt_kind} receipt publish failed: {exc.strerror}"
             ) from exc
         published = True
         _fsync_directory(path.parent)
     finally:
-        if not published:
-            _remove_submission_receipt_staging(staging, staging_identity)
+        try:
+            _remove_receipt_staging(
+                staging,
+                staging_identity,
+                destination=path,
+                published=published,
+            )
+        except PaperStoryError as exc:
+            if published:
+                raise _PublishedReceiptCleanupError(
+                    f"receipt is already published; {exc}"
+                ) from exc
+            raise
+
+
+def _publish_submission_receipt(path: Path, value: object) -> None:
+    _publish_receipt(path, value, receipt_kind="submission")
+
+
+def _publish_completion_receipt(path: Path, value: object) -> None:
+    _publish_receipt(path, value, receipt_kind="completion")
 
 
 def _exclusive_write_text(path: Path, value: str) -> None:
@@ -3079,7 +3138,9 @@ def _run_submit_v3(
     intent_path = _attempt_intent_path(attempt)
     submission_path = Path(evidence["submission_receipt"])
     failure_path = Path(evidence["submission_failure"])
-    staging_path = _submission_receipt_staging_path(submission_path)
+    staging_path = _receipt_staging_path(
+        submission_path, receipt_kind="submission",
+    )
     guarded = [
         submission_path, failure_path, Path(evidence["completion_receipt"]),
         Path(evidence["group_terminal"]), staging_path,
@@ -3242,6 +3303,8 @@ def _run_submit_v3(
     )
     try:
         _publish_submission_receipt(submission_path, receipt)
+    except _PublishedReceiptCleanupError:
+        raise
     except PaperStoryError:
         _write_v3_submission_failure(
             failure_path, study_id=study_id, source_commit=expected_head,
@@ -3275,7 +3338,9 @@ def run_submit(args) -> int:
     evidence = _attempt_evidence_paths(attempt)
     intent_path = _attempt_intent_path(attempt)
     submission_path = Path(evidence["submission_receipt"])
-    submission_staging_path = _submission_receipt_staging_path(submission_path)
+    submission_staging_path = _receipt_staging_path(
+        submission_path, receipt_kind="submission",
+    )
     if os.path.lexists(submission_path):
         raise PaperStoryError("submission receipt already exists")
     if os.path.lexists(intent_path):
@@ -4257,8 +4322,7 @@ def _run_complete_v3(
         "jobs": completion_jobs,
     }
     completion_path = Path(evidence["completion_receipt"])
-    _exclusive_write(completion_path, completion)
-    _fsync_directory(completion_path.parent)
+    _publish_completion_receipt(completion_path, completion)
     return 0
 
 
@@ -4347,8 +4411,7 @@ def run_complete(args) -> int:
         "job_terminal": bindings["job_terminal"],
     }
     completion_path = Path(evidence["completion_receipt"])
-    _exclusive_write(completion_path, completion)
-    _fsync_directory(completion_path.parent)
+    _publish_completion_receipt(completion_path, completion)
     return 0
 
 
