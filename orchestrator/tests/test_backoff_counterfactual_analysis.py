@@ -5,9 +5,12 @@ import hashlib
 import json
 import math
 import statistics
+import sys
 from pathlib import Path
 
 import pytest
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from orchestrator.campaign import backoff_counterfactual_analysis as analysis
 
@@ -521,3 +524,11 @@ def test_artifact_build_and_trace_bindings_fail_closed(
     _rewrite(paths[0], mutate)
     with pytest.raises(ValueError):
         analysis.analyze_counterfactual(paths, PREREGISTRATION)
+
+
+def _run() -> int:
+    return int(pytest.main([__file__]))
+
+
+if __name__ == "__main__":
+    raise SystemExit(_run())
