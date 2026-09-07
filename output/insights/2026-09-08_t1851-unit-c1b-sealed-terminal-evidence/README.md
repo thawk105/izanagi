@@ -83,7 +83,24 @@ production 1,580〜2,120 / test 1,900〜2,850 で、裁定済み上限
 - 変異は生存 2 件 (terminal-failure 枝、old replay) に専用の kill 手段を割り当ててから登録する。
 - C2 は runner の構造化 `execution_failure` と campaign の算出変更を持つ。C1b へ混ぜない。
 
-## 7. 収録物
+## 7. 受入全走 — `child-green` にならなかった (帰属は本 wave に無い)
+
+- 投入 (01:27 JST): `tools/dev_wave_wait.py acceptance`、`claimed_main=736cb35c7`。
+- 結果 (01:35 JST): **rc=70 `child-verdict`。21,594 passed / 68 skipped / 1 failed** (collected 21,663)。
+- 赤は `test_acceptance_schedule_order.py::test_g5_real_ledger_covers_at_least_90_percent_of_real_collection`
+  の 1 件だけ。**被覆率 26 / 29 = 89.655172%** で閾値 0.90 を 1 node 分割った。
+  単独再走でも同じ数字が出る**決定的な赤**で flake ではない。
+- **帰属は本 wave に無い。** 本 wave の commit 4 本は `docs/` と `output/insights/` だけを触り、
+  test file も production file も 1 行も変更していない。同じ branch の前 wave の受入は
+  21,414 passed で緑だった。以降 branch に加わったのは文書 commit と local main 取り込み 2 回だけである。
+- **既知の型の再発である (F684)。** 台帳 `orchestrator/tests/acceptance_duration_ledger.json` の
+  最終更新は main の `d53c91a2b` (2026-09-07) で、以降 main は test file を 20 本以上変えている。
+  F684 が定めた恒久対応は「凍結 pin の 8 suite に触れず、その外側の未登録 node だけを
+  実測所要つきで足す部分更新」であり、**これは main 側の台帳保守である。**
+- 本 wave は D1341 により land しないため修復せず記録に留めた。**緑として扱っていない。**
+- lease は走行後に別 wave が取得しており (main も再前進)、他者の保持を解放していない。
+
+## 8. 収録物
 
 - `contract-v3.1.md` — **契約の正本**
 - `contract-v3.md` — 段 1 版 (supersede 済み。追記訂正の記録として残す)
