@@ -750,6 +750,16 @@
   張り直したところ、子は正常に完走した。恒久対応 (`.done` の exit code と producer 生死で
   判定し、待ち手の rc も通知も信じない) がそのまま効き実害はゼロ。**追加事実は無く、
   2026-08-23 の「段 6 レビュー B の待ち手」と同一の形である。**
+
+- **再発: 2026-09-07** — 変異本走の生死確認に `pgrep -f` を道具名だけで掛け、**別 session の
+  変異走行を自分の子と誤認した**。自分の harness は約 50 分前に中止していたのに「実行中」と
+  報告し続け、ユーザーへの報告そのものが誤りになった。2026-08-26 の再発と同型
+  (`DW-M05` が要求する worktree path での一意化を、待ち直しのたびの生存判定へ適用していない) で、
+  **違いは実害がゼロでなかったこと**である。判定を spec path で掛け直して是正した。
+  同じ wave で `tools/dev_wave_wait.py producer` の argv を 2 つ誤り
+  (`--artifact-file` 欠落、および存在しない `--max-wait-s`)、待ち手が `stage=cli-usage rc=2` で
+  即戻ったのに待ち手 shell の rc は 0 だったため「完了」と誤読しかけた。
+  `.done` の実在確認 (F24 の恒久対応) がそのまま効いて子の生存を捕まえた。
 ### F25. commit trailer block の分断・結合ミス — provenance 監査 3+2 違反、積み直し 2 回 [手順漏れ]
 - 事象: 2026-07-20 の同一セッションで 2 回、`AI-Agent` trailer が git に trailer と認識されない
   message を作成 (1 回目 = trailer 行と `Co-Authored-By` の間に空行 → block 分断で AI-Agent が本文化。
@@ -1932,6 +1942,19 @@
   (2026-08-11 の再発と同じ degrade 経路)。fix 子 2 本目が `__main__` + `pytest.main` の 4 行を足し、焦点走 (meta-test + 新 test、26 件) の後に閉じた。
   費用は受入全走 1 回分 + fix 子 1 本 + 焦点走 1 回。**新設 test file がある wave では、親の焦点走の集合に `test_plain_runner_coverage.py` を必ず入れる**
   (2026-08-11 の恒久対応の逐語を親が守らなかった再発)。
+
+- **再発: 2026-09-07** — 7 回目。新設した `orchestrator/tests/test_backoff_counterfactual_analysis.py`
+  が自走 harness を持たず、受入全走 (21,309 passed / 68 skipped) を
+  `test_plain_runner_coverage.py` の 1 件赤にした。2026-08-11・2026-09-04 と同じ degrade 経路
+  (Pegasus では codex 実装子が計算ノードへ dispatch できずテストを 1 件も走らせられないため、
+  実測義務が親へ移る) である。
+  **本 wave の追加事実は、恒久対応が既に入口の dispatch 表から届く節へ逐語で書かれていたことである** —
+  `DW-O26` の「新規 test file を足す走は file 集合列挙のメタテストも焦点走に含める」は、
+  条件 18 (親のテスト・受入前) で必読に指定されている。親はその条件で節を読みながら、
+  焦点走の集合を wave の対象 module から組み、横断メタ検査を入れなかった。
+  **型は「手順書の不足」ではなく「必読に指定された逐語を読んだ上で適用しない」**であり、
+  2026-09-04 の「逐語を親が守らなかった再発」と同じ位置にある。
+  費用は受入全走 1 回分 + fix 子 1 本 + worktree 1 本。是正後の焦点走は 24 passed・赤 0。
 ### F43. codex 子が exit 0 のまま最終メッセージへ推敲断片だけを残し、レビュー本文が失われた [手順漏れ]
 - 事象: [T-147] の敵対レビュー B (2026-07-28) が 168k tokens・exec 31 回の実検証を行いながら、
   `-o` の最終メッセージに出力書式の推敲メモ断片 194 bytes だけを残して exit 0 で終了した。
@@ -22687,3 +22710,48 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 変異走行の SURVIVED。静的レビューでは検出できないことが本件で実証された
   (敵対レビュー 2 本がいずれも見落とした)。`DW-M02` の「変異が生存したらまず他層の mask と
   等価変異を疑う」が発火点である。
+
+### F878. 順序是正が「開始だけあって終端がない」台帳行を作った [手順漏れ]
+
+- 事象: 受入要件 11 の順序是正で lifecycle start が observation 開始より前へ移った結果、
+  observation 開始後に失敗した起点試行が terminal を書けなくなった。台帳には start だけが残り、
+  その行は再試行を阻止しながら acceptance も成立させない。段 6 の敵対レビューが実測で見つけた。
+- 根本原因: 順序を動かす前に、動かした後の失敗経路が既存の終端契約を通れるかを確かめなかった。
+  `record_trial_terminal` は origin binding と projection の有無が食い違う terminal を拒否する。
+  順序変更が新しい失敗状態 (projection をまだ作れていない起点試行) を生むことを見落とした。
+- 恒久対応: D1746 で失敗 status に限って
+  projection 無しの終端を許した。成功終端の受理集合は動かしていない。
+- 再発検知: `orchestrator/tests/test_trial_registry.py` の負例 3 種
+  (complete かつ projection 無しは拒否、失敗 status かつ failure_reason 空は拒否、
+  失敗 status かつ failure_reason 非空は受理) と、
+  `orchestrator/tests/test_p3_autonomous_workload_trial.py` の
+  「terminal が在ること」まで見る test。
+
+### F879. 読み取り側が見えない情報の代理を使い、受理集合を広げた [恒真ゲート]
+
+- 事象: lifecycle loader が `origin_terminal_projection` の有無を `origin_binding` の有無の
+  代理にしていた。その結果、起点でない start 行に起点専用 key を足したもの、
+  および起点の start 行から key を落としたものが、どちらも loader を素通りした。
+  変更前の exact-key 拒否より受理集合が広い。段 6 の敵対レビュー 2 本が独立に指摘した。
+- 根本原因: 親が段 4 で「読み取り側でも必要十分条件を強制せよ」と裁定したが、
+  読み取り側が受け取るのは台帳の bytes だけで、行には要約値しか無く、
+  そこから元の情報を復元できないことを確かめていなかった。**強制できない層に強制を命じると、
+  実装は代理を作る。**
+- 恒久対応: D1745 で、
+  必要十分条件を情報が実在する層 (書き手・終端・受入) へ移し、
+  読み取り側は自分が見えるものだけを検査する形に戻した。代理は除去した。
+- 再発検知: `orchestrator/tests/test_trial_registry.py` の書き手側 iff 試験 3 種と
+  acceptance 側 iff 試験。読み取り側単独では判定できない限界は decisions の
+  「保証しないこと」に明記した。
+
+### F880. 期待した赤テストが収集集合に存在しなかった [恒真ゲート]
+
+- 事象: 変異事前登録で、期待する赤テストを素の関数名で書いた。対象テストは 3 通りに
+  parametrize されており、素の関数名の node は pytest の収集集合に存在しない。
+  変異 harness が投入前に fail-closed で止めた。
+- 根本原因: 関数名を grep しただけで node 名を書き、parametrize の有無を確かめなかった。
+  止められなければ、存在しないテストを期待集合にしたまま「kill された」と記録するところだった。
+- 恒久対応: 期待 node は関数定義の直前 8 行に parametrize が無いことを機械検査してから書く。
+  本 wave では 10 変異すべてについてこの検査を行い、1 件で id 3 つへ展開した。
+- 再発検知: `tools/mutation_harness.py` の「期待 node が pytest collection に実在しない」検査。
+  この検査自体が今回発火した。
