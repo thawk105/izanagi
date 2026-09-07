@@ -1,0 +1,170 @@
+{
+  "estimated_run_seconds": 2600,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_origin_envelope_create_failure_is_preflight_and_pre_observation"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t2293.mu1-envelope-written-to-a-root-the-consumer-does-not-read",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+          "new": "                    evidence_root=run_root,",
+          "old": "                    evidence_root=origin_runtime.campaign_output_root,"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_origin_campaign_runs_are_deterministic_distinct_and_structured",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_origin_campaign_runs_change_with_attempt_slot_digest"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t2293.mu2-physical-identity-drops-attempt-capability-digest",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+          "new": "\"attempt_capability_sha256\": \"\",",
+          "old": "\"attempt_capability_sha256\": attempt_capability_sha256,"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_result_evidence.py::test_execution_provenance_v2_has_exact_eight_keys"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t2293.mu3-provenance-v2-drops-campaign-run-identity-key",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_result_evidence.py",
+          "new": "    \"execution_receipt_sha256\",\n})",
+          "old": "    \"execution_receipt_sha256\",\n    \"campaign_run_identity\",\n})"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_result_evidence.py::test_execution_provenance_v2_has_exact_eight_keys"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t2293.mu4-origin-consumer-also-accepts-provenance-v1",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_result_evidence.py",
+          "new": "    if provenance[\"schema_version\"] not in (\"execution-provenance/v2\", \"execution-provenance/v1\"):",
+          "old": "    if provenance[\"schema_version\"] != \"execution-provenance/v2\":"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc03_physical_gate_rejects_swapped_q10_q11_root_configs",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc03_physical_gate_rejects_claimed_campaign_run_identity_mismatch",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc03_rejects_physical_runs_bound_to_a_past_attempt_at_canonical_leaves"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t2293.mu5-lock-query-ordinal-and-attempt-binding-removed",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "new": "        _require(\n            FormalReasonCode.FC03,\n            True,\n        )\n        _require(\n            FormalReasonCode.FC03,\n            True,\n        )",
+          "old": "        _require(\n            FormalReasonCode.FC03,\n            run_binding[\"attempt_capability_sha256\"] == expected_attempt,\n        )\n        _require(\n            FormalReasonCode.FC03,\n            type(run_binding[\"query_ordinal\"]) is int\n            and run_binding[\"query_ordinal\"] == query_ordinal,\n        )"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc03_rejects_physical_runs_rederived_as_another_logical_trial"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t2293.mu6-logical-identity-rederivation-not-compared-to-capability",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "new": "        _require(\n            FormalReasonCode.FC03,\n            True,\n        )",
+          "old": "        _require(\n            FormalReasonCode.FC03,\n            logical_identity == capability.campaign_id,\n        )"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc03_rejects_ordered_wal_refs_outside_planned_canonical_leaf"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t2293.mu7-ordered-wal-canonical-leaf-membership-removed",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "new": "        _require(\n            FormalReasonCode.FC03,\n            all(\n                True\n                for path in (projection_path, source_wal_path)\n            ),\n        )",
+          "old": "        _require(\n            FormalReasonCode.FC03,\n            all(\n                path.is_relative_to(computed_root)\n                for path in (projection_path, source_wal_path)\n            ),\n        )"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc03_rejects_envelope_digest_different_from_lifecycle_binding"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t2293.mu8-disk-envelope-digest-not-matched-to-lifecycle-binding",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "new": "    _require(\n        FormalReasonCode.FC03,\n        True,\n    )\n    _require(\n        FormalReasonCode.FC03,\n        raw == canonical_recovery_envelope_bytes(run_plan),\n    )",
+          "old": "    _require(\n        FormalReasonCode.FC03,\n        hashlib.sha256(raw).hexdigest() == bound_digest,\n    )\n    _require(\n        FormalReasonCode.FC03,\n        raw == canonical_recovery_envelope_bytes(run_plan),\n    )"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc05c_rejects_mixed_native_and_legacy_trigger_shape_families"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t2293.mu9-mixed-trigger-shape-family-not-rejected",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "new": "    if \"native-stage-payload\" not in families:\n        return None",
+          "old": "    if families != {\"native-stage-payload\"}:\n        return None"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_lifecycle_start_requires_origin_binding_and_run_plan_digest_iff"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t2293.mu10-writer-origin-binding-digest-iff-removed",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "new": "    if False:",
+          "old": "    if (origin_binding is None) != (origin_run_plan_sha256 is None):"
+        }
+      ]
+    }
+  ],
+  "schema_version": "mutation-spec/v1"
+}
