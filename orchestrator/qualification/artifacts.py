@@ -42,6 +42,15 @@ _ATTEMPT = re.compile(r"[0-9a-f]{64}")
 _FORBIDDEN_BASENAMES = frozenset(("campaign.lock", "loop_state.json", "wal.jsonl"))
 _CAP_TOKEN = object()
 _LAYOUT_TOKEN = object()
+QUALIFICATION_SCHEMA_RELATIVE_PATHS = frozenset({
+    "orchestrator/qualification/t126_marker_schema.json",
+    "orchestrator/qualification/t126_event_schema.json",
+    "orchestrator/qualification/t126_evaluation_event_schema.json",
+    "orchestrator/qualification/t126_series_result_schema.json",
+    "orchestrator/qualification/t126_final_receipt_schema.json",
+    "orchestrator/qualification/t126_failure_receipt_schema.json",
+})
+_QUALIFICATION_SCHEMA_BYTES: dict[str, bytes] = {}
 PERMANENT_NONRETRY_FAILURES = frozenset({
     "job-result-publication-failed",
     "job-result-accounting-mismatch",
@@ -636,19 +645,28 @@ def load_source_jsonl(path: Path) -> list[dict[str, Any]]:
     return records
 
 
-def validate_json_schema(schema_name: str, value: Mapping[str, Any]) -> None:
-    """Validate an actual produced artifact against a bundled exact schema."""
+def qualification_schema_bytes(schema_name: str) -> bytes:
+    """Return the process-stable bytes for one bundled qualification schema."""
     if (type(schema_name) is not str
             or "/" in schema_name or not schema_name.endswith("_schema.json")):
         raise QualificationArtifactError("schema name is unsafe")
+    if schema_name not in _QUALIFICATION_SCHEMA_BYTES:
+        schema_path = Path(__file__).resolve().parent / schema_name
+        _QUALIFICATION_SCHEMA_BYTES[schema_name] = read_regular_file(
+            schema_path)
+    return _QUALIFICATION_SCHEMA_BYTES[schema_name]
+
+
+def validate_json_schema(schema_name: str, value: Mapping[str, Any]) -> None:
+    """Validate an actual produced artifact against a bundled exact schema."""
+    schema_bytes = qualification_schema_bytes(schema_name)
     try:
         from jsonschema import Draft7Validator
     except ImportError as exc:
         raise QualificationArtifactError(
             "jsonschema is required for qualification artifacts") from exc
-    schema_path = Path(__file__).resolve().parent / schema_name
     try:
-        schema = json.loads(read_regular_file(schema_path))
+        schema = json.loads(schema_bytes)
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise QualificationArtifactError(
             f"bundled schema is invalid: {schema_name}") from exc

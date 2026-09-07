@@ -310,6 +310,12 @@ T126_MUTATION_REGISTRY = {
         "node": "orchestrator/tests/test_t126_pegasus_tools.py::"
                 "test_m11b_exact_spooled_script_uses_embedded_isolated_publisher",
     },
+    "M12": {
+        "old_anchor": "live qualification schema bytes equality",
+        "mutant": "ignore live qualification schema byte drift",
+        "node": "orchestrator/tests/test_t126_pegasus_tools.py::"
+                "test_m12_relaxed_live_schema_cannot_expand_receipt_acceptance",
+    },
 }
 
 # collector.collect() の逐語断片。M9e / M9g は「削除」ではなく「移動」変異な
@@ -636,6 +642,11 @@ _T126_MUTATION_TRANSFORMS = {
         "import json,os,re,secrets,stat,sys,time\n",
         "import json,os,re,secrets,stat,sys,time\nsys.path.insert(0,os.environ[\"IZANAGI_T126_TEST_PERSISTENT_PACKAGE_ROOT\"])\nfrom orchestrator.qualification.atomic_publish import publish_bytes as _persistent_publish\n",
     ),
+    "M12": (
+        "orchestrator/qualification/identity.py",
+        "        if hashlib.sha256(live).hexdigest() != expected:\n",
+        "        if False and hashlib.sha256(live).hexdigest() != expected:\n",
+    ),
 }
 for _mutation_id, (_source_path, _anchor, _replacement) in (
         _T126_MUTATION_TRANSFORMS.items()):
@@ -645,12 +656,17 @@ for _mutation_id, (_source_path, _anchor, _replacement) in (
     _row["replacement"] = _replacement
     del _row["mutant"]
 
-from orchestrator.qualification import collector, t126_driver  # noqa: E402
+from orchestrator.qualification import (  # noqa: E402
+    artifacts as qualification_artifacts,
+    collector,
+    t126_driver,
+)
 from orchestrator.qualification.atomic_publish import (  # noqa: E402
     AtomicPublishError,
     publish_bytes,
 )
 from orchestrator.qualification.artifacts import (  # noqa: E402
+    QUALIFICATION_SCHEMA_RELATIVE_PATHS,
     QualificationArtifactError,
     QualificationRoot,
     QualificationEventSink,
@@ -955,6 +971,8 @@ def _attempt(
         if relative == "orchestrator/qualification/t126_control_v1.json":
             shutil.copy2(
                 _ROOT / "orchestrator/qualification/t126_control_v1.json", path)
+        elif relative in QUALIFICATION_SCHEMA_RELATIVE_PATHS:
+            shutil.copy2(_ROOT / relative, path)
         elif relative == RESERVATION_POLICY_RELATIVE_PATH:
             if reservation_policy_overrides is None:
                 shutil.copy2(_ROOT / RESERVATION_POLICY_RELATIVE_PATH, path)
@@ -3009,6 +3027,78 @@ def test_deleted_normal_submit_cannot_be_reclassified_into_recovered_retry(
     with pytest.raises(QualificationArtifactError):
         validate_failure_receipt_for_retry(
             receipt_path, repo, load_protocol())
+
+
+def test_recorded_schema_live_bytes_match_committed_identity(tmp_path):
+    (repo, _, layout, _, _, _, _, _, _) = _attempt(tmp_path, "schema-match")
+    preimage = load_json_strict(layout.attempt_dir / "series-identity.json")
+    protocol = load_protocol(layout.attempt_dir / "protocol.json")
+    policy = json.loads(
+        (repo / "tools/pegasus/policy.json").read_text(encoding="utf-8"))
+    reservation_policy = json.loads(
+        (repo / RESERVATION_POLICY_RELATIVE_PATH).read_text(encoding="utf-8"))
+
+    assert QUALIFICATION_SCHEMA_RELATIVE_PATHS == frozenset({
+        "orchestrator/qualification/t126_marker_schema.json",
+        "orchestrator/qualification/t126_event_schema.json",
+        "orchestrator/qualification/t126_evaluation_event_schema.json",
+        "orchestrator/qualification/t126_series_result_schema.json",
+        "orchestrator/qualification/t126_final_receipt_schema.json",
+        "orchestrator/qualification/t126_failure_receipt_schema.json",
+    })
+    assert verify_recorded_series_identity(
+        git_repo_root=repo, attempt_dir=layout.attempt_dir,
+        preimage=preimage, protocol=protocol, policy=policy,
+        reservation_policy=reservation_policy,
+    ) == series_identity(preimage)
+
+
+def test_m12_relaxed_live_schema_cannot_expand_receipt_acceptance(
+        monkeypatch, tmp_path):
+    (repo, capability, layout, attempt_id, submit, stdout, stderr,
+     accounting, job_script_hash) = _attempt(tmp_path, "m12")
+    job = _fixture_job_result(
+        layout, accounting.parent / "job.json",
+        _job_value(job_script_hash))
+    accounting.write_text(
+        "Request ID = 123.server\nExit_status = 34\n"
+        "resources_used.walltime = 1\n", encoding="utf-8")
+    receipt_path = collector.collect(
+        repo_root=repo, attempt_id=attempt_id,
+        submission_receipt=submit, job_result=job,
+        scheduler_stdout=stdout, scheduler_stderr=stderr,
+        accounting=accounting)
+    assert collector.verify_post_job_receipt(
+        receipt_path, repo_root=repo).integrity_status == "valid"
+
+    receipt = load_json_strict(receipt_path)
+    del receipt["authority"]
+    _rehash_receipt_ledger(receipt_path, capability, receipt)
+    original = collector.verify_post_job_receipt(receipt_path, repo_root=repo)
+    assert original.integrity_status == "invalid"
+    assert "authority" in " ".join(original.errors)
+
+    schema_name = "t126_failure_receipt_schema.json"
+    real_schema_bytes = qualification_artifacts.qualification_schema_bytes
+    schema = json.loads(real_schema_bytes(schema_name))
+    assert "authority" in schema["required"]
+    assert schema["additionalProperties"] is False
+    del schema["required"]
+    relaxed = json.dumps(schema).encode("utf-8")
+    assert not list(Draft7Validator(schema).iter_errors(receipt))
+
+    def relaxed_schema_bytes(name):
+        if name == schema_name:
+            return relaxed
+        return real_schema_bytes(name)
+
+    monkeypatch.setattr(
+        qualification_artifacts,
+        "qualification_schema_bytes",
+        relaxed_schema_bytes)
+    verified = collector.verify_post_job_receipt(receipt_path, repo_root=repo)
+    assert verified.integrity_status == "invalid"
+    assert "live qualification schema differs" in " ".join(verified.errors)
 
 
 def test_identity_consumer_rejects_git_chain_tool_hash_and_snapshot_traversal(
@@ -6048,7 +6138,8 @@ def test_fr3_mutation_node_registry_is_exact_and_complete():
     actual = {
         node.name for node in tree.body
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-        and re.fullmatch(r"test_m(?:8|9|10|11)[a-j]_.+", node.name)
+        and re.fullmatch(r"test_m(?:8[a-j]|9[a-j]|10[a-j]|11[a-j]|12)_.+",
+                         node.name)
     }
     expected = {
         "test_m8a_create_only_invocation_claim_serializes_parallel_submit",
@@ -6069,6 +6160,7 @@ def test_fr3_mutation_node_registry_is_exact_and_complete():
         "test_m10d_new_failure_classes_are_disjoint_from_all_retry_authority",
         "test_m11a_coherent_submission_job_rewrite_cannot_cross_committed_blob_edge",
         "test_m11b_exact_spooled_script_uses_embedded_isolated_publisher",
+        "test_m12_relaxed_live_schema_cannot_expand_receipt_acceptance",
     }
     assert actual == expected
     assert set(T126_MUTATION_REGISTRY) == {
@@ -6076,7 +6168,7 @@ def test_fr3_mutation_node_registry_is_exact_and_complete():
         "M6a", "M6b", "M6c", "M6d", "M7a", "M7b", "M7c",
         "M8a", "M8b", "M8c", "M8d",
         "M9a", "M9b", "M9c", "M9d", "M9e", "M9g", "M9h", "M9i", "M9j",
-        "M10a", "M10b", "M10c", "M10d", "M11a", "M11b",
+        "M10a", "M10b", "M10c", "M10d", "M11a", "M11b", "M12",
     }
     parsed = {}
     transforms = set()

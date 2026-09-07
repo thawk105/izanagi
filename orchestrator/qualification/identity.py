@@ -11,6 +11,7 @@ import subprocess
 from pathlib import Path, PurePosixPath
 from typing import Any, Mapping
 
+from . import artifacts as qualification_artifacts
 from .artifacts import (
     QualificationArtifactError,
     load_json_strict,
@@ -142,6 +143,16 @@ def verify_recorded_series_identity(
         if actual != expected:
             raise IdentityVerificationError(
                 f"recorded Git blob hash mismatch: {safe}")
+
+    for relative in sorted(
+            qualification_artifacts.QUALIFICATION_SCHEMA_RELATIVE_PATHS):
+        expected = identities[relative]
+        live = qualification_artifacts.qualification_schema_bytes(
+            PurePosixPath(relative).name)
+        if hashlib.sha256(live).hexdigest() != expected:
+            raise IdentityVerificationError(
+                "live qualification schema differs from recorded Git blob: "
+                f"{relative}")
 
     committed_protocol = _git_bytes(
         git_repo_root, "cat-file", "blob",
