@@ -48,6 +48,7 @@ import math
 import os
 import re
 import secrets
+import stat
 import struct
 import sys
 import time
@@ -166,6 +167,158 @@ CONVERGE_STREAK = 3                   # 同一方向・magnitude=small が N 連
 REVERSE_STREAK = 2                    # critic が逆方向を N 回推奨 + 改善なし → 枯渇
 
 B4_PROPOSAL_RECEIPT_SHA256_KEY = "b4_closed_critic_receipt_sha256"
+
+_MASSTREE_PREBUILD_RECEIPT_SCHEMA = "p3-s4-loop-masstree-prebuild/v1"
+_MASSTREE_PREBUILD_RECEIPT_KEYS = frozenset({
+    "schema_version",
+    "fetchcontent_base_dir",
+    "source_root",
+    "sources",
+    "config_h_path",
+    "config_h_sha256",
+    "configure_argv",
+    "build_argv",
+    "toolchain_manifest",
+    "pbs_jobid",
+})
+_FETCHCONTENT_SOURCE_NAMES = ("masstree", "mimalloc", "googletest")
+
+
+def _read_nonsymlink_regular_bytes(
+        path: str | os.PathLike[str], *, label: str,
+) -> bytes:
+    """Read one inode without following a final-component symlink."""
+    raw = os.fspath(path)
+    if type(raw) is not str or not raw or "\0" in raw:
+        raise ValueError(f"{label} path が不正")
+    try:
+        before = os.lstat(raw)
+    except OSError as exc:
+        raise ValueError(f"{label} を検査できない: {exc}") from exc
+    if stat.S_ISLNK(before.st_mode) or not stat.S_ISREG(before.st_mode):
+        raise ValueError(f"{label} は non-symlink regular file 必須")
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        fd = os.open(raw, flags)
+    except OSError as exc:
+        raise ValueError(f"{label} を安全に開けない: {exc}") from exc
+    try:
+        opened = os.fstat(fd)
+        if (not stat.S_ISREG(opened.st_mode)
+                or (opened.st_dev, opened.st_ino)
+                != (before.st_dev, before.st_ino)):
+            raise ValueError(f"{label} の inode が open 中に変化した")
+        with os.fdopen(fd, "rb") as stream:
+            fd = -1
+            return stream.read()
+    finally:
+        if fd >= 0:
+            os.close(fd)
+
+
+def _canonical_prebuild_directory(value: object, *, label: str) -> str:
+    if type(value) is not str or not value or "\0" in value:
+        raise ValueError(f"{label} は非空 str path 必須")
+    if not os.path.isabs(value) or os.path.islink(value) or not os.path.isdir(value):
+        raise ValueError(f"{label} は absolute non-symlink directory 必須")
+    canonical = os.path.realpath(value)
+    if value != canonical or value != os.path.abspath(value):
+        raise ValueError(f"{label} は canonical path 必須")
+    return canonical
+
+
+def _canonical_prebuild_file(value: object, *, label: str) -> str:
+    if type(value) is not str or not value or "\0" in value:
+        raise ValueError(f"{label} は非空 str path 必須")
+    if not os.path.isabs(value):
+        raise ValueError(f"{label} は absolute path 必須")
+    canonical = os.path.realpath(value)
+    if value != canonical or value != os.path.abspath(value):
+        raise ValueError(f"{label} は canonical path 必須")
+    _read_nonsymlink_regular_bytes(canonical, label=label)
+    return canonical
+
+
+def _load_masstree_prebuild_receipt(
+        path: str | os.PathLike[str],
+) -> tuple[str, str, str, str, Dict[str, str]]:
+    """Validate the job receipt and atomically project its five build inputs."""
+    raw = _read_nonsymlink_regular_bytes(path, label="masstree prebuild receipt")
+    try:
+        record = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError(f"masstree prebuild receipt JSON が不正: {exc}") from exc
+    if type(record) is not dict or set(record) != _MASSTREE_PREBUILD_RECEIPT_KEYS:
+        raise ValueError("masstree prebuild receipt の top-level exact key 集合が不正")
+    if record["schema_version"] != _MASSTREE_PREBUILD_RECEIPT_SCHEMA:
+        raise ValueError("masstree prebuild receipt の schema_version が不正")
+
+    base = _canonical_prebuild_directory(
+        record["fetchcontent_base_dir"], label="fetchcontent_base_dir",
+    )
+    source_root = _canonical_prebuild_directory(
+        record["source_root"], label="source_root",
+    )
+    if source_root != base:
+        raise ValueError("fetchcontent_base_dir と source_root が一致しない")
+
+    sources = record["sources"]
+    if type(sources) is not list or len(sources) != len(_FETCHCONTENT_SOURCE_NAMES):
+        raise ValueError("masstree prebuild receipt の sources 要素数が不正")
+    sources_by_name: Dict[str, str] = {}
+    for source in sources:
+        if type(source) is not dict or set(source) != {"name", "head_commit"}:
+            raise ValueError("masstree prebuild receipt の source record が不正")
+        name = source["name"]
+        head = source["head_commit"]
+        if (type(name) is not str or name not in _FETCHCONTENT_SOURCE_NAMES
+                or name in sources_by_name):
+            raise ValueError("masstree prebuild receipt の source 名が不正")
+        if type(head) is not str or re.fullmatch(r"[0-9a-f]{40}", head) is None:
+            raise ValueError(f"masstree prebuild receipt の {name} HEAD が不正")
+        sources_by_name[name] = head
+    if set(sources_by_name) != set(_FETCHCONTENT_SOURCE_NAMES):
+        raise ValueError("masstree prebuild receipt の source 名集合が不正")
+
+    source_dirs = tuple(
+        _canonical_prebuild_directory(
+            os.path.join(source_root, f"{name}-src"),
+            label=f"{name}_source_dir",
+        )
+        for name in _FETCHCONTENT_SOURCE_NAMES
+    )
+    config_h_path = _canonical_prebuild_file(
+        record["config_h_path"], label="config_h_path",
+    )
+    expected_config_h = os.path.join(source_root, "masstree-src", "config.h")
+    if config_h_path != expected_config_h:
+        raise ValueError("config_h_path が source_root/masstree-src/config.h と一致しない")
+    config_h_sha256 = record["config_h_sha256"]
+    if (type(config_h_sha256) is not str
+            or re.fullmatch(r"[0-9a-f]{64}", config_h_sha256) is None):
+        raise ValueError("masstree prebuild receipt の config_h_sha256 が不正")
+    observed_config_h_sha256 = hashlib.sha256(
+        _read_nonsymlink_regular_bytes(config_h_path, label="config_h_path")
+    ).hexdigest()
+    if observed_config_h_sha256 != config_h_sha256:
+        raise ValueError("masstree prebuild receipt の config.h hash が現物と一致しない")
+
+    for field_name in ("configure_argv", "build_argv"):
+        argv = record[field_name]
+        if type(argv) is not list or any(type(item) is not str for item in argv):
+            raise ValueError(f"masstree prebuild receipt の {field_name} が list[str] でない")
+    try:
+        buildcache.toolchain_compilers_from_manifest(record["toolchain_manifest"])
+    except (TypeError, ValueError, buildcache.BuildCacheError) as exc:
+        raise ValueError("masstree prebuild receipt の toolchain_manifest が不正") from exc
+    if type(record["pbs_jobid"]) is not str or not record["pbs_jobid"]:
+        raise ValueError("masstree prebuild receipt の pbs_jobid が非空 str でない")
+
+    dependency_receipt = {
+        "masstree_head": sources_by_name["masstree"],
+        "config_sha256": config_h_sha256,
+    }
+    return base, *source_dirs, dependency_receipt
 
 
 def _require_condition_gate(source_root: str, genome: Genome) -> dict | None:
@@ -1418,6 +1571,11 @@ def _run_one_iteration_resolved(
         contract: env_contract.ExecutionEnvironmentContract,
         resolved_site: str, log=print, cache_root: str = "",
         dependency_prefix: str = "",
+        fetchcontent_base_dir: str = "",
+        masstree_source_dir: Optional[object] = None,
+        mimalloc_source_dir: Optional[object] = None,
+        googletest_source_dir: Optional[object] = None,
+        fetchcontent_dependency_receipt: Optional[Dict[str, str]] = None,
         build_context: Optional[BuildRunContext] = None,
         _b4_launch_context=None,
 ) -> Dict:
@@ -1527,6 +1685,17 @@ def _run_one_iteration_resolved(
             campaign_options["env_contract"] = contract
             if dependency_prefix:
                 campaign_options["dependency_prefix"] = dependency_prefix
+        if fetchcontent_dependency_receipt is not None:
+            campaign_options.update({
+                "env_contract": contract,
+                "fetchcontent_base_dir": fetchcontent_base_dir,
+                "masstree_source_dir": masstree_source_dir,
+                "mimalloc_source_dir": mimalloc_source_dir,
+                "googletest_source_dir": googletest_source_dir,
+                "fetchcontent_dependency_receipt": (
+                    fetchcontent_dependency_receipt
+                ),
+            })
         summary = run_campaign(
             cfg, [genome], perf, contract.env_tag, contract.clocks_per_us,
             numactl=list(contract.numactl), log=log,
@@ -1944,6 +2113,13 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
                     b4_proposal_receipt_sha256: str | None = None,
                     _b4_launch_context=None, *,
                     dependency_prefix: str = "",
+                    fetchcontent_base_dir: str = "",
+                    masstree_source_dir: Optional[object] = None,
+                    mimalloc_source_dir: Optional[object] = None,
+                    googletest_source_dir: Optional[object] = None,
+                    fetchcontent_dependency_receipt: Optional[
+                        Dict[str, str]
+                    ] = None,
                     _resolved_site: Optional[str] = None,
                     _contract: Optional[
                         env_contract.ExecutionEnvironmentContract
@@ -2054,6 +2230,11 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
         cfg, perf, planner, coder, state, sub, do_build,
         layout, contract, resolved_site, log=log, cache_root=cache_root,
         dependency_prefix=dependency_prefix,
+        fetchcontent_base_dir=fetchcontent_base_dir,
+        masstree_source_dir=masstree_source_dir,
+        mimalloc_source_dir=mimalloc_source_dir,
+        googletest_source_dir=googletest_source_dir,
+        fetchcontent_dependency_receipt=fetchcontent_dependency_receipt,
         build_context=build_context,
         _b4_launch_context=(_b4_launch_context if b4_mode else None),
     )
@@ -2131,7 +2312,45 @@ def main(
     ap.add_argument("--isolate-worktree", action="store_true",
                     help="段5 git worktree 隔離: 共有 external/ccbench でなく使い捨て "
                          "worktree で apply/build/verify する (既定 OFF = 既存動作と完全互換)")
+    ap.add_argument(
+        "--fetchcontent-prebuild-receipt",
+        type=Path,
+        metavar="PATH",
+        default=None,
+        help="job-local FetchContent prebuild receipt",
+    )
     a = ap.parse_args(argv if argv is not None else sys.argv[1:])
+    if a.fetchcontent_prebuild_receipt is not None and a.no_build:
+        ap.error("--fetchcontent-prebuild-receipt cannot be combined with --no-build")
+    if (a.fetchcontent_prebuild_receipt is not None
+            and a.emit_planner_context is not None):
+        ap.error(
+            "--fetchcontent-prebuild-receipt cannot be combined with "
+            "--emit-planner-context"
+        )
+    fetchcontent_options = {}
+    if a.fetchcontent_prebuild_receipt is not None:
+        try:
+            (
+                fetchcontent_base_dir,
+                masstree_source_dir,
+                mimalloc_source_dir,
+                googletest_source_dir,
+                fetchcontent_dependency_receipt,
+            ) = _load_masstree_prebuild_receipt(
+                a.fetchcontent_prebuild_receipt,
+            )
+        except ValueError as exc:
+            ap.error(f"invalid --fetchcontent-prebuild-receipt: {exc}")
+        fetchcontent_options = {
+            "fetchcontent_base_dir": fetchcontent_base_dir,
+            "masstree_source_dir": masstree_source_dir,
+            "mimalloc_source_dir": mimalloc_source_dir,
+            "googletest_source_dir": googletest_source_dir,
+            "fetchcontent_dependency_receipt": (
+                fetchcontent_dependency_receipt
+            ),
+        }
     if a.b4_closed_critic_receipt is not None and not a.run_iteration:
         raise B4ProtocolError(
             "--b4-closed-critic-receipt requires --run-iteration"
@@ -2275,7 +2494,8 @@ def main(
                                   ),
                                   _b4_launch_context=_b4_launch_context,
                                   _resolved_site=resolved_site,
-                                  _contract=contract)
+                                  _contract=contract,
+                                  **fetchcontent_options)
         layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
         print(f"  ran={out['ran']} outcome={out['outcome']} "
               f"variant={out.get('variant')} iteration={out['iteration']}")
@@ -2306,6 +2526,7 @@ def main(
             cfg, perf, planner, coder, state, sub, not a.no_build,
             layout, contract, resolved_site, cache_root=cache_root,
             build_context=build_context,
+            **fetchcontent_options,
         )
     print(f"  outcome={out['outcome']} variant={out.get('variant')}")
 

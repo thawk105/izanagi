@@ -327,7 +327,7 @@ mimalloc_head=""
 googletest_head=""
 for source_name in masstree mimalloc googletest; do
   source=$thirdparty_root/$source_name
-  destination=$prebuild_source_root/$source_name
+  destination=$prebuild_source_root/${source_name}-src
   if [[ ! -d "$source" || -L "$source" ]]; then
     refuse "third-party source is unavailable: $source_name"
   fi
@@ -350,14 +350,13 @@ for source_name in masstree mimalloc googletest; do
     googletest) googletest_head=$source_head ;;
   esac
 done
-masstree_source_dir=$prebuild_source_root/masstree
-mimalloc_source_dir=$prebuild_source_root/mimalloc
-googletest_source_dir=$prebuild_source_root/googletest
+masstree_source_dir=$prebuild_source_root/masstree-src
+mimalloc_source_dir=$prebuild_source_root/mimalloc-src
+googletest_source_dir=$prebuild_source_root/googletest-src
 if [[ -e "$masstree_source_dir/config.h" || -L "$masstree_source_dir/config.h" ]]; then
   refuse "scratch masstree source is not fresh"
 fi
-fetchcontent_base_dir=$scratch/fetchcontent-base
-mkdir -m 0700 -- "$fetchcontent_base_dir"
+fetchcontent_base_dir=$prebuild_source_root
 prebuild_receipt=$evidence_root/masstree-prebuild-receipt.json
 if [[ -e "$prebuild_receipt" || -L "$prebuild_receipt" ]]; then
   refuse "masstree prebuild receipt is not fresh"
@@ -435,10 +434,12 @@ if [[ -n "${IZANAGI_S4_PROPOSAL_PATH:-}" ]]; then
   "$PY" -B -m orchestrator.campaign.p3_s4_loop \
     --allow-coder-derived-build \
     --isolate-worktree \
+    --fetchcontent-prebuild-receipt "$prebuild_receipt" \
     --run-iteration "$IZANAGI_S4_PROPOSAL_PATH"
 else
   "$PY" -B -m orchestrator.campaign.p3_s4_loop \
     --allow-coder-derived-build \
     --isolate-worktree \
+    --fetchcontent-prebuild-receipt "$prebuild_receipt" \
     --value "${IZANAGI_S4_FIXTURE_VALUE:-20}"
 fi
