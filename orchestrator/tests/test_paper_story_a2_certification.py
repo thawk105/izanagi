@@ -1835,6 +1835,17 @@ def test_p1_a2_default_policy_bytes_and_protocol_are_unchanged():
             "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=",
             "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=",
         ]),
+        pytest.param(
+            "length-five-with-one-duplicate",
+            [
+                "-DFETCHCONTENT_BASE_DIR=",
+                "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=",
+                "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=",
+                "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=",
+                "-DFETCHCONTENT_BASE_DIR=",
+            ],
+            id="length-five-with-one-duplicate",
+        ),
         ("non-string", [
             "-DFETCHCONTENT_BASE_DIR=",
             "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=",
@@ -4907,6 +4918,41 @@ def test_pipeline_runs_correctness_workload_repetitions_without_new_wal_fields()
             and ast.unparse(node.func) == "wal.log"
             for node in ast.walk(caller)
         )
+
+
+def test_trace0_rejects_empty_dependency_prefix_value(tmp_path):
+    policy = _policy(tmp_path)
+    root = A2.create_attempt_root(policy, "attempt-empty-dependency-prefix")
+    raw = _raw_cell(policy, policy.cells[0], root)
+    evidence = raw["trace0_evidence"]
+    prefix = "-DCMAKE_PREFIX_PATH="
+    index = next(
+        index for index, token in enumerate(evidence["configure_argv"])
+        if token.startswith(prefix)
+    )
+    evidence["configure_argv"][index] = prefix
+
+    with pytest.raises(A2.CertificationError):
+        A2.validate_trace0_evidence(
+            policy, raw["cell_id"], root.name, CURRENT_PIN, evidence)
+
+
+def test_trace0_rejects_wrong_fetchcontent_prefix_with_valid_value(tmp_path):
+    policy = _policy(tmp_path)
+    root = A2.create_attempt_root(policy, "attempt-wrong-fetchcontent-prefix")
+    raw = _raw_cell(policy, policy.cells[0], root)
+    evidence = raw["trace0_evidence"]
+    prefix = "-DFETCHCONTENT_SOURCE_DIR_MASSTREE="
+    index = next(
+        index for index, token in enumerate(evidence["configure_argv"])
+        if token.startswith(prefix)
+    )
+    token = evidence["configure_argv"][index]
+    evidence["configure_argv"][index] = "X" + token[1:]
+
+    with pytest.raises(A2.CertificationError):
+        A2.validate_trace0_evidence(
+            policy, raw["cell_id"], root.name, CURRENT_PIN, evidence)
 
 
 @pytest.mark.parametrize("mutation", ("wrong-prefix", "empty-value", "relative"))
