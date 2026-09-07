@@ -1,0 +1,1068 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2333-shard-timeline/output/pegasus-dispatch/773a90db54dfbec4bd250804851d6372/izdw-773a90db54.o982611",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2333-shard-timeline/output/pegasus-dispatch/773a90db54dfbec4bd250804851d6372/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 38%]\n........................................................................ [ 76%]\n.............................................                            [100%]\n189 passed in 14.76s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "3f05d1794332c0710a8a83e3e3c0c0a07a0e8afa9398ca0f543c745c81736725"
+    },
+    "artifact_error": null,
+    "collection_sha256": "ae896ae2f45df3dc3193f564e8c99358ec0fa6090723fa9f61591485788861ea",
+    "duration_s": 39.076,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "faf9c1439e9ce5620f5c9a4ac7f9d65f414f95ab72fccee43520e61820ef619d",
+    "repo_head": "30a5b6bd40a3560b10c238fbd1aea3673614337f",
+    "runner_sha256": "b1f06e480833fd88bf944df676b2ad107a1907eb8618660f5d94bc3fdb6ce99c",
+    "spec_sha256": "e2582685408d2dacb821a89a5d3f6dfa6572ec9f6233075134dc76239a5a5835",
+    "status": "PASSED",
+    "test_output_sha256": "3f05d1794332c0710a8a83e3e3c0c0a07a0e8afa9398ca0f543c745c81736725",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "8edf2120e8869877b528499a5512aa7c98d4fd1ff79bd867a7fd77d83edd441c"
+  },
+  "date": "2026-09-07T19:46:18.717325+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2333-shard-timeline/output/pegasus-dispatch/74e29e4f1a7d22e60e79a8d0916c2517/izdw-74e29e4f1a.o982613",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2333-shard-timeline/output/pegasus-dispatch/74e29e4f1a7d22e60e79a8d0916c2517/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 38%]\n........................................................................ [ 76%]\n......................................F......                            [100%]\n=================================== FAILURES ===================================\n____ test_collection_finish_clock_runs_after_synthetic_modifyitems_wrapper _____\n[gw37] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1461eaef18a0>\n\n    def test_collection_finish_clock_runs_after_synthetic_modifyitems_wrapper(\n        monkeypatch,\n    ):\n        import pluggy\n    \n        hookspec = pluggy.HookspecMarker(\"pytest\")\n        hookimpl = pluggy.HookimplMarker(\"pytest\")\n    \n        class Spec:\n            @hookspec\n            def pytest_collection_modifyitems(self, config, items):\n                \"\"\"Minimal collection-modification hook.\"\"\"\n    \n            @hookspec\n            def pytest_collection_finish(self, session):\n                \"\"\"Minimal collection-finish hook.\"\"\"\n    \n        trace = []\n    \n        class SyntheticCollectionPlugin:\n            @hookimpl(wrapper=True, tryfirst=True)\n            def pytest_collection_modifyitems(self, config, items):\n                trace.append(\"modify-before\")\n                yield\n                trace.append(\"modify-after\")\n    \n            @hookimpl(tryfirst=True)\n            def pytest_collection_finish(self, session):\n                trace.append(\"finish-before-acceptance\")\n    \n        class AcceptancePlugin:\n            pytest_collection_finish = staticmethod(SH.pytest_collection_finish)\n    \n        state = {}\n        config = SimpleNamespace(\n            _izanagi_acceptance_shard_spec=object(),\n            _izanagi_acceptance_shard_state=state,\n        )\n    \n        def clock():\n            assert trace == [\n                \"modify-before\", \"modify-after\", \"finish-before-acceptance\",\n            ]\n            trace.append(\"acceptance-clock\")\n            return 400.0\n    \n        monkeypatch.setattr(SH.time, \"time\", clock)\n        manager = pluggy.PluginManager(\"pytest\")\n        manager.add_hookspecs(Spec)\n        manager.register(SyntheticCollectionPlugin(), name=\"synthetic\")\n        manager.register(AcceptancePlugin(), name=\"acceptance\")\n        manager.hook.pytest_collection_modifyitems(config=config, items=[])\n        manager.hook.pytest_collection_finish(session=SimpleNamespace(config=config))\n>       assert trace[-1] == \"acceptance-clock\"\nE       AssertionError: assert 'finish-before-acceptance' == 'acceptance-clock'\nE         \nE         - acceptance-clock\nE         + finish-before-acceptance\n\norchestrator/tests/test_run_tests_shards.py:1199: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_run_tests_shards.py::test_collection_finish_clock_runs_after_synthetic_modifyitems_wrapper\n1 failed, 188 passed in 9.49s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_run_tests_shards.py::test_collection_finish_clock_runs_after_synthetic_modifyitems_wrapper\" nodeid_bytes=114 nodeid_omitted_bytes=0 source_bytes=2345 retained_bytes=2345 omitted_bytes=0 rendered_excerpt_bytes=2474 sha256=b5dd54e70e5cb4e05bee5bce83f57588a31b542213d76995a68dea17e0d2be15\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw37] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1461eaef18a0>\n> \n>     def test_collection_finish_clock_runs_after_synthetic_modifyitems_wrapper(\n>         monkeypatch,\n>     ):\n>         import pluggy\n>     \n>         hookspec = pluggy.HookspecMarker(\"pytest\")\n>         hookimpl = pluggy.HookimplMarker(\"pytest\")\n>     \n>         class Spec:\n>             @hookspec\n>             def pytest_collection_modifyitems(self, config, items):\n>                 \"\"\"Minimal collection-modification hook.\"\"\"\n>     \n>             @hookspec\n>             def pytest_collection_finish(self, session):\n>                 \"\"\"Minimal collection-finish hook.\"\"\"\n>     \n>         trace = []\n>     \n>         class SyntheticCollectionPlugin:\n>             @hookimpl(wrapper=True, tryfirst=True)\n>             def pytest_collection_modifyitems(self, config, items):\n>                 trace.append(\"modify-before\")\n>                 yield\n>                 trace.append(\"modify-after\")\n>     \n>             @hookimpl(tryfirst=True)\n>             def pytest_collection_finish(self, session):\n>                 trace.append(\"finish-before-acceptance\")\n>     \n>         class AcceptancePlugin:\n>             pytest_collection_finish = staticmethod(SH.pytest_collection_finish)\n>     \n>         state = {}\n>         config = SimpleNamespace(\n>             _izanagi_acceptance_shard_spec=object(),\n>             _izanagi_acceptance_shard_state=state,\n>         )\n>     \n>         def clock():\n>             assert trace == [\n>                 \"modify-before\", \"modify-after\", \"finish-before-acceptance\",\n>             ]\n>             trace.append(\"acceptance-clock\")\n>             return 400.0\n>     \n>         monkeypatch.setattr(SH.time, \"time\", clock)\n>         manager = pluggy.PluginManager(\"pytest\")\n>         manager.add_hookspecs(Spec)\n>         manager.register(SyntheticCollectionPlugin(), name=\"synthetic\")\n>         manager.register(AcceptancePlugin(), name=\"acceptance\")\n>         manager.hook.pytest_collection_modifyitems(config=config, items=[])\n>         manager.hook.pytest_collection_finish(session=SimpleNamespace(config=config))\n> >       assert trace[-1] == \"acceptance-clock\"\n> E       AssertionError: assert 'finish-before-acceptance' == 'acceptance-clock'\n> E         \n> E         - acceptance-clock\n> E         + finish-before-acceptance\n> \n> orchestrator/tests/test_run_tests_shards.py:1199: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2345 retained_bytes=2345 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3216 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "957bd4e59032cb742100da155867dbd3acc3215ea0ca2015f1b6c0080a454dea"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "ae896ae2f45df3dc3193f564e8c99358ec0fa6090723fa9f61591485788861ea",
+      "duration_s": 33.559,
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_shards.py::test_collection_finish_clock_runs_after_synthetic_modifyitems_wrapper"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_run_tests_shards.py::test_collection_finish_clock_runs_after_synthetic_modifyitems_wrapper"
+      ],
+      "hang_risk": false,
+      "id": "M1",
+      "injection_diff_sha256": "3c62409b70f930af94b2dc71dc1a2c7fecc65b92fc25e73152080ea68b08f8fc",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "d8240ef0434cc4cc556c41ea8756951b6a2827ecb39ca6fd72ce43d171aa1db4",
+      "replacements": [
+        {
+          "file": "tools/acceptance_shards.py",
+          "new": "    setattr(config, \"_izanagi_acceptance_shard_state\", {\n        \"records\": _records_payload(records),\n        \"records_digest\": _digest(_records_payload(records)),\n        \"selected\": sorted(selected),\n        \"selected_digest\": _digest(sorted(selected)),\n        \"loads\": list(assignment.loads),\n    })\n    state = getattr(config, \"_izanagi_acceptance_shard_state\", None)\n    if type(state.get(\"real_repo_lock_intervals\")) is not list:\n        state[\"real_repo_lock_intervals\"] = []\n    try:\n        observed = _observed_epoch(time.time())\n    except Exception:\n        observed = None\n    state[\"collection_finished_epoch_s\"] = observed\n",
+          "old": "    setattr(config, \"_izanagi_acceptance_shard_state\", {\n        \"records\": _records_payload(records),\n        \"records_digest\": _digest(_records_payload(records)),\n        \"selected\": sorted(selected),\n        \"selected_digest\": _digest(sorted(selected)),\n        \"loads\": list(assignment.loads),\n    })\n"
+        },
+        {
+          "file": "tools/acceptance_shards.py",
+          "new": "@_pytest_hookimpl(trylast=True)\ndef pytest_collection_finish(session: Any) -> None:\n    del session\n",
+          "old": "@_pytest_hookimpl(trylast=True)\ndef pytest_collection_finish(session: Any) -> None:\n    config = getattr(session, \"config\", None)\n    if getattr(config, \"_izanagi_acceptance_shard_spec\", None) is None:\n        return\n    state = getattr(config, \"_izanagi_acceptance_shard_state\", None)\n    if type(state) is not dict:\n        return\n    if type(state.get(\"real_repo_lock_intervals\")) is not list:\n        state[\"real_repo_lock_intervals\"] = []\n    try:\n        observed = _observed_epoch(time.time())\n    except Exception:\n        observed = None\n    state[\"collection_finished_epoch_s\"] = observed\n"
+        }
+      ],
+      "repo_head": "30a5b6bd40a3560b10c238fbd1aea3673614337f",
+      "runner_sha256": "b1f06e480833fd88bf944df676b2ad107a1907eb8618660f5d94bc3fdb6ce99c",
+      "spec_sha256": "e2582685408d2dacb821a89a5d3f6dfa6572ec9f6233075134dc76239a5a5835",
+      "status": "KILLED",
+      "test_output_sha256": "957bd4e59032cb742100da155867dbd3acc3215ea0ca2015f1b6c0080a454dea",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "8edf2120e8869877b528499a5512aa7c98d4fd1ff79bd867a7fd77d83edd441c"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2333-shard-timeline/output/pegasus-dispatch/338dce3a1e4eb7e473b1a74bab21fc53/izdw-338dce3a1e.o982616",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2333-shard-timeline/output/pegasus-dispatch/338dce3a1e4eb7e473b1a74bab21fc53/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 38%]\n........................................................................ [ 76%]\n......................................F......                            [100%]\n=================================== FAILURES ===================================\n____ test_runtest_logreport_ignores_zero_nonfinite_missing_and_huge_bounds _____\n[gw7] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x149b077221a0>\n\n    def test_runtest_logreport_ignores_zero_nonfinite_missing_and_huge_bounds(\n        monkeypatch,\n    ):\n        monkeypatch.setattr(SH, \"_PLUGIN_CONFIG\", object())\n        monkeypatch.setattr(SH, \"_WORKER_TEST_BOUNDS\", {})\n        monkeypatch.setattr(SH, \"_REPORT_WORKERS\", {})\n        monkeypatch.setattr(SH, \"_REPORT_DURATIONS\", SH.Counter())\n        monkeypatch.setattr(SH, \"_FAILURES\", set())\n        monkeypatch.delenv(\"PYTEST_XDIST_WORKER\", raising=False)\n        reports = [\n            _synthetic_report(\"crash\", start=0, stop=0),\n            _synthetic_report(\"nan\", worker_id=\"gw0\", start=float(\"nan\"), stop=float(\"inf\")),\n            _synthetic_report(\"missing\", worker_id=\"gw1\"),\n            _synthetic_report(\"huge\", worker_id=\"gw2\", start=10 ** 10000, stop=-(10 ** 10000)),\n            _synthetic_report(\"typed\", worker_id=\"gw3\", start=\"10\", stop=object()),\n        ]\n        for report in reports:\n            SH.pytest_runtest_logreport(report)\n>       assert SH._WORKER_TEST_BOUNDS == {}\nE       assert <[ValueError(...x149b07623080> == {}\nE         \nE         Left contains 4 more items:\nE         (pytest_assertion plugin: representation of details failed: /usr/lib/python3.10/pprint.py:562: ValueError: Exceeds the limit (4300) for integer string conversion; use sys.set_int_max_str_digits() to increase the limit.\nE          Probably an object has a faulty __repr__.)\n\norchestrator/tests/test_run_tests_shards.py:1038: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_run_tests_shards.py::test_runtest_logreport_ignores_zero_nonfinite_missing_and_huge_bounds\n1 failed, 188 passed in 10.60s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_run_tests_shards.py::test_runtest_logreport_ignores_zero_nonfinite_missing_and_huge_bounds\" nodeid_bytes=114 nodeid_omitted_bytes=0 source_bytes=1578 retained_bytes=1578 omitted_bytes=0 rendered_excerpt_bytes=1639 sha256=9ef78709307d407ab8d75884960e6b8989a405a4cc5aff9ee373daed566e8478\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw7] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x149b077221a0>\n> \n>     def test_runtest_logreport_ignores_zero_nonfinite_missing_and_huge_bounds(\n>         monkeypatch,\n>     ):\n>         monkeypatch.setattr(SH, \"_PLUGIN_CONFIG\", object())\n>         monkeypatch.setattr(SH, \"_WORKER_TEST_BOUNDS\", {})\n>         monkeypatch.setattr(SH, \"_REPORT_WORKERS\", {})\n>         monkeypatch.setattr(SH, \"_REPORT_DURATIONS\", SH.Counter())\n>         monkeypatch.setattr(SH, \"_FAILURES\", set())\n>         monkeypatch.delenv(\"PYTEST_XDIST_WORKER\", raising=False)\n>         reports = [\n>             _synthetic_report(\"crash\", start=0, stop=0),\n>             _synthetic_report(\"nan\", worker_id=\"gw0\", start=float(\"nan\"), stop=float(\"inf\")),\n>             _synthetic_report(\"missing\", worker_id=\"gw1\"),\n>             _synthetic_report(\"huge\", worker_id=\"gw2\", start=10 ** 10000, stop=-(10 ** 10000)),\n>             _synthetic_report(\"typed\", worker_id=\"gw3\", start=\"10\", stop=object()),\n>         ]\n>         for report in reports:\n>             SH.pytest_runtest_logreport(report)\n> >       assert SH._WORKER_TEST_BOUNDS == {}\n> E       assert <[ValueError(...x149b07623080> == {}\n> E         \n> E         Left contains 4 more items:\n> E         (pytest_assertion plugin: representation of details failed: /usr/lib/python3.10/pprint.py:562: ValueError: Exceeds the limit (4300) for integer string conversion; use sys.set_int_max_str_digits() to increase the limit.\n> E          Probably an object has a faulty __repr__.)\n> \n> orchestrator/tests/test_run_tests_shards.py:1038: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1578 retained_bytes=1578 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2381 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "74ce8eba8be193f22b9877469a6adfd365df5375212684edce64d74e42a64db8"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ae896ae2f45df3dc3193f564e8c99358ec0fa6090723fa9f61591485788861ea",
+      "duration_s": 38.866,
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_shards.py::test_runtest_logreport_ignores_zero_nonfinite_missing_and_huge_bounds"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_run_tests_shards.py::test_runtest_logreport_ignores_zero_nonfinite_missing_and_huge_bounds"
+      ],
+      "hang_risk": false,
+      "id": "M2",
+      "injection_diff_sha256": "42d998a698905c5a9fe25df55196dd9f03a4e3c5c409c04b7ac1326c2140ca5c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "096c07fd9b3716ff6e046eaf88bf89fb91225337ed15fec036a7d7de42456b45",
+      "replacements": [
+        {
+          "file": "tools/acceptance_shards.py",
+          "new": "    start = getattr(report, \"start\", None)\n    stop = getattr(report, \"stop\", None)\n",
+          "old": "    start = _observed_epoch(getattr(report, \"start\", None))\n    stop = _observed_epoch(getattr(report, \"stop\", None))\n"
+        }
+      ],
+      "repo_head": "30a5b6bd40a3560b10c238fbd1aea3673614337f",
+      "runner_sha256": "b1f06e480833fd88bf944df676b2ad107a1907eb8618660f5d94bc3fdb6ce99c",
+      "spec_sha256": "e2582685408d2dacb821a89a5d3f6dfa6572ec9f6233075134dc76239a5a5835",
+      "status": "KILLED",
+      "test_output_sha256": "74ce8eba8be193f22b9877469a6adfd365df5375212684edce64d74e42a64db8",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "8edf2120e8869877b528499a5512aa7c98d4fd1ff79bd867a7fd77d83edd441c"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2333-shard-timeline/output/pegasus-dispatch/a8f61cb0f7a086f9a0a3b6c3b9d124e0/izdw-a8f61cb0f7.o982619",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2333-shard-timeline/output/pegasus-dispatch/a8f61cb0f7a086f9a0a3b6c3b9d124e0/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 38%]\n........................................................................ [ 76%]\n......................................F......                            [100%]\n=================================== FAILURES ===================================\n______ test_runtest_protocol_configless_item_keeps_existing_lock_contract ______\n[gw12] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1517cb251390>\n\n    def test_runtest_protocol_configless_item_keeps_existing_lock_contract(\n        monkeypatch,\n    ):\n        suite_conftest = _suite_conftest_module()\n        from orchestrator.campaign import patchharness\n    \n        trace = []\n    \n        @contextlib.contextmanager\n        def locks(access):\n            trace.append((\"lock-enter\", access))\n            try:\n                yield\n            finally:\n                trace.append((\"lock-exit\", access))\n    \n        @contextlib.contextmanager\n        def stamp(node_id, access):\n            trace.append((\"stamp-enter\", node_id, access))\n            try:\n                yield\n            finally:\n                trace.append((\"stamp-exit\", node_id, access))\n    \n        item, access = _real_repo_protocol_item(suite_conftest)\n        monkeypatch.setattr(suite_conftest, \"_real_repo_locks\", locks)\n        monkeypatch.setattr(patchharness, \"_pytest_node_context\", stamp)\n        monkeypatch.setattr(\n            suite_conftest.time, \"time\",\n            lambda: pytest.fail(\"configless protocol read the acceptance clock\"),\n        )\n>       _finish_protocol(suite_conftest.pytest_runtest_protocol(item, None))\n\norchestrator/tests/test_run_tests_shards.py:1264: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_run_tests_shards.py:1228: in _finish_protocol\n    assert next(wrapper) is None\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nitem = namespace(path=PosixPath('/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2333-shard-timeline/orchestrator/tests...po_items_stay_one_unit_and_keep_relative_order', _izanagi_real_repo_access=RealRepoAccess(parent='read', ccbench=None))\nnextitem = None\n\n    @pytest.hookimpl(wrapper=True, tryfirst=True)\n    def pytest_runtest_protocol(item, nextitem):\n        \"\"\"Hold P/S locks and the access stamp across setup/call/teardown.\"\"\"\n        from orchestrator.campaign import patchharness\n    \n        node_id = _real_repo_node_id(item)\n        expected_access = REAL_REPO_ACCESS_BY_NODE.get(node_id)\n        stamped_access = getattr(item, _REAL_REPO_ACCESS_ATTR, None)\n        if expected_access is not None and stamped_access != expected_access:\n            raise pytest.UsageError(\n                \"real-repo resource access stamp mismatch; fails-closed: \"\n                f\"node={node_id} expected={expected_access!r} \"\n                f\"stamped={stamped_access!r}\"\n            )\n        access = expected_access\n>       config = item.config\nE       AttributeError: 'types.SimpleNamespace' object has no attribute 'config'\n\norchestrator/tests/conftest.py:2132: AttributeError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_run_tests_shards.py::test_runtest_protocol_configless_item_keeps_existing_lock_contract\n1 failed, 188 passed in 9.04s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_run_tests_shards.py::test_runtest_protocol_configless_item_keeps_existing_lock_contract\" nodeid_bytes=111 nodeid_omitted_bytes=0 source_bytes=2797 retained_bytes=2797 omitted_bytes=0 rendered_excerpt_bytes=2928 sha256=a436c268c785160643e91cf91d48266170af855c8f06cabb55316ee87514d634\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw12] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1517cb251390>\n> \n>     def test_runtest_protocol_configless_item_keeps_existing_lock_contract(\n>         monkeypatch,\n>     ):\n>         suite_conftest = _suite_conftest_module()\n>         from orchestrator.campaign import patchharness\n>     \n>         trace = []\n>     \n>         @contextlib.contextmanager\n>         def locks(access):\n>             trace.append((\"lock-enter\", access))\n>             try:\n>                 yield\n>             finally:\n>                 trace.append((\"lock-exit\", access))\n>     \n>         @contextlib.contextmanager\n>         def stamp(node_id, access):\n>             trace.append((\"stamp-enter\", node_id, access))\n>             try:\n>                 yield\n>             finally:\n>                 trace.append((\"stamp-exit\", node_id, access))\n>     \n>         item, access = _real_repo_protocol_item(suite_conftest)\n>         monkeypatch.setattr(suite_conftest, \"_real_repo_locks\", locks)\n>         monkeypatch.setattr(patchharness, \"_pytest_node_context\", stamp)\n>         monkeypatch.setattr(\n>             suite_conftest.time, \"time\",\n>             lambda: pytest.fail(\"configless protocol read the acceptance clock\"),\n>         )\n> >       _finish_protocol(suite_conftest.pytest_runtest_protocol(item, None))\n> \n> orchestrator/tests/test_run_tests_shards.py:1264: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_run_tests_shards.py:1228: in _finish_protocol\n>     assert next(wrapper) is None\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> item = namespace(path=PosixPath('/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2333-shard-timeline/orchestrator/tests...po_items_stay_one_unit_and_keep_relative_order', _izanagi_real_repo_access=RealRepoAccess(parent='read', ccbench=None))\n> nextitem = None\n> \n>     @pytest.hookimpl(wrapper=True, tryfirst=True)\n>     def pytest_runtest_protocol(item, nextitem):\n>         \"\"\"Hold P/S locks and the access stamp across setup/call/teardown.\"\"\"\n>         from orchestrator.campaign import patchharness\n>     \n>         node_id = _real_repo_node_id(item)\n>         expected_access = REAL_REPO_ACCESS_BY_NODE.get(node_id)\n>         stamped_access = getattr(item, _REAL_REPO_ACCESS_ATTR, None)\n>         if expected_access is not None and stamped_access != expected_access:\n>             raise pytest.UsageError(\n>                 \"real-repo resource access stamp mismatch; fails-closed: \"\n>                 f\"node={node_id} expected={expected_access!r} \"\n>                 f\"stamped={stamped_access!r}\"\n>             )\n>         access = expected_access\n> >       config = item.config\n> E       AttributeError: 'types.SimpleNamespace' object has no attribute 'config'\n> \n> orchestrator/tests/conftest.py:2132: AttributeError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2797 retained_bytes=2797 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3667 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "29beafede07d675bbb9f9a07b24aa22bda3554b26fdea0743e9ccbddb3096288"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "ae896ae2f45df3dc3193f564e8c99358ec0fa6090723fa9f61591485788861ea",
+      "duration_s": 33.586,
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_shards.py::test_runtest_protocol_configless_item_keeps_existing_lock_contract"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_run_tests_shards.py::test_runtest_protocol_configless_item_keeps_existing_lock_contract"
+      ],
+      "hang_risk": false,
+      "id": "M3",
+      "injection_diff_sha256": "f96b7de5473c71c7596fadf4e5f02562756dfb850f255c8e343627da9c9be392",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e1008e158bccd0141e4211940861c6b07994cd4bcb31851f1f202102647af756",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "new": "    config = item.config\n",
+          "old": "    config = getattr(item, \"config\", None)\n"
+        }
+      ],
+      "repo_head": "30a5b6bd40a3560b10c238fbd1aea3673614337f",
+      "runner_sha256": "b1f06e480833fd88bf944df676b2ad107a1907eb8618660f5d94bc3fdb6ce99c",
+      "spec_sha256": "e2582685408d2dacb821a89a5d3f6dfa6572ec9f6233075134dc76239a5a5835",
+      "status": "KILLED",
+      "test_output_sha256": "29beafede07d675bbb9f9a07b24aa22bda3554b26fdea0743e9ccbddb3096288",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "8edf2120e8869877b528499a5512aa7c98d4fd1ff79bd867a7fd77d83edd441c"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2333-shard-timeline/output/pegasus-dispatch/e7f8c57b1f123f549738ca887578fc41/izdw-e7f8c57b1f.o982620",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2333-shard-timeline/output/pegasus-dispatch/e7f8c57b1f123f549738ca887578fc41/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 38%]\n........................................................................ [ 76%]\n......................................F......                            [100%]\n=================================== FAILURES ===================================\n____ test_runtest_protocol_lock_acquire_and_release_failures_record_nothing ____\n[gw43] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14e3123064d0>\n\n    def test_runtest_protocol_lock_acquire_and_release_failures_record_nothing(\n        monkeypatch,\n    ):\n        suite_conftest = _suite_conftest_module()\n        from orchestrator.campaign import patchharness\n    \n        class AcquireFailure(RuntimeError):\n            pass\n    \n        class ReleaseFailure(RuntimeError):\n            pass\n    \n        @contextlib.contextmanager\n        def acquire_failure(access):\n            raise AcquireFailure(\"acquire\")\n            yield\n    \n        @contextlib.contextmanager\n        def release_failure(access):\n            yield\n            raise ReleaseFailure(\"release\")\n    \n        @contextlib.contextmanager\n        def stamp(node_id, access):\n            yield\n    \n        calls = []\n        config = SimpleNamespace(_izanagi_acceptance_shard_spec=object())\n        item, _access = _real_repo_protocol_item(\n            suite_conftest, config=config,\n        )\n        monkeypatch.setattr(patchharness, \"_pytest_node_context\", stamp)\n        monkeypatch.setattr(\n            SH, \"record_real_repo_lock_interval\",\n            lambda *args: calls.append(args),\n        )\n        monkeypatch.setattr(suite_conftest, \"_real_repo_locks\", acquire_failure)\n        with pytest.raises(AcquireFailure, match=\"acquire\"):\n            next(suite_conftest.pytest_runtest_protocol(item, None))\n>       assert calls == []\nE       assert [(namespace(_...0577.0889826)] == []\nE         \nE         Left contains one more item: (namespace(_izanagi_acceptance_shard_spec=<object object at 0x14e311f88b00>), 1788810577.0889826, 1788810577.0889826)\nE         Use -v to get more diff\n\norchestrator/tests/test_run_tests_shards.py:1359: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_run_tests_shards.py::test_runtest_protocol_lock_acquire_and_release_failures_record_nothing\n1 failed, 188 passed in 9.29s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_run_tests_shards.py::test_runtest_protocol_lock_acquire_and_release_failures_record_nothing\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=1805 retained_bytes=1805 omitted_bytes=0 rendered_excerpt_bytes=1906 sha256=4b8a253973d6f9841c08056660fcbb7f6cd7565ad9954f0d32786ea1cb3d3fc1\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw43] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14e3123064d0>\n> \n>     def test_runtest_protocol_lock_acquire_and_release_failures_record_nothing(\n>         monkeypatch,\n>     ):\n>         suite_conftest = _suite_conftest_module()\n>         from orchestrator.campaign import patchharness\n>     \n>         class AcquireFailure(RuntimeError):\n>             pass\n>     \n>         class ReleaseFailure(RuntimeError):\n>             pass\n>     \n>         @contextlib.contextmanager\n>         def acquire_failure(access):\n>             raise AcquireFailure(\"acquire\")\n>             yield\n>     \n>         @contextlib.contextmanager\n>         def release_failure(access):\n>             yield\n>             raise ReleaseFailure(\"release\")\n>     \n>         @contextlib.contextmanager\n>         def stamp(node_id, access):\n>             yield\n>     \n>         calls = []\n>         config = SimpleNamespace(_izanagi_acceptance_shard_spec=object())\n>         item, _access = _real_repo_protocol_item(\n>             suite_conftest, config=config,\n>         )\n>         monkeypatch.setattr(patchharness, \"_pytest_node_context\", stamp)\n>         monkeypatch.setattr(\n>             SH, \"record_real_repo_lock_interval\",\n>             lambda *args: calls.append(args),\n>         )\n>         monkeypatch.setattr(suite_conftest, \"_real_repo_locks\", acquire_failure)\n>         with pytest.raises(AcquireFailure, match=\"acquire\"):\n>             next(suite_conftest.pytest_runtest_protocol(item, None))\n> >       assert calls == []\n> E       assert [(namespace(_...0577.0889826)] == []\n> E         \n> E         Left contains one more item: (namespace(_izanagi_acceptance_shard_spec=<object object at 0x14e311f88b00>), 1788810577.0889826, 1788810577.0889826)\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_run_tests_shards.py:1359: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1805 retained_bytes=1805 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2649 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "f1c7b6480592caf6e48e6737a352b3bed43a6466c37af47d43c9f02b832dafd2"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ae896ae2f45df3dc3193f564e8c99358ec0fa6090723fa9f61591485788861ea",
+      "duration_s": 38.324,
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_shards.py::test_runtest_protocol_lock_acquire_and_release_failures_record_nothing"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_run_tests_shards.py::test_runtest_protocol_lock_acquire_and_release_failures_record_nothing"
+      ],
+      "hang_risk": false,
+      "id": "M4",
+      "injection_diff_sha256": "b66c7435a782c468bf961721e43e6ebce69cbea82ceba3a57f62956560e4e178",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c21d542203505e48236fb63f26efc89ff9d12db1ebb36c69256ac306e5edcd30",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "new": "@contextlib.contextmanager\ndef _mutation_record_on_lock_acquire_failure(\n    config, access: RealRepoAccess | None,\n):\n    lock_context = _real_repo_locks(access)\n    try:\n        lock_context.__enter__()\n    except BaseException:\n        observed = _acceptance_epoch_now()\n        if observed is None:\n            observed = 1.0\n        from tools import acceptance_shards\n\n        acceptance_shards.record_real_repo_lock_interval(\n            config, observed, observed,\n        )\n        raise\n    try:\n        yield\n    except BaseException as exc:\n        if not lock_context.__exit__(type(exc), exc, exc.__traceback__):\n            raise\n    else:\n        lock_context.__exit__(None, None, None)\n\n\n@contextlib.contextmanager\ndef _acceptance_timed_real_repo_locks(config, access: RealRepoAccess | None):\n",
+          "old": "@contextlib.contextmanager\ndef _acceptance_timed_real_repo_locks(config, access: RealRepoAccess | None):\n"
+        },
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "new": "    with _mutation_record_on_lock_acquire_failure(config, access):\n        acquired = _acceptance_epoch_now()\n        yield\n",
+          "old": "    with _real_repo_locks(access):\n        acquired = _acceptance_epoch_now()\n        yield\n"
+        }
+      ],
+      "repo_head": "30a5b6bd40a3560b10c238fbd1aea3673614337f",
+      "runner_sha256": "b1f06e480833fd88bf944df676b2ad107a1907eb8618660f5d94bc3fdb6ce99c",
+      "spec_sha256": "e2582685408d2dacb821a89a5d3f6dfa6572ec9f6233075134dc76239a5a5835",
+      "status": "KILLED",
+      "test_output_sha256": "f1c7b6480592caf6e48e6737a352b3bed43a6466c37af47d43c9f02b832dafd2",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "8edf2120e8869877b528499a5512aa7c98d4fd1ff79bd867a7fd77d83edd441c"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2333-shard-timeline/output/pegasus-dispatch/1a307dee6b6cbe4d7b0518c13941d623/izdw-1a307dee6b.o982623",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2333-shard-timeline/output/pegasus-dispatch/1a307dee6b6cbe4d7b0518c13941d623/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 38%]\n........................................................................ [ 76%]\n......................................F......                            [100%]\n=================================== FAILURES ===================================\n____ test_runtest_protocol_lock_acquire_and_release_failures_record_nothing ____\n[gw38] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x148a75911030>\n\n    def test_runtest_protocol_lock_acquire_and_release_failures_record_nothing(\n        monkeypatch,\n    ):\n        suite_conftest = _suite_conftest_module()\n        from orchestrator.campaign import patchharness\n    \n        class AcquireFailure(RuntimeError):\n            pass\n    \n        class ReleaseFailure(RuntimeError):\n            pass\n    \n        @contextlib.contextmanager\n        def acquire_failure(access):\n            raise AcquireFailure(\"acquire\")\n            yield\n    \n        @contextlib.contextmanager\n        def release_failure(access):\n            yield\n            raise ReleaseFailure(\"release\")\n    \n        @contextlib.contextmanager\n        def stamp(node_id, access):\n            yield\n    \n        calls = []\n        config = SimpleNamespace(_izanagi_acceptance_shard_spec=object())\n        item, _access = _real_repo_protocol_item(\n            suite_conftest, config=config,\n        )\n        monkeypatch.setattr(patchharness, \"_pytest_node_context\", stamp)\n        monkeypatch.setattr(\n            SH, \"record_real_repo_lock_interval\",\n            lambda *args: calls.append(args),\n        )\n        monkeypatch.setattr(suite_conftest, \"_real_repo_locks\", acquire_failure)\n        with pytest.raises(AcquireFailure, match=\"acquire\"):\n            next(suite_conftest.pytest_runtest_protocol(item, None))\n        assert calls == []\n    \n        monkeypatch.setattr(suite_conftest, \"_real_repo_locks\", release_failure)\n        wrapper = suite_conftest.pytest_runtest_protocol(item, None)\n        assert next(wrapper) is None\n        with pytest.raises(ReleaseFailure, match=\"release\"):\n            next(wrapper)\n>       assert calls == []\nE       assert [(namespace(_...0612.0287511)] == []\nE         \nE         Left contains one more item: (namespace(_izanagi_acceptance_shard_spec=<object object at 0x148a7559bdf0>), 1788810612.0287511, 1788810612.0287511)\nE         Use -v to get more diff\n\norchestrator/tests/test_run_tests_shards.py:1366: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_run_tests_shards.py::test_runtest_protocol_lock_acquire_and_release_failures_record_nothing\n1 failed, 188 passed in 9.75s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_run_tests_shards.py::test_runtest_protocol_lock_acquire_and_release_failures_record_nothing\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=2111 retained_bytes=2111 omitted_bytes=0 rendered_excerpt_bytes=2226 sha256=46186a07a2313adf80f8e8963bd16522899c59c73fd52696c65e991f4d28b851\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw38] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x148a75911030>\n> \n>     def test_runtest_protocol_lock_acquire_and_release_failures_record_nothing(\n>         monkeypatch,\n>     ):\n>         suite_conftest = _suite_conftest_module()\n>         from orchestrator.campaign import patchharness\n>     \n>         class AcquireFailure(RuntimeError):\n>             pass\n>     \n>         class ReleaseFailure(RuntimeError):\n>             pass\n>     \n>         @contextlib.contextmanager\n>         def acquire_failure(access):\n>             raise AcquireFailure(\"acquire\")\n>             yield\n>     \n>         @contextlib.contextmanager\n>         def release_failure(access):\n>             yield\n>             raise ReleaseFailure(\"release\")\n>     \n>         @contextlib.contextmanager\n>         def stamp(node_id, access):\n>             yield\n>     \n>         calls = []\n>         config = SimpleNamespace(_izanagi_acceptance_shard_spec=object())\n>         item, _access = _real_repo_protocol_item(\n>             suite_conftest, config=config,\n>         )\n>         monkeypatch.setattr(patchharness, \"_pytest_node_context\", stamp)\n>         monkeypatch.setattr(\n>             SH, \"record_real_repo_lock_interval\",\n>             lambda *args: calls.append(args),\n>         )\n>         monkeypatch.setattr(suite_conftest, \"_real_repo_locks\", acquire_failure)\n>         with pytest.raises(AcquireFailure, match=\"acquire\"):\n>             next(suite_conftest.pytest_runtest_protocol(item, None))\n>         assert calls == []\n>     \n>         monkeypatch.setattr(suite_conftest, \"_real_repo_locks\", release_failure)\n>         wrapper = suite_conftest.pytest_runtest_protocol(item, None)\n>         assert next(wrapper) is None\n>         with pytest.raises(ReleaseFailure, match=\"release\"):\n>             next(wrapper)\n> >       assert calls == []\n> E       assert [(namespace(_...0612.0287511)] == []\n> E         \n> E         Left contains one more item: (namespace(_izanagi_acceptance_shard_spec=<object object at 0x148a7559bdf0>), 1788810612.0287511, 1788810612.0287511)\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_run_tests_shards.py:1366: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2111 retained_bytes=2111 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2969 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "03f416467ff5c3937b56e9f1ff76e726f19f2fea74674444c9094711b44e9309"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ae896ae2f45df3dc3193f564e8c99358ec0fa6090723fa9f61591485788861ea",
+      "duration_s": 33.514,
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_shards.py::test_runtest_protocol_lock_acquire_and_release_failures_record_nothing"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_run_tests_shards.py::test_runtest_protocol_lock_acquire_and_release_failures_record_nothing"
+      ],
+      "hang_risk": false,
+      "id": "M5",
+      "injection_diff_sha256": "56d19e38a7450b94d87aa4f4e591b08faf63affa716b0fea00870b1aee6a2aed",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "8d591fa3f07335cefd867ae13986a6eaef153ce117b76acb9cc98002c9197042",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "new": "@contextlib.contextmanager\ndef _mutation_record_on_lock_release_failure(\n    config, access: RealRepoAccess | None,\n):\n    lock_context = _real_repo_locks(access)\n    lock_context.__enter__()\n    try:\n        yield\n    except BaseException as exc:\n        if not lock_context.__exit__(type(exc), exc, exc.__traceback__):\n            raise\n    else:\n        try:\n            lock_context.__exit__(None, None, None)\n        except BaseException:\n            observed = _acceptance_epoch_now()\n            if observed is None:\n                observed = 1.0\n            from tools import acceptance_shards\n\n            acceptance_shards.record_real_repo_lock_interval(\n                config, observed, observed,\n            )\n            raise\n\n\n@contextlib.contextmanager\ndef _acceptance_timed_real_repo_locks(config, access: RealRepoAccess | None):\n",
+          "old": "@contextlib.contextmanager\ndef _acceptance_timed_real_repo_locks(config, access: RealRepoAccess | None):\n"
+        },
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "new": "    with _mutation_record_on_lock_release_failure(config, access):\n        acquired = _acceptance_epoch_now()\n        yield\n",
+          "old": "    with _real_repo_locks(access):\n        acquired = _acceptance_epoch_now()\n        yield\n"
+        }
+      ],
+      "repo_head": "30a5b6bd40a3560b10c238fbd1aea3673614337f",
+      "runner_sha256": "b1f06e480833fd88bf944df676b2ad107a1907eb8618660f5d94bc3fdb6ce99c",
+      "spec_sha256": "e2582685408d2dacb821a89a5d3f6dfa6572ec9f6233075134dc76239a5a5835",
+      "status": "KILLED",
+      "test_output_sha256": "03f416467ff5c3937b56e9f1ff76e726f19f2fea74674444c9094711b44e9309",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "8edf2120e8869877b528499a5512aa7c98d4fd1ff79bd867a7fd77d83edd441c"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2333-shard-timeline/output/pegasus-dispatch/66fc3a7de5dc691fe1461c36b9e4b8d5/izdw-66fc3a7de5.o982626",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2333-shard-timeline/output/pegasus-dispatch/66fc3a7de5dc691fe1461c36b9e4b8d5/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 38%]\n........................................................................ [ 76%]\n........................................F....                            [100%]\n=================================== FAILURES ===================================\n_____ test_runtest_protocol_access_none_reads_no_clock_and_records_nothing _____\n[gw29] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1493366c1ba0>\n\n    def test_runtest_protocol_access_none_reads_no_clock_and_records_nothing(\n        monkeypatch,\n    ):\n        suite_conftest = _suite_conftest_module()\n        from orchestrator.campaign import patchharness\n    \n        item = SimpleNamespace(\n            path=Path(__file__),\n            name=\"not_a_real_repo_node\",\n            originalname=\"not_a_real_repo_node\",\n            config=SimpleNamespace(_izanagi_acceptance_shard_spec=object()),\n        )\n    \n        @contextlib.contextmanager\n        def stamp(node_id, access):\n            assert access is None\n            yield\n    \n        calls = []\n        monkeypatch.setattr(patchharness, \"_pytest_node_context\", stamp)\n        monkeypatch.setattr(\n            suite_conftest.time, \"time\",\n            lambda: pytest.fail(\"access-none protocol read the acceptance clock\"),\n        )\n        monkeypatch.setattr(\n            SH, \"record_real_repo_lock_interval\",\n            lambda *args: calls.append(args),\n        )\n>       _finish_protocol(suite_conftest.pytest_runtest_protocol(item, None))\n\norchestrator/tests/test_run_tests_shards.py:1397: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_run_tests_shards.py:1228: in _finish_protocol\n    assert next(wrapper) is None\norchestrator/tests/conftest.py:2132: in pytest_runtest_protocol\n    with _acceptance_timed_real_repo_locks(config, access):\n/usr/lib/python3.10/contextlib.py:135: in __enter__\n    return next(self.gen)\norchestrator/tests/conftest.py:1387: in _acceptance_timed_real_repo_locks\n    acquired = _acceptance_epoch_now()\norchestrator/tests/conftest.py:1365: in _acceptance_epoch_now\n    value = time.time()\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\n>       lambda: pytest.fail(\"access-none protocol read the acceptance clock\"),\n    )\nE   Failed: access-none protocol read the acceptance clock\n\norchestrator/tests/test_run_tests_shards.py:1391: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_run_tests_shards.py::test_runtest_protocol_access_none_reads_no_clock_and_records_nothing\n1 failed, 188 passed in 13.49s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_run_tests_shards.py::test_runtest_protocol_access_none_reads_no_clock_and_records_nothing\" nodeid_bytes=113 nodeid_omitted_bytes=0 source_bytes=2100 retained_bytes=2100 omitted_bytes=0 rendered_excerpt_bytes=2207 sha256=7202bc9f2ac0ac09f86eef9d274ab5b77fe3eb7970ff8d1ef879d2b575e4bc7c\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw29] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1493366c1ba0>\n> \n>     def test_runtest_protocol_access_none_reads_no_clock_and_records_nothing(\n>         monkeypatch,\n>     ):\n>         suite_conftest = _suite_conftest_module()\n>         from orchestrator.campaign import patchharness\n>     \n>         item = SimpleNamespace(\n>             path=Path(__file__),\n>             name=\"not_a_real_repo_node\",\n>             originalname=\"not_a_real_repo_node\",\n>             config=SimpleNamespace(_izanagi_acceptance_shard_spec=object()),\n>         )\n>     \n>         @contextlib.contextmanager\n>         def stamp(node_id, access):\n>             assert access is None\n>             yield\n>     \n>         calls = []\n>         monkeypatch.setattr(patchharness, \"_pytest_node_context\", stamp)\n>         monkeypatch.setattr(\n>             suite_conftest.time, \"time\",\n>             lambda: pytest.fail(\"access-none protocol read the acceptance clock\"),\n>         )\n>         monkeypatch.setattr(\n>             SH, \"record_real_repo_lock_interval\",\n>             lambda *args: calls.append(args),\n>         )\n> >       _finish_protocol(suite_conftest.pytest_runtest_protocol(item, None))\n> \n> orchestrator/tests/test_run_tests_shards.py:1397: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_run_tests_shards.py:1228: in _finish_protocol\n>     assert next(wrapper) is None\n> orchestrator/tests/conftest.py:2132: in pytest_runtest_protocol\n>     with _acceptance_timed_real_repo_locks(config, access):\n> /usr/lib/python3.10/contextlib.py:135: in __enter__\n>     return next(self.gen)\n> orchestrator/tests/conftest.py:1387: in _acceptance_timed_real_repo_locks\n>     acquired = _acceptance_epoch_now()\n> orchestrator/tests/conftest.py:1365: in _acceptance_epoch_now\n>     value = time.time()\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> >       lambda: pytest.fail(\"access-none protocol read the acceptance clock\"),\n>     )\n> E   Failed: access-none protocol read the acceptance clock\n> \n> orchestrator/tests/test_run_tests_shards.py:1391: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2100 retained_bytes=2100 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2948 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "52a4c7d69d8c22e582f41ace1b5e5526177e2b28cb8a0701bcb4dea37fac7f36"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ae896ae2f45df3dc3193f564e8c99358ec0fa6090723fa9f61591485788861ea",
+      "duration_s": 39.081,
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_shards.py::test_runtest_protocol_access_none_reads_no_clock_and_records_nothing"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_run_tests_shards.py::test_runtest_protocol_access_none_reads_no_clock_and_records_nothing"
+      ],
+      "hang_risk": false,
+      "id": "M6",
+      "injection_diff_sha256": "d3ca707f3d0ea13be6b811d9a3af9a75dafa3c118d82cb1d31e3a0e56de54977",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "626d3b0b41ec66fe0e3ee0b39526984536242a60e7d0ef5959dd0594c1e0493a",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "new": "        config is None\n        or getattr(config, \"_izanagi_acceptance_shard_spec\", None) is None\n",
+          "old": "        config is None\n        or access is None\n        or getattr(config, \"_izanagi_acceptance_shard_spec\", None) is None\n"
+        }
+      ],
+      "repo_head": "30a5b6bd40a3560b10c238fbd1aea3673614337f",
+      "runner_sha256": "b1f06e480833fd88bf944df676b2ad107a1907eb8618660f5d94bc3fdb6ce99c",
+      "spec_sha256": "e2582685408d2dacb821a89a5d3f6dfa6572ec9f6233075134dc76239a5a5835",
+      "status": "KILLED",
+      "test_output_sha256": "52a4c7d69d8c22e582f41ace1b5e5526177e2b28cb8a0701bcb4dea37fac7f36",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "8edf2120e8869877b528499a5512aa7c98d4fd1ff79bd867a7fd77d83edd441c"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2333-shard-timeline/output/pegasus-dispatch/5839399aea65ac6fc2454f96516ef095/izdw-5839399aea.o982628",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2333-shard-timeline/output/pegasus-dispatch/5839399aea65ac6fc2454f96516ef095/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 38%]\n.................................................................F...... [ 76%]\n...............FFFFFFFFF.F.........F.FF......                            [100%]\n=================================== FAILURES ===================================\n____ test_parallel_merge_paths_do_not_emit_no_verdict_attestation[success] _____\n[gw7] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x147b4b44abf0>\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw7/test_parallel_merge_paths_do_n0')\ncapfd = <_pytest.capture.CaptureFixture object at 0x147b4b7811b0>\nvalid_reports = True, expected_rc = 0\n\n    @pytest.mark.parametrize(\n        \"valid_reports,expected_rc\",\n        [(True, 0), (False, SH.INFRA_RC)],\n        ids=(\"success\", \"gate-failure\"),\n    )\n    def test_parallel_merge_paths_do_not_emit_no_verdict_attestation(\n        monkeypatch, tmp_path, capfd, valid_reports, expected_rc,\n    ):\n        session = _prepare_parallel_session(monkeypatch, tmp_path)\n        if valid_reports:\n            _write_parallel_success_artifacts(session)\n        barrier = SH.multiprocessing.get_context(\"fork\").Barrier(2)\n    \n        def dispatch_call(_args, **_kwargs):\n            barrier.wait(timeout=5)\n            SH.os.write(2, _dispatch_outcome_line())\n            barrier.wait(timeout=5)\n            return SH.CompositeResult(0, child_started=True)\n    \n        result = SH.run_parallel(\n            repo=tmp_path / \"repo\",\n            shard_count=2,\n            dispatch_call=dispatch_call,\n            collect_login=lambda _session, _deadline: (\n                0, tuple(record.nodeid for record in _records()),\n            ),\n            deadline_at=time.monotonic() + 10.0,\n        )\n    \n>       assert int(result) == expected_rc\nE       assert 16 == 0\nE        +  where 16 = int(16)\n\norchestrator/tests/test_run_tests_shards.py:1869: AssertionError\n----------------------------- Captured stderr call -----------------------------\nIZANAGI_ACCEPTANCE_SHARD_ARTIFACTS_V1 {\"session_root\":\"/tmp/pytest-of-tanab/pytest-0/popen-gw7/test_parallel_merge_paths_do_n0/session\",\"shard_count\":2}\nacceptance shard gate failed: report-invalid\n______________ test_m5_login_universe_gate_has_independent_killer ______________\n[gw44] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_m5_login_universe_gate_has_independent_killer():\n        assert SH._login_universe_gate((\"a\", \"b\"), (\"b\", \"a\"))\n        assert not SH._login_universe_gate((\"a\",), (\"a\", \"b\"))\n        reports = _reports()\n        wrong_login = [record.nodeid for record in _records()[:-1]]\n>       assert _merge(reports, login=wrong_login).reason == \"login-universe-mismatch\"\nE       AssertionError: assert 'report-invalid' == 'login-universe-mismatch'\nE         \nE         - login-universe-mismatch\nE         + report-invalid\n\norchestrator/tests/test_run_tests_shards.py:831: AssertionError\n_ test_report_evidence_accepts_consistent_durations_and_rejects_item_mismatch __\n[gw42] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_report_evidence_accepts_consistent_durations_and_rejects_item_mismatch():\n        reports = _reports()\n        reports[0][\"worker_occupancy\"] = {\n            \"gw0\": {\"items\": len(reports[0][\"selected\"]), \"duration_s\": 0.000001}\n        }\n>       assert (_merge(reports).rc, _merge(reports).reason) == (0, \"ok\")\nE       AssertionError: assert (16, 'report-invalid') == (0, 'ok')\nE         \nE         At index 0 diff: 16 != 0\nE         Use -v to get more diff\n\norchestrator/tests/test_run_tests_shards.py:910: AssertionError\n_____________ test_merge_six_gate_positive_control_and_rc_mapping ______________\n[gw46] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_merge_six_gate_positive_control_and_rc_mapping():\n        reports = _reports()\n        green = _merge(reports)\n>       assert green.rc == 0\nE       AssertionError: assert 16 == 0\nE        +  where 16 = MergeResult(rc=16, reason='report-invalid', scheduler=None, universe=(), failures=(), terminal_counts=()).rc\n\norchestrator/tests/test_run_tests_shards.py:848: AssertionError\n__________ test_merge_rejects_whole_shard_omission_before_other_gates __________\n[gw47] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_merge_rejects_whole_shard_omission_before_other_gates():\n        result = SH.merge_reports(\n            expected_k=2,\n            reports=_reports()[:1],\n            process_results={0: 0},\n            login_universe=[record.nodeid for record in _records()],\n            expected_junit_paths=[\n                _SESSION_ROOT / f\"shard-{index}\" / \"junit.xml\"\n                for index in range(2)\n            ],\n        )\n>       assert (result.rc, result.reason) == (16, \"report-index-set\")\nE       AssertionError: assert (16, 'report-invalid') == (16, 'report-index-set')\nE         \nE         At index 1 diff: 'report-invalid' != 'report-index-set'\nE         Use -v to get more diff\n\norchestrator/tests/test_run_tests_shards.py:868: AssertionError\n_____________ test_merged_output_has_exactly_one_scheduler_marker ______________\n[gw23] linux -- Python 3.10.12 /bin/python3.10\n\ncapsys = <_pytest.capture.CaptureFixture object at 0x154c089b6950>\n\n    def test_merged_output_has_exactly_one_scheduler_marker(capsys):\n        SH._emit_merged(_merge(_reports()))\n        captured = capsys.readouterr()\n>       assert captured.err == \"\"\nE       AssertionError: assert 'acceptance s...ort-invalid\\n' == ''\nE         \nE         + acceptance shard gate failed: report-invalid\n\norchestrator/tests/test_run_tests_shards.py:1518: AssertionError\n______________ test_merge_rejects_selected_partition_substitution ______________\n[gw29] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_merge_rejects_selected_partition_substitution():\n        reports = _reports()\n        reports[0][\"selected\"][0] = \"orchestrator/tests/test_z.py::test_z\"\n        reports[0][\"finished\"] = list(reports[0][\"selected\"])\n>       assert _merge(reports).reason == \"selected-partition\"\nE       AssertionError: assert 'report-invalid' == 'selected-partition'\nE         \nE         - selected-partition\nE         + report-invalid\n\norchestrator/tests/test_run_tests_shards.py:875: AssertionError\n_________________ test_merge_rejects_group_split_at_gate_four __________________\n[gw45] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_merge_rejects_group_split_at_gate_four():\n        reports = _reports()\n        a1 = \"orchestrator/tests/test_a.py::test_a1\"\n        a2 = \"orchestrator/tests/test_a.py::test_a2\"\n        for report in reports:\n            report[\"selected\"] = [node for node in report[\"selected\"] if node not in {a1, a2}]\n        reports[0][\"selected\"].append(a1)\n        reports[1][\"selected\"].append(a2)\n        for report in reports:\n            report[\"finished\"] = list(report[\"selected\"])\n        _refresh_selected_evidence(reports)\n>       assert _merge(reports).reason == \"assignment-closure\"\nE       AssertionError: assert 'report-invalid' == 'assignment-closure'\nE         \nE         - assignment-closure\nE         + report-invalid\n\norchestrator/tests/test_run_tests_shards.py:889: AssertionError\n________ test_m6_merge_rejects_unknown_and_mixed_scheduler[schedulers1] ________\n[gw28] linux -- Python 3.10.12 /bin/python3.10\n\nschedulers = ('loadgroup', 'serial')\n\n    @pytest.mark.parametrize(\"schedulers\", [(\"unknown\", \"unknown\"), (\"loadgroup\", \"serial\")])\n    def test_m6_merge_rejects_unknown_and_mixed_scheduler(schedulers):\n        reports = _reports()\n        reports[0][\"effective_scheduler\"], reports[1][\"effective_scheduler\"] = schedulers\n>       assert _merge(reports).reason == \"scheduler\"\nE       AssertionError: assert 'report-invalid' == 'scheduler'\nE         \nE         - scheduler\nE         + report-invalid\n\norchestrator/tests/test_run_tests_shards.py:902: AssertionError\n________ test_m6_merge_rejects_unknown_and_mixed_scheduler[schedulers0] ________\n[gw38] linux -- Python 3.10.12 /bin/python3.10\n\nschedulers = ('unknown', 'unknown')\n\n    @pytest.mark.parametrize(\"schedulers\", [(\"unknown\", \"unknown\"), (\"loadgroup\", \"serial\")])\n    def test_m6_merge_rejects_unknown_and_mixed_scheduler(schedulers):\n        reports = _reports()\n        reports[0][\"effective_scheduler\"], reports[1][\"effective_scheduler\"] = schedulers\n>       assert _merge(reports).reason == \"scheduler\"\nE       AssertionError: assert 'report-invalid' == 'scheduler'\nE         \nE         - scheduler\nE         + report-invalid\n\norchestrator/tests/test_run_tests_shards.py:902: AssertionError\n____________ test_m1_observed_universe_gate_has_independent_killer _____________\n[gw40] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_m1_observed_universe_gate_has_independent_killer():\n        records = _records()\n        assert SH._observed_universes_gate((records, records))\n        assert not SH._observed_universes_gate((records, records[:-1]))\n        reports = _reports()\n        reports[1][\"observed_universe\"] = reports[1][\"observed_universe\"][:-1]\n        reports[1][\"worker_collection_digests\"] = [\n            SH._digest(reports[1][\"observed_universe\"])\n        ] * 2\n>       assert _merge(reports).reason == \"observed-universe-mismatch\"\nE       AssertionError: assert 'report-invalid' == 'observed-universe-mismatch'\nE         \nE         - observed-universe-mismatch\nE         + report-invalid\n\norchestrator/tests/test_run_tests_shards.py:796: AssertionError\n_________________ test_merge_rejects_unfinished_selected_node __________________\n[gw27] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_merge_rejects_unfinished_selected_node():\n        reports = _reports()\n        reports[0][\"finished\"] = reports[0][\"finished\"][:-1]\n>       assert _merge(reports).reason == \"finished-selected-mismatch\"\nE       AssertionError: assert 'report-invalid' == 'finished-selected-mismatch'\nE         \nE         - finished-selected-mismatch\nE         + report-invalid\n\norchestrator/tests/test_run_tests_shards.py:895: AssertionError\n__________ test_session_timeline_contents_do_not_change_merge_verdict __________\n[gw19] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_session_timeline_contents_do_not_change_merge_verdict():\n        malformed_observations = [\n            [],\n            {},\n            {\"collection_finished_epoch_s\": float(\"nan\"), \"workers\": \"invalid\"},\n            {\"workers\": {\"gw0\": {\"unexpected\": object()}}},\n        ]\n        for observation in malformed_observations:\n            reports = _reports()\n            reports[0][\"session_timeline\"] = observation\n>           assert (_merge(reports).rc, _merge(reports).reason) == (0, \"ok\")\nE           AssertionError: assert (16, 'report-invalid') == (0, 'ok')\nE             \nE             At index 0 diff: 16 != 0\nE             Use -v to get more diff\n\norchestrator/tests/test_run_tests_shards.py:970: AssertionError\n__________ test_session_timeline_is_required_and_valid_fixture_merges __________\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_session_timeline_is_required_and_valid_fixture_merges():\n        reports = _reports()\n>       assert (_merge(reports).rc, _merge(reports).reason) == (0, \"ok\")\nE       AssertionError: assert (16, 'report-invalid') == (0, 'ok')\nE         \nE         At index 0 diff: 16 != 0\nE         Use -v to get more diff\n\norchestrator/tests/test_run_tests_shards.py:955: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_run_tests_shards.py::test_parallel_merge_paths_do_not_emit_no_verdict_attestation[success]\nFAILED orchestrator/tests/test_run_tests_shards.py::test_m5_login_universe_gate_has_independent_killer\nFAILED orchestrator/tests/test_run_tests_shards.py::test_report_evidence_accepts_consistent_durations_and_rejects_item_mismatch\nFAILED orchestrator/tests/test_run_tests_shards.py::test_merge_six_gate_positive_control_and_rc_mapping\nFAILED orchestrator/tests/test_run_tests_shards.py::test_merge_rejects_whole_shard_omission_before_other_gates\nFAILED orchestrator/tests/test_run_tests_shards.py::test_merged_output_has_exactly_one_scheduler_marker\nFAILED orchestrator/tests/test_run_tests_shards.py::test_merge_rejects_selected_partition_substitution\nFAILED orchestrator/tests/test_run_tests_shards.py::test_merge_rejects_group_split_at_gate_four\nFAILED orchestrator/tests/test_run_tests_shards.py::test_m6_merge_rejects_unknown_and_mixed_scheduler[schedulers1]\nFAILED orchestrator/tests/test_run_tests_shards.py::test_m6_merge_rejects_unknown_and_mixed_scheduler[schedulers0]\nFAILED orchestrator/tests/test_run_tests_shards.py::test_m1_observed_universe_gate_has_independent_killer\nFAILED orchestrator/tests/test_run_tests_shards.py::test_merge_rejects_unfinished_selected_node\nFAILED orchestrator/tests/test_run_tests_shards.py::test_session_timeline_contents_do_not_change_merge_verdict\nFAILED orchestrator/tests/test_run_tests_shards.py::test_session_timeline_is_required_and_valid_fixture_merges\n14 failed, 175 passed in 9.97s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_run_tests_shards.py::test_parallel_merge_paths_do_not_emit_no_verdict_attestation[success]\" nodeid_bytes=114 nodeid_omitted_bytes=0 source_bytes=1578 retained_bytes=1578 omitted_bytes=0 rendered_excerpt_bytes=1661 sha256=05bcedf2e54f487c825b0191cda7852ad6f489008ffe1479bee80a78bfd702e6\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw7] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x147b4b44abf0>\n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw7/test_parallel_merge_paths_do_n0')\n> capfd = <_pytest.capture.CaptureFixture object at 0x147b4b7811b0>\n> valid_reports = True, expected_rc = 0\n> \n>     @pytest.mark.parametrize(\n>         \"valid_reports,expected_rc\",\n>         [(True, 0), (False, SH.INFRA_RC)],\n>         ids=(\"success\", \"gate-failure\"),\n>     )\n>     def test_parallel_merge_paths_do_not_emit_no_verdict_attestation(\n>         monkeypatch, tmp_path, capfd, valid_reports, expected_rc,\n>     ):\n>         session = _prepare_parallel_session(monkeypatch, tmp_path)\n>         if valid_reports:\n>             _write_parallel_success_artifacts(session)\n>         barrier = SH.multiprocessing.get_context(\"fork\").Barrier(2)\n>     \n>         def dispatch_call(_args, **_kwargs):\n>             barrier.wait(timeout=5)\n>             SH.os.write(2, _dispatch_outcome_line())\n>             barrier.wait(timeout=5)\n>             return SH.CompositeResult(0, child_started=True)\n>     \n>         result = SH.run_parallel(\n>             repo=tmp_path / \"repo\",\n>             shard_count=2,\n>             dispatch_call=dispatch_call,\n>             collect_login=lambda _session, _deadline: (\n>                 0, tuple(record.nodeid for record in _records()),\n>             ),\n>             deadline_at=time.monotonic() + 10.0,\n>         )\n>     \n> >       assert int(result) == expected_rc\n> E       assert 16 == 0\n> E        +  where 16 = int(16)\n> \n> orchestrator/tests/test_run_tests_shards.py:1869: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_run_tests_shards.py::test_merge_rejects_group_split_at_gate_four\" nodeid_bytes=88 nodeid_omitted_bytes=0 source_bytes=848 retained_bytes=848 omitted_bytes=0 rendered_excerpt_bytes=889 sha256=9c8e6f539532ecc396899a62b32204d468efdd36a019bfdb4ee5b0a6ecf5fd41\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw45] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_merge_rejects_group_split_at_gate_four():\n>         reports = _reports()\n>         a1 = \"orchestrator/tests/test_a.py::test_a1\"\n>         a2 = \"orchestrator/tests/test_a.py::test_a2\"\n>         for report in reports:\n>             report[\"selected\"] = [node for node in report[\"selected\"] if node not in {a1, a2}]\n>         reports[0][\"selected\"].append(a1)\n>         reports[1][\"selected\"].append(a2)\n>         for report in reports:\n>             report[\"finished\"] = list(report[\"selected\"])\n>         _refresh_selected_evidence(reports)\n> >       assert _merge(reports).reason == \"assignment-closure\"\n> E       AssertionError: assert 'report-invalid' == 'assignment-closure'\n> E         \n> E         - assignment-closure\n> E         + report-invalid\n> \n> orchestrator/tests/test_run_tests_shards.py:889: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_run_tests_shards.py::test_merge_rejects_whole_shard_omission_before_other_gates\" nodeid_bytes=103 nodeid_omitted_bytes=0 source_bytes=808 retained_bytes=808 omitted_bytes=0 rendered_excerpt_bytes=849 sha256=4402f03e13852a472d2d0d2c3fe20e52f71b0b9f6f22d4cb29245f873efb5654\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw47] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_merge_rejects_whole_shard_omission_before_other_gates():\n>         result = SH.merge_reports(\n>             expected_k=2,\n>             reports=_reports()[:1],\n>             process_results={0: 0},\n>             login_universe=[record.nodeid for record in _records()],\n>             expected_junit_paths=[\n>                 _SESSION_ROOT / f\"shard-{index}\" / \"junit.xml\"\n>                 for index in range(2)\n>             ],\n>         )\n> >       assert (result.rc, result.reason) == (16, \"report-index-set\")\n> E       AssertionError: assert (16, 'report-invalid') == (16, 'report-index-set')\n> E         \n> E         At index 1 diff: 'report-invalid' != 'report-index-set'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_run_tests_shards.py:868: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_run_tests_shards.py::test_m1_observed_universe_gate_has_independent_killer\" nodeid_bytes=98 nodeid_omitted_bytes=0 source_bytes=798 retained_bytes=798 omitted_bytes=0 rendered_excerpt_bytes=835 sha256=c3ab9487fafde52499d861accfdd652c189a0d8d82c5cb02fa028e9ccfa3a8f5\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw40] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_m1_observed_universe_gate_has_independent_killer():\n>         records = _records()\n>         assert SH._observed_universes_gate((records, records))\n>         assert not SH._observed_universes_gate((records, records[:-1]))\n>         reports = _reports()\n>         reports[1][\"observed_universe\"] = reports[1][\"observed_universe\"][:-1]\n>         reports[1][\"worker_collection_digests\"] = [\n>             SH._digest(reports[1][\"observed_universe\"])\n>         ] * 2\n> >       assert _merge(reports).reason == \"observed-universe-mismatch\"\n> E       AssertionError: assert 'report-invalid' == 'observed-universe-mismatch'\n> E         \n> E         - observed-universe-mismatch\n> E         + report-invalid\n> \n> orchestrator/tests/test_run_tests_shards.py:796: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_run_tests_shards.py::test_session_timeline_contents_do_not_change_merge_verdict\" nodeid_bytes=103 nodeid_omitted_bytes=0 source_bytes=781 retained_bytes=781 omitted_bytes=0 rendered_excerpt_bytes=820 sha256=09861feeafa3d15f8e34c9041e828c97bff1e04ada4bbc6392fdd3eede4dc413\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw19] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_session_timeline_contents_do_not_change_merge_verdict():\n>         malformed_observations = [\n>             [],\n>             {},\n>             {\"collection_finished_epoch_s\": float(\"nan\"), \"workers\": \"invalid\"},\n>             {\"workers\": {\"gw0\": {\"unexpected\": object()}}},\n>         ]\n>         for observation in malformed_observations:\n>             reports = _reports()\n>             reports[0][\"session_timeline\"] = observation\n> >           assert (_merge(reports).rc, _merge(reports).reason) == (0, \"ok\")\n> E           AssertionError: assert (16, 'report-invalid') == (0, 'ok')\n> E             \n> E             At index 0 diff: 16 != 0\n> E             Use -v to get more diff\n> \n> orchestrator/tests/test_run_tests_shards.py:970: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE rank=6 category=failed when=call nodeid=\"orchestrator/tests/test_run_tests_shards.py::test_m5_login_universe_gate_has_independent_killer\" nodeid_bytes=95 nodeid_omitted_bytes=0 source_bytes=634 retained_bytes=634 omitted_bytes=0 rendered_excerpt_bytes=663 sha256=55279d1e8e1823b28da7216106ce76ec6ecf9beb91aca01ad5e8c8997bb9849b\n--- IZANAGI FAILURE EXCERPT rank=6 BEGIN ---\n> [gw44] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_m5_login_universe_gate_has_independent_killer():\n>         assert SH._login_universe_gate((\"a\", \"b\"), (\"b\", \"a\"))\n>         assert not SH._login_universe_gate((\"a\",), (\"a\", \"b\"))\n>         reports = _reports()\n>         wrong_login = [record.nodeid for record in _records()[:-1]]\n> >       assert _merge(reports, login=wrong_login).reason == \"login-universe-mismatch\"\n> E       AssertionError: assert 'report-invalid' == 'login-universe-mismatch'\n> E         \n> E         - login-universe-mismatch\n> E         + report-invalid\n> \n> orchestrator/tests/test_run_tests_shards.py:831: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=6 END ---\nIZANAGI_FAILURE rank=7 category=failed when=call nodeid=\"orchestrator/tests/test_run_tests_shards.py::test_m6_merge_rejects_unknown_and_mixed_scheduler[schedulers1]\" nodeid_bytes=107 nodeid_omitted_bytes=0 source_bytes=610 retained_bytes=610 omitted_bytes=0 rendered_excerpt_bytes=641 sha256=68cffde6c4b95b159f70882b475803f11b961c47d37af92cff09d95676f0bec7\n--- IZANAGI FAILURE EXCERPT rank=7 BEGIN ---\n> [gw28] linux -- Python 3.10.12 /bin/python3.10\n> \n> schedulers = ('loadgroup', 'serial')\n> \n>     @pytest.mark.parametrize(\"schedulers\", [(\"unknown\", \"unknown\"), (\"loadgroup\", \"serial\")])\n>     def test_m6_merge_rejects_unknown_and_mixed_scheduler(schedulers):\n>         reports = _reports()\n>         reports[0][\"effective_scheduler\"], reports[1][\"effective_scheduler\"] = schedulers\n> >       assert _merge(reports).reason == \"scheduler\"\n> E       AssertionError: assert 'report-invalid' == 'scheduler'\n> E         \n> E         - scheduler\n> E         + report-invalid\n> \n> orchestrator/tests/test_run_tests_shards.py:902: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=7 END ---\nIZANAGI_FAILURE rank=8 category=failed when=call nodeid=\"orchestrator/tests/test_run_tests_shards.py::test_m6_merge_rejects_unknown_and_mixed_scheduler[schedulers0]\" nodeid_bytes=107 nodeid_omitted_bytes=0 source_bytes=609 retained_bytes=609 omitted_bytes=0 rendered_excerpt_bytes=640 sha256=9a6cb0e8ede097624a28401f9b30891fcab16e82dcc1e623254e86aa116229fa\n--- IZANAGI FAILURE EXCERPT rank=8 BEGIN ---\n> [gw38] linux -- Python 3.10.12 /bin/python3.10\n> \n> schedulers = ('unknown', 'unknown')\n> \n>     @pytest.mark.parametrize(\"schedulers\", [(\"unknown\", \"unknown\"), (\"loadgroup\", \"serial\")])\n>     def test_m6_merge_rejects_unknown_and_mixed_scheduler(schedulers):\n>         reports = _reports()\n>         reports[0][\"effective_scheduler\"], reports[1][\"effective_scheduler\"] = schedulers\n> >       assert _merge(reports).reason == \"scheduler\"\n> E       AssertionError: assert 'report-invalid' == 'scheduler'\n> E         \n> E         - scheduler\n> E         + report-invalid\n> \n> orchestrator/tests/test_run_tests_shards.py:902: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=8 END ---\nIZANAGI_FAILURE rank=9 category=failed when=call nodeid=\"orchestrator/tests/test_run_tests_shards.py::test_report_evidence_accepts_consistent_durations_and_rejects_item_mismatch\" nodeid_bytes=120 nodeid_omitted_bytes=0 source_bytes=583 retained_bytes=583 omitted_bytes=0 rendered_excerpt_bytes=612 sha256=de823471c6969c7d6d9648dd0f2d4b68bc12c6e1094f83a443ac78b773ea1ca3\n--- IZANAGI FAILURE EXCERPT rank=9 BEGIN ---\n> [gw42] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_report_evidence_accepts_consistent_durations_and_rejects_item_mismatch():\n>         reports = _reports()\n>         reports[0][\"worker_occupancy\"] = {\n>             \"gw0\": {\"items\": len(reports[0][\"selected\"]), \"duration_s\": 0.000001}\n>         }\n> >       assert (_merge(reports).rc, _merge(reports).reason) == (0, \"ok\")\n> E       AssertionError: assert (16, 'report-invalid') == (0, 'ok')\n> E         \n> E         At index 0 diff: 16 != 0\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_run_tests_shards.py:910: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=9 END ---\nIZANAGI_FAILURE rank=10 category=failed when=call nodeid=\"orchestrator/tests/test_run_tests_shards.py::test_merge_rejects_selected_partition_substitution\" nodeid_bytes=95 nodeid_omitted_bytes=0 source_bytes=543 retained_bytes=543 omitted_bytes=0 rendered_excerpt_bytes=570 sha256=5c104fc7994bc322b52bb6a101ffeca1b694b28a1fe0e60956b26467c9433236\n--- IZANAGI FAILURE EXCERPT rank=10 BEGIN ---\n> [gw29] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_merge_rejects_selected_partition_substitution():\n>         reports = _reports()\n>         reports[0][\"selected\"][0] = \"orchestrator/tests/test_z.py::test_z\"\n>         reports[0][\"finished\"] = list(reports[0][\"selected\"])\n> >       assert _merge(reports).reason == \"selected-partition\"\n> E       AssertionError: assert 'report-invalid' == 'selected-partition'\n> E         \n> E         - selected-partition\n> E         + report-invalid\n> \n> orchestrator/tests/test_run_tests_shards.py:875: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=10 END ---\nIZANAGI_FAILURE rank=11 category=failed when=call nodeid=\"orchestrator/tests/test_run_tests_shards.py::test_merged_output_has_exactly_one_scheduler_marker\" nodeid_bytes=96 nodeid_omitted_bytes=0 source_bytes=503 retained_bytes=503 omitted_bytes=0 rendered_excerpt_bytes=533 sha256=434be9dec4f1a617b7594774921ea6a00d797b66a880ad63ca64165ff382e93e\n--- IZANAGI FAILURE EXCERPT rank=11 BEGIN ---\n> [gw23] linux -- Python 3.10.12 /bin/python3.10\n> \n> capsys = <_pytest.capture.CaptureFixture object at 0x154c089b6950>\n> \n>     def test_merged_output_has_exactly_one_scheduler_marker(capsys):\n>         SH._emit_merged(_merge(_reports()))\n>         captured = capsys.readouterr()\n> >       assert captured.err == \"\"\n> E       AssertionError: assert 'acceptance s...ort-invalid\\x5cn' == ''\n> E         \n> E         + acceptance shard gate failed: report-invalid\n> \n> orchestrator/tests/test_run_tests_shards.py:1518: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=11 END ---\nIZANAGI_FAILURE rank=12 category=failed when=call nodeid=\"orchestrator/tests/test_run_tests_shards.py::test_merge_rejects_unfinished_selected_node\" nodeid_bytes=88 nodeid_omitted_bytes=0 source_bytes=484 retained_bytes=484 omitted_bytes=0 rendered_excerpt_bytes=509 sha256=3653a2694e507762ac7d1da347fa2d574fcb49dadcb205f55911fad2a7770460\n--- IZANAGI FAILURE EXCERPT rank=12 BEGIN ---\n> [gw27] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_merge_rejects_unfinished_selected_node():\n>         reports = _reports()\n>         reports[0][\"finished\"] = reports[0][\"finished\"][:-1]\n> >       assert _merge(reports).reason == \"finished-selected-mismatch\"\n> E       AssertionError: assert 'report-invalid' == 'finished-selected-mismatch'\n> E         \n> E         - finished-selected-mismatch\n> E         + report-invalid\n> \n> orchestrator/tests/test_run_tests_shards.py:895: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=12 END ---\nIZANAGI_FAILURE rank=13 category=failed when=call nodeid=\"orchestrator/tests/test_run_tests_shards.py::test_merge_six_gate_positive_control_and_rc_mapping\" nodeid_bytes=96 nodeid_omitted_bytes=0 source_bytes=436 retained_bytes=436 omitted_bytes=0 rendered_excerpt_bytes=457 sha256=b9737dd5fc8037dbec73d85b5ba39369900b04821063811e18adb078876db0c4\n--- IZANAGI FAILURE EXCERPT rank=13 BEGIN ---\n> [gw46] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_merge_six_gate_positive_control_and_rc_mapping():\n>         reports = _reports()\n>         green = _merge(reports)\n> >       assert green.rc == 0\n> E       AssertionError: assert 16 == 0\n> E        +  where 16 = MergeResult(rc=16, reason='report-invalid', scheduler=None, universe=(), failures=(), terminal_counts=()).rc\n> \n> orchestrator/tests/test_run_tests_shards.py:848: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=13 END ---\nIZANAGI_FAILURE rank=14 category=failed when=call nodeid=\"orchestrator/tests/test_run_tests_shards.py::test_session_timeline_is_required_and_valid_fixture_merges\" nodeid_bytes=103 nodeid_omitted_bytes=0 source_bytes=430 retained_bytes=430 omitted_bytes=0 rendered_excerpt_bytes=453 sha256=65db70b77c81ab27489bad04d0ddace32863bf2170e36c48fe13d7da1194dac2\n--- IZANAGI FAILURE EXCERPT rank=14 BEGIN ---\n> [gw8] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_session_timeline_is_required_and_valid_fixture_merges():\n>         reports = _reports()\n> >       assert (_merge(reports).rc, _merge(reports).reason) == (0, \"ok\")\n> E       AssertionError: assert (16, 'report-invalid') == (0, 'ok')\n> E         \n> E         At index 0 diff: 16 != 0\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_run_tests_shards.py:955: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=14 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=14 failed=14 errors=0 selected=14 omitted_failures=0 source_bytes=9645 retained_bytes=9645 omitted_bytes=0 budget_bytes=49152 rendered_bytes=16579 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "f28c85e9320bc0fe59de25c127a8d122038d1671b9cf90862bbc2908d51fdc9c"
+      },
+      "artifact_error": null,
+      "category": "both-layers",
+      "collection_sha256": "ae896ae2f45df3dc3193f564e8c99358ec0fa6090723fa9f61591485788861ea",
+      "duration_s": 38.595,
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_shards.py::test_m1_observed_universe_gate_has_independent_killer",
+        "orchestrator/tests/test_run_tests_shards.py::test_m5_login_universe_gate_has_independent_killer",
+        "orchestrator/tests/test_run_tests_shards.py::test_merge_six_gate_positive_control_and_rc_mapping",
+        "orchestrator/tests/test_run_tests_shards.py::test_merge_rejects_whole_shard_omission_before_other_gates",
+        "orchestrator/tests/test_run_tests_shards.py::test_merge_rejects_selected_partition_substitution",
+        "orchestrator/tests/test_run_tests_shards.py::test_merge_rejects_group_split_at_gate_four",
+        "orchestrator/tests/test_run_tests_shards.py::test_merge_rejects_unfinished_selected_node",
+        "orchestrator/tests/test_run_tests_shards.py::test_m6_merge_rejects_unknown_and_mixed_scheduler[schedulers0]",
+        "orchestrator/tests/test_run_tests_shards.py::test_m6_merge_rejects_unknown_and_mixed_scheduler[schedulers1]",
+        "orchestrator/tests/test_run_tests_shards.py::test_report_evidence_accepts_consistent_durations_and_rejects_item_mismatch",
+        "orchestrator/tests/test_run_tests_shards.py::test_session_timeline_is_required_and_valid_fixture_merges",
+        "orchestrator/tests/test_run_tests_shards.py::test_session_timeline_contents_do_not_change_merge_verdict",
+        "orchestrator/tests/test_run_tests_shards.py::test_merged_output_has_exactly_one_scheduler_marker",
+        "orchestrator/tests/test_run_tests_shards.py::test_parallel_merge_paths_do_not_emit_no_verdict_attestation[success]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_run_tests_shards.py::test_parallel_merge_paths_do_not_emit_no_verdict_attestation[success]",
+        "orchestrator/tests/test_run_tests_shards.py::test_m5_login_universe_gate_has_independent_killer",
+        "orchestrator/tests/test_run_tests_shards.py::test_report_evidence_accepts_consistent_durations_and_rejects_item_mismatch",
+        "orchestrator/tests/test_run_tests_shards.py::test_merge_six_gate_positive_control_and_rc_mapping",
+        "orchestrator/tests/test_run_tests_shards.py::test_merge_rejects_whole_shard_omission_before_other_gates",
+        "orchestrator/tests/test_run_tests_shards.py::test_merged_output_has_exactly_one_scheduler_marker",
+        "orchestrator/tests/test_run_tests_shards.py::test_merge_rejects_selected_partition_substitution",
+        "orchestrator/tests/test_run_tests_shards.py::test_merge_rejects_group_split_at_gate_four",
+        "orchestrator/tests/test_run_tests_shards.py::test_m6_merge_rejects_unknown_and_mixed_scheduler[schedulers1]",
+        "orchestrator/tests/test_run_tests_shards.py::test_m6_merge_rejects_unknown_and_mixed_scheduler[schedulers0]",
+        "orchestrator/tests/test_run_tests_shards.py::test_m1_observed_universe_gate_has_independent_killer",
+        "orchestrator/tests/test_run_tests_shards.py::test_merge_rejects_unfinished_selected_node",
+        "orchestrator/tests/test_run_tests_shards.py::test_session_timeline_contents_do_not_change_merge_verdict",
+        "orchestrator/tests/test_run_tests_shards.py::test_session_timeline_is_required_and_valid_fixture_merges"
+      ],
+      "hang_risk": false,
+      "id": "M7",
+      "injection_diff_sha256": "6efcdc63298996251d717bf28678d90c3ee47209e4189edd96f271346b4f3d7e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "3d4eae789e1fd4f2cff5b5d13b1e1cba5676a7d5813916626b36433fafd9dd53",
+      "replacements": [
+        {
+          "file": "tools/acceptance_shards.py",
+          "new": "    \"junit_path\", \"worker_collection_digests\",\n",
+          "old": "    \"junit_path\", \"worker_collection_digests\", \"session_timeline\",\n"
+        }
+      ],
+      "repo_head": "30a5b6bd40a3560b10c238fbd1aea3673614337f",
+      "runner_sha256": "b1f06e480833fd88bf944df676b2ad107a1907eb8618660f5d94bc3fdb6ce99c",
+      "spec_sha256": "e2582685408d2dacb821a89a5d3f6dfa6572ec9f6233075134dc76239a5a5835",
+      "status": "KILLED",
+      "test_output_sha256": "f28c85e9320bc0fe59de25c127a8d122038d1671b9cf90862bbc2908d51fdc9c",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "8edf2120e8869877b528499a5512aa7c98d4fd1ff79bd867a7fd77d83edd441c"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2333-shard-timeline/output/pegasus-dispatch/4706e8a2c856ff011f000411e4bb53f9/izdw-4706e8a2c8.o982631",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2333-shard-timeline/output/pegasus-dispatch/4706e8a2c856ff011f000411e4bb53f9/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 38%]\n........................................................................ [ 76%]\n......................................F......                            [100%]\n=================================== FAILURES ===================================\n_____ test_worker_payload_carries_observations_and_defaults_without_state ______\n[gw28] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_worker_payload_carries_observations_and_defaults_without_state():\n        missing = SH._worker_payload(SimpleNamespace())\n>       assert missing == {\n            \"error\": \"collection-state-missing\",\n            \"collection_finished_epoch_s\": None,\n            \"real_repo_lock_intervals\": [],\n        }\nE       AssertionError: assert {'error': 'co...poch_s': None} == {'error': 'co...ntervals': []}\nE         \nE         Omitting 2 identical items, use -vv to show\nE         Right contains 1 more item:\nE         {'real_repo_lock_intervals': []}\nE         Use -v to get more diff\n\norchestrator/tests/test_run_tests_shards.py:1043: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_run_tests_shards.py::test_worker_payload_carries_observations_and_defaults_without_state\n1 failed, 188 passed in 9.62s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_run_tests_shards.py::test_worker_payload_carries_observations_and_defaults_without_state\" nodeid_bytes=112 nodeid_omitted_bytes=0 source_bytes=704 retained_bytes=704 omitted_bytes=0 rendered_excerpt_bytes=739 sha256=bf4cf8665b154773504739be7f14f29c8e4e4314ed938b677f62deddd02c4388\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw28] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_worker_payload_carries_observations_and_defaults_without_state():\n>         missing = SH._worker_payload(SimpleNamespace())\n> >       assert missing == {\n>             \"error\": \"collection-state-missing\",\n>             \"collection_finished_epoch_s\": None,\n>             \"real_repo_lock_intervals\": [],\n>         }\n> E       AssertionError: assert {'error': 'co...poch_s': None} == {'error': 'co...ntervals': []}\n> E         \n> E         Omitting 2 identical items, use -vv to show\n> E         Right contains 1 more item:\n> E         {'real_repo_lock_intervals': []}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_run_tests_shards.py:1043: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=704 retained_bytes=704 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1474 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "4895728ee41a10e42072bd561fcddc0313e457f312d1bb052e657295552f2ca3"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "ae896ae2f45df3dc3193f564e8c99358ec0fa6090723fa9f61591485788861ea",
+      "duration_s": 43.517,
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_shards.py::test_worker_payload_carries_observations_and_defaults_without_state"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_run_tests_shards.py::test_worker_payload_carries_observations_and_defaults_without_state"
+      ],
+      "hang_risk": false,
+      "id": "M8",
+      "injection_diff_sha256": "95606b12051497cd4cd9beb09f666dfe5b8a0e23fb933fb97a5685978aa5855b",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "8a7ef2906409d33e463573556a881a0b73ee93cc22446727ac8e962eda6eab11",
+      "replacements": [
+        {
+          "file": "tools/acceptance_shards.py",
+          "new": "            \"collection_finished_epoch_s\": None,\n",
+          "old": "            \"collection_finished_epoch_s\": None,\n            \"real_repo_lock_intervals\": [],\n"
+        },
+        {
+          "file": "tools/acceptance_shards.py",
+          "new": "",
+          "old": "        \"real_repo_lock_intervals\": _observed_lock_intervals(\n            state.get(\"real_repo_lock_intervals\")\n        ),\n"
+        }
+      ],
+      "repo_head": "30a5b6bd40a3560b10c238fbd1aea3673614337f",
+      "runner_sha256": "b1f06e480833fd88bf944df676b2ad107a1907eb8618660f5d94bc3fdb6ce99c",
+      "spec_sha256": "e2582685408d2dacb821a89a5d3f6dfa6572ec9f6233075134dc76239a5a5835",
+      "status": "KILLED",
+      "test_output_sha256": "4895728ee41a10e42072bd561fcddc0313e457f312d1bb052e657295552f2ca3",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "8edf2120e8869877b528499a5512aa7c98d4fd1ff79bd867a7fd77d83edd441c"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2333-shard-timeline/output/pegasus-dispatch/7415a90ab744c763d88660cd41b8822b/izdw-7415a90ab7.o982635",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2333-shard-timeline/output/pegasus-dispatch/7415a90ab744c763d88660cd41b8822b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 38%]\n........................................................................ [ 76%]\n......................................F......                            [100%]\n=================================== FAILURES ===================================\n____ test_controller_state_xdist_uses_latest_collection_and_worker_lock_map ____\n[gw22] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x152de069ea70>\n\n    def test_controller_state_xdist_uses_latest_collection_and_worker_lock_map(\n        monkeypatch,\n    ):\n        common = {\"records_digest\": \"digest\", \"selected_digest\": \"selected\"}\n        payloads = {\n            \"gw0\": {\n                **common,\n                \"records\": [{\"nodeid\": \"node\"}],\n                \"selected\": [\"node\"],\n                \"collection_finished_epoch_s\": 300.0,\n                \"real_repo_lock_intervals\": [\n                    {\"acquired_epoch_s\": 301.0, \"released_epoch_s\": 302.0}\n                ],\n            },\n            \"gw1\": {\n                **common,\n                \"collection_finished_epoch_s\": 310.0,\n                \"real_repo_lock_intervals\": [],\n            },\n        }\n        monkeypatch.setattr(SH, \"_WORKER_PAYLOADS\", payloads)\n        records, selected, digests, collection_finished, locks = (\n            SH._controller_state(SimpleNamespace())\n        )\n        assert records == payloads[\"gw0\"][\"records\"]\n        assert selected == [\"node\"]\n        assert digests == [\"digest\", \"digest\"]\n>       assert collection_finished == 310.0\nE       assert 300.0 == 310.0\n\norchestrator/tests/test_run_tests_shards.py:1118: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_run_tests_shards.py::test_controller_state_xdist_uses_latest_collection_and_worker_lock_map\n1 failed, 188 passed in 9.09s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_run_tests_shards.py::test_controller_state_xdist_uses_latest_collection_and_worker_lock_map\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=1311 retained_bytes=1311 omitted_bytes=0 rendered_excerpt_bytes=1382 sha256=55a48014c219d1e48f8e731e4a5a4e0cb6f5234e3a1079476a28d7fa4ebc9dab\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw22] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x152de069ea70>\n> \n>     def test_controller_state_xdist_uses_latest_collection_and_worker_lock_map(\n>         monkeypatch,\n>     ):\n>         common = {\"records_digest\": \"digest\", \"selected_digest\": \"selected\"}\n>         payloads = {\n>             \"gw0\": {\n>                 **common,\n>                 \"records\": [{\"nodeid\": \"node\"}],\n>                 \"selected\": [\"node\"],\n>                 \"collection_finished_epoch_s\": 300.0,\n>                 \"real_repo_lock_intervals\": [\n>                     {\"acquired_epoch_s\": 301.0, \"released_epoch_s\": 302.0}\n>                 ],\n>             },\n>             \"gw1\": {\n>                 **common,\n>                 \"collection_finished_epoch_s\": 310.0,\n>                 \"real_repo_lock_intervals\": [],\n>             },\n>         }\n>         monkeypatch.setattr(SH, \"_WORKER_PAYLOADS\", payloads)\n>         records, selected, digests, collection_finished, locks = (\n>             SH._controller_state(SimpleNamespace())\n>         )\n>         assert records == payloads[\"gw0\"][\"records\"]\n>         assert selected == [\"node\"]\n>         assert digests == [\"digest\", \"digest\"]\n> >       assert collection_finished == 310.0\n> E       assert 300.0 == 310.0\n> \n> orchestrator/tests/test_run_tests_shards.py:1118: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1311 retained_bytes=1311 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2125 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "ee621733d966fefde5a7bb5e4abed20a0046de25a9d5787df1c461484e18bbb9"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "ae896ae2f45df3dc3193f564e8c99358ec0fa6090723fa9f61591485788861ea",
+      "duration_s": 33.855,
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_shards.py::test_controller_state_xdist_uses_latest_collection_and_worker_lock_map"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_run_tests_shards.py::test_controller_state_xdist_uses_latest_collection_and_worker_lock_map"
+      ],
+      "hang_risk": false,
+      "id": "M9",
+      "injection_diff_sha256": "de73ad6966fe942790ccf854ed1e67c32d048efbd3fbb4c719098c74f03d8a43",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "6df3c643d9be08a0fc6b34f85a0a282a321174f474f75149af5f31415ad637d8",
+      "replacements": [
+        {
+          "file": "tools/acceptance_shards.py",
+          "new": "        min(collection_observations, default=None), lock_intervals,\n",
+          "old": "        max(collection_observations, default=None), lock_intervals,\n"
+        }
+      ],
+      "repo_head": "30a5b6bd40a3560b10c238fbd1aea3673614337f",
+      "runner_sha256": "b1f06e480833fd88bf944df676b2ad107a1907eb8618660f5d94bc3fdb6ce99c",
+      "spec_sha256": "e2582685408d2dacb821a89a5d3f6dfa6572ec9f6233075134dc76239a5a5835",
+      "status": "KILLED",
+      "test_output_sha256": "ee621733d966fefde5a7bb5e4abed20a0046de25a9d5787df1c461484e18bbb9",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "8edf2120e8869877b528499a5512aa7c98d4fd1ff79bd867a7fd77d83edd441c"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2333-shard-timeline/output/pegasus-dispatch/89e2cd3b6a606b7d3b0f929f755ab83d/izdw-89e2cd3b6a.o982638",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2333-shard-timeline/output/pegasus-dispatch/89e2cd3b6a606b7d3b0f929f755ab83d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 38%]\n........................................................................ [ 76%]\n.....................................FF......                            [100%]\n=================================== FAILURES ===================================\n______________ test_sessionfinish_writes_serial_session_timeline _______________\n[gw25] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x148f72ef6d10>\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw25/test_sessionfinish_writes_seri0')\n\n    def test_sessionfinish_writes_serial_session_timeline(monkeypatch, tmp_path):\n        records = _records()\n        selected = list(SH.allocate(records, 2).selected[0])\n        raw_records = _payload(records)\n        spec = SH.InternalSpec(tmp_path, 2, 0)\n        state = {\n            \"records\": raw_records,\n            \"records_digest\": SH._digest(raw_records),\n            \"selected\": selected,\n            \"selected_digest\": SH._digest(selected),\n            \"collection_finished_epoch_s\": 800.0,\n            \"real_repo_lock_intervals\": [\n                {\"acquired_epoch_s\": 810.0, \"released_epoch_s\": 820.0}\n            ],\n        }\n        terminal = SimpleNamespace(stats={\"passed\": [object()] * len(selected)})\n    \n        def get_plugin(name):\n            return terminal if name == \"terminalreporter\" else None\n    \n        config = SimpleNamespace(\n            _izanagi_acceptance_shard_spec=spec,\n            _izanagi_acceptance_shard_state=state,\n            pluginmanager=SimpleNamespace(get_plugin=get_plugin),\n        )\n        setattr(config, SH._SCHEDULER_ATTR, \"serial\")\n        monkeypatch.setattr(SH, \"_FINISHED_RAW\", list(selected))\n        monkeypatch.setattr(SH, \"_REPORT_WORKERS\", {\n            nodeid: \"serial\" for nodeid in selected\n        })\n        monkeypatch.setattr(SH, \"_REPORT_DURATIONS\", SH.Counter({\n            nodeid: 1.0 for nodeid in selected\n        }))\n        monkeypatch.setattr(SH, \"_FAILURES\", set())\n        monkeypatch.setattr(SH, \"_WORKER_TEST_BOUNDS\", {\n            \"serial\": {\n                \"first_test_started_epoch_s\": 801.0,\n                \"last_test_finished_epoch_s\": 899.0,\n            }\n        })\n        written = []\n        monkeypatch.setattr(\n            SH, \"_write_bytes_create_only\",\n            lambda path, payload: written.append((path, payload)),\n        )\n        session = SimpleNamespace(config=config, exitstatus=0)\n        SH.pytest_sessionfinish(session, 0)\n>       assert session.exitstatus == 0\nE       AssertionError: assert 16 == 0\nE        +  where 16 = namespace(config=namespace(_izanagi_acceptance_shard_spec=InternalSpec(session_root=PosixPath('/tmp/pytest-of-tanab/py...serial_session_timeline.<locals>.get_plugin at 0x148f736057e0>), _izanagi_effective_scheduler='serial'), exitstatus=16).exitstatus\n\norchestrator/tests/test_run_tests_shards.py:1488: AssertionError\n----------------------------- Captured stderr call -----------------------------\nacceptance shard report finalization failed: ShardError\n___________ test_controller_state_serial_uses_config_local_timeline ____________\n[gw33] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x155101fc6d40>\n\n    def test_controller_state_serial_uses_config_local_timeline(monkeypatch):\n        state = {\n            \"records\": [{\"nodeid\": \"node\"}],\n            \"selected\": [\"node\"],\n            \"records_digest\": \"digest\",\n            \"collection_finished_epoch_s\": 200.0,\n            \"real_repo_lock_intervals\": [\n                {\"acquired_epoch_s\": 201.0, \"released_epoch_s\": 202.0}\n            ],\n        }\n        monkeypatch.setattr(SH, \"_WORKER_PAYLOADS\", {\"gw0\": {\"unexpected\": True}})\n>       result = SH._controller_state(SimpleNamespace(\n            _izanagi_acceptance_shard_state=state,\n        ))\n\norchestrator/tests/test_run_tests_shards.py:1082: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nconfig = namespace(_izanagi_acceptance_shard_state={'records': [{'nodeid': 'node'}], 'selected': ['node'], 'records_digest': 'd...ection_finished_epoch_s': 200.0, 'real_repo_lock_intervals': [{'acquired_epoch_s': 201.0, 'released_epoch_s': 202.0}]})\n\n    def _controller_state(\n        config: Any,\n    ) -> tuple[\n        list[dict[str, Any]], list[str], list[str], Optional[float],\n        dict[str, list[dict[str, float]]],\n    ]:\n        state = getattr(config, \"_izanagi_acceptance_shard_state\", None)\n        del state\n        if not _WORKER_PAYLOADS:\n            raise ShardError(\"worker-payloads-missing\")\n        digests = [\n            payload.get(\"records_digest\") for payload in _WORKER_PAYLOADS.values()\n        ]\n        selected_digests = [\n            payload.get(\"selected_digest\") for payload in _WORKER_PAYLOADS.values()\n        ]\n        if (\n            any(type(value) is not str for value in digests + selected_digests)\n            or len(set(digests)) != 1\n            or len(set(selected_digests)) != 1\n        ):\n>           raise ShardError(\"worker-collection-mismatch\")\nE           tools.acceptance_shards.ShardError: worker-collection-mismatch\n\ntools/acceptance_shards.py:1040: ShardError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_run_tests_shards.py::test_sessionfinish_writes_serial_session_timeline\nFAILED orchestrator/tests/test_run_tests_shards.py::test_controller_state_serial_uses_config_local_timeline\n2 failed, 187 passed in 11.07s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_run_tests_shards.py::test_sessionfinish_writes_serial_session_timeline\" nodeid_bytes=94 nodeid_omitted_bytes=0 source_bytes=2581 retained_bytes=2581 omitted_bytes=0 rendered_excerpt_bytes=2696 sha256=e3c3fc4580dcd47f4b8fbb06496111b42190beb267b8cb9dda309d2e2981cc75\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw25] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x148f72ef6d10>\n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw25/test_sessionfinish_writes_seri0')\n> \n>     def test_sessionfinish_writes_serial_session_timeline(monkeypatch, tmp_path):\n>         records = _records()\n>         selected = list(SH.allocate(records, 2).selected[0])\n>         raw_records = _payload(records)\n>         spec = SH.InternalSpec(tmp_path, 2, 0)\n>         state = {\n>             \"records\": raw_records,\n>             \"records_digest\": SH._digest(raw_records),\n>             \"selected\": selected,\n>             \"selected_digest\": SH._digest(selected),\n>             \"collection_finished_epoch_s\": 800.0,\n>             \"real_repo_lock_intervals\": [\n>                 {\"acquired_epoch_s\": 810.0, \"released_epoch_s\": 820.0}\n>             ],\n>         }\n>         terminal = SimpleNamespace(stats={\"passed\": [object()] * len(selected)})\n>     \n>         def get_plugin(name):\n>             return terminal if name == \"terminalreporter\" else None\n>     \n>         config = SimpleNamespace(\n>             _izanagi_acceptance_shard_spec=spec,\n>             _izanagi_acceptance_shard_state=state,\n>             pluginmanager=SimpleNamespace(get_plugin=get_plugin),\n>         )\n>         setattr(config, SH._SCHEDULER_ATTR, \"serial\")\n>         monkeypatch.setattr(SH, \"_FINISHED_RAW\", list(selected))\n>         monkeypatch.setattr(SH, \"_REPORT_WORKERS\", {\n>             nodeid: \"serial\" for nodeid in selected\n>         })\n>         monkeypatch.setattr(SH, \"_REPORT_DURATIONS\", SH.Counter({\n>             nodeid: 1.0 for nodeid in selected\n>         }))\n>         monkeypatch.setattr(SH, \"_FAILURES\", set())\n>         monkeypatch.setattr(SH, \"_WORKER_TEST_BOUNDS\", {\n>             \"serial\": {\n>                 \"first_test_started_epoch_s\": 801.0,\n>                 \"last_test_finished_epoch_s\": 899.0,\n>             }\n>         })\n>         written = []\n>         monkeypatch.setattr(\n>             SH, \"_write_bytes_create_only\",\n>             lambda path, payload: written.append((path, payload)),\n>         )\n>         session = SimpleNamespace(config=config, exitstatus=0)\n>         SH.pytest_sessionfinish(session, 0)\n> >       assert session.exitstatus == 0\n> E       AssertionError: assert 16 == 0\n> E        +  where 16 = namespace(config=namespace(_izanagi_acceptance_shard_spec=InternalSpec(session_root=PosixPath('/tmp/pytest-of-tanab/py...serial_session_timeline.<locals>.get_plugin at 0x148f736057e0>), _izanagi_effective_scheduler='serial'), exitstatus=16).exitstatus\n> \n> orchestrator/tests/test_run_tests_shards.py:1488: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_run_tests_shards.py::test_controller_state_serial_uses_config_local_timeline\" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=2076 retained_bytes=2076 omitted_bytes=0 rendered_excerpt_bytes=2175 sha256=dd8c14b89c3b3d1144547f5d1b2be804e2666356fd518bdb264392c52767823d\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw33] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x155101fc6d40>\n> \n>     def test_controller_state_serial_uses_config_local_timeline(monkeypatch):\n>         state = {\n>             \"records\": [{\"nodeid\": \"node\"}],\n>             \"selected\": [\"node\"],\n>             \"records_digest\": \"digest\",\n>             \"collection_finished_epoch_s\": 200.0,\n>             \"real_repo_lock_intervals\": [\n>                 {\"acquired_epoch_s\": 201.0, \"released_epoch_s\": 202.0}\n>             ],\n>         }\n>         monkeypatch.setattr(SH, \"_WORKER_PAYLOADS\", {\"gw0\": {\"unexpected\": True}})\n> >       result = SH._controller_state(SimpleNamespace(\n>             _izanagi_acceptance_shard_state=state,\n>         ))\n> \n> orchestrator/tests/test_run_tests_shards.py:1082: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> config = namespace(_izanagi_acceptance_shard_state={'records': [{'nodeid': 'node'}], 'selected': ['node'], 'records_digest': 'd...ection_finished_epoch_s': 200.0, 'real_repo_lock_intervals': [{'acquired_epoch_s': 201.0, 'released_epoch_s': 202.0}]})\n> \n>     def _controller_state(\n>         config: Any,\n>     ) -> tuple[\n>         list[dict[str, Any]], list[str], list[str], Optional[float],\n>         dict[str, list[dict[str, float]]],\n>     ]:\n>         state = getattr(config, \"_izanagi_acceptance_shard_state\", None)\n>         del state\n>         if not _WORKER_PAYLOADS:\n>             raise ShardError(\"worker-payloads-missing\")\n>         digests = [\n>             payload.get(\"records_digest\") for payload in _WORKER_PAYLOADS.values()\n>         ]\n>         selected_digests = [\n>             payload.get(\"selected_digest\") for payload in _WORKER_PAYLOADS.values()\n>         ]\n>         if (\n>             any(type(value) is not str for value in digests + selected_digests)\n>             or len(set(digests)) != 1\n>             or len(set(selected_digests)) != 1\n>         ):\n> >           raise ShardError(\"worker-collection-mismatch\")\n> E           tools.acceptance_shards.ShardError: worker-collection-mismatch\n> \n> tools/acceptance_shards.py:1040: ShardError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=4657 retained_bytes=4657 omitted_bytes=0 budget_bytes=49152 rendered_bytes=6033 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "7a4b15ffbea73b4a3bf41768b647482c88b27c8ad0f1deb1a0cd4f36b22db228"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "ae896ae2f45df3dc3193f564e8c99358ec0fa6090723fa9f61591485788861ea",
+      "duration_s": 33.437,
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_shards.py::test_controller_state_serial_uses_config_local_timeline",
+        "orchestrator/tests/test_run_tests_shards.py::test_sessionfinish_writes_serial_session_timeline"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_run_tests_shards.py::test_sessionfinish_writes_serial_session_timeline",
+        "orchestrator/tests/test_run_tests_shards.py::test_controller_state_serial_uses_config_local_timeline"
+      ],
+      "hang_risk": false,
+      "id": "M10",
+      "injection_diff_sha256": "89b1b9d037db8ffa7e68cd03c357635c85156fe9500dae7e96a396d8b4860189",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e130a4a8d2de68fb31fbf7a89f3f75fb51577da69fb025fc3fbbb661701f1ae0",
+      "replacements": [
+        {
+          "file": "tools/acceptance_shards.py",
+          "new": "    state = getattr(config, \"_izanagi_acceptance_shard_state\", None)\n    del state\n    if not _WORKER_PAYLOADS:\n",
+          "old": "    state = getattr(config, \"_izanagi_acceptance_shard_state\", None)\n    if type(state) is dict:\n        return (\n            state[\"records\"], state[\"selected\"], [state[\"records_digest\"]],\n            _observed_epoch(state.get(\"collection_finished_epoch_s\")),\n            {\n                \"serial\": _observed_lock_intervals(\n                    state.get(\"real_repo_lock_intervals\")\n                )\n            },\n        )\n    if not _WORKER_PAYLOADS:\n"
+        }
+      ],
+      "repo_head": "30a5b6bd40a3560b10c238fbd1aea3673614337f",
+      "runner_sha256": "b1f06e480833fd88bf944df676b2ad107a1907eb8618660f5d94bc3fdb6ce99c",
+      "spec_sha256": "e2582685408d2dacb821a89a5d3f6dfa6572ec9f6233075134dc76239a5a5835",
+      "status": "KILLED",
+      "test_output_sha256": "7a4b15ffbea73b4a3bf41768b647482c88b27c8ad0f1deb1a0cd4f36b22db228",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "8edf2120e8869877b528499a5512aa7c98d4fd1ff79bd867a7fd77d83edd441c"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2333-shard-timeline/output/pegasus-dispatch/f034277418260b1ea4e3d9a13b3cb402/izdw-f034277418.o982642",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2333-shard-timeline/output/pegasus-dispatch/f034277418260b1ea4e3d9a13b3cb402/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 38%]\n........................................................................ [ 76%]\n......................................F......                            [100%]\n=================================== FAILURES ===================================\n__________ test_session_timeline_contents_do_not_change_merge_verdict __________\n[gw16] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_session_timeline_contents_do_not_change_merge_verdict():\n        malformed_observations = [\n            [],\n            {},\n            {\"collection_finished_epoch_s\": float(\"nan\"), \"workers\": \"invalid\"},\n            {\"workers\": {\"gw0\": {\"unexpected\": object()}}},\n        ]\n        for observation in malformed_observations:\n            reports = _reports()\n            reports[0][\"session_timeline\"] = observation\n>           assert (_merge(reports).rc, _merge(reports).reason) == (0, \"ok\")\nE           AssertionError: assert (16, 'report-invalid') == (0, 'ok')\nE             \nE             At index 0 diff: 16 != 0\nE             Use -v to get more diff\n\norchestrator/tests/test_run_tests_shards.py:970: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_run_tests_shards.py::test_session_timeline_contents_do_not_change_merge_verdict\n1 failed, 188 passed in 11.09s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_run_tests_shards.py::test_session_timeline_contents_do_not_change_merge_verdict\" nodeid_bytes=103 nodeid_omitted_bytes=0 source_bytes=781 retained_bytes=781 omitted_bytes=0 rendered_excerpt_bytes=820 sha256=e63fc0df78e939b7267bfeddcd62f8b55314efd8f3725fda8e0ea34c465c26e3\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw16] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_session_timeline_contents_do_not_change_merge_verdict():\n>         malformed_observations = [\n>             [],\n>             {},\n>             {\"collection_finished_epoch_s\": float(\"nan\"), \"workers\": \"invalid\"},\n>             {\"workers\": {\"gw0\": {\"unexpected\": object()}}},\n>         ]\n>         for observation in malformed_observations:\n>             reports = _reports()\n>             reports[0][\"session_timeline\"] = observation\n> >           assert (_merge(reports).rc, _merge(reports).reason) == (0, \"ok\")\n> E           AssertionError: assert (16, 'report-invalid') == (0, 'ok')\n> E             \n> E             At index 0 diff: 16 != 0\n> E             Use -v to get more diff\n> \n> orchestrator/tests/test_run_tests_shards.py:970: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=781 retained_bytes=781 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1546 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "eca962fbbfe1a0d825e07e0195470622c5243de6119204d735bac70e062623aa"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "ae896ae2f45df3dc3193f564e8c99358ec0fa6090723fa9f61591485788861ea",
+      "duration_s": 43.586,
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_shards.py::test_session_timeline_contents_do_not_change_merge_verdict"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_run_tests_shards.py::test_session_timeline_contents_do_not_change_merge_verdict"
+      ],
+      "hang_risk": false,
+      "id": "M11",
+      "injection_diff_sha256": "d5f9c05a8bca56d6fa4d4cd3fad8eade9857d9f9831c028c5e36f673dfc300aa",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "2d8f57d4831fba98776a6d240f13775ebfc19cd940a2538d2391bffb5c739c6e",
+      "replacements": [
+        {
+          "file": "tools/acceptance_shards.py",
+          "new": "    \"\"\"診断 payload を producer から独立に再計算して検証する。\"\"\"\n\n    if not report[\"session_timeline\"]:\n        raise ShardError(\"report-evidence-session-timeline\")\n    if not records or not selected:\n",
+          "old": "    \"\"\"診断 payload を producer から独立に再計算して検証する。\"\"\"\n\n    if not records or not selected:\n"
+        }
+      ],
+      "repo_head": "30a5b6bd40a3560b10c238fbd1aea3673614337f",
+      "runner_sha256": "b1f06e480833fd88bf944df676b2ad107a1907eb8618660f5d94bc3fdb6ce99c",
+      "spec_sha256": "e2582685408d2dacb821a89a5d3f6dfa6572ec9f6233075134dc76239a5a5835",
+      "status": "KILLED",
+      "test_output_sha256": "eca962fbbfe1a0d825e07e0195470622c5243de6119204d735bac70e062623aa",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "8edf2120e8869877b528499a5512aa7c98d4fd1ff79bd867a7fd77d83edd441c"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2333-shard-timeline/output/pegasus-dispatch/7c46dc87de030b8885600ec95a93547c/izdw-7c46dc87de.o982608",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2333-shard-timeline/output/pegasus-dispatch/7c46dc87de030b8885600ec95a93547c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_run_tests_shards.py::test_acceptance_shards_imports_in_isolated_mode_without_user_site\norchestrator/tests/test_run_tests_shards.py::test_acceptance_shard_hooks_keep_pytest_hookimpl_attributes[pytest_collection_modifyitems-trylast]\norchestrator/tests/test_run_tests_shards.py::test_acceptance_shard_hooks_keep_pytest_hookimpl_attributes[pytest_collection_finish-trylast]\norchestrator/tests/test_run_tests_shards.py::test_acceptance_shard_hooks_keep_pytest_hookimpl_attributes[pytest_testnodedown-optionalhook]\norchestrator/tests/test_run_tests_shards.py::test_acceptance_shard_hooks_keep_pytest_hookimpl_attributes[pytest_sessionfinish-trylast]\norchestrator/tests/test_run_tests_shards.py::test_runner_exclusion_helper_forwards_colliding_keyword_names\norchestrator/tests/test_run_tests_shards.py::test_acceptance_shard_request_closed_positive_values[None-None]\norchestrator/tests/test_run_tests_shards.py::test_acceptance_shard_request_closed_positive_values[-None]\norchestrator/tests/test_run_tests_shards.py::test_acceptance_shard_request_closed_positive_values[1-1]\norchestrator/tests/test_run_tests_shards.py::test_acceptance_shard_request_closed_positive_values[2-2]\norchestrator/tests/test_run_tests_shards.py::test_acceptance_shard_request_closed_positive_values[3-3]\norchestrator/tests/test_run_tests_shards.py::test_waiter_three_shard_cross_contract_is_eligible\norchestrator/tests/test_run_tests_shards.py::test_acceptance_shard_request_invalid_values_are_rc16_inputs[0]\norchestrator/tests/test_run_tests_shards.py::test_acceptance_shard_request_invalid_values_are_rc16_inputs[4]\norchestrator/tests/test_run_tests_shards.py::test_acceptance_shard_request_invalid_values_are_rc16_inputs[ 1]\norchestrator/tests/test_run_tests_shards.py::test_acceptance_shard_request_invalid_values_are_rc16_inputs[1 ]\norchestrator/tests/test_run_tests_shards.py::test_acceptance_shard_request_invalid_values_are_rc16_inputs[02]\norchestrator/tests/test_run_tests_shards.py::test_acceptance_shard_request_invalid_values_are_rc16_inputs[serial]\norchestrator/tests/test_run_tests_shards.py::test_default_eligible_login_acceptance_resolves_to_k2\norchestrator/tests/test_run_tests_shards.py::test_default_ineligible_dimensions_resolve_silently_to_k1[nonacceptance]\norchestrator/tests/test_run_tests_shards.py::test_default_ineligible_dimensions_resolve_silently_to_k1[nonlogin]\norchestrator/tests/test_run_tests_shards.py::test_default_ineligible_dimensions_resolve_silently_to_k1[bounded-scope]\norchestrator/tests/test_run_tests_shards.py::test_default_ineligible_dimensions_resolve_silently_to_k1[positional]\norchestrator/tests/test_run_tests_shards.py::test_default_ineligible_dimensions_resolve_silently_to_k1[internal-spec]\norchestrator/tests/test_run_tests_shards.py::test_default_ineligible_dimensions_resolve_silently_to_k1[non-force-argv]\norchestrator/tests/test_run_tests_shards.py::test_default_nonempty_pytest_addopts_resolves_silently_to_k1\norchestrator/tests/test_run_tests_shards.py::test_explicit_one_opts_out_even_when_default_would_be_eligible\norchestrator/tests/test_run_tests_shards.py::test_explicit_multi_shard_requests_fail_closed_when_ineligible[nonacceptance-2]\norchestrator/tests/test_run_tests_shards.py::test_explicit_multi_shard_requests_fail_closed_when_ineligible[nonacceptance-3]\norchestrator/tests/test_run_tests_shards.py::test_explicit_multi_shard_requests_fail_closed_when_ineligible[nonlogin-2]\norchestrator/tests/test_run_tests_shards.py::test_explicit_multi_shard_requests_fail_closed_when_ineligible[nonlogin-3]\norchestrator/tests/test_run_tests_shards.py::test_explicit_multi_shard_requests_fail_closed_when_ineligible[bounded-scope-2]\norchestrator/tests/test_run_tests_shards.py::test_explicit_multi_shard_requests_fail_closed_when_ineligible[bounded-scope-3]\norchestrator/tests/test_run_tests_shards.py::test_explicit_multi_shard_requests_fail_closed_when_ineligible[positional-2]\norchestrator/tests/test_run_tests_shards.py::test_explicit_multi_shard_requests_fail_closed_when_ineligible[positional-3]\norchestrator/tests/test_run_tests_shards.py::test_explicit_multi_shard_requests_fail_closed_when_ineligible[internal-spec-2]\norchestrator/tests/test_run_tests_shards.py::test_explicit_multi_shard_requests_fail_closed_when_ineligible[internal-spec-3]\norchestrator/tests/test_run_tests_shards.py::test_explicit_multi_shard_requests_fail_closed_when_ineligible[non-force-argv-2]\norchestrator/tests/test_run_tests_shards.py::test_explicit_multi_shard_requests_fail_closed_when_ineligible[non-force-argv-3]\norchestrator/tests/test_run_tests_shards.py::test_resolver_rejects_values_outside_integer_closed_set[0]\norchestrator/tests/test_run_tests_shards.py::test_resolver_rejects_values_outside_integer_closed_set[4]\norchestrator/tests/test_run_tests_shards.py::test_resolver_rejects_values_outside_integer_closed_set[True]\norchestrator/tests/test_run_tests_shards.py::test_resolver_rejects_values_outside_integer_closed_set[2.0]\norchestrator/tests/test_run_tests_shards.py::test_resolver_rejects_values_outside_integer_closed_set[2]\norchestrator/tests/test_run_tests_shards.py::test_resolver_uses_exact_bounded_membership_predicate\norchestrator/tests/test_run_tests_shards.py::test_invalid_activation_returns_rc16_before_execution\norchestrator/tests/test_run_tests_shards.py::test_internal_spec_is_consumed_without_becoming_pytest_target\norchestrator/tests/test_run_tests_shards.py::test_internal_shard_command_keeps_default_suite_root[False]\norchestrator/tests/test_run_tests_shards.py::test_internal_shard_command_keeps_default_suite_root[True]\norchestrator/tests/test_run_tests_shards.py::test_explicit_shards_reject_nonlogin_without_fallback[2]\norchestrator/tests/test_run_tests_shards.py::test_explicit_shards_reject_nonlogin_without_fallback[3]\norchestrator/tests/test_run_tests_shards.py::test_valid_login_activation_enters_composite_with_empty_outer_argv\norchestrator/tests/test_run_tests_shards.py::test_default_login_acceptance_dispatches_as_k2_after_admission\norchestrator/tests/test_run_tests_shards.py::test_nonempty_pytest_addopts_dispatches_as_k1_after_admission\norchestrator/tests/test_run_tests_shards.py::test_default_force_dispatch_enters_k2_without_admission\norchestrator/tests/test_run_tests_shards.py::test_default_login_acceptance_with_headroom_stays_local_k1\norchestrator/tests/test_run_tests_shards.py::test_default_login_acceptance_avoids_dispatch_when_queue_unavailable\norchestrator/tests/test_run_tests_shards.py::test_default_bounded_scope_child_does_not_reenter_sharding\norchestrator/tests/test_run_tests_shards.py::test_default_cap_oom_fallback_preserves_k2_and_exclusions\norchestrator/tests/test_run_tests_shards.py::test_default_shard_gate_failure_never_retries_as_k1\norchestrator/tests/test_run_tests_shards.py::test_shard_outer_args_accept_only_empty_or_force_dispatch[raw_args0-False-True]\norchestrator/tests/test_run_tests_shards.py::test_shard_outer_args_accept_only_empty_or_force_dispatch[raw_args1-True-True]\norchestrator/tests/test_run_tests_shards.py::test_shard_outer_args_accept_only_empty_or_force_dispatch[raw_args2-False-False]\norchestrator/tests/test_run_tests_shards.py::test_shard_outer_args_accept_only_empty_or_force_dispatch[raw_args3-True-False]\norchestrator/tests/test_run_tests_shards.py::test_shard_outer_args_accept_only_empty_or_force_dispatch[raw_args4-True-False]\norchestrator/tests/test_run_tests_shards.py::test_force_dispatch_enters_shard_composite_with_empty_internal_argv\norchestrator/tests/test_run_tests_shards.py::test_login_collection_uses_remaining_absolute_deadline\norchestrator/tests/test_run_tests_shards.py::test_parallel_parent_uses_one_absolute_deadline_contract\norchestrator/tests/test_run_tests_shards.py::test_allocator_joins_file_group_bipartite_component\norchestrator/tests/test_run_tests_shards.py::test_allocator_separates_groups_when_k_covers_group_count_and_is_deterministic\norchestrator/tests/test_run_tests_shards.py::test_allocator_k3_places_three_exclusive_groups_on_distinct_shards\norchestrator/tests/test_run_tests_shards.py::test_loadgroup_suffix_is_removed_only_for_matching_observed_group\norchestrator/tests/test_run_tests_shards.py::test_m1_observed_universe_gate_has_independent_killer\norchestrator/tests/test_run_tests_shards.py::test_m2_report_index_gate_has_missing_duplicate_and_positive_controls\norchestrator/tests/test_run_tests_shards.py::test_m3_group_closure_gate_has_independent_killer_and_positive_control\norchestrator/tests/test_run_tests_shards.py::test_m4_finished_gate_has_independent_killer\norchestrator/tests/test_run_tests_shards.py::test_m5_login_universe_gate_has_independent_killer\norchestrator/tests/test_run_tests_shards.py::test_m1_m5_simultaneous_mutation_has_a_combined_killer\norchestrator/tests/test_run_tests_shards.py::test_merge_six_gate_positive_control_and_rc_mapping\norchestrator/tests/test_run_tests_shards.py::test_merge_rejects_whole_shard_omission_before_other_gates\norchestrator/tests/test_run_tests_shards.py::test_merge_rejects_selected_partition_substitution\norchestrator/tests/test_run_tests_shards.py::test_merge_rejects_group_split_at_gate_four\norchestrator/tests/test_run_tests_shards.py::test_merge_rejects_unfinished_selected_node\norchestrator/tests/test_run_tests_shards.py::test_m6_merge_rejects_unknown_and_mixed_scheduler[schedulers0]\norchestrator/tests/test_run_tests_shards.py::test_m6_merge_rejects_unknown_and_mixed_scheduler[schedulers1]\norchestrator/tests/test_run_tests_shards.py::test_report_evidence_accepts_consistent_durations_and_rejects_item_mismatch\norchestrator/tests/test_run_tests_shards.py::test_report_evidence_rejects_empty_diagnostic_payloads[group_to_workers-value0]\norchestrator/tests/test_run_tests_shards.py::test_report_evidence_rejects_empty_diagnostic_payloads[group_to_workers-value1]\norchestrator/tests/test_run_tests_shards.py::test_report_evidence_rejects_empty_diagnostic_payloads[worker_occupancy-value2]\norchestrator/tests/test_run_tests_shards.py::test_report_evidence_rejects_empty_diagnostic_payloads[worker_collection_digests-value3]\norchestrator/tests/test_run_tests_shards.py::test_report_evidence_rejects_empty_diagnostic_payloads[worker_collection_digests-value4]\norchestrator/tests/test_run_tests_shards.py::test_report_evidence_rejects_empty_diagnostic_payloads[junit_path-]\norchestrator/tests/test_run_tests_shards.py::test_report_evidence_rejects_empty_diagnostic_payloads[terminal_counts-value6]\norchestrator/tests/test_run_tests_shards.py::test_report_evidence_rejects_unknown_group_worker_and_nonfinite_duration\norchestrator/tests/test_run_tests_shards.py::test_report_schema_requires_worker_assignment_diagnostics\norchestrator/tests/test_run_tests_shards.py::test_session_timeline_is_required_and_valid_fixture_merges\norchestrator/tests/test_run_tests_shards.py::test_session_timeline_contents_do_not_change_merge_verdict\norchestrator/tests/test_run_tests_shards.py::test_runtest_logreport_tracks_reordered_bounds_per_worker_and_serial\norchestrator/tests/test_run_tests_shards.py::test_runtest_logreport_ignores_zero_nonfinite_missing_and_huge_bounds\norchestrator/tests/test_run_tests_shards.py::test_worker_payload_carries_observations_and_defaults_without_state\norchestrator/tests/test_run_tests_shards.py::test_controller_state_serial_uses_config_local_timeline\norchestrator/tests/test_run_tests_shards.py::test_controller_state_xdist_uses_latest_collection_and_worker_lock_map\norchestrator/tests/test_run_tests_shards.py::test_lock_interval_recorder_is_noop_without_shard_state\norchestrator/tests/test_run_tests_shards.py::test_collection_finish_clock_runs_after_synthetic_modifyitems_wrapper\norchestrator/tests/test_run_tests_shards.py::test_runtest_protocol_configless_item_keeps_existing_lock_contract\norchestrator/tests/test_run_tests_shards.py::test_runtest_protocol_records_only_after_lock_release\norchestrator/tests/test_run_tests_shards.py::test_runtest_protocol_lock_acquire_and_release_failures_record_nothing\norchestrator/tests/test_run_tests_shards.py::test_runtest_protocol_access_none_reads_no_clock_and_records_nothing\norchestrator/tests/test_run_tests_shards.py::test_runtest_protocol_preserves_inner_exception_without_recording\norchestrator/tests/test_run_tests_shards.py::test_sessionfinish_writes_serial_session_timeline\norchestrator/tests/test_run_tests_shards.py::test_merged_output_has_exactly_one_scheduler_marker\norchestrator/tests/test_run_tests_shards.py::test_infra_gate_emits_no_scheduler_marker\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_is_unique_and_consumer_retryable[2]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_is_unique_and_consumer_retryable[3]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_accepts_consumer_payload_limit_and_crlf\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k2-index0-missing]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k2-index0-incomplete-eof]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k2-index0-duplicate]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k2-index0-relayed]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k2-index0-child-started]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k2-index0-wrong-reason]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k2-index0-child-rc]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k2-index0-wrong-kind]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k2-index0-extra-root-field]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k2-index0-malformed-json]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k2-index0-duplicate-key]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k2-index1-missing]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k2-index1-incomplete-eof]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k2-index1-duplicate]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k2-index1-relayed]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k2-index1-child-started]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k2-index1-wrong-reason]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k2-index1-child-rc]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k2-index1-wrong-kind]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k2-index1-extra-root-field]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k2-index1-malformed-json]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k2-index1-duplicate-key]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index0-missing]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index0-incomplete-eof]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index0-duplicate]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index0-relayed]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index0-child-started]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index0-wrong-reason]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index0-child-rc]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index0-wrong-kind]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index0-extra-root-field]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index0-malformed-json]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index0-duplicate-key]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index1-missing]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index1-incomplete-eof]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index1-duplicate]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index1-relayed]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index1-child-started]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index1-wrong-reason]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index1-child-rc]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index1-wrong-kind]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index1-extra-root-field]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index1-malformed-json]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index1-duplicate-key]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index2-missing]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index2-incomplete-eof]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index2-duplicate]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index2-relayed]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index2-child-started]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index2-wrong-reason]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index2-child-rc]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index2-wrong-kind]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index2-extra-root-field]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index2-malformed-json]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index2-duplicate-key]\norchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_rejects_parent_child_started_evidence\norchestrator/tests/test_run_tests_shards.py::test_parallel_infra_path_emits_one_aggregate_no_verdict_attestation\norchestrator/tests/test_run_tests_shards.py::test_parallel_parent_child_started_evidence_suppresses_attestation\norchestrator/tests/test_run_tests_shards.py::test_parallel_login_collection_failures_emit_one_attestation[login-collection]\norchestrator/tests/test_run_tests_shards.py::test_parallel_login_collection_failures_emit_one_attestation[login-collection-exception]\norchestrator/tests/test_run_tests_shards.py::test_parallel_intent_recovery_emits_one_attestation\norchestrator/tests/test_run_tests_shards.py::test_parallel_merge_paths_do_not_emit_no_verdict_attestation[success]\norchestrator/tests/test_run_tests_shards.py::test_parallel_merge_paths_do_not_emit_no_verdict_attestation[gate-failure]\norchestrator/tests/test_run_tests_shards.py::test_session_artifacts_are_outside_repo\norchestrator/tests/test_run_tests_shards.py::test_shared_root_rejects_land_control_containers[relative0]\norchestrator/tests/test_run_tests_shards.py::test_shared_root_rejects_land_control_containers[relative1]\norchestrator/tests/test_run_tests_shards.py::test_shared_root_guard_tracks_land_control_containers\norchestrator/tests/test_run_tests_shards.py::test_worktree_shared_root_is_derived_outside_control_container\norchestrator/tests/test_run_tests_shards.py::test_shared_root_inside_repo_guard_remains\norchestrator/tests/test_run_tests_shards.py::test_parallel_implementation_uses_fork_processes_not_threads\norchestrator/tests/test_run_tests_shards.py::test_shard_implementation_has_no_manifest_or_barrier_protocol\norchestrator/tests/test_run_tests_shards.py::test_composite_defers_parent_task_record_and_strips_shard_sidecar\norchestrator/tests/test_run_tests_shards.py::test_all_dispatch_workers_start_before_parent_wait_or_collection_result_use\norchestrator/tests/test_run_tests_shards.py::test_junit_merge_recomputes_counts_and_has_malformed_control\n\n189 tests collected in 0.61s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "5ef17557d8929eaadcd30efb538e3595dc674fdd7255d89c540a680f9e8a6590"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_run_tests_shards.py::test_acceptance_shards_imports_in_isolated_mode_without_user_site",
+        "orchestrator/tests/test_run_tests_shards.py::test_acceptance_shard_hooks_keep_pytest_hookimpl_attributes[pytest_collection_modifyitems-trylast]",
+        "orchestrator/tests/test_run_tests_shards.py::test_acceptance_shard_hooks_keep_pytest_hookimpl_attributes[pytest_collection_finish-trylast]",
+        "orchestrator/tests/test_run_tests_shards.py::test_acceptance_shard_hooks_keep_pytest_hookimpl_attributes[pytest_testnodedown-optionalhook]",
+        "orchestrator/tests/test_run_tests_shards.py::test_acceptance_shard_hooks_keep_pytest_hookimpl_attributes[pytest_sessionfinish-trylast]",
+        "orchestrator/tests/test_run_tests_shards.py::test_runner_exclusion_helper_forwards_colliding_keyword_names",
+        "orchestrator/tests/test_run_tests_shards.py::test_acceptance_shard_request_closed_positive_values[None-None]",
+        "orchestrator/tests/test_run_tests_shards.py::test_acceptance_shard_request_closed_positive_values[-None]",
+        "orchestrator/tests/test_run_tests_shards.py::test_acceptance_shard_request_closed_positive_values[1-1]",
+        "orchestrator/tests/test_run_tests_shards.py::test_acceptance_shard_request_closed_positive_values[2-2]",
+        "orchestrator/tests/test_run_tests_shards.py::test_acceptance_shard_request_closed_positive_values[3-3]",
+        "orchestrator/tests/test_run_tests_shards.py::test_waiter_three_shard_cross_contract_is_eligible",
+        "orchestrator/tests/test_run_tests_shards.py::test_acceptance_shard_request_invalid_values_are_rc16_inputs[0]",
+        "orchestrator/tests/test_run_tests_shards.py::test_acceptance_shard_request_invalid_values_are_rc16_inputs[4]",
+        "orchestrator/tests/test_run_tests_shards.py::test_acceptance_shard_request_invalid_values_are_rc16_inputs[ 1]",
+        "orchestrator/tests/test_run_tests_shards.py::test_acceptance_shard_request_invalid_values_are_rc16_inputs[1 ]",
+        "orchestrator/tests/test_run_tests_shards.py::test_acceptance_shard_request_invalid_values_are_rc16_inputs[02]",
+        "orchestrator/tests/test_run_tests_shards.py::test_acceptance_shard_request_invalid_values_are_rc16_inputs[serial]",
+        "orchestrator/tests/test_run_tests_shards.py::test_default_eligible_login_acceptance_resolves_to_k2",
+        "orchestrator/tests/test_run_tests_shards.py::test_default_ineligible_dimensions_resolve_silently_to_k1[nonacceptance]",
+        "orchestrator/tests/test_run_tests_shards.py::test_default_ineligible_dimensions_resolve_silently_to_k1[nonlogin]",
+        "orchestrator/tests/test_run_tests_shards.py::test_default_ineligible_dimensions_resolve_silently_to_k1[bounded-scope]",
+        "orchestrator/tests/test_run_tests_shards.py::test_default_ineligible_dimensions_resolve_silently_to_k1[positional]",
+        "orchestrator/tests/test_run_tests_shards.py::test_default_ineligible_dimensions_resolve_silently_to_k1[internal-spec]",
+        "orchestrator/tests/test_run_tests_shards.py::test_default_ineligible_dimensions_resolve_silently_to_k1[non-force-argv]",
+        "orchestrator/tests/test_run_tests_shards.py::test_default_nonempty_pytest_addopts_resolves_silently_to_k1",
+        "orchestrator/tests/test_run_tests_shards.py::test_explicit_one_opts_out_even_when_default_would_be_eligible",
+        "orchestrator/tests/test_run_tests_shards.py::test_explicit_multi_shard_requests_fail_closed_when_ineligible[nonacceptance-2]",
+        "orchestrator/tests/test_run_tests_shards.py::test_explicit_multi_shard_requests_fail_closed_when_ineligible[nonacceptance-3]",
+        "orchestrator/tests/test_run_tests_shards.py::test_explicit_multi_shard_requests_fail_closed_when_ineligible[nonlogin-2]",
+        "orchestrator/tests/test_run_tests_shards.py::test_explicit_multi_shard_requests_fail_closed_when_ineligible[nonlogin-3]",
+        "orchestrator/tests/test_run_tests_shards.py::test_explicit_multi_shard_requests_fail_closed_when_ineligible[bounded-scope-2]",
+        "orchestrator/tests/test_run_tests_shards.py::test_explicit_multi_shard_requests_fail_closed_when_ineligible[bounded-scope-3]",
+        "orchestrator/tests/test_run_tests_shards.py::test_explicit_multi_shard_requests_fail_closed_when_ineligible[positional-2]",
+        "orchestrator/tests/test_run_tests_shards.py::test_explicit_multi_shard_requests_fail_closed_when_ineligible[positional-3]",
+        "orchestrator/tests/test_run_tests_shards.py::test_explicit_multi_shard_requests_fail_closed_when_ineligible[internal-spec-2]",
+        "orchestrator/tests/test_run_tests_shards.py::test_explicit_multi_shard_requests_fail_closed_when_ineligible[internal-spec-3]",
+        "orchestrator/tests/test_run_tests_shards.py::test_explicit_multi_shard_requests_fail_closed_when_ineligible[non-force-argv-2]",
+        "orchestrator/tests/test_run_tests_shards.py::test_explicit_multi_shard_requests_fail_closed_when_ineligible[non-force-argv-3]",
+        "orchestrator/tests/test_run_tests_shards.py::test_resolver_rejects_values_outside_integer_closed_set[0]",
+        "orchestrator/tests/test_run_tests_shards.py::test_resolver_rejects_values_outside_integer_closed_set[4]",
+        "orchestrator/tests/test_run_tests_shards.py::test_resolver_rejects_values_outside_integer_closed_set[True]",
+        "orchestrator/tests/test_run_tests_shards.py::test_resolver_rejects_values_outside_integer_closed_set[2.0]",
+        "orchestrator/tests/test_run_tests_shards.py::test_resolver_rejects_values_outside_integer_closed_set[2]",
+        "orchestrator/tests/test_run_tests_shards.py::test_resolver_uses_exact_bounded_membership_predicate",
+        "orchestrator/tests/test_run_tests_shards.py::test_invalid_activation_returns_rc16_before_execution",
+        "orchestrator/tests/test_run_tests_shards.py::test_internal_spec_is_consumed_without_becoming_pytest_target",
+        "orchestrator/tests/test_run_tests_shards.py::test_internal_shard_command_keeps_default_suite_root[False]",
+        "orchestrator/tests/test_run_tests_shards.py::test_internal_shard_command_keeps_default_suite_root[True]",
+        "orchestrator/tests/test_run_tests_shards.py::test_explicit_shards_reject_nonlogin_without_fallback[2]",
+        "orchestrator/tests/test_run_tests_shards.py::test_explicit_shards_reject_nonlogin_without_fallback[3]",
+        "orchestrator/tests/test_run_tests_shards.py::test_valid_login_activation_enters_composite_with_empty_outer_argv",
+        "orchestrator/tests/test_run_tests_shards.py::test_default_login_acceptance_dispatches_as_k2_after_admission",
+        "orchestrator/tests/test_run_tests_shards.py::test_nonempty_pytest_addopts_dispatches_as_k1_after_admission",
+        "orchestrator/tests/test_run_tests_shards.py::test_default_force_dispatch_enters_k2_without_admission",
+        "orchestrator/tests/test_run_tests_shards.py::test_default_login_acceptance_with_headroom_stays_local_k1",
+        "orchestrator/tests/test_run_tests_shards.py::test_default_login_acceptance_avoids_dispatch_when_queue_unavailable",
+        "orchestrator/tests/test_run_tests_shards.py::test_default_bounded_scope_child_does_not_reenter_sharding",
+        "orchestrator/tests/test_run_tests_shards.py::test_default_cap_oom_fallback_preserves_k2_and_exclusions",
+        "orchestrator/tests/test_run_tests_shards.py::test_default_shard_gate_failure_never_retries_as_k1",
+        "orchestrator/tests/test_run_tests_shards.py::test_shard_outer_args_accept_only_empty_or_force_dispatch[raw_args0-False-True]",
+        "orchestrator/tests/test_run_tests_shards.py::test_shard_outer_args_accept_only_empty_or_force_dispatch[raw_args1-True-True]",
+        "orchestrator/tests/test_run_tests_shards.py::test_shard_outer_args_accept_only_empty_or_force_dispatch[raw_args2-False-False]",
+        "orchestrator/tests/test_run_tests_shards.py::test_shard_outer_args_accept_only_empty_or_force_dispatch[raw_args3-True-False]",
+        "orchestrator/tests/test_run_tests_shards.py::test_shard_outer_args_accept_only_empty_or_force_dispatch[raw_args4-True-False]",
+        "orchestrator/tests/test_run_tests_shards.py::test_force_dispatch_enters_shard_composite_with_empty_internal_argv",
+        "orchestrator/tests/test_run_tests_shards.py::test_login_collection_uses_remaining_absolute_deadline",
+        "orchestrator/tests/test_run_tests_shards.py::test_parallel_parent_uses_one_absolute_deadline_contract",
+        "orchestrator/tests/test_run_tests_shards.py::test_allocator_joins_file_group_bipartite_component",
+        "orchestrator/tests/test_run_tests_shards.py::test_allocator_separates_groups_when_k_covers_group_count_and_is_deterministic",
+        "orchestrator/tests/test_run_tests_shards.py::test_allocator_k3_places_three_exclusive_groups_on_distinct_shards",
+        "orchestrator/tests/test_run_tests_shards.py::test_loadgroup_suffix_is_removed_only_for_matching_observed_group",
+        "orchestrator/tests/test_run_tests_shards.py::test_m1_observed_universe_gate_has_independent_killer",
+        "orchestrator/tests/test_run_tests_shards.py::test_m2_report_index_gate_has_missing_duplicate_and_positive_controls",
+        "orchestrator/tests/test_run_tests_shards.py::test_m3_group_closure_gate_has_independent_killer_and_positive_control",
+        "orchestrator/tests/test_run_tests_shards.py::test_m4_finished_gate_has_independent_killer",
+        "orchestrator/tests/test_run_tests_shards.py::test_m5_login_universe_gate_has_independent_killer",
+        "orchestrator/tests/test_run_tests_shards.py::test_m1_m5_simultaneous_mutation_has_a_combined_killer",
+        "orchestrator/tests/test_run_tests_shards.py::test_merge_six_gate_positive_control_and_rc_mapping",
+        "orchestrator/tests/test_run_tests_shards.py::test_merge_rejects_whole_shard_omission_before_other_gates",
+        "orchestrator/tests/test_run_tests_shards.py::test_merge_rejects_selected_partition_substitution",
+        "orchestrator/tests/test_run_tests_shards.py::test_merge_rejects_group_split_at_gate_four",
+        "orchestrator/tests/test_run_tests_shards.py::test_merge_rejects_unfinished_selected_node",
+        "orchestrator/tests/test_run_tests_shards.py::test_m6_merge_rejects_unknown_and_mixed_scheduler[schedulers0]",
+        "orchestrator/tests/test_run_tests_shards.py::test_m6_merge_rejects_unknown_and_mixed_scheduler[schedulers1]",
+        "orchestrator/tests/test_run_tests_shards.py::test_report_evidence_accepts_consistent_durations_and_rejects_item_mismatch",
+        "orchestrator/tests/test_run_tests_shards.py::test_report_evidence_rejects_empty_diagnostic_payloads[group_to_workers-value0]",
+        "orchestrator/tests/test_run_tests_shards.py::test_report_evidence_rejects_empty_diagnostic_payloads[group_to_workers-value1]",
+        "orchestrator/tests/test_run_tests_shards.py::test_report_evidence_rejects_empty_diagnostic_payloads[worker_occupancy-value2]",
+        "orchestrator/tests/test_run_tests_shards.py::test_report_evidence_rejects_empty_diagnostic_payloads[worker_collection_digests-value3]",
+        "orchestrator/tests/test_run_tests_shards.py::test_report_evidence_rejects_empty_diagnostic_payloads[worker_collection_digests-value4]",
+        "orchestrator/tests/test_run_tests_shards.py::test_report_evidence_rejects_empty_diagnostic_payloads[junit_path-]",
+        "orchestrator/tests/test_run_tests_shards.py::test_report_evidence_rejects_empty_diagnostic_payloads[terminal_counts-value6]",
+        "orchestrator/tests/test_run_tests_shards.py::test_report_evidence_rejects_unknown_group_worker_and_nonfinite_duration",
+        "orchestrator/tests/test_run_tests_shards.py::test_report_schema_requires_worker_assignment_diagnostics",
+        "orchestrator/tests/test_run_tests_shards.py::test_session_timeline_is_required_and_valid_fixture_merges",
+        "orchestrator/tests/test_run_tests_shards.py::test_session_timeline_contents_do_not_change_merge_verdict",
+        "orchestrator/tests/test_run_tests_shards.py::test_runtest_logreport_tracks_reordered_bounds_per_worker_and_serial",
+        "orchestrator/tests/test_run_tests_shards.py::test_runtest_logreport_ignores_zero_nonfinite_missing_and_huge_bounds",
+        "orchestrator/tests/test_run_tests_shards.py::test_worker_payload_carries_observations_and_defaults_without_state",
+        "orchestrator/tests/test_run_tests_shards.py::test_controller_state_serial_uses_config_local_timeline",
+        "orchestrator/tests/test_run_tests_shards.py::test_controller_state_xdist_uses_latest_collection_and_worker_lock_map",
+        "orchestrator/tests/test_run_tests_shards.py::test_lock_interval_recorder_is_noop_without_shard_state",
+        "orchestrator/tests/test_run_tests_shards.py::test_collection_finish_clock_runs_after_synthetic_modifyitems_wrapper",
+        "orchestrator/tests/test_run_tests_shards.py::test_runtest_protocol_configless_item_keeps_existing_lock_contract",
+        "orchestrator/tests/test_run_tests_shards.py::test_runtest_protocol_records_only_after_lock_release",
+        "orchestrator/tests/test_run_tests_shards.py::test_runtest_protocol_lock_acquire_and_release_failures_record_nothing",
+        "orchestrator/tests/test_run_tests_shards.py::test_runtest_protocol_access_none_reads_no_clock_and_records_nothing",
+        "orchestrator/tests/test_run_tests_shards.py::test_runtest_protocol_preserves_inner_exception_without_recording",
+        "orchestrator/tests/test_run_tests_shards.py::test_sessionfinish_writes_serial_session_timeline",
+        "orchestrator/tests/test_run_tests_shards.py::test_merged_output_has_exactly_one_scheduler_marker",
+        "orchestrator/tests/test_run_tests_shards.py::test_infra_gate_emits_no_scheduler_marker",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_is_unique_and_consumer_retryable[2]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_is_unique_and_consumer_retryable[3]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_accepts_consumer_payload_limit_and_crlf",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k2-index0-missing]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k2-index0-incomplete-eof]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k2-index0-duplicate]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k2-index0-relayed]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k2-index0-child-started]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k2-index0-wrong-reason]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k2-index0-child-rc]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k2-index0-wrong-kind]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k2-index0-extra-root-field]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k2-index0-malformed-json]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k2-index0-duplicate-key]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k2-index1-missing]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k2-index1-incomplete-eof]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k2-index1-duplicate]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k2-index1-relayed]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k2-index1-child-started]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k2-index1-wrong-reason]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k2-index1-child-rc]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k2-index1-wrong-kind]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k2-index1-extra-root-field]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k2-index1-malformed-json]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k2-index1-duplicate-key]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index0-missing]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index0-incomplete-eof]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index0-duplicate]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index0-relayed]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index0-child-started]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index0-wrong-reason]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index0-child-rc]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index0-wrong-kind]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index0-extra-root-field]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index0-malformed-json]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index0-duplicate-key]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index1-missing]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index1-incomplete-eof]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index1-duplicate]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index1-relayed]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index1-child-started]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index1-wrong-reason]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index1-child-rc]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index1-wrong-kind]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index1-extra-root-field]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index1-malformed-json]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index1-duplicate-key]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index2-missing]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index2-incomplete-eof]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index2-duplicate]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index2-relayed]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index2-child-started]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index2-wrong-reason]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index2-child-rc]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index2-wrong-kind]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index2-extra-root-field]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index2-malformed-json]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard[k3-index2-duplicate-key]",
+        "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_rejects_parent_child_started_evidence",
+        "orchestrator/tests/test_run_tests_shards.py::test_parallel_infra_path_emits_one_aggregate_no_verdict_attestation",
+        "orchestrator/tests/test_run_tests_shards.py::test_parallel_parent_child_started_evidence_suppresses_attestation",
+        "orchestrator/tests/test_run_tests_shards.py::test_parallel_login_collection_failures_emit_one_attestation[login-collection]",
+        "orchestrator/tests/test_run_tests_shards.py::test_parallel_login_collection_failures_emit_one_attestation[login-collection-exception]",
+        "orchestrator/tests/test_run_tests_shards.py::test_parallel_intent_recovery_emits_one_attestation",
+        "orchestrator/tests/test_run_tests_shards.py::test_parallel_merge_paths_do_not_emit_no_verdict_attestation[success]",
+        "orchestrator/tests/test_run_tests_shards.py::test_parallel_merge_paths_do_not_emit_no_verdict_attestation[gate-failure]",
+        "orchestrator/tests/test_run_tests_shards.py::test_session_artifacts_are_outside_repo",
+        "orchestrator/tests/test_run_tests_shards.py::test_shared_root_rejects_land_control_containers[relative0]",
+        "orchestrator/tests/test_run_tests_shards.py::test_shared_root_rejects_land_control_containers[relative1]",
+        "orchestrator/tests/test_run_tests_shards.py::test_shared_root_guard_tracks_land_control_containers",
+        "orchestrator/tests/test_run_tests_shards.py::test_worktree_shared_root_is_derived_outside_control_container",
+        "orchestrator/tests/test_run_tests_shards.py::test_shared_root_inside_repo_guard_remains",
+        "orchestrator/tests/test_run_tests_shards.py::test_parallel_implementation_uses_fork_processes_not_threads",
+        "orchestrator/tests/test_run_tests_shards.py::test_shard_implementation_has_no_manifest_or_barrier_protocol",
+        "orchestrator/tests/test_run_tests_shards.py::test_composite_defers_parent_task_record_and_strips_shard_sidecar",
+        "orchestrator/tests/test_run_tests_shards.py::test_all_dispatch_workers_start_before_parent_wait_or_collection_result_use",
+        "orchestrator/tests/test_run_tests_shards.py::test_junit_merge_recomputes_counts_and_has_malformed_control"
+      ],
+      "duration_s": 26.974,
+      "rc": 0,
+      "repo_head": "30a5b6bd40a3560b10c238fbd1aea3673614337f",
+      "runner_sha256": "b1f06e480833fd88bf944df676b2ad107a1907eb8618660f5d94bc3fdb6ce99c",
+      "spec_sha256": "e2582685408d2dacb821a89a5d3f6dfa6572ec9f6233075134dc76239a5a5835",
+      "status": "PASSED",
+      "tool_sha256": "8edf2120e8869877b528499a5512aa7c98d4fd1ff79bd867a7fd77d83edd441c"
+    },
+    "hang_timeout_seconds": 180.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_run_tests_shards.py::test_collection_finish_clock_runs_after_synthetic_modifyitems_wrapper"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "3c62409b70f930af94b2dc71dc1a2c7fecc65b92fc25e73152080ea68b08f8fc",
+        "replacements": [
+          {
+            "file": "tools/acceptance_shards.py",
+            "new": "    setattr(config, \"_izanagi_acceptance_shard_state\", {\n        \"records\": _records_payload(records),\n        \"records_digest\": _digest(_records_payload(records)),\n        \"selected\": sorted(selected),\n        \"selected_digest\": _digest(sorted(selected)),\n        \"loads\": list(assignment.loads),\n    })\n    state = getattr(config, \"_izanagi_acceptance_shard_state\", None)\n    if type(state.get(\"real_repo_lock_intervals\")) is not list:\n        state[\"real_repo_lock_intervals\"] = []\n    try:\n        observed = _observed_epoch(time.time())\n    except Exception:\n        observed = None\n    state[\"collection_finished_epoch_s\"] = observed\n",
+            "old": "    setattr(config, \"_izanagi_acceptance_shard_state\", {\n        \"records\": _records_payload(records),\n        \"records_digest\": _digest(_records_payload(records)),\n        \"selected\": sorted(selected),\n        \"selected_digest\": _digest(sorted(selected)),\n        \"loads\": list(assignment.loads),\n    })\n"
+          },
+          {
+            "file": "tools/acceptance_shards.py",
+            "new": "@_pytest_hookimpl(trylast=True)\ndef pytest_collection_finish(session: Any) -> None:\n    del session\n",
+            "old": "@_pytest_hookimpl(trylast=True)\ndef pytest_collection_finish(session: Any) -> None:\n    config = getattr(session, \"config\", None)\n    if getattr(config, \"_izanagi_acceptance_shard_spec\", None) is None:\n        return\n    state = getattr(config, \"_izanagi_acceptance_shard_state\", None)\n    if type(state) is not dict:\n        return\n    if type(state.get(\"real_repo_lock_intervals\")) is not list:\n        state[\"real_repo_lock_intervals\"] = []\n    try:\n        observed = _observed_epoch(time.time())\n    except Exception:\n        observed = None\n    state[\"collection_finished_epoch_s\"] = observed\n"
+          }
+        ]
+      },
+      "M10": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_run_tests_shards.py::test_controller_state_serial_uses_config_local_timeline",
+          "orchestrator/tests/test_run_tests_shards.py::test_sessionfinish_writes_serial_session_timeline"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "89b1b9d037db8ffa7e68cd03c357635c85156fe9500dae7e96a396d8b4860189",
+        "replacements": [
+          {
+            "file": "tools/acceptance_shards.py",
+            "new": "    state = getattr(config, \"_izanagi_acceptance_shard_state\", None)\n    del state\n    if not _WORKER_PAYLOADS:\n",
+            "old": "    state = getattr(config, \"_izanagi_acceptance_shard_state\", None)\n    if type(state) is dict:\n        return (\n            state[\"records\"], state[\"selected\"], [state[\"records_digest\"]],\n            _observed_epoch(state.get(\"collection_finished_epoch_s\")),\n            {\n                \"serial\": _observed_lock_intervals(\n                    state.get(\"real_repo_lock_intervals\")\n                )\n            },\n        )\n    if not _WORKER_PAYLOADS:\n"
+          }
+        ]
+      },
+      "M11": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_run_tests_shards.py::test_session_timeline_contents_do_not_change_merge_verdict"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d5f9c05a8bca56d6fa4d4cd3fad8eade9857d9f9831c028c5e36f673dfc300aa",
+        "replacements": [
+          {
+            "file": "tools/acceptance_shards.py",
+            "new": "    \"\"\"診断 payload を producer から独立に再計算して検証する。\"\"\"\n\n    if not report[\"session_timeline\"]:\n        raise ShardError(\"report-evidence-session-timeline\")\n    if not records or not selected:\n",
+            "old": "    \"\"\"診断 payload を producer から独立に再計算して検証する。\"\"\"\n\n    if not records or not selected:\n"
+          }
+        ]
+      },
+      "M2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_run_tests_shards.py::test_runtest_logreport_ignores_zero_nonfinite_missing_and_huge_bounds"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "42d998a698905c5a9fe25df55196dd9f03a4e3c5c409c04b7ac1326c2140ca5c",
+        "replacements": [
+          {
+            "file": "tools/acceptance_shards.py",
+            "new": "    start = getattr(report, \"start\", None)\n    stop = getattr(report, \"stop\", None)\n",
+            "old": "    start = _observed_epoch(getattr(report, \"start\", None))\n    stop = _observed_epoch(getattr(report, \"stop\", None))\n"
+          }
+        ]
+      },
+      "M3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_run_tests_shards.py::test_runtest_protocol_configless_item_keeps_existing_lock_contract"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f96b7de5473c71c7596fadf4e5f02562756dfb850f255c8e343627da9c9be392",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/conftest.py",
+            "new": "    config = item.config\n",
+            "old": "    config = getattr(item, \"config\", None)\n"
+          }
+        ]
+      },
+      "M4": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_run_tests_shards.py::test_runtest_protocol_lock_acquire_and_release_failures_record_nothing"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "b66c7435a782c468bf961721e43e6ebce69cbea82ceba3a57f62956560e4e178",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/conftest.py",
+            "new": "@contextlib.contextmanager\ndef _mutation_record_on_lock_acquire_failure(\n    config, access: RealRepoAccess | None,\n):\n    lock_context = _real_repo_locks(access)\n    try:\n        lock_context.__enter__()\n    except BaseException:\n        observed = _acceptance_epoch_now()\n        if observed is None:\n            observed = 1.0\n        from tools import acceptance_shards\n\n        acceptance_shards.record_real_repo_lock_interval(\n            config, observed, observed,\n        )\n        raise\n    try:\n        yield\n    except BaseException as exc:\n        if not lock_context.__exit__(type(exc), exc, exc.__traceback__):\n            raise\n    else:\n        lock_context.__exit__(None, None, None)\n\n\n@contextlib.contextmanager\ndef _acceptance_timed_real_repo_locks(config, access: RealRepoAccess | None):\n",
+            "old": "@contextlib.contextmanager\ndef _acceptance_timed_real_repo_locks(config, access: RealRepoAccess | None):\n"
+          },
+          {
+            "file": "orchestrator/tests/conftest.py",
+            "new": "    with _mutation_record_on_lock_acquire_failure(config, access):\n        acquired = _acceptance_epoch_now()\n        yield\n",
+            "old": "    with _real_repo_locks(access):\n        acquired = _acceptance_epoch_now()\n        yield\n"
+          }
+        ]
+      },
+      "M5": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_run_tests_shards.py::test_runtest_protocol_lock_acquire_and_release_failures_record_nothing"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "56d19e38a7450b94d87aa4f4e591b08faf63affa716b0fea00870b1aee6a2aed",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/conftest.py",
+            "new": "@contextlib.contextmanager\ndef _mutation_record_on_lock_release_failure(\n    config, access: RealRepoAccess | None,\n):\n    lock_context = _real_repo_locks(access)\n    lock_context.__enter__()\n    try:\n        yield\n    except BaseException as exc:\n        if not lock_context.__exit__(type(exc), exc, exc.__traceback__):\n            raise\n    else:\n        try:\n            lock_context.__exit__(None, None, None)\n        except BaseException:\n            observed = _acceptance_epoch_now()\n            if observed is None:\n                observed = 1.0\n            from tools import acceptance_shards\n\n            acceptance_shards.record_real_repo_lock_interval(\n                config, observed, observed,\n            )\n            raise\n\n\n@contextlib.contextmanager\ndef _acceptance_timed_real_repo_locks(config, access: RealRepoAccess | None):\n",
+            "old": "@contextlib.contextmanager\ndef _acceptance_timed_real_repo_locks(config, access: RealRepoAccess | None):\n"
+          },
+          {
+            "file": "orchestrator/tests/conftest.py",
+            "new": "    with _mutation_record_on_lock_release_failure(config, access):\n        acquired = _acceptance_epoch_now()\n        yield\n",
+            "old": "    with _real_repo_locks(access):\n        acquired = _acceptance_epoch_now()\n        yield\n"
+          }
+        ]
+      },
+      "M6": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_run_tests_shards.py::test_runtest_protocol_access_none_reads_no_clock_and_records_nothing"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d3ca707f3d0ea13be6b811d9a3af9a75dafa3c118d82cb1d31e3a0e56de54977",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/conftest.py",
+            "new": "        config is None\n        or getattr(config, \"_izanagi_acceptance_shard_spec\", None) is None\n",
+            "old": "        config is None\n        or access is None\n        or getattr(config, \"_izanagi_acceptance_shard_spec\", None) is None\n"
+          }
+        ]
+      },
+      "M7": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_run_tests_shards.py::test_m1_observed_universe_gate_has_independent_killer",
+          "orchestrator/tests/test_run_tests_shards.py::test_m5_login_universe_gate_has_independent_killer",
+          "orchestrator/tests/test_run_tests_shards.py::test_merge_six_gate_positive_control_and_rc_mapping",
+          "orchestrator/tests/test_run_tests_shards.py::test_merge_rejects_whole_shard_omission_before_other_gates",
+          "orchestrator/tests/test_run_tests_shards.py::test_merge_rejects_selected_partition_substitution",
+          "orchestrator/tests/test_run_tests_shards.py::test_merge_rejects_group_split_at_gate_four",
+          "orchestrator/tests/test_run_tests_shards.py::test_merge_rejects_unfinished_selected_node",
+          "orchestrator/tests/test_run_tests_shards.py::test_m6_merge_rejects_unknown_and_mixed_scheduler[schedulers0]",
+          "orchestrator/tests/test_run_tests_shards.py::test_m6_merge_rejects_unknown_and_mixed_scheduler[schedulers1]",
+          "orchestrator/tests/test_run_tests_shards.py::test_report_evidence_accepts_consistent_durations_and_rejects_item_mismatch",
+          "orchestrator/tests/test_run_tests_shards.py::test_session_timeline_is_required_and_valid_fixture_merges",
+          "orchestrator/tests/test_run_tests_shards.py::test_session_timeline_contents_do_not_change_merge_verdict",
+          "orchestrator/tests/test_run_tests_shards.py::test_merged_output_has_exactly_one_scheduler_marker",
+          "orchestrator/tests/test_run_tests_shards.py::test_parallel_merge_paths_do_not_emit_no_verdict_attestation[success]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "6efcdc63298996251d717bf28678d90c3ee47209e4189edd96f271346b4f3d7e",
+        "replacements": [
+          {
+            "file": "tools/acceptance_shards.py",
+            "new": "    \"junit_path\", \"worker_collection_digests\",\n",
+            "old": "    \"junit_path\", \"worker_collection_digests\", \"session_timeline\",\n"
+          }
+        ]
+      },
+      "M8": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_run_tests_shards.py::test_worker_payload_carries_observations_and_defaults_without_state"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "95606b12051497cd4cd9beb09f666dfe5b8a0e23fb933fb97a5685978aa5855b",
+        "replacements": [
+          {
+            "file": "tools/acceptance_shards.py",
+            "new": "            \"collection_finished_epoch_s\": None,\n",
+            "old": "            \"collection_finished_epoch_s\": None,\n            \"real_repo_lock_intervals\": [],\n"
+          },
+          {
+            "file": "tools/acceptance_shards.py",
+            "new": "",
+            "old": "        \"real_repo_lock_intervals\": _observed_lock_intervals(\n            state.get(\"real_repo_lock_intervals\")\n        ),\n"
+          }
+        ]
+      },
+      "M9": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_run_tests_shards.py::test_controller_state_xdist_uses_latest_collection_and_worker_lock_map"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "de73ad6966fe942790ccf854ed1e67c32d048efbd3fbb4c719098c74f03d8a43",
+        "replacements": [
+          {
+            "file": "tools/acceptance_shards.py",
+            "new": "        min(collection_observations, default=None), lock_intervals,\n",
+            "old": "        max(collection_observations, default=None), lock_intervals,\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "faf9c1439e9ce5620f5c9a4ac7f9d65f414f95ab72fccee43520e61820ef619d",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_run_tests_shards.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:randomly",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 120.0
+  },
+  "repo_head": "30a5b6bd40a3560b10c238fbd1aea3673614337f",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_run_tests_shards.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:randomly",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2333-shard-timeline/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2333-shard-timeline/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "8bf2090c084f5d5934acf17b4509a7e64f9c90f3",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "b1f06e480833fd88bf944df676b2ad107a1907eb8618660f5d94bc3fdb6ce99c",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "e2582685408d2dacb821a89a5d3f6dfa6572ec9f6233075134dc76239a5a5835",
+  "summary": {
+    "KILLED": 11,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 11,
+    "matching": 11,
+    "recorded": 11,
+    "registered": 11
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2333-shard-timeline/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "8edf2120e8869877b528499a5512aa7c98d4fd1ff79bd867a7fd77d83edd441c",
+  "updated_at": "2026-09-07T19:55:04.199119+00:00"
+}
