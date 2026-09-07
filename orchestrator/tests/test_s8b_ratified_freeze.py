@@ -937,8 +937,7 @@ def _run_official_fixture_campaign(
         assert verified_calibration.calibration.acquisition_receipt is not None
         return verified_calibration
 
-    with mock.patch.object(FLOOR, "_assert_official_permitted", lambda _mode: None), \
-            mock.patch.object(FLOOR.buildcache, "build_v2", build_fn), \
+    with mock.patch.object(FLOOR.buildcache, "build_v2", build_fn), \
             mock.patch.object(
                 FLOOR.buildcache, "compilers_for_current_site",
                 return_value=("fixture-cc", "fixture-cxx"),
@@ -959,7 +958,8 @@ def _run_official_fixture_campaign(
                               if perf_receipt is None else perf_receipt),
             ):
         return FLOOR._run_campaign_core(
-            protocol, verified, mode="official", **kwargs,
+            protocol, verified, mode="official",
+            confirm_official_floor_run=True, **kwargs,
         )
 
 

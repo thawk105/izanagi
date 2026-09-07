@@ -1,0 +1,1484 @@
+diff --git a/orchestrator/tests/host_tree_cache.py b/orchestrator/tests/host_tree_cache.py
+new file mode 100644
+index 000000000..65fc06f66
+--- /dev/null
++++ b/orchestrator/tests/host_tree_cache.py
+@@ -0,0 +1,465 @@
++# -*- coding: utf-8 -*-
++"""pytest session 内だけで共有する test tree cache。
++
++同一 uid の test が予測可能な cache path を直接改変することは隔離しない。
++process 隔離や権限制御を提供する機構ではない。
++"""
++from __future__ import annotations
++
++import atexit
++import fcntl
++import hashlib
++import json
++import os
++import shutil
++import stat
++import subprocess
++import tempfile
++from pathlib import Path
++from typing import Callable, MutableMapping
++
++
++_SCHEMA = "izanagi-pytest-host-tree-cache/v1"
++_READY_BYTES = b"izanagi-pytest-host-tree-cache-ready-v1\n"
++_CACHE_DIRECTORY = ".izanagi-host-tree-cache-v1"
++
++
++class HostTreeCacheError(RuntimeError):
++    """host tree cache を安全に利用できない。"""
++
++
++class _InputChanged(HostTreeCacheError):
++    """builder 実行中に cache key の live input が変化した。"""
++
++
++def _git_environment() -> dict[str, str]:
++    environment = {
++        name: value for name, value in os.environ.items()
++        if not name.startswith("GIT_")
++    }
++    environment.update({
++        "GIT_CONFIG_NOSYSTEM": "1",
++        "GIT_CONFIG_GLOBAL": os.devnull,
++        "GIT_TERMINAL_PROMPT": "0",
++        "GIT_OPTIONAL_LOCKS": "0",
++    })
++    return environment
++
++
++def _git_bytes(root: Path, *args: str) -> bytes:
++    return subprocess.run(
++        ["git", *args], cwd=root, check=True,
++        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
++        env=_git_environment(),
++    ).stdout
++
++
++def _git_text(root: Path, *args: str) -> str:
++    return _git_bytes(root, *args).decode("utf-8").strip()
++
++
++def _stable_regular_bytes(path: Path) -> bytes:
++    before = path.lstat()
++    if not stat.S_ISREG(before.st_mode) or path.is_symlink():
++        raise HostTreeCacheError(f"cache key input が regular file でない: {path}")
++    raw = path.read_bytes()
++    after = path.lstat()
++    before_identity = (
++        before.st_dev, before.st_ino, before.st_mode, before.st_size,
++        before.st_mtime_ns, before.st_ctime_ns,
++    )
++    after_identity = (
++        after.st_dev, after.st_ino, after.st_mode, after.st_size,
++        after.st_mtime_ns, after.st_ctime_ns,
++    )
++    if before_identity != after_identity or len(raw) != after.st_size:
++        raise HostTreeCacheError(f"cache key input が読取中に変化した: {path}")
++    return raw
++
++
++def _relative_input_path(relative: str) -> Path:
++    if type(relative) is not str or not relative:
++        raise HostTreeCacheError(f"cache key input path が相対 path でない: {relative!r}")
++    path = Path(relative)
++    if path.is_absolute() or ".." in path.parts:
++        raise HostTreeCacheError(
++            f"cache key input path が相対 path でない: {relative!r}"
++        )
++    return path
++
++
++def _copied_live_inputs_sha256(
++    source_root: Path,
++    *,
++    tree_relatives: tuple[str, ...],
++    file_relatives: tuple[str, ...],
++) -> str:
++    """HEAD と porcelain status の dirty bytes で live copy input を束縛する。"""
++    trees = tuple(_relative_input_path(relative) for relative in tree_relatives)
++    files = tuple(_relative_input_path(relative) for relative in file_relatives)
++    pathspecs = tuple(dict.fromkeys(
++        path.as_posix() for path in (*trees, *files)
++    ))
++    if not pathspecs:
++        raise HostTreeCacheError("cache key の live copy input が空")
++
++    status_raw = _git_bytes(
++        source_root, "status", "--porcelain=v1", "-z",
++        "--untracked-files=all", "--", *pathspecs,
++    )
++    status_records = []
++    for raw_entry in status_raw.split(b"\0"):
++        if not raw_entry:
++            continue
++        if len(raw_entry) < 4 or raw_entry[2:3] != b" ":
++            raise HostTreeCacheError("git status porcelain entry が不正")
++        status = raw_entry[:2].decode("ascii")
++        if "R" in status or "C" in status:
++            # porcelain v1 -z の rename/copy は二 path record になる。曖昧に
++            # 解釈して cache hit させず、fresh builder へ倒す。
++            raise HostTreeCacheError("rename/copy の live copy input を束縛できない")
++        relative = _relative_input_path(raw_entry[3:].decode("utf-8"))
++        path = source_root / relative
++        record = {"path": relative.as_posix(), "status": status}
++        if path.exists() or path.is_symlink():
++            raw = _stable_regular_bytes(path)
++            record.update({
++                "mode": stat.S_IMODE(path.lstat().st_mode),
++                "sha256": hashlib.sha256(raw).hexdigest(),
++            })
++        status_records.append(record)
++
++    # copytree は ignored file も複製する。pycache/pyc 以外が tree 内にあれば
++    # HEAD と porcelain status で束縛できないため cache 自体を使わない。
++    ignored_pathspecs = (*trees, *files)
++    if ignored_pathspecs:
++        ignored_raw = _git_bytes(
++            source_root, "ls-files", "-z", "--others", "--ignored",
++            "--exclude-standard", "--",
++            *(path.as_posix() for path in ignored_pathspecs),
++        )
++        for raw_relative in ignored_raw.split(b"\0"):
++            if not raw_relative:
++                continue
++            relative = _relative_input_path(raw_relative.decode("utf-8"))
++            if (
++                "__pycache__" not in relative.parts
++                and not relative.name.endswith(".pyc")
++            ):
++                raise HostTreeCacheError(
++                    f"cache key に束縛できない ignored copy input: {relative}"
++                )
++
++    encoded = json.dumps(
++        {"status": sorted(status_records, key=lambda record: record["path"])},
++        ensure_ascii=False, sort_keys=True, separators=(",", ":"),
++    ).encode("utf-8")
++    return hashlib.sha256(encoded).hexdigest()
++
++
++def t080_live_repository_key(
++    source_root: Path,
++    *,
++    ccbench_relative: str,
++    known_axes_relative: str,
++    holdout_relative: str,
++    receipt_relative: str,
++    visible_output_paths: Callable[[Path], set[str]],
++    copied_tree_relatives: tuple[str, ...] = ("orchestrator",),
++    copied_file_relatives: tuple[str, ...] = (),
++    r_trailer: str = "AI-Agent: none",
++    extra_r_path: bool = False,
++    issue_receipt: bool = True,
++    distinct_basis_blob: bool = False,
++) -> dict[str, object] | None:
++    """T-080 base が読む live repository state を fail-closed に束縛する。"""
++    source_root = Path(source_root)
++    try:
++        repository_head = _git_text(source_root, "rev-parse", "HEAD")
++        ccbench_head = _git_text(
++            source_root / ccbench_relative, "rev-parse", "HEAD",
++        )
++        for name, oid in (
++            ("repository HEAD", repository_head),
++            ("ccbench HEAD", ccbench_head),
++        ):
++            if len(oid) != 40 or any(char not in "0123456789abcdef" for char in oid):
++                raise HostTreeCacheError(f"{name} が SHA-1 object id でない")
++        known_raw = _stable_regular_bytes(source_root / known_axes_relative)
++        holdout_raw = _stable_regular_bytes(source_root / holdout_relative)
++        receipt_raw = _stable_regular_bytes(source_root / receipt_relative)
++        visible = visible_output_paths(source_root)
++        if type(visible) is not set or not all(type(path) is str for path in visible):
++            raise HostTreeCacheError("Git-visible output path 集合が不正")
++        copied_live_inputs_sha256 = _copied_live_inputs_sha256(
++            source_root,
++            tree_relatives=copied_tree_relatives,
++            file_relatives=copied_file_relatives,
++        )
++        visible_paths_raw = json.dumps(
++            sorted(visible), ensure_ascii=False, separators=(",", ":"),
++        ).encode("utf-8")
++        return {
++            "schema_version": "izanagi-t080-host-cache-key/v1",
++            "r_trailer": r_trailer,
++            "extra_r_path": extra_r_path,
++            "issue_receipt": issue_receipt,
++            "distinct_basis_blob": distinct_basis_blob,
++            "repository_head": repository_head,
++            "ccbench_head": ccbench_head,
++            "known_axes_blob_sha256": hashlib.sha256(known_raw).hexdigest(),
++            "holdout_blob_sha256": hashlib.sha256(holdout_raw).hexdigest(),
++            "issued_receipt_blob_sha256": hashlib.sha256(receipt_raw).hexdigest(),
++            "git_visible_output_paths_sha256": hashlib.sha256(
++                visible_paths_raw,
++            ).hexdigest(),
++            "copied_live_inputs_sha256": copied_live_inputs_sha256,
++        }
++    except (
++        HostTreeCacheError, AssertionError, OSError, subprocess.SubprocessError,
++        UnicodeError,
++    ):
++        return None
++
++
++def cache_key_digest(key: object) -> str:
++    """JSON key を canonical bytes にして cache path 用 digest を返す。"""
++    try:
++        raw = json.dumps(
++            {"schema": _SCHEMA, "key": key},
++            ensure_ascii=False,
++            sort_keys=True,
++            separators=(",", ":"),
++            allow_nan=False,
++        ).encode("utf-8")
++    except (TypeError, ValueError) as exc:
++        raise HostTreeCacheError("host tree cache key が canonical JSON でない") from exc
++    return hashlib.sha256(raw).hexdigest()
++
++
++def xdist_session_cache_root(temp_root: Path, worker: str) -> Path | None:
++    """popen-<worker> の親から session-local な共有 cache root を導出する。"""
++    resolved = Path(temp_root).resolve()
++    expected = f"popen-{worker}"
++    for candidate in (resolved, *resolved.parents):
++        if candidate.name == expected:
++            return candidate.parent / _CACHE_DIRECTORY
++    return None
++
++
++def cache_entry_path(cache_root: Path, key: object) -> Path:
++    """専用 test が atomic publish の実体を観測するための deterministic path。"""
++    return Path(cache_root) / "entries" / cache_key_digest(key)
++
++
++def cache_lock_path(cache_root: Path, key: object) -> Path:
++    """専用 test が実 flock namespace を観測するための deterministic path。"""
++    return Path(cache_root) / "locks" / f"{cache_key_digest(key)}.lock"
++
++
++def _load_published(entry: Path) -> tuple[Path, dict] | None:
++    if not entry.exists():
++        return None
++    tree = entry / "tree"
++    document_path = entry / "document.json"
++    ready = entry / "READY"
++    if (
++        not entry.is_dir()
++        or entry.is_symlink()
++        or not tree.is_dir()
++        or tree.is_symlink()
++        or not document_path.is_file()
++        or document_path.is_symlink()
++        or not ready.is_file()
++        or ready.is_symlink()
++    ):
++        raise HostTreeCacheError("published host tree cache entry が不完全")
++    if ready.read_bytes() != _READY_BYTES:
++        raise HostTreeCacheError("published host tree cache READY marker が不正")
++    try:
++        document = json.loads(document_path.read_bytes())
++    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
++        raise HostTreeCacheError("published host tree cache document が不正") from exc
++    if type(document) is not dict:
++        raise HostTreeCacheError("published host tree cache document が object でない")
++    return tree, document
++
++
++def _copy_result(
++    source: Path, destination: Path, document: dict,
++) -> tuple[Path, dict]:
++    # test へ返す tree は常に独立した実体であり、lock の外で複製する。
++    shutil.copytree(source, destination, symlinks=True)
++    return destination, document
++
++
++def _build_in_parent(
++    parent: Path,
++    builder: Callable[[Path], tuple[Path, Path, dict]],
++) -> tuple[Path, dict]:
++    built_root, _receipt, document = builder(parent)
++    built_root = Path(built_root)
++    try:
++        contained = built_root.resolve().is_relative_to(parent.resolve())
++    except OSError as exc:
++        raise HostTreeCacheError("builder result path を解決できない") from exc
++    if not contained or not built_root.is_dir() or built_root.is_symlink():
++        raise HostTreeCacheError("builder result が staging parent 内の directory でない")
++    if type(document) is not dict:
++        raise HostTreeCacheError("builder document が object でない")
++    return built_root, document
++
++
++def _fresh_copy(
++    *,
++    temp_root: Path,
++    destination: Path,
++    builder: Callable[[Path], tuple[Path, Path, dict]],
++) -> tuple[Path, dict]:
++    parent = Path(tempfile.mkdtemp(prefix="izanagi-host-tree-fresh-", dir=temp_root))
++    try:
++        built_root, document = _build_in_parent(parent, builder)
++        return _copy_result(built_root, destination, document)
++    finally:
++        shutil.rmtree(parent, ignore_errors=True)
++
++
++def _process_cached_copy(
++    *,
++    key: object,
++    key_factory: Callable[[], object | None],
++    process_cache: MutableMapping[str, tuple[Path, dict]],
++    temp_root: Path,
++    destination: Path,
++    builder: Callable[[Path], tuple[Path, Path, dict]],
++) -> tuple[Path, dict]:
++    digest = cache_key_digest(key)
++    cached = process_cache.get(digest)
++    if cached is None:
++        parent = Path(tempfile.mkdtemp(
++            prefix="izanagi-host-tree-process-", dir=temp_root,
++        ))
++        try:
++            cached = _build_in_parent(parent, builder)
++            if key_factory() != key:
++                raise _InputChanged(
++                    "process tree cache build 中に live input が変化した"
++                )
++        except BaseException:
++            shutil.rmtree(parent, ignore_errors=True)
++            raise
++        atexit.register(shutil.rmtree, parent, ignore_errors=True)
++        process_cache[digest] = cached
++    source, document = cached
++    return _copy_result(source, destination, document)
++
++
++def _shared_cached_copy(
++    *,
++    cache_root: Path,
++    key: object,
++    key_factory: Callable[[], object | None],
++    destination: Path,
++    builder: Callable[[Path], tuple[Path, Path, dict]],
++) -> tuple[Path, dict]:
++    entry = cache_entry_path(cache_root, key)
++    loaded = _load_published(entry)
++    if loaded is not None:
++        if key_factory() != key:
++            raise _InputChanged("host tree cache hit 前に live input が変化した")
++        return _copy_result(loaded[0], destination, loaded[1])
++
++    entries = cache_root / "entries"
++    locks = cache_root / "locks"
++    entries.mkdir(parents=True, exist_ok=True)
++    locks.mkdir(parents=True, exist_ok=True)
++    lock_path = cache_lock_path(cache_root, key)
++    with lock_path.open("a+b") as lock:
++        fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
++        try:
++            loaded = _load_published(entry)
++            if loaded is None:
++                staging = Path(tempfile.mkdtemp(
++                    prefix=f".{entry.name}.staging-", dir=entries,
++                ))
++                try:
++                    build_parent = staging / "build"
++                    build_parent.mkdir()
++                    built_root, document = _build_in_parent(build_parent, builder)
++                    if key_factory() != key:
++                        raise _InputChanged(
++                            "host tree cache build 中に live input が変化した"
++                        )
++                    os.rename(built_root, staging / "tree")
++                    shutil.rmtree(build_parent)
++                    (staging / "document.json").write_text(
++                        json.dumps(
++                            document, ensure_ascii=False, sort_keys=True,
++                            separators=(",", ":"), allow_nan=False,
++                        ),
++                        encoding="utf-8",
++                    )
++                    (staging / "READY").write_bytes(_READY_BYTES)
++                    os.rename(staging, entry)
++                except BaseException:
++                    shutil.rmtree(staging, ignore_errors=True)
++                    raise
++                loaded = _load_published(entry)
++                assert loaded is not None
++        finally:
++            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
++    if key_factory() != key:
++        raise _InputChanged("host tree cache copy 前に live input が変化した")
++    # 48 worker 分の返却 copytree を直列化しない。
++    return _copy_result(loaded[0], destination, loaded[1])
++
++
++def copy_tree_for_pytest(
++    temp_root: Path,
++    *,
++    destination_name: str,
++    destination_root: Path | None = None,
++    key_factory: Callable[[], object | None],
++    builder: Callable[[Path], tuple[Path, Path, dict]],
++    process_cache: MutableMapping[str, tuple[Path, dict]],
++    ambient_temp_root: Path,
++) -> tuple[Path, dict]:
++    """xdist は session cache、serial は process cache から独立 tree を返す。"""
++    temp_root = Path(temp_root)
++    destination = Path(destination_root or temp_root) / destination_name
++    ambient_temp_root = Path(ambient_temp_root)
++    key = key_factory()
++    worker = os.environ.get("PYTEST_XDIST_WORKER")
++
++    if key is None:
++        return _fresh_copy(
++            temp_root=ambient_temp_root, destination=destination, builder=builder,
++        )
++    if not worker:
++        try:
++            return _process_cached_copy(
++                key=key, key_factory=key_factory, process_cache=process_cache,
++                temp_root=ambient_temp_root, destination=destination,
++                builder=builder,
++            )
++        except _InputChanged:
++            return _fresh_copy(
++                temp_root=ambient_temp_root, destination=destination,
++                builder=builder,
++            )
++
++    cache_root = xdist_session_cache_root(temp_root, worker)
++    if cache_root is None:
++        return _fresh_copy(
++            temp_root=ambient_temp_root, destination=destination, builder=builder,
++        )
++    try:
++        return _shared_cached_copy(
++            cache_root=cache_root, key=key, key_factory=key_factory,
++            destination=destination, builder=builder,
++        )
++    except _InputChanged:
++        # 不安定な live input に cache product を束縛しない。旧経路相当を必ず再構築する。
++        return _fresh_copy(
++            temp_root=ambient_temp_root, destination=destination, builder=builder,
++        )
+diff --git a/orchestrator/tests/test_host_tree_cache.py b/orchestrator/tests/test_host_tree_cache.py
+new file mode 100644
+index 000000000..9fee129b7
+--- /dev/null
++++ b/orchestrator/tests/test_host_tree_cache.py
+@@ -0,0 +1,796 @@
++# -*- coding: utf-8 -*-
++"""T-080 pytest-session host tree cache の隔離と publish 契約を検査する。"""
++from __future__ import annotations
++
++import fcntl
++import hashlib
++import json
++import os
++import subprocess
++import sys
++import textwrap
++import time
++from pathlib import Path
++from unittest import mock
++
++import pytest
++
++from orchestrator.campaign import t080_freeze_migration as migration
++from orchestrator.tests import host_tree_cache as cache
++
++
++ROOT = Path(__file__).resolve().parents[2]
++
++
++_KNOWN_BYTES = b'{"known":"literal-sentinel"}\n'
++_HOLDOUT_BYTES = b'{"holdout":"literal-sentinel"}\n'
++_RECEIPT_BYTES = b'{"receipt":"literal-sentinel"}\n'
++_VISIBLE_BYTES = b"git-visible-output-literal-sentinel\n"
++_ORCHESTRATOR_BYTES = b"orchestrator-live-input-literal-sentinel\n"
++_DESCRIPTOR_BYTES = b"descriptor-live-input-literal-sentinel\n"
++_TREE_PAYLOAD = b"host-tree-cache-independent-copy-sentinel\n"
++
++
++def _git(root: Path, *args: str) -> str:
++    return subprocess.run(
++        ["git", *args], cwd=root, check=True,
++        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
++        env=_git_environment(),
++    ).stdout.strip()
++
++
++def _git_environment() -> dict[str, str]:
++    environment = {
++        name: value for name, value in os.environ.items()
++        if not name.startswith("GIT_")
++    }
++    environment.update({
++        "GIT_CONFIG_NOSYSTEM": "1",
++        "GIT_CONFIG_GLOBAL": os.devnull,
++        "GIT_TERMINAL_PROMPT": "0",
++        "GIT_OPTIONAL_LOCKS": "0",
++    })
++    return environment
++
++
++def _git_visible_output_paths(root: Path) -> set[str]:
++    tracked = subprocess.run(
++        ["git", "ls-files", "-z", "-s", "--", "output"],
++        cwd=root, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
++        env=_git_environment(),
++    ).stdout
++    visible = set()
++    for entry in tracked.split(b"\0"):
++        if not entry:
++            continue
++        metadata, relative = entry.decode("utf-8").split("\t", 1)
++        if metadata.split(" ", 1)[0] in {"100644", "100755"}:
++            visible.add(relative)
++    untracked = subprocess.run(
++        [
++            "git", "ls-files", "-z", "--others", "--exclude-standard",
++            "--", "output",
++        ],
++        cwd=root, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
++        env=_git_environment(),
++    ).stdout
++    for relative_raw in untracked.split(b"\0"):
++        if not relative_raw:
++            continue
++        relative = relative_raw.decode("utf-8")
++        path = root / relative
++        if path.is_file() and not path.is_symlink():
++            visible.add(relative)
++    return visible
++
++
++def _live_key(root: Path, **kwargs):
++    return cache.t080_live_repository_key(
++        root,
++        ccbench_relative=migration.CCBENCH_REL,
++        known_axes_relative=migration.KNOWN_AXES_REL,
++        holdout_relative=migration.HOLDOUT_REL,
++        receipt_relative=migration.RECEIPT_REL,
++        visible_output_paths=_git_visible_output_paths,
++        copied_file_relatives=("docs/descriptor.md",),
++        **kwargs,
++    )
++
++
++def _configure_repo(root: Path) -> None:
++    _git(root, "config", "user.name", "Host Tree Cache Test")
++    _git(root, "config", "user.email", "host-tree-cache@example.invalid")
++    _git(root, "config", "commit.gpgsign", "false")
++
++
++def _make_key_repo(tmp_path: Path) -> Path:
++    tmp_path.mkdir(parents=True, exist_ok=True)
++    origin = tmp_path / "ccbench-origin"
++    origin.mkdir()
++    _git(origin, "init", "-q")
++    _configure_repo(origin)
++    (origin / "source.txt").write_bytes(b"ccbench-head-zero\n")
++    _git(origin, "add", "source.txt")
++    _git(origin, "commit", "-q", "-m", "ccbench basis")
++
++    root = tmp_path / "live-repository"
++    root.mkdir()
++    _git(root, "init", "-q")
++    _configure_repo(root)
++    (root / "orchestrator").mkdir()
++    (root / "orchestrator" / "cache_input.py").write_bytes(_ORCHESTRATOR_BYTES)
++    (root / "docs").mkdir()
++    (root / "docs" / "descriptor.md").write_bytes(_DESCRIPTOR_BYTES)
++    payloads = {
++        migration.KNOWN_AXES_REL: _KNOWN_BYTES,
++        migration.HOLDOUT_REL: _HOLDOUT_BYTES,
++        migration.RECEIPT_REL: _RECEIPT_BYTES,
++        "output/visible.bin": _VISIBLE_BYTES,
++    }
++    for relative, raw in payloads.items():
++        target = root / relative
++        target.parent.mkdir(parents=True, exist_ok=True)
++        target.write_bytes(raw)
++    _git(
++        root, "-c", "protocol.file.allow=always", "submodule", "add", "-q",
++        str(origin), migration.CCBENCH_REL,
++    )
++    _git(root, "add", "-A")
++    _git(root, "commit", "-q", "-m", "live repository basis")
++    assert _git(root, "status", "--porcelain=v1", "--untracked-files=all") == ""
++    return root
++
++
++def _simple_builder(counter: list[int], payloads: tuple[bytes, ...]):
++    def build(parent: Path):
++        index = len(counter)
++        counter.append(index)
++        root = parent / "base"
++        root.mkdir()
++        (root / "payload.bin").write_bytes(payloads[index])
++        return root, root / "receipt.json", {"nested": {"value": index}}
++
++    return build
++
++
++def _shared_request_root(session: Path, worker: str, name: str) -> Path:
++    root = session / f"popen-{worker}" / name
++    root.mkdir(parents=True)
++    return root
++
++
++def _build_git_base(parent: Path):
++    origin = parent / "submodule-origin"
++    origin.mkdir()
++    _git(origin, "init", "-q")
++    _configure_repo(origin)
++    (origin / "source.txt").write_bytes(b"submodule-base-sentinel\n")
++    _git(origin, "add", "source.txt")
++    _git(origin, "commit", "-q", "-m", "submodule basis")
++
++    root = parent / "t080-stub-free-e2e"
++    root.mkdir()
++    _git(root, "init", "-q")
++    _configure_repo(root)
++    (root / "payload.bin").write_bytes(_TREE_PAYLOAD)
++    (root / "payload-link").symlink_to("payload.bin")
++    receipt = root / migration.RECEIPT_REL
++    receipt.parent.mkdir(parents=True)
++    receipt.write_bytes(b"cached-receipt-literal-sentinel\n")
++    _git(
++        root, "-c", "protocol.file.allow=always", "submodule", "add", "-q",
++        str(origin), migration.CCBENCH_REL,
++    )
++    _git(root, "add", "-A")
++    _git(root, "commit", "-q", "-m", "cached tree basis")
++    return root, receipt, {"nested": {"value": "document-sentinel"}}
++
++
++def test_t080_live_key_binds_exact_repository_inputs_and_all_config_fields(tmp_path):
++    root = _make_key_repo(tmp_path)
++    key = _live_key(root)
++    assert key is not None
++    assert set(key) == {
++        "schema_version",
++        "r_trailer",
++        "extra_r_path",
++        "issue_receipt",
++        "distinct_basis_blob",
++        "repository_head",
++        "ccbench_head",
++        "known_axes_blob_sha256",
++        "holdout_blob_sha256",
++        "issued_receipt_blob_sha256",
++        "git_visible_output_paths_sha256",
++        "copied_live_inputs_sha256",
++    }
++    visible_payloads = {
++        migration.KNOWN_AXES_REL: _KNOWN_BYTES,
++        migration.HOLDOUT_REL: _HOLDOUT_BYTES,
++        migration.RECEIPT_REL: _RECEIPT_BYTES,
++        "output/visible.bin": _VISIBLE_BYTES,
++    }
++    expected_visible = sorted(visible_payloads)
++    expected_paths_raw = json.dumps(
++        expected_visible, ensure_ascii=False, separators=(",", ":"),
++    ).encode("utf-8")
++    copied_inputs_raw = json.dumps({
++        "status": [],
++    }, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
++    assert key == {
++        "schema_version": "izanagi-t080-host-cache-key/v1",
++        "r_trailer": "AI-Agent: none",
++        "extra_r_path": False,
++        "issue_receipt": True,
++        "distinct_basis_blob": False,
++        "repository_head": _git(root, "rev-parse", "HEAD"),
++        "ccbench_head": _git(
++            root / migration.CCBENCH_REL, "rev-parse", "HEAD",
++        ),
++        "known_axes_blob_sha256": hashlib.sha256(_KNOWN_BYTES).hexdigest(),
++        "holdout_blob_sha256": hashlib.sha256(_HOLDOUT_BYTES).hexdigest(),
++        "issued_receipt_blob_sha256": hashlib.sha256(_RECEIPT_BYTES).hexdigest(),
++        "git_visible_output_paths_sha256": hashlib.sha256(
++            expected_paths_raw,
++        ).hexdigest(),
++        "copied_live_inputs_sha256": hashlib.sha256(
++            copied_inputs_raw,
++        ).hexdigest(),
++    }
++
++    variants = {
++        "r_trailer": {"r_trailer": "AI-Agent: codex"},
++        "extra_r_path": {"extra_r_path": True},
++        "issue_receipt": {"issue_receipt": False},
++        "distinct_basis_blob": {"distinct_basis_blob": True},
++    }
++    for field, kwargs in variants.items():
++        changed = _live_key(root, **kwargs)
++        assert changed is not None
++        assert {
++            name for name in key if key[name] != changed[name]
++        } == {field}
++
++    for relative, replacement in (
++        ("orchestrator/cache_input.py", b"changed orchestrator bytes\n"),
++        ("docs/descriptor.md", b"changed descriptor bytes\n"),
++    ):
++        path = root / relative
++        original = path.read_bytes()
++        path.write_bytes(replacement)
++        changed = _live_key(root)
++        assert changed is not None
++        assert {
++            name for name in key if key[name] != changed[name]
++        } == {"copied_live_inputs_sha256"}
++        path.write_bytes(original)
++
++    for relative, replacement, expected_field in (
++        (migration.KNOWN_AXES_REL, b"changed known axes\n", "known_axes_blob_sha256"),
++        (migration.HOLDOUT_REL, b"changed holdout\n", "holdout_blob_sha256"),
++        (migration.RECEIPT_REL, b"changed receipt\n", "issued_receipt_blob_sha256"),
++    ):
++        path = root / relative
++        original = path.read_bytes()
++        path.write_bytes(replacement)
++        changed = _live_key(root)
++        assert changed is not None
++        assert {
++            name for name in key if key[name] != changed[name]
++        } == {expected_field}
++        path.write_bytes(original)
++
++    ccbench = root / migration.CCBENCH_REL
++    _configure_repo(ccbench)
++    (ccbench / "source.txt").write_bytes(b"ccbench-head-one\n")
++    _git(ccbench, "add", "source.txt")
++    _git(ccbench, "commit", "-q", "-m", "ccbench changed head")
++    changed_ccbench = _live_key(root)
++    assert changed_ccbench is not None
++    assert {
++        name for name in key if key[name] != changed_ccbench[name]
++    } == {"ccbench_head"}
++
++    before_paths = key["git_visible_output_paths_sha256"]
++    (root / "output" / "new-visible.bin").write_bytes(
++        b"new-visible-path-literal-sentinel\n"
++    )
++    with_new_path = _live_key(root)
++    assert with_new_path is not None
++    assert with_new_path["git_visible_output_paths_sha256"] != before_paths
++
++    (root / migration.RECEIPT_REL).unlink()
++    assert _live_key(root) is None
++
++
++def test_t080_head_change_forces_a_new_real_shared_cache_entry(
++        tmp_path, monkeypatch):
++    source = _make_key_repo(tmp_path / "source-fixture")
++    session = tmp_path / "pytest-session"
++    first_request = _shared_request_root(session, "gw0", "case-first")
++    second_request = _shared_request_root(session, "gw0", "case-second")
++    monkeypatch.setenv("PYTEST_XDIST_WORKER", "gw0")
++    calls: list[int] = []
++    builder = _simple_builder(calls, (b"before-head\n", b"after-head\n"))
++
++    first_key = _live_key(source)
++    assert first_key is not None
++    first, _document = cache.copy_tree_for_pytest(
++        first_request,
++        destination_name="copy",
++        key_factory=lambda: _live_key(source),
++        builder=builder,
++        process_cache={},
++        ambient_temp_root=session,
++    )
++    assert (first / "payload.bin").read_bytes() == b"before-head\n"
++
++    _git(source, "commit", "-q", "--allow-empty", "-m", "new HEAD only")
++    second_key = _live_key(source)
++    assert second_key is not None
++    assert second_key["repository_head"] == _git(source, "rev-parse", "HEAD")
++    assert second_key["repository_head"] != first_key["repository_head"]
++    second, _document = cache.copy_tree_for_pytest(
++        second_request,
++        destination_name="copy",
++        key_factory=lambda: _live_key(source),
++        builder=builder,
++        process_cache={},
++        ambient_temp_root=session,
++    )
++
++    assert calls == [0, 1]
++    assert (second / "payload.bin").read_bytes() == b"after-head\n"
++    cache_root = cache.xdist_session_cache_root(first_request, "gw0")
++    assert cache_root == session / ".izanagi-host-tree-cache-v1"
++    assert len(list((cache_root / "entries").iterdir())) == 2
++
++
++def test_concurrent_processes_build_once_and_receive_distinct_real_inodes(tmp_path):
++    session = tmp_path / "pytest-session"
++    session.mkdir()
++    basis_counter = session / "basis-builder-calls"
++    final_counter = session / "final-builder-calls"
++    basis_counter.mkdir()
++    final_counter.mkdir()
++    go = session / "go"
++    script = textwrap.dedent(
++        """
++        import json
++        import os
++        import sys
++        import time
++        from pathlib import Path
++        from orchestrator.tests import host_tree_cache as cache
++
++        session = Path(sys.argv[1])
++        worker = sys.argv[2]
++        os.environ["PYTEST_XDIST_WORKER"] = worker
++        request = session / ("popen-" + worker) / "case"
++        request.mkdir(parents=True)
++        (session / ("ready-" + worker)).write_bytes(b"ready\\n")
++        while not (session / "go").exists():
++            time.sleep(0.005)
++
++        basis_key = {"fixture": "concurrent-basis-key"}
++        final_key = {"fixture": "concurrent-default-final-key"}
++        def basis_builder(parent):
++            (session / "basis-builder-calls" / str(os.getpid())).write_bytes(
++                b"basis-built\\n"
++            )
++            root = parent / "base"
++            root.mkdir()
++            (root / "payload.bin").write_bytes(
++                b"host-tree-cache-independent-copy-sentinel\\n"
++            )
++            (root / "payload-link").symlink_to("payload.bin")
++            return root, root / "receipt.json", {"basis": "shared"}
++
++        def final_builder(parent):
++            (session / "final-builder-calls" / str(os.getpid())).write_bytes(
++                b"final-built\\n"
++            )
++            root, _basis_document = cache.copy_tree_for_pytest(
++                request, destination_name="base", destination_root=parent,
++                key_factory=lambda: basis_key, builder=basis_builder,
++                process_cache={}, ambient_temp_root=session,
++            )
++            return root, root / "receipt.json", {"nested": {"value": "shared"}}
++
++        copied, document = cache.copy_tree_for_pytest(
++            request, destination_name="copy", key_factory=lambda: final_key,
++            builder=final_builder, process_cache={}, ambient_temp_root=session,
++        )
++        payload = copied / "payload.bin"
++        print(json.dumps({
++            "root": str(copied),
++            "inode": [payload.stat().st_dev, payload.stat().st_ino],
++            "bytes": payload.read_text(encoding="utf-8"),
++            "symlink": (copied / "payload-link").is_symlink(),
++            "document": document,
++        }, sort_keys=True))
++        """
++    )
++    processes = [
++        subprocess.Popen(
++            [sys.executable, "-c", script, str(session), f"gw{index}"],
++            cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
++            text=True, env={**os.environ, "PYTHONPATH": str(ROOT)},
++        )
++        for index in range(7)
++    ]
++    try:
++        deadline = time.monotonic() + 15.0
++        while len(list(session.glob("ready-gw*"))) != 7:
++            assert time.monotonic() < deadline, "concurrent cache workers did not become ready"
++            time.sleep(0.01)
++        go.write_bytes(b"go\n")
++        results = []
++        for process in processes:
++            stdout, stderr = process.communicate(timeout=20)
++            assert process.returncode == 0, stderr
++            results.append(json.loads(stdout))
++    finally:
++        for process in processes:
++            if process.poll() is None:
++                process.kill()
++            process.wait()
++
++    assert len(list(basis_counter.iterdir())) == 1
++    assert len(list(final_counter.iterdir())) == 1
++    assert len({result["root"] for result in results}) == 7
++    assert len({tuple(result["inode"]) for result in results}) == 7
++    assert {result["bytes"] for result in results} == {
++        _TREE_PAYLOAD.decode("utf-8"),
++    }
++    assert all(result["symlink"] is True for result in results)
++    assert all(result["document"] == {"nested": {"value": "shared"}}
++               for result in results)
++    cache_root = session / ".izanagi-host-tree-cache-v1"
++    assert len(list((cache_root / "locks").glob("*.lock"))) == 2
++    assert len(list((cache_root / "entries").iterdir())) == 2
++
++
++def test_publish_uses_same_filesystem_rename_and_unlocks_before_actual_copytree(
++        tmp_path, monkeypatch):
++    session = tmp_path / "pytest-session"
++    request = _shared_request_root(session, "gw-lock", "case")
++    monkeypatch.setenv("PYTEST_XDIST_WORKER", "gw-lock")
++    key = {"fixture": "lock-scope"}
++    cache_root = cache.xdist_session_cache_root(request, "gw-lock")
++    assert cache_root is not None
++    lock_path = cache.cache_lock_path(cache_root, key)
++    real_copytree = cache.shutil.copytree
++    real_rename = cache.os.rename
++    copy_observations = []
++    rename_observations = []
++
++    def observed_copytree(source, destination, *args, **kwargs):
++        with lock_path.open("a+b") as contender:
++            fcntl.flock(contender.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
++            fcntl.flock(contender.fileno(), fcntl.LOCK_UN)
++        copy_observations.append((Path(source), Path(destination)))
++        return real_copytree(source, destination, *args, **kwargs)
++
++    def observed_rename(source, destination, *args, **kwargs):
++        source_path = Path(source)
++        destination_path = Path(destination)
++        rename_observations.append((
++            source_path, destination_path,
++            source_path.stat().st_dev, destination_path.parent.stat().st_dev,
++        ))
++        return real_rename(source, destination, *args, **kwargs)
++
++    calls: list[int] = []
++    with mock.patch.object(cache.shutil, "copytree", side_effect=observed_copytree), \
++            mock.patch.object(cache.os, "rename", side_effect=observed_rename):
++        copied, _document = cache.copy_tree_for_pytest(
++            request,
++            destination_name="copy",
++            key_factory=lambda: key,
++            builder=_simple_builder(calls, (_TREE_PAYLOAD,)),
++            process_cache={},
++            ambient_temp_root=session,
++        )
++
++    entry = cache.cache_entry_path(cache_root, key)
++    assert calls == [0]
++    assert copy_observations == [(entry / "tree", copied)]
++    assert len(rename_observations) == 2
++    publish = rename_observations[-1]
++    assert publish[1] == entry
++    assert publish[0].parent == entry.parent
++    assert publish[2] == publish[3]
++    assert (copied / "payload.bin").read_bytes() == _TREE_PAYLOAD
++
++
++def test_oracle_wrapper_builds_one_basis_and_one_final_per_exact_key(
++        tmp_path, monkeypatch):
++    import test_s8b_oracle_driver as oracle
++
++    session = tmp_path / "pytest-session"
++    requests = [
++        _shared_request_root(session, "gw-wrapper", f"case-{index}")
++        for index in range(3)
++    ]
++    monkeypatch.setenv("PYTEST_XDIST_WORKER", "gw-wrapper")
++    basis_calls = []
++    final_calls = []
++
++    def build_basis(parent: Path, *, distinct_basis_blob: bool):
++        basis_calls.append(distinct_basis_blob)
++        root, receipt, _document = _build_git_base(parent)
++        return root, receipt, {"current_runtime_sources": ["literal-runtime"]}
++
++    def build_final(
++            root: Path, *, basis_state: dict, r_trailer: str,
++            extra_r_path: bool, issue_receipt: bool):
++        final_calls.append((r_trailer, extra_r_path, issue_receipt, basis_state))
++        (root / "final-key.txt").write_text(r_trailer + "\n", encoding="utf-8")
++        return root, root / migration.RECEIPT_REL, {
++            "nested": {"trailer": r_trailer},
++        }
++
++    monkeypatch.setattr(oracle, "_build_t080_stub_free_e2e_basis", build_basis)
++    monkeypatch.setattr(oracle, "_finalize_t080_stub_free_e2e_basis", build_final)
++    first, _receipt, first_document = oracle._t080_stub_free_e2e_repo(requests[0])
++    second, _receipt, second_document = oracle._t080_stub_free_e2e_repo(requests[1])
++    third, _receipt, third_document = oracle._t080_stub_free_e2e_repo(
++        requests[2], r_trailer="AI-Agent: codex",
++    )
++
++    assert basis_calls == [False]
++    assert [call[:3] for call in final_calls] == [
++        ("AI-Agent: none", False, True),
++        ("AI-Agent: codex", False, True),
++    ]
++    assert (first / "final-key.txt").read_text(encoding="utf-8") == (
++        "AI-Agent: none\n"
++    )
++    assert (second / "final-key.txt").read_text(encoding="utf-8") == (
++        "AI-Agent: none\n"
++    )
++    assert (third / "final-key.txt").read_text(encoding="utf-8") == (
++        "AI-Agent: codex\n"
++    )
++    assert len({
++        ((root / "payload.bin").stat().st_dev,
++         (root / "payload.bin").stat().st_ino)
++        for root in (first, second, third)
++    }) == 3
++    first_document["nested"]["trailer"] = "mutated-first"
++    assert second_document == {"nested": {"trailer": "AI-Agent: none"}}
++    assert third_document == {"nested": {"trailer": "AI-Agent: codex"}}
++    cache_root = session / ".izanagi-host-tree-cache-v1"
++    assert len(list((cache_root / "entries").iterdir())) == 3
++    assert len(list((cache_root / "locks").glob("*.lock"))) == 3
++
++
++def test_oracle_wrapper_copies_git_metadata_files_and_document_independently(
++        tmp_path, monkeypatch):
++    import test_s8b_oracle_driver as oracle
++
++    monkeypatch.delenv("PYTEST_XDIST_WORKER", raising=False)
++    parent = tmp_path / "cached-base-parent"
++    parent.mkdir()
++    base_root, _receipt, cached_document = _build_git_base(parent)
++    live_key = oracle._t080_host_cache_key()
++    assert live_key is not None
++    digest = cache.cache_key_digest(live_key)
++    monkeypatch.setitem(
++        oracle._T080_E2E_BASE_CACHE, digest, (base_root, cached_document),
++    )
++    request_a = tmp_path / "request-a"
++    request_b = tmp_path / "request-b"
++    request_a.mkdir()
++    request_b.mkdir()
++
++    copy_a, receipt_a, document_a = oracle._t080_stub_free_e2e_repo(request_a)
++    copy_b, receipt_b, document_b = oracle._t080_stub_free_e2e_repo(request_b)
++    base_payload = base_root / "payload.bin"
++    payload_a = copy_a / "payload.bin"
++    payload_b = copy_b / "payload.bin"
++    assert len({
++        (path.stat().st_dev, path.stat().st_ino)
++        for path in (base_payload, payload_a, payload_b)
++    }) == 3
++    assert all(path.read_bytes() == _TREE_PAYLOAD
++               for path in (base_payload, payload_a, payload_b))
++    assert (copy_a / "payload-link").is_symlink()
++    assert (copy_b / "payload-link").is_symlink()
++    base_head = _git(base_root, "rev-parse", "HEAD")
++    base_submodule_head = _git(
++        base_root / migration.CCBENCH_REL, "rev-parse", "HEAD",
++    )
++
++    payload_a.write_bytes(payload_a.read_bytes() + b"copy-a-only\n")
++    receipt_a.unlink()
++    _git(copy_a, "commit", "-q", "--allow-empty", "-m", "copy A head")
++    submodule_a = copy_a / migration.CCBENCH_REL
++    _configure_repo(submodule_a)
++    (submodule_a / "source.txt").write_bytes(b"copy-a-submodule-head\n")
++    _git(submodule_a, "add", "source.txt")
++    _git(submodule_a, "commit", "-q", "-m", "copy A submodule head")
++    document_a["nested"]["value"] = "copy-a-mutated"
++
++    assert payload_b.read_bytes() == _TREE_PAYLOAD
++    assert base_payload.read_bytes() == _TREE_PAYLOAD
++    assert receipt_b.read_bytes() == b"cached-receipt-literal-sentinel\n"
++    assert (base_root / migration.RECEIPT_REL).read_bytes() == (
++        b"cached-receipt-literal-sentinel\n"
++    )
++    assert _git(copy_b, "rev-parse", "HEAD") == base_head
++    assert _git(base_root, "rev-parse", "HEAD") == base_head
++    assert _git(
++        copy_b / migration.CCBENCH_REL, "rev-parse", "HEAD",
++    ) == base_submodule_head
++    assert _git(
++        base_root / migration.CCBENCH_REL, "rev-parse", "HEAD",
++    ) == base_submodule_head
++    assert _git(copy_b, "status", "--porcelain", "--untracked-files=all") == ""
++    assert _git(base_root, "status", "--porcelain", "--untracked-files=all") == ""
++    assert document_b == {"nested": {"value": "document-sentinel"}}
++    assert cached_document == {"nested": {"value": "document-sentinel"}}
++    assert document_a is not document_b and document_b is not cached_document
++
++
++def test_xdist_missing_ancestor_and_unbound_key_rebuild_without_shared_cache(
++        tmp_path, monkeypatch):
++    session = tmp_path / "pytest-session"
++    session.mkdir()
++    monkeypatch.setenv("PYTEST_XDIST_WORKER", "gw-missing")
++    calls: list[int] = []
++    builder = _simple_builder(calls, (b"fresh-zero\n", b"fresh-one\n"))
++    first_request = session / "ordinary-first"
++    second_request = session / "ordinary-second"
++    first_request.mkdir()
++    second_request.mkdir()
++    first, _document = cache.copy_tree_for_pytest(
++        first_request, destination_name="copy", key_factory=lambda: {"key": 1},
++        builder=builder, process_cache={}, ambient_temp_root=session,
++    )
++    second, _document = cache.copy_tree_for_pytest(
++        second_request, destination_name="copy", key_factory=lambda: {"key": 1},
++        builder=builder, process_cache={}, ambient_temp_root=session,
++    )
++    assert calls == [0, 1]
++    assert (first / "payload.bin").read_bytes() == b"fresh-zero\n"
++    assert (second / "payload.bin").read_bytes() == b"fresh-one\n"
++    assert cache.xdist_session_cache_root(first_request, "gw-missing") is None
++    assert not (session / ".izanagi-host-tree-cache-v1").exists()
++
++    bound_request = _shared_request_root(session, "gw-missing", "unbound-first")
++    next_request = _shared_request_root(session, "gw-missing", "unbound-second")
++    unbound_calls: list[int] = []
++    unbound_builder = _simple_builder(
++        unbound_calls, (b"unbound-zero\n", b"unbound-one\n"),
++    )
++    unbound_first, _document = cache.copy_tree_for_pytest(
++        bound_request, destination_name="copy", key_factory=lambda: None,
++        builder=unbound_builder, process_cache={}, ambient_temp_root=session,
++    )
++    unbound_second, _document = cache.copy_tree_for_pytest(
++        next_request, destination_name="copy", key_factory=lambda: None,
++        builder=unbound_builder, process_cache={}, ambient_temp_root=session,
++    )
++    assert unbound_calls == [0, 1]
++    assert (unbound_first / "payload.bin").read_bytes() == b"unbound-zero\n"
++    assert (unbound_second / "payload.bin").read_bytes() == b"unbound-one\n"
++    cache_root = session / ".izanagi-host-tree-cache-v1"
++    assert not (cache_root / "entries").exists()
++
++
++def test_builder_process_death_leaves_only_unpublished_staging_and_next_recovers(
++        tmp_path, monkeypatch):
++    session = tmp_path / "pytest-session"
++    request = _shared_request_root(session, "gw-crash", "crashing-case")
++    key = {"fixture": "builder-death"}
++    script = textwrap.dedent(
++        """
++        import os
++        import sys
++        from pathlib import Path
++        from orchestrator.tests import host_tree_cache as cache
++
++        request = Path(sys.argv[1])
++        session = Path(sys.argv[2])
++        os.environ["PYTEST_XDIST_WORKER"] = "gw-crash"
++        key = {"fixture": "builder-death"}
++        def die(parent):
++            root = parent / "base"
++            root.mkdir()
++            (root / "partial-only.bin").write_bytes(b"partial-never-published\\n")
++            os._exit(23)
++        cache.copy_tree_for_pytest(
++            request, destination_name="copy", key_factory=lambda: key,
++            builder=die, process_cache={}, ambient_temp_root=session,
++        )
++        """
++    )
++    crashed = subprocess.run(
++        [sys.executable, "-c", script, str(request), str(session)],
++        cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
++        text=True, env={**os.environ, "PYTHONPATH": str(ROOT)},
++    )
++    assert crashed.returncode == 23, crashed.stderr
++    cache_root = cache.xdist_session_cache_root(request, "gw-crash")
++    assert cache_root is not None
++    entry = cache.cache_entry_path(cache_root, key)
++    staging = list((cache_root / "entries").glob(".*.staging-*"))
++    assert len(staging) == 1
++    assert (staging[0] / "build" / "base" / "partial-only.bin").read_bytes() == (
++        b"partial-never-published\n"
++    )
++    assert not entry.exists()
++
++    monkeypatch.setenv("PYTEST_XDIST_WORKER", "gw-crash")
++    recovery_request = _shared_request_root(session, "gw-crash", "recovery-case")
++    calls: list[int] = []
++    recovered, _document = cache.copy_tree_for_pytest(
++        recovery_request,
++        destination_name="copy",
++        key_factory=lambda: key,
++        builder=_simple_builder(calls, (b"recovered-final-tree\n",)),
++        process_cache={},
++        ambient_temp_root=session,
++    )
++    assert calls == [0]
++    assert (recovered / "payload.bin").read_bytes() == b"recovered-final-tree\n"
++    assert not (entry / "tree" / "partial-only.bin").exists()
++    assert (entry / "READY").read_bytes() == cache._READY_BYTES
++
++
++def test_live_input_change_during_builder_is_not_published_and_is_rebuilt_fresh(
++        tmp_path, monkeypatch):
++    session = tmp_path / "pytest-session"
++    request = _shared_request_root(session, "gw-drift", "case")
++    monkeypatch.setenv("PYTEST_XDIST_WORKER", "gw-drift")
++    state = {"generation": 0}
++    calls: list[int] = []
++
++    def key_factory():
++        return {"generation": state["generation"]}
++
++    def builder(parent: Path):
++        index = len(calls)
++        calls.append(index)
++        root = parent / "base"
++        root.mkdir()
++        (root / "payload.bin").write_bytes(
++            b"unstable-build\n" if index == 0 else b"stable-rebuild\n"
++        )
++        if index == 0:
++            state["generation"] = 1
++        return root, root / "receipt.json", {"generation": index}
++
++    copied, document = cache.copy_tree_for_pytest(
++        request,
++        destination_name="copy",
++        key_factory=key_factory,
++        builder=builder,
++        process_cache={},
++        ambient_temp_root=session,
++    )
++
++    assert calls == [0, 1]
++    assert (copied / "payload.bin").read_bytes() == b"stable-rebuild\n"
++    assert document == {"generation": 1}
++    cache_root = cache.xdist_session_cache_root(request, "gw-drift")
++    assert cache_root is not None
++    assert not cache.cache_entry_path(cache_root, {"generation": 0}).exists()
++
++
++def _run() -> int:
++    """新規 test file を repository の plain-runner 契約へ載せる。"""
++    oracle_driver = str(ROOT / "orchestrator/tests/test_s8b_oracle_driver.py")
++    return int(pytest.main([
++        __file__,
++        oracle_driver + "::test_t080_stub_free_e2e_exact_consumers_and_nodeids_b5",
++        oracle_driver
++        + "::test_t080_stub_free_e2e_temp_roots_fail_closed_at_real_output_boundary",
++        "-q",
++    ]))
++
++
++if __name__ == "__main__":
++    raise SystemExit(_run())
+diff --git a/orchestrator/tests/test_s8b_oracle_driver.py b/orchestrator/tests/test_s8b_oracle_driver.py
+index 71f9799ef..fdfb0e003 100644
+--- a/orchestrator/tests/test_s8b_oracle_driver.py
++++ b/orchestrator/tests/test_s8b_oracle_driver.py
+@@ -3,7 +3,6 @@
+ from __future__ import annotations
+ 
+ import ast
+-import atexit
+ import contextlib
+ import copy
+ import dataclasses
+@@ -93,6 +92,7 @@ from orchestrator.campaign.model import Genome  # noqa: E402
+ from orchestrator.campaign.s1_direct_comparison import PreparedCell  # noqa: E402
+ from orchestrator.campaign.source_digest import SourceEvidence  # noqa: E402
+ from orchestrator.tests import commit_receipt_support as receipt_support  # noqa: E402
++from orchestrator.tests import host_tree_cache  # noqa: E402
+ from orchestrator.tests.output_snapshot_ignores import (  # noqa: E402
+     _check_rule_candidates,
+     git_ignored_output_ancestor_directories,
+@@ -559,7 +559,8 @@ def _copy_t080_migration_basis_file(root: Path, relative: str, basis: str) -> No
+     target.write_bytes(_run_git_bytes(ROOT, "show", f"{basis}:{relative}"))
+ 
+ 
+-_T080_E2E_BASE_CACHE: dict[tuple, tuple[Path, dict]] = {}
++_T080_E2E_BASE_CACHE: dict[str, tuple[Path, dict]] = {}
++_T080_E2E_BASIS_CACHE: dict[str, tuple[Path, dict]] = {}
+ 
+ 
+ def _t080_output_snapshot(root: Path) -> tuple[tuple[object, ...], ...]:
+@@ -841,6 +842,36 @@ def _git_visible_output_paths(root: Path) -> set[str]:
+     return visible
+ 
+ 
++def _t080_host_cache_key(
++        source_root: Path = ROOT, *, r_trailer: str = "AI-Agent: none",
++        extra_r_path: bool = False, issue_receipt: bool = True,
++        distinct_basis_blob: bool = False, cache_stage: str = "final",
++        ) -> dict[str, object] | None:
++    """T-080 base が読む live repository state を fail-closed に束縛する。"""
++    key = host_tree_cache.t080_live_repository_key(
++        source_root,
++        ccbench_relative=migration.CCBENCH_REL,
++        known_axes_relative=migration.KNOWN_AXES_REL,
++        holdout_relative=migration.HOLDOUT_REL,
++        receipt_relative=migration.RECEIPT_REL,
++        visible_output_paths=_git_visible_output_paths,
++        copied_file_relatives=("docs/phase3-8b-descriptor-design.md",),
++        r_trailer=r_trailer,
++        extra_r_path=extra_r_path,
++        issue_receipt=issue_receipt,
++        distinct_basis_blob=distinct_basis_blob,
++    )
++    if key is None or cache_stage == "final":
++        return key
++    if cache_stage != "basis":
++        return None
++    key = dict(key)
++    key["schema_version"] = "izanagi-t080-host-cache-basis-key/v1"
++    for field in ("r_trailer", "extra_r_path", "issue_receipt"):
++        del key[field]
++    return key
++
++
+ def _copy_git_visible_output(source_root: Path, destination: Path) -> set[str]:
+     """Git-visible な output regular file だけを fixture へ複製する。"""
+     visible_output = _git_visible_output_paths(source_root)
+@@ -895,11 +926,12 @@ def _t080_stub_free_e2e_repo(
+         extra_r_path: bool = False, issue_receipt: bool = True,
+         distinct_basis_blob: bool = False,
+         ) -> tuple[Path, Path, dict]:
+-    """`_build_t080_stub_free_e2e_repo` を process 内で引数ごとに 1 回だけ組む ([T-057])。
++    """T-080 base を session 内で共有し、各 test へ独立 copy を返す ([T-057])。
+ 
+     この fixture は 36MB / 2300 ファイルの copytree + `git submodule add` + 子 python での
+     draft→finalize→commit→verify で **1 回 15〜22 秒**かかり、そのうち同一引数の組み合わせが
+     7 回作り直されていた (実測: 本番 git 畳み込み後に残った tail の最大要因)。
++    serial では process cache、xdist では pytest session temp tree の host cache から
+     base を 1 回だけ組み、各テストへは独立した実体コピーを渡す。
+ 
+     テストは受け取った repo を破壊的に変異させる (ファイル追記・submodule への commit・削除) ため、
+@@ -909,24 +941,47 @@ def _t080_stub_free_e2e_repo(
+     base_temp_root = _assert_t080_temp_root_outside_real_output(
+         Path(tempfile.gettempdir())
+     )
+-    key = (r_trailer, extra_r_path, issue_receipt, distinct_basis_blob)
+-    cached = _T080_E2E_BASE_CACHE.get(key)
+-    if cached is None:
+-        base_parent = _assert_t080_temp_root_outside_real_output(Path(
+-            tempfile.mkdtemp(
+-                prefix="izanagi-t080-e2e-base-", dir=base_temp_root,
+-            )
+-        ))
+-        atexit.register(shutil.rmtree, base_parent, ignore_errors=True)
+-        base_root, _receipt, document = _build_t080_stub_free_e2e_repo(
+-            base_parent, r_trailer=r_trailer, extra_r_path=extra_r_path,
+-            issue_receipt=issue_receipt, distinct_basis_blob=distinct_basis_blob,
++    key_factory = functools.partial(
++        _t080_host_cache_key,
++        r_trailer=r_trailer,
++        extra_r_path=extra_r_path,
++        issue_receipt=issue_receipt,
++        distinct_basis_blob=distinct_basis_blob,
++    )
++    basis_key_factory = functools.partial(
++        _t080_host_cache_key,
++        distinct_basis_blob=distinct_basis_blob,
++        cache_stage="basis",
++    )
++
++    def builder(parent: Path):
++        basis_root, basis_state = host_tree_cache.copy_tree_for_pytest(
++            tmp_path,
++            destination_name="t080-stub-free-e2e",
++            destination_root=parent,
++            key_factory=basis_key_factory,
++            builder=functools.partial(
++                _build_t080_stub_free_e2e_basis,
++                distinct_basis_blob=distinct_basis_blob,
++            ),
++            process_cache=_T080_E2E_BASIS_CACHE,
++            ambient_temp_root=base_temp_root,
++        )
++        return _finalize_t080_stub_free_e2e_basis(
++            basis_root,
++            basis_state=basis_state,
++            r_trailer=r_trailer,
++            extra_r_path=extra_r_path,
++            issue_receipt=issue_receipt,
+         )
+-        cached = (base_root, document)
+-        _T080_E2E_BASE_CACHE[key] = cached
+-    base_root, document = cached
+-    root = tmp_path / base_root.name
+-    shutil.copytree(base_root, root, symlinks=True)
++    root, document = host_tree_cache.copy_tree_for_pytest(
++        tmp_path,
++        destination_name="t080-stub-free-e2e",
++        key_factory=key_factory,
++        builder=builder,
++        process_cache=_T080_E2E_BASE_CACHE,
++        ambient_temp_root=base_temp_root,
++    )
+     return root, root / migration.RECEIPT_REL, copy.deepcopy(document)
+ 
+ 
+@@ -1009,12 +1064,10 @@ def test_t080_stub_free_e2e_exact_consumers_and_nodeids_b5():
+     assert sum(expanded_nodeids.values()) == 11
+ 
+ 
+-def _build_t080_stub_free_e2e_repo(
+-        tmp_path: Path, *, r_trailer: str = "AI-Agent: none",
+-        extra_r_path: bool = False, issue_receipt: bool = True,
+-        distinct_basis_blob: bool = False,
++def _build_t080_stub_free_e2e_basis(
++        tmp_path: Path, *, distinct_basis_blob: bool = False,
+         ) -> tuple[Path, Path, dict]:
+-    """production builder/verifier/gate を一度も stub しない T-080 発行 repo。"""
++    """T-080 発行前の never-issued basis と current runtime 列を組む。"""
+     tmp_path = _assert_t080_temp_root_outside_real_output(tmp_path)
+     root = tmp_path / "t080-stub-free-e2e"
+     root.mkdir()
+@@ -1099,6 +1152,22 @@ def _build_t080_stub_free_e2e_repo(
+         f"observed={basis_history.state}"
+     )
+ 
++    return root, root / migration.RECEIPT_REL, {
++        "current_runtime_sources": sorted(current_runtime_sources),
++    }
++
++
++def _finalize_t080_stub_free_e2e_basis(
++        root: Path, *, basis_state: dict,
++        r_trailer: str = "AI-Agent: none", extra_r_path: bool = False,
++        issue_receipt: bool = True,
++        ) -> tuple[Path, Path, dict]:
++    """never-issued basis へ production draft/finalize/verify を適用する。"""
++    root = Path(root)
++    tmp_path = root.parent
++    current_runtime_sources = set(basis_state["current_runtime_sources"])
++    assert current_runtime_sources
++
+     receipt = root / migration.RECEIPT_REL
+     if not issue_receipt:
+         return root, receipt, {}
+@@ -1273,6 +1342,25 @@ def _build_t080_stub_free_e2e_repo(
+     return root, receipt, document
+ 
+ 
++def _build_t080_stub_free_e2e_repo(
++        tmp_path: Path, *, r_trailer: str = "AI-Agent: none",
++        extra_r_path: bool = False, issue_receipt: bool = True,
++        distinct_basis_blob: bool = False,
++        ) -> tuple[Path, Path, dict]:
++    """cache を介さず production T-080 basis と final repo を順に組む。"""
++    tmp_path = _assert_t080_temp_root_outside_real_output(tmp_path)
++    root, _receipt, basis_state = _build_t080_stub_free_e2e_basis(
++        tmp_path, distinct_basis_blob=distinct_basis_blob,
++    )
++    return _finalize_t080_stub_free_e2e_basis(
++        root,
++        basis_state=basis_state,
++        r_trailer=r_trailer,
++        extra_r_path=extra_r_path,
++        issue_receipt=issue_receipt,
++    )
++
++
+ def test_t080_output_copy_visibility_matches_production_enumeration(
+         tmp_path, monkeypatch):
+     for key in tuple(os.environ):

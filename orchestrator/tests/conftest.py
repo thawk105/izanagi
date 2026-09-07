@@ -901,6 +901,7 @@ _ACCEPTANCE_DURATION_LEDGER_MAX_BYTES = 16 * 1024 * 1024
 _ACCEPTANCE_DURATION_LEDGER_CONFIG_ATTR = (
     "_izanagi_acceptance_duration_seconds_by_nodeid"
 )
+_ACCEPTANCE_LEDGER_RELATIVE_PATH_CACHE: dict[str, str] = {}
 _ACCEPTANCE_DURATION_LEDGER_WORKERINPUT_KEY = (
     "izanagi_acceptance_duration_ledger_v1"
 )
@@ -1515,9 +1516,15 @@ def _acceptance_ledger_nodeid(item) -> str | None:
         nodeid = str(item.nodeid)
         if nodeid.rfind("@") > nodeid.rfind("]"):
             nodeid = nodeid[:nodeid.rfind("@")]
-        relative_path = Path(item.path).resolve(strict=False).relative_to(
-            _ACCEPTANCE_DURATION_LEDGER_REPO_ROOT
-        ).as_posix()
+        path_key = os.fspath(item.path)
+        if not isinstance(path_key, str):
+            raise TypeError("item.path must resolve to str")
+        relative_path = _ACCEPTANCE_LEDGER_RELATIVE_PATH_CACHE.get(path_key)
+        if relative_path is None:
+            relative_path = Path(path_key).resolve(strict=False).relative_to(
+                _ACCEPTANCE_DURATION_LEDGER_REPO_ROOT
+            ).as_posix()
+            _ACCEPTANCE_LEDGER_RELATIVE_PATH_CACHE[path_key] = relative_path
         _original_path, separator, suffix = nodeid.partition("::")
         return relative_path if not separator else f"{relative_path}::{suffix}"
     except (ValueError, OSError, RuntimeError, TypeError):

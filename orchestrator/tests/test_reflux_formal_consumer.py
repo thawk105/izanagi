@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 
+from orchestrator.campaign import model as M
 from orchestrator.campaign import reflux_formal_consumer as C
 from orchestrator.campaign import reflux_origin_binding as B
 from orchestrator.campaign import reflux_origin_ledger as L
@@ -839,6 +840,49 @@ def test_fc06_rejects_validation_order_mismatch(case: _Case) -> None:
     _assert_reason(case, C.FormalReasonCode.FC06)
 
 
+def test_fc07_rejects_legacy_root_kind_terminal_shape(case: _Case) -> None:
+    trigger = _projection_records(case, 0)[0]
+    legacy = {
+        "kind": "abort",
+        "build_attempt_id": "placeholder",
+        "candidate_attributable": True,
+        "truncated": False,
+        "witness_class_sha256s": [
+            case.records[0]["physical_result"]["constraint_sha256"]
+        ],
+    }
+    _rewrite_wal(case, 0, [trigger, legacy])
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_accepts_production_commit_terminal_shape(case: _Case) -> None:
+    record = copy.deepcopy(case.records[0])
+    record["physical_result"] = {
+        "build_attempt_id": record["physical_result"]["build_attempt_id"],
+        "outcome": "accepted",
+        "constraint_sha256": None,
+    }
+    _set_record(case, 0, record)
+    _set_member(case, 0, outcome="accepted", constraint_sha256=None)
+
+    trigger = _projection_records(case, 0)[0]
+    terminal = {
+        "variant": "fixture-v",
+        "stage": M.STAGE_COMMIT,
+        "env_tag": "fixture-env",
+        "ts": 0,
+        "payload": {
+            "build_attempt_id": "placeholder",
+            "verify_configs": ["legacy", "s2"],
+        },
+    }
+    _rewrite_wal(case, 0, [trigger, terminal])
+
+    result = _evaluate(case)
+    assert type(result) is C.P6Unavailable
+    assert result.reason_code is C.FormalReasonCode.P6_UNAVAILABLE
+
+
 def test_fc07_rejects_accepted_without_terminal_commit(case: _Case) -> None:
     record = copy.deepcopy(case.records[0])
     record["physical_result"] = {
@@ -861,9 +905,14 @@ def test_fc07_rejects_accepted_verify_config_order_mismatch(case: _Case) -> None
     wal = [
         trigger,
         {
-            "kind": "commit",
-            "build_attempt_id": "placeholder",
-            "verify_configs": ["s2", "legacy"],
+            "variant": "fixture-v",
+            "stage": M.STAGE_COMMIT,
+            "env_tag": "fixture-env",
+            "ts": 0,
+            "payload": {
+                "build_attempt_id": "placeholder",
+                "verify_configs": ["s2", "legacy"],
+            },
         },
     ]
     _rewrite_wal(case, 0, wal)
@@ -875,7 +924,7 @@ def test_fc07_rejects_rejected_without_single_candidate_witness(case: _Case) -> 
         "ordered_wal_ref"
     ]["path"]
     wal = copy.deepcopy(json.loads(projection_path.read_bytes())["records"])
-    wal[-1]["witness_class_sha256s"] = []
+    wal[-1]["payload"]["witness_class_sha256s"] = []
     _rewrite_wal(case, 0, wal)
     _assert_reason(case, C.FormalReasonCode.FC07)
 
@@ -899,7 +948,7 @@ def test_fc09_rejects_kmax_excess(case: _Case) -> None:
     _set_member(case, 1, constraint_sha256=second_class)
     projection_path = case.fixture.evidence_root / record["evidence"]["ordered_wal_ref"]["path"]
     wal = copy.deepcopy(json.loads(projection_path.read_bytes())["records"])
-    wal[-1]["witness_class_sha256s"] = [second_class]
+    wal[-1]["payload"]["witness_class_sha256s"] = [second_class]
     _rewrite_wal(case, 1, wal)
     _assert_reason(case, C.FormalReasonCode.FC09)
 

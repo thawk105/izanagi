@@ -1,0 +1,148 @@
+=== R1 較正格子 ===
+OK   workload 集合が一致: ['balanced', 'read-heavy', 'write-heavy']
+OK   [balanced] 旧 model の格子は既存 7 点 (実測 7 点)
+OK   [balanced] 新 model の格子は 13 点 (実測 13 点)
+OK   [balanced] 13 点が昇順
+OK   [balanced] 先頭 7 点の座標が既存格子と exact 一致
+OK   [balanced] 末尾 6 点の座標が exact に [150, 200, 300, 500, 750, 999]
+OK   [balanced] 既存 7 点の throughput_tps が bit 単位で不変
+OK   [balanced] 既存 7 点の abort_rate が bit 単位で不変
+OK   [balanced] 既存 7 点の leader_period_us_at_static_points が bit 単位で不変
+OK   [balanced] 既存 raw_cells が bit 単位で不変
+OK   [read-heavy] 旧 model の格子は既存 7 点 (実測 7 点)
+OK   [read-heavy] 新 model の格子は 13 点 (実測 13 点)
+OK   [read-heavy] 13 点が昇順
+OK   [read-heavy] 先頭 7 点の座標が既存格子と exact 一致
+OK   [read-heavy] 末尾 6 点の座標が exact に [150, 200, 300, 500, 750, 999]
+OK   [read-heavy] 既存 7 点の throughput_tps が bit 単位で不変
+OK   [read-heavy] 既存 7 点の abort_rate が bit 単位で不変
+OK   [read-heavy] 既存 7 点の leader_period_us_at_static_points が bit 単位で不変
+OK   [read-heavy] 既存 raw_cells が bit 単位で不変
+OK   [write-heavy] 旧 model の格子は既存 7 点 (実測 7 点)
+OK   [write-heavy] 新 model の格子は 13 点 (実測 13 点)
+OK   [write-heavy] 13 点が昇順
+OK   [write-heavy] 先頭 7 点の座標が既存格子と exact 一致
+OK   [write-heavy] 末尾 6 点の座標が exact に [150, 200, 300, 500, 750, 999]
+OK   [write-heavy] 既存 7 点の throughput_tps が bit 単位で不変
+OK   [write-heavy] 既存 7 点の abort_rate が bit 単位で不変
+OK   [write-heavy] 既存 7 点の leader_period_us_at_static_points が bit 単位で不変
+OK   [write-heavy] 既存 raw_cells が bit 単位で不変
+
+=== R2 tail 6 点 = report の全 rep 算術平均 / R4 / 受入条件 ===
+OK   [balanced] report schema_version
+OK   [balanced] status complete / workload 一致
+OK   [balanced] trace_disabled かつ performance_certified=false (非認証)
+OK   [balanced] report realized_us == [150, 200, 300, 500, 750, 999]
+OK   [balanced] requested_us の 6 点目は 1000 µs
+OK   [balanced] 1000 µs は unrealized 1 件、理由に F718
+OK   [balanced] 999 は requested に無い = 6 点目を新設せず 1000 の代替
+OK   [balanced] 8 点格子 = static 6 + none 1 + adaptive 1 (実測 ['adaptive', 'none', 'static'])
+OK   [balanced] static 6 点の座標一致
+OK   [balanced] b=150 rep 5 本
+OK   [balanced] b=150 throughput 1587861.2000 == 全 rep 平均 1587861.2000
+OK   [balanced] b=150 abort 0.145340 == 全 rep 平均 0.145340
+OK   [balanced] b=150 は none/adaptive の値ではない (R4)
+OK   [balanced] b=200 rep 5 本
+OK   [balanced] b=200 throughput 1411488.0000 == 全 rep 平均 1411488.0000
+OK   [balanced] b=200 abort 0.128000 == 全 rep 平均 0.128000
+OK   [balanced] b=200 は none/adaptive の値ではない (R4)
+OK   [balanced] b=300 rep 5 本
+OK   [balanced] b=300 throughput 1195114.6000 == 全 rep 平均 1195114.6000
+OK   [balanced] b=300 abort 0.106060 == 全 rep 平均 0.106060
+OK   [balanced] b=300 は none/adaptive の値ではない (R4)
+OK   [balanced] b=500 rep 5 本
+OK   [balanced] b=500 throughput 960241.0000 == 全 rep 平均 960241.0000
+OK   [balanced] b=500 abort 0.083340 == 全 rep 平均 0.083340
+OK   [balanced] b=500 は none/adaptive の値ではない (R4)
+OK   [balanced] b=750 rep 5 本
+OK   [balanced] b=750 throughput 812127.0000 == 全 rep 平均 812127.0000
+OK   [balanced] b=750 abort 0.067920 == 全 rep 平均 0.067920
+OK   [balanced] b=750 は none/adaptive の値ではない (R4)
+OK   [balanced] b=999 rep 5 本
+OK   [balanced] b=999 throughput 721214.2000 == 全 rep 平均 721214.2000
+OK   [balanced] b=999 abort 0.058580 == 全 rep 平均 0.058580
+OK   [balanced] b=999 は none/adaptive の値ではない (R4)
+OK   [read-heavy] report schema_version
+OK   [read-heavy] status complete / workload 一致
+OK   [read-heavy] trace_disabled かつ performance_certified=false (非認証)
+OK   [read-heavy] report realized_us == [150, 200, 300, 500, 750, 999]
+OK   [read-heavy] requested_us の 6 点目は 1000 µs
+OK   [read-heavy] 1000 µs は unrealized 1 件、理由に F718
+OK   [read-heavy] 999 は requested に無い = 6 点目を新設せず 1000 の代替
+OK   [read-heavy] 8 点格子 = static 6 + none 1 + adaptive 1 (実測 ['adaptive', 'none', 'static'])
+OK   [read-heavy] static 6 点の座標一致
+OK   [read-heavy] b=150 rep 5 本
+OK   [read-heavy] b=150 throughput 3815755.6000 == 全 rep 平均 3815755.6000
+OK   [read-heavy] b=150 abort 0.054560 == 全 rep 平均 0.054560
+OK   [read-heavy] b=150 は none/adaptive の値ではない (R4)
+OK   [read-heavy] b=200 rep 5 本
+OK   [read-heavy] b=200 throughput 3400664.0000 == 全 rep 平均 3400664.0000
+OK   [read-heavy] b=200 abort 0.048580 == 全 rep 平均 0.048580
+OK   [read-heavy] b=200 は none/adaptive の値ではない (R4)
+OK   [read-heavy] b=300 rep 5 本
+OK   [read-heavy] b=300 throughput 2871506.4000 == 全 rep 平均 2871506.4000
+OK   [read-heavy] b=300 abort 0.041000 == 全 rep 平均 0.041000
+OK   [read-heavy] b=300 は none/adaptive の値ではない (R4)
+OK   [read-heavy] b=500 rep 5 本
+OK   [read-heavy] b=500 throughput 2309855.2000 == 全 rep 平均 2309855.2000
+OK   [read-heavy] b=500 abort 0.032740 == 全 rep 平均 0.032740
+OK   [read-heavy] b=500 は none/adaptive の値ではない (R4)
+OK   [read-heavy] b=750 rep 5 本
+OK   [read-heavy] b=750 throughput 1937139.0000 == 全 rep 平均 1937139.0000
+OK   [read-heavy] b=750 abort 0.027160 == 全 rep 平均 0.027160
+OK   [read-heavy] b=750 は none/adaptive の値ではない (R4)
+OK   [read-heavy] b=999 rep 5 本
+OK   [read-heavy] b=999 throughput 1709480.4000 == 全 rep 平均 1709480.4000
+OK   [read-heavy] b=999 abort 0.023700 == 全 rep 平均 0.023700
+OK   [read-heavy] b=999 は none/adaptive の値ではない (R4)
+OK   [write-heavy] report schema_version
+OK   [write-heavy] status complete / workload 一致
+OK   [write-heavy] trace_disabled かつ performance_certified=false (非認証)
+OK   [write-heavy] report realized_us == [150, 200, 300, 500, 750, 999]
+OK   [write-heavy] requested_us の 6 点目は 1000 µs
+OK   [write-heavy] 1000 µs は unrealized 1 件、理由に F718
+OK   [write-heavy] 999 は requested に無い = 6 点目を新設せず 1000 の代替
+OK   [write-heavy] 8 点格子 = static 6 + none 1 + adaptive 1 (実測 ['adaptive', 'none', 'static'])
+OK   [write-heavy] static 6 点の座標一致
+OK   [write-heavy] b=150 rep 5 本
+OK   [write-heavy] b=150 throughput 2049534.0000 == 全 rep 平均 2049534.0000
+OK   [write-heavy] b=150 abort 0.112760 == 全 rep 平均 0.112760
+OK   [write-heavy] b=150 は none/adaptive の値ではない (R4)
+OK   [write-heavy] b=200 rep 5 本
+OK   [write-heavy] b=200 throughput 1849491.8000 == 全 rep 平均 1849491.8000
+OK   [write-heavy] b=200 abort 0.097600 == 全 rep 平均 0.097600
+OK   [write-heavy] b=200 は none/adaptive の値ではない (R4)
+OK   [write-heavy] b=300 rep 5 本
+OK   [write-heavy] b=300 throughput 1590852.2000 == 全 rep 平均 1590852.2000
+OK   [write-heavy] b=300 abort 0.079560 == 全 rep 平均 0.079560
+OK   [write-heavy] b=300 は none/adaptive の値ではない (R4)
+OK   [write-heavy] b=500 rep 5 本
+OK   [write-heavy] b=500 throughput 1309859.2000 == 全 rep 平均 1309859.2000
+OK   [write-heavy] b=500 abort 0.061020 == 全 rep 平均 0.061020
+OK   [write-heavy] b=500 は none/adaptive の値ではない (R4)
+OK   [write-heavy] b=750 rep 5 本
+OK   [write-heavy] b=750 throughput 1112250.2000 == 全 rep 平均 1112250.2000
+OK   [write-heavy] b=750 abort 0.049460 == 全 rep 平均 0.049460
+OK   [write-heavy] b=750 は none/adaptive の値ではない (R4)
+OK   [write-heavy] b=999 rep 5 本
+OK   [write-heavy] b=999 throughput 992863.4000 == 全 rep 平均 992863.4000
+OK   [write-heavy] b=999 abort 0.042420 == 全 rep 平均 0.042420
+OK   [write-heavy] b=999 は none/adaptive の値ではない (R4)
+
+=== 同一性 ===
+OK   measured_input.sha256 が旧走行と同一 (f46cebdd2691e301…)
+OK   backoff_copy.sha256 が旧走行と同一 (3e9f548507200532…)
+OK   backoff_copy.source_pin が旧走行と同一 (511c9538e4e8efa5…)
+OK   static_calibration_jobids が旧走行と同一
+OK   numpy_version が同一 (2.2.6)
+OK   generator は旧走行と別 (--tail-json 版で走っている)
+OK   generator sha256 が着地済み tools/t2216_backoff_walk_model.py と一致 (00a034bc713b87c4…)
+OK   [write-heavy] provenance.tail_inputs.backoffs_us
+OK   [write-heavy] provenance.tail_inputs.sha256 実在
+OK   [balanced] provenance.tail_inputs.backoffs_us
+OK   [balanced] provenance.tail_inputs.sha256 実在
+OK   [read-heavy] provenance.tail_inputs.backoffs_us
+OK   [read-heavy] provenance.tail_inputs.sha256 実在
+
+=== 結果 ===
+すべて緑

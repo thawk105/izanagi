@@ -1,0 +1,120 @@
+{
+ "estimated_run_seconds": 200,
+ "hang_timeout_seconds": 900,
+ "mutations": [
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "M1-widen-absent-catch-to-oserror",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "new": "                path = path.resolve(strict=True)\n            except OSError:\n",
+     "old": "                path = path.resolve(strict=True)\n            except FileNotFoundError:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "M2-drop-absent-registration",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "new": "            except FileNotFoundError:\n                continue\n",
+     "old": "            except FileNotFoundError:\n                path = path.absolute()\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "M3-resolve-non-strict",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "new": "                path = path.resolve(strict=False)\n",
+     "old": "                path = path.resolve(strict=True)\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "M4-drop-unicodeerror-fail-closed",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "new": "            paths.append(path)\n        except OSError as exc:\n",
+     "old": "            paths.append(path)\n        except (OSError, UnicodeError) as exc:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "M5-restore-prunable-marker-exemption",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "new": "    paths: list[Path] = []\n    saw_worktree_record = False\n    for raw_record in raw.split(b\"\\n\\n\"):\n        lines = raw_record.splitlines()\n        is_prunable = any(\n            line == b\"prunable\" or line.startswith(b\"prunable \")\n            for line in lines\n        )\n        for line in lines:\n            if not line.startswith(b\"worktree \"):\n                continue\n            saw_worktree_record = True\n            if is_prunable:\n                continue\n            try:\n                paths.append(\n                    Path(os.fsdecode(line.removeprefix(b\"worktree \"))).resolve(\n                        strict=True\n                    )\n                )\n            except (OSError, UnicodeError) as exc:\n                raise _FoldGateFailure(\n                    f\"registered worktree path cannot be resolved: {exc}\"\n                ) from exc\n    if not saw_worktree_record:\n        raise _FoldGateFailure(\"registered worktree list is empty\")\n",
+     "old": "    paths: list[Path] = []\n    for record in raw.splitlines():\n        if not record.startswith(b\"worktree \"):\n            continue\n        try:\n            path = Path(os.fsdecode(record.removeprefix(b\"worktree \")))\n            try:\n                path = path.resolve(strict=True)\n            except FileNotFoundError:\n                path = path.absolute()\n            paths.append(path)\n        except (OSError, UnicodeError) as exc:\n            raise _FoldGateFailure(\n                f\"registered worktree path cannot be resolved: {exc}\"\n            ) from exc\n    if not paths:\n        raise _FoldGateFailure(\"registered worktree list is empty\")\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "M6-remove-empty-list-gate",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "new": "    if False:\n        raise _FoldGateFailure(\"registered worktree list is empty\")\n",
+     "old": "    if not paths:\n        raise _FoldGateFailure(\"registered worktree list is empty\")\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "M7-disable-isolation-overlap-rejection",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "new": "        if False and any(\n            _paths_overlap_absolute(tree, path) for path in registered\n        ):\n",
+     "old": "        if any(_paths_overlap_absolute(tree, path) for path in registered):\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "M8-prune-registry-before-list",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "new": "    _git(repository.wave, \"worktree\", \"prune\", \"--expire\", \"now\")\n    raw = _require_git(\n        _git(repository.wave, \"worktree\", \"list\", \"--porcelain\"),\n",
+     "old": "    raw = _require_git(\n        _git(repository.wave, \"worktree\", \"list\", \"--porcelain\"),\n"
+    }
+   ]
+  }
+ ],
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "timeout_seconds": 3600
+}

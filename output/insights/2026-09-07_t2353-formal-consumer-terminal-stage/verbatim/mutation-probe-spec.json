@@ -1,0 +1,78 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 1200,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "B-057-M1",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "old": "_require(FormalReasonCode.FC07, terminal.get(\"stage\") == STAGE_COMMIT)",
+          "new": "_require(FormalReasonCode.FC07, terminal.get(\"stage\") == STAGE_ABORT)"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "B-057-M2",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "old": "_require(FormalReasonCode.FC07, terminal.get(\"stage\") == STAGE_ABORT)",
+          "new": "_require(FormalReasonCode.FC07, terminal.get(\"stage\") == STAGE_COMMIT)"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "B-057-M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "old": "_require(FormalReasonCode.FC07, terminal.get(\"stage\") == STAGE_COMMIT)",
+          "new": "_require(FormalReasonCode.FC07, terminal.get(\"kind\") == \"commit\")"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "B-057-M4",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/reflux_origin_fixture_baseline.json",
+          "old": "\"canonical_sha256\": \"271323c60ad2af8b4034872096d5c1c5066f26c6c85689252dd5ce762ddd3bc6\"",
+          "new": "\"canonical_sha256\": \"271323c60ad2af8b4034872096d5c1c5066f26c6c85689252dd5ce762ddd3bc7\""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "B-057-M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "old": "_require(FormalReasonCode.FC07, terminal.get(\"stage\") == STAGE_ABORT)",
+          "new": "_require(FormalReasonCode.FC07, _wal_field(terminal, \"stage\") == STAGE_ABORT)"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

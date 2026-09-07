@@ -38,6 +38,10 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     __package__ = "orchestrator.campaign"
 
 from ..calibrator import runner as calibrator_runner  # noqa: E402
+from ..scheduler_nqsv import (  # noqa: E402
+    QSTAT_REQUEST_ID_RE as _QSTAT_REQUEST_ID_RE,
+    target_bound_qstat_state_result,
+)
 from . import (  # noqa: E402
     buildcache,
     campaign_lock as campaign_lock_codec,
@@ -299,9 +303,6 @@ _FULL_SHA256 = re.compile(r"[0-9a-f]{64}")
 _PBS_JOBID = re.compile(r"(?:0:)?[A-Za-z0-9][A-Za-z0-9._-]*")
 _NORMALIZED_REQUEST_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 _REQUEST_RE = re.compile(r"Request\s+(\S+)\s+submitted")
-_QSTAT_REQUEST_ID_RE = re.compile(
-    r"(?im)^\s*Request\s+ID\s*[:=]\s*(\S+)\s*$"
-)
 _QSTAT_STATE_RE = re.compile(
     r"(?im)^\s*(?:job_state|State)\s*[:=]\s*([A-Za-z]+)\s*$"
 )
@@ -309,6 +310,19 @@ _QSTAT_EXIT_STATUS_RE = re.compile(
     r"(?im)^\s*(?:exit_status|Exit Status)\s*[:=]\s*(-?\d+)\s*$"
 )
 _PBS_QUEUE = "gen_S"
+_NQSV_EXECUTION_QUEUE_CANDIDATE_RE = re.compile(
+    r"(?m)^[ \t]*Queue[ \t]*=[ \t]*\S(?:[^\r\n]*\S)?[ \t]+"
+    r"\(Execution[ \t]+Queue\)[ \t]*$"
+)
+_NQSV_EXECUTION_QUEUE_RE = re.compile(
+    r"(?m)^[ \t]*Queue[ \t]*=[ \t]*([A-Za-z0-9._-]+)@nqsv[ \t]+"
+    r"\(Execution[ \t]+Queue\)[ \t]*$"
+)
+_NQSV_DISAPPEARED_RE = re.compile(
+    r"[ \t]*Batch[ \t]+Request:[ \t]+(\S+)[ \t]+does[ \t]+not[ \t]+"
+    r"exist[ \t]+on[ \t]+nqsv\.[ \t]*(?:\r?\n)?"
+)
+_NQSV_SUBMISSION_VISIBLE_STATES = frozenset({"QUE", "RUN"})
 NQSV_QSTAT_STATES = frozenset({
     "ARR",
     "WAI",
@@ -542,6 +556,21 @@ def _qstat_mentions_request(stdout: str, request_id: str) -> bool:
         except PaperStoryError:
             continue
     return False
+
+
+def _is_target_nqsv_disappearance(stdout: str, request_id: str) -> bool:
+    """Require the one-line NQSV disappearance signature for the target."""
+    if type(stdout) is not str:
+        return False
+    disappeared = _NQSV_DISAPPEARED_RE.fullmatch(stdout)
+    if disappeared is None:
+        return False
+    try:
+        return _validated_request_id(
+            disappeared.group(1), "disappeared qstat request ID",
+        ) == _validated_request_id(request_id, "completion request ID")
+    except PaperStoryError:
+        return False
 
 
 def _parse_qstat_terminal(stdout: str) -> tuple[str, str, int]:
@@ -2876,18 +2905,26 @@ def _observe_qstat_visibility(request_id: str) -> dict[str, object]:
         check=False,
     )
     stdout = completed.stdout
-    state_match = re.search(
-        r"(?im)^\s*(?:job_state|State)\s*[:=]\s*([A-Za-z]+)\s*$", stdout,
+    state = target_bound_qstat_state_result(stdout, request_id).state
+    request_matches = list(_QSTAT_REQUEST_ID_RE.finditer(stdout))
+    queue_candidates = list(_NQSV_EXECUTION_QUEUE_CANDIDATE_RE.finditer(stdout))
+    queue_match = (
+        _NQSV_EXECUTION_QUEUE_RE.fullmatch(queue_candidates[0].group(0))
+        if len(queue_candidates) == 1
+        else None
     )
-    queue_match = re.search(
-        r"(?im)^\s*(?:queue|Queue)\s*[:=]\s*(\S+)\s*$", stdout,
-    )
-    state = state_match.group(1) if state_match is not None else None
     queue = queue_match.group(1) if queue_match is not None else None
-    visible = completed.returncode == 0 and _qstat_mentions_request(
-        stdout, request_id,
+    visible = (
+        completed.returncode == 0
+        and completed.stderr == ""
+        and state in _NQSV_SUBMISSION_VISIBLE_STATES
+        and len(request_matches) == 1
+        and len(queue_candidates) == 1
+        and queue_candidates[0].start() > request_matches[0].end()
+        and queue_match is not None
+        and queue == _PBS_QUEUE
     )
-    if not visible or state not in NQSV_QSTAT_STATES or queue != _PBS_QUEUE:
+    if not visible:
         raise PaperStoryError("qstat did not visibly bind the submitted request")
     return {
         "request_id": request_id,
@@ -3730,7 +3767,7 @@ def validate_completion_receipt(
             terminal.get("qstat_visible") is not False
             or state != {"observed": False}
             or exit_status != {"observed": False}
-            or _qstat_mentions_request(qstat_stdout, request_id)
+            or not _is_target_nqsv_disappearance(qstat_stdout, request_id)
         ):
             raise PaperStoryError("disappeared scheduler terminal observation differs")
         _validate_prior_qstat_visibility(
@@ -3754,10 +3791,16 @@ def _observe_scheduler_terminal(
         check=False,
     )
     stdout = completed.stdout
-    if completed.returncode != 0 or not stdout:
+    if (
+        completed.returncode != 0
+        or completed.stderr != ""
+        or not stdout
+    ):
         raise PaperStoryError("scheduler terminal qstat observation failed")
     observed_epoch = int(time.time())
     if not _qstat_mentions_request(stdout, request_id):
+        if not _is_target_nqsv_disappearance(stdout, request_id):
+            raise PaperStoryError("scheduler terminal qstat observation failed")
         _validate_prior_qstat_visibility(
             submission_receipt,
             request_id=request_id,

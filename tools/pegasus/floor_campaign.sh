@@ -549,6 +549,22 @@ if [[ -z "${IZANAGI_SUBMISSION_NONCE:-}" \
   write_failure 2 submit_binding "IZANAGI_SUBMISSION_NONCE must be 32 lowercase hex"
   exit 2
 fi
+OFFICIAL_APPROVAL_BOUND=0
+if [[ ${IZANAGI_CONFIRM_OFFICIAL_FLOOR_RUN+x} == x ]]; then
+  if [[ -z "$IZANAGI_CONFIRM_OFFICIAL_FLOOR_RUN" ]]; then
+    write_failure 2 submit_binding \
+      "IZANAGI_CONFIRM_OFFICIAL_FLOOR_RUN is set but empty"
+    exit 2
+  fi
+  if [[ "$IZANAGI_CONFIRM_OFFICIAL_FLOOR_RUN" != "$IZANAGI_SUBMISSION_NONCE" ]]; then
+    write_failure 2 submit_binding \
+      "IZANAGI_CONFIRM_OFFICIAL_FLOOR_RUN must exactly match IZANAGI_SUBMISSION_NONCE"
+    exit 2
+  fi
+  OFFICIAL_APPROVAL_BOUND=1
+fi
+export -n IZANAGI_CONFIRM_OFFICIAL_FLOOR_RUN 2>/dev/null || :
+
 SUBMISSION_DIR="$ATTEMPTS_ROOT/submissions/$IZANAGI_SUBMISSION_NONCE"
 SUBMIT_SOURCE="$SUBMISSION_DIR/submit-receipt.json"
 for ((receipt_wait=0; receipt_wait<60; receipt_wait++)); do
@@ -1199,9 +1215,14 @@ CURRENT_STAGE=floor-driver
 if ! checkpoint_event "$CURRENT_STAGE" entered null ""; then :; fi
 driver_argv=(
   "$PY" -I -B "$REPO_ROOT/orchestrator/campaign/s8b_floor_campaign.py"
-  --mode pilot
+  --mode official
   --protocol "$REPO_ROOT/$PROTOCOL_PATH"
 )
+if [[ "$OFFICIAL_APPROVAL_BOUND" -eq 1 ]]; then
+  driver_argv+=(
+    --confirm-official-floor-run
+  )
+fi
 driver_rc=0
 "${driver_argv[@]}" \
   >&"$DRIVER_STDOUT_FD" 2>&"$DRIVER_STDERR_FD" || driver_rc=$?
@@ -1326,7 +1347,7 @@ PY
     driver_rc=$floor_result_rc
     floor_result_failed=1
     write_failure "$driver_rc" floor_result_metrics \
-      "pilot floor result is missing finite W-2 floor metrics"
+      "official floor result is missing finite W-2 floor metrics"
   fi
 fi
 
@@ -1357,7 +1378,7 @@ payload = {
     "schema_version": "pegasus-floor-job-result/v1",
     "pbs_jobid": job_id,
     "driver_rc": int(driver_rc),
-    "mode": "pilot",
+    "mode": "official",
     "protocol_path": protocol_path,
     "source_commit": source_commit,
     "job_script_sha256": job_script_sha256,
@@ -1374,6 +1395,6 @@ if [[ "$job_result_writer_rc" -ne 0 ]]; then
   write_failure "$job_result_writer_rc" job_result "cannot write floor job result create-only"
 fi
 if [[ "$driver_rc" -ne 0 && "$floor_result_failed" -eq 0 ]]; then
-  write_failure "$driver_rc" floor_driver "pilot floor driver returned nonzero"
+  write_failure "$driver_rc" floor_driver "official floor driver returned nonzero"
 fi
 exit "$driver_rc"

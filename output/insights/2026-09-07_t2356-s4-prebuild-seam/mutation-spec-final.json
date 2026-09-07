@@ -1,0 +1,262 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 180,
+ "timeout_seconds": 1800,
+ "hang_timeout_seconds": 1800,
+ "mutations": [
+  {
+   "id": "M1",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+     "old": "  destination=$prebuild_source_root/${source_name}-src\n",
+     "new": "  destination=$prebuild_source_root/$source_name\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[prebuild-base-equality]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[prebuild-copy-destination]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[prebuild-scratch-copy-cp -a \"$source\"/. \"$destination\"/-source=$destination]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M2",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+     "old": "fetchcontent_base_dir=$prebuild_source_root\n",
+     "new": "fetchcontent_base_dir=$scratch/fetchcontent-base\nmkdir -m 0700 -- \"$fetchcontent_base_dir\"\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[prebuild-base-equality]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[prebuild-copy-destination]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[prebuild-scratch-copy-cp -a \"$source\"/. \"$destination\"/-source=$destination]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M3",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+     "old": "    --fetchcontent-prebuild-receipt \"$prebuild_receipt\" \\\n    --run-iteration \"$IZANAGI_S4_PROPOSAL_PATH\"\n",
+     "new": "    --run-iteration \"$IZANAGI_S4_PROPOSAL_PATH\"\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[prebuild-base-equality]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[prebuild-copy-destination]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[prebuild-scratch-copy-cp -a \"$source\"/. \"$destination\"/-source=$destination]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M4",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+     "old": "    --fetchcontent-prebuild-receipt \"$prebuild_receipt\" \\\n    --value \"${IZANAGI_S4_FIXTURE_VALUE:-20}\"\n",
+     "new": "    --value \"${IZANAGI_S4_FIXTURE_VALUE:-20}\"\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[prebuild-base-equality]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[prebuild-copy-destination]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[prebuild-scratch-copy-cp -a \"$source\"/. \"$destination\"/-source=$destination]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M5",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "old": "    if observed_config_h_sha256 != config_h_sha256:\n",
+     "new": "    if observed_config_h_sha256 != observed_config_h_sha256:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop.py::test_prebuild_receipt_loader_rejects_config_hash_mismatch"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M6",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "old": "    if type(record) is not dict or set(record) != _MASSTREE_PREBUILD_RECEIPT_KEYS:\n",
+     "new": "    if type(record) is not dict or not _MASSTREE_PREBUILD_RECEIPT_KEYS <= set(record):\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop.py::test_prebuild_receipt_loader_rejects_nonexact_top_level_keys[extra]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M7",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "old": "        before = os.lstat(raw)\n",
+     "new": "        before = os.stat(raw)\n"
+    },
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "old": "    flags = os.O_RDONLY | getattr(os, \"O_NOFOLLOW\", 0)\n",
+     "new": "    flags = os.O_RDONLY\n"
+    },
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "old": "        if (not stat.S_ISREG(opened.st_mode)\n                or (opened.st_dev, opened.st_ino)\n                != (before.st_dev, before.st_ino)):\n",
+     "new": "        if not stat.S_ISREG(opened.st_mode):\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop.py::test_prebuild_receipt_loader_rejects_symlink_receipt_file"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M8",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "old": "        if fetchcontent_dependency_receipt is not None:\n            campaign_options.update({\n",
+     "new": "        if (fetchcontent_dependency_receipt is not None\n                and resolved_site == site_policy.PEGASUS_COMPUTE):\n            campaign_options.update({\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop.py::test_prebuild_reaches_production_build_v2_and_v2_commands_in_both_main_routes[fixture]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_prebuild_reaches_production_build_v2_and_v2_commands_in_both_main_routes[proposal]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M9",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "old": "    if a.fetchcontent_prebuild_receipt is not None and a.no_build:\n",
+     "new": "    if False and a.fetchcontent_prebuild_receipt is not None and a.no_build:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop.py::test_prebuild_receipt_cli_rejects_routes_without_a_build[no-build]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M10",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/loop.py",
+     "old": "    fetchcontent_prebuild = _validate_fetchcontent_prebuild_inputs(\n        env_contract=env_contract,\n        fetchcontent_base_dir=fetchcontent_base_dir,\n        masstree_source_dir=masstree_source_dir,\n        mimalloc_source_dir=mimalloc_source_dir,\n        googletest_source_dir=googletest_source_dir,\n        fetchcontent_dependency_receipt=fetchcontent_dependency_receipt,\n    )\n",
+     "new": "    fetchcontent_prebuild = fetchcontent_dependency_receipt is not None\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop.py::test_run_campaign_rejects_invalid_prebuild_tuple_before_side_effects[five-without-contract]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_run_campaign_rejects_invalid_prebuild_tuple_before_side_effects[four-without-receipt]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M11",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/loop.py",
+     "old": "                if fetchcontent_prebuild:\n                    evaluate_options.update({\n",
+     "new": "                if False:\n                    evaluate_options.update({\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop.py::test_prebuild_reaches_production_build_v2_and_v2_commands_in_both_main_routes[fixture]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_prebuild_reaches_production_build_v2_and_v2_commands_in_both_main_routes[proposal]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M12",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/pipeline.py",
+     "old": "            if fetchcontent_prebuild:\n                common.update({\n",
+     "new": "            if False:\n                common.update({\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop.py::test_prebuild_reaches_production_build_v2_and_v2_commands_in_both_main_routes[fixture]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_prebuild_reaches_production_build_v2_and_v2_commands_in_both_main_routes[proposal]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M13",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/pipeline.py",
+     "old": "    if any(present) and not all(present):\n",
+     "new": "    if False and any(present) and not all(present):\n"
+    },
+    {
+     "file": "orchestrator/campaign/pipeline.py",
+     "old": "    if all(present) and env_contract is None:\n",
+     "new": "    if False and all(present) and env_contract is None:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop.py::test_pipeline_rejects_invalid_prebuild_tuple_before_build_or_wal[four-without-receipt]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_pipeline_rejects_invalid_prebuild_tuple_before_build_or_wal[two-sources-with-receipt]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_run_campaign_rejects_invalid_prebuild_tuple_before_side_effects[five-without-contract]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_run_campaign_rejects_invalid_prebuild_tuple_before_side_effects[four-without-receipt]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M14",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/loop.py",
+     "old": "                if fetchcontent_prebuild:\n                    evaluate_options.update({\n",
+     "new": "                if True:\n                    evaluate_options.update({\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop.py::test_default_prebuild_values_do_not_enter_loop_evaluate_options"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}
