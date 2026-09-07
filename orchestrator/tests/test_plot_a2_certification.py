@@ -176,7 +176,7 @@ def _fixture(tmp_path: Path) -> dict:
     cert, manifest_path = tmp_path / "certification.json", tmp_path / "raw-manifest.json"
     _write(cert, _certification())
     _write(manifest_path, manifest)
-    return {"root": root, "cert": cert, "manifest": manifest_path, "prefix": tmp_path / "figure"}
+    return {"root": root, "cert": cert, "manifest": manifest_path, "prefix": tmp_path / "fig5_fixture"}
 
 
 def _producer():
@@ -685,7 +685,7 @@ def test_current_recomputes_certification_medians_and_effects(tmp_path, projecti
 def test_current_gate_copy_is_receipt_observation_not_legacy_fixed_copy(tmp_path):
     plot, fixture = _plot(), _current_fixture(tmp_path)
     data = _load(plot, fixture)
-    caption = plot._caption(data)
+    caption = plot._caption(data, fixture["prefix"])
     expected_gate_note = (
         "The raw manifest binds canonical condition-admission records reporting "
         f'use_class="paper" and admitted=true for all {len(fixture["policy"].cells)} policy cells; '
@@ -707,7 +707,7 @@ def test_cli_rejects_exact_bytes_at_certification_path_missing_from_pin_table(tm
     plot = _plot()
     certification = tmp_path / "certification.json"
     certification.write_bytes(plot.DEFAULT_CERT.read_bytes())
-    root = tmp_path / "empty-root"; root.mkdir(); prefix = tmp_path / "figure"
+    root = tmp_path / "empty-root"; root.mkdir(); prefix = tmp_path / "fig5_missing_pin"
     completed = _run_script(certification, plot.DEFAULT_MANIFEST, root, prefix)
     assert completed.returncode != 0
     assert "repository-owned pin table" in completed.stderr
@@ -738,7 +738,7 @@ def test_current_cli_reads_repository_owned_pin_table(tmp_path, monkeypatch):
     assert plot.main(argv) == 0
     assert pin_table.lookups == [key]
 
-    rejected_prefix = tmp_path / "rejected-figure"
+    rejected_prefix = tmp_path / "fig5_rejected_pin"
     pin_table[key] = {
         "certification": "0" * 64,
         "raw_manifest": _sha(fixture["manifest"]),
@@ -859,7 +859,10 @@ def test_m7_outer_status_is_copied_into_provenance(tmp_path):
     plot, fixture = _plot(), _fixture(tmp_path)
     _change_cert(fixture, lambda d: d.__setitem__("status", "sentinel-status"))
     data = _load(plot, fixture)
-    assert plot.build_provenance(data, [], ["plot"])["outer_status"] == "sentinel-status"
+    outputs = [Path(f"{fixture['prefix']}.png"), Path(f"{fixture['prefix']}.pdf")]
+    for path in outputs:
+        path.write_bytes(b"fixture")
+    assert plot.build_provenance(data, outputs, ["plot"])["outer_status"] == "sentinel-status"
 
 
 def test_m8_artist_baseline_is_stock_median_with_stock_genome(tmp_path):
@@ -872,7 +875,7 @@ def test_m8_artist_baseline_is_stock_median_with_stock_genome(tmp_path):
 
 def test_m9_caption_distinguishes_correctness_from_performance(tmp_path):
     plot, fixture = _plot(), _fixture(tmp_path)
-    caption = plot._caption(_load(plot, fixture))
+    caption = plot._caption(_load(plot, fixture), fixture["prefix"])
     assert "separate trace-enabled runs" in caption and "not a performance certification" in caption
     assert "no significance decision" in caption and "no causal mechanism claim" in caption
 
@@ -911,10 +914,30 @@ def _run_script(certification: Path, manifest: Path, root: Path, prefix: Path):
         cwd=REPO, text=True, capture_output=True, check=False)
 
 
+def test_caption_uses_figure_number_from_output_prefix(tmp_path):
+    plot, fixture = _plot(), _fixture(tmp_path)
+    fixture["prefix"] = tmp_path / "fig6_a2_certification_observed_positive"
+    assert _run_main(plot, fixture, _hashes(fixture)) == 0
+    provenance = json.loads(
+        Path(f"{fixture['prefix']}.provenance.json").read_text(encoding="utf-8")
+    )
+    assert provenance["caption"].startswith("Figure 6.")
+
+
+def test_output_prefix_without_figure_number_is_rejected(tmp_path):
+    plot, fixture = _plot(), _fixture(tmp_path)
+    fixture["prefix"] = tmp_path / "a2_certification_without_figure_number"
+    assert _run_main(plot, fixture, _hashes(fixture)) == 2
+    assert not any(
+        Path(f"{fixture['prefix']}{suffix}").exists()
+        for suffix in (".png", ".pdf", ".provenance.json")
+    )
+
+
 def test_m11_whitespace_changed_certification_fails_cli_with_zero_outputs(tmp_path):
     plot = _plot(); certification = tmp_path / "certification.json"
     certification.write_text(plot.DEFAULT_CERT.read_text(encoding="utf-8") + "\n", encoding="utf-8")
-    root = tmp_path / "empty-root"; root.mkdir(); prefix = tmp_path / "figure"
+    root = tmp_path / "empty-root"; root.mkdir(); prefix = tmp_path / "fig5_changed_certification"
     completed = _run_script(certification, plot.DEFAULT_MANIFEST, root, prefix)
     assert completed.returncode != 0 and "canonical SHA-256 mismatch" in completed.stderr
     assert not any(Path(str(prefix) + suffix).exists() for suffix in (".png", ".pdf", ".provenance.json"))
@@ -923,7 +946,7 @@ def test_m11_whitespace_changed_certification_fails_cli_with_zero_outputs(tmp_pa
 def test_m12_whitespace_changed_raw_manifest_fails_cli_with_zero_outputs(tmp_path):
     plot = _plot(); manifest = tmp_path / "raw-manifest.json"
     manifest.write_text(plot.DEFAULT_MANIFEST.read_text(encoding="utf-8") + "\n", encoding="utf-8")
-    root = tmp_path / "empty-root"; root.mkdir(); prefix = tmp_path / "figure"
+    root = tmp_path / "empty-root"; root.mkdir(); prefix = tmp_path / "fig5_changed_manifest"
     completed = _run_script(plot.DEFAULT_CERT, manifest, root, prefix)
     assert completed.returncode != 0 and "canonical SHA-256 mismatch" in completed.stderr
     assert not any(Path(str(prefix) + suffix).exists() for suffix in (".png", ".pdf", ".provenance.json"))
@@ -957,7 +980,7 @@ def test_cli_writes_complete_provenance_with_repo_relative_argv(tmp_path, monkey
     assert conditions["izanagi_source_commit"] == "izanagi-source" and conditions["ccbench_pin"] == "511c953"
     argv = provenance["reproduction"]["argv"]
     assert argv[3] == str(fixture["root"].resolve())
-    assert argv[5:] == ["certification.json", "--raw-manifest", "raw-manifest.json", "figure"]
+    assert argv[5:] == ["certification.json", "--raw-manifest", "raw-manifest.json", "fig5_fixture"]
     assert str(REPO) not in " ".join(argv) and provenance["reproduction"]["cwd"] == "repository-root"
 
 
@@ -966,9 +989,16 @@ def test_tracked_authority_literals_and_run_readme_record_agree():
     cert = REPO / "output/insights/2026-08-24_paper-story-a2-certification/certification.json"
     manifest = REPO / "output/insights/2026-08-24_paper-story-a2-certification/raw-manifest.json"
     run_readme = REPO / "output/insights/2026-08-28_t2022-a2-certification-run/README.md"
+    assert len(plot.CANONICAL_SHA256) == 2
     assert plot.CANONICAL_SHA256[
         "output/insights/2026-08-24_paper-story-a2-certification/certification.json"
     ] == {"certification": CANONICAL_CERT, "raw_manifest": CANONICAL_MANIFEST}
+    assert plot.CANONICAL_SHA256[
+        "output/insights/2026-09-07_t2364-paper-story-a2-certification/certification.json"
+    ] == {
+        "certification": "e74d0f870497941b95ac4d1e244634188813e249f2821d571178e4854a3ed671",
+        "raw_manifest": "b23ee2ee6ff36d2377da80c2cf4eccc925bae9c3d89aab8a6a8543edfe9ae319",
+    }
     assert _sha(cert) == CANONICAL_CERT and _sha(manifest) == CANONICAL_MANIFEST
     assert CANONICAL_CERT in run_readme.read_text(encoding="utf-8")
 

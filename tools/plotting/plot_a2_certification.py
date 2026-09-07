@@ -10,6 +10,7 @@ import hashlib
 import json
 import math
 import os
+import re
 import shlex
 import statistics
 import sys
@@ -47,6 +48,10 @@ CANONICAL_SHA256 = {
     "output/insights/2026-08-24_paper-story-a2-certification/certification.json": {
         "certification": "f685b40d194c9e4b40eed6337b294f38a7ff4aef731829317fd2e83940fbda40",
         "raw_manifest": "12d8be7a9cabd404ab3147301c2df7998a731b310ec51a93f9a99b37705a7c35",
+    },
+    "output/insights/2026-09-07_t2364-paper-story-a2-certification/certification.json": {
+        "certification": "e74d0f870497941b95ac4d1e244634188813e249f2821d571178e4854a3ed671",
+        "raw_manifest": "b23ee2ee6ff36d2377da80c2cf4eccc925bae9c3d89aab8a6a8543edfe9ae319",
     },
 }
 DEFAULT_ROOT = Path("/work/1/SFC/tanab/izanagi-measurements/"
@@ -571,7 +576,23 @@ def load_measurements(
             "argv_observation_limit": certification["independent_observation_limits"]["correctness_run_argv"]},
     }
 
-def _caption(data: Mapping[str, Any]) -> str:
+def _figure_number(prefix: Path) -> str:
+    match = re.match(r"fig([0-9]+)_", Path(prefix).name)
+    if match is None:
+        _fail("output prefix basename must start with fig<N>_")
+    return match.group(1)
+
+def _caption_prefix(output: object) -> Path:
+    value = output.get("path") if isinstance(output, Mapping) else output
+    if not isinstance(value, (str, os.PathLike)):
+        _fail("caption output path is missing")
+    path = Path(value)
+    if path.suffix != ".png":
+        _fail("caption output path must name the PNG output")
+    return path.with_suffix("")
+
+def _caption(data: Mapping[str, Any], prefix: Path) -> str:
+    figure_number = _figure_number(prefix)
     c = data["measurement_conditions"]
     w = {row["id"]: row for row in c["workloads"]}
     if c.get("artifact_profile") == "current-full":
@@ -587,7 +608,7 @@ def _caption(data: Mapping[str, Any]) -> str:
             for workload in workload_ids
         )
         return (
-            f"Figure 5. A-2 formal certification attempt {c['attempt']} (outer status: {data['outer_status']}). "
+            f"Figure {figure_number}. A-2 formal certification attempt {c['attempt']} (outer status: {data['outer_status']}). "
             f"The independent workload campaigns were {campaigns}, at distinct recorded times; the outer status "
             "is their logical conjunction. The top row shows all five trace-disabled performance samples per cell; "
             "short bars are medians, and diamonds with error bars are sample means with t-distribution 95% confidence "
@@ -606,7 +627,7 @@ def _caption(data: Mapping[str, Any]) -> str:
             "heights. The older series is not a comparator, and the cause of the sign difference has not been identified."
         )
     return (
-        f"Figure 5. A-2 formal certification attempt {c['attempt']} (outer status: {data['outer_status']}). "
+        f"Figure {figure_number}. A-2 formal certification attempt {c['attempt']} (outer status: {data['outer_status']}). "
         f"The two independent workload campaigns were requests {w['rr5']['request_id']} on {w['rr5']['host']} "
         f"at {w['rr5']['created_utc']} and {w['rr50']['request_id']} on {w['rr50']['host']} at "
         f"{w['rr50']['created_utc']}, at distinct recorded times; the outer status is their logical conjunction. The top row shows all five "
@@ -687,7 +708,6 @@ def make_figure(data: Mapping[str, Any]):
     fig.text(.5, .025, "Throughput axes are scaled independently by workload; abort axes share 0-1. Mean t95 CI is descriptive.",
              ha="center", fontsize=7)
     fig._a2_artist_series = _artist_series(data)
-    fig._a2_caption = _caption(data)
     return fig, axes
 
 def _intersection(left, right) -> float:
@@ -732,6 +752,8 @@ def build_provenance(
     data: Mapping[str, Any], outputs: Sequence[Path], argv: Sequence[str],
     *, hash_paths: Sequence[Path] | None = None, generated_utc: str | None = None,
 ) -> dict[str, Any]:
+    if not outputs:
+        _fail("caption output path is missing")
     hashes = outputs if hash_paths is None else hash_paths
     return {
         "schema": SCHEMA,
@@ -748,11 +770,12 @@ def build_provenance(
         "correctness": dict(data["correctness"]),
         "correctness_performance_note": CORRECTNESS_NOTE,
         "gate_note": data.get("gate_note", GATE_NOTE),
-        "caption": _caption(data),
+        "caption": _caption(data, _caption_prefix(outputs[0])),
         "reproduction": {"cwd": "repository-root", "argv": list(argv), "command": shlex.join(argv)},
     }
 
 def _publish_outputs(fig, axes, prefix: Path, data: Mapping[str, Any], argv: Sequence[str]) -> list[Path]:
+    fig._a2_caption = _caption(data, prefix)
     prefix.parent.mkdir(parents=True, exist_ok=True)
     destinations = [Path(f"{prefix}.png"), Path(f"{prefix}.pdf"), Path(f"{prefix}.provenance.json")]
     temporary: list[Path] = []
@@ -805,7 +828,11 @@ def validate_repo_closure(provenance: Mapping[str, Any], repo_root: Path) -> Non
         path, digest = row.get("path"), row.get("sha256")
         if not isinstance(path, str) or not isinstance(digest, str) or files.get(path) != digest:
             _fail(f"landed external input manifest mismatch: {path}")
-    if provenance.get("artist_series") != _artist_series(provenance) or provenance.get("caption") != _caption(provenance):
+    outputs = provenance.get("outputs")
+    if type(outputs) is not list or not outputs:
+        _fail("landed provenance caption output path is missing")
+    if (provenance.get("artist_series") != _artist_series(provenance)
+            or provenance.get("caption") != _caption(provenance, _caption_prefix(outputs[0]))):
         _fail("landed artist/caption projection mismatch")
 
 def _parser() -> argparse.ArgumentParser:
@@ -825,6 +852,7 @@ def main(argv: Sequence[str] | None = None, *, expected_hashes: Mapping[str, str
                 _display_path(prefix)]
     figure = None
     try:
+        _figure_number(prefix)
         data = load_measurements(root, cert, manifest, expected_hashes)
         figure, axes = make_figure(data)
         _publish_outputs(figure, axes, prefix, data, expanded)
