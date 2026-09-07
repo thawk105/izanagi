@@ -24,19 +24,25 @@ seq: 3
   `classification=merge` / `reason=terminal-merge` を出す。台帳 file が衝突 path に含まれるかは
   `git diff --name-only <base> <main>` と wave 側の同 diff の交差で事前に測れる。
 
-### {{F:mutation-wait-done-file-false-positive}}. 変異 harness の待ちを `.done` file で判定すると、走行中に完了と誤判定する [観測]
+### {{F:background-waiter-false-completion}}. 背景の待ち手が producer 稼働中に「完了」を出し、走行中の変異を復元忘れと誤読しかけた [観測]
 
-- 事象: 変異 harness の完了を wrapper の `.done` file で待ったところ、harness が稼働中
-  (経過 8 分、ledger を書き進め中) にもかかわらず完了イベントが 2 回出た。`.done` は実在せず、
-  成果物も未完成だった。親はこれを「完走」と読み、走行中に注入されていた変異を
-  「復元忘れの残骸」と誤読して `git checkout` で消しかけた。消していれば変異走が全損していた。
-- 根本原因: 待ち手が producer の生死を、pid file に書かれた **wrapper shell の pid** で見ていた。
-  bash は script の最終命令を exec で置き換えることがあり、wrapper の pid が先に消える一方で
-  実プロセスは生き続ける。`.done` の実在検査も、この誤りを補えなかった。
-- 恒久対応: 変異 harness の待ちは **harness process 自身の pid** を `ps -eo pid,args` から
-  引き当てて `kill -0` で見る。`.done` file と wrapper pid を単独の判定根拠にしない。
-  同じ誤りは受入の待ちでも起き、別 wave の受入プロセスを自分のものと誤認しかけた
-  (receipt file の basename が偶然一致したため)。**pid は argv 全体で一意化して引く。**
-- 再発検知: 走行中に tree へ変異が見えるのは正常である。tree の dirty を「復元忘れ」と読む前に
-  harness process の生死を実測する。ledger の `summary.registered` と `completed` の差でも
+- 事象: 変異 harness の完了待ちが、harness 稼働中 (経過 8 分、ledger を書き進め中) に完了イベントを
+  2 回出した。`.done` は実在せず成果物も未完成だった。親はこれを「完走」と読み、走行中に注入されて
+  いた変異を「復元忘れの残骸」と誤読して `git checkout` で消しかけた。消していれば変異走が全損して
+  いた。同じ誤検知は同 wave で受入の待ちでも 2 回起き、計 4 回出た。
+- 根本原因: 2 つあり、どちらも待ち手 script の書き方に起因する。
+  (a) **背景コマンドと Monitor の command に書いた改行が空白へ潰れる。**
+  `while cond` / `do` / `sleep` / `done` / `echo` を改行区切りで書くと 1 行に崩れ、
+  `done echo "..."` として loop を通らずに即 echo する。実測で
+  `eval 'P=$(cat f) while kill -0 "$P"; do sleep 60; done echo "..."'` の形に崩れていた。
+  (b) **sandbox 内の shell は他プロセスへ signal を送れないため `kill -0 <pid>` が必ず失敗する。**
+  親の対話 shell では同じ pid に対し `kill -0` が rc=0 を返すので、書いた側では再現しない。
+  生存判定が常時「死亡」になり、待ちが即終わる。
+- 恒久対応: 待ち手 script は **1 行に書き、区切りを `;` で明示する**。生存判定は signal ではなく
+  **`[ -d /proc/<pid> ]` の読取り**で行う。pid は pid file でなく `ps -eo pid,args` から
+  **argv 全体で一意化して**引く (別 wave の同名 receipt file と誤一致した実測がある)。
+  `.done` file の実在を単独の完了根拠にしない。
+- 再発検知: 完了を読んだら必ず成果物 (receipt / ledger / `.done` の中身) を実在で検算する。
+  走行中に tree へ変異が見えるのは正常であり、tree の dirty を「復元忘れ」と読む前に
+  producer の生死を `/proc` で実測する。変異台帳は `summary.registered` と `completed` の差でも
   未完走が分かる。

@@ -39,8 +39,11 @@ collection 終了時刻の採取位置が実際の collection 終端より早い
 記録どおり hold 2 ファイルを外した。解除後 provenance 監査は rc=0 (44 秒)。
 (b) 変異走が残した `*.orphan-stop.json` sidecar。hold だけ消しても再走が即中止する。
 
-**変異走の待ち方で 1 回誤判定した。** `.done` file を見る待ちが producer 生存中に完了イベントを
-出し、走行中の変異注入を「復元忘れ」と誤読しかけた ({{F:mutation-wait-done-file-false-positive}})。
+**背景の待ち手が 4 回誤検知した。** producer 稼働中に「完了」を出し、走行中の変異注入を
+「復元忘れ」と誤読しかけた。真因は待ち手 script 側で 2 つ — 背景コマンドと Monitor の command に
+書いた改行が空白へ潰れて loop が崩れること、sandbox 内では他プロセスへ signal を送れず
+`kill -0` が必ず失敗することである ({{F:background-waiter-false-completion}})。
+段 8 でこの根本原因へ訂正した (初稿は wrapper pid の exec 置換という推測を書いていた)。
 
 **エージェント工数。** 段 2 plan 1 本、段 3 敵対相談 2 本 (レンズ A / B)、段 5 実装 1 本、
 段 6 レビュー 2 本 (レンズ C / D)、変異 spec 1 本 + 較正 1 本、main 取り込みの合成監査 2 本
