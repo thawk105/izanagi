@@ -1,0 +1,3 @@
+leaf=AX1-20260902-E1-Q6-SY2014@openalex state=blocked_on_ruling requests=3 remaining=158
+leaf=AX1-20260902-E1-Q6-SY2015@openalex state=paused_quota requests=2 remaining=148
+STOP leaf=AX1-20260902-E1-Q6-SY2015@openalex state=paused_quota
