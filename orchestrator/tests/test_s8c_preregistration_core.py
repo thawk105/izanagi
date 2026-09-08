@@ -7,6 +7,7 @@ freeze namespace や履歴には触れない。
 from __future__ import annotations
 
 import argparse
+import contextlib
 import dataclasses
 import hashlib
 import inspect
@@ -503,65 +504,127 @@ class _LazyExceptionEvaluator:
         return results()
 
 
-class _MissingReason(M.PreregistrationError):
-    def __init__(self) -> None:
-        RuntimeError.__init__(self, "secret-detail")
+class _ArmedDiagnosticFixture:
+    _diagnostic_armed = False
 
 
-class _NonStringReason(M.PreregistrationError):
-    def __init__(self) -> None:
-        self.reason = {"secret": "detail"}
-        RuntimeError.__init__(self, "secret-detail")
+def _assert_hostile_fixture_safe_while_disarmed(
+    exc: _ArmedDiagnosticFixture,
+) -> None:
+    assert isinstance(repr(exc), str)
+    assert isinstance(repr(type(exc)), str)
+    assert isinstance(type(exc).__name__, str)
 
 
-class _HostileReason(M.PreregistrationError):
+@contextlib.contextmanager
+def _armed_diagnostic_fixture(exc: BaseException):
+    if not isinstance(exc, _ArmedDiagnosticFixture):
+        yield
+        return
+
+    _assert_hostile_fixture_safe_while_disarmed(exc)
+    exc._diagnostic_armed = True
+    type(exc)._diagnostic_armed = True
+    try:
+        yield
+    finally:
+        exc._diagnostic_armed = False
+        type(exc)._diagnostic_armed = False
+        _assert_hostile_fixture_safe_while_disarmed(exc)
+
+
+class _MissingReason(_ArmedDiagnosticFixture, M.PreregistrationError):
     def __init__(self) -> None:
         RuntimeError.__init__(self, "secret-detail")
 
     @property
     def reason(self):
-        raise SystemExit("secret-detail")
+        if self._diagnostic_armed:
+            raise AttributeError("reason")
+        return "safe-reason"
+
+
+class _NonStringReason(_ArmedDiagnosticFixture, M.PreregistrationError):
+    def __init__(self) -> None:
+        RuntimeError.__init__(self, "secret-detail")
+
+    @property
+    def reason(self):
+        if self._diagnostic_armed:
+            return {"secret": "detail"}
+        return "safe-reason"
+
+
+class _HostileReason(_ArmedDiagnosticFixture, M.PreregistrationError):
+    def __init__(self) -> None:
+        RuntimeError.__init__(self, "secret-detail")
+
+    @property
+    def reason(self):
+        if self._diagnostic_armed:
+            raise SystemExit("secret-detail")
+        return "safe-reason"
 
 
 class _HostileTypeMeta(type):
     def __getattribute__(cls, name: str):
-        if name == "__name__":
+        if name == "__name__" and type.__getattribute__(
+            cls, "_diagnostic_armed"
+        ):
             raise SystemExit("secret-detail")
         return super().__getattribute__(name)
 
 
-class _HostileType(RuntimeError, metaclass=_HostileTypeMeta):
+class _HostileType(
+    _ArmedDiagnosticFixture,
+    RuntimeError,
+    metaclass=_HostileTypeMeta,
+):
     pass
 
 
-class _KeyboardInterruptReason(M.PreregistrationError):
+class _KeyboardInterruptReason(_ArmedDiagnosticFixture, M.PreregistrationError):
     def __init__(self) -> None:
         RuntimeError.__init__(self, "secret-detail")
 
     @property
     def reason(self):
-        raise KeyboardInterrupt("secret-detail")
+        if self._diagnostic_armed:
+            raise KeyboardInterrupt("secret-detail")
+        return "safe-reason"
 
 
 class _KeyboardInterruptTypeMeta(type):
     def __getattribute__(cls, name: str):
-        if name == "__name__":
+        if name == "__name__" and type.__getattribute__(
+            cls, "_diagnostic_armed"
+        ):
             raise KeyboardInterrupt("secret-detail")
         return super().__getattribute__(name)
 
 
-class _KeyboardInterruptType(RuntimeError, metaclass=_KeyboardInterruptTypeMeta):
+class _KeyboardInterruptType(
+    _ArmedDiagnosticFixture,
+    RuntimeError,
+    metaclass=_KeyboardInterruptTypeMeta,
+):
     pass
 
 
 class _NonStringTypeMeta(type):
     def __getattribute__(cls, name: str):
-        if name == "__name__":
+        if name == "__name__" and type.__getattribute__(
+            cls, "_diagnostic_armed"
+        ):
             return {"secret": "detail"}
         return super().__getattribute__(name)
 
 
-class _NonStringType(RuntimeError, metaclass=_NonStringTypeMeta):
+class _NonStringType(
+    _ArmedDiagnosticFixture,
+    RuntimeError,
+    metaclass=_NonStringTypeMeta,
+):
     pass
 
 
@@ -2874,11 +2937,12 @@ def test_invalid_preregistration_reasons_use_bounded_sentinel_without_leaking(
     tmp_path: Path,
     exc: M.PreregistrationError,
 ) -> None:
-    results, diagnostics = M._default_registry_results(
-        tmp_path,
-        "fixture-commit",
-        _RaisingEvaluator(exc),
-    )
+    with _armed_diagnostic_fixture(exc):
+        results, diagnostics = M._default_registry_results(
+            tmp_path,
+            "fixture-commit",
+            _RaisingEvaluator(exc),
+        )
     _assert_evaluator_fallback(results)
     assert len(diagnostics) == 1
     assert diagnostics[0].preregistration_reason == (
@@ -2905,11 +2969,12 @@ def test_invalid_exception_type_uses_bounded_sentinel_without_leaking(
     tmp_path: Path,
     exc: RuntimeError,
 ) -> None:
-    results, diagnostics = M._default_registry_results(
-        tmp_path,
-        "fixture-commit",
-        _RaisingEvaluator(exc),
-    )
+    with _armed_diagnostic_fixture(exc):
+        results, diagnostics = M._default_registry_results(
+            tmp_path,
+            "fixture-commit",
+            _RaisingEvaluator(exc),
+        )
     _assert_evaluator_fallback(results)
     assert diagnostics == (
         M.EvaluatorExceptionReason(
@@ -2921,11 +2986,13 @@ def test_invalid_exception_type_uses_bounded_sentinel_without_leaking(
 
 
 def test_diagnostic_type_guard_catches_keyboard_interrupt(tmp_path: Path) -> None:
-    results, diagnostics = M._default_registry_results(
-        tmp_path,
-        "fixture-commit",
-        _RaisingEvaluator(_KeyboardInterruptType("secret-detail")),
-    )
+    exc = _KeyboardInterruptType("secret-detail")
+    with _armed_diagnostic_fixture(exc):
+        results, diagnostics = M._default_registry_results(
+            tmp_path,
+            "fixture-commit",
+            _RaisingEvaluator(exc),
+        )
     _assert_evaluator_fallback(results)
     assert diagnostics == (
         M.EvaluatorExceptionReason(
@@ -2937,11 +3004,13 @@ def test_diagnostic_type_guard_catches_keyboard_interrupt(tmp_path: Path) -> Non
 
 
 def test_diagnostic_reason_guard_catches_keyboard_interrupt(tmp_path: Path) -> None:
-    results, diagnostics = M._default_registry_results(
-        tmp_path,
-        "fixture-commit",
-        _RaisingEvaluator(_KeyboardInterruptReason()),
-    )
+    exc = _KeyboardInterruptReason()
+    with _armed_diagnostic_fixture(exc):
+        results, diagnostics = M._default_registry_results(
+            tmp_path,
+            "fixture-commit",
+            _RaisingEvaluator(exc),
+        )
     _assert_evaluator_fallback(results)
     assert diagnostics == (
         M.EvaluatorExceptionReason(
