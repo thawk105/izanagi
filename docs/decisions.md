@@ -54320,3 +54320,445 @@ repo には shebang なし・実行 bit なし・拡張子 `.txt` の非実行�
 **却下した選択肢:**
 - `pytest_collection_modifyitems` の末尾 — 上記のとおり実際の終端より早い。
 - 両方を採って差分も記録する — D1647 が挙げた観測は 3 種であり、増やすのは射程外。
+
+## D1795. enforcement source closure の blob 取得は ls-tree + OID 指定 cat-file --batch の 2 process で行い、受理集合を変えずに拒否の優先順位だけを契約外にする (2026-09-08)
+
+**決定:** `contract_loader_binding` の 62 path の blob 取得を、path ごとの `git cat-file blob <commit>:<path>` (62 process) から、
+`git ls-tree -r -z <commit> -- :(literal)<path>...` で path→OID を取り、OID を stdin に並べた `git cat-file --batch` で bytes を取る
+2 process へ改める。各応答 header の OID を ls-tree の期待 OID と exact 照合し、entry の不在・期待外・重複・非 blob、header の型・size・
+record LF の framing、余剰 bytes、NUL を含む path はすべて `contract-loader-git-error` で fail-closed にする。
+**受理集合と拒否集合は不変とし、拒否の優先順位 (どの path・どの理由が先に raise されるか) は契約外とする。**
+drift 検査 (disk bytes == blob) と 4 公開関数の非対称 (capture: disk → digest、live: digest → disk、committed: digest のみ) は維持する。
+batch 形の 2 呼び出しの timeout は `GIT_TIMEOUT_SECONDS * n` (n = 問い合わせ数) とし、旧形の 62 process × 10 秒の総許容量と揃える。
+process 内 cache・memo は導入しない。
+
+**理由:**
+- 受入全走で admission 経路を通る test が 1 本あたり +30〜50 秒重くなっていた。login の profile で 1 test 47.5 秒のうち 36.4 秒が
+  `_run_git` の git subprocess 704 回で、closure 62 path × (capture 5 + committed 4 + live 1) の逐次起動だった。
+- login 実測 (62 path 1 回分): 逐次 62 process 5.4〜6.8 秒、`<commit>:<path>` 62 行を 1 process の `--batch` へ送る形 0.65〜1.5 秒
+  (spec ごとに tree を辿り直す)、ls-tree + OID batch 0.07〜0.09 秒。3 形の digest 62 件は完全一致。
+- `<commit>:<path>` 形の batch は success 応答が path に束縛されず、逆順応答と逆対応 digest が相殺して誤受理し得る (段 3 の指摘)。
+  ls-tree で得た期待 OID を各応答 header と照合する形だけがこの経路を断つ。
+- 全 path を subprocess 起動前に検査するため、先頭 path の digest 不一致より後方 path の path escape が先に raise されうる。閉包は定数 tuple
+  なので production では観測不能だが、契約として明示するほうが正直である。
+- 同 test の login A/B (交互 3 標本): 旧 30.9 / 11.3 / 17.9 秒 → 新 9.6 / 6.4 / 4.6 秒、git 起動 802 → 142 回。
+  計算ノード (48 worker 同時) での効果は本決定では主張せず、受入全走の junit で別途読む。
+
+**却下した選択肢:**
+- `<commit>:<path>` を stdin に並べる 1 process 形 — 10 倍遅く、応答が path に束縛されない。
+- process 内 memo `(root, commit, path) → bytes` — content addressing は object store の不変性と可用性を保証せず、root の差し替え・prune 後に
+  古い bytes を返して fail-closed を壊しうる。導入しない。
+- `ident.py` の capture 直後の live verify を省く — repository と disk が不変という前提下でだけ冗長であり、前提外では拒否側の分岐が消える。触らない。
+- timeout を 10 秒のまま 1 process に適用する — 旧形が受理していた入力を計算ノードの遅延で過剰拒否しうる。
+- 旧形の allowlist を `p3_b4_wiring_probe` に残す — production はもう発行しないので、許可形は今 production が発行する exact argv に最小化する。
+
+## D1796. next-tasks command は bytes 同一で repo へ移し、既存 3 command と同じ形で予算表と interface 表へ登録する (2026-09-08)
+
+**決定:** `.claude/commands/next-tasks.md` は `~/.claude/commands/next-tasks.md` と bytes 同一で置く。
+`tools/check_docs.py` の `COMMAND_LIMITS` に `TextLimit(27_100, 100)` (現物 27054 bytes / 最長行 91 chars)、
+`COMMAND_INTERFACES` に frontmatter `{description, argument-hint}`・`$ARGUMENTS` 0 件を登録し、
+`orchestrator/tests/test_check_docs.py` の合成 fixture と予算 literal test (現物 bytes・plus-one 拒否) を
+既存 command と同型で足す。本文の文言 (「本ファイル (repo 外)」、絶対 path) と共通自己改善契約への編入は
+変えず、編集境界としてユーザー裁定へ返す。
+
+**理由:**
+- checker は command directory と `COMMAND_LIMITS` の完全一致を要求する。登録なしでは新規 command が
+  「予算未登録」で赤になり、登録は実装面なので Codex author が書く。
+- 予算は既存 3 件 (現物 +3〜16 bytes) と同じ詰め方にした。増枠は独立審査 (2026-08-02 ユーザー裁定) であり、
+  新規登録で緩い予算を置くと anti-bloat の意図が command ごとに割れる。
+- 依頼は「移動して git 管理を始める」であり、本文の改稿は依頼に含まれない。移設で意味が変わる文言
+  (repo 外・その場で直す) は裁定境界に関わるので既成事実にしない。
+
+**却下した選択肢:**
+- 予算を緩く (例 32_000) 置く — 既存 3 command との非対称を作り、増枠審査の意味が薄れる。
+- 移設と同時に「repo 外」の文言と絶対 path を直す — bytes 同一の不変条件と scope を破る。
+- interface 表へ登録しない — 既存 gate の member 追加であって新 gate ではなく、欠くと frontmatter・到達性の検査が
+  この command だけ蒸発する。
+
+## D1797. main へ誤って入った gitlink は index 除去 + 既知違反登録の前進 commit で直し、履歴の書き換えと除外設定の追加はしない (2026-09-08)
+
+**決定:** main 先頭 c12e25078 が `.codex/worktrees/*` 110 本を gitlink として commit した系統 blocker は、
+別 wave の branch 上で (a) `git rm --cached -r .codex/worktrees` (作業 file は触らない) と
+(b) `tools/known_violations/` への c12e25078 の既知違反登録 (Codex author) を 1 commit にして ff-only で land する。
+`git reset` による main の書き換えは行わない。`.gitignore` への `.codex/worktrees/` 追記も行わない。
+
+**理由:**
+- 全史 provenance 監査が rc=1 のままだと DW-O25 により全 session の land が rc=29 で止まり、原因 session 自身の
+  land も同じ関門で止まる。登録は台帳の既存機構 (1 finding 1 file) で、他の finding を相殺しない。
+- reset は c12e25078 を祖先に持つ全 branch (少なくとも 2 wave) の作り直しを要し、ff-only の land で再流入する。
+  原因 session も reset の権限を持たず、前進修正を委ねた。
+- 除外設定で `.codex/worktrees/` を隠すと、変異 harness が走行前後で bytes 一致を要求する共有 checkout の
+  `?? .codex/worktrees/` 行が消える (F599 と既存の D)。再発防壁の要否はその観測面と同時にユーザーが裁定する。
+
+**却下した選択肢:**
+- `git reset --mixed` で main を戻す — 共有 main の履歴書き換え。index.lock も取れなかった。
+- gitlink 除去だけを commit し登録しない — 除去 commit 自体は緑でも c12e25078 の finding が履歴に残り land が止まる。
+- `.gitignore` 追記を同じ closure に含める — F599 の既裁定と衝突する。
+
+## D1798. dev-wave の段 1 brief に「研究前進」を必須化し、示せない wave は後送も開始もせずユーザー裁定へ返す (2026-09-08)
+
+**決定 (ユーザー裁定 2026-09-08):** `docs/dev-wave/core.md` の `DW-S01` に、brief の先頭項目として「研究前進」を
+必須化する。内容は (a) 進む論文の主張・図表・実験と完了判定、または (b) 土台なら「止めている研究」の実測と
+最小差分を 1 行で示す。起点 (command 引数、裁定からの起票、supervisor、ユーザー直投入) を問わず、示せなければ
+後送も開始もせずユーザー裁定へ返す (`DW-G05` の「1 cycle 後へ送る」とは別の動作)。段 4・6 で読む `DW-G05` の
+追加実装・防壁の許容条件を「現目的」から「段 1 の研究前進」へ結線する。
+段 7 に純増 1 行を記録する案 (P3) と、削除だけの wave を変異免除にする案 (P5) は採らない。
+予算は D782 の手順で、同じ読点で読まれる節との重複 (D227) を原資に収容した: `DW-S08` 本文 (段 8 preflight で
+同時必読の `docs/skill-self-improvement.md` dev-wave 終端と入口の段 8 説明が上位互換)、`DW-S04` の `DW-M01`
+pointer (段 4 の dispatch 表が同節を無条件に読ませる)、`DW-STOP` の入口巻き戻し規則 pointer (入口は常時読まれ、
+規則本文は入口の読み込み契約にある)。L1 は 10,594 → 10,568 / 10,625 bytes で増枠なし。
+
+**理由:**
+- 実測 (2026-09-08、main `1e07a1e5b`): 直近 1 週間で製品 +67K / −2K 行、テスト +73K / −2K 行、削除 .py は 2 週間で
+  2 file。直近 4 日の wave 61 本のうち土台・工程 ≈ 34 (新規 gate・binding ≈ 9)。decisions は 1 日 25〜111 件、
+  持ち越し T 345 件。これは過剰蓄積の兆候であって、本決定の因果効果はまだ測っていない (codex 所見 A-9)。
+- dev-wave の既存 gate (`DW-G01`〜`G05`) は wave 内の must-fix を篩うが、wave 自身が研究を進めるかを問わない。
+  研究最優先の前提は `/next-tasks` の候補選定にしか無く、`DW-C00` が command 引数を優先するため、裁定・
+  supervisor・直投入の wave は篩を通らなかった (codex 所見 B-3)。
+- 「何を進めるか」だけでは恒真化するため、完了判定・実測・最小差分を要求し、段 4 で読む節へ結線する
+  (codex 所見 A-2、A-6)。ユーザー明示の wave を AI が黙って却下するのも全免除も誤りなので、示せない場合は
+  ユーザー裁定へ返す形にする (A-5)。
+- P3 は段 7 へ来るのが P1 を通過した wave だけで生存者バイアスがあり、行数は git から後算できる (A-7、B)。
+  P5 は削除でも reject 分岐・checker を消せば受理集合が広がり、「影響を書けない」を削除許可へ反転するのは
+  影響不明を安全の証拠にする誤りで規律 2 と衝突する (A-8、B)。
+- ユーザーの明示 (2026-09-08):「研究開発の遅滞を気にかけている」「土台にゴミを入れたら掃除が要る」。D205
+  (プロトタイプ基準) の wave 単位への適用である。
+
+**却下した選択肢:**
+- P2 (段 3・段 6 のレンズ 1 本を過剰・削除レンズに固定)、P4 (変異 matrix の義務を防壁・台帳・受入判定の実装面に
+  限定)、P6 (根拠が無い scope 外所見は起票せず記録のみ) — 今回の裁定で未選択。両レンズは P1 単独では段内の
+  土台増殖 (所見・変異義務・起票) を止めないと指摘しており、裁定候補として残す。
+- 収容先を `DW-G05` や `DW-STOP` にする — 評価時点が早すぎるか遅すぎる。brief を作る段 1 で必ず読む `DW-S01` に置く (B-4)。
+- 予算の増枠を先に行う — D730 / D782 は削減を先に試すよう定め、削減で収容できた。
+
+## D1799. 軸 B5 の anchor 包含 control は索引別の member 集合を lookup の前に固定し、結果を見て外さない (2026-09-08)
+
+**決定:** 軸 B5 の positive control (部分登録 §4.2〜§4.3) の対象 anchor 集合を、**索引ごとに** lookup の前に固定する。
+membership は anchor が持つ鍵型 (DOI / arXiv ID) と索引の収録範囲についての事前知識だけで決め、
+ID lookup や検索の結果で変えない。member の lookup が `不達` または `非収録` なら、部分登録のとおり
+当該索引の走行と軸全体を `未完走` とし slot の control を未配置にする。member でない (slot, 索引) の組には
+包含 control が無く、その不在は限界として実行記録と `RW3` の主張に併記する。索引を母集合から外すことも、
+その索引の主 query・演算子 control を省くこともしない。member の control ID は `B5-ANC-<anchor ID>@<索引>`。
+正本は `docs/related-work/claim-survey/2026-09-08-backoff-axis-b5-closure-preregistration.md` §2.4〜§2.5 (E-1)。
+
+**理由:**
+- 部分登録の文面 (「1 件でも ID lookup が不達なら軸全体を `未完走`」) は、arXiv API が DOI を鍵に引けず
+  OpenAlex が arXiv ID を鍵に引けないことと、1950 年代の Annals 論文や SIGMOD 論文が arXiv に無いことから、
+  arXiv ID を持たない anchor を 1 つでも含めた時点で構造的に閉じない (D1207 の型)。
+- 段 3 の敵対相談が、親の当初案 (`非収録` を見てから当該索引の control から外す) を「非収録を結果依存で
+  除外でき、positive control を空集合化できる」と指摘した。集合を lookup 前に固定すれば、結果を見た除外の
+  経路が無くなり、受理集合の拡大は「member でない組に control が無い」の 1 点に限られる。
+- anchor は検索式に語彙的に届きやすいかで選ばない (D351 の逆向きの reward hack を避ける)。届きにくい anchor が
+  control を不発にしたら、それは登録語彙の限界を示す正当な結果であり、語彙の意味的 amendment へ進む。
+
+**却下した選択肢:**
+- `非収録` を見てから control から外す (親の当初案) — 結果依存の除外で、control を恒真にできる。
+- 全 anchor × 全索引を要求する部分登録の文面どおり — 構造的に閉じないため、宣言的除外でなく契約の改訂で閉じる (D1207)。
+- 通りやすい anchor だけを選ぶ — 包含 control の意味を失う。
+
+## D1800. DBLP の anti-bot challenge は `不達` として扱い、challenge を模倣しない (2026-09-08)
+
+**決定:** 文献検索の索引が anti-bot challenge (2026-09-07 に DBLP で観測した Anubis の JS 駆動 challenge) を返した場合、
+その索引は `不達` (可用性の失敗) として記録し、challenge の JS や proof-of-work を模倣・自動化して通過しない。
+UA と `Accept` header の変更、content negotiation、別入口の試行までは可用性の観測として行ってよい。
+`不達` の帰結 (当該索引の走行と軸全体を `未完走`、索引を母集合から外さない) は 7.7.4 と部分登録 §4.2 のまま。
+
+**理由:**
+- challenge は索引側が自動アクセスを拒む意思表示であり、それを迂回して得た応答は取得時点の来歴 (D1206) として
+  信頼できない。
+- 7.7.4 は「使えなかった索引を黙って母集合から外さない」と要求する。`不達` を記録し、live preflight で再確認する
+  経路が既にあり、迂回は要らない。
+- 本 wave の観測: DBLP の `search/publ/api`、`doi/<DOI>`、`xml/release/` の 3 入口が UA (自前 / curl 既定 /
+  ブラウザ風 / python-urllib) と `Accept` に依らず HTTP 200 `text/html` の challenge を返した。
+  2026-08-27 の軸 3 索引実測は同 API に到達していたので、それ以降に変わった。
+
+**却下した選択肢:**
+- metarefresh 型 challenge を追従する — 1 回目の応答には meta refresh があったが 2 回目以降は JS 駆動で、
+  追従は challenge の模倣になる。
+- DBLP を母集合から外す — 7.7.4 違反。
+
+## D1801. 段 4 loop の job body で `CMAKE_PREFIX_PATH` を扱えるのは exact 3 行だけとし、事前構築にも同じ 2 root を explicit に渡す (2026-09-08)
+
+**決定:** D1773 の移植を実装するにあたり、契約テスト `orchestrator/tests/test_p3_s4_loop_job_contract.py` の
+`forbidden-cmake-environment-injection` を次の形へ改める。job body の実行面 (コメント専用行と heredoc を除いた面) で
+`CMAKE_PREFIX_PATH` を含む行は、出現順に (1) sanitize 段の `unset CMAKE_PREFIX_PATH CMAKE_TOOLCHAIN_FILE`、
+(2) glog configure の `-DWITH_UNWIND=OFF "-DCMAKE_PREFIX_PATH=$GFLAGS_INSTALL_DIR"`、
+(3) `export CMAKE_PREFIX_PATH="$GFLAGS_INSTALL_DIR:$GLOG_INSTALL_DIR"` の exact 3 行だけを受理し、
+他の代入・`unset`・`export -n`・`env -u` を含むあらゆる形を拒否する。(3) は gflags / glog の install 2 本の後、
+masstree 事前構築の呼出しの前に 1 回だけ置き、事前構築は driver 2 分岐の両方より前になければならない。
+`GFLAGS_INSTALL_DIR` / `GLOG_INSTALL_DIR` は `$TMPDIR` (job 別 scratch) 配下に束縛する。
+さらに job body は masstree 事前構築 (`buildcache.prepare_masstree_fetchcontent`) へ同じ 2 root を
+semicolon 区切りの `dependency_prefix` としても渡し、receipt の `configure_argv` に
+`-DCMAKE_PREFIX_PATH=<gflags-install>;<glog-install>` が残るようにする。receipt の schema と key 集合は変えない。
+admission registry の entry は分類・reason・gate・evidence に変えるものが無く不変とし、D1773 (c) の
+「同じ commit で更新する」は「変える場合は同じ commit」と読む。
+
+**理由:**
+
+- D1773 (d) は env の `CMAKE_PREFIX_PATH` を driver 本走まで持たせることを要求する。従来の契約は
+  同変数の代入を全面禁止していたので、受理形を足す必要があった。足す形を exact 1 行に限り、
+  `unset` / `export -n` / `env -u` を含む全形を拒否しなければ、export 後に driver だけから prefix を
+  外す job body が受理集合に残る (段 6 レビュー A の real 所見)。
+- F813 の型 (判定器が環境から解決した実体が証拠に残らない) を避けるため、事前構築の receipt にも
+  prefix を残す。driver 側は `buildcache.build_v2` が ambient prefix を identity へ束縛するが、事前構築の
+  receipt は `configure_argv` しか持たないので、explicit 引数で同じ値を露出させるのが schema 不変の最小手
+  (段 3 レンズ A / 段 4 裁定 A4)。計算ノードの実測 (job `983020.nqsv`) で receipt に
+  `-DCMAKE_PREFIX_PATH=/scr/.../gflags-install;/scr/.../glog-install` が入ることを確認した。
+- 検査面をコメント専用行と heredoc を除いた実行面に統一し、コメント専用行では heredoc opener を探さない。
+  heredoc 内の required fragment (policy の 4 key、`dependency_prefix=`) はコメント専用行を除いた raw source
+  でも照合する。これで「コメントアウトして契約だけ通す」型を塞ぐ (段 6 レビュー A / B の real 所見)。
+
+**却下した選択肢:**
+
+- **`printf -v` / `read` / 名前分割 `eval` / 綴りの難読化 / 行末コメントで marker を満たす形まで拒否する** —
+  本 wave 以前から全 marker に共通する盲点であり、D1773 の範囲外の gate 拡張になる。同一主体が gate と
+  検査を変えられる限り repo 内検査は完全防壁ではない (D387) ことを明記し、記録に留める。
+- **receipt に gflags / glog の source HEAD や install realpath を足す** — 粗い provenance で足りる方針
+  (D1773 (b)) と schema 不変の範囲を越える。
+- **admission registry に無内容の更新を入れる** — 分類が変わらない以上、盛るだけになる。
+
+## D1802. 凍結 spec の commit 束縛は真の祖先関係とし、tree の同値は主張しない (2026-09-08)
+
+**決定:** D1774 の実装として、`load_frozen_spec` は `provenance.source_commit` が
+`loaded_head` の**真の祖先**であることを要求する (`git merge-base --is-ancestor`、等値は拒否)。
+`loaded_head` は loader の冒頭で 1 回だけ解決し、spec・calibration・build receipt の全 blob 比較を
+その OID に対して行う。実行時と finalizer の期待 header も `loaded_head` に統一する。
+**保証するのは「spec の bytes が `loaded_head` の tracked blob と一致する」と
+「`source_commit` が `loaded_head` の真の祖先である」の 2 つだけで、その間に何の変更が入ったかは
+制限しない。** commit OID の同値も、実行中 module bytes が記録 commit に対応することも保証しない。
+
+**理由:**
+
+- 従来の「spec bytes == HEAD blob」と「source_commit == HEAD」の同時要求は hash の不動点であり、
+  追跡 file である spec を一度も作れない。実 git で再現した。
+- 等値を許すと不動点が戻る。真の祖先を要求することで、`source_commit` は spec を著した時点の
+  commit という意味を保つ。
+- 全 blob 比較を 1 回だけ解決した OID に束ねるのは、symbolic `HEAD:` を使うと blob 検査と
+  後から解決する HEAD が別 commit を指しうるためである。共通親から spec だけが異なる兄弟
+  commit を作り、blob 読取りと HEAD 解決の間に HEAD を動かすと、成果物が「検証していない
+  spec を検証したことにする」記録を残す。
+
+**却下した選択肢:**
+
+- **唯一の親 + spec 1 path 差分を要求する** — 保証は強く (tree が spec path を除いて同値)、
+  敵対レビュー 2 本と変異 9 件で検証もした。しかし freeze commit の後に 1 つでも commit が
+  乗ると spec が二度と load できない。閉じようとしている失敗を作り直す。D1774 の理由欄も
+  緩める方向を明示している。再裁定を求めて材料ごと返す。
+- **`source_commit` field を廃し `loaded_head` だけに束縛する** — 事前に「どの code state 向けの
+  spec か」を宣言する能力を失い、schema の exact key 集合も変わる。
+- **HEAD 完全一致を残す** — D1774 が却下済み。不動点そのものである。
+
+## D1803. 自己参照する VCS 束縛を模擬 git で裁定しない (2026-09-08)
+
+**決定:** commit hash・blob・祖先関係のように **spec 自身の内容が VCS の状態を指す**束縛は、
+`subprocess.run` を差し替えた模擬 git だけで正しさを主張しない。実 repository を作り、実際に
+commit した上で正例と負例を通す。模擬は schema・型・単発の分岐の高速検査に限る。
+
+**理由:**
+
+- `floor_pair_driver` の loader は 209 件のテストが緑だったが、production では spec を 1 度も
+  作れなかった。模擬が `rev-parse HEAD` を定数に、`SOURCE_COMMIT = HEAD` に固定していたため、
+  不動点が構造的に見えなかった。
+- 模擬は「呼び出し側が何を尋ねたか」は検査できるが、「その問いに実 VCS がどう答えるか」を
+  検査できない。自己参照する束縛では後者が本体である。
+
+**却下した選択肢:**
+
+- **模擬に不動点を再現させる** — 不動点は「commit すると hash が変わる」という VCS の性質から
+  来る。模擬でそれを再現するには実質 git を書くことになる。
+- **実 git のテストだけにする** — 型・schema の負例は模擬の方が速く、数も多い。両方を持つ。
+
+## D1804. balanced stock-inline の投入器は 1 job だけを出し、job body は既存物を無改変で再利用する (2026-09-08)
+
+**決定:** T-1998 の薄い sanctioned launcher は、balanced 1 workload だけを 1 回 `qsub` する
+新しい login 側投入器とする。計算ノードの job body は既存の A-5 job body を 1 byte も変えずに
+再利用し、新しい job body も新しい汎用 driver も作らない。A-5 の投入器・契約テスト・登録簿 entry も
+変更しない。
+
+**理由:**
+- 既存 A-5 投入器は同じ checkout から 2 job を出し、先に終わった job の終了処理が打つ
+  global `git worktree prune --expire now` が、共有 submodule gitdir 上の他 job の worktree 登録を
+  消す。後に終わる job が必ずこの経路で落ちる構造であり、実測でも 8 genome を計測した後に
+  finalizer 前で落ちている (F251 の 2026-09-07 再発)。1 job だけを出す投入器なら
+  同一 invocation 内にこの経路が成立しない。
+- job body を変えると A-5 の受理集合が変わる。契約テストが 2 workload fan-out と global prune を
+  正例として固定しており、そこを触るのは別の変更単位である。
+- 投入器だけを足すのは、既存の測定経路を呼ぶ薄い層という要求の範囲に収まる。
+
+**却下した選択肢:**
+- 既存 A-5 経路をそのまま使う — 後続 job が prune で落ちる構造が残る。
+- A-5 job body を balanced 専用へ直す — A-5 の受理集合を変える。
+- A-5 投入器を checkout ごとに分ける — 同じ欠陥の恒久対応であり、既にユーザー裁定へ返っている。
+
+**限界:** 別 invocation どうし、あるいは既存 A-5 job と同時に走る場合は、再利用している job body の
+global prune 経路が残る。この投入器はその競合を解消しない。
+
+## D1805. 診断 build の排除は「明示値の不在」でなく事前登録の source digest 照合で行う (2026-09-08)
+
+**決定:** 対照 consumer が診断 build 由来の値を拒否する根拠は、事前登録が arm ごとに持つ期待
+`source_bytes_sha256` と記録済み値の一致とする。genome と configure command に診断 knob の
+明示値が現れないことは補助的な検査に留め、単独の根拠にしない。configure argv は
+`-DNAME[:TYPE]=VALUE` を正規化してから判定する。
+
+**理由:**
+- producer の genome はそもそも診断 knob を持たないので、「明示値 1 が無い」は候補集合に
+  含意されて恒真になる。knob の既定値を 1 にした source から同じ genome で証拠を作れば素通りする。
+- 型付きの `-DNAME:STRING=1` は literal token の完全一致検査を通り抜ける。正規化しないと
+  同じ意味の入力が別の受理結果になる。
+- 診断計器の実効値は単一 field として記録されていない。commit 束縛の source bytes から
+  導出するしかない。
+
+**却下した選択肢:**
+- 明示値の不在だけを根拠にする — 恒真であり、診断 build を排除しない。
+- producer の result schema へ実効値 field を足す — 現在の受理条件には不要で、
+  既存 producer の出力 bytes を変える。
+
+## D1806. 固定 2 点だけ内容を読む契約の下でも、producer の形は全点で束縛する (2026-09-08)
+
+**決定:** 事前登録で固定した 2 点だけを読む consumer でも、campaign 全体に対して次を要求する。
+どの `build_start` の genome にも診断 knob の key が現れないこと、全 `verify_done` / `bench_done` が
+既知の build attempt に属すること、anomaly を報告する record や非 serializable の verdict が
+1 つも無いこと。対の外の点については throughput も median も順位も読まない。
+
+**理由:**
+- 束縛した job body は診断 knob 付き genome では結果を発行しない。そのような入力を受理すると
+  「束縛済みの sanctioned producer の完全な出力である」という provenance 結論が偽になる。
+- attempt に属さない verify record は上流の topology 検査も certified admission も見ない。
+  anomaly が明記された variant を通す経路になり、正しさゲートの迂回になる。
+- これらは値の内容を読む検査ではなく producer の形を束縛する検査なので、
+  「固定 2 点だけ内容を読む」契約と両立する。
+
+**却下した選択肢:**
+- 対の 2 点だけを見る — 診断 knob 付きの根や anomaly record を通す。
+- 対以外の throughput も読む — 事前登録で固定した 2 点だけを読むという契約を破る。
+
+## D1807. s1 materializer の sort 契約束縛は、同じ materializer を使う consumer が値を転送するだけで閉じ、stock 同一 bytes の短絡は D1630 の規約のまま据え置く (2026-09-08)
+
+**決定:** D1548 の sort 軸局所適用を s1 driver へ通すとき、(1) `prepare_cell` は sort_best だけ oracle が attest した
+`contract_id` で `source_digest.resolve_evidence(..., sort_oracle_contract_id=).src_token` を確定し、`PreparedCell` に
+その ID を持たせる。(2) `run_role`、`s8b_oracle_driver` の evaluate、`s8b_floor_campaign` の evidence 解決と build は、
+`PreparedCell.sort_oracle_contract_id` が非 None のときだけ同じ値を既存 keyword へ転送する。(3) 束縛値の出所は
+oracle 結果であり、campaign 宣言 (`_search_identity` の同じ定数) との exact 一致は既存の oracle 検査が担う。
+新しい gate・定数・producer は足さない。(4) comparator が stock と同一 bytes に materialize される sort_best で
+契約を改版しても token が `STOCK` のままになる挙動は、D1630 の binder 規約どおり変えない。
+
+**理由:**
+- s1 の束縛だけを入れると、同じ `prepare_cell` を使う s8b oracle driver と floor campaign が契約 ID 無しで
+  `pipeline.evaluate` / `build_v2` へ進み、src_token 照合で sort_best が全件 abort する。consumer の転送は
+  「gate の新設」ではなく、束縛値を落とさないための整合であり、D1548 が禁じた任意軸への一般化ではない。
+- `_require_sort_oracle_contract(cfg)` を s1 から呼ぶ案は、`prepare_cell` に cfg が無く `prepare_cell_fn` seam を
+  広げる。oracle 検査 (`oracle.contract_id != ORACLE_CONTRACT_ID` → DriverError) が同じ exact 一致を既に要求している。
+- stock 同一 bytes では build 結果も stock binary であり、契約 ID の改版が binary を変えない以上、cache の再利用は
+  stale build ではない。分離が要るなら `source_digest._resolved_src_token` (D1630) 側の設計変更であり、
+  本 wave の編集面ではない。
+
+**却下した選択肢:**
+- s8b 側を旧経路 (契約 ID 無し) のまま残す — s1 の束縛が consumer を壊す。
+- `prepare_cell` に束縛の opt-in 引数を足して s8b だけ束縛しない — identity 分断を s8b に残し、seam も広がる。
+- stock 短絡より先に契約 ID を束縛する — D1630 の規約変更で、loop 側 producer との不整合を生む。
+
+## D1808. 権威 floor の identity 要素 protocol は build receipt の canonical genome から導出し、凍結 spec へ宣言させない (2026-09-08)
+
+**決定 (dev-wave 段 4 裁定、依頼の択一の外):** 権威 floor 成果物名の 5 要素 (D1641) のうち `protocol` は、
+凍結 spec の各 artifact が指す build receipt (portable record、`s8b-binary-admission/v2`) の
+`binding.genome_canonical` (`Genome.canonical()` の `protocol|flags` 形) から共有 helper
+`protocol_from_floor_genome()` で取り出す。全 artifact で 1 値のときだけ identity に採り、canonical でない・
+読めない・sha 不一致・混在・一部失敗はいずれも `missing=("protocol",)` として発行を拒否する (fail-closed 維持)。
+凍結 spec の schema・driver・receipt schema・D1641 の 5 要素は変えない。
+
+**理由:**
+- 本 wave の起票文と依頼は「protocol は spec に無く、build receipt からも導出できない」を前提に
+  (a) spec へ足す / (b) D1641 を 4 要素へ訂正 の択一を置いたが、前提が偽だった。receipt の
+  `genome_canonical` は `genome_sha256`・`variant_id`・`binding_sha256`・materialization binding で
+  binary に束縛されており、protocol を取り出す共有 helper も既に在った。issuer が失敗していたのは
+  record の top-level に `protocol` key を探していたからである。
+- (a) は測定された binary の事実から protocol を切り離し、人手宣言値で成果物名を発行できるようにする
+  (規律 2 の向きに反し、D1374 の却下欄「検査していないことを検査したと読ませる」型)。加えて spec schema・
+  spec sha・HMAC 順序 golden の不要な変更面を生む。
+- (b) は D1641 の逐語を減らし、`between_run_floor` が silo / mocc を名前で分ける既存経路と矛盾し、
+  別 protocol の 2 件目を create-only で発行不能にする。
+- receipt 経路は変更面が issuer 1 file とその test だけで、D1696 (spec 側 validator を拡張しない) と
+  D1373 (protocol は source / binary の事実へ束縛) の両方に整合する。
+
+**却下した選択肢:**
+- (a) 凍結 spec に top-level `protocol` を足し schema を v4 へ進める — 上記のとおり binary 束縛を失う。
+- (b) D1641 を 4 要素へ訂正 — 情報を落とし別 protocol の床値と同名衝突する。
+- protocol の許可リスト / CCBench source 束縛 gate を issuer に足す — D1696 の再訪条件 (人手の見落とし 1 件) が
+  未成立。裁定パッケージ候補として残す。
+- `Genome` の flag 名に `|` を含む値 (例 `mocc|A|B=1`) を issuer だけで拒否する — それは `Genome.canonical()` の
+  正準形そのものであり、共有 helper と解釈が割れる。文法を締めるなら model 側で行う (裁定パッケージ候補)。
+
+## D1809. result-evidence record の producer は core API として置き、terminal WAL projection の bytes へ束縛する — production issuer への配線は含めない (2026-09-08)
+
+**決定:** `orchestrator/campaign/reflux_result_evidence.py` に record 層の producer を新設する。
+形は次の 3 関数と 1 型に閉じる。
+
+- `derive_physical_result(*, ordered_wal_projection_bytes, build_attempt_id, ordered_verifiers, verify_result=None)`
+  が `physical_result` を **3 方向**に導く。accepted = projection の terminal が `commit` で
+  `verify_configs` が verifier policy の順序付き集合と exact 一致。rejected = terminal が `abort` で
+  `reason == verify_result.verdict == "non-serializable"`、`verify_result` は exact `VerifyResult` で
+  `integrity.clean()` が真、`total_cycles == len(anomalies) == 1`、terminal の `verify` が
+  `result_to_dict()` から `trace_dir` を除いた wire snapshot と canonical bytes で同値。
+  それ以外は `ResultEvidenceIssuanceRefused` で**発行を拒否する** (indeterminate、dirty integrity、
+  切詰め、複数 class、空 anomaly、非 production 構造、terminal の外枠が production の 5 key
+  `{variant, stage, env_tag, ts, payload}` でない root shadow、別 attempt)。**複数 class から 1 件を
+  選ばない。**
+- `DerivedPhysicalResult` は `ordered_wal_sha256` (projection bytes の content-addressed digest) を
+  持ち、`assemble_result_evidence_record()` は record の `ordered_wal_ref.sha256` との一致を要求する。
+  導出に使った projection と record が参照する projection は同じ bytes である。
+- `issue_result_evidence_record()` は `ordered_wal_ref` と `execution_provenance_ref` の両参照先を
+  解決してから既存の create-only writer を呼ぶ。
+- witness の構造検査と class digest は `validate_witness_anomaly()` / `witness_class_sha256()` として
+  同 module に置き、8c formal consumer はそれを wrapper で呼ぶ。`ArtifactError -> FC07` の変換は
+  wrapper に残す。consumer の判定式・reason code・受理集合は変えない。
+
+**production issuer への配線は本決定に含めない。** `EvalResult` は `VerifyResult` を保持せず、
+設計 (`docs/phase3-8c-wiring-design.md` §3.3) が issuer と定める `run_campaign()` の最終化点、
+ordered WAL projection を `wal.jsonl` から作る producer、`run_origin_trial` の production 呼び手は
+いずれも存在しない。成果物は **producer core API** であり、「本番 projection が端から端まで通る」とは
+主張しない。
+
+**理由:**
+- record 層で consumer を合わせる余地が無い。`constraint_sha256` は FC04 (record と ledger member)、
+  FC07 (record と WAL の witness class)、FC09 (class 集合) の 3 つの等式で束縛され、ledger 自体が
+  rejected に digest を必須とする。producer を書く以外に不整合を閉じる方法が無い。
+- typed `VerifyResult` 単独の導出では、consumer が FC07 で落とす record を発行できる (段 3 の
+  敵対相談が反例を示した)。accepted は単一 pass の結果でなく全 pass 通過後の commit で成立し、
+  rejected は WAL に凍結された snapshot と同じ bytes でなければ class が一致しない。だから producer は
+  terminal WAL projection を第一入力にし、typed 結果は rejected の証拠として bytes 同値を要求する。
+- 導出結果と record が参照する projection を digest で束縛しないと、同じ attempt の別 projection を
+  参照する record を正常発行できる (段 6 の 2 レンズが独立に指摘)。
+- consumer の `_wal_field()` は同名 top-level field を payload より優先する (D1715/D1768 で維持)。
+  producer が payload だけを読むと root shadow で両者が乖離する。production writer は 5 key の外枠
+  しか書かないので、producer は外枠を exact に要求して乖離の入口を閉じる。consumer 側の外枠 gate は
+  D1730 の別項のままにする。
+- 構造検査と digest を共有するのは、式の複製が drift の温床になるためである。共有単位を digest だけ
+  にすると、構造検査を経ない値に対して同じ digest が出る経路が残る。
+- production 配線を含めないのは、発火条件を満たす既存の artifact path が無く (DW-G04)、
+  設計 §9 が「3 条件のいずれも成立していない」と明記しているためである。無い呼び手のために
+  API の形を推測で決めない。
+
+**却下した選択肢:**
+- **abort payload の dict を producer の入力にする** — 自己申告の `integrity.clean` を producer が
+  再認証できず、typed 経路より受理集合が広がる。typed 経路は `Integrity.clean()` の proof surface と
+  commit witness まで見る。
+- **ordered WAL projection の producer (`wal.jsonl` の 1 attempt 区間からの逆関数) を同じ wave で
+  書く** — source WAL 全体の digest を採ってから追記されないという保証が issuer の最終化点に依存し、
+  本 wave 単独では production 実効性を確定できない。issuer 配線と同じ束で送る。
+- **共有 module を新設する** — consumer の source 検査が 15 file の閉集合を pin しており、
+  record 契約の所有 module に置けば足りる。
+- **typed 層と wire 層の重複検査を 1 つの policy 関数へ統合する** — typed 層は proof surface まで
+  見る強い条件、wire 層は consumer parity であり、役割が違う。変異の帰属は両層同時の複合変異で取る。
+- **witness class の uniqueness を producer で証明する** — `total_cycles` は SCC 数であり、
+  1 SCC 内の複数 simple cycle は verifier が代表 1 件へ縮約する。class の定義は D1768 のまま
+  「verifier が SCC ごとに報告する代表 witness の digest」であり、uniqueness の再定義は
+  ユーザー裁定へ返す。
+
+**限界:**
+- 閉じたのは record 層の producer core API までである。production issuer への配線が無い限り、
+  rejected の本番 projection は端から端まで通らない。
+- fixture の到達性 (accepted / rejected / 発行拒否の 3 方向) は `test_verifier.py` と同型の
+  synthetic Silo source 束縛の下での値である。production の verifier 呼び出しは build に封印された
+  source snapshot と commit witness を検証するため、同じ trace でも `integrity.clean()` が変わりうる。
+  production 到達性は主張しない。
+- class = SCC ごとの代表 witness。1 SCC に複数 simple cycle があっても 1 class として扱われる。

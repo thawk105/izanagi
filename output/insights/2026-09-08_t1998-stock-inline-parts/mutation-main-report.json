@@ -1,0 +1,1214 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts/output/pegasus-dispatch/4e6bd52283c7ea4b369d1962a06ff794/izdw-4e6bd52283.o982914",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts/output/pegasus-dispatch/4e6bd52283c7ea4b369d1962a06ff794/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [44 items]\n\n............................................                             [100%]\n============================= 44 passed in 23.26s ==============================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "5fd6b9e138b25acc520921ca70afa5c2da0eaf32fa84ac65c493b3c6278fbb2f"
+    },
+    "artifact_error": null,
+    "collection_sha256": "eabb8e0cc56e352f77fcd8bbeb3c04d04371b270f4c40818069cbaedfac7af5b",
+    "duration_s": 59.513,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "0ab349626aa393a238c9b8525234e007fdd9650f566a6c14c9213cf1c5a67c3c",
+    "repo_head": "8cf391ad95ea31f3ef808c8739e3749b86a67796",
+    "runner_sha256": "8ba54eb9b5c62ca83d4d86b09fa6bd8a40f0ed2e368494ee8c71149ba8ada7ee",
+    "spec_sha256": "4fd1b19309d72c1cf49f4b6c9fecebdc11de2cb31144ae7b5e90fef6743d4870",
+    "status": "PASSED",
+    "test_output_sha256": "5fd6b9e138b25acc520921ca70afa5c2da0eaf32fa84ac65c493b3c6278fbb2f",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "286913852d8af6f53f5bf1f0942fb0881bd25bf0878a9c0873580f08d77d1255"
+  },
+  "date": "2026-09-07T22:32:56.400262+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts/output/pegasus-dispatch/f27e6638e9cc24f2d89c1556310e82e7/izdw-f27e6638e9.o982916",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts/output/pegasus-dispatch/f27e6638e9cc24f2d89c1556310e82e7/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [44 items]\n\n..............................F.............                             [100%]\n=================================== FAILURES ===================================\n______________ test_preregistered_source_digest_drift_is_rejected ______________\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_preregistered_source_dige0')\n\n    def test_preregistered_source_digest_drift_is_rejected(tmp_path: Path) -> None:\n        \"\"\"The T-1998 source-identity gate alone rejects this target preregistration.\"\"\"\n        fixture = _write_producer(tmp_path)\n        changed = replace(\n            fixture.preregistered,\n            target=replace(\n                fixture.preregistered.target,\n                source_bytes_sha256=\"f\" * 64,\n            ),\n        )\n    \n>       with pytest.raises(T.T1998PairRejected) as excinfo:\nE       Failed: DID NOT RAISE T1998PairRejected\n\norchestrator/tests/test_t1998_stock_inline_pair.py:468: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t1998_stock_inline_pair.py::test_preregistered_source_digest_drift_is_rejected\n======================== 1 failed, 43 passed in 24.23s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t1998_stock_inline_pair.py::test_preregistered_source_digest_drift_is_rejected\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=744 retained_bytes=744 omitted_bytes=0 rendered_excerpt_bytes=783 sha256=ad92e6f31f9a417803a5683d7b76c8652c1854e305a849998c502b6a26ad2576\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw8] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_preregistered_source_dige0')\n> \n>     def test_preregistered_source_digest_drift_is_rejected(tmp_path: Path) -> None:\n>         \"\"\"The T-1998 source-identity gate alone rejects this target preregistration.\"\"\"\n>         fixture = _write_producer(tmp_path)\n>         changed = replace(\n>             fixture.preregistered,\n>             target=replace(\n>                 fixture.preregistered.target,\n>                 source_bytes_sha256=\"f\" * 64,\n>             ),\n>         )\n>     \n> >       with pytest.raises(T.T1998PairRejected) as excinfo:\n> E       Failed: DID NOT RAISE T1998PairRejected\n> \n> orchestrator/tests/test_t1998_stock_inline_pair.py:468: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=744 retained_bytes=744 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1508 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "532756ddd85b49b5c2b49aff6f4c9740d9a9159ae7d9ca04c8399596add23ef7"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eabb8e0cc56e352f77fcd8bbeb3c04d04371b270f4c40818069cbaedfac7af5b",
+      "duration_s": 49.613,
+      "expected_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_preregistered_source_digest_drift_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_preregistered_source_digest_drift_is_rejected"
+      ],
+      "hang_risk": false,
+      "id": "M1-source-digest-comparison-vacuous",
+      "injection_diff_sha256": "ae754da821f9600b6e9de45b184f420f19cf2ed8fbc07160770350299c058c73",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "a1648c4f0135d97f636e1382374c8a07c7246e700406d6909cbd107ddc0297e6",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+          "new": "    if False and source_digest != preregistered.source_bytes_sha256:\n        _reject(\n            \"source-identity-unbound\",\n            \"wal.build_start.build_admission.source.source_bytes_sha256\",\n            preregistered.source_bytes_sha256,\n            source_digest,\n            arm,\n        )\n",
+          "old": "    if source_digest != preregistered.source_bytes_sha256:\n        _reject(\n            \"source-identity-unbound\",\n            \"wal.build_start.build_admission.source.source_bytes_sha256\",\n            preregistered.source_bytes_sha256,\n            source_digest,\n            arm,\n        )\n"
+        }
+      ],
+      "repo_head": "8cf391ad95ea31f3ef808c8739e3749b86a67796",
+      "runner_sha256": "8ba54eb9b5c62ca83d4d86b09fa6bd8a40f0ed2e368494ee8c71149ba8ada7ee",
+      "spec_sha256": "4fd1b19309d72c1cf49f4b6c9fecebdc11de2cb31144ae7b5e90fef6743d4870",
+      "status": "KILLED",
+      "test_output_sha256": "532756ddd85b49b5c2b49aff6f4c9740d9a9159ae7d9ca04c8399596add23ef7",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "286913852d8af6f53f5bf1f0942fb0881bd25bf0878a9c0873580f08d77d1255"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts/output/pegasus-dispatch/348009acbacae745a7d2462edbe90b5d/izdw-348009acba.o982919",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts/output/pegasus-dispatch/348009acbacae745a7d2462edbe90b5d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [44 items]\n\n...........................................F                             [100%]\n=================================== FAILURES ===================================\n___________________ test_sibling_failure_receipt_is_rejected ___________________\n[gw9] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_sibling_failure_receipt_i0')\n\n    def test_sibling_failure_receipt_is_rejected(tmp_path: Path) -> None:\n        \"\"\"The T-1998 sibling-receipt gate alone rejects this producer root.\"\"\"\n        fixture = _write_producer(tmp_path)\n        Path(str(fixture.root) + \".failure.json\").write_text(\"{}\\n\", encoding=\"utf-8\")\n    \n>       with pytest.raises(T.T1998PairRejected) as excinfo:\nE       Failed: DID NOT RAISE T1998PairRejected\n\norchestrator/tests/test_t1998_stock_inline_pair.py:484: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t1998_stock_inline_pair.py::test_sibling_failure_receipt_is_rejected\n======================== 1 failed, 43 passed in 26.33s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t1998_stock_inline_pair.py::test_sibling_failure_receipt_is_rejected\" nodeid_bytes=92 nodeid_omitted_bytes=0 source_bytes=605 retained_bytes=605 omitted_bytes=0 rendered_excerpt_bytes=635 sha256=13f0901bbdacd7c2f35927695dafa528f771f2f4458dad40dd8631d4241b59d7\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw9] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_sibling_failure_receipt_i0')\n> \n>     def test_sibling_failure_receipt_is_rejected(tmp_path: Path) -> None:\n>         \"\"\"The T-1998 sibling-receipt gate alone rejects this producer root.\"\"\"\n>         fixture = _write_producer(tmp_path)\n>         Path(str(fixture.root) + \".failure.json\").write_text(\"{}\\x5cn\", encoding=\"utf-8\")\n>     \n> >       with pytest.raises(T.T1998PairRejected) as excinfo:\n> E       Failed: DID NOT RAISE T1998PairRejected\n> \n> orchestrator/tests/test_t1998_stock_inline_pair.py:484: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=605 retained_bytes=605 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1349 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "03edb3ba5a0723d9d2919ab5c62a758f0bced1391b9941672e42d6ca69467803"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eabb8e0cc56e352f77fcd8bbeb3c04d04371b270f4c40818069cbaedfac7af5b",
+      "duration_s": 54.464,
+      "expected_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_sibling_failure_receipt_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_sibling_failure_receipt_is_rejected"
+      ],
+      "hang_risk": false,
+      "id": "M2-sibling-failure-receipt-vacuous",
+      "injection_diff_sha256": "2ccb1a763e13eb0ddd90a13b214d43ddd898456047efd115ecba27feecdd5f28",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "6b11cd0cef5d860a9d80e0b9884a807bae33eee5e6887fb221a567d4912400f0",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+          "new": "    failure_path = Path(os.fspath(root) + \".failure.json\")\n    if False and os.path.lexists(failure_path):\n        _reject(\n            \"producer-failure-receipt\", \"sibling_failure_receipt\",\n            \"absent\", os.fspath(failure_path), \"baseline\",\n        )\n",
+          "old": "    failure_path = Path(os.fspath(root) + \".failure.json\")\n    if os.path.lexists(failure_path):\n        _reject(\n            \"producer-failure-receipt\", \"sibling_failure_receipt\",\n            \"absent\", os.fspath(failure_path), \"baseline\",\n        )\n"
+        }
+      ],
+      "repo_head": "8cf391ad95ea31f3ef808c8739e3749b86a67796",
+      "runner_sha256": "8ba54eb9b5c62ca83d4d86b09fa6bd8a40f0ed2e368494ee8c71149ba8ada7ee",
+      "spec_sha256": "4fd1b19309d72c1cf49f4b6c9fecebdc11de2cb31144ae7b5e90fef6743d4870",
+      "status": "KILLED",
+      "test_output_sha256": "03edb3ba5a0723d9d2919ab5c62a758f0bced1391b9941672e42d6ca69467803",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "286913852d8af6f53f5bf1f0942fb0881bd25bf0878a9c0873580f08d77d1255"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts/output/pegasus-dispatch/43b2bca618b447168979cd8e0c12c756/izdw-43b2bca618.o982923",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts/output/pegasus-dispatch/43b2bca618b447168979cd8e0c12c756/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [44 items]\n\n.........................................F..                             [100%]\n=================================== FAILURES ===================================\n___________ test_short_gitlink_must_prefix_the_full_preregistration ____________\n[gw10] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_short_gitlink_must_prefix0')\n\n    def test_short_gitlink_must_prefix_the_full_preregistration(tmp_path: Path) -> None:\n        \"\"\"The T-1998 abbreviated-gitlink gate alone rejects this coherent campaign.\"\"\"\n        fixture = _write_producer(\n            tmp_path, short_gitlink=\"deadbee\", full_gitlink=_FULL_GITLINK,\n        )\n    \n        with pytest.raises(T.T1998PairRejected) as excinfo:\n            _consume(fixture)\n        assert excinfo.value.code == \"gitlink-identity-mismatch\"\n>       assert excinfo.value.field == \"campaign.lock.ccbench_commit\"\nE       AssertionError: assert 'wal.build_st...cbench_commit' == 'campaign.lock.ccbench_commit'\nE         \nE         - campaign.lock.ccbench_commit\nE         + wal.build_start.build_admission.source.ccbench_commit\n\norchestrator/tests/test_t1998_stock_inline_pair.py:499: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t1998_stock_inline_pair.py::test_short_gitlink_must_prefix_the_full_preregistration\n======================== 1 failed, 43 passed in 12.45s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t1998_stock_inline_pair.py::test_short_gitlink_must_prefix_the_full_preregistration\" nodeid_bytes=107 nodeid_omitted_bytes=0 source_bytes=957 retained_bytes=957 omitted_bytes=0 rendered_excerpt_bytes=998 sha256=69916895e178d8af22c577ad6540f87ee8ae74f910d6eb2373d4333f75dea457\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw10] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_short_gitlink_must_prefix0')\n> \n>     def test_short_gitlink_must_prefix_the_full_preregistration(tmp_path: Path) -> None:\n>         \"\"\"The T-1998 abbreviated-gitlink gate alone rejects this coherent campaign.\"\"\"\n>         fixture = _write_producer(\n>             tmp_path, short_gitlink=\"deadbee\", full_gitlink=_FULL_GITLINK,\n>         )\n>     \n>         with pytest.raises(T.T1998PairRejected) as excinfo:\n>             _consume(fixture)\n>         assert excinfo.value.code == \"gitlink-identity-mismatch\"\n> >       assert excinfo.value.field == \"campaign.lock.ccbench_commit\"\n> E       AssertionError: assert 'wal.build_st...cbench_commit' == 'campaign.lock.ccbench_commit'\n> E         \n> E         - campaign.lock.ccbench_commit\n> E         + wal.build_start.build_admission.source.ccbench_commit\n> \n> orchestrator/tests/test_t1998_stock_inline_pair.py:499: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=957 retained_bytes=957 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1728 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "4956c6aa093d26ecebca4b4a619594ae22ac5e82b136ef72d49b10c17f867526"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eabb8e0cc56e352f77fcd8bbeb3c04d04371b270f4c40818069cbaedfac7af5b",
+      "duration_s": 39.819,
+      "expected_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_short_gitlink_must_prefix_the_full_preregistration"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_short_gitlink_must_prefix_the_full_preregistration"
+      ],
+      "hang_risk": false,
+      "id": "M3-lock-gitlink-prefix-vacuous",
+      "injection_diff_sha256": "3818a107ac20576aa73a65a5c8ef982570c46cd4aadd1964c44082dd7e2959c2",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "25ce528004a1f9c1c8d15f09b9b208ee1f086cb49fc484fbc452abadf5bba17b",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+          "new": "    lock_gitlink = decoded_lock.identity.get(\"ccbench_commit\")\n    if False and not _gitlink_matches(common.ccbench_gitlink_commit, lock_gitlink):\n        _reject(\n            \"gitlink-identity-mismatch\", \"campaign.lock.ccbench_commit\",\n            f\"abbreviated prefix of {common.ccbench_gitlink_commit}\",\n            lock_gitlink,\n        )\n",
+          "old": "    lock_gitlink = decoded_lock.identity.get(\"ccbench_commit\")\n    if not _gitlink_matches(common.ccbench_gitlink_commit, lock_gitlink):\n        _reject(\n            \"gitlink-identity-mismatch\", \"campaign.lock.ccbench_commit\",\n            f\"abbreviated prefix of {common.ccbench_gitlink_commit}\",\n            lock_gitlink,\n        )\n"
+        }
+      ],
+      "repo_head": "8cf391ad95ea31f3ef808c8739e3749b86a67796",
+      "runner_sha256": "8ba54eb9b5c62ca83d4d86b09fa6bd8a40f0ed2e368494ee8c71149ba8ada7ee",
+      "spec_sha256": "4fd1b19309d72c1cf49f4b6c9fecebdc11de2cb31144ae7b5e90fef6743d4870",
+      "status": "KILLED",
+      "test_output_sha256": "4956c6aa093d26ecebca4b4a619594ae22ac5e82b136ef72d49b10c17f867526",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "286913852d8af6f53f5bf1f0942fb0881bd25bf0878a9c0873580f08d77d1255"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts/output/pegasus-dispatch/0887e12f18cdc2900eaf803e3c72ca8e/izdw-0887e12f18.o982924",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts/output/pegasus-dispatch/0887e12f18cdc2900eaf803e3c72ca8e/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [44 items]\n\n................................FF..........                             [100%]\n=================================== FAILURES ===================================\n_________________ test_unstable_arm_is_inconclusive[baseline] __________________\n[gw29] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw29/test_unstable_arm_is_inconclus0')\nunstable_arm = 'baseline'\n\n    @pytest.mark.parametrize(\"unstable_arm\", [\"baseline\", \"target\"])\n    def test_unstable_arm_is_inconclusive(\n        tmp_path: Path, unstable_arm: str,\n    ) -> None:\n        \"\"\"The T-1998 stability layer alone makes a coherent unstable arm inconclusive.\"\"\"\n        fixture = _write_producer(tmp_path, unstable_arm=unstable_arm)\n        decision = _consume(fixture)\n    \n>       assert decision.status == \"inconclusive\"\nE       AssertionError: assert 'accepted' == 'inconclusive'\nE         \nE         - inconclusive\nE         + accepted\n\norchestrator/tests/test_t1998_stock_inline_pair.py:651: AssertionError\n__________________ test_unstable_arm_is_inconclusive[target] ___________________\n[gw30] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw30/test_unstable_arm_is_inconclus0')\nunstable_arm = 'target'\n\n    @pytest.mark.parametrize(\"unstable_arm\", [\"baseline\", \"target\"])\n    def test_unstable_arm_is_inconclusive(\n        tmp_path: Path, unstable_arm: str,\n    ) -> None:\n        \"\"\"The T-1998 stability layer alone makes a coherent unstable arm inconclusive.\"\"\"\n        fixture = _write_producer(tmp_path, unstable_arm=unstable_arm)\n        decision = _consume(fixture)\n    \n>       assert decision.status == \"inconclusive\"\nE       AssertionError: assert 'accepted' == 'inconclusive'\nE         \nE         - inconclusive\nE         + accepted\n\norchestrator/tests/test_t1998_stock_inline_pair.py:651: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t1998_stock_inline_pair.py::test_unstable_arm_is_inconclusive[baseline]\nFAILED orchestrator/tests/test_t1998_stock_inline_pair.py::test_unstable_arm_is_inconclusive[target]\n======================== 2 failed, 42 passed in 12.11s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t1998_stock_inline_pair.py::test_unstable_arm_is_inconclusive[baseline]\" nodeid_bytes=95 nodeid_omitted_bytes=0 source_bytes=783 retained_bytes=783 omitted_bytes=0 rendered_excerpt_bytes=824 sha256=3dbcf77acab74349bcca9a1ec0718bc4a3f07aa5f1b526c2343f18db07b14d22\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw29] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw29/test_unstable_arm_is_inconclus0')\n> unstable_arm = 'baseline'\n> \n>     @pytest.mark.parametrize(\"unstable_arm\", [\"baseline\", \"target\"])\n>     def test_unstable_arm_is_inconclusive(\n>         tmp_path: Path, unstable_arm: str,\n>     ) -> None:\n>         \"\"\"The T-1998 stability layer alone makes a coherent unstable arm inconclusive.\"\"\"\n>         fixture = _write_producer(tmp_path, unstable_arm=unstable_arm)\n>         decision = _consume(fixture)\n>     \n> >       assert decision.status == \"inconclusive\"\n> E       AssertionError: assert 'accepted' == 'inconclusive'\n> E         \n> E         - inconclusive\n> E         + accepted\n> \n> orchestrator/tests/test_t1998_stock_inline_pair.py:651: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_t1998_stock_inline_pair.py::test_unstable_arm_is_inconclusive[target]\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=781 retained_bytes=781 omitted_bytes=0 rendered_excerpt_bytes=822 sha256=6e5e650a8a638a3820b67b3805e1f9e981456f6c0741fe0c96bfc46e144c357b\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw30] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw30/test_unstable_arm_is_inconclus0')\n> unstable_arm = 'target'\n> \n>     @pytest.mark.parametrize(\"unstable_arm\", [\"baseline\", \"target\"])\n>     def test_unstable_arm_is_inconclusive(\n>         tmp_path: Path, unstable_arm: str,\n>     ) -> None:\n>         \"\"\"The T-1998 stability layer alone makes a coherent unstable arm inconclusive.\"\"\"\n>         fixture = _write_producer(tmp_path, unstable_arm=unstable_arm)\n>         decision = _consume(fixture)\n>     \n> >       assert decision.status == \"inconclusive\"\n> E       AssertionError: assert 'accepted' == 'inconclusive'\n> E         \n> E         - inconclusive\n> E         + accepted\n> \n> orchestrator/tests/test_t1998_stock_inline_pair.py:651: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=1564 retained_bytes=1564 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2795 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "970766869530bdb9b211b9f2a4adb973e9418a19dbb97c9dadcbacefe3a6ad6d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eabb8e0cc56e352f77fcd8bbeb3c04d04371b270f4c40818069cbaedfac7af5b",
+      "duration_s": 45.605,
+      "expected_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_unstable_arm_is_inconclusive[baseline]",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_unstable_arm_is_inconclusive[target]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_unstable_arm_is_inconclusive[baseline]",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_unstable_arm_is_inconclusive[target]"
+      ],
+      "hang_risk": false,
+      "id": "M4-unstable-accepted",
+      "injection_diff_sha256": "7e907fdef1f9f3b7afe73bdf62085368b128218951c8e3d815238c7f9249406a",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "f9fb308c2330542603f3a59a171bba5fa1d28dbfb06e6c09bc4be00c9ad3f057",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+          "new": "    if False and (baseline.unstable or target.unstable):\n        return T1998StockInlineDecision(\n            status=\"inconclusive\",\n            reason=\"unstable-arm\",\n",
+          "old": "    if baseline.unstable or target.unstable:\n        return T1998StockInlineDecision(\n            status=\"inconclusive\",\n            reason=\"unstable-arm\",\n"
+        }
+      ],
+      "repo_head": "8cf391ad95ea31f3ef808c8739e3749b86a67796",
+      "runner_sha256": "8ba54eb9b5c62ca83d4d86b09fa6bd8a40f0ed2e368494ee8c71149ba8ada7ee",
+      "spec_sha256": "4fd1b19309d72c1cf49f4b6c9fecebdc11de2cb31144ae7b5e90fef6743d4870",
+      "status": "KILLED",
+      "test_output_sha256": "970766869530bdb9b211b9f2a4adb973e9418a19dbb97c9dadcbacefe3a6ad6d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "286913852d8af6f53f5bf1f0942fb0881bd25bf0878a9c0873580f08d77d1255"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts/output/pegasus-dispatch/d66072bd524edbccee9b3fe37fdafbb6/izdw-d66072bd52.o982926",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts/output/pegasus-dispatch/d66072bd524edbccee9b3fe37fdafbb6/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [44 items]\n\n...........................................F                             [100%]\n=================================== FAILURES ===================================\n_________ test_real_admission_and_receipts_accept_only_the_fixed_pair __________\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_real_admission_and_receip0')\n\n    def test_real_admission_and_receipts_accept_only_the_fixed_pair(tmp_path: Path) -> None:\n        fixture = _write_producer(tmp_path, off_grid_high=True)\n>       decision = _consume(fixture)\n\norchestrator/tests/test_t1998_stock_inline_pair.py:436: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_t1998_stock_inline_pair.py:412: in _consume\n    return T.consume_balanced_stock_inline_pair(\norchestrator/campaign/t1998_stock_inline_pair.py:1042: in consume_balanced_stock_inline_pair\n    target, target_toolchain, target_toolchain_digest = _arm_decision(\norchestrator/campaign/t1998_stock_inline_pair.py:527: in _arm_decision\n    _reject(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncode = 'source-identity-unbound'\nfield = 'wal.build_start.build_admission.source.source_bytes_sha256'\nexpected = '2222222222222222222222222222222222222222222222222222222222222222'\nactual = '000000000000000000000000000000000000000000000000000000000000000c'\narm = 'target'\n\n    def _reject(\n        code: str,\n        field: str,\n        expected: object,\n        actual: object,\n        arm: RejectionArm = \"baseline\",\n    ) -> None:\n>       raise T1998PairRejected(\n            code, field=field, expected=expected, actual=actual, arm=arm,\n        )\nE       orchestrator.campaign.t1998_stock_inline_pair.T1998PairRejected: source-identity-unbound: arm=target field=wal.build_start.build_admission.source.source_bytes_sha256 expected='2222222222222222222222222222222222222222222222222222222222222222' actual='000000000000000000000000000000000000000000000000000000000000000c'\n\norchestrator/campaign/t1998_stock_inline_pair.py:270: T1998PairRejected\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t1998_stock_inline_pair.py::test_real_admission_and_receipts_accept_only_the_fixed_pair\n======================== 1 failed, 43 passed in 26.21s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t1998_stock_inline_pair.py::test_real_admission_and_receipts_accept_only_the_fixed_pair\" nodeid_bytes=111 nodeid_omitted_bytes=0 source_bytes=1870 retained_bytes=1870 omitted_bytes=0 rendered_excerpt_bytes=1945 sha256=ef796fa52254b67e34cc234ccdbeb6d89a14194b5d55190803029ab508da628e\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw6] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_real_admission_and_receip0')\n> \n>     def test_real_admission_and_receipts_accept_only_the_fixed_pair(tmp_path: Path) -> None:\n>         fixture = _write_producer(tmp_path, off_grid_high=True)\n> >       decision = _consume(fixture)\n> \n> orchestrator/tests/test_t1998_stock_inline_pair.py:436: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_t1998_stock_inline_pair.py:412: in _consume\n>     return T.consume_balanced_stock_inline_pair(\n> orchestrator/campaign/t1998_stock_inline_pair.py:1042: in consume_balanced_stock_inline_pair\n>     target, target_toolchain, target_toolchain_digest = _arm_decision(\n> orchestrator/campaign/t1998_stock_inline_pair.py:527: in _arm_decision\n>     _reject(\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> code = 'source-identity-unbound'\n> field = 'wal.build_start.build_admission.source.source_bytes_sha256'\n> expected = '2222222222222222222222222222222222222222222222222222222222222222'\n> actual = '000000000000000000000000000000000000000000000000000000000000000c'\n> arm = 'target'\n> \n>     def _reject(\n>         code: str,\n>         field: str,\n>         expected: object,\n>         actual: object,\n>         arm: RejectionArm = \"baseline\",\n>     ) -> None:\n> >       raise T1998PairRejected(\n>             code, field=field, expected=expected, actual=actual, arm=arm,\n>         )\n> E       orchestrator.campaign.t1998_stock_inline_pair.T1998PairRejected: source-identity-unbound: arm=target field=wal.build_start.build_admission.source.source_bytes_sha256 expected='2222222222222222222222222222222222222222222222222222222222222222' actual='000000000000000000000000000000000000000000000000000000000000000c'\n> \n> orchestrator/campaign/t1998_stock_inline_pair.py:270: T1998PairRejected\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1870 retained_bytes=1870 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2684 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "742ff351d954ae9a4a769dd5dcf34aab2ce4c9322a10e44fb06a1168eba85c12"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eabb8e0cc56e352f77fcd8bbeb3c04d04371b270f4c40818069cbaedfac7af5b",
+      "duration_s": 49.996,
+      "expected_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_real_admission_and_receipts_accept_only_the_fixed_pair"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_real_admission_and_receipts_accept_only_the_fixed_pair"
+      ],
+      "hang_risk": false,
+      "id": "M5-target-selection-argmax",
+      "injection_diff_sha256": "09b1f2698cb4507916e596207af0466b8a4d8affb3d65f2649019ae4b249eca1",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "de62b301de87aa005c8b747c300d55510d1e7d3c5f0513d6d719b964cb824dbc",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+          "new": "    target_starts = [\n        max(\n            starts,\n            key=lambda start: next(\n                record.payload.get(\"median_tps\")\n                for record in view.records\n                if record.variant == start.variant\n                and record.stage == STAGE_BENCH_DONE\n            ),\n        )\n    ]\n",
+          "old": "    target_starts = [\n        record for record, arm in pair_starts\n        if arm == \"target\"\n    ]\n"
+        }
+      ],
+      "repo_head": "8cf391ad95ea31f3ef808c8739e3749b86a67796",
+      "runner_sha256": "8ba54eb9b5c62ca83d4d86b09fa6bd8a40f0ed2e368494ee8c71149ba8ada7ee",
+      "spec_sha256": "4fd1b19309d72c1cf49f4b6c9fecebdc11de2cb31144ae7b5e90fef6743d4870",
+      "status": "KILLED",
+      "test_output_sha256": "742ff351d954ae9a4a769dd5dcf34aab2ce4c9322a10e44fb06a1168eba85c12",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "286913852d8af6f53f5bf1f0942fb0881bd25bf0878a9c0873580f08d77d1255"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts/output/pegasus-dispatch/7c9d2580a28c0448ba35ef5850ca7b27/izdw-7c9d2580a2.o982928",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts/output/pegasus-dispatch/7c9d2580a28c0448ba35ef5850ca7b27/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [44 items]\n\n.........................F................F.                             [100%]\n=================================== FAILURES ===================================\n______________ test_preregistered_source_digest_drift_is_rejected ______________\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_preregistered_source_dige0')\n\n    def test_preregistered_source_digest_drift_is_rejected(tmp_path: Path) -> None:\n        \"\"\"The T-1998 source-identity gate alone rejects this target preregistration.\"\"\"\n        fixture = _write_producer(tmp_path)\n        changed = replace(\n            fixture.preregistered,\n            target=replace(\n                fixture.preregistered.target,\n                source_bytes_sha256=\"f\" * 64,\n            ),\n        )\n    \n        with pytest.raises(T.T1998PairRejected) as excinfo:\n            T.consume_balanced_stock_inline_pair(fixture.root, preregistered=changed)\n>       assert excinfo.value.as_dict() == {\n            \"code\": \"source-identity-unbound\",\n            \"field\": \"wal.build_start.build_admission.source.source_bytes_sha256\",\n            \"expected\": \"f\" * 64,\n            \"actual\": _TARGET_SOURCE_SHA,\n            \"arm\": \"target\",\n        }\nE       AssertionError: assert {'code': 'sou...rm': 'target'} == {'code': 'sou...2222222', ...}\nE         \nE         Omitting 3 identical items, use -vv to show\nE         Right contains 2 more items:\nE         {'actual': '2222222222222222222222222222222222222222222222222222222222222222',\nE          'expected': 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'}\nE         Use -v to get more diff\n\norchestrator/tests/test_t1998_stock_inline_pair.py:470: AssertionError\n____________ test_shared_noncanonical_toolchain_digest_is_rejected _____________\n[gw32] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_shared_noncanonical_toolc0')\n\n    def test_shared_noncanonical_toolchain_digest_is_rejected(tmp_path: Path) -> None:\n        \"\"\"The canonical-manifest digest layer alone rejects this shared digest.\"\"\"\n        fixture = _write_producer(tmp_path)\n        wal_path = fixture.campaign / \"runs/wal.jsonl\"\n        records = [json.loads(line) for line in wal_path.read_text().splitlines()]\n        pair_attempts = {\n            record[\"payload\"][\"build_attempt_id\"]\n            for record in records\n            if record[\"stage\"] == \"build_start\"\n            and record[\"payload\"][\"genome\"] in {\n                T.BASELINE_CANONICAL_GENOME,\n                T.TARGET_CANONICAL_GENOME,\n            }\n        }\n        result = _read_json(fixture.root / \"result.json\")\n        arbitrary_digest = \"d\" * 64\n        assert arbitrary_digest != _TOOLCHAIN_SHA\n        mutated = 0\n        for record in records:\n            if (\n                record[\"stage\"] == \"build_done\"\n                and record[\"payload\"][\"build_attempt_id\"] in pair_attempts\n            ):\n                assert record[\"payload\"][\"toolchain\"] == result[\"toolchain\"] == _TOOLCHAIN\n                assert record[\"payload\"][\"toolchain_record_sha256\"] == _TOOLCHAIN_SHA\n                record[\"payload\"][\"toolchain_record_sha256\"] = arbitrary_digest\n                mutated += 1\n        assert len(pair_attempts) == mutated == 2\n        wal_path.write_text(\n            \"\".join(\n                json.dumps(\n                    record,\n                    ensure_ascii=False,\n                    separators=(\",\", \":\"),\n                    allow_nan=False,\n                ) + \"\\n\"\n                for record in records\n            ),\n            encoding=\"utf-8\",\n        )\n        _refresh_result_wal_sha(fixture)\n    \n        with pytest.raises(T.T1998PairRejected) as excinfo:\n            _consume(fixture)\n>       assert excinfo.value.as_dict() == {\n            \"code\": \"toolchain-identity-mismatch\",\n            \"field\": \"wal.build_done.toolchain_record_sha256\",\n            \"expected\": _TOOLCHAIN_SHA,\n            \"actual\": arbitrary_digest,\n            \"arm\": \"baseline\",\n        }\nE       AssertionError: assert {'code': 'too...': 'baseline'} == {'code': 'too...ddddddd', ...}\nE         \nE         Omitting 3 identical items, use -vv to show\nE         Right contains 2 more items:\nE         {'actual': 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',\nE          'expected': 'fb534797fa4eaa063c95c782900b817701208d1954ba13c1e7cae8124a453c59'}\nE         Use -v to get more diff\n\norchestrator/tests/test_t1998_stock_inline_pair.py:711: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t1998_stock_inline_pair.py::test_preregistered_source_digest_drift_is_rejected\nFAILED orchestrator/tests/test_t1998_stock_inline_pair.py::test_shared_noncanonical_toolchain_digest_is_rejected\n======================== 2 failed, 42 passed in 26.32s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t1998_stock_inline_pair.py::test_shared_noncanonical_toolchain_digest_is_rejected\" nodeid_bytes=105 nodeid_omitted_bytes=0 source_bytes=2748 retained_bytes=2748 omitted_bytes=0 rendered_excerpt_bytes=2880 sha256=bcebb13a50a5d77a0bf688b0339e5c5b9eaf2e4103b955b1d0503d10f743b2a8\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw32] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_shared_noncanonical_toolc0')\n> \n>     def test_shared_noncanonical_toolchain_digest_is_rejected(tmp_path: Path) -> None:\n>         \"\"\"The canonical-manifest digest layer alone rejects this shared digest.\"\"\"\n>         fixture = _write_producer(tmp_path)\n>         wal_path = fixture.campaign / \"runs/wal.jsonl\"\n>         records = [json.loads(line) for line in wal_path.read_text().splitlines()]\n>         pair_attempts = {\n>             record[\"payload\"][\"build_attempt_id\"]\n>             for record in records\n>             if record[\"stage\"] == \"build_start\"\n>             and record[\"payload\"][\"genome\"] in {\n>                 T.BASELINE_CANONICAL_GENOME,\n>                 T.TARGET_CANONICAL_GENOME,\n>             }\n>         }\n>         result = _read_json(fixture.root / \"result.json\")\n>         arbitrary_digest = \"d\" * 64\n>         assert arbitrary_digest != _TOOLCHAIN_SHA\n>         mutated = 0\n>         for record in records:\n>             if (\n>                 record[\"stage\"] == \"build_done\"\n>                 and record[\"payload\"][\"build_attempt_id\"] in pair_attempts\n>             ):\n>                 assert record[\"payload\"][\"toolchain\"] == result[\"toolchain\"] == _TOOLCHAIN\n>                 assert record[\"payload\"][\"toolchain_record_sha256\"] == _TOOLCHAIN_SHA\n>                 record[\"payload\"][\"toolchain_record_sha256\"] = arbitrary_digest\n>                 mutated += 1\n>         assert len(pair_attempts) == mutated == 2\n>         wal_path.write_text(\n>             \"\".join(\n>                 json.dumps(\n>                     record,\n>                     ensure_ascii=False,\n>                     separators=(\",\", \":\"),\n>                     allow_nan=False,\n>                 ) + \"\\x5cn\"\n>                 for record in records\n>             ),\n>             encoding=\"utf-8\",\n>         )\n>         _refresh_result_wal_sha(fixture)\n>     \n>         with pytest.raises(T.T1998PairRejected) as excinfo:\n>             _consume(fixture)\n> >       assert excinfo.value.as_dict() == {\n>             \"code\": \"toolchain-identity-mismatch\",\n>             \"field\": \"wal.build_done.toolchain_record_sha256\",\n>             \"expected\": _TOOLCHAIN_SHA,\n>             \"actual\": arbitrary_digest,\n>             \"arm\": \"baseline\",\n>         }\n> E       AssertionError: assert {'code': 'too...': 'baseline'} == {'code': 'too...ddddddd', ...}\n> E         \n> E         Omitting 3 identical items, use -vv to show\n> E         Right contains 2 more items:\n> E         {'actual': 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',\n> E          'expected': 'fb534797fa4eaa063c95c782900b817701208d1954ba13c1e7cae8124a453c59'}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_t1998_stock_inline_pair.py:711: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_t1998_stock_inline_pair.py::test_preregistered_source_digest_drift_is_rejected\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=1493 retained_bytes=1493 omitted_bytes=0 rendered_excerpt_bytes=1560 sha256=38c82427fe9a5220405242e556930da8f41d1bdecf34e23dfbcf68e4e64ec383\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw8] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_preregistered_source_dige0')\n> \n>     def test_preregistered_source_digest_drift_is_rejected(tmp_path: Path) -> None:\n>         \"\"\"The T-1998 source-identity gate alone rejects this target preregistration.\"\"\"\n>         fixture = _write_producer(tmp_path)\n>         changed = replace(\n>             fixture.preregistered,\n>             target=replace(\n>                 fixture.preregistered.target,\n>                 source_bytes_sha256=\"f\" * 64,\n>             ),\n>         )\n>     \n>         with pytest.raises(T.T1998PairRejected) as excinfo:\n>             T.consume_balanced_stock_inline_pair(fixture.root, preregistered=changed)\n> >       assert excinfo.value.as_dict() == {\n>             \"code\": \"source-identity-unbound\",\n>             \"field\": \"wal.build_start.build_admission.source.source_bytes_sha256\",\n>             \"expected\": \"f\" * 64,\n>             \"actual\": _TARGET_SOURCE_SHA,\n>             \"arm\": \"target\",\n>         }\n> E       AssertionError: assert {'code': 'sou...rm': 'target'} == {'code': 'sou...2222222', ...}\n> E         \n> E         Omitting 3 identical items, use -vv to show\n> E         Right contains 2 more items:\n> E         {'actual': '2222222222222222222222222222222222222222222222222222222222222222',\n> E          'expected': 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_t1998_stock_inline_pair.py:470: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=4241 retained_bytes=4241 omitted_bytes=0 budget_bytes=49152 rendered_bytes=5616 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "df45d08da5a466959bf38f3b3e6e2fce08c342666ab5b53abc0247e39f1b9bb7"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eabb8e0cc56e352f77fcd8bbeb3c04d04371b270f4c40818069cbaedfac7af5b",
+      "duration_s": 49.257,
+      "expected_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_preregistered_source_digest_drift_is_rejected",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_shared_noncanonical_toolchain_digest_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_preregistered_source_digest_drift_is_rejected",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_shared_noncanonical_toolchain_digest_is_rejected"
+      ],
+      "hang_risk": false,
+      "id": "M6-rejection-payload-expected-actual-omitted",
+      "injection_diff_sha256": "91036f20e9fca28ae0093382c70dc1936667685c528aff83017fa6c5a6191e9e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "76184416a07b1dbb10fb0c6a99750823390def3dc42885489786f29c0bac867b",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+          "new": "    def as_dict(self) -> dict[str, object]:\n        return {\n            \"code\": self.code,\n            \"field\": self.field,\n            \"arm\": self.arm,\n        }\n",
+          "old": "    def as_dict(self) -> dict[str, object]:\n        return {\n            \"code\": self.code,\n            \"field\": self.field,\n            \"expected\": self.expected,\n            \"actual\": self.actual,\n            \"arm\": self.arm,\n        }\n"
+        }
+      ],
+      "repo_head": "8cf391ad95ea31f3ef808c8739e3749b86a67796",
+      "runner_sha256": "8ba54eb9b5c62ca83d4d86b09fa6bd8a40f0ed2e368494ee8c71149ba8ada7ee",
+      "spec_sha256": "4fd1b19309d72c1cf49f4b6c9fecebdc11de2cb31144ae7b5e90fef6743d4870",
+      "status": "KILLED",
+      "test_output_sha256": "df45d08da5a466959bf38f3b3e6e2fce08c342666ab5b53abc0247e39f1b9bb7",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "286913852d8af6f53f5bf1f0942fb0881bd25bf0878a9c0873580f08d77d1255"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts/output/pegasus-dispatch/547aa5375f6c52d834128f3ac5bb1e98/izdw-547aa5375f.o982931",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts/output/pegasus-dispatch/547aa5375f6c52d834128f3ac5bb1e98/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [44 items]\n\n.........................................F..                             [100%]\n=================================== FAILURES ===================================\n___________ test_launcher_script_digest_is_bound_to_preregistration ____________\n[gw11] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_launcher_script_digest_is0')\n\n    def test_launcher_script_digest_is_bound_to_preregistration(tmp_path: Path) -> None:\n        \"\"\"The T-1998 job-body digest gate alone rejects this changed expectation.\"\"\"\n        fixture = _write_producer(tmp_path)\n        changed = replace(\n            fixture.preregistered,\n            common=replace(\n                fixture.preregistered.common, launcher_script_sha256=\"e\" * 64,\n            ),\n        )\n    \n>       with pytest.raises(T.T1998PairRejected) as excinfo:\nE       Failed: DID NOT RAISE T1998PairRejected\n\norchestrator/tests/test_t1998_stock_inline_pair.py:512: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t1998_stock_inline_pair.py::test_launcher_script_digest_is_bound_to_preregistration\n======================== 1 failed, 43 passed in 12.32s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t1998_stock_inline_pair.py::test_launcher_script_digest_is_bound_to_preregistration\" nodeid_bytes=107 nodeid_omitted_bytes=0 source_bytes=735 retained_bytes=735 omitted_bytes=0 rendered_excerpt_bytes=772 sha256=c508881450c7597ec97a6ed1c808f0a7a667a09ac837fd5720e7fbe86f184923\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw11] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_launcher_script_digest_is0')\n> \n>     def test_launcher_script_digest_is_bound_to_preregistration(tmp_path: Path) -> None:\n>         \"\"\"The T-1998 job-body digest gate alone rejects this changed expectation.\"\"\"\n>         fixture = _write_producer(tmp_path)\n>         changed = replace(\n>             fixture.preregistered,\n>             common=replace(\n>                 fixture.preregistered.common, launcher_script_sha256=\"e\" * 64,\n>             ),\n>         )\n>     \n> >       with pytest.raises(T.T1998PairRejected) as excinfo:\n> E       Failed: DID NOT RAISE T1998PairRejected\n> \n> orchestrator/tests/test_t1998_stock_inline_pair.py:512: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=735 retained_bytes=735 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1502 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "3a63cd07a24a94ba88335f9a38b50917c3cac84f24475b932c0500b04fdc40fd"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eabb8e0cc56e352f77fcd8bbeb3c04d04371b270f4c40818069cbaedfac7af5b",
+      "duration_s": 49.442,
+      "expected_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_launcher_script_digest_is_bound_to_preregistration"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_launcher_script_digest_is_bound_to_preregistration"
+      ],
+      "hang_risk": false,
+      "id": "M7-job-body-digest-comparison-vacuous",
+      "injection_diff_sha256": "3330f5cf13ace24628d0525c83f14ab59e35f93b8759660bfda0f963c777dbd9",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c8ad30a4d5df333aabd4d10f40fbcdaf8a8eed93a42e77fac55909a31f91a490",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+          "new": "    if False:\n        _require_equal(\n            binding.get(\"script_sha256\"), common.launcher_script_sha256,\n            code=\"launcher-script-identity-mismatch\",\n            field=\"reservation.binding.script_sha256\",\n        )\n",
+          "old": "    _require_equal(\n        binding.get(\"script_sha256\"), common.launcher_script_sha256,\n        code=\"launcher-script-identity-mismatch\",\n        field=\"reservation.binding.script_sha256\",\n    )\n"
+        }
+      ],
+      "repo_head": "8cf391ad95ea31f3ef808c8739e3749b86a67796",
+      "runner_sha256": "8ba54eb9b5c62ca83d4d86b09fa6bd8a40f0ed2e368494ee8c71149ba8ada7ee",
+      "spec_sha256": "4fd1b19309d72c1cf49f4b6c9fecebdc11de2cb31144ae7b5e90fef6743d4870",
+      "status": "KILLED",
+      "test_output_sha256": "3a63cd07a24a94ba88335f9a38b50917c3cac84f24475b932c0500b04fdc40fd",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "286913852d8af6f53f5bf1f0942fb0881bd25bf0878a9c0873580f08d77d1255"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1,
+        "2": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts/output/pegasus-dispatch/26226200f699689e7f7a12d610d44e94/izdw-26226200f6.o982932",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts/output/pegasus-dispatch/26226200f699689e7f7a12d610d44e94/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [44 items]\n\n.......F....................................                             [100%]\n=================================== FAILURES ===================================\n____________ test_submitter_launches_exactly_one_balanced_workload _____________\n[gw36] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_submitter_launches_exactly_one_balanced_workload():\n        submitter = SUBMITTER.read_text(encoding=\"utf-8\")\n        normalized = _normalized(submitter)\n>       assert re.findall(r\"(?m)^WORKLOAD=([^\\s#]+)$\", submitter) == [\"balanced\"]\nE       AssertionError: assert [] == ['balanced']\nE         \nE         Right contains one more item: 'balanced'\nE         Use -v to get more diff\n\norchestrator/tests/test_t1998_launcher_contract.py:48: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t1998_launcher_contract.py::test_submitter_launches_exactly_one_balanced_workload\n======================== 1 failed, 43 passed in 12.19s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t1998_launcher_contract.py::test_submitter_launches_exactly_one_balanced_workload\" nodeid_bytes=105 nodeid_omitted_bytes=0 source_bytes=513 retained_bytes=513 omitted_bytes=0 rendered_excerpt_bytes=541 sha256=49fcbe557f5c3a61c8887a324a8202a152ca779eef6167f6d52f6b5310f1ebd8\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw36] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_submitter_launches_exactly_one_balanced_workload():\n>         submitter = SUBMITTER.read_text(encoding=\"utf-8\")\n>         normalized = _normalized(submitter)\n> >       assert re.findall(r\"(?m)^WORKLOAD=([^\\x5cs#]+)$\", submitter) == [\"balanced\"]\n> E       AssertionError: assert [] == ['balanced']\n> E         \n> E         Right contains one more item: 'balanced'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_t1998_launcher_contract.py:48: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=513 retained_bytes=513 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1269 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "6456bca33795c2da8039532f440135ad92fe0c69e499213675e7d8856591755f"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "eabb8e0cc56e352f77fcd8bbeb3c04d04371b270f4c40818069cbaedfac7af5b",
+      "duration_s": 33.773,
+      "expected_nodes": [
+        "orchestrator/tests/test_t1998_launcher_contract.py::test_submitter_launches_exactly_one_balanced_workload"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t1998_launcher_contract.py::test_submitter_launches_exactly_one_balanced_workload"
+      ],
+      "hang_risk": false,
+      "id": "M8-launcher-two-workload-fanout",
+      "injection_diff_sha256": "aefed449c4bbe3f8ff982ed8f1908ff1c27a64589b923c01d8cd7895b936569c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "b64f7b5205db1c8e9b57b77efd11d8dd53691f9578648cc26a3b9654a768ecca",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_t1998_balanced_stock_inline.sh",
+          "new": "WORKLOADS=(write-heavy balanced)\nfor WORKLOAD in \"${WORKLOADS[@]}\"; do\n  root=\"$OUTPUT_PARENT/$GROUP_ID-$WORKLOAD\"\n  stdout=\"$OUTPUT_PARENT/$GROUP_ID-$WORKLOAD.stdout\"\n  stderr=\"$OUTPUT_PARENT/$GROUP_ID-$WORKLOAD.stderr\"\n  [[ ! -e \"$root\" && ! -e \"$stdout\" && ! -e \"$stderr\" ]] || {\n    echo \"job-unique output already exists for $WORKLOAD\" >&2\n    exit 2\n  }\ndone\n",
+          "old": "WORKLOAD=balanced\nroot=\"$OUTPUT_PARENT/$GROUP_ID-$WORKLOAD\"\nstdout=\"$OUTPUT_PARENT/$GROUP_ID-$WORKLOAD.stdout\"\nstderr=\"$OUTPUT_PARENT/$GROUP_ID-$WORKLOAD.stderr\"\n[[ ! -e \"$root\" && ! -e \"$stdout\" && ! -e \"$stderr\" ]] || {\n  echo \"job-unique output already exists for $WORKLOAD\" >&2\n  exit 2\n}\n"
+        },
+        {
+          "file": "tools/pegasus/submit_t1998_balanced_stock_inline.sh",
+          "new": "    (group, nonce, submitter_path, submitter_hash, job_script_path,\n     job_script_hash, expected_head, *workloads) = values\n    event = {\n        \"schema_version\": \"t1998-balanced-stock-inline-submit-event/v1\",\n        \"event\": \"manifest\",\n        \"group_id\": group,\n        \"submission_nonce\": nonce,\n        \"submitter_path\": submitter_path,\n        \"submitter_sha256\": submitter_hash,\n        \"job_script_path\": job_script_path,\n        \"job_script_sha256\": job_script_hash,\n        \"repository_commit\": expected_head,\n        \"workloads\": workloads,\n",
+          "old": "    (group, nonce, submitter_path, submitter_hash, job_script_path,\n     job_script_hash, expected_head, workload) = values\n    event = {\n        \"schema_version\": \"t1998-balanced-stock-inline-submit-event/v1\",\n        \"event\": \"manifest\",\n        \"group_id\": group,\n        \"submission_nonce\": nonce,\n        \"submitter_path\": submitter_path,\n        \"submitter_sha256\": submitter_hash,\n        \"job_script_path\": job_script_path,\n        \"job_script_sha256\": job_script_hash,\n        \"repository_commit\": expected_head,\n        \"workloads\": [workload],\n"
+        },
+        {
+          "file": "tools/pegasus/submit_t1998_balanced_stock_inline.sh",
+          "new": "append_submission_event manifest \"$GROUP_ID\" \"$SUBMISSION_NONCE\" \\\n  \"$SUBMITTER_PATH\" \"$SUBMITTER_SHA256\" \"$JOB_SCRIPT_PATH\" \\\n  \"$JOB_SCRIPT_SHA256\" \"$EXPECTED_HEAD\" \"${WORKLOADS[@]}\"\n\ncd -- \"$REPO_ROOT\"\nfor WORKLOAD in \"${WORKLOADS[@]}\"; do\n  root=\"$OUTPUT_PARENT/$GROUP_ID-$WORKLOAD\"\n  stdout=\"$OUTPUT_PARENT/$GROUP_ID-$WORKLOAD.stdout\"\n  stderr=\"$OUTPUT_PARENT/$GROUP_ID-$WORKLOAD.stderr\"\n  qsub_rc=0\n  job_id=$(qsub \\\n    -v \"A5_WORKLOAD=$WORKLOAD,A5_OUTPUT_ROOT=$root,A5_SUBMISSION_NONCE=$SUBMISSION_NONCE,A5_EXPECTED_HEAD=$EXPECTED_HEAD,JOB_SCRIPT_SHA256=$JOB_SCRIPT_SHA256\" \\\n    -o \"$stdout\" -e \"$stderr\" \"$JOB_SCRIPT\") || qsub_rc=$?\n  if [[ \"$qsub_rc\" -ne 0 ]]; then\n    append_submission_event failed \"$WORKLOAD\" \"$qsub_rc\" \"qsub_failed\"\n    exit \"$qsub_rc\"\n  fi\n  if [[ -z \"$job_id\" ]]; then\n    append_submission_event failed \"$WORKLOAD\" 2 \"qsub_returned_empty_job_id\"\n    echo \"qsub returned no job id for $WORKLOAD\" >&2\n    exit 2\n  fi\n  append_submission_event submitted \\\n    \"$WORKLOAD\" \"$job_id\" \"$root\" \"$stdout\" \"$stderr\"\n  printf '%s\\n' \"$job_id\"\ndone\n",
+          "old": "append_submission_event manifest \"$GROUP_ID\" \"$SUBMISSION_NONCE\" \\\n  \"$SUBMITTER_PATH\" \"$SUBMITTER_SHA256\" \"$JOB_SCRIPT_PATH\" \\\n  \"$JOB_SCRIPT_SHA256\" \"$EXPECTED_HEAD\" \"$WORKLOAD\"\n\ncd -- \"$REPO_ROOT\"\nqsub_rc=0\njob_id=$(qsub \\\n  -v \"A5_WORKLOAD=$WORKLOAD,A5_OUTPUT_ROOT=$root,A5_SUBMISSION_NONCE=$SUBMISSION_NONCE,A5_EXPECTED_HEAD=$EXPECTED_HEAD,JOB_SCRIPT_SHA256=$JOB_SCRIPT_SHA256\" \\\n  -o \"$stdout\" -e \"$stderr\" \"$JOB_SCRIPT\") || qsub_rc=$?\nif [[ \"$qsub_rc\" -ne 0 ]]; then\n  append_submission_event failed \"$WORKLOAD\" \"$qsub_rc\" \"qsub_failed\"\n  exit \"$qsub_rc\"\nfi\nif [[ -z \"$job_id\" ]]; then\n  append_submission_event failed \"$WORKLOAD\" 2 \"qsub_returned_empty_job_id\"\n  echo \"qsub returned no job id for $WORKLOAD\" >&2\n  exit 2\nfi\nappend_submission_event submitted \\\n  \"$WORKLOAD\" \"$job_id\" \"$root\" \"$stdout\" \"$stderr\"\nprintf '%s\\n' \"$job_id\"\n"
+        }
+      ],
+      "repo_head": "8cf391ad95ea31f3ef808c8739e3749b86a67796",
+      "runner_sha256": "8ba54eb9b5c62ca83d4d86b09fa6bd8a40f0ed2e368494ee8c71149ba8ada7ee",
+      "spec_sha256": "4fd1b19309d72c1cf49f4b6c9fecebdc11de2cb31144ae7b5e90fef6743d4870",
+      "status": "KILLED",
+      "test_output_sha256": "6456bca33795c2da8039532f440135ad92fe0c69e499213675e7d8856591755f",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "286913852d8af6f53f5bf1f0942fb0881bd25bf0878a9c0873580f08d77d1255"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts/output/pegasus-dispatch/5c3e7c1381e995555c2513305e6f300f/izdw-5c3e7c1381.o982935",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts/output/pegasus-dispatch/5c3e7c1381e995555c2513305e6f300f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [44 items]\n\n.........F..................................                             [100%]\n=================================== FAILURES ===================================\n___ test_output_parent_is_existing_absolute_and_outside_every_repo_ancestor ____\n[gw39] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_output_parent_is_existing_absolute_and_outside_every_repo_ancestor():\n        \"\"\"The executed path-relationship layer alone rejects in-repo output parents.\"\"\"\n        submitter = SUBMITTER.read_text(encoding=\"utf-8\")\n        for fragment in (\n            '\"$OUTPUT_PARENT\" == /*',\n            '-d \"$OUTPUT_PARENT\"',\n            '! -L \"$OUTPUT_PARENT\"',\n            'target == repo or repo in target.parents or target in repo.parents',\n            'any((parent / \".git\").exists() for parent in (target, *target.parents))',\n        ):\n            assert fragment in submitter\n    \n        program = _python_heredoc_after(submitter, '\"$REPO_ROOT\" \"$OUTPUT_PARENT\"')\n        repo = Path(\"/usr\")\n        inside = repo / \"bin\"\n        outside = Path(\"/etc\")\n        assert not any(\n            (parent / \".git\").exists() for parent in (inside, *inside.parents)\n        )\n        assert not any(\n            (parent / \".git\").exists() for parent in (outside, *outside.parents)\n        )\n        rejected_inside = _run_python_heredoc(program, repo, inside)\n        accepted_outside = _run_python_heredoc(program, repo, outside)\n    \n        with tempfile.TemporaryDirectory() as raw_tmp:\n            tmp_path = Path(raw_tmp)\n            repository_ancestor = tmp_path / \"other-repo\"\n            ancestor_output = repository_ancestor / \"output\"\n            ancestor_output.mkdir(parents=True)\n            (repository_ancestor / \".git\").mkdir()\n            rejected_ancestor = _run_python_heredoc(program, repo, ancestor_output)\n    \n>       assert rejected_inside.returncode != 0\nE       AssertionError: assert 0 != 0\nE        +  where 0 = CompletedProcess(args=['/bin/python3.10', '-I', '-B', '-', '/usr', '/usr/bin'], returncode=0, stdout='', stderr='').returncode\n\norchestrator/tests/test_t1998_launcher_contract.py:115: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t1998_launcher_contract.py::test_output_parent_is_existing_absolute_and_outside_every_repo_ancestor\n======================== 1 failed, 43 passed in 12.30s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t1998_launcher_contract.py::test_output_parent_is_existing_absolute_and_outside_every_repo_ancestor\" nodeid_bytes=123 nodeid_omitted_bytes=0 source_bytes=1890 retained_bytes=1890 omitted_bytes=0 rendered_excerpt_bytes=1971 sha256=722b46d6d04811e779047743e6d9155c5696a1a5611a9b7e61dcefcb9a69c00a\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw39] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_output_parent_is_existing_absolute_and_outside_every_repo_ancestor():\n>         \"\"\"The executed path-relationship layer alone rejects in-repo output parents.\"\"\"\n>         submitter = SUBMITTER.read_text(encoding=\"utf-8\")\n>         for fragment in (\n>             '\"$OUTPUT_PARENT\" == /*',\n>             '-d \"$OUTPUT_PARENT\"',\n>             '! -L \"$OUTPUT_PARENT\"',\n>             'target == repo or repo in target.parents or target in repo.parents',\n>             'any((parent / \".git\").exists() for parent in (target, *target.parents))',\n>         ):\n>             assert fragment in submitter\n>     \n>         program = _python_heredoc_after(submitter, '\"$REPO_ROOT\" \"$OUTPUT_PARENT\"')\n>         repo = Path(\"/usr\")\n>         inside = repo / \"bin\"\n>         outside = Path(\"/etc\")\n>         assert not any(\n>             (parent / \".git\").exists() for parent in (inside, *inside.parents)\n>         )\n>         assert not any(\n>             (parent / \".git\").exists() for parent in (outside, *outside.parents)\n>         )\n>         rejected_inside = _run_python_heredoc(program, repo, inside)\n>         accepted_outside = _run_python_heredoc(program, repo, outside)\n>     \n>         with tempfile.TemporaryDirectory() as raw_tmp:\n>             tmp_path = Path(raw_tmp)\n>             repository_ancestor = tmp_path / \"other-repo\"\n>             ancestor_output = repository_ancestor / \"output\"\n>             ancestor_output.mkdir(parents=True)\n>             (repository_ancestor / \".git\").mkdir()\n>             rejected_ancestor = _run_python_heredoc(program, repo, ancestor_output)\n>     \n> >       assert rejected_inside.returncode != 0\n> E       AssertionError: assert 0 != 0\n> E        +  where 0 = CompletedProcess(args=['/bin/python3.10', '-I', '-B', '-', '/usr', '/usr/bin'], returncode=0, stdout='', stderr='').returncode\n> \n> orchestrator/tests/test_t1998_launcher_contract.py:115: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1890 retained_bytes=1890 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2722 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "ec6a760150a3e941641937adf4eb70dfa76a3574d8353c8b41cbe44c72ba0ca6"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eabb8e0cc56e352f77fcd8bbeb3c04d04371b270f4c40818069cbaedfac7af5b",
+      "duration_s": 33.748,
+      "expected_nodes": [
+        "orchestrator/tests/test_t1998_launcher_contract.py::test_output_parent_is_existing_absolute_and_outside_every_repo_ancestor"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t1998_launcher_contract.py::test_output_parent_is_existing_absolute_and_outside_every_repo_ancestor"
+      ],
+      "hang_risk": false,
+      "id": "M9-output-parent-repository-boundary-vacuous",
+      "injection_diff_sha256": "23da7fead8169f893e0f1ee6d9f22f97e70bcabafede33f997c4d0853327306e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "700b108429dc06f5c5a9ab3e2e998abc97a28cea0d5110328466d864137f828a",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_t1998_balanced_stock_inline.sh",
+          "new": "if False and (target == repo or repo in target.parents or target in repo.parents):\n    raise SystemExit(\"output parent must be outside the repository\")\n",
+          "old": "if target == repo or repo in target.parents or target in repo.parents:\n    raise SystemExit(\"output parent must be outside the repository\")\n"
+        }
+      ],
+      "repo_head": "8cf391ad95ea31f3ef808c8739e3749b86a67796",
+      "runner_sha256": "8ba54eb9b5c62ca83d4d86b09fa6bd8a40f0ed2e368494ee8c71149ba8ada7ee",
+      "spec_sha256": "4fd1b19309d72c1cf49f4b6c9fecebdc11de2cb31144ae7b5e90fef6743d4870",
+      "status": "KILLED",
+      "test_output_sha256": "ec6a760150a3e941641937adf4eb70dfa76a3574d8353c8b41cbe44c72ba0ca6",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "286913852d8af6f53f5bf1f0942fb0881bd25bf0878a9c0873580f08d77d1255"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts/output/pegasus-dispatch/7485b38147376e019f2fdd0d728b732b/izdw-7485b38147.o982938",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts/output/pegasus-dispatch/7485b38147376e019f2fdd0d728b732b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [44 items]\n\n.................................FF.........                             [100%]\n=================================== FAILURES ===================================\n________________ test_typed_trace_disabled_define_is_normalized ________________\n[gw18] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw18/test_typed_trace_disabled_defi0')\n\n    def test_typed_trace_disabled_define_is_normalized(tmp_path: Path) -> None:\n        fixture = _write_producer(tmp_path, typed_trace_arm=\"target\")\n    \n>       assert _consume(fixture).status == \"accepted\"\n\norchestrator/tests/test_t1998_stock_inline_pair.py:572: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_t1998_stock_inline_pair.py:412: in _consume\n    return T.consume_balanced_stock_inline_pair(\norchestrator/campaign/t1998_stock_inline_pair.py:1035: in consume_balanced_stock_inline_pair\n    target, target_toolchain, target_toolchain_digest = _arm_decision(\norchestrator/campaign/t1998_stock_inline_pair.py:557: in _arm_decision\n    _reject(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncode = 'performance-build-not-trace-disabled'\nfield = 'wal.build_done.perf_configure_cmd.CCBENCH_TRACE', expected = ['0']\nactual = [], arm = 'target'\n\n    def _reject(\n        code: str,\n        field: str,\n        expected: object,\n        actual: object,\n        arm: RejectionArm = \"baseline\",\n    ) -> None:\n>       raise T1998PairRejected(\n            code, field=field, expected=expected, actual=actual, arm=arm,\n        )\nE       orchestrator.campaign.t1998_stock_inline_pair.T1998PairRejected: performance-build-not-trace-disabled: arm=target field=wal.build_done.perf_configure_cmd.CCBENCH_TRACE expected=['0'] actual=[]\n\norchestrator/campaign/t1998_stock_inline_pair.py:270: T1998PairRejected\n_______ test_explicit_noinline_one_is_diagnostic_build[typed-configure] ________\n[gw13] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw13/test_explicit_noinline_one_is_0')\nlocation = 'typed-configure'\n\n    @pytest.mark.parametrize(\"location\", [\"configure\", \"typed-configure\", \"genome\"])\n    def test_explicit_noinline_one_is_diagnostic_build(\n        tmp_path: Path, location: str,\n    ) -> None:\n        \"\"\"The T-1998 diagnostic marker gate alone rejects this one producer signal.\"\"\"\n        fixture = _write_producer(\n            tmp_path,\n            diagnostic_arm=\"target\" if location == \"configure\" else None,\n            typed_diagnostic_arm=\"target\" if location == \"typed-configure\" else None,\n            diagnostic_genome_arm=\"target\" if location == \"genome\" else None,\n        )\n    \n>       with pytest.raises(T.T1998PairRejected) as excinfo:\nE       Failed: DID NOT RAISE T1998PairRejected\n\norchestrator/tests/test_t1998_stock_inline_pair.py:530: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t1998_stock_inline_pair.py::test_typed_trace_disabled_define_is_normalized\nFAILED orchestrator/tests/test_t1998_stock_inline_pair.py::test_explicit_noinline_one_is_diagnostic_build[typed-configure]\n======================== 2 failed, 42 passed in 11.93s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t1998_stock_inline_pair.py::test_typed_trace_disabled_define_is_normalized\" nodeid_bytes=98 nodeid_omitted_bytes=0 source_bytes=1643 retained_bytes=1643 omitted_bytes=0 rendered_excerpt_bytes=1716 sha256=49efa0f043a242959bc06f760908e9242d902145c1824e1e0c71dc989ead5b54\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw18] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw18/test_typed_trace_disabled_defi0')\n> \n>     def test_typed_trace_disabled_define_is_normalized(tmp_path: Path) -> None:\n>         fixture = _write_producer(tmp_path, typed_trace_arm=\"target\")\n>     \n> >       assert _consume(fixture).status == \"accepted\"\n> \n> orchestrator/tests/test_t1998_stock_inline_pair.py:572: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_t1998_stock_inline_pair.py:412: in _consume\n>     return T.consume_balanced_stock_inline_pair(\n> orchestrator/campaign/t1998_stock_inline_pair.py:1035: in consume_balanced_stock_inline_pair\n>     target, target_toolchain, target_toolchain_digest = _arm_decision(\n> orchestrator/campaign/t1998_stock_inline_pair.py:557: in _arm_decision\n>     _reject(\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> code = 'performance-build-not-trace-disabled'\n> field = 'wal.build_done.perf_configure_cmd.CCBENCH_TRACE', expected = ['0']\n> actual = [], arm = 'target'\n> \n>     def _reject(\n>         code: str,\n>         field: str,\n>         expected: object,\n>         actual: object,\n>         arm: RejectionArm = \"baseline\",\n>     ) -> None:\n> >       raise T1998PairRejected(\n>             code, field=field, expected=expected, actual=actual, arm=arm,\n>         )\n> E       orchestrator.campaign.t1998_stock_inline_pair.T1998PairRejected: performance-build-not-trace-disabled: arm=target field=wal.build_done.perf_configure_cmd.CCBENCH_TRACE expected=['0'] actual=[]\n> \n> orchestrator/campaign/t1998_stock_inline_pair.py:270: T1998PairRejected\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_t1998_stock_inline_pair.py::test_explicit_noinline_one_is_diagnostic_build[typed-configure]\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=939 retained_bytes=939 omitted_bytes=0 rendered_excerpt_bytes=982 sha256=b4e36567615be0880fa10190fe79b2c2dd002069d3f0ce26c31a230e8d6d140f\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw13] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw13/test_explicit_noinline_one_is_0')\n> location = 'typed-configure'\n> \n>     @pytest.mark.parametrize(\"location\", [\"configure\", \"typed-configure\", \"genome\"])\n>     def test_explicit_noinline_one_is_diagnostic_build(\n>         tmp_path: Path, location: str,\n>     ) -> None:\n>         \"\"\"The T-1998 diagnostic marker gate alone rejects this one producer signal.\"\"\"\n>         fixture = _write_producer(\n>             tmp_path,\n>             diagnostic_arm=\"target\" if location == \"configure\" else None,\n>             typed_diagnostic_arm=\"target\" if location == \"typed-configure\" else None,\n>             diagnostic_genome_arm=\"target\" if location == \"genome\" else None,\n>         )\n>     \n> >       with pytest.raises(T.T1998PairRejected) as excinfo:\n> E       Failed: DID NOT RAISE T1998PairRejected\n> \n> orchestrator/tests/test_t1998_stock_inline_pair.py:530: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2582 retained_bytes=2582 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3876 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "243d2a97807bbe602ab30f42a032fb27e2f3e9985c68940c45df680ea12a327d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eabb8e0cc56e352f77fcd8bbeb3c04d04371b270f4c40818069cbaedfac7af5b",
+      "duration_s": 38.942,
+      "expected_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_explicit_noinline_one_is_diagnostic_build[typed-configure]",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_typed_trace_disabled_define_is_normalized"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_typed_trace_disabled_define_is_normalized",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_explicit_noinline_one_is_diagnostic_build[typed-configure]"
+      ],
+      "hang_risk": false,
+      "id": "M10-cmake-typed-define-normalization-removed",
+      "injection_diff_sha256": "c56abbe7d67d901d9eb80e4d5f1bf919df524f0290d3ebb6a6c7d755b95bc12d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "8bbf68d7f8352a3ec89e9f1b3507492d9d0f36d63e70e6a6a9b75d7cfdbf347f",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+          "new": "        key = key_with_type\n        if key == name:\n            values.append(value)\n",
+          "old": "        key, _type_separator, _cmake_type = key_with_type.partition(\":\")\n        if key == name:\n            values.append(value)\n"
+        }
+      ],
+      "repo_head": "8cf391ad95ea31f3ef808c8739e3749b86a67796",
+      "runner_sha256": "8ba54eb9b5c62ca83d4d86b09fa6bd8a40f0ed2e368494ee8c71149ba8ada7ee",
+      "spec_sha256": "4fd1b19309d72c1cf49f4b6c9fecebdc11de2cb31144ae7b5e90fef6743d4870",
+      "status": "KILLED",
+      "test_output_sha256": "243d2a97807bbe602ab30f42a032fb27e2f3e9985c68940c45df680ea12a327d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "286913852d8af6f53f5bf1f0942fb0881bd25bf0878a9c0873580f08d77d1255"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts/output/pegasus-dispatch/cae2f48034762c9b5c30ef1c994f1df2/izdw-cae2f48034.o982941",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts/output/pegasus-dispatch/cae2f48034762c9b5c30ef1c994f1df2/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [44 items]\n\n..............................F.....F.......                             [100%]\n=================================== FAILURES ===================================\n_____________ test_decoy_bench_binary_token_is_rejected[/bin/true] _____________\n[gw19] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw19/test_decoy_bench_binary_token_0')\ndecoy = '/bin/true'\n\n    @pytest.mark.parametrize(\"decoy\", [\"/bin/true\", \"/bin/echo\"])\n    def test_decoy_bench_binary_token_is_rejected(tmp_path: Path, decoy: str) -> None:\n        \"\"\"The executable-position layer alone rejects the review's decoy command.\"\"\"\n        fixture = _write_producer(tmp_path, decoy_bench_executable=decoy)\n    \n>       with pytest.raises(T.T1998PairRejected) as excinfo:\nE       Failed: DID NOT RAISE T1998PairRejected\n\norchestrator/tests/test_t1998_stock_inline_pair.py:580: Failed\n_____________ test_decoy_bench_binary_token_is_rejected[/bin/echo] _____________\n[gw20] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw20/test_decoy_bench_binary_token_0')\ndecoy = '/bin/echo'\n\n    @pytest.mark.parametrize(\"decoy\", [\"/bin/true\", \"/bin/echo\"])\n    def test_decoy_bench_binary_token_is_rejected(tmp_path: Path, decoy: str) -> None:\n        \"\"\"The executable-position layer alone rejects the review's decoy command.\"\"\"\n        fixture = _write_producer(tmp_path, decoy_bench_executable=decoy)\n    \n>       with pytest.raises(T.T1998PairRejected) as excinfo:\nE       Failed: DID NOT RAISE T1998PairRejected\n\norchestrator/tests/test_t1998_stock_inline_pair.py:580: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t1998_stock_inline_pair.py::test_decoy_bench_binary_token_is_rejected[/bin/true]\nFAILED orchestrator/tests/test_t1998_stock_inline_pair.py::test_decoy_bench_binary_token_is_rejected[/bin/echo]\n======================== 2 failed, 42 passed in 12.41s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t1998_stock_inline_pair.py::test_decoy_bench_binary_token_is_rejected[/bin/echo]\" nodeid_bytes=104 nodeid_omitted_bytes=0 source_bytes=655 retained_bytes=655 omitted_bytes=0 rendered_excerpt_bytes=684 sha256=29c8e94e4736f7e3ac0313cb88966cfc0fab59b2b6e739c04f3fcd0ef7a9681a\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw20] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw20/test_decoy_bench_binary_token_0')\n> decoy = '/bin/echo'\n> \n>     @pytest.mark.parametrize(\"decoy\", [\"/bin/true\", \"/bin/echo\"])\n>     def test_decoy_bench_binary_token_is_rejected(tmp_path: Path, decoy: str) -> None:\n>         \"\"\"The executable-position layer alone rejects the review's decoy command.\"\"\"\n>         fixture = _write_producer(tmp_path, decoy_bench_executable=decoy)\n>     \n> >       with pytest.raises(T.T1998PairRejected) as excinfo:\n> E       Failed: DID NOT RAISE T1998PairRejected\n> \n> orchestrator/tests/test_t1998_stock_inline_pair.py:580: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_t1998_stock_inline_pair.py::test_decoy_bench_binary_token_is_rejected[/bin/true]\" nodeid_bytes=104 nodeid_omitted_bytes=0 source_bytes=655 retained_bytes=655 omitted_bytes=0 rendered_excerpt_bytes=684 sha256=7fb5ec50f6dddd6ba2eea197dd7b448f11c1fe5908b5b7dcee57259057110ace\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw19] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw19/test_decoy_bench_binary_token_0')\n> decoy = '/bin/true'\n> \n>     @pytest.mark.parametrize(\"decoy\", [\"/bin/true\", \"/bin/echo\"])\n>     def test_decoy_bench_binary_token_is_rejected(tmp_path: Path, decoy: str) -> None:\n>         \"\"\"The executable-position layer alone rejects the review's decoy command.\"\"\"\n>         fixture = _write_producer(tmp_path, decoy_bench_executable=decoy)\n>     \n> >       with pytest.raises(T.T1998PairRejected) as excinfo:\n> E       Failed: DID NOT RAISE T1998PairRejected\n> \n> orchestrator/tests/test_t1998_stock_inline_pair.py:580: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=1310 retained_bytes=1310 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2539 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "0753c3b9f01288ec7007542f97f920dbf52e040a4083842b1e66a3c84c89fe89"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eabb8e0cc56e352f77fcd8bbeb3c04d04371b270f4c40818069cbaedfac7af5b",
+      "duration_s": 45.497,
+      "expected_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_decoy_bench_binary_token_is_rejected[/bin/echo]",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_decoy_bench_binary_token_is_rejected[/bin/true]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_decoy_bench_binary_token_is_rejected[/bin/true]",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_decoy_bench_binary_token_is_rejected[/bin/echo]"
+      ],
+      "hang_risk": false,
+      "id": "M11-bench-executable-token-anywhere",
+      "injection_diff_sha256": "d5baab23afc840be31338bd8c305b3e9b05a065e7b9a705fbe34d54039f0b334",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "ad6bd2a557a4f56c8dea228dfefc7a42013c3e53c68db8a3f1a8c814270d7541",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+          "new": "    execution_target = (\n        expected_binary\n        if run_argv is not None and expected_binary in run_argv\n        else None\n    )\n",
+          "old": "    execution_target = (\n        _bench_execution_target(run_argv) if run_argv is not None else None\n    )\n"
+        }
+      ],
+      "repo_head": "8cf391ad95ea31f3ef808c8739e3749b86a67796",
+      "runner_sha256": "8ba54eb9b5c62ca83d4d86b09fa6bd8a40f0ed2e368494ee8c71149ba8ada7ee",
+      "spec_sha256": "4fd1b19309d72c1cf49f4b6c9fecebdc11de2cb31144ae7b5e90fef6743d4870",
+      "status": "KILLED",
+      "test_output_sha256": "0753c3b9f01288ec7007542f97f920dbf52e040a4083842b1e66a3c84c89fe89",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "286913852d8af6f53f5bf1f0942fb0881bd25bf0878a9c0873580f08d77d1255"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts/output/pegasus-dispatch/c55824800e144930669e2123ca1cb7ad/izdw-c55824800e.o982943",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts/output/pegasus-dispatch/c55824800e144930669e2123ca1cb7ad/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [44 items]\n\n....................F.......................                             [100%]\n=================================== FAILURES ===================================\n____________ test_shared_noncanonical_toolchain_digest_is_rejected _____________\n[gw32] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_shared_noncanonical_toolc0')\n\n    def test_shared_noncanonical_toolchain_digest_is_rejected(tmp_path: Path) -> None:\n        \"\"\"The canonical-manifest digest layer alone rejects this shared digest.\"\"\"\n        fixture = _write_producer(tmp_path)\n        wal_path = fixture.campaign / \"runs/wal.jsonl\"\n        records = [json.loads(line) for line in wal_path.read_text().splitlines()]\n        pair_attempts = {\n            record[\"payload\"][\"build_attempt_id\"]\n            for record in records\n            if record[\"stage\"] == \"build_start\"\n            and record[\"payload\"][\"genome\"] in {\n                T.BASELINE_CANONICAL_GENOME,\n                T.TARGET_CANONICAL_GENOME,\n            }\n        }\n        result = _read_json(fixture.root / \"result.json\")\n        arbitrary_digest = \"d\" * 64\n        assert arbitrary_digest != _TOOLCHAIN_SHA\n        mutated = 0\n        for record in records:\n            if (\n                record[\"stage\"] == \"build_done\"\n                and record[\"payload\"][\"build_attempt_id\"] in pair_attempts\n            ):\n                assert record[\"payload\"][\"toolchain\"] == result[\"toolchain\"] == _TOOLCHAIN\n                assert record[\"payload\"][\"toolchain_record_sha256\"] == _TOOLCHAIN_SHA\n                record[\"payload\"][\"toolchain_record_sha256\"] = arbitrary_digest\n                mutated += 1\n        assert len(pair_attempts) == mutated == 2\n        wal_path.write_text(\n            \"\".join(\n                json.dumps(\n                    record,\n                    ensure_ascii=False,\n                    separators=(\",\", \":\"),\n                    allow_nan=False,\n                ) + \"\\n\"\n                for record in records\n            ),\n            encoding=\"utf-8\",\n        )\n        _refresh_result_wal_sha(fixture)\n    \n>       with pytest.raises(T.T1998PairRejected) as excinfo:\nE       Failed: DID NOT RAISE T1998PairRejected\n\norchestrator/tests/test_t1998_stock_inline_pair.py:709: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t1998_stock_inline_pair.py::test_shared_noncanonical_toolchain_digest_is_rejected\n======================== 1 failed, 43 passed in 12.11s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t1998_stock_inline_pair.py::test_shared_noncanonical_toolchain_digest_is_rejected\" nodeid_bytes=105 nodeid_omitted_bytes=0 source_bytes=2065 retained_bytes=2065 omitted_bytes=0 rendered_excerpt_bytes=2169 sha256=2463246db13805bba51f49fa390093350b61c8a70992aaf4c3b6427dba9a6780\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw32] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_shared_noncanonical_toolc0')\n> \n>     def test_shared_noncanonical_toolchain_digest_is_rejected(tmp_path: Path) -> None:\n>         \"\"\"The canonical-manifest digest layer alone rejects this shared digest.\"\"\"\n>         fixture = _write_producer(tmp_path)\n>         wal_path = fixture.campaign / \"runs/wal.jsonl\"\n>         records = [json.loads(line) for line in wal_path.read_text().splitlines()]\n>         pair_attempts = {\n>             record[\"payload\"][\"build_attempt_id\"]\n>             for record in records\n>             if record[\"stage\"] == \"build_start\"\n>             and record[\"payload\"][\"genome\"] in {\n>                 T.BASELINE_CANONICAL_GENOME,\n>                 T.TARGET_CANONICAL_GENOME,\n>             }\n>         }\n>         result = _read_json(fixture.root / \"result.json\")\n>         arbitrary_digest = \"d\" * 64\n>         assert arbitrary_digest != _TOOLCHAIN_SHA\n>         mutated = 0\n>         for record in records:\n>             if (\n>                 record[\"stage\"] == \"build_done\"\n>                 and record[\"payload\"][\"build_attempt_id\"] in pair_attempts\n>             ):\n>                 assert record[\"payload\"][\"toolchain\"] == result[\"toolchain\"] == _TOOLCHAIN\n>                 assert record[\"payload\"][\"toolchain_record_sha256\"] == _TOOLCHAIN_SHA\n>                 record[\"payload\"][\"toolchain_record_sha256\"] = arbitrary_digest\n>                 mutated += 1\n>         assert len(pair_attempts) == mutated == 2\n>         wal_path.write_text(\n>             \"\".join(\n>                 json.dumps(\n>                     record,\n>                     ensure_ascii=False,\n>                     separators=(\",\", \":\"),\n>                     allow_nan=False,\n>                 ) + \"\\x5cn\"\n>                 for record in records\n>             ),\n>             encoding=\"utf-8\",\n>         )\n>         _refresh_result_wal_sha(fixture)\n>     \n> >       with pytest.raises(T.T1998PairRejected) as excinfo:\n> E       Failed: DID NOT RAISE T1998PairRejected\n> \n> orchestrator/tests/test_t1998_stock_inline_pair.py:709: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2065 retained_bytes=2065 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2902 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "2e5c7787de35e9bfc390bb002624b9db0c2bbd119bcbf2af0fe59f3202f2e370"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eabb8e0cc56e352f77fcd8bbeb3c04d04371b270f4c40818069cbaedfac7af5b",
+      "duration_s": 34.472,
+      "expected_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_shared_noncanonical_toolchain_digest_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_shared_noncanonical_toolchain_digest_is_rejected"
+      ],
+      "hang_risk": false,
+      "id": "M12-toolchain-canonical-digest-recalculation-removed",
+      "injection_diff_sha256": "d216de357a110031a9f91a0b403101a3ac36a862cbc52e9f73fcb46c043b216d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "18fbdf03e1d8a65169498a9b5e495b50d233f738b2b229958fee928249b6576a",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+          "new": "    canonical_toolchain_digest = toolchain_digest\n    _require_equal(\n        toolchain_digest,\n        canonical_toolchain_digest,\n        code=\"toolchain-identity-mismatch\",\n        field=\"wal.build_done.toolchain_record_sha256\",\n        arm=arm,\n    )\n",
+          "old": "    try:\n        canonical_toolchain_digest = _canonical_json_sha256(toolchain)\n    except (TypeError, ValueError) as exc:\n        _reject(\n            \"toolchain-identity-mismatch\", \"wal.build_done.toolchain\",\n            \"canonical finite JSON manifest\", f\"{type(exc).__name__}: {exc}\", arm,\n        )\n    _require_equal(\n        toolchain_digest,\n        canonical_toolchain_digest,\n        code=\"toolchain-identity-mismatch\",\n        field=\"wal.build_done.toolchain_record_sha256\",\n        arm=arm,\n    )\n"
+        }
+      ],
+      "repo_head": "8cf391ad95ea31f3ef808c8739e3749b86a67796",
+      "runner_sha256": "8ba54eb9b5c62ca83d4d86b09fa6bd8a40f0ed2e368494ee8c71149ba8ada7ee",
+      "spec_sha256": "4fd1b19309d72c1cf49f4b6c9fecebdc11de2cb31144ae7b5e90fef6743d4870",
+      "status": "KILLED",
+      "test_output_sha256": "2e5c7787de35e9bfc390bb002624b9db0c2bbd119bcbf2af0fe59f3202f2e370",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "286913852d8af6f53f5bf1f0942fb0881bd25bf0878a9c0873580f08d77d1255"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts/output/pegasus-dispatch/436b87609f6302d60d2876e66612da8f/izdw-436b87609f.o982944",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts/output/pegasus-dispatch/436b87609f6302d60d2876e66612da8f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [44 items]\n\n............................F...............                             [100%]\n=================================== FAILURES ===================================\n________________ test_verify_environment_tag_drift_is_rejected _________________\n[gw23] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw23/test_verify_environment_tag_dr0')\n\n    def test_verify_environment_tag_drift_is_rejected(tmp_path: Path) -> None:\n        \"\"\"The fixed-arm environment layer alone rejects verify_done env-tag drift.\"\"\"\n        fixture = _write_producer(tmp_path, verify_env_mismatch_arm=\"target\")\n    \n>       with pytest.raises(T.T1998PairRejected) as excinfo:\nE       Failed: DID NOT RAISE T1998PairRejected\n\norchestrator/tests/test_t1998_stock_inline_pair.py:613: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t1998_stock_inline_pair.py::test_verify_environment_tag_drift_is_rejected\n======================== 1 failed, 43 passed in 12.25s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t1998_stock_inline_pair.py::test_verify_environment_tag_drift_is_rejected\" nodeid_bytes=97 nodeid_omitted_bytes=0 source_bytes=566 retained_bytes=566 omitted_bytes=0 rendered_excerpt_bytes=591 sha256=9ad36027ccd0d710843c9ece8f4aee03cf5e38eddee40a7487be67b4d0c4eff1\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw23] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw23/test_verify_environment_tag_dr0')\n> \n>     def test_verify_environment_tag_drift_is_rejected(tmp_path: Path) -> None:\n>         \"\"\"The fixed-arm environment layer alone rejects verify_done env-tag drift.\"\"\"\n>         fixture = _write_producer(tmp_path, verify_env_mismatch_arm=\"target\")\n>     \n> >       with pytest.raises(T.T1998PairRejected) as excinfo:\n> E       Failed: DID NOT RAISE T1998PairRejected\n> \n> orchestrator/tests/test_t1998_stock_inline_pair.py:613: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=566 retained_bytes=566 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1310 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "cf3b0d2be22180f5d8bd6737238190e26cdc3ce2171ce04eac5ff93d860a0314"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eabb8e0cc56e352f77fcd8bbeb3c04d04371b270f4c40818069cbaedfac7af5b",
+      "duration_s": 34.009,
+      "expected_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_verify_environment_tag_drift_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_verify_environment_tag_drift_is_rejected"
+      ],
+      "hang_risk": false,
+      "id": "M13-verify-done-env-tag-excluded",
+      "injection_diff_sha256": "3727156ec49858cefd2e14334eca87337e668abfc8eea2fac62f38c986ad8cc0",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "5102b8a294356aa0b61c776dc8c172943d58df4cc34d63f9c5b776f9651ffcd6",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+          "new": "    arm_records = (start, build_done, bench_done, commit)\n    env_tags = {record.env_tag for record in arm_records}\n",
+          "old": "    arm_records = (start, build_done, verify_done, bench_done, commit)\n    env_tags = {record.env_tag for record in arm_records}\n"
+        }
+      ],
+      "repo_head": "8cf391ad95ea31f3ef808c8739e3749b86a67796",
+      "runner_sha256": "8ba54eb9b5c62ca83d4d86b09fa6bd8a40f0ed2e368494ee8c71149ba8ada7ee",
+      "spec_sha256": "4fd1b19309d72c1cf49f4b6c9fecebdc11de2cb31144ae7b5e90fef6743d4870",
+      "status": "KILLED",
+      "test_output_sha256": "cf3b0d2be22180f5d8bd6737238190e26cdc3ce2171ce04eac5ff93d860a0314",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "286913852d8af6f53f5bf1f0942fb0881bd25bf0878a9c0873580f08d77d1255"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts/output/pegasus-dispatch/782af33aa90895c3941d58c150414584/izdw-782af33aa9.o982947",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts/output/pegasus-dispatch/782af33aa90895c3941d58c150414584/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [44 items]\n\n.....................F.................FFFF.                             [100%]\n=================================== FAILURES ===================================\n_ test_all_verify_and_bench_records_are_fail_closed[verify-nonserializable-wal.verify_done.verdict] _\n[gw25] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw25/test_all_verify_and_bench_reco0')\norphan_record = 'verify-nonserializable', field = 'wal.verify_done.verdict'\n\n    @pytest.mark.parametrize(\n        (\"orphan_record\", \"field\"),\n        [\n            (\"verify-anomaly\", \"wal.verify_done.anomalies\"),\n            (\"verify-nonserializable\", \"wal.verify_done.verdict\"),\n            (\"verify-clean\", \"wal.verify_done.build_attempt_id\"),\n            (\"bench\", \"wal.bench_done.build_attempt_id\"),\n            (\"build-anomaly\", \"wal.build_done.anomalies\"),\n        ],\n    )\n    def test_all_verify_and_bench_records_are_fail_closed(\n        tmp_path: Path, orphan_record: str, field: str,\n    ) -> None:\n        \"\"\"The all-record discipline-2 layer alone rejects this orphan signal.\"\"\"\n        fixture = _write_producer(tmp_path, orphan_record=orphan_record)\n    \n>       with pytest.raises(T.T1998PairRejected) as excinfo:\nE       Failed: DID NOT RAISE T1998PairRejected\n\norchestrator/tests/test_t1998_stock_inline_pair.py:636: Failed\n_ test_all_verify_and_bench_records_are_fail_closed[bench-wal.bench_done.build_attempt_id] _\n[gw27] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw27/test_all_verify_and_bench_reco0')\norphan_record = 'bench', field = 'wal.bench_done.build_attempt_id'\n\n    @pytest.mark.parametrize(\n        (\"orphan_record\", \"field\"),\n        [\n            (\"verify-anomaly\", \"wal.verify_done.anomalies\"),\n            (\"verify-nonserializable\", \"wal.verify_done.verdict\"),\n            (\"verify-clean\", \"wal.verify_done.build_attempt_id\"),\n            (\"bench\", \"wal.bench_done.build_attempt_id\"),\n            (\"build-anomaly\", \"wal.build_done.anomalies\"),\n        ],\n    )\n    def test_all_verify_and_bench_records_are_fail_closed(\n        tmp_path: Path, orphan_record: str, field: str,\n    ) -> None:\n        \"\"\"The all-record discipline-2 layer alone rejects this orphan signal.\"\"\"\n        fixture = _write_producer(tmp_path, orphan_record=orphan_record)\n    \n>       with pytest.raises(T.T1998PairRejected) as excinfo:\nE       Failed: DID NOT RAISE T1998PairRejected\n\norchestrator/tests/test_t1998_stock_inline_pair.py:636: Failed\n_ test_all_verify_and_bench_records_are_fail_closed[verify-clean-wal.verify_done.build_attempt_id] _\n[gw26] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw26/test_all_verify_and_bench_reco0')\norphan_record = 'verify-clean', field = 'wal.verify_done.build_attempt_id'\n\n    @pytest.mark.parametrize(\n        (\"orphan_record\", \"field\"),\n        [\n            (\"verify-anomaly\", \"wal.verify_done.anomalies\"),\n            (\"verify-nonserializable\", \"wal.verify_done.verdict\"),\n            (\"verify-clean\", \"wal.verify_done.build_attempt_id\"),\n            (\"bench\", \"wal.bench_done.build_attempt_id\"),\n            (\"build-anomaly\", \"wal.build_done.anomalies\"),\n        ],\n    )\n    def test_all_verify_and_bench_records_are_fail_closed(\n        tmp_path: Path, orphan_record: str, field: str,\n    ) -> None:\n        \"\"\"The all-record discipline-2 layer alone rejects this orphan signal.\"\"\"\n        fixture = _write_producer(tmp_path, orphan_record=orphan_record)\n    \n>       with pytest.raises(T.T1998PairRejected) as excinfo:\nE       Failed: DID NOT RAISE T1998PairRejected\n\norchestrator/tests/test_t1998_stock_inline_pair.py:636: Failed\n_ test_all_verify_and_bench_records_are_fail_closed[build-anomaly-wal.build_done.anomalies] _\n[gw28] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw28/test_all_verify_and_bench_reco0')\norphan_record = 'build-anomaly', field = 'wal.build_done.anomalies'\n\n    @pytest.mark.parametrize(\n        (\"orphan_record\", \"field\"),\n        [\n            (\"verify-anomaly\", \"wal.verify_done.anomalies\"),\n            (\"verify-nonserializable\", \"wal.verify_done.verdict\"),\n            (\"verify-clean\", \"wal.verify_done.build_attempt_id\"),\n            (\"bench\", \"wal.bench_done.build_attempt_id\"),\n            (\"build-anomaly\", \"wal.build_done.anomalies\"),\n        ],\n    )\n    def test_all_verify_and_bench_records_are_fail_closed(\n        tmp_path: Path, orphan_record: str, field: str,\n    ) -> None:\n        \"\"\"The all-record discipline-2 layer alone rejects this orphan signal.\"\"\"\n        fixture = _write_producer(tmp_path, orphan_record=orphan_record)\n    \n>       with pytest.raises(T.T1998PairRejected) as excinfo:\nE       Failed: DID NOT RAISE T1998PairRejected\n\norchestrator/tests/test_t1998_stock_inline_pair.py:636: Failed\n_ test_all_verify_and_bench_records_are_fail_closed[verify-anomaly-wal.verify_done.anomalies] _\n[gw24] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw24/test_all_verify_and_bench_reco0')\norphan_record = 'verify-anomaly', field = 'wal.verify_done.anomalies'\n\n    @pytest.mark.parametrize(\n        (\"orphan_record\", \"field\"),\n        [\n            (\"verify-anomaly\", \"wal.verify_done.anomalies\"),\n            (\"verify-nonserializable\", \"wal.verify_done.verdict\"),\n            (\"verify-clean\", \"wal.verify_done.build_attempt_id\"),\n            (\"bench\", \"wal.bench_done.build_attempt_id\"),\n            (\"build-anomaly\", \"wal.build_done.anomalies\"),\n        ],\n    )\n    def test_all_verify_and_bench_records_are_fail_closed(\n        tmp_path: Path, orphan_record: str, field: str,\n    ) -> None:\n        \"\"\"The all-record discipline-2 layer alone rejects this orphan signal.\"\"\"\n        fixture = _write_producer(tmp_path, orphan_record=orphan_record)\n    \n>       with pytest.raises(T.T1998PairRejected) as excinfo:\nE       Failed: DID NOT RAISE T1998PairRejected\n\norchestrator/tests/test_t1998_stock_inline_pair.py:636: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t1998_stock_inline_pair.py::test_all_verify_and_bench_records_are_fail_closed[verify-nonserializable-wal.verify_done.verdict]\nFAILED orchestrator/tests/test_t1998_stock_inline_pair.py::test_all_verify_and_bench_records_are_fail_closed[bench-wal.bench_done.build_attempt_id]\nFAILED orchestrator/tests/test_t1998_stock_inline_pair.py::test_all_verify_and_bench_records_are_fail_closed[verify-clean-wal.verify_done.build_attempt_id]\nFAILED orchestrator/tests/test_t1998_stock_inline_pair.py::test_all_verify_and_bench_records_are_fail_closed[build-anomaly-wal.build_done.anomalies]\nFAILED orchestrator/tests/test_t1998_stock_inline_pair.py::test_all_verify_and_bench_records_are_fail_closed[verify-anomaly-wal.verify_done.anomalies]\n======================== 5 failed, 39 passed in 12.84s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t1998_stock_inline_pair.py::test_all_verify_and_bench_records_are_fail_closed[verify-nonserializable-wal.verify_done.verdict]\" nodeid_bytes=149 nodeid_omitted_bytes=0 source_bytes=1087 retained_bytes=1087 omitted_bytes=0 rendered_excerpt_bytes=1138 sha256=e536085013249d286f158cd2dabd17edad9d288285e0a1fd5a3c3e3d0a77e4a1\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw25] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw25/test_all_verify_and_bench_reco0')\n> orphan_record = 'verify-nonserializable', field = 'wal.verify_done.verdict'\n> \n>     @pytest.mark.parametrize(\n>         (\"orphan_record\", \"field\"),\n>         [\n>             (\"verify-anomaly\", \"wal.verify_done.anomalies\"),\n>             (\"verify-nonserializable\", \"wal.verify_done.verdict\"),\n>             (\"verify-clean\", \"wal.verify_done.build_attempt_id\"),\n>             (\"bench\", \"wal.bench_done.build_attempt_id\"),\n>             (\"build-anomaly\", \"wal.build_done.anomalies\"),\n>         ],\n>     )\n>     def test_all_verify_and_bench_records_are_fail_closed(\n>         tmp_path: Path, orphan_record: str, field: str,\n>     ) -> None:\n>         \"\"\"The all-record discipline-2 layer alone rejects this orphan signal.\"\"\"\n>         fixture = _write_producer(tmp_path, orphan_record=orphan_record)\n>     \n> >       with pytest.raises(T.T1998PairRejected) as excinfo:\n> E       Failed: DID NOT RAISE T1998PairRejected\n> \n> orchestrator/tests/test_t1998_stock_inline_pair.py:636: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_t1998_stock_inline_pair.py::test_all_verify_and_bench_records_are_fail_closed[verify-clean-wal.verify_done.build_attempt_id]\" nodeid_bytes=148 nodeid_omitted_bytes=0 source_bytes=1086 retained_bytes=1086 omitted_bytes=0 rendered_excerpt_bytes=1137 sha256=6921bb30cc809fdffecd37aadf603a6df3d87a61a3cf4f440ef666022ebf3b89\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw26] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw26/test_all_verify_and_bench_reco0')\n> orphan_record = 'verify-clean', field = 'wal.verify_done.build_attempt_id'\n> \n>     @pytest.mark.parametrize(\n>         (\"orphan_record\", \"field\"),\n>         [\n>             (\"verify-anomaly\", \"wal.verify_done.anomalies\"),\n>             (\"verify-nonserializable\", \"wal.verify_done.verdict\"),\n>             (\"verify-clean\", \"wal.verify_done.build_attempt_id\"),\n>             (\"bench\", \"wal.bench_done.build_attempt_id\"),\n>             (\"build-anomaly\", \"wal.build_done.anomalies\"),\n>         ],\n>     )\n>     def test_all_verify_and_bench_records_are_fail_closed(\n>         tmp_path: Path, orphan_record: str, field: str,\n>     ) -> None:\n>         \"\"\"The all-record discipline-2 layer alone rejects this orphan signal.\"\"\"\n>         fixture = _write_producer(tmp_path, orphan_record=orphan_record)\n>     \n> >       with pytest.raises(T.T1998PairRejected) as excinfo:\n> E       Failed: DID NOT RAISE T1998PairRejected\n> \n> orchestrator/tests/test_t1998_stock_inline_pair.py:636: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_t1998_stock_inline_pair.py::test_all_verify_and_bench_records_are_fail_closed[verify-anomaly-wal.verify_done.anomalies]\" nodeid_bytes=143 nodeid_omitted_bytes=0 source_bytes=1081 retained_bytes=1081 omitted_bytes=0 rendered_excerpt_bytes=1132 sha256=417598cd27982065cd9893345d077de1df91bf8364da00c8ea267481426de442\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw24] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw24/test_all_verify_and_bench_reco0')\n> orphan_record = 'verify-anomaly', field = 'wal.verify_done.anomalies'\n> \n>     @pytest.mark.parametrize(\n>         (\"orphan_record\", \"field\"),\n>         [\n>             (\"verify-anomaly\", \"wal.verify_done.anomalies\"),\n>             (\"verify-nonserializable\", \"wal.verify_done.verdict\"),\n>             (\"verify-clean\", \"wal.verify_done.build_attempt_id\"),\n>             (\"bench\", \"wal.bench_done.build_attempt_id\"),\n>             (\"build-anomaly\", \"wal.build_done.anomalies\"),\n>         ],\n>     )\n>     def test_all_verify_and_bench_records_are_fail_closed(\n>         tmp_path: Path, orphan_record: str, field: str,\n>     ) -> None:\n>         \"\"\"The all-record discipline-2 layer alone rejects this orphan signal.\"\"\"\n>         fixture = _write_producer(tmp_path, orphan_record=orphan_record)\n>     \n> >       with pytest.raises(T.T1998PairRejected) as excinfo:\n> E       Failed: DID NOT RAISE T1998PairRejected\n> \n> orchestrator/tests/test_t1998_stock_inline_pair.py:636: Failed\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_t1998_stock_inline_pair.py::test_all_verify_and_bench_records_are_fail_closed[build-anomaly-wal.build_done.anomalies]\" nodeid_bytes=141 nodeid_omitted_bytes=0 source_bytes=1079 retained_bytes=1079 omitted_bytes=0 rendered_excerpt_bytes=1130 sha256=9ec11ba48eddc37214dc9cafe8e19af90e1980283710d7ecd4075d4b52c3b25a\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw28] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw28/test_all_verify_and_bench_reco0')\n> orphan_record = 'build-anomaly', field = 'wal.build_done.anomalies'\n> \n>     @pytest.mark.parametrize(\n>         (\"orphan_record\", \"field\"),\n>         [\n>             (\"verify-anomaly\", \"wal.verify_done.anomalies\"),\n>             (\"verify-nonserializable\", \"wal.verify_done.verdict\"),\n>             (\"verify-clean\", \"wal.verify_done.build_attempt_id\"),\n>             (\"bench\", \"wal.bench_done.build_attempt_id\"),\n>             (\"build-anomaly\", \"wal.build_done.anomalies\"),\n>         ],\n>     )\n>     def test_all_verify_and_bench_records_are_fail_closed(\n>         tmp_path: Path, orphan_record: str, field: str,\n>     ) -> None:\n>         \"\"\"The all-record discipline-2 layer alone rejects this orphan signal.\"\"\"\n>         fixture = _write_producer(tmp_path, orphan_record=orphan_record)\n>     \n> >       with pytest.raises(T.T1998PairRejected) as excinfo:\n> E       Failed: DID NOT RAISE T1998PairRejected\n> \n> orchestrator/tests/test_t1998_stock_inline_pair.py:636: Failed\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_t1998_stock_inline_pair.py::test_all_verify_and_bench_records_are_fail_closed[bench-wal.bench_done.build_attempt_id]\" nodeid_bytes=140 nodeid_omitted_bytes=0 source_bytes=1078 retained_bytes=1078 omitted_bytes=0 rendered_excerpt_bytes=1129 sha256=2623365df42dfc8584106d04f5182c7c4b3eab5a0480a9fddd9602ab026a8b42\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw27] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw27/test_all_verify_and_bench_reco0')\n> orphan_record = 'bench', field = 'wal.bench_done.build_attempt_id'\n> \n>     @pytest.mark.parametrize(\n>         (\"orphan_record\", \"field\"),\n>         [\n>             (\"verify-anomaly\", \"wal.verify_done.anomalies\"),\n>             (\"verify-nonserializable\", \"wal.verify_done.verdict\"),\n>             (\"verify-clean\", \"wal.verify_done.build_attempt_id\"),\n>             (\"bench\", \"wal.bench_done.build_attempt_id\"),\n>             (\"build-anomaly\", \"wal.build_done.anomalies\"),\n>         ],\n>     )\n>     def test_all_verify_and_bench_records_are_fail_closed(\n>         tmp_path: Path, orphan_record: str, field: str,\n>     ) -> None:\n>         \"\"\"The all-record discipline-2 layer alone rejects this orphan signal.\"\"\"\n>         fixture = _write_producer(tmp_path, orphan_record=orphan_record)\n>     \n> >       with pytest.raises(T.T1998PairRejected) as excinfo:\n> E       Failed: DID NOT RAISE T1998PairRejected\n> \n> orchestrator/tests/test_t1998_stock_inline_pair.py:636: Failed\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=5 failed=5 errors=0 selected=5 omitted_failures=0 source_bytes=5411 retained_bytes=5411 omitted_bytes=0 budget_bytes=49152 rendered_bytes=8379 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "3be06c676370a58a4af2611e87e3be8ec5ab67b423d215e3ffd012d2deb7920f"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eabb8e0cc56e352f77fcd8bbeb3c04d04371b270f4c40818069cbaedfac7af5b",
+      "duration_s": 39.963,
+      "expected_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_all_verify_and_bench_records_are_fail_closed[bench-wal.bench_done.build_attempt_id]",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_all_verify_and_bench_records_are_fail_closed[build-anomaly-wal.build_done.anomalies]",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_all_verify_and_bench_records_are_fail_closed[verify-anomaly-wal.verify_done.anomalies]",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_all_verify_and_bench_records_are_fail_closed[verify-clean-wal.verify_done.build_attempt_id]",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_all_verify_and_bench_records_are_fail_closed[verify-nonserializable-wal.verify_done.verdict]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_all_verify_and_bench_records_are_fail_closed[verify-nonserializable-wal.verify_done.verdict]",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_all_verify_and_bench_records_are_fail_closed[bench-wal.bench_done.build_attempt_id]",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_all_verify_and_bench_records_are_fail_closed[verify-clean-wal.verify_done.build_attempt_id]",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_all_verify_and_bench_records_are_fail_closed[build-anomaly-wal.build_done.anomalies]",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_all_verify_and_bench_records_are_fail_closed[verify-anomaly-wal.verify_done.anomalies]"
+      ],
+      "hang_risk": false,
+      "id": "M14-all-record-anomaly-scan-removed",
+      "injection_diff_sha256": "61375eebc796bab7ee37a4931d8f53cb43dda6ce8d3781a314932a0c4de96105",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "fb1cf4baf5943dab398547bf4b328e2613ae92a642c19e0ba9bf29fb926a7359",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+          "new": "    # Skip the all-record anomaly and attempt-membership scan.\n    pass\n",
+          "old": "    for record in view.records:\n        arm = arm_by_variant.get(record.variant, \"unknown\")\n        if \"anomalies\" in record.payload or record.stage == STAGE_VERIFY_DONE:\n            _require_equal(\n                record.payload.get(\"anomalies\"),\n                0,\n                code=\"producer-rejected-variant\",\n                field=f\"wal.{record.stage}.anomalies\",\n                arm=arm,\n            )\n        if \"verdict\" in record.payload or record.stage == STAGE_VERIFY_DONE:\n            _require_equal(\n                record.payload.get(\"verdict\"),\n                \"serializable\",\n                code=\"producer-rejected-variant\",\n                field=f\"wal.{record.stage}.verdict\",\n                arm=arm,\n            )\n        if record.stage not in {STAGE_VERIFY_DONE, STAGE_BENCH_DONE}:\n            continue\n        attempt_id = record.payload.get(\"build_attempt_id\")\n        if (record.variant, attempt_id) not in known_attempts:\n            _reject(\n                \"producer-rejected-variant\",\n                f\"wal.{record.stage}.build_attempt_id\",\n                \"known build attempt for the same variant\",\n                attempt_id,\n                arm,\n            )\n"
+        }
+      ],
+      "repo_head": "8cf391ad95ea31f3ef808c8739e3749b86a67796",
+      "runner_sha256": "8ba54eb9b5c62ca83d4d86b09fa6bd8a40f0ed2e368494ee8c71149ba8ada7ee",
+      "spec_sha256": "4fd1b19309d72c1cf49f4b6c9fecebdc11de2cb31144ae7b5e90fef6743d4870",
+      "status": "KILLED",
+      "test_output_sha256": "3be06c676370a58a4af2611e87e3be8ec5ab67b423d215e3ffd012d2deb7920f",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "286913852d8af6f53f5bf1f0942fb0881bd25bf0878a9c0873580f08d77d1255"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts/output/pegasus-dispatch/2113bfa0cc92b8bbee4f749178b50ab2/izdw-2113bfa0cc.o982948",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts/output/pegasus-dispatch/2113bfa0cc92b8bbee4f749178b50ab2/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [44 items]\n\n................................F......FF...                             [100%]\n=================================== FAILURES ===================================\n____________ test_off_pair_diagnostic_key_value_is_not_interpreted _____________\n[gw16] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw16/test_off_pair_diagnostic_key_v0')\n\n    def test_off_pair_diagnostic_key_value_is_not_interpreted(tmp_path: Path) -> None:\n        \"\"\"The all-genome producer-shape layer alone rejects a zero-valued key.\"\"\"\n        fixture = _write_producer(\n            tmp_path, off_pair_diagnostic_ordinal=1, diagnostic_genome_value=0,\n        )\n    \n>       with pytest.raises(T.T1998PairRejected) as excinfo:\nE       Failed: DID NOT RAISE T1998PairRejected\n\norchestrator/tests/test_t1998_stock_inline_pair.py:553: Failed\n____________ test_explicit_noinline_one_is_diagnostic_build[genome] ____________\n[gw14] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw14/test_explicit_noinline_one_is_0')\nlocation = 'genome'\n\n    @pytest.mark.parametrize(\"location\", [\"configure\", \"typed-configure\", \"genome\"])\n    def test_explicit_noinline_one_is_diagnostic_build(\n        tmp_path: Path, location: str,\n    ) -> None:\n        \"\"\"The T-1998 diagnostic marker gate alone rejects this one producer signal.\"\"\"\n        fixture = _write_producer(\n            tmp_path,\n            diagnostic_arm=\"target\" if location == \"configure\" else None,\n            typed_diagnostic_arm=\"target\" if location == \"typed-configure\" else None,\n            diagnostic_genome_arm=\"target\" if location == \"genome\" else None,\n        )\n    \n        with pytest.raises(T.T1998PairRejected) as excinfo:\n            _consume(fixture)\n>       assert excinfo.value.code == \"diagnostic-build\"\nE       AssertionError: assert 'pair-cardinality' == 'diagnostic-build'\nE         \nE         - diagnostic-build\nE         + pair-cardinality\n\norchestrator/tests/test_t1998_stock_inline_pair.py:532: AssertionError\n__________________ test_off_pair_diagnostic_build_is_rejected __________________\n[gw15] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw15/test_off_pair_diagnostic_build0')\n\n    def test_off_pair_diagnostic_build_is_rejected(tmp_path: Path) -> None:\n        \"\"\"The all-genome producer-shape layer alone rejects this off-pair key.\"\"\"\n        fixture = _write_producer(tmp_path, off_pair_diagnostic_ordinal=1)\n    \n>       with pytest.raises(T.T1998PairRejected) as excinfo:\nE       Failed: DID NOT RAISE T1998PairRejected\n\norchestrator/tests/test_t1998_stock_inline_pair.py:540: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t1998_stock_inline_pair.py::test_off_pair_diagnostic_key_value_is_not_interpreted\nFAILED orchestrator/tests/test_t1998_stock_inline_pair.py::test_explicit_noinline_one_is_diagnostic_build[genome]\nFAILED orchestrator/tests/test_t1998_stock_inline_pair.py::test_off_pair_diagnostic_build_is_rejected\n======================== 3 failed, 41 passed in 12.61s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t1998_stock_inline_pair.py::test_explicit_noinline_one_is_diagnostic_build[genome]\" nodeid_bytes=106 nodeid_omitted_bytes=0 source_bytes=1117 retained_bytes=1117 omitted_bytes=0 rendered_excerpt_bytes=1170 sha256=7de19f6db4d7101293093608b0e05fdd064d8a2be944c48508a154e743dbb7e7\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw14] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw14/test_explicit_noinline_one_is_0')\n> location = 'genome'\n> \n>     @pytest.mark.parametrize(\"location\", [\"configure\", \"typed-configure\", \"genome\"])\n>     def test_explicit_noinline_one_is_diagnostic_build(\n>         tmp_path: Path, location: str,\n>     ) -> None:\n>         \"\"\"The T-1998 diagnostic marker gate alone rejects this one producer signal.\"\"\"\n>         fixture = _write_producer(\n>             tmp_path,\n>             diagnostic_arm=\"target\" if location == \"configure\" else None,\n>             typed_diagnostic_arm=\"target\" if location == \"typed-configure\" else None,\n>             diagnostic_genome_arm=\"target\" if location == \"genome\" else None,\n>         )\n>     \n>         with pytest.raises(T.T1998PairRejected) as excinfo:\n>             _consume(fixture)\n> >       assert excinfo.value.code == \"diagnostic-build\"\n> E       AssertionError: assert 'pair-cardinality' == 'diagnostic-build'\n> E         \n> E         - diagnostic-build\n> E         + pair-cardinality\n> \n> orchestrator/tests/test_t1998_stock_inline_pair.py:532: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_t1998_stock_inline_pair.py::test_off_pair_diagnostic_key_value_is_not_interpreted\" nodeid_bytes=105 nodeid_omitted_bytes=0 source_bytes=617 retained_bytes=617 omitted_bytes=0 rendered_excerpt_bytes=646 sha256=12a6117f2a7adff6300e453e9e6d3a65cf7d96a8783b344807cf46ab2f612206\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw16] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw16/test_off_pair_diagnostic_key_v0')\n> \n>     def test_off_pair_diagnostic_key_value_is_not_interpreted(tmp_path: Path) -> None:\n>         \"\"\"The all-genome producer-shape layer alone rejects a zero-valued key.\"\"\"\n>         fixture = _write_producer(\n>             tmp_path, off_pair_diagnostic_ordinal=1, diagnostic_genome_value=0,\n>         )\n>     \n> >       with pytest.raises(T.T1998PairRejected) as excinfo:\n> E       Failed: DID NOT RAISE T1998PairRejected\n> \n> orchestrator/tests/test_t1998_stock_inline_pair.py:553: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_t1998_stock_inline_pair.py::test_off_pair_diagnostic_build_is_rejected\" nodeid_bytes=94 nodeid_omitted_bytes=0 source_bytes=556 retained_bytes=556 omitted_bytes=0 rendered_excerpt_bytes=581 sha256=3d7a9d2d3d5d70d6b3c46980ac8e9f8dba5b2b3635c9e1fe2b92e9998e7b2869\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw15] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw15/test_off_pair_diagnostic_build0')\n> \n>     def test_off_pair_diagnostic_build_is_rejected(tmp_path: Path) -> None:\n>         \"\"\"The all-genome producer-shape layer alone rejects this off-pair key.\"\"\"\n>         fixture = _write_producer(tmp_path, off_pair_diagnostic_ordinal=1)\n>     \n> >       with pytest.raises(T.T1998PairRejected) as excinfo:\n> E       Failed: DID NOT RAISE T1998PairRejected\n> \n> orchestrator/tests/test_t1998_stock_inline_pair.py:540: Failed\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=2290 retained_bytes=2290 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4005 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "ab5cc4a79bce2dce2791ae3013acbba06b192c1d473bd9565ac58cc6b0c3c5a6"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eabb8e0cc56e352f77fcd8bbeb3c04d04371b270f4c40818069cbaedfac7af5b",
+      "duration_s": 39.577,
+      "expected_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_explicit_noinline_one_is_diagnostic_build[genome]",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_off_pair_diagnostic_build_is_rejected",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_off_pair_diagnostic_key_value_is_not_interpreted"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_off_pair_diagnostic_key_value_is_not_interpreted",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_explicit_noinline_one_is_diagnostic_build[genome]",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_off_pair_diagnostic_build_is_rejected"
+      ],
+      "hang_risk": false,
+      "id": "M15-genome-diagnostic-knob-scan-vacuous",
+      "injection_diff_sha256": "d5c73b3e9522871c7cb1348687383e4fe1b334e20add727391520fc30674da27",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "666dfbdac401cc8f2502178f97c2e8d514b9db5947dfc5aa8b5b292f790f83f4",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+          "new": "    for record in ():\n        has_diagnostic_key, arm = _genome_diagnostic_arm(\n            record.payload.get(\"genome\")\n        )\n        if has_diagnostic_key:\n            _reject(\n                \"diagnostic-build\", \"wal.build_start.genome.BACKOFF_NOINLINE\",\n                \"absent\", record.payload.get(\"genome\"), arm,\n            )\n",
+          "old": "    for record in starts:\n        has_diagnostic_key, arm = _genome_diagnostic_arm(\n            record.payload.get(\"genome\")\n        )\n        if has_diagnostic_key:\n            _reject(\n                \"diagnostic-build\", \"wal.build_start.genome.BACKOFF_NOINLINE\",\n                \"absent\", record.payload.get(\"genome\"), arm,\n            )\n"
+        }
+      ],
+      "repo_head": "8cf391ad95ea31f3ef808c8739e3749b86a67796",
+      "runner_sha256": "8ba54eb9b5c62ca83d4d86b09fa6bd8a40f0ed2e368494ee8c71149ba8ada7ee",
+      "spec_sha256": "4fd1b19309d72c1cf49f4b6c9fecebdc11de2cb31144ae7b5e90fef6743d4870",
+      "status": "KILLED",
+      "test_output_sha256": "ab5cc4a79bce2dce2791ae3013acbba06b192c1d473bd9565ac58cc6b0c3c5a6",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "286913852d8af6f53f5bf1f0942fb0881bd25bf0878a9c0873580f08d77d1255"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1,
+        "2": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts/output/pegasus-dispatch/028f7fff75d2d13c3de8250969702758/izdw-028f7fff75.o982951",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts/output/pegasus-dispatch/028f7fff75d2d13c3de8250969702758/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [44 items]\n\n.......F....................................                             [100%]\n=================================== FAILURES ===================================\n_____________ test_all_submit_receipt_events_pin_the_t1998_schema ______________\n[gw41] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_all_submit_receipt_events_pin_the_t1998_schema():\n        submitter = SUBMITTER.read_text(encoding=\"utf-8\")\n        schema_field = (\n            '\"schema_version\": \"t1998-balanced-stock-inline-submit-event/v1\"'\n        )\n    \n>       assert submitter.count(schema_field) == 3\nE       assert 0 == 3\nE        +  where 0 = <built-in method count of str object at 0x55d5d0e119a0>('\"schema_version\": \"t1998-balanced-stock-inline-submit-event/v1\"')\nE        +    where <built-in method count of str object at 0x55d5d0e119a0> = '#!/bin/bash\\n# Login-side T-1998 submitter: submit the balanced stock-inline producer once.\\nset -Eeuo pipefail\\numas...ppend_submission_event submitted \\\\\\n  \"$WORKLOAD\" \"$job_id\" \"$root\" \"$stdout\" \"$stderr\"\\nprintf \\'%s\\\\n\\' \"$job_id\"\\n'.count\n\norchestrator/tests/test_t1998_launcher_contract.py:190: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t1998_launcher_contract.py::test_all_submit_receipt_events_pin_the_t1998_schema\n======================== 1 failed, 43 passed in 12.33s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t1998_launcher_contract.py::test_all_submit_receipt_events_pin_the_t1998_schema\" nodeid_bytes=103 nodeid_omitted_bytes=0 source_bytes=900 retained_bytes=900 omitted_bytes=0 rendered_excerpt_bytes=965 sha256=f122a88be6a3f5cfccb26ebb31a9abcf289e9f6365971a51c5ba0fdb44617e2e\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw41] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_all_submit_receipt_events_pin_the_t1998_schema():\n>         submitter = SUBMITTER.read_text(encoding=\"utf-8\")\n>         schema_field = (\n>             '\"schema_version\": \"t1998-balanced-stock-inline-submit-event/v1\"'\n>         )\n>     \n> >       assert submitter.count(schema_field) == 3\n> E       assert 0 == 3\n> E        +  where 0 = <built-in method count of str object at 0x55d5d0e119a0>('\"schema_version\": \"t1998-balanced-stock-inline-submit-event/v1\"')\n> E        +    where <built-in method count of str object at 0x55d5d0e119a0> = '#!/bin/bash\\x5cn# Login-side T-1998 submitter: submit the balanced stock-inline producer once.\\x5cnset -Eeuo pipefail\\x5cnumas...ppend_submission_event submitted \\x5c\\x5c\\x5cn  \"$WORKLOAD\" \"$job_id\" \"$root\" \"$stdout\" \"$stderr\"\\x5cnprintf \\x5c'%s\\x5c\\x5cn\\x5c' \"$job_id\"\\x5cn'.count\n> \n> orchestrator/tests/test_t1998_launcher_contract.py:190: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=900 retained_bytes=900 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1691 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "f31dd683393622075847178c18ffc8935306b45ef408a467b37f36728b29b351"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "eabb8e0cc56e352f77fcd8bbeb3c04d04371b270f4c40818069cbaedfac7af5b",
+      "duration_s": 40.253,
+      "expected_nodes": [
+        "orchestrator/tests/test_t1998_launcher_contract.py::test_all_submit_receipt_events_pin_the_t1998_schema"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t1998_launcher_contract.py::test_all_submit_receipt_events_pin_the_t1998_schema"
+      ],
+      "hang_risk": false,
+      "id": "M16-submit-receipt-schema-literal-changed",
+      "injection_diff_sha256": "2f6f81abfead17bbc610a2dec7015248018dc0c2d63e417f0fd265ae50a6b548",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "23b67b921755d9ef9b7ac46f452ffb6bd637b86d8380d3d512ad7f6759d436fb",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_t1998_balanced_stock_inline.sh",
+          "new": "        \"schema_version\": \"t1998-balanced-stock-inline-submit-event/v0\",\n        \"event\": \"manifest\",\n",
+          "old": "        \"schema_version\": \"t1998-balanced-stock-inline-submit-event/v1\",\n        \"event\": \"manifest\",\n"
+        },
+        {
+          "file": "tools/pegasus/submit_t1998_balanced_stock_inline.sh",
+          "new": "        \"schema_version\": \"t1998-balanced-stock-inline-submit-event/v0\",\n        \"event\": \"submitted\",\n",
+          "old": "        \"schema_version\": \"t1998-balanced-stock-inline-submit-event/v1\",\n        \"event\": \"submitted\",\n"
+        },
+        {
+          "file": "tools/pegasus/submit_t1998_balanced_stock_inline.sh",
+          "new": "        \"schema_version\": \"t1998-balanced-stock-inline-submit-event/v0\",\n        \"event\": \"failed\",\n",
+          "old": "        \"schema_version\": \"t1998-balanced-stock-inline-submit-event/v1\",\n        \"event\": \"failed\",\n"
+        }
+      ],
+      "repo_head": "8cf391ad95ea31f3ef808c8739e3749b86a67796",
+      "runner_sha256": "8ba54eb9b5c62ca83d4d86b09fa6bd8a40f0ed2e368494ee8c71149ba8ada7ee",
+      "spec_sha256": "4fd1b19309d72c1cf49f4b6c9fecebdc11de2cb31144ae7b5e90fef6743d4870",
+      "status": "KILLED",
+      "test_output_sha256": "f31dd683393622075847178c18ffc8935306b45ef408a467b37f36728b29b351",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "286913852d8af6f53f5bf1f0942fb0881bd25bf0878a9c0873580f08d77d1255"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts/output/pegasus-dispatch/2c29a13cbe585093ab4a0c1c91a8f9f4/izdw-2c29a13cbe.o982913",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts/output/pegasus-dispatch/2c29a13cbe585093ab4a0c1c91a8f9f4/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_t1998_stock_inline_pair.py::test_real_admission_and_receipts_accept_only_the_fixed_pair\norchestrator/tests/test_t1998_stock_inline_pair.py::test_baseline_and_target_source_identities_may_normally_differ\norchestrator/tests/test_t1998_stock_inline_pair.py::test_preregistered_source_digest_drift_is_rejected\norchestrator/tests/test_t1998_stock_inline_pair.py::test_sibling_failure_receipt_is_rejected\norchestrator/tests/test_t1998_stock_inline_pair.py::test_short_gitlink_must_prefix_the_full_preregistration\norchestrator/tests/test_t1998_stock_inline_pair.py::test_launcher_script_digest_is_bound_to_preregistration\norchestrator/tests/test_t1998_stock_inline_pair.py::test_explicit_noinline_one_is_diagnostic_build[configure]\norchestrator/tests/test_t1998_stock_inline_pair.py::test_explicit_noinline_one_is_diagnostic_build[typed-configure]\norchestrator/tests/test_t1998_stock_inline_pair.py::test_explicit_noinline_one_is_diagnostic_build[genome]\norchestrator/tests/test_t1998_stock_inline_pair.py::test_off_pair_diagnostic_build_is_rejected\norchestrator/tests/test_t1998_stock_inline_pair.py::test_off_pair_diagnostic_key_value_is_not_interpreted\norchestrator/tests/test_t1998_stock_inline_pair.py::test_trace_enabled_configure_is_not_performance_evidence\norchestrator/tests/test_t1998_stock_inline_pair.py::test_typed_trace_disabled_define_is_normalized\norchestrator/tests/test_t1998_stock_inline_pair.py::test_decoy_bench_binary_token_is_rejected[/bin/true]\norchestrator/tests/test_t1998_stock_inline_pair.py::test_decoy_bench_binary_token_is_rejected[/bin/echo]\norchestrator/tests/test_t1998_stock_inline_pair.py::test_missing_perf_build_command_is_rejected\norchestrator/tests/test_t1998_stock_inline_pair.py::test_perf_build_directory_must_match_configure\norchestrator/tests/test_t1998_stock_inline_pair.py::test_verify_environment_tag_drift_is_rejected\norchestrator/tests/test_t1998_stock_inline_pair.py::test_all_verify_and_bench_records_are_fail_closed[verify-anomaly-wal.verify_done.anomalies]\norchestrator/tests/test_t1998_stock_inline_pair.py::test_all_verify_and_bench_records_are_fail_closed[verify-nonserializable-wal.verify_done.verdict]\norchestrator/tests/test_t1998_stock_inline_pair.py::test_all_verify_and_bench_records_are_fail_closed[verify-clean-wal.verify_done.build_attempt_id]\norchestrator/tests/test_t1998_stock_inline_pair.py::test_all_verify_and_bench_records_are_fail_closed[bench-wal.bench_done.build_attempt_id]\norchestrator/tests/test_t1998_stock_inline_pair.py::test_all_verify_and_bench_records_are_fail_closed[build-anomaly-wal.build_done.anomalies]\norchestrator/tests/test_t1998_stock_inline_pair.py::test_unstable_arm_is_inconclusive[baseline]\norchestrator/tests/test_t1998_stock_inline_pair.py::test_unstable_arm_is_inconclusive[target]\norchestrator/tests/test_t1998_stock_inline_pair.py::test_toolchain_record_digest_drift_is_rejected\norchestrator/tests/test_t1998_stock_inline_pair.py::test_shared_noncanonical_toolchain_digest_is_rejected\norchestrator/tests/test_t1998_stock_inline_pair.py::test_result_projection_drift_is_rejected\norchestrator/tests/test_t1998_stock_inline_pair.py::test_invalid_persisted_receipt_is_rejected_by_real_admission\norchestrator/tests/test_t1998_stock_inline_pair.py::test_consumer_does_not_call_secondary_replay_admission\norchestrator/tests/test_t1998_launcher_contract.py::test_submitter_launches_exactly_one_balanced_workload\norchestrator/tests/test_t1998_launcher_contract.py::test_submitter_reuses_the_existing_a5_job_body_and_adds_no_job_body\norchestrator/tests/test_t1998_launcher_contract.py::test_qsub_passes_all_five_a5_job_body_bindings\norchestrator/tests/test_t1998_launcher_contract.py::test_output_parent_is_existing_absolute_and_outside_every_repo_ancestor\norchestrator/tests/test_t1998_launcher_contract.py::test_preflight_and_atomic_receipt_match_the_a5_submission_strength\norchestrator/tests/test_t1998_launcher_contract.py::test_all_submit_receipt_events_pin_the_t1998_schema\norchestrator/tests/test_t1998_launcher_contract.py::test_submitter_is_registered_as_local_ok\norchestrator/tests/test_official_perf_closure.py::test_bench_callers_are_exact_and_own_canonical_preflight\norchestrator/tests/test_official_perf_closure.py::test_balanced_schedule_uses_lock_free_blocks_under_one_outer_lock\norchestrator/tests/test_official_perf_closure.py::test_campaign_loop_has_distinct_legacy_and_balanced_split_calls\norchestrator/tests/test_official_perf_closure.py::test_official_perf_surface_inventory_is_exact\norchestrator/tests/test_official_perf_closure.py::test_closure_inventory_mutations_are_not_tautologies\norchestrator/tests/test_official_perf_closure.py::test_outer_perf_file_and_added_guard_inventory_is_exact\norchestrator/tests/test_official_perf_closure.py::test_outer_perf_file_mutations_are_not_tautologies\n\n44 tests collected in 0.56s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "2680529e8296d798ab60ae98fe937de90d7d8e8c2d4b4711e2a9d0f6ccdd509a"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_real_admission_and_receipts_accept_only_the_fixed_pair",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_baseline_and_target_source_identities_may_normally_differ",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_preregistered_source_digest_drift_is_rejected",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_sibling_failure_receipt_is_rejected",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_short_gitlink_must_prefix_the_full_preregistration",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_launcher_script_digest_is_bound_to_preregistration",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_explicit_noinline_one_is_diagnostic_build[configure]",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_explicit_noinline_one_is_diagnostic_build[typed-configure]",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_explicit_noinline_one_is_diagnostic_build[genome]",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_off_pair_diagnostic_build_is_rejected",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_off_pair_diagnostic_key_value_is_not_interpreted",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_trace_enabled_configure_is_not_performance_evidence",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_typed_trace_disabled_define_is_normalized",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_decoy_bench_binary_token_is_rejected[/bin/true]",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_decoy_bench_binary_token_is_rejected[/bin/echo]",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_missing_perf_build_command_is_rejected",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_perf_build_directory_must_match_configure",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_verify_environment_tag_drift_is_rejected",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_all_verify_and_bench_records_are_fail_closed[verify-anomaly-wal.verify_done.anomalies]",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_all_verify_and_bench_records_are_fail_closed[verify-nonserializable-wal.verify_done.verdict]",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_all_verify_and_bench_records_are_fail_closed[verify-clean-wal.verify_done.build_attempt_id]",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_all_verify_and_bench_records_are_fail_closed[bench-wal.bench_done.build_attempt_id]",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_all_verify_and_bench_records_are_fail_closed[build-anomaly-wal.build_done.anomalies]",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_unstable_arm_is_inconclusive[baseline]",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_unstable_arm_is_inconclusive[target]",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_toolchain_record_digest_drift_is_rejected",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_shared_noncanonical_toolchain_digest_is_rejected",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_result_projection_drift_is_rejected",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_invalid_persisted_receipt_is_rejected_by_real_admission",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_consumer_does_not_call_secondary_replay_admission",
+        "orchestrator/tests/test_t1998_launcher_contract.py::test_submitter_launches_exactly_one_balanced_workload",
+        "orchestrator/tests/test_t1998_launcher_contract.py::test_submitter_reuses_the_existing_a5_job_body_and_adds_no_job_body",
+        "orchestrator/tests/test_t1998_launcher_contract.py::test_qsub_passes_all_five_a5_job_body_bindings",
+        "orchestrator/tests/test_t1998_launcher_contract.py::test_output_parent_is_existing_absolute_and_outside_every_repo_ancestor",
+        "orchestrator/tests/test_t1998_launcher_contract.py::test_preflight_and_atomic_receipt_match_the_a5_submission_strength",
+        "orchestrator/tests/test_t1998_launcher_contract.py::test_all_submit_receipt_events_pin_the_t1998_schema",
+        "orchestrator/tests/test_t1998_launcher_contract.py::test_submitter_is_registered_as_local_ok",
+        "orchestrator/tests/test_official_perf_closure.py::test_bench_callers_are_exact_and_own_canonical_preflight",
+        "orchestrator/tests/test_official_perf_closure.py::test_balanced_schedule_uses_lock_free_blocks_under_one_outer_lock",
+        "orchestrator/tests/test_official_perf_closure.py::test_campaign_loop_has_distinct_legacy_and_balanced_split_calls",
+        "orchestrator/tests/test_official_perf_closure.py::test_official_perf_surface_inventory_is_exact",
+        "orchestrator/tests/test_official_perf_closure.py::test_closure_inventory_mutations_are_not_tautologies",
+        "orchestrator/tests/test_official_perf_closure.py::test_outer_perf_file_and_added_guard_inventory_is_exact",
+        "orchestrator/tests/test_official_perf_closure.py::test_outer_perf_file_mutations_are_not_tautologies"
+      ],
+      "duration_s": 27.32,
+      "rc": 0,
+      "repo_head": "8cf391ad95ea31f3ef808c8739e3749b86a67796",
+      "runner_sha256": "8ba54eb9b5c62ca83d4d86b09fa6bd8a40f0ed2e368494ee8c71149ba8ada7ee",
+      "spec_sha256": "4fd1b19309d72c1cf49f4b6c9fecebdc11de2cb31144ae7b5e90fef6743d4870",
+      "status": "PASSED",
+      "tool_sha256": "286913852d8af6f53f5bf1f0942fb0881bd25bf0878a9c0873580f08d77d1255"
+    },
+    "hang_timeout_seconds": 2400.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1-source-digest-comparison-vacuous": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t1998_stock_inline_pair.py::test_preregistered_source_digest_drift_is_rejected"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ae754da821f9600b6e9de45b184f420f19cf2ed8fbc07160770350299c058c73",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+            "new": "    if False and source_digest != preregistered.source_bytes_sha256:\n        _reject(\n            \"source-identity-unbound\",\n            \"wal.build_start.build_admission.source.source_bytes_sha256\",\n            preregistered.source_bytes_sha256,\n            source_digest,\n            arm,\n        )\n",
+            "old": "    if source_digest != preregistered.source_bytes_sha256:\n        _reject(\n            \"source-identity-unbound\",\n            \"wal.build_start.build_admission.source.source_bytes_sha256\",\n            preregistered.source_bytes_sha256,\n            source_digest,\n            arm,\n        )\n"
+          }
+        ]
+      },
+      "M10-cmake-typed-define-normalization-removed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t1998_stock_inline_pair.py::test_explicit_noinline_one_is_diagnostic_build[typed-configure]",
+          "orchestrator/tests/test_t1998_stock_inline_pair.py::test_typed_trace_disabled_define_is_normalized"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "c56abbe7d67d901d9eb80e4d5f1bf919df524f0290d3ebb6a6c7d755b95bc12d",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+            "new": "        key = key_with_type\n        if key == name:\n            values.append(value)\n",
+            "old": "        key, _type_separator, _cmake_type = key_with_type.partition(\":\")\n        if key == name:\n            values.append(value)\n"
+          }
+        ]
+      },
+      "M11-bench-executable-token-anywhere": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t1998_stock_inline_pair.py::test_decoy_bench_binary_token_is_rejected[/bin/echo]",
+          "orchestrator/tests/test_t1998_stock_inline_pair.py::test_decoy_bench_binary_token_is_rejected[/bin/true]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d5baab23afc840be31338bd8c305b3e9b05a065e7b9a705fbe34d54039f0b334",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+            "new": "    execution_target = (\n        expected_binary\n        if run_argv is not None and expected_binary in run_argv\n        else None\n    )\n",
+            "old": "    execution_target = (\n        _bench_execution_target(run_argv) if run_argv is not None else None\n    )\n"
+          }
+        ]
+      },
+      "M12-toolchain-canonical-digest-recalculation-removed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t1998_stock_inline_pair.py::test_shared_noncanonical_toolchain_digest_is_rejected"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d216de357a110031a9f91a0b403101a3ac36a862cbc52e9f73fcb46c043b216d",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+            "new": "    canonical_toolchain_digest = toolchain_digest\n    _require_equal(\n        toolchain_digest,\n        canonical_toolchain_digest,\n        code=\"toolchain-identity-mismatch\",\n        field=\"wal.build_done.toolchain_record_sha256\",\n        arm=arm,\n    )\n",
+            "old": "    try:\n        canonical_toolchain_digest = _canonical_json_sha256(toolchain)\n    except (TypeError, ValueError) as exc:\n        _reject(\n            \"toolchain-identity-mismatch\", \"wal.build_done.toolchain\",\n            \"canonical finite JSON manifest\", f\"{type(exc).__name__}: {exc}\", arm,\n        )\n    _require_equal(\n        toolchain_digest,\n        canonical_toolchain_digest,\n        code=\"toolchain-identity-mismatch\",\n        field=\"wal.build_done.toolchain_record_sha256\",\n        arm=arm,\n    )\n"
+          }
+        ]
+      },
+      "M13-verify-done-env-tag-excluded": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t1998_stock_inline_pair.py::test_verify_environment_tag_drift_is_rejected"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "3727156ec49858cefd2e14334eca87337e668abfc8eea2fac62f38c986ad8cc0",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+            "new": "    arm_records = (start, build_done, bench_done, commit)\n    env_tags = {record.env_tag for record in arm_records}\n",
+            "old": "    arm_records = (start, build_done, verify_done, bench_done, commit)\n    env_tags = {record.env_tag for record in arm_records}\n"
+          }
+        ]
+      },
+      "M14-all-record-anomaly-scan-removed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t1998_stock_inline_pair.py::test_all_verify_and_bench_records_are_fail_closed[bench-wal.bench_done.build_attempt_id]",
+          "orchestrator/tests/test_t1998_stock_inline_pair.py::test_all_verify_and_bench_records_are_fail_closed[build-anomaly-wal.build_done.anomalies]",
+          "orchestrator/tests/test_t1998_stock_inline_pair.py::test_all_verify_and_bench_records_are_fail_closed[verify-anomaly-wal.verify_done.anomalies]",
+          "orchestrator/tests/test_t1998_stock_inline_pair.py::test_all_verify_and_bench_records_are_fail_closed[verify-clean-wal.verify_done.build_attempt_id]",
+          "orchestrator/tests/test_t1998_stock_inline_pair.py::test_all_verify_and_bench_records_are_fail_closed[verify-nonserializable-wal.verify_done.verdict]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "61375eebc796bab7ee37a4931d8f53cb43dda6ce8d3781a314932a0c4de96105",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+            "new": "    # Skip the all-record anomaly and attempt-membership scan.\n    pass\n",
+            "old": "    for record in view.records:\n        arm = arm_by_variant.get(record.variant, \"unknown\")\n        if \"anomalies\" in record.payload or record.stage == STAGE_VERIFY_DONE:\n            _require_equal(\n                record.payload.get(\"anomalies\"),\n                0,\n                code=\"producer-rejected-variant\",\n                field=f\"wal.{record.stage}.anomalies\",\n                arm=arm,\n            )\n        if \"verdict\" in record.payload or record.stage == STAGE_VERIFY_DONE:\n            _require_equal(\n                record.payload.get(\"verdict\"),\n                \"serializable\",\n                code=\"producer-rejected-variant\",\n                field=f\"wal.{record.stage}.verdict\",\n                arm=arm,\n            )\n        if record.stage not in {STAGE_VERIFY_DONE, STAGE_BENCH_DONE}:\n            continue\n        attempt_id = record.payload.get(\"build_attempt_id\")\n        if (record.variant, attempt_id) not in known_attempts:\n            _reject(\n                \"producer-rejected-variant\",\n                f\"wal.{record.stage}.build_attempt_id\",\n                \"known build attempt for the same variant\",\n                attempt_id,\n                arm,\n            )\n"
+          }
+        ]
+      },
+      "M15-genome-diagnostic-knob-scan-vacuous": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t1998_stock_inline_pair.py::test_explicit_noinline_one_is_diagnostic_build[genome]",
+          "orchestrator/tests/test_t1998_stock_inline_pair.py::test_off_pair_diagnostic_build_is_rejected",
+          "orchestrator/tests/test_t1998_stock_inline_pair.py::test_off_pair_diagnostic_key_value_is_not_interpreted"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d5c73b3e9522871c7cb1348687383e4fe1b334e20add727391520fc30674da27",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+            "new": "    for record in ():\n        has_diagnostic_key, arm = _genome_diagnostic_arm(\n            record.payload.get(\"genome\")\n        )\n        if has_diagnostic_key:\n            _reject(\n                \"diagnostic-build\", \"wal.build_start.genome.BACKOFF_NOINLINE\",\n                \"absent\", record.payload.get(\"genome\"), arm,\n            )\n",
+            "old": "    for record in starts:\n        has_diagnostic_key, arm = _genome_diagnostic_arm(\n            record.payload.get(\"genome\")\n        )\n        if has_diagnostic_key:\n            _reject(\n                \"diagnostic-build\", \"wal.build_start.genome.BACKOFF_NOINLINE\",\n                \"absent\", record.payload.get(\"genome\"), arm,\n            )\n"
+          }
+        ]
+      },
+      "M16-submit-receipt-schema-literal-changed": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1,
+          "2": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t1998_launcher_contract.py::test_all_submit_receipt_events_pin_the_t1998_schema"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "2f6f81abfead17bbc610a2dec7015248018dc0c2d63e417f0fd265ae50a6b548",
+        "replacements": [
+          {
+            "file": "tools/pegasus/submit_t1998_balanced_stock_inline.sh",
+            "new": "        \"schema_version\": \"t1998-balanced-stock-inline-submit-event/v0\",\n        \"event\": \"manifest\",\n",
+            "old": "        \"schema_version\": \"t1998-balanced-stock-inline-submit-event/v1\",\n        \"event\": \"manifest\",\n"
+          },
+          {
+            "file": "tools/pegasus/submit_t1998_balanced_stock_inline.sh",
+            "new": "        \"schema_version\": \"t1998-balanced-stock-inline-submit-event/v0\",\n        \"event\": \"submitted\",\n",
+            "old": "        \"schema_version\": \"t1998-balanced-stock-inline-submit-event/v1\",\n        \"event\": \"submitted\",\n"
+          },
+          {
+            "file": "tools/pegasus/submit_t1998_balanced_stock_inline.sh",
+            "new": "        \"schema_version\": \"t1998-balanced-stock-inline-submit-event/v0\",\n        \"event\": \"failed\",\n",
+            "old": "        \"schema_version\": \"t1998-balanced-stock-inline-submit-event/v1\",\n        \"event\": \"failed\",\n"
+          }
+        ]
+      },
+      "M2-sibling-failure-receipt-vacuous": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t1998_stock_inline_pair.py::test_sibling_failure_receipt_is_rejected"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "2ccb1a763e13eb0ddd90a13b214d43ddd898456047efd115ecba27feecdd5f28",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+            "new": "    failure_path = Path(os.fspath(root) + \".failure.json\")\n    if False and os.path.lexists(failure_path):\n        _reject(\n            \"producer-failure-receipt\", \"sibling_failure_receipt\",\n            \"absent\", os.fspath(failure_path), \"baseline\",\n        )\n",
+            "old": "    failure_path = Path(os.fspath(root) + \".failure.json\")\n    if os.path.lexists(failure_path):\n        _reject(\n            \"producer-failure-receipt\", \"sibling_failure_receipt\",\n            \"absent\", os.fspath(failure_path), \"baseline\",\n        )\n"
+          }
+        ]
+      },
+      "M3-lock-gitlink-prefix-vacuous": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t1998_stock_inline_pair.py::test_short_gitlink_must_prefix_the_full_preregistration"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "3818a107ac20576aa73a65a5c8ef982570c46cd4aadd1964c44082dd7e2959c2",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+            "new": "    lock_gitlink = decoded_lock.identity.get(\"ccbench_commit\")\n    if False and not _gitlink_matches(common.ccbench_gitlink_commit, lock_gitlink):\n        _reject(\n            \"gitlink-identity-mismatch\", \"campaign.lock.ccbench_commit\",\n            f\"abbreviated prefix of {common.ccbench_gitlink_commit}\",\n            lock_gitlink,\n        )\n",
+            "old": "    lock_gitlink = decoded_lock.identity.get(\"ccbench_commit\")\n    if not _gitlink_matches(common.ccbench_gitlink_commit, lock_gitlink):\n        _reject(\n            \"gitlink-identity-mismatch\", \"campaign.lock.ccbench_commit\",\n            f\"abbreviated prefix of {common.ccbench_gitlink_commit}\",\n            lock_gitlink,\n        )\n"
+          }
+        ]
+      },
+      "M4-unstable-accepted": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t1998_stock_inline_pair.py::test_unstable_arm_is_inconclusive[baseline]",
+          "orchestrator/tests/test_t1998_stock_inline_pair.py::test_unstable_arm_is_inconclusive[target]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "7e907fdef1f9f3b7afe73bdf62085368b128218951c8e3d815238c7f9249406a",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+            "new": "    if False and (baseline.unstable or target.unstable):\n        return T1998StockInlineDecision(\n            status=\"inconclusive\",\n            reason=\"unstable-arm\",\n",
+            "old": "    if baseline.unstable or target.unstable:\n        return T1998StockInlineDecision(\n            status=\"inconclusive\",\n            reason=\"unstable-arm\",\n"
+          }
+        ]
+      },
+      "M5-target-selection-argmax": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t1998_stock_inline_pair.py::test_real_admission_and_receipts_accept_only_the_fixed_pair"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "09b1f2698cb4507916e596207af0466b8a4d8affb3d65f2649019ae4b249eca1",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+            "new": "    target_starts = [\n        max(\n            starts,\n            key=lambda start: next(\n                record.payload.get(\"median_tps\")\n                for record in view.records\n                if record.variant == start.variant\n                and record.stage == STAGE_BENCH_DONE\n            ),\n        )\n    ]\n",
+            "old": "    target_starts = [\n        record for record, arm in pair_starts\n        if arm == \"target\"\n    ]\n"
+          }
+        ]
+      },
+      "M6-rejection-payload-expected-actual-omitted": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t1998_stock_inline_pair.py::test_preregistered_source_digest_drift_is_rejected",
+          "orchestrator/tests/test_t1998_stock_inline_pair.py::test_shared_noncanonical_toolchain_digest_is_rejected"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "91036f20e9fca28ae0093382c70dc1936667685c528aff83017fa6c5a6191e9e",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+            "new": "    def as_dict(self) -> dict[str, object]:\n        return {\n            \"code\": self.code,\n            \"field\": self.field,\n            \"arm\": self.arm,\n        }\n",
+            "old": "    def as_dict(self) -> dict[str, object]:\n        return {\n            \"code\": self.code,\n            \"field\": self.field,\n            \"expected\": self.expected,\n            \"actual\": self.actual,\n            \"arm\": self.arm,\n        }\n"
+          }
+        ]
+      },
+      "M7-job-body-digest-comparison-vacuous": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t1998_stock_inline_pair.py::test_launcher_script_digest_is_bound_to_preregistration"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "3330f5cf13ace24628d0525c83f14ab59e35f93b8759660bfda0f963c777dbd9",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+            "new": "    if False:\n        _require_equal(\n            binding.get(\"script_sha256\"), common.launcher_script_sha256,\n            code=\"launcher-script-identity-mismatch\",\n            field=\"reservation.binding.script_sha256\",\n        )\n",
+            "old": "    _require_equal(\n        binding.get(\"script_sha256\"), common.launcher_script_sha256,\n        code=\"launcher-script-identity-mismatch\",\n        field=\"reservation.binding.script_sha256\",\n    )\n"
+          }
+        ]
+      },
+      "M8-launcher-two-workload-fanout": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1,
+          "2": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t1998_launcher_contract.py::test_submitter_launches_exactly_one_balanced_workload"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "aefed449c4bbe3f8ff982ed8f1908ff1c27a64589b923c01d8cd7895b936569c",
+        "replacements": [
+          {
+            "file": "tools/pegasus/submit_t1998_balanced_stock_inline.sh",
+            "new": "WORKLOADS=(write-heavy balanced)\nfor WORKLOAD in \"${WORKLOADS[@]}\"; do\n  root=\"$OUTPUT_PARENT/$GROUP_ID-$WORKLOAD\"\n  stdout=\"$OUTPUT_PARENT/$GROUP_ID-$WORKLOAD.stdout\"\n  stderr=\"$OUTPUT_PARENT/$GROUP_ID-$WORKLOAD.stderr\"\n  [[ ! -e \"$root\" && ! -e \"$stdout\" && ! -e \"$stderr\" ]] || {\n    echo \"job-unique output already exists for $WORKLOAD\" >&2\n    exit 2\n  }\ndone\n",
+            "old": "WORKLOAD=balanced\nroot=\"$OUTPUT_PARENT/$GROUP_ID-$WORKLOAD\"\nstdout=\"$OUTPUT_PARENT/$GROUP_ID-$WORKLOAD.stdout\"\nstderr=\"$OUTPUT_PARENT/$GROUP_ID-$WORKLOAD.stderr\"\n[[ ! -e \"$root\" && ! -e \"$stdout\" && ! -e \"$stderr\" ]] || {\n  echo \"job-unique output already exists for $WORKLOAD\" >&2\n  exit 2\n}\n"
+          },
+          {
+            "file": "tools/pegasus/submit_t1998_balanced_stock_inline.sh",
+            "new": "    (group, nonce, submitter_path, submitter_hash, job_script_path,\n     job_script_hash, expected_head, *workloads) = values\n    event = {\n        \"schema_version\": \"t1998-balanced-stock-inline-submit-event/v1\",\n        \"event\": \"manifest\",\n        \"group_id\": group,\n        \"submission_nonce\": nonce,\n        \"submitter_path\": submitter_path,\n        \"submitter_sha256\": submitter_hash,\n        \"job_script_path\": job_script_path,\n        \"job_script_sha256\": job_script_hash,\n        \"repository_commit\": expected_head,\n        \"workloads\": workloads,\n",
+            "old": "    (group, nonce, submitter_path, submitter_hash, job_script_path,\n     job_script_hash, expected_head, workload) = values\n    event = {\n        \"schema_version\": \"t1998-balanced-stock-inline-submit-event/v1\",\n        \"event\": \"manifest\",\n        \"group_id\": group,\n        \"submission_nonce\": nonce,\n        \"submitter_path\": submitter_path,\n        \"submitter_sha256\": submitter_hash,\n        \"job_script_path\": job_script_path,\n        \"job_script_sha256\": job_script_hash,\n        \"repository_commit\": expected_head,\n        \"workloads\": [workload],\n"
+          },
+          {
+            "file": "tools/pegasus/submit_t1998_balanced_stock_inline.sh",
+            "new": "append_submission_event manifest \"$GROUP_ID\" \"$SUBMISSION_NONCE\" \\\n  \"$SUBMITTER_PATH\" \"$SUBMITTER_SHA256\" \"$JOB_SCRIPT_PATH\" \\\n  \"$JOB_SCRIPT_SHA256\" \"$EXPECTED_HEAD\" \"${WORKLOADS[@]}\"\n\ncd -- \"$REPO_ROOT\"\nfor WORKLOAD in \"${WORKLOADS[@]}\"; do\n  root=\"$OUTPUT_PARENT/$GROUP_ID-$WORKLOAD\"\n  stdout=\"$OUTPUT_PARENT/$GROUP_ID-$WORKLOAD.stdout\"\n  stderr=\"$OUTPUT_PARENT/$GROUP_ID-$WORKLOAD.stderr\"\n  qsub_rc=0\n  job_id=$(qsub \\\n    -v \"A5_WORKLOAD=$WORKLOAD,A5_OUTPUT_ROOT=$root,A5_SUBMISSION_NONCE=$SUBMISSION_NONCE,A5_EXPECTED_HEAD=$EXPECTED_HEAD,JOB_SCRIPT_SHA256=$JOB_SCRIPT_SHA256\" \\\n    -o \"$stdout\" -e \"$stderr\" \"$JOB_SCRIPT\") || qsub_rc=$?\n  if [[ \"$qsub_rc\" -ne 0 ]]; then\n    append_submission_event failed \"$WORKLOAD\" \"$qsub_rc\" \"qsub_failed\"\n    exit \"$qsub_rc\"\n  fi\n  if [[ -z \"$job_id\" ]]; then\n    append_submission_event failed \"$WORKLOAD\" 2 \"qsub_returned_empty_job_id\"\n    echo \"qsub returned no job id for $WORKLOAD\" >&2\n    exit 2\n  fi\n  append_submission_event submitted \\\n    \"$WORKLOAD\" \"$job_id\" \"$root\" \"$stdout\" \"$stderr\"\n  printf '%s\\n' \"$job_id\"\ndone\n",
+            "old": "append_submission_event manifest \"$GROUP_ID\" \"$SUBMISSION_NONCE\" \\\n  \"$SUBMITTER_PATH\" \"$SUBMITTER_SHA256\" \"$JOB_SCRIPT_PATH\" \\\n  \"$JOB_SCRIPT_SHA256\" \"$EXPECTED_HEAD\" \"$WORKLOAD\"\n\ncd -- \"$REPO_ROOT\"\nqsub_rc=0\njob_id=$(qsub \\\n  -v \"A5_WORKLOAD=$WORKLOAD,A5_OUTPUT_ROOT=$root,A5_SUBMISSION_NONCE=$SUBMISSION_NONCE,A5_EXPECTED_HEAD=$EXPECTED_HEAD,JOB_SCRIPT_SHA256=$JOB_SCRIPT_SHA256\" \\\n  -o \"$stdout\" -e \"$stderr\" \"$JOB_SCRIPT\") || qsub_rc=$?\nif [[ \"$qsub_rc\" -ne 0 ]]; then\n  append_submission_event failed \"$WORKLOAD\" \"$qsub_rc\" \"qsub_failed\"\n  exit \"$qsub_rc\"\nfi\nif [[ -z \"$job_id\" ]]; then\n  append_submission_event failed \"$WORKLOAD\" 2 \"qsub_returned_empty_job_id\"\n  echo \"qsub returned no job id for $WORKLOAD\" >&2\n  exit 2\nfi\nappend_submission_event submitted \\\n  \"$WORKLOAD\" \"$job_id\" \"$root\" \"$stdout\" \"$stderr\"\nprintf '%s\\n' \"$job_id\"\n"
+          }
+        ]
+      },
+      "M9-output-parent-repository-boundary-vacuous": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t1998_launcher_contract.py::test_output_parent_is_existing_absolute_and_outside_every_repo_ancestor"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "23da7fead8169f893e0f1ee6d9f22f97e70bcabafede33f997c4d0853327306e",
+        "replacements": [
+          {
+            "file": "tools/pegasus/submit_t1998_balanced_stock_inline.sh",
+            "new": "if False and (target == repo or repo in target.parents or target in repo.parents):\n    raise SystemExit(\"output parent must be outside the repository\")\n",
+            "old": "if target == repo or repo in target.parents or target in repo.parents:\n    raise SystemExit(\"output parent must be outside the repository\")\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "0ab349626aa393a238c9b8525234e007fdd9650f566a6c14c9213cf1c5a67c3c",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_t1998_stock_inline_pair.py",
+      "orchestrator/tests/test_t1998_launcher_contract.py",
+      "orchestrator/tests/test_official_perf_closure.py",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 1800.0
+  },
+  "repo_head": "8cf391ad95ea31f3ef808c8739e3749b86a67796",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_t1998_stock_inline_pair.py",
+      "orchestrator/tests/test_t1998_launcher_contract.py",
+      "orchestrator/tests/test_official_perf_closure.py",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "dc8e1b8322e54fdb368d159d2c58f16160f70ac6",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "8ba54eb9b5c62ca83d4d86b09fa6bd8a40f0ed2e368494ee8c71149ba8ada7ee",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "4fd1b19309d72c1cf49f4b6c9fecebdc11de2cb31144ae7b5e90fef6743d4870",
+  "summary": {
+    "KILLED": 16,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 16,
+    "matching": 16,
+    "recorded": 16,
+    "registered": 16
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-stock-inline-parts/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "286913852d8af6f53f5bf1f0942fb0881bd25bf0878a9c0873580f08d77d1255",
+  "updated_at": "2026-09-07T22:50:14.702831+00:00"
+}

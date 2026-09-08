@@ -1,0 +1,8 @@
+HTTP/2 200 
+cache-control: no-store
+content-type: text/html; charset=utf-8
+refresh: 2; url=/.within.website/x/cmd/anubis/api/pass-challenge?challenge=3116692b3d232c3465a947fcaf764dc556a5f39ca300497081706f3e4e62e0940441f6678396c70bb02aacb6ae3394f715d0377dbc355c91f6a598b5779148c1&id=01a07de7-a030-73c0-b611-3135beac97c8&redir=%2Fsearch%2Fpubl%2Fapi%3Fq%3D10.9999%252Fb5probe.missing%26format%3Djson%26h%3D5
+set-cookie: dblp_org-auth=; Path=/; Domain=dblp.org; Expires=Mon, 07 Sep 2026 22:04:26 GMT; Max-Age=0; Secure; SameSite=None
+set-cookie: dblp_org-cookie-verification=01a07de7-a030-73c0-b611-3135beac97c8; Path=/; Domain=dblp.org; Expires=Mon, 07 Sep 2026 22:35:26 GMT; Secure; SameSite=None
+date: Mon, 07 Sep 2026 22:05:26 GMT
+

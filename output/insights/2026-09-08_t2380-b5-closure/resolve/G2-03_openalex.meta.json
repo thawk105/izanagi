@@ -1,0 +1,109 @@
+{
+  "url": "https://api.openalex.org/works/https://doi.org/10.1214/aoms/1177706705?select=id,doi,title,publication_year,ids,authorships",
+  "method": "GET",
+  "status": 200,
+  "headers": [
+    [
+      "Date",
+      "Mon, 07 Sep 2026 22:52:31 GMT"
+    ],
+    [
+      "Content-Type",
+      "application/json"
+    ],
+    [
+      "Content-Length",
+      "574"
+    ],
+    [
+      "Connection",
+      "close"
+    ],
+    [
+      "CF-Ray",
+      "a37948c98f908e1a-NRT"
+    ],
+    [
+      "CF-Cache-Status",
+      "DYNAMIC"
+    ],
+    [
+      "Access-Control-Allow-Origin",
+      "*"
+    ],
+    [
+      "Server",
+      "cloudflare"
+    ],
+    [
+      "Via",
+      "1.1 heroku-router"
+    ],
+    [
+      "Access-Control-Allow-Headers",
+      "Accept, Accept-Language, Accept-Encoding, Authorization, Content-Type, X-OpenAlex-UI"
+    ],
+    [
+      "Access-Control-Allow-Methods",
+      "GET, HEAD, POST, OPTIONS"
+    ],
+    [
+      "Nel",
+      "{\"report_to\":\"heroku-nel\",\"response_headers\":[\"Via\"],\"max_age\":3600,\"success_fraction\":0.01,\"failure_fraction\":0.1}"
+    ],
+    [
+      "Report-To",
+      "{\"group\":\"heroku-nel\",\"endpoints\":[{\"url\":\"https://nel.heroku.com/reports?s=AnDguzaMfptVaOsS7xgkLX6U0Cr5kUxvB7c4tVq9gIg%3D\\u0026sid=c46efe9b-d3d2-4a0c-8c76-bfafa16c5add\\u0026ts=1788821551\"}],\"max_age\":3600}"
+    ],
+    [
+      "Reporting-Endpoints",
+      "heroku-nel=\"https://nel.heroku.com/reports?s=AnDguzaMfptVaOsS7xgkLX6U0Cr5kUxvB7c4tVq9gIg%3D&sid=c46efe9b-d3d2-4a0c-8c76-bfafa16c5add&ts=1788821551\""
+    ],
+    [
+      "X-RateLimit-Cost-USD",
+      "0.0001"
+    ],
+    [
+      "X-RateLimit-Credits-Used",
+      "1"
+    ],
+    [
+      "X-RateLimit-Limit",
+      "1000"
+    ],
+    [
+      "X-RateLimit-Limit-USD",
+      "0.1"
+    ],
+    [
+      "X-RateLimit-Onetime-Remaining",
+      "0"
+    ],
+    [
+      "X-RateLimit-Prepaid-Remaining-USD",
+      "0"
+    ],
+    [
+      "X-RateLimit-Remaining",
+      "47"
+    ],
+    [
+      "X-RateLimit-Remaining-USD",
+      "0.0047"
+    ],
+    [
+      "X-RateLimit-Reset",
+      "4049"
+    ],
+    [
+      "access-control-expose-headers",
+      "Cache-Control, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Onetime-Remaining, X-RateLimit-Credits-Used, X-RateLimit-Credits-Required, X-RateLimit-Reset, X-RateLimit-Limit-USD, X-RateLimit-Remaining-USD, X-RateLimit-Prepaid-Remaining-USD, X-RateLimit-Cost-USD, X-RateLimit-Cost-Required-USD, Retry-After"
+    ]
+  ],
+  "final_url": "https://api.openalex.org/works/https://doi.org/10.1214/aoms/1177706705?select=id,doi,title,publication_year,ids,authorships",
+  "body_sha256": "d125ff7922124cb9eda08c7d1a2f7d41868f7cdbc0c9bf8ca4a7afefa913c97e",
+  "body_bytes": 574,
+  "started_utc": "2026-09-07T22:52:31Z",
+  "finished_utc": "2026-09-07T22:52:31Z",
+  "error": null
+}

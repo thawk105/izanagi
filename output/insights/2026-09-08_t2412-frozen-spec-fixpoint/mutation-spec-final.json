@@ -1,0 +1,382 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 150,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 1200,
+  "mutations": [
+    {
+      "id": "M01-unique-parent-weakened",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "    if _git_parents(root, loaded_head) != (provenance.source_commit,):",
+          "new": "    if provenance.source_commit not in _git_parents(root, loaded_head):"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_floor_pair_driver.py::test_real_git_merge_commit_at_loaded_head_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M02-changed-paths-weakened",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "    if _git_changed_paths(root, provenance.source_commit, loaded_head) != (\n        os.fsencode(relpath),\n    ):",
+          "new": "    if os.fsencode(relpath) not in _git_changed_paths(\n        root, provenance.source_commit, loaded_head\n    ):"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_floor_pair_driver.py::test_real_git_spec_and_another_path_in_freeze_commit_are_rejected",
+        "orchestrator/tests/test_floor_pair_driver.py::test_real_git_spec_and_ignored_gitlink_in_freeze_commit_are_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M03-spec-blob-compare-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "    if raw != head_raw:\n        raise FloorPairBindingError(\n            \"frozen spec が loaded HEAD tracked blob と byte 一致しない\"\n        )",
+          "new": "    if False:\n        raise FloorPairBindingError(\n            \"frozen spec が loaded HEAD tracked blob と byte 一致しない\"\n        )"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_floor_pair_driver.py::test_mutation_03_head_blob_byte_mismatch_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M04-runtime-head-check-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "    if runtime_head != spec.loaded_head:",
+          "new": "    if False:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_floor_pair_driver.py::test_runtime_head_must_equal_loaded_head"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M05-finalizer-expects-source-commit",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "        \"runtime_head\": spec.loaded_head,",
+          "new": "        \"runtime_head\": spec.provenance.source_commit,"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_floor_pair_driver.py::test_campaign_boundary_summary_causality_and_derivation_are_exact[40-1-2-generated]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_campaign_boundary_summary_causality_and_derivation_are_exact[59-1-2-generated]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_campaign_boundary_summary_causality_and_derivation_are_exact[59-1-3-not_generated_dropped_fraction_exceeded]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_campaign_boundary_summary_causality_and_derivation_are_exact[59-3-8-generated]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_campaign_boundary_summary_causality_and_derivation_are_exact[59-3-9-not_generated_dropped_fraction_exceeded]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_campaign_drop_fraction_uses_exact_campaign_boundary_and_pair_sum[40-1-2-generated]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_campaign_drop_fraction_uses_exact_campaign_boundary_and_pair_sum[59-1-2-generated]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_campaign_drop_fraction_uses_exact_campaign_boundary_and_pair_sum[59-1-3-not_generated_dropped_fraction_exceeded]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_campaign_drop_fraction_uses_exact_campaign_boundary_and_pair_sum[59-3-8-generated]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_campaign_drop_fraction_uses_exact_campaign_boundary_and_pair_sum[59-3-9-not_generated_dropped_fraction_exceeded]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_campaign_threshold_is_local_to_each_window_not_global_sum",
+        "orchestrator/tests/test_floor_pair_driver.py::test_candidate_zero_is_complete_and_contributes_gain_minus_one",
+        "orchestrator/tests/test_floor_pair_driver.py::test_complete_session_requires_exact_two_nested_measurements",
+        "orchestrator/tests/test_floor_pair_driver.py::test_drop_selection_is_invariant_under_complete_throughput_changes",
+        "orchestrator/tests/test_floor_pair_driver.py::test_droppable_probe_statuses_run_and_finalize[mid-competing-mid_probe_competing]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_droppable_probe_statuses_run_and_finalize[mid-indeterminate-mid_probe_indeterminate]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_droppable_probe_statuses_run_and_finalize[post-competing-post_probe_competing]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_droppable_probe_statuses_run_and_finalize[post-indeterminate-post_probe_indeterminate]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_droppable_probe_statuses_run_and_finalize[pre-competing-pre_probe_competing]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_droppable_probe_statuses_run_and_finalize[pre-indeterminate-pre_probe_indeterminate]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_dropped_summary_includes_complete_side_before_failure",
+        "orchestrator/tests/test_floor_pair_driver.py::test_exact_five_percent_with_empty_stratum_is_not_generated",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_rejects_duplicate_session_or_measurement_id[measurement]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_rejects_duplicate_session_or_measurement_id[session]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[terminal-complete_sample_count-0]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[terminal-dropped_sample_count-1]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[terminal-planned_measurement_count-3]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[terminal-planned_sample_count-2]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[terminal-recorded_measurement_count-3]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[terminal-status-incomplete]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_mutation_07_status_only_rewrite_is_rejected_by_payload_derivation",
+        "orchestrator/tests/test_floor_pair_driver.py::test_mutation_08_upper_at_or_above_one_is_preserved_and_not_clamped",
+        "orchestrator/tests/test_floor_pair_driver.py::test_mutation_11_post_probe_drop_excludes_high_difference_sample",
+        "orchestrator/tests/test_floor_pair_driver.py::test_mutation_18_recorded_multiple_pair_sample_order_must_match_plan[measurement-order]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_mutation_18_recorded_multiple_pair_sample_order_must_match_plan[session-order]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_mutation_21_max_finite_even_medians_generate_zero_upper",
+        "orchestrator/tests/test_floor_pair_driver.py::test_mutation_22_large_exact_int_is_total_in_run_and_artifact_rederivation[negative-overflow]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_mutation_22_large_exact_int_is_total_in_run_and_artifact_rederivation[positive-overflow]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_not_run_sample_dropped_without_prior_failure_is_rejected",
+        "orchestrator/tests/test_floor_pair_driver.py::test_outside_window_is_fatal_and_not_counted_as_dropped",
+        "orchestrator/tests/test_floor_pair_driver.py::test_production_adapter_artifact_finalizes_from_raw_medians",
+        "orchestrator/tests/test_floor_pair_driver.py::test_raw_candidate_reference_exchange_cannot_override_canonical_plan",
+        "orchestrator/tests/test_floor_pair_driver.py::test_reference_zero_and_negative_values_are_fatal_protocol_violations[target0-invalid_values0]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_reference_zero_and_negative_values_are_fatal_protocol_violations[target1-invalid_values1]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_summary_is_exclusive_create",
+        "orchestrator/tests/test_floor_pair_driver.py::test_threshold_status_precedes_empty_stratum_status",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_real_finalize_floor_summary_is_accepted_before_missing_protocol_blocks_issue"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M06-spec-blob-query-uses-symbolic-head",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "    head_raw = _git_show_head(root, loaded_head, relpath)",
+          "new": "    head_raw = _git_show_head(root, \"HEAD\", relpath)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_floor_pair_driver.py::test_blob_queries_use_the_once_resolved_loaded_head",
+        "orchestrator/tests/test_floor_pair_driver.py::test_mutation_03_head_blob_byte_mismatch_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M07-changed-paths-parser-keeps-trailing-empty",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "    paths = tuple(raw[:-1].split(b\"\\0\"))",
+          "new": "    paths = tuple(raw.split(b\"\\0\"))"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_floor_pair_driver.py::test_blob_queries_use_the_once_resolved_loaded_head",
+        "orchestrator/tests/test_floor_pair_driver.py::test_build_receipt_uses_real_binary_admission_validator_and_binds_sha",
+        "orchestrator/tests/test_floor_pair_driver.py::test_campaign_boundary_summary_causality_and_derivation_are_exact[40-1-2-generated]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_campaign_boundary_summary_causality_and_derivation_are_exact[59-1-2-generated]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_campaign_boundary_summary_causality_and_derivation_are_exact[59-1-3-not_generated_dropped_fraction_exceeded]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_campaign_boundary_summary_causality_and_derivation_are_exact[59-3-8-generated]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_campaign_boundary_summary_causality_and_derivation_are_exact[59-3-9-not_generated_dropped_fraction_exceeded]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_campaign_drop_fraction_uses_exact_campaign_boundary_and_pair_sum[40-1-2-generated]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_campaign_drop_fraction_uses_exact_campaign_boundary_and_pair_sum[59-1-2-generated]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_campaign_drop_fraction_uses_exact_campaign_boundary_and_pair_sum[59-1-3-not_generated_dropped_fraction_exceeded]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_campaign_drop_fraction_uses_exact_campaign_boundary_and_pair_sum[59-3-8-generated]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_campaign_drop_fraction_uses_exact_campaign_boundary_and_pair_sum[59-3-9-not_generated_dropped_fraction_exceeded]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_campaign_threshold_is_local_to_each_window_not_global_sum",
+        "orchestrator/tests/test_floor_pair_driver.py::test_candidate_zero_is_complete_and_contributes_gain_minus_one",
+        "orchestrator/tests/test_floor_pair_driver.py::test_cli_execute_window_selects_the_named_production_adapter",
+        "orchestrator/tests/test_floor_pair_driver.py::test_complete_session_requires_exact_two_nested_measurements",
+        "orchestrator/tests/test_floor_pair_driver.py::test_drop_selection_is_invariant_under_complete_throughput_changes",
+        "orchestrator/tests/test_floor_pair_driver.py::test_droppable_probe_statuses_run_and_finalize[mid-competing-mid_probe_competing]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_droppable_probe_statuses_run_and_finalize[mid-indeterminate-mid_probe_indeterminate]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_droppable_probe_statuses_run_and_finalize[post-competing-post_probe_competing]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_droppable_probe_statuses_run_and_finalize[post-indeterminate-post_probe_indeterminate]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_droppable_probe_statuses_run_and_finalize[pre-competing-pre_probe_competing]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_droppable_probe_statuses_run_and_finalize[pre-indeterminate-pre_probe_indeterminate]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_dropped_summary_includes_complete_side_before_failure",
+        "orchestrator/tests/test_floor_pair_driver.py::test_exact_five_percent_with_empty_stratum_is_not_generated",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_rejects_duplicate_session_or_measurement_id[measurement]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_rejects_duplicate_session_or_measurement_id[session]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_rejects_v2_schema_on_v3_shaped_window",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[header-difference_formula-D=forged]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[header-format-forged-format/v1]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[header-loaded_head-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[header-measurements_per_session-1]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[header-planned_measurement_count-3]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[header-randomization_algorithm-fixed-order/v1]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[header-reference_measurements_per_pair_sample-1]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[header-reps_per_measurement-value9]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[header-runtime_head-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[header-seed_hex-0202020202020202020202020202020202020202020202020202020202020202]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[terminal-complete_sample_count-0]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[terminal-dropped_sample_count-1]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[terminal-planned_measurement_count-3]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[terminal-planned_sample_count-2]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[terminal-recorded_measurement_count-3]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[terminal-status-incomplete]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_live_site_must_equal_spec_site_before_output_reservation",
+        "orchestrator/tests/test_floor_pair_driver.py::test_login_and_suspect_are_rejected_before_output_reservation[PEGASUS_LOGIN]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_login_and_suspect_are_rejected_before_output_reservation[PEGASUS_SUSPECT]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_measure_exception_runs_post_probe_drops_remaining_side_session_and_continues",
+        "orchestrator/tests/test_floor_pair_driver.py::test_mutation_05_real_trace_inspection_call_rejects_each_binary_before_measure[candidate-a]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_mutation_05_real_trace_inspection_call_rejects_each_binary_before_measure[reference-a]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_mutation_06_live_env_mismatch_rejects_before_output_reservation",
+        "orchestrator/tests/test_floor_pair_driver.py::test_mutation_07_status_only_rewrite_is_rejected_by_payload_derivation",
+        "orchestrator/tests/test_floor_pair_driver.py::test_mutation_08_upper_at_or_above_one_is_preserved_and_not_clamped",
+        "orchestrator/tests/test_floor_pair_driver.py::test_mutation_10_exclusive_create_rejects_existing_path_before_measurement",
+        "orchestrator/tests/test_floor_pair_driver.py::test_mutation_11_hmac_rank_has_multiple_pair_sample_golden_order",
+        "orchestrator/tests/test_floor_pair_driver.py::test_mutation_11_post_probe_drop_excludes_high_difference_sample",
+        "orchestrator/tests/test_floor_pair_driver.py::test_mutation_12_production_adapter_passes_all_runner_arguments_and_sinks",
+        "orchestrator/tests/test_floor_pair_driver.py::test_mutation_17_site_detection_requires_fail_closed_evidence",
+        "orchestrator/tests/test_floor_pair_driver.py::test_mutation_18_recorded_multiple_pair_sample_order_must_match_plan[measurement-order]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_mutation_18_recorded_multiple_pair_sample_order_must_match_plan[session-order]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_mutation_21_max_finite_even_medians_generate_zero_upper",
+        "orchestrator/tests/test_floor_pair_driver.py::test_mutation_22_large_exact_int_is_total_in_run_and_artifact_rederivation[negative-overflow]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_mutation_22_large_exact_int_is_total_in_run_and_artifact_rederivation[positive-overflow]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_mutations_09_and_13_forged_production_named_high_measure_is_rejected",
+        "orchestrator/tests/test_floor_pair_driver.py::test_nonfinite_measurement_is_recorded_incomplete_not_serialized_as_nan",
+        "orchestrator/tests/test_floor_pair_driver.py::test_not_run_sample_dropped_without_prior_failure_is_rejected",
+        "orchestrator/tests/test_floor_pair_driver.py::test_output_open_uses_all_five_required_flags",
+        "orchestrator/tests/test_floor_pair_driver.py::test_outside_window_is_fatal_and_not_counted_as_dropped",
+        "orchestrator/tests/test_floor_pair_driver.py::test_plan_v1_schema_is_rejected_with_current_plan_shape",
+        "orchestrator/tests/test_floor_pair_driver.py::test_pre_probe_drop_closes_sample_and_continues_next_sample",
+        "orchestrator/tests/test_floor_pair_driver.py::test_production_adapter_artifact_finalizes_from_raw_medians",
+        "orchestrator/tests/test_floor_pair_driver.py::test_raw_candidate_reference_exchange_cannot_override_canonical_plan",
+        "orchestrator/tests/test_floor_pair_driver.py::test_real_git_spec_and_another_path_in_freeze_commit_are_rejected",
+        "orchestrator/tests/test_floor_pair_driver.py::test_real_git_spec_and_ignored_gitlink_in_freeze_commit_are_rejected",
+        "orchestrator/tests/test_floor_pair_driver.py::test_real_git_spec_only_child_loads_from_fresh_checkout",
+        "orchestrator/tests/test_floor_pair_driver.py::test_reference_zero_and_negative_values_are_fatal_protocol_violations[target0-invalid_values0]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_reference_zero_and_negative_values_are_fatal_protocol_violations[target1-invalid_values1]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_run_window_orders_three_probes_and_two_measurements_per_side_session",
+        "orchestrator/tests/test_floor_pair_driver.py::test_runtime_head_must_equal_loaded_head",
+        "orchestrator/tests/test_floor_pair_driver.py::test_summary_is_exclusive_create",
+        "orchestrator/tests/test_floor_pair_driver.py::test_threshold_status_precedes_empty_stratum_status",
+        "orchestrator/tests/test_floor_pair_driver.py::test_validate_only_prints_plan_without_reserving_output",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_authority_filename_contains_all_five_derived_components",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_authority_issue_is_create_only_exact_and_loadable",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_authority_non_guarantees_pin_required_verbatim_limitations",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_identity_is_not_a_caller_surface_and_missing_protocol_is_named",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m01_exact_conversion_preserves_candidate_binary64_and_accepts_zero",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m05_m06_resolver_fails_closed_without_absence_fallback[hash]",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m05_m06_resolver_fails_closed_without_absence_fallback[missing]",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m05_m06_resolver_fails_closed_without_absence_fallback[schema]",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m11_exact_floor_domain_rejects_one_without_clamp",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_real_finalize_floor_summary_is_accepted_before_missing_protocol_blocks_issue",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_resolver_returns_exact_fraction_from_valid_pin"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M08-ignore-submodules-flag-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "                \"--ignore-submodules=none\",",
+          "new": "                \"--no-color\","
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_floor_pair_driver.py::test_blob_queries_use_the_once_resolved_loaded_head",
+        "orchestrator/tests/test_floor_pair_driver.py::test_build_receipt_uses_real_binary_admission_validator_and_binds_sha",
+        "orchestrator/tests/test_floor_pair_driver.py::test_campaign_boundary_summary_causality_and_derivation_are_exact[40-1-2-generated]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_campaign_boundary_summary_causality_and_derivation_are_exact[59-1-2-generated]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_campaign_boundary_summary_causality_and_derivation_are_exact[59-1-3-not_generated_dropped_fraction_exceeded]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_campaign_boundary_summary_causality_and_derivation_are_exact[59-3-8-generated]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_campaign_boundary_summary_causality_and_derivation_are_exact[59-3-9-not_generated_dropped_fraction_exceeded]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_campaign_drop_fraction_uses_exact_campaign_boundary_and_pair_sum[40-1-2-generated]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_campaign_drop_fraction_uses_exact_campaign_boundary_and_pair_sum[59-1-2-generated]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_campaign_drop_fraction_uses_exact_campaign_boundary_and_pair_sum[59-1-3-not_generated_dropped_fraction_exceeded]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_campaign_drop_fraction_uses_exact_campaign_boundary_and_pair_sum[59-3-8-generated]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_campaign_drop_fraction_uses_exact_campaign_boundary_and_pair_sum[59-3-9-not_generated_dropped_fraction_exceeded]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_campaign_threshold_is_local_to_each_window_not_global_sum",
+        "orchestrator/tests/test_floor_pair_driver.py::test_candidate_zero_is_complete_and_contributes_gain_minus_one",
+        "orchestrator/tests/test_floor_pair_driver.py::test_cli_execute_window_selects_the_named_production_adapter",
+        "orchestrator/tests/test_floor_pair_driver.py::test_complete_session_requires_exact_two_nested_measurements",
+        "orchestrator/tests/test_floor_pair_driver.py::test_drop_selection_is_invariant_under_complete_throughput_changes",
+        "orchestrator/tests/test_floor_pair_driver.py::test_droppable_probe_statuses_run_and_finalize[mid-competing-mid_probe_competing]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_droppable_probe_statuses_run_and_finalize[mid-indeterminate-mid_probe_indeterminate]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_droppable_probe_statuses_run_and_finalize[post-competing-post_probe_competing]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_droppable_probe_statuses_run_and_finalize[post-indeterminate-post_probe_indeterminate]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_droppable_probe_statuses_run_and_finalize[pre-competing-pre_probe_competing]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_droppable_probe_statuses_run_and_finalize[pre-indeterminate-pre_probe_indeterminate]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_dropped_summary_includes_complete_side_before_failure",
+        "orchestrator/tests/test_floor_pair_driver.py::test_exact_five_percent_with_empty_stratum_is_not_generated",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_rejects_duplicate_session_or_measurement_id[measurement]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_rejects_duplicate_session_or_measurement_id[session]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_rejects_v2_schema_on_v3_shaped_window",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[header-difference_formula-D=forged]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[header-format-forged-format/v1]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[header-loaded_head-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[header-measurements_per_session-1]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[header-planned_measurement_count-3]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[header-randomization_algorithm-fixed-order/v1]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[header-reference_measurements_per_pair_sample-1]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[header-reps_per_measurement-value9]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[header-runtime_head-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[header-seed_hex-0202020202020202020202020202020202020202020202020202020202020202]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[terminal-complete_sample_count-0]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[terminal-dropped_sample_count-1]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[terminal-planned_measurement_count-3]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[terminal-planned_sample_count-2]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[terminal-recorded_measurement_count-3]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[terminal-status-incomplete]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_live_site_must_equal_spec_site_before_output_reservation",
+        "orchestrator/tests/test_floor_pair_driver.py::test_login_and_suspect_are_rejected_before_output_reservation[PEGASUS_LOGIN]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_login_and_suspect_are_rejected_before_output_reservation[PEGASUS_SUSPECT]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_measure_exception_runs_post_probe_drops_remaining_side_session_and_continues",
+        "orchestrator/tests/test_floor_pair_driver.py::test_mutation_05_real_trace_inspection_call_rejects_each_binary_before_measure[candidate-a]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_mutation_05_real_trace_inspection_call_rejects_each_binary_before_measure[reference-a]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_mutation_06_live_env_mismatch_rejects_before_output_reservation",
+        "orchestrator/tests/test_floor_pair_driver.py::test_mutation_07_status_only_rewrite_is_rejected_by_payload_derivation",
+        "orchestrator/tests/test_floor_pair_driver.py::test_mutation_08_upper_at_or_above_one_is_preserved_and_not_clamped",
+        "orchestrator/tests/test_floor_pair_driver.py::test_mutation_10_exclusive_create_rejects_existing_path_before_measurement",
+        "orchestrator/tests/test_floor_pair_driver.py::test_mutation_11_hmac_rank_has_multiple_pair_sample_golden_order",
+        "orchestrator/tests/test_floor_pair_driver.py::test_mutation_11_post_probe_drop_excludes_high_difference_sample",
+        "orchestrator/tests/test_floor_pair_driver.py::test_mutation_12_production_adapter_passes_all_runner_arguments_and_sinks",
+        "orchestrator/tests/test_floor_pair_driver.py::test_mutation_17_site_detection_requires_fail_closed_evidence",
+        "orchestrator/tests/test_floor_pair_driver.py::test_mutation_18_recorded_multiple_pair_sample_order_must_match_plan[measurement-order]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_mutation_18_recorded_multiple_pair_sample_order_must_match_plan[session-order]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_mutation_21_max_finite_even_medians_generate_zero_upper",
+        "orchestrator/tests/test_floor_pair_driver.py::test_mutation_22_large_exact_int_is_total_in_run_and_artifact_rederivation[negative-overflow]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_mutation_22_large_exact_int_is_total_in_run_and_artifact_rederivation[positive-overflow]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_mutations_09_and_13_forged_production_named_high_measure_is_rejected",
+        "orchestrator/tests/test_floor_pair_driver.py::test_nonfinite_measurement_is_recorded_incomplete_not_serialized_as_nan",
+        "orchestrator/tests/test_floor_pair_driver.py::test_not_run_sample_dropped_without_prior_failure_is_rejected",
+        "orchestrator/tests/test_floor_pair_driver.py::test_output_open_uses_all_five_required_flags",
+        "orchestrator/tests/test_floor_pair_driver.py::test_outside_window_is_fatal_and_not_counted_as_dropped",
+        "orchestrator/tests/test_floor_pair_driver.py::test_plan_v1_schema_is_rejected_with_current_plan_shape",
+        "orchestrator/tests/test_floor_pair_driver.py::test_pre_probe_drop_closes_sample_and_continues_next_sample",
+        "orchestrator/tests/test_floor_pair_driver.py::test_production_adapter_artifact_finalizes_from_raw_medians",
+        "orchestrator/tests/test_floor_pair_driver.py::test_raw_candidate_reference_exchange_cannot_override_canonical_plan",
+        "orchestrator/tests/test_floor_pair_driver.py::test_real_git_spec_and_ignored_gitlink_in_freeze_commit_are_rejected",
+        "orchestrator/tests/test_floor_pair_driver.py::test_reference_zero_and_negative_values_are_fatal_protocol_violations[target0-invalid_values0]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_reference_zero_and_negative_values_are_fatal_protocol_violations[target1-invalid_values1]",
+        "orchestrator/tests/test_floor_pair_driver.py::test_run_window_orders_three_probes_and_two_measurements_per_side_session",
+        "orchestrator/tests/test_floor_pair_driver.py::test_runtime_head_must_equal_loaded_head",
+        "orchestrator/tests/test_floor_pair_driver.py::test_summary_is_exclusive_create",
+        "orchestrator/tests/test_floor_pair_driver.py::test_threshold_status_precedes_empty_stratum_status",
+        "orchestrator/tests/test_floor_pair_driver.py::test_validate_only_prints_plan_without_reserving_output",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_authority_filename_contains_all_five_derived_components",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_authority_issue_is_create_only_exact_and_loadable",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_authority_non_guarantees_pin_required_verbatim_limitations",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_identity_is_not_a_caller_surface_and_missing_protocol_is_named",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m01_exact_conversion_preserves_candidate_binary64_and_accepts_zero",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m05_m06_resolver_fails_closed_without_absence_fallback[hash]",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m05_m06_resolver_fails_closed_without_absence_fallback[missing]",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m05_m06_resolver_fails_closed_without_absence_fallback[schema]",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_m11_exact_floor_domain_rejects_one_without_clamp",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_real_finalize_floor_summary_is_accepted_before_missing_protocol_blocks_issue",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_resolver_returns_exact_fraction_from_valid_pin"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M09-tracked-bound-blob-query-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "    head_raw = _git_show_head(root, loaded_head, reference.path)",
+          "new": "    head_raw = raw"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_floor_pair_driver.py::test_blob_queries_use_the_once_resolved_loaded_head"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

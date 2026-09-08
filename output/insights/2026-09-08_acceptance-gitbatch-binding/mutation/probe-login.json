@@ -1,0 +1,161 @@
+{
+  "M1-stdin-plumbing-removed": {
+    "rc": 1,
+    "status": "KILLED",
+    "failed_nodes": [
+      "orchestrator/tests/test_t671_source_binding.py::test_batch_blob_reader_uses_literal_pathspecs_for_git_metacharacters",
+      "orchestrator/tests/test_t671_source_binding.py::test_new_certified_lock_accepts_unratified_closure_and_records_provenance",
+      "orchestrator/tests/test_t671_source_binding.py::test_pre_wave_exact_twelve_misses_but_exact_fourteen_rejects_new_enforcement_face[verifier-init-dispatch]",
+      "orchestrator/tests/test_t671_source_binding.py::test_pre_wave_exact_twelve_misses_but_exact_fourteen_rejects_new_enforcement_face[verifier-report-payload]",
+      "orchestrator/tests/test_t671_source_binding.py::test_shared_v2_fixture_default_uses_recorded_blobs_when_disk_is_dirty[contract_loader_binding.py]",
+      "orchestrator/tests/test_t671_source_binding.py::test_shared_v2_fixture_default_uses_recorded_blobs_when_disk_is_dirty[effective_clock_policy.py]",
+      "orchestrator/tests/test_t671_source_binding.py::test_shared_v2_fixture_default_uses_recorded_blobs_when_disk_is_dirty[env_contract_activation.py]",
+      "orchestrator/tests/test_t671_source_binding.py::test_shared_v2_fixture_default_uses_recorded_blobs_when_disk_is_dirty[s8c_generation_projection.py]",
+      "orchestrator/tests/test_t671_source_binding.py::test_shared_v2_fixture_default_uses_recorded_blobs_when_disk_is_dirty[s8c_preregistration_evidence.py]",
+      "orchestrator/tests/test_t671_source_binding.py::test_shared_v2_fixture_default_uses_recorded_blobs_when_disk_is_dirty[trigger_gate_binding.py]"
+    ],
+    "summary": [
+      "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=263 failed=263 errors=0 selected=10 omitted_failures=253 source_bytes=1363085 retained_bytes=37662 omitted_bytes=1325423 budget_bytes=49152 rendered_bytes=46187 omitted_manifest_sha256=b60370b3e08cf7ffa52c513dac50c05bc45be1e8364b5dd15ba7bfe0c969792e"
+    ],
+    "seconds": 60.7
+  },
+  "M2-batch-oid-check-removed": {
+    "rc": 1,
+    "status": "KILLED",
+    "failed_nodes": [
+      "orchestrator/tests/test_t671_source_binding.py::test_committed_verifier_rejects_reordered_batch_oids_even_with_permuted_digests"
+    ],
+    "summary": [
+      "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2070 retained_bytes=2070 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2953 omitted_manifest_sha256=-"
+    ],
+    "seconds": 55.2
+  },
+  "M3-blob-wrapper-sequential-regression": {
+    "rc": 1,
+    "status": "KILLED",
+    "failed_nodes": [
+      "orchestrator/tests/test_t671_source_binding.py::test_blob_compatibility_wrapper_uses_one_batch_query"
+    ],
+    "summary": [
+      "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1196 retained_bytes=1196 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2060 omitted_manifest_sha256=-"
+    ],
+    "seconds": 58.2
+  },
+  "M4-batch-type-check-removed": {
+    "rc": 1,
+    "status": "KILLED",
+    "failed_nodes": [
+      "orchestrator/tests/test_t671_source_binding.py::test_batch_blob_reader_rejects_malformed_header_or_status[tree-object]"
+    ],
+    "summary": [
+      "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1668 retained_bytes=1668 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2540 omitted_manifest_sha256=-"
+    ],
+    "seconds": 58.2
+  },
+  "M5-exact-eof-check-removed": {
+    "rc": 1,
+    "status": "KILLED",
+    "failed_nodes": [
+      "orchestrator/tests/test_t671_source_binding.py::test_batch_blob_reader_rejects_extra_output_after_last_record"
+    ],
+    "summary": [
+      "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=978 retained_bytes=978 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1776 omitted_manifest_sha256=-"
+    ],
+    "seconds": 51.7
+  },
+  "M6-committed-digest-compare-removed": {
+    "rc": 1,
+    "status": "KILLED",
+    "failed_nodes": [
+      "orchestrator/tests/test_t671_source_binding.py::test_admission_rejects_contract_loader_blob_mismatch_at_recorded_commit[artifact_admission.py]",
+      "orchestrator/tests/test_t671_source_binding.py::test_admission_rejects_contract_loader_blob_mismatch_at_recorded_commit[attempt_ledger.py]",
+      "orchestrator/tests/test_t671_source_binding.py::test_admission_rejects_contract_loader_blob_mismatch_at_recorded_commit[axis_trigger_gating.py]",
+      "orchestrator/tests/test_t671_source_binding.py::test_admission_rejects_contract_loader_blob_mismatch_at_recorded_commit[calibration_verify.py]",
+      "orchestrator/tests/test_t671_source_binding.py::test_admission_rejects_contract_loader_blob_mismatch_at_recorded_commit[contract_loader_binding.py]",
+      "orchestrator/tests/test_t671_source_binding.py::test_admission_rejects_contract_loader_blob_mismatch_at_recorded_commit[effective_clock_policy.py]",
+      "orchestrator/tests/test_t671_source_binding.py::test_admission_rejects_contract_loader_blob_mismatch_at_recorded_commit[env_contract_activation.py]",
+      "orchestrator/tests/test_t671_source_binding.py::test_admission_rejects_contract_loader_blob_mismatch_at_recorded_commit[qsub_binding.py]",
+      "orchestrator/tests/test_t671_source_binding.py::test_admission_rejects_contract_loader_blob_mismatch_at_recorded_commit[s8c_generation_projection.py]",
+      "orchestrator/tests/test_t671_source_binding.py::test_admission_rejects_contract_loader_blob_mismatch_at_recorded_commit[s8c_preregistration.py]",
+      "orchestrator/tests/test_t671_source_binding.py::test_admission_rejects_contract_loader_blob_mismatch_at_recorded_commit[s8c_preregistration_evidence.py]",
+      "orchestrator/tests/test_t671_source_binding.py::test_admission_rejects_contract_loader_blob_mismatch_at_recorded_commit[trigger_gate_binding.py]"
+    ],
+    "summary": [
+      "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=63 failed=63 errors=0 selected=12 omitted_failures=51 source_bytes=200081 retained_bytes=38279 omitted_bytes=161802 budget_bytes=49152 rendered_bytes=46116 omitted_manifest_sha256=60f8494036e79c41d91ab8f0bce2ad597d73eb7254e392ebc420ed4a7176f057"
+    ],
+    "seconds": 49.4
+  },
+  "M7-live-disk-compare-removed": {
+    "rc": 1,
+    "status": "KILLED",
+    "failed_nodes": [
+      "orchestrator/tests/test_t671_source_binding.py::test_live_verification_rejects_each_dirty_enforcement_source[artifact_admission.py]",
+      "orchestrator/tests/test_t671_source_binding.py::test_live_verification_rejects_each_dirty_enforcement_source[artifacts.py]",
+      "orchestrator/tests/test_t671_source_binding.py::test_live_verification_rejects_each_dirty_enforcement_source[attempt_ledger.py]",
+      "orchestrator/tests/test_t671_source_binding.py::test_live_verification_rejects_each_dirty_enforcement_source[axis_trigger_gating.py]",
+      "orchestrator/tests/test_t671_source_binding.py::test_live_verification_rejects_each_dirty_enforcement_source[build_admission.py]",
+      "orchestrator/tests/test_t671_source_binding.py::test_live_verification_rejects_each_dirty_enforcement_source[calibration_verify.py]",
+      "orchestrator/tests/test_t671_source_binding.py::test_live_verification_rejects_each_dirty_enforcement_source[campaign_claim.py]",
+      "orchestrator/tests/test_t671_source_binding.py::test_live_verification_rejects_each_dirty_enforcement_source[collector.py]",
+      "orchestrator/tests/test_t671_source_binding.py::test_live_verification_rejects_each_dirty_enforcement_source[contract_loader_binding.py]",
+      "orchestrator/tests/test_t671_source_binding.py::test_live_verification_rejects_each_dirty_enforcement_source[diff_quarantine.py]",
+      "orchestrator/tests/test_t671_source_binding.py::test_live_verification_rejects_each_dirty_enforcement_source[effective_clock_policy.py]",
+      "orchestrator/tests/test_t671_source_binding.py::test_live_verification_rejects_each_dirty_enforcement_source[env_attestation.py]",
+      "orchestrator/tests/test_t671_source_binding.py::test_live_verification_rejects_each_dirty_enforcement_source[env_contract_activation.py]",
+      "orchestrator/tests/test_t671_source_binding.py::test_live_verification_rejects_each_dirty_enforcement_source[perf_preflight.py]",
+      "orchestrator/tests/test_t671_source_binding.py::test_live_verification_rejects_each_dirty_enforcement_source[qsub_binding.py]",
+      "orchestrator/tests/test_t671_source_binding.py::test_live_verification_rejects_each_dirty_enforcement_source[retry_index.py]",
+      "orchestrator/tests/test_t671_source_binding.py::test_live_verification_rejects_each_dirty_enforcement_source[s8c_generation_projection.py]",
+      "orchestrator/tests/test_t671_source_binding.py::test_live_verification_rejects_each_dirty_enforcement_source[s8c_preregistration.py]",
+      "orchestrator/tests/test_t671_source_binding.py::test_live_verification_rejects_each_dirty_enforcement_source[s8c_preregistration_evidence.py]",
+      "orchestrator/tests/test_t671_source_binding.py::test_live_verification_rejects_each_dirty_enforcement_source[search_baselines.py]",
+      "orchestrator/tests/test_t671_source_binding.py::test_live_verification_rejects_each_dirty_enforcement_source[t126_driver.py]",
+      "orchestrator/tests/test_t671_source_binding.py::test_live_verification_rejects_each_dirty_enforcement_source[trigger_gate_binding.py]",
+      "orchestrator/tests/test_t671_source_binding.py::test_pre_wave_exact_twelve_misses_but_exact_fourteen_rejects_new_enforcement_face[verifier-init-dispatch]",
+      "orchestrator/tests/test_t671_source_binding.py::test_pre_wave_exact_twelve_misses_but_exact_fourteen_rejects_new_enforcement_face[verifier-report-payload]"
+    ],
+    "summary": [
+      "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=64 failed=64 errors=0 selected=24 omitted_failures=40 source_bytes=86369 retained_bytes=35468 omitted_bytes=50901 budget_bytes=49152 rendered_bytes=48991 omitted_manifest_sha256=119484fdec7b6219b0942f96bba0c414e3c7c33ebc158e7697d21dfce1fe276e"
+    ],
+    "seconds": 61.3
+  },
+  "M8-lstree-missing-path-check-removed-redundant": {
+    "rc": 1,
+    "status": "KILLED",
+    "failed_nodes": [
+      "orchestrator/tests/test_t671_source_binding.py::test_batch_blob_reader_rejects_invalid_ls_tree_path_sets[missing-entry]",
+      "orchestrator/tests/test_t671_source_binding.py::test_batch_reader_rejects_one_missing_path_of_sixty_two"
+    ],
+    "summary": [
+      "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=4708 retained_bytes=4708 omitted_bytes=0 budget_bytes=49152 rendered_bytes=6157 omitted_manifest_sha256=-"
+    ],
+    "seconds": 60.3
+  },
+  "M9-body-eof-check-removed-redundant": {
+    "rc": 0,
+    "status": "SURVIVED",
+    "failed_nodes": [],
+    "summary": [
+      "\u001b[32m\u001b[32m\u001b[1m295 passed\u001b[0m\u001b[32m in 51.02s\u001b[0m\u001b[0m"
+    ],
+    "seconds": 51.5
+  },
+  "M10-record-lf-check-removed-redundant": {
+    "rc": 0,
+    "status": "SURVIVED",
+    "failed_nodes": [],
+    "summary": [
+      "\u001b[32m\u001b[32m\u001b[1m295 passed\u001b[0m\u001b[32m in 50.04s\u001b[0m\u001b[0m"
+    ],
+    "seconds": 50.5
+  },
+  "M11-equivalent-tuple-iter": {
+    "rc": 0,
+    "status": "SURVIVED",
+    "failed_nodes": [],
+    "summary": [
+      "\u001b[32m\u001b[32m\u001b[1m295 passed\u001b[0m\u001b[32m in 51.38s\u001b[0m\u001b[0m"
+    ],
+    "seconds": 52.1
+  }
+}
