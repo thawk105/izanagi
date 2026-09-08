@@ -33,6 +33,13 @@ title: [T-2457] A-6 認証を 5 ノードで実走し 73 分が 17 分 37 秒に
   10,835 bytes となり予算 10,625 を 210 bytes 超えて `check_docs.py` が赤になった。安全義務を
   削って詰めることはせず、恒久対応の実体を memory
   `liveness-probe-must-separate-observation-per-subject` に置いた。上限の引き上げは求めていない。
+- **受入 1 走目は 1 件だけ赤で、本 wave に帰属しなかった。**
+  `test_g5_real_ledger_covers_at_least_90_percent_of_real_collection` が
+  被覆率 89.987812% (19935/22153) で閾値 90% を割った。本 wave が足した test node は 2 件だけで、
+  差し引いても 19935/22151 = 89.9959% と閾値を下回るので、台帳が現行 main の collection に
+  追いついていなかったのが原因である。正本 producer に本 wave の受入全走が出した JUnit を
+  食わせて add-only で更新し (新規 2077 行、既存 entry の削除ゼロ、被覆率 99.363517%)、
+  受入を投げ直した。閾値も除外リストも変えていない。
 - 設計判断は {{D:certification-body-runs-on-job-number-zero-only}}、
   失敗は {{F:probe-summary-file-cannot-discriminate-per-rank}}。
 
