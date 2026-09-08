@@ -35,6 +35,7 @@ import sys
 import textwrap
 import time
 from collections import Counter
+from collections.abc import Mapping
 from pathlib import Path
 from types import MappingProxyType, SimpleNamespace
 from unittest import mock
@@ -9469,6 +9470,110 @@ def test_exec_and_integrity_failures_are_derived_as_distinct_counts():
     assert nonzero_projection["exec_failures"] == 0
     assert nonzero_projection["rep_integrity_failures"] == 1
     assert nonzero_projection["throughputs"] == [100, 101, 103, 104]
+
+
+def test_execution_failure_true_alone_prevents_complete_rep_projection():
+    """M6: rc/perf が完備でも捕捉例外 rep は complete にしない。"""
+    perf_raw = {
+        event: index + 1
+        for index, event in enumerate(s8b_floor_stats.PERF_EVENTS)
+    }
+    observation = {
+        "rep_index": 0,
+        "returncode": 0,
+        "counter_status": "complete",
+        "missing_perf_events": [],
+        "perf_raw": perf_raw,
+        "throughput": None,
+        "execution_failure": True,
+    }
+    point = _FakeScalePoint(
+        [], [], "numactl perf -- bench", rep_observations=[observation], reps=1,
+    )
+
+    expected_keys = {
+        "rep_index", "returncode", "counter_status", "missing_perf_events",
+        "perf_raw", "throughput", "execution_failure",
+    }
+    missing = [
+        event for event in s8b_floor_stats.PERF_EVENTS
+        if type(perf_raw[event]) is not int or perf_raw[event] < 0
+    ]
+    derived_status = "complete" if not missing else "incomplete"
+    assert set(observation) == expected_keys
+    assert type(observation["rep_index"]) is int
+    assert observation["rep_index"] == 0
+    assert type(observation["returncode"]) is int
+    assert observation["returncode"] == 0
+    assert observation["counter_status"] == derived_status
+    assert observation["missing_perf_events"] == missing
+    assert isinstance(perf_raw, Mapping)
+    assert set(perf_raw) == set(s8b_floor_stats.PERF_EVENTS)
+    assert derived_status in {"complete", "not_required"}
+    assert observation["execution_failure"] is True
+    assert observation["throughput"] is None
+
+    projected = s8b_floor_campaign._project_scalepoint(
+        point, reps=1, expected_use_perf=True,
+    )
+    assert projected == {
+        "throughputs": [],
+        "exec_failures": 1,
+        "rep_observations": [observation],
+        "rep_integrity_failures": 1,
+    }
+
+    def project_without_execution_failure_guard(scale_point):
+        source_throughputs = list(scale_point.throughputs)
+        observations = [dict(row) for row in scale_point.rep_observations]
+        observed_tps = [
+            row["throughput"] for row in observations
+            if row["throughput"] is not None
+        ]
+        assert observed_tps == source_throughputs
+
+        failures = 0
+        qualified_throughputs = []
+        for expected_index, row in enumerate(observations):
+            row_perf_raw = row["perf_raw"]
+            raw_complete = (
+                isinstance(row_perf_raw, Mapping)
+                and set(row_perf_raw) == set(s8b_floor_stats.PERF_EVENTS)
+            )
+            row_missing = [
+                event for event in s8b_floor_stats.PERF_EVENTS
+                if type(row_perf_raw[event]) is not int or row_perf_raw[event] < 0
+            ]
+            row_status = "complete" if not row_missing else "incomplete"
+            complete = (
+                set(row) == expected_keys
+                and type(row["rep_index"]) is int
+                and row["rep_index"] == expected_index
+                and type(row["returncode"]) is int
+                and row["returncode"] == 0
+                and row["counter_status"] == row_status
+                and row["missing_perf_events"] == row_missing
+                and raw_complete
+                and row_status in {"complete", "not_required"}
+            )
+            if complete:
+                if row["throughput"] is not None:
+                    qualified_throughputs.append(row["throughput"])
+            else:
+                failures += 1
+        return {
+            "throughputs": qualified_throughputs,
+            "exec_failures": sum(
+                row["execution_failure"] is True for row in observations
+            ),
+            "rep_integrity_failures": failures,
+        }
+
+    assert project_without_execution_failure_guard(point) == {
+        "throughputs": [],
+        "exec_failures": 1,
+        "rep_integrity_failures": 0,
+    }
 
 
 def test_missing_observation_carrier_keeps_execution_failure_unobserved():
