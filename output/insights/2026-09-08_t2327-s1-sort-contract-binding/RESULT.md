@@ -89,5 +89,25 @@ materializer 全体 sha256 の literal (`test_s8b_oracle_manifest.py` L89) は�
 
 ## 受入
 
-受入全走は本記録の commit 後に 1 回実施する (DW-O16 に従い記録を先に置く)。結果は wave branch の
-受入 commit と land の receipt が正本で、本 file には後追いで書かない。
+| attempt | 結果 | 内訳 |
+|---|---|---|
+| 1 | rc=70 `merge-history-provenance` | 違反でなく `check_ai_provenance` の実行不能。main が後から足した `tools/known_violations/<sha>--missing-codex-author--<hash>.json` が wave HEAD に無い (F206 と同型)。テストは 1 件も走らず。main を先に取り込んで解いた (merge `39fdb7375`、自動 merge・競合 0)。 |
+| 2 | rc=70 `acceptance-command` | 3 failed / 21,732 passed / 68 skipped。赤 3 件はすべて `test_ccbench_spawn_sites.py` で、**本 wave 起因**。 |
+
+### 受入 attempt 2 の赤 — 行番号で pin された build sink (pin 閉包の 3 例目)
+
+`orchestrator/tests/test_ccbench_spawn_sites.py` は production の build sink を
+`_BuildSink(path, scope, lineno, kind)` と `_DeferredGateMember(..., lineno)` の **行番号**で pin する。
+本 wave が s1 と s8b の 2 consumer へ転送を足したことで、4 つの sink がそろって下へずれた。
+
+| file | scope | kind | 旧 | 新 |
+|---|---|---|---|---|
+| `s1_direct_comparison.py` | `<module>.run_role` | campaign | 1219 | 1233 |
+| `s8b_oracle_driver.py` | `<module>.run_block` | campaign | 1788 | 1793 |
+| `s8b_floor_campaign.py` | `<module>.build_cells.invoke_build` | injected-build_fn | 4705 | 4715 |
+| `s8b_floor_campaign.py` | `<module>.main` | campaign | 8632 | 8642 |
+
+段 1 の pin 閉包は「行番号 pin なし」と結論していた。`<path>:<行>` の文字列検索でも、変更前の hash 値の
+値検索でも当たらない — pin の key が **path と scope と整数の組**だからである。焦点走の file 集合にも
+入れていなかった (DW-O26 の consumer 拡張を、`s1_direct_comparison` を import する test から引いたため、
+source を静的走査するだけの test が漏れた)。production の挙動は正しく、直したのは台帳の位置だけである。

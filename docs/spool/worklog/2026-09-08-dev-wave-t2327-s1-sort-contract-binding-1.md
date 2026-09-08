@@ -33,8 +33,12 @@ title: [T-2327] s1 の sort_best cell を SWO oracle 契約 ID へ束縛し、�
   DW-M07 の `--resume` で取り直した。逐語・台帳は
   `output/insights/2026-09-08_t2327-s1-sort-contract-binding/`。
 - 焦点走 (13 file、計算ノード): 1 回目 3 赤 (派生 pin 2 + consumer test の double 1) → fix1 後 1 赤 (テスト側の
-  key 名 `configuration` → `configuration_id`) → fix2 後 1197 緑 / 赤 0。受入全走は本記録の commit 後に 1 回実施する
-  (DW-O16 に従い記録を先に置く)。
+  key 名 `configuration` → `configuration_id`) → fix2 後 1197 緑 / 赤 0。
+- **受入は 2 回とも wave の外側の事情と pin で止まった。** attempt 1 は `merge-history-provenance` rc=70 で、
+  違反ではなく main が後から足した既知違反台帳の記録 file が wave HEAD に無いための実行不能 (F206 と同型、
+  テストは 1 件も走らず)。main を先に取り込んで解いた。attempt 2 は 3 failed / 21,732 passed で、赤 3 件は
+  すべて `test_ccbench_spawn_sites.py`。同 file が build sink を **行番号**で pin しており、転送を足して
+  4 sink が下へずれたことによる (F39 の 3 例目、production の挙動は正しい)。台帳の位置だけを追随させた。
 
 ## 次の一手差分
 

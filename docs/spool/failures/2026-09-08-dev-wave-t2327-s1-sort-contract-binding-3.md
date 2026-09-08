@@ -17,3 +17,8 @@ seq: 3
   検出は親の焦点走 1 回目 (2 赤、land 前、実害なし)。恒久対応は F39 から変更しない。運用として、
   全体 hash の literal を更新したら、**その literal を含む bytes を hash する定数**まで同 file を追って列挙し、
   実装子の prompt で「派生 pin の再計算」を明示する。
+  同じ wave の受入全走で **3 例目**が出た。`orchestrator/tests/test_ccbench_spawn_sites.py` は production の
+  build sink を `_BuildSink(path, scope, lineno, kind)` の **行番号**で pin しており、転送を足して行がずれた
+  4 sink が赤になった。`<path>:<行>` の文字列検索でも変更前 hash の値検索でも当たらず、段 1 の pin 閉包は
+  「行番号 pin なし」と誤って結論していた。運用として、**production の行数を変える wave では、production を
+  静的走査して位置を台帳に持つ test も pin 閉包と焦点走の対象に入れる** (import 関係だけで引くと漏れる)。
