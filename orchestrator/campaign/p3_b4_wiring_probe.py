@@ -425,21 +425,27 @@ class _ProcessGuard:
         return any(_is_relative_to(path, root) for root in self.protected_roots)
 
     def _allow_read_only_git(self, args: tuple[object, ...]) -> bool:
+        from .contract_loader_binding import _GIT_HARDEN
+
         if len(args) < 4:
             return False
         executable, argv, _cwd, env = args[:4]
         if os.fspath(executable) != "/usr/bin/git" or not isinstance(argv, (list, tuple)):
             return False
         words = [os.fspath(item) for item in argv]
-        if not words or words[0] != "/usr/bin/git":
+        expected_prelude = [
+            "/usr/bin/git",
+            *_GIT_HARDEN,
+            "--no-replace-objects",
+            "-C", str(_REPO_ROOT),
+        ]
+        if words[:len(expected_prelude)] != expected_prelude:
             return False
-        try:
-            separator = words.index("-C")
-        except ValueError:
-            return False
+        separator = len(expected_prelude) - 2
         if separator + 2 >= len(words) or _resolved(words[separator + 1]) != _REPO_ROOT:
             return False
         operation = words[separator + 2:]
+        literal_prefix = ":(literal)"
         allowed_shape = (
             operation == ["rev-parse", "--show-toplevel"]
             or (
@@ -447,10 +453,24 @@ class _ProcessGuard:
                 and operation[:2] == ["rev-parse", "--verify"]
             )
             or (
-                len(operation) == 3
-                and operation[:2] == ["cat-file", "blob"]
-                and ":" in operation[2]
+                len(operation) >= 6
+                and operation[:3] == ["ls-tree", "-r", "-z"]
+                and re.fullmatch(r"[0-9a-f]{40}", operation[3]) is not None
+                and operation[4] == "--"
+                and len(set(operation[5:])) == len(operation[5:])
+                and all(
+                    pathspec.startswith(literal_prefix)
+                    and bool(pathspec[len(literal_prefix):])
+                    and "\0" not in pathspec[len(literal_prefix):]
+                    and not pathspec[len(literal_prefix):].startswith("/")
+                    and all(
+                        part not in {"", ".", ".."}
+                        for part in pathspec[len(literal_prefix):].split("/")
+                    )
+                    for pathspec in operation[5:]
+                )
             )
+            or operation == ["cat-file", "--batch"]
         )
         if not allowed_shape or not isinstance(env, dict):
             return False
