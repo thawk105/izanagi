@@ -459,6 +459,43 @@ def test_terminal_requires_one_position_at_the_end_when_present() -> None:
 
 
 @pytest.mark.parametrize(
+    ("field", "invalid_value"),
+    (
+        pytest.param("trigger", "count", id="trigger"),
+        pytest.param("assigned_invert", 0, id="assigned_invert"),
+        pytest.param("recommended_delta_sign", 1, id="recommended_delta_sign"),
+        pytest.param("inversion_realized", 1, id="inversion_realized"),
+        pytest.param("both_actions_feasible", 1, id="both_actions_feasible"),
+    ),
+)
+def test_load_artifact_rejects_each_terminal_sentinel_field_only_via_contract(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    field: str,
+    invalid_value: object,
+) -> None:
+    document = _document(SEEDS[0])
+    row = document["trace_runs"][0]
+    assert row["step_policy"] == 0
+    row["trace_events"][-1][field] = invalid_value
+    path = tmp_path / f"bad-terminal-sentinel-{field}.json"
+    path.write_text(json.dumps(document) + "\n", encoding="utf-8")
+
+    sentinel_failure = "terminal event sentinel contract failed"
+    with pytest.raises(ValueError, match=sentinel_failure):
+        analysis._load_artifact(path)
+
+    original_fail = analysis._fail
+
+    def ignore_sentinel_failure(message: str) -> None:
+        if sentinel_failure not in message:
+            original_fail(message)
+
+    monkeypatch.setattr(analysis, "_fail", ignore_sentinel_failure)
+    analysis._load_artifact(path)
+
+
+@pytest.mark.parametrize(
     "mutation",
     ("cell", "extime", "patch-c", "top-prereg", "row-prereg"),
 )
