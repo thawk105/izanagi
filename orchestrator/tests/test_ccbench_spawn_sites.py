@@ -132,6 +132,13 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
         "campaign/pipeline.py",
         "<module>._require_canonical_build_source_state._git",
     ): 1,
+    # Read-only `git rev-parse HEAD` binds fan-out tasks to this repository;
+    # the fixed argv cannot name or execute CCBench.
+    ("campaign/pipeline.py", "<module>._current_repo_head"): 1,
+    # Fixed ssh argv with local shell expansion disabled launches the Python
+    # worker on a sibling node.  CCBench itself is launched only through that
+    # worker's reuse of the reviewed pipeline._run_trace path.
+    ("campaign/pipeline.py", "<module>._default_verify_fanout_launcher"): 1,
     # Exact scheduler submission argv; CCBench remains compute-job-owned.
     ("campaign/paper_story_a1_paired.py", "<module>._run_qsub"): 1,
     # Login-side qstat observations never name a CCBench binary.
@@ -258,6 +265,9 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     ("campaign/t152_write_intent_coverage.py", "<module>._verify"): 1,
     ("campaign/t810_validator.py", "<module>._git"): 1,
     ("campaign/trial_registry.py", "<module>._git"): 1,
+    # Read-only `git rev-parse HEAD` checks the worker checkout against its
+    # task binding; it cannot name or execute CCBench.
+    ("campaign/verify_fanout_worker.py", "<module>._repo_head"): 1,
 })
 
 
