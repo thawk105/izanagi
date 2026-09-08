@@ -4,7 +4,7 @@ import copy
 import hashlib
 import json
 import os
-from dataclasses import fields
+from dataclasses import fields, replace
 from pathlib import Path
 
 import pytest
@@ -13,12 +13,19 @@ from orchestrator.campaign import reflux_origin_ledger as ledger
 from orchestrator.campaign import reflux_result_evidence as evidence
 from orchestrator.campaign import wal
 from orchestrator.campaign.layout import CampaignLayout
-from orchestrator.campaign.model import STAGE_BUILD_START, STAGE_VERIFY_DONE
+from orchestrator.campaign.model import (
+    STAGE_ABORT,
+    STAGE_BUILD_START,
+    STAGE_COMMIT,
+    STAGE_VERIFY_DONE,
+)
 from orchestrator.tests.reflux_origin_fixture_builder import (
     build_execution_provenance,
     build_ordered_wal_projection,
     build_result_evidence_record,
 )
+from orchestrator.verifier import result_to_dict, verify_trace_dir
+from orchestrator.verifier.model import VerifyResult
 
 
 _RECORD_RAW_GOLDEN = "5c0ac03d7ccd53153f70c2e10dde301aa4097eeee61f9118eeefc49b3ad24767"
@@ -26,6 +33,9 @@ _LEDGER_EVIDENCE_DIGEST_GOLDEN = "5c0ac03d7ccd53153f70c2e10dde301aa4097eeee61f91
 _OUTER_SALTED_COMMITMENT_GOLDEN = "b9e20f457bec0bb2ed7e866c7bd175cee9fba8779a96fe2085fd7f79d5cb6365"
 _WRONG_DOMAIN_PREFIXED_RAW_GOLDEN = "610867ca65d585909812e468368f931a76fdf0a7faca488a0a294554ed97735f"
 _SALT = "0123456789abcdef0123456789abcdef"
+_FIXTURE_ROOT = Path(__file__).with_name("fixtures")
+_BUILD_ATTEMPT_ID = "producer-build-attempt-0000"
+_ORDERED_VERIFIERS = ("legacy", "s2")
 
 
 def _independent_canonical(value: object) -> bytes:
@@ -45,6 +55,146 @@ def _sha(raw: bytes) -> str:
 def _write(path: Path, raw: bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(raw)
+
+
+def _synthetic_silo_source(tmp_path: Path) -> Path:
+    ccbench_root = tmp_path / "ccbench"
+    silo_source = ccbench_root / "cc" / "silo"
+    silo_source.mkdir(parents=True, exist_ok=True)
+    (silo_source / "CMakeLists.txt").write_text(
+        "ccbench_add_protocol(silo SOURCES transaction.cc WORKLOADS ycsb)\n",
+        encoding="utf-8",
+    )
+    (silo_source / "transaction.cc").write_text(
+        "#if TRACE\n"
+        "izanagi_trace::emit_lock_violation(0, 0, {}, {});\n"
+        'izanagi_trace::stream(0) << "P ";\n'
+        "#endif\n",
+        encoding="utf-8",
+    )
+    return ccbench_root
+
+
+def _verify_fixture(
+    tmp_path: Path, name: str, *, max_report: int | None = 20
+) -> VerifyResult:
+    return verify_trace_dir(
+        str(_FIXTURE_ROOT / name),
+        max_report=max_report,
+        protocol="silo",
+        ccbench_root=_synthetic_silo_source(tmp_path),
+    )
+
+
+def _verify_snapshot(result: VerifyResult) -> dict:
+    snapshot = result_to_dict(result)
+    snapshot.pop("trace_dir", None)
+    return snapshot
+
+
+def _wal_record(stage: str, payload: dict) -> dict:
+    return {
+        "variant": "fixture-v",
+        "stage": stage,
+        "env_tag": "fixture-env",
+        "ts": 0,
+        "payload": payload,
+    }
+
+
+def _abort_terminal(result: VerifyResult, *, snapshot: dict | None = None) -> dict:
+    return _wal_record(
+        STAGE_ABORT,
+        {
+            "reason": result.verdict,
+            "build_attempt_id": _BUILD_ATTEMPT_ID,
+            "build_admission_receipt_sha256": "a" * 64,
+            "verify": _verify_snapshot(result) if snapshot is None else snapshot,
+            "workload": {"tag": "ycsb-a"},
+        },
+    )
+
+
+def _commit_terminal(*, verify_configs: list[str] | None = None) -> dict:
+    return _wal_record(
+        STAGE_COMMIT,
+        {
+            "verify_configs": (
+                list(_ORDERED_VERIFIERS)
+                if verify_configs is None
+                else verify_configs
+            ),
+            "build_attempt_id": _BUILD_ATTEMPT_ID,
+            "build_admission_receipt_sha256": "a" * 64,
+            "fitness_tps": None,
+            "note": "no-bench",
+        },
+    )
+
+
+def _projection_bytes(
+    *, records: list[dict], build_attempt_id: str = _BUILD_ATTEMPT_ID
+) -> bytes:
+    source_raw = _independent_canonical(records)
+    projection = build_ordered_wal_projection(
+        source_wal_ref={
+            "path": "wal/source/producer.json",
+            "sha256": _sha(source_raw),
+        },
+        byte_start=0,
+        byte_end=len(source_raw),
+        build_attempt_id=build_attempt_id,
+        records=records,
+    )
+    return _independent_canonical(projection)
+
+
+def _derive(*, records: list[dict], result: VerifyResult | None = None):
+    return evidence.derive_physical_result(
+        ordered_wal_projection_bytes=_projection_bytes(records=records),
+        build_attempt_id=_BUILD_ATTEMPT_ID,
+        ordered_verifiers=_ORDERED_VERIFIERS,
+        verify_result=result,
+    )
+
+
+def _assemble_from_fixture(
+    fixture_record: dict,
+    derived: evidence.DerivedPhysicalResult,
+) -> dict:
+    return evidence.assemble_result_evidence_record(
+        origin_binding=fixture_record["origin_binding"],
+        trial_binding=fixture_record["trial_binding"],
+        ledger_member=fixture_record["ledger_member"],
+        p6_plan=fixture_record["p6_plan"],
+        trigger_binding=fixture_record["trigger_binding"],
+        derived=derived,
+        ordered_wal_ref=fixture_record["evidence"]["ordered_wal_ref"],
+        execution_provenance_ref=fixture_record["evidence"][
+            "execution_provenance_ref"
+        ],
+    )
+
+
+def _assert_issuance_refused(
+    evidence_root: Path,
+    *,
+    records: list[dict],
+    result: VerifyResult | None,
+) -> None:
+    record = None
+    path = None
+    with pytest.raises(evidence.ResultEvidenceIssuanceRefused):
+        derived = _derive(records=records, result=result)
+        record = _assemble_from_fixture(
+            build_result_evidence_record(), derived
+        )
+        path = evidence.issue_result_evidence_record(
+            evidence_root=evidence_root, record=record
+        )
+    assert record is None
+    assert path is None
+    assert not evidence_root.exists()
 
 
 def _resolution_tree(root: Path) -> dict:
@@ -404,3 +554,364 @@ def test_wal_ordered_attempt_frames_preserve_order_and_physical_offsets(tmp_path
     for frame in frames:
         assert source[frame.byte_start:frame.byte_end] == frame.raw_bytes
         assert frame.raw_bytes.endswith(b"\n")
+
+
+def test_formal_consumer_contract_derives_accepted_commit_terminal() -> None:
+    records = [_commit_terminal()]
+    derived = _derive(records=records)
+    assert derived == evidence.DerivedPhysicalResult(
+        build_attempt_id=_BUILD_ATTEMPT_ID,
+        outcome="accepted",
+        constraint_sha256=None,
+        ordered_wal_sha256=_sha(_projection_bytes(records=records)),
+    )
+
+
+@pytest.mark.parametrize(
+    "malformation",
+    ["noncanonical", "different-attempt", "empty-records"],
+    ids=["noncanonical", "different-attempt", "empty-records"],
+)
+def test_formal_consumer_contract_refuses_invalid_ordered_wal_projection(
+    malformation: str,
+) -> None:
+    records = [_commit_terminal()]
+    if malformation == "noncanonical":
+        projection_raw = _projection_bytes(records=records) + b"\n"
+    elif malformation == "different-attempt":
+        records[0]["payload"]["build_attempt_id"] = "other-attempt"
+        projection_raw = _projection_bytes(
+            records=records, build_attempt_id="other-attempt"
+        )
+    else:
+        projection_raw = _projection_bytes(records=[])
+    with pytest.raises(evidence.ResultEvidenceIssuanceRefused):
+        evidence.derive_physical_result(
+            ordered_wal_projection_bytes=projection_raw,
+            build_attempt_id=_BUILD_ATTEMPT_ID,
+            ordered_verifiers=_ORDERED_VERIFIERS,
+        )
+
+
+@pytest.mark.parametrize(
+    "shadow",
+    ["reason", "verify_configs", "verify", "build_attempt_id"],
+    ids=["reason", "verify-configs", "verify", "build-attempt-id"],
+)
+def test_formal_consumer_contract_refuses_terminal_root_shadow(
+    shadow: str,
+) -> None:
+    terminal = _commit_terminal()
+    shadow_values = {
+        "reason": "non-serializable",
+        "verify_configs": list(_ORDERED_VERIFIERS),
+        "verify": {},
+        "build_attempt_id": _BUILD_ATTEMPT_ID,
+    }
+    terminal[shadow] = shadow_values[shadow]
+    with pytest.raises(evidence.ResultEvidenceIssuanceRefused):
+        _derive(records=[terminal])
+
+
+@pytest.mark.parametrize(
+    "fixture_name",
+    ["r9_dense_cycle4", "r3_cycle3", "r1_write_skew"],
+    ids=["r9_dense_cycle4", "r3_cycle3", "r1_write_skew"],
+)
+def test_synthetic_silo_source_derives_rejected_single_witness_class(
+    tmp_path: Path, fixture_name: str
+) -> None:
+    result = _verify_fixture(tmp_path, fixture_name)
+    snapshot = _verify_snapshot(result)
+    records = [_abort_terminal(result, snapshot=snapshot)]
+    derived = _derive(records=records, result=result)
+    expected = hashlib.sha256(
+        evidence.canonical_json_bytes(snapshot["anomalies"][0])
+    ).hexdigest()
+    independent = hashlib.sha256(
+        _independent_canonical(snapshot["anomalies"][0])
+    ).hexdigest()
+    assert derived == evidence.DerivedPhysicalResult(
+        build_attempt_id=_BUILD_ATTEMPT_ID,
+        outcome="rejected",
+        constraint_sha256=expected,
+        ordered_wal_sha256=_sha(_projection_bytes(records=records)),
+    )
+    assert derived.constraint_sha256 == evidence.witness_class_sha256(
+        snapshot["anomalies"][0]
+    )
+    assert derived.constraint_sha256 == independent
+
+
+@pytest.mark.parametrize(
+    "fixture_name",
+    ["integrity_orphan", "m2_version_dup"],
+    ids=["integrity_orphan", "m2_version_dup"],
+)
+def test_synthetic_silo_source_refuses_indeterminate_result(
+    tmp_path: Path, fixture_name: str
+) -> None:
+    result = _verify_fixture(tmp_path, fixture_name)
+    _assert_issuance_refused(
+        tmp_path / "evidence",
+        records=[_abort_terminal(result)],
+        result=result,
+    )
+
+
+def test_synthetic_silo_source_refuses_dirty_nonserializable_result(
+    tmp_path: Path,
+) -> None:
+    result = _verify_fixture(tmp_path, "r4_mixed_cycle")
+    assert result.verdict == "non-serializable"
+    assert result.integrity.clean() is False
+    _assert_issuance_refused(
+        tmp_path / "evidence",
+        records=[_abort_terminal(result)],
+        result=result,
+    )
+
+
+def test_synthetic_silo_source_refuses_empty_capped_witness_report(
+    tmp_path: Path,
+) -> None:
+    result = _verify_fixture(tmp_path, "r9_dense_cycle4", max_report=0)
+    assert result.total_cycles == 1
+    assert result.anomalies == []
+    _assert_issuance_refused(
+        tmp_path / "evidence",
+        records=[_abort_terminal(result)],
+        result=result,
+    )
+
+
+def test_synthetic_silo_source_refuses_multiple_witness_classes(
+    tmp_path: Path,
+) -> None:
+    result = _verify_fixture(tmp_path, "r8_silo_broken_norw")
+    assert result.total_cycles == len(result.anomalies) == 4
+    _assert_issuance_refused(
+        tmp_path / "evidence",
+        records=[_abort_terminal(result)],
+        result=result,
+    )
+
+
+def test_synthetic_silo_source_refuses_truncated_multiple_witness_classes(
+    tmp_path: Path,
+) -> None:
+    result = _verify_fixture(tmp_path, "r8_silo_broken_norw", max_report=1)
+    assert result.total_cycles == 4
+    assert len(result.anomalies) == 1
+    _assert_issuance_refused(
+        tmp_path / "evidence",
+        records=[_abort_terminal(result)],
+        result=result,
+    )
+
+
+@pytest.mark.parametrize(
+    "mismatch",
+    ["different-run-snapshot", "wrong-reason", "wrong-verify-configs"],
+    ids=["different-run-snapshot", "wrong-reason", "wrong-verify-configs"],
+)
+def test_formal_consumer_contract_refuses_terminal_mismatch(
+    tmp_path: Path, mismatch: str
+) -> None:
+    result: VerifyResult | None
+    if mismatch == "wrong-verify-configs":
+        result = None
+        records = [_commit_terminal(verify_configs=["wrong"])]
+    else:
+        result = _verify_fixture(tmp_path, "r9_dense_cycle4")
+        terminal = _abort_terminal(result)
+        if mismatch == "different-run-snapshot":
+            donor = _verify_fixture(tmp_path, "r3_cycle3")
+            terminal["payload"]["verify"] = _verify_snapshot(donor)
+        else:
+            terminal["payload"]["reason"] = "indeterminate"
+        records = [terminal]
+    _assert_issuance_refused(
+        tmp_path / "evidence",
+        records=records,
+        result=result,
+    )
+
+
+@pytest.mark.parametrize(
+    "verify_configs",
+    [
+        [],
+        list(_ORDERED_VERIFIERS[:-1]),
+        list(reversed(_ORDERED_VERIFIERS)),
+        [_ORDERED_VERIFIERS[0], _ORDERED_VERIFIERS[0]],
+    ],
+    ids=["empty", "prefix", "reverse", "duplicate"],
+)
+def test_formal_consumer_contract_refuses_nonexact_accepted_verifier_order(
+    tmp_path: Path, verify_configs: list[str]
+) -> None:
+    assert len(_ORDERED_VERIFIERS) >= 2
+    _assert_issuance_refused(
+        tmp_path / "evidence",
+        records=[_commit_terminal(verify_configs=verify_configs)],
+        result=None,
+    )
+
+
+@pytest.mark.parametrize(
+    "malformation",
+    ["stats-bool", "cycle-bool", "reason-version-float"],
+    ids=["stats-bool", "cycle-bool", "reason-version-float"],
+)
+def test_synthetic_silo_source_refuses_nonexact_typed_values(
+    tmp_path: Path, malformation: str
+) -> None:
+    result = copy.deepcopy(_verify_fixture(tmp_path, "r9_dense_cycle4"))
+    if malformation == "stats-bool":
+        result = replace(result, n_txns=True)
+    elif malformation == "cycle-bool":
+        result.anomalies[0].cycle[0] = True
+    else:
+        reason = result.anomalies[0].edges[0].reasons[0]
+        assert reason.u_ver is not None
+        result.anomalies[0].edges[0].reasons[0] = replace(
+            reason,
+            u_ver=(1.0, reason.u_ver[1]),
+        )
+    _assert_issuance_refused(
+        tmp_path / "evidence",
+        records=[_abort_terminal(result)],
+        result=result,
+    )
+
+
+@pytest.mark.parametrize(
+    "malformation",
+    ["unknown-phenomenon", "ring-mismatch", "unknown-reason-type"],
+    ids=["unknown-phenomenon", "ring-mismatch", "unknown-reason-type"],
+)
+def test_synthetic_silo_source_refuses_nonproduction_witness_shape(
+    tmp_path: Path, malformation: str
+) -> None:
+    result = copy.deepcopy(_verify_fixture(tmp_path, "r9_dense_cycle4"))
+    anomaly = result.anomalies[0]
+    if malformation == "unknown-phenomenon":
+        anomaly.phenomenon = "unknown"
+    elif malformation == "ring-mismatch":
+        anomaly.edges[0].src += 1000
+    else:
+        anomaly.edges[0].reasons[0] = replace(
+            anomaly.edges[0].reasons[0], etype="unknown"
+        )
+    _assert_issuance_refused(
+        tmp_path / "evidence",
+        records=[_abort_terminal(result)],
+        result=result,
+    )
+
+
+def test_synthetic_silo_source_shared_witness_digest_matches_independent_bytes(
+    tmp_path: Path,
+) -> None:
+    result = _verify_fixture(tmp_path, "r9_dense_cycle4")
+    anomaly = _verify_snapshot(result)["anomalies"][0]
+    assert evidence.validate_witness_anomaly(anomaly)
+    assert evidence.witness_class_sha256(anomaly) == hashlib.sha256(
+        _independent_canonical(anomaly)
+    ).hexdigest()
+
+
+def test_formal_consumer_contract_assembler_rejects_invalid_input() -> None:
+    fixture_record = build_result_evidence_record()
+    origin_binding = dict(fixture_record["origin_binding"])
+    origin_binding.pop("cell_key")
+    with pytest.raises(evidence.ResultEvidenceError):
+        evidence.assemble_result_evidence_record(
+            origin_binding=origin_binding,
+            trial_binding=fixture_record["trial_binding"],
+            ledger_member=fixture_record["ledger_member"],
+            p6_plan=fixture_record["p6_plan"],
+            trigger_binding=fixture_record["trigger_binding"],
+            derived=evidence.DerivedPhysicalResult(
+                _BUILD_ATTEMPT_ID,
+                "accepted",
+                None,
+                fixture_record["evidence"]["ordered_wal_ref"]["sha256"],
+            ),
+            ordered_wal_ref=fixture_record["evidence"]["ordered_wal_ref"],
+            execution_provenance_ref=fixture_record["evidence"][
+                "execution_provenance_ref"
+            ],
+        )
+
+
+def test_formal_consumer_contract_assembler_rejects_different_projection_same_attempt(
+    tmp_path: Path,
+) -> None:
+    result = _verify_fixture(tmp_path, "r9_dense_cycle4")
+    donor = _verify_fixture(tmp_path, "r3_cycle3")
+    records = [_abort_terminal(result)]
+    donor_records = [_abort_terminal(donor)]
+    projection_raw = _projection_bytes(records=records)
+    donor_projection_raw = _projection_bytes(records=donor_records)
+    assert projection_raw != donor_projection_raw
+    derived = evidence.derive_physical_result(
+        ordered_wal_projection_bytes=projection_raw,
+        build_attempt_id=_BUILD_ATTEMPT_ID,
+        ordered_verifiers=_ORDERED_VERIFIERS,
+        verify_result=result,
+    )
+    fixture_record = build_result_evidence_record()
+    fixture_record["evidence"]["ordered_wal_ref"] = {
+        "path": "wal/projections/donor.json",
+        "sha256": _sha(donor_projection_raw),
+    }
+    with pytest.raises(evidence.ResultEvidenceError):
+        _assemble_from_fixture(fixture_record, derived)
+
+
+def test_formal_consumer_contract_issuer_resolves_before_record_creation(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "evidence"
+    root.mkdir()
+    fixture_record = build_result_evidence_record()
+    assembled = _assemble_from_fixture(
+        fixture_record,
+        evidence.DerivedPhysicalResult(
+            fixture_record["physical_result"]["build_attempt_id"],
+            "rejected",
+            fixture_record["physical_result"]["constraint_sha256"],
+            fixture_record["evidence"]["ordered_wal_ref"]["sha256"],
+        ),
+    )
+    record_path = root / evidence.result_evidence_relative_path(assembled)
+    with pytest.raises(evidence.ResultEvidenceError):
+        evidence.issue_result_evidence_record(evidence_root=root, record=assembled)
+    assert not record_path.exists()
+
+
+def test_formal_consumer_contract_issuer_writes_nine_keys_create_only(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "evidence"
+    root.mkdir()
+    fixture_record = _resolution_tree(root)
+    assembled = _assemble_from_fixture(
+        fixture_record,
+        evidence.DerivedPhysicalResult(
+            fixture_record["physical_result"]["build_attempt_id"],
+            "rejected",
+            fixture_record["physical_result"]["constraint_sha256"],
+            fixture_record["evidence"]["ordered_wal_ref"]["sha256"],
+        ),
+    )
+    path = evidence.issue_result_evidence_record(
+        evidence_root=root, record=assembled
+    )
+    parsed = evidence.parse_result_evidence_bytes(path.read_bytes())
+    assert len(parsed) == 9
+    assert parsed == assembled
+    with pytest.raises(evidence.ResultEvidenceError):
+        evidence.issue_result_evidence_record(evidence_root=root, record=assembled)

@@ -17,6 +17,7 @@ from orchestrator.campaign import model as M
 from orchestrator.campaign import reflux_formal_consumer as C
 from orchestrator.campaign import reflux_origin_binding as B
 from orchestrator.campaign import reflux_origin_ledger as L
+from orchestrator.campaign import reflux_result_evidence as E
 from orchestrator.campaign import reflux_origin_topology as T
 from orchestrator.campaign import reflux_source_closure as S
 from orchestrator.campaign import trigger_gate_binding as G
@@ -25,7 +26,7 @@ from orchestrator.campaign.layout import CampaignLayout, exploration_campaign_la
 from orchestrator.tests import reflux_origin_fixture_builder as F
 from orchestrator.verifier import core as verifier_core
 from orchestrator.verifier import report as verifier_report
-from orchestrator.verifier.model import RW, WR, WW
+from orchestrator.verifier.model import WR, WW
 
 
 WAVE_PRODUCTION_FILES = (
@@ -75,6 +76,29 @@ def _canonical(value: object) -> bytes:
 
 def _digest(raw: bytes) -> str:
     return hashlib.sha256(raw).hexdigest()
+
+
+def _write(path: Path, raw: bytes) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(raw)
+
+
+def _synthetic_silo_source(root: Path) -> Path:
+    ccbench_root = root / "ccbench"
+    silo_source = ccbench_root / "cc" / "silo"
+    silo_source.mkdir(parents=True)
+    (silo_source / "CMakeLists.txt").write_text(
+        "ccbench_add_protocol(silo SOURCES transaction.cc WORKLOADS ycsb)\n",
+        encoding="utf-8",
+    )
+    (silo_source / "transaction.cc").write_text(
+        "#if TRACE\n"
+        "izanagi_trace::emit_lock_violation(0, 0, {}, {});\n"
+        'izanagi_trace::stream(0) << "P ";\n'
+        "#endif\n",
+        encoding="utf-8",
+    )
+    return ccbench_root
 
 
 def _issued_capability(**overrides) -> B.OriginBindingCapability:
@@ -784,6 +808,179 @@ def test_exact_fixture_contract_reaches_only_p6_unavailable(case: _Case) -> None
     payload = json.loads(C.canonical_aborted_origin_payload_bytes(result.decision))
     assert payload["seal_kind"] == "aborted"
     assert payload["constraint_class_sha256s"] == []
+
+
+def test_synthetic_silo_source_producer_passes_formal_consumer_contract(
+    case: _Case,
+) -> None:
+    """synthetic Silo source 束縛の下での formal-consumer contract の検査。
+
+    production issuer からの到達性は証明しない。salts は不変・未行使、
+    ledger replay は要求しない。
+    """
+
+    producer_root = case.fixture.root.parent / "producer-formal-evidence"
+    assert not producer_root.exists()
+    result = verifier_core.verify_trace_dir(
+        str(Path(__file__).with_name("fixtures") / "r9_dense_cycle4"),
+        protocol="silo",
+        ccbench_root=_synthetic_silo_source(
+            case.fixture.root.parent / "producer-silo-source"
+        ),
+    )
+    snapshot = verifier_report.result_to_dict(result)
+    snapshot.pop("trace_dir", None)
+    assert result.integrity.clean() is True
+    assert result.total_cycles == len(result.anomalies) == 1
+
+    policy = json.loads(
+        (case.fixture.root / "artifacts" / "verifier-policy.json").read_bytes()
+    )
+    ordered_verifiers = tuple(policy["ordered_passes"])
+    records: list[dict] = []
+    identities: list[str] = []
+    physical_roots: list[Path] = []
+    for query_ordinal in range(33):
+        mask = 7 if query_ordinal == 0 else query_ordinal - 1
+        attempt = f"fixture-build-attempt-{query_ordinal:04d}"
+        physical_lock = _physical_lock_identity(
+            attempt_capability_sha256=case.attempt_capability_sha256,
+            query_ordinal=query_ordinal,
+        )
+        campaign_run_identity = _campaign_identity(
+            "fixture-origin", physical_lock
+        )
+        physical_root = Path(
+            exploration_campaign_layout(
+                campaign_run_identity, str(producer_root)
+            ).root
+        )
+        assert not physical_root.exists()
+        _write(physical_root / "campaign.lock", _canonical(physical_lock))
+
+        wal_records = F._wal_records(attempt, mask)
+        wal_records[-1]["payload"]["verify"] = copy.deepcopy(snapshot)
+        source_raw = _canonical(wal_records)
+        source_path = physical_root / "runs" / "wal.jsonl"
+        _write(source_path, source_raw)
+        source_ref = {
+            "path": source_path.relative_to(producer_root).as_posix(),
+            "sha256": _digest(source_raw),
+        }
+        projection = F.build_ordered_wal_projection(
+            source_wal_ref=source_ref,
+            byte_end=len(source_raw),
+            build_attempt_id=attempt,
+            records=wal_records,
+        )
+        projection_path = (
+            physical_root / "reports" / "ordered-wal-projection.json"
+        )
+        projection_raw = _canonical(projection)
+        _write(projection_path, projection_raw)
+
+        trigger_binding = F._trigger_binding(mask)
+        provenance = F.build_execution_provenance(
+            build_attempt_id=attempt,
+            campaign_id=case.capability.campaign_id,
+            campaign_run_identity=campaign_run_identity,
+            trigger_binding=trigger_binding,
+            execution_receipt_sha256=_digest(
+                f"producer-receipt:{query_ordinal}".encode("utf-8")
+            ),
+        )
+        provenance_path = physical_root / "reports" / "execution-provenance.json"
+        provenance_raw = _canonical(provenance)
+        _write(provenance_path, provenance_raw)
+
+        fixture_record = F.build_result_evidence_record(
+            trial_binding__campaign_id=case.capability.campaign_id,
+            ledger_member={
+                "batch_id": case.records[0]["ledger_member"]["batch_id"],
+                "iteration_index": 0,
+                "query_ordinal": query_ordinal,
+                "replicate_ordinal": (
+                    0 if query_ordinal == 0 else (1 if mask == 7 else 0)
+                ),
+            },
+            p6_plan={
+                "purpose": "source" if query_ordinal == 0 else "p6-validation",
+                "hypothesis_sha256": case.records[0]["p6_plan"][
+                    "hypothesis_sha256"
+                ],
+                "validation_plan_sha256": case.records[0]["p6_plan"][
+                    "validation_plan_sha256"
+                ],
+            },
+            trigger_binding=trigger_binding,
+            evidence={
+                "ordered_wal_ref": {
+                    "path": projection_path.relative_to(producer_root).as_posix(),
+                    "sha256": _digest(projection_raw),
+                },
+                "execution_provenance_ref": {
+                    "path": provenance_path.relative_to(producer_root).as_posix(),
+                    "sha256": _digest(provenance_raw),
+                },
+            },
+        )
+        derived = E.derive_physical_result(
+            ordered_wal_projection_bytes=projection_raw,
+            build_attempt_id=attempt,
+            ordered_verifiers=ordered_verifiers,
+            verify_result=result,
+        )
+        record = E.assemble_result_evidence_record(
+            origin_binding=fixture_record["origin_binding"],
+            trial_binding=fixture_record["trial_binding"],
+            ledger_member=fixture_record["ledger_member"],
+            p6_plan=fixture_record["p6_plan"],
+            trigger_binding=fixture_record["trigger_binding"],
+            derived=derived,
+            ordered_wal_ref=fixture_record["evidence"]["ordered_wal_ref"],
+            execution_provenance_ref=fixture_record["evidence"][
+                "execution_provenance_ref"
+            ],
+        )
+        E.issue_result_evidence_record(
+            evidence_root=producer_root, record=record
+        )
+        records.append(record)
+        identities.append(campaign_run_identity)
+        physical_roots.append(physical_root)
+
+    raw_records = [_canonical(record) for record in records]
+    members = tuple(
+        E.map_result_evidence_to_sealed_member(record, raw_bytes=raw)
+        for record, raw in zip(records, raw_records, strict=True)
+    )
+    batch = dataclasses.replace(case.batches[0], members=members)
+    run_plan = _run_plan(case.capability, tuple(identities))
+    envelope_raw = T.canonical_recovery_envelope_bytes(run_plan)
+    _write(producer_root / "origin" / "recovery-envelope.json", envelope_raw)
+    result_paths = tuple(
+        producer_root / E.result_evidence_relative_path(record)
+        for record in records
+    )
+    fixture = dataclasses.replace(
+        case.fixture,
+        evidence_root=producer_root,
+        result_evidence_paths=result_paths,
+    )
+    producer_case = dataclasses.replace(
+        case,
+        fixture=fixture,
+        run_plan=run_plan,
+        records=records,
+        raw_records=raw_records,
+        batches=(batch,),
+        campaign_output_root=producer_root,
+        origin_run_plan_sha256=_digest(envelope_raw),
+        physical_roots=tuple(physical_roots),
+    )
+    formal_result = _evaluate(producer_case)
+    assert type(formal_result) is C.P6Unavailable
+    assert formal_result.reason_code is C.FormalReasonCode.P6_UNAVAILABLE
 
 
 def test_fc01_rejects_missing_non_tombstone_record(case: _Case) -> None:
@@ -1875,14 +2072,14 @@ def test_fc07_converts_witness_canonicalization_artifact_error(
     case: _Case,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    original = C.canonical_json_bytes
+    original = E.canonical_json_bytes
 
     def fail_only_for_anomaly(value: object) -> bytes:
         if type(value) is dict and set(value) == C._ANOMALY_KEYS:
-            raise C.ArtifactError("fixture canonicalization failure")
+            raise E.ArtifactError("fixture canonicalization failure")
         return original(value)
 
-    monkeypatch.setattr(C, "canonical_json_bytes", fail_only_for_anomaly)
+    monkeypatch.setattr(E, "canonical_json_bytes", fail_only_for_anomaly)
     _assert_reason(case, C.FormalReasonCode.FC07)
 
 
