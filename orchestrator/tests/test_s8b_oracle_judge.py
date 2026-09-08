@@ -20,10 +20,12 @@ sys.path.insert(0, str(TESTS))
 
 from orchestrator.campaign import s8b_oracle_judge as judge  # noqa: E402
 from orchestrator.campaign import s8b_oracle_artifacts as artifacts  # noqa: E402
+from orchestrator.campaign import s8b_holdout_freeze as holdout_freeze  # noqa: E402
 from orchestrator.campaign import s8b_oracle_manifest as oracle_manifest  # noqa: E402
 from orchestrator.campaign import s8b_oracle_spec as oracle_spec  # noqa: E402
 from orchestrator.calibrator import perf_preflight  # noqa: E402
 import test_s8b_oracle_report as report_fixtures  # noqa: E402
+import test_s8b_ratified_freeze as ratified_fixture  # noqa: E402
 
 
 # 注意: holdout の三軸 conjunction は JSON 形の静止リテラルにしない。
@@ -724,6 +726,154 @@ def _cli_observations(document, approved_sha256):
         "store_reverification": _store_reverification(expected_cells),
         "rows": rows,
     }
+
+
+def _real_g1_judge_cli_fixture(tmp_path):
+    root, manifest_path, document, approved = (
+        report_fixtures._ratified_cli_manifest(tmp_path)
+    )
+    source = tmp_path / "observations.real-g1.json"
+    source.write_text(
+        json.dumps(_cli_observations(document, approved.sha256)),
+        encoding="utf-8",
+    )
+    return root, manifest_path, source, approved
+
+
+def _install_scan_neutral_earlier_result(root):
+    loaded = judge.s8b_ratified_freeze.load_ratified_freeze(root)
+    selected_rel = loaded.document["floor_source"]["path"]
+    selected_run_id = selected_rel.rsplit("/", 2)[-2]
+    proto8 = selected_run_id.rsplit("-", 1)[1]
+    earlier_run_id = f"20260718T115959Z-{proto8}"
+    earlier_rel = selected_rel.replace(selected_run_id, earlier_run_id)
+    assert earlier_rel != selected_rel
+    earlier_path = root / earlier_rel
+    earlier_path.parent.mkdir(parents=True, exist_ok=True)
+    earlier_path.write_bytes(b"{}")
+    ratified_fixture._commit_exact(
+        root,
+        [earlier_rel],
+        subject="scan-neutral earlier official result",
+        agent="fixture",
+    )
+    return earlier_rel
+
+
+def test_judge_cli_real_g1_rule_mismatch_preserves_selection_reason(
+        tmp_path, monkeypatch, capsys):
+    root, manifest_path, source, approved = _real_g1_judge_cli_fixture(tmp_path)
+    earlier_rel = _install_scan_neutral_earlier_result(root)
+    eligibility_calls = []
+
+    def derive_eligibility(**kwargs):
+        eligibility_calls.append(kwargs["result_rel"])
+        return kwargs["result_rel"] == earlier_rel
+
+    monkeypatch.setattr(
+        holdout_freeze,
+        "_derive_floor_selection_eligibility",
+        derive_eligibility,
+    )
+    monkeypatch.setattr(oracle_spec, "APPROVED_SPEC_SHA256", approved.sha256)
+    output = tmp_path / "selection-mismatch-must-not-exist.json"
+
+    rc = judge.main([
+        "judge", "--input", str(source),
+        "--manifest", str(manifest_path), "--out", str(output),
+        "--repo-root", str(root),
+    ])
+
+    stderr = capsys.readouterr().err
+    assert rc == 2
+    assert "floor-selection-rule-mismatch" in stderr
+    assert "earliest-eligible-official-run-id/v1" in stderr
+    assert eligibility_calls == [earlier_rel]
+    assert not output.exists()
+
+
+def test_judge_cli_valid_real_g1_reaches_reverify_after_actual_selection_gate(
+        tmp_path):
+    root, manifest_path, source, approved = _real_g1_judge_cli_fixture(tmp_path)
+    output = tmp_path / "valid-real-g1-verdict.json"
+    real_selection = (
+        judge.s8b_ratified_freeze.assert_g1_floor_selection_identity
+    )
+    real_reverify = judge.s8b_ratified_freeze.reverify_published_freeze
+    ordered_calls = mock.Mock()
+
+    with mock.patch.object(
+            oracle_spec, "APPROVED_SPEC_SHA256", approved.sha256,
+    ), mock.patch.object(
+            judge.s8b_ratified_freeze,
+            "assert_g1_floor_selection_identity",
+            wraps=real_selection,
+    ) as selection_spy, mock.patch.object(
+            judge.s8b_ratified_freeze,
+            "reverify_published_freeze",
+            wraps=real_reverify,
+    ) as reverify_spy:
+        ordered_calls.attach_mock(selection_spy, "selection")
+        ordered_calls.attach_mock(reverify_spy, "reverify")
+        rc = judge.main([
+            "judge", "--input", str(source),
+            "--manifest", str(manifest_path), "--out", str(output),
+            "--repo-root", str(root),
+        ])
+
+    assert rc == 0
+    assert output.exists()
+    assert selection_spy.call_count == 1
+    assert reverify_spy.call_count == 1
+    assert [call[0] for call in ordered_calls.mock_calls[:2]] == [
+        "selection", "reverify",
+    ]
+
+
+def test_judge_cli_selection_gate_receives_loaded_ratified_and_root(tmp_path):
+    root, manifest_path, source, approved = _real_g1_judge_cli_fixture(tmp_path)
+    output = tmp_path / "selection-arguments-verdict.json"
+    real_load = judge.s8b_ratified_freeze.load_ratified_freeze
+    real_selection = (
+        judge.s8b_ratified_freeze.assert_g1_floor_selection_identity
+    )
+    loaded = []
+    selection_calls = []
+
+    def load_recording_wrapper(candidate_root):
+        loaded_ratified = real_load(candidate_root)
+        loaded.append(loaded_ratified)
+        return loaded_ratified
+
+    def selection_recording_wrapper(candidate, candidate_root):
+        selection_calls.append((candidate, candidate_root))
+        return real_selection(candidate, candidate_root)
+
+    with mock.patch.object(
+            oracle_spec, "APPROVED_SPEC_SHA256", approved.sha256,
+    ), mock.patch.object(
+            judge.s8b_ratified_freeze,
+            "load_ratified_freeze",
+            side_effect=load_recording_wrapper,
+    ), mock.patch.object(
+            judge.s8b_ratified_freeze,
+            "assert_g1_floor_selection_identity",
+            side_effect=selection_recording_wrapper,
+    ):
+        rc = judge.main([
+            "judge", "--input", str(source),
+            "--manifest", str(manifest_path), "--out", str(output),
+            "--repo-root", str(root),
+        ])
+
+    assert rc == 0
+    assert output.exists()
+    assert len(loaded) == 1
+    loaded_ratified = loaded[0]
+    assert selection_calls == [(loaded_ratified, root)]
+    assert selection_calls[0][0] is loaded_ratified
+    assert type(selection_calls[0][1]) is type(root)
+    assert selection_calls[0][1] == root
 
 
 @pytest.mark.parametrize("schema", [

@@ -37,6 +37,12 @@ def _normalize_request_id(value: str) -> str:
     return normalized
 
 
+def normalize_request_id(value: str) -> str:
+    """Return the shared canonical NQSV request ID or raise ``ValueError``."""
+
+    return _normalize_request_id(value)
+
+
 def gate_state_value(field: str, value: str) -> Optional[str]:
     """Normalize only the field-specific vocabulary accepted by NQSV gates."""
 
@@ -129,3 +135,55 @@ def target_bound_qstat_state(stdout: str, request_id: str) -> Optional[str]:
     """Return the canonical target-bound state, or ``None`` on ambiguity."""
 
     return target_bound_qstat_state_result(stdout, request_id).state
+
+
+NQSV_ACCOUNTING_REQUEST_ID_RE = re.compile(
+    r"(?m)^[ \t]*Request ID:[ \t]*(\S+?)[ \t]*\r?$"
+)
+NQSV_ACCOUNTING_ENDED_RE = re.compile(
+    r"(?m)^[ \t]*Ended Request Time:[ \t]*\S[^\r\n]*\r?$"
+)
+
+
+@dataclass(frozen=True)
+class AccountingEndedResult:
+    ended: bool
+    reason: str
+
+
+def accounting_ended_result(
+    text: str,
+    request_id: str,
+) -> AccountingEndedResult:
+    """Recognize one target-bound NQSV accounting completion record."""
+
+    try:
+        expected = _normalize_request_id(request_id)
+    except ValueError:
+        return AccountingEndedResult(False, "invalid-target-request-id")
+    id_matches = list(NQSV_ACCOUNTING_REQUEST_ID_RE.finditer(text))
+    if len(id_matches) != 1:
+        return AccountingEndedResult(False, "request-id-count")
+    try:
+        observed = _normalize_request_id(id_matches[0].group(1))
+    except ValueError:
+        return AccountingEndedResult(False, "invalid-observed-request-id")
+    if observed != expected:
+        return AccountingEndedResult(False, "request-id-mismatch")
+    request_match = id_matches[0]
+    if NQSV_ACCOUNTING_ENDED_RE.search(
+        text[:request_match.start()],
+    ) is not None:
+        return AccountingEndedResult(
+            False,
+            "ended-before-target-request-id",
+        )
+    if NQSV_ACCOUNTING_ENDED_RE.search(text[request_match.end():]) is None:
+        return AccountingEndedResult(False, "ended-field-missing")
+    return AccountingEndedResult(True, "ok")
+
+
+def accounting_ended(text: str, request_id: str) -> bool:
+    """Return whether the accounting text proves the target request ended."""
+
+    return accounting_ended_result(text, request_id).ended

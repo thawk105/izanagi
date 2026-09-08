@@ -1,0 +1,218 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 20,
+  "timeout_seconds": 120,
+  "hang_timeout_seconds": 180,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/acceptance_shards.py",
+          "old": "    setattr(config, \"_izanagi_acceptance_shard_state\", {\n        \"records\": _records_payload(records),\n        \"records_digest\": _digest(_records_payload(records)),\n        \"selected\": sorted(selected),\n        \"selected_digest\": _digest(sorted(selected)),\n        \"loads\": list(assignment.loads),\n    })\n",
+          "new": "    setattr(config, \"_izanagi_acceptance_shard_state\", {\n        \"records\": _records_payload(records),\n        \"records_digest\": _digest(_records_payload(records)),\n        \"selected\": sorted(selected),\n        \"selected_digest\": _digest(sorted(selected)),\n        \"loads\": list(assignment.loads),\n    })\n    state = getattr(config, \"_izanagi_acceptance_shard_state\", None)\n    if type(state.get(\"real_repo_lock_intervals\")) is not list:\n        state[\"real_repo_lock_intervals\"] = []\n    try:\n        observed = _observed_epoch(time.time())\n    except Exception:\n        observed = None\n    state[\"collection_finished_epoch_s\"] = observed\n"
+        },
+        {
+          "file": "tools/acceptance_shards.py",
+          "old": "@_pytest_hookimpl(trylast=True)\ndef pytest_collection_finish(session: Any) -> None:\n    config = getattr(session, \"config\", None)\n    if getattr(config, \"_izanagi_acceptance_shard_spec\", None) is None:\n        return\n    state = getattr(config, \"_izanagi_acceptance_shard_state\", None)\n    if type(state) is not dict:\n        return\n    if type(state.get(\"real_repo_lock_intervals\")) is not list:\n        state[\"real_repo_lock_intervals\"] = []\n    try:\n        observed = _observed_epoch(time.time())\n    except Exception:\n        observed = None\n    state[\"collection_finished_epoch_s\"] = observed\n",
+          "new": "@_pytest_hookimpl(trylast=True)\ndef pytest_collection_finish(session: Any) -> None:\n    del session\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_shards.py::test_collection_finish_clock_runs_after_synthetic_modifyitems_wrapper"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/acceptance_shards.py",
+          "old": "    start = _observed_epoch(getattr(report, \"start\", None))\n    stop = _observed_epoch(getattr(report, \"stop\", None))\n",
+          "new": "    start = getattr(report, \"start\", None)\n    stop = getattr(report, \"stop\", None)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_shards.py::test_runtest_logreport_ignores_zero_nonfinite_missing_and_huge_bounds"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "    config = getattr(item, \"config\", None)\n",
+          "new": "    config = item.config\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_shards.py::test_runtest_protocol_configless_item_keeps_existing_lock_contract"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "@contextlib.contextmanager\ndef _acceptance_timed_real_repo_locks(config, access: RealRepoAccess | None):\n",
+          "new": "@contextlib.contextmanager\ndef _mutation_record_on_lock_acquire_failure(\n    config, access: RealRepoAccess | None,\n):\n    lock_context = _real_repo_locks(access)\n    try:\n        lock_context.__enter__()\n    except BaseException:\n        observed = _acceptance_epoch_now()\n        if observed is None:\n            observed = 1.0\n        from tools import acceptance_shards\n\n        acceptance_shards.record_real_repo_lock_interval(\n            config, observed, observed,\n        )\n        raise\n    try:\n        yield\n    except BaseException as exc:\n        if not lock_context.__exit__(type(exc), exc, exc.__traceback__):\n            raise\n    else:\n        lock_context.__exit__(None, None, None)\n\n\n@contextlib.contextmanager\ndef _acceptance_timed_real_repo_locks(config, access: RealRepoAccess | None):\n"
+        },
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "    with _real_repo_locks(access):\n        acquired = _acceptance_epoch_now()\n        yield\n",
+          "new": "    with _mutation_record_on_lock_acquire_failure(config, access):\n        acquired = _acceptance_epoch_now()\n        yield\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_shards.py::test_runtest_protocol_lock_acquire_and_release_failures_record_nothing"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "@contextlib.contextmanager\ndef _acceptance_timed_real_repo_locks(config, access: RealRepoAccess | None):\n",
+          "new": "@contextlib.contextmanager\ndef _mutation_record_on_lock_release_failure(\n    config, access: RealRepoAccess | None,\n):\n    lock_context = _real_repo_locks(access)\n    lock_context.__enter__()\n    try:\n        yield\n    except BaseException as exc:\n        if not lock_context.__exit__(type(exc), exc, exc.__traceback__):\n            raise\n    else:\n        try:\n            lock_context.__exit__(None, None, None)\n        except BaseException:\n            observed = _acceptance_epoch_now()\n            if observed is None:\n                observed = 1.0\n            from tools import acceptance_shards\n\n            acceptance_shards.record_real_repo_lock_interval(\n                config, observed, observed,\n            )\n            raise\n\n\n@contextlib.contextmanager\ndef _acceptance_timed_real_repo_locks(config, access: RealRepoAccess | None):\n"
+        },
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "    with _real_repo_locks(access):\n        acquired = _acceptance_epoch_now()\n        yield\n",
+          "new": "    with _mutation_record_on_lock_release_failure(config, access):\n        acquired = _acceptance_epoch_now()\n        yield\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_shards.py::test_runtest_protocol_lock_acquire_and_release_failures_record_nothing"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "        config is None\n        or access is None\n        or getattr(config, \"_izanagi_acceptance_shard_spec\", None) is None\n",
+          "new": "        config is None\n        or getattr(config, \"_izanagi_acceptance_shard_spec\", None) is None\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_shards.py::test_runtest_protocol_access_none_reads_no_clock_and_records_nothing"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7",
+      "category": "both-layers",
+      "replacements": [
+        {
+          "file": "tools/acceptance_shards.py",
+          "old": "    \"junit_path\", \"worker_collection_digests\", \"session_timeline\",\n",
+          "new": "    \"junit_path\", \"worker_collection_digests\",\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_shards.py::test_m1_observed_universe_gate_has_independent_killer",
+        "orchestrator/tests/test_run_tests_shards.py::test_m5_login_universe_gate_has_independent_killer",
+        "orchestrator/tests/test_run_tests_shards.py::test_merge_six_gate_positive_control_and_rc_mapping",
+        "orchestrator/tests/test_run_tests_shards.py::test_merge_rejects_whole_shard_omission_before_other_gates",
+        "orchestrator/tests/test_run_tests_shards.py::test_merge_rejects_selected_partition_substitution",
+        "orchestrator/tests/test_run_tests_shards.py::test_merge_rejects_group_split_at_gate_four",
+        "orchestrator/tests/test_run_tests_shards.py::test_merge_rejects_unfinished_selected_node",
+        "orchestrator/tests/test_run_tests_shards.py::test_m6_merge_rejects_unknown_and_mixed_scheduler[schedulers0]",
+        "orchestrator/tests/test_run_tests_shards.py::test_m6_merge_rejects_unknown_and_mixed_scheduler[schedulers1]",
+        "orchestrator/tests/test_run_tests_shards.py::test_report_evidence_accepts_consistent_durations_and_rejects_item_mismatch",
+        "orchestrator/tests/test_run_tests_shards.py::test_session_timeline_is_required_and_valid_fixture_merges",
+        "orchestrator/tests/test_run_tests_shards.py::test_session_timeline_contents_do_not_change_merge_verdict",
+        "orchestrator/tests/test_run_tests_shards.py::test_merged_output_has_exactly_one_scheduler_marker",
+        "orchestrator/tests/test_run_tests_shards.py::test_parallel_merge_paths_do_not_emit_no_verdict_attestation[success]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/acceptance_shards.py",
+          "old": "            \"collection_finished_epoch_s\": None,\n            \"real_repo_lock_intervals\": [],\n",
+          "new": "            \"collection_finished_epoch_s\": None,\n"
+        },
+        {
+          "file": "tools/acceptance_shards.py",
+          "old": "        \"real_repo_lock_intervals\": _observed_lock_intervals(\n            state.get(\"real_repo_lock_intervals\")\n        ),\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_shards.py::test_worker_payload_carries_observations_and_defaults_without_state"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/acceptance_shards.py",
+          "old": "        max(collection_observations, default=None), lock_intervals,\n",
+          "new": "        min(collection_observations, default=None), lock_intervals,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_shards.py::test_controller_state_xdist_uses_latest_collection_and_worker_lock_map"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/acceptance_shards.py",
+          "old": "    state = getattr(config, \"_izanagi_acceptance_shard_state\", None)\n    if type(state) is dict:\n        return (\n            state[\"records\"], state[\"selected\"], [state[\"records_digest\"]],\n            _observed_epoch(state.get(\"collection_finished_epoch_s\")),\n            {\n                \"serial\": _observed_lock_intervals(\n                    state.get(\"real_repo_lock_intervals\")\n                )\n            },\n        )\n    if not _WORKER_PAYLOADS:\n",
+          "new": "    state = getattr(config, \"_izanagi_acceptance_shard_state\", None)\n    del state\n    if not _WORKER_PAYLOADS:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_shards.py::test_controller_state_serial_uses_config_local_timeline",
+        "orchestrator/tests/test_run_tests_shards.py::test_sessionfinish_writes_serial_session_timeline"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/acceptance_shards.py",
+          "old": "    \"\"\"診断 payload を producer から独立に再計算して検証する。\"\"\"\n\n    if not records or not selected:\n",
+          "new": "    \"\"\"診断 payload を producer から独立に再計算して検証する。\"\"\"\n\n    if not report[\"session_timeline\"]:\n        raise ShardError(\"report-evidence-session-timeline\")\n    if not records or not selected:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_shards.py::test_session_timeline_contents_do_not_change_merge_verdict"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

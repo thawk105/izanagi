@@ -1,0 +1,9 @@
+merge(main): 共有 fixture group の golden 集合を両親から合成
+
+wave 側では、C04 の実 repo 負例が current_commit_snapshot を共有するため、_S8C_PREDICATE_SNAPSHOT_NODES_GOLDEN に node を 1 件追加した。main 側では、material report の共有 group に加わった 4 node を _P3_B4_MATERIAL_REPORT_NODES_GOLDEN に追加した。
+
+両変更は同じ test_real_repo_serialization.py 内でも別々の frozenset を更新する。_LONG_LIVED_FIXTURE_GROUP_NODES_GOLDEN はそれぞれを別 group に結び、_REAL_REPO_FIXTURE_ACCESS_GOLDEN は S8C 集合を current_commit_snapshot の consumer 集合として参照するため、双方を保存する合成は group の exact golden と fixture consumer 閉包を維持する。
+
+AI-Agent: product=codex; model=gpt-5.6-sol; reasoning=xhigh; role=author
+AI-Agent: product=claude; model=claude-opus-5; reasoning=xhigh; role=integrator; scope=merge
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
