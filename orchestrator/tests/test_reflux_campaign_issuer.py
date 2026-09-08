@@ -20,6 +20,7 @@ _REPO = _HERE.parents[1]
 sys.path.insert(0, str(_HERE))
 sys.path.insert(0, str(_REPO))
 
+from orchestrator.campaign import env_attestation, env_contract  # noqa: E402
 from orchestrator.campaign import execution_guard  # noqa: E402
 from orchestrator.campaign import layout as layout_module  # noqa: E402
 from orchestrator.campaign import loop  # noqa: E402
@@ -41,6 +42,7 @@ from orchestrator.campaign.model import (  # noqa: E402
     CampaignConfig,
     Genome,
     STAGE_ABORT,
+    STAGE_BUILD_DONE,
     STAGE_BUILD_START,
 )
 from orchestrator.campaign.pipeline import (  # noqa: E402
@@ -266,10 +268,13 @@ def _issued_origin_capability(
 
 
 def _issuance_context(
-        evidence_root: Path, contract_sha256: str, *,
+        evidence_root: Path,
+        contract: env_contract.ExecutionEnvironmentContract,
+        *,
+        verified_calibration: object | None = None,
         batch_id: str | None = None,
 ) -> evidence.ResultEvidenceIssuanceContext:
-    capability = _issued_origin_capability(contract_sha256)
+    capability = _issued_origin_capability(contract.contract_sha256)
     origin_record = {
         "authority_blob_sha256": capability.authority_blob_sha256,
         "source_closure_sha256": capability.source_closure_sha256,
@@ -305,23 +310,39 @@ def _issuance_context(
         expected_record_path=evidence.result_evidence_relative_path(
             fixture_record
         ).as_posix(),
+        env_tag=contract.env_tag,
+        attestation_mode=contract.attestation_mode,
+        verified_calibration=verified_calibration,
     )
 
 
-def _install_fixture_receipt_authorization(monkeypatch) -> None:
-    """Keep real authorization and bind its real mode-none receipt for this fixture."""
-    original = loop._authorize_measurement
+def _install_fixture_attestation_probe(
+    monkeypatch,
+    verified_calibration,
+) -> None:
+    """Feed a deterministic observation through the real v2 receipt builder."""
+    expected = env_attestation.profile_to_dict(
+        verified_calibration.attestation_profile
+    )
+    clock_samples = expected["effective_clock"]["samples_mhz"]
+    median_clock = sorted(clock_samples)[len(clock_samples) // 2]
+    expected["effective_clock"]["samples_mhz"] = [
+        median_clock for _sample in clock_samples
+    ]
+    del expected["effective_clock"]["tolerance_pct"]
+    observed = env_attestation.normalize_observed_profile(expected)
+    original = execution_guard.attest_and_build_receipt
 
-    def authorize(*args, **kwargs):
-        result = original(*args, **kwargs)
-        return dataclasses.replace(
-            result,
-            execution_receipt=execution_guard.build_receipt(
-                result.authorized_contract
-            ),
+    def attest(contract, verified):
+        assert verified == verified_calibration
+        return original(
+            contract,
+            verified,
+            probe_fn=lambda: observed,
+            now_fn=lambda: "2026-09-09T00:00:00Z",
         )
 
-    monkeypatch.setattr(loop, "_authorize_measurement", authorize)
+    monkeypatch.setattr(execution_guard, "attest_and_build_receipt", attest)
 
 
 def _install_fixture_trace_runner(monkeypatch) -> None:
@@ -371,6 +392,9 @@ def _drive_campaign(
         predicate: str,
         cache_root: Path,
         context: evidence.ResultEvidenceIssuanceContext | None,
+        authorization=None,
+        contract=None,
+        durable_root_policy=None,
         suffix: str = "primary",
 ):
     root.mkdir(exist_ok=True)
@@ -384,7 +408,8 @@ def _drive_campaign(
             ).hexdigest(),
         )
 
-    contract = campaign_fixtures._AUTH_CONTRACT
+    contract = contract or campaign_fixtures._AUTH_CONTRACT
+    authorization = authorization or campaign_fixtures._AUTHORIZATION
     return loop.run_campaign(
         _campaign_config(commit, suffix=suffix),
         [Genome("silo", {
@@ -402,12 +427,13 @@ def _drive_campaign(
         output_root=os.fspath(root),
         ccbench_dir=os.fspath(checkout),
         cache_root=os.fspath(cache_root),
-        authorization_contract=campaign_fixtures._AUTHORIZATION,
+        authorization_contract=authorization,
         build_context=build_context,
         capability_resolver=capability_resolver,
         declared_use_class="official",
         trigger_gate_binding=_candidate_binding(),
         result_evidence_context=context,
+        durable_root_policy=durable_root_policy,
         log=lambda *_args: None,
     )
 
@@ -421,6 +447,69 @@ def _campaign_files(summary) -> set[str]:
     }
 
 
+def _result_evidence_files(root: Path) -> set[str]:
+    return {
+        path.relative_to(root).as_posix()
+        for path in root.rglob("*")
+        if path.is_file() and "reflux-result-evidence" in path.as_posix()
+    }
+
+
+def _seed_accepted_terminal(
+    layout: CampaignLayout,
+    genome: Genome,
+    variant: str,
+    *,
+    attempt_id: str,
+) -> None:
+    contract = campaign_fixtures._AUTH_CONTRACT
+    admission = campaign_fixtures._admission_for(genome, "deadbeef")
+    receipt = admission.as_wal_receipt()
+    candidate = _candidate_binding()
+    binding = trigger_gate_binding.TriggerGateBinding(
+        mask=candidate.mask,
+        predicate_sha256=candidate.predicate_sha256,
+        nonce=candidate.nonce,
+        source=trigger_gate_binding.SourceBinding(
+            src_token=receipt["source"]["src_token"],
+            source_bytes_sha256=receipt["source"]["source_bytes_sha256"],
+        ),
+    )
+    commitment = wal.log_trigger_binding(
+        layout, variant, contract.env_tag, attempt_id, binding
+    )
+    propagated = {
+        "build_attempt_id": attempt_id,
+        "build_admission_receipt_sha256": receipt["receipt_sha256"],
+    }
+    wal.log(layout, variant, STAGE_BUILD_START, contract.env_tag, {
+        "genome": genome.canonical(),
+        "src_token": receipt["source"]["src_token"],
+        "build_attempt_id": attempt_id,
+        "build_admission": receipt,
+        "build_admission_receipt_sha256": receipt["receipt_sha256"],
+        wal.TRIGGER_BINDING_COMMITMENT_KEY: commitment,
+    })
+    wal.log(
+        layout,
+        variant,
+        STAGE_BUILD_DONE,
+        contract.env_tag,
+        dict(propagated),
+    )
+    campaign_fixtures.commit_receipts.log_receipted_commit(
+        layout,
+        variant,
+        contract.env_tag,
+        {
+            **propagated,
+            "fitness_tps": 100.0,
+            "contract_sha256": contract.contract_sha256,
+        },
+        operation_identity=attempt_id,
+    )
+
+
 def _wal_shape(summary) -> tuple[set[str], set[str]]:
     records = wal.read_records(CampaignLayout(root=summary.layout_root))
     return (
@@ -429,14 +518,38 @@ def _wal_shape(summary) -> tuple[set[str], set[str]]:
     )
 
 
+def _drive_required_campaign(
+    *,
+    root: Path,
+    authorization,
+    contract,
+    durable_root_policy,
+    **kwargs,
+):
+    (root / "env" / contract.env_tag / "claims").mkdir(
+        parents=True, exist_ok=True
+    )
+    with campaign_fixtures._campaign_reservation_environment():
+        return _drive_campaign(
+            root=root,
+            authorization=authorization,
+            contract=contract,
+            durable_root_policy=durable_root_policy,
+            **kwargs,
+        )
+
+
 @pytest.mark.usefixtures("ratified_enforcement_source")
 def test_real_run_campaign_issues_rejected_record_and_originless_is_inert(
         tmp_path: Path, monkeypatch) -> None:
-    """Only trace creation is stubbed in the verifier-to-resolver mechanism."""
+    """A required contract reaches the real verifier-to-resolver mechanism."""
     campaign_fixtures._refresh_certified_writer_authority()
     _install_compiler_aliases(tmp_path, monkeypatch)
-    _install_fixture_receipt_authorization(monkeypatch)
     _install_fixture_trace_runner(monkeypatch)
+    authorization = env_contract.authorize("pegasus")
+    contract = authorization.contract
+    verified = env_attestation.load_verified_calibration(contract, _REPO)
+    _install_fixture_attestation_probe(monkeypatch, verified)
     checkout, commit, predicate = _synthetic_silo_checkout(tmp_path)
     build_context = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
     cache_root = tmp_path / "build-cache"
@@ -445,10 +558,18 @@ def test_real_run_campaign_issues_rejected_record_and_originless_is_inert(
     issued_root.mkdir()
     _admit_sandbox_output_root(monkeypatch, issued_root)
     context = _issuance_context(
-        issued_root, campaign_fixtures._AUTH_CONTRACT.contract_sha256,
+        issued_root,
+        contract,
+        verified_calibration=verified,
     )
-    issued = _drive_campaign(
+    durable_root_policy = campaign_fixtures._single_process_test_policy(
+        issued_root
+    )
+    issued = _drive_required_campaign(
         root=issued_root,
+        authorization=authorization,
+        contract=contract,
+        durable_root_policy=durable_root_policy,
         checkout=checkout,
         commit=commit,
         build_context=build_context,
@@ -506,55 +627,43 @@ def test_real_run_campaign_issues_rejected_record_and_originless_is_inert(
         content_files["execution-provenance"][0].read_bytes()
     )
 
-    with pytest.raises(evidence.ResultEvidenceIssuanceRefused):
-        _drive_campaign(
-            root=issued_root,
-            checkout=checkout,
-            commit=commit,
-            build_context=build_context,
-            predicate=predicate,
-            cache_root=cache_root,
-            context=context,
+    before_reissue = _campaign_files(issued)
+    with monkeypatch.context() as reentry:
+        reentry.setattr(
+            loop.campaign_claim,
+            "acquire_claim",
+            lambda *_args, **_kwargs: None,
         )
-
-    evidence_files_before_originless = {
-        path.relative_to(issued_root).as_posix()
-        for path in issued_root.rglob("*")
-        if path.is_file() and "reflux-result-evidence" in path.as_posix()
-    }
-    originless = _drive_campaign(
-        root=issued_root,
-        checkout=checkout,
-        commit=commit,
-        build_context=build_context,
-        predicate=predicate,
-        cache_root=cache_root,
-        context=None,
-        suffix="originless",
-    )
-    assert _wal_shape(originless) == _wal_shape(issued)
-    assert _campaign_files(originless) < _campaign_files(issued)
-    assert not any(
-        "reflux-result-evidence" in path
-        for path in _campaign_files(originless)
-    )
-    assert {
-        path.relative_to(issued_root).as_posix()
-        for path in issued_root.rglob("*")
-        if path.is_file() and "reflux-result-evidence" in path.as_posix()
-    } == evidence_files_before_originless
+        with pytest.raises(evidence.ResultEvidenceIssuanceRefused):
+            _drive_required_campaign(
+                root=issued_root,
+                authorization=authorization,
+                contract=contract,
+                durable_root_policy=durable_root_policy,
+                checkout=checkout,
+                commit=commit,
+                build_context=build_context,
+                predicate=predicate,
+                cache_root=cache_root,
+                context=context,
+            )
+    assert _campaign_files(issued) == before_reissue
 
     collision_context = _issuance_context(
         issued_root,
-        campaign_fixtures._AUTH_CONTRACT.contract_sha256,
+        contract,
+        verified_calibration=verified,
         batch_id="fixture-collision-batch",
     )
     occupied = issued_root / collision_context.expected_record_path
     occupied.parent.mkdir(parents=True)
     occupied.write_bytes(b"occupied\n")
     with pytest.raises(evidence.ResultEvidenceError):
-        _drive_campaign(
+        _drive_required_campaign(
             root=issued_root,
+            authorization=authorization,
+            contract=contract,
+            durable_root_policy=durable_root_policy,
             checkout=checkout,
             commit=commit,
             build_context=build_context,
@@ -566,7 +675,6 @@ def test_real_run_campaign_issues_rejected_record_and_originless_is_inert(
     collision_layouts = tuple(
         path for path in (issued_root / "campaigns").iterdir()
         if path != Path(issued.layout_root)
-        and path != Path(originless.layout_root)
     )
     assert len(collision_layouts) == 1
     collision_records = wal.read_records(
@@ -576,13 +684,159 @@ def test_real_run_campaign_issues_rejected_record_and_originless_is_inert(
             if record.stage == STAGE_ABORT] == ["non-serializable"]
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
+def test_originless_campaign_has_legacy_literal_artifact_and_wal_shape(
+        tmp_path: Path, monkeypatch) -> None:
+    campaign_fixtures._refresh_certified_writer_authority()
+    _install_compiler_aliases(tmp_path, monkeypatch)
+    _install_fixture_trace_runner(monkeypatch)
+    checkout, commit, predicate = _synthetic_silo_checkout(tmp_path)
+    root = tmp_path / "originless-output"
+    root.mkdir()
+    _admit_sandbox_output_root(monkeypatch, root)
+    summary = _drive_campaign(
+        root=root,
+        checkout=checkout,
+        commit=commit,
+        build_context=build_run_context(
+            generator_id=GeneratorId.S8A_TRIGGER_SWEEP
+        ),
+        predicate=predicate,
+        cache_root=tmp_path / "originless-build-cache",
+        context=None,
+        suffix="originless-literal-baseline",
+    )
+
+    assert _campaign_files(summary) == {"campaign.lock", "runs/wal.jsonl"}
+    assert _wal_shape(summary) == (
+        {
+            "abort",
+            "build_done",
+            "build_start",
+            "trigger_binding",
+            "verify_done",
+        },
+        {
+            "aborts",
+            "anomalies",
+            "build_admission",
+            "build_admission_receipt_sha256",
+            "build_attempt_id",
+            "certified",
+            "commit_witness",
+            "commits",
+            "genome",
+            "perf_bin",
+            "perf_bin_sha256",
+            "perf_build_cmd",
+            "perf_cached",
+            "perf_configure_cmd",
+            "proof_surfaces",
+            "reason",
+            "src_token",
+            "trace_bin",
+            "trace_bin_sha256",
+            "trace_cached",
+            "trigger_gate_binding",
+            "trigger_gate_binding_commitment",
+            "verdict",
+            "verify",
+            "workload",
+        },
+    )
+    assert not any(
+        "reflux-result-evidence" in path.as_posix()
+        for path in root.rglob("*")
+    )
+
+
+@pytest.mark.usefixtures("ratified_enforcement_source")
+def test_originless_campaign_does_not_evaluate_issuer_only_attributes(
+        tmp_path: Path, monkeypatch) -> None:
+    campaign_fixtures._refresh_certified_writer_authority()
+    root = tmp_path / "originless-sentinels"
+    root.mkdir()
+    _admit_sandbox_output_root(monkeypatch, root)
+    source = SimpleNamespace(
+        src_token="sentinel-source",
+        source_bytes_sha256="a" * 64,
+    )
+    monkeypatch.setattr(
+        loop.source_digest,
+        "resolve_evidence",
+        lambda *_args, **_kwargs: source,
+    )
+
+    class GuardedAuthorizedContract:
+        @property
+        def contract_sha256(self):
+            raise AssertionError("originless path evaluated contract_sha256")
+
+    class GuardedEvalResult(pipeline.EvalResult):
+        def __getattribute__(self, name):
+            if name in {"build_attempt_id", "verify_result"}:
+                raise AssertionError(
+                    f"originless path evaluated EvalResult.{name}"
+                )
+            return super().__getattribute__(name)
+
+    guarded_result = GuardedEvalResult(
+        genome=Genome("silo", {}),
+        variant="sentinel-variant",
+        certified=False,
+        aborted=True,
+    )
+    monkeypatch.setattr(
+        loop,
+        "evaluate",
+        lambda *_args, **_kwargs: guarded_result,
+    )
+    original_authorize = loop._authorize_measurement
+
+    def authorize(*args, **kwargs):
+        authorized = original_authorize(*args, **kwargs)
+        return dataclasses.replace(
+            authorized,
+            authorized_contract=GuardedAuthorizedContract(),
+        )
+
+    monkeypatch.setattr(loop, "_authorize_measurement", authorize)
+    monkeypatch.setattr(
+        loop.ident,
+        "ensure_resumable_wal",
+        lambda *_args, **_kwargs: SimpleNamespace(status="clean"),
+    )
+    monkeypatch.setattr(
+        loop.wal,
+        "replay",
+        lambda *_args, **_kwargs: {},
+    )
+    summary = loop.run_campaign(
+        _campaign_config("0" * 40),
+        [guarded_result.genome],
+        PerfConfig(records=1, threads=1),
+        campaign_fixtures._AUTH_CONTRACT.env_tag,
+        campaign_fixtures._AUTH_CONTRACT.clocks_per_us,
+        numactl=list(campaign_fixtures._AUTH_CONTRACT.numactl),
+        do_bench=False,
+        output_root=os.fspath(root),
+        authorization_contract=campaign_fixtures._AUTHORIZATION,
+        build_context=campaign_fixtures._BUILD_CONTEXT,
+        declared_use_class="official",
+        trigger_gate_binding=_candidate_binding(),
+        result_evidence_context=None,
+        log=lambda *_args: None,
+    )
+    assert summary.results == [guarded_result]
+
+
 def test_context_shape_rejects_multiple_genomes_and_balanced_before_writes(
         tmp_path: Path) -> None:
     campaign_fixtures._refresh_certified_writer_authority()
     root = tmp_path / "evidence"
     root.mkdir()
     context = _issuance_context(
-        root, campaign_fixtures._AUTH_CONTRACT.contract_sha256,
+        root, campaign_fixtures._AUTH_CONTRACT,
     )
     cfg = _campaign_config("0" * 40)
     genome = Genome("silo", {})
@@ -617,7 +871,7 @@ def test_context_exact_type_and_root_binding_precede_campaign_writes(
     evidence_root = tmp_path / "evidence"
     evidence_root.mkdir()
     context = _issuance_context(
-        evidence_root, campaign_fixtures._AUTH_CONTRACT.contract_sha256,
+        evidence_root, campaign_fixtures._AUTH_CONTRACT,
     )
     common = (
         _campaign_config("0" * 40), [Genome("silo", {})],
@@ -674,15 +928,89 @@ def test_context_exact_type_and_root_binding_precede_campaign_writes(
 
 
 @pytest.mark.usefixtures("ratified_enforcement_source")
+@pytest.mark.parametrize("identity_failure", (False, True))
+def test_accepted_terminal_recovery_is_refused_without_new_evidence(
+        tmp_path: Path, monkeypatch, identity_failure: bool) -> None:
+    campaign_fixtures._refresh_certified_writer_authority()
+    root = tmp_path / (
+        "accepted-identity-skip" if identity_failure else "accepted-skip"
+    )
+    root.mkdir()
+    _admit_sandbox_output_root(monkeypatch, root)
+    cfg = _campaign_config(
+        "deadbeef",
+        suffix=("identity-skip" if identity_failure else "normal-skip"),
+    )
+    common_kwargs = {
+        "numactl": list(campaign_fixtures._AUTH_CONTRACT.numactl),
+        "do_bench": False,
+        "output_root": os.fspath(root),
+        "authorization_contract": campaign_fixtures._AUTHORIZATION,
+        "build_context": campaign_fixtures._BUILD_CONTEXT,
+        "declared_use_class": "official",
+        "trigger_gate_binding": _candidate_binding(),
+        "log": lambda *_args: None,
+    }
+    empty = loop.run_campaign(
+        cfg,
+        [],
+        PerfConfig(records=1, threads=1),
+        campaign_fixtures._AUTH_CONTRACT.env_tag,
+        campaign_fixtures._AUTH_CONTRACT.clocks_per_us,
+        result_evidence_context=None,
+        **common_kwargs,
+    )
+    genome = Genome("silo", {})
+    source = campaign_fixtures._source_evidence(genome, "deadbeef")
+    variant = pipeline.variant_id(genome, source.src_token)
+    _seed_accepted_terminal(
+        CampaignLayout(root=empty.layout_root),
+        genome,
+        variant,
+        attempt_id="accepted-terminal-attempt",
+    )
+    if identity_failure:
+        monkeypatch.setattr(
+            loop.source_digest,
+            "resolve_evidence",
+            lambda *_args, **_kwargs: (_ for _ in ()).throw(
+                RuntimeError("fixture identity failure")
+            ),
+        )
+    else:
+        monkeypatch.setattr(
+            loop.source_digest,
+            "resolve_evidence",
+            lambda *_args, **_kwargs: source,
+        )
+    context = _issuance_context(root, campaign_fixtures._AUTH_CONTRACT)
+    before = _result_evidence_files(root)
+
+    with pytest.raises(
+        evidence.ResultEvidenceIssuanceRefused,
+        match="existing terminal attempt cannot be reissued",
+    ):
+        loop.run_campaign(
+            cfg,
+            [genome],
+            PerfConfig(records=1, threads=1),
+            campaign_fixtures._AUTH_CONTRACT.env_tag,
+            campaign_fixtures._AUTH_CONTRACT.clocks_per_us,
+            result_evidence_context=context,
+            **common_kwargs,
+        )
+    assert _result_evidence_files(root) == before == set()
+
+
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_identity_error_terminal_is_explicitly_refused(
         tmp_path: Path, monkeypatch) -> None:
     campaign_fixtures._refresh_certified_writer_authority()
-    _install_fixture_receipt_authorization(monkeypatch)
     root = tmp_path / "identity-error"
     root.mkdir()
     _admit_sandbox_output_root(monkeypatch, root)
     context = _issuance_context(
-        root, campaign_fixtures._AUTH_CONTRACT.contract_sha256,
+        root, campaign_fixtures._AUTH_CONTRACT,
     )
     monkeypatch.setattr(
         loop.source_digest,
@@ -692,6 +1020,7 @@ def test_identity_error_terminal_is_explicitly_refused(
         ),
     )
 
+    evidence_before = _result_evidence_files(root)
     with pytest.raises(evidence.ResultEvidenceIssuanceRefused):
         loop.run_campaign(
             _campaign_config("0" * 40), [Genome("silo", {})],
@@ -708,6 +1037,7 @@ def test_identity_error_terminal_is_explicitly_refused(
             result_evidence_context=context,
             log=lambda *_args: None,
         )
+    assert _result_evidence_files(root) == evidence_before
     layouts = tuple((root / "campaigns").iterdir())
     assert len(layouts) == 1
     records = wal.read_records(CampaignLayout(root=os.fspath(layouts[0])))
@@ -793,11 +1123,111 @@ def test_originless_eval_exception_after_terminal_preserves_legacy_abort(
     assert set(aborts[1].payload) == {"reason"}
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
+@pytest.mark.parametrize("attempt_present", (False, True))
+def test_context_eval_exception_is_refused_without_result_evidence(
+        tmp_path: Path, monkeypatch, attempt_present: bool) -> None:
+    campaign_fixtures._refresh_certified_writer_authority()
+    authorization = env_contract.authorize("pegasus")
+    contract = authorization.contract
+    verified = env_attestation.load_verified_calibration(contract, _REPO)
+    _install_fixture_attestation_probe(monkeypatch, verified)
+    root = tmp_path / (
+        "eval-exception-with-attempt"
+        if attempt_present else "eval-exception-without-attempt"
+    )
+    root.mkdir()
+    _admit_sandbox_output_root(monkeypatch, root)
+    (root / "env" / contract.env_tag / "claims").mkdir(
+        parents=True, exist_ok=True
+    )
+    context = _issuance_context(
+        root,
+        contract,
+        verified_calibration=verified,
+    )
+    genome = Genome("silo", {})
+    source = campaign_fixtures._source_evidence(genome, "deadbeef")
+    monkeypatch.setattr(
+        loop.source_digest,
+        "resolve_evidence",
+        lambda *_args, **_kwargs: source,
+    )
+
+    def raise_during_evaluate(genome, layout, env_tag, *_args, **kwargs):
+        if attempt_present:
+            attempt = "eval-exception-active-attempt"
+            variant = pipeline.variant_id(genome, kwargs["src_token"])
+            supplied = kwargs["trigger_gate_binding"]
+            bound = trigger_gate_binding.TriggerGateBinding(
+                mask=supplied.mask,
+                predicate_sha256=supplied.predicate_sha256,
+                nonce=supplied.nonce,
+                source=trigger_gate_binding.SourceBinding(
+                    src_token=source.src_token,
+                    source_bytes_sha256=source.source_bytes_sha256,
+                ),
+            )
+            commitment = wal.log_trigger_binding(
+                layout,
+                variant,
+                env_tag,
+                attempt,
+                bound,
+            )
+            admission = campaign_fixtures._admission_for(genome, "deadbeef")
+            receipt = admission.as_wal_receipt()
+            wal.log(layout, variant, STAGE_BUILD_START, env_tag, {
+                "genome": genome.canonical(),
+                "src_token": source.src_token,
+                "build_attempt_id": attempt,
+                "build_admission": receipt,
+                "build_admission_receipt_sha256": receipt["receipt_sha256"],
+                wal.TRIGGER_BINDING_COMMITMENT_KEY: commitment,
+            })
+        raise RuntimeError("fixture eval exception")
+
+    monkeypatch.setattr(loop, "evaluate", raise_during_evaluate)
+    before = _result_evidence_files(root)
+    with campaign_fixtures._campaign_reservation_environment():
+        with pytest.raises(evidence.ResultEvidenceIssuanceRefused):
+            loop.run_campaign(
+                _campaign_config(
+                    "deadbeef",
+                    suffix=(
+                        "eval-exception-attempt"
+                        if attempt_present else "eval-exception-no-attempt"
+                    ),
+                ),
+                [genome],
+                PerfConfig(records=1, threads=1),
+                contract.env_tag,
+                contract.clocks_per_us,
+                numactl=list(contract.numactl),
+                do_bench=False,
+                output_root=os.fspath(root),
+                authorization_contract=authorization,
+                build_context=campaign_fixtures._BUILD_CONTEXT,
+                declared_use_class="official",
+                trigger_gate_binding=_candidate_binding(),
+                result_evidence_context=context,
+                durable_root_policy=campaign_fixtures._single_process_test_policy(
+                    root
+                ),
+                log=lambda *_args: None,
+            )
+    assert _result_evidence_files(root) == before == set()
+    layout = next((root / "campaigns").iterdir())
+    records = wal.read_records(CampaignLayout(root=os.fspath(layout)))
+    abort = [record for record in records if record.stage == STAGE_ABORT][-1]
+    assert ("build_attempt_id" in abort.payload) is attempt_present
+
+
 def test_issuance_rejects_invalid_origin_capability_campaign_id(
         tmp_path: Path) -> None:
     campaign_fixtures._refresh_certified_writer_authority()
     context = _issuance_context(
-        tmp_path, campaign_fixtures._AUTH_CONTRACT.contract_sha256,
+        tmp_path, campaign_fixtures._AUTH_CONTRACT,
     )
     invalid_capabilities = (
         object(),

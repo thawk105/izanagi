@@ -306,27 +306,6 @@ def _validate_result_evidence_layout(
         )
 
 
-def _result_evidence_attempt_id(state: object) -> str:
-    """Return the unique terminal attempt id, or an empty refusal sentinel."""
-    terminal = getattr(state, "last_terminal", None)
-    payload = getattr(terminal, "payload", None)
-    if type(payload) is not dict:
-        return ""
-    candidate = payload.get("build_attempt_id")
-    if type(candidate) is not str or not candidate:
-        return ""
-    attempts = getattr(state, "attempts", None)
-    if type(attempts) is dict and attempts:
-        terminals = [
-            attempt.attempt_id
-            for attempt in attempts.values()
-            if attempt.committed or attempt.aborted
-        ]
-        if terminals.count(candidate) != 1:
-            return ""
-    return candidate
-
-
 def _issue_campaign_result_evidence(
         *,
         layout: object,
@@ -661,17 +640,13 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                     s.identity_skipped += 1
                     log(f"[campaign] {g.canonical()} identity 確定不能かつ stock id は "
                         f"terminal 済み → この run はスキップ (環境修復後の次 run で再評価): {e}")
-                    _issue_campaign_result_evidence(
-                        layout=layout,
-                        context=result_evidence_context,
-                        build_attempt_id=_result_evidence_attempt_id(
-                            states.get(v0)
-                        ),
-                        verify_result=None,
-                        campaign_run_identity=cid,
-                        contract_sha256=authorized_contract.contract_sha256,
-                        execution_receipt=execution_receipt,
-                    )
+                    if result_evidence_context is not None:
+                        from . import reflux_result_evidence as result_evidence
+                        raise result_evidence.ResultEvidenceIssuanceRefused(
+                            "result evidence issuance refused: an existing "
+                            "terminal attempt cannot be reissued after identity "
+                            "resolution failed"
+                        )
                     continue
                 done.add(v0)
                 attempt_id = secrets.token_hex(16)
@@ -694,15 +669,17 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                     notes=[f"source_digest 確定不能 → reject ({e})"],
                     build_attempt_id=attempt_id,
                 )
-                _issue_campaign_result_evidence(
-                    layout=layout,
-                    context=result_evidence_context,
-                    build_attempt_id=r.build_attempt_id,
-                    verify_result=r.verify_result,
-                    campaign_run_identity=cid,
-                    contract_sha256=authorized_contract.contract_sha256,
-                    execution_receipt=execution_receipt,
-                )
+                # A helper-side None check is too late: call arguments are evaluated first.
+                if result_evidence_context is not None:
+                    _issue_campaign_result_evidence(
+                        layout=layout,
+                        context=result_evidence_context,
+                        build_attempt_id=r.build_attempt_id,
+                        verify_result=r.verify_result,
+                        campaign_run_identity=cid,
+                        contract_sha256=authorized_contract.contract_sha256,
+                        execution_receipt=execution_receipt,
+                    )
                 s.results.append(r)
                 s.evaluated += 1
                 s.aborted += 1
@@ -710,15 +687,12 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                 continue
             v = variant_id(g, src_tok)
             if v in done:
-                _issue_campaign_result_evidence(
-                    layout=layout,
-                    context=result_evidence_context,
-                    build_attempt_id=_result_evidence_attempt_id(states.get(v)),
-                    verify_result=None,
-                    campaign_run_identity=cid,
-                    contract_sha256=authorized_contract.contract_sha256,
-                    execution_receipt=execution_receipt,
-                )
+                if result_evidence_context is not None:
+                    from . import reflux_result_evidence as result_evidence
+                    raise result_evidence.ResultEvidenceIssuanceRefused(
+                        "result evidence issuance refused: an existing terminal "
+                        "attempt cannot be reissued"
+                    )
                 s.skipped += 1
                 s.skipped_variants.append(v)
                 balanced_prepare_failed = balanced_schedule is not None
@@ -836,15 +810,17 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                 continue
             if balanced_schedule is not None:
                 balanced_prepare_failed = True
-            _issue_campaign_result_evidence(
-                layout=layout,
-                context=result_evidence_context,
-                build_attempt_id=r.build_attempt_id,
-                verify_result=r.verify_result,
-                campaign_run_identity=cid,
-                contract_sha256=authorized_contract.contract_sha256,
-                execution_receipt=execution_receipt,
-            )
+            # Guard argument evaluation as well as the helper body for originless runs.
+            if result_evidence_context is not None:
+                _issue_campaign_result_evidence(
+                    layout=layout,
+                    context=result_evidence_context,
+                    build_attempt_id=r.build_attempt_id,
+                    verify_result=r.verify_result,
+                    campaign_run_identity=cid,
+                    contract_sha256=authorized_contract.contract_sha256,
+                    execution_receipt=execution_receipt,
+                )
             s.results.append(r)
             s.evaluated += 1
             if r.aborted:

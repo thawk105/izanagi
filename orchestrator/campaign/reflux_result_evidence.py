@@ -25,6 +25,7 @@ from typing import Literal, Mapping, Sequence
 from orchestrator.verifier.model import RW, WR, WW, VerifyResult
 from orchestrator.verifier.report import result_to_dict
 
+from . import execution_guard
 from . import reflux_origin_ledger as ledger
 from . import reflux_origin_binding
 from . import trigger_gate_binding
@@ -247,6 +248,9 @@ class ResultEvidenceIssuanceContext:
     origin_binding: Mapping[str, object]
     ordered_verifiers: tuple[str, ...]
     expected_record_path: str
+    env_tag: str
+    attestation_mode: str
+    verified_calibration: object | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -1207,9 +1211,6 @@ def issue_campaign_result_evidence(
         )
     if type(layout) is not CampaignLayout:
         raise ResultEvidenceError("layout must be an exact CampaignLayout")
-    if execution_receipt is None:
-        _issuance_refused("an authenticated execution receipt is absent")
-
     capability = _issued_context_capability(context)
     if campaign_id != capability.campaign_id:
         raise ResultEvidenceError("campaign id differs from the origin capability")
@@ -1219,6 +1220,16 @@ def issue_campaign_result_evidence(
         )
     _campaign_identity(campaign_run_identity, label="campaign_run_identity")
     _sha256(contract_sha256, label="contract_sha256")
+    if not execution_guard.receipt_matches_contract(
+        execution_receipt,
+        env_tag=context.env_tag,
+        contract_sha256=contract_sha256,
+        attestation_mode=context.attestation_mode,
+        verified_calibration=context.verified_calibration,
+    ):
+        _issuance_refused(
+            "execution receipt is absent or does not match the environment contract"
+        )
     if type(context.ordered_verifiers) is not tuple:
         raise ResultEvidenceError("context.ordered_verifiers must be an exact tuple")
 

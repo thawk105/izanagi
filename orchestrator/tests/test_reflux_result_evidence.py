@@ -12,6 +12,7 @@ import pytest
 from orchestrator.campaign import reflux_origin_ledger as ledger
 from orchestrator.campaign import reflux_origin_binding as origin_binding
 from orchestrator.campaign import reflux_result_evidence as evidence
+from orchestrator.campaign import env_contract, execution_guard
 from orchestrator.campaign import trigger_gate_binding
 from orchestrator.campaign import wal
 from orchestrator.campaign.layout import CampaignLayout
@@ -232,8 +233,12 @@ def _rewrite_provenance(root: Path, record: dict, provenance: dict) -> None:
     record["evidence"]["execution_provenance_ref"]["sha256"] = _sha(raw)
 
 
-def _issued_origin_capability() -> origin_binding.OriginBindingCapability:
-    raw = build_launch_admission_inputs()
+def _issued_origin_capability(
+    contract_sha256: str,
+) -> origin_binding.OriginBindingCapability:
+    raw = build_launch_admission_inputs(
+        environment_contract_sha256=contract_sha256,
+    )
     seal = object()
     capability = origin_binding.OriginBindingCapability(
         authority_blob_sha256=raw["authority_blob_sha256"],
@@ -263,8 +268,11 @@ def _issued_origin_capability() -> origin_binding.OriginBindingCapability:
 def _producer_context(
     evidence_root: Path,
 ) -> evidence.ResultEvidenceIssuanceContext:
-    fixture_record = build_result_evidence_record()
-    capability = _issued_origin_capability()
+    contract = env_contract.authorize("linux-baremetal").contract
+    fixture_record = build_result_evidence_record(
+        origin_binding__environment_contract_sha256=contract.contract_sha256,
+    )
+    capability = _issued_origin_capability(contract.contract_sha256)
     assert fixture_record["origin_binding"] == {
         "authority_blob_sha256": capability.authority_blob_sha256,
         "source_closure_sha256": capability.source_closure_sha256,
@@ -290,6 +298,9 @@ def _producer_context(
         expected_record_path=evidence.result_evidence_relative_path(
             fixture_record
         ).as_posix(),
+        env_tag=contract.env_tag,
+        attestation_mode=contract.attestation_mode,
+        verified_calibration=None,
     )
 
 
@@ -351,12 +362,9 @@ def _log_producer_attempt(
     )
 
 
-def _execution_receipt(contract_sha256: str) -> dict:
-    return {
-        "schema": "fixture-execution-receipt/v1",
-        "contract_sha256": contract_sha256,
-        "attestation": {"fixture": "producer-test"},
-    }
+def _execution_receipt() -> dict:
+    contract = env_contract.authorize("linux-baremetal").contract
+    return execution_guard.build_receipt(contract)
 
 
 def _issue_producer_record(
@@ -1098,9 +1106,7 @@ def test_campaign_producer_issues_real_wal_projection_and_resolves_interval(
         context=context,
         build_attempt_id=attempt,
         verify_result=result,
-        execution_receipt=_execution_receipt(
-            context.origin_capability.environment_contract_sha256
-        ),
+        execution_receipt=_execution_receipt(),
     )
     record = evidence.parse_result_evidence_bytes(record_path.read_bytes())
     resolved = evidence.resolve_result_evidence(record, evidence_root=root)
@@ -1171,9 +1177,7 @@ def test_campaign_producer_preserves_nonzero_offset_for_second_attempt(
         context=context,
         build_attempt_id=attempt,
         verify_result=result,
-        execution_receipt=_execution_receipt(
-            context.origin_capability.environment_contract_sha256
-        ),
+        execution_receipt=_execution_receipt(),
     )
     record = evidence.parse_result_evidence_bytes(record_path.read_bytes())
     resolved = evidence.resolve_result_evidence(record, evidence_root=root)
@@ -1208,6 +1212,44 @@ def test_campaign_producer_refuses_absent_execution_receipt_before_writes(
             build_attempt_id=attempt,
             verify_result=result,
             execution_receipt=None,
+        )
+    assert _file_snapshot(root) == before
+
+
+@pytest.mark.parametrize(
+    "mismatch",
+    ("schema", "env_tag", "attestation_mode"),
+)
+def test_campaign_producer_refuses_unauthenticated_receipt_before_writes(
+    tmp_path: Path,
+    mismatch: str,
+) -> None:
+    root = tmp_path / "evidence"
+    root.mkdir()
+    layout = _producer_layout(root)
+    context = _producer_context(root)
+    result = _verify_fixture(tmp_path, "r9_dense_cycle4")
+    attempt = f"producer-attempt-invalid-receipt-{mismatch}"
+    _log_producer_attempt(
+        layout, build_attempt_id=attempt, result=result, first_ts=10
+    )
+    receipt = _execution_receipt()
+    checked_context = context
+    if mismatch == "schema":
+        receipt["schema"] = "fixture-execution-receipt/v1"
+    elif mismatch == "env_tag":
+        receipt["env_tag"] = "different-env"
+    else:
+        checked_context = replace(context, attestation_mode="required")
+    before = _file_snapshot(root)
+
+    with pytest.raises(evidence.ResultEvidenceIssuanceRefused):
+        _issue_producer_record(
+            layout=layout,
+            context=checked_context,
+            build_attempt_id=attempt,
+            verify_result=result,
+            execution_receipt=receipt,
         )
     assert _file_snapshot(root) == before
 
@@ -1279,9 +1321,7 @@ def test_campaign_producer_refuses_interleaved_attempt_before_writes(
             context=context,
             build_attempt_id=attempt,
             verify_result=result,
-            execution_receipt=_execution_receipt(
-                context.origin_capability.environment_contract_sha256
-            ),
+            execution_receipt=_execution_receipt(),
         )
     assert _file_snapshot(root) == before
 
@@ -1306,9 +1346,7 @@ def test_campaign_producer_refuses_nonexact_verify_result_before_writes(
             context=context,
             build_attempt_id=attempt,
             verify_result=_verify_snapshot(result),
-            execution_receipt=_execution_receipt(
-                context.origin_capability.environment_contract_sha256
-            ),
+            execution_receipt=_execution_receipt(),
         )
     assert _file_snapshot(root) == before
 
@@ -1325,9 +1363,7 @@ def test_campaign_producer_treats_create_only_collision_as_failure(
     _log_producer_attempt(
         layout, build_attempt_id=attempt, result=result, first_ts=10
     )
-    receipt = _execution_receipt(
-        context.origin_capability.environment_contract_sha256
-    )
+    receipt = _execution_receipt()
     _issue_producer_record(
         layout=layout,
         context=context,
@@ -1370,9 +1406,7 @@ def test_campaign_producer_snapshot_survives_append_while_live_ref_breaks(
         context=context,
         build_attempt_id=attempt,
         verify_result=result,
-        execution_receipt=_execution_receipt(
-            context.origin_capability.environment_contract_sha256
-        ),
+        execution_receipt=_execution_receipt(),
     )
     record = evidence.parse_result_evidence_bytes(record_path.read_bytes())
 
