@@ -801,10 +801,12 @@ def test_production_contract_loader_binding_call_sites_are_exact() -> None:
          "verify_committed_contract_loader_blobs"): 1,
         ("artifact_admission.py", "_require_verifier_epoch_for_purpose",
          "capture_contract_loader_binding"): 1,
+        ("p3_b4_wiring_probe.py", "_load_runtime",
+         "capture_contract_loader_binding"): 1,
     })
     actual: Counter[tuple[str, str, str]] = Counter()
 
-    for name in ("ident.py", "artifact_admission.py"):
+    for name in ("ident.py", "artifact_admission.py", "p3_b4_wiring_probe.py"):
         tree = ast.parse((campaign_dir / name).read_text(encoding="utf-8"))
         for function in (
             node for node in ast.walk(tree)
@@ -972,6 +974,83 @@ def test_batch_blob_reader_rejects_invalid_ls_tree_path_sets(
                 ":(literal)dir/first.py", ":(literal)dir/second.py",
             ),
             {"timeout_seconds": 20},
+        ),
+    ]
+
+
+@pytest.mark.parametrize(
+    "response",
+    (
+        pytest.param(
+            b"100644 blob 1111111111111111111111111111111111111111"
+            b"\tdir/loader.py\0"
+            b"100644 blob 2222222222222222222222222222222222222222"
+            b"\tdir/unexpected.py",
+            id="missing-final-nul",
+        ),
+        pytest.param(
+            b"100644 blob 1111111111111111111111111111111111111111"
+            b" dir/loader.py\0",
+            id="missing-tab",
+        ),
+        pytest.param(
+            b"100644 blob\tdir/loader.py\0",
+            id="two-fields",
+        ),
+        pytest.param(
+            b"100644 blob 1111111111111111111111111111111111111111"
+            b" extra\tdir/loader.py\0",
+            id="four-fields",
+        ),
+        pytest.param(
+            b"100644 blob 1111111111111111111111111111111111111111\t\0",
+            id="empty-raw-path",
+        ),
+        pytest.param(
+            b" blob 1111111111111111111111111111111111111111"
+            b"\tdir/loader.py\0",
+            id="empty-mode",
+        ),
+        pytest.param(
+            b"100644 blob zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"
+            b"\tdir/loader.py\0",
+            id="malformed-oid",
+        ),
+    ),
+)
+def test_batch_blob_reader_rejects_malformed_ls_tree_framing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    response: bytes,
+) -> None:
+    from orchestrator.campaign import contract_loader_binding
+
+    root = tmp_path / "recorded-root"
+    commit = "a" * 40
+    oid = b"1111111111111111111111111111111111111111"
+    calls = _install_two_call_batch_fake(
+        monkeypatch,
+        contract_loader_binding,
+        root,
+        response,
+        oid + b" blob 4\nbody\n",
+    )
+
+    with pytest.raises(
+        contract_loader_binding.ContractLoaderBindingError,
+        match="contract-loader-git-error",
+    ):
+        tuple(contract_loader_binding._iter_blobs(
+            root, commit, ("dir/loader.py",),
+        ))
+
+    assert calls == [
+        (
+            (
+                "ls-tree", "-r", "-z", commit, "--",
+                ":(literal)dir/loader.py",
+            ),
+            {"timeout_seconds": 10},
         ),
     ]
 

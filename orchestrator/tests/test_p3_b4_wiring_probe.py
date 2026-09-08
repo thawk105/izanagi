@@ -55,6 +55,114 @@ def _run_child(
     )
 
 
+def _call_allow_read_only_git(
+    operation: tuple[str, ...],
+) -> tuple[bool, P._ProcessGuard]:
+    guard = P._ProcessGuard(())
+    env = {
+        "GIT_CONFIG_GLOBAL": os.devnull,
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_NO_REPLACE_OBJECTS": "1",
+        "GIT_OPTIONAL_LOCKS": "0",
+    }
+    argv = [
+        "/usr/bin/git",
+        "--no-pager",
+        "-c", "core.useReplaceRefs=false",
+        "-c", "core.commitGraph=false",
+        "-c", "core.fsmonitor=false",
+        "--no-replace-objects",
+        "-C", str(_REPO_ROOT),
+        *operation,
+    ]
+    namespace = {
+        "__name__": "orchestrator.campaign.contract_loader_binding",
+        "audit_args": ("/usr/bin/git", argv, None, env),
+        "guard": guard,
+    }
+    exec(
+        "def _run_git():\n"
+        "    return guard._allow_read_only_git(audit_args)\n",
+        namespace,
+    )
+    return namespace["_run_git"](), guard
+
+
+def test_allow_read_only_git_accepts_exact_batch_loader_argv() -> None:
+    commit = "a" * 40
+    operations = (
+        (
+            "ls-tree", "-r", "-z", commit, "--",
+            ":(literal)orchestrator/campaign/env_contract.py",
+            ":(literal)orchestrator/campaign/ident.py",
+        ),
+        ("cat-file", "--batch"),
+    )
+
+    for operation in operations:
+        allowed, guard = _call_allow_read_only_git(operation)
+        assert allowed is True, operation
+        assert len(guard.allowed_git_argv_sha256) == 1
+
+
+def test_allow_read_only_git_rejects_nonproduction_batch_argv() -> None:
+    commit = "a" * 40
+    invalid_operations = (
+        (
+            "old-cat-file-blob",
+            ("cat-file", "blob", f"{commit}:orchestrator/campaign/ident.py"),
+        ),
+        (
+            "pathspec-without-literal",
+            ("ls-tree", "-r", "-z", commit, "--", "dir/loader.py"),
+        ),
+        (
+            "nonhex-commit",
+            ("ls-tree", "-r", "-z", "g" * 40, "--", ":(literal)dir/loader.py"),
+        ),
+        (
+            "cat-file-extra-word",
+            ("cat-file", "--batch", "extra"),
+        ),
+        (
+            "parent-pathspec",
+            ("ls-tree", "-r", "-z", commit, "--", ":(literal).."),
+        ),
+        (
+            "absolute-pathspec",
+            ("ls-tree", "-r", "-z", commit, "--", ":(literal)/tmp/x"),
+        ),
+        (
+            "empty-pathspec",
+            ("ls-tree", "-r", "-z", commit, "--", ":(literal)"),
+        ),
+        (
+            "missing-pathspec",
+            ("ls-tree", "-r", "-z", commit, "--"),
+        ),
+        (
+            "nul-pathspec",
+            ("ls-tree", "-r", "-z", commit, "--", ":(literal)dir/nul\0.py"),
+        ),
+        (
+            "duplicate-pathspec",
+            (
+                "ls-tree", "-r", "-z", commit, "--",
+                ":(literal)dir/loader.py", ":(literal)dir/loader.py",
+            ),
+        ),
+        (
+            "other-magic",
+            ("ls-tree", "-r", "-z", commit, "--", ":(glob)dir/*.py"),
+        ),
+    )
+
+    for label, operation in invalid_operations:
+        allowed, guard = _call_allow_read_only_git(operation)
+        assert allowed is False, label
+        assert guard.allowed_git_argv_sha256 == []
+
+
 def _tree_manifest(root: Path) -> tuple[tuple[str, str, int], ...]:
     if not root.exists():
         return ()

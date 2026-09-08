@@ -1,5 +1,18 @@
 {
   "duration_seconds_by_nodeid": {
+    "orchestrator/tests/test_p3_b4_wiring_probe.py::test_allow_read_only_git_accepts_exact_batch_loader_argv": 0.002,
+    "orchestrator/tests/test_p3_b4_wiring_probe.py::test_allow_read_only_git_rejects_nonproduction_batch_argv": 0.002,
+    "orchestrator/tests/test_p3_b4_wiring_probe.py::test_analyze_source_preserves_guard_wiring_and_fallback": 0.001,
+    "orchestrator/tests/test_p3_b4_wiring_probe.py::test_analyze_source_splits_each_module_exactly_once": 0.001,
+    "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_segment_helper_matches_stdlib_at_boundaries": 0.001,
+    "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_segment_helper_matches_stdlib_for_all_static_ifs": 2.8,
+    "orchestrator/tests/test_t671_source_binding.py::test_batch_blob_reader_rejects_malformed_ls_tree_framing[empty-mode]": 0.001,
+    "orchestrator/tests/test_t671_source_binding.py::test_batch_blob_reader_rejects_malformed_ls_tree_framing[empty-raw-path]": 0.001,
+    "orchestrator/tests/test_t671_source_binding.py::test_batch_blob_reader_rejects_malformed_ls_tree_framing[four-fields]": 0.001,
+    "orchestrator/tests/test_t671_source_binding.py::test_batch_blob_reader_rejects_malformed_ls_tree_framing[malformed-oid]": 0.001,
+    "orchestrator/tests/test_t671_source_binding.py::test_batch_blob_reader_rejects_malformed_ls_tree_framing[missing-final-nul]": 0.001,
+    "orchestrator/tests/test_t671_source_binding.py::test_batch_blob_reader_rejects_malformed_ls_tree_framing[missing-tab]": 0.001,
+    "orchestrator/tests/test_t671_source_binding.py::test_batch_blob_reader_rejects_malformed_ls_tree_framing[two-fields]": 0.001,
     "orchestrator/tests/test_t671_source_binding.py::test_batch_blob_reader_rejects_malformed_header_or_status[missing-status]": 0.001,
     "orchestrator/tests/test_t671_source_binding.py::test_admission_rejects_contract_loader_blob_mismatch_at_recorded_commit[__init__.py0]": 0.13,
     "orchestrator/tests/test_t671_source_binding.py::test_admission_rejects_contract_loader_blob_mismatch_at_recorded_commit[__init__.py1]": 0.12,
@@ -19936,7 +19949,7 @@
     "orchestrator/tests/test_wave_land_window.py::test_ticket_cleanup_does_not_require_flock_and_returns_success": 0.002,
     "orchestrator/tests/test_wave_land_window.py::test_ticket_cleanup_preserves_same_name_replacement": 0.002
   },
-  "nodeid_count": 19935,
+  "nodeid_count": 19948,
   "schema_version": 1,
   "unit": "seconds"
 }

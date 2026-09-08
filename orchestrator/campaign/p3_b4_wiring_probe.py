@@ -440,6 +440,7 @@ class _ProcessGuard:
         if separator + 2 >= len(words) or _resolved(words[separator + 1]) != _REPO_ROOT:
             return False
         operation = words[separator + 2:]
+        literal_prefix = ":(literal)"
         allowed_shape = (
             operation == ["rev-parse", "--show-toplevel"]
             or (
@@ -447,10 +448,24 @@ class _ProcessGuard:
                 and operation[:2] == ["rev-parse", "--verify"]
             )
             or (
-                len(operation) == 3
-                and operation[:2] == ["cat-file", "blob"]
-                and ":" in operation[2]
+                len(operation) >= 6
+                and operation[:3] == ["ls-tree", "-r", "-z"]
+                and re.fullmatch(r"[0-9a-f]{40}", operation[3]) is not None
+                and operation[4] == "--"
+                and len(set(operation[5:])) == len(operation[5:])
+                and all(
+                    pathspec.startswith(literal_prefix)
+                    and bool(pathspec[len(literal_prefix):])
+                    and "\0" not in pathspec[len(literal_prefix):]
+                    and not pathspec[len(literal_prefix):].startswith("/")
+                    and all(
+                        part not in {"", ".", ".."}
+                        for part in pathspec[len(literal_prefix):].split("/")
+                    )
+                    for pathspec in operation[5:]
+                )
             )
+            or operation == ["cat-file", "--batch"]
         )
         if not allowed_shape or not isinstance(env, dict):
             return False
