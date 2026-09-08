@@ -9097,7 +9097,7 @@ def _s8c_budget_test_setup(tmp_path, monkeypatch, scheduled_holdouts):
         "limits": A.BudgetLimits(
             total_bench_s=2.0,
             per_arm_bench_s={"on": 2.0, "off": 2.0, "swapped": 2.0},
-            per_holdout_bench_s={"H1": 2.0, "H2": 2.0},
+            per_holdout_bench_s={"H1": 1.0, "H2": 1.0},
         ),
     }
     monkeypatch.setattr(

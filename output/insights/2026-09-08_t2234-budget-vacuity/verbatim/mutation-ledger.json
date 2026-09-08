@@ -1,0 +1,886 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2234-budget-vacuity/output/pegasus-dispatch/6778a4acab3b319f3ebc44241f43182a/izdw-6778a4acab.o985437",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2234-budget-vacuity/output/pegasus-dispatch/6778a4acab3b319f3ebc44241f43182a/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n....................                                                     [100%]\n20 passed in 3.81s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "37699e591f7b18a5cd0fc45b8603d0e8c11ffeb517a25ed6493987980414c89b"
+    },
+    "artifact_error": null,
+    "collection_sha256": "70b993c2449d75c3fe4dbf5edd1692b50af6dc03384c812a044567e2c710b865",
+    "duration_s": 27.456,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "fc6d370a9f1b1208341c0f43b106349e0accfcf9ea6fedd7a6eafc862fa8b4cc",
+    "repo_head": "d883df7e64c2f952030b544cd05c4cbd5dcc6143",
+    "runner_sha256": "be02ee14130b58e50659d1242b7222ad49f7cadc6a20f0c0e8a3a08814b30d0d",
+    "spec_sha256": "0353b5f502c5ae9a2b87ed8e8e541fe44f3b7ca67e161c8c0cb228a348dd1287",
+    "status": "PASSED",
+    "test_output_sha256": "37699e591f7b18a5cd0fc45b8603d0e8c11ffeb517a25ed6493987980414c89b",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "dc7381321ce445aa3edec3ac43a2207697509d783c62eda9fd6ea4a424c5a8b8"
+  },
+  "date": "2026-09-08T12:29:30.529562+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2234-budget-vacuity/output/pegasus-dispatch/0fee456b895c84977ab0c281b6ac99b9/izdw-0fee456b89.o985438",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2234-budget-vacuity/output/pegasus-dispatch/0fee456b895c84977ab0c281b6ac99b9/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n................FFF.                                                     [100%]\n=================================== FAILURES ===================================\n________ test_one_zero_cell_reservation_makes_whole_matrix_insufficient ________\n[gw11] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_one_zero_cell_reservation0')\n\n    def test_one_zero_cell_reservation_makes_whole_matrix_insufficient(\n        tmp_path: Path,\n    ) -> None:\n        cells = tuple(\n            B.ReservationCell(\n                cell_id=cell.cell_id,\n                holdout=cell.holdout,\n                arm=cell.arm,\n                reserved_bench_s=0.0 if cell.cell_id == \"h1-on\" else cell.reserved_bench_s,\n            )\n            for cell in _cells()\n        )\n        limits = _limits()\n        ledger = _reserve(tmp_path / \"ledger.json\", limits=limits, cells=cells)\n    \n        assert ledger.reservation.total_reserved_bench_s <= limits.total_bench_s\n        assert all(\n            value <= limits.per_arm_bench_s[arm]\n            for arm, value in B._sum_by(cells, key=\"arm\").items()\n        )\n        assert all(\n            value <= limits.per_holdout_bench_s[holdout]\n            for holdout, value in B._sum_by(cells, key=\"holdout\").items()\n        )\n>       assert ledger.reservation.state == \"insufficient\"\nE       AssertionError: assert 'held' == 'insufficient'\nE         \nE         - insufficient\nE         + held\n\norchestrator/tests/test_s8c_budget.py:295: AssertionError\n______ test_zero_reservation_ledger_recorded_as_held_is_rejected_on_read _______\n[gw19] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw19/test_zero_reservation_ledger_r0')\n\n    def test_zero_reservation_ledger_recorded_as_held_is_rejected_on_read(\n        tmp_path: Path,\n    ) -> None:\n        path = tmp_path / \"ledger.json\"\n        _reserve(path, limits=_limits())\n        document = json.loads(path.read_text(encoding=\"utf-8\"))\n        for cell in document[\"reservation\"][\"cells\"]:\n            cell[\"reserved_bench_s\"] = 0.0\n        document[\"reservation\"][\"total_reserved_bench_s\"] = 0.0\n        path.write_text(\n            json.dumps(document, ensure_ascii=False, sort_keys=True) + \"\\n\",\n            encoding=\"utf-8\",\n        )\n    \n>       with pytest.raises(B.BudgetError, match=\"limit state\"):\nE       Failed: DID NOT RAISE BudgetError\n\norchestrator/tests/test_s8c_budget.py:377: Failed\n_______________ test_all_zero_cell_reservations_are_insufficient _______________\n[gw10] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_all_zero_cell_reservation0')\n\n    def test_all_zero_cell_reservations_are_insufficient(tmp_path: Path) -> None:\n        ledger = _reserve(\n            tmp_path / \"ledger.json\",\n            limits=_limits(),\n            cells=_cells(seconds=0.0),\n        )\n    \n>       assert ledger.reservation.state == \"insufficient\"\nE       AssertionError: assert 'held' == 'insufficient'\nE         \nE         - insufficient\nE         + held\n\norchestrator/tests/test_s8c_budget.py:266: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8c_budget.py::test_one_zero_cell_reservation_makes_whole_matrix_insufficient\nFAILED orchestrator/tests/test_s8c_budget.py::test_zero_reservation_ledger_recorded_as_held_is_rejected_on_read\nFAILED orchestrator/tests/test_s8c_budget.py::test_all_zero_cell_reservations_are_insufficient\n3 failed, 17 passed in 3.79s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_budget.py::test_one_zero_cell_reservation_makes_whole_matrix_insufficient\" nodeid_bytes=101 nodeid_omitted_bytes=0 source_bytes=1290 retained_bytes=1290 omitted_bytes=0 rendered_excerpt_bytes=1361 sha256=ee63fbd6b967ebbc6c8ba32117774baded62de3771ea0631395421e55edc2cb9\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw11] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_one_zero_cell_reservation0')\n> \n>     def test_one_zero_cell_reservation_makes_whole_matrix_insufficient(\n>         tmp_path: Path,\n>     ) -> None:\n>         cells = tuple(\n>             B.ReservationCell(\n>                 cell_id=cell.cell_id,\n>                 holdout=cell.holdout,\n>                 arm=cell.arm,\n>                 reserved_bench_s=0.0 if cell.cell_id == \"h1-on\" else cell.reserved_bench_s,\n>             )\n>             for cell in _cells()\n>         )\n>         limits = _limits()\n>         ledger = _reserve(tmp_path / \"ledger.json\", limits=limits, cells=cells)\n>     \n>         assert ledger.reservation.total_reserved_bench_s <= limits.total_bench_s\n>         assert all(\n>             value <= limits.per_arm_bench_s[arm]\n>             for arm, value in B._sum_by(cells, key=\"arm\").items()\n>         )\n>         assert all(\n>             value <= limits.per_holdout_bench_s[holdout]\n>             for holdout, value in B._sum_by(cells, key=\"holdout\").items()\n>         )\n> >       assert ledger.reservation.state == \"insufficient\"\n> E       AssertionError: assert 'held' == 'insufficient'\n> E         \n> E         - insufficient\n> E         + held\n> \n> orchestrator/tests/test_s8c_budget.py:295: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_budget.py::test_zero_reservation_ledger_recorded_as_held_is_rejected_on_read\" nodeid_bytes=104 nodeid_omitted_bytes=0 source_bytes=869 retained_bytes=869 omitted_bytes=0 rendered_excerpt_bytes=917 sha256=aed9192de533f862deb01c15a00797a4ddbebfc7136367b745d924617ef88d9e\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw19] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw19/test_zero_reservation_ledger_r0')\n> \n>     def test_zero_reservation_ledger_recorded_as_held_is_rejected_on_read(\n>         tmp_path: Path,\n>     ) -> None:\n>         path = tmp_path / \"ledger.json\"\n>         _reserve(path, limits=_limits())\n>         document = json.loads(path.read_text(encoding=\"utf-8\"))\n>         for cell in document[\"reservation\"][\"cells\"]:\n>             cell[\"reserved_bench_s\"] = 0.0\n>         document[\"reservation\"][\"total_reserved_bench_s\"] = 0.0\n>         path.write_text(\n>             json.dumps(document, ensure_ascii=False, sort_keys=True) + \"\\x5cn\",\n>             encoding=\"utf-8\",\n>         )\n>     \n> >       with pytest.raises(B.BudgetError, match=\"limit state\"):\n> E       Failed: DID NOT RAISE BudgetError\n> \n> orchestrator/tests/test_s8c_budget.py:377: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_budget.py::test_all_zero_cell_reservations_are_insufficient\" nodeid_bytes=87 nodeid_omitted_bytes=0 source_bytes=602 retained_bytes=602 omitted_bytes=0 rendered_excerpt_bytes=639 sha256=b389af161b3fd026cf577ee0a9059ddae6b9406354ea5130c099f44441e14d24\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw10] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_all_zero_cell_reservation0')\n> \n>     def test_all_zero_cell_reservations_are_insufficient(tmp_path: Path) -> None:\n>         ledger = _reserve(\n>             tmp_path / \"ledger.json\",\n>             limits=_limits(),\n>             cells=_cells(seconds=0.0),\n>         )\n>     \n> >       assert ledger.reservation.state == \"insufficient\"\n> E       AssertionError: assert 'held' == 'insufficient'\n> E         \n> E         - insufficient\n> E         + held\n> \n> orchestrator/tests/test_s8c_budget.py:266: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=2761 retained_bytes=2761 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4512 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "51b92bdcf0bfed00a5a0f77853518cd41188b45a879b6ffd7b58dde24da41281"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "70b993c2449d75c3fe4dbf5edd1692b50af6dc03384c812a044567e2c710b865",
+      "duration_s": 27.513,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_budget.py::test_all_zero_cell_reservations_are_insufficient",
+        "orchestrator/tests/test_s8c_budget.py::test_one_zero_cell_reservation_makes_whole_matrix_insufficient",
+        "orchestrator/tests/test_s8c_budget.py::test_zero_reservation_ledger_recorded_as_held_is_rejected_on_read"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8c_budget.py::test_one_zero_cell_reservation_makes_whole_matrix_insufficient",
+        "orchestrator/tests/test_s8c_budget.py::test_zero_reservation_ledger_recorded_as_held_is_rejected_on_read",
+        "orchestrator/tests/test_s8c_budget.py::test_all_zero_cell_reservations_are_insufficient"
+      ],
+      "hang_risk": false,
+      "id": "M1-cell-positive-to-nonnegative",
+      "injection_diff_sha256": "4589de8d564b772a30a7795a35fc72353bfae27cfd4e49e7ef9179a946055434",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "84e3debb0cd8c0d4adf36af0a3dc1e9d048a2602dde8567f07881a8a005ae446",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_budget.py",
+          "new": "    all_cells_reserved = all(cell.reserved_bench_s >= 0.0 for cell in cells)",
+          "old": "    all_cells_reserved = all(cell.reserved_bench_s > 0.0 for cell in cells)"
+        }
+      ],
+      "repo_head": "d883df7e64c2f952030b544cd05c4cbd5dcc6143",
+      "runner_sha256": "be02ee14130b58e50659d1242b7222ad49f7cadc6a20f0c0e8a3a08814b30d0d",
+      "spec_sha256": "0353b5f502c5ae9a2b87ed8e8e541fe44f3b7ca67e161c8c0cb228a348dd1287",
+      "status": "KILLED",
+      "test_output_sha256": "51b92bdcf0bfed00a5a0f77853518cd41188b45a879b6ffd7b58dde24da41281",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "dc7381321ce445aa3edec3ac43a2207697509d783c62eda9fd6ea4a424c5a8b8"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2234-budget-vacuity/output/pegasus-dispatch/66a07b29abbee7c1f46fd3a4ae4e2749/izdw-66a07b29ab.o985439",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2234-budget-vacuity/output/pegasus-dispatch/66a07b29abbee7c1f46fd3a4ae4e2749/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..................F.                                                     [100%]\n=================================== FAILURES ===================================\n________ test_one_zero_cell_reservation_makes_whole_matrix_insufficient ________\n[gw11] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_one_zero_cell_reservation0')\n\n    def test_one_zero_cell_reservation_makes_whole_matrix_insufficient(\n        tmp_path: Path,\n    ) -> None:\n        cells = tuple(\n            B.ReservationCell(\n                cell_id=cell.cell_id,\n                holdout=cell.holdout,\n                arm=cell.arm,\n                reserved_bench_s=0.0 if cell.cell_id == \"h1-on\" else cell.reserved_bench_s,\n            )\n            for cell in _cells()\n        )\n        limits = _limits()\n        ledger = _reserve(tmp_path / \"ledger.json\", limits=limits, cells=cells)\n    \n        assert ledger.reservation.total_reserved_bench_s <= limits.total_bench_s\n        assert all(\n            value <= limits.per_arm_bench_s[arm]\n            for arm, value in B._sum_by(cells, key=\"arm\").items()\n        )\n        assert all(\n            value <= limits.per_holdout_bench_s[holdout]\n            for holdout, value in B._sum_by(cells, key=\"holdout\").items()\n        )\n>       assert ledger.reservation.state == \"insufficient\"\nE       AssertionError: assert 'held' == 'insufficient'\nE         \nE         - insufficient\nE         + held\n\norchestrator/tests/test_s8c_budget.py:295: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8c_budget.py::test_one_zero_cell_reservation_makes_whole_matrix_insufficient\n1 failed, 19 passed in 3.78s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_budget.py::test_one_zero_cell_reservation_makes_whole_matrix_insufficient\" nodeid_bytes=101 nodeid_omitted_bytes=0 source_bytes=1290 retained_bytes=1290 omitted_bytes=0 rendered_excerpt_bytes=1361 sha256=ee63fbd6b967ebbc6c8ba32117774baded62de3771ea0631395421e55edc2cb9\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw11] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_one_zero_cell_reservation0')\n> \n>     def test_one_zero_cell_reservation_makes_whole_matrix_insufficient(\n>         tmp_path: Path,\n>     ) -> None:\n>         cells = tuple(\n>             B.ReservationCell(\n>                 cell_id=cell.cell_id,\n>                 holdout=cell.holdout,\n>                 arm=cell.arm,\n>                 reserved_bench_s=0.0 if cell.cell_id == \"h1-on\" else cell.reserved_bench_s,\n>             )\n>             for cell in _cells()\n>         )\n>         limits = _limits()\n>         ledger = _reserve(tmp_path / \"ledger.json\", limits=limits, cells=cells)\n>     \n>         assert ledger.reservation.total_reserved_bench_s <= limits.total_bench_s\n>         assert all(\n>             value <= limits.per_arm_bench_s[arm]\n>             for arm, value in B._sum_by(cells, key=\"arm\").items()\n>         )\n>         assert all(\n>             value <= limits.per_holdout_bench_s[holdout]\n>             for holdout, value in B._sum_by(cells, key=\"holdout\").items()\n>         )\n> >       assert ledger.reservation.state == \"insufficient\"\n> E       AssertionError: assert 'held' == 'insufficient'\n> E         \n> E         - insufficient\n> E         + held\n> \n> orchestrator/tests/test_s8c_budget.py:295: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1290 retained_bytes=1290 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2090 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "1a5e81d3ff1df742517645e15751947306e64b5fab5126e4b809e37efcd0637d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "70b993c2449d75c3fe4dbf5edd1692b50af6dc03384c812a044567e2c710b865",
+      "duration_s": 27.354,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_budget.py::test_one_zero_cell_reservation_makes_whole_matrix_insufficient"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8c_budget.py::test_one_zero_cell_reservation_makes_whole_matrix_insufficient"
+      ],
+      "hang_risk": false,
+      "id": "M2-all-to-any",
+      "injection_diff_sha256": "3a462214b89ab67abf4745ae82e07a3f6e0cf6922acb56e0e416ba432f1b342d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "71635b679517542372c8b081b4ae491d2cdf1ac2e368c86c7317b409ba8257ee",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_budget.py",
+          "new": "    all_cells_reserved = any(cell.reserved_bench_s > 0.0 for cell in cells)",
+          "old": "    all_cells_reserved = all(cell.reserved_bench_s > 0.0 for cell in cells)"
+        }
+      ],
+      "repo_head": "d883df7e64c2f952030b544cd05c4cbd5dcc6143",
+      "runner_sha256": "be02ee14130b58e50659d1242b7222ad49f7cadc6a20f0c0e8a3a08814b30d0d",
+      "spec_sha256": "0353b5f502c5ae9a2b87ed8e8e541fe44f3b7ca67e161c8c0cb228a348dd1287",
+      "status": "KILLED",
+      "test_output_sha256": "1a5e81d3ff1df742517645e15751947306e64b5fab5126e4b809e37efcd0637d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "dc7381321ce445aa3edec3ac43a2207697509d783c62eda9fd6ea4a424c5a8b8"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2234-budget-vacuity/output/pegasus-dispatch/de3b1e3e43dff1dc98cd5fb2fbb2466e/izdw-de3b1e3e43.o985440",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2234-budget-vacuity/output/pegasus-dispatch/de3b1e3e43dff1dc98cd5fb2fbb2466e/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n................FFF.                                                     [100%]\n=================================== FAILURES ===================================\n______ test_zero_reservation_ledger_recorded_as_held_is_rejected_on_read _______\n[gw19] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw19/test_zero_reservation_ledger_r0')\n\n    def test_zero_reservation_ledger_recorded_as_held_is_rejected_on_read(\n        tmp_path: Path,\n    ) -> None:\n        path = tmp_path / \"ledger.json\"\n        _reserve(path, limits=_limits())\n        document = json.loads(path.read_text(encoding=\"utf-8\"))\n        for cell in document[\"reservation\"][\"cells\"]:\n            cell[\"reserved_bench_s\"] = 0.0\n        document[\"reservation\"][\"total_reserved_bench_s\"] = 0.0\n        path.write_text(\n            json.dumps(document, ensure_ascii=False, sort_keys=True) + \"\\n\",\n            encoding=\"utf-8\",\n        )\n    \n>       with pytest.raises(B.BudgetError, match=\"limit state\"):\nE       Failed: DID NOT RAISE BudgetError\n\norchestrator/tests/test_s8c_budget.py:377: Failed\n________ test_one_zero_cell_reservation_makes_whole_matrix_insufficient ________\n[gw11] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_one_zero_cell_reservation0')\n\n    def test_one_zero_cell_reservation_makes_whole_matrix_insufficient(\n        tmp_path: Path,\n    ) -> None:\n        cells = tuple(\n            B.ReservationCell(\n                cell_id=cell.cell_id,\n                holdout=cell.holdout,\n                arm=cell.arm,\n                reserved_bench_s=0.0 if cell.cell_id == \"h1-on\" else cell.reserved_bench_s,\n            )\n            for cell in _cells()\n        )\n        limits = _limits()\n        ledger = _reserve(tmp_path / \"ledger.json\", limits=limits, cells=cells)\n    \n        assert ledger.reservation.total_reserved_bench_s <= limits.total_bench_s\n        assert all(\n            value <= limits.per_arm_bench_s[arm]\n            for arm, value in B._sum_by(cells, key=\"arm\").items()\n        )\n        assert all(\n            value <= limits.per_holdout_bench_s[holdout]\n            for holdout, value in B._sum_by(cells, key=\"holdout\").items()\n        )\n>       assert ledger.reservation.state == \"insufficient\"\nE       AssertionError: assert 'held' == 'insufficient'\nE         \nE         - insufficient\nE         + held\n\norchestrator/tests/test_s8c_budget.py:295: AssertionError\n_______________ test_all_zero_cell_reservations_are_insufficient _______________\n[gw10] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_all_zero_cell_reservation0')\n\n    def test_all_zero_cell_reservations_are_insufficient(tmp_path: Path) -> None:\n        ledger = _reserve(\n            tmp_path / \"ledger.json\",\n            limits=_limits(),\n            cells=_cells(seconds=0.0),\n        )\n    \n>       assert ledger.reservation.state == \"insufficient\"\nE       AssertionError: assert 'held' == 'insufficient'\nE         \nE         - insufficient\nE         + held\n\norchestrator/tests/test_s8c_budget.py:266: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8c_budget.py::test_zero_reservation_ledger_recorded_as_held_is_rejected_on_read\nFAILED orchestrator/tests/test_s8c_budget.py::test_one_zero_cell_reservation_makes_whole_matrix_insufficient\nFAILED orchestrator/tests/test_s8c_budget.py::test_all_zero_cell_reservations_are_insufficient\n3 failed, 17 passed in 3.84s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_budget.py::test_one_zero_cell_reservation_makes_whole_matrix_insufficient\" nodeid_bytes=101 nodeid_omitted_bytes=0 source_bytes=1290 retained_bytes=1290 omitted_bytes=0 rendered_excerpt_bytes=1361 sha256=ee63fbd6b967ebbc6c8ba32117774baded62de3771ea0631395421e55edc2cb9\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw11] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_one_zero_cell_reservation0')\n> \n>     def test_one_zero_cell_reservation_makes_whole_matrix_insufficient(\n>         tmp_path: Path,\n>     ) -> None:\n>         cells = tuple(\n>             B.ReservationCell(\n>                 cell_id=cell.cell_id,\n>                 holdout=cell.holdout,\n>                 arm=cell.arm,\n>                 reserved_bench_s=0.0 if cell.cell_id == \"h1-on\" else cell.reserved_bench_s,\n>             )\n>             for cell in _cells()\n>         )\n>         limits = _limits()\n>         ledger = _reserve(tmp_path / \"ledger.json\", limits=limits, cells=cells)\n>     \n>         assert ledger.reservation.total_reserved_bench_s <= limits.total_bench_s\n>         assert all(\n>             value <= limits.per_arm_bench_s[arm]\n>             for arm, value in B._sum_by(cells, key=\"arm\").items()\n>         )\n>         assert all(\n>             value <= limits.per_holdout_bench_s[holdout]\n>             for holdout, value in B._sum_by(cells, key=\"holdout\").items()\n>         )\n> >       assert ledger.reservation.state == \"insufficient\"\n> E       AssertionError: assert 'held' == 'insufficient'\n> E         \n> E         - insufficient\n> E         + held\n> \n> orchestrator/tests/test_s8c_budget.py:295: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_budget.py::test_zero_reservation_ledger_recorded_as_held_is_rejected_on_read\" nodeid_bytes=104 nodeid_omitted_bytes=0 source_bytes=869 retained_bytes=869 omitted_bytes=0 rendered_excerpt_bytes=917 sha256=aed9192de533f862deb01c15a00797a4ddbebfc7136367b745d924617ef88d9e\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw19] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw19/test_zero_reservation_ledger_r0')\n> \n>     def test_zero_reservation_ledger_recorded_as_held_is_rejected_on_read(\n>         tmp_path: Path,\n>     ) -> None:\n>         path = tmp_path / \"ledger.json\"\n>         _reserve(path, limits=_limits())\n>         document = json.loads(path.read_text(encoding=\"utf-8\"))\n>         for cell in document[\"reservation\"][\"cells\"]:\n>             cell[\"reserved_bench_s\"] = 0.0\n>         document[\"reservation\"][\"total_reserved_bench_s\"] = 0.0\n>         path.write_text(\n>             json.dumps(document, ensure_ascii=False, sort_keys=True) + \"\\x5cn\",\n>             encoding=\"utf-8\",\n>         )\n>     \n> >       with pytest.raises(B.BudgetError, match=\"limit state\"):\n> E       Failed: DID NOT RAISE BudgetError\n> \n> orchestrator/tests/test_s8c_budget.py:377: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_budget.py::test_all_zero_cell_reservations_are_insufficient\" nodeid_bytes=87 nodeid_omitted_bytes=0 source_bytes=602 retained_bytes=602 omitted_bytes=0 rendered_excerpt_bytes=639 sha256=b389af161b3fd026cf577ee0a9059ddae6b9406354ea5130c099f44441e14d24\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw10] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_all_zero_cell_reservation0')\n> \n>     def test_all_zero_cell_reservations_are_insufficient(tmp_path: Path) -> None:\n>         ledger = _reserve(\n>             tmp_path / \"ledger.json\",\n>             limits=_limits(),\n>             cells=_cells(seconds=0.0),\n>         )\n>     \n> >       assert ledger.reservation.state == \"insufficient\"\n> E       AssertionError: assert 'held' == 'insufficient'\n> E         \n> E         - insufficient\n> E         + held\n> \n> orchestrator/tests/test_s8c_budget.py:266: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=2761 retained_bytes=2761 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4512 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "a32405bcacd86c626bd6d8aa2a21ed371e9201edac044545e34345a49141c822"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "70b993c2449d75c3fe4dbf5edd1692b50af6dc03384c812a044567e2c710b865",
+      "duration_s": 27.062,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_budget.py::test_all_zero_cell_reservations_are_insufficient",
+        "orchestrator/tests/test_s8c_budget.py::test_one_zero_cell_reservation_makes_whole_matrix_insufficient",
+        "orchestrator/tests/test_s8c_budget.py::test_zero_reservation_ledger_recorded_as_held_is_rejected_on_read"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8c_budget.py::test_zero_reservation_ledger_recorded_as_held_is_rejected_on_read",
+        "orchestrator/tests/test_s8c_budget.py::test_one_zero_cell_reservation_makes_whole_matrix_insufficient",
+        "orchestrator/tests/test_s8c_budget.py::test_all_zero_cell_reservations_are_insufficient"
+      ],
+      "hang_risk": false,
+      "id": "M3-drop-cell-conjunct",
+      "injection_diff_sha256": "a550642b4711658b1a32d6892d50648cf24914257e0b4545583ec9ed277c0a2a",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "9743adc9c735e0eac12d05ac1aee4121cbde89cb31997f137c8aaf3c178cb1cf",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_budget.py",
+          "new": "        total_ok and arm_ok and holdout_ok,",
+          "old": "        all_cells_reserved and total_ok and arm_ok and holdout_ok,"
+        }
+      ],
+      "repo_head": "d883df7e64c2f952030b544cd05c4cbd5dcc6143",
+      "runner_sha256": "be02ee14130b58e50659d1242b7222ad49f7cadc6a20f0c0e8a3a08814b30d0d",
+      "spec_sha256": "0353b5f502c5ae9a2b87ed8e8e541fe44f3b7ca67e161c8c0cb228a348dd1287",
+      "status": "KILLED",
+      "test_output_sha256": "a32405bcacd86c626bd6d8aa2a21ed371e9201edac044545e34345a49141c822",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "dc7381321ce445aa3edec3ac43a2207697509d783c62eda9fd6ea4a424c5a8b8"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2234-budget-vacuity/output/pegasus-dispatch/10ee22f3358d87918c2a70877f589961/izdw-10ee22f335.o985442",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2234-budget-vacuity/output/pegasus-dispatch/10ee22f3358d87918c2a70877f589961/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..................F.                                                     [100%]\n=================================== FAILURES ===================================\n_______________ test_budget_limits_reject_nonpositive_caps[arm] ________________\n[gw12] linux -- Python 3.10.12 /bin/python3.10\n\nkind = 'arm'\n\n    @pytest.mark.parametrize(\"kind\", [\"arm\", \"holdout\"])\n    def test_budget_limits_reject_nonpositive_caps(kind: str) -> None:\n        if kind == \"arm\":\n>           with pytest.raises(B.BudgetError, match=\"per_arm_bench_s.*正でない\"):\nE           Failed: DID NOT RAISE BudgetError\n\norchestrator/tests/test_s8c_budget.py:303: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_nonpositive_caps[arm]\n1 failed, 19 passed in 3.78s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_nonpositive_caps[arm]\" nodeid_bytes=86 nodeid_omitted_bytes=0 source_bytes=398 retained_bytes=398 omitted_bytes=0 rendered_excerpt_bytes=433 sha256=baddbb1e76c9fe785249b08bc83514a9f1a7a8c6d7e2e8815598ac8a8f7154d0\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw12] linux -- Python 3.10.12 /bin/python3.10\n> \n> kind = 'arm'\n> \n>     @pytest.mark.parametrize(\"kind\", [\"arm\", \"holdout\"])\n>     def test_budget_limits_reject_nonpositive_caps(kind: str) -> None:\n>         if kind == \"arm\":\n> >           with pytest.raises(B.BudgetError, match=\"per_arm_bench_s.*\\u6b63\\u3067\\u306a\\u3044\"):\n> E           Failed: DID NOT RAISE BudgetError\n> \n> orchestrator/tests/test_s8c_budget.py:303: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=398 retained_bytes=398 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1141 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "1c585a3792789dcdcaaffcf2a5b57bde6cd7f0cde1dd57c187116757e62f5fac"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "70b993c2449d75c3fe4dbf5edd1692b50af6dc03384c812a044567e2c710b865",
+      "duration_s": 27.119,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_nonpositive_caps[arm]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_nonpositive_caps[arm]"
+      ],
+      "hang_risk": false,
+      "id": "M4-arm-positive-boundary",
+      "injection_diff_sha256": "d7b5fa5770ef972c6833a2a907469c319fe1768b7839208dbfcc6c75f6fb4b5b",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "9de3d6c56e876b44f654b6355c141365d9d5aff7d73dd963584a3cf2e48b9660",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_budget.py",
+          "new": "            if self.per_arm_bench_s[arm] < 0.0:",
+          "old": "            if self.per_arm_bench_s[arm] <= 0.0:"
+        }
+      ],
+      "repo_head": "d883df7e64c2f952030b544cd05c4cbd5dcc6143",
+      "runner_sha256": "be02ee14130b58e50659d1242b7222ad49f7cadc6a20f0c0e8a3a08814b30d0d",
+      "spec_sha256": "0353b5f502c5ae9a2b87ed8e8e541fe44f3b7ca67e161c8c0cb228a348dd1287",
+      "status": "KILLED",
+      "test_output_sha256": "1c585a3792789dcdcaaffcf2a5b57bde6cd7f0cde1dd57c187116757e62f5fac",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "dc7381321ce445aa3edec3ac43a2207697509d783c62eda9fd6ea4a424c5a8b8"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2234-budget-vacuity/output/pegasus-dispatch/dce57e2d105eaf25077d1fc58d2724b4/izdw-dce57e2d10.o985443",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2234-budget-vacuity/output/pegasus-dispatch/dce57e2d105eaf25077d1fc58d2724b4/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..................F.                                                     [100%]\n=================================== FAILURES ===================================\n_____________ test_budget_limits_reject_nonpositive_caps[holdout] ______________\n[gw13] linux -- Python 3.10.12 /bin/python3.10\n\nkind = 'holdout'\n\n    @pytest.mark.parametrize(\"kind\", [\"arm\", \"holdout\"])\n    def test_budget_limits_reject_nonpositive_caps(kind: str) -> None:\n        if kind == \"arm\":\n            with pytest.raises(B.BudgetError, match=\"per_arm_bench_s.*正でない\"):\n                _limits(per_arm=0.0)\n        else:\n>           with pytest.raises(B.BudgetError, match=\"per_holdout_bench_s.*正でない\"):\nE           Failed: DID NOT RAISE BudgetError\n\norchestrator/tests/test_s8c_budget.py:306: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_nonpositive_caps[holdout]\n1 failed, 19 passed in 3.81s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_nonpositive_caps[holdout]\" nodeid_bytes=90 nodeid_omitted_bytes=0 source_bytes=543 retained_bytes=543 omitted_bytes=0 rendered_excerpt_bytes=596 sha256=771f922f0b03af52494e599db210f82b47c46afdc62bca4ca11f5d177a2fafb5\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw13] linux -- Python 3.10.12 /bin/python3.10\n> \n> kind = 'holdout'\n> \n>     @pytest.mark.parametrize(\"kind\", [\"arm\", \"holdout\"])\n>     def test_budget_limits_reject_nonpositive_caps(kind: str) -> None:\n>         if kind == \"arm\":\n>             with pytest.raises(B.BudgetError, match=\"per_arm_bench_s.*\\u6b63\\u3067\\u306a\\u3044\"):\n>                 _limits(per_arm=0.0)\n>         else:\n> >           with pytest.raises(B.BudgetError, match=\"per_holdout_bench_s.*\\u6b63\\u3067\\u306a\\u3044\"):\n> E           Failed: DID NOT RAISE BudgetError\n> \n> orchestrator/tests/test_s8c_budget.py:306: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=543 retained_bytes=543 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1308 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "f5c9c586d26f5aadd60eb47e4a6d20cdbd15888dbc289a334020f86d52cfb7f7"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "70b993c2449d75c3fe4dbf5edd1692b50af6dc03384c812a044567e2c710b865",
+      "duration_s": 27.178,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_nonpositive_caps[holdout]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_nonpositive_caps[holdout]"
+      ],
+      "hang_risk": false,
+      "id": "M5-holdout-positive-boundary",
+      "injection_diff_sha256": "aa8434d5085190a67f2ed3c37f62f0d681814495f9618027320c60300cbdb46e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "5d6b05e3d3f9e9664ef950b3b7a96513830be8e3ae93069946a4e4bd9de81bd2",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_budget.py",
+          "new": "            if self.per_holdout_bench_s[holdout] < 0.0:",
+          "old": "            if self.per_holdout_bench_s[holdout] <= 0.0:"
+        }
+      ],
+      "repo_head": "d883df7e64c2f952030b544cd05c4cbd5dcc6143",
+      "runner_sha256": "be02ee14130b58e50659d1242b7222ad49f7cadc6a20f0c0e8a3a08814b30d0d",
+      "spec_sha256": "0353b5f502c5ae9a2b87ed8e8e541fe44f3b7ca67e161c8c0cb228a348dd1287",
+      "status": "KILLED",
+      "test_output_sha256": "f5c9c586d26f5aadd60eb47e4a6d20cdbd15888dbc289a334020f86d52cfb7f7",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "dc7381321ce445aa3edec3ac43a2207697509d783c62eda9fd6ea4a424c5a8b8"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2234-budget-vacuity/output/pegasus-dispatch/a20313b62b42e0fa6229bb0dcec0199e/izdw-a20313b62b.o985445",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2234-budget-vacuity/output/pegasus-dispatch/a20313b62b42e0fa6229bb0dcec0199e/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.................FF.                                                     [100%]\n=================================== FAILURES ===================================\n______________ test_budget_limits_reject_asymmetric_arm_caps[ulp] ______________\n[gw15] linux -- Python 3.10.12 /bin/python3.10\n\nswapped = 8.000000000000002\n\n    @pytest.mark.parametrize(\n        \"swapped\",\n        [\n            pytest.param(9.0, id=\"gross\"),\n            pytest.param(math.nextafter(8.0, 9.0), id=\"ulp\"),\n        ],\n    )\n    def test_budget_limits_reject_asymmetric_arm_caps(swapped: float) -> None:\n>       with pytest.raises(B.BudgetError, match=\"対称\"):\nE       Failed: DID NOT RAISE BudgetError\n\norchestrator/tests/test_s8c_budget.py:318: Failed\n_____________ test_budget_limits_reject_asymmetric_arm_caps[gross] _____________\n[gw14] linux -- Python 3.10.12 /bin/python3.10\n\nswapped = 9.0\n\n    @pytest.mark.parametrize(\n        \"swapped\",\n        [\n            pytest.param(9.0, id=\"gross\"),\n            pytest.param(math.nextafter(8.0, 9.0), id=\"ulp\"),\n        ],\n    )\n    def test_budget_limits_reject_asymmetric_arm_caps(swapped: float) -> None:\n>       with pytest.raises(B.BudgetError, match=\"対称\"):\nE       Failed: DID NOT RAISE BudgetError\n\norchestrator/tests/test_s8c_budget.py:318: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_asymmetric_arm_caps[ulp]\nFAILED orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_asymmetric_arm_caps[gross]\n2 failed, 18 passed in 3.88s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_asymmetric_arm_caps[ulp]\" nodeid_bytes=89 nodeid_omitted_bytes=0 source_bytes=488 retained_bytes=488 omitted_bytes=0 rendered_excerpt_bytes=527 sha256=79b55dd18b2c6c0a655cbbb96a9252f5ff4792296b0b57a37755bdac84d5867d\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw15] linux -- Python 3.10.12 /bin/python3.10\n> \n> swapped = 8.000000000000002\n> \n>     @pytest.mark.parametrize(\n>         \"swapped\",\n>         [\n>             pytest.param(9.0, id=\"gross\"),\n>             pytest.param(math.nextafter(8.0, 9.0), id=\"ulp\"),\n>         ],\n>     )\n>     def test_budget_limits_reject_asymmetric_arm_caps(swapped: float) -> None:\n> >       with pytest.raises(B.BudgetError, match=\"\\u5bfe\\u79f0\"):\n> E       Failed: DID NOT RAISE BudgetError\n> \n> orchestrator/tests/test_s8c_budget.py:318: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_asymmetric_arm_caps[gross]\" nodeid_bytes=91 nodeid_omitted_bytes=0 source_bytes=474 retained_bytes=474 omitted_bytes=0 rendered_excerpt_bytes=513 sha256=d31f9a666fbe220a2558535f65525757d87c37a4316912dfa6957775493c56ce\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw14] linux -- Python 3.10.12 /bin/python3.10\n> \n> swapped = 9.0\n> \n>     @pytest.mark.parametrize(\n>         \"swapped\",\n>         [\n>             pytest.param(9.0, id=\"gross\"),\n>             pytest.param(math.nextafter(8.0, 9.0), id=\"ulp\"),\n>         ],\n>     )\n>     def test_budget_limits_reject_asymmetric_arm_caps(swapped: float) -> None:\n> >       with pytest.raises(B.BudgetError, match=\"\\u5bfe\\u79f0\"):\n> E       Failed: DID NOT RAISE BudgetError\n> \n> orchestrator/tests/test_s8c_budget.py:318: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=962 retained_bytes=962 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2179 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "68da62e0dd813fe7584ea4a46074afda9aa99852220ddebd950be76f7a0396e7"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "70b993c2449d75c3fe4dbf5edd1692b50af6dc03384c812a044567e2c710b865",
+      "duration_s": 27.091,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_asymmetric_arm_caps[gross]",
+        "orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_asymmetric_arm_caps[ulp]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_asymmetric_arm_caps[ulp]",
+        "orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_asymmetric_arm_caps[gross]"
+      ],
+      "hang_risk": false,
+      "id": "M6-drop-arm-symmetry-raise",
+      "injection_diff_sha256": "092baedae763aa5e01858dfe69b9b55657f7efce4a3870649b1888b9fbe3aef2",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "93f07fe52437d0947159ee3b75df9eb10519dd5c4c10d74de7c172d1545fc865",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_budget.py",
+          "new": "            pass",
+          "old": "            raise BudgetError(\"per_arm_bench_s が arm 間で対称でない\")"
+        }
+      ],
+      "repo_head": "d883df7e64c2f952030b544cd05c4cbd5dcc6143",
+      "runner_sha256": "be02ee14130b58e50659d1242b7222ad49f7cadc6a20f0c0e8a3a08814b30d0d",
+      "spec_sha256": "0353b5f502c5ae9a2b87ed8e8e541fe44f3b7ca67e161c8c0cb228a348dd1287",
+      "status": "KILLED",
+      "test_output_sha256": "68da62e0dd813fe7584ea4a46074afda9aa99852220ddebd950be76f7a0396e7",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "dc7381321ce445aa3edec3ac43a2207697509d783c62eda9fd6ea4a424c5a8b8"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2234-budget-vacuity/output/pegasus-dispatch/eabdb134f4211d0107ac4ab54891410a/izdw-eabdb134f4.o985447",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2234-budget-vacuity/output/pegasus-dispatch/eabdb134f4211d0107ac4ab54891410a/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..................F.                                                     [100%]\n=================================== FAILURES ===================================\n______________ test_budget_limits_reject_asymmetric_arm_caps[ulp] ______________\n[gw15] linux -- Python 3.10.12 /bin/python3.10\n\nswapped = 8.000000000000002\n\n    @pytest.mark.parametrize(\n        \"swapped\",\n        [\n            pytest.param(9.0, id=\"gross\"),\n            pytest.param(math.nextafter(8.0, 9.0), id=\"ulp\"),\n        ],\n    )\n    def test_budget_limits_reject_asymmetric_arm_caps(swapped: float) -> None:\n>       with pytest.raises(B.BudgetError, match=\"対称\"):\nE       Failed: DID NOT RAISE BudgetError\n\norchestrator/tests/test_s8c_budget.py:318: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_asymmetric_arm_caps[ulp]\n1 failed, 19 passed in 3.86s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_asymmetric_arm_caps[ulp]\" nodeid_bytes=89 nodeid_omitted_bytes=0 source_bytes=488 retained_bytes=488 omitted_bytes=0 rendered_excerpt_bytes=527 sha256=79b55dd18b2c6c0a655cbbb96a9252f5ff4792296b0b57a37755bdac84d5867d\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw15] linux -- Python 3.10.12 /bin/python3.10\n> \n> swapped = 8.000000000000002\n> \n>     @pytest.mark.parametrize(\n>         \"swapped\",\n>         [\n>             pytest.param(9.0, id=\"gross\"),\n>             pytest.param(math.nextafter(8.0, 9.0), id=\"ulp\"),\n>         ],\n>     )\n>     def test_budget_limits_reject_asymmetric_arm_caps(swapped: float) -> None:\n> >       with pytest.raises(B.BudgetError, match=\"\\u5bfe\\u79f0\"):\n> E       Failed: DID NOT RAISE BudgetError\n> \n> orchestrator/tests/test_s8c_budget.py:318: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=488 retained_bytes=488 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1238 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "e5f36e9a5102bc524a8a19f3a15a0683d571921e4ec9e95b598c4e66f4046c57"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "70b993c2449d75c3fe4dbf5edd1692b50af6dc03384c812a044567e2c710b865",
+      "duration_s": 27.408,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_asymmetric_arm_caps[ulp]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_asymmetric_arm_caps[ulp]"
+      ],
+      "hang_risk": false,
+      "id": "M7-arm-symmetry-tolerant",
+      "injection_diff_sha256": "03def5166ed45f21324a4e7a592e303eef0878a645af3fafd80940776f373be4",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "dd950063aa148ab6efda5b5e99193d967a189e3b3b56fa62380e290b9926cb53",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_budget.py",
+          "new": "        if not math.isclose(min(self.per_arm_bench_s.values()), max(self.per_arm_bench_s.values()), rel_tol=0.0, abs_tol=_TOLERANCE):",
+          "old": "        if min(self.per_arm_bench_s.values()) != max(self.per_arm_bench_s.values()):"
+        }
+      ],
+      "repo_head": "d883df7e64c2f952030b544cd05c4cbd5dcc6143",
+      "runner_sha256": "be02ee14130b58e50659d1242b7222ad49f7cadc6a20f0c0e8a3a08814b30d0d",
+      "spec_sha256": "0353b5f502c5ae9a2b87ed8e8e541fe44f3b7ca67e161c8c0cb228a348dd1287",
+      "status": "KILLED",
+      "test_output_sha256": "e5f36e9a5102bc524a8a19f3a15a0683d571921e4ec9e95b598c4e66f4046c57",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "dc7381321ce445aa3edec3ac43a2207697509d783c62eda9fd6ea4a424c5a8b8"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2234-budget-vacuity/output/pegasus-dispatch/b772863be31c213b331c8342997edb08/izdw-b772863be3.o985448",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2234-budget-vacuity/output/pegasus-dispatch/b772863be31c213b331c8342997edb08/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.................FF.                                                     [100%]\n=================================== FAILURES ===================================\n_______ test_budget_limits_reject_holdout_caps_not_summing_to_total[ulp] _______\n[gw17] linux -- Python 3.10.12 /bin/python3.10\n\ntotal = 24.000000000000004, per_holdout = (12.0, 12.0)\n\n    @pytest.mark.parametrize(\n        (\"total\", \"per_holdout\"),\n        [\n            pytest.param(24.0, (13.0, 13.0), id=\"gross\"),\n            pytest.param(math.nextafter(24.0, 25.0), (12.0, 12.0), id=\"ulp\"),\n        ],\n    )\n    def test_budget_limits_reject_holdout_caps_not_summing_to_total(\n        total: float, per_holdout: tuple[float, float]\n    ) -> None:\n>       with pytest.raises(B.BudgetError, match=\"総上限と一致しない\"):\nE       Failed: DID NOT RAISE BudgetError\n\norchestrator/tests/test_s8c_budget.py:336: Failed\n______ test_budget_limits_reject_holdout_caps_not_summing_to_total[gross] ______\n[gw16] linux -- Python 3.10.12 /bin/python3.10\n\ntotal = 24.0, per_holdout = (13.0, 13.0)\n\n    @pytest.mark.parametrize(\n        (\"total\", \"per_holdout\"),\n        [\n            pytest.param(24.0, (13.0, 13.0), id=\"gross\"),\n            pytest.param(math.nextafter(24.0, 25.0), (12.0, 12.0), id=\"ulp\"),\n        ],\n    )\n    def test_budget_limits_reject_holdout_caps_not_summing_to_total(\n        total: float, per_holdout: tuple[float, float]\n    ) -> None:\n>       with pytest.raises(B.BudgetError, match=\"総上限と一致しない\"):\nE       Failed: DID NOT RAISE BudgetError\n\norchestrator/tests/test_s8c_budget.py:336: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_holdout_caps_not_summing_to_total[ulp]\nFAILED orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_holdout_caps_not_summing_to_total[gross]\n2 failed, 18 passed in 3.89s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_holdout_caps_not_summing_to_total[ulp]\" nodeid_bytes=103 nodeid_omitted_bytes=0 source_bytes=642 retained_bytes=642 omitted_bytes=0 rendered_excerpt_bytes=706 sha256=a730c56b946492f5331cd08d2f975d3aacaf4f1e0f4a7d7a91d07f458b2a2186\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw17] linux -- Python 3.10.12 /bin/python3.10\n> \n> total = 24.000000000000004, per_holdout = (12.0, 12.0)\n> \n>     @pytest.mark.parametrize(\n>         (\"total\", \"per_holdout\"),\n>         [\n>             pytest.param(24.0, (13.0, 13.0), id=\"gross\"),\n>             pytest.param(math.nextafter(24.0, 25.0), (12.0, 12.0), id=\"ulp\"),\n>         ],\n>     )\n>     def test_budget_limits_reject_holdout_caps_not_summing_to_total(\n>         total: float, per_holdout: tuple[float, float]\n>     ) -> None:\n> >       with pytest.raises(B.BudgetError, match=\"\\u7dcf\\u4e0a\\u9650\\u3068\\u4e00\\u81f4\\u3057\\u306a\\u3044\"):\n> E       Failed: DID NOT RAISE BudgetError\n> \n> orchestrator/tests/test_s8c_budget.py:336: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_holdout_caps_not_summing_to_total[gross]\" nodeid_bytes=105 nodeid_omitted_bytes=0 source_bytes=628 retained_bytes=628 omitted_bytes=0 rendered_excerpt_bytes=692 sha256=a7adcf32ef458058e8225a6bae1331135fe3ff51e646507a591934e74154f9c2\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw16] linux -- Python 3.10.12 /bin/python3.10\n> \n> total = 24.0, per_holdout = (13.0, 13.0)\n> \n>     @pytest.mark.parametrize(\n>         (\"total\", \"per_holdout\"),\n>         [\n>             pytest.param(24.0, (13.0, 13.0), id=\"gross\"),\n>             pytest.param(math.nextafter(24.0, 25.0), (12.0, 12.0), id=\"ulp\"),\n>         ],\n>     )\n>     def test_budget_limits_reject_holdout_caps_not_summing_to_total(\n>         total: float, per_holdout: tuple[float, float]\n>     ) -> None:\n> >       with pytest.raises(B.BudgetError, match=\"\\u7dcf\\u4e0a\\u9650\\u3068\\u4e00\\u81f4\\u3057\\u306a\\u3044\"):\n> E       Failed: DID NOT RAISE BudgetError\n> \n> orchestrator/tests/test_s8c_budget.py:336: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=1270 retained_bytes=1270 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2569 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "5151116ce88894baad6dbc7f96d1aeb33568d9a248b4ba61f25cef1bf1330f53"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "70b993c2449d75c3fe4dbf5edd1692b50af6dc03384c812a044567e2c710b865",
+      "duration_s": 27.097,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_holdout_caps_not_summing_to_total[gross]",
+        "orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_holdout_caps_not_summing_to_total[ulp]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_holdout_caps_not_summing_to_total[ulp]",
+        "orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_holdout_caps_not_summing_to_total[gross]"
+      ],
+      "hang_risk": false,
+      "id": "M8-drop-holdout-sum-raise",
+      "injection_diff_sha256": "ee3b5a7957bdb5a96fbd598d5dc6befdc390d4a761686440b86fcebd1046cd11",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "01631a566364a039f50488c94c968738a4a4c9140cb718eebe3c6f550df4f756",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_budget.py",
+          "new": "            pass",
+          "old": "            raise BudgetError(\"per_holdout_bench_s の和が総上限と一致しない\")"
+        }
+      ],
+      "repo_head": "d883df7e64c2f952030b544cd05c4cbd5dcc6143",
+      "runner_sha256": "be02ee14130b58e50659d1242b7222ad49f7cadc6a20f0c0e8a3a08814b30d0d",
+      "spec_sha256": "0353b5f502c5ae9a2b87ed8e8e541fe44f3b7ca67e161c8c0cb228a348dd1287",
+      "status": "KILLED",
+      "test_output_sha256": "5151116ce88894baad6dbc7f96d1aeb33568d9a248b4ba61f25cef1bf1330f53",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "dc7381321ce445aa3edec3ac43a2207697509d783c62eda9fd6ea4a424c5a8b8"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2234-budget-vacuity/output/pegasus-dispatch/a65a06b0edb5fce54e3977adc90439f2/izdw-a65a06b0ed.o985450",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2234-budget-vacuity/output/pegasus-dispatch/a65a06b0edb5fce54e3977adc90439f2/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..................F.                                                     [100%]\n=================================== FAILURES ===================================\n_______ test_budget_limits_reject_holdout_caps_not_summing_to_total[ulp] _______\n[gw17] linux -- Python 3.10.12 /bin/python3.10\n\ntotal = 24.000000000000004, per_holdout = (12.0, 12.0)\n\n    @pytest.mark.parametrize(\n        (\"total\", \"per_holdout\"),\n        [\n            pytest.param(24.0, (13.0, 13.0), id=\"gross\"),\n            pytest.param(math.nextafter(24.0, 25.0), (12.0, 12.0), id=\"ulp\"),\n        ],\n    )\n    def test_budget_limits_reject_holdout_caps_not_summing_to_total(\n        total: float, per_holdout: tuple[float, float]\n    ) -> None:\n>       with pytest.raises(B.BudgetError, match=\"総上限と一致しない\"):\nE       Failed: DID NOT RAISE BudgetError\n\norchestrator/tests/test_s8c_budget.py:336: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_holdout_caps_not_summing_to_total[ulp]\n1 failed, 19 passed in 3.91s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_holdout_caps_not_summing_to_total[ulp]\" nodeid_bytes=103 nodeid_omitted_bytes=0 source_bytes=642 retained_bytes=642 omitted_bytes=0 rendered_excerpt_bytes=706 sha256=a730c56b946492f5331cd08d2f975d3aacaf4f1e0f4a7d7a91d07f458b2a2186\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw17] linux -- Python 3.10.12 /bin/python3.10\n> \n> total = 24.000000000000004, per_holdout = (12.0, 12.0)\n> \n>     @pytest.mark.parametrize(\n>         (\"total\", \"per_holdout\"),\n>         [\n>             pytest.param(24.0, (13.0, 13.0), id=\"gross\"),\n>             pytest.param(math.nextafter(24.0, 25.0), (12.0, 12.0), id=\"ulp\"),\n>         ],\n>     )\n>     def test_budget_limits_reject_holdout_caps_not_summing_to_total(\n>         total: float, per_holdout: tuple[float, float]\n>     ) -> None:\n> >       with pytest.raises(B.BudgetError, match=\"\\u7dcf\\u4e0a\\u9650\\u3068\\u4e00\\u81f4\\u3057\\u306a\\u3044\"):\n> E       Failed: DID NOT RAISE BudgetError\n> \n> orchestrator/tests/test_s8c_budget.py:336: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=642 retained_bytes=642 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1432 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "ab475e2e75f1181db158e93f6d0b0597761898f57dc83d6b2248178c2d7344f5"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "70b993c2449d75c3fe4dbf5edd1692b50af6dc03384c812a044567e2c710b865",
+      "duration_s": 27.076,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_holdout_caps_not_summing_to_total[ulp]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_holdout_caps_not_summing_to_total[ulp]"
+      ],
+      "hang_risk": false,
+      "id": "M9-holdout-sum-tolerant",
+      "injection_diff_sha256": "96c7f3855d14f74c6e0baf572236b506597b97c1306ad0b328d4d9e557de7847",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "d4238f85a9119f7d3f85521c1973d6683a2206daaecced39b546bd36bbbb87de",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_budget.py",
+          "new": "        if not math.isclose(\n            sum(self.per_holdout_bench_s[holdout] for holdout in sorted(_HOLDOUTS)),\n            self.total_bench_s,\n            rel_tol=0.0,\n            abs_tol=_TOLERANCE,\n        ):",
+          "old": "        if (\n            sum(self.per_holdout_bench_s[holdout] for holdout in sorted(_HOLDOUTS))\n            != self.total_bench_s\n        ):"
+        }
+      ],
+      "repo_head": "d883df7e64c2f952030b544cd05c4cbd5dcc6143",
+      "runner_sha256": "be02ee14130b58e50659d1242b7222ad49f7cadc6a20f0c0e8a3a08814b30d0d",
+      "spec_sha256": "0353b5f502c5ae9a2b87ed8e8e541fe44f3b7ca67e161c8c0cb228a348dd1287",
+      "status": "KILLED",
+      "test_output_sha256": "ab475e2e75f1181db158e93f6d0b0597761898f57dc83d6b2248178c2d7344f5",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "dc7381321ce445aa3edec3ac43a2207697509d783c62eda9fd6ea4a424c5a8b8"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2234-budget-vacuity/output/pegasus-dispatch/fca165039e0564546249400138822faa/izdw-fca165039e.o985451",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2234-budget-vacuity/output/pegasus-dispatch/fca165039e0564546249400138822faa/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..................F.                                                     [100%]\n=================================== FAILURES ===================================\n_______ test_each_budget_layer_has_a_numeric_insufficient_witness[total] _______\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_each_budget_layer_has_a_n0')\nlimits = BudgetLimits(total_bench_s=23.9999999985, per_arm_bench_s=mappingproxy({'on': 8.0, 'off': 8.0, 'swapped': 8.0}), per_holdout_bench_s=mappingproxy({'H1': 11.99999999925, 'H2': 11.99999999925}))\n\n    @pytest.mark.parametrize(\n        \"limits\",\n        [\n            pytest.param(\n                _limits(\n                    total=23.9999999985,\n                    per_holdout=(11.99999999925, 11.99999999925),\n                ),\n                id=\"total\",\n            ),\n            pytest.param(_limits(per_arm=5.0), id=\"arm\"),\n            pytest.param(_limits(per_holdout=(5.0, 19.0)), id=\"holdout\"),\n        ],\n    )\n    def test_each_budget_layer_has_a_numeric_insufficient_witness(\n        tmp_path: Path, limits: B.BudgetLimits\n    ) -> None:\n        ledger = _reserve(tmp_path / \"ledger.json\", limits=limits)\n>       assert ledger.reservation.state == \"insufficient\"\nE       AssertionError: assert 'held' == 'insufficient'\nE         \nE         - insufficient\nE         + held\n\norchestrator/tests/test_s8c_budget.py:79: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8c_budget.py::test_each_budget_layer_has_a_numeric_insufficient_witness[total]\n1 failed, 19 passed in 3.80s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_budget.py::test_each_budget_layer_has_a_numeric_insufficient_witness[total]\" nodeid_bytes=103 nodeid_omitted_bytes=0 source_bytes=1193 retained_bytes=1193 omitted_bytes=0 rendered_excerpt_bytes=1254 sha256=49e8a233d62b7453f3f8bbc5fbf8af9c0f4dd42d371cfe9a8578f4d8e55603b2\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_each_budget_layer_has_a_n0')\n> limits = BudgetLimits(total_bench_s=23.9999999985, per_arm_bench_s=mappingproxy({'on': 8.0, 'off': 8.0, 'swapped': 8.0}), per_holdout_bench_s=mappingproxy({'H1': 11.99999999925, 'H2': 11.99999999925}))\n> \n>     @pytest.mark.parametrize(\n>         \"limits\",\n>         [\n>             pytest.param(\n>                 _limits(\n>                     total=23.9999999985,\n>                     per_holdout=(11.99999999925, 11.99999999925),\n>                 ),\n>                 id=\"total\",\n>             ),\n>             pytest.param(_limits(per_arm=5.0), id=\"arm\"),\n>             pytest.param(_limits(per_holdout=(5.0, 19.0)), id=\"holdout\"),\n>         ],\n>     )\n>     def test_each_budget_layer_has_a_numeric_insufficient_witness(\n>         tmp_path: Path, limits: B.BudgetLimits\n>     ) -> None:\n>         ledger = _reserve(tmp_path / \"ledger.json\", limits=limits)\n> >       assert ledger.reservation.state == \"insufficient\"\n> E       AssertionError: assert 'held' == 'insufficient'\n> E         \n> E         - insufficient\n> E         + held\n> \n> orchestrator/tests/test_s8c_budget.py:79: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1193 retained_bytes=1193 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1985 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "f07de54578aeab9a8f8026d0da40108d7b21ad84f256e0a4c0e4fee2f9236637"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "70b993c2449d75c3fe4dbf5edd1692b50af6dc03384c812a044567e2c710b865",
+      "duration_s": 27.039,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_budget.py::test_each_budget_layer_has_a_numeric_insufficient_witness[total]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8c_budget.py::test_each_budget_layer_has_a_numeric_insufficient_witness[total]"
+      ],
+      "hang_risk": false,
+      "id": "M10-total-layer-true",
+      "injection_diff_sha256": "3f62a7b6556be292452a8aa39a2e2197635e7c7e01685b102942a86f080f4703",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "8599a7758cd251f5ca7b13f6ed4fb94c674a37cb00f52a7afb0145c6487e16c2",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_budget.py",
+          "new": "    total_ok = True",
+          "old": "    total_ok = total_reserved_bench_s <= limits.total_bench_s + _TOLERANCE"
+        }
+      ],
+      "repo_head": "d883df7e64c2f952030b544cd05c4cbd5dcc6143",
+      "runner_sha256": "be02ee14130b58e50659d1242b7222ad49f7cadc6a20f0c0e8a3a08814b30d0d",
+      "spec_sha256": "0353b5f502c5ae9a2b87ed8e8e541fe44f3b7ca67e161c8c0cb228a348dd1287",
+      "status": "KILLED",
+      "test_output_sha256": "f07de54578aeab9a8f8026d0da40108d7b21ad84f256e0a4c0e4fee2f9236637",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "dc7381321ce445aa3edec3ac43a2207697509d783c62eda9fd6ea4a424c5a8b8"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2234-budget-vacuity/output/pegasus-dispatch/824cbff9040da9b465039c2b65415c36/izdw-824cbff904.o985452",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2234-budget-vacuity/output/pegasus-dispatch/824cbff9040da9b465039c2b65415c36/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..................F.                                                     [100%]\n=================================== FAILURES ===================================\n________ test_each_budget_layer_has_a_numeric_insufficient_witness[arm] ________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_each_budget_layer_has_a_n0')\nlimits = BudgetLimits(total_bench_s=24.0, per_arm_bench_s=mappingproxy({'on': 5.0, 'off': 5.0, 'swapped': 5.0}), per_holdout_bench_s=mappingproxy({'H1': 12.0, 'H2': 12.0}))\n\n    @pytest.mark.parametrize(\n        \"limits\",\n        [\n            pytest.param(\n                _limits(\n                    total=23.9999999985,\n                    per_holdout=(11.99999999925, 11.99999999925),\n                ),\n                id=\"total\",\n            ),\n            pytest.param(_limits(per_arm=5.0), id=\"arm\"),\n            pytest.param(_limits(per_holdout=(5.0, 19.0)), id=\"holdout\"),\n        ],\n    )\n    def test_each_budget_layer_has_a_numeric_insufficient_witness(\n        tmp_path: Path, limits: B.BudgetLimits\n    ) -> None:\n        ledger = _reserve(tmp_path / \"ledger.json\", limits=limits)\n>       assert ledger.reservation.state == \"insufficient\"\nE       AssertionError: assert 'held' == 'insufficient'\nE         \nE         - insufficient\nE         + held\n\norchestrator/tests/test_s8c_budget.py:79: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8c_budget.py::test_each_budget_layer_has_a_numeric_insufficient_witness[arm]\n1 failed, 19 passed in 4.18s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_budget.py::test_each_budget_layer_has_a_numeric_insufficient_witness[arm]\" nodeid_bytes=101 nodeid_omitted_bytes=0 source_bytes=1164 retained_bytes=1164 omitted_bytes=0 rendered_excerpt_bytes=1225 sha256=b8988d6cfc9540a062ce9b02f6c312230d6ca6f84a1bccb4ad728603513191e4\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_each_budget_layer_has_a_n0')\n> limits = BudgetLimits(total_bench_s=24.0, per_arm_bench_s=mappingproxy({'on': 5.0, 'off': 5.0, 'swapped': 5.0}), per_holdout_bench_s=mappingproxy({'H1': 12.0, 'H2': 12.0}))\n> \n>     @pytest.mark.parametrize(\n>         \"limits\",\n>         [\n>             pytest.param(\n>                 _limits(\n>                     total=23.9999999985,\n>                     per_holdout=(11.99999999925, 11.99999999925),\n>                 ),\n>                 id=\"total\",\n>             ),\n>             pytest.param(_limits(per_arm=5.0), id=\"arm\"),\n>             pytest.param(_limits(per_holdout=(5.0, 19.0)), id=\"holdout\"),\n>         ],\n>     )\n>     def test_each_budget_layer_has_a_numeric_insufficient_witness(\n>         tmp_path: Path, limits: B.BudgetLimits\n>     ) -> None:\n>         ledger = _reserve(tmp_path / \"ledger.json\", limits=limits)\n> >       assert ledger.reservation.state == \"insufficient\"\n> E       AssertionError: assert 'held' == 'insufficient'\n> E         \n> E         - insufficient\n> E         + held\n> \n> orchestrator/tests/test_s8c_budget.py:79: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1164 retained_bytes=1164 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1954 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "5d7e0a9e4ccd67f3b29128dadb4b0746f22e9b3563891da65630bd83248f399f"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "70b993c2449d75c3fe4dbf5edd1692b50af6dc03384c812a044567e2c710b865",
+      "duration_s": 27.124,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_budget.py::test_each_budget_layer_has_a_numeric_insufficient_witness[arm]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8c_budget.py::test_each_budget_layer_has_a_numeric_insufficient_witness[arm]"
+      ],
+      "hang_risk": false,
+      "id": "M11-arm-layer-true",
+      "injection_diff_sha256": "ac70b86762a9c3a18bb5408fef0110c9897dfb5ec202ed8a70d3a58ef38cf525",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "bef43708d36629c4d4088312e87f5f5f02680233c6870cab3406eb3a5d19fa1a",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_budget.py",
+          "new": "    arm_ok = True",
+          "old": "    arm_ok = all(\n        value <= limits.per_arm_bench_s[arm] + _TOLERANCE\n        for arm, value in by_arm.items()\n    )"
+        }
+      ],
+      "repo_head": "d883df7e64c2f952030b544cd05c4cbd5dcc6143",
+      "runner_sha256": "be02ee14130b58e50659d1242b7222ad49f7cadc6a20f0c0e8a3a08814b30d0d",
+      "spec_sha256": "0353b5f502c5ae9a2b87ed8e8e541fe44f3b7ca67e161c8c0cb228a348dd1287",
+      "status": "KILLED",
+      "test_output_sha256": "5d7e0a9e4ccd67f3b29128dadb4b0746f22e9b3563891da65630bd83248f399f",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "dc7381321ce445aa3edec3ac43a2207697509d783c62eda9fd6ea4a424c5a8b8"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2234-budget-vacuity/output/pegasus-dispatch/1813ef4c424c7fb55da39d0d9851058c/izdw-1813ef4c42.o985454",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2234-budget-vacuity/output/pegasus-dispatch/1813ef4c424c7fb55da39d0d9851058c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..................F.                                                     [100%]\n=================================== FAILURES ===================================\n______ test_each_budget_layer_has_a_numeric_insufficient_witness[holdout] ______\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_each_budget_layer_has_a_n0')\nlimits = BudgetLimits(total_bench_s=24.0, per_arm_bench_s=mappingproxy({'on': 8.0, 'off': 8.0, 'swapped': 8.0}), per_holdout_bench_s=mappingproxy({'H1': 5.0, 'H2': 19.0}))\n\n    @pytest.mark.parametrize(\n        \"limits\",\n        [\n            pytest.param(\n                _limits(\n                    total=23.9999999985,\n                    per_holdout=(11.99999999925, 11.99999999925),\n                ),\n                id=\"total\",\n            ),\n            pytest.param(_limits(per_arm=5.0), id=\"arm\"),\n            pytest.param(_limits(per_holdout=(5.0, 19.0)), id=\"holdout\"),\n        ],\n    )\n    def test_each_budget_layer_has_a_numeric_insufficient_witness(\n        tmp_path: Path, limits: B.BudgetLimits\n    ) -> None:\n        ledger = _reserve(tmp_path / \"ledger.json\", limits=limits)\n>       assert ledger.reservation.state == \"insufficient\"\nE       AssertionError: assert 'held' == 'insufficient'\nE         \nE         - insufficient\nE         + held\n\norchestrator/tests/test_s8c_budget.py:79: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8c_budget.py::test_each_budget_layer_has_a_numeric_insufficient_witness[holdout]\n1 failed, 19 passed in 3.76s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_budget.py::test_each_budget_layer_has_a_numeric_insufficient_witness[holdout]\" nodeid_bytes=105 nodeid_omitted_bytes=0 source_bytes=1163 retained_bytes=1163 omitted_bytes=0 rendered_excerpt_bytes=1224 sha256=164d6ca3bc73f3d015f608e51912a768ba35c33ddb2a90a910639171cd701cf1\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw6] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_each_budget_layer_has_a_n0')\n> limits = BudgetLimits(total_bench_s=24.0, per_arm_bench_s=mappingproxy({'on': 8.0, 'off': 8.0, 'swapped': 8.0}), per_holdout_bench_s=mappingproxy({'H1': 5.0, 'H2': 19.0}))\n> \n>     @pytest.mark.parametrize(\n>         \"limits\",\n>         [\n>             pytest.param(\n>                 _limits(\n>                     total=23.9999999985,\n>                     per_holdout=(11.99999999925, 11.99999999925),\n>                 ),\n>                 id=\"total\",\n>             ),\n>             pytest.param(_limits(per_arm=5.0), id=\"arm\"),\n>             pytest.param(_limits(per_holdout=(5.0, 19.0)), id=\"holdout\"),\n>         ],\n>     )\n>     def test_each_budget_layer_has_a_numeric_insufficient_witness(\n>         tmp_path: Path, limits: B.BudgetLimits\n>     ) -> None:\n>         ledger = _reserve(tmp_path / \"ledger.json\", limits=limits)\n> >       assert ledger.reservation.state == \"insufficient\"\n> E       AssertionError: assert 'held' == 'insufficient'\n> E         \n> E         - insufficient\n> E         + held\n> \n> orchestrator/tests/test_s8c_budget.py:79: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1163 retained_bytes=1163 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1957 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "667e1b51be19970d2fba9331f227c1b6264eb69d116a4a94da50a329caf2c987"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "70b993c2449d75c3fe4dbf5edd1692b50af6dc03384c812a044567e2c710b865",
+      "duration_s": 88.474,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_budget.py::test_each_budget_layer_has_a_numeric_insufficient_witness[holdout]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8c_budget.py::test_each_budget_layer_has_a_numeric_insufficient_witness[holdout]"
+      ],
+      "hang_risk": false,
+      "id": "M12-holdout-layer-true",
+      "injection_diff_sha256": "4e3ab80708f911b25347c49a8d461f793ae2942d8f0880b4648fa442092b0be4",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "0eea9dbba712014497c2175724eead912f8ebfe47dc3484358b5a8b818e7d2af",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_budget.py",
+          "new": "    holdout_ok = True",
+          "old": "    holdout_ok = all(\n        value <= limits.per_holdout_bench_s[holdout] + _TOLERANCE\n        for holdout, value in by_holdout.items()\n    )"
+        }
+      ],
+      "repo_head": "d883df7e64c2f952030b544cd05c4cbd5dcc6143",
+      "runner_sha256": "be02ee14130b58e50659d1242b7222ad49f7cadc6a20f0c0e8a3a08814b30d0d",
+      "spec_sha256": "0353b5f502c5ae9a2b87ed8e8e541fe44f3b7ca67e161c8c0cb228a348dd1287",
+      "status": "KILLED",
+      "test_output_sha256": "667e1b51be19970d2fba9331f227c1b6264eb69d116a4a94da50a329caf2c987",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "dc7381321ce445aa3edec3ac43a2207697509d783c62eda9fd6ea4a424c5a8b8"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2234-budget-vacuity/output/pegasus-dispatch/71e825dfa20393c6df27cc5c6f151366/izdw-71e825dfa2.o985436",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2234-budget-vacuity/output/pegasus-dispatch/71e825dfa20393c6df27cc5c6f151366/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_s8c_budget.py::test_each_budget_layer_has_a_numeric_insufficient_witness[total]\norchestrator/tests/test_s8c_budget.py::test_each_budget_layer_has_a_numeric_insufficient_witness[arm]\norchestrator/tests/test_s8c_budget.py::test_each_budget_layer_has_a_numeric_insufficient_witness[holdout]\norchestrator/tests/test_s8c_budget.py::test_all_three_layers_within_limit_are_held\norchestrator/tests/test_s8c_budget.py::test_budget_limits_require_arm_and_holdout_coverage\norchestrator/tests/test_s8c_budget.py::test_reservation_is_immutable_and_exact_reserve_is_idempotent\norchestrator/tests/test_s8c_budget.py::test_settle_accepts_one_known_cell_only_once_and_never_over_reserves\norchestrator/tests/test_s8c_budget.py::test_settle_serializes_read_modify_write_with_o_excl_lock\norchestrator/tests/test_s8c_budget.py::test_stale_lock_is_fail_closed_and_partial_insufficient_run_is_rejected\norchestrator/tests/test_s8c_budget.py::test_registered_build_gate_requires_authoritative_drive_before_reserve\norchestrator/tests/test_s8c_budget.py::test_all_zero_cell_reservations_are_insufficient\norchestrator/tests/test_s8c_budget.py::test_one_zero_cell_reservation_makes_whole_matrix_insufficient\norchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_nonpositive_caps[arm]\norchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_nonpositive_caps[holdout]\norchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_asymmetric_arm_caps[gross]\norchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_asymmetric_arm_caps[ulp]\norchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_holdout_caps_not_summing_to_total[gross]\norchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_holdout_caps_not_summing_to_total[ulp]\norchestrator/tests/test_s8c_budget.py::test_normative_limits_with_positive_cells_are_held\norchestrator/tests/test_s8c_budget.py::test_zero_reservation_ledger_recorded_as_held_is_rejected_on_read\n\n20 tests collected in 0.32s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "9fe393e0d78d151ff9557999606f9f03c0913428b74b41a6a7710f0c18c2bf6b"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_s8c_budget.py::test_each_budget_layer_has_a_numeric_insufficient_witness[total]",
+        "orchestrator/tests/test_s8c_budget.py::test_each_budget_layer_has_a_numeric_insufficient_witness[arm]",
+        "orchestrator/tests/test_s8c_budget.py::test_each_budget_layer_has_a_numeric_insufficient_witness[holdout]",
+        "orchestrator/tests/test_s8c_budget.py::test_all_three_layers_within_limit_are_held",
+        "orchestrator/tests/test_s8c_budget.py::test_budget_limits_require_arm_and_holdout_coverage",
+        "orchestrator/tests/test_s8c_budget.py::test_reservation_is_immutable_and_exact_reserve_is_idempotent",
+        "orchestrator/tests/test_s8c_budget.py::test_settle_accepts_one_known_cell_only_once_and_never_over_reserves",
+        "orchestrator/tests/test_s8c_budget.py::test_settle_serializes_read_modify_write_with_o_excl_lock",
+        "orchestrator/tests/test_s8c_budget.py::test_stale_lock_is_fail_closed_and_partial_insufficient_run_is_rejected",
+        "orchestrator/tests/test_s8c_budget.py::test_registered_build_gate_requires_authoritative_drive_before_reserve",
+        "orchestrator/tests/test_s8c_budget.py::test_all_zero_cell_reservations_are_insufficient",
+        "orchestrator/tests/test_s8c_budget.py::test_one_zero_cell_reservation_makes_whole_matrix_insufficient",
+        "orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_nonpositive_caps[arm]",
+        "orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_nonpositive_caps[holdout]",
+        "orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_asymmetric_arm_caps[gross]",
+        "orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_asymmetric_arm_caps[ulp]",
+        "orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_holdout_caps_not_summing_to_total[gross]",
+        "orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_holdout_caps_not_summing_to_total[ulp]",
+        "orchestrator/tests/test_s8c_budget.py::test_normative_limits_with_positive_cells_are_held",
+        "orchestrator/tests/test_s8c_budget.py::test_zero_reservation_ledger_recorded_as_held_is_rejected_on_read"
+      ],
+      "duration_s": 21.845,
+      "rc": 0,
+      "repo_head": "d883df7e64c2f952030b544cd05c4cbd5dcc6143",
+      "runner_sha256": "be02ee14130b58e50659d1242b7222ad49f7cadc6a20f0c0e8a3a08814b30d0d",
+      "spec_sha256": "0353b5f502c5ae9a2b87ed8e8e541fe44f3b7ca67e161c8c0cb228a348dd1287",
+      "status": "PASSED",
+      "tool_sha256": "dc7381321ce445aa3edec3ac43a2207697509d783c62eda9fd6ea4a424c5a8b8"
+    },
+    "hang_timeout_seconds": 900.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1-cell-positive-to-nonnegative": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8c_budget.py::test_all_zero_cell_reservations_are_insufficient",
+          "orchestrator/tests/test_s8c_budget.py::test_one_zero_cell_reservation_makes_whole_matrix_insufficient",
+          "orchestrator/tests/test_s8c_budget.py::test_zero_reservation_ledger_recorded_as_held_is_rejected_on_read"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "4589de8d564b772a30a7795a35fc72353bfae27cfd4e49e7ef9179a946055434",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8c_budget.py",
+            "new": "    all_cells_reserved = all(cell.reserved_bench_s >= 0.0 for cell in cells)",
+            "old": "    all_cells_reserved = all(cell.reserved_bench_s > 0.0 for cell in cells)"
+          }
+        ]
+      },
+      "M10-total-layer-true": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8c_budget.py::test_each_budget_layer_has_a_numeric_insufficient_witness[total]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "3f62a7b6556be292452a8aa39a2e2197635e7c7e01685b102942a86f080f4703",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8c_budget.py",
+            "new": "    total_ok = True",
+            "old": "    total_ok = total_reserved_bench_s <= limits.total_bench_s + _TOLERANCE"
+          }
+        ]
+      },
+      "M11-arm-layer-true": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8c_budget.py::test_each_budget_layer_has_a_numeric_insufficient_witness[arm]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ac70b86762a9c3a18bb5408fef0110c9897dfb5ec202ed8a70d3a58ef38cf525",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8c_budget.py",
+            "new": "    arm_ok = True",
+            "old": "    arm_ok = all(\n        value <= limits.per_arm_bench_s[arm] + _TOLERANCE\n        for arm, value in by_arm.items()\n    )"
+          }
+        ]
+      },
+      "M12-holdout-layer-true": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8c_budget.py::test_each_budget_layer_has_a_numeric_insufficient_witness[holdout]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "4e3ab80708f911b25347c49a8d461f793ae2942d8f0880b4648fa442092b0be4",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8c_budget.py",
+            "new": "    holdout_ok = True",
+            "old": "    holdout_ok = all(\n        value <= limits.per_holdout_bench_s[holdout] + _TOLERANCE\n        for holdout, value in by_holdout.items()\n    )"
+          }
+        ]
+      },
+      "M2-all-to-any": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8c_budget.py::test_one_zero_cell_reservation_makes_whole_matrix_insufficient"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "3a462214b89ab67abf4745ae82e07a3f6e0cf6922acb56e0e416ba432f1b342d",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8c_budget.py",
+            "new": "    all_cells_reserved = any(cell.reserved_bench_s > 0.0 for cell in cells)",
+            "old": "    all_cells_reserved = all(cell.reserved_bench_s > 0.0 for cell in cells)"
+          }
+        ]
+      },
+      "M3-drop-cell-conjunct": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8c_budget.py::test_all_zero_cell_reservations_are_insufficient",
+          "orchestrator/tests/test_s8c_budget.py::test_one_zero_cell_reservation_makes_whole_matrix_insufficient",
+          "orchestrator/tests/test_s8c_budget.py::test_zero_reservation_ledger_recorded_as_held_is_rejected_on_read"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a550642b4711658b1a32d6892d50648cf24914257e0b4545583ec9ed277c0a2a",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8c_budget.py",
+            "new": "        total_ok and arm_ok and holdout_ok,",
+            "old": "        all_cells_reserved and total_ok and arm_ok and holdout_ok,"
+          }
+        ]
+      },
+      "M4-arm-positive-boundary": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_nonpositive_caps[arm]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d7b5fa5770ef972c6833a2a907469c319fe1768b7839208dbfcc6c75f6fb4b5b",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8c_budget.py",
+            "new": "            if self.per_arm_bench_s[arm] < 0.0:",
+            "old": "            if self.per_arm_bench_s[arm] <= 0.0:"
+          }
+        ]
+      },
+      "M5-holdout-positive-boundary": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_nonpositive_caps[holdout]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "aa8434d5085190a67f2ed3c37f62f0d681814495f9618027320c60300cbdb46e",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8c_budget.py",
+            "new": "            if self.per_holdout_bench_s[holdout] < 0.0:",
+            "old": "            if self.per_holdout_bench_s[holdout] <= 0.0:"
+          }
+        ]
+      },
+      "M6-drop-arm-symmetry-raise": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_asymmetric_arm_caps[gross]",
+          "orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_asymmetric_arm_caps[ulp]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "092baedae763aa5e01858dfe69b9b55657f7efce4a3870649b1888b9fbe3aef2",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8c_budget.py",
+            "new": "            pass",
+            "old": "            raise BudgetError(\"per_arm_bench_s が arm 間で対称でない\")"
+          }
+        ]
+      },
+      "M7-arm-symmetry-tolerant": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_asymmetric_arm_caps[ulp]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "03def5166ed45f21324a4e7a592e303eef0878a645af3fafd80940776f373be4",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8c_budget.py",
+            "new": "        if not math.isclose(min(self.per_arm_bench_s.values()), max(self.per_arm_bench_s.values()), rel_tol=0.0, abs_tol=_TOLERANCE):",
+            "old": "        if min(self.per_arm_bench_s.values()) != max(self.per_arm_bench_s.values()):"
+          }
+        ]
+      },
+      "M8-drop-holdout-sum-raise": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_holdout_caps_not_summing_to_total[gross]",
+          "orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_holdout_caps_not_summing_to_total[ulp]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ee3b5a7957bdb5a96fbd598d5dc6befdc390d4a761686440b86fcebd1046cd11",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8c_budget.py",
+            "new": "            pass",
+            "old": "            raise BudgetError(\"per_holdout_bench_s の和が総上限と一致しない\")"
+          }
+        ]
+      },
+      "M9-holdout-sum-tolerant": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_holdout_caps_not_summing_to_total[ulp]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "96c7f3855d14f74c6e0baf572236b506597b97c1306ad0b328d4d9e557de7847",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8c_budget.py",
+            "new": "        if not math.isclose(\n            sum(self.per_holdout_bench_s[holdout] for holdout in sorted(_HOLDOUTS)),\n            self.total_bench_s,\n            rel_tol=0.0,\n            abs_tol=_TOLERANCE,\n        ):",
+            "old": "        if (\n            sum(self.per_holdout_bench_s[holdout] for holdout in sorted(_HOLDOUTS))\n            != self.total_bench_s\n        ):"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "fc6d370a9f1b1208341c0f43b106349e0accfcf9ea6fedd7a6eafc862fa8b4cc",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_s8c_budget.py",
+      "-q",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 600.0
+  },
+  "repo_head": "d883df7e64c2f952030b544cd05c4cbd5dcc6143",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_s8c_budget.py",
+      "-q",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2234-budget-vacuity/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2234-budget-vacuity/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "7b38c5ba9b8ca545eef126538d91edfbcaf6c7a6",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "be02ee14130b58e50659d1242b7222ad49f7cadc6a20f0c0e8a3a08814b30d0d",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "0353b5f502c5ae9a2b87ed8e8e541fe44f3b7ca67e161c8c0cb228a348dd1287",
+  "summary": {
+    "KILLED": 12,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 12,
+    "matching": 12,
+    "recorded": 12,
+    "registered": 12
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2234-budget-vacuity/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "dc7381321ce445aa3edec3ac43a2207697509d783c62eda9fd6ea4a424c5a8b8",
+  "updated_at": "2026-09-08T12:37:14.968150+00:00"
+}
