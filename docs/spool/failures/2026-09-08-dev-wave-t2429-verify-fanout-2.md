@@ -18,9 +18,12 @@ seq: 2
   「`--max-*` は非権威で増量可」とだけ書く。上限に当たったときに**報告が 0 byte になる**ことと、
   そのとき worktree の差分は残るので継続子に監査させれば作業を捨てずに済むことは、どの手順書にも
   書かれていなかった。親は重い単位の見積りを取らずに既定のまま投げた。
-- 恒久対応: `docs/dev-wave/operations.md` の `DW-O01` に、重い実装単位では `--max-model-calls` を
-  上げること、上限打ち切りは成果物 0 byte になること、その場合は worktree の差分を残したまま
-  継続子へ監査させて引き継ぐことを追記する。
+- 恒久対応: memory `codex-child-dies-silently-at-model-call-cap` — 重い実装単位では
+  `--max-model-calls` を上げ、prompt に「予算の 8 割で報告を書く」を明示し、打ち切られたら
+  worktree の差分を残したまま継続子へ監査させて引き継ぐ。`DW-O01` は既に「重い巡は call/token を
+  見積もる。中断子は未完了と記し次の子に監査させる」を持っており、欠けていたのは「打ち切ると
+  出力が 0 byte になる」の 1 点だけである。同節への追記は L1.5 層の byte 予算 (9,696) に 58 bytes
+  分の余地が無く入らなかったため memory に持つ (同じ理由で入らなかった 2 例目)。
 - 再発検知: 受領証 (`receipt.json`) の `failure_class=f45_missing_output` と
   `limit_trigger=max_model_calls` の組。`check_codex_output.py` は 0 byte を rc 非 0 で弾くので、
   親は必ずこの組を見て継続子か再投入かを決める。
