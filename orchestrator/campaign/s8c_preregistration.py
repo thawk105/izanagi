@@ -64,6 +64,13 @@ _GENERATION_RE = re.compile(
 )
 _RULING_RE = re.compile(r"D[1-9][0-9]*\Z")
 _DECIDER_VERSION_RE = re.compile(r"s8c-decider/v[1-9][0-9]*\Z")
+_DIAGNOSTIC_EXCEPTION_TYPE_RE = re.compile(r"[A-Za-z0-9_]+\Z")
+_DIAGNOSTIC_PREREGISTRATION_REASON_RE = re.compile(r"[a-z0-9-]+\Z")
+_DIAGNOSTIC_TEXT_MAX_LENGTH = 128
+_DIAGNOSTIC_EXCEPTION_TYPE_SENTINEL = "DiagnosticExceptionTypeUnavailable"
+_DIAGNOSTIC_PREREGISTRATION_REASON_SENTINEL = (
+    "diagnostic-preregistration-reason-unavailable"
+)
 _ATX_RE = re.compile(r"^( {0,3})(#{1,6})[ \t]+(.+?)[ \t]*#*[ \t]*$")
 _TOP_ITEM_RE = re.compile(r"^ {0,3}([0-9]+)[.)][ \t]+(.*)$")
 _UNORDERED_ITEM_RE = re.compile(r"^ {0,3}[-+*][ \t]+(.*)$")
@@ -167,6 +174,13 @@ class PredicateResult:
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "evidence", tuple(self.evidence))
+
+
+@dataclass(frozen=True)
+class EvaluatorExceptionReason:
+    callsite: str
+    exception_type: str
+    preregistration_reason: Optional[str]
 
 
 class PredicateRegistry(Protocol):
@@ -1769,6 +1783,57 @@ def _uniform_predicates(status: PredicateStatus, reason: str) -> tuple[Predicate
     )
 
 
+def _evaluator_exception_reason(
+    callsite: str,
+    exc: BaseException,
+) -> EvaluatorExceptionReason:
+    """Return a total, bounded diagnostic for a caught evaluator exception.
+
+    ``callsite`` names the evaluation point that caught the exception, not its
+    semantic origin.  In particular, an exception raised while consuming a lazy
+    generator is caught at and attributed to the normalization callsite.
+    """
+    exception_type = _DIAGNOSTIC_EXCEPTION_TYPE_SENTINEL
+    try:
+        candidate_type = type(exc).__name__
+        if (
+            type(candidate_type) is str
+            and len(candidate_type) <= _DIAGNOSTIC_TEXT_MAX_LENGTH
+            and _DIAGNOSTIC_EXCEPTION_TYPE_RE.fullmatch(candidate_type) is not None
+        ):
+            exception_type = candidate_type
+    except BaseException:
+        # Diagnostics must never replace the existing fail-closed result with an
+        # unhandled exception, including for hostile exception metadata.
+        pass
+
+    preregistration_reason: Optional[str] = None
+    try:
+        if isinstance(exc, PreregistrationError):
+            candidate_reason = exc.reason
+            if (
+                type(candidate_reason) is str
+                and len(candidate_reason) <= _DIAGNOSTIC_TEXT_MAX_LENGTH
+                and _DIAGNOSTIC_PREREGISTRATION_REASON_RE.fullmatch(
+                    candidate_reason
+                )
+                is not None
+            ):
+                preregistration_reason = candidate_reason
+            else:
+                preregistration_reason = (
+                    _DIAGNOSTIC_PREREGISTRATION_REASON_SENTINEL
+                )
+    except BaseException:
+        preregistration_reason = _DIAGNOSTIC_PREREGISTRATION_REASON_SENTINEL
+
+    return EvaluatorExceptionReason(
+        callsite=callsite,
+        exception_type=exception_type,
+        preregistration_reason=preregistration_reason,
+    )
+
+
 def _default_registry_module(
     module_blob: Optional[bytes],
 ) -> tuple[Optional[Any], Optional[tuple[PredicateResult, ...]]]:
@@ -1842,30 +1907,54 @@ def _projection_module_identity(
     return module, None
 
 
-def _default_registry_results(root: Path, commit: str, module: Any):
+def _default_registry_results(
+    root: Path,
+    commit: str,
+    module: Any,
+) -> tuple[
+    tuple[PredicateResult, ...],
+    tuple[EvaluatorExceptionReason, ...],
+]:
     registry: Any = module
     probe = getattr(module, "get_registry", None)
     if callable(probe):
         registry = probe()
     evaluator = getattr(registry, "evaluate_all", None)
     if not callable(evaluator):
-        return _undefined_predicates("evaluator-capability-unavailable")
+        return _undefined_predicates("evaluator-capability-unavailable"), ()
     try:
-        return _normalize_predicate_results(evaluator(commit, repo_root=root))
-    except Exception:
-        return tuple(
-            PredicateResult(identifier, PredicateStatus.ERROR, "evaluator-exception", ())
-            for identifier in PREDICATE_IDS
+        raw = evaluator(commit, repo_root=root)
+    except Exception as exc:
+        return (
+            _uniform_predicates(PredicateStatus.ERROR, "evaluator-exception"),
+            (
+                _evaluator_exception_reason(
+                    "default-registry.evaluate_all",
+                    exc,
+                ),
+            ),
+        )
+    try:
+        return _normalize_predicate_results(raw), ()
+    except Exception as exc:
+        return (
+            _uniform_predicates(PredicateStatus.ERROR, "evaluator-exception"),
+            (
+                _evaluator_exception_reason(
+                    "_normalize_predicate_results",
+                    exc,
+                ),
+            ),
         )
 
 
-def _activation_report_at(
+def _activation_report_with_diagnostics_at(
     repo_root: Path | str,
     commit: str,
     *,
     registry: Optional[PredicateRegistry] = None,
     allow_test_registry: bool = False,
-) -> ActivationReport:
+) -> tuple[ActivationReport, tuple[EvaluatorExceptionReason, ...]]:
     root = Path(repo_root).resolve()
     resolved = resolve_commit(root, commit)
     core_blob = _module_blob(root, resolved, CORE_MODULE_PATH)
@@ -1887,13 +1976,31 @@ def _activation_report_at(
         validation = validate_condition_freeze_at(root, resolved)
     except PreregistrationError as exc:
         freeze_reason = exc.reason
+    diagnostics: tuple[EvaluatorExceptionReason, ...] = ()
     if allow_test_registry and registry is not None:
         try:
-            predicates = _normalize_predicate_results(
-                registry.evaluate_all(resolved, repo_root=root)
-            )
-        except Exception:
+            raw = registry.evaluate_all(resolved, repo_root=root)
+        except Exception as exc:
             predicates = _uniform_predicates(PredicateStatus.ERROR, "registry-exception")
+            diagnostics = (
+                _evaluator_exception_reason(
+                    "test-registry.evaluate_all",
+                    exc,
+                ),
+            )
+        else:
+            try:
+                predicates = _normalize_predicate_results(raw)
+            except Exception as exc:
+                diagnostics = (
+                    _evaluator_exception_reason(
+                        "test-registry._normalize_predicate_results",
+                        exc,
+                    ),
+                )
+                predicates = _uniform_predicates(
+                    PredicateStatus.ERROR, "registry-exception"
+                )
     else:
         try:
             live_core = Path(__file__).read_bytes()
@@ -1922,7 +2029,7 @@ def _activation_report_at(
                 else:
                     assert evaluator_module is not None
                     assert projection_module is not None
-                    predicates = _default_registry_results(
+                    predicates, diagnostics = _default_registry_results(
                         root, resolved, evaluator_module
                     )
     findings = contract.section5_findings if contract is not None else ()
@@ -1957,22 +2064,40 @@ def _activation_report_at(
         and all_filled
         and all_satisfied
     )
-    return ActivationReport(
-        commit=resolved,
-        condition_freeze_valid=validation is not None,
-        freeze_generation=validation.generation_number if validation else None,
-        protected_sha256=validation.protected_sha256 if validation else None,
-        freeze_reason_code=freeze_reason,
-        decider_version=decider_version,
-        decider_version_matches=decider_version_matches,
-        decider_version_reason_code=decider_version_reason,
-        section5_findings=findings,
-        predicates=predicates,
-        core_module_blob_sha256=core_hash,
-        evaluator_module_blob_sha256=evaluator_hash,
-        projection_module_blob_sha256=projection_hash,
-        effective=effective,
+    return (
+        ActivationReport(
+            commit=resolved,
+            condition_freeze_valid=validation is not None,
+            freeze_generation=validation.generation_number if validation else None,
+            protected_sha256=validation.protected_sha256 if validation else None,
+            freeze_reason_code=freeze_reason,
+            decider_version=decider_version,
+            decider_version_matches=decider_version_matches,
+            decider_version_reason_code=decider_version_reason,
+            section5_findings=findings,
+            predicates=predicates,
+            core_module_blob_sha256=core_hash,
+            evaluator_module_blob_sha256=evaluator_hash,
+            projection_module_blob_sha256=projection_hash,
+            effective=effective,
+        ),
+        diagnostics,
     )
+
+
+def _activation_report_at(
+    repo_root: Path | str,
+    commit: str,
+    *,
+    registry: Optional[PredicateRegistry] = None,
+    allow_test_registry: bool = False,
+) -> ActivationReport:
+    return _activation_report_with_diagnostics_at(
+        repo_root,
+        commit,
+        registry=registry,
+        allow_test_registry=allow_test_registry,
+    )[0]
 
 
 def activation_report_at(
@@ -1981,6 +2106,14 @@ def activation_report_at(
 ) -> ActivationReport:
     """production entrypoint: C と一致する core/evaluator bytes だけで再計算する。"""
     return _activation_report_at(repo_root, commit)
+
+
+def activation_report_with_diagnostics_at(
+    repo_root: Path | str,
+    commit: str = "HEAD",
+) -> tuple[ActivationReport, tuple[EvaluatorExceptionReason, ...]]:
+    """Production report plus evaluator diagnostics outside the report digest."""
+    return _activation_report_with_diagnostics_at(repo_root, commit)
 
 
 def _activation_report_at_for_test(
@@ -2188,7 +2321,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     args = _build_parser().parse_args(argv)
     try:
         if args.command == "check":
-            report = activation_report_at(args.repo_root, args.commit)
+            report, diagnostics = activation_report_with_diagnostics_at(
+                args.repo_root, args.commit
+            )
             if args.json_output:
                 print(json.dumps(_jsonable(report), ensure_ascii=False, sort_keys=True))
             else:
@@ -2199,6 +2334,16 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     print(f"section5 {finding.status.value} {finding.name}: {finding.reason_code}")
                 for result in report.predicates:
                     print(f"{result.id} {result.status.value}: {result.reason_code}")
+            for diagnostic in diagnostics:
+                print(
+                    json.dumps(
+                        _jsonable(diagnostic),
+                        ensure_ascii=False,
+                        sort_keys=True,
+                        separators=(",", ":"),
+                    ),
+                    file=sys.stderr,
+                )
             return 0 if report.effective else 1
         path = prepare_revision(
             args.repo_root,

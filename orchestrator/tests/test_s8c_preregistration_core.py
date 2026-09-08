@@ -429,6 +429,99 @@ class _Registry:
         )
 
 
+class _RaisingEvaluator:
+    def __init__(self, exc: BaseException) -> None:
+        self.exc = exc
+
+    def evaluate_all(self, commit: str, *, repo_root: Path):
+        del commit, repo_root
+        raise self.exc
+
+
+class _ElevenResultEvaluator:
+    def evaluate_all(self, commit: str, *, repo_root: Path):
+        del commit, repo_root
+        return tuple(
+            M.PredicateResult(
+                identifier,
+                M.PredicateStatus.SATISFIED,
+                "fixture",
+                (),
+            )
+            for identifier in M.PREDICATE_IDS[:-1]
+        )
+
+
+class _LazyRaisingEvaluator:
+    def evaluate_all(self, commit: str, *, repo_root: Path):
+        del commit, repo_root
+
+        def results():
+            yield M.PredicateResult(
+                M.PREDICATE_IDS[0],
+                M.PredicateStatus.SATISFIED,
+                "fixture",
+                (),
+            )
+            raise RuntimeError("secret-detail")
+
+        return results()
+
+
+class _MissingReason(M.PreregistrationError):
+    def __init__(self) -> None:
+        RuntimeError.__init__(self, "secret-detail")
+
+
+class _NonStringReason(M.PreregistrationError):
+    def __init__(self) -> None:
+        self.reason = {"secret": "detail"}
+        RuntimeError.__init__(self, "secret-detail")
+
+
+class _HostileReason(M.PreregistrationError):
+    def __init__(self) -> None:
+        RuntimeError.__init__(self, "secret-detail")
+
+    @property
+    def reason(self):
+        raise SystemExit("secret-detail")
+
+
+class _HostileTypeMeta(type):
+    def __getattribute__(cls, name: str):
+        if name == "__name__":
+            raise SystemExit("secret-detail")
+        return super().__getattribute__(name)
+
+
+class _HostileType(RuntimeError, metaclass=_HostileTypeMeta):
+    pass
+
+
+class _NonStringTypeMeta(type):
+    def __getattribute__(cls, name: str):
+        if name == "__name__":
+            return {"secret": "detail"}
+        return super().__getattribute__(name)
+
+
+class _NonStringType(RuntimeError, metaclass=_NonStringTypeMeta):
+    pass
+
+
+def _assert_evaluator_fallback(
+    results: tuple[M.PredicateResult, ...],
+    *,
+    reason_code: str = "evaluator-exception",
+) -> None:
+    assert len(results) == 12
+    assert tuple(item.id for item in results) == M.PREDICATE_IDS
+    assert all(item.status is M.PredicateStatus.ERROR for item in results)
+    assert all(item.reason_code == reason_code for item in results)
+    assert all(item.evidence == () for item in results)
+
+
 def _assert_reason(reason: str, function, *args, **kwargs) -> None:
     with pytest.raises(M.PreregistrationError) as caught:
         function(*args, **kwargs)
@@ -2499,6 +2592,254 @@ def test_activation_report_digest_binds_decider_and_projection_fields(tmp_path: 
     )
 
 
+def test_activation_and_predicate_report_field_sets_are_unchanged() -> None:
+    assert tuple(field.name for field in dataclasses.fields(M.EvidenceRef)) == (
+        "path",
+        "blob_sha256",
+    )
+    assert tuple(field.name for field in dataclasses.fields(M.PredicateResult)) == (
+        "id",
+        "status",
+        "reason_code",
+        "evidence",
+    )
+    assert tuple(field.name for field in dataclasses.fields(M.ActivationReport)) == (
+        "commit",
+        "condition_freeze_valid",
+        "freeze_generation",
+        "protected_sha256",
+        "freeze_reason_code",
+        "decider_version",
+        "decider_version_matches",
+        "decider_version_reason_code",
+        "section5_findings",
+        "predicates",
+        "core_module_blob_sha256",
+        "evaluator_module_blob_sha256",
+        "projection_module_blob_sha256",
+        "effective",
+    )
+    diagnostic = M.EvaluatorExceptionReason(
+        "_normalize_predicate_results",
+        "PreregistrationError",
+        "predicate-result-type",
+    )
+    assert tuple(
+        field.name for field in dataclasses.fields(M.EvaluatorExceptionReason)
+    ) == ("callsite", "exception_type", "preregistration_reason")
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        diagnostic.callsite = "default-registry.evaluate_all"
+
+
+def test_default_registry_normalizer_exception_remains_fail_closed(
+    tmp_path: Path,
+) -> None:
+    results, diagnostics = M._default_registry_results(
+        tmp_path,
+        "fixture-commit",
+        _ElevenResultEvaluator(),
+    )
+    _assert_evaluator_fallback(results)
+    assert diagnostics == (
+        M.EvaluatorExceptionReason(
+            "_normalize_predicate_results",
+            "PreregistrationError",
+            "predicate-result-type",
+        ),
+    )
+
+
+def test_lazy_evaluator_exception_is_caught_at_normalization_callsite(
+    tmp_path: Path,
+) -> None:
+    results, diagnostics = M._default_registry_results(
+        tmp_path,
+        "fixture-commit",
+        _LazyRaisingEvaluator(),
+    )
+    _assert_evaluator_fallback(results)
+    assert diagnostics == (
+        M.EvaluatorExceptionReason(
+            "_normalize_predicate_results",
+            "RuntimeError",
+            None,
+        ),
+    )
+
+
+def test_default_registry_evaluator_runtime_error_is_structured(
+    tmp_path: Path,
+) -> None:
+    results, diagnostics = M._default_registry_results(
+        tmp_path,
+        "fixture-commit",
+        _RaisingEvaluator(RuntimeError("secret-detail")),
+    )
+    _assert_evaluator_fallback(results)
+    assert diagnostics == (
+        M.EvaluatorExceptionReason(
+            "default-registry.evaluate_all",
+            "RuntimeError",
+            None,
+        ),
+    )
+
+
+def test_preregistration_exception_detail_is_not_copied_to_diagnostics(
+    tmp_path: Path,
+) -> None:
+    results, diagnostics = M._default_registry_results(
+        tmp_path,
+        "fixture-commit",
+        _RaisingEvaluator(
+            M.PreregistrationError("fixture-reason", "secret-detail")
+        ),
+    )
+    _assert_evaluator_fallback(results)
+    assert diagnostics == (
+        M.EvaluatorExceptionReason(
+            "default-registry.evaluate_all",
+            "PreregistrationError",
+            "fixture-reason",
+        ),
+    )
+    assert "secret-detail" not in json.dumps(M._jsonable(diagnostics))
+
+
+@pytest.mark.parametrize(
+    "exc",
+    [
+        pytest.param(_MissingReason(), id="missing-reason"),
+        pytest.param(_NonStringReason(), id="non-string-reason"),
+        pytest.param(
+            M.PreregistrationError("/temporary/secret", "secret-detail"),
+            id="path-reason",
+        ),
+        pytest.param(
+            M.PreregistrationError(
+                "x" * (M._DIAGNOSTIC_TEXT_MAX_LENGTH + 1),
+                "secret-detail",
+            ),
+            id="long-reason",
+        ),
+        pytest.param(_HostileReason(), id="hostile-reason-property"),
+    ],
+)
+def test_invalid_preregistration_reasons_use_bounded_sentinel_without_leaking(
+    tmp_path: Path,
+    exc: M.PreregistrationError,
+) -> None:
+    results, diagnostics = M._default_registry_results(
+        tmp_path,
+        "fixture-commit",
+        _RaisingEvaluator(exc),
+    )
+    _assert_evaluator_fallback(results)
+    assert len(diagnostics) == 1
+    assert diagnostics[0].preregistration_reason == (
+        M._DIAGNOSTIC_PREREGISTRATION_REASON_SENTINEL
+    )
+    rendered = json.dumps(M._jsonable(diagnostics))
+    assert "secret-detail" not in rendered
+    assert "/temporary/secret" not in rendered
+
+
+@pytest.mark.parametrize(
+    "exc",
+    [
+        pytest.param(type("Bad-Type", (RuntimeError,), {})(), id="charset"),
+        pytest.param(
+            type("X" * (M._DIAGNOSTIC_TEXT_MAX_LENGTH + 1), (RuntimeError,), {})(),
+            id="length",
+        ),
+        pytest.param(_HostileType("secret-detail"), id="hostile-type-name"),
+        pytest.param(_NonStringType("secret-detail"), id="non-string-type-name"),
+    ],
+)
+def test_invalid_exception_type_uses_bounded_sentinel_without_leaking(
+    tmp_path: Path,
+    exc: RuntimeError,
+) -> None:
+    results, diagnostics = M._default_registry_results(
+        tmp_path,
+        "fixture-commit",
+        _RaisingEvaluator(exc),
+    )
+    _assert_evaluator_fallback(results)
+    assert diagnostics == (
+        M.EvaluatorExceptionReason(
+            "default-registry.evaluate_all",
+            M._DIAGNOSTIC_EXCEPTION_TYPE_SENTINEL,
+            None,
+        ),
+    )
+
+
+def test_default_registry_success_has_no_diagnostics(tmp_path: Path) -> None:
+    results, diagnostics = M._default_registry_results(
+        tmp_path,
+        "fixture-commit",
+        _Registry(M.PredicateStatus.SATISFIED),
+    )
+    assert len(results) == 12
+    assert all(item.status is M.PredicateStatus.SATISFIED for item in results)
+    assert diagnostics == ()
+
+
+@pytest.mark.parametrize(
+    ("registry", "callsite", "exception_type", "reason"),
+    [
+        pytest.param(
+            _RaisingEvaluator(RuntimeError("secret-detail")),
+            "test-registry.evaluate_all",
+            "RuntimeError",
+            None,
+            id="evaluate-all",
+        ),
+        pytest.param(
+            _ElevenResultEvaluator(),
+            "test-registry._normalize_predicate_results",
+            "PreregistrationError",
+            "predicate-result-type",
+            id="normalize",
+        ),
+    ],
+)
+def test_test_registry_exceptions_always_return_diagnostics(
+    tmp_path: Path,
+    registry,
+    callsite: str,
+    exception_type: str,
+    reason: str | None,
+) -> None:
+    root = _init_repo(tmp_path, filled=True)
+    head, _ = _install_g1(root)
+    report, diagnostics = M._activation_report_with_diagnostics_at(
+        root,
+        head,
+        registry=registry,
+        allow_test_registry=True,
+    )
+    _assert_evaluator_fallback(report.predicates, reason_code="registry-exception")
+    assert report.effective is False
+    assert diagnostics == (
+        M.EvaluatorExceptionReason(callsite, exception_type, reason),
+    )
+
+
+def test_test_registry_success_has_no_diagnostics(tmp_path: Path) -> None:
+    root = _init_repo(tmp_path, filled=True)
+    head, _ = _install_g1(root)
+    report, diagnostics = M._activation_report_with_diagnostics_at(
+        root,
+        head,
+        registry=_Registry(M.PredicateStatus.SATISFIED),
+        allow_test_registry=True,
+    )
+    assert report.effective is True
+    assert diagnostics == ()
+
+
 @pytest.mark.parametrize(
     "status",
     [
@@ -2665,6 +3006,9 @@ def test_private_conjunction_helper_reads_commit_blob_not_dirty_worktree(tmp_pat
 
 def test_production_entrypoints_do_not_accept_registry_injection() -> None:
     assert "registry" not in inspect.signature(M.activation_report_at).parameters
+    assert "registry" not in inspect.signature(
+        M.activation_report_with_diagnostics_at
+    ).parameters
     assert "registry" not in inspect.signature(M.effective_at).parameters
 
 
@@ -2687,7 +3031,11 @@ def test_non_json_cli_reports_decider_reason(
     report = M._activation_report_at_for_test(
         root, head, registry=_Registry(M.PredicateStatus.SATISFIED)
     )
-    monkeypatch.setattr(M, "activation_report_at", lambda repo_root, commit: report)
+    monkeypatch.setattr(
+        M,
+        "activation_report_with_diagnostics_at",
+        lambda repo_root, commit: (report, ()),
+    )
     assert M.main(["check", "--repo-root", str(root), "--commit", head]) == 0
     lines = capsys.readouterr().out.splitlines()
     assert [line for line in lines if line.startswith("decider_version ")] == [
@@ -3348,3 +3696,7 @@ def test_total_blob_limit_stops_before_blob_batch(tmp_path: Path, monkeypatch) -
     monkeypatch.setattr(M, "_git", must_not_read_blobs)
     _assert_reason("blob-total-byte-limit", M._batch_blob_bytes, tmp_path, (first, second))
     assert batch_calls == 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(pytest.main([__file__]))
