@@ -20600,6 +20600,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 変異走行が `rc=2` で止まり、`output/pegasus-dispatch/*/receipt.json` の
   `outcome.reason` が `DispatchError: queue-wait-timeout` で `state_history` の末尾が
   900 秒付近の `QUE` なら本件である。子が起動していないので**本 wave の赤ではない**。
+- **supersede: 2026-09-09** — 根本原因の記述のうち「本走の command 構築も dispatcher 直呼び」は誤りで、当時も baseline と mutation は `tools/run_tests.py` を実行していた。直呼びは collection だけである。collection への上書き転送は 2026-09-07 の commit 1e22c4cbd が実装済みで「恒久対応: 未実装」も stale。今日の HEAD で上書きが届かない経路は 0 件であることを [T-2279] wave が全経路で確認した (`output/insights/2026-09-09_t2279-mutation-dispatch-override/README.md`)。残る欠陥は伝播ではなく外側 watchdog と dispatcher 締切の不一致で、[T-2484] が引き継ぐ。
 
 ### F763. `/tmp/.git` の点滅生成で全 tmp_path が repository 内と判定される [計測汚染]
 
