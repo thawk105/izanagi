@@ -1,0 +1,16 @@
+HTTP/2 302 
+date: Mon, 07 Sep 2026 22:08:11 GMT
+content-type: text/html;charset=utf-8
+location: https://dl.acm.org/doi/10.14778/3424573.3424575
+server: cloudflare
+vary: Origin
+vary: Accept
+expires: Mon, 07 Sep 2026 22:30:47 GMT
+permissions-policy: interest-cohort=(),browsing-topics=()
+cf-cache-status: DYNAMIC
+strict-transport-security: max-age=31536000; includeSubDomains; preload
+report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=560jPJSRlcMWrU17mh%2BacvIdcaHvSaYOQnm0NVkkNC%2FkYLmH4O2dbbtBdwtJ26R6JSQIwyo4cIC38IPfMlYh5YIV8FCI3n4UNiJOz00f6Xv5Cfv4umqPZ6M%3D"}]}
+nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+cf-ray: a37907d90d166468-NRT
+alt-svc: h3=":443"; ma=86400
+
