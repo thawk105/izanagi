@@ -104,17 +104,49 @@ if a2.workload_ids(policy).count(workload) != 1:
     raise SystemExit("IZANAGI_A2_WORKLOAD is not an exact selected-policy member")
 print(policy.path)
 print(policy.document["scheduler"]["job_body"])
+print(policy.document["scheduler"]["nodes"])
 PY
 )
-[[ ${#POLICY_VALUES[@]} -eq 2 ]] || {
+[[ ${#POLICY_VALUES[@]} -eq 3 ]] || {
   echo "selected policy or workload is invalid" >&2
   exit 2
 }
 POLICY_PATH=${POLICY_VALUES[0]}
 JOB_BODY_RELATIVE=${POLICY_VALUES[1]}
+SCHEDULER_NODES=${POLICY_VALUES[2]}
 POLICY_ARGS=()
 if [[ -n "$POLICY_SELECTION" ]]; then
   POLICY_ARGS=(--policy "$POLICY_PATH")
+fi
+
+if [[ ! -f "$PBS_NODEFILE" || -L "$PBS_NODEFILE" ]]; then
+  echo "PBS node allocation is unavailable" >&2
+  exit 2
+fi
+declare -A seen_siblings=()
+declare -a sibling_hosts=()
+head_seen=0
+while IFS= read -r node || [[ -n "$node" ]]; do
+  if [[ ! "$node" =~ ^[A-Za-z0-9][A-Za-z0-9.-]*$ ]]; then
+    echo "PBS node allocation contains a malformed host" >&2
+    exit 2
+  fi
+  if [[ "$node" == "$host" ]]; then
+    head_seen=1
+  elif [[ ! -v 'seen_siblings[$node]' ]]; then
+    seen_siblings[$node]=1
+    sibling_hosts+=("$node")
+  fi
+done <"$PBS_NODEFILE"
+expected_siblings=$((SCHEDULER_NODES - 1))
+if (( head_seen != 1 || ${#sibling_hosts[@]} != expected_siblings )); then
+  echo "PBS node allocation differs from scheduler policy" >&2
+  exit 2
+fi
+VERIFY_FANOUT_ARGS=()
+if (( SCHEDULER_NODES > 1 )); then
+  verify_fanout_hosts=$(IFS=,; echo "${sibling_hosts[*]}")
+  VERIFY_FANOUT_ARGS=(--verify-fanout-hosts "$verify_fanout_hosts")
 fi
 
 if [[ ! -d "$dependency_source" || -L "$dependency_source" ]]; then
@@ -330,4 +362,5 @@ export PYTHONDONTWRITEBYTECODE=1
   --current-pin "$IZANAGI_A2_CURRENT_PIN" \
   --dependency-prefix "$dependency_prefix" \
   --ccbench-dir "$ccbench_root" \
-  --third-party-source-root "$third_party_root"
+  --third-party-source-root "$third_party_root" \
+  "${VERIFY_FANOUT_ARGS[@]}"

@@ -187,7 +187,9 @@ def test_historical_decoder_rejects_unknown_blob_map_grammars(
     if mutation in {"subset", "same-count-replacement"}:
         blobs.pop(campaign_lock.PRE_T733_CONTRACT_LOADER_RELATIVE_PATHS[-1])
     if mutation in {"superset", "same-count-replacement"}:
-        extra = campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS[24]
+        extra = "orchestrator/campaign/verify_fanout_worker.py"
+        assert extra in campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS
+        assert extra not in campaign_lock.PRE_T733_CONTRACT_LOADER_RELATIVE_PATHS
         blobs[extra] = "f" * 64
 
     with pytest.raises(

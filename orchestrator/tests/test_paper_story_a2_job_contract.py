@@ -89,6 +89,16 @@ def _assert_static_job_contract(source):
         "interpreter-path": 'export PATH="$(dirname "$selected"):$PATH"',
         "scratch-sanitize": 'pbs_jobid_path_component=${PBS_JOBID//:/_}',
         "scratch-path": 'scratch=$scratch_base/${pbs_jobid_path_component}',
+        "policy-node-count": 'print(policy.document["scheduler"]["nodes"])',
+        "nodefile-regular": 'if [[ ! -f "$PBS_NODEFILE" || -L "$PBS_NODEFILE" ]]',
+        "nodefile-unique-siblings": 'sibling_hosts+=("$node")',
+        "nodefile-policy-count": (
+            '${#sibling_hosts[@]} != expected_siblings'),
+        "nodefile-fatal": (
+            'echo "PBS node allocation differs from scheduler policy"'),
+        "fanout-only-multinode": 'if (( SCHEDULER_NODES > 1 )); then',
+        "fanout-cli": 'VERIFY_FANOUT_ARGS=(--verify-fanout-hosts',
+        "fanout-forward": '"${VERIFY_FANOUT_ARGS[@]}"',
     }
     missing = [label for label, fragment in required.items() if fragment not in source]
     if missing:
@@ -703,7 +713,7 @@ os.execv(sys.executable, [sys.executable, *args])
 def _run_compute_pin_harness(
         tmp_path, *, ccbench_head=None, resolved_pin=None, resolver_rc=0,
         tracked_dirty=False, current_pin=CANONICAL_PIN, study="a2",
-        policy_selection=None):
+        policy_selection=None, nodefile_hosts=None, omit_nodefile=False):
     workload = "rr95" if study == "a6" else "rr5"
     attempt_root = tmp_path / "attempt"
     job_root = attempt_root / "jobs" / workload
@@ -719,6 +729,15 @@ def _run_compute_pin_harness(
     third_party.mkdir()
     for name in ("masstree", "mimalloc", "googletest"):
         (third_party / name).mkdir()
+    nodefile = tmp_path / "nodefile"
+    if nodefile_hosts is None:
+        nodefile_hosts = (
+            ("bnode001", "bnode002", "bnode003", "bnode004", "bnode005")
+            if study == "a6" else ("bnode001",)
+        )
+    if not omit_nodefile:
+        nodefile.write_text("".join(host + "\n" for host in nodefile_hosts),
+                            encoding="ascii")
     binary_dir = tmp_path / "compute-bin"
     binary_dir.mkdir()
     if ccbench_head is None:
@@ -783,7 +802,7 @@ exit 0
         "PATH": str(binary_dir) + os.pathsep + environment["PATH"],
         "PYTHONDONTWRITEBYTECODE": "1",
         "PBS_JOBID": "0:945411.nqsv",
-        "PBS_NODEFILE": str(tmp_path / "nodefile"),
+        "PBS_NODEFILE": str(nodefile),
         "PBS_O_WORKDIR": str(REPO),
         "IZANAGI_A2_REPO_ROOT": str(REPO),
         "IZANAGI_A2_EXPECTED_HEAD": "2" * 40,
@@ -897,6 +916,50 @@ def test_a6_compute_job_accepts_rr95_membership_before_source_gate(tmp_path):
     assert result["workload"] == "rr95"
     assert result["driver_rc"] == 2
     assert not (job_root / "raw").exists()
+
+
+@pytest.mark.parametrize(
+    "nodefile_hosts",
+    (
+        ("bnode001", "bnode002", "bnode003", "bnode004"),
+        ("bnode001", "bnode002", "bnode003", "bnode004", "bnode005",
+         "bnode006"),
+        ("bnode001", "bnode002", "bnode002", "bnode003", "bnode004"),
+    ),
+    ids=("too-few", "too-many", "duplicate-sibling"),
+)
+def test_m9_job_body_rejects_nodefile_sibling_count_mismatch(
+        tmp_path, nodefile_hosts):
+    completed, job_root = _run_compute_pin_harness(
+        tmp_path, study="a6", tracked_dirty=True,
+        nodefile_hosts=nodefile_hosts)
+
+    assert completed.returncode == 2
+    assert "PBS node allocation differs from scheduler policy" in completed.stderr
+    assert "CCBench source tree is not clean" not in completed.stderr
+    assert json.loads((job_root / "compute-result.json").read_text())[
+        "driver_rc"] == 2
+
+
+def test_job_body_rejects_missing_nodefile(tmp_path):
+    completed, job_root = _run_compute_pin_harness(
+        tmp_path, study="a6", tracked_dirty=True, omit_nodefile=True)
+
+    assert completed.returncode == 2
+    assert "PBS node allocation is unavailable" in completed.stderr
+    assert json.loads((job_root / "compute-result.json").read_text())[
+        "driver_rc"] == 2
+
+
+@pytest.mark.parametrize("study", ("a2", "a6"))
+def test_job_body_accepts_exact_policy_nodefile_before_source_gate(
+        tmp_path, study):
+    completed, _job_root = _run_compute_pin_harness(
+        tmp_path, study=study, tracked_dirty=True)
+
+    assert completed.returncode == 2
+    assert "PBS node allocation" not in completed.stderr
+    assert "CCBench source tree is not clean" in completed.stderr
 
 
 def test_job_body_stages_exact_three_src_suffixed_dependencies(tmp_path):
@@ -1176,6 +1239,7 @@ def test_p3_a6_submitter_uses_one_rr95_job_and_policy_scheduler(tmp_path):
     assert environment["IZANAGI_A2_POLICY_PATH"] == str(A2.A6_POLICY_PATH)
     assert set(environment) == A2._QSUB_ENV_KEYS | {"IZANAGI_A2_POLICY_PATH"}
     argv = receipt["jobs"][0]["qsub_argv"]
+    assert argv[5:7] == ["-b", "5"]
     assert argv[7:11] == [
         "-l", "elapstim_req=12:00:00", "-N", "paper-a6-cert"]
     assert (tmp_path / "event.log").read_text(encoding="utf-8").splitlines() == [
