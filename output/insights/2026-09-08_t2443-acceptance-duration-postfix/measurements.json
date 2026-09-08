@@ -1,0 +1,330 @@
+{
+  "schema": "t2443-acceptance-duration/v1",
+  "source": "/work/1/SFC/tanab/.izanagi-acceptance-shards/<group>/junit.xml (受入走の合算 junit)",
+  "fix_landed_on_main_jst": "2026-09-08T14:33:20+09:00",
+  "fix_landed_main_sha": "ab51c7a2ffdc1a4c40d4dce68af0eb8a01dcb1bd",
+  "fix_commit_sha": "6e885df4fbcd9e29e63e205a2bf8e0368e79a392",
+  "W_definition": "1 走の全 testcase の junit time 属性の総和 (3 shard 合算)",
+  "wall_definition": "shard ごとの junit testsuite@time (= pytest wall)。D1618 の面",
+  "this_run": {
+    "wave": "dev-wave-t2443-acceptance-duration-20260908",
+    "shard_group": "a06ed38d35e769589ebb63a401e74b6e",
+    "tested_main": "cc9bba523ac7804aadb7891d686bf4c925789a3f",
+    "tested_tip": "cc9bba523ac7804aadb7891d686bf4c925789a3f",
+    "verdict": "child-green",
+    "passed": 21971,
+    "skipped": 68,
+    "red": 0,
+    "flake": 0,
+    "K": 3,
+    "junit_mtime_jst": "2026-09-08T19:51:26+09:00",
+    "W_total_seconds": 17521.804,
+    "node_count": 22039,
+    "shards": [
+      {
+        "index": 0,
+        "pytest_wall_seconds": 311.381,
+        "hostname": "bnode095",
+        "start_timestamp": "2026-09-08T19:45:57.705099+09:00",
+        "tests": 7347,
+        "W_seconds": 7094.039
+      },
+      {
+        "index": 1,
+        "pytest_wall_seconds": 205.896,
+        "hostname": "bnode094",
+        "start_timestamp": "2026-09-08T19:45:55.491523+09:00",
+        "tests": 7346,
+        "W_seconds": 4558.387
+      },
+      {
+        "index": 2,
+        "pytest_wall_seconds": 315.398,
+        "hostname": "bnode012",
+        "start_timestamp": "2026-09-08T19:45:56.539315+09:00",
+        "tests": 7346,
+        "W_seconds": 5869.378
+      }
+    ],
+    "slowest_shard_index": 2,
+    "slowest_shard_pytest_wall_seconds": 315.398,
+    "longest_node": "test_s8b_oracle_driver::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[ccbench-current-known_axes.ccbench_current]",
+    "longest_node_seconds": 185.857,
+    "longest_node_without_target_modules": "test_s8b_oracle_driver::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[ccbench-current-known_axes.ccbench_current]",
+    "longest_node_without_target_modules_seconds": 185.857,
+    "counterfactual_delta_seconds": 0.0,
+    "module_W_seconds": {
+      "test_autonomous_trial_completeness": 224.5,
+      "test_p3_b4_raw_record_producer": 280.8,
+      "test_p3_b4_closed_critic": 148.3,
+      "test_trial_registry": 388.9,
+      "test_layer3_report": 125.7,
+      "test_campaign": 178.4,
+      "test_p3_s4_loop": 136.6,
+      "test_critic": 153.6,
+      "test_s8b_oracle_driver": 2165.0,
+      "test_s8b_floor_campaign": 1813.4,
+      "test_p3_autonomous_workload_trial": 208.1,
+      "test_p3_b4_material_report": 228.7
+    },
+    "target_module_longest_node_seconds": {
+      "test_autonomous_trial_completeness": 8.165,
+      "test_p3_b4_raw_record_producer": 74.243,
+      "test_p3_b4_closed_critic": 6.834,
+      "test_trial_registry": 41.881,
+      "test_layer3_report": 3.769
+    },
+    "top10_nodes": [
+      {
+        "module": "test_s8b_oracle_driver",
+        "name": "test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[ccbench-current-known_axes.ccbench_current]",
+        "seconds": 185.857,
+        "shard": 0
+      },
+      {
+        "module": "test_s8b_oracle_driver",
+        "name": "test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5",
+        "seconds": 181.988,
+        "shard": 0
+      },
+      {
+        "module": "test_s8b_oracle_driver",
+        "name": "test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[known-artifact-known_axes.artifact_bytes]",
+        "seconds": 175.219,
+        "shard": 0
+      },
+      {
+        "module": "test_s8b_oracle_driver",
+        "name": "test_t080_full_valid_history_defects_have_one_baseline_reason_f28[modify-revert-receipt.history_mutated]",
+        "seconds": 174.322,
+        "shard": 0
+      },
+      {
+        "module": "test_s8b_oracle_driver",
+        "name": "test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[unknownness-layer2-holdout.unknownness_layer2]",
+        "seconds": 173.134,
+        "shard": 0
+      },
+      {
+        "module": "test_s8b_oracle_driver",
+        "name": "test_t080_full_valid_history_defects_have_one_baseline_reason_f28[extra-r-path-receipt.introduction_diff]",
+        "seconds": 172.8,
+        "shard": 0
+      },
+      {
+        "module": "test_s8b_oracle_driver",
+        "name": "test_t080_full_valid_history_defects_have_one_baseline_reason_f28[bad-trailer-receipt.user_commit_trailer]",
+        "seconds": 172.555,
+        "shard": 0
+      },
+      {
+        "module": "test_s8b_oracle_driver",
+        "name": "test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28",
+        "seconds": 171.719,
+        "shard": 0
+      },
+      {
+        "module": "test_s8b_oracle_driver",
+        "name": "test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[holdout-artifact-holdout.artifact_bytes]",
+        "seconds": 170.539,
+        "shard": 0
+      },
+      {
+        "module": "test_s8b_oracle_driver",
+        "name": "test_t080_stub_free_e2e_remaining_section_1_4_defects_are_exact_b5",
+        "seconds": 169.61,
+        "shard": 0
+      }
+    ]
+  },
+  "pre_window": {
+    "label": "改修前 09-08 00:00〜07:15 (先行 wave の窓を W 四分位で再現)",
+    "n": 48,
+    "max_shard_pytest_wall_seconds": {
+      "n": 48,
+      "min": 297.101,
+      "p25": 333.212,
+      "median": 392.383,
+      "p75": 441.108,
+      "max": 910.009
+    },
+    "max_shard_wall_under_300s": 1,
+    "W_total_seconds": {
+      "n": 48,
+      "min": 22075.501,
+      "p25": 24716.097,
+      "median": 28728.969,
+      "p75": 34983.428,
+      "max": 52889.292
+    },
+    "longest_node_seconds": {
+      "n": 48,
+      "min": 208.818,
+      "p25": 263.795,
+      "median": 303.226,
+      "p75": 352.887,
+      "max": 833.624
+    },
+    "longest_node_seconds_without_target_modules": {
+      "n": 48,
+      "min": 208.818,
+      "p25": 262.3,
+      "median": 302.084,
+      "p75": 352.887,
+      "max": 833.624
+    },
+    "runs_whose_longest_node_is_in_a_target_module": 3,
+    "longest_node_module_after_removing_targets": {
+      "test_p3_autonomous_workload_trial": 37,
+      "test_s8b_oracle_driver": 9,
+      "test_p3_b4_material_report": 2
+    },
+    "module_W_median_seconds": {
+      "test_autonomous_trial_completeness": 1890.4,
+      "test_p3_b4_raw_record_producer": 1399.5,
+      "test_p3_b4_closed_critic": 1296.5,
+      "test_trial_registry": 2078.3,
+      "test_layer3_report": 854.5,
+      "test_campaign": 705.6,
+      "test_p3_s4_loop": 771.8,
+      "test_critic": 834.8,
+      "test_s8b_oracle_driver": 2472.3,
+      "test_s8b_floor_campaign": 2036.7,
+      "test_p3_autonomous_workload_trial": 621.2,
+      "test_p3_b4_material_report": 233.6
+    },
+    "node_count_median": 21604.5
+  },
+  "pre_full_day_before_cut": {
+    "label": "改修前 09-08 00:00〜14:33:20 (全数)",
+    "n": 80,
+    "max_shard_pytest_wall_seconds": {
+      "n": 80,
+      "min": 296.67,
+      "p25": 340.019,
+      "median": 401.339,
+      "p75": 529.005,
+      "max": 910.009
+    },
+    "max_shard_wall_under_300s": 2,
+    "W_total_seconds": {
+      "n": 80,
+      "min": 17263.275,
+      "p25": 25263.977,
+      "median": 29319.27,
+      "p75": 38622.381,
+      "max": 66476.051
+    },
+    "longest_node_seconds": {
+      "n": 80,
+      "min": 191.956,
+      "p25": 258.309,
+      "median": 316.434,
+      "p75": 442.022,
+      "max": 833.624
+    },
+    "longest_node_seconds_without_target_modules": {
+      "n": 80,
+      "min": 191.956,
+      "p25": 252.389,
+      "median": 302.084,
+      "p75": 379.1,
+      "max": 833.624
+    },
+    "runs_whose_longest_node_is_in_a_target_module": 9,
+    "longest_node_module_after_removing_targets": {
+      "test_p3_autonomous_workload_trial": 60,
+      "test_s8b_oracle_driver": 16,
+      "test_p3_b4_material_report": 3,
+      "test_s8c_preregistration_predicates": 1
+    },
+    "module_W_median_seconds": {
+      "test_autonomous_trial_completeness": 1969.5,
+      "test_p3_b4_raw_record_producer": 1449.1,
+      "test_p3_b4_closed_critic": 1346.0,
+      "test_trial_registry": 2078.3,
+      "test_layer3_report": 886.6,
+      "test_campaign": 768.8,
+      "test_p3_s4_loop": 812.0,
+      "test_critic": 814.4,
+      "test_s8b_oracle_driver": 2548.6,
+      "test_s8b_floor_campaign": 2083.1,
+      "test_p3_autonomous_workload_trial": 624.7,
+      "test_p3_b4_material_report": 235.1
+    },
+    "node_count_median": 21709.0
+  },
+  "post_window": {
+    "label": "改修後 09-08 14:33:20 以降に投入 (本 wave の走を含む)",
+    "n": 22,
+    "max_shard_pytest_wall_seconds": {
+      "n": 22,
+      "min": 270.268,
+      "p25": 292.469,
+      "median": 317.106,
+      "p75": 343.608,
+      "max": 430.313
+    },
+    "max_shard_wall_under_300s": 6,
+    "W_total_seconds": {
+      "n": 22,
+      "min": 14579.296,
+      "p25": 15520.338,
+      "median": 17255.918,
+      "p75": 18446.561,
+      "max": 24754.781
+    },
+    "longest_node_seconds": {
+      "n": 22,
+      "min": 166.588,
+      "p25": 180.191,
+      "median": 210.684,
+      "p75": 231.277,
+      "max": 333.884
+    },
+    "longest_node_seconds_without_target_modules": {
+      "n": 22,
+      "min": 166.588,
+      "p25": 180.191,
+      "median": 210.684,
+      "p75": 231.277,
+      "max": 333.884
+    },
+    "runs_whose_longest_node_is_in_a_target_module": 0,
+    "longest_node_module_after_removing_targets": {
+      "test_s8b_oracle_driver": 21,
+      "test_p3_b4_material_report": 1
+    },
+    "module_W_median_seconds": {
+      "test_autonomous_trial_completeness": 185.1,
+      "test_p3_b4_raw_record_producer": 317.4,
+      "test_p3_b4_closed_critic": 133.6,
+      "test_trial_registry": 361.9,
+      "test_layer3_report": 69.9,
+      "test_campaign": 184.9,
+      "test_p3_s4_loop": 121.6,
+      "test_critic": 86.1,
+      "test_s8b_oracle_driver": 2427.8,
+      "test_s8b_floor_campaign": 2007.3,
+      "test_p3_autonomous_workload_trial": 177.5,
+      "test_p3_b4_material_report": 201.8
+    },
+    "node_count_median": 21939.5
+  },
+  "post_over_pre_ratio_of_medians": {
+    "test_autonomous_trial_completeness": 0.098,
+    "test_p3_b4_raw_record_producer": 0.227,
+    "test_p3_b4_closed_critic": 0.103,
+    "test_trial_registry": 0.174,
+    "test_layer3_report": 0.082,
+    "test_campaign": 0.262,
+    "test_p3_s4_loop": 0.158,
+    "test_critic": 0.103,
+    "test_s8b_oracle_driver": 0.982,
+    "test_s8b_floor_campaign": 0.986,
+    "test_p3_autonomous_workload_trial": 0.286,
+    "test_p3_b4_material_report": 0.864,
+    "W_total": 0.601,
+    "max_shard_pytest_wall": 0.808
+  }
+}

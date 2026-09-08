@@ -1,0 +1,56 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "M1-ww-reason-order-unsorted",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "for k in sorted(u_writes.keys() & v_writes.keys()):",
+          "new": "for k in u_writes.keys() & v_writes.keys():"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_verifier.py::test_multi_ww_reason_report_is_hash_seed_deterministic"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-ww-reason-order-descending",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "for k in sorted(u_writes.keys() & v_writes.keys()):",
+          "new": "for k in sorted(u_writes.keys() & v_writes.keys(), reverse=True):"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_verifier.py::test_multi_ww_reason_report_is_hash_seed_deterministic"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-ww-reason-order-by-version-only",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "for k in sorted(u_writes.keys() & v_writes.keys()):",
+          "new": "for k in sorted(u_writes.keys() & v_writes.keys(), key=lambda key: (u_writes[key], v_writes[key])):"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_verifier.py::test_multi_ww_reason_report_is_hash_seed_deterministic"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

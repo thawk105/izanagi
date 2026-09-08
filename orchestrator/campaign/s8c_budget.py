@@ -110,6 +110,19 @@ class BudgetLimits:
                 expected_keys=_HOLDOUTS,
             ),
         )
+        for arm in sorted(_ARMS):
+            if self.per_arm_bench_s[arm] <= 0.0:
+                raise BudgetError(f"per_arm_bench_s.{arm} が正でない")
+        for holdout in sorted(_HOLDOUTS):
+            if self.per_holdout_bench_s[holdout] <= 0.0:
+                raise BudgetError(f"per_holdout_bench_s.{holdout} が正でない")
+        if min(self.per_arm_bench_s.values()) != max(self.per_arm_bench_s.values()):
+            raise BudgetError("per_arm_bench_s が arm 間で対称でない")
+        if (
+            sum(self.per_holdout_bench_s[holdout] for holdout in sorted(_HOLDOUTS))
+            != self.total_bench_s
+        ):
+            raise BudgetError("per_holdout_bench_s の和が総上限と一致しない")
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -516,6 +529,7 @@ def _same_identity(
 
 def _check_limit_state(cells: Sequence[ReservationCell], limits: BudgetLimits) -> tuple[float, bool]:
     total_reserved_bench_s = sum(cell.reserved_bench_s for cell in cells)
+    all_cells_reserved = all(cell.reserved_bench_s > 0.0 for cell in cells)
     by_arm = _sum_by(cells, key="arm")
     by_holdout = _sum_by(cells, key="holdout")
     total_ok = total_reserved_bench_s <= limits.total_bench_s + _TOLERANCE
@@ -527,7 +541,10 @@ def _check_limit_state(cells: Sequence[ReservationCell], limits: BudgetLimits) -
         value <= limits.per_holdout_bench_s[holdout] + _TOLERANCE
         for holdout, value in by_holdout.items()
     )
-    return total_reserved_bench_s, total_ok and arm_ok and holdout_ok
+    return (
+        total_reserved_bench_s,
+        all_cells_reserved and total_ok and arm_ok and holdout_ok,
+    )
 
 
 def reserve_all_cells(
