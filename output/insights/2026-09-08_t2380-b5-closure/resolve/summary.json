@@ -1,0 +1,1310 @@
+[
+  {
+    "anchor_id": "G1-01",
+    "slot": "G1-CICADA",
+    "doi_handle": "10.1145/3035918.3064015",
+    "arxiv_handle": null,
+    "title_handle": "Cicada: Dependably Fast Multi-Core In-Memory Transactions",
+    "family_handle": [
+      "Lim",
+      "Kaminsky",
+      "Andersen"
+    ],
+    "doi_org": {
+      "status": 302,
+      "location": "https://dl.acm.org/doi/10.1145/3035918.3064015"
+    },
+    "crossref": {
+      "status": 200,
+      "title": [
+        "Cicada"
+      ],
+      "authors": [
+        [
+          "Hyeontaek",
+          "Lim"
+        ],
+        [
+          "Michael",
+          "Kaminsky"
+        ],
+        [
+          "David G.",
+          "Andersen"
+        ]
+      ],
+      "container": [
+        "Proceedings of the 2017 ACM International Conference on Management of Data"
+      ],
+      "issued": [
+        [
+          2017,
+          5,
+          9
+        ]
+      ],
+      "type": "proceedings-article",
+      "title_match": false,
+      "family_match": true
+    },
+    "arxiv_lookup": {
+      "outcome": "非収録 (鍵不適用: arXiv ID を持たない)"
+    },
+    "openalex_lookup": {
+      "status": 200,
+      "content_type": "application/json",
+      "id": "https://openalex.org/W2613970404",
+      "doi": "https://doi.org/10.1145/3035918.3064015",
+      "title": "Cicada",
+      "publication_year": 2017,
+      "ids": {
+        "openalex": "https://openalex.org/W2613970404",
+        "doi": "https://doi.org/10.1145/3035918.3064015",
+        "mag": "2613970404"
+      },
+      "authorships": [
+        {
+          "position": "first",
+          "author_id": "https://openalex.org/A5050218314",
+          "display_name": "Hyeontaek Lim"
+        },
+        {
+          "position": "middle",
+          "author_id": "https://openalex.org/A5052885090",
+          "display_name": "Michael Kaminsky"
+        },
+        {
+          "position": "last",
+          "author_id": "https://openalex.org/A5085479490",
+          "display_name": "David G. Andersen"
+        }
+      ],
+      "title_match": false
+    },
+    "dblp_lookup": {
+      "outcome": "不達 (本環境からの anti-bot challenge、request を出していない)"
+    }
+  },
+  {
+    "anchor_id": "G2-01",
+    "slot": "G2-SA",
+    "doi_handle": "10.1214/aoms/1177729586",
+    "arxiv_handle": null,
+    "title_handle": "A Stochastic Approximation Method",
+    "family_handle": [
+      "Robbins",
+      "Monro"
+    ],
+    "doi_org": {
+      "status": 302,
+      "location": "http://projecteuclid.org/euclid.aoms/1177729586"
+    },
+    "crossref": {
+      "status": 200,
+      "title": [
+        "A Stochastic Approximation Method"
+      ],
+      "authors": [
+        [
+          "Herbert",
+          "Robbins"
+        ],
+        [
+          "Sutton",
+          "Monro"
+        ]
+      ],
+      "container": [
+        "The Annals of Mathematical Statistics"
+      ],
+      "issued": [
+        [
+          1951,
+          9
+        ]
+      ],
+      "type": "journal-article",
+      "title_match": true,
+      "family_match": true
+    },
+    "arxiv_lookup": {
+      "outcome": "非収録 (鍵不適用: arXiv ID を持たない)"
+    },
+    "openalex_lookup": {
+      "status": 200,
+      "content_type": "application/json",
+      "id": "https://openalex.org/W1994616650",
+      "doi": "https://doi.org/10.1214/aoms/1177729586",
+      "title": "A Stochastic Approximation Method",
+      "publication_year": 1951,
+      "ids": {
+        "openalex": "https://openalex.org/W1994616650",
+        "doi": "https://doi.org/10.1214/aoms/1177729586",
+        "mag": "1994616650"
+      },
+      "authorships": [
+        {
+          "position": "first",
+          "author_id": "https://openalex.org/A5110883277",
+          "display_name": "Herbert Robbins"
+        },
+        {
+          "position": "last",
+          "author_id": "https://openalex.org/A5065560698",
+          "display_name": "Sutton Monro"
+        }
+      ],
+      "title_match": true
+    },
+    "dblp_lookup": {
+      "outcome": "不達 (本環境からの anti-bot challenge、request を出していない)"
+    }
+  },
+  {
+    "anchor_id": "G2-02",
+    "slot": "G2-SA",
+    "doi_handle": "10.1214/aoms/1177729392",
+    "arxiv_handle": null,
+    "title_handle": "Stochastic Estimation of the Maximum of a Regression Function",
+    "family_handle": [
+      "Kiefer",
+      "Wolfowitz"
+    ],
+    "doi_org": {
+      "status": 302,
+      "location": "http://projecteuclid.org/euclid.aoms/1177729392"
+    },
+    "crossref": {
+      "status": 200,
+      "title": [
+        "Stochastic Estimation of the Maximum of a Regression Function"
+      ],
+      "authors": [
+        [
+          "J.",
+          "Kiefer"
+        ],
+        [
+          "J.",
+          "Wolfowitz"
+        ]
+      ],
+      "container": [
+        "The Annals of Mathematical Statistics"
+      ],
+      "issued": [
+        [
+          1952,
+          9
+        ]
+      ],
+      "type": "journal-article",
+      "title_match": true,
+      "family_match": true
+    },
+    "arxiv_lookup": {
+      "outcome": "非収録 (鍵不適用: arXiv ID を持たない)"
+    },
+    "openalex_lookup": {
+      "status": 200,
+      "content_type": "application/json",
+      "id": "https://openalex.org/W2009797711",
+      "doi": "https://doi.org/10.1214/aoms/1177729392",
+      "title": "Stochastic Estimation of the Maximum of a Regression Function",
+      "publication_year": 1952,
+      "ids": {
+        "openalex": "https://openalex.org/W2009797711",
+        "doi": "https://doi.org/10.1214/aoms/1177729392",
+        "mag": "2009797711"
+      },
+      "authorships": [
+        {
+          "position": "first",
+          "author_id": "https://openalex.org/A5110860590",
+          "display_name": "J. Kiefer"
+        },
+        {
+          "position": "last",
+          "author_id": "https://openalex.org/A5049527866",
+          "display_name": "J. Wolfowitz"
+        }
+      ],
+      "title_match": true
+    },
+    "dblp_lookup": {
+      "outcome": "不達 (本環境からの anti-bot challenge、request を出していない)"
+    }
+  },
+  {
+    "anchor_id": "G2-03",
+    "slot": "G2-SA",
+    "doi_handle": "10.1214/aoms/1177706705",
+    "arxiv_handle": null,
+    "title_handle": "Accelerated Stochastic Approximation",
+    "family_handle": [
+      "Kesten"
+    ],
+    "doi_org": {
+      "status": 302,
+      "location": "http://projecteuclid.org/euclid.aoms/1177706705"
+    },
+    "crossref": {
+      "status": 200,
+      "title": [
+        "Accelerated Stochastic Approximation"
+      ],
+      "authors": [
+        [
+          "Harry",
+          "Kesten"
+        ]
+      ],
+      "container": [
+        "The Annals of Mathematical Statistics"
+      ],
+      "issued": [
+        [
+          1958,
+          3
+        ]
+      ],
+      "type": "journal-article",
+      "title_match": true,
+      "family_match": true
+    },
+    "arxiv_lookup": {
+      "outcome": "非収録 (鍵不適用: arXiv ID を持たない)"
+    },
+    "openalex_lookup": {
+      "status": 200,
+      "content_type": "application/json",
+      "id": "https://openalex.org/W1996235804",
+      "doi": "https://doi.org/10.1214/aoms/1177706705",
+      "title": "Accelerated Stochastic Approximation",
+      "publication_year": 1958,
+      "ids": {
+        "openalex": "https://openalex.org/W1996235804",
+        "doi": "https://doi.org/10.1214/aoms/1177706705",
+        "mag": "1996235804"
+      },
+      "authorships": [
+        {
+          "position": "first",
+          "author_id": "https://openalex.org/A5082829165",
+          "display_name": "Harry Kesten"
+        }
+      ],
+      "title_match": true
+    },
+    "dblp_lookup": {
+      "outcome": "不達 (本環境からの anti-bot challenge、request を出していない)"
+    }
+  },
+  {
+    "anchor_id": "G2-04",
+    "slot": "G2-SA",
+    "doi_handle": "10.1109/9.119632",
+    "arxiv_handle": null,
+    "title_handle": "Multivariate Stochastic Approximation Using a Simultaneous Perturbation Gradient Approximation",
+    "family_handle": [
+      "Spall"
+    ],
+    "doi_org": {
+      "status": 302,
+      "location": "http://ieeexplore.ieee.org/document/119632/"
+    },
+    "crossref": {
+      "status": 200,
+      "title": [
+        "Multivariate stochastic approximation using a simultaneous perturbation gradient approximation"
+      ],
+      "authors": [
+        [
+          "J.C.",
+          "Spall"
+        ]
+      ],
+      "container": [
+        "IEEE Transactions on Automatic Control"
+      ],
+      "issued": [
+        [
+          1992,
+          3
+        ]
+      ],
+      "type": "journal-article",
+      "title_match": true,
+      "family_match": true
+    },
+    "arxiv_lookup": {
+      "outcome": "非収録 (鍵不適用: arXiv ID を持たない)"
+    },
+    "openalex_lookup": {
+      "status": 200,
+      "content_type": "application/json",
+      "id": "https://openalex.org/W2124289529",
+      "doi": "https://doi.org/10.1109/9.119632",
+      "title": "Multivariate stochastic approximation using a simultaneous perturbation gradient approximation",
+      "publication_year": 1992,
+      "ids": {
+        "openalex": "https://openalex.org/W2124289529",
+        "doi": "https://doi.org/10.1109/9.119632",
+        "mag": "2124289529"
+      },
+      "authorships": [
+        {
+          "position": "first",
+          "author_id": "https://openalex.org/A5066890566",
+          "display_name": "James C. Spall"
+        }
+      ],
+      "title_match": true
+    },
+    "dblp_lookup": {
+      "outcome": "不達 (本環境からの anti-bot challenge、request を出していない)"
+    }
+  },
+  {
+    "anchor_id": "G2-05",
+    "slot": "G2-SA",
+    "doi_handle": "10.1109/7.705889",
+    "arxiv_handle": null,
+    "title_handle": "Implementation of the Simultaneous Perturbation Algorithm for Stochastic Optimization",
+    "family_handle": [
+      "Spall"
+    ],
+    "doi_org": {
+      "status": 302,
+      "location": "http://ieeexplore.ieee.org/document/705889/"
+    },
+    "crossref": {
+      "status": 200,
+      "title": [
+        "Implementation of the simultaneous perturbation algorithm for stochastic optimization"
+      ],
+      "authors": [
+        [
+          "J.C.",
+          "Spall"
+        ]
+      ],
+      "container": [
+        "IEEE Transactions on Aerospace and Electronic Systems"
+      ],
+      "issued": [
+        [
+          1998,
+          7
+        ]
+      ],
+      "type": "journal-article",
+      "title_match": true,
+      "family_match": true
+    },
+    "arxiv_lookup": {
+      "outcome": "非収録 (鍵不適用: arXiv ID を持たない)"
+    },
+    "openalex_lookup": {
+      "status": 200,
+      "content_type": "application/json",
+      "id": "https://openalex.org/W2128452997",
+      "doi": "https://doi.org/10.1109/7.705889",
+      "title": "Implementation of the simultaneous perturbation algorithm for stochastic optimization",
+      "publication_year": 1998,
+      "ids": {
+        "openalex": "https://openalex.org/W2128452997",
+        "doi": "https://doi.org/10.1109/7.705889",
+        "mag": "2128452997"
+      },
+      "authorships": [
+        {
+          "position": "first",
+          "author_id": "https://openalex.org/A5066890566",
+          "display_name": "James C. Spall"
+        }
+      ],
+      "title_match": true
+    },
+    "dblp_lookup": {
+      "outcome": "不達 (本環境からの anti-bot challenge、request を出していない)"
+    }
+  },
+  {
+    "anchor_id": "G2-06",
+    "slot": "G2-SA",
+    "doi_handle": "10.1137/0803045",
+    "arxiv_handle": null,
+    "title_handle": "Accelerated Stochastic Approximation",
+    "family_handle": [
+      "Delyon",
+      "Juditsky"
+    ],
+    "doi_org": {
+      "status": 302,
+      "location": "https://epubs.siam.org/doi/10.1137/0803045"
+    },
+    "crossref": {
+      "status": 200,
+      "title": [
+        "Accelerated Stochastic Approximation"
+      ],
+      "authors": [
+        [
+          "Bernard",
+          "Delyon"
+        ],
+        [
+          "Anatoli",
+          "Juditsky"
+        ]
+      ],
+      "container": [
+        "SIAM Journal on Optimization"
+      ],
+      "issued": [
+        [
+          1993,
+          11
+        ]
+      ],
+      "type": "journal-article",
+      "title_match": true,
+      "family_match": true
+    },
+    "arxiv_lookup": {
+      "outcome": "非収録 (鍵不適用: arXiv ID を持たない)"
+    },
+    "openalex_lookup": {
+      "status": 200,
+      "content_type": "application/json",
+      "id": "https://openalex.org/W2065450730",
+      "doi": "https://doi.org/10.1137/0803045",
+      "title": "Accelerated Stochastic Approximation",
+      "publication_year": 1993,
+      "ids": {
+        "openalex": "https://openalex.org/W2065450730",
+        "doi": "https://doi.org/10.1137/0803045",
+        "mag": "2065450730"
+      },
+      "authorships": [
+        {
+          "position": "first",
+          "author_id": "https://openalex.org/A5059841305",
+          "display_name": "Bernard Delyon"
+        },
+        {
+          "position": "last",
+          "author_id": "https://openalex.org/A5039659947",
+          "display_name": "Anatoli Juditsky"
+        }
+      ],
+      "title_match": true
+    },
+    "dblp_lookup": {
+      "outcome": "不達 (本環境からの anti-bot challenge、request を出していない)"
+    }
+  },
+  {
+    "anchor_id": "G2-07",
+    "slot": "G2-SA",
+    "doi_handle": "10.1007/s10107-012-0572-5",
+    "arxiv_handle": null,
+    "title_handle": "Sample Size Selection in Optimization Methods for Machine Learning",
+    "family_handle": [
+      "Byrd",
+      "Chin",
+      "Nocedal",
+      "Wu"
+    ],
+    "doi_org": {
+      "status": 302,
+      "location": "http://link.springer.com/10.1007/s10107-012-0572-5"
+    },
+    "crossref": {
+      "status": 200,
+      "title": [
+        "Sample size selection in optimization methods for machine learning"
+      ],
+      "authors": [
+        [
+          "Richard H.",
+          "Byrd"
+        ],
+        [
+          "Gillian M.",
+          "Chin"
+        ],
+        [
+          "Jorge",
+          "Nocedal"
+        ],
+        [
+          "Yuchen",
+          "Wu"
+        ]
+      ],
+      "container": [
+        "Mathematical Programming"
+      ],
+      "issued": [
+        [
+          2012,
+          6,
+          24
+        ]
+      ],
+      "type": "journal-article",
+      "title_match": true,
+      "family_match": true
+    },
+    "arxiv_lookup": {
+      "outcome": "非収録 (鍵不適用: arXiv ID を持たない)"
+    },
+    "openalex_lookup": {
+      "status": 200,
+      "content_type": "application/json",
+      "id": "https://openalex.org/W2061570747",
+      "doi": "https://doi.org/10.1007/s10107-012-0572-5",
+      "title": "Sample size selection in optimization methods for machine learning",
+      "publication_year": 2012,
+      "ids": {
+        "openalex": "https://openalex.org/W2061570747",
+        "doi": "https://doi.org/10.1007/s10107-012-0572-5",
+        "mag": "2061570747"
+      },
+      "authorships": [
+        {
+          "position": "first",
+          "author_id": "https://openalex.org/A5110661221",
+          "display_name": "Richard H. Byrd"
+        },
+        {
+          "position": "middle",
+          "author_id": "https://openalex.org/A5066824099",
+          "display_name": "Gillian M. Chin"
+        },
+        {
+          "position": "middle",
+          "author_id": "https://openalex.org/A5081856145",
+          "display_name": "Jorge Nocedal"
+        },
+        {
+          "position": "last",
+          "author_id": "https://openalex.org/A5032317649",
+          "display_name": "Yuchen Wu"
+        }
+      ],
+      "title_match": true
+    },
+    "dblp_lookup": {
+      "outcome": "不達 (本環境からの anti-bot challenge、request を出していない)"
+    }
+  },
+  {
+    "anchor_id": "G2-08",
+    "slot": "G2-SA",
+    "doi_handle": "10.1137/17M1154679",
+    "arxiv_handle": "1710.11258",
+    "title_handle": "Adaptive Sampling Strategies for Stochastic Optimization",
+    "family_handle": [
+      "Bollapragada",
+      "Byrd",
+      "Nocedal"
+    ],
+    "doi_org": {
+      "status": 302,
+      "location": "https://epubs.siam.org/doi/10.1137/17M1154679"
+    },
+    "crossref": {
+      "status": 200,
+      "title": [
+        "Adaptive Sampling Strategies for Stochastic Optimization"
+      ],
+      "authors": [
+        [
+          "Raghu",
+          "Bollapragada"
+        ],
+        [
+          "Richard",
+          "Byrd"
+        ],
+        [
+          "Jorge",
+          "Nocedal"
+        ]
+      ],
+      "container": [
+        "SIAM Journal on Optimization"
+      ],
+      "issued": [
+        [
+          2018,
+          1
+        ]
+      ],
+      "type": "journal-article",
+      "title_match": true,
+      "family_match": true
+    },
+    "arxiv_lookup": {
+      "status": 200,
+      "total_results": "1",
+      "entries": 1,
+      "id": "http://arxiv.org/abs/1710.11258v1",
+      "title": "Adaptive Sampling Strategies for Stochastic Optimization",
+      "authors": [
+        "Raghu Bollapragada",
+        "Richard Byrd",
+        "Jorge Nocedal"
+      ],
+      "title_match": true
+    },
+    "openalex_lookup": {
+      "status": 200,
+      "content_type": "application/json",
+      "id": "https://openalex.org/W2766854590",
+      "doi": "https://doi.org/10.1137/17m1154679",
+      "title": "Adaptive Sampling Strategies for Stochastic Optimization",
+      "publication_year": 2018,
+      "ids": {
+        "openalex": "https://openalex.org/W2766854590",
+        "doi": "https://doi.org/10.1137/17m1154679",
+        "mag": "2766854590"
+      },
+      "authorships": [
+        {
+          "position": "first",
+          "author_id": "https://openalex.org/A5083156016",
+          "display_name": "Raghu Bollapragada"
+        },
+        {
+          "position": "middle",
+          "author_id": "https://openalex.org/A5110729604",
+          "display_name": "Richard Byrd"
+        },
+        {
+          "position": "last",
+          "author_id": "https://openalex.org/A5081856145",
+          "display_name": "Jorge Nocedal"
+        }
+      ],
+      "title_match": true
+    },
+    "dblp_lookup": {
+      "outcome": "不達 (本環境からの anti-bot challenge、request を出していない)"
+    }
+  },
+  {
+    "anchor_id": "G3-01",
+    "slot": "G3-STM",
+    "doi_handle": "10.1145/872035.872048",
+    "arxiv_handle": null,
+    "title_handle": "Software Transactional Memory for Dynamic-Sized Data Structures",
+    "family_handle": [
+      "Herlihy",
+      "Luchangco",
+      "Moir",
+      "Scherer"
+    ],
+    "doi_org": {
+      "status": 302,
+      "location": "https://dl.acm.org/doi/10.1145/872035.872048"
+    },
+    "crossref": {
+      "status": 200,
+      "title": [
+        "Software transactional memory for dynamic-sized data structures"
+      ],
+      "authors": [
+        [
+          "Maurice",
+          "Herlihy"
+        ],
+        [
+          "Victor",
+          "Luchangco"
+        ],
+        [
+          "Mark",
+          "Moir"
+        ],
+        [
+          "William N.",
+          "Scherer"
+        ]
+      ],
+      "container": [
+        "Proceedings of the twenty-second annual symposium on Principles of distributed computing"
+      ],
+      "issued": [
+        [
+          2003,
+          7,
+          13
+        ]
+      ],
+      "type": "proceedings-article",
+      "title_match": true,
+      "family_match": true
+    },
+    "arxiv_lookup": {
+      "outcome": "非収録 (鍵不適用: arXiv ID を持たない)"
+    },
+    "openalex_lookup": {
+      "status": 200,
+      "content_type": "application/json",
+      "id": "https://openalex.org/W2105055683",
+      "doi": "https://doi.org/10.1145/872035.872048",
+      "title": "Software transactional memory for dynamic-sized data structures",
+      "publication_year": 2003,
+      "ids": {
+        "openalex": "https://openalex.org/W2105055683",
+        "doi": "https://doi.org/10.1145/872035.872048",
+        "mag": "2105055683"
+      },
+      "authorships": [
+        {
+          "position": "first",
+          "author_id": "https://openalex.org/A5086347882",
+          "display_name": "Maurice Herlihy"
+        },
+        {
+          "position": "middle",
+          "author_id": "https://openalex.org/A5020473667",
+          "display_name": "Victor Luchangco"
+        },
+        {
+          "position": "middle",
+          "author_id": "https://openalex.org/A5044038693",
+          "display_name": "Mark Moir"
+        },
+        {
+          "position": "last",
+          "author_id": "https://openalex.org/A5066189979",
+          "display_name": "William N. Scherer"
+        }
+      ],
+      "title_match": true
+    },
+    "dblp_lookup": {
+      "outcome": "不達 (本環境からの anti-bot challenge、request を出していない)"
+    }
+  },
+  {
+    "anchor_id": "G3-02",
+    "slot": "G3-STM",
+    "doi_handle": "10.1145/1073814.1073861",
+    "arxiv_handle": null,
+    "title_handle": "Advanced Contention Management for Dynamic Software Transactional Memory",
+    "family_handle": [
+      "Scherer",
+      "Scott"
+    ],
+    "doi_org": {
+      "status": 302,
+      "location": "https://dl.acm.org/doi/10.1145/1073814.1073861"
+    },
+    "crossref": {
+      "status": 200,
+      "title": [
+        "Advanced contention management for dynamic software transactional memory"
+      ],
+      "authors": [
+        [
+          "William N.",
+          "Scherer"
+        ],
+        [
+          "Michael L.",
+          "Scott"
+        ]
+      ],
+      "container": [
+        "Proceedings of the twenty-fourth annual ACM symposium on Principles of distributed computing"
+      ],
+      "issued": [
+        [
+          2005,
+          7,
+          17
+        ]
+      ],
+      "type": "proceedings-article",
+      "title_match": true,
+      "family_match": true
+    },
+    "arxiv_lookup": {
+      "outcome": "非収録 (鍵不適用: arXiv ID を持たない)"
+    },
+    "openalex_lookup": {
+      "status": 200,
+      "content_type": "application/json",
+      "id": "https://openalex.org/W1988800505",
+      "doi": "https://doi.org/10.1145/1073814.1073861",
+      "title": "Advanced contention management for dynamic software transactional memory",
+      "publication_year": 2005,
+      "ids": {
+        "openalex": "https://openalex.org/W1988800505",
+        "doi": "https://doi.org/10.1145/1073814.1073861",
+        "mag": "1988800505"
+      },
+      "authorships": [
+        {
+          "position": "first",
+          "author_id": "https://openalex.org/A5066189979",
+          "display_name": "William N. Scherer"
+        },
+        {
+          "position": "last",
+          "author_id": "https://openalex.org/A5079254515",
+          "display_name": "Michael L. Scott"
+        }
+      ],
+      "title_match": true
+    },
+    "dblp_lookup": {
+      "outcome": "不達 (本環境からの anti-bot challenge、request を出していない)"
+    }
+  },
+  {
+    "anchor_id": "G3-03",
+    "slot": "G3-STM",
+    "doi_handle": "10.1007/11561927_23",
+    "arxiv_handle": null,
+    "title_handle": "Polymorphic Contention Management",
+    "family_handle": [
+      "Guerraoui",
+      "Herlihy",
+      "Pochon"
+    ],
+    "doi_org": {
+      "status": 302,
+      "location": "http://link.springer.com/10.1007/11561927_23"
+    },
+    "crossref": {
+      "status": 200,
+      "title": [
+        "Polymorphic Contention Management"
+      ],
+      "authors": [
+        [
+          "Rachid",
+          "Guerraoui"
+        ],
+        [
+          "Maurice",
+          "Herlihy"
+        ],
+        [
+          "Bastian",
+          "Pochon"
+        ]
+      ],
+      "container": [
+        "Lecture Notes in Computer Science",
+        "Distributed Computing"
+      ],
+      "issued": [
+        [
+          2005
+        ]
+      ],
+      "type": "book-chapter",
+      "title_match": true,
+      "family_match": true
+    },
+    "arxiv_lookup": {
+      "outcome": "非収録 (鍵不適用: arXiv ID を持たない)"
+    },
+    "openalex_lookup": {
+      "status": 200,
+      "content_type": "application/json",
+      "id": "https://openalex.org/W1759214032",
+      "doi": "https://doi.org/10.1007/11561927_23",
+      "title": "Polymorphic Contention Management",
+      "publication_year": 2005,
+      "ids": {
+        "openalex": "https://openalex.org/W1759214032",
+        "doi": "https://doi.org/10.1007/11561927_23",
+        "mag": "1759214032"
+      },
+      "authorships": [
+        {
+          "position": "first",
+          "author_id": "https://openalex.org/A5049321288",
+          "display_name": "Rachid Guerraoui"
+        },
+        {
+          "position": "middle",
+          "author_id": "https://openalex.org/A5086347882",
+          "display_name": "Maurice Herlihy"
+        },
+        {
+          "position": "last",
+          "author_id": "https://openalex.org/A5015726068",
+          "display_name": "Bastian Pochon"
+        }
+      ],
+      "title_match": true
+    },
+    "dblp_lookup": {
+      "outcome": "不達 (本環境からの anti-bot challenge、request を出していない)"
+    }
+  },
+  {
+    "anchor_id": "G3-04",
+    "slot": "G3-STM",
+    "doi_handle": "10.1145/1073814.1073863",
+    "arxiv_handle": null,
+    "title_handle": "Toward a Theory of Transactional Contention Managers",
+    "family_handle": [
+      "Guerraoui",
+      "Herlihy",
+      "Pochon"
+    ],
+    "doi_org": {
+      "status": 302,
+      "location": "https://dl.acm.org/doi/10.1145/1073814.1073863"
+    },
+    "crossref": {
+      "status": 200,
+      "title": [
+        "Toward a theory of transactional contention managers"
+      ],
+      "authors": [
+        [
+          "Rachid",
+          "Guerraoui"
+        ],
+        [
+          "Maurice",
+          "Herlihy"
+        ],
+        [
+          "Bastian",
+          "Pochon"
+        ]
+      ],
+      "container": [
+        "Proceedings of the twenty-fourth annual ACM symposium on Principles of distributed computing"
+      ],
+      "issued": [
+        [
+          2005,
+          7,
+          17
+        ]
+      ],
+      "type": "proceedings-article",
+      "title_match": true,
+      "family_match": true
+    },
+    "arxiv_lookup": {
+      "outcome": "非収録 (鍵不適用: arXiv ID を持たない)"
+    },
+    "openalex_lookup": {
+      "status": 200,
+      "content_type": "application/json",
+      "id": "https://openalex.org/W2106871513",
+      "doi": "https://doi.org/10.1145/1073814.1073863",
+      "title": "Toward a theory of transactional contention managers",
+      "publication_year": 2005,
+      "ids": {
+        "openalex": "https://openalex.org/W2106871513",
+        "doi": "https://doi.org/10.1145/1073814.1073863",
+        "mag": "2106871513"
+      },
+      "authorships": [
+        {
+          "position": "first",
+          "author_id": "https://openalex.org/A5049321288",
+          "display_name": "Rachid Guerraoui"
+        },
+        {
+          "position": "middle",
+          "author_id": "https://openalex.org/A5086347882",
+          "display_name": "Maurice Herlihy"
+        },
+        {
+          "position": "last",
+          "author_id": "https://openalex.org/A5015726068",
+          "display_name": "Bastian Pochon"
+        }
+      ],
+      "title_match": true
+    },
+    "dblp_lookup": {
+      "outcome": "不達 (本環境からの anti-bot challenge、request を出していない)"
+    }
+  },
+  {
+    "anchor_id": "G3-05",
+    "slot": "G3-STM",
+    "doi_handle": "10.1145/1378533.1378564",
+    "arxiv_handle": null,
+    "title_handle": "Adaptive Transaction Scheduling for Transactional Memory Systems",
+    "family_handle": [
+      "Yoo",
+      "Lee"
+    ],
+    "doi_org": {
+      "status": 302,
+      "location": "https://dl.acm.org/doi/10.1145/1378533.1378564"
+    },
+    "crossref": {
+      "status": 200,
+      "title": [
+        "Adaptive transaction scheduling for transactional memory systems"
+      ],
+      "authors": [
+        [
+          "Richard M.",
+          "Yoo"
+        ],
+        [
+          "Hsien-Hsin S.",
+          "Lee"
+        ]
+      ],
+      "container": [
+        "Proceedings of the twentieth annual symposium on Parallelism in algorithms and architectures"
+      ],
+      "issued": [
+        [
+          2008,
+          6,
+          14
+        ]
+      ],
+      "type": "proceedings-article",
+      "title_match": true,
+      "family_match": true
+    },
+    "arxiv_lookup": {
+      "outcome": "非収録 (鍵不適用: arXiv ID を持たない)"
+    },
+    "openalex_lookup": {
+      "status": 200,
+      "content_type": "application/json",
+      "id": "https://openalex.org/W2165791323",
+      "doi": "https://doi.org/10.1145/1378533.1378564",
+      "title": "Adaptive transaction scheduling for transactional memory systems",
+      "publication_year": 2008,
+      "ids": {
+        "openalex": "https://openalex.org/W2165791323",
+        "doi": "https://doi.org/10.1145/1378533.1378564",
+        "mag": "2165791323"
+      },
+      "authorships": [
+        {
+          "position": "first",
+          "author_id": "https://openalex.org/A5023107016",
+          "display_name": "Richard M. Yoo"
+        },
+        {
+          "position": "last",
+          "author_id": "https://openalex.org/A5072539515",
+          "display_name": "Hsien-Hsin S. Lee"
+        }
+      ],
+      "title_match": true
+    },
+    "dblp_lookup": {
+      "outcome": "不達 (本環境からの anti-bot challenge、request を出していない)"
+    }
+  },
+  {
+    "anchor_id": "G3-06",
+    "slot": "G3-STM",
+    "doi_handle": "10.1145/1504176.1504199",
+    "arxiv_handle": null,
+    "title_handle": "A Comprehensive Strategy for Contention Management in Software Transactional Memory",
+    "family_handle": [
+      "Spear",
+      "Dalessandro",
+      "Marathe",
+      "Scott"
+    ],
+    "doi_org": {
+      "status": 302,
+      "location": "https://dl.acm.org/doi/10.1145/1504176.1504199"
+    },
+    "crossref": {
+      "status": 200,
+      "title": [
+        "A comprehensive strategy for contention management in software transactional memory"
+      ],
+      "authors": [
+        [
+          "Michael F.",
+          "Spear"
+        ],
+        [
+          "Luke",
+          "Dalessandro"
+        ],
+        [
+          "Virendra J.",
+          "Marathe"
+        ],
+        [
+          "Michael L.",
+          "Scott"
+        ]
+      ],
+      "container": [
+        "Proceedings of the 14th ACM SIGPLAN symposium on Principles and practice of parallel programming"
+      ],
+      "issued": [
+        [
+          2009,
+          2,
+          14
+        ]
+      ],
+      "type": "proceedings-article",
+      "title_match": true,
+      "family_match": true
+    },
+    "arxiv_lookup": {
+      "outcome": "非収録 (鍵不適用: arXiv ID を持たない)"
+    },
+    "openalex_lookup": {
+      "status": 200,
+      "content_type": "application/json",
+      "id": "https://openalex.org/W2122621236",
+      "doi": "https://doi.org/10.1145/1504176.1504199",
+      "title": "A comprehensive strategy for contention management in software transactional memory",
+      "publication_year": 2009,
+      "ids": {
+        "openalex": "https://openalex.org/W2122621236",
+        "doi": "https://doi.org/10.1145/1504176.1504199",
+        "mag": "2122621236"
+      },
+      "authorships": [
+        {
+          "position": "first",
+          "author_id": "https://openalex.org/A5017374713",
+          "display_name": "Michael Spear"
+        },
+        {
+          "position": "middle",
+          "author_id": "https://openalex.org/A5048521554",
+          "display_name": "Luke Dalessandro"
+        },
+        {
+          "position": "middle",
+          "author_id": "https://openalex.org/A5070381781",
+          "display_name": "Virendra J. Marathe"
+        },
+        {
+          "position": "last",
+          "author_id": "https://openalex.org/A5079254515",
+          "display_name": "Michael L. Scott"
+        }
+      ],
+      "title_match": true
+    },
+    "dblp_lookup": {
+      "outcome": "不達 (本環境からの anti-bot challenge、request を出していない)"
+    }
+  },
+  {
+    "anchor_id": "G3-07",
+    "slot": "G3-STM",
+    "doi_handle": "10.1145/1582716.1582725",
+    "arxiv_handle": null,
+    "title_handle": "Preventing versus Curing: Avoiding Conflicts in Transactional Memories",
+    "family_handle": [
+      "Dragojevic",
+      "Guerraoui",
+      "Singh",
+      "Singh"
+    ],
+    "doi_org": {
+      "status": 302,
+      "location": "https://dl.acm.org/doi/10.1145/1582716.1582725"
+    },
+    "crossref": {
+      "status": 200,
+      "title": [
+        "Preventing versus curing"
+      ],
+      "authors": [
+        [
+          "Aleksandar",
+          "Dragojević"
+        ],
+        [
+          "Rachid",
+          "Guerraoui"
+        ],
+        [
+          "Anmol V.",
+          "Singh"
+        ],
+        [
+          "Vasu",
+          "Singh"
+        ]
+      ],
+      "container": [
+        "Proceedings of the 28th ACM symposium on Principles of distributed computing"
+      ],
+      "issued": [
+        [
+          2009,
+          8,
+          10
+        ]
+      ],
+      "type": "proceedings-article",
+      "title_match": false,
+      "family_match": false
+    },
+    "arxiv_lookup": {
+      "outcome": "非収録 (鍵不適用: arXiv ID を持たない)"
+    },
+    "openalex_lookup": {
+      "status": 200,
+      "content_type": "application/json",
+      "id": "https://openalex.org/W2036987653",
+      "doi": "https://doi.org/10.1145/1582716.1582725",
+      "title": "Preventing versus curing",
+      "publication_year": 2009,
+      "ids": {
+        "openalex": "https://openalex.org/W2036987653",
+        "doi": "https://doi.org/10.1145/1582716.1582725",
+        "mag": "2036987653"
+      },
+      "authorships": [
+        {
+          "position": "first",
+          "author_id": "https://openalex.org/A5070096854",
+          "display_name": "Aleksandar Dragojević"
+        },
+        {
+          "position": "middle",
+          "author_id": "https://openalex.org/A5049321288",
+          "display_name": "Rachid Guerraoui"
+        },
+        {
+          "position": "middle",
+          "author_id": "https://openalex.org/A5003804939",
+          "display_name": "Anmol V. Singh"
+        },
+        {
+          "position": "last",
+          "author_id": "https://openalex.org/A5001418143",
+          "display_name": "Vasu Singh"
+        }
+      ],
+      "title_match": false
+    },
+    "dblp_lookup": {
+      "outcome": "不達 (本環境からの anti-bot challenge、request を出していない)"
+    }
+  }
+]
