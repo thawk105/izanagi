@@ -2766,6 +2766,9 @@ def test_verification_completeness_counts_records_and_discloses_wal_anomalies(
                 "payload": {
                     "build_attempt_id": "attempt",
                     "workload": {"tag": tag},
+                    "anomalies": 0,
+                    "certified": True,
+                    "verdict": "serializable",
                 },
             }, separators=(",", ":"))
             for index, tag in enumerate(tags)
@@ -2851,6 +2854,340 @@ def test_verification_completeness_counts_records_and_discloses_wal_anomalies(
     assert report_source["raw_verify_done_records"] == 9
     assert report_source["completed_logical_slots"] == 6
     assert markdown_path.is_file()
+
+
+def _write_legacy_verdict_wal(
+    layout: CampaignLayout,
+    frames: list[dict[str, object]],
+) -> None:
+    Path(layout.runs_dir).mkdir(parents=True, exist_ok=True)
+    Path(layout.wal_file).write_text(
+        "\n".join(
+            json.dumps(frame, separators=(",", ":")) for frame in frames
+        ) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _legacy_verdict_frame(
+    *,
+    variant: str = "variant-none",
+    stage: str = B.STAGE_VERIFY_DONE,
+    tag: object = "performance",
+    payload_overrides: dict[str, object] | None = None,
+) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "build_attempt_id": "attempt",
+        "workload": {"tag": tag},
+        "anomalies": 0,
+        "certified": True,
+        "verdict": "serializable",
+    }
+    if payload_overrides is not None:
+        payload.update(payload_overrides)
+    return {
+        "variant": variant,
+        "stage": stage,
+        "env_tag": "pegasus",
+        "ts": 1,
+        "payload": payload,
+    }
+
+
+def test_legacy_verify_done_verdict_accepts_exact_values_and_extra_payload(
+    tmp_path: Path,
+):
+    layout = CampaignLayout(str(tmp_path / "campaign"))
+    build_start = _legacy_verdict_frame(stage=B.STAGE_BUILD_START)
+    build_start["payload"] = {"build_attempt_id": "attempt"}
+    verify_done = _legacy_verdict_frame(payload_overrides={
+        "proof_surfaces": [{"kind": "read-heavy-fixture"}],
+    })
+    _write_legacy_verdict_wal(layout, [build_start, verify_done])
+
+    source, counts = B._verification_source_disclosure(
+        layout,
+        workload="read-heavy",
+        campaign_id=B.LEGACY_READ_HEAVY_CAMPAIGN_ID,
+        indexed={("block-1", "none"): {"variant_id": "variant-none"}},
+    )
+
+    assert counts == {("none", "performance"): 1}
+    assert source["raw_verify_done_records"] == 1
+    assert source["verify_done_records_by_tag"] == {"legacy": 0, "performance": 1}
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "anomalies-nonzero",
+        "anomalies-bool-false",
+        "anomalies-missing",
+        "certified-false",
+        "certified-int-one",
+        "certified-missing",
+        "verdict-other",
+        "verdict-missing",
+    ),
+)
+def test_legacy_verify_done_verdict_rejects_field_mutation(
+    tmp_path: Path,
+    mutation: str,
+):
+    frame = _legacy_verdict_frame()
+    payload = frame["payload"]
+    assert isinstance(payload, dict)
+    if mutation == "anomalies-nonzero":
+        payload["anomalies"] = 1
+    elif mutation == "anomalies-bool-false":
+        payload["anomalies"] = False
+    elif mutation == "anomalies-missing":
+        del payload["anomalies"]
+    elif mutation == "certified-false":
+        payload["certified"] = False
+    elif mutation == "certified-int-one":
+        payload["certified"] = 1
+    elif mutation == "certified-missing":
+        del payload["certified"]
+    elif mutation == "verdict-other":
+        payload["verdict"] = "non-serializable"
+    else:
+        del payload["verdict"]
+    layout = CampaignLayout(str(tmp_path / mutation))
+    _write_legacy_verdict_wal(layout, [frame])
+
+    with pytest.raises(B.PreflightError) as caught:
+        B._verification_source_disclosure(
+            layout,
+            workload="write-heavy",
+            campaign_id=B.LEGACY_WRITE_HEAVY_CAMPAIGN_ID,
+            indexed={("block-1", "none"): {"variant_id": "variant-none"}},
+        )
+    assert caught.value.code == "legacy-wal-verdict"
+    assert B.LEGACY_WRITE_HEAVY_CAMPAIGN_ID in str(caught.value)
+    assert "variant-none" in str(caught.value)
+
+
+@pytest.mark.parametrize("filter_case", ("unknown-tag", "unmapped-variant"))
+def test_legacy_verify_done_verdict_is_checked_before_disclosure_filter(
+    tmp_path: Path,
+    filter_case: str,
+):
+    variant = "variant-none" if filter_case == "unknown-tag" else "unmapped"
+    tag = "unknown" if filter_case == "unknown-tag" else "performance"
+    frame = _legacy_verdict_frame(
+        variant=variant,
+        tag=tag,
+        payload_overrides={"anomalies": 1},
+    )
+    layout = CampaignLayout(str(tmp_path / filter_case))
+    _write_legacy_verdict_wal(layout, [frame])
+
+    _expect_code(
+        "legacy-wal-verdict",
+        lambda: B._verification_source_disclosure(
+            layout,
+            workload="write-heavy",
+            campaign_id=B.LEGACY_WRITE_HEAVY_CAMPAIGN_ID,
+            indexed={("block-1", "none"): {"variant_id": "variant-none"}},
+        ),
+    )
+
+
+def _legacy_verdict_collector_fixture(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> SimpleNamespace:
+    prereg = B.Preregistration(_binding(), B.PREREG_REL, _spec())
+    calibration = B.CalibrationSelection(
+        path="calibration.json", sha256="e" * 64,
+        schema_version="calibration/v2", records=100,
+        threads=48, env_tag="pegasus", clocks_per_us=2100,
+        saturated=True, lower_bound_selected=False, cache_floor_warning=False,
+    )
+    context = B.build_run_context(generator_id=B.GeneratorId.BACKOFF_SWEEP)
+    contract = B.env_contract.GENERATIONS["pegasus"][-1].contract
+    campaign_by_workload = {
+        "write-heavy": B.LEGACY_WRITE_HEAVY_CAMPAIGN_ID,
+        "balanced": B.LEGACY_BALANCED_CAMPAIGN_ID,
+        "read-heavy": B.LEGACY_READ_HEAVY_CAMPAIGN_ID,
+    }
+    binding_by_workload = {
+        "write-heavy": B._legacy_write_heavy_binding(prereg),
+        "balanced": B._legacy_balanced_binding(prereg),
+        "read-heavy": B._legacy_read_heavy_binding(prereg),
+    }
+
+    def indexed(workload: str) -> dict[tuple[str, str], dict[str, object]]:
+        return {
+            (block_id, point): {
+                "workload": workload,
+                "block_id": block_id,
+                "point": point,
+                "variant_id": f"{workload}-{point}",
+            }
+            for block_id, order in prereg.spec.block_orders
+            for point in order
+        }
+
+    layouts: dict[str, CampaignLayout] = {}
+    frames_by_workload: dict[str, list[dict[str, object]]] = {}
+    block_records_by_workload = {
+        workload: list(indexed(workload).values())
+        for workload in campaign_by_workload
+    }
+    for workload, campaign_id in campaign_by_workload.items():
+        layout = CampaignLayout(str(tmp_path / campaign_id))
+        layouts[campaign_id] = layout
+        frames = []
+        for point, _genome in B.named_genomes():
+            variant = f"{workload}-{point}"
+            proof_surfaces = (
+                {"proof_surfaces": [{"kind": "read-heavy-fixture"}]}
+                if workload == "read-heavy"
+                else None
+            )
+            frames.append(_legacy_verdict_frame(
+                variant=variant,
+                tag="legacy",
+                payload_overrides=proof_surfaces,
+            ))
+            frames.extend(
+                _legacy_verdict_frame(
+                    variant=variant,
+                    tag="performance",
+                    payload_overrides=proof_surfaces,
+                )
+                for _repetition in range(5)
+            )
+        assert len(frames) == 90
+        frames_by_workload[workload] = frames
+        _write_legacy_verdict_wal(layout, frames)
+        identity = {
+            "spec_content": "fixture",
+            "ccbench_commit": B.PIN,
+            "search_tag": "formal",
+            "search_config": {
+                "preregistration_binding": binding_by_workload[workload],
+            },
+            "trial": "fixture",
+        }
+        Path(layout.lock_file).write_text(
+            B.campaign_lock.canonical_json(identity), encoding="utf-8",
+        )
+
+    block_records_by_root = {
+        os.fspath(Path(layouts[campaign_id].runs_dir) / "b10-backoff-shape-blocks"):
+            block_records_by_workload[workload]
+        for workload, campaign_id in campaign_by_workload.items()
+    }
+    monkeypatch.setattr(
+        B, "_read_block_records",
+        lambda root: block_records_by_root[os.fspath(root)],
+    )
+    validation_calls = []
+
+    def validator(workload: str):
+        def validate(records, *, campaign_id, prereg):
+            assert records == block_records_by_workload[workload]
+            validation_calls.append((workload, campaign_id))
+            return indexed(workload)
+        return validate
+
+    monkeypatch.setattr(
+        B, "_validate_legacy_write_heavy_records", validator("write-heavy"),
+    )
+    monkeypatch.setattr(
+        B, "_validate_legacy_balanced_records", validator("balanced"),
+    )
+    monkeypatch.setattr(
+        B, "_validate_legacy_read_heavy_records", validator("read-heavy"),
+    )
+    return SimpleNamespace(
+        prereg=prereg,
+        calibration=calibration,
+        context=context,
+        contract=contract,
+        campaign_by_workload=campaign_by_workload,
+        layouts=layouts,
+        frames_by_workload=frames_by_workload,
+        block_records_by_workload=block_records_by_workload,
+        validation_calls=validation_calls,
+    )
+
+
+def test_report_collector_accepts_exact_legacy_verdict_fixture(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """validator は repo 外 file を要するため stub。lock は実物を通す。"""
+    fixture = _legacy_verdict_collector_fixture(tmp_path, monkeypatch)
+
+    records, performance, verification = B._collect_report_inputs(
+        str(tmp_path),
+        prereg=fixture.prereg,
+        calibration=fixture.calibration,
+        context=fixture.context,
+        contract=fixture.contract,
+        layout_for_campaign=fixture.layouts.__getitem__,
+    )
+
+    assert len(records) == performance["observed_cells"] == 135
+    assert verification["completed_logical_slots"] == 270
+    assert verification["incomplete_slots"] == 0
+    assert verification["observed_verify_done_records"] == 270
+    assert fixture.validation_calls == list(fixture.campaign_by_workload.items())
+
+
+def test_report_collector_rejects_same_counts_and_tags_when_legacy_wal_verdict_changes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    fixture = _legacy_verdict_collector_fixture(tmp_path, monkeypatch)
+    workload = "write-heavy"
+    layout = fixture.layouts[B.LEGACY_WRITE_HEAVY_CAMPAIGN_ID]
+    original_frames = fixture.frames_by_workload[workload]
+    changed_frames = copy.deepcopy(original_frames)
+    original_variants = [frame["variant"] for frame in original_frames]
+    original_tags = [
+        frame["payload"]["workload"]["tag"] for frame in original_frames
+    ]
+    original_block_records = copy.deepcopy(fixture.block_records_by_workload[workload])
+    original_lock = Path(layout.lock_file).read_bytes()
+
+    changed_payload = changed_frames[0]["payload"]
+    assert isinstance(changed_payload, dict)
+    changed_payload["anomalies"] = 1
+    _write_legacy_verdict_wal(layout, changed_frames)
+
+    restored_frame = copy.deepcopy(changed_frames[0])
+    restored_payload = restored_frame["payload"]
+    assert isinstance(restored_payload, dict)
+    restored_payload["anomalies"] = 0
+    assert restored_frame == original_frames[0]
+    assert changed_frames[1:] == original_frames[1:]
+    changed_tags = [
+        frame["payload"]["workload"]["tag"] for frame in changed_frames
+    ]
+    assert len(changed_frames) == 90
+    assert changed_tags.count("legacy") == 15
+    assert changed_tags.count("performance") == 75
+    assert changed_tags == original_tags
+    assert [frame["variant"] for frame in changed_frames] == original_variants
+    assert len(fixture.block_records_by_workload[workload]) == 45
+    assert fixture.block_records_by_workload[workload] == original_block_records
+    assert Path(layout.lock_file).read_bytes() == original_lock
+
+    with pytest.raises(B.PreflightError) as caught:
+        B._collect_report_inputs(
+            str(tmp_path),
+            prereg=fixture.prereg,
+            calibration=fixture.calibration,
+            context=fixture.context,
+            contract=fixture.contract,
+            layout_for_campaign=fixture.layouts.__getitem__,
+        )
+    assert caught.value.code == "legacy-wal-verdict"
 
 
 def test_prior_block_record_allows_commit_drift_but_rejects_code_drift(
