@@ -1,0 +1,128 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 260,
+  "timeout_seconds": 1200,
+  "hang_timeout_seconds": 1200,
+  "mutations": [
+    {
+      "id": "m1-drop-positional-exclusion",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_counterfactual_cohort2_analysis.py",
+          "old": "    analysis_events = events[1:]\n",
+          "new": "    analysis_events = events\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_counterfactual_cohort2_analysis.py::test_seq_zero_is_excluded_before_pairing_under_cohort2",
+        "orchestrator/tests/test_backoff_counterfactual_cohort2_analysis.py::test_terminal_flush_is_following_only_and_does_not_consume_lcg"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2b-lcg-check-disabled",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_counterfactual_cohort2_analysis.py",
+          "old": "        if event[\"assigned_invert\"] != expected:\n",
+          "new": "        if False:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_counterfactual_cohort2_analysis.py::test_assignment_lcg_accepts_exact_positive_sequence_and_rejects_one_bit_flip"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-zero-scan-excludes-terminal",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_counterfactual_cohort2_analysis.py",
+          "old": "    if any(event[\"window_commits\"] == 0 for event in analysis_events):\n",
+          "new": "    if any(event[\"window_commits\"] == 0 for event in current_events):\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_counterfactual_cohort2_analysis.py::test_terminal_zero_commit_makes_whole_primary_inconclusive"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-allow-multiple-terminals",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_counterfactual_cohort2_analysis.py",
+          "old": "    if len(terminal_indices) > 1:\n",
+          "new": "    if len(terminal_indices) > 99:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_counterfactual_cohort2_analysis.py::test_terminal_requires_one_position_at_the_end_when_present"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m6b-terminal-sentinel-not-enforced",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_counterfactual_cohort2_analysis.py",
+          "old": "            _fail(f\"{binding}: terminal event sentinel contract failed\")\n",
+          "new": "            pass\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_counterfactual_cohort2_analysis.py::test_load_artifact_rejects_each_terminal_sentinel_field_only_via_contract[assigned_invert]",
+        "orchestrator/tests/test_backoff_counterfactual_cohort2_analysis.py::test_load_artifact_rejects_each_terminal_sentinel_field_only_via_contract[both_actions_feasible]",
+        "orchestrator/tests/test_backoff_counterfactual_cohort2_analysis.py::test_load_artifact_rejects_each_terminal_sentinel_field_only_via_contract[inversion_realized]",
+        "orchestrator/tests/test_backoff_counterfactual_cohort2_analysis.py::test_load_artifact_rejects_each_terminal_sentinel_field_only_via_contract[recommended_delta_sign]",
+        "orchestrator/tests/test_backoff_counterfactual_cohort2_analysis.py::test_load_artifact_rejects_each_terminal_sentinel_field_only_via_contract[trigger]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m7-cap-comparison-overflows",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/cicada-adaptive-counterfactual.patch",
+          "old": "+        elapsed / clocks_per_us_ >= cap_us)\n",
+          "new": "+        elapsed >= clocks_per_us_ * cap_us)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_counterfactual_cohort2_analysis.py::test_cohort2_literal_pins_are_independent_of_fixture_helpers",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_count_window_cap_comparison_is_overflow_safe"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m8-parser-rejects-zero-terminal",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "        if terminal_positions not in ([], [len(events) - 1]):\n",
+          "new": "        if terminal_positions != [len(events) - 1]:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_counterfactual_cohort2_analysis.py::test_missing_terminal_makes_whole_primary_inconclusive_without_replacement",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_emitter_stdout_parses_with_the_real_parser[terminal-0]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_parse_backoff_trace_accepts_v3_without_terminal_and_pins_summary"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
