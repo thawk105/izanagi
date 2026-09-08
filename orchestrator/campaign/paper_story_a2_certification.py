@@ -4548,6 +4548,27 @@ def _validate_certification_result(
           or report["cells"] != [] or report["effects"] != {}):
         raise CertificationError(
             "indeterminate certification result fields are malformed")
+    if report_schema == CERTIFICATION_SCHEMA:
+        acquisition_path = evidence.get("acquisition_path")
+        if type(acquisition_path) is not str:
+            raise CertificationError(
+                "certification materialization evidence lacks acquisition authority")
+        canonical_full_evidence = validate_acquisition_bundle(
+            policy, acquisition_path, current_pin=report["current_pin"])
+        if (canonical_full_evidence.get("acquisition_schema") != ACQUISITION_SCHEMA
+                or canonical_full_evidence.get("completion_schema")
+                != COMPLETION_SCHEMA):
+            raise SchemaChainError(
+                "certification result is crossed with a re-read partial receipt chain")
+        expected = _canonical_full_report(
+            policy, canonical_full_evidence,
+            attempt_id=canonical_full_evidence["attempt_id"],
+            current_pin=report["current_pin"])
+        full_report_matches_rederived_evidence = report == expected
+        if not full_report_matches_rederived_evidence:
+            raise CertificationError(
+                "certification result differs from evidence re-derivation")
+        return canonical_full_evidence
     return evidence
 
 
@@ -4742,6 +4763,48 @@ def _indeterminate_report(policy: Policy, evidence: Mapping[str, Any], *,
     }
 
 
+def _canonical_full_report(
+        policy: Policy, evidence: Mapping[str, Any], *,
+        attempt_id: str, current_pin: str) -> dict[str, Any]:
+    _require_materializable_authority(policy, evidence)
+    attempt_root = Path(evidence["attempt_root"])
+    failed_drivers = {
+        workload: rc for workload, rc in evidence["driver_rcs"].items()
+        if rc != 0}
+    if failed_drivers:
+        report = _indeterminate_report(
+            policy, evidence, attempt_id=attempt_id,
+            current_pin=current_pin,
+            reason=f"compute driver exited nonzero: {failed_drivers}",
+        )
+    elif not evidence["raw_manifest_valid"]:
+        report = _indeterminate_report(
+            policy, evidence, attempt_id=attempt_id,
+            current_pin=current_pin,
+            reason=("verified raw manifest unavailable: "
+                    + str(evidence["raw_manifest_reason"])),
+        )
+    else:
+        try:
+            report = collect_results(
+                policy, evidence["raw_results"],
+                attempt_id=attempt_id, current_pin=current_pin,
+                request_ids=evidence["request_ids"],
+                frozen_files=evidence["raw_files"], attempt_root=attempt_root,
+            )
+        except AuthorityError:
+            raise
+        except (CertificationError, OSError, ValueError, TypeError,
+                KeyError, IndexError) as exc:
+            report = _indeterminate_report(
+                policy, evidence, attempt_id=attempt_id,
+                current_pin=current_pin, reason=str(exc),
+            )
+        else:
+            report["source_commit"] = evidence["source_commit"]
+    return report
+
+
 def _collect_command(args: argparse.Namespace) -> int:
     policy = _load_selected_policy(args)
     evidence = validate_acquisition_bundle(
@@ -4755,40 +4818,9 @@ def _collect_command(args: argparse.Namespace) -> int:
         report = _canonical_partial_report(
             policy, evidence, current_pin=args.current_pin)
     else:
-        failed_drivers = {
-            workload: rc for workload, rc in evidence["driver_rcs"].items()
-            if rc != 0}
-        if failed_drivers:
-            report = _indeterminate_report(
-                policy, evidence, attempt_id=attempt_id,
-                current_pin=args.current_pin,
-                reason=f"compute driver exited nonzero: {failed_drivers}",
-            )
-        elif not evidence["raw_manifest_valid"]:
-            report = _indeterminate_report(
-                policy, evidence, attempt_id=attempt_id,
-                current_pin=args.current_pin,
-                reason=("verified raw manifest unavailable: "
-                        + str(evidence["raw_manifest_reason"])),
-            )
-        else:
-            try:
-                report = collect_results(
-                    policy, evidence["raw_results"],
-                    attempt_id=attempt_id, current_pin=args.current_pin,
-                    request_ids=evidence["request_ids"],
-                    frozen_files=evidence["raw_files"], attempt_root=attempt_root,
-                )
-            except AuthorityError:
-                raise
-            except (CertificationError, OSError, ValueError, TypeError,
-                    KeyError, IndexError) as exc:
-                report = _indeterminate_report(
-                    policy, evidence, attempt_id=attempt_id,
-                    current_pin=args.current_pin, reason=str(exc),
-                )
-            else:
-                report["source_commit"] = evidence["source_commit"]
+        report = _canonical_full_report(
+            policy, evidence, attempt_id=attempt_id,
+            current_pin=args.current_pin)
     destination = materialize(policy, report, evidence, repo_root=args.repo_root)
     print(destination)
     return driver_rc(report)

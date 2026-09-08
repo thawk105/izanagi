@@ -1,0 +1,92 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 1200,
+  "mutations": [
+    {
+      "id": "M01-rederive-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "old": "        expected = _canonical_full_report(\n            policy, canonical_full_evidence,\n            attempt_id=canonical_full_evidence[\"attempt_id\"],\n            current_pin=report[\"current_pin\"])\n",
+          "new": "        expected = report\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M02-reread-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "old": "        canonical_full_evidence = validate_acquisition_bundle(\n            policy, acquisition_path, current_pin=report[\"current_pin\"])\n",
+          "new": "        canonical_full_evidence = evidence\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M03-always-reject",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "old": "        if not full_report_matches_rederived_evidence:\n",
+          "new": "        if True:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M04-equivalent-swap",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "old": "        full_report_matches_rederived_evidence = report == expected\n",
+          "new": "        full_report_matches_rederived_evidence = expected == report\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M05-return-supplied-evidence",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "old": "        return canonical_full_evidence\n",
+          "new": "        return evidence\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M06-reread-chain-check-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "old": "        if (canonical_full_evidence.get(\"acquisition_schema\") != ACQUISITION_SCHEMA\n                or canonical_full_evidence.get(\"completion_schema\")\n                != COMPLETION_SCHEMA):\n",
+          "new": "        if False:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
