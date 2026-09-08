@@ -8832,8 +8832,10 @@ def test_loop_enables_s2_extra_correctness_via_search_config():
                   do_bench=True, do_settle=True, src_token=None, log=print,
                   ccbench_dir="", cache_root="", *, authorization_contract,
                   build_context,
-                  capability_resolver=None, source_evidence=None):
+                  capability_resolver=None, source_evidence=None,
+                  verify_fanout_hosts=()):
         assert build_context is _BUILD_CONTEXT
+        assert verify_fanout_hosts == ()
         captured["extra_correctness"] = extra_correctness
         v = pipeline.variant_id(g, src_token or "stock")
         wal.log(layout, v, STAGE_BUILD_START, env_tag, {"genome": g.canonical()})
@@ -8880,8 +8882,10 @@ def test_loop_omits_extra_correctness_without_verify_search_config():
                   do_bench=True, do_settle=True, src_token=None, log=print,
                   ccbench_dir="", cache_root="", *, authorization_contract,
                   build_context,
-                  capability_resolver=None, source_evidence=None):
+                  capability_resolver=None, source_evidence=None,
+                  verify_fanout_hosts=()):
         assert build_context is _BUILD_CONTEXT
+        assert verify_fanout_hosts == ()
         captured["extra_correctness"] = extra_correctness
         v = pipeline.variant_id(g, src_token or "stock")
         wal.log(layout, v, STAGE_BUILD_START, env_tag, {"genome": g.canonical()})

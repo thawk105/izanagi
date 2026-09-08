@@ -13,16 +13,21 @@ fitness を付けない)。**I (isolation):** bench は bench_lock + settle で�
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import os
 import re
 import secrets
+import shlex
 import shutil
+import socket
 import subprocess
+import sys
 import tempfile
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
-from typing import Callable, Dict, List, Mapping, NamedTuple, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Mapping, NamedTuple, Optional, Sequence, Tuple
 
 from ..calibrator import perf_preflight as _perf_preflight                # noqa: E402
 from ..calibrator.analyze import noise_floor                     # noqa: E402
@@ -38,6 +43,7 @@ from ..verifier import (                                        # noqa: E402
     verify_trace_dir_with_capability,
 )
 from ..verifier.commit_receipt import (                          # noqa: E402
+    admit_remote_verification_receipt,
     campaign_lock_sha256_or_absent,
 )
 from ..verifier.parse import ParseError                           # noqa: E402
@@ -45,12 +51,14 @@ from ..verifier.model import (                                   # noqa: E402
     capture_compiled_protocol_source_snapshot,
 )
 
-from . import (buildcache, env_contract as _env_contract, execution_guard, ident,
+from . import (buildcache, campaign_lock as _campaign_lock,
+               env_contract as _env_contract, execution_guard, ident,
                source_digest, wal)  # noqa: E402
 from .build_admission import (  # noqa: E402
     BuildAdmission,
     BuildAdmissionError,
     BuildRunContext,
+    GeneratorId,
     GeneratorReceipt,
     ReviewReceipt,
     derive_build_admission,
@@ -73,7 +81,10 @@ from .model import (COMMIT_CONTRACT_SHA256_KEY, Genome, STAGE_ABORT,
                     STAGE_VERIFY_DONE)
 from .reflux_ir import TriggerGateIR, emit_predicate             # noqa: E402
 from .trigger_gate_binding import SourceBinding, TriggerGateBinding
-from .source_digest import SourceEvidence                         # noqa: E402
+from .source_digest import (                                     # noqa: E402
+    SourceEvidence,
+    serialize_compiled_protocol_source_snapshot,
+)
 
 _DEFAULT_CXX = buildcache.DEFAULT_CXX
 _compilers_for_current_site = buildcache.compilers_for_current_site
@@ -444,6 +455,584 @@ def _run_trace(binary: str, trace_dir: str, flags: Dict[str, str],
         commit_count_witness=commit_witness,
         batch_commit_count_witness=batch_witness,
     )
+
+
+@dataclass(frozen=True)
+class _RepetitionAbortOutcome:
+    """WAL-independent projection of one existing verification abort."""
+
+    reason: str
+    message: str
+    detail: Dict[str, Any]
+    workload_tag: str
+
+
+@dataclass(frozen=True)
+class _RepetitionExecutionOutcome:
+    """One repetition result before the owning process writes its WAL."""
+
+    verify_payload: Optional[Dict[str, Any]] = None
+    verification_capability: Optional[object] = None
+    abort: Optional[_RepetitionAbortOutcome] = None
+
+
+def _execute_verification_repetition(
+        binary: str, trace_dir: str, flags: Mapping[str, str],
+        clocks_per_us: int, *, timeout_s: float,
+        numactl: Optional[Sequence[str]], genome: Genome,
+        source_evidence: SourceEvidence, build_admission: BuildAdmission,
+        receipt_sink_kind: str, receipt_lock_identity_sha256: str,
+        receipt_variant: str, receipt_operation_identity: str,
+        receipt_workload_tag: str, build_attempt_id: str,
+        trace_binary_sha256: str, include_qualification_evidence: bool,
+        payload_binary: Optional[str] = None,
+        trace_runner: Optional[Callable[..., _TraceRunResult]] = None,
+        verifier_runner: Optional[Callable[..., tuple[object, object]]] = None,
+) -> _RepetitionExecutionOutcome:
+    """Run the existing trace witness and verifier gates without WAL access.
+
+    The caller owns trace-directory creation/removal and projects this outcome
+    to its local sink.  Optional callables are narrow test seams; production
+    resolves the live module bindings so existing pipeline patch fixtures keep
+    exercising this executor.
+    """
+    run_trace = _run_trace if trace_runner is None else trace_runner
+    run_verifier = (
+        verify_trace_dir_with_capability
+        if verifier_runner is None else verifier_runner
+    )
+
+    def abort(
+            reason: str, message: str, detail: Optional[Dict[str, Any]] = None,
+    ) -> _RepetitionExecutionOutcome:
+        return _RepetitionExecutionOutcome(abort=_RepetitionAbortOutcome(
+            reason=reason,
+            message=message,
+            detail=dict(detail or {}),
+            workload_tag=receipt_workload_tag,
+        ))
+
+    try:
+        trace_result = run_trace(
+            binary, trace_dir, dict(flags), clocks_per_us,
+            timeout_s=timeout_s, numactl=numactl,
+        )
+    except subprocess.TimeoutExpired:
+        return abort(
+            "trace-timeout",
+            f"trace 取得タイムアウト ({receipt_workload_tag}) → reject",
+            {"timeout_s": timeout_s},
+        )
+    except _TraceDirNotEmpty as exc:
+        return abort(
+            "trace-no-commit-witness",
+            f"trace_dir に既存 trace がある ({receipt_workload_tag}) → "
+            "witness を帰属できず reject",
+            {
+                "commit_witness": {
+                    "commit_counts": None,
+                    "batch_commit_counts": None,
+                },
+                "preexisting_trace_files": list(exc.paths),
+            },
+        )
+    except _TraceDirUnavailable as exc:
+        return abort(
+            "trace-no-commit-witness",
+            f"trace_dir を検査できない ({exc.reason}, {receipt_workload_tag}) → "
+            "witness を帰属できず reject",
+            {
+                "commit_witness": {
+                    "commit_counts": None,
+                    "batch_commit_counts": None,
+                },
+                "trace_dir": exc.path,
+                "trace_dir_error": exc.reason,
+            },
+        )
+    except _TraceWitnessUnsupportedWorkload as exc:
+        return abort(
+            "trace-witness-unsupported-workload",
+            f"commit witness 未対応 workload ({exc.workload}, "
+            f"{receipt_workload_tag}) → reject",
+            {
+                "commit_witness": {
+                    "commit_counts": None,
+                    "batch_commit_counts": None,
+                },
+                "binary_workload": exc.workload,
+            },
+        )
+
+    ncommit = trace_result.trace_c_lines
+    rc = trace_result.returncode
+    aborts = trace_result.abort_counts
+    commit_witness = {
+        "commit_counts": trace_result.commit_count_witness,
+        "batch_commit_counts": trace_result.batch_commit_count_witness,
+    }
+    if rc != 0:
+        return abort(
+            "trace-run-nonzero-exit",
+            f"trace バイナリ異常終了 ({receipt_workload_tag}) rc={rc} → reject",
+            {"rc": rc, "commits": ncommit},
+        )
+    if ncommit == 0:
+        return abort(
+            "trace-empty",
+            f"空トレース ({receipt_workload_tag}, commit 0) → 検証不能 reject",
+            {"commits": 0, "aborts": aborts},
+        )
+    if aborts is None:
+        return abort(
+            "trace-no-abort-counts",
+            f"ccbench stdout に abort_counts_ 集計が無い "
+            f"({receipt_workload_tag}) → 空振り認証を検査できず reject",
+            {"commits": ncommit},
+        )
+    if (trace_result.commit_count_witness is None
+            or trace_result.batch_commit_count_witness is None):
+        return abort(
+            "trace-no-commit-witness",
+            f"ccbench stdout の commit witness が欠落または不正 "
+            f"({receipt_workload_tag}) → reject",
+            {"commits": ncommit, "commit_witness": commit_witness},
+        )
+    if trace_result.batch_commit_count_witness != 0:
+        return abort(
+            "trace-batch-commits-unattributed",
+            f"batch commit を trace C 行へ帰属できない "
+            f"({receipt_workload_tag}) → reject",
+            {"commits": ncommit, "commit_witness": commit_witness},
+        )
+    try:
+        verify_result, verification_capability = run_verifier(
+            trace_dir,
+            expected_commits=trace_result.commit_count_witness,
+            genome=genome,
+            source_evidence=source_evidence,
+            build_admission=build_admission,
+            receipt_sink_kind=receipt_sink_kind,
+            receipt_lock_identity_sha256=receipt_lock_identity_sha256,
+            receipt_variant=receipt_variant,
+            receipt_operation_identity=receipt_operation_identity,
+            receipt_workload_tag=receipt_workload_tag,
+        )
+    except ParseError as exc:
+        return abort(
+            "trace-parse-error",
+            f"trace パース不能 ({receipt_workload_tag}) → reject ({exc})",
+            {"error": _exc_summary(exc)},
+        )
+
+    verify_payload: Dict[str, Any] = {
+        "build_attempt_id": build_attempt_id,
+        "verdict": verify_result.verdict,
+        "certified": verify_result.certified,
+        "commits": ncommit,
+        "aborts": aborts,
+        "commit_witness": commit_witness,
+        "anomalies": len(verify_result.anomalies),
+        "workload": {"tag": receipt_workload_tag},
+        "proof_surfaces": verify_result.integrity.proof_surfaces.as_record(),
+    }
+    if include_qualification_evidence:
+        verify_payload.update({
+            "argv": (
+                list(numactl or ())
+                + [payload_binary or binary]
+                + [f"-{key}={value}" for key, value in flags.items()]
+                + [f"-clocks_per_us={clocks_per_us}"]
+            ),
+            "binary_sha256": trace_binary_sha256,
+        })
+    rejected = None
+    if not verify_result.certified:
+        diagnostic = result_to_dict(verify_result)
+        diagnostic.pop("trace_dir", None)
+        rejected = _RepetitionAbortOutcome(
+            reason=verify_result.verdict,
+            message=(
+                f"正しさゲート不通過 ({verify_result.verdict}, "
+                f"{receipt_workload_tag}) → reject"
+            ),
+            detail={"verify": diagnostic},
+            workload_tag=receipt_workload_tag,
+        )
+    return _RepetitionExecutionOutcome(
+        verify_payload=verify_payload,
+        verification_capability=verification_capability,
+        abort=rejected,
+    )
+
+
+_VERIFY_FANOUT_TASK_SCHEMA = "verify-fanout-task/v1"
+_VERIFY_FANOUT_RESULT_SCHEMA = "verify-fanout-result/v1"
+_VERIFY_FANOUT_COMPONENT_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+
+
+def _canonical_json_bytes(value: object) -> bytes:
+    return json.dumps(
+        value, ensure_ascii=True, sort_keys=True, separators=(",", ":"),
+        allow_nan=False,
+    ).encode("ascii")
+
+
+def _json_sha256(value: object) -> str:
+    return hashlib.sha256(_canonical_json_bytes(value)).hexdigest()
+
+
+def _write_create_only_json(path: str, value: object) -> None:
+    """Publish one canonical JSON object without replacing prior evidence."""
+    encoded = _canonical_json_bytes(value) + b"\n"
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+    descriptor = os.open(path, flags, 0o600)
+    try:
+        offset = 0
+        while offset < len(encoded):
+            written = os.write(descriptor, encoded[offset:])
+            if written <= 0:
+                raise OSError("short create-only JSON write")
+            offset += written
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+    parent = os.open(
+        os.path.dirname(path) or ".",
+        os.O_RDONLY | getattr(os, "O_DIRECTORY", 0),
+    )
+    try:
+        os.fsync(parent)
+    finally:
+        os.close(parent)
+
+
+def _read_exact_json(path: str) -> dict[str, Any]:
+    def exact_object(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError(f"duplicate JSON key: {key}")
+            result[key] = value
+        return result
+
+    descriptor = os.open(
+        path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0),
+    )
+    try:
+        with os.fdopen(descriptor, "rb") as stream:
+            raw = stream.read()
+            descriptor = -1
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+    value = json.loads(raw.decode("ascii"), object_pairs_hook=exact_object)
+    if type(value) is not dict or raw != _canonical_json_bytes(value) + b"\n":
+        raise ValueError("JSON evidence is not one canonical object")
+    return value
+
+
+def _current_repo_head(repo_root: str) -> str:
+    return subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=repo_root, check=True,
+        capture_output=True, text=True,
+    ).stdout.strip()
+
+
+def _campaign_lock_contract_loader_binding(
+        layout: CampaignLayout,
+) -> tuple[str, dict[str, str]]:
+    """Read the fixed enforcement closure from this campaign's v2 lock."""
+    lock_text = wal.read_lock(layout)
+    if type(lock_text) is not str or not lock_text:
+        raise ValueError("verify fan-out requires a campaign-lock/v2 authority")
+    decoded = _campaign_lock.decode_campaign_lock(lock_text)
+    authority = decoded.authority
+    if authority is None:
+        raise ValueError("verify fan-out requires a campaign-lock/v2 authority")
+    return (
+        authority.contract_loader_commit,
+        dict(authority.contract_loader_blob_sha256s),
+    )
+
+
+def _make_verify_fanout_task(
+        *, campaign_lock_sha256: str, variant: str, build_attempt_id: str,
+        tag: str, rep: int, trace_binary: str, trace_bin_sha256: str,
+        workload_flags: Mapping[str, str], clocks_per_us: int,
+        numactl_prefix: Sequence[str], genome: Genome,
+        source_evidence: SourceEvidence, build_admission: BuildAdmission,
+        receipt_sink_kind: str, expected_repo_head: str,
+        contract_loader_blob_sha256s: Mapping[str, str],
+        generator_id: GeneratorId,
+) -> dict[str, Any]:
+    if (type(trace_binary) is not str or not os.path.isabs(trace_binary)
+            or type(rep) is not int or isinstance(rep, bool) or rep < 1
+            or type(workload_flags) is not dict
+            or any(type(key) is not str or not key or type(value) is not str
+                   for key, value in workload_flags.items())
+            or type(numactl_prefix) not in {tuple, list}
+            or any(type(item) is not str or not item for item in numactl_prefix)):
+        raise ValueError("verify fan-out task inputs are not exact")
+    if (receipt_sink_kind != CAMPAIGN_WAL_SINK
+            or generator_id is not GeneratorId.BACKOFF_REPRO
+            or type(contract_loader_blob_sha256s) is not dict
+            or not contract_loader_blob_sha256s
+            or any(type(path) is not str or not path
+                   or type(digest) is not str
+                   or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+                   for path, digest in contract_loader_blob_sha256s.items())
+            or source_evidence.proof_source_snapshot is None):
+        raise ValueError("verify fan-out task is outside the admitted scope")
+    body: dict[str, Any] = {
+        "schema": _VERIFY_FANOUT_TASK_SCHEMA,
+        "campaign_lock_sha256": campaign_lock_sha256,
+        "variant": variant,
+        "build_attempt_id": build_attempt_id,
+        "tag": tag,
+        "rep": rep,
+        "trace_binary": trace_binary,
+        "trace_bin_sha256": trace_bin_sha256,
+        "workload_flags": [
+            [key, value] for key, value in workload_flags.items()
+        ],
+        "clocks_per_us": clocks_per_us,
+        "numactl_prefix": list(numactl_prefix),
+        "TRACE_TIMEOUT_S": TRACE_TIMEOUT_S,
+        "genome": genome.canonical(),
+        "source_evidence": source_evidence.as_receipt(),
+        "proof_source_snapshot": (
+            serialize_compiled_protocol_source_snapshot(
+                source_evidence.proof_source_snapshot
+            )
+        ),
+        "build_admission": dict(build_admission.as_wal_receipt()),
+        "receipt_sink_kind": receipt_sink_kind,
+        "generator_id": generator_id.value,
+        "expected_repo_head": expected_repo_head,
+        "contract_loader_blob_sha256s": dict(
+            contract_loader_blob_sha256s
+        ),
+    }
+    return {**body, "task_sha256": _json_sha256(body)}
+
+
+def _default_verify_fanout_launcher(
+        host: str, task_path: str, result_path: str, result_secret: bytes,
+) -> subprocess.CompletedProcess:
+    if type(result_secret) is not bytes or len(result_secret) != 32:
+        raise ValueError("verify fan-out result secret must be exactly 32 bytes")
+    pbs_jobid = os.environ["PBS_JOBID"]
+    repo_root = os.path.realpath(os.path.join(os.path.dirname(__file__), "../.."))
+    remote_command = (
+        f"cd {shlex.quote(repo_root)} && exec env "
+        f"PBS_JOBID={shlex.quote(pbs_jobid)} {shlex.quote(sys.executable)} "
+        "-B -m orchestrator.campaign.verify_fanout_worker "
+        f"--task {shlex.quote(task_path)} --result {shlex.quote(result_path)}"
+    )
+    return subprocess.run(
+        [
+            "ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=no",
+            # OpenSSH joins all post-host argv with spaces before the remote
+            # shell parses them.  Keep quotes in that wire command so bash -c
+            # receives the complete ``cd ... && exec ...`` string as argv[0].
+            host, "bash", "-c", shlex.quote(remote_command),
+        ],
+        capture_output=True, input=result_secret,
+    )
+
+
+def _remote_unavailable_outcome(
+        *, host: str, rep: int, rc: Optional[int], stderr: str,
+        error: Optional[str] = None,
+) -> _RepetitionExecutionOutcome:
+    stderr_tail = stderr[-2000:]
+    if error:
+        stderr_tail = (stderr_tail + ("\n" if stderr_tail else "") + error)[-2000:]
+    return _RepetitionExecutionOutcome(abort=_RepetitionAbortOutcome(
+        reason="verify-remote-unavailable",
+        message=(
+            f"remote verify result を確定できない "
+            f"(host={host}, rep={rep}) → reject"
+        ),
+        detail={
+            "remote": {
+                "host": host,
+                "rep": rep,
+                "rc": rc,
+                "stderr_tail": stderr_tail,
+            },
+        },
+        workload_tag="",
+    ))
+
+
+def _admit_verify_fanout_result(
+        task: Mapping[str, Any], *, host: str, result_path: str,
+        launch_result: object, result_secret: bytes,
+        admitted_task_sha256s: Optional[set[str]] = None,
+) -> _RepetitionExecutionOutcome:
+    """Validate one worker result and issue only task-bound main evidence."""
+    rc = getattr(launch_result, "returncode", None)
+    stderr = getattr(launch_result, "stderr", "")
+    if type(stderr) is bytes:
+        stderr = stderr.decode("utf-8", errors="backslashreplace")
+    if type(stderr) is not str:
+        stderr = repr(stderr)
+    rep = task.get("rep")
+    tag = task.get("tag")
+    if type(rep) is not int or isinstance(rep, bool) or type(tag) is not str:
+        return _remote_unavailable_outcome(
+            host=host, rep=(-1 if type(rep) is not int else rep), rc=rc,
+            stderr=stderr, error="head task identity is malformed",
+        )
+    if type(rc) is not int or isinstance(rc, bool) or rc != 0:
+        unavailable = _remote_unavailable_outcome(
+            host=host, rep=rep, rc=rc, stderr=stderr,
+        )
+        return _RepetitionExecutionOutcome(
+            abort=_RepetitionAbortOutcome(
+                unavailable.abort.reason, unavailable.abort.message,
+                unavailable.abort.detail, tag,
+            )
+        )
+    try:
+        result = _read_exact_json(result_path)
+        unsigned_result = dict(result)
+        result_mac = unsigned_result.pop("result_mac", None)
+        if (type(result_secret) is not bytes or len(result_secret) != 32
+                or type(result_mac) is not str
+                or re.fullmatch(r"[0-9a-f]{64}", result_mac) is None
+                or not hmac.compare_digest(
+                    result_mac,
+                    hmac.new(
+                        result_secret, _canonical_json_bytes(unsigned_result),
+                        hashlib.sha256,
+                    ).hexdigest(),
+                )):
+            raise ValueError("remote result HMAC mismatch or missing")
+        if set(result) != {
+                "schema", "task_sha256", "build_attempt_id", "tag", "rep",
+                "trace_bin_sha256", "outcome", "result_mac"}:
+            raise ValueError("remote result key set mismatch")
+        if (result["schema"] != _VERIFY_FANOUT_RESULT_SCHEMA
+                or result["task_sha256"] != task["task_sha256"]
+                or result["build_attempt_id"] != task["build_attempt_id"]
+                or result["tag"] != tag
+                or result["rep"] != rep
+                or result["trace_bin_sha256"] != task["trace_bin_sha256"]):
+            raise ValueError("remote result task echo mismatch")
+        if admitted_task_sha256s is not None:
+            if type(admitted_task_sha256s) is not set:
+                raise TypeError("admitted task set must be exact set")
+            if result["task_sha256"] in admitted_task_sha256s:
+                raise ValueError("remote task was already admitted")
+            admitted_task_sha256s.add(result["task_sha256"])
+        outcome = result["outcome"]
+        if type(outcome) is not dict or type(outcome.get("kind")) is not str:
+            raise ValueError("remote result outcome is malformed")
+
+        def validate_verify_payload(
+                verify_payload: object, *, require_certified: bool,
+        ) -> Dict[str, Any]:
+            expected_verify_keys = {
+                "build_attempt_id", "verdict", "certified", "commits", "aborts",
+                "commit_witness", "anomalies", "workload", "proof_surfaces",
+            }
+            if task["receipt_sink_kind"] == QUALIFICATION_SINK:
+                expected_verify_keys.update({"argv", "binary_sha256"})
+            if (type(verify_payload) is not dict
+                    or set(verify_payload) != expected_verify_keys
+                    or verify_payload.get("build_attempt_id")
+                    != task["build_attempt_id"]
+                    or type(verify_payload.get("verdict")) is not str
+                    or not verify_payload.get("verdict")
+                    or verify_payload.get("certified") is not require_certified
+                    or verify_payload.get("workload") != {"tag": tag}):
+                raise ValueError("remote verify payload binding mismatch")
+            if task["receipt_sink_kind"] == QUALIFICATION_SINK:
+                expected_argv = (
+                    list(task["numactl_prefix"])
+                    + [task["trace_binary"]]
+                    + [f"-{key}={value}" for key, value in task["workload_flags"]]
+                    + [f"-clocks_per_us={task['clocks_per_us']}"]
+                )
+                if (verify_payload["argv"] != expected_argv
+                        or verify_payload["binary_sha256"]
+                        != task["trace_bin_sha256"]):
+                    raise ValueError("remote qualification payload binding mismatch")
+            return verify_payload
+
+        if outcome["kind"] == "abort":
+            if set(outcome) != {
+                    "kind", "reason", "message", "detail", "workload_tag",
+                    "verify_payload"}:
+                raise ValueError("remote abort outcome key set mismatch")
+            if (type(outcome["reason"]) is not str or not outcome["reason"]
+                    or type(outcome["message"]) is not str
+                    or type(outcome["detail"]) is not dict
+                    or outcome["workload_tag"] != tag
+                    or (outcome["verify_payload"] is not None
+                        and type(outcome["verify_payload"]) is not dict)):
+                raise ValueError("remote abort outcome binding mismatch")
+            if outcome["verify_payload"] is not None:
+                validate_verify_payload(
+                    outcome["verify_payload"], require_certified=False,
+                )
+            detail = dict(outcome["detail"])
+            if outcome["reason"] == "verify-remote-unavailable":
+                detail = {
+                    **detail,
+                    "remote": {
+                        "host": host, "rep": rep, "rc": rc,
+                        "stderr_tail": stderr[-2000:],
+                    },
+                }
+            return _RepetitionExecutionOutcome(
+                verify_payload=outcome["verify_payload"],
+                abort=_RepetitionAbortOutcome(
+                    outcome["reason"], outcome["message"], detail, tag,
+                ),
+            )
+        if outcome["kind"] != "success" or set(outcome) != {
+                "kind", "verify_payload", "remote_verification_receipt"}:
+            raise ValueError("remote success outcome key set mismatch")
+        verify_payload = outcome["verify_payload"]
+        validate_verify_payload(verify_payload, require_certified=True)
+        if verify_payload["verdict"] != "serializable":
+            raise ValueError("remote success verdict is not serializable")
+        remote_receipt = outcome["remote_verification_receipt"]
+        if (type(remote_receipt) is not dict
+                or remote_receipt.get("sink_kind")
+                != task["receipt_sink_kind"]
+                or remote_receipt.get("verify_payload_sha256")
+                != _json_sha256(verify_payload)):
+            raise ValueError("remote receipt sink binding mismatch")
+        remote_evidence = admit_remote_verification_receipt(
+            remote_receipt,
+            expected_task_sha256=task["task_sha256"],
+            lock_identity_sha256=task["campaign_lock_sha256"],
+            variant=task["variant"],
+            operation_identity=task["build_attempt_id"],
+            workload_tag=tag,
+            authenticated_result=result,
+            result_secret=result_secret,
+        )
+        return _RepetitionExecutionOutcome(
+            verify_payload=verify_payload,
+            verification_capability=remote_evidence,
+        )
+    except Exception as exc:  # all malformed/missing remote evidence fails closed
+        unavailable = _remote_unavailable_outcome(
+            host=host, rep=rep, rc=rc, stderr=stderr,
+            error=_exc_summary(exc),
+        )
+        return _RepetitionExecutionOutcome(
+            abort=_RepetitionAbortOutcome(
+                unavailable.abort.reason, unavailable.abort.message,
+                unavailable.abort.detail, tag,
+            )
+        )
 
 
 @dataclass(frozen=True)
@@ -947,6 +1536,8 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
              use_perf: bool = True,
              perf_preflight_receipt: Optional[dict] = None,
              canonical_build_pin: Optional[str] = None,
+             verify_fanout_hosts: tuple[str, ...] = (),
+             verify_fanout_launcher: Optional[Callable[..., object]] = None,
              ) -> EvalResult | _PreparedEvaluation:
     """Build and verify one genome, preserving state for later bench/commit.
 
@@ -1018,6 +1609,17 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
         raise TypeError("trigger_gate_binding は exact TriggerGateBinding または None が必要")
     if capability_resolver is not None and not callable(capability_resolver):
         raise TypeError("capability_resolver は callable または None が必要")
+    if (type(verify_fanout_hosts) is not tuple
+            or any(type(host) is not str
+                   or _VERIFY_FANOUT_COMPONENT_RE.fullmatch(host) is None
+                   for host in verify_fanout_hosts)):
+        raise ValueError("verify_fanout_hosts は safe hostname の exact tuple が必要")
+    if (len(set(verify_fanout_hosts)) != len(verify_fanout_hosts)
+            or socket.gethostname() in verify_fanout_hosts):
+        raise ValueError("verify_fanout_hosts は重複と current host を含められない")
+    if (verify_fanout_launcher is not None
+            and not callable(verify_fanout_launcher)):
+        raise TypeError("verify_fanout_launcher は callable または None が必要")
     if type(use_perf) is not bool:
         raise TypeError("use_perf は bool でなければならない")
     if (isinstance(bench_max_rounds, bool) or not isinstance(bench_max_rounds, int)
@@ -1447,6 +2049,34 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
     #     (S2 等・bench 並みの負荷) を順に全て通す (verify 2 本立て, D36 決定2/4) ---
     verification_capabilities = []
 
+    def _project_repetition_outcome(
+            tag: str, outcome: _RepetitionExecutionOutcome,
+    ) -> Optional[EvalResult]:
+        """Preserve local verify_done, abort, and capability ordering."""
+        # Every repetition owns the visible verdict.  A remote pre-verifier
+        # abort must not retain rep 0's successful verdict.
+        res.verdict = ""
+        if outcome.verify_payload is not None:
+            verify_payload = outcome.verify_payload
+            res.verdict = str(verify_payload["verdict"])
+            emit(layout, v, STAGE_VERIFY_DONE, env_tag, verify_payload)
+            log(
+                f"  [eval {v}] verify[{tag}]: {verify_payload['verdict']} "
+                f"({verify_payload['commits']} commits, "
+                f"{verify_payload['aborts']} aborts, "
+                f"{verify_payload['anomalies']} anomalies)"
+            )
+        if outcome.abort is not None:
+            rejected = outcome.abort
+            return _abort(
+                rejected.reason, rejected.message, rejected.detail,
+                workload_tag=rejected.workload_tag,
+            )
+        if outcome.verification_capability is None:
+            raise AssertionError("successful verification has no capability")
+        verification_capabilities.append(outcome.verification_capability)
+        return None
+
     def _run_one_repetition(
             tag: str, workload: CorrectnessWorkload,
             pass_numactl: Optional[Sequence[str]],
@@ -1460,150 +2090,21 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
         # TMPDIR 配下 (明示されていなければ環境既定の /tmp)。
         tdir = tempfile.mkdtemp(prefix=f"izanagi_eval_trace_{tag}_")
         try:
-            try:
-                trace_result = _run_trace(
-                    tr.binary, tdir, workload.flags,
-                    clocks_per_us, numactl=pass_numactl,
-                )
-            except subprocess.TimeoutExpired:
-                return _abort("trace-timeout", f"trace 取得タイムアウト ({tag}) → reject",
-                              {"timeout_s": TRACE_TIMEOUT_S}, workload_tag=tag)
-            except _TraceDirNotEmpty as e:
-                return _abort(
-                    "trace-no-commit-witness",
-                    f"trace_dir に既存 trace がある ({tag}) → witness を帰属できず reject",
-                    {
-                        "commit_witness": {
-                            "commit_counts": None,
-                            "batch_commit_counts": None,
-                        },
-                        "preexisting_trace_files": list(e.paths),
-                    },
-                    workload_tag=tag,
-                )
-            except _TraceDirUnavailable as e:
-                return _abort(
-                    "trace-no-commit-witness",
-                    f"trace_dir を検査できない ({e.reason}, {tag}) → "
-                    "witness を帰属できず reject",
-                    {
-                        "commit_witness": {
-                            "commit_counts": None,
-                            "batch_commit_counts": None,
-                        },
-                        "trace_dir": e.path,
-                        "trace_dir_error": e.reason,
-                    },
-                    workload_tag=tag,
-                )
-            except _TraceWitnessUnsupportedWorkload as e:
-                return _abort(
-                    "trace-witness-unsupported-workload",
-                    f"commit witness 未対応 workload ({e.workload}, {tag}) → reject",
-                    {
-                        "commit_witness": {
-                            "commit_counts": None,
-                            "batch_commit_counts": None,
-                        },
-                        "binary_workload": e.workload,
-                    },
-                    workload_tag=tag,
-                )
-            ncommit = trace_result.trace_c_lines
-            rc = trace_result.returncode
-            aborts = trace_result.abort_counts
-            commit_witness = {
-                "commit_counts": trace_result.commit_count_witness,
-                "batch_commit_counts": trace_result.batch_commit_count_witness,
-            }
-            # 異常終了・空トレースは「正しさ未確定」。verifier に渡すと空 DSG が
-            # serializable=True に化け false-green になる (規律2 違反) → 手前で reject。
-            if rc != 0:
-                return _abort("trace-run-nonzero-exit",
-                              f"trace バイナリ異常終了 ({tag}) rc={rc} → reject",
-                              {"rc": rc, "commits": ncommit}, workload_tag=tag)
-            if ncommit == 0:
-                # aborts も載せる: 「回っているが全 abort (commit 枯渇)」と「そもそも回って
-                # いない」を WAL から区別する (sort 変異の主要失敗形態の分離, 規律3)。None の
-                # まま記録可 — abort_counts_ 行が出る前に死んだ、の可視化 (判定順で ncommit==0
-                # がこの検査より先に来るため None がありうる)。
-                return _abort("trace-empty",
-                              f"空トレース ({tag}, commit 0) → 検証不能 reject",
-                              {"commits": 0, "aborts": aborts}, workload_tag=tag)
-            if aborts is None:
-                # abort 数は「合成枝 (abort-path) が verify 中に実行された証拠」(phase3.md
-                # 完了条件 2 / 残存リスク = 空振り認証)。取れない run を certified にすると
-                # その検査可能性ごと落ちる → fails-closed で reject (規律3: 計器の故障を沈黙させない)。
-                return _abort("trace-no-abort-counts",
-                              f"ccbench stdout に abort_counts_ 集計が無い ({tag}) → "
-                              "空振り認証を検査できず reject", {"commits": ncommit},
-                              workload_tag=tag)
-            if (trace_result.commit_count_witness is None
-                    or trace_result.batch_commit_count_witness is None):
-                return _abort(
-                    "trace-no-commit-witness",
-                    f"ccbench stdout の commit witness が欠落または不正 ({tag}) → reject",
-                    {"commits": ncommit, "commit_witness": commit_witness},
-                    workload_tag=tag,
-                )
-            if trace_result.batch_commit_count_witness != 0:
-                return _abort(
-                    "trace-batch-commits-unattributed",
-                    f"batch commit を trace C 行へ帰属できない ({tag}) → reject",
-                    {"commits": ncommit, "commit_witness": commit_witness},
-                    workload_tag=tag,
-                )
-            try:
-                vr, verification_capability = verify_trace_dir_with_capability(
-                    tdir,
-                    expected_commits=trace_result.commit_count_witness,
-                    genome=genome,
-                    source_evidence=evidence,
-                    build_admission=admission,
-                    receipt_sink_kind=receipt_sink_kind,
-                    receipt_lock_identity_sha256=receipt_lock_identity,
-                    receipt_variant=v,
-                    receipt_operation_identity=build_attempt_id,
-                    receipt_workload_tag=tag,
-                )
-            except ParseError as e:
-                return _abort("trace-parse-error", f"trace パース不能 ({tag}) → reject ({e})",
-                              {"error": _exc_summary(e)}, workload_tag=tag)
-            res.verdict = vr.verdict
-            verify_payload = {
-                "build_attempt_id": build_attempt_id,
-                "verdict": vr.verdict, "certified": vr.certified,
-                "commits": ncommit, "aborts": aborts,
-                "commit_witness": commit_witness,
-                "anomalies": len(vr.anomalies), "workload": {"tag": tag},
-                "proof_surfaces": vr.integrity.proof_surfaces.as_record(),
-            }
-            if qualification_policy is not None:
-                verify_payload.update({
-                    "argv": (
-                        list(pass_numactl or ())
-                        + [tr.binary]
-                        + [f"-{key}={value}" for key, value in workload.flags.items()]
-                        + [f"-clocks_per_us={clocks_per_us}"]
-                    ),
-                    "binary_sha256": tr.bin_sha256,
-                })
-            emit(layout, v, STAGE_VERIFY_DONE, env_tag, verify_payload)
-            log(f"  [eval {v}] verify[{tag}]: {vr.verdict} ({ncommit} commits, {aborts} "
-                f"aborts, {len(vr.anomalies)} anomalies)")
-            if not vr.certified:
-                # 正しさを破る/確証できない variant は即 reject。fitness を付けない (規律2)。
-                # 規律3 (IDS の教訓): なぜ壊れたか (どの trx 間の・どの依存 ww/wr/rw で・どの版で
-                # cycle ができたか + integrity) + どの構成 (workload タグ) で壊れたかを構造化して
-                # abort payload に載せ、次手生成 (critic/planner) が読めるようにする
-                # (digest.load_rejections が読む経路)。Phase 2 は全緑で発火しないが、LLM が
-                # RED variant を出す Phase 3 でこれが load-bearing になる。
-                vdict = result_to_dict(vr)
-                vdict.pop("trace_dir", None)        # 使い捨て tmpdir = WAL に残す価値なし
-                return _abort(vr.verdict, f"正しさゲート不通過 ({vr.verdict}, {tag}) → reject",
-                              {"verify": vdict}, workload_tag=tag)
-            verification_capabilities.append(verification_capability)
-            return None
+            outcome = _execute_verification_repetition(
+                tr.binary, tdir, workload.flags, clocks_per_us,
+                timeout_s=TRACE_TIMEOUT_S, numactl=pass_numactl,
+                genome=genome, source_evidence=evidence,
+                build_admission=admission, receipt_sink_kind=receipt_sink_kind,
+                receipt_lock_identity_sha256=receipt_lock_identity,
+                receipt_variant=v,
+                receipt_operation_identity=build_attempt_id,
+                receipt_workload_tag=tag,
+                build_attempt_id=build_attempt_id,
+                trace_binary_sha256=tr.bin_sha256,
+                include_qualification_evidence=(qualification_policy is not None),
+                payload_binary=tr.binary,
+            )
+            return _project_repetition_outcome(tag, outcome)
         finally:
             shutil.rmtree(tdir, ignore_errors=True)
 
@@ -1616,6 +2117,141 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
             aborted = _run_one_repetition(tag, workload, pass_numactl)
             if aborted is not None:
                 return aborted
+        return None
+
+    def _run_fanout_pass(
+            tag: str, workload: CorrectnessWorkload,
+            pass_numactl: Optional[Sequence[str]],
+    ) -> Optional[EvalResult]:
+        """Run rep 0 locally and later reps on sibling hosts in bounded waves."""
+        if type(workload.reps) is not int or workload.reps <= 0:
+            raise ValueError("correctness workload reps must be a positive exact integer")
+        if workload.reps == 1:
+            return _run_one_repetition(tag, workload, pass_numactl)
+
+        try:
+            (
+                expected_repo_head,
+                contract_loader_blob_sha256s,
+            ) = _campaign_lock_contract_loader_binding(layout)
+        except Exception as exc:
+            return _abort(
+                "verify-remote-unavailable",
+                f"campaign lock の remote closure を確定できない "
+                f"({tag}) → reject",
+                {"remote": {
+                    "host": verify_fanout_hosts[0], "rep": 1, "rc": None,
+                    "stderr_tail": _exc_summary(exc)[-2000:],
+                }},
+                workload_tag=tag,
+            )
+        parent = os.path.join(layout.root, "verify-fanout", v)
+        os.makedirs(parent, mode=0o700, exist_ok=True)
+        tasks: dict[
+            int, tuple[str, str, str, dict[str, Any], bytes]
+        ] = {}
+        for rep in range(1, workload.reps):
+            host = verify_fanout_hosts[(rep - 1) % len(verify_fanout_hosts)]
+            leaf_name = f"{tag}-{rep}"
+            if (_VERIFY_FANOUT_COMPONENT_RE.fullmatch(v) is None
+                    or _VERIFY_FANOUT_COMPONENT_RE.fullmatch(tag) is None):
+                return _abort(
+                    "verify-remote-unavailable",
+                    f"fan-out evidence path identity が不正 ({tag}, rep={rep}) → reject",
+                    {"remote": {
+                        "host": host, "rep": rep, "rc": None,
+                        "stderr_tail": "unsafe fan-out path component",
+                    }},
+                    workload_tag=tag,
+                )
+            leaf = os.path.join(parent, leaf_name)
+            try:
+                os.mkdir(leaf, 0o700)
+                task = _make_verify_fanout_task(
+                    campaign_lock_sha256=receipt_lock_identity,
+                    variant=v,
+                    build_attempt_id=build_attempt_id,
+                    tag=tag,
+                    rep=rep,
+                    trace_binary=tr.binary,
+                    trace_bin_sha256=tr.bin_sha256,
+                    workload_flags=workload.flags,
+                    clocks_per_us=clocks_per_us,
+                    numactl_prefix=tuple(pass_numactl or ()),
+                    genome=genome,
+                    source_evidence=evidence,
+                    build_admission=admission,
+                    receipt_sink_kind=receipt_sink_kind,
+                    expected_repo_head=expected_repo_head,
+                    contract_loader_blob_sha256s=(
+                        contract_loader_blob_sha256s
+                    ),
+                    generator_id=build_context.generator_id,
+                )
+                task_path = os.path.join(leaf, "task.json")
+                result_path = os.path.join(leaf, "result.json")
+                _write_create_only_json(task_path, task)
+                result_secret = secrets.token_bytes(32)
+            except Exception as exc:
+                return _abort(
+                    "verify-remote-unavailable",
+                    f"remote verify task を publish できない "
+                    f"(host={host}, rep={rep}) → reject",
+                    {"remote": {
+                        "host": host, "rep": rep, "rc": None,
+                        "stderr_tail": _exc_summary(exc)[-2000:],
+                    }},
+                    workload_tag=tag,
+                )
+            tasks[rep] = (
+                host, task_path, result_path, task, result_secret,
+            )
+
+        launcher = verify_fanout_launcher or _default_verify_fanout_launcher
+        next_rep = 1
+        local_done = False
+        admitted_task_sha256s: set[str] = set()
+        while next_rep < workload.reps:
+            wave_reps = tuple(
+                range(next_rep, min(next_rep + len(verify_fanout_hosts), workload.reps))
+            )
+            launch_results: dict[int, object] = {}
+            local_aborted: Optional[EvalResult] = None
+            with ThreadPoolExecutor(max_workers=len(wave_reps)) as pool:
+                futures = {
+                    rep: pool.submit(
+                        launcher, tasks[rep][0], tasks[rep][1], tasks[rep][2],
+                        tasks[rep][4],
+                    )
+                    for rep in wave_reps
+                }
+                if not local_done:
+                    local_aborted = _run_one_repetition(
+                        tag, workload, pass_numactl,
+                    )
+                    local_done = True
+                for rep in wave_reps:
+                    try:
+                        launch_results[rep] = futures[rep].result()
+                    except Exception as exc:
+                        launch_results[rep] = subprocess.CompletedProcess(
+                            args=[], returncode=255, stdout="",
+                            stderr=_exc_summary(exc),
+                        )
+            if local_aborted is not None:
+                return local_aborted
+            for rep in wave_reps:
+                host, _task_path, result_path, task, result_secret = tasks[rep]
+                outcome = _admit_verify_fanout_result(
+                    task, host=host, result_path=result_path,
+                    launch_result=launch_results[rep],
+                    result_secret=result_secret,
+                    admitted_task_sha256s=admitted_task_sha256s,
+                )
+                aborted = _project_repetition_outcome(tag, outcome)
+                if aborted is not None:
+                    return aborted
+            next_rep += len(wave_reps)
         return None
 
     # baseline が古い場合は screening を無効化し、通常の verify-first 経路へ倒す。
@@ -1713,7 +2349,18 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
                             "計測のまま採用せず reject (規律4)",
                             {"competing": comp}, workload_tag=tag)
                     else:
-                        aborted_result = _run_one_pass(tag, workload, numactl)
+                        if (verify_fanout_hosts
+                                and tag == PERFORMANCE_TAG
+                                and receipt_sink_kind == CAMPAIGN_WAL_SINK
+                                and build_context.generator_id
+                                is GeneratorId.BACKOFF_REPRO):
+                            aborted_result = _run_fanout_pass(
+                                tag, workload, numactl,
+                            )
+                        else:
+                            aborted_result = _run_one_pass(
+                                tag, workload, numactl,
+                            )
         else:
             aborted_result = _run_one_pass(tag, workload, None)
         if aborted_result is not None:
@@ -1898,7 +2545,10 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
              ] = None,
              use_perf: bool = True,
              perf_preflight_receipt: Optional[dict] = None,
-             canonical_build_pin: Optional[str] = None) -> EvalResult:
+             canonical_build_pin: Optional[str] = None,
+             verify_fanout_hosts: tuple[str, ...] = (),
+             verify_fanout_launcher: Optional[Callable[..., object]] = None,
+             ) -> EvalResult:
     """Preserve the historical evaluate API as prepare, bench, then commit."""
     fetchcontent_prebuild = _validate_fetchcontent_prebuild_inputs(
         env_contract=env_contract,
@@ -1969,6 +2619,8 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
         use_perf=use_perf,
         perf_preflight_receipt=perf_preflight_receipt,
         canonical_build_pin=canonical_build_pin,
+        verify_fanout_hosts=verify_fanout_hosts,
+        verify_fanout_launcher=verify_fanout_launcher,
         **fetchcontent_options,
     )
     passes = (outcome,)

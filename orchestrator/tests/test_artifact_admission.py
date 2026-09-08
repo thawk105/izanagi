@@ -132,12 +132,13 @@ _EXPECTED_E1_CLOSURE_PATHS = (
     "orchestrator/qualification/qsub_binding.py",
     "orchestrator/qualification/retry_index.py",
     "orchestrator/qualification/series.py",
+    "orchestrator/campaign/verify_fanout_worker.py",
 )
 _FIXED_SYNTHETIC_E1_EPOCH = (
-    "E1:78920efc47f4eb280b956a8fb92abed16b888495db544b62b1a15bf1f61004e9"
+    "E1:73f334f62ec13c394aae3d4787b80117562187984b6e0e372f2c0f7058b8ced2"
 )
 _FIXED_ORDERED_CLOSURE_PATHS_SHA256 = (
-    "b274387d0be033a98e86d54e5225667221bde79776832e73fb3d07cebfc6067a"
+    "2247e5312a327caca9d0d4be081457eaf196513764010f64ccad1561409399ec"
 )
 _GIT_ENV_ALLOWLIST = (
     "LANG",
@@ -471,7 +472,7 @@ def _fixture_git(repo: Path, *args: str) -> bytes:
 
 
 def _committed_closure_repo(tmp_path: Path) -> Path:
-    """現行 checkout の hash を使わない exact 62-path E1 fixture。"""
+    """現行 checkout の hash を使わない exact 63-path E1 fixture。"""
     repo = tmp_path / "closure-repo"
     repo.mkdir()
     _fixture_git(repo, "init", "-q")
@@ -1283,14 +1284,14 @@ def test_valid_v2_campaign_is_admitted(tmp_path: Path) -> None:
     )
     assert decoded.is_v2
     assert decoded.authority is not None
-    assert len(decoded.authority.contract_loader_blob_sha256s) == 62
+    assert len(decoded.authority.contract_loader_blob_sha256s) == 63
     assert A.classify_campaign(campaign).admission_status == "admitted"
 
 
 def test_certified_acceptance_admits_exact_e1_fixture(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    assert len(_EXPECTED_E1_CLOSURE_PATHS) == 62
+    assert len(_EXPECTED_E1_CLOSURE_PATHS) == 63
     assert _expected_fixture_epoch() == _FIXED_SYNTHETIC_E1_EPOCH
     assert (
         _ordered_fixture_path_list_sha256()
@@ -1824,7 +1825,9 @@ def test_unknown_pre_t733_grammar_is_rejected_for_both_read_purposes(
     if mutation in {"subset", "same-count-replacement"}:
         blobs.pop(campaign_lock.PRE_T733_CONTRACT_LOADER_RELATIVE_PATHS[-1])
     if mutation in {"superset", "same-count-replacement"}:
-        extra = campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS[24]
+        extra = "orchestrator/campaign/verify_fanout_worker.py"
+        assert extra in campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS
+        assert extra not in campaign_lock.PRE_T733_CONTRACT_LOADER_RELATIVE_PATHS
         blobs[extra] = "f" * 64
     if mutation == "order":
         paths = tuple(blobs)

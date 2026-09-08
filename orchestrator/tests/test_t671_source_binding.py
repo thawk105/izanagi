@@ -99,6 +99,7 @@ _T733_ENFORCEMENT_SOURCE_PATH_SUFFIX = (
     "orchestrator/qualification/qsub_binding.py",
     "orchestrator/qualification/retry_index.py",
     "orchestrator/qualification/series.py",
+    "orchestrator/campaign/verify_fanout_worker.py",
 )
 _EXPECTED_ENFORCEMENT_SOURCE_PATHS = (
     *_PRE_T733_ENFORCEMENT_SOURCE_PATHS,
@@ -264,8 +265,8 @@ def test_enforcement_source_closure_is_the_independent_exact_twenty_four_paths()
         _EXPECTED_ENFORCEMENT_SOURCE_PATHS
     )
     assert len(_PRE_T733_ENFORCEMENT_SOURCE_PATHS) == 24
-    assert len(_T733_ENFORCEMENT_SOURCE_PATH_SUFFIX) == 38
-    assert len(_EXPECTED_ENFORCEMENT_SOURCE_PATHS) == 62
+    assert len(_T733_ENFORCEMENT_SOURCE_PATH_SUFFIX) == 39
+    assert len(_EXPECTED_ENFORCEMENT_SOURCE_PATHS) == 63
     assert (
         contract_loader_binding.CONTRACT_LOADER_RELATIVE_PATHS
         is campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS
@@ -1608,7 +1609,7 @@ def test_batch_reader_rejects_one_missing_path_of_sixty_two(
                     for relative in _EXPECTED_ENFORCEMENT_SOURCE_PATHS
                 ),
             ),
-            {"timeout_seconds": 620},
+            {"timeout_seconds": 630},
         ),
     ]
 
@@ -1687,13 +1688,13 @@ def test_capture_batches_blobs_but_reads_all_sixty_two_disk_paths(
                 "ls-tree", "-r", "-z", commit, "--",
                 *(f":(literal){relative}" for relative in paths),
             ),
-            {"timeout_seconds": 620},
+            {"timeout_seconds": 630},
         ),
         (
             ("cat-file", "--batch"),
             {
                 "input_bytes": b"".join(oid + b"\n" for oid in oids),
-                "timeout_seconds": 620,
+                "timeout_seconds": 630,
             },
         ),
     ]
@@ -1771,13 +1772,13 @@ def test_committed_verification_rejects_one_digest_mismatch(
                 "ls-tree", "-r", "-z", commit, "--",
                 *(f":(literal){relative}" for relative in paths),
             ),
-            {"timeout_seconds": 620},
+            {"timeout_seconds": 630},
         ),
         (
             ("cat-file", "--batch"),
             {
                 "input_bytes": b"".join(oid + b"\n" for oid in oids),
-                "timeout_seconds": 620,
+                "timeout_seconds": 630,
             },
         ),
     ]
