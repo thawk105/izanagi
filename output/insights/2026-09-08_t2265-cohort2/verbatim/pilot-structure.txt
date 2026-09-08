@@ -1,0 +1,53 @@
+top-level keys of interest:
+  schema_version = izanagi-dynamic-backoff-trace/v4
+  counterfactual_preregistration = 8b4127f4be895da0d25da88b0837f679ecf06d43ab656b16d2944146b9f7a9e9
+  extime_s = 6
+  stage = 1
+  rep_index = 0
+  reps_per_job = 1
+  step_policy_seed = 14481721328008317845
+  repo_head = 8bdf173cc81e5371db7b7bcddb8bdcbb5aeff235
+  throughput_scope = diagnostic_only
+  headline_eligible = False
+  job_total_seconds = 192.69632030883804
+  counterfactual_patch_sha256 = 4c04caa89244d74aa542a204bed0befae45b13616113cc5d734570c3aae7d2ff
+  patch_stack_sha256 = 14ac8f00798d1b317854643e133c0b58543106e9c693f5c556f8b13edb591082
+  kind = diagnostic-backoff-trace
+trace_runs = 18
+     cw-as-dyn-c2-p0 write-heavy 24t events=1669 terminal_at=[1668] contiguous=True min_commits=10000 triggers={'count': 1668, 'terminal': 1} summary={'updates': 1668, 'retained': 1668, 'dropped': 0, 'flushes': 1}
+      terminal: seq=1668 window_us=2563 window_commits=10223 assigned_invert=-1 trigger=terminal
+     cw-as-dyn-c2-p1 write-heavy 24t events=551 terminal_at=[550] contiguous=True min_commits=10001 triggers={'count': 550, 'terminal': 1} summary={'updates': 550, 'retained': 550, 'dropped': 0, 'flushes': 1}
+      terminal: seq=550 window_us=10833 window_commits=12075 assigned_invert=-1 trigger=terminal
+     cw-as-dyn-c2-p2 write-heavy 24t events=793 terminal_at=[792] contiguous=True min_commits=10003 triggers={'count': 792, 'terminal': 1} summary={'updates': 792, 'retained': 792, 'dropped': 0, 'flushes': 1}
+      terminal: seq=792 window_us=7836 window_commits=12868 assigned_invert=-1 trigger=terminal
+     cw-as-dyn-c2-p0 write-heavy 48t events=1409 terminal_at=[1408] contiguous=True min_commits=10001 triggers={'count': 1408, 'terminal': 1} summary={'updates': 1408, 'retained': 1408, 'dropped': 0, 'flushes': 1}
+      terminal: seq=1408 window_us=2560 window_commits=10262 assigned_invert=-1 trigger=terminal
+     cw-as-dyn-c2-p1 write-heavy 48t events=931 terminal_at=[930] contiguous=True min_commits=10005 triggers={'count': 930, 'terminal': 1} summary={'updates': 930, 'retained': 930, 'dropped': 0, 'flushes': 1}
+      terminal: seq=930 window_us=5123 window_commits=12448 assigned_invert=-1 trigger=terminal
+     cw-as-dyn-c2-p2 write-heavy 48t events=1048 terminal_at=[1047] contiguous=True min_commits=10000 triggers={'count': 1047, 'terminal': 1} summary={'updates': 1047, 'retained': 1047, 'dropped': 0, 'flushes': 1}
+      terminal: seq=1047 window_us=5164 window_commits=14894 assigned_invert=-1 trigger=terminal
+     cw-as-dyn-c2-p0    balanced 24t events=1510 terminal_at=[1509] contiguous=True min_commits=10000 triggers={'count': 1509, 'terminal': 1} summary={'updates': 1509, 'retained': 1509, 'dropped': 0, 'flushes': 1}
+      terminal: seq=1509 window_us=2563 window_commits=10179 assigned_invert=-1 trigger=terminal
+     cw-as-dyn-c2-p1    balanced 24t events=429 terminal_at=[428] contiguous=True min_commits=10003 triggers={'count': 428, 'terminal': 1} summary={'updates': 428, 'retained': 428, 'dropped': 0, 'flushes': 1}
+      terminal: seq=428 window_us=13411 window_commits=10904 assigned_invert=-1 trigger=terminal
+     cw-as-dyn-c2-p2    balanced 24t events=690 terminal_at=[689] contiguous=True min_commits=10006 triggers={'count': 689, 'terminal': 1} summary={'updates': 689, 'retained': 689, 'dropped': 0, 'flushes': 1}
+      terminal: seq=689 window_us=5124 window_commits=14975 assigned_invert=-1 trigger=terminal
+     cw-as-dyn-c2-p0    balanced 48t events=1687 terminal_at=[1686] contiguous=True min_commits=10001 triggers={'count': 1686, 'terminal': 1} summary={'updates': 1686, 'retained': 1686, 'dropped': 0, 'flushes': 1}
+      terminal: seq=1686 window_us=2564 window_commits=12107 assigned_invert=-1 trigger=terminal
+     cw-as-dyn-c2-p1    balanced 48t events=615 terminal_at=[614] contiguous=True min_commits=10001 triggers={'count': 614, 'terminal': 1} summary={'updates': 614, 'retained': 614, 'dropped': 0, 'flushes': 1}
+      terminal: seq=614 window_us=8359 window_commits=10045 assigned_invert=-1 trigger=terminal
+     cw-as-dyn-c2-p2    balanced 48t events=981 terminal_at=[980] contiguous=True min_commits=10022 triggers={'count': 980, 'terminal': 1} summary={'updates': 980, 'retained': 980, 'dropped': 0, 'flushes': 1}
+      terminal: seq=980 window_us=7711 window_commits=13599 assigned_invert=-1 trigger=terminal
+     cw-as-dyn-c2-p0  read-heavy 24t events=1919 terminal_at=[1918] contiguous=True min_commits=12071 triggers={'count': 1918, 'terminal': 1} summary={'updates': 1918, 'retained': 1918, 'dropped': 0, 'flushes': 1}
+      terminal: seq=1918 window_us=2563 window_commits=15458 assigned_invert=-1 trigger=terminal
+     cw-as-dyn-c2-p1  read-heavy 24t events=956 terminal_at=[955] contiguous=True min_commits=10273 triggers={'count': 955, 'terminal': 1} summary={'updates': 955, 'retained': 955, 'dropped': 0, 'flushes': 1}
+      terminal: seq=955 window_us=5365 window_commits=11042 assigned_invert=-1 trigger=terminal
+     cw-as-dyn-c2-p2  read-heavy 24t events=977 terminal_at=[976] contiguous=True min_commits=10104 triggers={'count': 976, 'terminal': 1} summary={'updates': 976, 'retained': 976, 'dropped': 0, 'flushes': 1}
+      terminal: seq=976 window_us=5294 window_commits=15314 assigned_invert=-1 trigger=terminal
+     cw-as-dyn-c2-p0  read-heavy 48t events=1923 terminal_at=[1922] contiguous=True min_commits=21478 triggers={'count': 1922, 'terminal': 1} summary={'updates': 1922, 'retained': 1922, 'dropped': 0, 'flushes': 1}
+      terminal: seq=1922 window_us=2560 window_commits=26035 assigned_invert=-1 trigger=terminal
+     cw-as-dyn-c2-p1  read-heavy 48t events=1021 terminal_at=[1020] contiguous=True min_commits=10048 triggers={'count': 1020, 'terminal': 1} summary={'updates': 1020, 'retained': 1020, 'dropped': 0, 'flushes': 1}
+      terminal: seq=1020 window_us=5461 window_commits=15895 assigned_invert=-1 trigger=terminal
+     cw-as-dyn-c2-p2  read-heavy 48t events=1802 terminal_at=[1801] contiguous=True min_commits=10001 triggers={'count': 1801, 'terminal': 1} summary={'updates': 1801, 'retained': 1801, 'dropped': 0, 'flushes': 1}
+      terminal: seq=1801 window_us=5172 window_commits=18112 assigned_invert=-1 trigger=terminal
+runs violating (contiguous & terminal-last & commits>0): 0
