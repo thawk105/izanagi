@@ -40,6 +40,26 @@ THIRDPARTY_STATUS_GATE = (
     '  [[ -z "$source_status" ]] || \\\n'
     '    refuse "third-party source tree is not clean: $source_name"'
 )
+K2_ENV_NAMES = (
+    "k2_env_names=(\n"
+    "  IZANAGI_S4_KNOWLEDGE_MANIFEST\n"
+    "  IZANAGI_S4_CODER_ROLE\n"
+    "  IZANAGI_S4_KNOWLEDGE_CLASSIFICATION\n"
+    "  IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM\n"
+    ")"
+)
+K2_REQUIRED_ENV_NAMES = (
+    "k2_required_env_names=(\n"
+    "  IZANAGI_S4_KNOWLEDGE_MANIFEST\n"
+    "  IZANAGI_S4_CODER_ROLE\n"
+    ")"
+)
+K2_REQUIRED_ARGV = (
+    "k2_argv=(\n"
+    '    --knowledge-manifest "$IZANAGI_S4_KNOWLEDGE_MANIFEST"\n'
+    '    --coder-role "$IZANAGI_S4_CODER_ROLE"\n'
+    "  )"
+)
 
 
 def _shell_body_without_heredocs(source: str) -> str:
@@ -182,6 +202,50 @@ def _assert_static_job_contract(source: str) -> None:
         "https-proxy": 'export https_proxy="http://10.120.96.1:8080"',
         "no-user-site": "export PYTHONNOUSERSITE=1",
         "no-bytecode": "export PYTHONDONTWRITEBYTECODE=1",
+        "k2-environment-names": K2_ENV_NAMES,
+        "k2-required-environment-names": K2_REQUIRED_ENV_NAMES,
+        "k2-request-set-detection": (
+            'for name in "${k2_env_names[@]}"; do\n'
+            "  if [[ -v $name ]]; then\n"
+            "    k2_requested=true\n"
+            "    break\n"
+            "  fi\n"
+            "done"
+        ),
+        "k2-required-nonempty": (
+            'for name in "${k2_required_env_names[@]}"; do\n'
+            '    [[ -n "${!name:-}" ]] || '
+            'refuse "missing K2 environment: $name"\n'
+            "  done"
+        ),
+        "k2-required-argv": K2_REQUIRED_ARGV,
+        "k2-optional-classification": (
+            "if [[ -v IZANAGI_S4_KNOWLEDGE_CLASSIFICATION ]]; then\n"
+            '    [[ -n "$IZANAGI_S4_KNOWLEDGE_CLASSIFICATION" ]] \\\n'
+            '      || refuse "empty K2 environment: '
+            'IZANAGI_S4_KNOWLEDGE_CLASSIFICATION"\n'
+            "    k2_argv+=(\n"
+            '      --knowledge-classification '
+            '"$IZANAGI_S4_KNOWLEDGE_CLASSIFICATION"\n'
+            "    )\n"
+            "  fi"
+        ),
+        "k2-optional-de-novo": (
+            "if [[ -v IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM ]]; then\n"
+            '    [[ -n "$IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM" ]] \\\n'
+            '      || refuse "empty K2 environment: '
+            'IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM"\n'
+            "    k2_argv+=(\n"
+            '      --knowledge-de-novo-claim '
+            '"$IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM"\n'
+            "    )\n"
+            "  fi"
+        ),
+        "k2-proposal-required": (
+            '[[ -n "${IZANAGI_S4_PROPOSAL_PATH:-}" ]] \\\n'
+            '    || refuse "K2 environment requires '
+            'IZANAGI_S4_PROPOSAL_PATH"'
+        ),
         "canonical-repo": 'repo=$(cd -- "$IZANAGI_S4_REPO_ROOT" && pwd -P)',
         "worktree-container": '*"/.claude/worktrees/"*|*"/.codex/worktrees/"*',
         "git-common-root": (
@@ -349,6 +413,7 @@ def _assert_static_job_contract(source: str) -> None:
         "isolation": "--isolate-worktree",
         "proposal": (
             '--fetchcontent-prebuild-receipt "$prebuild_receipt" \\\n'
+            '    "${k2_argv[@]}" \\\n'
             '    --run-iteration "$IZANAGI_S4_PROPOSAL_PATH"'
         ),
         "fixture": (
@@ -460,6 +525,7 @@ def _assert_static_job_stage_order(source: str) -> None:
         "host=$(hostname",
         "unset CC CXX",
         'export PATH="/usr/bin:/bin:/opt/nec/nqsv/bin:/system/tool/bin"',
+        "k2_env_names=(",
         'repo=$(cd -- "$IZANAGI_S4_REPO_ROOT"',
         "trap finish EXIT",
         "resolve_python() {",
@@ -530,6 +596,10 @@ def test_gate_refusals_share_the_fixed_rc2_boundary() -> None:
         "glog working tree is dirty",
         "scratch masstree source is not fresh",
         "masstree prebuild receipt is not fresh",
+        "missing K2 environment: $name",
+        "empty K2 environment: IZANAGI_S4_KNOWLEDGE_CLASSIFICATION",
+        "empty K2 environment: IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM",
+        "K2 environment requires IZANAGI_S4_PROPOSAL_PATH",
     ):
         assert f'refuse "{message}"' in source
 
@@ -580,9 +650,30 @@ def test_gate_refusals_share_the_fixed_rc2_boundary() -> None:
         pytest.param(
             "proposal",
             '--fetchcontent-prebuild-receipt "$prebuild_receipt" \\\n'
+            '    "${k2_argv[@]}" \\\n'
             '    --run-iteration "$IZANAGI_S4_PROPOSAL_PATH"',
             '--run-iteration "$IZANAGI_S4_PROPOSAL_PATH"',
             id="proposal",
+        ),
+        pytest.param(
+            "k2-request-set-detection",
+            "  if [[ -v $name ]]; then\n"
+            "    k2_requested=true\n"
+            "    break\n"
+            "  fi",
+            '  if [[ -n "${!name:-}" ]]; then\n'
+            "    k2_requested=true\n"
+            "    break\n"
+            "  fi",
+            id="k2-request-set-detection",
+        ),
+        pytest.param(
+            "k2-proposal-required",
+            '[[ -n "${IZANAGI_S4_PROPOSAL_PATH:-}" ]] \\\n'
+            '    || refuse "K2 environment requires '
+            'IZANAGI_S4_PROPOSAL_PATH"',
+            "true # K2 proposal requirement removed",
+            id="k2-proposal-required",
         ),
         pytest.param(
             "fixture",
@@ -913,6 +1004,366 @@ def _resolver_and_shim_snippet(source: str) -> str:
 def _write_executable(path: Path, source: str) -> None:
     path.write_text(source, encoding="utf-8")
     path.chmod(0o755)
+
+
+def _k2_preflight_environment(
+    tmp_path: Path,
+) -> tuple[dict[str, str], Path, Path, tuple[Path, ...]]:
+    binary_dir = tmp_path / "bin"
+    repo_root = tmp_path / "repo"
+    evidence_root = tmp_path / "evidence"
+    thirdparty_root = tmp_path / "thirdparty"
+    binary_dir.mkdir()
+    repo_root.mkdir()
+    evidence_root.mkdir()
+    thirdparty_root.mkdir()
+    _write_executable(
+        binary_dir / "hostname",
+        "#!/bin/bash\nprintf '%s\\n' bnode001\n",
+    )
+    sentinel_markers = []
+    for name in ("git", "cmake", "python3.10", "qstat"):
+        marker = tmp_path / f"{name}-called"
+        sentinel_markers.append(marker)
+        _write_executable(
+            binary_dir / name,
+            "#!/bin/bash\n"
+            f"touch {shlex.quote(str(marker))}\n"
+            "exit 99\n",
+        )
+
+    source = JOB.read_text(encoding="utf-8")
+    bootstrap_anchor = (
+        'export PATH="/usr/bin:/bin:/opt/nec/nqsv/bin:/system/tool/bin"'
+    )
+    assert source.count(bootstrap_anchor) == 1
+    fixture_job = tmp_path / JOB.name
+    _write_executable(
+        fixture_job,
+        source.replace(
+            bootstrap_anchor,
+            f'export PATH="{binary_dir}:/usr/bin:/bin:'
+            '/opt/nec/nqsv/bin:/system/tool/bin"',
+            1,
+        ),
+    )
+    environment = dict(os.environ)
+    for name in (
+        "IZANAGI_S4_KNOWLEDGE_MANIFEST",
+        "IZANAGI_S4_CODER_ROLE",
+        "IZANAGI_S4_KNOWLEDGE_CLASSIFICATION",
+        "IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM",
+        "IZANAGI_S4_PROPOSAL_PATH",
+    ):
+        environment.pop(name, None)
+    environment.update({
+        "PATH": str(binary_dir) + os.pathsep + environment["PATH"],
+        "USER": f"p3-s4-k2-preflight-{os.getpid()}-{tmp_path.name}",
+        "PBS_JOBID": "0:945411.nqsv",
+        "PBS_NODEFILE": str(tmp_path / "nodefile"),
+        "PBS_O_WORKDIR": str(repo_root),
+        "IZANAGI_S4_REPO_ROOT": str(repo_root),
+        "IZANAGI_S4_EXPECTED_HEAD": "1" * 40,
+        "IZANAGI_S4_EVIDENCE_ROOT": str(evidence_root),
+        "IZANAGI_S4_THIRDPARTY_SOURCE_ROOT": str(thirdparty_root),
+    })
+    return environment, evidence_root, fixture_job, tuple(sentinel_markers)
+
+
+def _run_actual_job_to_k2_preflight(
+    tmp_path: Path,
+    k2_environment: dict[str, str],
+) -> tuple[subprocess.CompletedProcess[str], Path, tuple[Path, ...]]:
+    environment, evidence_root, fixture_job, sentinel_markers = (
+        _k2_preflight_environment(tmp_path)
+    )
+    environment.update(k2_environment)
+    completed = subprocess.run(
+        [str(fixture_job)], cwd=environment["IZANAGI_S4_REPO_ROOT"],
+        env=environment,
+        capture_output=True, text=True, check=False,
+    )
+    return completed, evidence_root, sentinel_markers
+
+
+def test_set_empty_manifest_alone_is_refused_by_actual_job_body(
+    tmp_path: Path,
+) -> None:
+    completed, evidence_root, sentinel_markers = _run_actual_job_to_k2_preflight(
+        tmp_path,
+        {
+            "IZANAGI_S4_KNOWLEDGE_MANIFEST": "",
+            "IZANAGI_S4_PROPOSAL_PATH": "/absolute/proposal.json",
+        },
+    )
+    assert not any(marker.exists() for marker in sentinel_markers)
+    assert completed.returncode == 2
+    assert completed.stderr == (
+        "p3 S4 loop job refused: missing K2 environment: "
+        "IZANAGI_S4_KNOWLEDGE_MANIFEST\n"
+    )
+    assert not (evidence_root / "compute-result.json").exists()
+
+
+def test_complete_k2_pair_without_proposal_is_refused_by_actual_job_body(
+    tmp_path: Path,
+) -> None:
+    completed, evidence_root, sentinel_markers = _run_actual_job_to_k2_preflight(
+        tmp_path,
+        {
+            "IZANAGI_S4_KNOWLEDGE_MANIFEST": "/absolute/knowledge.json",
+            "IZANAGI_S4_CODER_ROLE": "coder-v4-autonomous-k2",
+        },
+    )
+    assert not any(marker.exists() for marker in sentinel_markers)
+    assert completed.returncode == 2
+    assert completed.stderr == (
+        "p3 S4 loop job refused: K2 environment requires "
+        "IZANAGI_S4_PROPOSAL_PATH\n"
+    )
+    assert not (evidence_root / "compute-result.json").exists()
+
+
+@pytest.mark.parametrize(
+    "name",
+    (
+        "IZANAGI_S4_KNOWLEDGE_CLASSIFICATION",
+        "IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM",
+    ),
+)
+def test_set_empty_optional_k2_declaration_is_refused_by_actual_job_body(
+    tmp_path: Path,
+    name: str,
+) -> None:
+    completed, evidence_root, sentinel_markers = _run_actual_job_to_k2_preflight(
+        tmp_path,
+        {
+            "IZANAGI_S4_KNOWLEDGE_MANIFEST": "/absolute/knowledge.json",
+            "IZANAGI_S4_CODER_ROLE": "coder-v4-autonomous-k2",
+            "IZANAGI_S4_PROPOSAL_PATH": "/absolute/proposal.json",
+            name: "",
+        },
+    )
+    assert not any(marker.exists() for marker in sentinel_markers)
+    assert completed.returncode == 2
+    assert completed.stderr == f"p3 S4 loop job refused: empty K2 environment: {name}\n"
+    assert not (evidence_root / "compute-result.json").exists()
+
+
+def _run_actual_job_body_through_driver(
+    tmp_path: Path,
+    k2_environment: dict[str, str],
+) -> list[str]:
+    binary_dir = tmp_path / "bin"
+    repo_root = tmp_path / "repo"
+    evidence_root = tmp_path / "evidence"
+    thirdparty_root = tmp_path / "thirdparty"
+    gflags_source = tmp_path / "gflags-source"
+    glog_source = tmp_path / "glog-source"
+    driver_argv = tmp_path / "driver-argv.json"
+    for path in (
+        binary_dir,
+        repo_root / "external/ccbench",
+        repo_root / "tools/pegasus",
+        evidence_root,
+        thirdparty_root / "masstree",
+        thirdparty_root / "mimalloc",
+        thirdparty_root / "googletest",
+        gflags_source,
+        glog_source,
+    ):
+        path.mkdir(parents=True, exist_ok=True)
+
+    expected_head = "e" * 40
+    gflags_head = "b" * 40
+    glog_head = "c" * 40
+    ccbench_head = "028f34d" + "d" * 33
+    (repo_root / "tools/pegasus/policy.json").write_text("{}\n", encoding="utf-8")
+
+    _write_executable(
+        binary_dir / "hostname",
+        "#!/bin/bash\nprintf '%s\\n' bnode001\n",
+    )
+    _write_executable(binary_dir / "timeout", "#!/bin/bash\nexit 0\n")
+    _write_executable(binary_dir / "gcc", "#!/bin/bash\nexit 0\n")
+    _write_executable(binary_dir / "g++", "#!/bin/bash\nexit 0\n")
+    _write_executable(
+        binary_dir / "qstat",
+        "#!/bin/bash\nprintf '%s\\n' 'stub scheduler observation'\n",
+    )
+    _write_executable(
+        binary_dir / "git",
+        "#!/usr/bin/python3\n"
+        "import sys\n"
+        "args = sys.argv[1:]\n"
+        "joined = ' '.join(args)\n"
+        "if '--git-common-dir' in args:\n"
+        f"    print({str(repo_root / '.git')!r})\n"
+        "elif 'status' in args:\n"
+        "    pass\n"
+        "elif 'rev-parse' in args:\n"
+        "    if 'gflags-source' in joined:\n"
+        f"        print({gflags_head!r})\n"
+        "    elif 'glog-source' in joined:\n"
+        f"        print({glog_head!r})\n"
+        "    elif 'external/ccbench' in joined:\n"
+        f"        print({ccbench_head!r})\n"
+        "    elif 'thirdparty' in joined:\n"
+        "        print('a' * 40)\n"
+        "    else:\n"
+        f"        print({expected_head!r})\n"
+        "else:\n"
+        "    raise SystemExit(99)\n",
+    )
+    _write_executable(
+        binary_dir / "python3.10",
+        "#!/usr/bin/python3\n"
+        "import json\n"
+        "import os\n"
+        "import sys\n"
+        "from pathlib import Path\n"
+        "args = sys.argv[1:]\n"
+        "if '-m' in args:\n"
+        "    Path(os.environ['IZANAGI_TEST_DRIVER_ARGV']).write_text(\n"
+        "        json.dumps(args), encoding='utf-8')\n"
+        "elif '-c' in args:\n"
+        "    code = args[-1]\n"
+        "    if 'print(os.path.realpath(sys.executable))' in code:\n"
+        "        print(Path(__file__).resolve())\n"
+        "    elif 'from orchestrator.campaign.p3_s4_loop import PIN' in code:\n"
+        "        print('028f34d')\n"
+        "elif args[:3] == ['-I', '-B', '-']:\n"
+        "    print(os.environ['IZANAGI_TEST_GFLAGS_SOURCE'])\n"
+        "    print(os.environ['IZANAGI_TEST_GFLAGS_HEAD'])\n"
+        "    print(os.environ['IZANAGI_TEST_GLOG_SOURCE'])\n"
+        "    print(os.environ['IZANAGI_TEST_GLOG_HEAD'])\n"
+        "elif args and args[0] == '-' and len(args) == 2:\n"
+        "    print('1000')\n"
+        "    print('10800')\n"
+        "elif args and args[0] == '-' and len(args) == 4:\n"
+        "    Path(args[1]).write_text('{}\\n', encoding='utf-8')\n"
+        "elif args and args[0] == '-' and len(args) > 4:\n"
+        "    Path(args[5], 'config.h').write_text('stub\\n', encoding='utf-8')\n"
+        "    Path(args[1]).write_text('{}\\n', encoding='utf-8')\n"
+        "else:\n"
+        "    raise SystemExit(99)\n",
+    )
+
+    source = JOB.read_text(encoding="utf-8")
+    bootstrap_anchor = 'export PATH="/usr/bin:/bin:/opt/nec/nqsv/bin:/system/tool/bin"'
+    final_path_anchor = 'SANITIZED_PATH="$shim_dir:/usr/bin:/bin"'
+    scratch_anchor = "scratch_base=/scr/$USER/p3-s4-loop-pegasus"
+    assert source.count(bootstrap_anchor) == 1
+    assert source.count(final_path_anchor) == 1
+    assert source.count(scratch_anchor) == 1
+    job = repo_root / "tools/pegasus/p3_s4_loop_pegasus.sh"
+    _write_executable(
+        job,
+        source.replace(
+            bootstrap_anchor,
+            f'export PATH="{binary_dir}:/usr/bin:/bin:/opt/nec/nqsv/bin:/system/tool/bin"',
+            1,
+        ).replace(
+            final_path_anchor,
+            f'SANITIZED_PATH="$shim_dir:{binary_dir}:/usr/bin:/bin"',
+            1,
+        ).replace(
+            scratch_anchor,
+            f"scratch_base={shlex.quote(str(tmp_path / 'scratch-base'))}",
+            1,
+        ),
+    )
+
+    environment = dict(os.environ)
+    for name in (
+        "IZANAGI_S4_KNOWLEDGE_MANIFEST",
+        "IZANAGI_S4_CODER_ROLE",
+        "IZANAGI_S4_KNOWLEDGE_CLASSIFICATION",
+        "IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM",
+        "IZANAGI_S4_PROPOSAL_PATH",
+    ):
+        environment.pop(name, None)
+    environment.update({
+        "PATH": str(binary_dir) + os.pathsep + environment["PATH"],
+        "USER": f"p3-s4-k2-contract-{os.getpid()}-{tmp_path.name}",
+        "PBS_JOBID": "0:945411.nqsv",
+        "PBS_NODEFILE": str(tmp_path / "nodefile"),
+        "PBS_O_WORKDIR": str(repo_root),
+        "IZANAGI_S4_REPO_ROOT": str(repo_root),
+        "IZANAGI_S4_EXPECTED_HEAD": expected_head,
+        "IZANAGI_S4_EVIDENCE_ROOT": str(evidence_root),
+        "IZANAGI_S4_THIRDPARTY_SOURCE_ROOT": str(thirdparty_root),
+        "IZANAGI_TEST_DRIVER_ARGV": str(driver_argv),
+        "IZANAGI_TEST_GFLAGS_SOURCE": str(gflags_source),
+        "IZANAGI_TEST_GFLAGS_HEAD": gflags_head,
+        "IZANAGI_TEST_GLOG_SOURCE": str(glog_source),
+        "IZANAGI_TEST_GLOG_HEAD": glog_head,
+        **k2_environment,
+    })
+    completed = subprocess.run(
+        [str(job)], cwd=repo_root, env=environment,
+        capture_output=True, text=True, check=False,
+    )
+    assert completed.returncode == 0, completed.stderr
+    assert (evidence_root / "compute-result.json").is_file()
+    return json.loads(driver_argv.read_text(encoding="utf-8"))
+
+
+def test_complete_k2_environment_reaches_actual_job_driver_argv(
+    tmp_path: Path,
+) -> None:
+    knowledge_manifest = "/absolute/knowledge manifest.json"
+    proposal = "/absolute/proposal.json"
+    argv = _run_actual_job_body_through_driver(
+        tmp_path,
+        {
+            "IZANAGI_S4_KNOWLEDGE_MANIFEST": knowledge_manifest,
+            "IZANAGI_S4_CODER_ROLE": "coder-v4-autonomous-k2",
+            "IZANAGI_S4_KNOWLEDGE_CLASSIFICATION": "reproduction_or_selection",
+            "IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM": "false",
+            "IZANAGI_S4_PROPOSAL_PATH": proposal,
+        },
+    )
+    assert argv == [
+        "-B", "-m", "orchestrator.campaign.p3_s4_loop",
+        "--allow-coder-derived-build",
+        "--isolate-worktree",
+        "--fetchcontent-prebuild-receipt",
+        str(tmp_path / "evidence/masstree-prebuild-receipt.json"),
+        "--knowledge-manifest", knowledge_manifest,
+        "--coder-role", "coder-v4-autonomous-k2",
+        "--knowledge-classification", "reproduction_or_selection",
+        "--knowledge-de-novo-claim", "false",
+        "--run-iteration", proposal,
+    ]
+
+
+def test_omitted_optional_k2_declarations_add_no_driver_argv(
+    tmp_path: Path,
+) -> None:
+    argv = _run_actual_job_body_through_driver(
+        tmp_path,
+        {
+            "IZANAGI_S4_KNOWLEDGE_MANIFEST": "/absolute/knowledge.json",
+            "IZANAGI_S4_CODER_ROLE": "coder-v4-autonomous-k2",
+            "IZANAGI_S4_PROPOSAL_PATH": "/absolute/proposal.json",
+        },
+    )
+    assert "--knowledge-manifest" in argv
+    assert "--coder-role" in argv
+    assert "--knowledge-classification" not in argv
+    assert "--knowledge-de-novo-claim" not in argv
+
+
+def test_k2_argv_expansion_is_proposal_only() -> None:
+    source = JOB.read_text(encoding="utf-8")
+    assert source.count('    "${k2_argv[@]}" \\\n') == 1
+    proposal_start = source.index(
+        'if [[ -n "${IZANAGI_S4_PROPOSAL_PATH:-}" ]]'
+    )
+    fixture_start = source.index("\nelse\n", proposal_start)
+    assert '"${k2_argv[@]}"' in source[proposal_start:fixture_start]
+    assert '"${k2_argv[@]}"' not in source[fixture_start:]
 
 
 def test_interpreter_resolver_hides_an_old_bare_python3(tmp_path: Path) -> None:
@@ -1279,6 +1730,14 @@ def test_readme_tagged_qsub_fence_routes_both_streams_to_evidence() -> None:
     command = command_lines[0]
     assert '-o "$EVIDENCE_ROOT/$ATTEMPT/job.stdout"' in command
     assert '-e "$EVIDENCE_ROOT/$ATTEMPT/job.stderr"' in command
+    for name in (
+        "IZANAGI_S4_PROPOSAL_PATH",
+        "IZANAGI_S4_KNOWLEDGE_MANIFEST",
+        "IZANAGI_S4_CODER_ROLE",
+        "IZANAGI_S4_KNOWLEDGE_CLASSIFICATION",
+        "IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM",
+    ):
+        assert command.count(f"{name}=") == 1
 
 
 def test_job_body_mode_is_executable() -> None:
