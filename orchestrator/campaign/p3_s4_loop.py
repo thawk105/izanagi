@@ -386,7 +386,11 @@ def canonical_b4_proposal_sha256(document: object) -> str:
         canonical_bytes = attempt_registry_core.canonical_json_bytes(
             canonical_document
         )
-    except (TypeError, ValueError) as exc:
+    except (
+        attempt_registry_core.AttemptRegistryCoreError,
+        TypeError,
+        ValueError,
+    ) as exc:
         raise B4ProtocolError("B-4 proposal has no canonical JSON hash") from exc
     return hashlib.sha256(canonical_bytes).hexdigest()
 

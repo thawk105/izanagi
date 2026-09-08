@@ -271,14 +271,36 @@ def test_unknown_duplicate_invalid_hash_and_driver_mismatch_reject(
             b4_attempt_id=duplicate_binding.attempt_id,
         )
 
+    sort_document = proposal_document("sort")
     sort_path = tmp_path / "sort.json"
-    _write_document(sort_path, proposal_document("sort"))
+    _write_document(sort_path, sort_document)
     with pytest.raises(L.B4ProtocolError, match="driver differs"):
         S.load_proposal_file(
             str(sort_path),
             b4_reflux_ablation=True,
             b4_prerun_publication=binding.publication.publication_root,
             b4_attempt_id=binding.attempt_id,
+        )
+    hash_matching_wrong_driver_binding = issue_proposal_binding_fixture(
+        tmp_path / "hash-matching-wrong-driver-fixture",
+        driver_kind="base",
+        document=sort_document,
+        label="hash-matching-wrong-driver",
+    )
+    wrong_driver_row = (
+        hash_matching_wrong_driver_binding.publication.registry.scheduled_attempts[0]
+    )
+    assert wrong_driver_row.initial_proposal_sha256 == (
+        L.canonical_b4_proposal_sha256(sort_document)
+    )
+    with pytest.raises(L.B4ProtocolError, match="driver differs"):
+        S.load_proposal_file(
+            str(sort_path),
+            b4_reflux_ablation=True,
+            b4_prerun_publication=(
+                hash_matching_wrong_driver_binding.publication.publication_root
+            ),
+            b4_attempt_id=hash_matching_wrong_driver_binding.attempt_id,
         )
 
 
@@ -301,6 +323,12 @@ def test_continuation_and_non_b4_reject_bootstrap_binding_arguments(
     }
     continuation_path = tmp_path / "continuation.json"
     _write_document(continuation_path, continuation)
+    accepted = loader(
+        str(continuation_path),
+        b4_reflux_ablation=True,
+        b4_closed_critic_receipt_sha256=receipt_sha256,
+    )
+    assert len(accepted) == (3 if driver_kind == "base" else 4)
     with pytest.raises(L.B4ProtocolError, match="bootstrap-only"):
         loader(
             str(continuation_path),
