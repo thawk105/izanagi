@@ -28,6 +28,9 @@ SENTINEL_THREADS = 7
 R33_FROZEN_ARTIFACT_DRIVER_SHA256 = (
     "d447688a39734a292cf5710dbd4656320c45be846b13a995278e083b403a4ab1"
 )
+R33_SUCCESSOR_ANALYSIS_DRIVER_SHA256 = (
+    "65527f026d6e3cd55e513938d50d5454de55f562b9a289ce6a55101f03728301"
+)
 
 
 def _perf_receipt(status: str = "available") -> dict:
@@ -288,6 +291,69 @@ def test_r33_protocol_document_loads_from_repository():
     assert loaded.job_script_sha256 == hashlib.sha256(
         (ROOT / loaded.job_script_path).read_bytes()
     ).hexdigest()
+
+
+def test_r33_successor_protocol_document_loads_from_repository():
+    """先行の ``source.commit`` はこの repo に存在しないので同じ検査を先行へは掛けられない。"""
+    predecessor_path = (
+        ROOT / "output/insights/2026-08-16_t1142-n-pilot-prereg/protocol-r33.json"
+    )
+    successor_path = (
+        ROOT
+        / "output/insights/2026-09-09_t2154-n-pilot-prereg-successor"
+        / "protocol-r33-successor.json"
+    )
+    predecessor_document = json.loads(predecessor_path.read_text(encoding="utf-8"))
+    successor_document = json.loads(successor_path.read_text(encoding="utf-8"))
+    loaded = M.load_protocol(successor_path)
+
+    assert R33_SUCCESSOR_ANALYSIS_DRIVER_SHA256 != R33_FROZEN_ARTIFACT_DRIVER_SHA256
+    assert loaded.driver_sha256 == R33_SUCCESSOR_ANALYSIS_DRIVER_SHA256
+    assert hashlib.sha256((ROOT / loaded.driver_path).read_bytes()).hexdigest() == (
+        R33_SUCCESSOR_ANALYSIS_DRIVER_SHA256
+    )
+
+    commit_check = subprocess.run(
+        ["git", "cat-file", "-e", f"{loaded.source_commit}^{{commit}}"],
+        cwd=ROOT,
+        capture_output=True,
+        check=False,
+    )
+    assert commit_check.returncode == 0, commit_check.stderr.decode()
+    ancestor_check = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", loaded.source_commit, "HEAD"],
+        cwd=ROOT,
+        capture_output=True,
+        check=False,
+    )
+    assert ancestor_check.returncode == 0, ancestor_check.stderr.decode()
+    driver_blob = subprocess.run(
+        ["git", "show", f"{loaded.source_commit}:{loaded.driver_path}"],
+        cwd=ROOT,
+        capture_output=True,
+        check=False,
+    )
+    assert driver_blob.returncode == 0, driver_blob.stderr.decode()
+    assert hashlib.sha256(driver_blob.stdout).hexdigest() == loaded.driver_sha256
+
+    predecessor_source = predecessor_document["source"]
+    successor_source = successor_document["source"]
+    assert predecessor_document.keys() == successor_document.keys()
+    assert predecessor_source.keys() == successor_source.keys()
+    assert {
+        key for key in predecessor_source
+        if predecessor_source[key] != successor_source[key]
+    } == {"commit", "driver_sha256"}
+    restored_document = dict(successor_document)
+    restored_source = dict(successor_source)
+    restored_source["commit"] = predecessor_source["commit"]
+    restored_source["driver_sha256"] = predecessor_source["driver_sha256"]
+    restored_document["source"] = restored_source
+    assert restored_document == predecessor_document
+    assert (
+        predecessor_source["driver_sha256"]
+        == R33_FROZEN_ARTIFACT_DRIVER_SHA256
+    )
 
 
 def test_driver_has_no_round_default_and_supports_build_only_mode(tmp_path):
