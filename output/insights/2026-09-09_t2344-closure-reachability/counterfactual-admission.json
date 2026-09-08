@@ -1,0 +1,151 @@
+{
+  "entry": "admission",
+  "commit": "2143a49c0c9037b303106eca4cfc346797d3f1b3",
+  "baseline_vector": {
+    "kind": "admission",
+    "G": [],
+    "per_campaign": {
+      "backoff-repro-silo-balanced-repro-87dbbf50": "CampaignVerifierEpochRejected|v1-authority-absent",
+      "backoff-repro-silo-write-heavy-repro-181607af": "CampaignVerifierEpochRejected|v1-authority-absent",
+      "backoff-sweep-silo-balanced-sweep-484c663e": "CampaignVerifierEpochRejected|v1-authority-absent",
+      "backoff-sweep-silo-read-heavy-sweep-610004b9": "CampaignVerifierEpochRejected|v1-authority-absent",
+      "backoff-sweep-silo-read-heavy-sweep-6f169f90": "CampaignVerifierEpochRejected|v1-authority-absent",
+      "backoff-sweep-silo-read-heavy-sweep-8ff95955": "CampaignVerifierEpochRejected|v1-authority-absent",
+      "backoff-sweep-silo-write-heavy-sweep-493813a7": "CampaignVerifierEpochRejected|v1-authority-absent",
+      "p2-2-silo-balanced-enumerate-f1588056": "CampaignVerifierEpochRejected|v1-authority-absent",
+      "p2-2-silo-read-heavy-enumerate-5ffcabad": "CampaignVerifierEpochRejected|v1-authority-absent",
+      "p2-2-silo-write-heavy-enumerate-8967bed6": "CampaignVerifierEpochRejected|v1-authority-absent",
+      "p3-kickoff-coder-wiring-cba40400": "CampaignVerifierEpochRejected|v1-authority-absent",
+      "p3-s4-loop-s4-autonomous-0b53a387": "CampaignNotAdmitted|",
+      "p3-s4-red-s4-red-consumer-9a1897c4": "CampaignVerifierEpochRejected|v1-authority-absent",
+      "p3-s5-sort-loop-s5-sort-autonomous-3be89e0d": "CampaignNotAdmitted|",
+      "p3-s6-sort-sweep-balanced-sweep-1b39095e": "CampaignVerifierEpochRejected|v1-authority-absent",
+      "p3-s6-sort-sweep-balanced-sweep-dd25aa8c": "CampaignVerifierEpochRejected|v1-authority-absent",
+      "p3-s6-sort-sweep-write-heavy-sweep-0484feef": "CampaignVerifierEpochRejected|v1-authority-absent",
+      "p3-s6-sort-sweep-write-heavy-sweep-d4552403": "CampaignVerifierEpochRejected|v1-authority-absent",
+      "p3-s8a-trigger-loop-s8a-trigger-autonomous-3f72ecd5": "CampaignNotAdmitted|",
+      "p3-s8a-trigger-sweep-balanced-sweep-b8f4a4e2": "CampaignNotAdmitted|",
+      "p3-s8a-trigger-sweep-balanced-sweep-c2d838b8": "CampaignNotAdmitted|",
+      "p3-s8a-trigger-sweep-read-heavy-sweep-654d5cd7": "CampaignNotAdmitted|",
+      "p3-s8a-trigger-sweep-read-heavy-sweep-8a237e8c": "CampaignNotAdmitted|",
+      "p3-s8a-trigger-sweep-write-heavy-sweep-a81ec3d8": "CampaignNotAdmitted|",
+      "p3-s8a-trigger-sweep-write-heavy-sweep-dcd2bbfb": "CampaignNotAdmitted|",
+      "s1-direct-block1-direct-comparison-74ff9ba2": "CampaignVerifierEpochRejected|v1-authority-absent",
+      "s1-direct-block2-direct-comparison-9645b16a": "CampaignVerifierEpochRejected|v1-authority-absent",
+      "s1-direct-develop-direct-comparison-7bccdf1a": "CampaignVerifierEpochRejected|v1-authority-absent",
+      "s1-direct-develop-direct-comparison-d0f495bf": "CampaignVerifierEpochRejected|v1-authority-absent",
+      "s1-direct-floor-direct-comparison-b82b9229": "CampaignVerifierEpochRejected|v1-authority-absent"
+    }
+  },
+  "max_sites_per_module": 6,
+  "rows": [
+    {
+      "module": "orchestrator/campaign/backoff_hole_grammar.py",
+      "line": null,
+      "class": "C?",
+      "reason": "executed lines contain no uniquely addressable if"
+    },
+    {
+      "module": "orchestrator/campaign/coder_effect_gate.py",
+      "line": 123,
+      "class": "CD",
+      "reason": "entry stopped: RuntimeError: effect categories must be unique",
+      "fired": true,
+      "status": "entry-error",
+      "error": "RuntimeError: effect categories must be unique",
+      "G_size": null,
+      "changed": true,
+      "seconds": 3.5
+    },
+    {
+      "module": "orchestrator/campaign/coder_effect_gate.py",
+      "line": 131,
+      "class": "CD",
+      "reason": "entry stopped: RuntimeError: effect identifiers must belong to exactly one category",
+      "fired": true,
+      "status": "entry-error",
+      "error": "RuntimeError: effect identifiers must belong to exactly one category",
+      "G_size": null,
+      "changed": true,
+      "seconds": 3.3
+    },
+    {
+      "module": "orchestrator/campaign/materializer_admission.py",
+      "line": null,
+      "class": "C?",
+      "reason": "executed lines contain no uniquely addressable if"
+    },
+    {
+      "module": "orchestrator/campaign/sort_swo_oracle.py",
+      "line": 520,
+      "class": "CD",
+      "reason": "entry stopped: ValueError: sort IR terms are outside the closed domain",
+      "fired": true,
+      "status": "entry-error",
+      "error": "ValueError: sort IR terms are outside the closed domain",
+      "G_size": null,
+      "changed": true,
+      "seconds": 8.4
+    },
+    {
+      "module": "orchestrator/campaign/sort_swo_oracle.py",
+      "line": 532,
+      "class": "CD",
+      "reason": "entry stopped: ValueError: sort IR fields must be distinct",
+      "fired": true,
+      "status": "entry-error",
+      "error": "ValueError: sort IR fields must be distinct",
+      "G_size": null,
+      "changed": true,
+      "seconds": 8.3
+    },
+    {
+      "module": "orchestrator/campaign/sort_swo_oracle.py",
+      "line": 859,
+      "class": "C0",
+      "reason": "verdict vector unchanged with the site executed",
+      "fired": true,
+      "status": "ok",
+      "error": "None",
+      "G_size": 0,
+      "changed": false,
+      "seconds": 79.7
+    },
+    {
+      "module": "orchestrator/campaign/sort_swo_oracle.py",
+      "line": 865,
+      "class": "CD",
+      "reason": "entry stopped: TypeError: sort IR renderer requires an exact SortComparatorIr",
+      "fired": true,
+      "status": "entry-error",
+      "error": "TypeError: sort IR renderer requires an exact SortComparatorIr",
+      "G_size": null,
+      "changed": true,
+      "seconds": 8.2
+    },
+    {
+      "module": "orchestrator/campaign/sort_swo_oracle.py",
+      "line": 867,
+      "class": "CD",
+      "reason": "entry stopped: IndexError: tuple index out of range",
+      "fired": true,
+      "status": "entry-error",
+      "error": "IndexError: tuple index out of range",
+      "G_size": null,
+      "changed": true,
+      "seconds": 9.1
+    },
+    {
+      "module": "orchestrator/campaign/sort_swo_oracle.py",
+      "line": 876,
+      "class": "CD",
+      "reason": "entry stopped: IndexError: tuple index out of range",
+      "fired": true,
+      "status": "entry-error",
+      "error": "IndexError: tuple index out of range",
+      "G_size": null,
+      "changed": true,
+      "seconds": 8.6
+    }
+  ]
+}
