@@ -27,6 +27,14 @@ title: [T-2279] 変異 harness へ D612 の上書きが届かない食い違い�
 - 新規に特定した欠陥は {{T:mutation-watchdog-dispatch-deadline-contract}} として登録し、
   実装せずユーザー裁定へ返す。式を決めずに実装すると、不採用にしたのと同じ誤りを別の場所で犯す。
 - F762 の記述が stale であったことが本 wave の brief を誤らせた。supersede 追記で訂正した。
+- 受入全走は 4 回投入した。1 回目は緑 (child-green、22078 passed) だが land が全史 provenance 監査中の
+  main 進行で rc=29、2 回目も緑で land が stale-main (rc=10)。3 回目は 2 回目の lease が自分名義で
+  残っていたため `claim-self-unverified` で terminal 停止した。land 経路は lease を解放できない
+  (`--lease-dir` を受け取らない) ので、`tools/wave_land_window.py release` で明示解放してから
+  投げ直した。4 回目は
+  `orchestrator/tests/test_codex_worker_launch.py::test_sigterm_ignoring_child_is_killed` の 1 件が
+  赤 (22078 passed)。本 wave の差分は docs だけで、この test は codex launcher の SIGTERM 処理を
+  見るものなので差分から到達できない。単独再走は緑で非再現だったため、DW-O18 に従い受入を投げ直した。
 
 ## 次の一手差分
 
