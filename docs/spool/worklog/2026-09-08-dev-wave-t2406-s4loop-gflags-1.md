@@ -27,6 +27,12 @@ title: [T-2406] 段 4 loop の job body へ gflags/glog 供給経路を移植し
   exact 3 行 allowlist が旧検査を含意して mask する m13)、期待 node 完全一致、baseline PASSED。mask は両層同時変異
   m17 で KILLED を確認した。
 - 受入: この記録 commit を含む tip に対して land 前に全走 (結果は受入 receipt と land 出力、終端の報告に残す)。
+  attempt 1 (09:06) は main `c12e25078` ([T-2412] の docs commit) が `.codex/worktrees/` の Codex worktree 110 本を
+  gitlink として tree に混入させていたため、prerun-fingerprint の `git submodule status --recursive` が rc=128 で
+  走行前に止まった。削除 commit を自 branch に積む経路は land の `RC_DIRT` と `.codex/worktrees` の control-plane
+  検査で拒否されることを T-2412 session の連絡とコードで確認し、取り下げた。修復は T-2412 側の commit
+  `48837186c` (gitlink 除去 + 既知違反登録、Codex author 付き) をユーザーが主 checkout で cherry-pick する手番
+  待ちで、その後の main を取り込んで受入を取り直す。事象の F 記録は混入元の T-2412 wave に委ねる。
 - セッション異常: `cd <別 worktree> && …` で永続 shell の cwd を移し Bash が全拒否、`EnterWorktree(path=自 worktree)` で
   復旧 (実害なし、F873 の再発として同 F へ再発追記)。
 - 一次資料: `output/insights/2026-09-08_t2406-s4loop-gflags-prologue/README.md` (evidence、逐語、変異台帳、裁定)。
