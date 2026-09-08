@@ -1,0 +1,41 @@
+CMake Warning:
+  Manually-specified variables were not used by the project:
+
+    CMAKE_C_COMPILER
+
+
+CMake Warning:
+  Manually-specified variables were not used by the project:
+
+    CMAKE_C_COMPILER
+
+
+Traceback (most recent call last):
+  File "/usr/lib/python3.10/runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/usr/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2406-s4loop-gflags/submit-tree/orchestrator/campaign/p3_s4_loop.py", line 2593, in <module>
+    sys.exit(main())
+  File "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2406-s4loop-gflags/submit-tree/orchestrator/campaign/p3_s4_loop.py", line 2525, in main
+    out = _run_one_iteration_resolved(
+  File "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2406-s4loop-gflags/submit-tree/orchestrator/campaign/p3_s4_loop.py", line 1679, in _run_one_iteration_resolved
+    condition_gate = _require_condition_gate(sub, genome)
+  File "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2406-s4loop-gflags/submit-tree/orchestrator/campaign/p3_s4_loop.py", line 349, in _require_condition_gate
+    raise RuntimeError(
+RuntimeError: condition gate rejected P3 S4 loop: supply=preprocess-failed meaning=declared-meaning-observed
+
+============================================================
+Request ID:             983020.nqsv
+Request Name:           izs4loop
+Queue:                  gen_S@nqsv
+Number of Jobs:         1
+User Name:              tanab
+Group Name:             SFC
+Created Request Time:   Tue Sep  8 08:33:33 2026
+Started Request Time:   Tue Sep  8 08:33:40 2026
+Ended Request Time:     Tue Sep  8 08:34:18 2026
+Resources Information:
+  Elapse:               43S
+  Remaining Elapse:     10757S
+============================================================
