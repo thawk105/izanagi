@@ -63,7 +63,7 @@ wave 開始時に専用 handoff へ「dev-wave 改善候補」節を作る。段
 ### cleanup-branches
 
 cleanup 本走は共有 command §0/§6 に従い final の候補報告だけで終え、同一実行・継続・自己 spawn では
-repo file/history を変更しない。後からユーザーが明示起動した別 dev-wave だけが再照合・routing・実装する。
+repo 内外の未列挙 state を変更しない。ユーザーが別 dev-wave と明示起動した後だけ再照合・routing・実装する。
 
 ### rulings
 

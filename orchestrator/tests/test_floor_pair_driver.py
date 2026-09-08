@@ -56,11 +56,14 @@ def _portable_build_record(
     binary_sha256: str,
     *,
     tag: str,
+    genome_canonical: str | None = None,
 ) -> dict[str, object]:
     """実 s8b-binary-admission/v2 reader を通る最小 portable record。"""
     admission_module = F.s8b_binary_admission
-    genome = json.dumps(
-        {"fixture": tag}, sort_keys=True, separators=(",", ":")
+    genome = (
+        json.dumps({"fixture": tag}, sort_keys=True, separators=(",", ":"))
+        if genome_canonical is None
+        else genome_canonical
     )
     src_token = hashlib.sha256(f"source:{tag}".encode()).hexdigest()
     entry_sha256 = hashlib.sha256(f"entry:{tag}".encode()).hexdigest()
@@ -151,7 +154,11 @@ def _portable_build_record(
     }
 
 
-def _write_inputs(root: Path) -> dict[str, str]:
+def _write_inputs(
+    root: Path,
+    *,
+    genome_canonicals: dict[str, str] | None = None,
+) -> dict[str, str]:
     (root / "refs").mkdir(parents=True)
     (root / "bin").mkdir()
     (root / "out").mkdir()
@@ -167,13 +174,27 @@ def _write_inputs(root: Path) -> dict[str, str]:
     receipt_payloads = {
         "refs/candidate-receipt.json": _canonical(
             _portable_build_record(
-                "bin/candidate.exe", result["bin/candidate.exe"], tag="candidate"
+                "bin/candidate.exe",
+                result["bin/candidate.exe"],
+                tag="candidate",
+                genome_canonical=(
+                    None
+                    if genome_canonicals is None
+                    else genome_canonicals["candidate"]
+                ),
             )
         )
         + b"\n",
         "refs/reference-receipt.json": _canonical(
             _portable_build_record(
-                "bin/reference.exe", result["bin/reference.exe"], tag="reference"
+                "bin/reference.exe",
+                result["bin/reference.exe"],
+                tag="reference",
+                genome_canonical=(
+                    None
+                    if genome_canonicals is None
+                    else genome_canonicals["reference"]
+                ),
             )
         )
         + b"\n",
