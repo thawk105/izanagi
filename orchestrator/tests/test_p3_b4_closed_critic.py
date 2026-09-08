@@ -56,6 +56,10 @@ from orchestrator.campaign.source_digest import (  # noqa: E402
 )
 from campaign_lock_test_support import build_v2_lock  # noqa: E402
 import commit_receipt_support  # noqa: E402
+from p3_b4_proposal_binding_support import (  # noqa: E402
+    issue_proposal_binding_fixture,
+    proposal_document,
+)
 
 
 _G = Genome("silo", {
@@ -120,6 +124,17 @@ def _production_launch_context(
     if admission is None:
         admission = _committed_admission_fixture(driver_kind=driver_kind)
     parent = Path(tempfile.mkdtemp(prefix="izanagi-b4-context-capture-"))
+    proposal_path = parent / "bootstrap-proposal.json"
+    document = proposal_document(driver_kind)
+    proposal_path.write_text(
+        json.dumps(document, ensure_ascii=False), encoding="utf-8"
+    )
+    binding = issue_proposal_binding_fixture(
+        parent / "prerun",
+        driver_kind=driver_kind,
+        document=document,
+        label="context",
+    )
     layouts = {}
 
     def layout_for(campaign_id):
@@ -156,7 +171,9 @@ def _production_launch_context(
             driver_kind=driver_kind,
             arm=arm,
             admission_record_path=admission.record_path,
-            proposal_path=parent / "unused-proposal.json",
+            proposal_path=proposal_path,
+            b4_prerun_publication=Path(binding.publication.publication_root),
+            b4_attempt_id=binding.attempt_id,
         )
 
 
