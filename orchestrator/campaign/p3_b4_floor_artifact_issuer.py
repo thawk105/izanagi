@@ -30,6 +30,7 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     __package__ = "orchestrator.campaign"
 
 from . import floor_pair_driver
+from .genome import protocol_from_floor_genome
 
 
 B4_FLOOR_ARTIFACT_SCHEMA_VERSION: Final[str] = (
@@ -742,46 +743,55 @@ def _derive_identity(
     tuple[str, ...],
     tuple[tuple[tuple[str, str], ...], ...],
 ]:
+    """Derive identity after producer validation has fixed its other parts.
+
+    ``floor_pair_driver.py:759-776, 1136-1147`` guarantees nonempty cells with
+    calibration-consistent threads/workloads.  The issuer summary validator at
+    ``p3_b4_floor_artifact_issuer.py:411-433`` guarantees nonempty campaigns.
+    Only receipt-derived protocol can therefore remain missing here.
+    Protocol is the protocol part of each accepted build receipt's canonical
+    genome; this does not recheck the protocol in the CCBench source.
+    """
     missing: list[str] = []
     env_tag = spec.environment.env_tag
 
     threads_values = {cell.perf_config.threads for cell in spec.cells}
     workloads = {cell.perf_config.workload for cell in spec.cells}
-    if len(threads_values) != 1:
-        missing.append("threads")
-    if not workloads:
-        missing.append("workload_identifier")
 
     protocols: set[str] = set()
     protocol_failed = False
-    if spec.artifacts:
-        for index, artifact in enumerate(spec.artifacts):
-            reference = artifact.build_receipt
-            try:
-                receipt_path = reference.path
-                receipt_sha = reference.sha256
-                raw = _read_regular(root, receipt_path, label=f"build receipt {receipt_path}")
-                if hashlib.sha256(raw).hexdigest() != receipt_sha:
-                    protocol_failed = True
-                    continue
-                receipt = _load_json_bytes(
-                    raw, label=f"build receipt {receipt_path}", require_canonical=False
-                )
-                if type(receipt) is not dict or "protocol" not in receipt:
-                    protocol_failed = True
-                    continue
-                protocols.add(
-                    _identifier(receipt["protocol"], label=f"build receipt {receipt_path}.protocol")
-                )
-            except B4FloorArtifactError:
+    for artifact in spec.artifacts:
+        reference = artifact.build_receipt
+        try:
+            receipt_path = reference.path
+            receipt_sha = reference.sha256
+            raw = _read_regular(root, receipt_path, label=f"build receipt {receipt_path}")
+            if hashlib.sha256(raw).hexdigest() != receipt_sha:
                 protocol_failed = True
-    else:
-        protocol_failed = True
+                continue
+            record = _load_json_bytes(
+                raw, label=f"build receipt {receipt_path}", require_canonical=False
+            )
+            if type(record) is not dict or "binding" not in record:
+                protocol_failed = True
+                continue
+            binding = record["binding"]
+            if type(binding) is not dict or "genome_canonical" not in binding:
+                protocol_failed = True
+                continue
+            protocol = protocol_from_floor_genome(binding["genome_canonical"])
+            protocols.add(
+                _identifier(
+                    protocol,
+                    label=(
+                        f"build receipt {receipt_path}.binding.genome_canonical"
+                    ),
+                )
+            )
+        except (ValueError, B4FloorArtifactError):
+            protocol_failed = True
     if protocol_failed or len(protocols) != 1:
         missing.append("protocol")
-
-    if not campaign_ids:
-        missing.append("campaign_identifier")
 
     missing_tuple = tuple(sorted(set(missing)))
     workload_values = tuple(sorted(workloads))
@@ -822,9 +832,10 @@ def load_floor_pair_summary(
 ) -> B4ValidatedFloorPairSummary:
     """Load a v3 summary, rederive its float values, and derive its identity.
 
-    A missing identity component is returned in ``missing_identity_elements``;
-    it does not erase the fact that the producer summary itself was accepted.
-    Artifact issuance remains fail-closed on any such missing component.
+    Protocol comes from each accepted build receipt's binding genome.  A
+    non-canonical or mixed receipt protocol is returned as a missing identity
+    component without erasing producer acceptance of the summary itself;
+    artifact issuance remains fail-closed on that missing component.
     """
 
     root = _repo_root(repo_root)
