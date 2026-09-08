@@ -864,6 +864,44 @@ def test_context_shape_rejects_multiple_genomes_and_balanced_before_writes(
     assert list(root.iterdir()) == []
 
 
+def test_validate_result_evidence_context_rejects_multiple_genomes(
+    tmp_path: Path,
+) -> None:
+    campaign_fixtures._refresh_certified_writer_authority()
+    context = _issuance_context(tmp_path, campaign_fixtures._AUTH_CONTRACT)
+    genome = Genome("silo", {})
+
+    with pytest.raises(
+        evidence.ResultEvidenceIssuanceRefused,
+        match="exactly one genome",
+    ):
+        loop._validate_result_evidence_context(
+            context,
+            genomes=(genome, genome),
+            balanced_schedule=None,
+        )
+
+
+def test_validate_result_evidence_context_rejects_balanced_schedule(
+    tmp_path: Path,
+) -> None:
+    campaign_fixtures._refresh_certified_writer_authority()
+    context = _issuance_context(tmp_path, campaign_fixtures._AUTH_CONTRACT)
+    schedule = BalancedScheduleConfig(
+        workload="fixture", root_seed="1" * 64, arm_names=("a", "b")
+    )
+
+    with pytest.raises(
+        evidence.ResultEvidenceIssuanceRefused,
+        match="balanced schedule",
+    ):
+        loop._validate_result_evidence_context(
+            context,
+            genomes=(Genome("silo", {}),),
+            balanced_schedule=schedule,
+        )
+
+
 @pytest.mark.usefixtures("ratified_enforcement_source")
 def test_context_exact_type_and_root_binding_precede_campaign_writes(
         tmp_path: Path, monkeypatch) -> None:
@@ -1248,7 +1286,7 @@ def test_issuance_rejects_invalid_origin_capability_campaign_id(
                 build_attempt_id="fixture-attempt",
                 verify_result=None,
                 campaign_run_identity="fixture-run",
-                contract_sha256="a" * 64,
+                environment_contract=campaign_fixtures._AUTH_CONTRACT,
                 execution_receipt={},
             )
 

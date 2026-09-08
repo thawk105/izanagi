@@ -143,6 +143,51 @@ def test_remote_fanout_abort_does_not_reconstruct_typed_verify_result():
     assert result.verify_result is None
 
 
+def test_admitted_remote_fanout_abort_has_no_typed_verify_result_before_projection(
+    tmp_path: Path,
+) -> None:
+    """The admitted fan-out outcome itself carries no locally typed result."""
+    task, _task_path, result_path = fanout_fixtures._task_fixture(tmp_path)
+    wire_verify = result_to_dict(
+        VerifyResult(trace_dir="remote-fixture", serializable=False, n_txns=2)
+    )
+    wire_verify.pop("trace_dir", None)
+    unsigned = {
+        "schema": pipeline._VERIFY_FANOUT_RESULT_SCHEMA,
+        "task_sha256": task["task_sha256"],
+        "build_attempt_id": task["build_attempt_id"],
+        "tag": task["tag"],
+        "rep": task["rep"],
+        "trace_bin_sha256": task["trace_bin_sha256"],
+        "outcome": {
+            "kind": "abort",
+            "reason": "non-serializable",
+            "message": "remote verifier rejected",
+            "detail": {"verify": wire_verify},
+            "workload_tag": task["tag"],
+            "verify_payload": None,
+        },
+    }
+    pipeline._write_create_only_json(
+        str(result_path), fanout_fixtures._sign_result(unsigned)
+    )
+
+    outcome = pipeline._admit_verify_fanout_result(
+        task,
+        host="fixture-host",
+        result_path=str(result_path),
+        launch_result=subprocess.CompletedProcess(
+            [], 0, stdout="", stderr=""
+        ),
+        result_secret=fanout_fixtures._RESULT_SECRET,
+    )
+
+    assert type(outcome) is pipeline._RepetitionExecutionOutcome
+    assert outcome.abort is not None
+    assert outcome.abort.reason == "non-serializable"
+    assert outcome.verify_result is None
+
+
 def test_abort_rejects_non_exact_verify_result():
     """The real abort gate rejects a wire dict and a VerifyResult subclass."""
     invalid_values = ({}, object.__new__(_VerifyResultSubclass))

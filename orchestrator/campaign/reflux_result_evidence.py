@@ -30,6 +30,7 @@ from . import reflux_origin_ledger as ledger
 from . import reflux_origin_binding
 from . import trigger_gate_binding
 from . import wal as wal_codec
+from .env_contract import ExecutionEnvironmentContract
 from .layout import CampaignLayout, validate_campaign_id
 from .model import STAGE_ABORT, STAGE_COMMIT
 from .reflux_ir import TriggerGateIR, encode_wire
@@ -1200,7 +1201,7 @@ def issue_campaign_result_evidence(
     verify_result: object | None,
     campaign_run_identity: str,
     campaign_id: str,
-    contract_sha256: str,
+    environment_contract: ExecutionEnvironmentContract,
     execution_receipt: object | None,
 ) -> Path:
     """Issue source, projection, provenance, and then the record create-only."""
@@ -1211,20 +1212,41 @@ def issue_campaign_result_evidence(
         )
     if type(layout) is not CampaignLayout:
         raise ResultEvidenceError("layout must be an exact CampaignLayout")
+    if type(environment_contract) is not ExecutionEnvironmentContract:
+        raise ResultEvidenceError(
+            "environment_contract must be an exact "
+            "ExecutionEnvironmentContract"
+        )
     capability = _issued_context_capability(context)
     if campaign_id != capability.campaign_id:
         raise ResultEvidenceError("campaign id differs from the origin capability")
+    contract_sha256 = environment_contract.contract_sha256
     if contract_sha256 != capability.environment_contract_sha256:
-        raise ResultEvidenceError(
+        _issuance_refused(
             "environment contract differs from the origin capability"
         )
     _campaign_identity(campaign_run_identity, label="campaign_run_identity")
     _sha256(contract_sha256, label="contract_sha256")
+    if (
+        context.env_tag != environment_contract.env_tag
+        or context.attestation_mode != environment_contract.attestation_mode
+    ):
+        _issuance_refused(
+            "issuance context environment fields differ from the "
+            "environment contract"
+        )
+    if (
+        environment_contract.attestation_mode == "required"
+        and context.verified_calibration is None
+    ):
+        _issuance_refused(
+            "required environment contract lacks verified calibration"
+        )
     if not execution_guard.receipt_matches_contract(
         execution_receipt,
-        env_tag=context.env_tag,
+        env_tag=environment_contract.env_tag,
         contract_sha256=contract_sha256,
-        attestation_mode=context.attestation_mode,
+        attestation_mode=environment_contract.attestation_mode,
         verified_calibration=context.verified_calibration,
     ):
         _issuance_refused(

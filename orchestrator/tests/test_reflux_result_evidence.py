@@ -12,7 +12,7 @@ import pytest
 from orchestrator.campaign import reflux_origin_ledger as ledger
 from orchestrator.campaign import reflux_origin_binding as origin_binding
 from orchestrator.campaign import reflux_result_evidence as evidence
-from orchestrator.campaign import env_contract, execution_guard
+from orchestrator.campaign import env_attestation, env_contract, execution_guard
 from orchestrator.campaign import trigger_gate_binding
 from orchestrator.campaign import wal
 from orchestrator.campaign.layout import CampaignLayout
@@ -39,6 +39,7 @@ _OUTER_SALTED_COMMITMENT_GOLDEN = "b9e20f457bec0bb2ed7e866c7bd175cee9fba8779a96f
 _WRONG_DOMAIN_PREFIXED_RAW_GOLDEN = "610867ca65d585909812e468368f931a76fdf0a7faca488a0a294554ed97735f"
 _SALT = "0123456789abcdef0123456789abcdef"
 _FIXTURE_ROOT = Path(__file__).with_name("fixtures")
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 _BUILD_ATTEMPT_ID = "producer-build-attempt-0000"
 _ORDERED_VERIFIERS = ("legacy", "s2")
 
@@ -267,8 +268,11 @@ def _issued_origin_capability(
 
 def _producer_context(
     evidence_root: Path,
+    *,
+    contract: env_contract.ExecutionEnvironmentContract | None = None,
+    verified_calibration: object | None = None,
 ) -> evidence.ResultEvidenceIssuanceContext:
-    contract = env_contract.authorize("linux-baremetal").contract
+    contract = contract or env_contract.authorize("linux-baremetal").contract
     fixture_record = build_result_evidence_record(
         origin_binding__environment_contract_sha256=contract.contract_sha256,
     )
@@ -300,7 +304,7 @@ def _producer_context(
         ).as_posix(),
         env_tag=contract.env_tag,
         attestation_mode=contract.attestation_mode,
-        verified_calibration=None,
+        verified_calibration=verified_calibration,
     )
 
 
@@ -367,6 +371,30 @@ def _execution_receipt() -> dict:
     return execution_guard.build_receipt(contract)
 
 
+def _required_execution_inputs() -> tuple[
+    env_contract.ExecutionEnvironmentContract,
+    env_attestation.VerifiedCalibration,
+    dict,
+]:
+    contract = env_contract.GENERATIONS["pegasus"][0].contract
+    verified = env_attestation.load_verified_calibration(contract, _REPO_ROOT)
+    expected = env_attestation.profile_to_dict(verified.attestation_profile)
+    clock_samples = expected["effective_clock"]["samples_mhz"]
+    median_clock = sorted(clock_samples)[len(clock_samples) // 2]
+    expected["effective_clock"]["samples_mhz"] = [
+        median_clock for _sample in clock_samples
+    ]
+    del expected["effective_clock"]["tolerance_pct"]
+    observed = env_attestation.normalize_observed_profile(expected)
+    receipt = execution_guard.attest_and_build_receipt(
+        contract,
+        verified,
+        probe_fn=lambda: observed,
+        now_fn=lambda: "2026-09-09T00:00:00Z",
+    )
+    return contract, verified, receipt
+
+
 def _issue_producer_record(
     *,
     layout: CampaignLayout,
@@ -374,9 +402,15 @@ def _issue_producer_record(
     build_attempt_id: str,
     verify_result: object | None,
     execution_receipt: object | None,
+    environment_contract: env_contract.ExecutionEnvironmentContract | None = None,
 ) -> Path:
     capability = context.origin_capability
     assert type(capability) is origin_binding.OriginBindingCapability
+    contract = (
+        environment_contract
+        if environment_contract is not None
+        else env_contract.authorize("linux-baremetal").contract
+    )
     return evidence.issue_campaign_result_evidence(
         layout=layout,
         context=context,
@@ -384,7 +418,7 @@ def _issue_producer_record(
         verify_result=verify_result,
         campaign_run_identity="fixture-run-00000000",
         campaign_id=capability.campaign_id,
-        contract_sha256=capability.environment_contract_sha256,
+        environment_contract=contract,
         execution_receipt=execution_receipt,
     )
 
@@ -1216,6 +1250,105 @@ def test_campaign_producer_refuses_absent_execution_receipt_before_writes(
     assert _file_snapshot(root) == before
 
 
+def test_campaign_producer_refuses_required_contract_v1_receipt_before_writes(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "evidence"
+    root.mkdir()
+    layout = _producer_layout(root)
+    contract, verified, _valid_v2_receipt = _required_execution_inputs()
+    context = _producer_context(
+        root,
+        contract=contract,
+        verified_calibration=verified,
+    )
+    result = _verify_fixture(tmp_path, "r9_dense_cycle4")
+    attempt = "producer-attempt-required-v1-receipt"
+    _log_producer_attempt(
+        layout, build_attempt_id=attempt, result=result, first_ts=10
+    )
+    before = _file_snapshot(root)
+
+    with pytest.raises(
+        evidence.ResultEvidenceIssuanceRefused,
+        match="execution receipt is absent or does not match",
+    ):
+        _issue_producer_record(
+            layout=layout,
+            context=context,
+            build_attempt_id=attempt,
+            verify_result=result,
+            execution_receipt=execution_guard.build_receipt(contract),
+            environment_contract=contract,
+        )
+    assert _file_snapshot(root) == before
+
+
+def test_campaign_producer_refuses_contract_not_bound_by_capability_before_writes(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "evidence"
+    root.mkdir()
+    layout = _producer_layout(root)
+    contract = env_contract.authorize("linux-baremetal").contract
+    context = _producer_context(root, contract=contract)
+    mismatched_contract = replace(
+        contract, clocks_per_us=contract.clocks_per_us + 1
+    )
+    result = _verify_fixture(tmp_path, "r9_dense_cycle4")
+    attempt = "producer-attempt-contract-mismatch"
+    _log_producer_attempt(
+        layout, build_attempt_id=attempt, result=result, first_ts=10
+    )
+    before = _file_snapshot(root)
+
+    with pytest.raises(
+        evidence.ResultEvidenceIssuanceRefused,
+        match="environment contract differs from the origin capability",
+    ):
+        _issue_producer_record(
+            layout=layout,
+            context=context,
+            build_attempt_id=attempt,
+            verify_result=result,
+            execution_receipt=execution_guard.build_receipt(
+                mismatched_contract
+            ),
+            environment_contract=mismatched_contract,
+        )
+    assert _file_snapshot(root) == before
+
+
+def test_campaign_producer_refuses_required_contract_without_verified_calibration(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "evidence"
+    root.mkdir()
+    layout = _producer_layout(root)
+    contract, _verified, valid_v2_receipt = _required_execution_inputs()
+    context = _producer_context(root, contract=contract)
+    result = _verify_fixture(tmp_path, "r9_dense_cycle4")
+    attempt = "producer-attempt-required-without-calibration"
+    _log_producer_attempt(
+        layout, build_attempt_id=attempt, result=result, first_ts=10
+    )
+    before = _file_snapshot(root)
+
+    with pytest.raises(
+        evidence.ResultEvidenceIssuanceRefused,
+        match="required environment contract lacks verified calibration",
+    ):
+        _issue_producer_record(
+            layout=layout,
+            context=context,
+            build_attempt_id=attempt,
+            verify_result=result,
+            execution_receipt=valid_v2_receipt,
+            environment_contract=contract,
+        )
+    assert _file_snapshot(root) == before
+
+
 @pytest.mark.parametrize(
     "mismatch",
     ("schema", "env_tag", "attestation_mode"),
@@ -1346,6 +1479,38 @@ def test_campaign_producer_refuses_nonexact_verify_result_before_writes(
             context=context,
             build_attempt_id=attempt,
             verify_result=_verify_snapshot(result),
+            execution_receipt=_execution_receipt(),
+        )
+    assert _file_snapshot(root) == before
+
+
+def test_campaign_producer_refuses_wrong_expected_record_path_before_writes(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "evidence"
+    root.mkdir()
+    layout = _producer_layout(root)
+    context = _producer_context(root)
+    wrong_context = replace(
+        context,
+        expected_record_path="reports/reflux-result-evidence/v1/wrong.json",
+    )
+    result = _verify_fixture(tmp_path, "r9_dense_cycle4")
+    attempt = "producer-attempt-wrong-record-path"
+    _log_producer_attempt(
+        layout, build_attempt_id=attempt, result=result, first_ts=10
+    )
+    before = _file_snapshot(root)
+
+    with pytest.raises(
+        evidence.ResultEvidenceError,
+        match="record path differs from the issuance context",
+    ):
+        _issue_producer_record(
+            layout=layout,
+            context=wrong_context,
+            build_attempt_id=attempt,
+            verify_result=result,
             execution_receipt=_execution_receipt(),
         )
     assert _file_snapshot(root) == before

@@ -315,7 +315,7 @@ def _issue_campaign_result_evidence(
         build_attempt_id: str,
         verify_result: object | None,
         campaign_run_identity: str,
-        contract_sha256: str,
+        environment_contract: ExecutionEnvironmentContract,
         execution_receipt: object | None,
 ) -> None:
     if context is None:
@@ -339,7 +339,7 @@ def _issue_campaign_result_evidence(
         verify_result=verify_result,
         campaign_run_identity=campaign_run_identity,
         campaign_id=origin_campaign_id,
-        contract_sha256=contract_sha256,
+        environment_contract=environment_contract,
         execution_receipt=execution_receipt,
     )
 
@@ -677,7 +677,7 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                         build_attempt_id=r.build_attempt_id,
                         verify_result=r.verify_result,
                         campaign_run_identity=cid,
-                        contract_sha256=authorized_contract.contract_sha256,
+                        environment_contract=authorized_contract,
                         execution_receipt=execution_receipt,
                     )
                 s.results.append(r)
@@ -818,7 +818,7 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                     build_attempt_id=r.build_attempt_id,
                     verify_result=r.verify_result,
                     campaign_run_identity=cid,
-                    contract_sha256=authorized_contract.contract_sha256,
+                    environment_contract=authorized_contract,
                     execution_receipt=execution_receipt,
                 )
             s.results.append(r)
