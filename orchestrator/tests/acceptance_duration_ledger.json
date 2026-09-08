@@ -1,5 +1,17 @@
 {
   "duration_seconds_by_nodeid": {
+    "orchestrator/tests/test_p3_s4_loop.py::test_prebuild_offline_tokens_reach_real_condition_gate_configure_argv": 0.01,
+    "orchestrator/tests/test_p3_s4_loop.py::test_prebuild_offline_tokens_without_dependency_prefix_match_production_shape": 0.012,
+    "orchestrator/tests/test_p3_s4_loop.py::test_without_prebuild_real_condition_gate_configure_args_remain_empty": 0.009,
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_complete_k2_environment_reaches_actual_job_driver_argv": 0.43,
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_complete_k2_pair_without_proposal_is_refused_by_actual_job_body": 0.007,
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_k2_argv_expansion_is_proposal_only": 0.002,
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_omitted_optional_k2_declarations_add_no_driver_argv": 0.43,
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[k2-proposal-required]": 0.006,
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[k2-request-set-detection]": 0.006,
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_set_empty_manifest_alone_is_refused_by_actual_job_body": 0.008,
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_set_empty_optional_k2_declaration_is_refused_by_actual_job_body[IZANAGI_S4_KNOWLEDGE_CLASSIFICATION]": 0.008,
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_set_empty_optional_k2_declaration_is_refused_by_actual_job_body[IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM]": 0.007,
     "orchestrator/tests/test_acceptance_schedule_order.py::test_g5_real_ledger_covers_at_least_90_percent_of_real_collection": 62.0,
     "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_legacy_verify_done_verdict_accepts_exact_values_and_extra_payload": 0.001,
     "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_legacy_verify_done_verdict_is_checked_before_disclosure_filter[unknown-tag]": 0.001,
@@ -22144,7 +22156,7 @@
     "orchestrator/tests/test_t1998_stock_inline_pair.py::test_unstable_arm_is_inconclusive[target]": 0.0,
     "orchestrator/tests/test_t1998_stock_inline_pair.py::test_verify_environment_tag_drift_is_rejected": 0.0
   },
-  "nodeid_count": 22143,
+  "nodeid_count": 22155,
   "schema_version": 1,
   "unit": "seconds"
 }

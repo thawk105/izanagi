@@ -7792,6 +7792,186 @@ class _PrebuildProbeStop(RuntimeError):
     pass
 
 
+class _ConditionGateConfigureProbeStop(RuntimeError):
+    pass
+
+
+def _observe_iteration_condition_gate_configure_argv(
+    tmp_path: Path,
+    monkeypatch,
+    *,
+    dependency_prefix: str,
+    with_prebuild: bool,
+) -> tuple[tuple[str, ...], Path, dict[str, object]]:
+    import contextlib
+
+    from orchestrator.campaign import patchharness
+
+    source_root = (tmp_path / "ccbench").resolve()
+    source_file = source_root / L.SOURCE_REL
+    source_file.parent.mkdir(parents=True)
+    source_file.write_text(_TEMPLATE, encoding="utf-8")
+    prebuild_options: dict[str, object] = {}
+    if with_prebuild:
+        base = (tmp_path / "prebuild").resolve()
+        source_dirs = tuple(
+            base / f"{name}-src"
+            for name in ("masstree", "mimalloc", "googletest")
+        )
+        for source_dir in source_dirs:
+            source_dir.mkdir(parents=True)
+        prebuild_options = {
+            "fetchcontent_base_dir": str(base),
+            "masstree_source_dir": str(source_dirs[0]),
+            "mimalloc_source_dir": str(source_dirs[1]),
+            "googletest_source_dir": str(source_dirs[2]),
+            "fetchcontent_dependency_receipt": {
+                "masstree_head": "a" * 40,
+                "config_sha256": "b" * 64,
+            },
+        }
+
+    observed: list[tuple[str, ...]] = []
+
+    def stop_at_configure(argv, **kwargs):
+        assert kwargs["failure_reason"] == "configure-failed"
+        observed.append(tuple(argv))
+        raise _ConditionGateConfigureProbeStop
+
+    monkeypatch.setattr(L, "_require_condition_gate", _REAL_CONDITION_GATE)
+    monkeypatch.setattr(
+        L.buildcache, "compilers_for_current_site", lambda: ("gcc", "g++"),
+    )
+    monkeypatch.setattr(
+        L.condition_meaning_gate, "_run_process", stop_at_configure,
+    )
+    monkeypatch.setattr(
+        patchharness, "applied",
+        lambda *_args, **_kwargs: contextlib.nullcontext(),
+    )
+    monkeypatch.setattr(
+        L.ident, "ensure_resumable_attempts", lambda *_args, **_kwargs: None,
+    )
+    planner, coder = _site_test_proposals()
+    contract = env_contract.lookup(L.ENV_TAG)
+    layout = CampaignLayout(str(tmp_path / "campaign")).ensure()
+    with pytest.raises(_ConditionGateConfigureProbeStop):
+        L._run_one_iteration_resolved(
+            L.default_cfg(), L.default_perf(), planner, coder,
+            L.LoopState(start_wall=time.time()), str(source_root), True,
+            layout, contract, site_policy.OTHER,
+            dependency_prefix=dependency_prefix,
+            build_context=build_run_context(
+                generator_id=GeneratorId.BACKOFF_SWEEP,
+            ),
+            log=lambda *_args: None,
+            **prebuild_options,
+        )
+    assert len(observed) == 1
+    return observed[0], source_root, prebuild_options
+
+
+def _offline_configure_tokens(argv) -> tuple[str, ...]:
+    return tuple(
+        token for token in argv
+        if token.startswith("-D")
+        and token.partition("=")[0].removeprefix("-D")
+        in L._CONDITION_GATE_OFFLINE_DEFINE_NAMES
+    )
+
+
+def test_prebuild_offline_tokens_reach_real_condition_gate_configure_argv(
+    tmp_path, monkeypatch,
+):
+    from orchestrator.campaign import buildcache
+
+    dependency_prefix = str((tmp_path / "dependency-prefix").resolve())
+    actual_argv, source_root, prebuild_options = (
+        _observe_iteration_condition_gate_configure_argv(
+            tmp_path,
+            monkeypatch,
+            dependency_prefix=dependency_prefix,
+            with_prebuild=True,
+        )
+    )
+    genome = Genome("silo", {
+        **L._BASE, "BACK_OFF": 1, "BACKOFF_FIXED": 20,
+    })
+    toolchain = {
+        role: {"realpath": f"/test/{role}"}
+        for role in ("cc", "cxx", "cmake")
+    }
+    campaign_argv, _build_argv = buildcache._v2_commands(
+        genome, False, str(source_root), str(tmp_path / "campaign-build"),
+        toolchain, jobs=1,
+        dependency_prefix=dependency_prefix,
+        fetchcontent_base_dir=prebuild_options["fetchcontent_base_dir"],
+        masstree_source_dir=prebuild_options["masstree_source_dir"],
+        mimalloc_source_dir=prebuild_options["mimalloc_source_dir"],
+        googletest_source_dir=prebuild_options["googletest_source_dir"],
+    )
+    condition_tokens = _offline_configure_tokens(actual_argv)
+    assert condition_tokens == _offline_configure_tokens(campaign_argv)
+    assert len(condition_tokens) == 5
+    assert {
+        token.partition("=")[0].removeprefix("-D")
+        for token in condition_tokens
+    } == L._CONDITION_GATE_OFFLINE_DEFINE_NAMES
+
+
+def test_prebuild_offline_tokens_without_dependency_prefix_match_production_shape(
+    tmp_path, monkeypatch,
+):
+    from orchestrator.campaign import buildcache
+
+    actual_argv, source_root, prebuild_options = (
+        _observe_iteration_condition_gate_configure_argv(
+            tmp_path,
+            monkeypatch,
+            dependency_prefix="",
+            with_prebuild=True,
+        )
+    )
+    genome = Genome("silo", {
+        **L._BASE, "BACK_OFF": 1, "BACKOFF_FIXED": 20,
+    })
+    toolchain = {
+        role: {"realpath": f"/test/{role}"}
+        for role in ("cc", "cxx", "cmake")
+    }
+    campaign_argv, _build_argv = buildcache._v2_commands(
+        genome, False, str(source_root), str(tmp_path / "campaign-build"),
+        toolchain, jobs=1,
+        fetchcontent_base_dir=prebuild_options["fetchcontent_base_dir"],
+        masstree_source_dir=prebuild_options["masstree_source_dir"],
+        mimalloc_source_dir=prebuild_options["mimalloc_source_dir"],
+        googletest_source_dir=prebuild_options["googletest_source_dir"],
+    )
+    condition_tokens = _offline_configure_tokens(actual_argv)
+    assert condition_tokens == _offline_configure_tokens(campaign_argv)
+    assert len(condition_tokens) == 4
+    assert {
+        token.partition("=")[0].removeprefix("-D")
+        for token in condition_tokens
+    } == L._CONDITION_GATE_OFFLINE_DEFINE_NAMES - {"CMAKE_PREFIX_PATH"}
+
+
+def test_without_prebuild_real_condition_gate_configure_args_remain_empty(
+    tmp_path, monkeypatch,
+):
+    dependency_prefix = str((tmp_path / "dependency-prefix").resolve())
+    actual_argv, _source_root, prebuild_options = (
+        _observe_iteration_condition_gate_configure_argv(
+            tmp_path,
+            monkeypatch,
+            dependency_prefix=dependency_prefix,
+            with_prebuild=False,
+        )
+    )
+    assert prebuild_options == {}
+    assert _offline_configure_tokens(actual_argv) == ()
+
+
 def _prebuild_toolchain_manifest() -> dict[str, dict[str, str]]:
     return {
         role: {
