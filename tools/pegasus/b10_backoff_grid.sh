@@ -184,8 +184,8 @@ cleanup_worktree() {
 trap cleanup_worktree EXIT
 
 case "$B10_RUN_KIND" in
-  extended|t2266-tail) ;;
-  *) fail 2 "B10_RUN_KIND must be extended or t2266-tail" ;;
+  extended|t2266-tail|t2418-explore) ;;
+  *) fail 2 "B10_RUN_KIND must be extended, t2266-tail, or t2418-explore" ;;
 esac
 
 [[ -n "${PBS_JOBID:-}" && -n "${PBS_NODEFILE:-}" \
@@ -578,6 +578,8 @@ FREEZE_BEFORE=$(freeze_digest)
   fail 2 "freeze trees do not match the B-10 preregistered bytes"
 if [[ "$B10_RUN_KIND" == "t2266-tail" ]]; then
   CURRENT_STAGE=t2266_tail_sweep
+elif [[ "$B10_RUN_KIND" == "t2418-explore" ]]; then
+  CURRENT_STAGE=t2418_explore_sweep
 else
   CURRENT_STAGE=extended_sweep
 fi
@@ -586,7 +588,8 @@ SWEEP_COMMAND=("$PY" -I -B \
   "$WORKLOAD" --output-root "$OUTPUT_ROOT" \
   --cache-root "$B10_BUILD_CACHE_ROOT" \
   --ccbench-dir "$CCBENCH_WORKTREE")
-if [[ "$B10_RUN_KIND" == "t2266-tail" ]]; then
+if [[ "$B10_RUN_KIND" == "t2266-tail" \
+    || "$B10_RUN_KIND" == "t2418-explore" ]]; then
   SWEEP_COMMAND+=(--run-kind "$B10_RUN_KIND")
 fi
 timeout "$SWEEP_CAP_S" "${SWEEP_COMMAND[@]}"
@@ -639,6 +642,24 @@ if run_kind == "t2266-tail":
         report = pathlib.Path(f"{report_stem}{suffix}")
         if not report.is_file() or report.is_symlink():
             raise SystemExit(f"T-2266 report artifact is missing: {report.name}")
+elif run_kind == "t2418-explore":
+    wal_path = campaigns[0] / "runs" / "wal.jsonl"
+    commits = {
+        parsed.get("variant")
+        for row in wal_path.read_bytes().splitlines()
+        if row
+        for parsed in [json.loads(row)]
+        if parsed.get("stage") == "commit"
+    }
+    if len(commits) != 5 or None in commits:
+        raise SystemExit(f"T-2418 requires five committed genomes, found {len(commits)}")
+    report_stem = (
+        campaigns[0] / "reports" / f"t2418-backoff-static-explore-{workload}"
+    )
+    for suffix in (".dat", ".json"):
+        report = pathlib.Path(f"{report_stem}{suffix}")
+        if not report.is_file() or report.is_symlink():
+            raise SystemExit(f"T-2418 report artifact is missing: {report.name}")
 artifacts = {}
 for path in sorted(item for item in campaigns[0].rglob("*") if item.is_file()):
     artifacts[path.relative_to(base).as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
