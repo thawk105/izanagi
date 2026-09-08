@@ -76,6 +76,28 @@ sha 定数 1 個、`orchestrator/tests/test_check_docs.py` の pin、spool fragm
 (c) 当該 test は SIGTERM を無視する子を kill する時間依存の検査で、共有 login node の
 負荷で締切を割りうる型である。DW-O18 に従い単独再走 1 回・受入再走 1 回だけ行った。
 
+land 競合が長引き、受入は計 11 回投入した。緑は attempt 2 / 3 / 5 / 7 / 9。非ゼロの内訳は
+4 種類あり、**すべて中身を読んで分けた**。
+
+- `stage=merge-message-provenance` (attempt 1): main 前進による merge の provenance。契約どおり
+  merge commit を作って解決した。両親のいずれとも異なる path が実装面に出た回だけ Codex
+  role=author を付け、根拠を commit 本文に書いた。
+- `stage=postcheck` (attempt 8 ほか): 子を起動する前に main へ置いていかれた検査。
+  **テストは 1 件も走っていない** (子の log 自体が無い)。純粋な競合負けなので再試行した。
+- `source_rc=16` / `dispatch-attestation-missing` (attempt 10): Pegasus の dispatch 基盤失敗
+  (`acceptance shard gate failed: dispatch-infrastructure`)。混雑由来で、D612 の opt-in 上書き
+  (`IZANAGI_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE=3600` /
+  `IZANAGI_DISPATCH_OVERALL_GRACE_OVERRIDE=600`) を付けて再試行した。
+- `child-verdict` の実赤 2 件 (attempt 4 / 11): 下記のとおり**いずれも非帰属**と判定した。
+
+2 件目の実赤は attempt 11 (tip 417a41fcd) の
+`orchestrator/tests/test_mutation_harness.py::test_local_timeout_after_dispatch_submission_stops_without_terminal_record`
+1 件で、21,965 passed / 1 failed。**非帰属と判定した。** 根拠は (a) 当該 test file は
+`check_docs` を 1 度も参照せず本 wave の差分から到達しない、(b) 同一 tip の単独再走で
+115 passed / rc=0 と再現しない、(c) 当該 test は dispatch 投入後のローカル timeout を見る
+時間依存の検査であり、F762 が記録するとおり変異 harness の待ち上限には D612 の上書きが
+届かないため、混雑時に締切を割りうる。テストの弱体化・hold 登録・deselect はしていない。
+
 ## 次の一手差分
 
 ### 新規
