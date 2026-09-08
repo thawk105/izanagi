@@ -162,7 +162,16 @@ def _driver_configs(
         )
         for reflux in (True, False)
     )
-    if driver_kind == "trigger":
+    if driver_kind == "base":
+        site = p3_s4_loop._current_site()
+        contract = p3_s4_loop._admit_env_contract(site)
+        configs = tuple(
+            p3_s4_loop._campaign_cfg_for_site(
+                cfg, site, _contract=contract,
+            )
+            for cfg in configs
+        )
+    elif driver_kind == "trigger":
         site = p3_s4_loop_trigger_gating._current_site()
         contract = p3_s4_loop_trigger_gating._admit_env_contract(site)
         configs = tuple(
