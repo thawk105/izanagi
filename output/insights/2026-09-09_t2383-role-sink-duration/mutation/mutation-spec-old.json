@@ -1,0 +1,105 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "MUT-T2383-M1-PLANNER-LEAK",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_role_sink_bytes_vary_only_at_declared_declassifications"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_p3_autonomous_workload_trial.py",
+          "old": "    def invoke(self, *, invocation_id, payload):\n        response = super().invoke(invocation_id=invocation_id, payload=payload)\n        if self.role != \"coder\":\n            return response\n",
+          "new": "    def invoke(self, *, invocation_id, payload):\n        if self.role == \"planner\":\n            payload = {**payload, \"mutation_leak\": self.wire}\n        response = super().invoke(invocation_id=invocation_id, payload=payload)\n        if self.role != \"coder\":\n            return response\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2383-M2-CODER-LEAK",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_role_sink_bytes_vary_only_at_declared_declassifications"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_p3_autonomous_workload_trial.py",
+          "old": "    def invoke(self, *, invocation_id, payload):\n        response = super().invoke(invocation_id=invocation_id, payload=payload)\n        if self.role != \"coder\":\n            return response\n",
+          "new": "    def invoke(self, *, invocation_id, payload):\n        if self.role == \"coder\":\n            payload = {**payload, \"mutation_leak\": self.wire}\n        response = super().invoke(invocation_id=invocation_id, payload=payload)\n        if self.role != \"coder\":\n            return response\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2383-M3-AUDITOR-UNDECLARED-VARIANCE",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_role_sink_bytes_vary_only_at_declared_declassifications"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+          "old": "                    \"correctness_digest\": (\n                        \"pre-build audit: no performance or post-run correctness result exists yet\"\n                    ),\n",
+          "new": "                    \"correctness_digest\": (\n                        \"pre-build audit: no performance or post-run correctness result exists yet\"\n                        + preview_result[\"diff_digest\"]\n                    ),\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2383-M4-VARIANT-ID-CONSTANT",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_role_sink_bytes_vary_only_at_declared_declassifications"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "    return f\"diffq-{h}\"\n",
+          "new": "    return \"diffq-000000000000\"\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2383-M5-CANDIDATE-LABEL-RAW",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_final_generation_critic_rebuilds_projected_digest",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_role_sink_bytes_vary_only_at_declared_declassifications"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+          "old": "            candidate_label = identity_projection.project_variant(raw_variant)\n",
+          "new": "            candidate_label = raw_variant\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2383-M7-DOUBLE-RECORD",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_role_sink_bytes_vary_only_at_declared_declassifications"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_p3_autonomous_workload_trial.py",
+          "old": "    def invoke(self, *, invocation_id, payload):\n        response = super().invoke(invocation_id=invocation_id, payload=payload)\n        if self.role != \"coder\":\n            return response\n",
+          "new": "    def invoke(self, *, invocation_id, payload):\n        response = super().invoke(invocation_id=invocation_id, payload=payload)\n        self.payload_bytes.append(self.payload_bytes[-1])\n        if self.role != \"coder\":\n            return response\n"
+        }
+      ]
+    }
+  ]
+}
