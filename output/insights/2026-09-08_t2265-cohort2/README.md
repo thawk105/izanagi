@@ -231,3 +231,40 @@ policy 2 の実行体は seed を compile 時 define で埋め込むので、**c
 - 段 4 裁定は 3 unit としたが、実際は **unit D を足して 4 unit** になった
   (新しい CMake define の条件レジストリ登録が A/B/C の所有外だった)。
 - 認証 job 数は **48** (2 cell x 3 workload x 8 slot)。裁定の「49」は誤りだった。
+
+## 11. 変異検査
+
+probe -> 本走の 2 段。**probe は全件 SURVIVED で登録し、観測 node を集めてから本走で完全集合を
+KILLED として登録した** (期待 node の推測を避けるため)。runner は
+`test_backoff_counterfactual_cohort2_analysis.py` + `test_t2187_adaptive_const_probe.py` +
+`test_dynamic_backoff_transitions.py`。
+
+**本走: baseline PASSED、7/7 KILLED、生存 0・MISMATCH 0・期待 node 完全一致。**
+spec は `mutation-spec.json` (sha256 `51e8a65b…`)、報告は `mutation-report.json`。
+probe は `mutation-probe-spec.json` / `mutation-probe-report.json`。
+
+| 変異 | 変異箇所 | 殺した node 数 |
+| --- | --- | ---: |
+| `m1-drop-positional-exclusion` | 解析器の `analysis_events = events[1:]` | 2 |
+| `m2b-lcg-check-disabled` | 割当整合性検査の比較 | 1 |
+| `m3-zero-scan-excludes-terminal` | 0 commit 走査から terminal を外す | 1 |
+| `m4-allow-multiple-terminals` | terminal の一意性検査 | 1 |
+| `m6b-terminal-sentinel-not-enforced` | terminal sentinel 契約の `_fail` | 5 |
+| `m7-cap-comparison-overflows` | patch C の cap 比較を乗算へ戻す | 2 |
+| `m8-parser-rejects-zero-terminal` | parser が terminal 0 件を拒否する | 3 |
+
+### 11.1 probe が暴いたこと (erratum。初回結果を消さずに残す)
+
+- **1 回目の probe で `m6` (terminal sentinel 契約) が生存した。** この契約を破る成果物を与える
+  テストが 1 つも無く、**歯の無い gate** だった。fix-5 で 5 field それぞれの負例を足し、
+  2 回目の probe で 5 node を殺すことを確認してから本登録した。
+  **変異検査が無ければ、この gate は「あるだけ」で着地していた。**
+- **1 回目の `m2` (LCG の加算定数を 1 変える) は 7 node を落とし、赤理由が 1 つに絞れなかった。**
+  定数が fixture の生成にも効くためである。`DW-M01` に従い**登録せず、実効 gate へ再照準した** —
+  比較そのものを無効化する `m2b` は 1 node だけを落とす。
+- **`m4` と `m5` (terminal が末尾でない形を許す) は同じ node で落ちる冗長 gate だった。**
+  `DW-M03` に従い `m4` だけを本登録し、`m5` は単独変異の証拠から外した。
+- **`m7` は patch file 自体を変えるので、その sha を pin する
+  `test_cohort2_literal_pins_are_independent_of_fixture_helpers` も道連れで落ちる。**
+  これは pin される file を変異させる以上避けられない。帰属の決め手は
+  `test_count_window_cap_comparison_is_overflow_safe` である。
