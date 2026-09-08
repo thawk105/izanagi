@@ -1,0 +1,362 @@
+{
+  "estimated_run_seconds": 2400,
+  "hang_timeout_seconds": 5400,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc07_rejects_non_candidate_reason_with_valid_verify"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "b060.m1-reason-allowlist",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "new": "                True,\n",
+          "old": "                _wal_field(terminal, \"reason\")\n                == _CANDIDATE_ATTRIBUTABLE_ABORT_REASON,\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc07_rejects_non_candidate_verdict_with_valid_reason"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "b060.m2-verdict",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "new": "                True,\n",
+          "old": "                verify.get(\"verdict\") == _CANDIDATE_ATTRIBUTABLE_ABORT_REASON,\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc07_rejects_dirty_integrity_with_valid_cycle"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "b060.m3-integrity-clean",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "new": "            _require(\n                FormalReasonCode.FC07,\n                True,\n            )\n",
+          "old": "            _require(\n                FormalReasonCode.FC07,\n                integrity.get(\"clean\") is True,\n            )\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc07_rejects_serializable_true_with_reject_verdict"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "b060.m4-serializable",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "new": "            _require(FormalReasonCode.FC07, True)\n",
+          "old": "            _require(FormalReasonCode.FC07, verify.get(\"serializable\") is False)\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc07_rejects_certified_true_with_reject_verdict"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "b060.m5-certified",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "new": "            _require(FormalReasonCode.FC07, True)\n",
+          "old": "            _require(FormalReasonCode.FC07, verify.get(\"certified\") is False)\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc07_rejects_anomaly_count_different_from_list_length"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "b060.m6-anomaly-count-equals-len",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "new": "            _require(FormalReasonCode.FC07, True)\n",
+          "old": "            _require(FormalReasonCode.FC07, anomaly_count == len(anomalies))\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc07_rejects_boolean_total_cycles"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "b060.m8-total-cycles-exact-int",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "new": "            _require(FormalReasonCode.FC07, isinstance(total_cycles, int))\n",
+          "old": "            _require(FormalReasonCode.FC07, type(total_cycles) is int)\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc07_rejects_two_anomalies_even_when_first_digest_matches"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "b060.m9-anomalies-cardinality",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "new": "            _require(\n                FormalReasonCode.FC07,\n                type(anomalies) is list and len(anomalies) >= 1,\n            )\n",
+          "old": "            _require(\n                FormalReasonCode.FC07,\n                type(anomalies) is list and len(anomalies) == 1,\n            )\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc07_rejects_witness_digest_mismatch_after_other_gates_pass",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc07_converts_witness_canonicalization_artifact_error"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "b060.m13-witness-digest",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "new": "                True,\n",
+          "old": "                _witness_class_sha256(anomalies[0])\n                == physical[\"constraint_sha256\"],\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc07_rejects_ring_position_mismatch_with_matching_digest"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "b060.m14-ring-position",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "new": "        if (\n            type(edge[\"from\"]) is not int\n            or type(edge[\"to\"]) is not int\n        ):\n            return False\n",
+          "old": "        if (\n            type(edge[\"from\"]) is not int\n            or type(edge[\"to\"]) is not int\n            or edge[\"from\"] != cycle[index]\n            or edge[\"to\"] != cycle[(index + 1) % len(cycle)]\n        ):\n            return False\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc07_rejects_each_malformed_witness_structure[reason-type-outside-closed-set]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "b060.m15-reason-type-closed-set",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "new": "                or False\n",
+          "old": "                or reason_type not in _REASON_TYPES\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc07_rejects_each_malformed_witness_structure[types-not-derived-from-reasons]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "b060.m16-types-derivation",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "new": "        if False:\n            return False\n",
+          "old": "        if types != derived_types:\n            return False\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc07_rejects_each_malformed_witness_structure[phenomenon-not-derived-from-types]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "b060.m17-phenomenon-derivation",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "new": "    return True\n",
+          "old": "    return phenomenon == derived_phenomenon\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc07_rejects_each_malformed_witness_structure[single-node-cycle]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "b060.m25-cycle-min-length",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "new": "        or len(cycle) < 1\n",
+          "old": "        or len(cycle) < 2\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc07_rejects_each_malformed_witness_structure[reason-version-not-two-elements]",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc07_rejects_each_malformed_witness_structure[reason-version-not-list]",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc07_rejects_each_malformed_witness_structure[reason-version-boolean]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "b060.m26-version-shape",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "new": "            for optional in _REASON_OPTIONAL_KEYS:\n                if optional in reason and False:\n                    return False\n",
+          "old": "            for optional in _REASON_OPTIONAL_KEYS:\n                if optional in reason and (\n                    type(reason[optional]) is not list\n                    or len(reason[optional]) != 2\n                    or any(type(item) is not int for item in reason[optional])\n                ):\n                    return False\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc07_rejects_each_malformed_witness_structure[ww-reason-missing-u-ver]",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc07_rejects_each_malformed_witness_structure[wr-reason-has-v-ver]",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc07_rejects_each_malformed_witness_structure[rw-reason-missing-v-ver]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "b060.m27-version-key-relation",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "new": "                and False\n",
+          "old": "                and keys & _REASON_OPTIONAL_KEYS != expected_version_keys\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc07_rejects_clean_integrity_with_nonzero_wire_counter"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "b060.m28-clean-wire-counters",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "new": "            _require(\n                FormalReasonCode.FC07,\n                True,\n            )\n",
+          "old": "            _require(\n                FormalReasonCode.FC07,\n                all(\n                    type(integrity[key]) is int and integrity[key] == 0\n                    for key in _CLEAN_WIRE_COUNTER_KEYS\n                ),\n            )\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc07_rejects_permutation_count_sum_mismatch"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "b060.m29-permutation-sum",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "new": "                and True,\n",
+          "old": "                and sum(permutation_counts.values())\n                == integrity[\"permutation_violations\"],\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc07_rejects_each_malformed_witness_structure[length-float]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "b060.m23-length-exact-int-removed",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "new": "    if (\n        type(cycle) is not list\n        or len(cycle) < 2\n        or any(type(txid) is not int for txid in cycle)\n        or len(set(cycle)) != len(cycle)\n        or anomaly[\"length\"] != len(cycle)\n    ):\n        return False\n",
+          "old": "    if (\n        type(cycle) is not list\n        or len(cycle) < 2\n        or any(type(txid) is not int for txid in cycle)\n        or len(set(cycle)) != len(cycle)\n        or type(anomaly[\"length\"]) is not int\n        or anomaly[\"length\"] != len(cycle)\n    ):\n        return False\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc07_rejects_each_malformed_witness_structure[edge-to-float]",
+        "orchestrator/tests/test_reflux_formal_consumer.py::test_fc07_rejects_each_malformed_witness_structure[edge-from-float]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "b060.m24-endpoint-exact-int-removed",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "new": "        if (\n            edge[\"from\"] != cycle[index]\n            or edge[\"to\"] != cycle[(index + 1) % len(cycle)]\n        ):\n            return False\n",
+          "old": "        if (\n            type(edge[\"from\"]) is not int\n            or type(edge[\"to\"]) is not int\n            or edge[\"from\"] != cycle[index]\n            or edge[\"to\"] != cycle[(index + 1) % len(cycle)]\n        ):\n            return False\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "b060.m23-length-exact-int",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "new": "        or not isinstance(anomaly[\"length\"], int)\n",
+          "old": "        or type(anomaly[\"length\"]) is not int\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "b060.m24-endpoint-exact-int",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "new": "        if (\n            not isinstance(edge[\"from\"], int)\n            or not isinstance(edge[\"to\"], int)\n            or edge[\"from\"] != cycle[index]\n            or edge[\"to\"] != cycle[(index + 1) % len(cycle)]\n        ):\n            return False\n",
+          "old": "        if (\n            type(edge[\"from\"]) is not int\n            or type(edge[\"to\"]) is not int\n            or edge[\"from\"] != cycle[index]\n            or edge[\"to\"] != cycle[(index + 1) % len(cycle)]\n        ):\n            return False\n"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 5400
+}

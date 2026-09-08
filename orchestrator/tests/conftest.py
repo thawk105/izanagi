@@ -1360,6 +1360,43 @@ def _real_repo_locks(access: RealRepoAccess | None):
         yield
 
 
+def _acceptance_epoch_now() -> float | None:
+    try:
+        value = time.time()
+        if type(value) not in {int, float}:
+            return None
+        value = float(value)
+    except Exception:
+        return None
+    if not math.isfinite(value) or value <= 0:
+        return None
+    return value
+
+
+@contextlib.contextmanager
+def _acceptance_timed_real_repo_locks(config, access: RealRepoAccess | None):
+    if (
+        config is None
+        or access is None
+        or getattr(config, "_izanagi_acceptance_shard_spec", None) is None
+    ):
+        with _real_repo_locks(access):
+            yield
+        return
+
+    with _real_repo_locks(access):
+        acquired = _acceptance_epoch_now()
+        yield
+    released = _acceptance_epoch_now()
+    if acquired is None or released is None:
+        return
+    from tools import acceptance_shards
+
+    acceptance_shards.record_real_repo_lock_interval(
+        config, acquired, released,
+    )
+
+
 @contextlib.contextmanager
 def _real_repo_fixture_lock_context(
     parent: str | None,
@@ -2092,7 +2129,8 @@ def pytest_runtest_protocol(item, nextitem):
             f"stamped={stamped_access!r}"
         )
     access = expected_access
-    with _real_repo_locks(access):
+    config = getattr(item, "config", None)
+    with _acceptance_timed_real_repo_locks(config, access):
         with patchharness._pytest_node_context(node_id, access):
             return (yield)
 

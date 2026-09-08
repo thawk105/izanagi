@@ -1,0 +1,14 @@
+[
+  {
+    "id": "M13-ended-scope-and-precheck-dropped",
+    "diff_stat": [
+      "orchestrator/scheduler_nqsv.py | 6 ++----",
+      " 1 file changed, 2 insertions(+), 4 deletions(-)"
+    ],
+    "returncode": 1,
+    "hang": false,
+    "failed_nodes": [
+      "orchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_binds_ended_to_target_record[ended-before-target]"
+    ]
+  }
+]

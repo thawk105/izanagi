@@ -1,0 +1,238 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 900,
+  "timeout_seconds": 600,
+  "hang_timeout_seconds": 300,
+  "mutations": [
+    {
+      "id": "M01-or-to-and",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "        if done_evidence or accounting_evidence:",
+          "new": "        if done_evidence and accounting_evidence:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_compute_main_does_not_enter_acceptance_lease_path",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_compute_receipt_mtime_failure_uses_compute_stage",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_compute_receipt_publish_failure_is_fail_closed",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_compute_receipt_records_actual_evidence[accounting]",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_compute_receipt_records_actual_evidence[done]",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_done_evidence_controls_broken_accounting_import[done-short-circuits]",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_done_success_does_not_call_effects_run_or_run_unbounded",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_accepts_accounting_evidence_alone",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_accepts_both_evidence_sources",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_accepts_done_evidence_alone"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M02-ended-required-dropped",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/scheduler_nqsv.py",
+          "old": "    if NQSV_ACCOUNTING_ENDED_RE.search(text[request_match.end():]) is None:\n        return AccountingEndedResult(False, \"ended-field-missing\")",
+          "new": "    if False:\n        return AccountingEndedResult(False, \"ended-field-missing\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_rejects_unbound_or_unended_records[no-ended-field]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M03-ended-scope-widened",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/scheduler_nqsv.py",
+          "old": "    if NQSV_ACCOUNTING_ENDED_RE.search(text[request_match.end():]) is None:",
+          "new": "    if NQSV_ACCOUNTING_ENDED_RE.search(text) is None:"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M04-ended-before-check-dropped",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/scheduler_nqsv.py",
+          "old": "    if NQSV_ACCOUNTING_ENDED_RE.search(\n        text[:request_match.start()],\n    ) is not None:",
+          "new": "    if False:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_binds_ended_to_target_record[ended-before-target]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M05-id-count-relaxed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/scheduler_nqsv.py",
+          "old": "    id_matches = list(NQSV_ACCOUNTING_REQUEST_ID_RE.finditer(text))\n    if len(id_matches) != 1:",
+          "new": "    id_matches = list(NQSV_ACCOUNTING_REQUEST_ID_RE.finditer(text))\n    if len(id_matches) < 1:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_binds_ended_to_target_record[other-job-ended]",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_rejects_unbound_or_unended_records[duplicate-id]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M06-id-mismatch-allowed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/scheduler_nqsv.py",
+          "old": "    if observed != expected:\n        return AccountingEndedResult(False, \"request-id-mismatch\")",
+          "new": "    if False:\n        return AccountingEndedResult(False, \"request-id-mismatch\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_rejects_unbound_or_unended_records[mismatch]",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_rejects_mismatched_accounting"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M07-crlf-id-tolerance-dropped",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/scheduler_nqsv.py",
+          "old": "    r\"(?m)^[ \\t]*Request ID:[ \\t]*(\\S+?)[ \\t]*\\r?$\"",
+          "new": "    r\"(?m)^[ \\t]*Request ID:[ \\t]*(\\S+?)[ \\t]*$\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_binds_ended_to_target_record[all-crlf]",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_binds_ended_to_target_record[other-job-ended]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M08-done-nonempty-dropped",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "            done_evidence = bool(effects.read_text(done_file).strip())",
+          "new": "            done_evidence = True"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_compute_receipt_mtime_failure_uses_compute_stage",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_rejects_empty_done_file[empty]",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_rejects_empty_done_file[whitespace]",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_treats_done_read_oserror_as_no_evidence"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M09-done-shortcircuit-dropped",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "    if done_evidence:\n        return True, False",
+          "new": "    if False:\n        return True, False"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_done_evidence_controls_broken_accounting_import[done-short-circuits]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10-timeout-to-ok",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "            return _Outcome(RC_FAIL_CLOSED, \"compute-timeout\"), False, False",
+          "new": "            return _Outcome(RC_OK, \"compute-timeout\"), False, False"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_rejects_done_directory",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_rejects_empty_done_file[empty]",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_rejects_empty_done_file[whitespace]",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_rejects_mismatched_accounting",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_timeout_is_fail_closed",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_wait_for_compute_job_treats_done_read_oserror_as_no_evidence"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11-request-id-validation-dropped",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "    parser.add_argument(\"--request-id\", type=_compute_request_id, required=True)",
+          "new": "    parser.add_argument(\"--request-id\", required=True)"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "TIMEOUT",
+      "hang_risk": true
+    },
+    {
+      "id": "M12-receipt-done-mtime-dropped",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "            \"done_mtime_ns\": (\n                _producer_file_mtime_ns(done_file, effects)",
+          "new": "            \"done_mtime_ns\": (\n                None"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_compute_receipt_mtime_failure_uses_compute_stage",
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_compute_receipt_records_actual_evidence[done]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M13-ended-scope-and-precheck-dropped",
+      "category": "both-layers",
+      "replacements": [
+        {
+          "file": "orchestrator/scheduler_nqsv.py",
+          "old": "    if NQSV_ACCOUNTING_ENDED_RE.search(\n        text[:request_match.start()],\n    ) is not None:",
+          "new": "    if False:"
+        },
+        {
+          "file": "orchestrator/scheduler_nqsv.py",
+          "old": "    if NQSV_ACCOUNTING_ENDED_RE.search(text[request_match.end():]) is None:",
+          "new": "    if NQSV_ACCOUNTING_ENDED_RE.search(text) is None:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait_compute.py::test_accounting_ended_result_binds_ended_to_target_record[ended-before-target]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

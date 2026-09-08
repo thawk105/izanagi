@@ -1,0 +1,34 @@
+# 残量走行で起動した 4 leaf の頁ごとの申告総数 (2026-09-08 00:47-00:59 JST)
+# declared_total / actual_count は page 証拠の parse 節、duplicate_occurrences は records 節から採った。
+# 頁 file 名の aNN は attempt 番号。429 で落ちた attempt も証拠として残る (SY2015 の p1.a01)。
+
+== AX1-20260902-E1-Q6-SY2014@openalex
+   p0.a01.json    declared_total=418 actual_count=200 duplicate_occurrences=0
+   p1.a01.json    declared_total=417 actual_count=200 duplicate_occurrences=0
+   p2.a01.json    declared_total=417 actual_count=17 duplicate_occurrences=0
+   全 attempt の actual_count 合計 = 417
+   最大 pass1 台帳: occurrences=417 distinct=417
+
+== AX1-20260902-E1-Q6-SY2015@openalex
+   p0.a01.json    declared_total=492 actual_count=200 duplicate_occurrences=0
+   p1.a01.json    declared_total=None actual_count=0 duplicate_occurrences=0  <- failure: {"detail": "http_status_429", "reason_code": "status_not_200"}
+   p1.a02.json    declared_total=491 actual_count=200 duplicate_occurrences=0
+   p2.a01.json    declared_total=491 actual_count=91 duplicate_occurrences=0
+   全 attempt の actual_count 合計 = 491
+   最大 pass1 台帳: occurrences=491 distinct=491
+
+== AX1-20260902-E1-Q6-SY2016@openalex
+   p0.a01.json    declared_total=554 actual_count=200 duplicate_occurrences=0
+   p1.a01.json    declared_total=554 actual_count=200 duplicate_occurrences=0
+   p2.a01.json    declared_total=554 actual_count=154 duplicate_occurrences=0
+   全 attempt の actual_count 合計 = 554
+   最大 pass1 台帳: occurrences=554 distinct=554
+
+== AX1-20260902-E1-Q6-SY2017@openalex
+   p0.a01.json    declared_total=678 actual_count=200 duplicate_occurrences=0
+   p1.a01.json    declared_total=678 actual_count=200 duplicate_occurrences=0
+   p2.a01.json    declared_total=678 actual_count=200 duplicate_occurrences=0
+   p3.a01.json    declared_total=678 actual_count=78 duplicate_occurrences=0
+   全 attempt の actual_count 合計 = 678
+   最大 pass1 台帳: occurrences=678 distinct=678
+
