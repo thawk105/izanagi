@@ -1,0 +1,55 @@
+警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+[Pegasus dispatch] job を gen_S へ投入します (izdw-bab00678fa)
+Pegasus pending orphan hold を create-only で保存しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-next-tasks-command-20260908/output/pegasus-dispatch/orphan-holds/unknown-398d7ac19b912e28a1e0cec9.json
+[Pegasus dispatch] request ID 983009.nqsv を受理しました
+[Pegasus dispatch] request 983009.nqsv の状態: QUE
+[Pegasus dispatch] request 983009.nqsv の状態: RUN
+[Pegasus dispatch] request 983009.nqsv の状態: END
+[Pegasus dispatch] request 983009.nqsv の成果物収集を開始します
+Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-next-tasks-command-20260908/output/pegasus-dispatch/orphan-holds/unknown-398d7ac19b912e28a1e0cec9.json
+[Pegasus dispatch] receipt を /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-next-tasks-command-20260908/output/pegasus-dispatch/bab00678faca00270384e28dd36d0980/receipt.json へ保存しました (child rc=0)
+[Pegasus dispatch] request 983009.nqsv child stdout begin
+| bringing up nodes...
+| bringing up nodes...
+| 
+| ........................................................................ [  7%]
+| ........................................................................ [ 15%]
+| ........................................................................ [ 22%]
+| ........................................................................ [ 30%]
+| ........................................................................ [ 38%]
+| ........................................................................ [ 45%]
+| ........................................................................ [ 53%]
+| ........................................................................ [ 61%]
+| ........................................................................ [ 68%]
+| ........................................................................ [ 76%]
+| ........................................................................ [ 84%]
+| ..................................................s....................s [ 91%]
+| ...s.................................................................... [ 99%]
+| .....                                                                    [100%]IZANAGI_GROWTH_HOLD_SUMMARY_V1 {"collected_hold_functions":3,"opted_in":false}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"docs_bytes","node_id":"test_check_docs.py::test_dev_wave_model_pins_accept_current_docs_contract","reason":"Runs the real tools/check_docs.py with no arguments across a variable input set: enumerated living docs, the rotating docs/archive worklog set, the handoff directory, and discovered skill, command, reference, and provenance files. Its cost therefore grows with docs bytes.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"docs_bytes","node_id":"test_check_docs.py::test_normative_exact_section_pins_accept_real_repo","reason":"Runs the real tools/check_docs.py with no arguments across a variable input set: enumerated living docs, the rotating docs/archive worklog set, the handoff directory, and discovered skill, command, reference, and provenance files. Its cost therefore grows with docs bytes.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"docs_bytes","node_id":"test_check_docs.py::test_real_repo_clean","reason":"Runs the real tools/check_docs.py with no arguments across a variable input set: enumerated living docs, the rotating docs/archive worklog set, the handoff directory, and discovered skill, command, reference, and provenance files. Its cost therefore grows with docs bytes.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| 
+| 938 passed, 3 skipped in 20.08s
+| IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}
+[Pegasus dispatch] request 983009.nqsv child stdout end
+[Pegasus dispatch] request 983009.nqsv child stderr begin
+| 警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+| 
+| ============================================================
+| Request ID:             983009.nqsv
+| Request Name:           izdw-bab00678fa
+| Queue:                  gen_S@nqsv
+| Number of Jobs:         1
+| User Name:              tanab
+| Group Name:             SFC
+| Created Request Time:   Tue Sep  8 08:24:08 2026
+| Started Request Time:   Tue Sep  8 08:24:15 2026
+| Ended Request Time:     Tue Sep  8 08:24:37 2026
+| Resources Information:
+|   Elapse:               26S
+|   Remaining Elapse:     3574S
+| ============================================================
+[Pegasus dispatch] request 983009.nqsv child stderr end
+IZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid
+rc=0
