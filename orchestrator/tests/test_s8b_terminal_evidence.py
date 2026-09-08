@@ -18,6 +18,7 @@ from orchestrator.campaign import attempt_registry_core as core
 from orchestrator.campaign import s8b_attempt_profile as profile8b
 from orchestrator.campaign import s8b_floor_stats as stats
 from orchestrator.campaign import s8b_holdout_admission as admission
+from orchestrator.campaign import s8b_holdout_freeze as holdout_freeze
 from orchestrator.campaign import s8b_ratified_freeze as ratified
 from orchestrator.campaign import s8b_terminal_evidence as evidence
 H = {
@@ -114,7 +115,7 @@ def _observation(index: int, throughput: float, *, returncode: int=0) -> dict[st
     }
 
 def _base_reservation() -> _Reservation:
-    workload = {'ycsb_rratio': '80', 'ycsb_zipf_skew': '0.9', 'ycsb_rmw': '0'}
+    workload = {'ycsb_rratio': '81', 'ycsb_zipf_skew': '0.9', 'ycsb_rmw': '0'}
     return _Reservation(
         binding=_Binding(),
         slot_id=('holdout-a', 'configuration-a', 7, 0, 2),
@@ -176,7 +177,7 @@ def _record(
         'duration_s': 1.25,
         'run_cmd': [
             'ycsb_test.exe',
-            'ycsb_rratio=80',
+            'ycsb_rratio=81',
             'ycsb_zipf_skew=0.9',
             'ycsb_rmw=0',
         ],
@@ -431,8 +432,16 @@ def test_holdout_safe_positive_and_plaintext_negative_are_paired() -> None:
     draft = _seal()
     admission.assert_holdout_safe_bytes('terminal-evidence.json', draft.canonical_bytes)
     document = copy.deepcopy(draft.document)
-    case = _case()
-    mutations = ({'workload': case.terminal.campaign_record['workload']}, {'run_cmd': case.terminal.campaign_record['run_cmd']})
+    holdout = holdout_freeze.HOLDOUTS['rr80']['ycsb']
+    run_cmd = ['ycsb_test.exe'] + [
+        holdout_freeze.concrete_axis_encodings(axis, holdout[key])[0]
+        for (axis, key) in (
+            ('rratio', holdout_freeze.RRATIO_KEY),
+            ('skew', holdout_freeze.SKEW_KEY),
+            ('rmw', holdout_freeze.RMW_KEY),
+        )
+    ]
+    mutations = ({'workload': holdout}, {'run_cmd': run_cmd})
     for mutation in mutations:
         contaminated = {**document, **mutation}
         with pytest.raises(admission.HoldoutAdmissionError, match='contamination'):
