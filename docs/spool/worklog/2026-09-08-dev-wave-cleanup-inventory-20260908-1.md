@@ -65,6 +65,17 @@ byte 数 assert 4 つを持つ。path 検索と sha 値検索の両方で全数�
 - check_docs の consumer test 9 file の焦点走 1621 passed, 3 skipped
 受入全走は記録 commit 後に land 対象 tip へ投入する (DW-O12)。
 
+受入は land 競合で 3 回投入した。attempt 2 (tip ab78e7b3d) と attempt 3 (tip 2f8cc08a4) は
+`verdict=child-green`、21,732 passed / 68 skipped。attempt 4 (tip 8a672eafa、main 2fcafc6b7 を
+取り込んだ後) だけ `orchestrator/tests/test_codex_worker_launch.py::test_sigterm_ignoring_child_is_killed`
+が 1 件赤で、21,787 passed / 1 failed だった。**非帰属と判定した。** 根拠は
+(a) 本 wave の変更面は `.claude/commands/cleanup-branches.md`、`tools/check_docs.py` の
+sha 定数 1 個、`orchestrator/tests/test_check_docs.py` の pin、spool fragment だけで、
+当該 test file は `check_docs` を import せず差分から到達しない (consumer 検索で確認)、
+(b) 同一 tip で単独再走したところ 211 passed / rc=0 で再現しない、
+(c) 当該 test は SIGTERM を無視する子を kill する時間依存の検査で、共有 login node の
+負荷で締切を割りうる型である。DW-O18 に従い単独再走 1 回・受入再走 1 回だけ行った。
+
 ## 次の一手差分
 
 ### 新規
