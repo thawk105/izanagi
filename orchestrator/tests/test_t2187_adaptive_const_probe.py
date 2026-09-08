@@ -34,6 +34,9 @@ SUBMIT_T2417 = (
 POLICY_PERFORMANCE_PREREGISTRATION = (
     ROOT / "docs" / "backoff-policy-performance-preregistration.md"
 )
+POLICY_PERFORMANCE_PREREGISTRATION_ERRATUM_1 = (
+    ROOT / "docs" / "backoff-policy-performance-preregistration-erratum-1.md"
+)
 PATCH = ROOT / "patches" / "cicada-adaptive-params.patch"
 PATCH_B = ROOT / "patches" / "cicada-adaptive-dynamic.patch"
 PATCH_C = ROOT / "patches" / "cicada-adaptive-counterfactual.patch"
@@ -2688,7 +2691,9 @@ def _install_policy_performance_runtime(
             ccbench_commit=ccbench_commit,
             genome_sha256=hashlib.sha256(canonical.encode()).hexdigest(),
             src_token=hashlib.sha256(("src:" + canonical).encode()).hexdigest(),
-            source_bytes_sha256=hashlib.sha256(b"producer-source").hexdigest(),
+            source_bytes_sha256=hashlib.sha256(
+                ("producer-source:" + canonical).encode()
+            ).hexdigest(),
         )
 
     monkeypatch.setattr(probe.source_digest, "resolve_evidence", fake_evidence)
@@ -2705,7 +2710,10 @@ def _install_policy_performance_runtime(
         probe.buildcache,
         "cache_key",
         lambda genome, *_args, **_kwargs: (
-            hashlib.sha256(genome.canonical().encode()).hexdigest() + "_t0"
+            hashlib.sha256(
+                f"{state['rep_index']}:{genome.canonical()}".encode()
+            ).hexdigest()
+            + "_t0"
         ),
     )
 
@@ -2713,7 +2721,9 @@ def _install_policy_performance_runtime(
         canonical = genome.canonical()
         return SimpleNamespace(
             binary=canonical,
-            bin_sha256=hashlib.sha256(("binary:" + canonical).encode()).hexdigest(),
+            bin_sha256=hashlib.sha256(
+                f"binary:{state['rep_index']}:{canonical}".encode()
+            ).hexdigest(),
             cached=False,
             trace=False,
         )
@@ -3081,12 +3091,75 @@ def test_public_policy_producer_output_is_final_and_analysis_compatible(
         assert re.fullmatch(
             r"[0-9a-f]{64}", row["build_admission_receipt_sha256"]
         )
-        assert row["source_evidence"]["source_bytes_sha256"] == hashlib.sha256(
-            b"producer-source"
-        ).hexdigest()
         assert protected.isdisjoint(row)
+    documents = [json.loads(path.read_text(encoding="utf-8")) for path in paths]
+    for current in documents:
+        assert len(
+            {
+                next(
+                    row
+                    for row in current["cells"]
+                    if row["step_policy"] == policy
+                )["source_evidence"]["source_bytes_sha256"]
+                for policy in range(3)
+            }
+        ) == 3
+    for policy in (0, 1):
+        assert len(
+            {
+                next(
+                    row
+                    for row in current["cells"]
+                    if row["step_policy"] == policy
+                )["source_evidence"]["source_bytes_sha256"]
+                for current in documents
+            }
+        ) == 1
+        assert len(
+            {
+                next(
+                    row
+                    for row in current["cells"]
+                    if row["step_policy"] == policy
+                )["genome"]
+                for current in documents
+            }
+        ) == 1
+    for field in ("binary_sha256", "build_cache_key"):
+        for policy in range(3):
+            assert len(
+                {
+                    next(
+                        row
+                        for row in current["cells"]
+                        if row["step_policy"] == policy
+                    )[field]
+                    for current in documents
+                }
+            ) == 18
+    for field in ("source_bytes_sha256", "genome"):
+        assert len(
+            {
+                (
+                    next(
+                        row
+                        for row in current["cells"]
+                        if row["step_policy"] == 2
+                    )["source_evidence"][field]
+                    if field == "source_bytes_sha256"
+                    else next(
+                        row
+                        for row in current["cells"]
+                        if row["step_policy"] == 2
+                    )[field]
+                )
+                for current in documents
+            }
+        ) == 18
     result = policy_analysis.analyze_policy_performance(
-        paths, POLICY_PERFORMANCE_PREREGISTRATION
+        paths,
+        POLICY_PERFORMANCE_PREREGISTRATION,
+        POLICY_PERFORMANCE_PREREGISTRATION_ERRATUM_1,
     )
     assert result["analysis_status"] == "complete"
     assert result["blocks"]["present_rep_indices"] == list(range(18))
@@ -3122,7 +3195,9 @@ def test_public_policy_producer_reasoned_missing_is_local_in_analysis(
     )
 
     result = policy_analysis.analyze_policy_performance(
-        paths, POLICY_PERFORMANCE_PREREGISTRATION
+        paths,
+        POLICY_PERFORMANCE_PREREGISTRATION,
+        POLICY_PERFORMANCE_PREREGISTRATION_ERRATUM_1,
     )
 
     def point(contrast: str, workload: str, threads: int) -> dict:
@@ -3147,6 +3222,68 @@ def test_public_policy_producer_reasoned_missing_is_local_in_analysis(
             and item["threads"] == 12
         )
     )
+
+
+def test_public_policy_producer_shared_source_across_arms_is_artifact_invalid(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    paths = _produce_policy_performance_artifacts(monkeypatch, tmp_path)
+    document = json.loads(paths[0].read_text(encoding="utf-8"))
+    shared_source = hashlib.sha256(b"inert-policy-source").hexdigest()
+    for row in document["cells"]:
+        row["source_evidence"]["source_bytes_sha256"] = shared_source
+    paths[0].write_text(json.dumps(document) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="artifact-invalid"):
+        policy_analysis.analyze_policy_performance(
+            paths,
+            POLICY_PERFORMANCE_PREREGISTRATION,
+            POLICY_PERFORMANCE_PREREGISTRATION_ERRATUM_1,
+        )
+
+
+def test_public_policy_producer_p0_source_drift_between_blocks_is_artifact_invalid(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    paths = _produce_policy_performance_artifacts(monkeypatch, tmp_path)
+    document = json.loads(paths[1].read_text(encoding="utf-8"))
+    changed_source = hashlib.sha256(b"drifted-p0-source").hexdigest()
+    for row in document["cells"]:
+        if row["step_policy"] == 0:
+            row["source_evidence"]["source_bytes_sha256"] = changed_source
+    paths[1].write_text(json.dumps(document) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="artifact-invalid"):
+        policy_analysis.analyze_policy_performance(
+            paths,
+            POLICY_PERFORMANCE_PREREGISTRATION,
+            POLICY_PERFORMANCE_PREREGISTRATION_ERRATUM_1,
+        )
+
+
+def test_public_policy_producer_p0_binary_drift_between_blocks_is_accepted(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    paths = _produce_policy_performance_artifacts(monkeypatch, tmp_path)
+    p0_binaries = {
+        next(
+            row
+            for row in json.loads(path.read_text(encoding="utf-8"))["cells"]
+            if row["step_policy"] == 0
+        )["binary_sha256"]
+        for path in paths
+    }
+    assert len(p0_binaries) == 18
+
+    result = policy_analysis.analyze_policy_performance(
+        paths,
+        POLICY_PERFORMANCE_PREREGISTRATION,
+        POLICY_PERFORMANCE_PREREGISTRATION_ERRATUM_1,
+    )
+    assert result["analysis_status"] == "complete"
 
 
 def test_public_generic_policy_grid_is_accepted_but_uncertified(
