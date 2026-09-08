@@ -1,0 +1,130 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+          "old": "            protocol = protocol_from_floor_genome(binding[\"genome_canonical\"])\n",
+          "new": "            protocol = spec.environment.env_tag\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_identity_is_not_a_caller_surface_and_noncanonical_genomes_are_rejected[json-fixture]",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_identity_is_not_a_caller_surface_and_noncanonical_genomes_are_rejected[partial-noncanonical]",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_identity_is_not_a_caller_surface_and_noncanonical_genomes_are_rejected[unsorted-flags]",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_mixed_receipt_protocols_are_rejected",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_real_finalize_floor_summary_is_issued_with_receipt_protocol"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+          "old": "            protocol = protocol_from_floor_genome(binding[\"genome_canonical\"])\n",
+          "new": "            protocol = \"silo\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_identity_is_not_a_caller_surface_and_noncanonical_genomes_are_rejected[json-fixture]",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_identity_is_not_a_caller_surface_and_noncanonical_genomes_are_rejected[partial-noncanonical]",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_identity_is_not_a_caller_surface_and_noncanonical_genomes_are_rejected[unsorted-flags]",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_mixed_receipt_protocols_are_rejected",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_real_finalize_floor_summary_is_issued_with_receipt_protocol"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+          "old": "    if protocol_failed or len(protocols) != 1:\n",
+          "new": "    if protocol_failed or not protocols:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_mixed_receipt_protocols_are_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+          "old": "            protocol = protocol_from_floor_genome(binding[\"genome_canonical\"])\n",
+          "new": "            protocol = str(binding[\"genome_canonical\"]).split(\"|\", 1)[0]\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_identity_is_not_a_caller_surface_and_noncanonical_genomes_are_rejected[partial-noncanonical]",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_identity_is_not_a_caller_surface_and_noncanonical_genomes_are_rejected[unsorted-flags]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+          "old": "        f\"__protocol-{identity.protocol}\"\n",
+          "new": "        \"\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_authority_filename_contains_all_five_derived_components",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_real_finalize_floor_summary_is_issued_with_receipt_protocol"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+          "old": "    if summary.identity is None or summary.missing_identity_elements:\n",
+          "new": "    if summary.identity is None:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_authority_value_rejects_nonempty_missing_protocol_with_valid_identity"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+          "old": "    if protocol_failed or len(protocols) != 1:\n",
+          "new": "    if len(protocols) != 1:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_identity_is_not_a_caller_surface_and_noncanonical_genomes_are_rejected[partial-noncanonical]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
