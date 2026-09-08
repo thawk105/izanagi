@@ -1,0 +1,73 @@
+{
+  "url": "https://doi.org/10.1109/9.119632",
+  "method": "HEAD",
+  "status": 302,
+  "headers": [
+    [
+      "Date",
+      "Mon, 07 Sep 2026 22:56:50 GMT"
+    ],
+    [
+      "Content-Type",
+      "text/html;charset=utf-8"
+    ],
+    [
+      "Connection",
+      "close"
+    ],
+    [
+      "location",
+      "http://ieeexplore.ieee.org/document/119632/"
+    ],
+    [
+      "Server",
+      "cloudflare"
+    ],
+    [
+      "vary",
+      "Origin"
+    ],
+    [
+      "vary",
+      "Accept"
+    ],
+    [
+      "expires",
+      "Mon, 07 Sep 2026 23:31:50 GMT"
+    ],
+    [
+      "permissions-policy",
+      "interest-cohort=(),browsing-topics=()"
+    ],
+    [
+      "cf-cache-status",
+      "DYNAMIC"
+    ],
+    [
+      "Strict-Transport-Security",
+      "max-age=31536000; includeSubDomains; preload"
+    ],
+    [
+      "Report-To",
+      "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=lNkVb8qZ2lrWKF3rbHtCKuHKN5kBBr%2FEb1YWINLqCBh%2BOK12hyblYtf9xEftFaCUR5G6gMk2BrUg%2BqLQ5OWzP467YyVsJQqzG3PFvTctxQFNRYy4AJ5uFAY%3D\"}]}"
+    ],
+    [
+      "Nel",
+      "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}"
+    ],
+    [
+      "CF-RAY",
+      "a3794f196e6947f7-NRT"
+    ],
+    [
+      "alt-svc",
+      "h3=\":443\"; ma=86400"
+    ]
+  ],
+  "final_url": "https://doi.org/10.1109/9.119632",
+  "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "body_bytes": 0,
+  "started_utc": "2026-09-07T22:56:50Z",
+  "finished_utc": "2026-09-07T22:56:50Z",
+  "error": null
+}
