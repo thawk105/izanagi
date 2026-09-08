@@ -170,6 +170,14 @@
   根拠に「逐語と不一致」と誤裁定し、fix 子に refs と食い違う値へ書き換えさせた。親の byte 比較 script が refs との不一致を
   出して発覚し、次の fix 子で refs の bytes へ戻した (land 前、実害なし)。転写対象が「自分が保存し直した artifact と、
   それ以前に自分が書いた引用」の食い違いへ広がった顕在化。照合は brief の引用でなく artifact そのものと行う。
+
+- **再発: 2026-09-08** — [T-2429] の起票文と D1763、および 2026-09-08 の A-6 insight が
+  「ノードを跨いで建て直すと bytes が変わることは 2026-09-02 に実測済み」と書いていたが、
+  一次資料 (2026-08-31 の B-10 正式走 insight) の実測は「**別 job** で建て直すと job 固有の path が
+  `.rodata` の `__FILE__` と RUNPATH へ混入して bytes が変わる」であり、2 台の計算ノードで
+  建て直して sha256 を突き合わせた記録は存在しない。「別ノード」への一般化は同資料末尾の推論を
+  後続文書が確定事実として引き写したものだった。検出は本 wave の段 1 で親が一次資料を
+  独立コンテキストで検索したことによる。含意そのものは成り立つが、言い切りが一次資料より強い。
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
   構成の変化で挙動が割れた (worklog Phase 2、修理 065593a)。同時期に repro_command の
@@ -1700,6 +1708,14 @@
   rc を `tail` のものにしてしまった。初期化の成否を判定できないまま次へ進み、入れ子
   submodule の破損 (F810 の再発) を後段の `git status` で見つけた。偽緑には至っていない
   (near miss)。恒久対応は F37 既存のとおり変わらない。
+
+- **再発: 2026-09-08** — dev-wave `t2412-frozen-spec-fixpoint` の段 7 で
+  `set -e; git add -A; python3 tools/check_ai_provenance.py --message-file <f> 2>&1|tail -2; git commit -F <f>`
+  と書いた。検査は「実装面に Codex role=author がない — 110 paths」で rc=1 を返していたが、
+  `set -e` が見るのは pipeline 全体の rc (= `tail` の 0) であるため commit が実行され、
+  provenance 違反が local main へ入った (`c12e25078`)。F37 の初出は `&&` の右辺、今回は
+  `set -e` 下の逐次実行で、**どちらも「パイプの rc は最後のコマンドのもの」という同じ取り違え**である。
+  出力を短くする `| tail` を検査コマンドに付けた時点で guard は恒真になる。
 ### F38. 記録後検査の値を埋める amend で、worklog 内の記録 commit hash が dangling になった [ドリフト] [手順漏れ]
 
 - 事象: `DW-S07` の F34 恒久対応 (記録 commit の後に再走) と F36 恒久対応 (実測前に欄を作らない) を
@@ -1811,6 +1827,19 @@
   旧 baseline の hash 値そのもので `git grep` すると同 file だけが当たり、他に漏れはなかった。恒久対応は F39 から変更しない。
   運用として、fixture / baseline を変える wave では**旧 hash 値を値で `git grep`** して閉包に入れる (memory
   `edit-surface-growth-reopens-pin-closure` と同旨)。
+
+- **再発: 2026-09-08** — s1 materializer の bytes を変える wave ([T-2327]) で、materializer 全体 sha256 の literal
+  (`orchestrator/tests/test_s8b_oracle_manifest.py`) は旧 hash 値の値検索で拾って更新したが、**その literal を含む
+  golden bytes (`PIN_GATE_SPEC_RAW`) の sha256 を pin する 2 段目の定数 (`PIN_GATE_SPEC_SHA256`)** を落とした。
+  1 段目の値検索は 2 段目に原理的に掛からず、author prompt の「他の literal は触らない」がそれを固定した。
+  検出は親の焦点走 1 回目 (2 赤、land 前、実害なし)。恒久対応は F39 から変更しない。運用として、
+  全体 hash の literal を更新したら、**その literal を含む bytes を hash する定数**まで同 file を追って列挙し、
+  実装子の prompt で「派生 pin の再計算」を明示する。
+  同じ wave の受入全走で **3 例目**が出た。`orchestrator/tests/test_ccbench_spawn_sites.py` は production の
+  build sink を `_BuildSink(path, scope, lineno, kind)` の **行番号**で pin しており、転送を足して行がずれた
+  4 sink が赤になった。`<path>:<行>` の文字列検索でも変更前 hash の値検索でも当たらず、段 1 の pin 閉包は
+  「行番号 pin なし」と誤って結論していた。運用として、**production の行数を変える wave では、production を
+  静的走査して位置を台帳に持つ test も pin 閉包と焦点走の対象に入れる** (import 関係だけで引くと漏れる)。
 ### F40. 測定のための一時変異ハーネスが部分一致の anchor で tracked file を壊し、実装の退行に見える赤を出した [恒真ゲート] [防壁の射程誤認]
 
 - 事象: [T-120] の A/B 交互測定 (xdist group あり/なしを交互に走らせて wall を比べる) で、親は
@@ -4463,6 +4492,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 一時変異の直前に `pwd` と `git rev-parse --show-toplevel` を出力し、
   wave branch 名と一致しなければ変異しない
 
+
+- **再発: 2026-09-08** — 別 wave の session が主 checkout に cwd を残したまま `git add -A; git commit` を実行し、untracked だった `.codex/worktrees/` 110 本を gitlink として main へ commit した (c12e25078)。今回は near miss でなく実害で、全新規 worktree の submodule 初期化と全 session の land (provenance 全史監査 rc=1) が止まった。前進修正は D1797。
 ### F101. 成立済みの既知赤 waiver を確認せず land 可能な wave を止めた [手順漏れ]
 
 - 事象: 段 9 の受入全走が 1 failed / 5438 passed / 19 skipped になり、赤が
@@ -20256,6 +20287,34 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: `tools/check_docs.py` の whole-file pin、`orchestrator/tests/test_check_docs.py` の独立 fixture/byte/1-byte 負例、および command 単体と command+skill の敵対読解で、削除 0・罠・検査赤・外側クラス 2 の各終端を判定する。
 - 家族: F599 と同じく cleanup が共有 main を動かす型だが、F599 は status の見た目を目的化した観測面変更であり、本件は作業種別規律から mutation 権限を誤導出した別原因である。
 
+
+- **再発: 2026-09-08** — cleanup が branch 削除 19 本を終えた後、ユーザーの一般的な自己改善許可
+  (「必要な自己改善はしたらええんちゃう？」) を「後から明示起動された別 dev-wave」と読み、同じ
+  cleanup セッションの中で allowlist 外の **repo 外の記録空間**を更新した (memory 2 件の追記・新規作成と
+  `MEMORY.md` の索引 2 行)。repo file と history は無傷で commit も無い。原 F747 の repo 外変種である
+  (F599 とは同型でない — F599 は observability の目的代替であり、本件は対象範囲の誤限定)。
+  **repo 外の記録空間も default-deny の対象である。** 台帳自身が memory を恒久対応の実体として
+  受け入れている以上 (本 file 冒頭の運用規則)、そこへの書き込みは repo 内の記録と同じ族の mutation である。
+  条文側の欠陥は 2 つ結合していた。(1) §0 は cleanup 実行を「この command の受領から final response
+  完了まで」と定めるが、final 後に届いたユーザー発話を §6 の「継続」と「後から明示起動された別
+  dev-wave」のどちらへ分類するかの基準が無い。(2) 自己改善の正本 `docs/skill-self-improvement.md` の
+  cleanup 終端が、禁止対象を `repo file/history` と限定して書き下しており、§0 の無限定な default-deny
+  (「未列挙の state mutation は目的・修復・一般クラス 2 規律を理由にしても禁止する」) より狭く読めた。
+  §0 の禁止列挙も repo 内の名詞で揃っており、`state = repo state` と束縛する読解を止める文言が無かった。
+  なお会話順 (発話が final 応答の前か後か) は本 wave では確認していないため、同一継続内だったと断定しない。
+- **再発検知の被覆漏れ (2026-09-08)** — 上の恒久対応が挙げる「削除 0・罠・検査赤・外側クラス 2 の
+  各終端を判定する」敵対読解は、本再発を捕捉しなかった。本件は削除 19 本・罠なし・検査未実行・
+  cleanup 由来の発話であり、4 終端のいずれにも当たらないためである。
+  追加の恒久対応として `docs/skill-self-improvement.md` の cleanup 終端 1 行を置換し、上記 (1)(2) を
+  同時に閉じた — 禁止対象を「repo 内外の未列挙 state」へ広げ (§0 と同じ語で揃えた)、許可条件を
+  「ユーザーが別 dev-wave と明示起動した後だけ」へ狭めた。`.claude/commands/cleanup-branches.md` と
+  `.agents/skills/cleanup-branches/SKILL.md` は変更していない (whole-file SHA-256 pin、およびユーザー裁定
+  「command 本文への追記を既定にしない」)。機械検査は追加しない — `tools/check_docs.py` の担保は
+  文書の構造 lint であって実行時の不遵守を観測せず、現行 hook は cleanup 実行中かを判定する trusted な
+  入力を持たない (`hooks/guard_write.py` / `hooks/guard_bash.py` が判定に使うのは tool 名・tool 入力・
+  cwd・command・runtime site だけで、session / transcript / prompt / lifecycle marker を読む実装が無い)。
+  モデル自己申告の marker は同じモデルが申告を省けるため恒真になる。実効的な runtime enforcement は
+  trusted non-model launcher と全書込み面の OS confinement を要するため、別裁定へ送った。
 ### F748. login側Pythonでしか試していないembedded validatorが計算ノードでreceipt公開を止めた [テスト代表性] [手順漏れ]
 
 - 事象: T-1943の唯一の計算ノードcellはverifier/discriminatorまで完了したが、artifact classificationの`Path.stat(follow_symlinks=False)`が計算ノードPythonで`TypeError`となり、completed pilot receiptとjob-resultを公開できなかった。
@@ -22762,6 +22821,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 起動前に「実装単位は 2 つ以上か」を数える。1 つなら別 worktree を作らない。
   作ってしまった未使用 worktree は、隔離セッションからは撤去もできないので次 wave へ引き継ぐ。
 
+
+- **再発: 2026-09-08** — 実装単位が 1 つの隔離 wave で、恒久対応 (wave worktree で直接走らせる) を適用せず `.codex/worktrees/` に author / fix 用の別 worktree を作り、dry-run を `cd <別 worktree> && …` で打って永続 shell の cwd を移し、以後の Bash が全拒否された。`EnterWorktree(path=自 worktree)` で復旧し実害なし。原因は起動前に「実装単位は 2 つ以上か」を数える再発検知を踏まなかったこと。
 ### F874. 親が測っていない否定を追補として子へ渡し、5 分上限を超える検査設計を招きかけた [捏造/幻覚] [テスト代表性]
 
 - 事象: 実プロセス CLI 検査の時間予算を決めるため、親は実 repository の全評価を 3 連走して
@@ -23034,6 +23095,17 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 各回の収集で、語による走査が当てた件数と最終索引の件数を突き合わせる
   (T-2373 が入れた検査)。差が出たら当たらなかった項の語形を本エントリへ追記する。
 
+
+- **再発: 2026-09-08 (第 15 回)** — 走査語は当たる語だったが、当てた corpus が誤っていた。
+  末尾エントリの「次の一手」528 項のうち 510 項は carry stub `- [T-NNN] (N)` で、本文は
+  `docs/archive/` に置かれている。第 15 回の初回走査は stub 行にしか語を当てず、実体へ遡って
+  いなかったため、archive 側で『ユーザー裁定待ち』『裁定する』『択一』『かを決める』と書かれた
+  裁定待ち 14 件が索引から落ちた (別系統相談 B と、親が carry 鎖を archive まで再帰解決した
+  走査が独立に同じ 14 件を回収した)。当たらなかった語形は『裁定する』『択一』『かを決める』で、
+  D1756 の『裁定』『決』はいずれも部分一致するので、語ではなく corpus の欠落である。
+  T-2373 の検査 (語走査の件数と索引件数の突き合わせ) は、実体に当て直した後で初めて機能した。
+  是正 (収集 §1 に「carry 鎖を archive まで解決した実体本文へ当てる」を明記) は、入口の byte 予算が
+  満杯で同 file を [T-2440] が所有するため、そちらの範囲へ合流させる。
 ### F889. 段 8 を land の後に回し、是正の着地に受入全走をもう 1 回使った [手順漏れ]
 
 - 事象: 本 wave は段 7 の記録 commit の後、段 8 を実行せずに段 9 の land を先に走らせた。
@@ -23334,3 +23406,136 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   走行中に tree へ変異が見えるのは正常であり、tree の dirty を「復元忘れ」と読む前に
   producer の生死を `/proc` で実測する。変異台帳は `summary.registered` と `completed` の差でも
   未完走が分かる。
+
+### F905. codex 子 worktree 110 個が gitlink として main に混入し、全 wave の受入が走行前 fingerprint で rc=128 になった [手順漏れ] [ドリフト]
+
+- 事象: main `c12e25078` (別 wave の docs 記録 commit) が repo 直下 `.codex/worktrees/*` を mode 160000 の
+  gitlink 110 個として tree に入れた。`.gitmodules` に対応が無いため `git submodule status --recursive` が
+  `fatal: no submodule mapping found` (rc=128) となり、受入待ち手の走行前 fingerprint が
+  `stage=prerun-fingerprint rc=70 source_rc=128` で止まる。main 自動 merge 後に発生するため、
+  main を取り込むすべての wave の受入が同じ理由で落ちる (本 wave の attempt 1 で実測、lease は claim 前で free)。
+  同 commit は provenance 監査でも「実装面に Codex role=author がない (110 paths)」で赤になり、land の全史監査も止まる。
+- 根本原因: 混入元 session の申告では、Bash の cwd が主 checkout に残ったまま `git add -A; git commit` を
+  実行した。`.codex/worktrees/` は `tools/mutation_worktree.py` の共有木観測 (F599) のため意図的に
+  untracked のまま見えており、`git add -A` が丸ごと stage する。`check_docs`・land の fold gate は
+  gitlink の混入を検査しない。
+- 恒久対応: memory `codex-worktrees-gitlinks-leak-into-main` と memory `git-state-changes-need-explicit-C`
+  (記録 commit は path を名指しで stage し、`git add -A` を使わない。状態を変える git は `git -C <木>` で
+  木を明示する)。`.gitignore` / `info/exclude` へ足す案は F599 により採れない。main 側の是正 (index からの
+  除去と known-violation 登録) は別 wave の commit `48837186c` / `c9c97525e` が担う。
+- 再発検知: 受入待ち手の `prerun-fingerprint rc=70 source_rc=128`、および
+  `git ls-files -s | grep ^160000` に `external/ccbench` 以外が出ること。
+
+### F906. 承認済みユーザー裁定を段 1 で引かず、裁定より狭い形を実装した [手順漏れ]
+
+- 事象: dev-wave `t2412-frozen-spec-fixpoint` の段 1 で、依頼文と insight の一次資料だけを読んで
+  brief を書き、`docs/worklog.md` の T-2412 項と `docs/decisions.md` の D1774 を引かなかった。
+  D1774 は「HEAD が `source_commit` の**子孫**であること」を要求していたが、親は段 4 で
+  「HEAD が唯一の子であり、かつ差分が spec 1 path だけ」という**より狭い**形を自分で裁定し、
+  段 5 の実装、段 6 の敵対レビュー 2 本と変異 9 件まで進めてしまった。段 7 の記録で台帳の
+  base digest を取るために main の worklog を読んで初めて気づき、fix 2 本で作り直した。
+- 根本原因: 依頼文が一次資料として insight の README を名指ししていたため、それを読めば十分だと
+  判断した。DW-S01 の「brief 前に承認済み裁定と引数の前提を実測する」を、依頼文が指す資料の
+  確認だけで済ませた。**課題 ID (T-2412) が与えられているのに、その ID を台帳で引かなかった。**
+- 恒久対応: D1802 で裁定に合わせて作り直した。段 1 の brief 前に、
+  依頼が課題 ID を含むなら `docs/worklog.md` の当該項と、そこが指す D 番号を必ず引く。
+  worktree は wave 開始時点で止まるため、この lookup は land 先の local main の現物に対して行う
+  (台帳の base digest を取る手順と同じ)。
+- 再発検知: 狭い形を実装した段 4 の裁定文にも、敵対レビュー 2 本にも、変異 9 件にも、
+  裁定との食い違いは現れなかった。**子は親が射影した資料しか見ないため、親の資料選択の誤りは
+  子の敵対レビューでは検出されない。**検出したのは台帳の base digest 取得という無関係な作業である。
+  段 1 の資料選択そのものを検査する機構は無い。
+
+### F907. 永続 shell の cwd が主 checkout に残ったまま commit し、local main を壊した [権限逸脱] [手順漏れ]
+
+- 事象: dev-wave `t2412-frozen-spec-fixpoint` の段 7 で、`git add -A; git commit` を隔離 worktree
+  ではなく**ユーザーの主 checkout** で実行した。untracked だった `.codex/worktrees/` の 110 本が
+  gitlink (mode 160000) として local main の先頭 commit `c12e25078` に入った。
+  全 session の land が DW-O25 の全史 provenance 監査で rc=29 になり、新規 worktree の
+  submodule 初期化も `no submodule mapping found in .gitmodules` で rc=1 になった。
+  別 session (next-tasks skill relocation) が独立に検出して通報してきた。
+- 根本原因: 直前のコマンドが `cd /work/1/SFC/tanab/izanagi && git log` で main の台帳を読んでおり、
+  **Bash tool の cwd はコマンドを跨いで残る**。次のコマンドは worktree にいるつもりで書かれていた。
+  `git add -A` は「その木の untracked をすべて」拾うため、意図した 1 file ではなく 110 本の
+  埋め込み repo を staged にした。
+- 併発した第 2 の欠陥: 同じコマンドが `check_ai_provenance.py ... 2>&1|tail -2; git commit` の形で、
+  検査の rc をパイプで握り潰していた。検査は「1 件中 1 違反」を報告していたが `set -e` は
+  pipeline の rc (tail の 0) しか見ず、commit が実行された。F37 の同型再発である。
+- 恒久対応: worktree を跨ぐ session では、状態を変える git 操作を `git -C <worktree の絶対 path>`
+  で明示する。cwd に依存しない。`git add -A` を使わず、対象 path を明示して stage する。
+  検査は `> <log>; echo "RC=$?"` の形で rc を単独で取り、パイプへ通さない。
+- 再発検知: 主 checkout の HEAD が自分の wave の commit になっていないかを、commit 直後に
+  `git -C <worktree> log --oneline -1` で確かめる。なお修復も失敗した — `git reset` を試みたが、
+  自分の `git status --porcelain` が 110 本の埋め込み repo を走査したまま `index.lock` を
+  握り続け、主 checkout の全 git 操作が止まった。**壊した後の修復手段まで同じ原因で塞がる。**
+
+### F908. 部分文字列の存在検査は、無効化された述語を素通りする [恒真ゲート] [テスト代表性]
+
+- 事象: 新設した投入器の「出力先が repository の外であること」を検査するテストが、
+  投入器の source text に `target == repo or repo in target.parents or target in repo.parents`
+  という部分文字列があることだけを見ていた。変異走行でこの述語を
+  `if False and (target == repo or ...)` へ書き換えたところ、**部分文字列は残るのでテストは緑のまま**で、
+  変異が生き残った (probe 1 回目、M9)。同型の穴が `.git` 祖先の拒否と receipt の hardlink 拒否にもあった。
+- 根本原因: shell script 内の python 断片を「読める形」でしか検査していなかった。
+  述語の**存在**は述語が**効いていること**を含意しない。存在検査は、述語を無効化する変異に対して恒真である。
+- 恒久対応: 当該 script から python 断片を取り出して実際に実行し、repository の内側を指す入力で
+  `SystemExit` になること、外側では通ることを検査する挙動テストへ変えた
+  (`orchestrator/tests/test_t1998_launcher_contract.py` の repo 境界 / `.git` 祖先 / hardlink の 3 件)。
+  部分文字列検査は残してよいが、それだけを根拠にしない。
+- 再発検知: 変異事前登録で当該述語を `if False and (...)` へ倒す変異を持ち、
+  KILLED を要求する (本 wave の M9)。probe で SURVIVED になった時点で穴が露見する。
+
+### F909. 片側だけを変える負例は、対称な層に mask されて狙った層の証拠にならない [テスト代表性]
+
+- 事象: 2 つの arm の toolchain manifest から canonical digest を再計算して記録値と照合する層を
+  検査するつもりの負例が、target 側の digest だけを変えていた。変異でその**再計算を丸ごと消しても**、
+  後段の arm 間一致比較が代わりに赤にするので緑にならず、変異が生き残った (probe 1 回目、M12)。
+  負例は通っていたが、通していたのは狙った層ではなかった。
+- 根本原因: 片側だけを変える負例は、arm 間の対称性を見る層と、各 arm の内容を見る層の
+  両方を同時に発火させる。前者が先に赤にすると後者の証拠にならない。
+  「その層だけが赤にする入力」になっていない。
+- 恒久対応: 両 arm が**同じ**非 canonical な digest を持つ負例を足した。arm 間比較と result 投影は通り、
+  canonical 再計算だけが単独で拒否する
+  (`orchestrator/tests/test_t1998_stock_inline_pair.py::test_shared_noncanonical_toolchain_digest_is_rejected`)。
+- 再発検知: 各層に対する変異を事前登録し、probe で SURVIVED になった変異は
+  「他層の mask」を先に疑う (`docs/dev-wave/mutation.md` の DW-M02)。
+
+### F910. 段 5 実装子が model 呼び出し上限で報告を書かずに打ち切られた [手順漏れ] [コンテキスト浪費]
+
+- 事象: [T-2429] の段 5 実装子 (単位 A) が既定の model 呼び出し上限 100 回に当たって打ち切られ、
+  受領証は `f45_missing_output`、成果物は 0 byte になった。46 分の作業のうち worktree の未 commit
+  差分 (pipeline 834 行、commit_receipt 183 行、新規 module と新規テスト) は残っていたが、
+  何を実装し何が未了かの申告は失われた。親は差分を監査対象として引き継ぐ継続子を投げ直した。
+- 根本原因: `tools/dev_wave_codex.py` の `--max-model-calls` は既定 100 で、`DW-O01` は
+  「`--max-*` は非権威で増量可」とだけ書く。上限に当たったときに**報告が 0 byte になる**ことと、
+  そのとき worktree の差分は残るので継続子に監査させれば作業を捨てずに済むことは、どの手順書にも
+  書かれていなかった。親は重い単位の見積りを取らずに既定のまま投げた。
+- 恒久対応: memory `codex-child-dies-silently-at-model-call-cap` — 重い実装単位では
+  `--max-model-calls` を上げ、prompt に「予算の 8 割で報告を書く」を明示し、打ち切られたら
+  worktree の差分を残したまま継続子へ監査させて引き継ぐ。`DW-O01` は既に「重い巡は call/token を
+  見積もる。中断子は未完了と記し次の子に監査させる」を持っており、欠けていたのは「打ち切ると
+  出力が 0 byte になる」の 1 点だけである。同節への追記は L1.5 層の byte 予算 (9,696) に 58 bytes
+  分の余地が無く入らなかったため memory に持つ (同じ理由で入らなかった 2 例目)。
+- 再発検知: 受領証 (`receipt.json`) の `failure_class=f45_missing_output` と
+  `limit_trigger=max_model_calls` の組。`check_codex_output.py` は 0 byte を rc 非 0 で弾くので、
+  親は必ずこの組を見て継続子か再投入かを決める。
+
+### F911. 残った Pegasus orphan hold が受入を無言で止め続ける [観測面の欠落] [手順漏れ]
+
+- 事象: 混雑で受入の dispatch が queue-wait-timeout になり、wave worktree に
+  `output/pegasus-dispatch/orphan-hold.json` と `orphan-holds/unknown-<hex>.json` が残った。
+  以後の受入は **8 回連続**で、テストを 1 件も走らせないまま失敗した (2026-09-08、[T-2366] wave)。
+- 根本原因: hold があると dispatcher は scheduler command 自体を起動しない。しかし受入側に出る情報は
+  `stage=acceptance-command rc=70 source_rc=16` と `reason=dispatch-attestation-missing`、
+  子 log の `acceptance shard gate failed: dispatch-infrastructure` の 1 行だけで、**hold の存在も
+  path も現れない**。混雑が続いていたため queue 詰まりと誤読し、D612 の上書き (queue-wait 3600 /
+  overall-grace 600) を足して再投入したが、hold がある間は上書きは効かない。
+- 診断の入口: hold の絶対 path と復旧手順は
+  `/work/1/SFC/tanab/.izanagi-acceptance-shards/<digest>/shard-0/dispatcher.log` にだけ出る。
+- 恒久対応: 記憶 `orphan-hold-blocks-acceptance-silently` に、受入が
+  `dispatch-attestation-missing` で 2 回以上続けて失敗したら混雑を疑う前に自分の worktree の
+  `output/pegasus-dispatch/orphan-hold.json` を見る手順を置いた。撤去は `qstat` で hold の `job_name` の
+  8 文字接頭辞の不在を確認し、`git status` が clean なことを確かめてから hold 2 file を消す。
+  一般的な hold の扱いは `docs/pegasus-runbook.md` §7.6、混雑時の上書きは D612 が正本。
+- 再発検知: 撤去直後の 1 回で受入が緑になること (本 wave で実測、21793 passed / 赤 0)。
+  land 側の rc=29 と同じ対比で読める — 繰り返すなら自分の hold、単発なら競合。

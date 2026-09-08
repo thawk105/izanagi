@@ -2687,8 +2687,12 @@ def test_s1_sort_best_runs_same_oracle_before_source_materializer(monkeypatch, t
         )
 
     def resolve(*args, **kwargs):
+        pytest.fail("sort_best で旧 resolve 経路へ戻ってはならない")
+
+    def resolve_evidence(*args, **kwargs):
         order.append("resolve")
-        return "fixture-source"
+        assert kwargs["sort_oracle_contract_id"] == O.ORACLE_CONTRACT_ID
+        return types.SimpleNamespace(src_token="fixture-source")
 
     dependency = tmp_path / "verified-masstree"
     verified_compiler = tmp_path / "verified-cxx"
@@ -2705,6 +2709,9 @@ def test_s1_sort_best_runs_same_oracle_before_source_materializer(monkeypatch, t
     monkeypatch.setattr(O, "check_materialized_sort_swo", oracle_check)
     monkeypatch.setattr(O, "resolve_oracle_environment", resolve_environment)
     monkeypatch.setattr(direct.source_digest, "resolve", resolve)
+    monkeypatch.setattr(
+        direct.source_digest, "resolve_evidence", resolve_evidence,
+    )
     cell = {
         "configuration": "sort_best",
         "variant": {

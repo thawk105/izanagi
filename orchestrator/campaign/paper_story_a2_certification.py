@@ -81,6 +81,7 @@ _SHORT_COMMIT_RE = re.compile(r"[0-9a-f]{7}")
 _FULL_COMMIT_RE = re.compile(r"[0-9a-f]{40}")
 _ATTEMPT_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,79}")
 _REQUEST_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]*")
+_VERIFY_FANOUT_HOST_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9.-]*")
 _QSUB_REQUEST_RE = re.compile(r"Request[ \t]+(\S+)[ \t]+submitted")
 _COMPUTE_HOST_RE = re.compile(r"bnode[0-9]+(?:[.].*)?")
 _NQSV_REQUEST_RE = re.compile(r"(?m)^[ \t]*Request ID:[ \t]*(\S+)[ \t]*$")
@@ -292,6 +293,26 @@ def _positive_int(value: object, label: str) -> int:
     if type(value) is not int or value <= 0:
         raise CertificationError(f"{label} must be a positive exact integer")
     return value
+
+
+def _validate_verify_fanout_hosts(
+        policy: Policy, hosts: tuple[str, ...], *,
+        current_host: Optional[str] = None) -> tuple[str, ...]:
+    if type(hosts) is not tuple:
+        raise CertificationError("verify fan-out hosts must be an exact tuple")
+    if any(type(host) is not str
+           or _VERIFY_FANOUT_HOST_RE.fullmatch(host) is None for host in hosts):
+        raise CertificationError("verify fan-out host is malformed")
+    if len(set(hosts)) != len(hosts):
+        raise CertificationError("verify fan-out hosts contain a duplicate")
+    observed_host = socket.gethostname() if current_host is None else current_host
+    if observed_host in hosts:
+        raise CertificationError("verify fan-out hosts contain the current host")
+    expected = policy.document["scheduler"]["nodes"] - 1
+    if len(hosts) != expected:
+        raise CertificationError(
+            "verify fan-out host count differs from scheduler policy")
+    return hosts
 
 
 def _protocol_preimage(document: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -3393,6 +3414,7 @@ def run_workload(policy: Policy, *, workload_id: str, attempt_root: Path | str,
                  raw_root: Path | str, current_pin: str,
                  dependency_prefix: Path | str, ccbench_dir: Path | str,
                  third_party_source_root: Path | str,
+                 verify_fanout_hosts: tuple[str, ...] = (),
                  log=print) -> object:
     """Run one ordered stock/adopted workload pair through run_campaign()."""
     from . import env_contract, pin
@@ -3406,6 +3428,8 @@ def run_workload(policy: Policy, *, workload_id: str, attempt_root: Path | str,
     from .loop import run_campaign
     from .model import CampaignConfig
 
+    verify_fanout_hosts = _validate_verify_fanout_hosts(
+        policy, verify_fanout_hosts)
     attempt_name, attempt = validate_attempt_root(policy, attempt_root)
     if attempt_name != attempt.name:
         raise CertificationError("attempt identity mismatch")
@@ -3557,6 +3581,7 @@ def run_workload(policy: Policy, *, workload_id: str, attempt_root: Path | str,
             declared_use_class="official",
             expected_toolchain_manifest=expected_toolchain_manifest,
             durable_root_policy=durable_policy,
+            verify_fanout_hosts=verify_fanout_hosts,
         )
         if len(summary.results) != len(cells) or summary.skipped != 0:
             raise CertificationError("fresh workload did not evaluate exactly two cells")
@@ -4523,6 +4548,27 @@ def _validate_certification_result(
           or report["cells"] != [] or report["effects"] != {}):
         raise CertificationError(
             "indeterminate certification result fields are malformed")
+    if report_schema == CERTIFICATION_SCHEMA:
+        acquisition_path = evidence.get("acquisition_path")
+        if type(acquisition_path) is not str:
+            raise CertificationError(
+                "certification materialization evidence lacks acquisition authority")
+        canonical_full_evidence = validate_acquisition_bundle(
+            policy, acquisition_path, current_pin=report["current_pin"])
+        if (canonical_full_evidence.get("acquisition_schema") != ACQUISITION_SCHEMA
+                or canonical_full_evidence.get("completion_schema")
+                != COMPLETION_SCHEMA):
+            raise SchemaChainError(
+                "certification result is crossed with a re-read partial receipt chain")
+        expected = _canonical_full_report(
+            policy, canonical_full_evidence,
+            attempt_id=canonical_full_evidence["attempt_id"],
+            current_pin=report["current_pin"])
+        full_report_matches_rederived_evidence = report == expected
+        if not full_report_matches_rederived_evidence:
+            raise CertificationError(
+                "certification result differs from evidence re-derivation")
+        return canonical_full_evidence
     return evidence
 
 
@@ -4717,6 +4763,48 @@ def _indeterminate_report(policy: Policy, evidence: Mapping[str, Any], *,
     }
 
 
+def _canonical_full_report(
+        policy: Policy, evidence: Mapping[str, Any], *,
+        attempt_id: str, current_pin: str) -> dict[str, Any]:
+    _require_materializable_authority(policy, evidence)
+    attempt_root = Path(evidence["attempt_root"])
+    failed_drivers = {
+        workload: rc for workload, rc in evidence["driver_rcs"].items()
+        if rc != 0}
+    if failed_drivers:
+        report = _indeterminate_report(
+            policy, evidence, attempt_id=attempt_id,
+            current_pin=current_pin,
+            reason=f"compute driver exited nonzero: {failed_drivers}",
+        )
+    elif not evidence["raw_manifest_valid"]:
+        report = _indeterminate_report(
+            policy, evidence, attempt_id=attempt_id,
+            current_pin=current_pin,
+            reason=("verified raw manifest unavailable: "
+                    + str(evidence["raw_manifest_reason"])),
+        )
+    else:
+        try:
+            report = collect_results(
+                policy, evidence["raw_results"],
+                attempt_id=attempt_id, current_pin=current_pin,
+                request_ids=evidence["request_ids"],
+                frozen_files=evidence["raw_files"], attempt_root=attempt_root,
+            )
+        except AuthorityError:
+            raise
+        except (CertificationError, OSError, ValueError, TypeError,
+                KeyError, IndexError) as exc:
+            report = _indeterminate_report(
+                policy, evidence, attempt_id=attempt_id,
+                current_pin=current_pin, reason=str(exc),
+            )
+        else:
+            report["source_commit"] = evidence["source_commit"]
+    return report
+
+
 def _collect_command(args: argparse.Namespace) -> int:
     policy = _load_selected_policy(args)
     evidence = validate_acquisition_bundle(
@@ -4730,40 +4818,9 @@ def _collect_command(args: argparse.Namespace) -> int:
         report = _canonical_partial_report(
             policy, evidence, current_pin=args.current_pin)
     else:
-        failed_drivers = {
-            workload: rc for workload, rc in evidence["driver_rcs"].items()
-            if rc != 0}
-        if failed_drivers:
-            report = _indeterminate_report(
-                policy, evidence, attempt_id=attempt_id,
-                current_pin=args.current_pin,
-                reason=f"compute driver exited nonzero: {failed_drivers}",
-            )
-        elif not evidence["raw_manifest_valid"]:
-            report = _indeterminate_report(
-                policy, evidence, attempt_id=attempt_id,
-                current_pin=args.current_pin,
-                reason=("verified raw manifest unavailable: "
-                        + str(evidence["raw_manifest_reason"])),
-            )
-        else:
-            try:
-                report = collect_results(
-                    policy, evidence["raw_results"],
-                    attempt_id=attempt_id, current_pin=args.current_pin,
-                    request_ids=evidence["request_ids"],
-                    frozen_files=evidence["raw_files"], attempt_root=attempt_root,
-                )
-            except AuthorityError:
-                raise
-            except (CertificationError, OSError, ValueError, TypeError,
-                    KeyError, IndexError) as exc:
-                report = _indeterminate_report(
-                    policy, evidence, attempt_id=attempt_id,
-                    current_pin=args.current_pin, reason=str(exc),
-                )
-            else:
-                report["source_commit"] = evidence["source_commit"]
+        report = _canonical_full_report(
+            policy, evidence, attempt_id=attempt_id,
+            current_pin=args.current_pin)
     destination = materialize(policy, report, evidence, repo_root=args.repo_root)
     print(destination)
     return driver_rc(report)
@@ -4783,11 +4840,16 @@ def _preflight_command(args: argparse.Namespace) -> int:
 
 def _run_workload_command(args: argparse.Namespace) -> int:
     policy = _load_selected_policy(args)
+    verify_fanout_hosts = (
+        tuple(args.verify_fanout_hosts.split(","))
+        if args.verify_fanout_hosts is not None else ()
+    )
     summary = run_workload(
         policy, workload_id=args.workload, attempt_root=args.attempt_root,
         raw_root=args.raw_root, current_pin=args.current_pin,
         dependency_prefix=args.dependency_prefix, ccbench_dir=args.ccbench_dir,
         third_party_source_root=args.third_party_source_root,
+        verify_fanout_hosts=verify_fanout_hosts,
     )
     # A workload-level abort is scientific/evidence data.  The final collector
     # determines whether the outer attempt is determinate after all policy cells.
@@ -4909,6 +4971,7 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("--dependency-prefix", required=True)
     run.add_argument("--ccbench-dir", required=True)
     run.add_argument("--third-party-source-root", required=True)
+    run.add_argument("--verify-fanout-hosts")
     run.set_defaults(handler=_run_workload_command)
     finalize = sub.add_parser("finalize-raw")
     finalize.add_argument("--attempt-root", required=True)

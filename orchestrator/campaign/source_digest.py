@@ -101,6 +101,9 @@ ALLOWLIST = frozenset({
 
 STOCK = "stock"        # 後方互換: working-tree==HEAD baseline のときの src トークン
 SOURCE_EVIDENCE_SCHEMA = "source-evidence/v1"
+COMPILED_PROTOCOL_SOURCE_SNAPSHOT_SCHEMA = (
+    "compiled-protocol-source-snapshot/v1"
+)
 EMPTY_TRACKED_DIFF_SHA256 = hashlib.sha256(b"").hexdigest()
 SOURCE_BINDING_DIRECTORY = "source-bindings"
 
@@ -121,6 +124,57 @@ def _is_sha256(value: object) -> bool:
     except ValueError:
         return False
     return value == value.lower()
+
+
+def serialize_compiled_protocol_source_snapshot(
+        snapshot: CompiledProtocolSourceSnapshot,
+) -> dict[str, object]:
+    """Project one immutable proof-source snapshot into an exact JSON body."""
+    if (type(snapshot) is not CompiledProtocolSourceSnapshot
+            or type(snapshot.protocol) is not str or not snapshot.protocol
+            or type(snapshot.ccbench_root) is not str
+            or not os.path.isabs(snapshot.ccbench_root)
+            or (snapshot.normalized_sources is not None
+                and (type(snapshot.normalized_sources) is not tuple
+                     or any(type(item) is not str
+                            for item in snapshot.normalized_sources)))):
+        raise ValueError("CompiledProtocolSourceSnapshot が直列化不能")
+    return {
+        "schema": COMPILED_PROTOCOL_SOURCE_SNAPSHOT_SCHEMA,
+        "protocol": snapshot.protocol,
+        "ccbench_root": snapshot.ccbench_root,
+        "normalized_sources": (
+            None if snapshot.normalized_sources is None
+            else list(snapshot.normalized_sources)
+        ),
+    }
+
+
+def deserialize_compiled_protocol_source_snapshot(
+        value: object,
+) -> CompiledProtocolSourceSnapshot:
+    """Rebuild an exact proof-source snapshot without reading its source tree."""
+    required = {
+        "schema", "protocol", "ccbench_root", "normalized_sources",
+    }
+    if type(value) is not dict or set(value) != required:
+        raise ValueError("proof source snapshot key 集合が不正")
+    normalized = value["normalized_sources"]
+    if (value["schema"] != COMPILED_PROTOCOL_SOURCE_SNAPSHOT_SCHEMA
+            or type(value["protocol"]) is not str or not value["protocol"]
+            or type(value["ccbench_root"]) is not str
+            or not os.path.isabs(value["ccbench_root"])
+            or (normalized is not None
+                and (type(normalized) is not list
+                     or any(type(item) is not str for item in normalized)))):
+        raise ValueError("proof source snapshot binding が不正")
+    return CompiledProtocolSourceSnapshot(
+        protocol=value["protocol"],
+        ccbench_root=value["ccbench_root"],
+        normalized_sources=(
+            None if normalized is None else tuple(normalized)
+        ),
+    )
 
 
 @dataclass(frozen=True, slots=True)

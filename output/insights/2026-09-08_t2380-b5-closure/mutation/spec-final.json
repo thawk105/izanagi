@@ -1,0 +1,281 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "m01-quote-plus-import",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/catalog.py",
+          "old": "from urllib.parse import quote\n",
+          "new": "from urllib.parse import quote_plus as quote\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_arxiv_q1_full_url_preserves_frozen_terms_order_quotes_and_cutoff",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_checked_in_catalog_matches_rendered_bytes",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_cli_output_writes_exact_rendered_bytes",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_cli_verify_accepts_exact_and_rejects_one_byte_change",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_controls_match_frozen_ids_groups_and_all_full_urls",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_dblp_cartesian_branch_counts_bounds_and_request_bytes_are_exact",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_dblp_q10_frozen_example_is_encoded_once",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_openalex_q1_full_url_is_unquoted_and_keeps_comma_unencoded",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_render_catalog_json_is_canonical_deterministic_and_one_newline"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m02-openalex-comma-encoded",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/catalog.py",
+          "old": "    safe = \"-_.~,\" if preserve_comma else \"-_.~\"\n",
+          "new": "    safe = \"-_.~\" if preserve_comma else \"-_.~\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_checked_in_catalog_matches_rendered_bytes",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_cli_output_writes_exact_rendered_bytes",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_cli_verify_accepts_exact_and_rejects_one_byte_change",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_controls_match_frozen_ids_groups_and_all_full_urls",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_openalex_q1_full_url_is_unquoted_and_keeps_comma_unencoded",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_render_catalog_json_is_canonical_deterministic_and_one_newline"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m03-openalex-quoted-terms",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/catalog.py",
+          "old": "        \"(\" + \" OR \".join(_term_text(term_id) for term_id in group) + \")\"\n",
+          "new": "        \"(\" + \" OR \".join(f'\"{_term_text(term_id)}\"' for term_id in group) + \")\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_checked_in_catalog_matches_rendered_bytes",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_cli_output_writes_exact_rendered_bytes",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_cli_verify_accepts_exact_and_rejects_one_byte_change",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_controls_match_frozen_ids_groups_and_all_full_urls",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_openalex_q1_full_url_is_unquoted_and_keeps_comma_unencoded",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_render_catalog_json_is_canonical_deterministic_and_one_newline"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m04-arxiv-abs-unquoted",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/catalog.py",
+          "old": "        \"(\" + \" OR \".join(f'abs:\"{_term_text(term_id)}\"' for term_id in group) + \")\"\n",
+          "new": "        \"(\" + \" OR \".join(f'abs:{_term_text(term_id)}' for term_id in group) + \")\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_arxiv_q1_full_url_preserves_frozen_terms_order_quotes_and_cutoff",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_checked_in_catalog_matches_rendered_bytes",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_cli_output_writes_exact_rendered_bytes",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_cli_verify_accepts_exact_and_rejects_one_byte_change",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_controls_match_frozen_ids_groups_and_all_full_urls",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_render_catalog_json_is_canonical_deterministic_and_one_newline"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m05-term-order-sorted",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/catalog.py",
+          "old": "        for position, term in enumerate(_terms_for_block(block_id), 1)\n",
+          "new": "        for position, term in enumerate(sorted(_terms_for_block(block_id)), 1)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_arxiv_q1_full_url_preserves_frozen_terms_order_quotes_and_cutoff",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_blocks_match_frozen_terms_order_counts_and_disjointness",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_checked_in_catalog_matches_rendered_bytes",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_cli_output_writes_exact_rendered_bytes",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_cli_verify_accepts_exact_and_rejects_one_byte_change",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_controls_match_frozen_ids_groups_and_all_full_urls",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_dblp_cartesian_branch_counts_bounds_and_request_bytes_are_exact",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_dblp_q10_frozen_example_is_encoded_once",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_openalex_q1_full_url_is_unquoted_and_keeps_comma_unencoded",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_render_catalog_json_is_canonical_deterministic_and_one_newline"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m06-dblp-product-zip",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/catalog.py",
+          "old": "        for left_id, right_id in product(\n",
+          "new": "        for left_id, right_id in zip(\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_checked_in_catalog_matches_rendered_bytes",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_cli_output_writes_exact_rendered_bytes",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_cli_verify_accepts_exact_and_rejects_one_byte_change",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_dblp_cartesian_branch_counts_bounds_and_request_bytes_are_exact",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_main_query_ids_order_and_cardinalities_are_exact",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_openalex_q1_full_url_is_unquoted_and_keeps_comma_unencoded",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_render_catalog_json_is_canonical_deterministic_and_one_newline"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m07-dblp-drop-q10",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/catalog.py",
+          "old": "    \"B5-Q9\",\n    \"B5-Q10\",\n)\n",
+          "new": "    \"B5-Q9\",\n)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_checked_in_catalog_matches_rendered_bytes",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_cli_output_writes_exact_rendered_bytes",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_cli_verify_accepts_exact_and_rejects_one_byte_change",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_dblp_cartesian_branch_counts_bounds_and_request_bytes_are_exact",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_dblp_q10_frozen_example_is_encoded_once",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_main_query_ids_order_and_cardinalities_are_exact",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_openalex_q1_full_url_is_unquoted_and_keeps_comma_unencoded",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_render_catalog_json_is_canonical_deterministic_and_one_newline"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m08-term-id-no-zero-pad",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/catalog.py",
+          "old": "    return f\"{block_id}{position:02d}\"\n",
+          "new": "    return f\"{block_id}{position}\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_arxiv_q1_full_url_preserves_frozen_terms_order_quotes_and_cutoff",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_checked_in_catalog_matches_rendered_bytes",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_cli_output_writes_exact_rendered_bytes",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_cli_verify_accepts_exact_and_rejects_one_byte_change",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_controls_match_frozen_ids_groups_and_all_full_urls",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_dblp_cartesian_branch_counts_bounds_and_request_bytes_are_exact",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_dblp_q10_frozen_example_is_encoded_once",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_main_query_ids_order_and_cardinalities_are_exact",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_openalex_q1_full_url_is_unquoted_and_keeps_comma_unencoded",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_render_catalog_json_is_canonical_deterministic_and_one_newline",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_term_ids_match_frozen_two_digit_literals"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m09-and2023-dblp-shares-null",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/catalog.py",
+          "old": "                    \"B5-CTL-AND@dblp\" if role == \"AND2023\" else None\n",
+          "new": "                    None\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_checked_in_catalog_matches_rendered_bytes",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_cli_output_writes_exact_rendered_bytes",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_cli_verify_accepts_exact_and_rejects_one_byte_change",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_dblp_and2023_shares_exact_request_bytes_only_with_dblp_and",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_render_catalog_json_is_canonical_deterministic_and_one_newline"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m10-venue-year-range-short",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/catalog.py",
+          "old": "        for year in range(1993, 2027):\n",
+          "new": "        for year in range(1993, 2026):\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_aux_venue_streams_have_frozen_range_order_ids_and_full_urls",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_checked_in_catalog_matches_rendered_bytes",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_cli_output_writes_exact_rendered_bytes",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_cli_verify_accepts_exact_and_rejects_one_byte_change",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_openalex_q1_full_url_is_unquoted_and_keeps_comma_unencoded",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_render_catalog_json_is_canonical_deterministic_and_one_newline"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m11-render-no-trailing-newline",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/catalog.py",
+          "old": "        json.dumps(doc, ensure_ascii=False, indent=2, sort_keys=True) + \"\\n\"\n",
+          "new": "        json.dumps(doc, ensure_ascii=False, indent=2, sort_keys=True)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_checked_in_catalog_matches_rendered_bytes",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_cli_output_writes_exact_rendered_bytes",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_cli_verify_accepts_exact_and_rejects_one_byte_change",
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_render_catalog_json_is_canonical_deterministic_and_one_newline"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m12-verify-semantic-compare",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/catalog.py",
+          "old": "    return 0 if actual == render_catalog_json() else 1\n",
+          "new": "    return 0 if json.loads(actual) == build_catalog_document() else 1\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_axis_b5_search_catalog.py::test_cli_verify_accepts_exact_and_rejects_one_byte_change"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m13-equivalent-list-splat",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/catalog.py",
+          "old": "    return [list(group) for group in term_groups]\n",
+          "new": "    return [[*group] for group in term_groups]\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

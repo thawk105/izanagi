@@ -320,6 +320,104 @@ if [[ -L "$claim_root" || ! -d "$claim_root" ]]; then
   refuse "campaign claim root provisioning failed"
 fi
 
+POLICY=$repo/tools/pegasus/policy.json
+if [[ ! -f "$POLICY" || -L "$POLICY" ]]; then
+  refuse "policy file missing, not regular, or a symlink"
+fi
+policy_output=$(
+  "$PY" -I -B - "$POLICY" <<'PY'
+import json
+import re
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    policy = json.load(handle)
+keys = (
+    "gflags_source_path",
+    "gflags_expected_head",
+    "glog_source_path",
+    "glog_expected_head",
+)
+for key in keys:
+    if type(policy.get(key)) is not str or not policy[key] or "\n" in policy[key]:
+        raise SystemExit(f"invalid policy field: {key}")
+for key in ("gflags_expected_head", "glog_expected_head"):
+    if re.fullmatch(r"[0-9a-f]{40}", policy[key]) is None:
+        raise SystemExit(f"invalid policy git pin: {key}")
+for key in keys:
+    print(policy[key])
+PY
+)
+readarray -t policy_values <<<"$policy_output"
+if [[ ${#policy_values[@]} -ne 4 ]]; then
+  refuse "policy yielded an unexpected field count"
+fi
+GFLAGS_SOURCE_PATH=${policy_values[0]}
+GFLAGS_EXPECTED_HEAD=${policy_values[1]}
+GLOG_SOURCE_PATH=${policy_values[2]}
+GLOG_EXPECTED_HEAD=${policy_values[3]}
+
+CC_PATH=$(command -v gcc)
+CXX_PATH=$(command -v g++)
+
+# 出典: floor_scoping.sh:205-283。pinned gflags/glog build prologue を同手順で踏襲。
+if [[ ! -d "$GFLAGS_SOURCE_PATH" ]]; then
+  refuse "gflags source path missing"
+fi
+GFLAGS_SOURCE_HEAD=$(git -C "$GFLAGS_SOURCE_PATH" rev-parse HEAD)
+if [[ "$GFLAGS_SOURCE_HEAD" != "$GFLAGS_EXPECTED_HEAD" ]]; then
+  refuse "gflags source HEAD mismatch"
+fi
+GFLAGS_STATUS=$(git -C "$GFLAGS_SOURCE_PATH" status --porcelain --untracked-files=all)
+if [[ -n "$GFLAGS_STATUS" ]]; then
+  refuse "gflags working tree is dirty"
+fi
+
+GFLAGS_BUILD_DIR="$TMPDIR/gflags-build"
+GFLAGS_INSTALL_DIR="$TMPDIR/gflags-install"
+mkdir "$GFLAGS_BUILD_DIR"
+gflags_configure_argv=(cmake -S "$GFLAGS_SOURCE_PATH" -B "$GFLAGS_BUILD_DIR"
+  -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
+  -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DREGISTER_INSTALL_PREFIX=OFF
+  "-DCMAKE_INSTALL_PREFIX=$GFLAGS_INSTALL_DIR"
+  "-DCMAKE_C_COMPILER=$(realpath "$CC_PATH")"
+  "-DCMAKE_CXX_COMPILER=$(realpath "$CXX_PATH")")
+gflags_build_argv=(cmake --build "$GFLAGS_BUILD_DIR" -j 48)
+gflags_install_argv=(cmake --install "$GFLAGS_BUILD_DIR")
+timeout 60 "${gflags_configure_argv[@]}"
+timeout 60 "${gflags_build_argv[@]}"
+timeout 60 "${gflags_install_argv[@]}"
+
+if [[ ! -d "$GLOG_SOURCE_PATH" ]]; then
+  refuse "glog source path missing"
+fi
+GLOG_SOURCE_HEAD=$(git -C "$GLOG_SOURCE_PATH" rev-parse HEAD)
+if [[ "$GLOG_SOURCE_HEAD" != "$GLOG_EXPECTED_HEAD" ]]; then
+  refuse "glog source HEAD mismatch"
+fi
+GLOG_STATUS=$(git -C "$GLOG_SOURCE_PATH" status --porcelain --untracked-files=all)
+if [[ -n "$GLOG_STATUS" ]]; then
+  refuse "glog working tree is dirty"
+fi
+
+GLOG_BUILD_DIR="$TMPDIR/glog-build"
+GLOG_INSTALL_DIR="$TMPDIR/glog-install"
+mkdir "$GLOG_BUILD_DIR"
+glog_configure_argv=(cmake -S "$GLOG_SOURCE_PATH" -B "$GLOG_BUILD_DIR"
+  -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
+  -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DWITH_GTEST=OFF -DBUILD_TESTING=OFF
+  -DWITH_UNWIND=OFF "-DCMAKE_PREFIX_PATH=$GFLAGS_INSTALL_DIR"
+  "-DCMAKE_INSTALL_PREFIX=$GLOG_INSTALL_DIR"
+  "-DCMAKE_C_COMPILER=$(realpath "$CC_PATH")"
+  "-DCMAKE_CXX_COMPILER=$(realpath "$CXX_PATH")")
+glog_build_argv=(cmake --build "$GLOG_BUILD_DIR" -j 48)
+glog_install_argv=(cmake --install "$GLOG_BUILD_DIR")
+timeout 120 "${glog_configure_argv[@]}"
+timeout 120 "${glog_build_argv[@]}"
+timeout 120 "${glog_install_argv[@]}"
+
+export CMAKE_PREFIX_PATH="$GFLAGS_INSTALL_DIR:$GLOG_INSTALL_DIR"
+
 prebuild_source_root=$scratch/prebuild-sources
 mkdir -m 0700 -- "$prebuild_source_root"
 masstree_head=""
@@ -365,7 +463,8 @@ fi
 "$PY" - "$prebuild_receipt" "$ccbench_dir" "$fetchcontent_base_dir" \
   "$prebuild_source_root" "$masstree_source_dir" "$mimalloc_source_dir" \
   "$googletest_source_dir" "$masstree_head" "$mimalloc_head" \
-  "$googletest_head" "$PBS_JOBID" <<'PY'
+  "$googletest_head" "$PBS_JOBID" "$GFLAGS_INSTALL_DIR" \
+  "$GLOG_INSTALL_DIR" <<'PY'
 import hashlib
 import json
 import os
@@ -385,6 +484,8 @@ from orchestrator.campaign import buildcache
     mimalloc_head,
     googletest_head,
     pbs_jobid,
+    gflags_install_dir,
+    glog_install_dir,
 ) = sys.argv[1:]
 expected_toolchain_manifest = buildcache.observed_toolchain_manifest(
     *buildcache.compilers_for_current_site()
@@ -395,6 +496,7 @@ prepared = buildcache.prepare_masstree_fetchcontent(
     expected_toolchain_manifest=expected_toolchain_manifest,
     configure_timeout_s=900,
     target_timeout_s=900,
+    dependency_prefix=";".join([gflags_install_dir, glog_install_dir]),
     masstree_source_dir=masstree_source_dir,
     mimalloc_source_dir=mimalloc_source_dir,
     googletest_source_dir=googletest_source_dir,

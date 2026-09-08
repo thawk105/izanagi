@@ -132,12 +132,13 @@ _EXPECTED_E1_CLOSURE_PATHS = (
     "orchestrator/qualification/qsub_binding.py",
     "orchestrator/qualification/retry_index.py",
     "orchestrator/qualification/series.py",
+    "orchestrator/campaign/verify_fanout_worker.py",
 )
 _FIXED_SYNTHETIC_E1_EPOCH = (
-    "E1:78920efc47f4eb280b956a8fb92abed16b888495db544b62b1a15bf1f61004e9"
+    "E1:73f334f62ec13c394aae3d4787b80117562187984b6e0e372f2c0f7058b8ced2"
 )
 _FIXED_ORDERED_CLOSURE_PATHS_SHA256 = (
-    "b274387d0be033a98e86d54e5225667221bde79776832e73fb3d07cebfc6067a"
+    "2247e5312a327caca9d0d4be081457eaf196513764010f64ccad1561409399ec"
 )
 _GIT_ENV_ALLOWLIST = (
     "LANG",
@@ -471,7 +472,7 @@ def _fixture_git(repo: Path, *args: str) -> bytes:
 
 
 def _committed_closure_repo(tmp_path: Path) -> Path:
-    """現行 checkout の hash を使わない exact 62-path E1 fixture。"""
+    """現行 checkout の hash を使わない exact 63-path E1 fixture。"""
     repo = tmp_path / "closure-repo"
     repo.mkdir()
     _fixture_git(repo, "init", "-q")
@@ -1283,14 +1284,14 @@ def test_valid_v2_campaign_is_admitted(tmp_path: Path) -> None:
     )
     assert decoded.is_v2
     assert decoded.authority is not None
-    assert len(decoded.authority.contract_loader_blob_sha256s) == 62
+    assert len(decoded.authority.contract_loader_blob_sha256s) == 63
     assert A.classify_campaign(campaign).admission_status == "admitted"
 
 
 def test_certified_acceptance_admits_exact_e1_fixture(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    assert len(_EXPECTED_E1_CLOSURE_PATHS) == 62
+    assert len(_EXPECTED_E1_CLOSURE_PATHS) == 63
     assert _expected_fixture_epoch() == _FIXED_SYNTHETIC_E1_EPOCH
     assert (
         _ordered_fixture_path_list_sha256()
@@ -1824,7 +1825,9 @@ def test_unknown_pre_t733_grammar_is_rejected_for_both_read_purposes(
     if mutation in {"subset", "same-count-replacement"}:
         blobs.pop(campaign_lock.PRE_T733_CONTRACT_LOADER_RELATIVE_PATHS[-1])
     if mutation in {"superset", "same-count-replacement"}:
-        extra = campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS[24]
+        extra = "orchestrator/campaign/verify_fanout_worker.py"
+        assert extra in campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS
+        assert extra not in campaign_lock.PRE_T733_CONTRACT_LOADER_RELATIVE_PATHS
         blobs[extra] = "f" * 64
     if mutation == "order":
         paths = tuple(blobs)
@@ -2327,11 +2330,13 @@ def test_v2_loader_validation_rejects_valid_second_git_repository(
         "commit", "-q", "-m", "valid second repository",
     )
     real_run_git = contract_loader_binding._run_git
+    calls: list[tuple[str, ...]] = []
 
-    def redirected_git_view(root: Path, *args: str) -> bytes:
+    def redirected_git_view(root: Path, *args: str, **kwargs: object) -> bytes:
+        calls.append(args)
         if args == ("rev-parse", "--show-toplevel"):
             return f"{second.resolve()}\n".encode()
-        return real_run_git(root, *args)
+        return real_run_git(root, *args, **kwargs)
 
     monkeypatch.setattr(
         contract_loader_binding, "_run_git", redirected_git_view,
@@ -2339,6 +2344,7 @@ def test_v2_loader_validation_rejects_valid_second_git_repository(
 
     with pytest.raises(A.ArtifactAdmissionError, match="Git top-level"):
         A.classify_campaign(campaign)
+    assert calls == [("rev-parse", "--show-toplevel")]
 
 
 def test_v2_loader_validation_rejects_ambient_git_repository_override(
@@ -2386,18 +2392,33 @@ def test_v2_loader_validation_rejects_missing_blob(
     )
     assert decoded.authority is not None
     commit = decoded.authority.contract_loader_commit
+    calls: list[tuple[str, ...]] = []
 
-    def missing_blob(root: Path, *args: str) -> bytes:
-        if args == ("cat-file", "blob", f"{commit}:{missing}"):
-            raise contract_loader_binding.ContractLoaderBindingError(
-                "contract-loader-git-error: git command が失敗: blob 不在"
+    def missing_blob(root: Path, *args: str, **kwargs: object) -> bytes:
+        calls.append(args)
+        output = real_run_git(root, *args, **kwargs)
+        if args[:4] == ("ls-tree", "-r", "-z", commit):
+            raw_missing = os.fsencode(missing)
+            entries = output.split(b"\0")
+            output = b"\0".join(
+                entry for entry in entries
+                if entry.partition(b"\t")[2] != raw_missing
             )
-        return real_run_git(root, *args)
+        return output
 
     monkeypatch.setattr(contract_loader_binding, "_run_git", missing_blob)
 
-    with pytest.raises(A.ArtifactAdmissionError, match="git command"):
+    with pytest.raises(A.ArtifactAdmissionError, match="git command") as caught:
         A.classify_campaign(campaign)
+    assert missing in str(caught.value)
+    assert [
+        args for args in calls
+        if args[:4] == ("ls-tree", "-r", "-z", commit)
+    ] == [(
+        "ls-tree", "-r", "-z", commit, "--",
+        *(f":(literal){relative}"
+          for relative in campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS),
+    )]
 
 
 def test_contract_loader_rejects_leaf_symlink(tmp_path: Path) -> None:

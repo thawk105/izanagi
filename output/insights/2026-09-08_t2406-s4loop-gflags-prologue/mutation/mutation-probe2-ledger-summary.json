@@ -1,0 +1,32 @@
+{
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "c61ad8ddc46c3e3b92f0b9e41532f0cee40ee35185072fdd7a9ac1d5017782e0",
+  "repo_head": "a173f0ab5eaf46053c6fe76ea6a6ad1053b14698",
+  "baseline": {
+    "status": "PASSED",
+    "rc": 0
+  },
+  "summary": {
+    "KILLED": 0,
+    "MISMATCH": 1,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 1,
+    "matching": 0,
+    "recorded": 1,
+    "registered": 1
+  },
+  "mutations": [
+    {
+      "id": "m17-test-both-prefix-layers-loosened",
+      "category": "both-layers",
+      "status": "MISMATCH",
+      "rc": 1,
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_driver_dependency_prefix_removal_is_rejected",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_dependency_prefix_export_attribute_removal_is_rejected"
+      ]
+    }
+  ]
+}

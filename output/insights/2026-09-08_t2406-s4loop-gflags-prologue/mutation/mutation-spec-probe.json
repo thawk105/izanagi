@@ -1,0 +1,232 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 240,
+ "timeout_seconds": 1800,
+ "hang_timeout_seconds": 1800,
+ "mutations": [
+  {
+   "id": "m01-gflags-head-empty",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+     "old": "if [[ \"$GFLAGS_SOURCE_HEAD\" != \"$GFLAGS_EXPECTED_HEAD\" ]]; then\n",
+     "new": "if [[ \"$GFLAGS_SOURCE_HEAD\" != \"\" ]]; then\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m02-gflags-untracked-no",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+     "old": "GFLAGS_STATUS=$(git -C \"$GFLAGS_SOURCE_PATH\" status --porcelain --untracked-files=all)\n",
+     "new": "GFLAGS_STATUS=$(git -C \"$GFLAGS_SOURCE_PATH\" status --porcelain --untracked-files=no)\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m03-gflags-j47",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+     "old": "gflags_build_argv=(cmake --build \"$GFLAGS_BUILD_DIR\" -j 48)\n",
+     "new": "gflags_build_argv=(cmake --build \"$GFLAGS_BUILD_DIR\" -j 47)\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m04-glog-unwind-on",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+     "old": "  -DWITH_UNWIND=OFF \"-DCMAKE_PREFIX_PATH=$GFLAGS_INSTALL_DIR\"\n",
+     "new": "  -DWITH_UNWIND=ON \"-DCMAKE_PREFIX_PATH=$GFLAGS_INSTALL_DIR\"\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m05-prefix-partial",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+     "old": "export CMAKE_PREFIX_PATH=\"$GFLAGS_INSTALL_DIR:$GLOG_INSTALL_DIR\"\n",
+     "new": "export CMAKE_PREFIX_PATH=\"$GFLAGS_INSTALL_DIR\"\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m06-glog-install-tmp",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+     "old": "GLOG_INSTALL_DIR=\"$TMPDIR/glog-install\"\n",
+     "new": "GLOG_INSTALL_DIR=\"/tmp/glog-install\"\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m07-unset-after-export",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+     "old": "export CMAKE_PREFIX_PATH=\"$GFLAGS_INSTALL_DIR:$GLOG_INSTALL_DIR\"\n",
+     "new": "export CMAKE_PREFIX_PATH=\"$GFLAGS_INSTALL_DIR:$GLOG_INSTALL_DIR\"\nunset CMAKE_PREFIX_PATH\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m08-export-before-glog",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+     "old": "timeout 120 \"${glog_install_argv[@]}\"\n\nexport CMAKE_PREFIX_PATH=\"$GFLAGS_INSTALL_DIR:$GLOG_INSTALL_DIR\"\n",
+     "new": "export CMAKE_PREFIX_PATH=\"$GFLAGS_INSTALL_DIR:$GLOG_INSTALL_DIR\"\ntimeout 120 \"${glog_install_argv[@]}\"\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m09-cxx-gcc",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+     "old": "CXX_PATH=$(command -v g++)\n",
+     "new": "CXX_PATH=$(command -v gcc)\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m10-policy-key",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+     "old": "    \"glog_expected_head\",\n)\n",
+     "new": "    \"glog_head\",\n)\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m11-prebuild-prefix-dropped",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+     "old": "    dependency_prefix=\";\".join([gflags_install_dir, glog_install_dir]),\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m12-comment-equivalent",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+     "old": "# 出典: floor_scoping.sh:205-283。pinned gflags/glog build prologue を同手順で踏襲。\n",
+     "new": "# 出典: floor_scoping.sh:205-283。pinned gflags/glog build prologue を同じ手順で踏襲。\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m13-test-whitelist-two",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_p3_s4_loop_job_contract.py",
+     "old": "    if prefix_assignments != [allowed]:\n",
+     "new": "    if prefix_assignments not in ([allowed], [allowed, allowed]):\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m14-export-n",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+     "old": "export CMAKE_PREFIX_PATH=\"$GFLAGS_INSTALL_DIR:$GLOG_INSTALL_DIR\"\n",
+     "new": "export CMAKE_PREFIX_PATH=\"$GFLAGS_INSTALL_DIR:$GLOG_INSTALL_DIR\"\nexport -n CMAKE_PREFIX_PATH\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m15-comment-out-prefix",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+     "old": "    dependency_prefix=\";\".join([gflags_install_dir, glog_install_dir]),\n",
+     "new": "    # dependency_prefix=\";\".join([gflags_install_dir, glog_install_dir]),\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m16-fake-heredoc-unset",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+     "old": "export CMAKE_PREFIX_PATH=\"$GFLAGS_INSTALL_DIR:$GLOG_INSTALL_DIR\"\n",
+     "new": "export CMAKE_PREFIX_PATH=\"$GFLAGS_INSTALL_DIR:$GLOG_INSTALL_DIR\"\n# <<true\nunset CMAKE_PREFIX_PATH\ntrue\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}
