@@ -1882,7 +1882,7 @@ def test_role_sink_bytes_vary_only_at_declared_declassifications(tmp_path) -> No
             cfg, perf, planner, coder, auditor, prior, sub, do_build, *, layout,
             cache_root="", proposal_path="", extra_sources=(),
         ):
-            assert do_build is False
+            assert do_build is False, wire
             variant = _write_admitted_rejection_digest(
                 cfg, layout, coder, binding=recorded_binding,
             )
@@ -1914,7 +1914,7 @@ def test_role_sink_bytes_vary_only_at_declared_declassifications(tmp_path) -> No
         )
         role_payloads = {}
         for role in ("planner", "coder", "auditor", "critic"):
-            assert len(providers[role].payload_bytes) == 1
+            assert len(providers[role].payload_bytes) == 1, (wire, role)
             role_payloads[role] = providers[role].payload_bytes[0]
 
         generation = report["cells"][0]["generations"][0]
@@ -1924,21 +1924,21 @@ def test_role_sink_bytes_vary_only_at_declared_declassifications(tmp_path) -> No
         expected_variant = A.loop_core.diffq_variant_id(
             _RELATION_GENOME, predicate,
         )
-        assert raw_variant == expected_variant
+        assert raw_variant == expected_variant, wire
         assert raw_variant != providers["critic"].payloads[0][
             "harness_result"
-        ]["candidate_label"]
+        ]["candidate_label"], wire
         campaign_layout = A.CampaignLayout(report["cells"][0]["campaign_root"])
         build_starts = [
             record
             for record in wal.read_records(campaign_layout)
             if record.stage == campaign_model.STAGE_BUILD_START
         ]
-        assert len(build_starts) == 1
+        assert len(build_starts) == 1, wire
         raw_build_attempt_id = build_starts[0].payload["build_attempt_id"]
         assert raw_build_attempt_id.encode("ascii") not in (
             providers["critic"].payload_bytes[0]
-        )
+        ), wire
         return wire, role_payloads, raw_variant, {
             "wire": wire,
             "canonical_predicate": predicate,
