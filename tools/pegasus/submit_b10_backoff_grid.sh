@@ -5,7 +5,7 @@ umask 077
 
 usage() {
   echo "usage: submit_b10_backoff_grid.sh --output-parent ABSOLUTE_PATH" \
-    "[--run-kind extended|t2266-tail]" >&2
+    "[--run-kind extended|t2266-tail|t2418-explore]" >&2
 }
 
 OUTPUT_PARENT=""
@@ -34,7 +34,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 case "$B10_RUN_KIND" in
-  extended|t2266-tail) ;;
+  extended|t2266-tail|t2418-explore) ;;
   *) usage; exit 2 ;;
 esac
 export B10_RUN_KIND
@@ -182,7 +182,8 @@ for workload in "${WORKLOADS[@]}"; do
   stdout="$OUTPUT_PARENT/$GROUP_ID-$workload.stdout"
   stderr="$OUTPUT_PARENT/$GROUP_ID-$workload.stderr"
   QSUB_ENV="B10_WORKLOAD=$workload,B10_OUTPUT_ROOT=$root,B10_SUBMISSION_NONCE=$SUBMISSION_NONCE,JOB_SCRIPT_SHA256=$JOB_SCRIPT_SHA256"
-  if [[ "$B10_RUN_KIND" == "t2266-tail" ]]; then
+  if [[ "$B10_RUN_KIND" == "t2266-tail" \
+      || "$B10_RUN_KIND" == "t2418-explore" ]]; then
     QSUB_ENV="$QSUB_ENV,B10_RUN_KIND=$B10_RUN_KIND"
   fi
   qsub_rc=0
