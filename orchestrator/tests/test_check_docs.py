@@ -578,7 +578,7 @@ _EXPECTED_CLEANUP_SKILL_SHA256 = (
     "268a32aeb2fb4a361e2a99cc7c90ff09e905c74465c64e8b4e2227d8b2d85dea"
 )
 _EXPECTED_CLEANUP_COMMAND_SHA256 = (
-    "b2daf0068ac34e321f95d14edd473bfe867f53a6d96947deb1263cf21e161a63"
+    "ad9b33625776d056bae9b953e29cc874cd97bd1be2a449281f818fb481a4fd35"
 )
 _SYNTHETIC_CLEANUP_SKILL = """---
 name: cleanup-branches
@@ -651,8 +651,8 @@ final で裁定候補として返し、実装・記録・commit は後から明�
 
 ## 1. 棚卸し (削除の前に全量を見る)
 
-- `git worktree list` と `git branch -a` を列挙し、各ローカル branch の `git rev-list --count
-  main..<b>` (ahead) / `<b>..main` (behind) を出す
+- `git worktree list` と `git branch -a` を列挙し、各 local branch は 1 回で
+  `git rev-list --count --left-right <b>...main` (左=ahead 右=behind) を出す
 - 各 worktree の `git status --short` (未コミット差分の有無)
 - ahead>0 のブランチは `git cherry main <b>` を出す。ahead だけでは判定できない
   (rebase / cherry-pick は ahead>0 のまま残る)。`+` 行は実在でなく内容で判定する
@@ -666,7 +666,7 @@ final で裁定候補として返し、実装・記録・commit は後から明�
 
 - ブランチ: **ahead=0 (main に取り込み済み) のみ削除**。`git branch -d` を使う (`-D` は使わない —
   -d が拒否したら取り込み漏れの兆候なので止めて報告)
-- worktree: クリーン (未コミット差分なし) かつ HEAD が main に取り込み済みのみ。
+- worktree: §1 の status 空を削除直前に再確認し、HEAD が main に取り込み済みのみ。
   占有は §3 で実測し、占有・判定不能・HEAD 直近 (目安 1h) は残す。迷ったらユーザー確認へ
 - local main / primary worktree、foreign・locked・所有不明な worktree は inventory/report のみにする
 - 自分がその worktree 内で作業中なら、先に main checkout 側へ抜けてから操作する
@@ -9775,13 +9775,13 @@ def test_codex_cleanup_branches_skill_contract_pins_exact_surface():
 def test_cleanup_command_budget_is_pinned_and_enforced():
     rel = ".claude/commands/cleanup-branches.md"
     assert check_docs.COMMAND_LIMITS[rel] == check_docs.TextLimit(5_900, 110)
-    assert len(_SYNTHETIC_CLEANUP_COMMAND.encode("utf-8")) == 5_888
+    assert len(_SYNTHETIC_CLEANUP_COMMAND.encode("utf-8")) == 5_898
 
     root = _build_min_repo()
     try:
         original = _read(root, rel)
-        assert len(original.encode("utf-8")) == 5_888
-        oversized = original + "\n" + ("x" * 12)
+        assert len(original.encode("utf-8")) == 5_898
+        oversized = original + "\n" + ("x" * 2)
         assert len(oversized.encode("utf-8")) == 5_901
         _write(root, rel, oversized)
 

@@ -25,8 +25,8 @@ final で裁定候補として返し、実装・記録・commit は後から明�
 
 ## 1. 棚卸し (削除の前に全量を見る)
 
-- `git worktree list` と `git branch -a` を列挙し、各ローカル branch の `git rev-list --count
-  main..<b>` (ahead) / `<b>..main` (behind) を出す
+- `git worktree list` と `git branch -a` を列挙し、各 local branch は 1 回で
+  `git rev-list --count --left-right <b>...main` (左=ahead 右=behind) を出す
 - 各 worktree の `git status --short` (未コミット差分の有無)
 - ahead>0 のブランチは `git cherry main <b>` を出す。ahead だけでは判定できない
   (rebase / cherry-pick は ahead>0 のまま残る)。`+` 行は実在でなく内容で判定する
@@ -40,7 +40,7 @@ final で裁定候補として返し、実装・記録・commit は後から明�
 
 - ブランチ: **ahead=0 (main に取り込み済み) のみ削除**。`git branch -d` を使う (`-D` は使わない —
   -d が拒否したら取り込み漏れの兆候なので止めて報告)
-- worktree: クリーン (未コミット差分なし) かつ HEAD が main に取り込み済みのみ。
+- worktree: §1 の status 空を削除直前に再確認し、HEAD が main に取り込み済みのみ。
   占有は §3 で実測し、占有・判定不能・HEAD 直近 (目安 1h) は残す。迷ったらユーザー確認へ
 - local main / primary worktree、foreign・locked・所有不明な worktree は inventory/report のみにする
 - 自分がその worktree 内で作業中なら、先に main checkout 側へ抜けてから操作する
