@@ -74,10 +74,10 @@ def _binding_from_recorded_head() -> contract_loader_binding.ContractLoaderBindi
     root = contract_loader_binding._validated_root()
     commit = contract_loader_binding._head_commit(root)
     digests = {
-        relative: hashlib.sha256(
-            contract_loader_binding._blob(root, commit, relative)
-        ).hexdigest()
-        for relative in campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS
+        relative: hashlib.sha256(blob).hexdigest()
+        for relative, blob in contract_loader_binding._iter_blobs(
+            root, commit, campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS,
+        )
     }
     return contract_loader_binding.ContractLoaderBinding(commit, digests)
 
