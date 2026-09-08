@@ -6769,6 +6769,157 @@ def test_attempt_registry_genesis_is_closed_before_first_performance_observation
         )
 
 
+def _genesis_cli_fixture(
+    tmp_path: Path,
+) -> tuple[Path, Path, R.TrialManifest, Path, list[dict], list[str]]:
+    repo, seed = _init_repo(tmp_path)
+    manifest_path = repo / "manifest.json"
+    _write_manifest(manifest_path, _manifest_value(seed, "genesis-cli"))
+    _commit(repo, "genesis CLI manifest", manifest_path)
+    manifest = R.load_trial_manifest(manifest_path)
+    prereg_generation = 2
+    slots = _attempt_slots(manifest)
+    for slot in slots:
+        slot["prereg_generation"] = prereg_generation
+        slot["schedule_row_sha256"] = hashlib.sha256(_canonical({
+            key: slot[key]
+            for key in (
+                "trial_id", "arm", "holdout", "campaign_id",
+                "prereg_generation", "replicate_index", "attempt_index",
+            )
+        })).hexdigest()
+    slots_path = repo / "slots.json"
+    slots_path.write_bytes(_canonical(slots) + b"\n")
+    argv = [
+        "genesis",
+        "--manifest", str(manifest_path),
+        "--repo-root", str(repo),
+        "--freeze-id", "freeze-genesis-cli",
+        "--prereg-generation", str(prereg_generation),
+        "--slots-file", str(slots_path),
+    ]
+    return repo, manifest_path, manifest, slots_path, slots, argv
+
+
+def test_genesis_cli_derives_manifest_digest_and_creates_canonical_registry(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    repo, _manifest_path, manifest, _slots_path, slots, argv = (
+        _genesis_cli_fixture(tmp_path)
+    )
+
+    assert R.main(argv) == 0
+
+    registry = repo / R.DEFAULT_ATTEMPT_REGISTRY_PATH
+    registry_lines = registry.read_bytes().splitlines()
+    assert len(registry_lines) == 1
+    genesis = json.loads(registry_lines[0])
+    assert genesis["event"] == "freeze"
+    assert genesis["freeze_id"] == "freeze-genesis-cli"
+    assert genesis["manifest_sha256"] == hashlib.sha256(
+        manifest.raw_bytes
+    ).hexdigest()
+    assert genesis["slots"] == slots
+    assert capsys.readouterr().out == (
+        R._canonical_json_bytes({
+            "attempt_registry_path": R.DEFAULT_ATTEMPT_REGISTRY_PATH.as_posix(),
+            "manifest_sha256": manifest.sha256,
+            "slot_count": len(slots),
+        }).decode("utf-8")
+        + "\n"
+    )
+
+
+def test_genesis_cli_rejects_second_creation_without_changing_bytes(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    repo, _manifest_path, _manifest, _slots_path, _slots, argv = (
+        _genesis_cli_fixture(tmp_path)
+    )
+    assert R.main(argv) == 0
+    capsys.readouterr()
+    registry = repo / R.DEFAULT_ATTEMPT_REGISTRY_PATH
+    original = registry.read_bytes()
+
+    with pytest.raises(SystemExit) as excinfo:
+        R.main(argv)
+
+    assert excinfo.value.code == 2
+    assert "create-only path already exists" in capsys.readouterr().err
+    assert registry.read_bytes() == original
+
+
+def test_genesis_cli_rejects_slot_generation_mismatch_before_creation(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    repo, _manifest_path, _manifest, slots_path, slots, argv = (
+        _genesis_cli_fixture(tmp_path)
+    )
+    slots[0]["prereg_generation"] = 3
+    slots_path.write_bytes(_canonical(slots) + b"\n")
+
+    with pytest.raises(SystemExit) as excinfo:
+        R.main(argv)
+
+    assert excinfo.value.code == 2
+    assert (
+        "prereg_generation differs from slots[0].prereg_generation"
+        in capsys.readouterr().err
+    )
+    assert not (repo / R.DEFAULT_ATTEMPT_REGISTRY_PATH).exists()
+
+
+@pytest.mark.parametrize(
+    ("slots_bytes", "expected_error"),
+    [
+        (b"{}\n", "slots file root must be an array"),
+        (
+            b'[{"slot_id":"first","slot_id":"second"}]\n',
+            "duplicate object key: 'slot_id'",
+        ),
+        (b"[\xff]\n", "slots file is not strict UTF-8 JSON"),
+        (b"[NaN]\n", "non-finite JSON number is forbidden: NaN"),
+    ],
+    ids=("object", "duplicate-key", "non-utf8", "non-finite"),
+)
+def test_genesis_cli_rejects_non_strict_slots_without_creating_artifact(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    slots_bytes: bytes,
+    expected_error: str,
+) -> None:
+    repo, _manifest_path, _manifest, slots_path, _slots, argv = (
+        _genesis_cli_fixture(tmp_path)
+    )
+    slots_path.write_bytes(slots_bytes)
+
+    with pytest.raises(SystemExit) as excinfo:
+        R.main(argv)
+
+    assert excinfo.value.code == 2
+    assert expected_error in capsys.readouterr().err
+    assert not (repo / R.DEFAULT_ATTEMPT_REGISTRY_PATH).exists()
+
+
+def test_genesis_cli_requires_prereg_generation(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    _repo, _manifest_path, _manifest, _slots_path, _slots, argv = (
+        _genesis_cli_fixture(tmp_path)
+    )
+    option_index = argv.index("--prereg-generation")
+    del argv[option_index:option_index + 2]
+
+    with pytest.raises(SystemExit) as excinfo:
+        R.main(argv)
+
+    assert excinfo.value.code == 2
+    assert (
+        "the following arguments are required: --prereg-generation"
+        in capsys.readouterr().err
+    )
+
+
 def test_m1_v3_reader_accepts_single_generation_and_rejects_mixed_generation(
     tmp_path: Path,
 ) -> None:
