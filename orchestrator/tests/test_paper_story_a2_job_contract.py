@@ -58,6 +58,13 @@ def _assert_static_job_contract(source):
             '"$ccbench_full_head" != "$IZANAGI_A2_CURRENT_PIN"*'),
         "clean-tree": "git status --porcelain --untracked-files=no",
         "pbs-job": "PBS_JOBID PBS_NODEFILE PBS_O_WORKDIR",
+        "pbs-job-number-shape": (
+            'if [[ ! "$PBS_JOBID" =~ ^(0|[1-9][0-9]*):(.+)$ ]]; then'),
+        "pbs-primary-job-number": (
+            'if [[ "$pbs_job_number" != 0 ]]; then'),
+        "pbs-secondary-job-exit": (
+            'echo "nonzero PBS job number exits without running compute body" '
+            '>&2\n  exit 0'),
         "reservation": 'export IZANAGI_RESERVATION_DEADLINE_EPOCH="$deadline_epoch"',
         "scheduler-start": 'qstat -f "$qstat_jobid"',
         "reservation-result": "paper-story-a2-reservation-result/v1",
@@ -118,8 +125,21 @@ def _assert_static_job_contract(source):
     if resolver_call >= first_python_use:
         raise AssertionError("interpreter resolution must precede Python use")
     job_root_check = source.index('if [[ ! -d "$repo"')
+    job_number_gate = source.index(
+        'if [[ ! "$PBS_JOBID" =~ ^(0|[1-9][0-9]*):(.+)$ ]]; then')
+    nonzero_job_exit = source.index(
+        'if [[ "$pbs_job_number" != 0 ]]; then\n'
+        '  echo "nonzero PBS job number exits without running compute body" '
+        '>&2\n'
+        '  exit 0\n'
+        'fi')
+    host_gate = source.index("host=$(hostname")
     trap_install = source.index("trap finish EXIT")
     policy_resolution = source.index("readarray -t POLICY_VALUES")
+    if not job_number_gate < nonzero_job_exit < host_gate < job_root_check:
+        raise AssertionError(
+            "job number gate and nonzero exit must precede compute and "
+            "durable path checks")
     if not job_root_check < trap_install < resolver_call < policy_resolution:
         raise AssertionError(
             "job root must precede the recovery trap, which must cover "
@@ -713,7 +733,8 @@ os.execv(sys.executable, [sys.executable, *args])
 def _run_compute_pin_harness(
         tmp_path, *, ccbench_head=None, resolved_pin=None, resolver_rc=0,
         tracked_dirty=False, current_pin=CANONICAL_PIN, study="a2",
-        policy_selection=None, nodefile_hosts=None, omit_nodefile=False):
+        policy_selection=None, nodefile_hosts=None, omit_nodefile=False,
+        pbs_jobid="0:945411.nqsv"):
     workload = "rr95" if study == "a6" else "rr5"
     attempt_root = tmp_path / "attempt"
     job_root = attempt_root / "jobs" / workload
@@ -801,7 +822,7 @@ exit 0
     environment.update({
         "PATH": str(binary_dir) + os.pathsep + environment["PATH"],
         "PYTHONDONTWRITEBYTECODE": "1",
-        "PBS_JOBID": "0:945411.nqsv",
+        "PBS_JOBID": pbs_jobid,
         "PBS_NODEFILE": str(nodefile),
         "PBS_O_WORKDIR": str(REPO),
         "IZANAGI_A2_REPO_ROOT": str(REPO),
@@ -828,6 +849,42 @@ exit 0
         capture_output=True, text=True, check=False,
     )
     return completed, job_root
+
+
+@pytest.mark.parametrize(
+    "pbs_jobid", ("1:945411.nqsv", "4:945411.nqsv"),
+    ids=("rank-1", "observed-rank-4"),
+)
+def test_job_body_nonzero_job_number_exits_without_durable_output(
+        tmp_path, pbs_jobid):
+    completed, job_root = _run_compute_pin_harness(
+        tmp_path, study="a6", pbs_jobid=pbs_jobid)
+
+    assert completed.returncode == 0
+    assert completed.stderr == (
+        "nonzero PBS job number exits without running compute body\n")
+    assert {
+        path.relative_to(job_root).as_posix()
+        for path in job_root.rglob("*")
+    } == {"cache", "campaigns", "scheduler"}
+
+
+@pytest.mark.parametrize(
+    "pbs_jobid", ("945411.nqsv", "rank:945411.nqsv", "0:",
+                  "00:945411.nqsv"),
+    ids=("missing-job-number", "nondecimal-job-number", "empty-request-id",
+         "leading-zero-job-number"),
+)
+def test_job_body_rejects_malformed_pbs_jobid_without_durable_output(
+        tmp_path, pbs_jobid):
+    completed, job_root = _run_compute_pin_harness(
+        tmp_path, study="a6", pbs_jobid=pbs_jobid)
+
+    assert completed.returncode == 2
+    assert completed.stderr == "PBS_JOBID is not a numbered request ID\n"
+    assert not (job_root / "compute-result.json").exists()
+    assert not (job_root / "scheduler" / "allocation-qstat.stdout").exists()
+    assert not (job_root / "raw").exists()
 
 
 @pytest.mark.parametrize("mutation", ("wrong-prefix", "resolver-failure", "dirty"))
