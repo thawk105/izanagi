@@ -4972,6 +4972,11 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   「repo 外へ退避してから再投入する」復旧が明示的な手順になった。恒久対応は F106 のまま。
   本 wave は成果物を job directory 側の staging へ移し、`--out` と `--wrapper-attempt` を
   変えて再投入して 2/2 KILLED を得た。
+
+- **再発: 2026-09-09** ([T-2265] cohort 2 wave)。変異 harness の probe を走らせている最中に、
+  親が `output/insights/` へ一次資料 22 file を書いた。harness が起動前の untracked 検査で
+  検出し `rc=2` で中止した。**防壁は設計どおり働いた。** 記録を先に commit してから
+  `--out` / `--wrapper-attempt` を変えて再投入した。
 ### F107. 内側検証の変異を外側の一括再検証が mask した [恒真ゲート]
 
 - 事象: 事前登録した変異 M15 (publish 直後の再検証と rollback を落とす) が本走で **SURVIVED**
@@ -23830,3 +23835,25 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   同時に向けない」を統合する。
 - 再発検知: レビュー子の報告が、親が既に閉じた赤を must-fix として挙げたら本型を疑う。
   親は所見を裁定する前に、レビュー子が読んだ木の状態を最終 bytes と照合する。
+
+### F922. 出力書式の版を無条件に上げ、新機能を無効にした走行まで consumer が拒否した [ドリフト] [テスト代表性]
+
+- 事象: cohort 2 の terminal event を足すため、C++ の trace 出力の版を `v=2` から `v=3` へ**無条件で**
+  上げた。parser は「v3 なら terminal event が末尾にちょうど 1 件」を要求した。その結果、
+  terminal を無効にした build (`BACKOFF_TRACE_TERMINAL_US = 0`、cohort 1 と legacy の全診断走行) が
+  出す v3 (terminal 0 件、`flushes = 0`) を parser が拒否し、既存の走行が成果物を作れなくなった。
+  さらに、凍結した事前登録が定める「terminal 非閉鎖なら主判定全体を inconclusive」の経路も、
+  成果物が作れないため到達不能になっていた。
+- 根本原因: producer と parser を別 worktree の別実装子が並行して書き、**新機能が無効なときの
+  出力形**を契約に書いていなかった。親の実装契約は terminal を「run につきちょうど 1 件」とだけ
+  定め、0 件の場合を落としていた。版の引き上げは新機能の有無に条件付けるべきだった。
+- 恒久対応: `docs/dev-wave/operations.md` の `DW-O26` (consumer test 拡張) に従い、producer の
+  出力書式を変える wave では**新機能を無効にした構成の出力**を consumer へ通す正例を必ず持つ。
+  本 wave は `orchestrator/tests/test_dynamic_backoff_transitions.py` の
+  `test_emitter_stdout_parses_with_the_real_parser` を terminal 0 件と 1 件の両方で通す形にし、
+  parser 側 `tools/pegasus/probes/t2187_adaptive_const_probe.py` を
+  「terminal は 0 件または末尾 1 件」へ直した。変異
+  `m8-parser-rejects-zero-terminal` がこの gate の発火を殺す。
+- 再発検知: 出力書式の版を上げる差分では、**その版を出すが新機能を使わない**構成の正例が
+  consumer test にあるかを段 6 のレビューで検査する。本件は段 6 の敵対レビュー 2 本が独立に
+  指摘し、親の焦点走が実測した。
