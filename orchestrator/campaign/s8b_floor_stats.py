@@ -63,7 +63,7 @@ REP_INTEGRITY_EXCLUSION_CLASS = "rep_integrity_failure"
 PERF_EVENTS = ("LLC-load-misses", "LLC-loads", "instructions", "cycles")
 _REP_OBSERVATION_KEYS = frozenset({
     "rep_index", "returncode", "counter_status", "missing_perf_events",
-    "perf_raw", "throughput",
+    "perf_raw", "throughput", "execution_failure",
 })
 _COUNTER_STATUSES = frozenset({"complete", "incomplete", "not_required", "unknown"})
 
@@ -469,11 +469,11 @@ def _rep_evidence_exemption_kind(raw: Mapping) -> Optional[str]:
 
 
 def _derive_rep_integrity(observations, *, reps: int,
-                          expected_use_perf: bool) -> tuple[list, int, tuple]:
-    """rep 証跡を独立検査し、(errors, failure count, qualified tps) を返す。"""
+                          expected_use_perf: bool) -> tuple[list, int, int, tuple]:
+    """rep 証跡から integrity/実行例外本数と qualified tps を独立再導出する。"""
     errors: list = []
     if not isinstance(observations, Sequence) or isinstance(observations, (str, bytes)):
-        return ["rep_observations が配列でない"], reps, ()
+        return ["rep_observations が配列でない"], reps, 0, ()
     if len(observations) != reps:
         errors.append(f"rep_observations 件数 {len(observations)} != reps {reps}")
 
@@ -503,6 +503,7 @@ def _derive_rep_integrity(observations, *, reps: int,
         errors.append(f"rep_observations: rep_index 欠損 {missing_indices}")
 
     failures = len(missing_indices)
+    exec_failures = 0
     qualified: list = []
     for index in range(reps):
         observation = by_index.get(index)
@@ -510,6 +511,16 @@ def _derive_rep_integrity(observations, *, reps: int,
             continue
         ctx = f"rep_observations[{index}]"
         bad = index in structurally_bad
+
+        execution_failure = observation.get("execution_failure")
+        if type(execution_failure) is not bool:
+            errors.append(
+                f"{ctx}: execution_failure が exact bool でない: "
+                f"{execution_failure!r}"
+            )
+            bad = True
+        elif execution_failure:
+            exec_failures += 1
 
         returncode = observation.get("returncode")
         returncode_is_exact_int = type(returncode) is int
@@ -575,18 +586,24 @@ def _derive_rep_integrity(observations, *, reps: int,
         if throughput is not None and (
                 isinstance(throughput, bool) or not isinstance(throughput, (int, float))):
             errors.append(f"{ctx}: throughput が数値/null でない: {throughput!r}")
+        if execution_failure is True and throughput is not None:
+            errors.append(
+                f"{ctx}: execution_failure=True なのに throughput が非 null"
+            )
+            bad = True
 
         complete = (
             not bad
             and returncode is not None and returncode == 0
             and status == derived_status
             and derived_status in {"complete", "not_required"}
+            and execution_failure is False
         )
         if not complete:
             failures += 1
         elif throughput is not None:
             qualified.append(throughput)
-    return errors, failures, tuple(qualified)
+    return errors, failures, exec_failures, tuple(qualified)
 
 
 def _cmp(ctx: str, name: str, reported, computed, out: list) -> None:
@@ -897,10 +914,15 @@ def verify_floor_artifact(artifact: Mapping, expected_protocol: Mapping,
         exempt_without_measure = _rep_evidence_exemption_kind(raw) is not None
         derived_failures: Optional[int] = None
         if not exempt_without_measure:
-            evidence_errors, derived_failures, qualified = _derive_rep_integrity(
+            evidence_errors, derived_failures, derived_exec_failures, qualified = _derive_rep_integrity(
                 r.rep_observations, reps=reps, expected_use_perf=expected_use_perf,
             )
             errors.extend(f"{ctx}: {error}" for error in evidence_errors)
+            if r.exec_failures != derived_exec_failures:
+                errors.append(
+                    f"{ctx}: exec_failures 齟齬 "
+                    f"(申告 {r.exec_failures} != 再導出 {derived_exec_failures})"
+                )
             if (type(r.rep_integrity_failures) is not int
                     or r.rep_integrity_failures < 0):
                 errors.append(

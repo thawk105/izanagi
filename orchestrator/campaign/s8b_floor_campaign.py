@@ -1876,20 +1876,6 @@ def _validate_execution_receipt(
 # ScalePoint → session 射影 (s8b_floor_stats の有効性契約に従う)                #
 # --------------------------------------------------------------------------- #
 
-_EXEC_FAIL_RE = re.compile(r"(\d+)/\d+ reps failed to execute")
-
-
-def _count_exec_failures(notes) -> int:
-    """ScalePoint.notes から実行失敗した rep 数を数える (measure_point の集約 note を読む)。"""
-    for note in notes or []:
-        if not isinstance(note, str):
-            continue
-        match = _EXEC_FAIL_RE.search(note)
-        if match:
-            return int(match.group(1))
-    return 0
-
-
 def _project_scalepoint(scale_point, *, reps: int, expected_use_perf: bool) -> dict:
     """rep 証跡から完備な rep の tps だけを統計入力へ射影する。"""
     source_throughputs = list(getattr(scale_point, "throughputs", None) or [])
@@ -1901,6 +1887,8 @@ def _project_scalepoint(scale_point, *, reps: int, expected_use_perf: bool) -> d
             {
                 "rep_index": index,
                 "returncode": None,
+                # Carrier が無ければ runner の例外捕捉有無も観測不能。False で補わない。
+                "execution_failure": None,
                 "counter_status": "incomplete" if expected_use_perf else "not_required",
                 "missing_perf_events": (
                     list(s8b_floor_stats.PERF_EVENTS) if expected_use_perf else []
@@ -1946,7 +1934,7 @@ def _project_scalepoint(scale_point, *, reps: int, expected_use_perf: bool) -> d
         complete = (
             set(observation) == {
                 "rep_index", "returncode", "counter_status", "missing_perf_events",
-                "perf_raw", "throughput",
+                "perf_raw", "throughput", "execution_failure",
             }
             and type(observation.get("rep_index")) is int
             and observation["rep_index"] == expected_index
@@ -1956,13 +1944,17 @@ def _project_scalepoint(scale_point, *, reps: int, expected_use_perf: bool) -> d
             and observation.get("missing_perf_events") == missing
             and raw_complete
             and derived_status in {"complete", "not_required"}
+            and observation.get("execution_failure") is False
         )
         if complete:
             if observation.get("throughput") is not None:
                 throughputs.append(observation["throughput"])
         else:
             failures += 1
-    exec_failures = _count_exec_failures(getattr(scale_point, "notes", None))
+    exec_failures = sum(
+        observation.get("execution_failure") is True
+        for observation in observations
+    )
     return {
         "throughputs": throughputs,
         "exec_failures": exec_failures,
@@ -8373,7 +8365,7 @@ def _verify_resume_journal(records: list[dict], *, run_dir: Path, mode: str,
             reps_expected = r.get("reps_expected")
             if type(reps_expected) is not int or reps_expected < 2:
                 raise FloorCampaignError("resume: reps_expected が exact int でない")
-            evidence_errors, derived_failures, qualified = \
+            evidence_errors, derived_failures, derived_exec_failures, qualified = \
                 s8b_floor_stats._derive_rep_integrity(
                     r["rep_observations"], reps=reps_expected,
                     expected_use_perf=expected_use_perf,
@@ -8385,6 +8377,8 @@ def _verify_resume_journal(records: list[dict], *, run_dir: Path, mode: str,
             if (type(r["rep_integrity_failures"]) is not int
                     or r["rep_integrity_failures"] != derived_failures):
                 raise FloorCampaignError("resume: rep_integrity_failures が再導出値と不一致")
+            if r["exec_failures"] != derived_exec_failures:
+                raise FloorCampaignError("resume: exec_failures が再導出値と不一致")
             if tuple(r.get("throughputs", ())) != qualified:
                 raise FloorCampaignError("resume: qualified throughputs が rep 証跡と不一致")
         expected_class = (

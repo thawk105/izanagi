@@ -635,14 +635,17 @@ def _snapshot_opened_source(
         label='opened.expected_use_perf',
     )
     (
-        _source_errors,
+        source_errors,
         source_rep_integrity_failures,
+        source_exec_failures,
         source_qualified_throughputs,
     ) = s8b_floor_stats._derive_rep_integrity(
         source_observations,
         reps=source_reps_expected,
         expected_use_perf=source_expected_use_perf,
     )
+    if failure is None and before['competing'] is False and source_errors:
+        _fail(f'opened repetition evidence is invalid: {source_errors[0]}')
     observations = _canonical_copy(
         source_observations, label='opened.repetition_evidence')
     if type(observations) is not list:
@@ -681,6 +684,7 @@ def _snapshot_opened_source(
         'external_evidence_sha256': computed_external,
         'repetition_evidence': observations,
         'source_rep_integrity_failures': source_rep_integrity_failures,
+        'source_exec_failures': source_exec_failures,
         'source_qualified_throughputs': list(source_qualified_throughputs),
         'expected_use_perf': source_expected_use_perf,
         'reps_expected': source_reps_expected,
@@ -853,8 +857,20 @@ def _assert_mutual_consistency(*, probe_before: Mapping[str, bool], probe_after:
             _fail('opened repetition sink length differs from reps_expected')
         if rep_integrity_failures is None:
             _fail('opened evidence has null rep_integrity_failures')
-        if len(throughputs) + nonfinite_count + exec_failures != reps_expected:
-            _fail('finite/nonfinite/exec repetition sum differs from reps_expected')
+        if exec_failures > rep_integrity_failures:
+            _fail('execution-failure repetitions exceed integrity failures')
+        other_integrity_failures = rep_integrity_failures - exec_failures
+        classified_repetitions = (
+            len(throughputs)
+            + nonfinite_count
+            + exec_failures
+            + other_integrity_failures
+        )
+        if classified_repetitions != reps_expected:
+            _fail(
+                'finite/nonfinite/execution-failure/other-integrity '
+                'repetition sum differs from reps_expected'
+            )
     if failure is not None:
         if failure['stage'] == 'capture' and launch_failures_count != 0:
             _fail('capture failure has nonzero launch_failures_count')
@@ -1008,7 +1024,7 @@ def _source_campaign_record(value: object) -> dict[str, Any]:
     return _exact_mapping(
         value, keys=_CAMPAIGN_RECORD_KEYS, label='campaign_record source')
 
-def _source_throughputs(opened: object, *, reps_expected: int, expected_use_perf: bool, failure: Mapping[str, object] | None, pre_probe_competing: bool) -> tuple[list[dict[str, object]], tuple[float, ...], int, int | None, bool]:
+def _source_throughputs(opened: object, *, reps_expected: int, expected_use_perf: bool, failure: Mapping[str, object] | None, pre_probe_competing: bool) -> tuple[list[dict[str, object]], tuple[float, ...], int, int | None, int, bool]:
     observations_value = _member(opened, 'repetition_evidence', label='opened')
     if type(observations_value) is not tuple:
         _fail('opened.repetition_evidence is not an exact tuple')
@@ -1017,7 +1033,7 @@ def _source_throughputs(opened: object, *, reps_expected: int, expected_use_perf
     if failure is not None or pre_probe_competing:
         if measurement is not None or observations:
             _fail('unopened evidence contains measurement data')
-        return ([], (), 0, None, False)
+        return ([], (), 0, None, 0, False)
     if measurement is None:
         _fail('opened evidence has no measurement')
     try:
@@ -1027,7 +1043,13 @@ def _source_throughputs(opened: object, *, reps_expected: int, expected_use_perf
     raw_observed = [item.get('throughput') for item in observations if isinstance(item, Mapping) and item.get('throughput') is not None]
     if source_throughputs != raw_observed:
         _fail('measurement throughputs differ from the private repetition sink')
-    (_errors, integrity_failures, qualified) = s8b_floor_stats._derive_rep_integrity(observations, reps=reps_expected, expected_use_perf=expected_use_perf)
+    (errors, integrity_failures, exec_failures, qualified) = \
+        s8b_floor_stats._derive_rep_integrity(
+            observations, reps=reps_expected,
+            expected_use_perf=expected_use_perf,
+        )
+    if errors:
+        _fail(f'opened repetition evidence is invalid: {errors[0]}')
     finite: list[float] = []
     nonfinite_count = 0
     for (position, value) in enumerate(qualified):
@@ -1037,7 +1059,10 @@ def _source_throughputs(opened: object, *, reps_expected: int, expected_use_perf
             finite.append(float(value))
         else:
             nonfinite_count += 1
-    return (observations, tuple(finite), nonfinite_count, integrity_failures, True)
+    return (
+        observations, tuple(finite), nonfinite_count,
+        integrity_failures, exec_failures, True,
+    )
 
 def _source_throughputs_from_snapshot(
     opened: Mapping[str, Any],
@@ -1046,7 +1071,7 @@ def _source_throughputs_from_snapshot(
     expected_use_perf: bool,
     failure: Mapping[str, object] | None,
     pre_probe_competing: bool,
-) -> tuple[list[dict[str, object]], tuple[float, ...], int, int | None, bool]:
+) -> tuple[list[dict[str, object]], tuple[float, ...], int, int | None, int, bool]:
     observations = opened['repetition_evidence']
     if type(observations) is not list:
         _fail('opened repetition snapshot is not an exact list')
@@ -1054,7 +1079,7 @@ def _source_throughputs_from_snapshot(
     if failure is not None or pre_probe_competing:
         if measurement_throughputs is not None or observations:
             _fail('unopened evidence contains measurement data')
-        return ([], (), 0, None, False)
+        return ([], (), 0, None, 0, False)
     if type(measurement_throughputs) is not list:
         _fail('opened evidence has no measurement')
     raw_observed = [
@@ -1067,6 +1092,10 @@ def _source_throughputs_from_snapshot(
     integrity_failures = _nonnegative_int(
         opened['source_rep_integrity_failures'],
         label='opened.source_rep_integrity_failures',
+    )
+    exec_failures = _nonnegative_int(
+        opened['source_exec_failures'],
+        label='opened.source_exec_failures',
     )
     qualified = opened['source_qualified_throughputs']
     if type(qualified) is not list:
@@ -1085,6 +1114,7 @@ def _source_throughputs_from_snapshot(
         tuple(finite),
         nonfinite_count,
         integrity_failures,
+        exec_failures,
         True,
     )
 
@@ -1177,6 +1207,7 @@ def seal_terminal_evidence(reservation: object, opened: object, terminal: object
         throughputs,
         nonfinite_count,
         rep_integrity,
+        derived_exec_failures,
         measurement_present,
     ) = _source_throughputs_from_snapshot(
         opened_source,
@@ -1199,6 +1230,8 @@ def seal_terminal_evidence(reservation: object, opened: object, terminal: object
         _fail('campaign_record.reps_expected differs from protocol')
     if record['rep_integrity_failures'] != rep_integrity:
         _fail('campaign_record.rep_integrity_failures differs from private sink')
+    if measurement_present and exec_failures != derived_exec_failures:
+        _fail('campaign_record.exec_failures differs from private sink')
     before_summary = _probe_summary(before_raw)
     after_summary = None if after_raw is None else _probe_summary(after_raw)
     rep_observations_sha256 = _digest_value(observations, label='rep observations')

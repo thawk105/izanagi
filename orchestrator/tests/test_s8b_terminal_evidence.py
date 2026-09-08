@@ -104,10 +104,17 @@ def _probe(*, competing: bool=False) -> dict[str, object]:
         'competing': competing,
     }
 
-def _observation(index: int, throughput: float, *, returncode: int=0) -> dict[str, object]:
+def _observation(
+    index: int,
+    throughput: float | None,
+    *,
+    returncode: int | None=0,
+    execution_failure: bool=False,
+) -> dict[str, object]:
     return {
         'rep_index': index,
         'returncode': returncode,
+        'execution_failure': execution_failure,
         'counter_status': 'not_required',
         'missing_perf_events': [],
         'perf_raw': {event: None for event in stats.PERF_EVENTS},
@@ -258,8 +265,13 @@ def _case(kind: str='observed') -> _Case:
         status = 'retryable-failure'
         primary = None
     elif kind == 'full-exec':
-        observations = [_observation(index, value, returncode=1) for (index, value) in enumerate(values)]
-        measurement = _Measurement(list(values))
+        observations = [
+            _observation(
+                index, None, returncode=None, execution_failure=True,
+            )
+            for index in range(3)
+        ]
+        measurement = _Measurement([])
         launch_failures = ({'exception_type': 'RuntimeError', 'errno': None, 'message': 'all repetitions failed'},)
         exec_failures = 3
         rep_integrity = 3
@@ -307,6 +319,42 @@ def _case(kind: str='observed') -> _Case:
         valid=valid,
     )
     return _finish_case(reservation, opened, record, status=status, primary=primary)
+
+def _integrity_failure_case(kind: str) -> _Case:
+    case = _case()
+    observations = copy.deepcopy(list(case.opened.repetition_evidence))
+    if kind == 'nonzero':
+        observations[1]['returncode'] = 7
+        measurement_values = [100.0, 101.0, 102.0]
+        exec_failures = 0
+    elif kind == 'execution':
+        observations[1].update({
+            'returncode': None,
+            'execution_failure': True,
+            'throughput': None,
+        })
+        measurement_values = [100.0, 102.0]
+        exec_failures = 1
+    else:
+        raise AssertionError(f'unknown integrity case: {kind}')
+    case.opened.repetition_evidence = tuple(observations)
+    case.opened.measurement = _Measurement(measurement_values)
+    record = copy.deepcopy(case.terminal.campaign_record)
+    record.update({
+        'rep_observations': observations,
+        'throughputs': [100.0, 102.0],
+        'exec_failures': exec_failures,
+        'rep_integrity_failures': 1,
+        'excluded_reason': 'nonfinite_or_partial_output',
+        'exclusion_class': stats.REP_INTEGRITY_EXCLUSION_CLASS,
+        'session_median': None,
+        'session_cv': None,
+        'valid': False,
+    })
+    return _finish_case(
+        case.reservation, case.opened, record,
+        status='retryable-failure', primary=None,
+    )
 
 def _seal(case: _Case | None=None) -> evidence.SealedTerminalEvidenceDraft:
     value = _case() if case is None else case
@@ -465,22 +513,62 @@ def test_nonfinite_normalization_counts_and_removes_values() -> None:
     values = [100.0, float('nan'), 102.0]
     opened.measurement = _Measurement(list(values))
     opened.repetition_evidence = tuple((_observation(index, value) for (index, value) in enumerate(values)))
-    (observations, finite, count, failures, present) = evidence._source_throughputs(opened, reps_expected=3, expected_use_perf=False, failure=None, pre_probe_competing=False)
+    (observations, finite, count, failures, exec_failures, present) = evidence._source_throughputs(opened, reps_expected=3, expected_use_perf=False, failure=None, pre_probe_competing=False)
     assert len(observations) == 3
     assert finite == (100.0, 102.0)
     assert count == 1
     assert failures == 0
+    assert exec_failures == 0
     assert present is True
     assessment = evidence._assess_finite_throughputs(finite, reps_expected=3, session_cv_max='0.5')
     assert assessment.required_reason == 'nonfinite_or_partial_output'
 
 def test_rep_integrity_is_rederived_from_private_sink() -> None:
     opened = _case('full-exec').opened
-    (_observations, finite, count, failures, present) = evidence._source_throughputs(opened, reps_expected=3, expected_use_perf=False, failure=None, pre_probe_competing=False)
+    (_observations, finite, count, failures, exec_failures, present) = evidence._source_throughputs(opened, reps_expected=3, expected_use_perf=False, failure=None, pre_probe_competing=False)
     assert finite == ()
     assert count == 0
     assert failures == 3
+    assert exec_failures == 3
     assert present is True
+
+def test_nonzero_rc_integrity_failure_reaches_sealed_terminal() -> None:
+    """B1: non-execution integrity failure is its own repetition class."""
+    document = _seal(_integrity_failure_case('nonzero')).document
+    assert document['throughputs'] == [100.0, 102.0]
+    assert document['exec_failures'] == 0
+    assert document['rep_integrity_failures'] == 1
+    assert document['campaign_record']['excluded_reason'] == \
+        'nonfinite_or_partial_output'
+
+def test_execution_failure_without_throughput_is_a_valid_sealed_input() -> None:
+    """B2 positive: runner-caught exception has no throughput and remains sealable."""
+    document = _seal(_integrity_failure_case('execution')).document
+    assert document['throughputs'] == [100.0, 102.0]
+    assert document['exec_failures'] == 1
+    assert document['rep_integrity_failures'] == 1
+
+def test_execution_failure_with_success_throughput_is_rejected_by_signature() -> None:
+    case = _case()
+    case.opened.repetition_evidence[1]['execution_failure'] = True
+    with pytest.raises(
+        evidence.TerminalEvidenceError,
+        match='execution_failure=True なのに throughput が非 null',
+    ):
+        _seal(case)
+
+def test_terminal_rejects_exec_count_mismatch_against_private_sink() -> None:
+    case = _integrity_failure_case('execution')
+    case.terminal.campaign_record['exec_failures'] = 0
+    case.terminal.raw_output_bytes = profile8b.serialize_session_line(
+        case.terminal.campaign_record)
+    case.terminal.report_sha256 = hashlib.sha256(
+        case.terminal.raw_output_bytes).hexdigest()
+    with pytest.raises(
+        evidence.TerminalEvidenceError,
+        match='campaign_record.exec_failures differs from private sink',
+    ):
+        _seal(case)
 
 def test_mutation_l01_outer_extra_key_has_one_exact_schema_gate() -> None:
     document = copy.deepcopy(_seal().document)

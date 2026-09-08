@@ -901,6 +901,7 @@ class _FakeScalePoint:
             rep_observations = [
                 {
                     "rep_index": index, "returncode": 0,
+                    "execution_failure": False,
                     "counter_status": status, "missing_perf_events": [],
                     "perf_raw": dict(perf_raw), "throughput": raw_values[index],
                 }
@@ -1624,6 +1625,66 @@ def test_resume_v3_rejects_session_without_rep_integrity_evidence(tmp_path):
             schedule=[{"seq": 0, "round": 1, "cell_id": "H::C"}],
             protocol_sha256="p", freeze_sha256="f", manifest_sha256="m",
             resume_state="M-running", expected_use_perf=True,
+            retry_slots_per_cell=2,
+        )
+
+
+def _resume_records_with_complete_rep_evidence():
+    point = _FakeScalePoint(
+        [1, 1, 1, 1, 1], [], "numactl bench", use_perf=False,
+    )
+    return [
+        {
+            "event": "campaign-start", "schema": s8b_floor_campaign.JOURNAL_SCHEMA,
+            "protocol_sha256": "p", "freeze_sha256": "f", "manifest_sha256": "m",
+        },
+        {
+            "event": "session-start", "seq": 0, "kind": "planned",
+            "cell_id": "H::C", "round": 1, "retry_ordinal": None,
+            "attempt_id": "H::C::seq0", "trigger": None,
+        },
+        {
+            "event": "session", "seq": 0, "kind": "planned",
+            "cell_id": "H::C", "holdout_id": "H", "configuration_id": "C",
+            "round": 1, "throughputs": [1, 1, 1, 1, 1], "reps_expected": 5,
+            "exec_failures": 0, "excluded_reason": None, "retry": False,
+            "rep_observations": copy.deepcopy(point.rep_observations),
+            "rep_integrity_failures": 0, "exclusion_class": None,
+            "run_cmd": "numactl bench", "session_median": 1,
+            "valid": True, "probe_before": {"competing": False},
+            "probe_after": {"competing": False},
+        },
+    ]
+
+
+def test_resume_rejects_exec_failure_count_mismatch(tmp_path):
+    records = _resume_records_with_complete_rep_evidence()
+    records[-1]["exec_failures"] = 1
+    with pytest.raises(
+        s8b_floor_campaign.FloorCampaignError,
+        match="exec_failures が再導出値と不一致",
+    ):
+        s8b_floor_campaign._verify_resume_journal(
+            records, run_dir=tmp_path, mode="pilot",
+            schedule=[{"seq": 0, "round": 1, "cell_id": "H::C"}],
+            protocol_sha256="p", freeze_sha256="f", manifest_sha256="m",
+            resume_state="M-running", expected_use_perf=False,
+            retry_slots_per_cell=2,
+        )
+
+
+def test_resume_rejects_old_six_key_rep_observation(tmp_path):
+    records = _resume_records_with_complete_rep_evidence()
+    records[-1]["rep_observations"][0].pop("execution_failure")
+    with pytest.raises(
+        s8b_floor_campaign.FloorCampaignError,
+        match="exact key 不一致",
+    ):
+        s8b_floor_campaign._verify_resume_journal(
+            records, run_dir=tmp_path, mode="pilot",
+            schedule=[{"seq": 0, "round": 1, "cell_id": "H::C"}],
+            protocol_sha256="p", freeze_sha256="f", manifest_sha256="m",
+            resume_state="M-running", expected_use_perf=False,
             retry_slots_per_cell=2,
         )
 
@@ -9367,9 +9428,70 @@ def test_no_perf_rep_integrity_requires_zero_rc_and_marks_counters_not_required(
     assert rejected["throughputs"] == [100, 100, 103, 103]
 
 
+def test_exec_and_integrity_failures_are_derived_as_distinct_counts():
+    """M3/M4: notes でなく flag を読み、nonzero rc を execution へ混ぜない。"""
+    notes_only = _FakeScalePoint(
+        [100, 101, 102, 103, 104], ["5/5 reps failed to execute"],
+        "numactl bench", use_perf=False,
+    )
+    notes_projection = s8b_floor_campaign._project_scalepoint(
+        notes_only, reps=5, expected_use_perf=False,
+    )
+    assert notes_projection["exec_failures"] == 0
+    assert notes_projection["rep_integrity_failures"] == 0
+
+    observations = copy.deepcopy(notes_only.rep_observations)
+    observations[2].update({
+        "returncode": None,
+        "execution_failure": True,
+        "throughput": None,
+    })
+    flag_only = _FakeScalePoint(
+        [100, 101, 103, 104], [], "numactl bench", use_perf=False,
+        rep_observations=observations,
+    )
+    flag_projection = s8b_floor_campaign._project_scalepoint(
+        flag_only, reps=5, expected_use_perf=False,
+    )
+    assert flag_projection["exec_failures"] == 1
+    assert flag_projection["rep_integrity_failures"] == 1
+    assert flag_projection["throughputs"] == [100, 101, 103, 104]
+
+    nonzero_observations = copy.deepcopy(notes_only.rep_observations)
+    nonzero_observations[2]["returncode"] = 7
+    nonzero = _FakeScalePoint(
+        [100, 101, 102, 103, 104], [], "numactl bench", use_perf=False,
+        rep_observations=nonzero_observations,
+    )
+    nonzero_projection = s8b_floor_campaign._project_scalepoint(
+        nonzero, reps=5, expected_use_perf=False,
+    )
+    assert nonzero_projection["exec_failures"] == 0
+    assert nonzero_projection["rep_integrity_failures"] == 1
+    assert nonzero_projection["throughputs"] == [100, 101, 103, 104]
+
+
+def test_missing_observation_carrier_keeps_execution_failure_unobserved():
+    """M5a/M5b: carrier 欠落を False/True/key 欠落のいずれにも捏造しない。"""
+    point = SimpleNamespace(
+        throughputs=[100, 101, 102, 103, 104],
+        notes=["5/5 reps failed to execute"],
+        rep_observations=None,
+    )
+    projection = s8b_floor_campaign._project_scalepoint(
+        point, reps=5, expected_use_perf=False,
+    )
+    assert projection["exec_failures"] == 0
+    assert projection["rep_integrity_failures"] == 5
+    assert all(
+        observation["execution_failure"] is None
+        for observation in projection["rep_observations"]
+    )
+
+
 @pytest.mark.parametrize("state,expected_class", [
     ("post_competing", "competing_process"),
-    ("launch", "launch_failure"),
+    ("launch", "rep_integrity_failure"),
     ("integrity", "rep_integrity_failure"),
 ])
 def test_rep_integrity_precedence_uses_completed_measure_evidence(
@@ -9422,6 +9544,8 @@ def test_rep_integrity_precedence_uses_completed_measure_evidence(
     )
     assert record["exclusion_class"] == expected_class
     assert record["rep_integrity_failures"] == 1
+    if state == "launch":
+        assert record["exec_failures"] == 0
     assert len(record["rep_observations"]) == 5
     assert record["valid"] is False
     assert record["session_median"] is None
