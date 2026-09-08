@@ -22764,6 +22764,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 起動前に「実装単位は 2 つ以上か」を数える。1 つなら別 worktree を作らない。
   作ってしまった未使用 worktree は、隔離セッションからは撤去もできないので次 wave へ引き継ぐ。
 
+
+- **再発: 2026-09-08** — 実装単位が 1 つの隔離 wave で、恒久対応 (wave worktree で直接走らせる) を適用せず `.codex/worktrees/` に author / fix 用の別 worktree を作り、dry-run を `cd <別 worktree> && …` で打って永続 shell の cwd を移し、以後の Bash が全拒否された。`EnterWorktree(path=自 worktree)` で復旧し実害なし。原因は起動前に「実装単位は 2 つ以上か」を数える再発検知を踏まなかったこと。
 ### F874. 親が測っていない否定を追補として子へ渡し、5 分上限を超える検査設計を招きかけた [捏造/幻覚] [テスト代表性]
 
 - 事象: 実プロセス CLI 検査の時間予算を決めるため、親は実 repository の全評価を 3 連走して
