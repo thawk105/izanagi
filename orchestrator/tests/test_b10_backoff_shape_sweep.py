@@ -3578,27 +3578,19 @@ def _legacy_verdict_collector_fixture(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> SimpleNamespace:
-    prereg = B.Preregistration(_binding(), B.PREREG_REL, _spec())
-    calibration = B.CalibrationSelection(
-        path="calibration.json", sha256="e" * 64,
-        schema_version="calibration/v2", records=100,
-        threads=48, env_tag="pegasus", clocks_per_us=2100,
-        saturated=True, lower_bound_selected=False, cache_floor_warning=False,
-    )
-    context = B.build_run_context(generator_id=B.GeneratorId.BACKOFF_SWEEP)
-    contract = B.env_contract.GENERATIONS["pegasus"][-1].contract
+    historical_spec = _historical_report_identity_fixture(
+        tmp_path,
+    ).preregistration_spec
     campaign_by_workload = {
-        "write-heavy": B.LEGACY_WRITE_HEAVY_CAMPAIGN_ID,
-        "balanced": B.LEGACY_BALANCED_CAMPAIGN_ID,
-        "read-heavy": B.LEGACY_READ_HEAVY_CAMPAIGN_ID,
-    }
-    binding_by_workload = {
-        "write-heavy": B._legacy_write_heavy_binding(prereg),
-        "balanced": B._legacy_balanced_binding(prereg),
-        "read-heavy": B._legacy_read_heavy_binding(prereg),
+        workload: campaign_id
+        for workload, (_fixture_name, campaign_id, _sha256)
+        in HISTORICAL_LOCKS.items()
     }
 
-    def indexed(workload: str) -> dict[tuple[str, str], dict[str, object]]:
+    def indexed(
+        workload: str,
+        spec: B.PreregistrationSpec,
+    ) -> dict[tuple[str, str], dict[str, object]]:
         return {
             (block_id, point): {
                 "workload": workload,
@@ -3606,14 +3598,14 @@ def _legacy_verdict_collector_fixture(
                 "point": point,
                 "variant_id": f"{workload}-{point}",
             }
-            for block_id, order in prereg.spec.block_orders
+            for block_id, order in spec.block_orders
             for point in order
         }
 
     layouts: dict[str, CampaignLayout] = {}
     frames_by_workload: dict[str, list[dict[str, object]]] = {}
     block_records_by_workload = {
-        workload: list(indexed(workload).values())
+        workload: list(indexed(workload, historical_spec).values())
         for workload in campaign_by_workload
     }
     for workload, campaign_id in campaign_by_workload.items():
@@ -3643,18 +3635,6 @@ def _legacy_verdict_collector_fixture(
         assert len(frames) == 90
         frames_by_workload[workload] = frames
         _write_legacy_verdict_wal(layout, frames)
-        identity = {
-            "spec_content": "fixture",
-            "ccbench_commit": B.PIN,
-            "search_tag": "formal",
-            "search_config": {
-                "preregistration_binding": binding_by_workload[workload],
-            },
-            "trial": "fixture",
-        }
-        Path(layout.lock_file).write_text(
-            B.campaign_lock.canonical_json(identity), encoding="utf-8",
-        )
 
     block_records_by_root = {
         os.fspath(Path(layouts[campaign_id].runs_dir) / "b10-backoff-shape-blocks"):
@@ -3666,12 +3646,16 @@ def _legacy_verdict_collector_fixture(
         lambda root: block_records_by_root[os.fspath(root)],
     )
     validation_calls = []
+    validation_specs: dict[str, B.PreregistrationSpec] = {}
 
     def validator(workload: str):
-        def validate(records, *, campaign_id, prereg):
+        def validate(records, *, campaign_id, spec):
             assert records == block_records_by_workload[workload]
+            validation_specs[workload] = spec
+            assert spec.spec_sha256 \
+                == "9c59411476018d510c8fc5d57f203920ccd3b216e6c5f341ce6b97e45041a7c2"
             validation_calls.append((workload, campaign_id))
-            return indexed(workload)
+            return indexed(workload, spec)
         return validate
 
     monkeypatch.setattr(
@@ -3684,15 +3668,12 @@ def _legacy_verdict_collector_fixture(
         B, "_validate_legacy_read_heavy_records", validator("read-heavy"),
     )
     return SimpleNamespace(
-        prereg=prereg,
-        calibration=calibration,
-        context=context,
-        contract=contract,
         campaign_by_workload=campaign_by_workload,
         layouts=layouts,
         frames_by_workload=frames_by_workload,
         block_records_by_workload=block_records_by_workload,
         validation_calls=validation_calls,
+        validation_specs=validation_specs,
     )
 
 
@@ -3703,12 +3684,8 @@ def test_report_collector_accepts_exact_legacy_verdict_fixture(
     """validator は repo 外 file を要するため stub。lock は実物を通す。"""
     fixture = _legacy_verdict_collector_fixture(tmp_path, monkeypatch)
 
-    records, performance, verification = B._collect_report_inputs(
+    records, _identity, performance, verification = B._collect_report_inputs(
         str(tmp_path),
-        prereg=fixture.prereg,
-        calibration=fixture.calibration,
-        context=fixture.context,
-        contract=fixture.contract,
         layout_for_campaign=fixture.layouts.__getitem__,
     )
 
@@ -3761,10 +3738,6 @@ def test_report_collector_rejects_same_counts_and_tags_when_legacy_wal_verdict_c
     with pytest.raises(B.PreflightError) as caught:
         B._collect_report_inputs(
             str(tmp_path),
-            prereg=fixture.prereg,
-            calibration=fixture.calibration,
-            context=fixture.context,
-            contract=fixture.contract,
             layout_for_campaign=fixture.layouts.__getitem__,
         )
     assert caught.value.code == "legacy-wal-verdict"
