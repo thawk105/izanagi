@@ -7040,6 +7040,13 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - **再発: 2026-08-28** — final mutationの180秒timeoutをdispatch queue / Pre-runningだけで超え、
   M03 sourceを変異したままrequest `954432.nqsv` のorphan-holdへ到達した。job実行のTIMEOUTとは
   読まず、request不在確認後に復旧して完走した。
+
+- **再発: 2026-09-09** — 変異 spec の `timeout_seconds` を 300 秒に置いたが、その時間帯の
+  queue 待ちが実測 8 分 (03:14 投入 → 03:21:59 開始) で、job が走り始める前に harness 自身の
+  per-run timeout が切れて dispatcher を落とし、orphan hold を立てた。**job 自体は走り切っており**
+  (`result.json` の `child_rc=1` は期待どおりの mutant 赤)、hold は誤検知だった。
+  混雑時の最悪値で取り直し (`1800` 秒、job walltime 3600 秒の内側) 完走した。
+  この回は「dispatch 実測の倍数」でも足りず、**queue 待ちの分布そのもので決める**必要があった。
 ### F186. 受入 lease の状態判定を逐語一致で書き、取得済みのまま lease を握り続けた [手順漏れ]
 
 - 事象: 受入 lease の待ち手スクリプトが `state=acquired` という文字列一致で判定していたが、
