@@ -3252,6 +3252,17 @@
   `check_docs.py` が `L1.5 unique footprint 9682 bytes > 予算 9566 bytes` で赤になり撤回した。
   予算引き上げは自己改善に含めないため恒久化は本記録に留める。
   同じ理由での自己改善停止はこれで**独立 3 例目**である。
+
+- **再発: 2026-09-08** — 引き金が防護パスの語ですらない場合が出た。heredoc で散文と数式を書いた
+  ところ、本文中の**前後を空白で挟んだ半角スラッシュ 1 文字**が filesystem root の path 字面と
+  読まれ、heredoc と同居して fails-closed で拒否された。防護パスの語は 1 つも書いていない。
+  拒否 message は防護ツリーの名前だけを列挙して実際の引き金を示さないため、原因特定に 6 回の
+  試行を要した (書けたのは、スラッシュの前後の空白を除くか全角へ替えたとき)。
+  同じ wave で、本文に hook 群の README を path 表記で引いただけでも同じ拒否になった。
+  恒久対応は F63 本体の「防護パスと不透明構文を同居させない」では足りない。
+  **heredoc で散文や数式を書くときは、単独のスラッシュを空白で挟まず、防護ツリー名は
+  path 表記で書かない**という作法が要る。実体は hook 群の README が記す既知限界
+  (guard は分類不能を fails-closed で拒否する) であり、検知は拒否 message そのものである。
 ### F64. 死んだ session の孤児待機ループが worktree を「使用中」に見せ、掃除を 3 周止めた [恒真ゲート] [手順漏れ]
 - 事象: `.claude/worktrees/dev-wave-t181-reasoning-ab` が (76) → (79) → (83) の 3 回連続で
   「滞在プロセスあり」として残置され、毎回ユーザー引き渡しへ回された。実測すると滞在の実体は
@@ -23284,3 +23295,42 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   焦点走の前に登録を commit する — 未 commit のままだと
   `test_paper_story_a1_headline.py::test_existing_a1_non_touch_manifest_is_empty_from_base` が
   `git status` の非空で落ちる (本 wave で実測)。
+
+### F903. 受入台帳の `nodeid_count` が、test node を足す wave 同士の必然的な衝突点になっている [資源競合]
+
+- 事象: 受入全走の post-claim merge が `stage=merge rc=70 source_rc=1` で落ち、受入 attempt を
+  1 つ捨てた。原因は `orchestrator/tests/acceptance_duration_ledger.json` の `nodeid_count` の
+  1 行が衝突したこと。node の map 自体は git が和集合として自動 merge するが、`nodeid_count` は
+  両側が同じ行を別の値へ書き換えるので必ず競合する。同日の 2 回の main 取り込みで 2 回とも起きた。
+- 根本原因: `nodeid_count` は map の長さから決まる派生値でありながら台帳に実体として持たれている。
+  test node を足す wave はすべてこの 1 行を書き換えるため、並行する限り互いに衝突する。
+  受入は 25 分かかるので、走行中に別 wave が land すると取り直しになる。
+- 恒久対応: 未了。緩和の設計にはユーザー裁定が要る (台帳の schema と既存 consumer に触れるため)。
+  当面は「main を固定 SHA で取り込んでから受入を投げ、落ちたら固定 SHA を取り直して詰める」で回す。
+  次の一手へ登録した。
+- 再発検知: 受入 receipt の `IZANAGI_ACCEPTANCE_ATTEMPT_V1` が
+  `classification=merge` / `reason=terminal-merge` を出す。台帳 file が衝突 path に含まれるかは
+  `git diff --name-only <base> <main>` と wave 側の同 diff の交差で事前に測れる。
+
+### F904. 背景の待ち手が producer 稼働中に「完了」を出し、走行中の変異を復元忘れと誤読しかけた [観測]
+
+- 事象: 変異 harness の完了待ちが、harness 稼働中 (経過 8 分、ledger を書き進め中) に完了イベントを
+  2 回出した。`.done` は実在せず成果物も未完成だった。親はこれを「完走」と読み、走行中に注入されて
+  いた変異を「復元忘れの残骸」と誤読して `git checkout` で消しかけた。消していれば変異走が全損して
+  いた。同じ誤検知は同 wave で受入の待ちでも 2 回起き、計 4 回出た。
+- 根本原因: 2 つあり、どちらも待ち手 script の書き方に起因する。
+  (a) **背景コマンドと Monitor の command に書いた改行が空白へ潰れる。**
+  `while cond` / `do` / `sleep` / `done` / `echo` を改行区切りで書くと 1 行に崩れ、
+  `done echo "..."` として loop を通らずに即 echo する。実測で
+  `eval 'P=$(cat f) while kill -0 "$P"; do sleep 60; done echo "..."'` の形に崩れていた。
+  (b) **sandbox 内の shell は他プロセスへ signal を送れないため `kill -0 <pid>` が必ず失敗する。**
+  親の対話 shell では同じ pid に対し `kill -0` が rc=0 を返すので、書いた側では再現しない。
+  生存判定が常時「死亡」になり、待ちが即終わる。
+- 恒久対応: 待ち手 script は **1 行に書き、区切りを `;` で明示する**。生存判定は signal ではなく
+  **`[ -d /proc/<pid> ]` の読取り**で行う。pid は pid file でなく `ps -eo pid,args` から
+  **argv 全体で一意化して**引く (別 wave の同名 receipt file と誤一致した実測がある)。
+  `.done` file の実在を単独の完了根拠にしない。
+- 再発検知: 完了を読んだら必ず成果物 (receipt / ledger / `.done` の中身) を実在で検算する。
+  走行中に tree へ変異が見えるのは正常であり、tree の dirty を「復元忘れ」と読む前に
+  producer の生死を `/proc` で実測する。変異台帳は `summary.registered` と `completed` の差でも
+  未完走が分かる。
