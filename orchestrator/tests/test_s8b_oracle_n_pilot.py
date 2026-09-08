@@ -25,6 +25,12 @@ ROOT = Path(__file__).resolve().parents[2]
 CONFIGURATIONS = tuple(sorted(s1_direct_comparison._PREPARE_CELL_CONFIGURATIONS))
 SENTINEL_RECORDS = 123457
 SENTINEL_THREADS = 7
+R33_FROZEN_ARTIFACT_DRIVER_SHA256 = (
+    "d447688a39734a292cf5710dbd4656320c45be846b13a995278e083b403a4ab1"
+)
+R33_SUCCESSOR_ANALYSIS_DRIVER_SHA256 = (
+    "65527f026d6e3cd55e513938d50d5454de55f562b9a289ce6a55101f03728301"
+)
 
 
 def _perf_receipt(status: str = "available") -> dict:
@@ -275,17 +281,79 @@ def test_protocol_exact_schema_and_preregistered_design(tmp_path):
 
 
 def test_r33_protocol_document_loads_from_repository():
+    """r33 の ``source.commit`` はこの repo に存在せず、sha は歴史 blob から再導出できない。"""
     path = ROOT / "output/insights/2026-08-16_t1142-n-pilot-prereg/protocol-r33.json"
     loaded = M.load_protocol(path)
     assert loaded.pilot_rounds == 33
     assert loaded.allocation_count == 3
     assert loaded.allocation_role == "primary-segment"
-    assert loaded.driver_sha256 == hashlib.sha256(
-        (ROOT / loaded.driver_path).read_bytes()
-    ).hexdigest()
+    assert loaded.driver_sha256 == R33_FROZEN_ARTIFACT_DRIVER_SHA256
     assert loaded.job_script_sha256 == hashlib.sha256(
         (ROOT / loaded.job_script_path).read_bytes()
     ).hexdigest()
+
+
+def test_r33_successor_protocol_document_loads_from_repository():
+    """先行の ``source.commit`` はこの repo に存在しないので同じ検査を先行へは掛けられない。"""
+    predecessor_path = (
+        ROOT / "output/insights/2026-08-16_t1142-n-pilot-prereg/protocol-r33.json"
+    )
+    successor_path = (
+        ROOT
+        / "output/insights/2026-09-09_t2154-n-pilot-prereg-successor"
+        / "protocol-r33-successor.json"
+    )
+    predecessor_document = json.loads(predecessor_path.read_text(encoding="utf-8"))
+    successor_document = json.loads(successor_path.read_text(encoding="utf-8"))
+    loaded = M.load_protocol(successor_path)
+
+    assert R33_SUCCESSOR_ANALYSIS_DRIVER_SHA256 != R33_FROZEN_ARTIFACT_DRIVER_SHA256
+    assert loaded.driver_sha256 == R33_SUCCESSOR_ANALYSIS_DRIVER_SHA256
+    assert hashlib.sha256((ROOT / loaded.driver_path).read_bytes()).hexdigest() == (
+        R33_SUCCESSOR_ANALYSIS_DRIVER_SHA256
+    )
+
+    commit_check = subprocess.run(
+        ["git", "cat-file", "-e", f"{loaded.source_commit}^{{commit}}"],
+        cwd=ROOT,
+        capture_output=True,
+        check=False,
+    )
+    assert commit_check.returncode == 0, commit_check.stderr.decode()
+    ancestor_check = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", loaded.source_commit, "HEAD"],
+        cwd=ROOT,
+        capture_output=True,
+        check=False,
+    )
+    assert ancestor_check.returncode == 0, ancestor_check.stderr.decode()
+    driver_blob = subprocess.run(
+        ["git", "show", f"{loaded.source_commit}:{loaded.driver_path}"],
+        cwd=ROOT,
+        capture_output=True,
+        check=False,
+    )
+    assert driver_blob.returncode == 0, driver_blob.stderr.decode()
+    assert hashlib.sha256(driver_blob.stdout).hexdigest() == loaded.driver_sha256
+
+    predecessor_source = predecessor_document["source"]
+    successor_source = successor_document["source"]
+    assert predecessor_document.keys() == successor_document.keys()
+    assert predecessor_source.keys() == successor_source.keys()
+    assert {
+        key for key in predecessor_source
+        if predecessor_source[key] != successor_source[key]
+    } == {"commit", "driver_sha256"}
+    restored_document = dict(successor_document)
+    restored_source = dict(successor_source)
+    restored_source["commit"] = predecessor_source["commit"]
+    restored_source["driver_sha256"] = predecessor_source["driver_sha256"]
+    restored_document["source"] = restored_source
+    assert restored_document == predecessor_document
+    assert (
+        predecessor_source["driver_sha256"]
+        == R33_FROZEN_ARTIFACT_DRIVER_SHA256
+    )
 
 
 def test_driver_has_no_round_default_and_supports_build_only_mode(tmp_path):
@@ -603,6 +671,10 @@ def _build_with_fakes(
     oracle_dependency_fn=None,
     cached: bool = False,
     allocation_mode: bool | None = None,
+    return_condition_records: bool = True,
+    prepared_genome_flags: dict[str, object] | None = None,
+    condition_supply_records: tuple[object, ...] = (),
+    condition_meaning_records: tuple[object, ...] = (),
 ):
     inputs = inputs or _inputs()
     prepare_calls = []
@@ -629,10 +701,16 @@ def _build_with_fakes(
             "oracle_phase_marker": oracle_phase_marker,
         })
         yield PreparedCell(
-            genome=Genome("silo", {"BACK_OFF": 0}),
+            genome=Genome(
+                "silo",
+                ({"BACK_OFF": 0}
+                 if prepared_genome_flags is None else prepared_genome_flags),
+            ),
             src_token="stock",
             ccbench_dir=str(worktree.resolve()),
             cache_root=str(tmp_path / "forbidden-prepared-cache"),
+            condition_supply_records=condition_supply_records,
+            condition_meaning_records=condition_meaning_records,
         )
 
     def build_fn(_genome, **kwargs):
@@ -640,13 +718,19 @@ def _build_with_fakes(
         binary = tmp_path / f"built-{index}"
         binary.write_bytes(f"built-{index}".encode())
         build_calls.append(kwargs)
-        return SimpleNamespace(
-            trace=False,
-            contract_sha256=inputs.contract.contract_sha256,
-            binary=str(binary.resolve()),
-            bin_sha256=hashlib.sha256(binary.read_bytes()).hexdigest(),
-            cached=cached,
-        )
+        receipt = {
+            "trace": False,
+            "contract_sha256": inputs.contract.contract_sha256,
+            "binary": str(binary.resolve()),
+            "bin_sha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
+            "cached": cached,
+        }
+        if return_condition_records:
+            receipt.update({
+                "condition_supply_records": kwargs["condition_supply_records"],
+                "condition_meaning_records": kwargs["condition_meaning_records"],
+            })
+        return SimpleNamespace(**receipt)
 
     evidence = SimpleNamespace(src_token="stock", tracked_clean=True, tracked_paths=())
     counter = iter(float(value) for value in range(100))
@@ -681,6 +765,81 @@ def _build_with_fakes(
         context_fn=lambda **_kwargs: "context",
     )
     return inputs, cache_root.resolve(), prepare_calls, build_calls, result
+
+
+def test_injected_build_fn_without_condition_records_is_rejected(tmp_path):
+    with pytest.raises(M.PilotError, match="condition gate の両 record") as caught:
+        _build_with_fakes(tmp_path, return_condition_records=False)
+    assert isinstance(caught.value.__cause__, M.S1DriverError)
+
+
+def test_build_binaries_uses_binding_flags_and_prepared_records_independently(tmp_path):
+    inputs, _cache, _prepare, build_calls, result = _build_with_fakes(
+        tmp_path,
+        prepared_genome_flags={"SORT_VARIANT": 1},
+        condition_supply_records=(),
+        condition_meaning_records=(),
+    )
+
+    assert all(
+        entry["flags"] == {"BACK_OFF": 0}
+        for frozen in inputs.freeze["holdouts"].values()
+        for entry in frozen["variant_binding"]["entries"].values()
+    )
+    assert {call["condition_supply_records"] for call in build_calls} == {()}
+    assert {call["condition_meaning_records"] for call in build_calls} == {()}
+    assert len(result) == len(inputs.cells)
+
+    mismatch_root = tmp_path / "record-mismatch"
+    mismatch_root.mkdir()
+    record_type = s1_direct_comparison.condition_meaning_gate.ConditionArmRecord
+    record_fields = {
+        "record_id": "1" * 64,
+        "record_digest": "2" * 64,
+        "terminal_status": "green",
+        "reason_code": "ok",
+        "driver_id": "prepared-source",
+        "macro": "SORT_VARIANT",
+        "request_digest": "3" * 64,
+        "evidence": {},
+    }
+    supply_record = record_type(arm="supply", **record_fields)
+    meaning_record = record_type(arm="meaning", **record_fields)
+    with pytest.raises(M.PilotError, match="request digest が入力と不一致"):
+        _build_with_fakes(
+            mismatch_root,
+            prepared_genome_flags={"SORT_VARIANT": 1},
+            condition_supply_records=(supply_record,),
+            condition_meaning_records=(meaning_record,),
+        )
+
+
+def test_default_build_fn_wraps_build_v2_with_prepared_records():
+    assert M.build_binaries.__kwdefaults__["build_fn"] is M._DEFAULT_BUILD_FN
+    assert M._DEFAULT_BUILD_FN.delegate is M.buildcache.build_v2
+
+    delegated = []
+    build_result = SimpleNamespace(trace=False)
+
+    def delegate(genome, **kwargs):
+        delegated.append((genome, kwargs))
+        return build_result
+
+    adapter = M._DefaultConditionEvidencedBuildFn(delegate)
+    supply = (object(),)
+    meaning = (object(),)
+    receipt = adapter(
+        "genome",
+        condition_supply_records=supply,
+        condition_meaning_records=meaning,
+        trace=False,
+    )
+
+    assert delegated == [("genome", {"trace": False})]
+    assert receipt.build_result is build_result
+    assert receipt.condition_supply_records is supply
+    assert receipt.condition_meaning_records is meaning
+    assert receipt.trace is False
 
 
 def test_sort_best_materialize_receives_oracle_environment(tmp_path):
