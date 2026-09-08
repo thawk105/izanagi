@@ -80,13 +80,25 @@ def decode_static_backoff_us(encoded: int) -> int:
 
 EXTENDED_RUN_KIND = "extended"
 T2266_RUN_KIND = "t2266-tail"
-RUN_KINDS = (EXTENDED_RUN_KIND, T2266_RUN_KIND)
+T2418_RUN_KIND = "t2418-explore"
+RUN_KINDS = (EXTENDED_RUN_KIND, T2266_RUN_KIND, T2418_RUN_KIND)
 
 T2266_REQUESTED_US = (150, 200, 300, 500, 750, 1000)
 T2266_REALIZED_US = (150, 200, 300, 500, 750, 1000)
 T2266_UNREALIZED: dict[int, str] = {}
 T2266_REPORT_SCHEMA = "t2266-backoff-static-tail-report/v2"
 T2266_CLAIM_SCOPE = "descriptive_backoff_shape_only"
+
+T2418_REQUESTED_US = (2000, 4000, 9999)
+T2418_REALIZED_US = (2000, 4000, 9999)
+T2418_UNREALIZED: dict[int, str] = {}
+T2418_REPORT_SCHEMA = "t2418-backoff-static-explore-report/v1"
+T2418_CLAIM_SCOPE = "exploratory_backoff_tail_only_not_formal_series"
+T2418_FORMAL_GRID_STATUS = "not_selected_in_this_wave"
+T2418_FORMAL_STOPPING_CRITERION_STATUS = "not_defined_in_this_wave"
+T2418_MEANING_WITNESS_STATUS = (
+    "unestablished_for_positive_backoff_fixed_as_in_existing_sweep"
+)
 
 # The literals are an oracle independent of labels and of the legacy sweep.
 WORKLOADS = [
@@ -276,12 +288,46 @@ def _require_distinct_t2266_binary_hashes(
         raise RuntimeError("T-2266 binary identity check is incomplete")
 
 
+def _require_distinct_t2418_binary_hashes(
+        builds: dict[tuple[str, bool], buildcache.BuildResult],
+        ordered_genomes: Sequence[Genome],
+) -> None:
+    """Require a distinct trace-disabled binary for every T-2418 genome."""
+    if len(ordered_genomes) != 5:
+        raise RuntimeError("T-2418 binary identity requires exactly five genomes")
+    canonical_by_sha256: dict[str, str] = {}
+    for genome in ordered_genomes:
+        canonical = genome.canonical()
+        built = builds.get((canonical, False))
+        if type(built) is not buildcache.BuildResult:
+            raise RuntimeError(
+                "T-2418 binary identity requires every trace-disabled BuildResult"
+            )
+        if built.trace is not False or built.genome.canonical() != canonical:
+            raise RuntimeError("prebuilt T-2418 binary lost its genome binding")
+        sha256 = built.bin_sha256
+        if not buildcache.is_full_sha256(sha256):
+            raise RuntimeError(
+                "T-2418 build returned a non-canonical binary sha256: "
+                f"{canonical}"
+            )
+        previous = canonical_by_sha256.setdefault(sha256, canonical)
+        if previous != canonical:
+            raise RuntimeError(
+                "distinct T-2418 genomes produced the same binary: "
+                f"{previous} and {canonical} (sha256={sha256})"
+            )
+    if len(canonical_by_sha256) != 5:
+        raise RuntimeError("T-2418 binary identity check is incomplete")
+
+
 def _prebuild_backoff_binaries(
         ordered_genomes: list[Genome], *, contract, cache_root: str,
         ccbench_dir: str, resolved_cc: str, resolved_cxx: str,
         expected_toolchain_manifest, build_context, capability_resolver,
         trace_modes: tuple[bool, ...] = (True, False),
         require_all_binary_hashes: bool = False,
+        require_all_t2418_binary_hashes: bool = False,
 ) -> dict[tuple[str, bool], buildcache.BuildResult]:
     """Build every requested binary before measurement and check static identity."""
     builds: dict[tuple[str, bool], buildcache.BuildResult] = {}
@@ -319,6 +365,8 @@ def _prebuild_backoff_binaries(
     _require_distinct_static_binary_hashes(builds)
     if require_all_binary_hashes:
         _require_distinct_t2266_binary_hashes(builds, ordered_genomes)
+    if require_all_t2418_binary_hashes:
+        _require_distinct_t2418_binary_hashes(builds, ordered_genomes)
     return builds
 
 
@@ -423,6 +471,29 @@ def _t2266_ordered_points(tag: str) -> list[tuple[str, dict[str, int]]]:
     return points
 
 
+def _t2418_points(tag: str) -> list[tuple[str, dict[str, int]]]:
+    if tag not in WORKLOAD_BY_TAG:
+        raise ValueError(f"unknown workload: {tag!r}")
+    return [
+        ("none", {**_BASE, "BACK_OFF": 0, "BACKOFF_FIXED": -1}),
+        ("adaptive", {**_BASE, "BACK_OFF": 1, "BACKOFF_FIXED": -1}),
+        *[
+            (f"fixed-{amount}us", {
+                **_BASE,
+                "BACK_OFF": 1,
+                "BACKOFF_FIXED": encode_static_backoff_us(amount),
+            })
+            for amount in T2418_REALIZED_US
+        ],
+    ]
+
+
+def _t2418_ordered_points(tag: str) -> list[tuple[str, dict[str, int]]]:
+    points = _t2418_points(tag)
+    random.Random(MEASUREMENT_SEEDS[tag]).shuffle(points)
+    return points
+
+
 def measurement_order(tag: str) -> list[str]:
     """Return the preregistered, deterministic label permutation."""
     return [label for label, _flags in _ordered_points(tag)]
@@ -441,6 +512,16 @@ def t2266_measurement_order(tag: str) -> list[str]:
 def t2266_genomes(tag: str) -> list[Genome]:
     """Return none, adaptive, and the six representable T-2266 static points."""
     return [Genome("silo", flags) for _label, flags in _t2266_ordered_points(tag)]
+
+
+def t2418_measurement_order(tag: str) -> list[str]:
+    """Return the T-2418 deterministic exploratory measurement permutation."""
+    return [label for label, _flags in _t2418_ordered_points(tag)]
+
+
+def t2418_genomes(tag: str) -> list[Genome]:
+    """Return two context points and the three T-2418 exploratory points."""
+    return [Genome("silo", flags) for _label, flags in _t2418_ordered_points(tag)]
 
 
 def _require_condition_gate_before_measurement(
@@ -530,6 +611,63 @@ def t2266_config_for(
         ccbench_commit=pin.CURRENT_PIN,
         search_config=search_config,
         trial="t2266-backoff-static-tail-v2",
+    )
+    if contract is None:
+        contract = p2_2._legacy_linux_contract()
+    return ident.bind_environment_contract(cfg, contract)
+
+
+def t2418_config_for(
+        tag: str, workload: dict[str, str], *, contract=None) -> CampaignConfig:
+    expected = WORKLOAD_BY_TAG.get(tag)
+    if workload != expected:
+        raise ValueError(
+            f"workload coordinates differ from literal oracle: tag={tag!r}, "
+            f"expected={expected!r}, actual={workload!r}"
+        )
+    points = _t2418_points(tag)
+    search_config = {
+        "scale": "t2418-backoff-static-explore-v1",
+        "run_kind": T2418_RUN_KIND,
+        "claim_scope": T2418_CLAIM_SCOPE,
+        "exploratory": True,
+        "formal_series": False,
+        "declared_use_class": "official",
+        "exploration_values_us": list(T2418_REQUESTED_US),
+        "requested_us": list(T2418_REQUESTED_US),
+        "realized_us": list(T2418_REALIZED_US),
+        "unrealized": [
+            {"backoff_us": amount, "reason": reason}
+            for amount, reason in sorted(T2418_UNREALIZED.items())
+        ],
+        "formal_grid_status": T2418_FORMAL_GRID_STATUS,
+        "formal_stopping_criterion_status": (
+            T2418_FORMAL_STOPPING_CRITERION_STATUS
+        ),
+        "meaning_witness_status": T2418_MEANING_WITNESS_STATUS,
+        "base": "L-W0",
+        "grid": [
+            {"label": label, "flags": dict(flags)} for label, flags in points
+        ],
+        "workload": tag,
+        "reps": p2_2.REPS,
+        "extime_s": p2_2.EXTIME,
+        "records": p2_2.RECORDS,
+        "threads": p2_2.THREADS,
+        "ycsb": dict(workload),
+        "measurement_seed": MEASUREMENT_SEEDS[tag],
+        "measurement_order": t2418_measurement_order(tag),
+    }
+    cfg = CampaignConfig(
+        spec_slug=f"t2418-backoff-static-explore-v1-silo-{tag}",
+        search_tag="sweep",
+        spec_content=(
+            "T-2418 exploratory static-backoff right-tail measurement; "
+            f"not a formal series; workload={tag}"
+        ),
+        ccbench_commit=pin.CURRENT_PIN,
+        search_config=search_config,
+        trial="t2418-backoff-static-explore-v1",
     )
     if contract is None:
         contract = p2_2._legacy_linux_contract()
@@ -635,6 +773,105 @@ class _T2266RepCapture:
         return [dict(rep) for rep in canonical]
 
 
+class _T2418RepCapture:
+    """Observe the parsed values produced by each T-2418 pipeline rep."""
+
+    def __init__(self) -> None:
+        self.rounds: list[dict[str, object]] = []
+
+    def _record_round(
+            self, point, abort_rates: Sequence[Optional[float]],
+            rep_observations: Sequence[Mapping[str, object]],
+    ) -> None:
+        throughputs = list(point.throughputs)
+        if len(abort_rates) != len(throughputs):
+            raise RuntimeError(
+                "T-2418 rep capture requires exactly one abort parser call "
+                "per throughput rep, in rep order"
+            )
+        if len(rep_observations) != len(throughputs):
+            raise RuntimeError(
+                "T-2418 rep capture requires one runner observation per rep"
+            )
+        if (
+            [item.get("rep_index") for item in rep_observations]
+            != list(range(len(throughputs)))
+            or [item.get("throughput") for item in rep_observations] != throughputs
+        ):
+            raise RuntimeError(
+                "T-2418 abort parser calls are not bound to runner rep order"
+            )
+        reps = [
+            {
+                "rep": rep,
+                "throughput_tps": throughput,
+                "abort_rate": abort_rate,
+            }
+            for rep, (throughput, abort_rate) in enumerate(zip(
+                throughputs, abort_rates,
+            ))
+        ]
+        self.rounds.append({
+            "run_cmd": point.run_cmd,
+            "throughput_tps": throughputs,
+            "reps": reps,
+        })
+
+    @contextmanager
+    def installed(self):
+        original_measure_point = campaign_pipeline.measure_point
+
+        def measure_point_with_reps(*args, **kwargs):
+            abort_rates: list[Optional[float]] = []
+            original_parse_abort_rate = calibrator_runner.parse_abort_rate
+            rep_observations = kwargs.get("rep_observations")
+            if rep_observations is None:
+                rep_observations = []
+                kwargs["rep_observations"] = rep_observations
+            if type(rep_observations) is not list:
+                raise RuntimeError("T-2418 rep observations require an exact list")
+            observation_start = len(rep_observations)
+
+            def observed_parse_abort_rate(metrics):
+                value = original_parse_abort_rate(metrics)
+                abort_rates.append(value)
+                return value
+
+            calibrator_runner.parse_abort_rate = observed_parse_abort_rate
+            try:
+                point = original_measure_point(*args, **kwargs)
+            finally:
+                calibrator_runner.parse_abort_rate = original_parse_abort_rate
+            self._record_round(
+                point, abort_rates, rep_observations[observation_start:],
+            )
+            return point
+
+        campaign_pipeline.measure_point = measure_point_with_reps
+        try:
+            yield self
+        finally:
+            campaign_pipeline.measure_point = original_measure_point
+
+    def reps_for(self, bench: Mapping[str, object]) -> list[dict[str, object]]:
+        run_cmd = bench.get("run_cmd")
+        tps = bench.get("tps")
+        normalized_tps = tuple(tps) if type(tps) in {list, tuple} else None
+        matches = [
+            item for item in self.rounds
+            if (
+                item["run_cmd"] == run_cmd
+                and tuple(item["throughput_tps"]) == normalized_tps
+            )
+        ]
+        if not matches:
+            raise RuntimeError("T-2418 adopted bench round lacks rep capture")
+        canonical = matches[0]["reps"]
+        if any(item["reps"] != canonical for item in matches[1:]):
+            raise RuntimeError("T-2418 adopted bench round has ambiguous rep capture")
+        return [dict(rep) for rep in canonical]
+
+
 def _finite_number(value: object, *, positive: bool = False) -> bool:
     return (
         type(value) in {int, float}
@@ -659,6 +896,24 @@ def _t2266_point_label(flags: Mapping[str, int]) -> tuple[str, str, Optional[int
             if physical_us in T2266_REALIZED_US:
                 return f"fixed-{physical_us}us", "static", physical_us
     raise RuntimeError("T-2266 campaign contains an unexpected backoff point")
+
+
+def _t2418_point_label(flags: Mapping[str, int]) -> tuple[str, str, Optional[int]]:
+    back_off = flags.get("BACK_OFF")
+    amount = flags.get("BACKOFF_FIXED")
+    if back_off == 0 and amount == -1:
+        return "none", "none", None
+    if back_off == 1 and amount == -1:
+        return "adaptive", "adaptive", None
+    if back_off == 1 and type(amount) is int and amount >= 0:
+        try:
+            physical_us = decode_static_backoff_us(amount)
+        except ValueError:
+            pass
+        else:
+            if physical_us in T2418_REALIZED_US:
+                return f"fixed-{physical_us}us", "static", physical_us
+    raise RuntimeError("T-2418 campaign contains an unexpected backoff point")
 
 
 def _load_t2266_report_points(
@@ -752,6 +1007,97 @@ def _load_t2266_report_points(
     return campaign_id, points
 
 
+def _load_t2418_report_points(
+        tag: str, output_root: str, capture: _T2418RepCapture,
+) -> tuple[str, list[dict[str, object]]]:
+    cfg = t2418_config_for(tag, WORKLOAD_BY_TAG[tag])
+    view = require_certified_campaign_view(discover_campaign_dir(
+        cfg.spec_slug,
+        cfg.search_tag,
+        output_root,
+        purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+    ))
+    expected = {
+        genome.canonical(): (index, label)
+        for index, (label, genome) in enumerate(zip(
+            t2418_measurement_order(tag), t2418_genomes(tag), strict=True,
+        ))
+    }
+    points: list[dict[str, object]] = []
+    seen: set[str] = set()
+    campaign_id = os.path.basename(view.layout.root)
+    for variant, state in wal.replay_admitted_records(view.records).items():
+        if not state.committed:
+            continue
+        if state.committed_build_start is None or state.committed_bench is None:
+            raise RuntimeError("T-2418 committed point lacks attempt-bound records")
+        canonical = state.committed_build_start.payload.get("genome")
+        if canonical not in expected or canonical in seen:
+            raise RuntimeError("T-2418 committed genome set differs from preregistration")
+        seen.add(canonical)
+        flags = {
+            key: int(value)
+            for key, value in (
+                item.split("=", 1) for item in canonical.split("|", 1)[1].split(",")
+            )
+        }
+        label, kind, amount = _t2418_point_label(flags)
+        point_index, expected_label = expected[canonical]
+        if label != expected_label:
+            raise RuntimeError("T-2418 label and genome order differ")
+        bench = state.committed_bench.payload
+        reps = capture.reps_for(bench)
+        if (
+            len(reps) != p2_2.REPS
+            or [rep.get("rep") for rep in reps] != list(range(p2_2.REPS))
+        ):
+            raise RuntimeError("T-2418 report requires every configured rep")
+        if not all(
+            _finite_number(rep.get("throughput_tps"), positive=True)
+            and _finite_number(rep.get("abort_rate"))
+            and 0.0 <= float(rep["abort_rate"]) <= 1.0
+            for rep in reps
+        ):
+            raise RuntimeError(
+                "T-2418 report requires finite throughput and abort rate per rep"
+            )
+        indicators = bench.get("leading_indicators")
+        if type(indicators) not in {dict, MappingProxyType}:
+            raise RuntimeError("T-2418 committed bench lacks leading indicators")
+        correctness_verified = bool(state.committed_verify) and all(
+            record.payload.get("certified") is True
+            for record in state.committed_verify
+        )
+        if not correctness_verified:
+            raise RuntimeError(
+                "T-2418 report requires correctness-verified committed points"
+            )
+        points.append({
+            "label": label,
+            "point_index": point_index,
+            "kind": kind,
+            "backoff_us": amount,
+            "variant_id": variant,
+            "genome": canonical,
+            "committed": True,
+            "correctness_verified": True,
+            "performance_certified": False,
+            "certified": False,
+            "claim_scope": T2418_CLAIM_SCOPE,
+            "source_measurement": "trace_disabled",
+            "median_tps": bench.get("median_tps"),
+            "reps": reps,
+            "representative_abort_rate": indicators.get("abort_rate"),
+            "representative_latency_ns": indicators.get("latency_ns"),
+            "cv": bench.get("cv"),
+            "unstable": bench.get("unstable"),
+        })
+    if seen != set(expected) or len(points) != 5:
+        raise RuntimeError("T-2418 report requires all five committed genomes")
+    points.sort(key=lambda point: point["point_index"])
+    return campaign_id, points
+
+
 def _t2266_report_document(
         tag: str, campaign_id: str,
         points: Sequence[Mapping[str, object]],
@@ -783,6 +1129,54 @@ def _t2266_report_document(
             for amount, reason in sorted(T2266_UNREALIZED.items())
         ],
         "measurement_order": t2266_measurement_order(tag),
+        "points": serialized_points,
+    }
+
+
+def _t2418_report_document(
+        tag: str, campaign_id: str,
+        points: Sequence[Mapping[str, object]],
+) -> dict[str, object]:
+    serialized_points = []
+    for point in points:
+        row = dict(point)
+        reps = row.get("reps")
+        if type(reps) is not list or len(reps) != p2_2.REPS:
+            raise RuntimeError("T-2418 JSON requires all rep records")
+        row["throughput_tps_reps"] = [rep["throughput_tps"] for rep in reps]
+        row["abort_rate_reps"] = [rep["abort_rate"] for rep in reps]
+        serialized_points.append(row)
+    return {
+        "schema_version": T2418_REPORT_SCHEMA,
+        "status": "complete",
+        "run_kind": T2418_RUN_KIND,
+        "claim_scope": T2418_CLAIM_SCOPE,
+        "exploratory": True,
+        "formal_series": False,
+        "declared_use_class": "official",
+        "exploration_values_us": list(T2418_REQUESTED_US),
+        "requested_us": list(T2418_REQUESTED_US),
+        "realized_us": list(T2418_REALIZED_US),
+        "unrealized": [
+            {"backoff_us": amount, "reason": reason}
+            for amount, reason in sorted(T2418_UNREALIZED.items())
+        ],
+        "formal_grid_status": T2418_FORMAL_GRID_STATUS,
+        "formal_stopping_criterion_status": (
+            T2418_FORMAL_STOPPING_CRITERION_STATUS
+        ),
+        "meaning_witness_status": T2418_MEANING_WITNESS_STATUS,
+        "reps": p2_2.REPS,
+        "extime_s": p2_2.EXTIME,
+        "records": p2_2.RECORDS,
+        "threads": p2_2.THREADS,
+        "source_measurement": "trace_disabled",
+        "performance_certified": False,
+        "correctness_verified": True,
+        "campaign_id": campaign_id,
+        "workload": tag,
+        "workload_coordinates": dict(WORKLOAD_BY_TAG[tag]),
+        "measurement_order": t2418_measurement_order(tag),
         "points": serialized_points,
     }
 
@@ -848,6 +1242,79 @@ def materialize_t2266_report(
     return {"dat": str(dat_path), "json": str(json_path)}
 
 
+def materialize_t2418_report(
+        tag: str, output_root: str, capture: _T2418RepCapture,
+) -> dict[str, str]:
+    """Create the disclosed T-2418 exploratory numeric artifacts."""
+    campaign_id, points = _load_t2418_report_points(tag, output_root, capture)
+    document = _t2418_report_document(tag, campaign_id, points)
+    reports = Path(output_root) / "campaigns" / campaign_id / "reports"
+    stem = reports / f"t2418-backoff-static-explore-{tag}"
+    dat_path = Path(f"{stem}.dat")
+    json_path = Path(f"{stem}.json")
+    if dat_path.exists() or json_path.exists():
+        raise FileExistsError("T-2418 report artifacts are create-only")
+    json.dumps(document, sort_keys=True, separators=(",", ":"), allow_nan=False)
+    provenance = {
+        "run_kind": T2418_RUN_KIND,
+        "claim_scope": T2418_CLAIM_SCOPE,
+        "exploratory": True,
+        "formal_series": False,
+        "declared_use_class": "official",
+        "exploration_values_us": list(T2418_REQUESTED_US),
+        "requested_us": list(T2418_REQUESTED_US),
+        "realized_us": list(T2418_REALIZED_US),
+        "unrealized": [
+            {"backoff_us": amount, "reason": reason}
+            for amount, reason in sorted(T2418_UNREALIZED.items())
+        ],
+        "formal_grid_status": T2418_FORMAL_GRID_STATUS,
+        "formal_stopping_criterion_status": (
+            T2418_FORMAL_STOPPING_CRITERION_STATUS
+        ),
+        "meaning_witness_status": T2418_MEANING_WITNESS_STATUS,
+        "reps": p2_2.REPS,
+        "extime_s": p2_2.EXTIME,
+        "records": p2_2.RECORDS,
+        "threads": p2_2.THREADS,
+        "campaign": campaign_id,
+        "workload": tag,
+        "source_measurement": "trace_disabled",
+        "performance_certified": False,
+        "correctness_verified": True,
+    }
+    lines = [
+        f"# T-2418 exploratory static backoff tail: {tag}",
+        "# columns: backoff_us throughput_tps abort_rate latency_ns cv",
+        "# provenance: " + json.dumps(
+            provenance, sort_keys=True, separators=(",", ":"), allow_nan=False,
+        ),
+        "# build command: orchestrator/campaign/backoff_extended_sweep.py",
+        (
+            "# reproduce data: python -m "
+            f"orchestrator.campaign.backoff_extended_sweep {tag} "
+            f"--run-kind {T2418_RUN_KIND}"
+        ),
+    ]
+    for point in sorted(
+        (point for point in points if point["kind"] == "static"),
+        key=lambda point: point["backoff_us"],
+    ):
+        values = (
+            point["backoff_us"],
+            point["median_tps"],
+            point["representative_abort_rate"],
+            point["representative_latency_ns"],
+            point["cv"],
+        )
+        lines.append(" ".join(
+            "nan" if value is None else str(value) for value in values
+        ))
+    _write_create_only_text(dat_path, "\n".join(lines) + "\n")
+    _write_create_only_json(json_path, document)
+    return {"dat": str(dat_path), "json": str(json_path)}
+
+
 def run_workload(
         tag: str, workload: dict[str, str], log=print, *, output_root: str = "",
         cache_root: str, ccbench_dir: Optional[str] = None,
@@ -864,7 +1331,15 @@ def run_workload(
         selected_genomes = t2266_genomes
         selected_order = t2266_measurement_order
         run_label = "T-2266 static tail"
-        rep_capture: Optional[_T2266RepCapture] = _T2266RepCapture()
+        rep_capture: Optional[_T2266RepCapture | _T2418RepCapture] = (
+            _T2266RepCapture()
+        )
+    elif run_kind == T2418_RUN_KIND:
+        selected_config = t2418_config_for
+        selected_genomes = t2418_genomes
+        selected_order = t2418_measurement_order
+        run_label = "T-2418 exploratory static tail"
+        rep_capture = _T2418RepCapture()
     else:
         selected_config = config_for
         selected_genomes = genomes
@@ -944,6 +1419,7 @@ def run_workload(
                     build_context=build_context,
                     capability_resolver=capability_resolver,
                     require_all_binary_hashes=(run_kind == T2266_RUN_KIND),
+                    require_all_t2418_binary_hashes=(run_kind == T2418_RUN_KIND),
                 )
                 capture_context = (
                     rep_capture.installed()
@@ -978,7 +1454,10 @@ def run_workload(
                     and summary.committed == len(ordered_genomes)
                     and summary.aborted == 0
                 ):
-                    materialize_t2266_report(tag, output_root, rep_capture)
+                    if run_kind == T2266_RUN_KIND:
+                        materialize_t2266_report(tag, output_root, rep_capture)
+                    elif run_kind == T2418_RUN_KIND:
+                        materialize_t2418_report(tag, output_root, rep_capture)
                 return summary
     except perf_preflight.PerfPreflightError as exc:
         if not preflight_receipt_path.is_file():
@@ -1011,15 +1490,26 @@ def main(argv: Optional[list[str]] = None) -> int:
     except PreflightStop as exc:
         print(str(exc), file=sys.stderr)
         return 2
-    expected_genomes = (
-        t2266_genomes(args.workload)
-        if args.run_kind == T2266_RUN_KIND else genomes(args.workload)
-    )
+    if args.run_kind == T2266_RUN_KIND:
+        expected_genomes = t2266_genomes(args.workload)
+    elif args.run_kind == T2418_RUN_KIND:
+        expected_genomes = t2418_genomes(args.workload)
+    else:
+        expected_genomes = genomes(args.workload)
     complete = summary.committed == len(expected_genomes) and summary.aborted == 0
     if args.run_kind == T2266_RUN_KIND:
         complete = complete and summary.total == len(expected_genomes)
         reports = Path(summary.layout_root) / "reports"
         stem = reports / f"t2266-backoff-static-tail-{args.workload}"
+        complete = (
+            complete
+            and Path(f"{stem}.dat").is_file()
+            and Path(f"{stem}.json").is_file()
+        )
+    elif args.run_kind == T2418_RUN_KIND:
+        complete = complete and summary.total == len(expected_genomes)
+        reports = Path(summary.layout_root) / "reports"
+        stem = reports / f"t2418-backoff-static-explore-{args.workload}"
         complete = (
             complete
             and Path(f"{stem}.dat").is_file()

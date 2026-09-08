@@ -55945,3 +55945,93 @@ continuation の閉じ方はユーザー裁定へ返す。
 - **duplicate key を新たに拒否する** — 束縛するのは実行される提案 (parse 結果) であって
   file の raw bytes ではない。raw bytes の固定性は本決定が主張しない別命題であり、
   そのための検査を足さない。
+
+## D1847. role sink 非干渉 node が被覆する命題は wire と sink bytes の関係であり、逐次という実行スケジュールは被覆対象に含めない (2026-09-09)
+
+**決定:** `orchestrator/tests/test_p3_autonomous_workload_trial.py::test_role_sink_bytes_vary_only_at_declared_declassifications`
+は 32 wire の `run_trial` を `ThreadPoolExecutor` と順序保存の `executor.map` で並行実行してよい。
+worker は局所値を返し、集約は main thread だけが行う。並行度は module 定数 1 個で表し、
+現行値は 4 とする。
+
+この node が被覆する命題は「32 wire の実 trial における wire と role sink bytes の関係」であり、
+**逐次という実行スケジュールは被覆対象に含めない。**
+
+**この裁定が失うものを明記する。** 「逐次のときだけ wire を混ぜる」形の欠陥は、
+変更後の node では決定的には捕まらない。**等価とは主張しない。** docstring にも書く。
+
+逐次 loop が構造から与えていた「32 件収集」は明示検査へ置き換える。4 role と
+`trusted_variants` / `secret_records` について件数 32 を横断 assert の直前で確かめる。
+これは新設 gate ではなく既存の強さの保存である。
+
+test 側の fixture 用 lock binding は反復前に 1 回だけ計算し、test helper の optional 引数で渡す。
+production の受理集合、64 回の real admission、64 回の live closure capture は 1 つも減らさない。
+既存の引数省略 caller は既定値 `None` で現行どおりとする。
+
+**production file は変更しない。** `contract_loader_binding` への process 内 cache・memo は
+D1795 の裁定どおり導入しない。
+
+**理由:**
+
+- 全 assert の意味が実行順に依存しない。横断 7 種はすべて集合の要素数を見る形であり、
+  per-iteration 6 種はその反復に閉じた値だけを見る。したがって失われるのは性質の被覆ではなく
+  実行スケジュールの被覆である。
+- 同じ変異を変更前 HEAD 版と変更後版の双方へ当て、共通 6 件の KILLED 集合が一致した。
+  変更後版だけが持つ M8 (collector が critic を先頭 1 件だけ append する) と
+  M9 (worker が例外を送出する) も KILLED した。
+- node の約 91.5% は CPU を使わない待ちであり (login の cProfile で `real 172.912` に対し
+  `user+sys 14.726`)、待ちを重ねる形が効く。計算ノード単独走で 17.44 秒から 3.95 秒、
+  受入全走で中央値 約 80 秒から 18.281 秒になった。
+- 並行度は事前に決めず実測した。計算ノードの走行ごとの変動は大きく (同一構成で 26.68 と 14.83、
+  3.92 と 6.50)、4 と 8 はその変動の中で区別できない。**同じ利得なら並行度は小さい方を採る**
+  という事前規則により 4 とした。
+- `len(set(...)) == 1` は要素 1 個でも真になり、critic の関係等価判定も 1 個で真になる。
+  auditor だけが `== 32` で件数が守られていた。集約を worker から分離する以上、
+  件数の明示検査が無ければ収集漏れが緑で通る。
+
+**却下した選択肢:**
+
+- 32 個への parametrize 分割 — F829 が明示的に否定済み。ループ末尾の横断比較がどの node からも
+  消える。速さのために検査を消す形であり絶対規律 2 に触れる。
+- `contract_loader_binding` への process 内 cache / memo — D1795 が明示的に却下済み。
+  object store の prune や root 差し替え後に古い bytes を返して fail-closed を壊しうる。
+- 反復数を 32 未満に減らす、assert を弱める、skip・xfail を足す — 被覆の削除であり同上。
+- 並行度を CPU 数や xdist worker 数から動的に決める — 走行ごとに再現性が失われ、
+  共有計算ノードで掴む資源の上限も見えなくなる。
+- `executor` へ hard timeout を足す — 終端保証の欠落は逐次版にも同じくある既存性質であり、
+  本裁定が作ったものではない。gate の新設は依頼の scope 外なので別項として起票する。
+- 台帳の既存 entry を親が手で書き換える — 値は正本 producer
+  (`tools/update_acceptance_duration_ledger.py`) に計算させ、実装面として Codex author が書く。
+
+## D1848. 探索走は凍結格子へ点を足さず、専用 RUN_KIND と専用 campaign identity で分離する (2026-09-09)
+
+**決定:** D1813 が定めた静的 backoff 右側の探索は、認証済み格子 `EXTENDED_SWEEP_US` へ点を
+足す形では実装しない。`orchestrator/campaign/backoff_extended_sweep.py` に第 3 の RUN_KIND
+`t2418-explore` を足し、専用の `spec_slug` / `trial` / `scale` / report schema / 成果物 stem を
+与えて正式系列と分離する。反復数と walltime 枠は共有経路のまま (`p2_2.REPS` / `p2_2.EXTIME` /
+PBS 18000 秒) にし、テスト側は共有定数を参照せず literal で固定する。
+成果物は `search_config` / JSON report / `.dat` provenance の 3 か所へ同値で開示する —
+`run_kind`、`claim_scope`、`exploratory`、`formal_series`、`exploration_values_us`、
+`formal_grid_status`、`formal_stopping_criterion_status`、`meaning_witness_status`、
+`declared_use_class`、`reps`、`extime_s`、`records`、`threads`。
+正しさ防壁は先例と同じ強さに揃え、静的 amount ごとの binary 相異検査は全点の完全性まで
+fail-closed で要求する。
+
+**理由:**
+- `EXTENDED_SWEEP_US` は事前登録された認証格子で、上端が test に pin され、report 側が長さ・
+  集合・index・隣接関係を意味に使う。ここへ探索値を入れると正式系列の意味が変わる。
+- D1813 の「探索値を正式標本へ混ぜない」は、campaign identity の分離で実装するのが最短である。
+  先例 `t2266-tail` が同じ形を既に採っており、族一般化を要さない。
+- 反復数と walltime を共有経路のままにすることが「既存 sweep と同じ枠」の実体である。
+  ただし共有定数から期待値を作るテストでは、定数が変わったときに全体が追随して裁定に反したまま
+  緑になるため、literal で固定する必要がある。
+- 探索だからと binary 相異検査の完全性を省くと、先例より正しさ検査が弱くなる (絶対規律 2)。
+- 「探索」という語は、標本への帰属を指す D1813 の用法と、campaign layout の use class を指す
+  runbook の `IZANAGI_EXPLORATION_OUTPUT_ROOT` の用法で別物である。成果物へ
+  `declared_use_class` を載せて機械可読に区別する。
+
+**却下した選択肢:**
+- 凍結格子へ 3 点を足す — 認証済み格子の意味を変え、D1813 の分離要求にも反する。
+- 既存 `t2266-tail` を一般化して両方を扱う — 凍結済みの成果物名と consumer に触れる risk があり、
+  族一般化の独立 2 例条件を満たさない。
+- 探索走を exploration output root へ移す — durability policy と declared use class が変わり、
+  「既存 sweep と同じ枠」から外れる。
