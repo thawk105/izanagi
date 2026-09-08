@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-09-08
 wave: rulings-full15-verdicts
 seq: 1
-title: /rulings 全件 第 15 回の裁定 — 索引 21 件のうち推奨のある 17 件を、ユーザー委任により Fable が再検討した推奨で裁定した。持ち越し stub の本文を archive まで遡っていなかった収集漏れ 14 件を回収し、相談と再検討が起草推奨 6 件を覆した (docs のみ、branch worktree-rulings-full15-verdicts)
+title: /rulings 全件 第 15 回の裁定 — 索引 21 件のうち 16 件を、ユーザー委任により Fable が再検討した推奨で裁定した。持ち越し stub の本文を archive まで遡っていなかった収集漏れ 14 件を回収し、相談と再検討が起草推奨 6 件を覆し、待機中に 1 件が別 wave に追い越された (docs のみ、branch worktree-rulings-full15-verdicts)
 ---
 
 ## 本文
@@ -12,6 +12,11 @@ title: /rulings 全件 第 15 回の裁定 — 索引 21 件のうち推奨の�
 - **ユーザー裁定は委任の形である** —「モデルを切り替えました。あなたは fable ですが、この裁定推奨一覧は
   opus, sol で出されたものです。あなたが再度検討し、推奨を考え、その通りに main land まで行ってください」。
   索引 21 件のうち推奨のある 17 件を Fable が再検討し、確定した推奨をそのまま裁定として記録した。
+  **ただし 1 件 ([T-2423] 権威 floor 名の `protocol` 欠落) は、本 wave が land 待ちの間に別 wave が閉じた。**
+  同 wave の段 3 敵対相談が「receipt から導出できない」という依頼の前提を反証し、択一 (a)/(b) の外の
+  (c)「receipt の canonical genome から導出する」を採って D1808 で閉じている。凍結 spec と D1641 は不変。
+  **本回の起草推奨 (a) は偽の前提の上に立っていたので取り下げ、裁定を記録しない。**
+  記録するのは残り 16 件である。
   推奨を付けない 4 件 (稼働中 wave の scope 外所見、実行場所分類の実測、別 OS 利用者の配置、未 push 132 commit)
   はユーザー手番のままで、本回では動かない。裁定の出所と scope 制約は
   {{D:rulings15-delegated-reexamination-minimal-scope}}。
@@ -70,8 +75,6 @@ title: /rulings 全件 第 15 回の裁定 — 索引 21 件のうち推奨の�
   base: 86d22e7e318f2cf5bf2417c1f8c1744d3ccc6c331ad52d20f9cd8f7eb2946a27
 - [T-2418] **P1・裁定済み ({{D:static-backoff-tail-grid-two-stage}}、第 15 回) → 探索走の実装・投入待ち**: 2000 / 4000 / 9999 マイクロ秒の 3 点を既存 sweep と同じ反復数・walltime 枠で探索し、探索値は正式へ混ぜず開示する。本格格子と停止基準は探索結果を見た後・本格 cohort 投入前に事前登録する。
   base: 698619ed6b866b6fa317143f5583ef7591190b87811fe6171e4487c921c8b9e2
-- [T-2423] **P1・裁定済み ({{D:floor-name-protocol-field-added}}、第 15 回) → 実装待ち**: 凍結 spec に `protocol` を明示 field として足す (択 (a))。対照対 driver の凍結作業に含める。
-  base: 98ef45ca47714e2e68b9884f8224f20c8d7a2f58f0cd29fe244189f8768e16c6
 - [T-2417] **P2・裁定済み ({{D:policy-arm-perf-measured-uncertified-not-headline}}、第 15 回) → 事前登録・実装待ち**: 全 identity への認証は行わない。巡回順の block 設計と独自の事前登録で trace 無効の性能測定を行い、未認証を成果物へ明記し headline へ入れない。認証は昇格させたくなった時点で選定腕だけ諮る。
   base: 2e58725e71110985d7123da64e9670bd59cbdcdb8529ef4c35c9d5f4a8cd1f79
 - [T-2431] **P2・裁定済み ({{D:a1-uncooperative-same-uid-writer-out-of-boundary}}、第 15 回) → 明記待ち**: 非協調な同 uid writer は正しさ境界に含めない。現行の決定的順序を維持し、宛先確認と unlink の間の競走を既知限界として明記する。
@@ -92,8 +95,8 @@ title: /rulings 全件 第 15 回の裁定 — 索引 21 件のうち推奨の�
   base: 6e609161771dda8403e885174fba75a05b54705a036ac7be898ce1465d752789
 - [T-2434] **P3・裁定済み ({{D:dev-wave-reasoning-doc-matches-cli}}、第 15 回) → docs 修正待ち**: worker 契約の記述を「値は xhigh (docs 権威導出)、`--reasoning` は CLI 引数として渡さない」へ改め、adoption pin を同じ変更単位で更新する。byte 超過は既存文面の組替えで吸収し予算は上げない。
   base: c749903ad872bc8e430045cd88921078708c66c9141c23d99719e296876c0b41
-- [T-2438] **P3・裁定済み ({{D:witness-exact-int-bool-negative-case}}、第 15 回) → テスト追加待ち**: bool を使う負例を足し、登録 SURVIVED の変異 2 件 (`b060.m23` / `b060.m24`) を KILLED へ移す。
-  base: efed5e00a783ac687c3904d9bd359d09a4730ca7b4018fbbd6cba543815cc0d8
+- [T-2438] **P3・裁定済み ({{D:witness-exact-int-bool-negative-case}}、第 15 回) → テスト追加待ち**: bool を使う負例を足し、登録 SURVIVED の変異を KILLED へ移す。対象は consumer 側の `b060.m23` / `b060.m24` に加え、2026-09-08 に producer 側 (`reflux_result_evidence.py`) で同型が再現した M14b も含む。既存の負例 `cycle-bool` は txid 0 の位置に `True` を置くため ring 位置検査が先に拒否する過剰決定なので、bool の型検査だけを撃つ位置へ置き直す。
+  base: 4ad1f71a6642944616cb84e6428c7d6d5ee1cd33126444db82ef5d25b960d7a3
 - [T-2403] **P3・裁定済み ({{D:growth-hold-release-after-measuring-reds}}、第 15 回) → 実測待ち**: hold を外したときの赤 node 数と理由を 1 回観測する。赤 0 件なら追加裁定なしで解除してよい。赤があれば件数と理由を添えて再提示する。
   base: 9218b59c453fdc7f79042ca84eed3cb1ec468fedac6f4ddae939f59e3391c2c4
 - [T-2440] **P2・新規 → 是正範囲を 1 件広げた**: `/rulings` の入口の出力規則を直す (F897)。加えて、第 15 回で実測した収集漏れ (F888 再発: 走査語を carry stub 行にしか当てず、`docs/archive/` の実体本文に当てていなかった) の是正として、収集 §1 に「carry 鎖を archive まで解決した実体本文へ当てる」を明記する。入口の byte 予算 (5,623、現在 5,607) の中で 2 件を同時に直し、予算の引き上げは独立審査対象なので行わない。
