@@ -341,7 +341,7 @@ payload = {
 print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
 '''
     completed = subprocess.run(
-        [sys.executable, "-c", script, commit],
+        [sys.executable, "-B", "-c", script, commit],
         cwd=repo_root,
         check=True,
         capture_output=True,
@@ -386,7 +386,7 @@ payload = {
 print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
 '''
     completed = subprocess.run(
-        [sys.executable, "-c", script, commit],
+        [sys.executable, "-B", "-c", script, commit],
         cwd=repo_root,
         check=True,
         capture_output=True,
@@ -692,7 +692,7 @@ Path(sys.argv[2]).write_text(str(rc), encoding="ascii")
 raise SystemExit(rc)
 '''
     completed = subprocess.run(
-        [sys.executable, "-c", script, commit, str(return_value_path)],
+        [sys.executable, "-B", "-c", script, commit, str(return_value_path)],
         cwd=repo_root,
         check=False,
         capture_output=True,
@@ -739,7 +739,7 @@ Path(sys.argv[2]).write_text(str(rc), encoding="ascii")
 raise SystemExit(rc)
 '''
     completed = subprocess.run(
-        [sys.executable, "-c", script, commit, str(return_value_path)],
+        [sys.executable, "-B", "-c", script, commit, str(return_value_path)],
         cwd=repo_root,
         check=False,
         capture_output=True,
