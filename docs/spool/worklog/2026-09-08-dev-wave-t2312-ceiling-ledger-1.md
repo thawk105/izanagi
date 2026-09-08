@@ -36,7 +36,9 @@ title: [T-2312] 静的 backoff の上限拡張は着地済みだった — 持�
   `output/insights/2026-09-08_backoff-static-ceiling/`、worklog 本文は
   `docs/archive/worklog-phase3-0908-1330.md`。
 - エージェント工数: 子の起動なし (docs のみ、実装面の差分ゼロ)。実装面ゼロのため変異 matrix は
-  免除した (DW-S04)。
+  免除した (DW-S04)。実 repo を読む焦点走 (`test_check_docs` / `test_spool_fold` /
+  `test_fold_gate_nodes_contract`) は 759 passed・3 skipped で緑、`check_docs` と
+  `spool_fold --dry-run` と全史 provenance 監査 (8988 件) も rc=0。
 
 ## 次の一手差分
 
