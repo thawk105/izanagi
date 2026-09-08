@@ -107,6 +107,11 @@ MATERIALIZER_ADMISSION_REGISTRY = MappingProxyType({
             NON_ADMISSIBLE,
             "correctness-only write-intent mutation matrix; explicitly not integrated",
         ),
+    "orchestrator.campaign.t1998_stock_inline_pair._build_dir_from_build":
+        MaterializerRegistration(
+            NON_ADMISSIBLE,
+            "only reads recorded build argv and never launches a build",
+        ),
     "orchestrator.campaign.silo_ladder_rung1._build_variant":
         MaterializerRegistration(
             NON_ADMISSIBLE,
