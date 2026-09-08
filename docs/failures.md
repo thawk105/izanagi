@@ -8669,6 +8669,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 恒久対応: dry-run argv を再利用する運転側で、`--artifact-dir` / `--receipt` / `--manifest` の
   親 directory を先に作る。
 - 再発検知: 投入前に rc=2 で止まるため実害は無い (本件も空費ゼロ)。手順として明記する。
+- **supersede: 2026-09-08** — 「dry-run は directory を作らない」は現行挙動と違う。`tools/dev_wave_codex.py --dry-run` は artifact directory を実際に作る (2026-09-08 実測)。したがって親 directory 不在で止まる型は起きず、代わりに同じ job-id のまま本投入すると既存 directory に当たる。dry-run 後は当該 directory を rmdir するか job-id を変える。
 
 ### F255. admitted view の不変射影が読み手の厳密型検査を黙って全滅させた [恒真ゲート] [consumer 取り残し]
 
