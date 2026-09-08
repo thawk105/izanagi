@@ -1,0 +1,176 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 420,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1200,
+  "mutations": [
+    {
+      "id": "M01-s1-prepare-binding-dropped",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_direct_comparison.py",
+          "old": "        if sort_oracle_contract_id is not None:\n            src_token = source_digest.resolve_evidence(",
+          "new": "        if False:\n            src_token = source_digest.resolve_evidence("
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M02-s1-prepare-wrong-contract",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_direct_comparison.py",
+          "old": "                sort_oracle_contract_id=sort_oracle_contract_id,\n            ).src_token",
+          "new": "                sort_oracle_contract_id=sort_oracle_contract_id + \"-x\",\n            ).src_token"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M03-s1-prepared-cell-field-none",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_direct_comparison.py",
+          "old": "            sort_oracle_contract_id=sort_oracle_contract_id,\n        )\n",
+          "new": "            sort_oracle_contract_id=None,\n        )\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M04-s1-run-role-forward-dropped",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_direct_comparison.py",
+          "old": "                    if prepared.sort_oracle_contract_id is not None:\n                        kwargs[\"sort_oracle_contract_id\"] = (",
+          "new": "                    if False:\n                        kwargs[\"sort_oracle_contract_id\"] = ("
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M05-s1-run-role-forward-always",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_direct_comparison.py",
+          "old": "                    if prepared.sort_oracle_contract_id is not None:\n                        kwargs[\"sort_oracle_contract_id\"] = (",
+          "new": "                    if True:\n                        kwargs[\"sort_oracle_contract_id\"] = ("
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M06-s1-non-sort-uses-resolve-evidence",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_direct_comparison.py",
+          "old": "        else:\n            src_token = source_digest.resolve(\n                genome, ccbench_pin, ccbench_dir=sub, cxx=cxx,\n            )",
+          "new": "        else:\n            src_token = source_digest.resolve_evidence(\n                genome, ccbench_pin, ccbench_dir=sub, cxx=cxx,\n            ).src_token"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M07-s8b-driver-prepared-for-eval-drops-contract",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_driver.py",
+          "old": "                        sort_oracle_contract_id=prepared.sort_oracle_contract_id,\n                    )",
+          "new": "                        sort_oracle_contract_id=None,\n                    )"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M08-s8b-driver-forward-always",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_driver.py",
+          "old": "                            if prepared_for_eval.sort_oracle_contract_id is not None:",
+          "new": "                            if True:"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M09-s8b-floor-evidence-contract-dropped",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "            evidence_kwargs = {}\n            if prepared.sort_oracle_contract_id is not None:",
+          "new": "            evidence_kwargs = {}\n            if False:"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10-s8b-floor-build-contract-dropped",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "            build_kwargs = {}\n            if prepared.sort_oracle_contract_id is not None:",
+          "new": "            build_kwargs = {}\n            if False:"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11-s8b-floor-build-contract-always",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "            build_kwargs = {}\n            if prepared.sort_oracle_contract_id is not None:",
+          "new": "            build_kwargs = {}\n            if True:"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M12-s1-equivalent-rewrite",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_direct_comparison.py",
+          "old": "        if sort_oracle_contract_id is not None:\n            src_token = source_digest.resolve_evidence(",
+          "new": "        if not (sort_oracle_contract_id is None):\n            src_token = source_digest.resolve_evidence("
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

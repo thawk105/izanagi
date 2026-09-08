@@ -73,6 +73,8 @@ _REVIEWED_PERF_FILES = frozenset({
     "orchestrator/campaign/s8b_verdict.py",
     "orchestrator/campaign/screening_driver.py",
     "orchestrator/campaign/silo_ladder_rung1.py",
+    # Consumes producer-recorded trace-disabled performance-build evidence only.
+    "orchestrator/campaign/t1998_stock_inline_pair.py",
     "orchestrator/holdout_observation.py",
     "orchestrator/qualification/artifacts.py",
     "orchestrator/qualification/contract.py",

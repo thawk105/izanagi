@@ -701,6 +701,51 @@ def test_run_role_available_perf_keeps_evaluate_call_shape_exact(
 
 
 @pytest.mark.usefixtures("ratified_enforcement_source")
+def test_run_role_forwards_sort_contract_only_when_prepared_cell_has_one(
+        tmp_path):
+    from orchestrator.campaign.sort_swo_oracle import ORACLE_CONTRACT_ID
+
+    prepared_configurations = []
+    evaluate_calls = []
+
+    @contextlib.contextmanager
+    def prepare(cell, pin, *, cxx):
+        del pin, cxx
+        configuration = cell["configuration"]
+        prepared_configurations.append(configuration)
+        genome = Genome("silo", dict(cell["variant"]["flags"]))
+        supply, meaning = _condition_records(genome)
+        yield S.PreparedCell(
+            genome, "stock", "/ccbench", "/cache",
+            condition_supply_records=supply,
+            condition_meaning_records=meaning,
+            sort_oracle_contract_id=(
+                ORACLE_CONTRACT_ID if configuration == "sort_best" else None
+            ),
+        )
+
+    def evaluate(genome, *args, **kwargs):
+        evaluate_calls.append(kwargs)
+        return _green(genome)
+
+    rc = S.run_role(
+        "develop", freeze_path=_write_freeze(tmp_path),
+        budget_path=tmp_path / "time_ledger.json",
+        output_root=str(tmp_path / "out"), verify_document=lambda doc: None,
+        evaluate_fn=evaluate, prepare_cell_fn=prepare,
+        single_tenant_fn=lambda: None, monotonic=_Clock(), log=lambda msg: None,
+    )
+
+    assert rc == S.EXIT_OK
+    assert len(prepared_configurations) == len(evaluate_calls) == 18
+    for configuration, kwargs in zip(prepared_configurations, evaluate_calls):
+        if configuration == "sort_best":
+            assert kwargs["sort_oracle_contract_id"] == ORACLE_CONTRACT_ID
+        else:
+            assert "sort_oracle_contract_id" not in kwargs
+
+
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_run_role_unavailable_perf_passes_degraded_kwargs_from_one_probe(
         tmp_path, monkeypatch):
     unavailable = _canonical_perf_receipt("unavailable")
@@ -851,6 +896,8 @@ def _capture_prepare_quarantine(
     expected = copy.deepcopy(cell)
     worktree = tmp_path / "worktree"
     calls = []
+    resolve_calls = []
+    resolve_evidence_calls = []
 
     def fake_quarantine(sub, implementation, *, marker_id, source_rel, write):
         calls.append({
@@ -866,9 +913,18 @@ def _capture_prepare_quarantine(
         patchharness, "checkout", lambda *args, **kwargs: _fixture_checkout(worktree))
     monkeypatch.setattr(
         patchharness, "applied", lambda *args, **kwargs: _fixture_checkout(worktree))
+
+    def fake_resolve(*args, **kwargs):
+        resolve_calls.append((args, kwargs))
+        return "fixture-source"
+
+    def fake_resolve_evidence(*args, **kwargs):
+        resolve_evidence_calls.append((args, kwargs))
+        return types.SimpleNamespace(src_token="fixture-sort-source")
+
+    monkeypatch.setattr(S.source_digest, "resolve", fake_resolve)
     monkeypatch.setattr(
-        S.source_digest, "resolve",
-        lambda *args, **kwargs: "fixture-source",
+        S.source_digest, "resolve_evidence", fake_resolve_evidence,
     )
     monkeypatch.setattr(loop_axis, "quarantine", fake_quarantine)
     receipt = oracle.OracleReceipt(
@@ -896,7 +952,7 @@ def _capture_prepare_quarantine(
 
     with S.prepare_cell(
             cell, "d706650cdb31e442bef45b9b4216951d4fb40969",
-            cxx="g++-13"):
+            cxx="g++-13") as prepared:
         pass
 
     assert len(calls) == 1
@@ -904,6 +960,9 @@ def _capture_prepare_quarantine(
     assert calls[0]["write"] is True
     assert calls[0]["implementation"] == expected["variant"][implementation_key]
     assert cell == expected
+    calls[0]["resolve_calls"] = resolve_calls
+    calls[0]["resolve_evidence_calls"] = resolve_evidence_calls
+    calls[0]["prepared"] = prepared
     return calls[0]
 
 
@@ -998,6 +1057,65 @@ def test_prepare_flags_only_configurations_do_not_patch_or_quarantine(
     with S.prepare_cell(cell, "fixture-pin", cxx="site-cxx") as prepared:
         assert prepared.genome == Genome("silo", flags)
         assert prepared.src_token == "fixture-source"
+
+
+@pytest.mark.parametrize(
+    "cell",
+    [
+        pytest.param(
+            {
+                "configuration": "backoff_fixed_best",
+                "variant": {
+                    "backoff_us": 5,
+                    "flags": {"BACK_OFF": 1, "BACKOFF_FIXED": 5},
+                },
+            },
+            id="backoff-fixed-best",
+        ),
+        pytest.param(
+            {
+                "configuration": "stock_common",
+                "variant": {"flags": {"BACK_OFF": 1}},
+            },
+            id="stock-common",
+        ),
+    ],
+)
+def test_prepare_non_sort_cells_keep_unbound_resolve_path(
+        tmp_path, monkeypatch, cell):
+    from orchestrator.campaign import patchharness
+
+    worktree = tmp_path / "worktree"
+    resolve_calls = []
+
+    def resolve(*args, **kwargs):
+        resolve_calls.append((args, kwargs))
+        return "fixture-source"
+
+    monkeypatch.setattr(
+        patchharness, "checkout",
+        lambda *args, **kwargs: _fixture_checkout(worktree),
+    )
+    monkeypatch.setattr(
+        patchharness, "applied",
+        lambda *args, **kwargs: _fixture_checkout(worktree),
+    )
+    monkeypatch.setattr(S.source_digest, "resolve", resolve)
+    monkeypatch.setattr(
+        S.source_digest, "resolve_evidence",
+        lambda *args, **kwargs: pytest.fail(
+            "非 sort_best で resolve_evidence を呼んではならない"
+        ),
+    )
+
+    with S.prepare_cell(cell, "fixture-pin", cxx="site-cxx") as prepared:
+        assert prepared.src_token == "fixture-source"
+        assert prepared.sort_oracle_contract_id is None
+
+    assert len(resolve_calls) == 1
+    args, kwargs = resolve_calls[0]
+    assert args == (prepared.genome, "fixture-pin")
+    assert kwargs == {"ccbench_dir": str(worktree), "cxx": "site-cxx"}
 
 
 def test_prepare_cell_passes_site_cxx_to_source_digest(tmp_path, monkeypatch):
@@ -1322,6 +1440,39 @@ def test_prepare_sort_best_passes_comparator_verbatim_to_quarantine(
     assert received["source_rel"] == sort_axis.SOURCE_REL
 
 
+def test_prepare_sort_best_binds_attested_oracle_contract_into_src_token(
+        tmp_path, monkeypatch):
+    from orchestrator.campaign import sort_swo_oracle as oracle
+
+    cell = {
+        "configuration": "sort_best",
+        "variant": {
+            "comparator": EXPECTED_SORT["balanced"]["comparator"],
+            "flags": {"BACK_OFF": 1, "SORT_VARIANT": 1},
+        },
+    }
+
+    received = _capture_prepare_quarantine(
+        tmp_path, monkeypatch, cell, "comparator",
+    )
+
+    assert received["resolve_calls"] == []
+    assert len(received["resolve_evidence_calls"]) == 1
+    args, kwargs = received["resolve_evidence_calls"][0]
+    prepared = received["prepared"]
+    assert args == (
+        prepared.genome,
+        "d706650cdb31e442bef45b9b4216951d4fb40969",
+    )
+    assert kwargs == {
+        "ccbench_dir": str(tmp_path / "worktree"),
+        "cxx": "g++-13",
+        "sort_oracle_contract_id": oracle.ORACLE_CONTRACT_ID,
+    }
+    assert prepared.src_token == "fixture-sort-source"
+    assert prepared.sort_oracle_contract_id == oracle.ORACLE_CONTRACT_ID
+
+
 def test_prepare_sort_best_reject_carries_structured_oracle_attempt(
         tmp_path, monkeypatch):
     from orchestrator.campaign import patchharness
@@ -1353,6 +1504,15 @@ def test_prepare_sort_best_reject_carries_structured_oracle_attempt(
         S.source_digest, "resolve",
         lambda *args, **kwargs: pytest.fail("REJECT 後に source resolve してはならない"),
     )
+    resolve_evidence_calls = []
+
+    def resolve_evidence(*args, **kwargs):
+        resolve_evidence_calls.append((args, kwargs))
+        pytest.fail("REJECT 後に source evidence を resolve してはならない")
+
+    monkeypatch.setattr(
+        S.source_digest, "resolve_evidence", resolve_evidence,
+    )
     cell = {
         "configuration": "sort_best",
         "variant": {
@@ -1377,6 +1537,7 @@ def test_prepare_sort_best_reject_carries_structured_oracle_attempt(
     assert record["proposal_sha256"] == "b" * 64
     assert record["oracle_contract_id"] == oracle.ORACLE_CONTRACT_ID
     assert record["oracle_receipt"] == result.receipt.as_dict()
+    assert resolve_evidence_calls == []
 
 
 @pytest.mark.parametrize(
