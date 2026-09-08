@@ -121,6 +121,18 @@
       "primary_gate": "PBS allocation and job-body site preflight",
       "evidence": "static job-body classification"
     },
+    "tools/pegasus/probes/t1259_qsub_env_delivery_probe.pbs": {
+      "class": "dispatch-required",
+      "reason": "PBS T-1259 qsub environment delivery observation job body",
+      "primary_gate": "PBS allocation and job-body compute-host, repository, and scratch-path validation",
+      "evidence": "static job-body classification"
+    },
+    "tools/pegasus/probes/t1259_qsub_env_delivery_probe.py": {
+      "class": "dispatch-required",
+      "reason": "compute-side T-1259 qsub environment delivery and official CLI refusal observer",
+      "primary_gate": "compute allocation owned by t1259_qsub_env_delivery_probe.pbs",
+      "evidence": "static compute-side call-site classification"
+    },
     "tools/pegasus/probes/t139_positive_control_probe.pbs": {
       "class": "unknown",
       "reason": "probe artifact has no login admission ruling",

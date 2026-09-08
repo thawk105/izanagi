@@ -62,7 +62,7 @@ _REPORT_FIELDS = frozenset({
     "schema_version", "shard_count", "shard_index", "pytest_rc",
     "observed_universe", "selected", "finished", "effective_scheduler",
     "terminal_counts", "failures", "group_to_workers", "worker_occupancy",
-    "junit_path", "worker_collection_digests",
+    "junit_path", "worker_collection_digests", "session_timeline",
 })
 _TERMINAL_COUNT_KEYS = frozenset({
     "passed", "failed", "error", "skipped", "xfailed", "xpassed",
@@ -801,6 +801,54 @@ _REPORT_WORKERS: dict[str, str] = {}
 _REPORT_DURATIONS: Counter[str] = Counter()
 _FAILURES: set[str] = set()
 _WORKER_PAYLOADS: dict[str, Mapping[str, Any]] = {}
+_WORKER_TEST_BOUNDS: dict[str, dict[str, float]] = {}
+
+
+def _observed_epoch(value: Any) -> Optional[float]:
+    if type(value) not in {int, float}:
+        return None
+    try:
+        observed = float(value)
+    except (OverflowError, TypeError, ValueError):
+        return None
+    if not math.isfinite(observed) or observed <= 0:
+        return None
+    return observed
+
+
+def _observed_lock_intervals(value: Any) -> list[dict[str, float]]:
+    if type(value) is not list:
+        return []
+    observed = []
+    for interval in value:
+        if type(interval) is not dict:
+            continue
+        acquired = _observed_epoch(interval.get("acquired_epoch_s"))
+        released = _observed_epoch(interval.get("released_epoch_s"))
+        if acquired is None or released is None:
+            continue
+        observed.append({
+            "acquired_epoch_s": acquired,
+            "released_epoch_s": released,
+        })
+    return observed
+
+
+def record_real_repo_lock_interval(
+    config: Any, acquired: float, released: float,
+) -> None:
+    if getattr(config, "_izanagi_acceptance_shard_spec", None) is None:
+        return
+    state = getattr(config, "_izanagi_acceptance_shard_state", None)
+    if type(state) is not dict:
+        return
+    intervals = state.get("real_repo_lock_intervals")
+    if type(intervals) is not list:
+        return
+    intervals.append({
+        "acquired_epoch_s": acquired,
+        "released_epoch_s": released,
+    })
 
 
 def pytest_configure(config: Any) -> None:
@@ -810,6 +858,7 @@ def pytest_configure(config: Any) -> None:
     global _REPORT_DURATIONS
     global _FAILURES
     global _WORKER_PAYLOADS
+    global _WORKER_TEST_BOUNDS
     spec = _plugin_spec()
     if spec is None:
         return
@@ -819,6 +868,7 @@ def pytest_configure(config: Any) -> None:
     _REPORT_DURATIONS = Counter()
     _FAILURES = set()
     _WORKER_PAYLOADS = {}
+    _WORKER_TEST_BOUNDS = {}
     setattr(config, "_izanagi_acceptance_shard_spec", spec)
 
 
@@ -852,6 +902,23 @@ def pytest_collection_modifyitems(config: Any, items: list[Any]) -> None:
     })
 
 
+@_pytest_hookimpl(trylast=True)
+def pytest_collection_finish(session: Any) -> None:
+    config = getattr(session, "config", None)
+    if getattr(config, "_izanagi_acceptance_shard_spec", None) is None:
+        return
+    state = getattr(config, "_izanagi_acceptance_shard_state", None)
+    if type(state) is not dict:
+        return
+    if type(state.get("real_repo_lock_intervals")) is not list:
+        state["real_repo_lock_intervals"] = []
+    try:
+        observed = _observed_epoch(time.time())
+    except Exception:
+        observed = None
+    state["collection_finished_epoch_s"] = observed
+
+
 def pytest_runtest_logfinish(nodeid: str, location: Any) -> None:
     del location
     if _PLUGIN_CONFIG is None or os.environ.get("PYTEST_XDIST_WORKER"):
@@ -865,6 +932,20 @@ def pytest_runtest_logreport(report: Any) -> None:
     worker = getattr(report, "worker_id", None)
     if type(worker) is not str or not worker:
         worker = "serial"
+    start = _observed_epoch(getattr(report, "start", None))
+    stop = _observed_epoch(getattr(report, "stop", None))
+    if start is not None or stop is not None:
+        bounds = _WORKER_TEST_BOUNDS.setdefault(worker, {})
+        if start is not None:
+            previous_start = bounds.get("first_test_started_epoch_s")
+            bounds["first_test_started_epoch_s"] = (
+                start if previous_start is None else min(previous_start, start)
+            )
+        if stop is not None:
+            previous_stop = bounds.get("last_test_finished_epoch_s")
+            bounds["last_test_finished_epoch_s"] = (
+                stop if previous_stop is None else max(previous_stop, stop)
+            )
     nodeid = report.nodeid
     _REPORT_WORKERS.setdefault(nodeid, worker)
     duration = getattr(report, "duration", 0.0)
@@ -913,11 +994,21 @@ def _scheduler(config: Any) -> str:
 def _worker_payload(config: Any) -> dict[str, Any]:
     state = getattr(config, "_izanagi_acceptance_shard_state", None)
     if type(state) is not dict:
-        return {"error": "collection-state-missing"}
+        return {
+            "error": "collection-state-missing",
+            "collection_finished_epoch_s": None,
+            "real_repo_lock_intervals": [],
+        }
     worker_id = getattr(config, "workerinput", {}).get("workerid", "")
     payload = {
         "records_digest": state["records_digest"],
         "selected_digest": state["selected_digest"],
+        "collection_finished_epoch_s": _observed_epoch(
+            state.get("collection_finished_epoch_s")
+        ),
+        "real_repo_lock_intervals": _observed_lock_intervals(
+            state.get("real_repo_lock_intervals")
+        ),
     }
     if worker_id == "gw0":
         payload["records"] = state["records"]
@@ -925,10 +1016,23 @@ def _worker_payload(config: Any) -> dict[str, Any]:
     return payload
 
 
-def _controller_state(config: Any) -> tuple[list[dict[str, Any]], list[str], list[str]]:
+def _controller_state(
+    config: Any,
+) -> tuple[
+    list[dict[str, Any]], list[str], list[str], Optional[float],
+    dict[str, list[dict[str, float]]],
+]:
     state = getattr(config, "_izanagi_acceptance_shard_state", None)
     if type(state) is dict:
-        return state["records"], state["selected"], [state["records_digest"]]
+        return (
+            state["records"], state["selected"], [state["records_digest"]],
+            _observed_epoch(state.get("collection_finished_epoch_s")),
+            {
+                "serial": _observed_lock_intervals(
+                    state.get("real_repo_lock_intervals")
+                )
+            },
+        )
     if not _WORKER_PAYLOADS:
         raise ShardError("worker-payloads-missing")
     digests = [
@@ -949,7 +1053,25 @@ def _controller_state(config: Any) -> tuple[list[dict[str, Any]], list[str], lis
     ]
     if len(full) != 1:
         raise ShardError("worker-authority-count")
-    return full[0]["records"], full[0]["selected"], sorted(digests)
+    collection_observations = [
+        observed
+        for payload in _WORKER_PAYLOADS.values()
+        if (
+            observed := _observed_epoch(
+                payload.get("collection_finished_epoch_s")
+            )
+        ) is not None
+    ]
+    lock_intervals = {
+        worker: _observed_lock_intervals(
+            payload.get("real_repo_lock_intervals")
+        )
+        for worker, payload in _WORKER_PAYLOADS.items()
+    }
+    return (
+        full[0]["records"], full[0]["selected"], sorted(digests),
+        max(collection_observations, default=None), lock_intervals,
+    )
 
 
 @_pytest_hookimpl(trylast=True)
@@ -963,7 +1085,10 @@ def pytest_sessionfinish(session: Any, exitstatus: Any) -> None:
         )
         return
     try:
-        raw_records, selected, worker_digests = _controller_state(session.config)
+        (
+            raw_records, selected, worker_digests, collection_finished,
+            lock_intervals,
+        ) = _controller_state(session.config)
         records = parse_records(raw_records)
         group_by_node = {record.nodeid: record.group for record in records}
         finished = sorted(
@@ -996,6 +1121,23 @@ def pytest_sessionfinish(session: Any, exitstatus: Any) -> None:
             key: len(stats.get(key, ()))
             for key in ("passed", "failed", "error", "skipped", "xfailed", "xpassed")
         }
+        timeline_workers = {}
+        lock_observers = {
+            worker for worker, intervals in lock_intervals.items() if intervals
+        }
+        for worker in sorted(set(_WORKER_TEST_BOUNDS) | lock_observers):
+            bounds = _WORKER_TEST_BOUNDS.get(worker, {})
+            timeline_workers[worker] = {
+                "first_test_started_epoch_s": _observed_epoch(
+                    bounds.get("first_test_started_epoch_s")
+                ),
+                "last_test_finished_epoch_s": _observed_epoch(
+                    bounds.get("last_test_finished_epoch_s")
+                ),
+                "real_repo_lock_intervals": _observed_lock_intervals(
+                    lock_intervals.get(worker)
+                ),
+            }
         report = {
             "schema_version": SCHEMA,
             "shard_count": spec.shard_count,
@@ -1019,6 +1161,10 @@ def pytest_sessionfinish(session: Any, exitstatus: Any) -> None:
             },
             "junit_path": str(spec.junit_path),
             "worker_collection_digests": worker_digests,
+            "session_timeline": {
+                "collection_finished_epoch_s": collection_finished,
+                "workers": timeline_workers,
+            },
         }
         _write_bytes_create_only(spec.report_path, _canonical_json_bytes(report))
     except Exception as exc:

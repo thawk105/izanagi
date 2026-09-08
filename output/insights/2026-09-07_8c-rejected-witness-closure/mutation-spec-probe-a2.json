@@ -1,0 +1,36 @@
+{
+  "estimated_run_seconds": 600,
+  "hang_timeout_seconds": 5400,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "b060.m23-length-exact-int-removed",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "new": "    if (\n        type(cycle) is not list\n        or len(cycle) < 2\n        or any(type(txid) is not int for txid in cycle)\n        or len(set(cycle)) != len(cycle)\n        or anomaly[\"length\"] != len(cycle)\n    ):\n        return False\n",
+          "old": "    if (\n        type(cycle) is not list\n        or len(cycle) < 2\n        or any(type(txid) is not int for txid in cycle)\n        or len(set(cycle)) != len(cycle)\n        or type(anomaly[\"length\"]) is not int\n        or anomaly[\"length\"] != len(cycle)\n    ):\n        return False\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "b060.m24-endpoint-exact-int-removed",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "new": "        if (\n            edge[\"from\"] != cycle[index]\n            or edge[\"to\"] != cycle[(index + 1) % len(cycle)]\n        ):\n            return False\n",
+          "old": "        if (\n            type(edge[\"from\"]) is not int\n            or type(edge[\"to\"]) is not int\n            or edge[\"from\"] != cycle[index]\n            or edge[\"to\"] != cycle[(index + 1) % len(cycle)]\n        ):\n            return False\n"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 5400
+}
