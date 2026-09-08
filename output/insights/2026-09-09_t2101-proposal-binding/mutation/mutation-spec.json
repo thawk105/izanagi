@@ -1,0 +1,188 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 600,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "m01-drop-equality",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "    observed = canonical_b4_proposal_sha256(document)\n    if observed != expected:\n        raise B4ProtocolError(\n            \"B-4 bootstrap proposal canonical hash differs from the publication registry\"\n        )",
+          "new": "    observed = canonical_b4_proposal_sha256(document)\n    if observed is None:\n        raise B4ProtocolError(\n            \"B-4 bootstrap proposal canonical hash differs from the publication registry\"\n        )"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_same_publication_and_attempt_reject_schema_valid_proposal_mutation[base]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_same_publication_and_attempt_reject_schema_valid_proposal_mutation[sort]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_same_publication_and_attempt_reject_schema_valid_proposal_mutation[trigger]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_mismatch_is_single_read_and_precedes_all_campaign_effects[base]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_mismatch_is_single_read_and_precedes_all_campaign_effects[sort]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_mismatch_is_single_read_and_precedes_all_campaign_effects[trigger]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m02-expected-from-observed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "    observed = canonical_b4_proposal_sha256(document)\n    if observed != expected:",
+          "new": "    observed = canonical_b4_proposal_sha256(document)\n    expected = observed\n    if observed != expected:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_same_publication_and_attempt_reject_schema_valid_proposal_mutation[base]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_same_publication_and_attempt_reject_schema_valid_proposal_mutation[sort]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_same_publication_and_attempt_reject_schema_valid_proposal_mutation[trigger]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_mismatch_is_single_read_and_precedes_all_campaign_effects[base]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_mismatch_is_single_read_and_precedes_all_campaign_effects[sort]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_mismatch_is_single_read_and_precedes_all_campaign_effects[trigger]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m03-missing-binding-fail-open",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "    if publication_root is None or publication_root == \"\":\n        raise B4ProtocolError(\"B-4 bootstrap requires a publication root\")",
+          "new": "    if publication_root is None or publication_root == \"\":\n        return"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_bootstrap_binding_missing_halves_empty_values_and_load_failure_reject"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m05-drop-driver-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "    if attempt.driver != driver_kind:\n        raise B4ProtocolError(\n            \"B-4 publication registry driver differs from the running driver\"\n        )",
+          "new": "    if attempt.driver is None:\n        raise B4ProtocolError(\n            \"B-4 publication registry driver differs from the running driver\"\n        )"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_unknown_duplicate_invalid_hash_and_driver_mismatch_reject"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m06-non-canonical-serializer",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "        canonical_bytes = attempt_registry_core.canonical_json_bytes(\n            canonical_document\n        )",
+          "new": "        canonical_bytes = json.dumps(canonical_document).encode(\"utf-8\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_canonical_identity_distinguishes_int_float_and_excludes_receipt",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_matching_bootstrap_accepts_reordered_spaced_unicode_spelling[base]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_matching_bootstrap_accepts_reordered_spaced_unicode_spelling[sort]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_matching_bootstrap_accepts_reordered_spaced_unicode_spelling[trigger]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_unknown_duplicate_invalid_hash_and_driver_mismatch_reject"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m08-first-row-instead-of-attempt-id",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "        matches = tuple(\n            attempt\n            for attempt in scheduled_attempts\n            if attempt.attempt_id == attempt_id\n        )",
+          "new": "        matches = tuple(scheduled_attempts)[:1]"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_unknown_duplicate_invalid_hash_and_driver_mismatch_reject"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m09-swallow-publication-load-failure",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "    except (TypeError, ValueError, OSError) as exc:\n        raise B4ProtocolError(\"B-4 prerun publication load failed\") from exc",
+          "new": "    except (TypeError, ValueError, OSError):\n        return"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_bootstrap_binding_missing_halves_empty_values_and_load_failure_reject",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_unknown_duplicate_invalid_hash_and_driver_mismatch_reject"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m10-sort-leg-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop_sort.py",
+          "old": "    if b4_reflux_ablation and b4_closed_critic_receipt_sha256 is None:\n        L.require_b4_proposal_registry_binding(\n            b4_prerun_publication,\n            b4_attempt_id,\n            schema_document,\n            driver_kind=\"sort\",\n        )",
+          "new": "    if b4_reflux_ablation and b4_closed_critic_receipt_sha256 is None:\n        pass"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_same_publication_and_attempt_reject_schema_valid_proposal_mutation[sort]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_matching_bootstrap_accepts_reordered_spaced_unicode_spelling[sort]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_mismatch_is_single_read_and_precedes_all_campaign_effects[sort]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_unknown_duplicate_invalid_hash_and_driver_mismatch_reject"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m11-trigger-leg-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop_trigger_gating.py",
+          "old": "    if b4_reflux_ablation and b4_closed_critic_receipt_sha256 is None:\n        L.require_b4_proposal_registry_binding(\n            b4_prerun_publication,\n            b4_attempt_id,\n            schema_document,\n            driver_kind=\"trigger\",\n        )",
+          "new": "    if b4_reflux_ablation and b4_closed_critic_receipt_sha256 is None:\n        pass"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_same_publication_and_attempt_reject_schema_valid_proposal_mutation[trigger]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_matching_bootstrap_accepts_reordered_spaced_unicode_spelling[trigger]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_mismatch_is_single_read_and_precedes_all_campaign_effects[trigger]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m12-binding-leaks-into-continuation",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "    if b4_reflux_ablation and b4_closed_critic_receipt_sha256 is None:\n        require_b4_proposal_registry_binding(",
+          "new": "    if b4_reflux_ablation:\n        require_b4_proposal_registry_binding("
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_continuation_and_non_b4_reject_bootstrap_binding_arguments[base]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
