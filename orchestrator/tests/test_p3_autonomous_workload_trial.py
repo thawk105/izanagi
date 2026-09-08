@@ -17,6 +17,7 @@ import subprocess
 import sys
 import time
 import weakref
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -46,8 +47,13 @@ from orchestrator.campaign.reflux_ir import RefluxIRError, emit_predicate
 from orchestrator.critic.digest import DiffQuarantineRejection
 from orchestrator.calibrator import runner as calibrator_runner
 from orchestrator.campaign import claude_projected_provider as P
-from orchestrator.tests.campaign_lock_test_support import build_v2_lock
+from orchestrator.tests.campaign_lock_test_support import (
+    _binding_from_recorded_head,
+    build_v2_lock,
+)
 from orchestrator.tests import reflux_origin_fixture_builder as origin_fixtures
+
+_ROLE_SINK_TRIAL_MAX_WORKERS = 4
 
 _PRE_T343_NO_BUILD_CAMPAIGN_ID = (
     "p3-t178-ycsb-a-workload-conditioned-autonomous-948f4c43"
@@ -155,7 +161,9 @@ _RELATION_GENOME = A.loop_core.Genome(
 )
 
 
-def _write_admitted_rejection_digest(cfg, layout, coder) -> str:
+def _write_admitted_rejection_digest(
+    cfg, layout, coder, *, binding=None,
+) -> str:
     """実 WAL と実 renderer で no-build reject の digest を作る。"""
     layout = A.CampaignLayout(
         str(Path(layout.root).parent / str(A.trigger.ident.campaign_id(cfg)))
@@ -163,7 +171,7 @@ def _write_admitted_rejection_digest(cfg, layout, coder) -> str:
     ir = A.parse_wire(coder.wire)
     implementation = emit_predicate(ir)
     binding_api = A.loop_core.trigger_gate_binding
-    binding = binding_api.TriggerGateBinding(
+    trigger_gate_binding = binding_api.TriggerGateBinding(
         mask=ir.mask,
         predicate_sha256=binding_api.expected_predicate_sha256(ir.mask),
         nonce=binding_api.new_nonce(),
@@ -183,7 +191,7 @@ def _write_admitted_rejection_digest(cfg, layout, coder) -> str:
     )
     variant = A.loop_core.record_diff_reject(
         layout, _RELATION_GENOME, implementation, rejection,
-        trigger_gate_binding=binding,
+        trigger_gate_binding=trigger_gate_binding,
     )
     starts = [
         record
@@ -208,7 +216,9 @@ def _write_admitted_rejection_digest(cfg, layout, coder) -> str:
         A._canonical_json_bytes(provenance) + b"\n"
     )
     A.loop_core.wal.write_lock(
-        layout, build_v2_lock(A.ident.canonical_preimage(cfg))
+        layout, build_v2_lock(
+            A.ident.canonical_preimage(cfg), binding=binding,
+        )
     )
     critic_view = A.require_admitted_campaign(
         layout.root,
@@ -1834,15 +1844,20 @@ def test_critic_relation_oracle_detects_candidate_derived_evidence_leak() -> Non
 
 
 def test_role_sink_bytes_vary_only_at_declared_declassifications(tmp_path) -> None:
-    """32 wire の実 no-build reject を同じ公開入力で比較する。"""
+    """32 wire の実 trial で wire と role sink bytes の関係を検査する。
+
+    親裁定により逐次スケジュールは被覆対象に含めない。
+    損失として、逐次時だけ wire を混ぜる欠陥は決定的には捕まらなくなる。
+    """
     # P は S の決定前に固定される descriptor/workload/generation/policy、
     # planner 入出力、coder 入力、baseline metrics、empty whiteboard だけである。
     # outcome/metrics/stop/rejection 観測は P に含めず、上の D selector で除外する。
     sink_bytes = {role: [] for role in ("planner", "coder", "auditor", "critic")}
     trusted_variants = []
     secret_records = []
+    recorded_binding = _binding_from_recorded_head()
 
-    for value in range(32):
+    def run_wire(value):
         wire = f"{value:05b}"
         providers = {
             role: _WireRecordingFixture(role, wire=wire)
@@ -1868,7 +1883,9 @@ def test_role_sink_bytes_vary_only_at_declared_declassifications(tmp_path) -> No
             cache_root="", proposal_path="", extra_sources=(),
         ):
             assert do_build is False
-            variant = _write_admitted_rejection_digest(cfg, layout, coder)
+            variant = _write_admitted_rejection_digest(
+                cfg, layout, coder, binding=recorded_binding,
+            )
             return {
                 "outcome": "rejected",
                 "variant": variant,
@@ -1895,9 +1912,10 @@ def test_role_sink_bytes_vary_only_at_declared_declassifications(tmp_path) -> No
             preview=preview,
             allow_unregistered_exploratory=True,
         )
-        for role in sink_bytes:
+        role_payloads = {}
+        for role in ("planner", "coder", "auditor", "critic"):
             assert len(providers[role].payload_bytes) == 1
-            sink_bytes[role].append(providers[role].payload_bytes[0])
+            role_payloads[role] = providers[role].payload_bytes[0]
 
         generation = report["cells"][0]["generations"][0]
         raw_variant = generation["harness"]["variant"]
@@ -1921,8 +1939,7 @@ def test_role_sink_bytes_vary_only_at_declared_declassifications(tmp_path) -> No
         assert raw_build_attempt_id.encode("ascii") not in (
             providers["critic"].payload_bytes[0]
         )
-        trusted_variants.append(raw_variant)
-        secret_records.append({
+        return wire, role_payloads, raw_variant, {
             "wire": wire,
             "canonical_predicate": predicate,
             "working_diff": working_diff,
@@ -1937,8 +1954,25 @@ def test_role_sink_bytes_vary_only_at_declared_declassifications(tmp_path) -> No
             "trigger_gate_binding_commitment": generation["harness"][
                 "trigger_gate_binding_commitment"
             ],
-        })
+        }
 
+    with ThreadPoolExecutor(
+        max_workers=_ROLE_SINK_TRIAL_MAX_WORKERS,
+    ) as executor:
+        for value, result in enumerate(executor.map(run_wire, range(32))):
+            wire, role_payloads, raw_variant, secret_record = result
+            assert wire == f"{value:05b}"
+            for role in sink_bytes:
+                sink_bytes[role].append(role_payloads[role])
+            trusted_variants.append(raw_variant)
+            secret_records.append(secret_record)
+
+    assert len(sink_bytes["planner"]) == 32
+    assert len(sink_bytes["coder"]) == 32
+    assert len(sink_bytes["auditor"]) == 32
+    assert len(sink_bytes["critic"]) == 32
+    assert len(trusted_variants) == 32
+    assert len(secret_records) == 32
     assert len(set(sink_bytes["planner"])) == 1
     assert len(set(sink_bytes["coder"])) == 1
     assert len(set(sink_bytes["auditor"])) == 32
