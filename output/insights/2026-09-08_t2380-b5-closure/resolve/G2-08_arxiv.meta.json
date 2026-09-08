@@ -1,0 +1,69 @@
+{
+  "url": "https://export.arxiv.org/api/query?id_list=1710.11258&max_results=1",
+  "method": "GET",
+  "status": 200,
+  "headers": [
+    [
+      "Connection",
+      "close"
+    ],
+    [
+      "Content-Length",
+      "2418"
+    ],
+    [
+      "x-cloud-trace-context",
+      "ed1ac1ff07c21155be10afa55781f74a"
+    ],
+    [
+      "via",
+      "1.1 google, 1.1 varnish, 1.1 varnish, 1.1 varnish"
+    ],
+    [
+      "content-type",
+      "application/atom+xml; charset=utf-8"
+    ],
+    [
+      "server",
+      "Google Frontend"
+    ],
+    [
+      "Accept-Ranges",
+      "bytes"
+    ],
+    [
+      "Age",
+      "0"
+    ],
+    [
+      "Date",
+      "Mon, 07 Sep 2026 22:52:54 GMT"
+    ],
+    [
+      "X-Served-By",
+      "cache-lga21992-LGA, cache-lga21992-LGA, cache-lga21968-LGA, cache-nrt-rjaa8190029-NRT"
+    ],
+    [
+      "X-Cache",
+      "MISS, MISS, MISS"
+    ],
+    [
+      "X-Cache-Hits",
+      "0, 0, 0"
+    ],
+    [
+      "X-Timer",
+      "S1788821574.393585,VS0,VE281"
+    ],
+    [
+      "Strict-Transport-Security",
+      "max-age=300"
+    ]
+  ],
+  "final_url": "https://export.arxiv.org/api/query?id_list=1710.11258&max_results=1",
+  "body_sha256": "14e3f87eb4601e214caca11182339be68c322d8f89578c437f0a51a33618d0a4",
+  "body_bytes": 2418,
+  "started_utc": "2026-09-07T22:52:54Z",
+  "finished_utc": "2026-09-07T22:52:54Z",
+  "error": null
+}
