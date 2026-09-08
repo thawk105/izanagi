@@ -47,6 +47,10 @@ from .pipeline import PerfConfig
 
 
 POLICY_SCHEMA = "paper-story-a2-certification-policy/v2"
+POLICY_GENERATION_CURRENT = "current"
+POLICY_GENERATION_PRE_FETCHCONTENT_PATHS = (
+    "pre-fetchcontent-path-arguments"
+)
 LEGACY_RAW_RESULT_SCHEMA = "paper-story-a2-cell-result/v2"
 RAW_RESULT_SCHEMA = "paper-story-a2-cell-result/v3"
 LEGACY_CERTIFICATION_SCHEMA = "paper-story-a2-certification-result/v3"
@@ -126,11 +130,24 @@ _WORKLOAD_KEYS = {"id", "label", "rratio", "adopted_backoff_us"}
 _CELL_KEYS = {"id", "workload", "role", "genome"}
 _GENOME_KEYS = {"BACK_OFF", "BACKOFF_FIXED"}
 _TRACE0_CMAKE_ARGV_KEYS = {"configure", "build"}
-_TRACE0_CONFIGURE_ARGV_KEYS = {
+_TRACE0_CONFIGURE_ARGV_KEYS = frozenset({
     "source_option", "build_directory_option", "fixed_arguments",
     "toolchain_arguments", "dependency_prefix_argument",
     "fetchcontent_path_argument_prefixes",
     "controlled_define_argument",
+})
+_TRACE0_CONFIGURE_ARGV_KEYS_BY_POLICY_GENERATION = {
+    POLICY_GENERATION_CURRENT: frozenset({
+        "source_option", "build_directory_option", "fixed_arguments",
+        "toolchain_arguments", "dependency_prefix_argument",
+        "fetchcontent_path_argument_prefixes",
+        "controlled_define_argument",
+    }),
+    POLICY_GENERATION_PRE_FETCHCONTENT_PATHS: frozenset({
+        "source_option", "build_directory_option", "fixed_arguments",
+        "toolchain_arguments", "dependency_prefix_argument",
+        "controlled_define_argument",
+    }),
 }
 _TRACE0_TOOLCHAIN_ARGUMENT_KEYS = {"role", "prefix"}
 _TRACE0_BUILD_ARGV_KEYS = {
@@ -374,6 +391,27 @@ def _qsub_environment_keys(policy: Policy) -> set[str]:
 
 
 def load_policy(path: Path | str = POLICY_PATH) -> Policy:
+    return _load_policy_with_configure_argv_keys(
+        path, configure_argv_keys=_TRACE0_CONFIGURE_ARGV_KEYS)
+
+
+def _load_historical_policy(
+        path: Path | str, *, generation: str) -> Policy:
+    if type(generation) is not str:
+        raise CertificationError(
+            f"unsupported policy grammar generation: {generation!r}")
+    configure_argv_keys = (
+        _TRACE0_CONFIGURE_ARGV_KEYS_BY_POLICY_GENERATION.get(generation)
+    )
+    if configure_argv_keys is None:
+        raise CertificationError(
+            f"unsupported policy grammar generation: {generation!r}")
+    return _load_policy_with_configure_argv_keys(
+        path, configure_argv_keys=configure_argv_keys)
+
+
+def _load_policy_with_configure_argv_keys(
+        path: Path | str, *, configure_argv_keys: frozenset[str]) -> Policy:
     policy_path = Path(path)
     if policy_path.is_symlink() or not policy_path.is_file():
         raise CertificationError(f"policy is not a regular file: {policy_path}")
@@ -457,7 +495,7 @@ def load_policy(path: Path | str = POLICY_PATH) -> Policy:
         "trace0_cmake_argv",
     )
     configure_argv = _exact_keys(
-        cmake_argv["configure"], _TRACE0_CONFIGURE_ARGV_KEYS,
+        cmake_argv["configure"], configure_argv_keys,
         "trace0_cmake_argv.configure",
     )
     configure_scalar_keys = {
@@ -478,22 +516,23 @@ def load_policy(path: Path | str = POLICY_PATH) -> Policy:
                        for token in fixed_arguments)
             or len(set(fixed_arguments)) != len(fixed_arguments)):
         raise CertificationError("trace0 configure fixed arguments are malformed")
-    fetchcontent_path_argument_prefixes = configure_argv[
-        "fetchcontent_path_argument_prefixes"
-    ]
-    if (type(fetchcontent_path_argument_prefixes) is not list
-            or len(fetchcontent_path_argument_prefixes) != 4
-            or not all(
-                type(prefix) is str
-                and prefix
-                and not any(character.isspace() for character in prefix)
-                and prefix.endswith("=")
-                for prefix in fetchcontent_path_argument_prefixes
+    if "fetchcontent_path_argument_prefixes" in configure_argv:
+        fetchcontent_path_argument_prefixes = configure_argv[
+            "fetchcontent_path_argument_prefixes"
+        ]
+        if (type(fetchcontent_path_argument_prefixes) is not list
+                or len(fetchcontent_path_argument_prefixes) != 4
+                or not all(
+                    type(prefix) is str
+                    and prefix
+                    and not any(character.isspace() for character in prefix)
+                    and prefix.endswith("=")
+                    for prefix in fetchcontent_path_argument_prefixes
+                )
+                or len(set(fetchcontent_path_argument_prefixes)) != 4):
+            raise CertificationError(
+                "trace0 configure FetchContent path grammar is malformed"
             )
-            or len(set(fetchcontent_path_argument_prefixes)) != 4):
-        raise CertificationError(
-            "trace0 configure FetchContent path grammar is malformed"
-        )
     toolchain_arguments = configure_argv["toolchain_arguments"]
     if type(toolchain_arguments) is not list or len(toolchain_arguments) != 2:
         raise CertificationError("trace0 configure toolchain grammar is malformed")

@@ -1,0 +1,75 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 600,
+ "timeout_seconds": 300,
+ "hang_timeout_seconds": 300,
+ "mutations": [
+  {
+   "id": "m01-fixed-digest",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/trial_registry.py",
+     "old": "            attempt_registry_path = create_attempt_registry_genesis(\n                repository_root=Path(args.repo_root),\n                manifest_path=Path(args.manifest),\n                manifest_sha256=manifest.sha256,\n",
+     "new": "            attempt_registry_path = create_attempt_registry_genesis(\n                repository_root=Path(args.repo_root),\n                manifest_path=Path(args.manifest),\n                manifest_sha256=\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_trial_registry.py::test_genesis_cli_derives_manifest_digest_and_creates_canonical_registry"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m02-constant-generation",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/trial_registry.py",
+     "old": "                prereg_generation=args.prereg_generation,\n",
+     "new": "                prereg_generation=1,\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_trial_registry.py::test_genesis_cli_derives_manifest_digest_and_creates_canonical_registry",
+    "orchestrator/tests/test_trial_registry.py::test_genesis_cli_rejects_second_creation_without_changing_bytes"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m03-optional-generation",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/trial_registry.py",
+     "old": "    genesis.add_argument(\"--prereg-generation\", required=True, type=int)\n",
+     "new": "    genesis.add_argument(\"--prereg-generation\", default=2, type=int)\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_trial_registry.py::test_genesis_cli_requires_prereg_generation"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m04-permissive-json",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/trial_registry.py",
+     "old": "            slots = _decode_json(\n                _read_regular_bytes(\n                    Path(args.slots_file),\n                    gate=\"attempt-registry-genesis\",\n                    label=\"slots file\",\n                ),\n                label=\"slots file\",\n            )\n",
+     "new": "            slots = json.loads(\n                _read_regular_bytes(\n                    Path(args.slots_file),\n                    gate=\"attempt-registry-genesis\",\n                    label=\"slots file\",\n                ).decode(\"latin-1\"),\n            )\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_trial_registry.py::test_genesis_cli_rejects_non_strict_slots_without_creating_artifact[duplicate-key]",
+    "orchestrator/tests/test_trial_registry.py::test_genesis_cli_rejects_non_strict_slots_without_creating_artifact[non-utf8]",
+    "orchestrator/tests/test_trial_registry.py::test_genesis_cli_rejects_non_strict_slots_without_creating_artifact[non-finite]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

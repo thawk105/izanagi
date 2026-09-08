@@ -6519,6 +6519,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         ),
     )
     accept.add_argument("reports", nargs="+")
+    genesis = subparsers.add_parser(
+        "genesis", help="create the formal attempt-registry genesis"
+    )
+    genesis.add_argument("--manifest", required=True)
+    genesis.add_argument("--repo-root", required=True)
+    genesis.add_argument("--freeze-id", required=True)
+    genesis.add_argument("--prereg-generation", required=True, type=int)
+    genesis.add_argument("--slots-file", required=True)
     args = parser.parse_args(argv)
     try:
         if args.command == "register":
@@ -6532,6 +6540,36 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "manifest_sha256": registration.manifest_sha256,
                 "registered_trials": len(registration.trials),
                 "commit_required": True,
+            }
+        elif args.command == "genesis":
+            manifest = load_trial_manifest(Path(args.manifest))
+            slots = _decode_json(
+                _read_regular_bytes(
+                    Path(args.slots_file),
+                    gate="attempt-registry-genesis",
+                    label="slots file",
+                ),
+                label="slots file",
+            )
+            if not isinstance(slots, list):
+                _fail(
+                    "attempt-registry-genesis",
+                    "slots file root must be an array",
+                )
+            attempt_registry_path = create_attempt_registry_genesis(
+                repository_root=Path(args.repo_root),
+                manifest_path=Path(args.manifest),
+                manifest_sha256=manifest.sha256,
+                freeze_id=args.freeze_id,
+                prereg_generation=args.prereg_generation,
+                slots=slots,
+            )
+            output = {
+                "attempt_registry_path": attempt_registry_path.relative_to(
+                    Path(args.repo_root).resolve()
+                ).as_posix(),
+                "manifest_sha256": manifest.sha256,
+                "slot_count": len(slots),
             }
         else:
             manifest = load_trial_manifest(Path(args.manifest))

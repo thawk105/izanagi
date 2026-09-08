@@ -3892,6 +3892,12 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 親が段 7 の記録を**必ず本機構自身で生成する** (dogfooding)。
   本件はその dogfooding が land 前に検出した。
 
+
+- **再発: 2026-09-08** — B-10 の report が読む campaign lock の検査 test が、`schema_version` を持たない
+  旧 v1 形式の合成 lock を正例にしていた。`decode_campaign_lock` は `schema_version` が無ければ
+  authority を一切検査しないため、この fixture は緑のまま、現物 3 本 (v2 + pre-T733 24 path) は
+  同じ経路で必ず拒否される状態が続いていた。現物 3 本を snapshot として収載し、
+  raw bytes のまま decoder へ通す正例と v1 / 現行 grammar の負例へ置き換えた。
 ### F82. 防壁の禁止集合が広すぎ、守ろうとした正規経路を 2 度禁止した [受理集合の過剰縮小]
 
 - 事象: 再開 wave の段 6 で受入全走が 2 度赤になった (44 failed → 28 failed → 0)。
@@ -13846,6 +13852,12 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (10:30 頃に除去、10:54 に再作成を実測)。
   既存記述は「14.5 時間存在し続けた」という長寿の観測だったが、短時間で復活する挙動も起きる。
   どちらの読み方も固定できないため、**長時間の受入全走はこの窓に掛かりうる**前提で扱う。
+
+- **再発: 2026-09-08** — login node の焦点走で
+  `test_b10_backoff_shape_sweep.py::test_t1905_a5_tmp_official_root_is_rejected_by_real_durable_policy`
+  が赤になった。原因は別ユーザー (`makiart`) が 2026-09-07 に作った空の `/tmp/.git` で、
+  `/tmp` 配下の一時 root が repository 内と判定されるため。同じ commit を計算ノードで走らせると
+  `190 passed` で緑になり、変更へ帰属しないことを確認した。
 ### F458. T-181/T-1434の既存test群がreal codex execの実ネットワーク経路を一度も検証していなかった [テスト代表性]
 
 - 事象: T-189 stage2-plan-replayer実装のsmoke gate (DW-G01) で、`tools/codex_reasoning_ab.py`
@@ -23567,3 +23579,50 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   一般的な hold の扱いは `docs/pegasus-runbook.md` §7.6、混雑時の上書きは D612 が正本。
 - 再発検知: 撤去直後の 1 回で受入が緑になること (本 wave で実測、21793 passed / 赤 0)。
   land 側の rc=29 と同じ対比で読める — 繰り返すなら自分の hold、単発なら競合。
+
+### F912. 旧世代の文法を現行文法との差分で定義し、次の締め付けで再汚染する設計を起草していた [ドリフト] [射程過大]
+
+- 事象: 段 2 プランは、旧 policy 文法の configure key 集合を
+  「現行集合 − `fetchcontent_path_argument_prefixes`」という差分式で定義していた。
+  この形だと、次に現行集合へ必須 key が足された時点で旧世代集合にもその key が混入し、
+  過去成果物が再び読めなくなる。**直そうとしている再発をそのまま再生産する設計**だった。
+- 根本原因: 「旧世代 = 現行世代から 1 つ引いたもの」という**現時点の値の関係**を、
+  定義そのものに使った。凍結すべきなのは値であって、現行との関係ではない。
+- 恒久対応: D1833 が両世代を独立した `frozenset` literal として
+  凍結する。加えて producer source の AST を検査するテストが、対象名への module-level 代入が
+  ちょうど 1 つであること、その値が `frozenset({文字列 literal})` の呼び出しであること、
+  subscript 代入と破壊的メソッド呼び出しが無いことを要求する。
+- 再発検知: 差分定義へ戻す変異を登録し、上記 AST テスト 1 node だけが赤になることを実測した。
+  **当初この変異は「両定義が同じ値を返すので等価」と裁定していたが、これは誤りだった。**
+  守りたい性質が構文的なら構文を検査すればよく、実装子がその一手を採ったため kill できる。
+
+### F913. 版選択を公開 loader の引数として足し、受理集合を広げる設計を起草していた [受理集合] [射程過大]
+
+- 事象: 段 2 プランは公開 `load_policy(path, *, generation=...)` を提案した。既定は現行世代なので
+  既存 caller の挙動は変わらないが、**任意の caller が旧世代を選べる**ため、
+  `fetchcontent_path_argument_prefixes` を欠いた policy 一般が受理されるようになる。
+  親自身が段 1 brief に書いた不変条件「受理集合を 1 件も増やさない」と正面衝突していた。
+- 根本原因: 「歴史成果物の bytes は consumer 側の exact hash 対で固定されている」という
+  **consumer 側の閉じ方**を、producer 側の公開 API の受理言語にも当てはまるものとして一般化した。
+  閉じているのは選択であって、文法ではない。
+- 恒久対応: D1833 が公開署名を不変にし、世代を受け取る本体を
+  private 化して、歴史読みを consumer 専用の private entry point へ隔離する。
+  これにより歴史 Policy を得られる経路が 1 本になり、producer の認証・実行経路へ流れない。
+- 再発検知: `inspect.signature` で公開 `load_policy` が path 1 引数のままであることを固定する
+  テストを置いた。未知世代・非 str 世代を fail-closed で拒否する負例も置き、
+  未知世代を現行へ fallback させる変異が 1 node で赤になることを実測した。
+
+### F914. 同じ条件を拒否する gate が 2 箇所にあり、事前登録した変異が単独では殺せなかった [変異帰属] [過剰決定]
+
+- 事象: consumer の `source_binding_status != "bound"` を拒否する gate が 2 箇所に存在し、
+  end-to-end の負例はどちらか一方を外しても残る方に拾われる。段 4 で事前登録した
+  「歴史世代のときだけ後段検査を飛ばす」変異は、単独では 1 node も赤にできず SURVIVED になる。
+  親は変異を走らせる前に、この過剰決定に気づいていなかった。
+- 根本原因: 負例を end-to-end (`load_measurements` 全体) で書いたため、
+  狙った gate より後段の同型 gate が masking していた。単一理由性を到達 gate の列挙で
+  確かめていなかった。
+- 恒久対応: 狙った gate だけが到達する単一理由の負例を足し、内部関数を直接呼ぶ形にした。
+  2 つ目の gate は**冗長 gate と明記して単独変異の証拠から外した** (DW-M03)。
+  end-to-end の負例は正当な検査として残した。
+- 再発検知: 変異本走で、当該変異が新設した単一理由テスト 1 node だけを殺し、
+  end-to-end 版は緑のままであることを実測した。冗長性が実測で裏付けられている。
