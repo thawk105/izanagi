@@ -13,6 +13,7 @@ from typing import Any, Mapping, Sequence
 
 RECEIPT_PAYLOAD_KEY = "commit_verification_receipt"
 RECEIPT_SCHEMA = "campaign-commit-verification-receipt/v1"
+REMOTE_VERIFICATION_RECEIPT_SCHEMA = "remote-verification-receipt/v1"
 CAMPAIGN_WAL_SINK = "campaign-wal"
 QUALIFICATION_SINK = "qualification-evaluation"
 _SINK_KINDS = frozenset({CAMPAIGN_WAL_SINK, QUALIFICATION_SINK})
@@ -179,10 +180,187 @@ def _bind_replay_verification_evidence():
 del _bind_replay_verification_evidence
 
 
+def _bind_remote_verification_evidence():
+    issuer_token = object()
+    issued: dict[object, tuple[object, ...]] = {}
+    consumed: set[object] = set()
+
+    class _RemoteVerificationEvidence:
+        """Main-process capability admitted from one task-bound worker receipt."""
+
+        __slots__ = ("_nonce", "_sealed")
+
+        def __init__(self, projection: tuple[object, ...], *, _token=None) -> None:
+            if _token is not issuer_token:
+                raise TypeError("RemoteVerificationEvidence is admission-issued")
+            nonce = object()
+            issued[nonce] = (*projection, os.getpid())
+            object.__setattr__(self, "_nonce", nonce)
+            object.__setattr__(self, "_sealed", True)
+
+        def __setattr__(self, name, value) -> None:
+            if getattr(self, "_sealed", False):
+                raise AttributeError("RemoteVerificationEvidence is immutable")
+            object.__setattr__(self, name, value)
+
+        def _assert_matches(
+                self, *, sink_kind: str, lock_identity_sha256: str,
+                variant: str, operation_identity: str, workload_tag: str,
+        ) -> None:
+            try:
+                authority = issued.get(self._nonce)
+            except (AttributeError, TypeError):
+                authority = None
+            if authority is None or type(self) is not _RemoteVerificationEvidence:
+                raise CommitReceiptError("remote verification evidence has no authority")
+            (
+                _task_sha256, verdict, certified, _result_sha256,
+                bound_sink, bound_lock, bound_variant, bound_operation,
+                bound_tag, issuer_pid,
+            ) = authority
+            if (issuer_pid != os.getpid()
+                    or verdict != "serializable" or certified is not True):
+                raise CommitReceiptError(
+                    "remote verification evidence is not certified in this process"
+                )
+            if self._nonce in consumed:
+                raise CommitReceiptError(
+                    "remote verification evidence was already consumed"
+                )
+            if (bound_sink != sink_kind
+                    or bound_lock != lock_identity_sha256
+                    or bound_variant != variant
+                    or bound_operation != operation_identity
+                    or bound_tag != workload_tag):
+                raise CommitReceiptError(
+                    "remote verification evidence is bound to a different operation"
+                )
+
+        def _receipt_evidence(self) -> tuple[str, bool, str]:
+            try:
+                authority = issued[self._nonce]
+            except (AttributeError, KeyError, TypeError) as exc:
+                raise CommitReceiptError(
+                    "remote verification evidence has no authority"
+                ) from exc
+            return authority[1], authority[2], authority[3]
+
+        def _remote_task_sha256(self) -> str:
+            try:
+                return str(issued[self._nonce][0])
+            except (AttributeError, KeyError, TypeError) as exc:
+                raise CommitReceiptError(
+                    "remote verification evidence has no authority"
+                ) from exc
+
+        def _consume(self) -> None:
+            try:
+                valid = self._nonce in issued and self._nonce not in consumed
+            except (AttributeError, TypeError):
+                valid = False
+            if not valid:
+                raise CommitReceiptError(
+                    "remote verification evidence was already consumed"
+                )
+            consumed.add(self._nonce)
+
+    def issue(projection: tuple[object, ...]):
+        return _RemoteVerificationEvidence(projection, _token=issuer_token)
+
+    return _RemoteVerificationEvidence, issue
+
+
+(
+    RemoteVerificationEvidence,
+    _issue_remote_verification_evidence,
+) = _bind_remote_verification_evidence()
+del _bind_remote_verification_evidence
+
+
 def _validate_hex(value: object, label: str) -> str:
     if type(value) is not str or _HEX64.fullmatch(value) is None:
         raise CommitReceiptError(f"{label} must be lowercase sha256")
     return value
+
+
+def serialize_remote_verification_receipt(
+        capability: object, *, task_sha256: str,
+) -> dict[str, Any]:
+    """Consume one live worker capability into a task-bound wire receipt."""
+    from .core import VerificationCapability
+
+    _validate_hex(task_sha256, "task sha256")
+    if type(capability) is not VerificationCapability:
+        raise CommitReceiptError("exact VerificationCapability is required")
+    capability._assert_matches(
+        sink_kind=capability._sink_kind,
+        lock_identity_sha256=capability._lock_identity_sha256,
+        variant=capability._variant,
+        operation_identity=capability._operation_identity,
+        workload_tag=capability._workload_tag,
+    )
+    verdict, certified, result_sha256 = capability._receipt_evidence()
+    core = {
+        "schema": REMOTE_VERIFICATION_RECEIPT_SCHEMA,
+        "task_sha256": task_sha256,
+        "verdict": verdict,
+        "certified": certified,
+        "verifier_result_sha256": result_sha256,
+        "sink_kind": capability._sink_kind,
+        "lock_identity_sha256": capability._lock_identity_sha256,
+        "variant": capability._variant,
+        "operation_identity": capability._operation_identity,
+        "workload_tag": capability._workload_tag,
+    }
+    receipt = {
+        **core,
+        "receipt_sha256": _domain_digest(
+            b"izanagi-remote-verification-receipt-v1", core,
+        ),
+    }
+    capability._consume()
+    return json.loads(_canonical_bytes(receipt))
+
+
+def admit_remote_verification_receipt(
+        payload: object, *, expected_task_sha256: str,
+        lock_identity_sha256: str, variant: str,
+        operation_identity: str, workload_tag: str,
+) -> RemoteVerificationEvidence:
+    """Admit an exact worker receipt into one main-PID, one-shot capability."""
+    required = {
+        "schema", "task_sha256", "verdict", "certified",
+        "verifier_result_sha256", "sink_kind", "lock_identity_sha256",
+        "variant", "operation_identity", "workload_tag", "receipt_sha256",
+    }
+    if type(payload) is not dict or set(payload) != required:
+        raise CommitReceiptError("remote verification receipt key set mismatch")
+    _validate_hex(expected_task_sha256, "expected task sha256")
+    _validate_hex(payload["task_sha256"], "remote task sha256")
+    _validate_hex(payload["verifier_result_sha256"], "verifier result digest")
+    _validate_hex(payload["lock_identity_sha256"], "lock identity")
+    core = dict(payload)
+    receipt_sha256 = core.pop("receipt_sha256")
+    expected_receipt_sha256 = _domain_digest(
+        b"izanagi-remote-verification-receipt-v1", core,
+    )
+    if (payload["schema"] != REMOTE_VERIFICATION_RECEIPT_SCHEMA
+            or payload["task_sha256"] != expected_task_sha256
+            or payload["verdict"] != "serializable"
+            or payload["certified"] is not True
+            or payload["sink_kind"] not in _SINK_KINDS
+            or payload["lock_identity_sha256"] != lock_identity_sha256
+            or payload["variant"] != variant
+            or payload["operation_identity"] != operation_identity
+            or payload["workload_tag"] != workload_tag
+            or receipt_sha256 != expected_receipt_sha256):
+        raise CommitReceiptError("remote verification receipt binding mismatch")
+    return _issue_remote_verification_evidence((
+        payload["task_sha256"], payload["verdict"], payload["certified"],
+        payload["verifier_result_sha256"], payload["sink_kind"],
+        payload["lock_identity_sha256"], payload["variant"],
+        payload["operation_identity"], payload["workload_tag"],
+    ))
 
 
 def _receipt_core(record: Mapping[str, Any]) -> dict[str, Any]:
@@ -309,11 +487,20 @@ def issue_commit_receipt(
     if len({id(capability) for capability in capabilities}) != len(capabilities):
         raise CommitReceiptError("verification capability sequence contains duplicates")
     evidence = []
+    remote_task_sha256s: set[str] = set()
     for capability, tag in zip(capabilities, workload_tags):
-        if type(capability) is not VerificationCapability:
+        if type(capability) not in {
+                VerificationCapability, RemoteVerificationEvidence}:
             raise CommitReceiptError("serialized verifier evidence is not a capability")
         if type(tag) is not str or not tag:
             raise CommitReceiptError("workload tag must be non-empty str")
+        if type(capability) is RemoteVerificationEvidence:
+            remote_task_sha256 = capability._remote_task_sha256()
+            if remote_task_sha256 in remote_task_sha256s:
+                raise CommitReceiptError(
+                    "verification capability sequence contains duplicate remote tasks"
+                )
+            remote_task_sha256s.add(remote_task_sha256)
         capability._assert_matches(
             sink_kind=sink_kind,
             lock_identity_sha256=lock_identity_sha256,
