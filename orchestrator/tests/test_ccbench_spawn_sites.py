@@ -898,7 +898,7 @@ _DEFERRED_GATE_MEMBERS = (
         "active wave owns the build_fn injection seam",
         "injected-build_fn",
         "<module>.build_cells.invoke_build",
-        4715,
+        4707,
     ),
     _DeferredGateMember(
         "orchestrator/campaign/s8b_floor_campaign.py",
@@ -906,7 +906,7 @@ _DEFERRED_GATE_MEMBERS = (
         "稼働 wave t2027 の所有面。動的 protocol 経由の campaign sink",
         "campaign",
         "<module>.main",
-        8642,
+        8636,
     ),
     _DeferredGateMember(
         "orchestrator/campaign/s8b_oracle_n_pilot.py",
@@ -2673,11 +2673,11 @@ def test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink():
         (
             "orchestrator/campaign/s8b_floor_campaign.py",
             "wave t2027", "injected-build_fn",
-            "<module>.build_cells.invoke_build", 4715,
+            "<module>.build_cells.invoke_build", 4707,
         ),
         (
             "orchestrator/campaign/s8b_floor_campaign.py",
-            "wave t2027", "campaign", "<module>.main", 8642,
+            "wave t2027", "campaign", "<module>.main", 8636,
         ),
         (
             "orchestrator/campaign/s8b_oracle_n_pilot.py",
