@@ -1,0 +1,8 @@
+HTTP/2 200 
+cache-control: no-store
+content-type: text/html; charset=utf-8
+refresh: 2; url=/.within.website/x/cmd/anubis/api/pass-challenge?challenge=53a76baf25df9b9890e3c0a8838dd5845502174d70b2eac680b859525691137023c42f17c21955b97419374a99016fbaeacf87b49b14f4b54d18bb3b7b8e8773&id=01a07de9-0896-7e32-b850-a69d272aee52&redir=%2Fsearch%2Fpubl%2Fapi%3Fq%3D10.14778%252F3424573.3424575%26format%3Djson%26h%3D5
+set-cookie: dblp_org-auth=; Path=/; Domain=dblp.org; Expires=Mon, 07 Sep 2026 22:05:59 GMT; Max-Age=0; Secure; SameSite=None
+set-cookie: dblp_org-cookie-verification=01a07de9-0896-7e32-b850-a69d272aee52; Path=/; Domain=dblp.org; Expires=Mon, 07 Sep 2026 22:36:59 GMT; Secure; SameSite=None
+date: Mon, 07 Sep 2026 22:06:59 GMT
+
