@@ -1,0 +1,65 @@
+{
+  "url": "https://api.crossref.org/works/10.1145%2F1073814.1073861",
+  "method": "GET",
+  "status": 200,
+  "headers": [
+    [
+      "Date",
+      "Mon, 07 Sep 2026 22:57:20 GMT"
+    ],
+    [
+      "Content-Type",
+      "application/json"
+    ],
+    [
+      "Transfer-Encoding",
+      "chunked"
+    ],
+    [
+      "Connection",
+      "close"
+    ],
+    [
+      "access-control-expose-headers",
+      "Link"
+    ],
+    [
+      "access-control-allow-headers",
+      "X-Requested-With, Accept, Accept-Encoding, Accept-Charset, Accept-Language, Accept-Ranges, Cache-Control"
+    ],
+    [
+      "access-control-allow-origin",
+      "*"
+    ],
+    [
+      "server",
+      "Jetty(9.4.40.v20210413)"
+    ],
+    [
+      "x-rate-limit-limit",
+      "10"
+    ],
+    [
+      "x-rate-limit-interval",
+      "1s"
+    ],
+    [
+      "x-concurrency-limit",
+      "3"
+    ],
+    [
+      "x-api-pool",
+      "polite-single"
+    ],
+    [
+      "permissions-policy",
+      "interest-cohort=()"
+    ]
+  ],
+  "final_url": "https://api.crossref.org/works/10.1145%2F1073814.1073861",
+  "body_sha256": "d06b46f4a1c8f83afe44096deb6b3c64beb0b380f28927d985bed5a4f6c7a7e2",
+  "body_bytes": 5545,
+  "started_utc": "2026-09-07T22:57:19Z",
+  "finished_utc": "2026-09-07T22:57:20Z",
+  "error": null
+}
