@@ -1,0 +1,148 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 120,
+ "timeout_seconds": 5400,
+ "hang_timeout_seconds": 3000,
+ "mutations": [
+  {
+   "id": "M1",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "tools/plotting/plot_a2_certification.py",
+     "old": "        historical_generation = HISTORICAL_CURRENT_POLICY_VIEWS.get(\n            (certification_sha256, raw_sha256))\n",
+     "new": "        historical_generation = next((\n            value\n            for (_cert_sha, policy_sha), value\n            in HISTORICAL_CURRENT_POLICY_VIEWS.items()\n            if policy_sha == raw_sha256\n        ), None)\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M2",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "tools/plotting/plot_a2_certification.py",
+     "old": "        historical_generation = HISTORICAL_CURRENT_POLICY_VIEWS.get(\n            (certification_sha256, raw_sha256))\n",
+     "new": "        historical_generation = next((\n            value\n            for (cert_sha, _policy_sha), value\n            in HISTORICAL_CURRENT_POLICY_VIEWS.items()\n            if cert_sha == certification_sha256\n        ), None)\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M3a",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "tools/plotting/plot_a2_certification.py",
+     "old": "            policy = _producer_policy_from_bytes(\n                producer, raw, generation=historical_generation)\n",
+     "new": "            policy = _producer_policy_from_bytes(producer, raw)\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M3b",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "tools/plotting/plot_a2_certification.py",
+     "old": "        return producer._load_historical_policy(\n            path, generation=generation)\n",
+     "new": "        return producer.load_policy(path)\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M4",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/paper_story_a2_certification.py",
+     "old": "    POLICY_GENERATION_PRE_FETCHCONTENT_PATHS: frozenset({\n        \"source_option\", \"build_directory_option\", \"fixed_arguments\",\n        \"toolchain_arguments\", \"dependency_prefix_argument\",\n        \"controlled_define_argument\",\n    }),\n",
+     "new": "    POLICY_GENERATION_PRE_FETCHCONTENT_PATHS: frozenset({\n        \"source_option\", \"build_directory_option\", \"fixed_arguments\",\n        \"toolchain_arguments\", \"dependency_prefix_argument\",\n        \"fetchcontent_path_argument_prefixes\",\n        \"controlled_define_argument\",\n    }),\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M5",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/paper_story_a2_certification.py",
+     "old": "    if configure_argv_keys is None:\n        raise CertificationError(\n            f\"unsupported policy grammar generation: {generation!r}\")\n",
+     "new": "    if configure_argv_keys is None:\n        configure_argv_keys = _TRACE0_CONFIGURE_ARGV_KEYS\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M6",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/paper_story_a2_certification.py",
+     "old": "    if tracked.is_absolute() or \"..\" in tracked.parts:\n",
+     "new": "    if False:\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M7",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "tools/plotting/plot_a2_certification.py",
+     "old": "    if any(cell.get(\"source_binding_status\") != \"bound\" for cell in certification[\"cells\"]):\n        _fail(\"current certification source_binding_status is not bound\")\n    return policy, producer\n",
+     "new": "    return policy, producer\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M8",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/paper_story_a2_certification.py",
+     "old": "    POLICY_GENERATION_PRE_FETCHCONTENT_PATHS: frozenset({\n        \"source_option\", \"build_directory_option\", \"fixed_arguments\",\n        \"toolchain_arguments\", \"dependency_prefix_argument\",\n        \"controlled_define_argument\",\n    }),\n",
+     "new": "    POLICY_GENERATION_PRE_FETCHCONTENT_PATHS: frozenset({\n        \"source_option\", \"build_directory_option\", \"fixed_arguments\",\n        \"dependency_prefix_argument\",\n        \"controlled_define_argument\",\n    }),\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M9",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/paper_story_a2_certification.py",
+     "old": "    POLICY_GENERATION_PRE_FETCHCONTENT_PATHS: frozenset({\n        \"source_option\", \"build_directory_option\", \"fixed_arguments\",\n        \"toolchain_arguments\", \"dependency_prefix_argument\",\n        \"controlled_define_argument\",\n    }),\n",
+     "new": "    POLICY_GENERATION_PRE_FETCHCONTENT_PATHS: (\n        _TRACE0_CONFIGURE_ARGV_KEYS\n        - frozenset({\"fetchcontent_path_argument_prefixes\"})\n    ),\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}
