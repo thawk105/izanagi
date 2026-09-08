@@ -20,6 +20,16 @@ for name in "${required_env[@]}"; do
   fi
 done
 
+if [[ ! "$PBS_JOBID" =~ ^([0-9]+):(.+)$ ]]; then
+  echo "PBS_JOBID is not a numbered request ID" >&2
+  exit 2
+fi
+pbs_job_number=${BASH_REMATCH[1]}
+if [[ "$pbs_job_number" != 0 ]]; then
+  echo "nonzero PBS job number exits without running compute body" >&2
+  exit 0
+fi
+
 host=$(hostname 2>/dev/null || true)
 if [[ ! "$host" =~ ^bnode[0-9]+([.].*)?$ ]]; then
   echo "paper-story A-2 job body is compute-only" >&2
