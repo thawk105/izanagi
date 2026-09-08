@@ -85,6 +85,15 @@ title: [T-1998] balanced stock-inline 対照の最小 3 部品を実装した �
   `.gitignore` / `info/exclude` へ足す案は F599 により採れない
   (共有木観測が `?? .codex/worktrees/` の bytes を見ている)。これは repo の F599 本文で裏取りした。
 
+- **受入全走 (21,836 件) の赤は 2 件で、どちらも本 wave に帰属した。** 段 6 の fix で足した
+  `_build_dir_from_build` は記録済みの build argv を読むだけで build を起動しないが、
+  repo 全体の AST 閉包はこの形を「直接 cmake build を起動する site」として拾い、
+  materializer 登録簿への明示分類を要求する。**実装を書き換えて検出を避ける直し方は採らず、
+  非受理 (non-admissible) として登録して閉じた。** 実装を変えると
+  「configure の `-B` と `perf_build_cmd` の `--build` の directory を一致させる」検査を弱めるためである。
+  `ADMITTED_MANUAL_BUILD_FILES` へは足していない。**この閉包は段 6 のレビュー B の棚卸しが
+  取り逃していた面である** (official perf 登録簿は拾えていた)。
+
 ## 次の一手差分
 
 ### 更新
