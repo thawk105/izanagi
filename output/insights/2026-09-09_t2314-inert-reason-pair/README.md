@@ -46,16 +46,26 @@ meaning arm の `unestablished` / `meaning-witness-undeclared`。既存テスト
 - **B-03 (採用):** 交叉の負例は、gate 層を局所 seam で中和するだけでは足りない。
   交叉 family から作り直した受領証を渡さないと、`receipt_summary` の一致検査の手前で
   恒真に拒否され、probe の述語に到達しない。
-- **B-01 (段 4 で採用 → 段 7 で erratum・不採用へ訂正):** 受入所要台帳への新規 nodeid 追加。
-  相談の理由づけ「`nodeid_count` が合わないと受入が赤」は誤りで、実際の関門は
-  `test_g5_real_ledger_covers_at_least_90_percent_of_real_collection` の **90% 被覆**である
-  (gate 側の root-location-only test は今も台帳に無い)。親は段 4 でこれを「重大度を下げて採用」と
-  裁定したが、**段 7 で `D1152` を引き当てて不採用へ訂正した** — D1152 は受入所要台帳の定期更新の
-  担い手を **land 側**に置いている。wave 側で足すのは担い手の取り決めに反し、受入をもう 1 巡
-  させる費用も伴う。本 wave は台帳を触らない。追加後の被覆は 20042/20047 = 99.98% で閾値を割らない。
+- **B-01 (採用。段 7 で一度不採用へ倒し、受入の赤で採用へ戻した):** 受入所要台帳への新規
+  nodeid 追加。経緯を全部書く。
+  1. 段 4: 親は採用したが、相談の理由づけ「`nodeid_count` が合わないと受入が赤」を実測で否定し、
+     実際の関門は `test_g5_real_ledger_covers_at_least_90_percent_of_real_collection` の
+     **90% 被覆**だと訂正した (gate 側の root-location-only test は当時台帳に無かった)。
+  2. 段 7: 親が `D1152` (定期更新の担い手は land 側) を引き当て、**不採用へ倒した**。
+     このとき「追加後の被覆は 20042/20047 = 99.98%」と書いたが、**これは誤った計算**である。
+     被覆の分母は台帳の entry 数ではなく **collection の node 数**であり、正しくは
+     19935/22152 だった。
+  3. 受入全走: `test_g5_...` が **89.991874% (19935/22152)** で赤。5 件を除くと
+     90.0122% (19935/22147) なので、**この赤は本 wave に帰属する**。段 7 の判断が誤りだった。
+  4. 是正: 本 wave の受入 JUnit を正本 producer
+     (`tools/update_acceptance_duration_ledger.py --add-only`) へ通して台帳を更新した
+     (commit `d44bc8a01`)。`nodeid_count` 20042 → 22118 (追加 2076、削除 0)、既存 entry の値と
+     bytes は不変 (親が独立照合)、追加値はすべて本走の実測で 0.0 の placeholder は 0 件。
+     更新後の被覆は 22011/22152 = 99.363489%。道具に部分集合 mode は無く `--add-only` が唯一の
+     追加経路であり、D1152 の言う land 側の実装は land tool に存在しない。
   段 4 の裁定文 (`verbatim/s4-ruling.md`) は当時の判断としてそのまま残し、ここで追記訂正する。
 
-  land 側が拾うべき新規 nodeid は次の 5 件である。
+  台帳へ入った本 wave の新規 nodeid は次の 5 件である。
 
   - `orchestrator/tests/test_t316_sandbox_probe.py::test_s6_accepts_each_exact_inert_condition_gate_pair[identity]`
   - `orchestrator/tests/test_t316_sandbox_probe.py::test_s6_accepts_each_exact_inert_condition_gate_pair[root-location-only]`
