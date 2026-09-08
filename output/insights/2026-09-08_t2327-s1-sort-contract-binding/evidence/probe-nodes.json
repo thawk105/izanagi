@@ -1,0 +1,138 @@
+{
+  "source": "probe-ledger.json (全件 SURVIVED 登録で観測 node を集める probe 走)",
+  "repo_head": "84ba5850cbe05442a6be1099187783b561211bd2",
+  "spec_sha256": "27870174462683f2a33855576decb16a848dcb9a70aba830a69905c6f826fb58",
+  "baseline_status": "PASSED",
+  "summary": {
+    "KILLED": 0,
+    "MISMATCH": 11,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 12,
+    "matching": 1,
+    "recorded": 12,
+    "registered": 12
+  },
+  "mutations": [
+    {
+      "id": "M01-s1-prepare-binding-dropped",
+      "status": "MISMATCH",
+      "rc": 1,
+      "failed_nodes": [
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_sort_best_binds_attested_oracle_contract_into_src_token",
+        "orchestrator/tests/test_sort_swo_oracle.py::test_s1_sort_best_runs_same_oracle_before_source_materializer"
+      ]
+    },
+    {
+      "id": "M02-s1-prepare-wrong-contract",
+      "status": "MISMATCH",
+      "rc": 1,
+      "failed_nodes": [
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_sort_best_binds_attested_oracle_contract_into_src_token",
+        "orchestrator/tests/test_sort_swo_oracle.py::test_s1_sort_best_runs_same_oracle_before_source_materializer"
+      ]
+    },
+    {
+      "id": "M03-s1-prepared-cell-field-none",
+      "status": "MISMATCH",
+      "rc": 1,
+      "failed_nodes": [
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_sort_best_binds_attested_oracle_contract_into_src_token"
+      ]
+    },
+    {
+      "id": "M04-s1-run-role-forward-dropped",
+      "status": "MISMATCH",
+      "rc": 1,
+      "failed_nodes": [
+        "orchestrator/tests/test_s1_direct_comparison.py::test_run_role_forwards_sort_contract_only_when_prepared_cell_has_one"
+      ]
+    },
+    {
+      "id": "M05-s1-run-role-forward-always",
+      "status": "MISMATCH",
+      "rc": 1,
+      "failed_nodes": [
+        "orchestrator/tests/test_s1_direct_comparison.py::test_run_role_available_perf_keeps_evaluate_call_shape_exact",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_run_role_forwards_sort_contract_only_when_prepared_cell_has_one"
+      ]
+    },
+    {
+      "id": "M06-s1-non-sort-uses-resolve-evidence",
+      "status": "MISMATCH",
+      "rc": 1,
+      "failed_nodes": [
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_backoff_fixed_best_preserves_evolve_block",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_cell_passes_site_cxx_to_source_digest",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_flags_only_configurations_do_not_patch_or_quarantine[p2_2_flag_opt]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_flags_only_configurations_do_not_patch_or_quarantine[stock_common]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_non_sort_cells_keep_unbound_resolve_path[backoff-fixed-best]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_non_sort_cells_keep_unbound_resolve_path[stock-common]"
+      ]
+    },
+    {
+      "id": "M07-s8b-driver-prepared-for-eval-drops-contract",
+      "status": "MISMATCH",
+      "rc": 1,
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_success_wal_order_budget_and_evaluate_contract"
+      ]
+    },
+    {
+      "id": "M08-s8b-driver-forward-always",
+      "status": "MISMATCH",
+      "rc": 1,
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_success_wal_order_budget_and_evaluate_contract"
+      ]
+    },
+    {
+      "id": "M09-s8b-floor-evidence-contract-dropped",
+      "status": "MISMATCH",
+      "rc": 1,
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_build_cells_resolves_site_compilers_and_binding_once_before_cell_loop"
+      ]
+    },
+    {
+      "id": "M10-s8b-floor-build-contract-dropped",
+      "status": "MISMATCH",
+      "rc": 1,
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_build_cells_resolves_site_compilers_and_binding_once_before_cell_loop"
+      ]
+    },
+    {
+      "id": "M11-s8b-floor-build-contract-always",
+      "status": "MISMATCH",
+      "rc": 1,
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_build_cells_resolves_site_compilers_and_binding_once_before_cell_loop",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_oracle_driver_accepts_conditional_sort_receipt_and_rejects_its_absence",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_transient_prepare_failure_retries_once",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_binary_mismatch_abort_maps_to_binary_mismatch_outcome",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_completed_driver_adapter_campaign_is_accepted_by_report",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_contract_sha256_mismatch_is_refused",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_floor_disk_swap_after_launch_uses_same_validated_object",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_foreign_cell_admission_receipt_is_refused_before_store_read",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_freeze_bytes_not_active_generation_is_refused",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_gate_happy_path_completes_and_binds_env_store_receipt",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_launch_validate_failure_is_refused",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_launch_validate_non_ratified_error_is_refused",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_post_run_store_change_is_reported_and_refused[removed]",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_post_run_store_change_is_reported_and_refused[replaced]",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_standalone_gate_check_requires_full_floor_validation",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_store_bytes_are_checked_against_admission_subject_independently",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_store_hash_mismatch_is_refused",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_store_missing_is_refused"
+      ]
+    },
+    {
+      "id": "M12-s1-equivalent-rewrite",
+      "status": "SURVIVED",
+      "rc": 0,
+      "failed_nodes": []
+    }
+  ]
+}
