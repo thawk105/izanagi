@@ -75,7 +75,6 @@ _EXPECTED_E1_CLOSURE_PATHS = (
     "orchestrator/campaign/execution_guard.py",
     "orchestrator/campaign/loop.py",
     "orchestrator/campaign/pipeline.py",
-    "orchestrator/campaign/verify_fanout_worker.py",
     "orchestrator/campaign/wal.py",
     "orchestrator/campaign/ident.py",
     "orchestrator/campaign/artifact_admission.py",
@@ -133,12 +132,13 @@ _EXPECTED_E1_CLOSURE_PATHS = (
     "orchestrator/qualification/qsub_binding.py",
     "orchestrator/qualification/retry_index.py",
     "orchestrator/qualification/series.py",
+    "orchestrator/campaign/verify_fanout_worker.py",
 )
 _FIXED_SYNTHETIC_E1_EPOCH = (
-    "E1:81cefe884ef4d0efe7d5d771f2d0401c23198e40ebff18392c35fa572c103ae6"
+    "E1:73f334f62ec13c394aae3d4787b80117562187984b6e0e372f2c0f7058b8ced2"
 )
 _FIXED_ORDERED_CLOSURE_PATHS_SHA256 = (
-    "4cfdf2f61d89cc1b729f8ca279f8bd2e554d0f7c1e10c070627df56d6becebc7"
+    "2247e5312a327caca9d0d4be081457eaf196513764010f64ccad1561409399ec"
 )
 _GIT_ENV_ALLOWLIST = (
     "LANG",

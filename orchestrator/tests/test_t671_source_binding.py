@@ -99,6 +99,7 @@ _T733_ENFORCEMENT_SOURCE_PATH_SUFFIX = (
     "orchestrator/qualification/qsub_binding.py",
     "orchestrator/qualification/retry_index.py",
     "orchestrator/qualification/series.py",
+    "orchestrator/campaign/verify_fanout_worker.py",
 )
 _EXPECTED_ENFORCEMENT_SOURCE_PATHS = (
     *_PRE_T733_ENFORCEMENT_SOURCE_PATHS,
@@ -240,8 +241,8 @@ def test_enforcement_source_closure_is_the_independent_exact_twenty_four_paths()
         _EXPECTED_ENFORCEMENT_SOURCE_PATHS
     )
     assert len(_PRE_T733_ENFORCEMENT_SOURCE_PATHS) == 24
-    assert len(_T733_ENFORCEMENT_SOURCE_PATH_SUFFIX) == 38
-    assert len(_EXPECTED_ENFORCEMENT_SOURCE_PATHS) == 62
+    assert len(_T733_ENFORCEMENT_SOURCE_PATH_SUFFIX) == 39
+    assert len(_EXPECTED_ENFORCEMENT_SOURCE_PATHS) == 63
     assert (
         contract_loader_binding.CONTRACT_LOADER_RELATIVE_PATHS
         is campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS

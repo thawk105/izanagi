@@ -52,7 +52,6 @@ CONTRACT_LOADER_RELATIVE_PATHS = (
     "orchestrator/campaign/execution_guard.py",
     "orchestrator/campaign/loop.py",
     "orchestrator/campaign/pipeline.py",
-    "orchestrator/campaign/verify_fanout_worker.py",
     "orchestrator/campaign/wal.py",
     "orchestrator/campaign/ident.py",
     "orchestrator/campaign/artifact_admission.py",
@@ -110,6 +109,7 @@ CONTRACT_LOADER_RELATIVE_PATHS = (
     "orchestrator/qualification/qsub_binding.py",
     "orchestrator/qualification/retry_index.py",
     "orchestrator/qualification/series.py",
+    "orchestrator/campaign/verify_fanout_worker.py",
 )
 
 # T-733 より前に実在した v2 lock の歴史閲覧 grammar。現行 closure の
