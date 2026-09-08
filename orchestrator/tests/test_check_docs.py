@@ -903,6 +903,13 @@ argument-hint: [synthetic]
 $ARGUMENTS
 docs/skill-self-improvement.md
 """
+    next_tasks = """---
+description: synthetic next-tasks
+argument-hint: [synthetic]
+---
+
+docs/skill-self-improvement.md
+"""
     _write(root, ".claude/commands/dev-wave.md", dev_wave)
     _write(root, "tools/dev_wave_land.py", "# synthetic land helper\n")
     _write(root, "tools/dev_wave_cleanup.py", "# synthetic cleanup helper\n")
@@ -915,6 +922,7 @@ docs/skill-self-improvement.md
     _write(root, "tools/dev_wave_submodule_init.py", "# synthetic submodule initializer\n")
     _write(root, ".claude/commands/cleanup-branches.md", cleanup)
     _write(root, ".claude/commands/rulings.md", rulings)
+    _write(root, ".claude/commands/next-tasks.md", next_tasks)
     codex_skill = f"""---
 name: dev-wave
 description: {_SYNTHETIC_DEV_WAVE_DESCRIPTION}
@@ -2516,6 +2524,23 @@ def test_dev_wave_command_budget_literal_is_exact():
         result = _run_check(root)
         assert result.returncode == 1, result.stdout
         assert f"{rel}: 9521 bytes > 予算 9520 bytes" in result.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_next_tasks_command_budget_literal_is_exact():
+    """next-tasks の入口上限・現物・plus-one 拒否を独立 literal で固定する。"""
+
+    rel = ".claude/commands/next-tasks.md"
+    assert check_docs.COMMAND_LIMITS[rel] == check_docs.TextLimit(27_100, 100)
+    assert len(_read(_REPO, rel).encode("utf-8")) == 27_054
+
+    root = _build_min_repo()
+    try:
+        _pad_to_bytes(root, rel, 27_101)
+        result = _run_check(root)
+        assert result.returncode == 1, result.stdout
+        assert f"{rel}: 27101 bytes > 予算 27100 bytes" in result.stdout
     finally:
         shutil.rmtree(root, ignore_errors=True)
 
