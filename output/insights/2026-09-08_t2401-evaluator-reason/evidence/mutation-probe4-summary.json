@@ -1,0 +1,293 @@
+{
+ "note": "probe (全件 SURVIVED 登録) の要約。観測された失敗 node の完全集合は 同 wave の mutation-spec.json の expected_nodes として残っている。",
+ "schema": "izanagi-dev-wave-mutation/v4",
+ "date": "2026-09-08T14:03:38.534376+00:00",
+ "repo_head": "9989d360501e951c8cd4d187f84183e40eb9f8a4",
+ "spec_sha256": "26330051f02e6d991d8676eb1f250757178478f03f5e7dfcb070434400799472",
+ "runner_sha256": "5c1dcdab85883cade771869d05e1640cb171d417cfe84ac7c5f68d2ec61caf57",
+ "tool_sha256": "0bbd55a91d986d1a85a5ee486d5b6c6ec9e164707a57bdff23af0c13d1f15c87",
+ "runner_identity": {
+  "command": [
+   "python3",
+   "tools/run_tests.py",
+   "orchestrator/tests/test_s8c_preregistration_core.py",
+   "orchestrator/tests/test_s8c_cli_entrypoints.py",
+   "-rf",
+   "--force-dispatch",
+   "-p",
+   "no:cacheprovider"
+  ],
+  "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2401-evaluator-reason/tools/pegasus/dispatch_compute.py",
+  "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+  "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+  "entrypoint_kind": "izanagi-run-tests",
+  "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2401-evaluator-reason/tools/run_tests.py",
+  "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+  "executable_path": "/usr/bin/python3.10",
+  "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+  "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+  "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+  "repo_path": "tools/run_tests.py",
+  "repo_tree": "a20dadcc77859b0953df7c4e562e45eab72c569d",
+  "runner_mode": "dispatch"
+ },
+ "tool_identity": {
+  "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+  "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2401-evaluator-reason/tools/mutation_harness.py",
+  "repo_path": "tools/mutation_harness.py",
+  "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+ },
+ "baseline": {
+  "status": "PASSED",
+  "rc": 0,
+  "failed_nodes": [],
+  "duration_s": 27.375
+ },
+ "summary": {
+  "KILLED": 0,
+  "MISMATCH": 26,
+  "PARSE_ERROR": 0,
+  "SURVIVED": 0,
+  "TIMEOUT": 0,
+  "completed": 26,
+  "matching": 0,
+  "recorded": 26,
+  "registered": 26
+ },
+ "mutations": [
+  {
+   "id": "m1-evaluator-fallback-satisfied",
+   "status": "MISMATCH",
+   "rc": 1,
+   "observed_failed_node_count": 18,
+   "duration_s": 27.263,
+   "injection_diff_sha256": "f6e937fba948b03ad38add2e92af4cdeb748bba5e5142676e64d3a17c361b068",
+   "test_output_sha256": "66920736c82fbb827c48b4727250005e571c758edeeb732b932ba8be5c6cc8a4"
+  },
+  {
+   "id": "m2-normalize-fallback-reason-code",
+   "status": "MISMATCH",
+   "rc": 1,
+   "observed_failed_node_count": 6,
+   "duration_s": 32.32,
+   "injection_diff_sha256": "d293fe82d1f99565ac2db6e8e227062cddc9fc566fb13388d5d4e9ab5773c0bb",
+   "test_output_sha256": "f83dd2e2d622e2ba1f8024649d9d47563d993619343752f2e29fccd82c69d4d7"
+  },
+  {
+   "id": "m3-drop-normalizer",
+   "status": "MISMATCH",
+   "rc": 1,
+   "observed_failed_node_count": 7,
+   "duration_s": 32.222,
+   "injection_diff_sha256": "033e8031a15fe29eda1b059cfa6c7816b4e7c88f9c3f10a79573267ae6d080b0",
+   "test_output_sha256": "fc4ce34cf29e80fd419309877a4a006a3d4eb76a398c1c93b1483256d82904c0"
+  },
+  {
+   "id": "m4-evaluator-catch-narrowed",
+   "status": "MISMATCH",
+   "rc": 1,
+   "observed_failed_node_count": 3,
+   "duration_s": 32.092,
+   "injection_diff_sha256": "20dae72861246b8d14aab23257394c8b6609537a2b934fcd54d6c1b08a0720a5",
+   "test_output_sha256": "141b14f653e2ce41733af6ce1612b80a5f73f2b54b006c6838ba9cf7d4e1ad37"
+  },
+  {
+   "id": "m5-normalize-catch-narrowed",
+   "status": "MISMATCH",
+   "rc": 1,
+   "observed_failed_node_count": 3,
+   "duration_s": 32.181,
+   "injection_diff_sha256": "8a6b39cb1b9ab67a5bcdb84e8a56452dcae4d4266e3054f53ab91617ad7bfc2c",
+   "test_output_sha256": "31ddf7c7ef05c4b8515d9d5fbaa5014d9d8859bc7d5b1e75059229d68f72ad2d"
+  },
+  {
+   "id": "d1-normalize-diagnostic-emptied",
+   "status": "MISMATCH",
+   "rc": 1,
+   "observed_failed_node_count": 10,
+   "duration_s": 27.042,
+   "injection_diff_sha256": "d67778c8a08acd57cd3acd9fa867af0570ef2872586e3f18b8730d600b80eb1d",
+   "test_output_sha256": "ac0854cccdb5acbd1b3bd747bcb79afdd12711d49b386a6216d6bb3cecb9a3de"
+  },
+  {
+   "id": "d2-exception-type-constant",
+   "status": "MISMATCH",
+   "rc": 1,
+   "observed_failed_node_count": 21,
+   "duration_s": 27.217,
+   "injection_diff_sha256": "72004d555e53e7878557842384b23b1c123f02d91bf7e2a4bb68d545ed8f1915",
+   "test_output_sha256": "214fd3f6e4f478144f15875223bb26e5e1f937ea0b26eea28dc12125b5cd8649"
+  },
+  {
+   "id": "d3-reason-uses-str-exc",
+   "status": "MISMATCH",
+   "rc": 1,
+   "observed_failed_node_count": 1,
+   "duration_s": 32.344,
+   "injection_diff_sha256": "a3c5e84ef080d33c555228afcef07b7cfc124d4e1e94bb56a6eaac0c5fb08bc8",
+   "test_output_sha256": "cc5f0b38e984ce888852c14917368ecf255466662946f2d3b98d0a877f16ffe9"
+  },
+  {
+   "id": "d4-callsite-collapsed",
+   "status": "MISMATCH",
+   "rc": 1,
+   "observed_failed_node_count": 10,
+   "duration_s": 32.185,
+   "injection_diff_sha256": "7af06640339aa97981651f24a09fd44f21559146a13dccaffddb8001e662d6dd",
+   "test_output_sha256": "fec013052a01cf5d1342c7ec15cebe00f6dc6f7b7b4a5e60f32a933b5fb627df"
+  },
+  {
+   "id": "d5-diagnostic-on-clean-path",
+   "status": "MISMATCH",
+   "rc": 1,
+   "observed_failed_node_count": 1,
+   "duration_s": 32.556,
+   "injection_diff_sha256": "1f4523d3ea9e62cd0b7f3326699a6bdfda9cc061951b130745c44d1d31b60c8a",
+   "test_output_sha256": "f0cf5eacb4b4b01c3e3ba36c2fa32c80a87c685cec8613917bff9e17b19bbeb2"
+  },
+  {
+   "id": "d6-test-registry-diagnostic-emptied",
+   "status": "MISMATCH",
+   "rc": 1,
+   "observed_failed_node_count": 2,
+   "duration_s": 42.436,
+   "injection_diff_sha256": "cdaebd1f4d23a4cb9945fe60f485e9d8157658b14de9ef5ac57ef033e458cfcd",
+   "test_output_sha256": "c5f101e23caac2d4a4caf6d518fa9df4ad3207fe1694275dad53f1da523d890f"
+  },
+  {
+   "id": "d7-diagnostic-to-stdout",
+   "status": "MISMATCH",
+   "rc": 1,
+   "observed_failed_node_count": 14,
+   "duration_s": 32.152,
+   "injection_diff_sha256": "6ce5ed4b07c0e341202a0825fb39451523e5b688ec5b0dbf37d54e1f66520638",
+   "test_output_sha256": "b520c090809a56c5a852dccf9daeb5871de584dfe1615d726ca71c58aa2a8ef5"
+  },
+  {
+   "id": "d8-reason-totality-removed",
+   "status": "MISMATCH",
+   "rc": 1,
+   "observed_failed_node_count": 3,
+   "duration_s": 32.164,
+   "injection_diff_sha256": "e7bf3b43c47fbd4d4efaf4cdf83bdc9648aadd4beb31ca47e0b72ad0e414f67c",
+   "test_output_sha256": "1de06d11aab97e850731f3e9ce47b7deb08e02ff8570c134a719f00f8e245a70"
+  },
+  {
+   "id": "d9-cli-drops-evaluator-callsite",
+   "status": "MISMATCH",
+   "rc": 1,
+   "observed_failed_node_count": 8,
+   "duration_s": 32.187,
+   "injection_diff_sha256": "546007490a32dfc4ff2555430887c72b50bd3fe6cd1c6b1fb2723ff24cf2b174",
+   "test_output_sha256": "d50066de882831fc12f92ea620a6b87956eaab495d2dd196e60b41b19bd775a0"
+  },
+  {
+   "id": "d10-reason-length-boundary",
+   "status": "MISMATCH",
+   "rc": 1,
+   "observed_failed_node_count": 1,
+   "duration_s": 37.281,
+   "injection_diff_sha256": "2935b1f1a92b2de6784d08a1b3be4cee33a5dade9031315fd69de61ed3981385",
+   "test_output_sha256": "a58c1612aebb18d78183595269b26ceb96a023aa06526b43fbef5555f919ec92"
+  },
+  {
+   "id": "d11-type-length-boundary",
+   "status": "MISMATCH",
+   "rc": 1,
+   "observed_failed_node_count": 1,
+   "duration_s": 32.157,
+   "injection_diff_sha256": "018eee7b614bb8af4cd37d34a66083e5373b5cbaeec11de287e55a4cfe3b65b6",
+   "test_output_sha256": "8d413377f03c4d863ec5882a1db2c6ef5c21dcd31f0ad12af8406e0fa4611c17"
+  },
+  {
+   "id": "d12-reason-charset-widened",
+   "status": "MISMATCH",
+   "rc": 1,
+   "observed_failed_node_count": 1,
+   "duration_s": 32.193,
+   "injection_diff_sha256": "5da990cc68c9003e62212fa3a82555feb057b3db6d34c4b0297d4b2c01ac7409",
+   "test_output_sha256": "84e9f969b25dc2d4f71c75a855e555a78f7f8edfd5caaaff1a488cf7d8fb22bf"
+  },
+  {
+   "id": "d13-cli-diagnostic-guard-removed",
+   "status": "MISMATCH",
+   "rc": 1,
+   "observed_failed_node_count": 2,
+   "duration_s": 32.149,
+   "injection_diff_sha256": "9775b92303d9dbf165820fbc9ce21b5b35d240f58954ba359c97dfdbee7bea95",
+   "test_output_sha256": "48f69c294c3f33c85abf3135c7b267436bf0b7445d34b8d9321e91f550e1f48f"
+  },
+  {
+   "id": "d14-reason-sentinel-inside-accepted-language",
+   "status": "MISMATCH",
+   "rc": 1,
+   "observed_failed_node_count": 1,
+   "duration_s": 37.257,
+   "injection_diff_sha256": "3d3be35238bd6f502e0eccfde3280dd5345dfbcfc5e2b173cc82c8947c4aa80b",
+   "test_output_sha256": "4edec56adca7b4811ccfa54e06fa30e6be363c8db1b04e5e90f31c6182b6bdb8"
+  },
+  {
+   "id": "m6-test-registry-evaluator-catch-narrowed",
+   "status": "MISMATCH",
+   "rc": 1,
+   "observed_failed_node_count": 1,
+   "duration_s": 32.152,
+   "injection_diff_sha256": "a2b2770635e46dd760cd4e13fb09e9542903c739f3f27e5116055aa61cd01a09",
+   "test_output_sha256": "e97d5bbc27c92d65aee2627ca1e7fcfc9a4a3cde825de739e301c10b4fde416e"
+  },
+  {
+   "id": "m7-test-registry-normalize-catch-narrowed",
+   "status": "MISMATCH",
+   "rc": 1,
+   "observed_failed_node_count": 1,
+   "duration_s": 32.163,
+   "injection_diff_sha256": "9a8b59368cdde51c20883fa2da77ffb44651dfcdb269444aa76e46138ee79c09",
+   "test_output_sha256": "00d9d1c68007b2a9a317c9b7781bb65e6f2c6a810cc527fea0859136ef216813"
+  },
+  {
+   "id": "m8-type-guard-narrowed",
+   "status": "MISMATCH",
+   "rc": 1,
+   "observed_failed_node_count": 1,
+   "duration_s": 32.209,
+   "injection_diff_sha256": "79ae5a3353397259e77f8fa1f7c581b900474cef1d198ba1257c66b55c6ecd69",
+   "test_output_sha256": "fcc6e59a4db204a8c940ff41bc23d886a3fac6a4bab63bb5e0cba18950d35c0d"
+  },
+  {
+   "id": "m9-reason-guard-narrowed",
+   "status": "MISMATCH",
+   "rc": 1,
+   "observed_failed_node_count": 1,
+   "duration_s": 42.469,
+   "injection_diff_sha256": "a2d5c108682061ff3f2e73b3f90653f522ce14788c53f32d3c042ba508dbb38e",
+   "test_output_sha256": "95d3d6c34ebdfdb10328f95f11f309e59b97a00b9a15f36d466c0297dae7f47f"
+  },
+  {
+   "id": "m10-cli-guard-narrowed",
+   "status": "MISMATCH",
+   "rc": 1,
+   "observed_failed_node_count": 1,
+   "duration_s": 57.709,
+   "injection_diff_sha256": "0bfd025ea281857e9f84244580792dbfa57606c0d208d87c2b991e24fef527e8",
+   "test_output_sha256": "cab8e7999d9c9b69e8ef6561f27a996a385d382eb9e54aca03dd79c56e0ab7fa"
+  },
+  {
+   "id": "d15-max-length-constant",
+   "status": "MISMATCH",
+   "rc": 1,
+   "observed_failed_node_count": 1,
+   "duration_s": 32.214,
+   "injection_diff_sha256": "35165d7e3b3cdedb5ce5960b5d8b8ce9b2854a6aeb07da72e2e327b1bc4712fb",
+   "test_output_sha256": "1636a0f097e96e36bf9068387f16d5fe687f3995b11bd72083d31d104777aa59"
+  },
+  {
+   "id": "d16-cli-drops-value-error-diagnostic",
+   "status": "MISMATCH",
+   "rc": 1,
+   "observed_failed_node_count": 4,
+   "duration_s": 32.141,
+   "injection_diff_sha256": "d4748f74459a9d2ef1e22a3fb9bc1f7837af7f22aad9aaa676ecd1a1ee71c4bd",
+   "test_output_sha256": "bfe08d304ac1ffdf6e25d71b13a4f79a082e0657a5ac3ae9c11dde2c36083084"
+  }
+ ]
+}
