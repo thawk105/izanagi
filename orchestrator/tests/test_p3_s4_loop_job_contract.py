@@ -51,6 +51,9 @@ def _shell_body_without_heredocs(source: str) -> str:
             if line.strip() == delimiter:
                 delimiter = None
             continue
+        if re.match(r"^\s*#", line) is not None:
+            output.append(line)
+            continue
         match = opener.search(line)
         if match is None:
             output.append(line)
@@ -205,6 +208,7 @@ def _assert_static_job_contract(source: str) -> None:
         "python-realpath": "print(os.path.realpath(sys.executable))",
         "python-sha256": 'python_sha256=$(sha256sum -- "$PY")',
         "scratch-path": 'scratch=$scratch_base/${pbs_jobid_path_component}',
+        "scratch-tmpdir": "export TMPDIR=$scratch",
         "shim-runtime-closure": (
             '${#shim_entries[@]} -ne 1 || "${shim_entries[0]##*/}" != python3'
         ),
@@ -246,6 +250,49 @@ def _assert_static_job_contract(source: str) -> None:
         "reservation-schema": "p3-s4-loop-reservation-result/v1",
         "reservation-create-only": 'with open(destination, "x", encoding="utf-8")',
         "claim-root": 'mkdir -p -m 0700 -- "$claim_root"',
+        "dependency-policy-path": "POLICY=$repo/tools/pegasus/policy.json",
+        "dependency-policy-fields": (
+            '"gflags_source_path",\n'
+            '    "gflags_expected_head",\n'
+            '    "glog_source_path",\n'
+            '    "glog_expected_head",'
+        ),
+        "dependency-compilers": (
+            "CC_PATH=$(command -v gcc)\nCXX_PATH=$(command -v g++)"
+        ),
+        "gflags-head-exact": (
+            '"$GFLAGS_SOURCE_HEAD" != "$GFLAGS_EXPECTED_HEAD"'
+        ),
+        "gflags-dirty-all": (
+            'GFLAGS_STATUS=$(git -C "$GFLAGS_SOURCE_PATH" status '
+            "--porcelain --untracked-files=all)"
+        ),
+        "gflags-install-root": 'GFLAGS_INSTALL_DIR="$TMPDIR/gflags-install"',
+        "gflags-configure-root": (
+            'gflags_configure_argv=(cmake -S "$GFLAGS_SOURCE_PATH" '
+            '-B "$GFLAGS_BUILD_DIR"'
+        ),
+        "gflags-configure-definitions": (
+            "-DCMAKE_POSITION_INDEPENDENT_CODE=ON "
+            "-DREGISTER_INSTALL_PREFIX=OFF"
+        ),
+        "gflags-build-argv": (
+            'gflags_build_argv=(cmake --build "$GFLAGS_BUILD_DIR" -j 48)'
+        ),
+        "gflags-install-timeout": 'timeout 60 "${gflags_install_argv[@]}"',
+        "glog-head-exact": '"$GLOG_SOURCE_HEAD" != "$GLOG_EXPECTED_HEAD"',
+        "glog-dirty-all": (
+            'GLOG_STATUS=$(git -C "$GLOG_SOURCE_PATH" status '
+            "--porcelain --untracked-files=all)"
+        ),
+        "glog-install-root": 'GLOG_INSTALL_DIR="$TMPDIR/glog-install"',
+        "glog-configure-definitions": (
+            '-DWITH_UNWIND=OFF "-DCMAKE_PREFIX_PATH=$GFLAGS_INSTALL_DIR"'
+        ),
+        "glog-build-argv": (
+            'glog_build_argv=(cmake --build "$GLOG_BUILD_DIR" -j 48)'
+        ),
+        "glog-install-timeout": 'timeout 120 "${glog_install_argv[@]}"',
         "source-head": "git -C \"$source\" rev-parse --verify 'HEAD^{commit}'",
         "source-clean": THIRDPARTY_STATUS_GATE,
         "prebuild-scratch-copy": 'cp -a "$source"/. "$destination"/',
@@ -275,6 +322,7 @@ def _assert_static_job_contract(source: str) -> None:
         "prebuild-ccbench": "ccbench_dir=ccbench_dir,",
         "prebuild-base": "fetchcontent_base_dir=fetchcontent_base_dir,",
         "prebuild-timeouts": "configure_timeout_s=900,\n    target_timeout_s=900,",
+        "prebuild-dependency-prefix": 'dependency_prefix=";".join(',
         "prebuild-masstree": "masstree_source_dir=masstree_source_dir,",
         "prebuild-mimalloc": "mimalloc_source_dir=mimalloc_source_dir,",
         "prebuild-googletest": "googletest_source_dir=googletest_source_dir,",
@@ -308,7 +356,15 @@ def _assert_static_job_contract(source: str) -> None:
             '    --value "${IZANAGI_S4_FIXTURE_VALUE:-20}"'
         ),
     }
-    missing = [label for label, fragment in required.items() if fragment not in source]
+    uncommented_source = "".join(
+        line for line in source.splitlines(keepends=True)
+        if re.match(r"^\s*#(?!PBS(?:\s|$))", line) is None
+    )
+    missing = [
+        label for label, fragment in required.items()
+        if fragment not in source
+        or (label != "job-body-comment" and fragment not in uncommented_source)
+    ]
     if missing:
         raise AssertionError("job contract missing: " + ",".join(missing))
     canonical_dump = (
@@ -324,11 +380,61 @@ def _assert_static_job_contract(source: str) -> None:
 
 
 def _assert_forbidden_job_constructs(source: str) -> None:
-    body = _shell_body_without_heredocs(source)
+    body = _shell_executable_surface(source)
     if "--no-build" in body:
         raise AssertionError("forbidden-no-build")
+
+    allowed = 'export CMAKE_PREFIX_PATH="$GFLAGS_INSTALL_DIR:$GLOG_INSTALL_DIR"'
+    sanitize = "unset CMAKE_PREFIX_PATH CMAKE_TOOLCHAIN_FILE"
+    allowed_prefix_lines = [
+        sanitize,
+        '-DWITH_UNWIND=OFF "-DCMAKE_PREFIX_PATH=$GFLAGS_INSTALL_DIR"',
+        allowed,
+    ]
+    prefix_lines = [
+        line.strip() for line in body.splitlines()
+        if "CMAKE_PREFIX_PATH" in line
+    ]
+    if prefix_lines != allowed_prefix_lines:
+        raise AssertionError("forbidden-cmake-environment-injection")
+
+    prefix_assignments = [
+        line for line in body.splitlines()
+        if re.search(r"(?<![-A-Za-z0-9_])CMAKE_PREFIX_PATH(?:\+)?=", line)
+    ]
+    if prefix_assignments != [allowed]:
+        raise AssertionError("forbidden-cmake-environment-injection")
+
+    prefix_unsets = [
+        line.strip() for line in body.splitlines()
+        if re.search(r"\bunset\b.*\bCMAKE_PREFIX_PATH\b", line)
+    ]
+    if prefix_unsets != [sanitize]:
+        raise AssertionError("forbidden-cmake-environment-injection")
+
+    singleton_order = (
+        'timeout 60 "${gflags_install_argv[@]}"',
+        'timeout 120 "${glog_install_argv[@]}"',
+        allowed,
+        '"$PY" - "$prebuild_receipt"',
+    )
+    if any(body.count(marker) != 1 for marker in singleton_order):
+        raise AssertionError("forbidden-cmake-environment-injection")
+    positions = [body.index(marker) for marker in singleton_order]
+    if positions != sorted(positions) or body.index(sanitize) >= body.index(allowed):
+        raise AssertionError("forbidden-cmake-environment-injection")
+
+    driver = '"$PY" -B -m orchestrator.campaign.p3_s4_loop'
+    driver_positions = [match.start() for match in re.finditer(re.escape(driver), body)]
+    prebuild_position = body.index('"$PY" - "$prebuild_receipt"')
+    if len(driver_positions) != 2 or any(
+        position <= body.index(allowed) or position <= prebuild_position
+        for position in driver_positions
+    ):
+        raise AssertionError("forbidden-cmake-environment-injection")
+
     forbidden_assignment = re.search(
-        r"(?m)^\s*(?:export\s+)?(?:CMAKE_PREFIX_PATH|CMAKE_PROJECT_INCLUDE"
+        r"(?m)^\s*(?:export\s+)?(?:CMAKE_PROJECT_INCLUDE"
         r"(?:_BEFORE)?|CMAKE_PROJECT_TOP_LEVEL_INCLUDES|"
         r"CMAKE_(?:C|CXX)_COMPILER_LAUNCHER)=",
         body,
@@ -358,11 +464,19 @@ def _assert_static_job_stage_order(source: str) -> None:
         "trap finish EXIT",
         "resolve_python() {",
         "\nresolve_python\n",
+        "export TMPDIR=$scratch",
         'shim_dir=$scratch/python-shim',
+        'export PATH="$SANITIZED_PATH"',
         "observed_head=$(git rev-parse HEAD)",
         "\ncampaign_pin=$(\n",
         "qstat_jobid=",
         'claim_root="$repo/output/env/',
+        "POLICY=$repo/tools/pegasus/policy.json",
+        'GFLAGS_SOURCE_HEAD=$(git -C "$GFLAGS_SOURCE_PATH" rev-parse HEAD)',
+        'timeout 60 "${gflags_install_argv[@]}"',
+        'GLOG_SOURCE_HEAD=$(git -C "$GLOG_SOURCE_PATH" rev-parse HEAD)',
+        'timeout 120 "${glog_install_argv[@]}"',
+        'export CMAKE_PREFIX_PATH="$GFLAGS_INSTALL_DIR:$GLOG_INSTALL_DIR"',
         "prebuild_source_root=",
         '"$PY" - "$prebuild_receipt"',
         'sync "$prebuild_receipt"',
@@ -406,6 +520,14 @@ def test_gate_refusals_share_the_fixed_rc2_boundary() -> None:
         "CCBench P3 S4 campaign pin mismatch",
         "scheduler reservation observation is incomplete",
         "campaign claim root provisioning failed",
+        "policy file missing, not regular, or a symlink",
+        "policy yielded an unexpected field count",
+        "gflags source path missing",
+        "gflags source HEAD mismatch",
+        "gflags working tree is dirty",
+        "glog source path missing",
+        "glog source HEAD mismatch",
+        "glog working tree is dirty",
         "scratch masstree source is not fresh",
         "masstree prebuild receipt is not fresh",
     ):
@@ -484,6 +606,81 @@ def test_gate_refusals_share_the_fixed_rc2_boundary() -> None:
             'mkdir -p -m 0700 -- "$claim_root"',
             'true # claim root provisioning removed',
         ),
+        pytest.param(
+            "dependency-policy-path",
+            "POLICY=$repo/tools/pegasus/policy.json",
+            "POLICY=/tmp/policy.json",
+            id="dependency-policy-path",
+        ),
+        pytest.param(
+            "dependency-policy-fields",
+            '"gflags_source_path",\n'
+            '    "gflags_expected_head",\n'
+            '    "glog_source_path",\n'
+            '    "glog_expected_head",',
+            '"gflags_source_path",\n'
+            '    "gflags_expected_head",\n'
+            '    "glog_source_path",\n'
+            '    "glog_head",',
+            id="dependency-policy-fields",
+        ),
+        pytest.param(
+            "dependency-compilers",
+            "CC_PATH=$(command -v gcc)\nCXX_PATH=$(command -v g++)",
+            "CC_PATH=$(command -v gcc)\nCXX_PATH=$(command -v gcc)",
+            id="dependency-compilers",
+        ),
+        pytest.param(
+            "gflags-head-exact",
+            '"$GFLAGS_SOURCE_HEAD" != "$GFLAGS_EXPECTED_HEAD"',
+            '"$GFLAGS_SOURCE_HEAD" != ""',
+            id="gflags-head-exact",
+        ),
+        pytest.param(
+            "gflags-dirty-all",
+            'GFLAGS_STATUS=$(git -C "$GFLAGS_SOURCE_PATH" status '
+            "--porcelain --untracked-files=all)",
+            'GFLAGS_STATUS=$(git -C "$GFLAGS_SOURCE_PATH" status '
+            "--porcelain --untracked-files=no)",
+            id="gflags-dirty-all",
+        ),
+        pytest.param(
+            "gflags-install-root",
+            'GFLAGS_INSTALL_DIR="$TMPDIR/gflags-install"',
+            'GFLAGS_INSTALL_DIR="/tmp/gflags-install"',
+            id="gflags-install-root",
+        ),
+        pytest.param(
+            "gflags-build-argv",
+            'gflags_build_argv=(cmake --build "$GFLAGS_BUILD_DIR" -j 48)',
+            'gflags_build_argv=(cmake --build "$GFLAGS_BUILD_DIR" -j 47)',
+            id="gflags-build-argv",
+        ),
+        pytest.param(
+            "glog-install-root",
+            'GLOG_INSTALL_DIR="$TMPDIR/glog-install"',
+            'GLOG_INSTALL_DIR="/tmp/glog-install"',
+            id="glog-install-root",
+        ),
+        pytest.param(
+            "glog-configure-definitions",
+            '-DWITH_UNWIND=OFF "-DCMAKE_PREFIX_PATH=$GFLAGS_INSTALL_DIR"',
+            '-DWITH_UNWIND=ON "-DCMAKE_PREFIX_PATH=$GFLAGS_INSTALL_DIR"',
+            id="glog-configure-definitions",
+        ),
+        pytest.param(
+            "glog-install-timeout",
+            'timeout 120 "${glog_install_argv[@]}"',
+            'timeout 60 "${glog_install_argv[@]}"',
+            id="glog-install-timeout",
+        ),
+        pytest.param(
+            "prebuild-dependency-prefix",
+            'dependency_prefix=";".join('
+            "[gflags_install_dir, glog_install_dir]),",
+            "# dependency prefix dropped",
+            id="prebuild-dependency-prefix",
+        ),
         (
             "qstat-jobid",
             'qstat_jobid=${PBS_JOBID#0:}',
@@ -536,6 +733,18 @@ def test_no_build_mutant_has_one_negative_failure() -> None:
     "assignment",
     (
         'CMAKE_PREFIX_PATH=/tmp/deps',
+        pytest.param(
+            'export CMAKE_PREFIX_PATH="$GFLAGS_INSTALL_DIR"',
+            id="partial-prefix",
+        ),
+        pytest.param(
+            'export CMAKE_PREFIX_PATH="$OTHER_GFLAGS:$OTHER_GLOG"',
+            id="different-prefix-variables",
+        ),
+        pytest.param(
+            'export CMAKE_PREFIX_PATH="$GFLAGS_INSTALL_DIR:$GLOG_INSTALL_DIR"',
+            id="second-exact-prefix",
+        ),
         'CMAKE_PROJECT_INCLUDE=/tmp/inject.cmake',
         'CMAKE_PROJECT_INCLUDE_BEFORE=/tmp/inject.cmake',
         'CMAKE_PROJECT_TOP_LEVEL_INCLUDES=/tmp/inject.cmake',
@@ -549,6 +758,119 @@ def test_forbidden_cmake_environment_mutants_are_rejected(assignment: str) -> No
         AssertionError, match="^forbidden-cmake-environment-injection$"
     ):
         _assert_static_job_contract(source)
+
+
+def test_dependency_prefix_before_install_is_rejected() -> None:
+    source = JOB.read_text(encoding="utf-8")
+    exact = 'export CMAKE_PREFIX_PATH="$GFLAGS_INSTALL_DIR:$GLOG_INSTALL_DIR"'
+    anchor = 'timeout 120 "${glog_install_argv[@]}"'
+    mutant = source.replace(exact + "\n", "", 1).replace(
+        anchor, exact + "\n" + anchor, 1
+    )
+    with pytest.raises(
+        AssertionError, match="^forbidden-cmake-environment-injection$"
+    ):
+        _assert_forbidden_job_constructs(mutant)
+
+
+def test_dependency_prefix_unset_after_export_is_rejected() -> None:
+    source = JOB.read_text(encoding="utf-8")
+    exact = 'export CMAKE_PREFIX_PATH="$GFLAGS_INSTALL_DIR:$GLOG_INSTALL_DIR"'
+    mutant = source.replace(exact, exact + "\nunset CMAKE_PREFIX_PATH", 1)
+    with pytest.raises(
+        AssertionError, match="^forbidden-cmake-environment-injection$"
+    ):
+        _assert_forbidden_job_constructs(mutant)
+
+
+def test_dependency_prefix_export_attribute_removal_is_rejected() -> None:
+    source = JOB.read_text(encoding="utf-8")
+    exact = 'export CMAKE_PREFIX_PATH="$GFLAGS_INSTALL_DIR:$GLOG_INSTALL_DIR"'
+    mutant = source.replace(exact, exact + "\nexport -n CMAKE_PREFIX_PATH", 1)
+    with pytest.raises(
+        AssertionError, match="^forbidden-cmake-environment-injection$"
+    ):
+        _assert_forbidden_job_constructs(mutant)
+
+
+def test_driver_dependency_prefix_removal_is_rejected() -> None:
+    source = JOB.read_text(encoding="utf-8")
+    driver = '"$PY" -B -m orchestrator.campaign.p3_s4_loop'
+    mutant = source.replace(
+        driver,
+        'env -u CMAKE_PREFIX_PATH ' + driver,
+        1,
+    )
+    with pytest.raises(
+        AssertionError, match="^forbidden-cmake-environment-injection$"
+    ):
+        _assert_forbidden_job_constructs(mutant)
+
+
+def test_comment_heredoc_cannot_mask_dependency_prefix_unset() -> None:
+    source = JOB.read_text(encoding="utf-8")
+    exact = 'export CMAKE_PREFIX_PATH="$GFLAGS_INSTALL_DIR:$GLOG_INSTALL_DIR"'
+    mutant = source.replace(
+        exact,
+        exact + "\n# <<true\nunset CMAKE_PREFIX_PATH\ntrue",
+        1,
+    )
+    with pytest.raises(
+        AssertionError, match="^forbidden-cmake-environment-injection$"
+    ):
+        _assert_forbidden_job_constructs(mutant)
+
+
+def test_fixture_driver_before_prebuild_is_rejected() -> None:
+    source = JOB.read_text(encoding="utf-8")
+    fixture_driver = (
+        '  "$PY" -B -m orchestrator.campaign.p3_s4_loop \\\n'
+        "    --allow-coder-derived-build \\\n"
+        "    --isolate-worktree \\\n"
+        '    --fetchcontent-prebuild-receipt "$prebuild_receipt" \\\n'
+        '    --value "${IZANAGI_S4_FIXTURE_VALUE:-20}"'
+    )
+    prebuild = '"$PY" - "$prebuild_receipt"'
+    assert source.count(fixture_driver) == 1
+    assert source.count(prebuild) == 1
+    mutant = source.replace(fixture_driver, "  true", 1).replace(
+        prebuild,
+        fixture_driver + "\n\n" + prebuild,
+        1,
+    )
+    with pytest.raises(
+        AssertionError, match="^forbidden-cmake-environment-injection$"
+    ):
+        _assert_forbidden_job_constructs(mutant)
+
+
+def test_commented_dependency_policy_field_is_rejected() -> None:
+    source = JOB.read_text(encoding="utf-8")
+    fragment = '    "gflags_source_path",'
+    assert source.count(fragment) == 1
+    mutant = source.replace(fragment, '    # "gflags_source_path",', 1)
+    with pytest.raises(
+        AssertionError, match="^job contract missing: dependency-policy-fields$"
+    ):
+        _assert_static_job_contract(mutant)
+
+
+def test_commented_prebuild_dependency_prefix_is_rejected() -> None:
+    source = JOB.read_text(encoding="utf-8")
+    fragment = (
+        '    dependency_prefix=";".join('
+        "[gflags_install_dir, glog_install_dir]),"
+    )
+    assert source.count(fragment) == 1
+    mutant = source.replace(fragment, "    # " + fragment.lstrip(), 1)
+    with pytest.raises(
+        AssertionError, match="^job contract missing: prebuild-dependency-prefix$"
+    ):
+        _assert_static_job_contract(mutant)
+
+
+def test_exact_dependency_prefix_export_is_accepted() -> None:
+    _assert_forbidden_job_constructs(JOB.read_text(encoding="utf-8"))
 
 
 def test_job_body_has_no_submitter_invocation() -> None:
