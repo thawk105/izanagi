@@ -664,10 +664,13 @@ def test_main_keeps_stdout_and_exit_value_when_stderr_write_raises_oserror(
     raising_evaluator_repo: tuple[Path, str],
     raising_evaluator_oracle: dict[str, object],
     closed_environment: dict[str, str],
+    tmp_path: Path,
 ) -> None:
     repo_root, commit = raising_evaluator_repo
+    return_value_path = tmp_path / "main-return-value"
     script = r'''
 import sys
+from pathlib import Path
 
 from orchestrator.campaign import s8c_preregistration as P
 
@@ -682,12 +685,14 @@ class BrokenStderr:
 
 
 sys.stderr = BrokenStderr()
-raise SystemExit(P.main([
+rc = P.main([
     "check", "--json", "--repo-root", ".", "--commit", sys.argv[1]
-]))
+])
+Path(sys.argv[2]).write_text(str(rc), encoding="ascii")
+raise SystemExit(rc)
 '''
     completed = subprocess.run(
-        [sys.executable, "-c", script, commit],
+        [sys.executable, "-c", script, commit, str(return_value_path)],
         cwd=repo_root,
         check=False,
         capture_output=True,
@@ -698,16 +703,21 @@ raise SystemExit(P.main([
     assert completed.stdout == expected_stdout.encode("utf-8")
     assert completed.returncode == 1
     assert completed.stderr == b""
+    assert return_value_path.is_file()
+    assert return_value_path.read_text(encoding="ascii") == "1"
 
 
 def test_main_keeps_stdout_and_exit_value_when_stderr_write_raises_value_error(
     raising_evaluator_repo: tuple[Path, str],
     raising_evaluator_oracle: dict[str, object],
     closed_environment: dict[str, str],
+    tmp_path: Path,
 ) -> None:
     repo_root, commit = raising_evaluator_repo
+    return_value_path = tmp_path / "main-return-value"
     script = r'''
 import sys
+from pathlib import Path
 
 from orchestrator.campaign import s8c_preregistration as P
 
@@ -722,12 +732,14 @@ class BrokenStderr:
 
 
 sys.stderr = BrokenStderr()
-raise SystemExit(P.main([
+rc = P.main([
     "check", "--json", "--repo-root", ".", "--commit", sys.argv[1]
-]))
+])
+Path(sys.argv[2]).write_text(str(rc), encoding="ascii")
+raise SystemExit(rc)
 '''
     completed = subprocess.run(
-        [sys.executable, "-c", script, commit],
+        [sys.executable, "-c", script, commit, str(return_value_path)],
         cwd=repo_root,
         check=False,
         capture_output=True,
@@ -738,6 +750,8 @@ raise SystemExit(P.main([
     assert completed.stdout == expected_stdout.encode("utf-8")
     assert completed.returncode == 1
     assert completed.stderr == b""
+    assert return_value_path.is_file()
+    assert return_value_path.read_text(encoding="ascii") == "1"
 
 
 if __name__ == "__main__":
