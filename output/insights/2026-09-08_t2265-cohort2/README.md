@@ -168,7 +168,21 @@ raw allowlist、parsed membership、cell 別 extime、claim、namespace、row、
 exact な閉表にし、cap を 1 だけ変えた literal で拒否されることを検査した。
 旧 `tuned` / `cw-as-dyn` の extime 3 束縛は 1 文字も変えていない。
 
-**認証していない。** 認証が対象にできるのは**既定 seed の実行体と 48 スレッド**だけである。
+**実測した (2026-09-09)。** cohort 2 の policy≠0 cell 2 本について認証を走らせ、
+**どちらも 24/24 が certified serializable、anomaly 0 件**で group receipt が `complete = true` に
+なった。
+
+| cell | attempt | group receipt | sha256 | 結果 |
+| --- | --- | --- | --- | --- |
+| `cw-as-dyn-c2-p1` | `c2p1-a1` | `izanagi-job-evidence/dynamic-backoff/certify/c2-p1-a1/group-receipt.json` | `7a575651e3214a07e5c44f48b925602c0bd1553a82c9e42d8f9040c9542f66f5` | expected 24 / terminal 24 / **certified 24** |
+| `cw-as-dyn-c2-p2` | `c2p2-a1` | `izanagi-job-evidence/dynamic-backoff/certify/c2-p2-a1/group-receipt.json` | `8c4dbe50a06ad1696e9352a58bfa7b4c9b02033d0860e1f391e6b217557c6d95` | expected 24 / terminal 24 / **certified 24** |
+
+束縛は performance 成果物 `dynamic-backoff/perf/stage1-rep0-0_985871.nqsv.json`
+(sha `ed7fb0dce88201c87a9d04b23bc1a59d3f00a66a378b05cf756a04687af8ca45`)、verifier identity manifest
+`verifier-identity-c2a1.json` (sha `d5c12d4c03997784ee1f5bb23e387cab1b39ddfb40d47d73139047f31316c020`、
+module 10)、`repo_head 8bdf173cc`。1 job の実所要は約 3.5 分だった。
+
+**それでも射程は限られる。** 認証が対象にできたのは**既定 seed の実行体と 48 スレッド**だけである。
 policy 2 の実行体は seed を compile 時 define で埋め込むので、**cohort 2 が使う 12 本の seed 別
 実行体の認証ではなく、24 スレッド条件の認証でもない。** 全 binary の認証には 312 job が要る。
 **「cohort 2 を認証した」と書いてはならない。**
