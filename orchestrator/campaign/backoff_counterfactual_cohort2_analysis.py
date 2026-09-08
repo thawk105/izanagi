@@ -31,7 +31,7 @@ PATCH_B_SHA256 = (
     "f3fe6b7e67931775bcef0a7831dda8c6cb53dfc7fc52a74f4508360e1fedf824"
 )
 PATCH_C_SHA256 = (
-    "b5649becded2ad62d015d94263b3e4b3e32f8c271892647e6567772c234dad5f"
+    "4c04caa89244d74aa542a204bed0befae45b13616113cc5d734570c3aae7d2ff"
 )
 PATCH_STACK = (
     ("patches/cicada-adaptive-params.patch", PATCH_A_SHA256),
@@ -39,7 +39,7 @@ PATCH_STACK = (
     ("patches/cicada-adaptive-counterfactual.patch", PATCH_C_SHA256),
 )
 PATCH_STACK_SHA256 = (
-    "790a6e7bfdb2b78ea1a05a242acbfeabbe16a07d3f30e6e6148909a7ac59fdb8"
+    "14ac8f00798d1b317854643e133c0b58543106e9c693f5c556f8b13edb591082"
 )
 COUNTERFACTUAL_CELLS = (
     "cw-as-dyn-c2-p0:1:1:1000:2560:10000:9223372036854775807:1:1:4:1:0,"
