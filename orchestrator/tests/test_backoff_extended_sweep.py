@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import ast
 import hashlib
+import inspect
 import json
 import os
 import random
@@ -28,6 +30,7 @@ from orchestrator.campaign import (
     ident,
     loop,
     p2_2,
+    pipeline as campaign_pipeline,
     site_policy,
 )
 from orchestrator.calibrator import perf_preflight
@@ -197,6 +200,55 @@ def _measure_t2266_round(
     )
     assert calls == p2_2.REPS
     return abort_rates
+
+
+def test_b5_pipeline_balanced_schedule_is_a_seven_key_subset_consumer():
+    observation = {
+        "rep_index": 0,
+        "returncode": 0,
+        "execution_failure": False,
+        "counter_status": "not_required",
+        "missing_perf_events": [],
+        "perf_raw": {},
+        "throughput": 1_000_000.0,
+    }
+    assert len(observation) == 7
+    assert type(observation["execution_failure"]) is bool
+
+    target = campaign_pipeline._run_balanced_schedule
+    tree = ast.parse(inspect.getsource(target))
+    observation_loads = {
+        id(node)
+        for node in ast.walk(tree)
+        if (
+            isinstance(node, ast.Name)
+            and node.id == "observation"
+            and isinstance(node.ctx, ast.Load)
+        )
+    }
+    subset_reads = [
+        node
+        for node in ast.walk(tree)
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "get"
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "observation"
+            and len(node.args) == 1
+            and not node.keywords
+            and isinstance(node.args[0], ast.Constant)
+            and type(node.args[0].value) is str
+        )
+    ]
+    assert observation_loads == {id(node.func.value) for node in subset_reads}
+    accessed_keys = [node.args[0].value for node in subset_reads]
+    assert accessed_keys == ["throughput", "throughput", "throughput"]
+    assert [observation.get(key) for key in accessed_keys] == [
+        1_000_000.0,
+        1_000_000.0,
+        1_000_000.0,
+    ]
 
 
 def _t2266_certified_view(tmp_path: Path, capture: M._T2266RepCapture):

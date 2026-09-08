@@ -529,6 +529,7 @@ class _EmitterScalePoint:
         self.rep_observations = [
             {
                 "rep_index": index, "returncode": 0,
+                "execution_failure": False,
                 "counter_status": "complete" if use_perf else "not_required",
                 "missing_perf_events": [],
                 "perf_raw": {

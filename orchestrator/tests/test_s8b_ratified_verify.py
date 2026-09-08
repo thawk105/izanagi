@@ -376,6 +376,7 @@ def _session_rows(
         observations = [
             {
                 "rep_index": index, "returncode": 0,
+                "execution_failure": False,
                 "counter_status": "complete", "missing_perf_events": [],
                 "perf_raw": {
                     "LLC-load-misses": 1, "LLC-loads": 2,

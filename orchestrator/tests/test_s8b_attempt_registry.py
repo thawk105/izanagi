@@ -347,6 +347,7 @@ def _sealed_v2_case(
         {
             "rep_index": index,
             "returncode": 0,
+            "execution_failure": False,
             "counter_status": "not_required",
             "missing_perf_events": [],
             "perf_raw": {

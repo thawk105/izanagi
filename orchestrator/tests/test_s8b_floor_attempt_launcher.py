@@ -237,6 +237,7 @@ class _Token:
         self._rep_sink.extend(
             {
                 "rep_index": rep, "returncode": 0,
+                "execution_failure": False,
                 "counter_status": "available", "missing_perf_events": [],
                 "perf_raw": {}, "throughput": throughput,
             }
@@ -863,15 +864,18 @@ def test_private_rep_sink_snapshot_occurs_after_token_open() -> None:
         assert opened.repetition_evidence == (
             {
                 "rep_index": 0, "returncode": 0, "counter_status": "available",
-                "missing_perf_events": [], "perf_raw": {}, "throughput": 101.0,
+                "execution_failure": False, "missing_perf_events": [],
+                "perf_raw": {}, "throughput": 101.0,
             },
             {
                 "rep_index": 1, "returncode": 0, "counter_status": "available",
-                "missing_perf_events": [], "perf_raw": {}, "throughput": 102.0,
+                "execution_failure": False, "missing_perf_events": [],
+                "perf_raw": {}, "throughput": 102.0,
             },
             {
                 "rep_index": 2, "returncode": 0, "counter_status": "available",
-                "missing_perf_events": [], "perf_raw": {}, "throughput": 103.0,
+                "execution_failure": False, "missing_perf_events": [],
+                "perf_raw": {}, "throughput": 103.0,
             },
         )
         assert token.rep_observations == [{"source": "public measurement view"}]
@@ -944,6 +948,7 @@ def test_v2_profile_reaches_draft_but_fake_cannot_issue_capability(
                 {
                     "rep_index": rep,
                     "returncode": 0,
+                    "execution_failure": False,
                     "counter_status": "not_required",
                     "missing_perf_events": [],
                     "perf_raw": {
@@ -1410,6 +1415,7 @@ class _OpenedV2Token(_Token):
             {
                 "rep_index": rep,
                 "returncode": 0,
+                "execution_failure": False,
                 "counter_status": "not_required",
                 "missing_perf_events": [],
                 "perf_raw": {
