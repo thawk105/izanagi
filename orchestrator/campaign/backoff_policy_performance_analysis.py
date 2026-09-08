@@ -24,6 +24,9 @@ EQUIVALENCE_MARGIN_LOG = 0.02955880224154443
 PREREGISTRATION_SHA256 = (
     "2f5170c99dda9dd70647a611bff798b6e54c5e29b60e872cd755e5b8515cc25c"
 )
+PREREGISTRATION_ERRATUM_1_SHA256 = (
+    "9f81a61b92e88a7dcede8a779c0241c7bcbc96b00ef01332b8df8e7ed5ec3eea"
+)
 CCBENCH_PIN = "511c9538e4e8efa54b45cda62e72389ed3b706ec"
 PATCH_PATHS = (
     "patches/cicada-adaptive-params.patch",
@@ -511,7 +514,8 @@ def _validate_artifact(path: Path, document: dict) -> dict:
         source_common = {
             key: value
             for key, value in evidence.items()
-            if key not in {"genome_sha256", "src_token"}
+            if key
+            not in {"genome_sha256", "src_token", "source_bytes_sha256"}
         }
         policy_source_common[row["policy"]] = json.dumps(
             source_common, sort_keys=True, separators=(",", ":")
@@ -522,8 +526,19 @@ def _validate_artifact(path: Path, document: dict) -> dict:
         _artifact_invalid(
             f"{binding}: coordinate set is not exact; missing={missing} extra={extra}"
         )
-    if len(set(policy_source_bytes.values())) != 1:
-        _artifact_invalid(f"{binding}: source bytes differ between policy arms")
+    policy_identities = {
+        "source_bytes_sha256": policy_source_bytes,
+        "genome": {policy: policy_builds[policy][0] for policy in range(3)},
+        "binary_sha256": {
+            policy: policy_builds[policy][1] for policy in range(3)
+        },
+    }
+    for identity_name, identities in policy_identities.items():
+        if len(set(identities.values())) != 3:
+            _artifact_invalid(
+                f"{binding}: step policy define appears inert: "
+                f"{identity_name} is not distinct between policy arms"
+            )
     if len(set(policy_source_common.values())) != 1:
         _artifact_invalid(
             f"{binding}: source/build evidence differs outside the allowlist"
@@ -533,7 +548,8 @@ def _validate_artifact(path: Path, document: dict) -> dict:
         "rows": rows,
         "execution_identity": execution_identity,
         "fixed_arm_identities": {
-            policy: policy_builds[policy][:2] for policy in (0, 1)
+            policy: (policy_builds[policy][0], policy_source_bytes[policy])
+            for policy in (0, 1)
         },
     }
 
@@ -715,6 +731,7 @@ def _hypotheses(contrasts: dict) -> dict:
 def analyze_policy_performance(
     performance_paths: list[Path],
     preregistration_path: Path,
+    preregistration_erratum_1_path: Path,
 ) -> dict:
     """Validate explicit performance artifacts and apply the frozen analysis."""
     if type(performance_paths) is not list:
@@ -725,6 +742,8 @@ def analyze_policy_performance(
         raise ValueError("performance_paths must contain at most 18 Path objects")
     if not isinstance(preregistration_path, Path):
         raise TypeError("preregistration_path must be a Path")
+    if not isinstance(preregistration_erratum_1_path, Path):
+        raise TypeError("preregistration_erratum_1_path must be a Path")
     try:
         preregistration = preregistration_path.resolve(strict=True)
         preregistration_sha256 = _sha256(preregistration)
@@ -733,6 +752,20 @@ def analyze_policy_performance(
     if preregistration_sha256 != PREREGISTRATION_SHA256:
         raise ValueError(
             "preregistration file SHA-256 does not match the frozen specification"
+        )
+    try:
+        preregistration_erratum_1 = preregistration_erratum_1_path.resolve(
+            strict=True
+        )
+        preregistration_erratum_1_sha256 = _sha256(preregistration_erratum_1)
+    except OSError as exc:
+        raise ValueError(
+            f"preregistration erratum 1 file is unavailable: {exc}"
+        ) from exc
+    if preregistration_erratum_1_sha256 != PREREGISTRATION_ERRATUM_1_SHA256:
+        raise ValueError(
+            "preregistration erratum 1 file SHA-256 does not match the frozen "
+            "specification"
         )
     try:
         resolved_paths = [path.resolve(strict=True) for path in performance_paths]
@@ -774,7 +807,8 @@ def analyze_policy_performance(
                 for artifact in loaded[1:]
             ):
                 _artifact_invalid(
-                    f"p{policy} genome or binary identity differs between blocks"
+                    f"p{policy} genome or source bytes identity differs between "
+                    "blocks"
                 )
 
     contrasts = {}
@@ -809,6 +843,10 @@ def analyze_policy_performance(
         "preregistration": {
             "path": str(preregistration),
             "sha256": preregistration_sha256,
+        },
+        "preregistration_erratum_1": {
+            "path": str(preregistration_erratum_1),
+            "sha256": preregistration_erratum_1_sha256,
         },
         "inputs": [
             {

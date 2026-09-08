@@ -4,6 +4,7 @@ import copy
 import hashlib
 import json
 import math
+import os
 import sys
 from pathlib import Path
 
@@ -16,8 +17,17 @@ from orchestrator.campaign import backoff_policy_performance_analysis as analysi
 
 ROOT = Path(__file__).resolve().parents[2]
 PREREGISTRATION = ROOT / "docs" / "backoff-policy-performance-preregistration.md"
+PREREGISTRATION_ERRATUM_1 = Path(
+    os.environ.get(
+        "IZANAGI_BACKOFF_POLICY_PERFORMANCE_ERRATUM_1",
+        ROOT / "docs" / "backoff-policy-performance-preregistration-erratum-1.md",
+    )
+)
 PREREGISTRATION_SHA256 = (
     "2f5170c99dda9dd70647a611bff798b6e54c5e29b60e872cd755e5b8515cc25c"
+)
+PREREGISTRATION_ERRATUM_1_SHA256 = (
+    "9f81a61b92e88a7dcede8a779c0241c7bcbc96b00ef01332b8df8e7ed5ec3eea"
 )
 SCHEMA_VERSION = "izanagi-cicada-adaptive-3const-probe/v3"
 NOT_CERTIFIED = (
@@ -195,7 +205,9 @@ def _build_row(
         "src_token": hashlib.sha256(
             f"src-token-{policy}-{fixed_seed}".encode()
         ).hexdigest(),
-        "source_bytes_sha256": hashlib.sha256(b"common-source-bytes").hexdigest(),
+        "source_bytes_sha256": hashlib.sha256(
+            f"source-bytes-{policy}-{fixed_seed}".encode()
+        ).hexdigest(),
     }
     row = {
         **_cell_identity(policy),
@@ -214,7 +226,7 @@ def _build_row(
         "threads": threads,
         "genome": genome,
         "binary_sha256": hashlib.sha256(
-            f"binary-{policy}-{fixed_seed}".encode()
+            f"binary-{rep_index}-{policy}-{fixed_seed}".encode()
         ).hexdigest(),
         "build_trace_enabled": False,
         "build_cache_key": f"build-{policy}-{fixed_seed}_t0",
@@ -345,6 +357,10 @@ def test_contract_literals_are_independently_pinned() -> None:
     assert analysis.T95_DF17 == 2.1098156
     assert analysis.EQUIVALENCE_MARGIN_LOG == 0.02955880224154443
     assert analysis.PREREGISTRATION_SHA256 == PREREGISTRATION_SHA256
+    assert (
+        analysis.PREREGISTRATION_ERRATUM_1_SHA256
+        == PREREGISTRATION_ERRATUM_1_SHA256
+    )
     assert tuple(analysis.CELL_LITERALS[f"p{index}"] for index in range(3)) == ARMS
     assert analysis.PREREGISTERED_CELL_PERMUTATIONS == PERMUTATIONS
     assert analysis.PREREGISTERED_SEEDS == SEEDS
@@ -352,7 +368,7 @@ def test_contract_literals_are_independently_pinned() -> None:
     assert analysis.THREADS == THREADS
 
 
-def test_public_analysis_uses_equal_block_log_ratios_and_frozen_ci(
+def test_public_analysis_accepts_real_identity_shape_and_uses_frozen_ci(
     tmp_path: Path,
 ) -> None:
     effects = [(-0.017 + index * 0.0031) for index in range(18)]
@@ -363,7 +379,52 @@ def test_public_analysis_uses_equal_block_log_ratios_and_frozen_ci(
         return 1_000_000.0
 
     paths = _write_artifacts(tmp_path / "artifacts", value_for=values)
-    result = analysis.analyze_policy_performance(paths, PREREGISTRATION)
+    documents = [_read(path) for path in paths]
+    for document in documents:
+        assert len(
+            {
+                _row(document, policy, "write-heavy", 6)["source_evidence"][
+                    "source_bytes_sha256"
+                ]
+                for policy in range(3)
+            }
+        ) == 3
+        assert len(
+            {
+                _row(document, policy, "write-heavy", 6)["genome"]
+                for policy in range(3)
+            }
+        ) == 3
+        assert len(
+            {
+                _row(document, policy, "write-heavy", 6)["binary_sha256"]
+                for policy in range(3)
+            }
+        ) == 3
+    for policy in (0, 1):
+        assert len(
+            {
+                _row(document, policy, "write-heavy", 6)["genome"]
+                for document in documents
+            }
+        ) == 1
+        assert len(
+            {
+                _row(document, policy, "write-heavy", 6)["source_evidence"][
+                    "source_bytes_sha256"
+                ]
+                for document in documents
+            }
+        ) == 1
+        assert len(
+            {
+                _row(document, policy, "write-heavy", 6)["binary_sha256"]
+                for document in documents
+            }
+        ) == 18
+    result = analysis.analyze_policy_performance(
+        paths, PREREGISTRATION, PREREGISTRATION_ERRATUM_1
+    )
     point = _point(result, "p0/p1", "write-heavy", 48)
     observed = [item["log_ratio"] for item in point["block_log_ratios"]]
     expected_mean = sum(effects) / 18
@@ -390,8 +451,11 @@ def test_public_analysis_uses_equal_block_log_ratios_and_frozen_ci(
     )
     assert result["analysis_status"] == "complete"
     assert result["blocks"]["present_rep_indices"] == list(range(18))
+    assert result["preregistration_erratum_1"]["sha256"] == (
+        PREREGISTRATION_ERRATUM_1_SHA256
+    )
     assert result == analysis.analyze_policy_performance(
-        list(reversed(paths)), PREREGISTRATION
+        list(reversed(paths)), PREREGISTRATION, PREREGISTRATION_ERRATUM_1
     )
     assert "abort_rate" not in json.dumps(result)
 
@@ -410,7 +474,9 @@ def test_equivalence_behavior_depends_on_frozen_95_percent_critical_and_margin(
 
     paths = _write_artifacts(tmp_path / "artifacts", value_for=values)
     point = _point(
-        analysis.analyze_policy_performance(paths, PREREGISTRATION),
+        analysis.analyze_policy_performance(
+            paths, PREREGISTRATION, PREREGISTRATION_ERRATUM_1
+        ),
         "p0/p1",
         "balanced",
         24,
@@ -460,14 +526,16 @@ def test_hypotheses_return_preregistered_three_way_decisions(tmp_path: Path) -> 
         return 1_000_000.0 * math.exp(effects[policy])
 
     paths = _write_artifacts(tmp_path / "artifacts", value_for=values)
-    result = analysis.analyze_policy_performance(paths, PREREGISTRATION)
+    result = analysis.analyze_policy_performance(
+        paths, PREREGISTRATION, PREREGISTRATION_ERRATUM_1
+    )
     assert result["hypotheses"]["H1"]["decision"] == "accepted"
     assert result["hypotheses"]["H2"]["decision"] == "rejected"
     assert result["hypotheses"]["H3"]["decision"] == "rejected"
 
     baseline = _write_artifacts(tmp_path / "baseline")
     baseline_result = analysis.analyze_policy_performance(
-        baseline, PREREGISTRATION
+        baseline, PREREGISTRATION, PREREGISTRATION_ERRATUM_1
     )
     assert baseline_result["hypotheses"]["H1"]["decision"] == "rejected"
     assert baseline_result["hypotheses"]["H2"]["decision"] == "accepted"
@@ -528,7 +596,9 @@ def test_one_reasoned_missing_coordinate_is_local_not_artifact_invalid(
         row["missing_reason"] = "timeout"
 
     _rewrite(paths[4], make_missing)
-    result = analysis.analyze_policy_performance(paths, PREREGISTRATION)
+    result = analysis.analyze_policy_performance(
+        paths, PREREGISTRATION, PREREGISTRATION_ERRATUM_1
+    )
     p0_p1 = _point(result, "p0/p1", "balanced", 12)
     p0_p2 = _point(result, "p0/p2", "balanced", 12)
     p2_p1 = _point(result, "p2/p1", "balanced", 12)
@@ -555,7 +625,9 @@ def test_absent_block_is_pointwise_incomplete_and_lists_rep_index(
     tmp_path: Path,
 ) -> None:
     paths = _write_artifacts(tmp_path / "artifacts")
-    result = analysis.analyze_policy_performance(paths[:-1], PREREGISTRATION)
+    result = analysis.analyze_policy_performance(
+        paths[:-1], PREREGISTRATION, PREREGISTRATION_ERRATUM_1
+    )
 
     assert result["blocks"]["missing_rep_indices"] == [17]
     for contrast in ("p0/p1", "p0/p2", "p2/p1"):
@@ -621,9 +693,14 @@ def _mutate_structural_case(document: dict, case: str) -> None:
             row["genome"].encode()
         ).hexdigest()
     elif case == "source-bytes":
+        p0_source_bytes = _row(
+            document, 0, "write-heavy", 6
+        )["source_evidence"]["source_bytes_sha256"]
         for item in document["cells"]:
-            if item["step_policy"] == 0:
-                item["source_evidence"]["source_bytes_sha256"] = "f" * 64
+            if item["step_policy"] == 1:
+                item["source_evidence"][
+                    "source_bytes_sha256"
+                ] = p0_source_bytes
     elif case == "binary-within-arm":
         row["binary_sha256"] = "f" * 64
     elif case == "coordinate":
@@ -668,21 +745,94 @@ def test_structural_contract_violations_are_artifact_invalid(
     paths = _write_artifacts(tmp_path / "artifacts")
     _rewrite(paths[0], lambda document: _mutate_structural_case(document, case))
     with pytest.raises(ValueError, match="artifact-invalid"):
-        analysis.analyze_policy_performance(paths, PREREGISTRATION)
+        analysis.analyze_policy_performance(
+            paths, PREREGISTRATION, PREREGISTRATION_ERRATUM_1
+        )
 
 
-def test_duplicate_rep_index_and_resolved_path_are_rejected(tmp_path: Path) -> None:
+def test_inert_policy_identity_and_duplicate_inputs_are_rejected(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def collide_arm_identity(document: dict, identity: str) -> None:
+        source = _row(document, 0, "write-heavy", 6)
+        for row in document["cells"]:
+            if row["step_policy"] != 1:
+                continue
+            if identity == "source_bytes_sha256":
+                row["source_evidence"][identity] = source["source_evidence"][
+                    identity
+                ]
+            elif identity == "genome":
+                row["genome"] = source["genome"]
+                row["source_evidence"]["genome_sha256"] = hashlib.sha256(
+                    row["genome"].encode()
+                ).hexdigest()
+            elif identity == "binary_sha256":
+                row[identity] = source[identity]
+            else:
+                raise AssertionError(identity)
+
+    for identity in ("source_bytes_sha256", "genome", "binary_sha256"):
+        inert_paths = _write_artifacts(tmp_path / f"inert-{identity}")
+        _rewrite(
+            inert_paths[0],
+            lambda document, identity=identity: collide_arm_identity(
+                document, identity
+            ),
+        )
+        with monkeypatch.context() as patcher:
+            if identity == "genome":
+                patcher.setattr(
+                    analysis,
+                    "_validate_genome",
+                    lambda value, **_kwargs: value,
+                )
+            with pytest.raises(
+                ValueError,
+                match="artifact-invalid.*step policy define appears inert",
+            ):
+                analysis.analyze_policy_performance(
+                    inert_paths, PREREGISTRATION, PREREGISTRATION_ERRATUM_1
+                )
+
+    ccbench_paths = _write_artifacts(tmp_path / "ccbench-arm-mismatch")
+
+    def change_one_arm_ccbench(document: dict) -> None:
+        for row in document["cells"]:
+            if row["step_policy"] == 1:
+                row["source_evidence"]["ccbench_commit"] = "511c9538e4"
+
+    _rewrite(ccbench_paths[0], change_one_arm_ccbench)
+    with monkeypatch.context() as patcher:
+        patcher.setattr(
+            analysis,
+            "_validate_source_evidence",
+            lambda value, **_kwargs: value,
+        )
+        with pytest.raises(
+            ValueError,
+            match="artifact-invalid.*differs outside the allowlist",
+        ):
+            analysis.analyze_policy_performance(
+                ccbench_paths, PREREGISTRATION, PREREGISTRATION_ERRATUM_1
+            )
+
     paths = _write_artifacts(tmp_path / "artifacts")
     paths[1].write_bytes(paths[0].read_bytes())
     with pytest.raises(ValueError, match="artifact-invalid.*duplicate rep_index"):
-        analysis.analyze_policy_performance(paths, PREREGISTRATION)
+        analysis.analyze_policy_performance(
+            paths, PREREGISTRATION, PREREGISTRATION_ERRATUM_1
+        )
 
     fresh = _write_artifacts(tmp_path / "fresh")
     alias = tmp_path / "alias.json"
     alias.symlink_to(fresh[0])
     with pytest.raises(ValueError, match="artifact-invalid.*unique resolved"):
         analysis.analyze_policy_performance(
-            [fresh[0], alias, *fresh[2:]], PREREGISTRATION
+            [fresh[0], alias, *fresh[2:]],
+            PREREGISTRATION,
+            PREREGISTRATION_ERRATUM_1,
         )
 
 
@@ -719,6 +869,17 @@ def _mutate_block_identity(document: dict, case: str) -> None:
         for row in document["cells"]:
             if row["step_policy"] == 0:
                 row["binary_sha256"] = "f" * 64
+    elif case == "p0-source":
+        for row in document["cells"]:
+            if row["step_policy"] == 0:
+                row["source_evidence"]["source_bytes_sha256"] = "e" * 64
+    elif case == "p0-genome":
+        for row in document["cells"]:
+            if row["step_policy"] == 0:
+                row["genome"] += ",UNREGISTERED_DEFINE=1"
+                row["source_evidence"]["genome_sha256"] = hashlib.sha256(
+                    row["genome"].encode()
+                ).hexdigest()
     else:
         raise AssertionError(case)
 
@@ -735,11 +896,70 @@ def _mutate_block_identity(document: dict, case: str) -> None:
         "p0-binary",
     ),
 )
-def test_block_identity_mismatches_fail_closed(tmp_path: Path, case: str) -> None:
+def test_block_identity_contract_across_blocks(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    case: str,
+) -> None:
     paths = _write_artifacts(tmp_path / "artifacts")
     _rewrite(paths[1], lambda document: _mutate_block_identity(document, case))
+    if case == "p0-binary":
+        result = analysis.analyze_policy_performance(
+            paths, PREREGISTRATION, PREREGISTRATION_ERRATUM_1
+        )
+        assert result["analysis_status"] == "complete"
+        for identity in ("p0-genome", "p0-source"):
+            mismatch_paths = _write_artifacts(tmp_path / identity)
+            _rewrite(
+                mismatch_paths[1],
+                lambda document, identity=identity: _mutate_block_identity(
+                    document, identity
+                ),
+            )
+            with monkeypatch.context() as patcher:
+                if identity == "p0-genome":
+                    original_validate_genome = analysis._validate_genome
+
+                    def accept_changed_p0_genome(
+                        value: object,
+                        *,
+                        policy: int,
+                        seed: int,
+                        binding: str,
+                    ) -> str:
+                        if policy == 0 and isinstance(value, str) and value.endswith(
+                            ",UNREGISTERED_DEFINE=1"
+                        ):
+                            return value
+                        return original_validate_genome(
+                            value,
+                            policy=policy,
+                            seed=seed,
+                            binding=binding,
+                        )
+
+                    patcher.setattr(
+                        analysis,
+                        "_validate_genome",
+                        accept_changed_p0_genome,
+                    )
+                with pytest.raises(
+                    ValueError,
+                    match=(
+                        "artifact-invalid.*p0 genome or source bytes identity "
+                        "differs between blocks"
+                    ),
+                ):
+                    analysis.analyze_policy_performance(
+                        mismatch_paths,
+                        PREREGISTRATION,
+                        PREREGISTRATION_ERRATUM_1,
+                    )
+        return
     with pytest.raises(ValueError, match="artifact-invalid"):
-        analysis.analyze_policy_performance(paths, PREREGISTRATION)
+        analysis.analyze_policy_performance(
+            paths, PREREGISTRATION, PREREGISTRATION_ERRATUM_1
+        )
 
 
 @pytest.mark.parametrize("value", (None, 0.0, -1.0, math.inf, math.nan))
@@ -754,7 +974,9 @@ def test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason(
         row["missing_reason"] = "measurement-unavailable"
 
     _rewrite(paths[3], mutate)
-    result = analysis.analyze_policy_performance(paths, PREREGISTRATION)
+    result = analysis.analyze_policy_performance(
+        paths, PREREGISTRATION, PREREGISTRATION_ERRATUM_1
+    )
     point = _point(result, "p0/p1", "read-heavy", 30)
     assert point["reason"] == "n-insufficient"
     assert point["missing_rep_indices"] == [3]
@@ -764,31 +986,62 @@ def test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason(
 
     _rewrite(paths[3], remove_reason)
     with pytest.raises(ValueError, match="artifact-invalid.*needs a reason"):
-        analysis.analyze_policy_performance(paths, PREREGISTRATION)
+        analysis.analyze_policy_performance(
+            paths, PREREGISTRATION, PREREGISTRATION_ERRATUM_1
+        )
 
 
 def test_preregistration_bytes_are_bound_to_frozen_sha256(tmp_path: Path) -> None:
     assert hashlib.sha256(PREREGISTRATION.read_bytes()).hexdigest() == (
         PREREGISTRATION_SHA256
     )
+    assert hashlib.sha256(PREREGISTRATION_ERRATUM_1.read_bytes()).hexdigest() == (
+        PREREGISTRATION_ERRATUM_1_SHA256
+    )
     paths = _write_artifacts(tmp_path / "artifacts")
     changed = tmp_path / "changed-preregistration.md"
     changed.write_bytes(PREREGISTRATION.read_bytes() + b"\n")
     with pytest.raises(ValueError, match="frozen specification"):
-        analysis.analyze_policy_performance(paths, changed)
+        analysis.analyze_policy_performance(
+            paths, changed, PREREGISTRATION_ERRATUM_1
+        )
+
+    changed_erratum = tmp_path / "changed-erratum-1.md"
+    erratum_bytes = PREREGISTRATION_ERRATUM_1.read_bytes()
+    changed_erratum.write_bytes(b"!" + erratum_bytes[1:])
+    with pytest.raises(ValueError, match="erratum 1.*frozen specification"):
+        analysis.analyze_policy_performance(
+            paths, PREREGISTRATION, changed_erratum
+        )
 
 
 def test_input_type_contract_and_empty_explicit_input(tmp_path: Path) -> None:
     with pytest.raises(TypeError, match="list of Path"):
         analysis.analyze_policy_performance(
-            (), PREREGISTRATION  # type: ignore[arg-type]
+            (),  # type: ignore[arg-type]
+            PREREGISTRATION,
+            PREREGISTRATION_ERRATUM_1,
+        )
+    with pytest.raises(TypeError, match="required positional argument"):
+        analysis.analyze_policy_performance(  # type: ignore[call-arg]
+            [], PREREGISTRATION
         )
     with pytest.raises(TypeError, match="must be a Path"):
         analysis.analyze_policy_performance(
-            [], str(PREREGISTRATION)  # type: ignore[arg-type]
+            [],
+            str(PREREGISTRATION),  # type: ignore[arg-type]
+            PREREGISTRATION_ERRATUM_1,
+        )
+    with pytest.raises(TypeError, match="must be a Path"):
+        analysis.analyze_policy_performance(
+            [],
+            PREREGISTRATION,
+            str(PREREGISTRATION_ERRATUM_1),  # type: ignore[arg-type]
         )
 
-    result = analysis.analyze_policy_performance([], PREREGISTRATION)
+    result = analysis.analyze_policy_performance(
+        [], PREREGISTRATION, PREREGISTRATION_ERRATUM_1
+    )
     assert result["analysis_status"] == "incomplete-analysis"
     assert result["blocks"]["missing_rep_indices"] == list(range(18))
     assert all(
