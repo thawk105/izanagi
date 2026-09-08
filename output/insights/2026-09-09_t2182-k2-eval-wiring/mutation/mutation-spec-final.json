@@ -1,0 +1,94 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 600,
+ "timeout_seconds": 480,
+ "hang_timeout_seconds": 480,
+ "mutations": [
+  {
+   "id": "m01-condition-gate-args-dropped",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "old": "        *buildcache._fetchcontent_source_defines(source_dirs),\n    )",
+     "new": "    )"
+    },
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "old": "    expected_count = 1 + len(_FETCHCONTENT_SOURCE_NAMES) \\\n        + int(bool(dependency_prefix))",
+     "new": "    expected_count = len(configure_args)"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop.py::test_prebuild_offline_tokens_reach_real_condition_gate_configure_argv",
+    "orchestrator/tests/test_p3_s4_loop.py::test_prebuild_offline_tokens_without_dependency_prefix_match_production_shape"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m02-condition-gate-args-unconditional",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "old": "        if fetchcontent_dependency_receipt is None:\n            condition_gate = _require_condition_gate(sub, genome)\n        else:\n            condition_gate = _require_condition_gate(",
+     "new": "        if False:\n            condition_gate = _require_condition_gate(sub, genome)\n        else:\n            condition_gate = _require_condition_gate("
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop.py::test_without_prebuild_real_condition_gate_configure_args_remain_empty"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m04-k2-request-detection-weakened",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+     "old": "  if [[ -v $name ]]; then\n    k2_requested=true",
+     "new": "  if [[ -n \"${!name:-}\" ]]; then\n    k2_requested=true"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_set_empty_manifest_alone_is_refused_by_actual_job_body"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m05-proposal-path-requirement-removed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+     "old": "  [[ -n \"${IZANAGI_S4_PROPOSAL_PATH:-}\" ]] \\\n    || refuse \"K2 environment requires IZANAGI_S4_PROPOSAL_PATH\"",
+     "new": "  true"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_complete_k2_pair_without_proposal_is_refused_by_actual_job_body"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m06-k2-argv-not-forwarded",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+     "old": "    --fetchcontent-prebuild-receipt \"$prebuild_receipt\" \\\n    \"${k2_argv[@]}\" \\\n    --run-iteration \"$IZANAGI_S4_PROPOSAL_PATH\"",
+     "new": "    --fetchcontent-prebuild-receipt \"$prebuild_receipt\" \\\n    --run-iteration \"$IZANAGI_S4_PROPOSAL_PATH\""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_complete_k2_environment_reaches_actual_job_driver_argv"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}
