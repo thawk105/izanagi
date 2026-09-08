@@ -171,6 +171,7 @@ class PreparedCell:
     condition_meaning_records: Optional[
         tuple[condition_meaning_gate.ConditionArmRecord, ...]
     ] = None
+    sort_oracle_contract_id: Optional[str] = None
 
 
 _CONDITION_DEFAULTS = {
@@ -830,6 +831,7 @@ def prepare_cell(
         marker_id = source_rel = quarantine_patch_path = None
         patch_only_path = None
         oracle_attempt: Optional[Dict] = None
+        sort_oracle_contract_id: Optional[str] = None
         if configuration in {"system_gate", "ident_all"}:
             quarantine_implementation = variant.get("gate_predicate")
             if (not isinstance(quarantine_implementation, str)
@@ -909,6 +911,7 @@ def prepare_cell(
                     )
                 if oracle.status is not OracleStatus.PASS:
                     raise DriverError("sort_best SWO oracle が未知 status を返した")
+                sort_oracle_contract_id = oracle.contract_id
                 oracle_attempt = attempt_record(oracle)
         elif patch_only_path is not None:
             stack.enter_context(patchharness.applied(
@@ -922,15 +925,22 @@ def prepare_cell(
         )
         # The materializer boundary re-resolves and validates full SourceEvidence.
         # Preparation only needs the stable variant token for scheduling/identity.
-        src_token = source_digest.resolve(
-            genome, ccbench_pin, ccbench_dir=sub, cxx=cxx,
-        )
+        if sort_oracle_contract_id is not None:
+            src_token = source_digest.resolve_evidence(
+                genome, ccbench_pin, ccbench_dir=sub, cxx=cxx,
+                sort_oracle_contract_id=sort_oracle_contract_id,
+            ).src_token
+        else:
+            src_token = source_digest.resolve(
+                genome, ccbench_pin, ccbench_dir=sub, cxx=cxx,
+            )
         yield PreparedCell(
             genome=genome, src_token=src_token,
             ccbench_dir=sub, cache_root=cache_root,
             oracle_attempt=oracle_attempt,
             condition_supply_records=condition_supply_records,
             condition_meaning_records=condition_meaning_records,
+            sort_oracle_contract_id=sort_oracle_contract_id,
         )
 
 
@@ -1214,6 +1224,10 @@ def run_role(
                         build_context=build_context,
                         capability_resolver=review_capability,
                     )
+                    if prepared.sort_oracle_contract_id is not None:
+                        kwargs["sort_oracle_contract_id"] = (
+                            prepared.sort_oracle_contract_id
+                        )
                     try:
                         if evaluate_fn is None:
                             result = pipeline.evaluate(

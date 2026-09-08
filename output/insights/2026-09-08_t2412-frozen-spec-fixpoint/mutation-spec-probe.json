@@ -1,0 +1,134 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 150,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 1200,
+  "mutations": [
+    {
+      "id": "M01-unique-parent-weakened",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "    if _git_parents(root, loaded_head) != (provenance.source_commit,):",
+          "new": "    if provenance.source_commit not in _git_parents(root, loaded_head):"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M02-changed-paths-weakened",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "    if _git_changed_paths(root, provenance.source_commit, loaded_head) != (\n        os.fsencode(relpath),\n    ):",
+          "new": "    if os.fsencode(relpath) not in _git_changed_paths(\n        root, provenance.source_commit, loaded_head\n    ):"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M03-spec-blob-compare-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "    if raw != head_raw:\n        raise FloorPairBindingError(\n            \"frozen spec が loaded HEAD tracked blob と byte 一致しない\"\n        )",
+          "new": "    if False:\n        raise FloorPairBindingError(\n            \"frozen spec が loaded HEAD tracked blob と byte 一致しない\"\n        )"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M04-runtime-head-check-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "    if runtime_head != spec.loaded_head:",
+          "new": "    if False:"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M05-finalizer-expects-source-commit",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "        \"runtime_head\": spec.loaded_head,",
+          "new": "        \"runtime_head\": spec.provenance.source_commit,"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M06-spec-blob-query-uses-symbolic-head",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "    head_raw = _git_show_head(root, loaded_head, relpath)",
+          "new": "    head_raw = _git_show_head(root, \"HEAD\", relpath)"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M07-changed-paths-parser-keeps-trailing-empty",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "    paths = tuple(raw[:-1].split(b\"\\0\"))",
+          "new": "    paths = tuple(raw.split(b\"\\0\"))"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M08-ignore-submodules-flag-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "                \"--ignore-submodules=none\",",
+          "new": "                \"--no-color\","
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M09-tracked-bound-blob-query-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_pair_driver.py",
+          "old": "    head_raw = _git_show_head(root, loaded_head, reference.path)",
+          "new": "    head_raw = raw"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

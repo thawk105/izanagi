@@ -1,0 +1,294 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 150,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 2400,
+  "mutations": [
+    {
+      "id": "M1-source-digest-comparison-vacuous",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+          "old": "    if source_digest != preregistered.source_bytes_sha256:\n        _reject(\n            \"source-identity-unbound\",\n            \"wal.build_start.build_admission.source.source_bytes_sha256\",\n            preregistered.source_bytes_sha256,\n            source_digest,\n            arm,\n        )\n",
+          "new": "    if False and source_digest != preregistered.source_bytes_sha256:\n        _reject(\n            \"source-identity-unbound\",\n            \"wal.build_start.build_admission.source.source_bytes_sha256\",\n            preregistered.source_bytes_sha256,\n            source_digest,\n            arm,\n        )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_preregistered_source_digest_drift_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-sibling-failure-receipt-vacuous",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+          "old": "    failure_path = Path(os.fspath(root) + \".failure.json\")\n    if os.path.lexists(failure_path):\n        _reject(\n            \"producer-failure-receipt\", \"sibling_failure_receipt\",\n            \"absent\", os.fspath(failure_path), \"baseline\",\n        )\n",
+          "new": "    failure_path = Path(os.fspath(root) + \".failure.json\")\n    if False and os.path.lexists(failure_path):\n        _reject(\n            \"producer-failure-receipt\", \"sibling_failure_receipt\",\n            \"absent\", os.fspath(failure_path), \"baseline\",\n        )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_sibling_failure_receipt_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-lock-gitlink-prefix-vacuous",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+          "old": "    lock_gitlink = decoded_lock.identity.get(\"ccbench_commit\")\n    if not _gitlink_matches(common.ccbench_gitlink_commit, lock_gitlink):\n        _reject(\n            \"gitlink-identity-mismatch\", \"campaign.lock.ccbench_commit\",\n            f\"abbreviated prefix of {common.ccbench_gitlink_commit}\",\n            lock_gitlink,\n        )\n",
+          "new": "    lock_gitlink = decoded_lock.identity.get(\"ccbench_commit\")\n    if False and not _gitlink_matches(common.ccbench_gitlink_commit, lock_gitlink):\n        _reject(\n            \"gitlink-identity-mismatch\", \"campaign.lock.ccbench_commit\",\n            f\"abbreviated prefix of {common.ccbench_gitlink_commit}\",\n            lock_gitlink,\n        )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_short_gitlink_must_prefix_the_full_preregistration"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-unstable-accepted",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+          "old": "    if baseline.unstable or target.unstable:\n        return T1998StockInlineDecision(\n            status=\"inconclusive\",\n            reason=\"unstable-arm\",\n",
+          "new": "    if False and (baseline.unstable or target.unstable):\n        return T1998StockInlineDecision(\n            status=\"inconclusive\",\n            reason=\"unstable-arm\",\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_unstable_arm_is_inconclusive[baseline]",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_unstable_arm_is_inconclusive[target]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-target-selection-argmax",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+          "old": "    target_starts = [\n        record for record, arm in pair_starts\n        if arm == \"target\"\n    ]\n",
+          "new": "    target_starts = [\n        max(\n            starts,\n            key=lambda start: next(\n                record.payload.get(\"median_tps\")\n                for record in view.records\n                if record.variant == start.variant\n                and record.stage == STAGE_BENCH_DONE\n            ),\n        )\n    ]\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_real_admission_and_receipts_accept_only_the_fixed_pair"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-rejection-payload-expected-actual-omitted",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+          "old": "    def as_dict(self) -> dict[str, object]:\n        return {\n            \"code\": self.code,\n            \"field\": self.field,\n            \"expected\": self.expected,\n            \"actual\": self.actual,\n            \"arm\": self.arm,\n        }\n",
+          "new": "    def as_dict(self) -> dict[str, object]:\n        return {\n            \"code\": self.code,\n            \"field\": self.field,\n            \"arm\": self.arm,\n        }\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_preregistered_source_digest_drift_is_rejected",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_shared_noncanonical_toolchain_digest_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-job-body-digest-comparison-vacuous",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+          "old": "    _require_equal(\n        binding.get(\"script_sha256\"), common.launcher_script_sha256,\n        code=\"launcher-script-identity-mismatch\",\n        field=\"reservation.binding.script_sha256\",\n    )\n",
+          "new": "    if False:\n        _require_equal(\n            binding.get(\"script_sha256\"), common.launcher_script_sha256,\n            code=\"launcher-script-identity-mismatch\",\n            field=\"reservation.binding.script_sha256\",\n        )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_launcher_script_digest_is_bound_to_preregistration"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8-launcher-two-workload-fanout",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_t1998_balanced_stock_inline.sh",
+          "old": "WORKLOAD=balanced\nroot=\"$OUTPUT_PARENT/$GROUP_ID-$WORKLOAD\"\nstdout=\"$OUTPUT_PARENT/$GROUP_ID-$WORKLOAD.stdout\"\nstderr=\"$OUTPUT_PARENT/$GROUP_ID-$WORKLOAD.stderr\"\n[[ ! -e \"$root\" && ! -e \"$stdout\" && ! -e \"$stderr\" ]] || {\n  echo \"job-unique output already exists for $WORKLOAD\" >&2\n  exit 2\n}\n",
+          "new": "WORKLOADS=(write-heavy balanced)\nfor WORKLOAD in \"${WORKLOADS[@]}\"; do\n  root=\"$OUTPUT_PARENT/$GROUP_ID-$WORKLOAD\"\n  stdout=\"$OUTPUT_PARENT/$GROUP_ID-$WORKLOAD.stdout\"\n  stderr=\"$OUTPUT_PARENT/$GROUP_ID-$WORKLOAD.stderr\"\n  [[ ! -e \"$root\" && ! -e \"$stdout\" && ! -e \"$stderr\" ]] || {\n    echo \"job-unique output already exists for $WORKLOAD\" >&2\n    exit 2\n  }\ndone\n"
+        },
+        {
+          "file": "tools/pegasus/submit_t1998_balanced_stock_inline.sh",
+          "old": "    (group, nonce, submitter_path, submitter_hash, job_script_path,\n     job_script_hash, expected_head, workload) = values\n    event = {\n        \"schema_version\": \"t1998-balanced-stock-inline-submit-event/v1\",\n        \"event\": \"manifest\",\n        \"group_id\": group,\n        \"submission_nonce\": nonce,\n        \"submitter_path\": submitter_path,\n        \"submitter_sha256\": submitter_hash,\n        \"job_script_path\": job_script_path,\n        \"job_script_sha256\": job_script_hash,\n        \"repository_commit\": expected_head,\n        \"workloads\": [workload],\n",
+          "new": "    (group, nonce, submitter_path, submitter_hash, job_script_path,\n     job_script_hash, expected_head, *workloads) = values\n    event = {\n        \"schema_version\": \"t1998-balanced-stock-inline-submit-event/v1\",\n        \"event\": \"manifest\",\n        \"group_id\": group,\n        \"submission_nonce\": nonce,\n        \"submitter_path\": submitter_path,\n        \"submitter_sha256\": submitter_hash,\n        \"job_script_path\": job_script_path,\n        \"job_script_sha256\": job_script_hash,\n        \"repository_commit\": expected_head,\n        \"workloads\": workloads,\n"
+        },
+        {
+          "file": "tools/pegasus/submit_t1998_balanced_stock_inline.sh",
+          "old": "append_submission_event manifest \"$GROUP_ID\" \"$SUBMISSION_NONCE\" \\\n  \"$SUBMITTER_PATH\" \"$SUBMITTER_SHA256\" \"$JOB_SCRIPT_PATH\" \\\n  \"$JOB_SCRIPT_SHA256\" \"$EXPECTED_HEAD\" \"$WORKLOAD\"\n\ncd -- \"$REPO_ROOT\"\nqsub_rc=0\njob_id=$(qsub \\\n  -v \"A5_WORKLOAD=$WORKLOAD,A5_OUTPUT_ROOT=$root,A5_SUBMISSION_NONCE=$SUBMISSION_NONCE,A5_EXPECTED_HEAD=$EXPECTED_HEAD,JOB_SCRIPT_SHA256=$JOB_SCRIPT_SHA256\" \\\n  -o \"$stdout\" -e \"$stderr\" \"$JOB_SCRIPT\") || qsub_rc=$?\nif [[ \"$qsub_rc\" -ne 0 ]]; then\n  append_submission_event failed \"$WORKLOAD\" \"$qsub_rc\" \"qsub_failed\"\n  exit \"$qsub_rc\"\nfi\nif [[ -z \"$job_id\" ]]; then\n  append_submission_event failed \"$WORKLOAD\" 2 \"qsub_returned_empty_job_id\"\n  echo \"qsub returned no job id for $WORKLOAD\" >&2\n  exit 2\nfi\nappend_submission_event submitted \\\n  \"$WORKLOAD\" \"$job_id\" \"$root\" \"$stdout\" \"$stderr\"\nprintf '%s\\n' \"$job_id\"\n",
+          "new": "append_submission_event manifest \"$GROUP_ID\" \"$SUBMISSION_NONCE\" \\\n  \"$SUBMITTER_PATH\" \"$SUBMITTER_SHA256\" \"$JOB_SCRIPT_PATH\" \\\n  \"$JOB_SCRIPT_SHA256\" \"$EXPECTED_HEAD\" \"${WORKLOADS[@]}\"\n\ncd -- \"$REPO_ROOT\"\nfor WORKLOAD in \"${WORKLOADS[@]}\"; do\n  root=\"$OUTPUT_PARENT/$GROUP_ID-$WORKLOAD\"\n  stdout=\"$OUTPUT_PARENT/$GROUP_ID-$WORKLOAD.stdout\"\n  stderr=\"$OUTPUT_PARENT/$GROUP_ID-$WORKLOAD.stderr\"\n  qsub_rc=0\n  job_id=$(qsub \\\n    -v \"A5_WORKLOAD=$WORKLOAD,A5_OUTPUT_ROOT=$root,A5_SUBMISSION_NONCE=$SUBMISSION_NONCE,A5_EXPECTED_HEAD=$EXPECTED_HEAD,JOB_SCRIPT_SHA256=$JOB_SCRIPT_SHA256\" \\\n    -o \"$stdout\" -e \"$stderr\" \"$JOB_SCRIPT\") || qsub_rc=$?\n  if [[ \"$qsub_rc\" -ne 0 ]]; then\n    append_submission_event failed \"$WORKLOAD\" \"$qsub_rc\" \"qsub_failed\"\n    exit \"$qsub_rc\"\n  fi\n  if [[ -z \"$job_id\" ]]; then\n    append_submission_event failed \"$WORKLOAD\" 2 \"qsub_returned_empty_job_id\"\n    echo \"qsub returned no job id for $WORKLOAD\" >&2\n    exit 2\n  fi\n  append_submission_event submitted \\\n    \"$WORKLOAD\" \"$job_id\" \"$root\" \"$stdout\" \"$stderr\"\n  printf '%s\\n' \"$job_id\"\ndone\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t1998_launcher_contract.py::test_submitter_launches_exactly_one_balanced_workload"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9-output-parent-repository-boundary-vacuous",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_t1998_balanced_stock_inline.sh",
+          "old": "if target == repo or repo in target.parents or target in repo.parents:\n    raise SystemExit(\"output parent must be outside the repository\")\n",
+          "new": "if False and (target == repo or repo in target.parents or target in repo.parents):\n    raise SystemExit(\"output parent must be outside the repository\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t1998_launcher_contract.py::test_output_parent_is_existing_absolute_and_outside_every_repo_ancestor"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10-cmake-typed-define-normalization-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+          "old": "        key, _type_separator, _cmake_type = key_with_type.partition(\":\")\n        if key == name:\n            values.append(value)\n",
+          "new": "        key = key_with_type\n        if key == name:\n            values.append(value)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_explicit_noinline_one_is_diagnostic_build[typed-configure]",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_typed_trace_disabled_define_is_normalized"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11-bench-executable-token-anywhere",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+          "old": "    execution_target = (\n        _bench_execution_target(run_argv) if run_argv is not None else None\n    )\n",
+          "new": "    execution_target = (\n        expected_binary\n        if run_argv is not None and expected_binary in run_argv\n        else None\n    )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_decoy_bench_binary_token_is_rejected[/bin/echo]",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_decoy_bench_binary_token_is_rejected[/bin/true]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M12-toolchain-canonical-digest-recalculation-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+          "old": "    try:\n        canonical_toolchain_digest = _canonical_json_sha256(toolchain)\n    except (TypeError, ValueError) as exc:\n        _reject(\n            \"toolchain-identity-mismatch\", \"wal.build_done.toolchain\",\n            \"canonical finite JSON manifest\", f\"{type(exc).__name__}: {exc}\", arm,\n        )\n    _require_equal(\n        toolchain_digest,\n        canonical_toolchain_digest,\n        code=\"toolchain-identity-mismatch\",\n        field=\"wal.build_done.toolchain_record_sha256\",\n        arm=arm,\n    )\n",
+          "new": "    canonical_toolchain_digest = toolchain_digest\n    _require_equal(\n        toolchain_digest,\n        canonical_toolchain_digest,\n        code=\"toolchain-identity-mismatch\",\n        field=\"wal.build_done.toolchain_record_sha256\",\n        arm=arm,\n    )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_shared_noncanonical_toolchain_digest_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M13-verify-done-env-tag-excluded",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+          "old": "    arm_records = (start, build_done, verify_done, bench_done, commit)\n    env_tags = {record.env_tag for record in arm_records}\n",
+          "new": "    arm_records = (start, build_done, bench_done, commit)\n    env_tags = {record.env_tag for record in arm_records}\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_verify_environment_tag_drift_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M14-all-record-anomaly-scan-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+          "old": "    for record in view.records:\n        arm = arm_by_variant.get(record.variant, \"unknown\")\n        if \"anomalies\" in record.payload or record.stage == STAGE_VERIFY_DONE:\n            _require_equal(\n                record.payload.get(\"anomalies\"),\n                0,\n                code=\"producer-rejected-variant\",\n                field=f\"wal.{record.stage}.anomalies\",\n                arm=arm,\n            )\n        if \"verdict\" in record.payload or record.stage == STAGE_VERIFY_DONE:\n            _require_equal(\n                record.payload.get(\"verdict\"),\n                \"serializable\",\n                code=\"producer-rejected-variant\",\n                field=f\"wal.{record.stage}.verdict\",\n                arm=arm,\n            )\n        if record.stage not in {STAGE_VERIFY_DONE, STAGE_BENCH_DONE}:\n            continue\n        attempt_id = record.payload.get(\"build_attempt_id\")\n        if (record.variant, attempt_id) not in known_attempts:\n            _reject(\n                \"producer-rejected-variant\",\n                f\"wal.{record.stage}.build_attempt_id\",\n                \"known build attempt for the same variant\",\n                attempt_id,\n                arm,\n            )\n",
+          "new": "    # Skip the all-record anomaly and attempt-membership scan.\n    pass\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_all_verify_and_bench_records_are_fail_closed[bench-wal.bench_done.build_attempt_id]",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_all_verify_and_bench_records_are_fail_closed[build-anomaly-wal.build_done.anomalies]",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_all_verify_and_bench_records_are_fail_closed[verify-anomaly-wal.verify_done.anomalies]",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_all_verify_and_bench_records_are_fail_closed[verify-clean-wal.verify_done.build_attempt_id]",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_all_verify_and_bench_records_are_fail_closed[verify-nonserializable-wal.verify_done.verdict]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M15-genome-diagnostic-knob-scan-vacuous",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+          "old": "    for record in starts:\n        has_diagnostic_key, arm = _genome_diagnostic_arm(\n            record.payload.get(\"genome\")\n        )\n        if has_diagnostic_key:\n            _reject(\n                \"diagnostic-build\", \"wal.build_start.genome.BACKOFF_NOINLINE\",\n                \"absent\", record.payload.get(\"genome\"), arm,\n            )\n",
+          "new": "    for record in ():\n        has_diagnostic_key, arm = _genome_diagnostic_arm(\n            record.payload.get(\"genome\")\n        )\n        if has_diagnostic_key:\n            _reject(\n                \"diagnostic-build\", \"wal.build_start.genome.BACKOFF_NOINLINE\",\n                \"absent\", record.payload.get(\"genome\"), arm,\n            )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_explicit_noinline_one_is_diagnostic_build[genome]",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_off_pair_diagnostic_build_is_rejected",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_off_pair_diagnostic_key_value_is_not_interpreted"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M16-submit-receipt-schema-literal-changed",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_t1998_balanced_stock_inline.sh",
+          "old": "        \"schema_version\": \"t1998-balanced-stock-inline-submit-event/v1\",\n        \"event\": \"manifest\",\n",
+          "new": "        \"schema_version\": \"t1998-balanced-stock-inline-submit-event/v0\",\n        \"event\": \"manifest\",\n"
+        },
+        {
+          "file": "tools/pegasus/submit_t1998_balanced_stock_inline.sh",
+          "old": "        \"schema_version\": \"t1998-balanced-stock-inline-submit-event/v1\",\n        \"event\": \"submitted\",\n",
+          "new": "        \"schema_version\": \"t1998-balanced-stock-inline-submit-event/v0\",\n        \"event\": \"submitted\",\n"
+        },
+        {
+          "file": "tools/pegasus/submit_t1998_balanced_stock_inline.sh",
+          "old": "        \"schema_version\": \"t1998-balanced-stock-inline-submit-event/v1\",\n        \"event\": \"failed\",\n",
+          "new": "        \"schema_version\": \"t1998-balanced-stock-inline-submit-event/v0\",\n        \"event\": \"failed\",\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t1998_launcher_contract.py::test_all_submit_receipt_events_pin_the_t1998_schema"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

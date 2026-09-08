@@ -1,0 +1,27 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 240,
+ "timeout_seconds": 1800,
+ "hang_timeout_seconds": 1800,
+ "mutations": [
+  {
+   "id": "m17-test-both-prefix-layers-loosened",
+   "category": "both-layers",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_p3_s4_loop_job_contract.py",
+     "old": "    if prefix_lines != allowed_prefix_lines:\n",
+     "new": "    if prefix_lines[:3] != allowed_prefix_lines:\n"
+    },
+    {
+     "file": "orchestrator/tests/test_p3_s4_loop_job_contract.py",
+     "old": "    if prefix_assignments != [allowed]:\n",
+     "new": "    if prefix_assignments not in ([allowed], [allowed, allowed]):\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}
