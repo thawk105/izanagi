@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import posixpath
 import re
@@ -25,13 +26,17 @@ from orchestrator.verifier.model import RW, WR, WW, VerifyResult
 from orchestrator.verifier.report import result_to_dict
 
 from . import reflux_origin_ledger as ledger
+from . import reflux_origin_binding
+from . import trigger_gate_binding
 from . import wal as wal_codec
-from .layout import validate_campaign_id
+from .layout import CampaignLayout, validate_campaign_id
 from .model import STAGE_ABORT, STAGE_COMMIT
+from .reflux_ir import TriggerGateIR, encode_wire
 from .reflux_origin_artifacts import (
     ArtifactError,
     canonical_json_bytes,
     strict_json_loads,
+    write_create_only,
     write_json_create_only,
 )
 
@@ -43,6 +48,7 @@ __all__ = [
     "LEDGER_OUTER_COMMITMENT_LAYER",
     "ResultEvidenceError",
     "ResultEvidenceIssuanceRefused",
+    "ResultEvidenceIssuanceContext",
     "DerivedPhysicalResult",
     "ResolvedEvidenceBytes",
     "ResolvedOrderedWal",
@@ -51,7 +57,9 @@ __all__ = [
     "validate_witness_anomaly",
     "witness_class_sha256",
     "derive_physical_result",
+    "produce_ordered_wal_projection",
     "assemble_result_evidence_record",
+    "issue_campaign_result_evidence",
     "issue_result_evidence_record",
     "canonical_result_evidence_bytes",
     "parse_result_evidence_bytes",
@@ -224,6 +232,21 @@ class ResultEvidenceError(ValueError):
 
 class ResultEvidenceIssuanceRefused(ResultEvidenceError):
     """Refuse issuance when no unique trustworthy physical result is derivable."""
+
+
+@dataclass(frozen=True, slots=True)
+class ResultEvidenceIssuanceContext:
+    origin_capability: object
+    evidence_root: Path
+    batch_id: str
+    query_ordinal: int
+    iteration_index: int
+    replicate_ordinal: int
+    p6_plan: Mapping[str, object]
+    trial_binding: Mapping[str, object]
+    origin_binding: Mapping[str, object]
+    ordered_verifiers: tuple[str, ...]
+    expected_record_path: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -411,6 +434,119 @@ def _issuance_refused(message: str) -> None:
     raise ResultEvidenceIssuanceRefused(
         "result evidence issuance refused: " + message
     )
+
+
+def _ordered_attempt_materials(
+    *, layout: object, build_attempt_id: str,
+) -> tuple[tuple[wal_codec.OrderedAttemptFrame, ...], bytes]:
+    if type(layout) is not CampaignLayout:
+        raise ResultEvidenceError("layout must be an exact CampaignLayout")
+    if type(build_attempt_id) is not str or not build_attempt_id:
+        _issuance_refused("build attempt identity is absent or invalid")
+    try:
+        frames = wal_codec.ordered_attempt_frames(layout, build_attempt_id)
+    except (OSError, UnicodeError, ValueError) as exc:
+        raise ResultEvidenceIssuanceRefused(
+            "result evidence issuance refused: WAL frames are not complete and valid"
+        ) from exc
+    if not frames:
+        _issuance_refused("the build attempt has no WAL frames")
+
+    # The WAL API owns physical framing and offsets.  This check uses those
+    # offsets only to reject another attempt interleaved inside this interval.
+    if any(
+        previous.byte_end != current.byte_start
+        for previous, current in zip(frames, frames[1:])
+    ):
+        _issuance_refused("the build attempt WAL frames are not physically contiguous")
+
+    terminal_byte_end = frames[-1].byte_end
+    nofollow = getattr(os, "O_NOFOLLOW", None)
+    if nofollow is None:
+        raise ResultEvidenceError("O_NOFOLLOW is required for source WAL capture")
+    flags = os.O_RDONLY | nofollow | getattr(os, "O_CLOEXEC", 0)
+    try:
+        fd = os.open(layout.wal_file, flags)
+    except OSError as exc:
+        raise ResultEvidenceError("source WAL cannot be opened safely") from exc
+    try:
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode):
+            raise ResultEvidenceError("source WAL must be a regular file")
+        chunks: list[bytes] = []
+        offset = 0
+        while offset < terminal_byte_end:
+            chunk = os.pread(fd, min(1024 * 1024, terminal_byte_end - offset), offset)
+            if not chunk:
+                raise ResultEvidenceError(
+                    "source WAL ended before the terminal frame boundary"
+                )
+            chunks.append(chunk)
+            offset += len(chunk)
+    except OSError as exc:
+        raise ResultEvidenceError("source WAL prefix snapshot read failed") from exc
+    finally:
+        os.close(fd)
+
+    # This is an immutable snapshot of wal.jsonl[0:terminal_byte_end], not a
+    # reference to the live WAL.  The projection keeps the original offsets.
+    terminal_prefix_snapshot = b"".join(chunks)
+    if any(
+        terminal_prefix_snapshot[frame.byte_start:frame.byte_end] != frame.raw_bytes
+        for frame in frames
+    ):
+        raise ResultEvidenceError("source WAL changed during prefix snapshot capture")
+    return frames, terminal_prefix_snapshot
+
+
+def _project_ordered_attempt_records(
+    frames: Sequence[wal_codec.OrderedAttemptFrame],
+) -> list[dict]:
+    return [
+        {
+            "variant": frame.record.variant,
+            "stage": frame.record.stage,
+            "env_tag": frame.record.env_tag,
+            "ts": frame.record.ts,
+            "payload": frame.record.payload,
+        }
+        for frame in frames
+    ]
+
+
+def produce_ordered_wal_projection(
+    *,
+    layout: object,
+    build_attempt_id: str,
+    source_wal_ref: Mapping[str, object],
+) -> bytes:
+    """Produce canonical bytes for one physically ordered attempt interval.
+
+    ``source_wal_ref`` must name the immutable terminal-prefix snapshot whose
+    digest equals ``wal.jsonl[0:byte_end]``.  A live WAL path is not suitable.
+    """
+
+    frames, terminal_prefix_snapshot = _ordered_attempt_materials(
+        layout=layout, build_attempt_id=build_attempt_id
+    )
+    source_ref = _reference(
+        source_wal_ref, label="ordered WAL projection.source_wal_ref"
+    )
+    if source_ref["sha256"] != _content_addressed_referent_sha256(
+        terminal_prefix_snapshot
+    ):
+        raise ResultEvidenceError(
+            "source WAL reference does not match the terminal prefix snapshot"
+        )
+    projection = {
+        "schema_version": "ordered-wal-projection/v1",
+        "source_wal_ref": dict(source_ref),
+        "byte_start": frames[0].byte_start,
+        "byte_end": frames[-1].byte_end,
+        "build_attempt_id": build_attempt_id,
+        "records": _project_ordered_attempt_records(frames),
+    }
+    return canonical_json_bytes(projection)
 
 
 def _valid_rejected_verify_snapshot(snapshot: object) -> bool:
@@ -903,6 +1039,338 @@ def issue_result_evidence_record(
         reference=refs["execution_provenance_ref"],
     )
     return write_result_evidence_record(evidence_root=Path(evidence_root), record=value)
+
+
+def _context_mapping(value: object, *, label: str) -> dict:
+    if not isinstance(value, Mapping):
+        raise ResultEvidenceError(f"{label} must be a mapping")
+    try:
+        return dict(value)
+    except (TypeError, ValueError) as exc:
+        raise ResultEvidenceError(f"{label} cannot be copied") from exc
+
+
+def _issued_context_capability(
+    context: ResultEvidenceIssuanceContext,
+) -> reflux_origin_binding.OriginBindingCapability:
+    try:
+        capability = reflux_origin_binding.assert_issued_origin_binding_capability(
+            context.origin_capability
+        )
+    except reflux_origin_binding.OriginBindingError as exc:
+        raise ResultEvidenceError(
+            "result evidence context lacks an issued origin capability"
+        ) from exc
+
+    expected_origin_binding = {
+        "authority_blob_sha256": capability.authority_blob_sha256,
+        "source_closure_sha256": capability.source_closure_sha256,
+        "origin_id": capability.origin_id,
+        "cell_key": capability.cell_key,
+        "workload": capability.trial_workload,
+        "axis_semantics_sha256": capability.axis_semantics_sha256,
+        "verifier_policy_sha256": capability.verifier_policy_sha256,
+        "environment_contract_sha256": capability.environment_contract_sha256,
+    }
+    if _context_mapping(
+        context.origin_binding, label="context.origin_binding"
+    ) != expected_origin_binding:
+        raise ResultEvidenceError(
+            "context origin binding differs from the issued capability"
+        )
+    return capability
+
+
+def _context_roots(
+    *, layout: CampaignLayout, context: ResultEvidenceIssuanceContext,
+) -> tuple[Path, Path]:
+    try:
+        evidence_root = Path(os.path.abspath(context.evidence_root))
+        physical_campaign_root = Path(os.path.abspath(layout.root))
+    except (TypeError, ValueError) as exc:
+        raise ResultEvidenceError("result evidence roots are not path-like") from exc
+
+    evidence_fd = None
+    campaign_fd = None
+    try:
+        _evidence_absolute, evidence_fd = _open_root_directory(evidence_root)
+        _campaign_absolute, campaign_fd = _open_root_directory(
+            physical_campaign_root
+        )
+    finally:
+        if evidence_fd is not None:
+            os.close(evidence_fd)
+        if campaign_fd is not None:
+            os.close(campaign_fd)
+    if not physical_campaign_root.is_relative_to(evidence_root):
+        raise ResultEvidenceError(
+            "physical campaign root is outside the result evidence root"
+        )
+    return evidence_root, physical_campaign_root
+
+
+def _trigger_binding_from_records(records: Sequence[dict]) -> dict:
+    candidates = [
+        record
+        for record in records
+        if record.get("stage") == trigger_gate_binding.WAL_RECORD_STAGE
+    ]
+    if len(candidates) != 1:
+        _issuance_refused("ordered WAL does not contain one trigger binding")
+    record = candidates[0]
+    if set(record) != _PRODUCTION_WAL_RECORD_KEYS:
+        _issuance_refused("trigger WAL record lacks the production envelope")
+    if type(record["variant"]) is not str or type(record["env_tag"]) is not str:
+        _issuance_refused("trigger WAL record identity fields are invalid")
+    timestamp = record["ts"]
+    if type(timestamp) not in (int, float) or (
+        type(timestamp) is float and not math.isfinite(timestamp)
+    ):
+        _issuance_refused("trigger WAL record timestamp is invalid")
+    payload = record["payload"]
+    if type(payload) is not dict or set(payload) != {
+        "build_attempt_id",
+        wal_codec.TRIGGER_BINDING_PAYLOAD_KEY,
+    }:
+        _issuance_refused("trigger WAL payload is not exact")
+    try:
+        binding = trigger_gate_binding.validate_record(
+            payload[wal_codec.TRIGGER_BINDING_PAYLOAD_KEY],
+            require_source=False,
+        )
+    except trigger_gate_binding.TriggerGateBindingError:
+        _issuance_refused("trigger WAL binding is invalid")
+    return {
+        "mask": binding.mask,
+        "candidate_wire": encode_wire(TriggerGateIR(binding.mask)),
+        wal_codec.TRIGGER_BINDING_COMMITMENT_KEY: (
+            trigger_gate_binding.commitment(binding)
+        ),
+    }
+
+
+def _content_relative_path(
+    *,
+    evidence_root: Path,
+    physical_campaign_root: Path,
+    category: str,
+    digest: str,
+    suffix: str,
+) -> Path:
+    absolute = physical_campaign_root.joinpath(
+        "reports",
+        "reflux-result-evidence-content",
+        "v1",
+        category,
+        digest + suffix,
+    )
+    try:
+        return absolute.relative_to(evidence_root)
+    except ValueError as exc:
+        raise ResultEvidenceError(
+            "result evidence content path is outside the evidence root"
+        ) from exc
+
+
+def _write_result_evidence_content(
+    *, evidence_root: Path, relative_path: Path, raw_bytes: bytes,
+) -> Path:
+    _ensure_parent_directories(evidence_root, relative_path.parent)
+    try:
+        return write_create_only(
+            root=evidence_root,
+            relative_path=relative_path,
+            raw=raw_bytes,
+        )
+    except ArtifactError as exc:
+        raise ResultEvidenceError(
+            "result evidence content create-only write failed"
+        ) from exc
+
+
+def issue_campaign_result_evidence(
+    *,
+    layout: object,
+    context: ResultEvidenceIssuanceContext,
+    build_attempt_id: str,
+    verify_result: object | None,
+    campaign_run_identity: str,
+    campaign_id: str,
+    contract_sha256: str,
+    execution_receipt: object | None,
+) -> Path:
+    """Issue source, projection, provenance, and then the record create-only."""
+
+    if type(context) is not ResultEvidenceIssuanceContext:
+        raise ResultEvidenceError(
+            "context must be an exact ResultEvidenceIssuanceContext"
+        )
+    if type(layout) is not CampaignLayout:
+        raise ResultEvidenceError("layout must be an exact CampaignLayout")
+    if execution_receipt is None:
+        _issuance_refused("an authenticated execution receipt is absent")
+
+    capability = _issued_context_capability(context)
+    if campaign_id != capability.campaign_id:
+        raise ResultEvidenceError("campaign id differs from the origin capability")
+    if contract_sha256 != capability.environment_contract_sha256:
+        raise ResultEvidenceError(
+            "environment contract differs from the origin capability"
+        )
+    _campaign_identity(campaign_run_identity, label="campaign_run_identity")
+    _sha256(contract_sha256, label="contract_sha256")
+    if type(context.ordered_verifiers) is not tuple:
+        raise ResultEvidenceError("context.ordered_verifiers must be an exact tuple")
+
+    trial_binding = _context_mapping(
+        context.trial_binding, label="context.trial_binding"
+    )
+    if (
+        trial_binding.get("campaign_id") != campaign_id
+        or trial_binding.get("workload") != capability.trial_workload
+    ):
+        raise ResultEvidenceError(
+            "context trial binding differs from the issued capability"
+        )
+    origin_binding = _context_mapping(
+        context.origin_binding, label="context.origin_binding"
+    )
+    p6_plan = _context_mapping(context.p6_plan, label="context.p6_plan")
+    ledger_member = {
+        "batch_id": context.batch_id,
+        "iteration_index": context.iteration_index,
+        "query_ordinal": context.query_ordinal,
+        "replicate_ordinal": context.replicate_ordinal,
+    }
+    evidence_root, physical_campaign_root = _context_roots(
+        layout=layout, context=context
+    )
+
+    # Obtain the terminal prefix once to determine its content address.  The
+    # public projection producer independently confirms that the same prefix
+    # still has this digest before any durable result-evidence write occurs.
+    _frames, terminal_prefix_snapshot = _ordered_attempt_materials(
+        layout=layout, build_attempt_id=build_attempt_id
+    )
+    source_sha256 = _content_addressed_referent_sha256(
+        terminal_prefix_snapshot
+    )
+    source_relative = _content_relative_path(
+        evidence_root=evidence_root,
+        physical_campaign_root=physical_campaign_root,
+        category="source-wal",
+        digest=source_sha256,
+        suffix=".jsonl",
+    )
+    source_ref = {
+        "path": source_relative.as_posix(),
+        "sha256": source_sha256,
+    }
+    projection_bytes = produce_ordered_wal_projection(
+        layout=layout,
+        build_attempt_id=build_attempt_id,
+        source_wal_ref=source_ref,
+    )
+    projection_sha256 = _content_addressed_referent_sha256(projection_bytes)
+    projection_relative = _content_relative_path(
+        evidence_root=evidence_root,
+        physical_campaign_root=physical_campaign_root,
+        category="ordered-wal",
+        digest=projection_sha256,
+        suffix=".json",
+    )
+    projection_ref = {
+        "path": projection_relative.as_posix(),
+        "sha256": projection_sha256,
+    }
+
+    records = _parse_canonical_object(
+        projection_bytes, label="ordered WAL projection"
+    )["records"]
+    trigger_binding = _trigger_binding_from_records(records)
+    derived = derive_physical_result(
+        ordered_wal_projection_bytes=projection_bytes,
+        build_attempt_id=build_attempt_id,
+        ordered_verifiers=context.ordered_verifiers,
+        verify_result=verify_result,
+    )
+
+    if type(execution_receipt) is not dict:
+        raise ResultEvidenceError("execution receipt must be an exact object")
+    if execution_receipt.get("contract_sha256") != contract_sha256:
+        raise ResultEvidenceError(
+            "execution receipt does not bind the environment contract"
+        )
+    try:
+        execution_receipt_bytes = canonical_json_bytes(execution_receipt)
+    except ArtifactError as exc:
+        raise ResultEvidenceError("execution receipt is not canonical JSON") from exc
+    provenance = _validate_execution_provenance({
+        "schema_version": "execution-provenance/v2",
+        "build_attempt_id": build_attempt_id,
+        "campaign_id": campaign_id,
+        "workload": capability.trial_workload,
+        "contract_sha256": contract_sha256,
+        "trigger_binding": trigger_binding,
+        "execution_receipt_sha256": _content_addressed_referent_sha256(
+            execution_receipt_bytes
+        ),
+        "campaign_run_identity": campaign_run_identity,
+    })
+    provenance_bytes = canonical_json_bytes(provenance)
+    provenance_sha256 = _content_addressed_referent_sha256(provenance_bytes)
+    provenance_relative = _content_relative_path(
+        evidence_root=evidence_root,
+        physical_campaign_root=physical_campaign_root,
+        category="execution-provenance",
+        digest=provenance_sha256,
+        suffix=".json",
+    )
+    provenance_ref = {
+        "path": provenance_relative.as_posix(),
+        "sha256": provenance_sha256,
+    }
+
+    # Derivation and complete record assembly are memory-only gates.  No
+    # result-evidence directory or file exists before both have succeeded.
+    record = assemble_result_evidence_record(
+        origin_binding=origin_binding,
+        trial_binding=trial_binding,
+        ledger_member=ledger_member,
+        p6_plan=p6_plan,
+        trigger_binding=trigger_binding,
+        derived=derived,
+        ordered_wal_ref=projection_ref,
+        execution_provenance_ref=provenance_ref,
+    )
+    expected_record_path = _text(
+        context.expected_record_path, label="context.expected_record_path"
+    )
+    actual_record_relative = result_evidence_relative_path(record)
+    if expected_record_path != actual_record_relative.as_posix():
+        raise ResultEvidenceError(
+            "result evidence record path differs from the issuance context"
+        )
+
+    _write_result_evidence_content(
+        evidence_root=evidence_root,
+        relative_path=source_relative,
+        raw_bytes=terminal_prefix_snapshot,
+    )
+    _write_result_evidence_content(
+        evidence_root=evidence_root,
+        relative_path=projection_relative,
+        raw_bytes=projection_bytes,
+    )
+    _write_result_evidence_content(
+        evidence_root=evidence_root,
+        relative_path=provenance_relative,
+        raw_bytes=provenance_bytes,
+    )
+    return issue_result_evidence_record(
+        evidence_root=evidence_root,
+        record=record,
+    )
 
 
 def _reject_symlink_components(path: Path) -> None:
