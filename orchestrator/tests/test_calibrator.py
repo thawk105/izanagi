@@ -550,6 +550,46 @@ def test_measure_point_rep_observations_are_indexed_across_timeout_exception_and
     assert point.rep_observations == observations
 
 
+def test_measure_point_execution_failure_is_exact_bool_for_all_outcomes():
+    """The direct public surface distinguishes caught exceptions from rc alone."""
+    from orchestrator.calibrator import runner
+
+    def observe(*, failure=None, returncode=0):
+        observations = []
+        calls = {"n": 0}
+
+        def fake_run(argv, **_kwargs):
+            index = calls["n"]
+            calls["n"] += 1
+            if index == 0 and failure is not None:
+                raise failure
+            return _completed_process(returncode if index == 0 else 0)
+
+        point = runner.measure_point(
+            "/bench", records=1000, threads=4, clocks_per_us=1800,
+            reps=2 if failure is not None else 1,
+            subprocess_runner=fake_run, rep_observations=observations,
+            use_perf=False,
+        )
+        assert point.rep_observations == observations
+        assert all(type(row["execution_failure"]) is bool
+                   for row in observations)
+        return observations
+
+    success = observe()
+    nonzero = observe(returncode=7)
+    runtime = observe(failure=RuntimeError("injected runtime failure"))
+    timeout = observe(failure=subprocess.TimeoutExpired(["/bench"], 1.0))
+    generic = observe(failure=Exception("injected generic failure"))
+
+    assert success[0]["execution_failure"] is False
+    assert nonzero[0]["returncode"] == 7
+    assert nonzero[0]["execution_failure"] is False
+    for observations in (runtime, timeout, generic):
+        assert observations[0]["execution_failure"] is True
+        assert observations[1]["execution_failure"] is False
+
+
 def test_measure_point_rep_timestamps_are_generated_around_each_runner_call():
     """Balanced receipt timestamps come from the runner's exact rep boundary."""
     from orchestrator.calibrator import runner

@@ -262,6 +262,46 @@ def test_deferred_reps_cleanup_tmp_before_the_next_spawn() -> None:
     assert token.open().throughputs == [1000.0, 1000.0, 1000.0]
 
 
+def test_capture_measure_point_execution_failure_is_exact_bool_for_all_outcomes():
+    """The deferred public surface distinguishes caught exceptions from rc alone."""
+
+    def observe(*, failure=None, returncode=0):
+        observations = []
+        calls = {"n": 0}
+
+        def fake_run(*_args, **_kwargs):
+            index = calls["n"]
+            calls["n"] += 1
+            if index == 0 and failure is not None:
+                raise failure
+            return _completed(returncode if index == 0 else 0)
+
+        token = runner.capture_measure_point(
+            "/bench", records=1000, threads=4, clocks_per_us=1800,
+            reps=2 if failure is not None else 1,
+            subprocess_runner=fake_run, rep_observations=observations,
+            use_perf=False,
+        )
+        point = token.open()
+        assert point.rep_observations == observations
+        assert all(type(row["execution_failure"]) is bool
+                   for row in observations)
+        return observations
+
+    success = observe()
+    nonzero = observe(returncode=7)
+    runtime = observe(failure=RuntimeError("injected runtime failure"))
+    timeout = observe(failure=subprocess.TimeoutExpired(["/bench"], 1.0))
+    generic = observe(failure=Exception("injected generic failure"))
+
+    assert success[0]["execution_failure"] is False
+    assert nonzero[0]["returncode"] == 7
+    assert nonzero[0]["execution_failure"] is False
+    for observations in (runtime, timeout, generic):
+        assert observations[0]["execution_failure"] is True
+        assert observations[1]["execution_failure"] is False
+
+
 @pytest.mark.parametrize("failure", ("nonzero", "timeout"))
 def test_deferred_real_run_once_seam_preserves_strict_spawn_count(
     failure: str,
