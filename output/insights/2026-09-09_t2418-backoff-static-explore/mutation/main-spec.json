@@ -1,0 +1,253 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "m01",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "old": "T2418_REQUESTED_US = (2000, 4000, 9999)",
+          "new": "T2418_REQUESTED_US = (2000, 4000, 9998)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2418_exact_grid_identity_order_and_disclosure_are_literal_pinned",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2418_frozen_wal_view_flows_through_capture_loader_and_reports"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m02",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "old": "\"BACKOFF_FIXED\": encode_static_backoff_us(amount),\n            })\n            for amount in T2418_REALIZED_US",
+          "new": "\"BACKOFF_FIXED\": amount,\n            })\n            for amount in T2418_REALIZED_US"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2418_exact_grid_identity_order_and_disclosure_are_literal_pinned",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2418_frozen_wal_view_flows_through_capture_loader_and_reports",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2418_run_path_uses_exact_five_genomes_and_shared_campaign_call"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m03",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "old": "T2418_CLAIM_SCOPE = \"exploratory_backoff_tail_only_not_formal_series\"",
+          "new": "T2418_CLAIM_SCOPE = \"descriptive_backoff_shape_only\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2418_exact_grid_identity_order_and_disclosure_are_literal_pinned",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2418_frozen_wal_view_flows_through_capture_loader_and_reports"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m04",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "old": "        \"formal_stopping_criterion_status\": (\n            T2418_FORMAL_STOPPING_CRITERION_STATUS\n        ),\n        \"meaning_witness_status\": T2418_MEANING_WITNESS_STATUS,\n        \"base\": \"L-W0\",",
+          "new": "        \"meaning_witness_status\": T2418_MEANING_WITNESS_STATUS,\n        \"base\": \"L-W0\","
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2418_exact_grid_identity_order_and_disclosure_are_literal_pinned"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m05",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "old": "    elif run_kind == T2418_RUN_KIND:\n        selected_config = t2418_config_for",
+          "new": "    elif run_kind == T2418_RUN_KIND:\n        selected_config = t2266_config_for"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2418_run_path_uses_exact_five_genomes_and_shared_campaign_call"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m06",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "old": "    \"\"\"Require a distinct trace-disabled binary for every T-2418 genome.\"\"\"\n    if len(ordered_genomes) != 5:",
+          "new": "    \"\"\"Require a distinct trace-disabled binary for every T-2418 genome.\"\"\"\n    return\n    if len(ordered_genomes) != 5:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2418_binary_identity_rejects_incomplete_or_malformed_bindings",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2418_prebuild_requires_five_distinct_trace_disabled_binaries"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m07",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "old": "        reps=p2_2.REPS,",
+          "new": "        reps=p2_2.REPS - 1,"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2418_run_path_uses_exact_five_genomes_and_shared_campaign_call"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m08",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/b10_backoff_grid.sh",
+          "old": "  extended|t2266-tail|t2418-explore) ;;\n  *) fail 2 \"B10_RUN_KIND must be extended, t2266-tail, or t2418-explore\" ;;",
+          "new": "  extended|t2266-tail) ;;\n  *) fail 2 \"B10_RUN_KIND must be extended, t2266-tail, or t2418-explore\" ;;"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_run_kind_routes_t2418_through_job_submit_and_finalizer"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m09",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/b10_backoff_grid.sh",
+          "old": "    if len(commits) != 5 or None in commits:",
+          "new": "    if len(commits) != 8 or None in commits:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_run_kind_routes_t2418_through_job_submit_and_finalizer"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m10",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_b10_backoff_grid.sh",
+          "old": "  if [[ \"$B10_RUN_KIND\" == \"t2266-tail\" \\\n      || \"$B10_RUN_KIND\" == \"t2418-explore\" ]]; then\n    QSUB_ENV=\"$QSUB_ENV,B10_RUN_KIND=$B10_RUN_KIND\"",
+          "new": "  if [[ \"$B10_RUN_KIND\" == \"t2266-tail\" ]]; then\n    QSUB_ENV=\"$QSUB_ENV,B10_RUN_KIND=$B10_RUN_KIND\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_run_kind_routes_t2418_through_job_submit_and_finalizer"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m11",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "old": "                if (\n                    rep_capture is not None\n                    and summary.total == len(ordered_genomes)\n                    and summary.committed == len(ordered_genomes)\n                    and summary.aborted == 0\n                ):",
+          "new": "                if (\n                    rep_capture is not None\n                ):"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_extended_run_path_prepares_and_gates_the_same_patched_tree",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2418_run_path_uses_exact_five_genomes_and_shared_campaign_call"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m12",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "old": "    stem = reports / f\"t2418-backoff-static-explore-{tag}\"",
+          "new": "    stem = reports / f\"t2266-backoff-static-tail-{tag}\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2418_frozen_wal_view_flows_through_capture_loader_and_reports"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m13",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "old": "                and tuple(item[\"throughput_tps\"]) == normalized_tps\n            )\n        ]\n        if not matches:\n            raise RuntimeError(\"T-2418 adopted bench round lacks rep capture\")",
+          "new": "                and item[\"throughput_tps\"] == normalized_tps\n            )\n        ]\n        if not matches:\n            raise RuntimeError(\"T-2418 adopted bench round lacks rep capture\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2418_frozen_campaign_is_rejected_by_existing_t2266_consumer",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2418_frozen_wal_view_flows_through_capture_loader_and_reports"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m14",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "old": "    if len(canonical_by_sha256) != 5:",
+          "new": "    if len(canonical_by_sha256.keys()) != 5:"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m15",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "old": "        \"meaning_witness_status\": T2418_MEANING_WITNESS_STATUS,\n        \"reps\": p2_2.REPS,\n        \"extime_s\": p2_2.EXTIME,\n        \"records\": p2_2.RECORDS,\n        \"threads\": p2_2.THREADS,\n        \"campaign\": campaign_id,",
+          "new": "        \"reps\": p2_2.REPS,\n        \"extime_s\": p2_2.EXTIME,\n        \"records\": p2_2.RECORDS,\n        \"threads\": p2_2.THREADS,\n        \"campaign\": campaign_id,"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2418_frozen_wal_view_flows_through_capture_loader_and_reports"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
