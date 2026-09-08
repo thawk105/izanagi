@@ -3892,6 +3892,12 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 親が段 7 の記録を**必ず本機構自身で生成する** (dogfooding)。
   本件はその dogfooding が land 前に検出した。
 
+
+- **再発: 2026-09-08** — B-10 の report が読む campaign lock の検査 test が、`schema_version` を持たない
+  旧 v1 形式の合成 lock を正例にしていた。`decode_campaign_lock` は `schema_version` が無ければ
+  authority を一切検査しないため、この fixture は緑のまま、現物 3 本 (v2 + pre-T733 24 path) は
+  同じ経路で必ず拒否される状態が続いていた。現物 3 本を snapshot として収載し、
+  raw bytes のまま decoder へ通す正例と v1 / 現行 grammar の負例へ置き換えた。
 ### F82. 防壁の禁止集合が広すぎ、守ろうとした正規経路を 2 度禁止した [受理集合の過剰縮小]
 
 - 事象: 再開 wave の段 6 で受入全走が 2 度赤になった (44 failed → 28 failed → 0)。
@@ -13846,6 +13852,12 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (10:30 頃に除去、10:54 に再作成を実測)。
   既存記述は「14.5 時間存在し続けた」という長寿の観測だったが、短時間で復活する挙動も起きる。
   どちらの読み方も固定できないため、**長時間の受入全走はこの窓に掛かりうる**前提で扱う。
+
+- **再発: 2026-09-08** — login node の焦点走で
+  `test_b10_backoff_shape_sweep.py::test_t1905_a5_tmp_official_root_is_rejected_by_real_durable_policy`
+  が赤になった。原因は別ユーザー (`makiart`) が 2026-09-07 に作った空の `/tmp/.git` で、
+  `/tmp` 配下の一時 root が repository 内と判定されるため。同じ commit を計算ノードで走らせると
+  `190 passed` で緑になり、変更へ帰属しないことを確認した。
 ### F458. T-181/T-1434の既存test群がreal codex execの実ネットワーク経路を一度も検証していなかった [テスト代表性]
 
 - 事象: T-189 stage2-plan-replayer実装のsmoke gate (DW-G01) で、`tools/codex_reasoning_ab.py`
