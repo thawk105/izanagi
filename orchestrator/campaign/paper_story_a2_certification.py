@@ -187,6 +187,15 @@ _RESERVATION_ENV_KEYS = {
 _RESULT_LIMIT = 2 * 1024 * 1024
 _SUBMISSION_VISIBLE_STATES = frozenset({"QUE", "RUN"})
 _COLLECT_TEST_TOKEN = object()
+_PREREGISTRATION_KEYS = {
+    "schema_version", "study", "protocol_sha256", "policy_sha256",
+    "attempt_id", "attempt_root", "current_pin", "automatic_retry",
+}
+_FIXED_RESULT_FOOTPRINTS = (
+    "receipts/acquisition.json",
+    "receipts/completion.json",
+    "raw-manifest.json",
+)
 
 
 class CertificationError(RuntimeError):
@@ -1135,6 +1144,191 @@ def _require_src_token(value: object, label: str = "src_token") -> str:
     if value == source_digest.STOCK:
         return source_digest.STOCK
     return _require_sha(value, label)
+
+
+def _normalize_cohort_pin(value: object) -> str:
+    if type(value) is not str or _COMMIT_RE.fullmatch(value) is None:
+        raise CertificationError("preregistration current_pin is malformed")
+    return value[:7]
+
+
+def _validate_materialization_preregistration(
+        policy: Policy, payload: object, *, attempt_id: str,
+        attempt_root: Path) -> tuple[str, str, str]:
+    preregistration = _exact_keys(
+        payload, _PREREGISTRATION_KEYS, "preregistration")
+    if preregistration["schema_version"] != (
+            "paper-story-a2-preregistration/v1"):
+        raise CertificationError("unsupported preregistration schema")
+    if preregistration["study"] != policy.study:
+        raise CertificationError("preregistration study differs from policy")
+    if preregistration["attempt_id"] != attempt_id:
+        raise CertificationError("preregistration attempt_id mismatch")
+    recorded_root = _lexical_absolute_path(
+        preregistration["attempt_root"], "preregistration attempt_root")
+    if recorded_root != attempt_root:
+        raise CertificationError("preregistration attempt_root mismatch")
+    if preregistration["automatic_retry"] is not False:
+        raise CertificationError(
+            "preregistration automatic_retry must be exact false")
+    protocol_sha256 = _require_sha(
+        preregistration["protocol_sha256"],
+        "preregistration protocol_sha256")
+    policy_sha256 = _require_sha(
+        preregistration["policy_sha256"],
+        "preregistration policy_sha256")
+    cohort_pin = _normalize_cohort_pin(preregistration["current_pin"])
+    return policy.study, policy_sha256, cohort_pin
+
+
+def _read_materialization_preregistration(
+        policy: Policy, attempt_root: Path) -> tuple[dict[str, Any],
+                                                     tuple[str, str, str]]:
+    attempt_id, root = validate_attempt_root(policy, attempt_root)
+    preregistration_path = _canonical_child(
+        str(root / "preregistration.json"), root, "preregistration")
+    preregistration, _ = _read_json(preregistration_path)
+    cohort = _validate_materialization_preregistration(
+        policy, preregistration, attempt_id=attempt_id, attempt_root=root)
+    return preregistration, cohort
+
+
+def _durable_attempt_census(policy: Policy) -> tuple[Path, ...]:
+    base = _lexical_absolute_path(
+        policy.durable_base, "durable measurement base")
+    _reject_symlink_components(base, "durable measurement base")
+    try:
+        with os.scandir(base) as scan:
+            entries = sorted(scan, key=lambda entry: entry.name)
+    except OSError as exc:
+        raise CertificationError(
+            f"cannot inspect durable attempt census: {base}: {exc}") from exc
+    attempts: list[Path] = []
+    for entry in entries:
+        try:
+            if entry.is_symlink():
+                raise CertificationError(
+                    f"durable attempt census entry is a symlink: {entry.name}")
+            if not entry.is_dir(follow_symlinks=False):
+                raise CertificationError(
+                    "durable attempt census entry is not a directory: "
+                    f"{entry.name}")
+        except CertificationError:
+            raise
+        except OSError as exc:
+            raise CertificationError(
+                "cannot classify durable attempt census entry: "
+                f"{entry.name}: {exc}") from exc
+        if _ATTEMPT_RE.fullmatch(entry.name) is None:
+            raise CertificationError(
+                f"durable attempt census name is malformed: {entry.name!r}")
+        attempt_id, root = validate_attempt_root(policy, base / entry.name)
+        if attempt_id != entry.name or root != base / entry.name:
+            raise CertificationError(
+                f"durable attempt census identity mismatch: {entry.name!r}")
+        attempts.append(root)
+    return tuple(attempts)
+
+
+class _ResultFootprintError(CertificationError):
+    """Retain the offending path without changing the direct diagnostic."""
+
+    def __init__(self, message: str, problem_path: Path):
+        super().__init__(message)
+        self.problem_path = problem_path
+
+
+def _result_footprints(policy: Policy, attempt_root: Path) -> tuple[str, ...]:
+    footprints: list[str] = []
+    for relative in _FIXED_RESULT_FOOTPRINTS:
+        candidate = attempt_root.joinpath(*Path(relative).parts)
+        if candidate.is_symlink() or candidate.exists():
+            try:
+                _canonical_child(
+                    str(candidate), attempt_root,
+                    f"cohort result footprint {relative}")
+            except CertificationError as exc:
+                raise _ResultFootprintError(str(exc), candidate) from exc
+            footprints.append(relative)
+    for workload_id in workload_ids(policy):
+        raw_root = workload_job_root(
+            policy, attempt_root, workload_id) / "raw"
+        if raw_root.is_symlink():
+            raise _ResultFootprintError(
+                f"cohort raw footprint directory is a symlink: {raw_root}",
+                raw_root,
+            )
+        if not raw_root.exists():
+            continue
+        try:
+            _reject_symlink_components(
+                raw_root, "cohort raw footprint directory")
+        except CertificationError as exc:
+            raise _ResultFootprintError(str(exc), raw_root) from exc
+        if not raw_root.is_dir():
+            raise _ResultFootprintError(
+                f"cohort raw footprint path is not a directory: {raw_root}",
+                raw_root,
+            )
+        try:
+            with os.scandir(raw_root) as scan:
+                has_regular_file = any(
+                    entry.is_file(follow_symlinks=False)
+                    and not entry.is_symlink()
+                    for entry in scan
+                )
+        except OSError as exc:
+            raise _ResultFootprintError(
+                f"cannot inspect cohort raw footprint directory: {raw_root}",
+                raw_root,
+            ) from exc
+        if has_regular_file:
+            footprints.append(f"jobs/{workload_id}/raw/regular-file")
+    return tuple(footprints)
+
+
+def _require_materialization_attempt_selection(
+        policy: Policy, report: Mapping[str, Any],
+        evidence: Mapping[str, Any]) -> None:
+    target_attempt_id = report.get("attempt_id")
+    if type(target_attempt_id) is not str:
+        raise CertificationError("materialization attempt_id is malformed")
+    evidence_root = _lexical_absolute_path(
+        evidence.get("attempt_root"), "materialization evidence attempt_root")
+    evidence_attempt_id, target_root = validate_attempt_root(
+        policy, evidence_root)
+    if target_attempt_id != evidence_attempt_id:
+        raise CertificationError(
+            "materialization report and evidence attempt differ")
+    _target_preregistration, target_cohort = (
+        _read_materialization_preregistration(policy, target_root))
+    target_seen = 0
+    for sibling_root in _durable_attempt_census(policy):
+        if sibling_root == target_root:
+            target_seen += 1
+            continue
+        sibling_preregistration, sibling_cohort = (
+            _read_materialization_preregistration(policy, sibling_root))
+        if sibling_cohort != target_cohort:
+            continue
+        try:
+            footprints = _result_footprints(policy, sibling_root)
+        except CertificationError as exc:
+            problem_path = getattr(exc, "problem_path", sibling_root)
+            raise CertificationError(
+                "materialization cohort sibling result footprint is invalid: "
+                f"sibling_attempt_id="
+                f"{sibling_preregistration['attempt_id']!r}; "
+                f"problem_path={str(problem_path)!r}; reason={exc}"
+            ) from exc
+        if footprints:
+            raise CertificationError(
+                "materialization cohort result collision: "
+                f"sibling_attempt_id={sibling_preregistration['attempt_id']!r}; "
+                f"footprints={list(footprints)!r}")
+    if target_seen != 1:
+        raise CertificationError(
+            "materialization target is absent from durable census")
 
 
 def _condition_gate_receipt_relative(workload_id: str) -> str:
@@ -4614,6 +4808,7 @@ def _validate_certification_result(
 def materialize(policy: Policy, report: Mapping[str, Any], evidence: Mapping[str, Any],
                 *, repo_root: Path | str) -> Path:
     evidence = _validate_certification_result(policy, report, evidence)
+    _require_materialization_attempt_selection(policy, report, evidence)
     _require_materializable_authority(policy, evidence)
     root = Path(repo_root).resolve(strict=True)
     destination = (root / policy.tracked_destination).resolve()
