@@ -182,6 +182,12 @@ _MASSTREE_PREBUILD_RECEIPT_KEYS = frozenset({
     "pbs_jobid",
 })
 _FETCHCONTENT_SOURCE_NAMES = ("masstree", "mimalloc", "googletest")
+_CONDITION_GATE_OFFLINE_DEFINE_NAMES = frozenset({
+    "CMAKE_PREFIX_PATH",
+    "FETCHCONTENT_BASE_DIR",
+    *(f"FETCHCONTENT_SOURCE_DIR_{name.upper()}"
+      for name in _FETCHCONTENT_SOURCE_NAMES),
+})
 
 
 def _read_nonsymlink_regular_bytes(
@@ -321,13 +327,51 @@ def _load_masstree_prebuild_receipt(
     return base, *source_dirs, dependency_receipt
 
 
-def _require_condition_gate(source_root: str, genome: Genome) -> dict | None:
+def _condition_gate_offline_configure_args(
+        *, dependency_prefix: str, fetchcontent_base_dir: str,
+        masstree_source_dir: Optional[object],
+        mimalloc_source_dir: Optional[object],
+        googletest_source_dir: Optional[object],
+) -> tuple[str, ...]:
+    """Project the offline defines needed by the independent condition gate."""
+    source_dirs = buildcache._normalize_fetchcontent_source_dirs(
+        masstree_source_dir=masstree_source_dir,
+        mimalloc_source_dir=mimalloc_source_dir,
+        googletest_source_dir=googletest_source_dir,
+    )
+    if source_dirs and not fetchcontent_base_dir:
+        raise buildcache.BuildCacheError(
+            "FetchContent SOURCE_DIR は FETCHCONTENT_BASE_DIR と同時指定必須"
+        )
+    configure_args = (
+        *((f"-DCMAKE_PREFIX_PATH={dependency_prefix}",)
+          if dependency_prefix else ()),
+        *((f"-DFETCHCONTENT_BASE_DIR={fetchcontent_base_dir}",)
+          if fetchcontent_base_dir else ()),
+        *buildcache._fetchcontent_source_defines(source_dirs),
+    )
+    expected_count = 1 + len(_FETCHCONTENT_SOURCE_NAMES) \
+        + int(bool(dependency_prefix))
+    if len(configure_args) != expected_count:
+        raise RuntimeError(
+            "campaign build producer returned a non-exact condition gate "
+            "offline define set"
+        )
+    return configure_args
+
+
+def _require_condition_gate(
+        source_root: str, genome: Genome, *,
+        configure_args: Tuple[str, ...] = (),
+) -> dict | None:
     """Run the independent supply and meaning arms before any benchmark build."""
     value = genome.flags.get("BACKOFF_FIXED")
     if value is None:
         return None
     _cc, cxx = buildcache.compilers_for_current_site()
-    captured = condition_meaning_gate.capture_define_inputs(source_root)
+    captured = condition_meaning_gate.capture_define_inputs(
+        source_root, configure_args=configure_args,
+    )
     request = condition_meaning_gate.make_define_request(
         driver_id="orchestrator.campaign.p3_s4_loop",
         macro="BACKOFF_FIXED", requested_value=value, default_value=-1,
@@ -1676,7 +1720,19 @@ def _run_one_iteration_resolved(
             project_whiteboard(state, planner, "rejected")
             log(f"  diff 検疫 reject: {res.subtype} — {res.reason}")
             return {"outcome": "rejected", "variant": v, "digest": res.digest}
-        condition_gate = _require_condition_gate(sub, genome)
+        if fetchcontent_dependency_receipt is None:
+            condition_gate = _require_condition_gate(sub, genome)
+        else:
+            condition_gate = _require_condition_gate(
+                sub, genome,
+                configure_args=_condition_gate_offline_configure_args(
+                    dependency_prefix=dependency_prefix,
+                    fetchcontent_base_dir=fetchcontent_base_dir,
+                    masstree_source_dir=masstree_source_dir,
+                    mimalloc_source_dir=mimalloc_source_dir,
+                    googletest_source_dir=googletest_source_dir,
+                ),
+            )
         # 検疫通過 → build×2 / verify / bench を run_campaign に委譲。coder 編集は
         # working-tree にあり source_digest.resolve が preprocess 後 digest で src_token を
         # 非 stock に上げる。genome の BACKOFF_FIXED と hole literal を coder.value で揃える。
