@@ -54320,3 +54320,113 @@ repo には shebang なし・実行 bit なし・拡張子 `.txt` の非実行�
 **却下した選択肢:**
 - `pytest_collection_modifyitems` の末尾 — 上記のとおり実際の終端より早い。
 - 両方を採って差分も記録する — D1647 が挙げた観測は 3 種であり、増やすのは射程外。
+
+## D1795. enforcement source closure の blob 取得は ls-tree + OID 指定 cat-file --batch の 2 process で行い、受理集合を変えずに拒否の優先順位だけを契約外にする (2026-09-08)
+
+**決定:** `contract_loader_binding` の 62 path の blob 取得を、path ごとの `git cat-file blob <commit>:<path>` (62 process) から、
+`git ls-tree -r -z <commit> -- :(literal)<path>...` で path→OID を取り、OID を stdin に並べた `git cat-file --batch` で bytes を取る
+2 process へ改める。各応答 header の OID を ls-tree の期待 OID と exact 照合し、entry の不在・期待外・重複・非 blob、header の型・size・
+record LF の framing、余剰 bytes、NUL を含む path はすべて `contract-loader-git-error` で fail-closed にする。
+**受理集合と拒否集合は不変とし、拒否の優先順位 (どの path・どの理由が先に raise されるか) は契約外とする。**
+drift 検査 (disk bytes == blob) と 4 公開関数の非対称 (capture: disk → digest、live: digest → disk、committed: digest のみ) は維持する。
+batch 形の 2 呼び出しの timeout は `GIT_TIMEOUT_SECONDS * n` (n = 問い合わせ数) とし、旧形の 62 process × 10 秒の総許容量と揃える。
+process 内 cache・memo は導入しない。
+
+**理由:**
+- 受入全走で admission 経路を通る test が 1 本あたり +30〜50 秒重くなっていた。login の profile で 1 test 47.5 秒のうち 36.4 秒が
+  `_run_git` の git subprocess 704 回で、closure 62 path × (capture 5 + committed 4 + live 1) の逐次起動だった。
+- login 実測 (62 path 1 回分): 逐次 62 process 5.4〜6.8 秒、`<commit>:<path>` 62 行を 1 process の `--batch` へ送る形 0.65〜1.5 秒
+  (spec ごとに tree を辿り直す)、ls-tree + OID batch 0.07〜0.09 秒。3 形の digest 62 件は完全一致。
+- `<commit>:<path>` 形の batch は success 応答が path に束縛されず、逆順応答と逆対応 digest が相殺して誤受理し得る (段 3 の指摘)。
+  ls-tree で得た期待 OID を各応答 header と照合する形だけがこの経路を断つ。
+- 全 path を subprocess 起動前に検査するため、先頭 path の digest 不一致より後方 path の path escape が先に raise されうる。閉包は定数 tuple
+  なので production では観測不能だが、契約として明示するほうが正直である。
+- 同 test の login A/B (交互 3 標本): 旧 30.9 / 11.3 / 17.9 秒 → 新 9.6 / 6.4 / 4.6 秒、git 起動 802 → 142 回。
+  計算ノード (48 worker 同時) での効果は本決定では主張せず、受入全走の junit で別途読む。
+
+**却下した選択肢:**
+- `<commit>:<path>` を stdin に並べる 1 process 形 — 10 倍遅く、応答が path に束縛されない。
+- process 内 memo `(root, commit, path) → bytes` — content addressing は object store の不変性と可用性を保証せず、root の差し替え・prune 後に
+  古い bytes を返して fail-closed を壊しうる。導入しない。
+- `ident.py` の capture 直後の live verify を省く — repository と disk が不変という前提下でだけ冗長であり、前提外では拒否側の分岐が消える。触らない。
+- timeout を 10 秒のまま 1 process に適用する — 旧形が受理していた入力を計算ノードの遅延で過剰拒否しうる。
+- 旧形の allowlist を `p3_b4_wiring_probe` に残す — production はもう発行しないので、許可形は今 production が発行する exact argv に最小化する。
+
+## D1796. next-tasks command は bytes 同一で repo へ移し、既存 3 command と同じ形で予算表と interface 表へ登録する (2026-09-08)
+
+**決定:** `.claude/commands/next-tasks.md` は `~/.claude/commands/next-tasks.md` と bytes 同一で置く。
+`tools/check_docs.py` の `COMMAND_LIMITS` に `TextLimit(27_100, 100)` (現物 27054 bytes / 最長行 91 chars)、
+`COMMAND_INTERFACES` に frontmatter `{description, argument-hint}`・`$ARGUMENTS` 0 件を登録し、
+`orchestrator/tests/test_check_docs.py` の合成 fixture と予算 literal test (現物 bytes・plus-one 拒否) を
+既存 command と同型で足す。本文の文言 (「本ファイル (repo 外)」、絶対 path) と共通自己改善契約への編入は
+変えず、編集境界としてユーザー裁定へ返す。
+
+**理由:**
+- checker は command directory と `COMMAND_LIMITS` の完全一致を要求する。登録なしでは新規 command が
+  「予算未登録」で赤になり、登録は実装面なので Codex author が書く。
+- 予算は既存 3 件 (現物 +3〜16 bytes) と同じ詰め方にした。増枠は独立審査 (2026-08-02 ユーザー裁定) であり、
+  新規登録で緩い予算を置くと anti-bloat の意図が command ごとに割れる。
+- 依頼は「移動して git 管理を始める」であり、本文の改稿は依頼に含まれない。移設で意味が変わる文言
+  (repo 外・その場で直す) は裁定境界に関わるので既成事実にしない。
+
+**却下した選択肢:**
+- 予算を緩く (例 32_000) 置く — 既存 3 command との非対称を作り、増枠審査の意味が薄れる。
+- 移設と同時に「repo 外」の文言と絶対 path を直す — bytes 同一の不変条件と scope を破る。
+- interface 表へ登録しない — 既存 gate の member 追加であって新 gate ではなく、欠くと frontmatter・到達性の検査が
+  この command だけ蒸発する。
+
+## D1797. main へ誤って入った gitlink は index 除去 + 既知違反登録の前進 commit で直し、履歴の書き換えと除外設定の追加はしない (2026-09-08)
+
+**決定:** main 先頭 c12e25078 が `.codex/worktrees/*` 110 本を gitlink として commit した系統 blocker は、
+別 wave の branch 上で (a) `git rm --cached -r .codex/worktrees` (作業 file は触らない) と
+(b) `tools/known_violations/` への c12e25078 の既知違反登録 (Codex author) を 1 commit にして ff-only で land する。
+`git reset` による main の書き換えは行わない。`.gitignore` への `.codex/worktrees/` 追記も行わない。
+
+**理由:**
+- 全史 provenance 監査が rc=1 のままだと DW-O25 により全 session の land が rc=29 で止まり、原因 session 自身の
+  land も同じ関門で止まる。登録は台帳の既存機構 (1 finding 1 file) で、他の finding を相殺しない。
+- reset は c12e25078 を祖先に持つ全 branch (少なくとも 2 wave) の作り直しを要し、ff-only の land で再流入する。
+  原因 session も reset の権限を持たず、前進修正を委ねた。
+- 除外設定で `.codex/worktrees/` を隠すと、変異 harness が走行前後で bytes 一致を要求する共有 checkout の
+  `?? .codex/worktrees/` 行が消える (F599 と既存の D)。再発防壁の要否はその観測面と同時にユーザーが裁定する。
+
+**却下した選択肢:**
+- `git reset --mixed` で main を戻す — 共有 main の履歴書き換え。index.lock も取れなかった。
+- gitlink 除去だけを commit し登録しない — 除去 commit 自体は緑でも c12e25078 の finding が履歴に残り land が止まる。
+- `.gitignore` 追記を同じ closure に含める — F599 の既裁定と衝突する。
+
+## D1798. dev-wave の段 1 brief に「研究前進」を必須化し、示せない wave は後送も開始もせずユーザー裁定へ返す (2026-09-08)
+
+**決定 (ユーザー裁定 2026-09-08):** `docs/dev-wave/core.md` の `DW-S01` に、brief の先頭項目として「研究前進」を
+必須化する。内容は (a) 進む論文の主張・図表・実験と完了判定、または (b) 土台なら「止めている研究」の実測と
+最小差分を 1 行で示す。起点 (command 引数、裁定からの起票、supervisor、ユーザー直投入) を問わず、示せなければ
+後送も開始もせずユーザー裁定へ返す (`DW-G05` の「1 cycle 後へ送る」とは別の動作)。段 4・6 で読む `DW-G05` の
+追加実装・防壁の許容条件を「現目的」から「段 1 の研究前進」へ結線する。
+段 7 に純増 1 行を記録する案 (P3) と、削除だけの wave を変異免除にする案 (P5) は採らない。
+予算は D782 の手順で、同じ読点で読まれる節との重複 (D227) を原資に収容した: `DW-S08` 本文 (段 8 preflight で
+同時必読の `docs/skill-self-improvement.md` dev-wave 終端と入口の段 8 説明が上位互換)、`DW-S04` の `DW-M01`
+pointer (段 4 の dispatch 表が同節を無条件に読ませる)、`DW-STOP` の入口巻き戻し規則 pointer (入口は常時読まれ、
+規則本文は入口の読み込み契約にある)。L1 は 10,594 → 10,568 / 10,625 bytes で増枠なし。
+
+**理由:**
+- 実測 (2026-09-08、main `1e07a1e5b`): 直近 1 週間で製品 +67K / −2K 行、テスト +73K / −2K 行、削除 .py は 2 週間で
+  2 file。直近 4 日の wave 61 本のうち土台・工程 ≈ 34 (新規 gate・binding ≈ 9)。decisions は 1 日 25〜111 件、
+  持ち越し T 345 件。これは過剰蓄積の兆候であって、本決定の因果効果はまだ測っていない (codex 所見 A-9)。
+- dev-wave の既存 gate (`DW-G01`〜`G05`) は wave 内の must-fix を篩うが、wave 自身が研究を進めるかを問わない。
+  研究最優先の前提は `/next-tasks` の候補選定にしか無く、`DW-C00` が command 引数を優先するため、裁定・
+  supervisor・直投入の wave は篩を通らなかった (codex 所見 B-3)。
+- 「何を進めるか」だけでは恒真化するため、完了判定・実測・最小差分を要求し、段 4 で読む節へ結線する
+  (codex 所見 A-2、A-6)。ユーザー明示の wave を AI が黙って却下するのも全免除も誤りなので、示せない場合は
+  ユーザー裁定へ返す形にする (A-5)。
+- P3 は段 7 へ来るのが P1 を通過した wave だけで生存者バイアスがあり、行数は git から後算できる (A-7、B)。
+  P5 は削除でも reject 分岐・checker を消せば受理集合が広がり、「影響を書けない」を削除許可へ反転するのは
+  影響不明を安全の証拠にする誤りで規律 2 と衝突する (A-8、B)。
+- ユーザーの明示 (2026-09-08):「研究開発の遅滞を気にかけている」「土台にゴミを入れたら掃除が要る」。D205
+  (プロトタイプ基準) の wave 単位への適用である。
+
+**却下した選択肢:**
+- P2 (段 3・段 6 のレンズ 1 本を過剰・削除レンズに固定)、P4 (変異 matrix の義務を防壁・台帳・受入判定の実装面に
+  限定)、P6 (根拠が無い scope 外所見は起票せず記録のみ) — 今回の裁定で未選択。両レンズは P1 単独では段内の
+  土台増殖 (所見・変異義務・起票) を止めないと指摘しており、裁定候補として残す。
+- 収容先を `DW-G05` や `DW-STOP` にする — 評価時点が早すぎるか遅すぎる。brief を作る段 1 で必ず読む `DW-S01` に置く (B-4)。
+- 予算の増枠を先に行う — D730 / D782 は削減を先に試すよう定め、削減で収容できた。
