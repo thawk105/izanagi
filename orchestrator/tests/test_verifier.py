@@ -1589,6 +1589,81 @@ def test_structured_report_has_edge_detail():
             assert "key" in r and "type" in r
 
 
+def test_multi_ww_reason_report_is_hash_seed_deterministic():
+    import shutil
+
+    keys = [f"{value:016x}" for value in range(1, 7)]
+    rows = []
+    for txid, tid in ((0, 1), (1, 2)):
+        rows.append(f"C {txid} {txid} 1 {tid} 6 6")
+        rows.extend(f"R {txid} {key} 1 0" for key in keys)
+        rows.extend(f"W {txid} {key} U 1 {tid}" for key in keys)
+        rows.append(f"E {txid}")
+    trace_dir = _tmp_trace("\n".join(rows) + "\n")
+
+    script = (
+        "import json,sys;"
+        "from orchestrator.verifier import result_to_dict,verify_trace_dir;"
+        "report=result_to_dict(verify_trace_dir(sys.argv[1],workers=1));"
+        "sys.stdout.write(json.dumps("
+        "report,sort_keys=True,separators=(',',':')))"
+    )
+
+    try:
+        reports = []
+        output_tail_bytes = 4096
+
+        def _output_tail(output):
+            return (output or b"")[-output_tail_bytes:]
+
+        for seed in ("1", "777"):
+            environment = dict(os.environ)
+            environment["PYTHONHASHSEED"] = seed
+            environment["PYTHONDONTWRITEBYTECODE"] = "1"
+            try:
+                completed = subprocess.run(
+                    [sys.executable, "-c", script, trace_dir],
+                    cwd=_REPO,
+                    env=environment,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    check=False,
+                    timeout=120,
+                )
+            except subprocess.TimeoutExpired as exc:
+                assert False, (
+                    f"seed={seed} subprocess timed out after {exc.timeout}s; "
+                    f"stdout_tail={_output_tail(exc.stdout)!r}; "
+                    f"stderr_tail={_output_tail(exc.stderr)!r}"
+                )
+            assert completed.returncode == 0, (
+                f"seed={seed}; returncode={completed.returncode}; "
+                f"stdout_tail={_output_tail(completed.stdout)!r}; "
+                f"stderr_tail={_output_tail(completed.stderr)!r}"
+            )
+            reports.append(completed.stdout)
+
+        assert reports[0] == reports[1]
+        for raw in reports:
+            payload = json.loads(raw)
+            edge = next(
+                edge for edge in payload["anomalies"][0]["edges"]
+                if (edge["from"], edge["to"]) == (0, 1)
+            )
+            assert [
+                (reason["type"], reason["key"])
+                for reason in edge["reasons"]
+            ] == [("ww", key) for key in keys]
+            assert payload["verdict"] == "non-serializable"
+            assert payload["serializable"] is False
+            assert payload["anomaly_count"] == 1
+            assert payload["total_cycles"] == 1
+            assert payload["anomalies"][0]["phenomenon"] == "G2"
+            # certified は cycle と proof-surface metadata 欠落で過剰決定になるため assert しない。
+    finally:
+        shutil.rmtree(trace_dir, ignore_errors=True)
+
+
 # ---- 実 Silo トレース (tracked prefix は常時、大規模 sample は存在時だけ) ----
 
 _REAL_SILO_FIXTURE_BYTES = {

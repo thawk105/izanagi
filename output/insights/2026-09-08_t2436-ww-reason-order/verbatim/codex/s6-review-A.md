@@ -1,0 +1,35 @@
+## 差分の範囲
+
+- 所見: scope 逸脱はない。`HEAD c3f130e34` は 2 files、2 hunksのみで、[dsg.py:524](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2436-ww-reason-order/orchestrator/verifier/dsg.py:524) の 1 行置換と、[test_verifier.py:1592](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2436-ww-reason-order/orchestrator/tests/test_verifier.py:1592) からのテスト 1 本追加だった。内訳は `dsg.py +1/-1`、`test_verifier.py +57/-0`。裁定の許可範囲は [s4-ruling.md:119](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2436-ww-reason-order/output/insights/2026-09-08_t2436-ww-reason-order/verbatim/s4-ruling.md:119)。real か refuted か: refuted。must-fix か nit か: nit。成果物への影響: docs、fixture、台帳、受理集合への差分はない。未追跡なのは指定済み insight directory だけ。直し方: 不要。
+
+## 判定を動かす経路
+
+- 所見: 有効な文字列 key では、理由順以外を変える経路はない。[dsg.py:520](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2436-ww-reason-order/orchestrator/verifier/dsg.py:520) の辞書と積集合は同じ key 集合を保ち、各 key の `bisect_left` と追加条件は [dsg.py:528](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2436-ww-reason-order/orchestrator/verifier/dsg.py:528) のまま。WW、WR、RW の三ブロック順も不変である。[CycleEdge.types](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2436-ww-reason-order/orchestrator/verifier/model.py:381) は同じ型内の並べ替えに不変で、`_classify()` はさらに型の集合を使う [dsg.py:562](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2436-ww-reason-order/orchestrator/verifier/dsg.py:562)。`total_cycles` は理由再構成前の SCC 数 [dsg.py:572](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2436-ww-reason-order/orchestrator/verifier/dsg.py:572)、notes の枝は理由リストが空の場合だけ [dsg.py:585](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2436-ww-reason-order/orchestrator/verifier/dsg.py:585)。real か refuted か: refuted。must-fix か nit か: nit。成果物への影響: `EdgeReason` の集合、分類、cycle 数、受理集合、notes 発火条件は変わらず、レポート内の WW 理由順だけが変わる。直し方: 不要。
+
+- 所見: 型契約を破った手製 `Txn` には新しい例外経路がある。`Write.key` は宣言上 `str` [model.py:320](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2436-ww-reason-order/orchestrator/verifier/model.py:320) だが dataclass は実行時に強制しないため、共通 key に例えば `1` と `"a"` を混在させれば [dsg.py:524](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2436-ww-reason-order/orchestrator/verifier/dsg.py:524) の `sorted()` が `TypeError` を出す。通常の compact trace 経路は key を ASCII `str` にする [dsg.py:275](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2436-ww-reason-order/orchestrator/verifier/dsg.py:275) ため到達しない。real か refuted か: real。must-fix か nit か: nit。成果物への影響: 現行 trace の certified 選択、レポート、台帳、受理集合には影響しないが、型契約違反の直接 `DSG` 呼出しはレポート生成前に停止しうる。直し方: 本 wave では修正不要。型契約外入力の扱いは別裁定なしに広げない。
+
+## テストの恒真性
+
+- 所見: `sorted` を外す変異は、提示された CPython 3.10.12 と固定入力では必ず赤になる。JSON の `sort_keys=True` [test_verifier.py:1608](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2436-ww-reason-order/orchestrator/tests/test_verifier.py:1608) は dict の key だけを整列し、理由配列の順序を保存する。したがって seed 1 と 777 の `5,2,4,1,3,6` 対 `2,1,3,4,5,6` は bytes 比較 [test_verifier.py:1628](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2436-ww-reason-order/orchestrator/tests/test_verifier.py:1628) に届く。さらに両順序とも昇順期待 [test_verifier.py:1635](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2436-ww-reason-order/orchestrator/tests/test_verifier.py:1635) に一致しない。実測値は [s1-probe.md:64](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2436-ww-reason-order/output/insights/2026-09-08_t2436-ww-reason-order/verbatim/s1-probe.md:64)。real か refuted か: refuted。must-fix か nit か: nit。成果物への影響: 未整列実装を受け入れる恒真テストにはなっていない。直し方: 不要。
+
+- 所見: 実装との誤り共有はない。期待値は `sorted(actual)` でも実装出力でもなく、`range(1, 7)` から独立に作った昇順 `keys` [test_verifier.py:1595](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2436-ww-reason-order/orchestrator/tests/test_verifier.py:1595) である。real か refuted か: refuted。must-fix か nit か: nit。成果物への影響: 実装とテストが同じ誤順序を共有したまま通る経路はない。直し方: 不要。
+
+- 所見: 残した 5 assert に `certified` と同型の過剰決定はない。`verdict` は `serializable=False` だけで `"non-serializable"` になる [model.py:511](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2436-ww-reason-order/orchestrator/verifier/model.py:511)。二者は冗長だが別原因で期待値が成立する形ではない。cycle 件数 2 項目は report の全数と witness 数を個別に固定し、`phenomenon` は RW の存在を固定する [test_verifier.py:1639](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2436-ww-reason-order/orchestrator/tests/test_verifier.py:1639)。real か refuted か: refuted。must-fix か nit か: nit。成果物への影響: cycle 消失や分類変化を別の integrity 不良が隠して通すことはない。直し方: 不要。
+
+## 既存テストの弱体化
+
+- 所見: 既存 assert の変更、削除、xfail、skip の追加はない。テスト側の唯一の hunk は新関数 [test_verifier.py:1592](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2436-ww-reason-order/orchestrator/tests/test_verifier.py:1592) の純追加である。既存の理由 golden [test_verifier.py:1762](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2436-ww-reason-order/orchestrator/tests/test_verifier.py:1762) と構造化 golden [test_verifier.py:1825](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2436-ww-reason-order/orchestrator/tests/test_verifier.py:1825) に差分はなく、各辺の WW は最大 1 本なので今回の整列にも影響されない。real か refuted か: refuted。must-fix か nit か: nit。成果物への影響: 既存 golden の意味、skip 集合、受入範囲は変わらない。直し方: 不要。
+
+## 親の実測への攻撃
+
+- 所見: WR/RW 安定性への反証はない。両枝は set でなく `Txn.reads` の list [model.py:334](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2436-ww-reason-order/orchestrator/verifier/model.py:334) を直接走査する [dsg.py:533](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2436-ww-reason-order/orchestrator/verifier/dsg.py:533)、[dsg.py:538](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2436-ww-reason-order/orchestrator/verifier/dsg.py:538)。6 seed の WR/RW 実測も [s4-ruling.md:24](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2436-ww-reason-order/output/insights/2026-09-08_t2436-ww-reason-order/verbatim/s4-ruling.md:24) と整合する。real か refuted か: refuted。must-fix か nit か: nit。成果物への影響: WW だけを整列する scope で理由列の seed 変動を除去できる。直し方: 不要。
+
+- 所見: 同一 key に複数の WW 理由は構成できない。各 transaction の writes は key ごとの辞書に縮約され [dsg.py:520](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2436-ww-reason-order/orchestrator/verifier/dsg.py:520)、積集合は key を一意化し、1 iteration につき append は最大 1 回 [dsg.py:531](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2436-ww-reason-order/orchestrator/verifier/dsg.py:531)。real か refuted か: refuted。must-fix か nit か: nit。成果物への影響: key 単独整列で WW 理由列の全順序が定まる。直し方: 不要。
+
+- 所見: 合成 trace の `integrity.clean()` が False になるという親の説明は正しい。subprocess は protocol/source context を渡していない [test_verifier.py:1605](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2436-ww-reason-order/orchestrator/tests/test_verifier.py:1605)。既定 proof surface は `unavailable` [model.py:61](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2436-ww-reason-order/orchestrator/verifier/model.py:61) で、`clean()` は X/P evidence を要求する [model.py:466](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2436-ww-reason-order/orchestrator/verifier/model.py:466)。real か refuted か: refuted。must-fix か nit か: nit。成果物への影響: `certified=False` は cycle と proof-surface 欠落の二重原因となるため、assert から外した判断が妥当。直し方: 不要。
+
+## 総括
+
+must-fix は 0 件。裁定どおりの 2 hunksであり、有効な trace について判定、受理集合、分類、cycle 数、integrity notes は動かしていない。唯一の real は型注釈を破った手製 mixed-key 入力に対する新しい `TypeError` だが、現行 trace 経路には到達しないため nit と判定する。
+
+制約どおり pytest その他の動的実測は行っておらず、テスト結果を緑とは報告しない。
