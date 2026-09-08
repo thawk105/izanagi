@@ -1013,6 +1013,23 @@ NON_ACCEPTED_VISIBILITY_VOCABULARY = (
     ("Held", "outside the submission acceptance set"),
     ("Suspended", "state vocabulary is unknown"),
 )
+REAL_A6_20260908B_PREREGISTRATION = {
+    "attempt_id": "a6-20260908b",
+    "attempt_root": (
+        "/work/1/SFC/tanab/izanagi-measurements/"
+        "dev-wave-paper-story-a6-cert-20260902/a6-20260908b"
+    ),
+    "automatic_retry": False,
+    "current_pin": "511c953",
+    "policy_sha256": (
+        "8969a7e4ee740a94ec12084c89ef88a37ebd255073cfb0122245113a295b87a8"
+    ),
+    "protocol_sha256": (
+        "21427e71793ea744777d11bd90429ce2db1a8d3333ea9e2e0f227ecf377c25dc"
+    ),
+    "schema_version": "paper-story-a2-preregistration/v1",
+    "study": "paper-story-a6-certification",
+}
 
 
 def _policy(tmp_path):
@@ -1031,6 +1048,40 @@ def _a6_policy(tmp_path):
     path = tmp_path / "a6-policy.json"
     path.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
     return A2.load_policy(path)
+
+
+def test_real_a6_preregistration_literal_is_materialization_eligible(tmp_path):
+    policy = _a6_policy(tmp_path)
+    literal = copy.deepcopy(REAL_A6_20260908B_PREREGISTRATION)
+
+    assert set(literal) == A2._PREREGISTRATION_KEYS
+    assert literal["policy_sha256"] != policy.bytes_sha256
+    assert A2._validate_materialization_preregistration(
+        policy, literal,
+        attempt_id="a6-20260908b",
+        attempt_root=Path(
+            "/work/1/SFC/tanab/izanagi-measurements/"
+            "dev-wave-paper-story-a6-cert-20260902/a6-20260908b"
+        ),
+    ) == (
+        "paper-story-a6-certification",
+        "8969a7e4ee740a94ec12084c89ef88a37ebd255073cfb0122245113a295b87a8",
+        "511c953",
+    )
+
+    written_root = A2.preregister_attempt(
+        policy, "a6-writer-positive", CURRENT_PIN)
+    written, _ = A2._read_json(written_root / "preregistration.json")
+    assert written["automatic_retry"] is False
+    assert A2._validate_materialization_preregistration(
+        policy, written,
+        attempt_id=written_root.name,
+        attempt_root=written_root,
+    ) == (
+        policy.study,
+        policy.bytes_sha256,
+        CURRENT_PIN[:7],
+    )
 
 
 def _request_ids(policy):
@@ -3552,6 +3603,258 @@ def _materialization_case(tmp_path, attempt_id):
     repo = tmp_path / "repo"
     repo.mkdir()
     return policy, report, evidence, repo
+
+
+def _rewrite_preregistration(attempt_root, mutation):
+    path = attempt_root / "preregistration.json"
+    preregistration, _ = A2._read_json(path)
+    mutation(preregistration)
+    path.write_bytes(A2._canonical_json(preregistration))
+
+
+def _add_raw_result_footprint(policy, attempt_root, workload_id=None):
+    selected = workload_id or A2.workload_ids(policy)[0]
+    raw_root = A2.workload_job_root(policy, attempt_root, selected) / "raw"
+    raw_root.mkdir()
+    (raw_root / "result.json").write_bytes(b"{}\n")
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "automatic-true",
+        "automatic-missing",
+        "automatic-non-bool",
+        "extra-key",
+        "other-key-missing",
+    ),
+)
+def test_materialize_rejects_invalid_preregistration_on_production_path(
+        tmp_path, mutation):
+    policy, report, evidence, repo = _materialization_case(
+        tmp_path, "materialize-preregistration-" + mutation)
+    attempt_root = Path(evidence["attempt_root"])
+
+    def mutate(preregistration):
+        if mutation == "automatic-true":
+            preregistration["automatic_retry"] = True
+        elif mutation == "automatic-missing":
+            preregistration.pop("automatic_retry")
+        elif mutation == "automatic-non-bool":
+            preregistration["automatic_retry"] = "false"
+        elif mutation == "extra-key":
+            preregistration["unexpected"] = False
+        else:
+            preregistration.pop("protocol_sha256")
+
+    _rewrite_preregistration(attempt_root, mutate)
+    destination = repo / policy.tracked_destination
+    with pytest.raises(A2.CertificationError):
+        A2.materialize(policy, report, evidence, repo_root=repo)
+    assert not destination.exists()
+    assert not list(destination.parent.glob(f".{destination.name}.stage-*"))
+
+
+def test_materialize_normalizes_short_and_full_commit_to_one_cohort(tmp_path):
+    policy, report, evidence, repo = _materialization_case(
+        tmp_path, "materialize-full-pin")
+    target_root = Path(evidence["attempt_root"])
+    full_pin = "511c953" + "8" * 33
+    _rewrite_preregistration(
+        target_root,
+        lambda preregistration: preregistration.__setitem__(
+            "current_pin", full_pin),
+    )
+    sibling = A2.preregister_attempt(
+        policy, "materialize-short-pin", "511c953")
+    _add_raw_result_footprint(policy, sibling)
+
+    assert A2._normalize_cohort_pin(full_pin) == "511c953"
+    with pytest.raises(A2.CertificationError) as raised:
+        A2.materialize(policy, report, evidence, repo_root=repo)
+    assert "materialize-short-pin" in str(raised.value)
+    assert "jobs/rr5/raw/regular-file" in str(raised.value)
+
+
+def test_materialize_ignores_result_from_different_policy_cohort(tmp_path):
+    policy, report, evidence, repo = _materialization_case(
+        tmp_path, "materialize-current-policy")
+    sibling = A2.preregister_attempt(
+        policy, "materialize-old-policy", CURRENT_PIN)
+    _rewrite_preregistration(
+        sibling,
+        lambda preregistration: preregistration.__setitem__(
+            "policy_sha256", "f" * 64),
+    )
+    _add_raw_result_footprint(policy, sibling)
+
+    destination = A2.materialize(
+        policy, report, evidence, repo_root=repo)
+    assert destination == repo / policy.tracked_destination
+    assert (destination / "COMPLETE.json").is_file()
+
+
+def test_materialize_rejects_second_result_before_creating_stage(tmp_path):
+    policy, report, evidence, repo = _materialization_case(
+        tmp_path, "materialize-second-result")
+    sibling = A2.preregister_attempt(
+        policy, "materialize-first-result", CURRENT_PIN)
+    A2.write_json_x(sibling / "receipts" / "acquisition.json", {"result": 1})
+    _add_raw_result_footprint(policy, sibling)
+    destination = repo / policy.tracked_destination
+
+    with pytest.raises(A2.CertificationError) as raised:
+        A2.materialize(policy, report, evidence, repo_root=repo)
+    message = str(raised.value)
+    assert "sibling_attempt_id='materialize-first-result'" in message
+    assert "receipts/acquisition.json" in message
+    assert "jobs/rr5/raw/regular-file" in message
+    assert not destination.exists()
+    assert not list(destination.parent.glob(f".{destination.name}.stage-*"))
+
+
+def test_materialize_counts_completion_only_as_sibling_result(tmp_path):
+    policy, report, evidence, repo = _materialization_case(
+        tmp_path, "materialize-after-completion")
+    sibling = A2.preregister_attempt(
+        policy, "materialize-completion-only", CURRENT_PIN)
+    A2.write_json_x(sibling / "receipts" / "completion.json", {"result": 1})
+
+    with pytest.raises(A2.CertificationError) as raised:
+        A2.materialize(policy, report, evidence, repo_root=repo)
+    assert "materialize-completion-only" in str(raised.value)
+    assert "receipts/completion.json" in str(raised.value)
+
+
+def test_materialize_allows_resultless_preregistered_sibling(
+        tmp_path, monkeypatch):
+    policy, report, evidence, repo = _materialization_case(
+        tmp_path, "materialize-valid-retry")
+    sibling = A2.preregister_attempt(
+        policy, "materialize-resultless-predecessor", CURRENT_PIN)
+    A2.write_json_x(sibling / "receipts" / "submission.json", {"submitted": True})
+    for workload_id in A2.workload_ids(policy):
+        (A2.workload_job_root(policy, sibling, workload_id) / "raw").mkdir()
+
+    real_result_footprints = A2._result_footprints
+    observed = []
+
+    def observe_result_footprints(observed_policy, observed_root):
+        footprints = real_result_footprints(observed_policy, observed_root)
+        observed.append((observed_root, footprints))
+        return footprints
+
+    monkeypatch.setattr(A2, "_result_footprints", observe_result_footprints)
+    destination = A2.materialize(
+        policy, report, evidence, repo_root=repo)
+    assert destination == repo / policy.tracked_destination
+    assert (destination / "COMPLETE.json").is_file()
+    assert observed == [(sibling, ())]
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "fixed-symlink",
+        "fixed-fifo",
+        "fixed-directory",
+        "raw-symlink",
+        "raw-file",
+    ),
+)
+def test_materialize_invalid_sibling_footprint_reports_identity_and_path(
+        tmp_path, mutation):
+    policy, report, evidence, repo = _materialization_case(
+        tmp_path, "materialize-invalid-sibling-footprint-" + mutation)
+    sibling = A2.preregister_attempt(
+        policy, "invalid-sibling-footprint-" + mutation, CURRENT_PIN)
+    if mutation.startswith("fixed-"):
+        problem_path = sibling / "receipts" / "acquisition.json"
+        if mutation == "fixed-symlink":
+            symlink_target = tmp_path / "fixed-footprint-symlink-target"
+            symlink_target.write_bytes(b"{}\n")
+            problem_path.symlink_to(symlink_target)
+        elif mutation == "fixed-fifo":
+            os.mkfifo(problem_path)
+        else:
+            problem_path.mkdir()
+    else:
+        problem_path = (
+            A2.workload_job_root(policy, sibling, A2.workload_ids(policy)[0])
+            / "raw"
+        )
+        if mutation == "raw-symlink":
+            symlink_target = tmp_path / "raw-footprint-symlink-target"
+            symlink_target.mkdir()
+            problem_path.symlink_to(symlink_target, target_is_directory=True)
+        else:
+            problem_path.write_bytes(b"not a directory\n")
+
+    with pytest.raises(A2.CertificationError) as direct:
+        A2._result_footprints(policy, sibling)
+    assert "sibling_attempt_id" not in str(direct.value)
+
+    with pytest.raises(A2.CertificationError) as raised:
+        A2.materialize(policy, report, evidence, repo_root=repo)
+    message = str(raised.value)
+    assert f"sibling_attempt_id={sibling.name!r}" in message
+    assert f"problem_path={str(problem_path)!r}" in message
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "symlink",
+        "regular-file",
+        "malformed-name",
+        "preregistration-missing",
+        "preregistration-corrupt",
+        "preregistration-key-missing",
+        "permission-error",
+    ),
+)
+def test_materialize_census_is_fail_closed(
+        tmp_path, monkeypatch, mutation):
+    policy, report, evidence, repo = _materialization_case(
+        tmp_path, "materialize-census-target-" + mutation)
+    base = policy.durable_base
+    if mutation == "symlink":
+        target = tmp_path / "census-symlink-target"
+        target.mkdir()
+        (base / "census-symlink").symlink_to(
+            target, target_is_directory=True)
+    elif mutation == "regular-file":
+        (base / "census-regular-file").write_bytes(b"not an attempt\n")
+    elif mutation == "malformed-name":
+        (base / "not an attempt").mkdir()
+    elif mutation == "preregistration-missing":
+        (base / "census-preregistration-missing").mkdir()
+    elif mutation == "preregistration-corrupt":
+        sibling = base / "census-preregistration-corrupt"
+        sibling.mkdir()
+        (sibling / "preregistration.json").write_bytes(b"{not-json}\n")
+    elif mutation == "preregistration-key-missing":
+        sibling = A2.preregister_attempt(
+            policy, "census-preregistration-key-missing", CURRENT_PIN)
+        _rewrite_preregistration(
+            sibling,
+            lambda preregistration: preregistration.pop("study"),
+        )
+    else:
+        real_scandir = A2.os.scandir
+
+        def deny_durable_census(path):
+            if Path(path) == base:
+                raise PermissionError(errno.EACCES, "permission denied", path)
+            return real_scandir(path)
+
+        monkeypatch.setattr(A2.os, "scandir", deny_durable_census)
+
+    destination = repo / policy.tracked_destination
+    with pytest.raises(A2.CertificationError):
+        A2.materialize(policy, report, evidence, repo_root=repo)
+    assert not destination.exists()
+    assert not list(destination.parent.glob(f".{destination.name}.stage-*"))
 
 
 def test_materialize_einval_uses_exclusive_claim_and_flags_zero_rename(
