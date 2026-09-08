@@ -73,6 +73,9 @@ from orchestrator.campaign.source_digest import (                               
     EMPTY_TRACKED_DIFF_SHA256,
     SourceEvidence,
 )
+from p3_b4_proposal_binding_support import (                                    # noqa: E402
+    issue_proposal_binding_fixture,
+)
 
 _REAL_CONDITION_GATE = L._require_condition_gate
 
@@ -4406,11 +4409,20 @@ def _exercise_b4_history_driver(
         )
         build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
         proposal_path = tmp_path / f"base-{checkpoint_mode}.json"
+        proposal_document = _b4_proposal_document()
         proposal_path.write_text(
-            json.dumps(_b4_proposal_document()), encoding="utf-8",
+            json.dumps(proposal_document), encoding="utf-8",
+        )
+        binding = issue_proposal_binding_fixture(
+            tmp_path / f"base-{checkpoint_mode}-binding",
+            driver_kind="base",
+            document=proposal_document,
         )
         planner, coder, prior = L.load_proposal_file(
-            str(proposal_path), b4_reflux_ablation=True,
+            str(proposal_path),
+            b4_reflux_ablation=True,
+            b4_prerun_publication=binding.publication.publication_root,
+            b4_attempt_id=binding.attempt_id,
         )
         run_spy = unittest.mock.Mock(
             return_value={"outcome": "dry-pass", "variant": None}
@@ -4437,7 +4449,7 @@ def _exercise_b4_history_driver(
         )
         build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
         proposal_path = tmp_path / f"sort-{checkpoint_mode}.json"
-        proposal_path.write_text(json.dumps({
+        proposal_document = {
             "planner": {
                 "axis": SORT_LOOP.MARKER_ID,
                 "direction": "increase",
@@ -4451,9 +4463,18 @@ def _exercise_b4_history_driver(
                 "verdict": "pass",
                 "diff_digest": "a" * 64,
             },
-        }), encoding="utf-8")
+        }
+        proposal_path.write_text(json.dumps(proposal_document), encoding="utf-8")
+        binding = issue_proposal_binding_fixture(
+            tmp_path / f"sort-{checkpoint_mode}-binding",
+            driver_kind="sort",
+            document=proposal_document,
+        )
         planner, coder, auditor, prior = SORT_LOOP.load_proposal_file(
-            str(proposal_path), b4_reflux_ablation=True,
+            str(proposal_path),
+            b4_reflux_ablation=True,
+            b4_prerun_publication=binding.publication.publication_root,
+            b4_attempt_id=binding.attempt_id,
         )
         run_spy = unittest.mock.Mock(
             return_value={"outcome": "dry-pass", "variant": None}
@@ -4494,7 +4515,7 @@ def _exercise_b4_history_driver(
         ).ensure()
         common["layout"] = layout
         proposal_path = tmp_path / f"trigger-{checkpoint_mode}.json"
-        proposal_path.write_text(json.dumps({
+        proposal_document = {
             "planner": {
                 "axis": TRIGGER_LOOP.MARKER_ID,
                 "direction": "increase",
@@ -4508,9 +4529,18 @@ def _exercise_b4_history_driver(
                 "verdict": "pass",
                 "diff_digest": "a" * 64,
             },
-        }), encoding="utf-8")
+        }
+        proposal_path.write_text(json.dumps(proposal_document), encoding="utf-8")
+        binding = issue_proposal_binding_fixture(
+            tmp_path / f"trigger-{checkpoint_mode}-binding",
+            driver_kind="trigger",
+            document=proposal_document,
+        )
         planner, coder, auditor, prior = TRIGGER_LOOP.load_proposal_file(
-            str(proposal_path), b4_reflux_ablation=True,
+            str(proposal_path),
+            b4_reflux_ablation=True,
+            b4_prerun_publication=binding.publication.publication_root,
+            b4_attempt_id=binding.attempt_id,
         )
         run_spy = unittest.mock.Mock(
             return_value={"outcome": "dry-pass", "variant": None}

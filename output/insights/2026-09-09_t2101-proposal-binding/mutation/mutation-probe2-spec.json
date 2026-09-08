@@ -1,0 +1,50 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 600,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "m10-sort-leg-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop_sort.py",
+          "old": "    if b4_reflux_ablation and b4_closed_critic_receipt_sha256 is None:\n        L.require_b4_proposal_registry_binding(\n            b4_prerun_publication,\n            b4_attempt_id,\n            schema_document,\n            driver_kind=\"sort\",\n        )",
+          "new": "    if b4_reflux_ablation and b4_closed_critic_receipt_sha256 is None:\n        pass"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m11-trigger-leg-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop_trigger_gating.py",
+          "old": "    if b4_reflux_ablation and b4_closed_critic_receipt_sha256 is None:\n        L.require_b4_proposal_registry_binding(\n            b4_prerun_publication,\n            b4_attempt_id,\n            schema_document,\n            driver_kind=\"trigger\",\n        )",
+          "new": "    if b4_reflux_ablation and b4_closed_critic_receipt_sha256 is None:\n        pass"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m12-binding-leaks-into-continuation",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "    if b4_reflux_ablation and b4_closed_critic_receipt_sha256 is None:\n        require_b4_proposal_registry_binding(",
+          "new": "    if b4_reflux_ablation:\n        require_b4_proposal_registry_binding("
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
