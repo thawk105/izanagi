@@ -1,0 +1,367 @@
+警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+[Pegasus dispatch] job を gen_S へ投入します (izdw-64e2d09057)
+Pegasus pending orphan hold を create-only で保存しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-next-tasks-command-20260908/output/pegasus-dispatch/orphan-holds/unknown-9a107c27330c638e7c13fd0d.json
+[Pegasus dispatch] request ID 982982.nqsv を受理しました
+[Pegasus dispatch] request 982982.nqsv の状態: QUE
+[Pegasus dispatch] request 982982.nqsv の状態: RUN
+[Pegasus dispatch] request 982982.nqsv の状態: END
+[Pegasus dispatch] request 982982.nqsv の成果物収集を開始します
+Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-next-tasks-command-20260908/output/pegasus-dispatch/orphan-holds/unknown-9a107c27330c638e7c13fd0d.json
+[Pegasus dispatch] receipt を /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-next-tasks-command-20260908/output/pegasus-dispatch/64e2d09057cbbae046da63ce502afd90/receipt.json へ保存しました (child rc=1)
+[Pegasus dispatch] request 982982.nqsv child stdout begin
+| bringing up nodes...
+| bringing up nodes...
+| 
+| ........................................................................ [  5%]
+| ........................................................................ [ 10%]
+| ........................................................................ [ 16%]
+| ........................................................................ [ 21%]
+| ........................................................................ [ 27%]
+| ........................................................................ [ 32%]
+| ........................................................................ [ 38%]
+| ........................................................................ [ 43%]
+| ........................................................................ [ 49%]
+| ........................................................................ [ 54%]
+| ................................F....................................... [ 60%]
+| ................................F....................................... [ 65%]
+| ........................................................................ [ 70%]
+| ........................................................................ [ 76%]
+| .....................s.........................s........................ [ 81%]
+| ........................................................................ [ 87%]
+| ........................................................................ [ 92%]
+| .............................s......................................F... [ 98%]
+| F......................                                                  [100%]IZANAGI_GROWTH_HOLD_SUMMARY_V1 {"collected_hold_functions":3,"opted_in":false}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"docs_bytes","node_id":"test_check_docs.py::test_dev_wave_model_pins_accept_current_docs_contract","reason":"Runs the real tools/check_docs.py with no arguments across a variable input set: enumerated living docs, the rotating docs/archive worklog set, the handoff directory, and discovered skill, command, reference, and provenance files. Its cost therefore grows with docs bytes.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"docs_bytes","node_id":"test_check_docs.py::test_normative_exact_section_pins_accept_real_repo","reason":"Runs the real tools/check_docs.py with no arguments across a variable input set: enumerated living docs, the rotating docs/archive worklog set, the handoff directory, and discovered skill, command, reference, and provenance files. Its cost therefore grows with docs bytes.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"docs_bytes","node_id":"test_check_docs.py::test_real_repo_clean","reason":"Runs the real tools/check_docs.py with no arguments across a variable input set: enumerated living docs, the rotating docs/archive worklog set, the handoff directory, and discovered skill, command, reference, and provenance files. Its cost therefore grows with docs bytes.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| 
+| =================================== FAILURES ===================================
+| ________ test_forward_correction_unrelated_history_remains_native_valid ________
+| [gw47] linux -- Python 3.10.12 /bin/python3.10
+| 
+| tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw47/test_forward_correction_unrela0')
+| monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14f8ee013be0>
+| capsys = <_pytest.capture.CaptureFixture object at 0x14f8ee0124a0>
+| 
+|     def test_forward_correction_unrelated_history_remains_native_valid(
+|         tmp_path: Path,
+|         monkeypatch: pytest.MonkeyPatch,
+|         capsys: pytest.CaptureFixture[str],
+|     ):
+|         _init_repo(tmp_path)
+|         commit = _commit(
+|             tmp_path,
+|             {"docs/unrelated.md": "unrelated\n"},
+|             CODEX_AUTHOR,
+|         )
+|         monkeypatch.setattr(provenance, "REPO", tmp_path)
+|         assert _run_range(monkeypatch, f"{commit}^!") == 0
+|         captured = capsys.readouterr()
+| >       assert captured.out == (
+|             _known_violation_group_stdout(53, 2)
+|             + "check_ai_provenance: 1 件、違反なし\n"
+|         )
+| E       AssertionError: assert 'check_ai_pro...e: 1 件、違反なし\n' == 'check_ai_pro...e: 1 件、違反なし\n'
+| E         
+| E         Skipping 212 identical leading characters in diff, use -v to show
+| E         Skipping 126 identical trailing characters in diff, use -v to show
+| E         - -baseline=2 populati
+| E         ?           ^
+| E         + -baseline=3 populati
+| E         ?           ^
+| 
+| orchestrator/tests/test_check_ai_provenance.py:4904: AssertionError
+| _________________ test_ledgered_3f2c43d7580b_is_known_and_rc0 __________________
+| [gw21] linux -- Python 3.10.12 /bin/python3.10
+| 
+| capsys = <_pytest.capture.CaptureFixture object at 0x154805f35db0>
+| 
+|     def test_ledgered_3f2c43d7580b_is_known_and_rc0(
+|         capsys: pytest.CaptureFixture[str],
+|     ):
+|         commit = "3f2c43d7580b8c26724d90278589862057508965"
+|         assert provenance.main(
+|             ["--range", f"{commit}^!"], site=site_policy.OTHER,
+|         ) == 0
+|         captured = capsys.readouterr()
+| >       assert captured.out == (
+|             "check_ai_provenance: known-violation "
+|             f"sha={commit} finding=missing-ai-agent "
+|             "note=trailer は本文に実在するが、AI-Agent 行と Co-Authored-By 行の間の"
+|             "空行で trailer block 不成立\n"
+|             "check_ai_provenance: known-violations=1\n"
+|             + _known_violation_group_stdout(53, 2)
+|             + "check_ai_provenance: 1 件、新規違反なし\n"
+|         )
+| E       AssertionError: assert 'check_ai_pro... 1 件、新規違反なし\n' == 'check_ai_pro... 1 件、新規違反なし\n'
+| E         
+| E         Skipping 435 identical leading characters in diff, use -v to show
+| E         Skipping 128 identical trailing characters in diff, use -v to show
+| E         - -baseline=2 populati
+| E         ?           ^
+| E         + -baseline=3 populati
+| E         ?           ^
+| 
+| orchestrator/tests/test_check_ai_provenance.py:3943: AssertionError
+| ___ test_unregistered_malformed_finding_remains_rc1_with_production_registry ___
+| [gw28] linux -- Python 3.10.12 /bin/python3.10
+| 
+| tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw28/test_unregistered_malformed_fi0')
+| monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x150b84afbac0>
+| capsys = <_pytest.capture.CaptureFixture object at 0x150b84ce1ea0>
+| 
+|     def test_unregistered_malformed_finding_remains_rc1_with_production_registry(
+|         tmp_path: Path,
+|         monkeypatch: pytest.MonkeyPatch,
+|         capsys: pytest.CaptureFixture[str],
+|     ):
+|         _init_repo(tmp_path)
+|         commit = _commit(
+|             tmp_path,
+|             {provenance.POLICY_PATH: "# policy\n"},
+|             "outside registry\n\nAI-Agent: malformed\n",
+|         )
+|         production_registry = provenance._known_violation_registry()
+|         assert commit not in production_registry
+|         monkeypatch.setattr(provenance, "REPO", tmp_path)
+|     
+|         assert provenance.main(
+|             ["--range", f"{commit}^!"], site=site_policy.OTHER,
+|         ) == 1
+|         captured = capsys.readouterr()
+|         assert f"{commit[:12]} outside registry: AI-Agent の形式違反" in captured.err
+| >       assert captured.out == _known_violation_group_stdout(53, 2)
+| E       AssertionError: assert 'check_ai_pro...d58006d17fb\n' == 'check_ai_pro...d58006d17fb\n'
+| E         
+| E         Skipping 212 identical leading characters in diff, use -v to show
+| E         Skipping 96 identical trailing characters in diff, use -v to show
+| E         - -baseline=2 populati
+| E         ?           ^
+| E         + -baseline=3 populati
+| E         ?           ^
+| 
+| orchestrator/tests/test_check_ai_provenance.py:3455: AssertionError
+| _____________ test_audit_history_empty_range_returns_zero_findings _____________
+| [gw28] linux -- Python 3.10.12 /bin/python3.10
+| 
+| tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw28/test_audit_history_empty_range0')
+| monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x150b85813f70>
+| capsys = <_pytest.capture.CaptureFixture object at 0x150b85810d00>
+| 
+|     def test_audit_history_empty_range_returns_zero_findings(
+|         tmp_path: Path,
+|         monkeypatch: pytest.MonkeyPatch,
+|         capsys: pytest.CaptureFixture[str],
+|     ):
+|         def refuse_git(*args, **kwargs):
+|             raise AssertionError("empty selected set must not touch git")
+|     
+|         monkeypatch.setattr(provenance, "_git", refuse_git)
+|         monkeypatch.setattr(provenance, "_build_ancestry", refuse_git)
+|         monkeypatch.setattr(provenance, "_known_violation_registry", refuse_git)
+|         assert provenance._audit_history([]) == provenance.HistoryAudit([], [], [])
+|         monkeypatch.undo()
+|     
+|         _init_repo(tmp_path)
+|         commit = _commit(tmp_path, {"docs/empty.md": "empty\n"}, CODEX_AUTHOR)
+|         monkeypatch.setattr(provenance, "REPO", tmp_path)
+|         assert _run_range(monkeypatch, f"{commit}..{commit}") == 0
+|         captured = capsys.readouterr()
+| >       assert captured.out == (
+|             _known_violation_group_stdout(53, 2)
+|             + "check_ai_provenance: 0 件、違反なし\n"
+|         )
+| E       AssertionError: assert 'check_ai_pro...e: 0 件、違反なし\n' == 'check_ai_pro...e: 0 件、違反なし\n'
+| E         
+| E         Skipping 212 identical leading characters in diff, use -v to show
+| E         Skipping 126 identical trailing characters in diff, use -v to show
+| E         - -baseline=2 populati
+| E         ?           ^
+| E         + -baseline=3 populati
+| E         ?           ^
+| 
+| orchestrator/tests/test_check_ai_provenance.py:7081: AssertionError
+| =========================== short test summary info ============================
+| FAILED orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_unrelated_history_remains_native_valid
+| FAILED orchestrator/tests/test_check_ai_provenance.py::test_ledgered_3f2c43d7580b_is_known_and_rc0
+| FAILED orchestrator/tests/test_check_ai_provenance.py::test_unregistered_malformed_finding_remains_rc1_with_production_registry
+| FAILED orchestrator/tests/test_check_ai_provenance.py::test_audit_history_empty_range_returns_zero_findings
+| 4 failed, 1312 passed, 3 skipped in 66.71s (0:01:06)
+| IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}
+| === IZANAGI FAILURE DIGEST v1 BEGIN ===
+| IZANAGI_FAILURE rank=1 category=failed when=call nodeid="orchestrator/tests/test_check_ai_provenance.py::test_audit_history_empty_range_returns_zero_findings" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=1802 retained_bytes=1802 omitted_bytes=0 rendered_excerpt_bytes=1947 sha256=55a60d30732d8d5907f06d945d7e2a186daf3f88d79e49c5ff25993dd7c3b282
+| --- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---
+| > [gw28] linux -- Python 3.10.12 /bin/python3.10
+| > 
+| > tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw28/test_audit_history_empty_range0')
+| > monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x150b85813f70>
+| > capsys = <_pytest.capture.CaptureFixture object at 0x150b85810d00>
+| > 
+| >     def test_audit_history_empty_range_returns_zero_findings(
+| >         tmp_path: Path,
+| >         monkeypatch: pytest.MonkeyPatch,
+| >         capsys: pytest.CaptureFixture[str],
+| >     ):
+| >         def refuse_git(*args, **kwargs):
+| >             raise AssertionError("empty selected set must not touch git")
+| >     
+| >         monkeypatch.setattr(provenance, "_git", refuse_git)
+| >         monkeypatch.setattr(provenance, "_build_ancestry", refuse_git)
+| >         monkeypatch.setattr(provenance, "_known_violation_registry", refuse_git)
+| >         assert provenance._audit_history([]) == provenance.HistoryAudit([], [], [])
+| >         monkeypatch.undo()
+| >     
+| >         _init_repo(tmp_path)
+| >         commit = _commit(tmp_path, {"docs/empty.md": "empty\x5cn"}, CODEX_AUTHOR)
+| >         monkeypatch.setattr(provenance, "REPO", tmp_path)
+| >         assert _run_range(monkeypatch, f"{commit}..{commit}") == 0
+| >         captured = capsys.readouterr()
+| > >       assert captured.out == (
+| >             _known_violation_group_stdout(53, 2)
+| >             + "check_ai_provenance: 0 \u4ef6\u3001\u9055\u53cd\u306a\u3057\x5cn"
+| >         )
+| > E       AssertionError: assert 'check_ai_pro...e: 0 \u4ef6\u3001\u9055\u53cd\u306a\u3057\x5cn' == 'check_ai_pro...e: 0 \u4ef6\u3001\u9055\u53cd\u306a\u3057\x5cn'
+| > E         
+| > E         Skipping 212 identical leading characters in diff, use -v to show
+| > E         Skipping 126 identical trailing characters in diff, use -v to show
+| > E         - -baseline=2 populati
+| > E         ?           ^
+| > E         + -baseline=3 populati
+| > E         ?           ^
+| > 
+| > orchestrator/tests/test_check_ai_provenance.py:7081: AssertionError
+| --- IZANAGI FAILURE EXCERPT rank=1 END ---
+| IZANAGI_FAILURE rank=2 category=failed when=call nodeid="orchestrator/tests/test_check_ai_provenance.py::test_unregistered_malformed_finding_remains_rc1_with_production_registry" nodeid_bytes=120 nodeid_omitted_bytes=0 source_bytes=1611 retained_bytes=1611 omitted_bytes=0 rendered_excerpt_bytes=1719 sha256=c497a42d864d2208367277ad7091e00c8ab3c9eb7c58d4093e6d4bc50f80cbc7
+| --- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---
+| > [gw28] linux -- Python 3.10.12 /bin/python3.10
+| > 
+| > tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw28/test_unregistered_malformed_fi0')
+| > monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x150b84afbac0>
+| > capsys = <_pytest.capture.CaptureFixture object at 0x150b84ce1ea0>
+| > 
+| >     def test_unregistered_malformed_finding_remains_rc1_with_production_registry(
+| >         tmp_path: Path,
+| >         monkeypatch: pytest.MonkeyPatch,
+| >         capsys: pytest.CaptureFixture[str],
+| >     ):
+| >         _init_repo(tmp_path)
+| >         commit = _commit(
+| >             tmp_path,
+| >             {provenance.POLICY_PATH: "# policy\x5cn"},
+| >             "outside registry\x5cn\x5cnAI-Agent: malformed\x5cn",
+| >         )
+| >         production_registry = provenance._known_violation_registry()
+| >         assert commit not in production_registry
+| >         monkeypatch.setattr(provenance, "REPO", tmp_path)
+| >     
+| >         assert provenance.main(
+| >             ["--range", f"{commit}^!"], site=site_policy.OTHER,
+| >         ) == 1
+| >         captured = capsys.readouterr()
+| >         assert f"{commit[:12]} outside registry: AI-Agent \u306e\u5f62\u5f0f\u9055\u53cd" in captured.err
+| > >       assert captured.out == _known_violation_group_stdout(53, 2)
+| > E       AssertionError: assert 'check_ai_pro...d58006d17fb\x5cn' == 'check_ai_pro...d58006d17fb\x5cn'
+| > E         
+| > E         Skipping 212 identical leading characters in diff, use -v to show
+| > E         Skipping 96 identical trailing characters in diff, use -v to show
+| > E         - -baseline=2 populati
+| > E         ?           ^
+| > E         + -baseline=3 populati
+| > E         ?           ^
+| > 
+| > orchestrator/tests/test_check_ai_provenance.py:3455: AssertionError
+| --- IZANAGI FAILURE EXCERPT rank=2 END ---
+| IZANAGI_FAILURE rank=3 category=failed when=call nodeid="orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_unrelated_history_remains_native_valid" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=1411 retained_bytes=1411 omitted_bytes=0 rendered_excerpt_bytes=1546 sha256=05ba77d60124bbf60ff3dfc37cb304c55e9469eece659154a72f9ab6aba4678d
+| --- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---
+| > [gw47] linux -- Python 3.10.12 /bin/python3.10
+| > 
+| > tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw47/test_forward_correction_unrela0')
+| > monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14f8ee013be0>
+| > capsys = <_pytest.capture.CaptureFixture object at 0x14f8ee0124a0>
+| > 
+| >     def test_forward_correction_unrelated_history_remains_native_valid(
+| >         tmp_path: Path,
+| >         monkeypatch: pytest.MonkeyPatch,
+| >         capsys: pytest.CaptureFixture[str],
+| >     ):
+| >         _init_repo(tmp_path)
+| >         commit = _commit(
+| >             tmp_path,
+| >             {"docs/unrelated.md": "unrelated\x5cn"},
+| >             CODEX_AUTHOR,
+| >         )
+| >         monkeypatch.setattr(provenance, "REPO", tmp_path)
+| >         assert _run_range(monkeypatch, f"{commit}^!") == 0
+| >         captured = capsys.readouterr()
+| > >       assert captured.out == (
+| >             _known_violation_group_stdout(53, 2)
+| >             + "check_ai_provenance: 1 \u4ef6\u3001\u9055\u53cd\u306a\u3057\x5cn"
+| >         )
+| > E       AssertionError: assert 'check_ai_pro...e: 1 \u4ef6\u3001\u9055\u53cd\u306a\u3057\x5cn' == 'check_ai_pro...e: 1 \u4ef6\u3001\u9055\u53cd\u306a\u3057\x5cn'
+| > E         
+| > E         Skipping 212 identical leading characters in diff, use -v to show
+| > E         Skipping 126 identical trailing characters in diff, use -v to show
+| > E         - -baseline=2 populati
+| > E         ?           ^
+| > E         + -baseline=3 populati
+| > E         ?           ^
+| > 
+| > orchestrator/tests/test_check_ai_provenance.py:4904: AssertionError
+| --- IZANAGI FAILURE EXCERPT rank=3 END ---
+| IZANAGI_FAILURE rank=4 category=failed when=call nodeid="orchestrator/tests/test_check_ai_provenance.py::test_ledgered_3f2c43d7580b_is_known_and_rc0" nodeid_bytes=91 nodeid_omitted_bytes=0 source_bytes=1377 retained_bytes=1377 omitted_bytes=0 rendered_excerpt_bytes=1593 sha256=a701c7529fed2da887c9120aeb6976ae8262ad6f3abc2014f1f0cf6ce354a925
+| --- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---
+| > [gw21] linux -- Python 3.10.12 /bin/python3.10
+| > 
+| > capsys = <_pytest.capture.CaptureFixture object at 0x154805f35db0>
+| > 
+| >     def test_ledgered_3f2c43d7580b_is_known_and_rc0(
+| >         capsys: pytest.CaptureFixture[str],
+| >     ):
+| >         commit = "3f2c43d7580b8c26724d90278589862057508965"
+| >         assert provenance.main(
+| >             ["--range", f"{commit}^!"], site=site_policy.OTHER,
+| >         ) == 0
+| >         captured = capsys.readouterr()
+| > >       assert captured.out == (
+| >             "check_ai_provenance: known-violation "
+| >             f"sha={commit} finding=missing-ai-agent "
+| >             "note=trailer \u306f\u672c\u6587\u306b\u5b9f\u5728\u3059\u308b\u304c\u3001AI-Agent \u884c\u3068 Co-Authored-By \u884c\u306e\u9593\u306e"
+| >             "\u7a7a\u884c\u3067 trailer block \u4e0d\u6210\u7acb\x5cn"
+| >             "check_ai_provenance: known-violations=1\x5cn"
+| >             + _known_violation_group_stdout(53, 2)
+| >             + "check_ai_provenance: 1 \u4ef6\u3001\u65b0\u898f\u9055\u53cd\u306a\u3057\x5cn"
+| >         )
+| > E       AssertionError: assert 'check_ai_pro... 1 \u4ef6\u3001\u65b0\u898f\u9055\u53cd\u306a\u3057\x5cn' == 'check_ai_pro... 1 \u4ef6\u3001\u65b0\u898f\u9055\u53cd\u306a\u3057\x5cn'
+| > E         
+| > E         Skipping 435 identical leading characters in diff, use -v to show
+| > E         Skipping 128 identical trailing characters in diff, use -v to show
+| > E         - -baseline=2 populati
+| > E         ?           ^
+| > E         + -baseline=3 populati
+| > E         ?           ^
+| > 
+| > orchestrator/tests/test_check_ai_provenance.py:3943: AssertionError
+| --- IZANAGI FAILURE EXCERPT rank=4 END ---
+| IZANAGI_FAILURE_DIGEST_ACCOUNT failures=4 failed=4 errors=0 selected=4 omitted_failures=0 source_bytes=6201 retained_bytes=6201 omitted_bytes=0 budget_bytes=49152 rendered_bytes=8876 omitted_manifest_sha256=-
+| === IZANAGI FAILURE DIGEST v1 END ===
+[Pegasus dispatch] request 982982.nqsv child stdout end
+[Pegasus dispatch] request 982982.nqsv child stderr begin
+| 警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+| 
+| ============================================================
+| Request ID:             982982.nqsv
+| Request Name:           izdw-64e2d09057
+| Queue:                  gen_S@nqsv
+| Number of Jobs:         1
+| User Name:              tanab
+| Group Name:             SFC
+| Created Request Time:   Tue Sep  8 08:16:02 2026
+| Started Request Time:   Tue Sep  8 08:16:10 2026
+| Ended Request Time:     Tue Sep  8 08:17:18 2026
+| Resources Information:
+|   Elapse:               72S
+|   Remaining Elapse:     3528S
+| ============================================================
+[Pegasus dispatch] request 982982.nqsv child stderr end
+IZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid
+rc=1

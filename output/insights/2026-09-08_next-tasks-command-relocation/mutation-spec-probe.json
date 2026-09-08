@@ -1,0 +1,50 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 1200,
+  "hang_timeout_seconds": 3300,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "    \".claude/commands/next-tasks.md\": TextLimit(27_100, 100),\n",
+          "new": "    # M1: next-tasks budget unregistered\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "    \".claude/commands/next-tasks.md\": TextLimit(27_100, 100),\n",
+          "new": "    \".claude/commands/next-tasks.md\": TextLimit(27_101, 100),\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "    \".claude/commands/next-tasks.md\": {\n        \"frontmatter_keys\": {\"description\", \"argument-hint\"},\n        \"arguments_count\": 0,\n    },\n",
+          "new": "    # M3: next-tasks interface unregistered\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
