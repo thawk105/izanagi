@@ -19,11 +19,15 @@ import re
 import stat
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from typing import Mapping, Sequence
+from typing import Literal, Mapping, Sequence
+
+from orchestrator.verifier.model import RW, WR, WW, VerifyResult
+from orchestrator.verifier.report import result_to_dict
 
 from . import reflux_origin_ledger as ledger
 from . import wal as wal_codec
 from .layout import validate_campaign_id
+from .model import STAGE_ABORT, STAGE_COMMIT
 from .reflux_origin_artifacts import (
     ArtifactError,
     canonical_json_bytes,
@@ -38,10 +42,17 @@ __all__ = [
     "LEDGER_EVIDENCE_DIGEST_LAYER",
     "LEDGER_OUTER_COMMITMENT_LAYER",
     "ResultEvidenceError",
+    "ResultEvidenceIssuanceRefused",
+    "DerivedPhysicalResult",
     "ResolvedEvidenceBytes",
     "ResolvedOrderedWal",
     "ResolvedResultEvidence",
     "validate_result_evidence",
+    "validate_witness_anomaly",
+    "witness_class_sha256",
+    "derive_physical_result",
+    "assemble_result_evidence_record",
+    "issue_result_evidence_record",
     "canonical_result_evidence_bytes",
     "parse_result_evidence_bytes",
     "result_evidence_record_raw_sha256",
@@ -123,6 +134,9 @@ _ORDERED_WAL_KEYS = frozenset({
     "build_attempt_id",
     "records",
 })
+_PRODUCTION_WAL_RECORD_KEYS = frozenset({
+    "variant", "stage", "env_tag", "ts", "payload",
+})
 _EXECUTION_PROVENANCE_V2_KEYS = frozenset({
     "schema_version",
     "build_attempt_id",
@@ -133,10 +147,93 @@ _EXECUTION_PROVENANCE_V2_KEYS = frozenset({
     "execution_receipt_sha256",
     "campaign_run_identity",
 })
+_ANOMALY_KEYS = frozenset({"phenomenon", "length", "cycle", "edges"})
+_EDGE_KEYS = frozenset({"from", "to", "types", "reasons"})
+_REASON_REQUIRED_KEYS = frozenset({"type", "key"})
+_REASON_OPTIONAL_KEYS = frozenset({"u_ver", "v_ver"})
+_REASON_TYPES = frozenset({WW, WR, RW})
+_REASON_VERSION_KEYS = {
+    WW: frozenset({"u_ver", "v_ver"}),
+    WR: frozenset({"u_ver"}),
+    RW: frozenset({"u_ver", "v_ver"}),
+}
+_PHENOMENA = frozenset({"G0", "G1c", "G2"})
+_VERIFY_KEYS = frozenset({
+    "verdict",
+    "certified",
+    "serializable",
+    "stats",
+    "integrity",
+    "anomaly_count",
+    "total_cycles",
+    "anomalies",
+})
+_VERIFY_STATS_KEYS = frozenset({
+    "txns",
+    "reads",
+    "writes",
+    "keys",
+    "edges",
+    "abort_reasons",
+})
+_VERIFY_INTEGRITY_KEYS = frozenset({
+    "clean",
+    "orphan_reads",
+    "version_dups",
+    "dup_txids",
+    "genesis_commits",
+    "missing_txids",
+    "write_version_mismatch",
+    "malformed_keys",
+    "framing_violations",
+    "framing_violation_details",
+    "lock_coverage_violations",
+    "write_intent_violations",
+    "permutation_violations",
+    "permutation_violation_details",
+    "notes",
+})
+_PERMUTATION_VIOLATION_DETAILS_KEYS = frozenset({
+    "counts",
+    "sample",
+    "unknown_reason_sample",
+})
+_PERMUTATION_VIOLATION_COUNT_KEYS = frozenset({
+    "size-changed",
+    "rcdptr-set-changed",
+    "unknown",
+})
+_CLEAN_WIRE_COUNTER_KEYS = frozenset({
+    "orphan_reads",
+    "version_dups",
+    "dup_txids",
+    "genesis_commits",
+    "missing_txids",
+    "write_version_mismatch",
+    "malformed_keys",
+    "framing_violations",
+    "lock_coverage_violations",
+    "write_intent_violations",
+    "permutation_violations",
+})
 
 
 class ResultEvidenceError(ValueError):
     """Fail-closed rejection of result evidence or one of its referents."""
+
+
+class ResultEvidenceIssuanceRefused(ResultEvidenceError):
+    """Refuse issuance when no unique trustworthy physical result is derivable."""
+
+
+@dataclass(frozen=True, slots=True)
+class DerivedPhysicalResult:
+    """Physical result derived from one terminal WAL interval."""
+
+    build_attempt_id: str
+    outcome: Literal["accepted", "rejected"]
+    constraint_sha256: str | None
+    ordered_wal_sha256: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -222,6 +319,299 @@ def _ordinal(value: object, *, label: str) -> int:
     if type(value) is not int or value < 0:
         _fail(f"{label} must be a non-negative integer")
     return value
+
+
+def validate_witness_anomaly(anomaly: object) -> bool:
+    if type(anomaly) is not dict or set(anomaly) != _ANOMALY_KEYS:
+        return False
+    phenomenon = anomaly["phenomenon"]
+    if type(phenomenon) is not str or phenomenon not in _PHENOMENA:
+        return False
+    cycle = anomaly["cycle"]
+    if (
+        type(cycle) is not list
+        or len(cycle) < 2
+        or any(type(txid) is not int for txid in cycle)
+        or len(set(cycle)) != len(cycle)
+        or type(anomaly["length"]) is not int
+        or anomaly["length"] != len(cycle)
+    ):
+        return False
+    edges = anomaly["edges"]
+    if type(edges) is not list or len(edges) != len(cycle):
+        return False
+    all_types: set[str] = set()
+    for index, edge in enumerate(edges):
+        if type(edge) is not dict or set(edge) != _EDGE_KEYS:
+            return False
+        if (
+            type(edge["from"]) is not int
+            or type(edge["to"]) is not int
+            or edge["from"] != cycle[index]
+            or edge["to"] != cycle[(index + 1) % len(cycle)]
+        ):
+            return False
+        types = edge["types"]
+        reasons = edge["reasons"]
+        if (
+            type(types) is not list
+            or not types
+            or any(type(edge_type) is not str for edge_type in types)
+            or type(reasons) is not list
+            or not reasons
+        ):
+            return False
+        derived_types: list[str] = []
+        seen_types: set[str] = set()
+        for reason in reasons:
+            if type(reason) is not dict:
+                return False
+            keys = set(reason)
+            if not _REASON_REQUIRED_KEYS <= keys <= (
+                _REASON_REQUIRED_KEYS | _REASON_OPTIONAL_KEYS
+            ):
+                return False
+            reason_type = reason["type"]
+            if (
+                type(reason_type) is not str
+                or reason_type not in _REASON_TYPES
+                or type(reason["key"]) is not str
+            ):
+                return False
+            expected_version_keys = _REASON_VERSION_KEYS.get(reason_type)
+            if (
+                expected_version_keys is not None
+                and keys & _REASON_OPTIONAL_KEYS != expected_version_keys
+            ):
+                return False
+            for optional in _REASON_OPTIONAL_KEYS:
+                if optional in reason and (
+                    type(reason[optional]) is not list
+                    or len(reason[optional]) != 2
+                    or any(type(item) is not int for item in reason[optional])
+                ):
+                    return False
+            if reason_type not in seen_types:
+                seen_types.add(reason_type)
+                derived_types.append(reason_type)
+        if types != derived_types:
+            return False
+        all_types.update(types)
+    derived_phenomenon = (
+        "G2" if RW in all_types else "G1c" if WR in all_types else "G0"
+    )
+    return phenomenon == derived_phenomenon
+
+
+def witness_class_sha256(anomaly: object) -> str:
+    return hashlib.sha256(canonical_json_bytes(anomaly)).hexdigest()
+
+
+def _issuance_refused(message: str) -> None:
+    raise ResultEvidenceIssuanceRefused(
+        "result evidence issuance refused: " + message
+    )
+
+
+def _valid_rejected_verify_snapshot(snapshot: object) -> bool:
+    if type(snapshot) is not dict or set(snapshot) != _VERIFY_KEYS:
+        return False
+    stats = snapshot.get("stats")
+    if type(stats) is not dict or set(stats) != _VERIFY_STATS_KEYS:
+        return False
+    if not all(
+        type(stats[key]) is int and stats[key] >= 0
+        for key in ("txns", "reads", "writes", "keys", "edges")
+    ):
+        return False
+    abort_reasons = stats["abort_reasons"]
+    if type(abort_reasons) is not dict or not all(
+        type(reason) is str and type(count) is int and count >= 0
+        for reason, count in abort_reasons.items()
+    ):
+        return False
+    integrity = snapshot.get("integrity")
+    if type(integrity) is not dict or set(integrity) != _VERIFY_INTEGRITY_KEYS:
+        return False
+    permutation_details = integrity.get("permutation_violation_details")
+    if (
+        type(permutation_details) is not dict
+        or set(permutation_details) != _PERMUTATION_VIOLATION_DETAILS_KEYS
+    ):
+        return False
+    if snapshot.get("verdict") != "non-serializable":
+        return False
+    if snapshot.get("serializable") is not False:
+        return False
+    if snapshot.get("certified") is not False:
+        return False
+    if integrity.get("clean") is not True:
+        return False
+    if not all(
+        type(integrity[key]) is int and integrity[key] == 0
+        for key in _CLEAN_WIRE_COUNTER_KEYS
+    ):
+        return False
+    if type(integrity["framing_violation_details"]) is not list or not (
+        integrity["framing_violations"] != 0
+        or not integrity["framing_violation_details"]
+    ):
+        return False
+    if type(integrity["notes"]) is not list or not all(
+        type(note) is str for note in integrity["notes"]
+    ):
+        return False
+    permutation_counts = permutation_details.get("counts")
+    if not (
+        type(permutation_counts) is dict
+        and set(permutation_counts) == _PERMUTATION_VIOLATION_COUNT_KEYS
+        and all(
+            type(count) is int and count >= 0
+            for count in permutation_counts.values()
+        )
+        and sum(permutation_counts.values()) == integrity["permutation_violations"]
+    ):
+        return False
+    if type(permutation_details["sample"]) is not list:
+        return False
+    if type(permutation_details["unknown_reason_sample"]) is not list:
+        return False
+    anomalies = snapshot.get("anomalies")
+    if type(anomalies) is not list or len(anomalies) != 1:
+        return False
+    total_cycles = snapshot.get("total_cycles")
+    anomaly_count = snapshot.get("anomaly_count")
+    if type(total_cycles) is not int or type(anomaly_count) is not int:
+        return False
+    # Exact keys, anomaly_count equality, and derived booleans are drift assertions.
+    # total_cycles equality blocks truncation; one anomaly enforces one class.
+    if anomaly_count != len(anomalies) or total_cycles != anomaly_count:
+        return False
+    return validate_witness_anomaly(anomalies[0])
+
+
+def derive_physical_result(
+    *,
+    ordered_wal_projection_bytes: bytes,
+    build_attempt_id: str,
+    ordered_verifiers: Sequence[str],
+    verify_result: VerifyResult | None = None,
+) -> DerivedPhysicalResult:
+    """Derive one issuable result bound to canonical ordered-WAL bytes."""
+
+    if type(build_attempt_id) is not str or not build_attempt_id:
+        _issuance_refused("build attempt identity is absent or invalid")
+    if type(ordered_wal_projection_bytes) is not bytes:
+        _issuance_refused("ordered WAL projection is not raw bytes")
+    try:
+        projection = _parse_canonical_object(
+            ordered_wal_projection_bytes, label="ordered WAL projection"
+        )
+        projection = _exact_object(
+            projection, _ORDERED_WAL_KEYS, label="ordered WAL projection"
+        )
+    except ResultEvidenceError:
+        _issuance_refused("ordered WAL projection is not a canonical exact object")
+    if projection["schema_version"] != "ordered-wal-projection/v1":
+        _issuance_refused("ordered WAL projection schema is unsupported")
+    if projection["build_attempt_id"] != build_attempt_id:
+        _issuance_refused("ordered WAL projection belongs to a different build attempt")
+    records = projection["records"]
+    if type(records) is not list or not records:
+        _issuance_refused("ordered WAL projection has no terminal record")
+    if any(type(item) is not dict for item in records):
+        _issuance_refused("ordered WAL projection records are not objects")
+    if any(_projection_attempt_id(item) != build_attempt_id for item in records):
+        _issuance_refused("ordered WAL projection mixes build attempts")
+    terminal = records[-1]
+    if set(terminal) != _PRODUCTION_WAL_RECORD_KEYS:
+        _issuance_refused("terminal WAL record does not have the production envelope")
+    payload = terminal.get("payload")
+    if type(payload) is not dict:
+        _issuance_refused("terminal WAL payload is not a production object")
+    if payload.get("build_attempt_id") != build_attempt_id:
+        _issuance_refused("terminal WAL belongs to a different build attempt")
+
+    if isinstance(ordered_verifiers, (str, bytes)):
+        _issuance_refused("ordered verifier policy is not a sequence of names")
+    try:
+        verifier_order = tuple(ordered_verifiers)
+    except TypeError:
+        _issuance_refused("ordered verifier policy is not iterable")
+    if not verifier_order or any(
+        type(item) is not str or not item for item in verifier_order
+    ):
+        _issuance_refused("ordered verifier policy is empty or invalid")
+    ordered_wal_sha256 = _content_addressed_referent_sha256(
+        ordered_wal_projection_bytes
+    )
+
+    if terminal.get("stage") == STAGE_COMMIT:
+        verify_configs = payload.get("verify_configs")
+        if type(verify_configs) is not list or tuple(verify_configs) != verifier_order:
+            _issuance_refused("commit verifier order does not match the policy")
+        if verify_result is not None:
+            if type(verify_result) is not VerifyResult:
+                _issuance_refused("accepted verifier result is not exact VerifyResult")
+            try:
+                accepted = (
+                    verify_result.certified is True
+                    and verify_result.verdict == "serializable"
+                )
+            except Exception:
+                accepted = False
+            if not accepted:
+                _issuance_refused("commit contradicts the supplied verifier result")
+        return DerivedPhysicalResult(
+            build_attempt_id, "accepted", None, ordered_wal_sha256
+        )
+
+    if terminal.get("stage") != STAGE_ABORT:
+        _issuance_refused("terminal WAL stage is neither commit nor abort")
+    if type(verify_result) is not VerifyResult:
+        _issuance_refused("rejected result requires an exact VerifyResult")
+    try:
+        rejected = (
+            verify_result.verdict == "non-serializable"
+            and verify_result.serializable is False
+            and verify_result.certified is False
+            and verify_result.integrity.clean() is True
+        )
+    except Exception:
+        rejected = False
+    if not rejected:
+        _issuance_refused("verifier result is not a clean non-serializable result")
+    if (
+        type(verify_result.anomalies) is not list
+        or type(verify_result.total_cycles) is not int
+        or verify_result.total_cycles != len(verify_result.anomalies)
+        or len(verify_result.anomalies) != 1
+    ):
+        _issuance_refused("verifier result does not contain exactly one full witness class")
+    try:
+        snapshot = result_to_dict(verify_result)
+    except Exception:
+        _issuance_refused("verifier result cannot be projected to the production wire shape")
+    snapshot.pop("trace_dir", None)
+    if not _valid_rejected_verify_snapshot(snapshot):
+        _issuance_refused("verifier result does not satisfy the formal-consumer contract")
+    if payload.get("reason") != verify_result.verdict:
+        _issuance_refused("abort reason does not match the verifier verdict")
+    try:
+        snapshot_matches_terminal = (
+            canonical_json_bytes(payload.get("verify"))
+            == canonical_json_bytes(snapshot)
+        )
+    except ArtifactError:
+        _issuance_refused("terminal verifier snapshot is not canonical JSON")
+    if not snapshot_matches_terminal:
+        _issuance_refused("terminal verifier snapshot differs from the typed result")
+    return DerivedPhysicalResult(
+        build_attempt_id,
+        "rejected",
+        witness_class_sha256(snapshot["anomalies"][0]),
+        ordered_wal_sha256,
+    )
 
 
 def _reference(value: object, *, label: str) -> dict:
@@ -325,6 +715,49 @@ def validate_result_evidence(record: object) -> dict:
     # Return a detached JSON value so later caller mutation cannot alter a
     # value already accepted by this validator.
     return json.loads(canonical_json_bytes(root).decode("utf-8"))
+
+
+def assemble_result_evidence_record(
+    *,
+    origin_binding: Mapping,
+    trial_binding: Mapping,
+    ledger_member: Mapping,
+    p6_plan: Mapping,
+    trigger_binding: Mapping,
+    derived: DerivedPhysicalResult,
+    ordered_wal_ref: Mapping,
+    execution_provenance_ref: Mapping,
+) -> dict:
+    """Assemble and validate the exact record around one derived result."""
+
+    if type(derived) is not DerivedPhysicalResult:
+        raise ResultEvidenceError("derived must be an exact DerivedPhysicalResult")
+    ordered_ref = _reference(
+        ordered_wal_ref, label="evidence.ordered_wal_ref"
+    )
+    if ordered_ref["sha256"] != derived.ordered_wal_sha256:
+        raise ResultEvidenceError(
+            "ordered WAL reference sha256 does not match the derived projection"
+        )
+    record = {
+        "schema_version": RESULT_EVIDENCE_SCHEMA_VERSION,
+        "issuer": {"kind": RESULT_EVIDENCE_ISSUER_KIND},
+        "origin_binding": dict(origin_binding),
+        "trial_binding": dict(trial_binding),
+        "ledger_member": dict(ledger_member),
+        "p6_plan": dict(p6_plan),
+        "trigger_binding": dict(trigger_binding),
+        "physical_result": {
+            "build_attempt_id": derived.build_attempt_id,
+            "outcome": derived.outcome,
+            "constraint_sha256": derived.constraint_sha256,
+        },
+        "evidence": {
+            "ordered_wal_ref": dict(ordered_ref),
+            "execution_provenance_ref": dict(execution_provenance_ref),
+        },
+    }
+    return validate_result_evidence(record)
 
 
 def canonical_result_evidence_bytes(record: object) -> bytes:
@@ -453,6 +886,23 @@ def write_result_evidence_record(*, evidence_root: Path, record: object) -> Path
         )
     except ArtifactError as exc:
         raise ResultEvidenceError("result evidence create-only write failed") from exc
+
+
+def issue_result_evidence_record(
+    *, evidence_root: Path, record: Mapping
+) -> Path:
+    """Resolve both claimed referents before the create-only record write."""
+
+    value = validate_result_evidence(record)
+    refs = value["evidence"]
+    resolve_content_addressed_ref(
+        evidence_root=Path(evidence_root), reference=refs["ordered_wal_ref"]
+    )
+    resolve_content_addressed_ref(
+        evidence_root=Path(evidence_root),
+        reference=refs["execution_provenance_ref"],
+    )
+    return write_result_evidence_record(evidence_root=Path(evidence_root), record=value)
 
 
 def _reject_symlink_components(path: Path) -> None:

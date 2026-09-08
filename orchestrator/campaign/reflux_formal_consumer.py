@@ -40,11 +40,10 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Mapping, Sequence, TypeAlias
 
-from orchestrator.verifier.model import RW, WR, WW
-
 from . import campaign_lock
 from . import ident
 from . import reflux_origin_ledger as ledger
+from . import reflux_result_evidence as result_evidence
 from . import trigger_gate_binding
 from .layout import exploration_campaign_layout
 from .model import CampaignConfig, STAGE_ABORT, STAGE_COMMIT
@@ -115,75 +114,23 @@ _ORIGIN_CAMPAIGN_RUN_KEYS = frozenset({
 })
 _SHA256_RE = re.compile(r"[0-9a-f]{64}\Z")
 _CANDIDATE_ATTRIBUTABLE_ABORT_REASON = "non-serializable"
-_ANOMALY_KEYS = frozenset({"phenomenon", "length", "cycle", "edges"})
-_EDGE_KEYS = frozenset({"from", "to", "types", "reasons"})
-_REASON_REQUIRED_KEYS = frozenset({"type", "key"})
-_REASON_OPTIONAL_KEYS = frozenset({"u_ver", "v_ver"})
-_REASON_TYPES = frozenset({WW, WR, RW})
-_REASON_VERSION_KEYS = {
-    WW: frozenset({"u_ver", "v_ver"}),
-    WR: frozenset({"u_ver"}),
-    RW: frozenset({"u_ver", "v_ver"}),
-}
-_PHENOMENA = frozenset({"G0", "G1c", "G2"})
-_VERIFY_KEYS = frozenset({
-    "verdict",
-    "certified",
-    "serializable",
-    "stats",
-    "integrity",
-    "anomaly_count",
-    "total_cycles",
-    "anomalies",
-})
-_VERIFY_STATS_KEYS = frozenset({
-    "txns",
-    "reads",
-    "writes",
-    "keys",
-    "edges",
-    "abort_reasons",
-})
-_VERIFY_INTEGRITY_KEYS = frozenset({
-    "clean",
-    "orphan_reads",
-    "version_dups",
-    "dup_txids",
-    "genesis_commits",
-    "missing_txids",
-    "write_version_mismatch",
-    "malformed_keys",
-    "framing_violations",
-    "framing_violation_details",
-    "lock_coverage_violations",
-    "write_intent_violations",
-    "permutation_violations",
-    "permutation_violation_details",
-    "notes",
-})
-_PERMUTATION_VIOLATION_DETAILS_KEYS = frozenset({
-    "counts",
-    "sample",
-    "unknown_reason_sample",
-})
-_PERMUTATION_VIOLATION_COUNT_KEYS = frozenset({
-    "size-changed",
-    "rcdptr-set-changed",
-    "unknown",
-})
-_CLEAN_WIRE_COUNTER_KEYS = frozenset({
-    "orphan_reads",
-    "version_dups",
-    "dup_txids",
-    "genesis_commits",
-    "missing_txids",
-    "write_version_mismatch",
-    "malformed_keys",
-    "framing_violations",
-    "lock_coverage_violations",
-    "write_intent_violations",
-    "permutation_violations",
-})
+_ANOMALY_KEYS = result_evidence._ANOMALY_KEYS
+_EDGE_KEYS = result_evidence._EDGE_KEYS
+_REASON_REQUIRED_KEYS = result_evidence._REASON_REQUIRED_KEYS
+_REASON_OPTIONAL_KEYS = result_evidence._REASON_OPTIONAL_KEYS
+_REASON_TYPES = result_evidence._REASON_TYPES
+_REASON_VERSION_KEYS = result_evidence._REASON_VERSION_KEYS
+_PHENOMENA = result_evidence._PHENOMENA
+_VERIFY_KEYS = result_evidence._VERIFY_KEYS
+_VERIFY_STATS_KEYS = result_evidence._VERIFY_STATS_KEYS
+_VERIFY_INTEGRITY_KEYS = result_evidence._VERIFY_INTEGRITY_KEYS
+_PERMUTATION_VIOLATION_DETAILS_KEYS = (
+    result_evidence._PERMUTATION_VIOLATION_DETAILS_KEYS
+)
+_PERMUTATION_VIOLATION_COUNT_KEYS = (
+    result_evidence._PERMUTATION_VIOLATION_COUNT_KEYS
+)
+_CLEAN_WIRE_COUNTER_KEYS = result_evidence._CLEAN_WIRE_COUNTER_KEYS
 
 
 class FormalReasonCode(Enum):
@@ -1153,90 +1100,12 @@ def _wal_field(record: Mapping[str, object], name: str) -> object:
 
 
 def _valid_witness_anomaly(anomaly: object) -> bool:
-    if type(anomaly) is not dict or set(anomaly) != _ANOMALY_KEYS:
-        return False
-    phenomenon = anomaly["phenomenon"]
-    if type(phenomenon) is not str or phenomenon not in _PHENOMENA:
-        return False
-    cycle = anomaly["cycle"]
-    if (
-        type(cycle) is not list
-        or len(cycle) < 2
-        or any(type(txid) is not int for txid in cycle)
-        or len(set(cycle)) != len(cycle)
-        or type(anomaly["length"]) is not int
-        or anomaly["length"] != len(cycle)
-    ):
-        return False
-    edges = anomaly["edges"]
-    if type(edges) is not list or len(edges) != len(cycle):
-        return False
-    all_types: set[str] = set()
-    for index, edge in enumerate(edges):
-        if type(edge) is not dict or set(edge) != _EDGE_KEYS:
-            return False
-        if (
-            type(edge["from"]) is not int
-            or type(edge["to"]) is not int
-            or edge["from"] != cycle[index]
-            or edge["to"] != cycle[(index + 1) % len(cycle)]
-        ):
-            return False
-        types = edge["types"]
-        reasons = edge["reasons"]
-        if (
-            type(types) is not list
-            or not types
-            or any(type(edge_type) is not str for edge_type in types)
-            or type(reasons) is not list
-            or not reasons
-        ):
-            return False
-        derived_types: list[str] = []
-        seen_types: set[str] = set()
-        for reason in reasons:
-            if type(reason) is not dict:
-                return False
-            keys = set(reason)
-            if not _REASON_REQUIRED_KEYS <= keys <= (
-                _REASON_REQUIRED_KEYS | _REASON_OPTIONAL_KEYS
-            ):
-                return False
-            reason_type = reason["type"]
-            if (
-                type(reason_type) is not str
-                or reason_type not in _REASON_TYPES
-                or type(reason["key"]) is not str
-            ):
-                return False
-            expected_version_keys = _REASON_VERSION_KEYS.get(reason_type)
-            if (
-                expected_version_keys is not None
-                and keys & _REASON_OPTIONAL_KEYS != expected_version_keys
-            ):
-                return False
-            for optional in _REASON_OPTIONAL_KEYS:
-                if optional in reason and (
-                    type(reason[optional]) is not list
-                    or len(reason[optional]) != 2
-                    or any(type(item) is not int for item in reason[optional])
-                ):
-                    return False
-            if reason_type not in seen_types:
-                seen_types.add(reason_type)
-                derived_types.append(reason_type)
-        if types != derived_types:
-            return False
-        all_types.update(types)
-    derived_phenomenon = (
-        "G2" if RW in all_types else "G1c" if WR in all_types else "G0"
-    )
-    return phenomenon == derived_phenomenon
+    return result_evidence.validate_witness_anomaly(anomaly)
 
 
 def _witness_class_sha256(anomaly: object) -> str:
     try:
-        return hashlib.sha256(canonical_json_bytes(anomaly)).hexdigest()
+        return result_evidence.witness_class_sha256(anomaly)
     except ArtifactError as exc:
         raise _ContractFailure(FormalReasonCode.FC07) from exc
 
