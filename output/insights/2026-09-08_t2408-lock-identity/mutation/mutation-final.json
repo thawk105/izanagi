@@ -1,0 +1,154 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 180,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 2400,
+  "mutations": [
+    {
+      "id": "M1-historical-decoder-reverted",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "        decoded = campaign_lock.decode_historical_campaign_lock_bytes(raw)",
+          "new": "        decoded = campaign_lock.decode_campaign_lock_bytes(raw)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_report_collector_reads_only_three_formal_series_and_discloses_sources",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_report_discloses_manual_termination_guarantee_and_wal_limitations",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_report_identity_reconstructs_exact_common_locked_calibration",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_report_lock_identity_accepts_exact_pre_t733_real_snapshots[balanced]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_report_lock_identity_accepts_exact_pre_t733_real_snapshots[read-heavy]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_report_lock_identity_accepts_exact_pre_t733_real_snapshots[write-heavy]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_report_lock_identity_rejects_locked_spec_drift",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_report_lock_identity_rejects_v1_and_current_grammar[current-v2]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_run_formal_report_accepts_unset_binary_path_policy",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_run_formal_report_reaches_locked_collection_and_writer_without_live_inputs",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_verification_completeness_counts_records_and_discloses_wal_anomalies"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-committed-blob-verification-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "        contract_loader_binding.verify_committed_contract_loader_blobs(\n            authority.contract_loader_commit,\n            authority.contract_loader_blob_sha256s,\n            authority.recorded_contract_loader_relative_paths,\n        )",
+          "new": "        pass"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_report_lock_identity_rejects_recanonicalized_false_authority"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-binding-literal-comparison-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "    if type(stored_binding) is not dict \\\n            or stored_binding != dict(expected_binding):",
+          "new": "    if type(stored_binding) is not dict:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_report_lock_identity_rejects_analysis_binding_drift",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_report_lock_identity_rejects_series_binding_exchange"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-collector-series-binding-exchanged",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "            expected_binding = _legacy_write_heavy_binding()",
+          "new": "            expected_binding = _legacy_balanced_binding()"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_report_collector_reads_only_three_formal_series_and_discloses_sources",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_run_formal_report_accepts_unset_binary_path_policy",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_run_formal_report_reaches_locked_collection_and_writer_without_live_inputs"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-locked-calibration-not-restored-exactly",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "        calibration = CalibrationSelection(**calibration_value)",
+          "new": "        calibration = CalibrationSelection(**{**calibration_value, \"records\": 1})"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_report_lock_identity_accepts_exact_pre_t733_real_snapshots[balanced]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_report_lock_identity_accepts_exact_pre_t733_real_snapshots[read-heavy]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_report_lock_identity_accepts_exact_pre_t733_real_snapshots[write-heavy]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_run_formal_report_accepts_unset_binary_path_policy",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_run_formal_report_reaches_locked_collection_and_writer_without_live_inputs"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-live-preregistration-reintroduced-in-report",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "        _require_report_prereg_commit(prereg_commit)",
+          "new": "        _require_report_prereg_commit(prereg_commit)\n        load_preregistration(root, prereg_commit)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_run_formal_report_accepts_unset_binary_path_policy",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_run_formal_report_reaches_locked_collection_and_writer_without_live_inputs"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-locked-spec-digest-check-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "    if _sha256_bytes(canonical.encode(\"utf-8\")) != expected_spec_sha256:",
+          "new": "    if False:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_report_lock_identity_rejects_locked_spec_drift"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8-lock-content-digest-check-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "    if type(expected_lock_sha256) is not str \\\n            or _sha256_bytes(raw) != expected_lock_sha256:",
+          "new": "    if False:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_report_lock_digest_rejects_recanonicalized_forged_locks"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
