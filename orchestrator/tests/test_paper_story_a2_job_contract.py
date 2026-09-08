@@ -59,7 +59,7 @@ def _assert_static_job_contract(source):
         "clean-tree": "git status --porcelain --untracked-files=no",
         "pbs-job": "PBS_JOBID PBS_NODEFILE PBS_O_WORKDIR",
         "pbs-job-number-shape": (
-            'if [[ ! "$PBS_JOBID" =~ ^([0-9]+):(.+)$ ]]; then'),
+            'if [[ ! "$PBS_JOBID" =~ ^(0|[1-9][0-9]*):(.+)$ ]]; then'),
         "pbs-primary-job-number": (
             'if [[ "$pbs_job_number" != 0 ]]; then'),
         "pbs-secondary-job-exit": (
@@ -126,13 +126,20 @@ def _assert_static_job_contract(source):
         raise AssertionError("interpreter resolution must precede Python use")
     job_root_check = source.index('if [[ ! -d "$repo"')
     job_number_gate = source.index(
-        'if [[ ! "$PBS_JOBID" =~ ^([0-9]+):(.+)$ ]]; then')
+        'if [[ ! "$PBS_JOBID" =~ ^(0|[1-9][0-9]*):(.+)$ ]]; then')
+    nonzero_job_exit = source.index(
+        'if [[ "$pbs_job_number" != 0 ]]; then\n'
+        '  echo "nonzero PBS job number exits without running compute body" '
+        '>&2\n'
+        '  exit 0\n'
+        'fi')
     host_gate = source.index("host=$(hostname")
     trap_install = source.index("trap finish EXIT")
     policy_resolution = source.index("readarray -t POLICY_VALUES")
-    if not job_number_gate < host_gate < job_root_check:
+    if not job_number_gate < nonzero_job_exit < host_gate < job_root_check:
         raise AssertionError(
-            "job number gate must precede compute and durable path checks")
+            "job number gate and nonzero exit must precede compute and "
+            "durable path checks")
     if not job_root_check < trap_install < resolver_call < policy_resolution:
         raise AssertionError(
             "job root must precede the recovery trap, which must cover "
@@ -844,21 +851,29 @@ exit 0
     return completed, job_root
 
 
-def test_job_body_nonzero_job_number_exits_without_durable_output(tmp_path):
+@pytest.mark.parametrize(
+    "pbs_jobid", ("1:945411.nqsv", "4:945411.nqsv"),
+    ids=("rank-1", "observed-rank-4"),
+)
+def test_job_body_nonzero_job_number_exits_without_durable_output(
+        tmp_path, pbs_jobid):
     completed, job_root = _run_compute_pin_harness(
-        tmp_path, study="a6", pbs_jobid="1:945411.nqsv")
+        tmp_path, study="a6", pbs_jobid=pbs_jobid)
 
     assert completed.returncode == 0
     assert completed.stderr == (
         "nonzero PBS job number exits without running compute body\n")
-    assert not (job_root / "compute-result.json").exists()
-    assert not (job_root / "scheduler" / "allocation-qstat.stdout").exists()
-    assert not (job_root / "raw").exists()
+    assert {
+        path.relative_to(job_root).as_posix()
+        for path in job_root.rglob("*")
+    } == {"cache", "campaigns", "scheduler"}
 
 
 @pytest.mark.parametrize(
-    "pbs_jobid", ("945411.nqsv", "rank:945411.nqsv", "0:"),
-    ids=("missing-job-number", "nondecimal-job-number", "empty-request-id"),
+    "pbs_jobid", ("945411.nqsv", "rank:945411.nqsv", "0:",
+                  "00:945411.nqsv"),
+    ids=("missing-job-number", "nondecimal-job-number", "empty-request-id",
+         "leading-zero-job-number"),
 )
 def test_job_body_rejects_malformed_pbs_jobid_without_durable_output(
         tmp_path, pbs_jobid):

@@ -20,7 +20,7 @@ for name in "${required_env[@]}"; do
   fi
 done
 
-if [[ ! "$PBS_JOBID" =~ ^([0-9]+):(.+)$ ]]; then
+if [[ ! "$PBS_JOBID" =~ ^(0|[1-9][0-9]*):(.+)$ ]]; then
   echo "PBS_JOBID is not a numbered request ID" >&2
   exit 2
 fi
