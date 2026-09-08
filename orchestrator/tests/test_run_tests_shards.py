@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import ast
+import contextlib
 import inspect
 import itertools
 import json
@@ -10,6 +11,7 @@ import sys
 import time
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -49,6 +51,7 @@ def test_acceptance_shards_imports_in_isolated_mode_without_user_site():
     "hook,attribute",
     [
         (SH.pytest_collection_modifyitems, "trylast"),
+        (SH.pytest_collection_finish, "trylast"),
         (SH.pytest_testnodedown, "optionalhook"),
         (SH.pytest_sessionfinish, "trylast"),
     ],
@@ -107,6 +110,16 @@ def _reports(records=None, *, k=2, scheduler="loadgroup"):
             "worker_occupancy": {"gw0": {"items": len(selected), "duration_s": 1.0}},
             "junit_path": str(_SESSION_ROOT / f"shard-{index}" / "junit.xml"),
             "worker_collection_digests": [SH._digest(_payload(records))] * 2,
+            "session_timeline": {
+                "collection_finished_epoch_s": 1788800000.125 + index,
+                "workers": {
+                    "gw0": {
+                        "first_test_started_epoch_s": 1788800000.25 + index,
+                        "last_test_finished_epoch_s": 1788800123.75 + index,
+                        "real_repo_lock_intervals": [],
+                    }
+                },
+            },
         })
     return reports
 
@@ -935,6 +948,568 @@ def test_report_schema_requires_worker_assignment_diagnostics():
     reports = _reports()
     del reports[0]["worker_occupancy"]
     assert _merge(reports).reason == "report-invalid"
+
+
+def test_session_timeline_is_required_and_valid_fixture_merges():
+    reports = _reports()
+    assert (_merge(reports).rc, _merge(reports).reason) == (0, "ok")
+    del reports[0]["session_timeline"]
+    assert (_merge(reports).rc, _merge(reports).reason) == (16, "report-invalid")
+
+
+def test_session_timeline_contents_do_not_change_merge_verdict():
+    malformed_observations = [
+        [],
+        {},
+        {"collection_finished_epoch_s": float("nan"), "workers": "invalid"},
+        {"workers": {"gw0": {"unexpected": object()}}},
+    ]
+    for observation in malformed_observations:
+        reports = _reports()
+        reports[0]["session_timeline"] = observation
+        assert (_merge(reports).rc, _merge(reports).reason) == (0, "ok")
+
+
+def _synthetic_report(nodeid, *, worker_id=None, start=None, stop=None):
+    fields = {
+        "nodeid": nodeid,
+        "duration": 0.25,
+        "failed": False,
+    }
+    if worker_id is not None:
+        fields["worker_id"] = worker_id
+    if start is not None:
+        fields["start"] = start
+    if stop is not None:
+        fields["stop"] = stop
+    return SimpleNamespace(**fields)
+
+
+def test_runtest_logreport_tracks_reordered_bounds_per_worker_and_serial(
+    monkeypatch,
+):
+    monkeypatch.setattr(SH, "_PLUGIN_CONFIG", object())
+    monkeypatch.setattr(SH, "_WORKER_TEST_BOUNDS", {})
+    monkeypatch.setattr(SH, "_REPORT_WORKERS", {})
+    monkeypatch.setattr(SH, "_REPORT_DURATIONS", SH.Counter())
+    monkeypatch.setattr(SH, "_FAILURES", set())
+    monkeypatch.delenv("PYTEST_XDIST_WORKER", raising=False)
+    for report in (
+        _synthetic_report("node-a", worker_id="gw0", start=20.0, stop=30.0),
+        _synthetic_report("node-b", worker_id="gw1", start=15.0, stop=25.0),
+        _synthetic_report("node-c", worker_id="gw0", start=10.0, stop=40.0),
+        _synthetic_report("node-d", start=12.0, stop=42.0),
+    ):
+        SH.pytest_runtest_logreport(report)
+    assert SH._WORKER_TEST_BOUNDS == {
+        "gw0": {
+            "first_test_started_epoch_s": 10.0,
+            "last_test_finished_epoch_s": 40.0,
+        },
+        "gw1": {
+            "first_test_started_epoch_s": 15.0,
+            "last_test_finished_epoch_s": 25.0,
+        },
+        "serial": {
+            "first_test_started_epoch_s": 12.0,
+            "last_test_finished_epoch_s": 42.0,
+        },
+    }
+
+
+def test_runtest_logreport_ignores_zero_nonfinite_missing_and_huge_bounds(
+    monkeypatch,
+):
+    monkeypatch.setattr(SH, "_PLUGIN_CONFIG", object())
+    monkeypatch.setattr(SH, "_WORKER_TEST_BOUNDS", {})
+    monkeypatch.setattr(SH, "_REPORT_WORKERS", {})
+    monkeypatch.setattr(SH, "_REPORT_DURATIONS", SH.Counter())
+    monkeypatch.setattr(SH, "_FAILURES", set())
+    monkeypatch.delenv("PYTEST_XDIST_WORKER", raising=False)
+    reports = [
+        _synthetic_report("crash", start=0, stop=0),
+        _synthetic_report("nan", worker_id="gw0", start=float("nan"), stop=float("inf")),
+        _synthetic_report("missing", worker_id="gw1"),
+        _synthetic_report("huge", worker_id="gw2", start=10 ** 10000, stop=-(10 ** 10000)),
+        _synthetic_report("typed", worker_id="gw3", start="10", stop=object()),
+    ]
+    for report in reports:
+        SH.pytest_runtest_logreport(report)
+    assert SH._WORKER_TEST_BOUNDS == {}
+
+
+def test_worker_payload_carries_observations_and_defaults_without_state():
+    missing = SH._worker_payload(SimpleNamespace())
+    assert missing == {
+        "error": "collection-state-missing",
+        "collection_finished_epoch_s": None,
+        "real_repo_lock_intervals": [],
+    }
+    state = {
+        "records_digest": "records",
+        "selected_digest": "selected",
+        "records": [{"nodeid": "node"}],
+        "selected": ["node"],
+        "collection_finished_epoch_s": 101.5,
+        "real_repo_lock_intervals": [
+            {"acquired_epoch_s": 102.0, "released_epoch_s": 103.0}
+        ],
+    }
+    config = SimpleNamespace(
+        workerinput={"workerid": "gw0"},
+        _izanagi_acceptance_shard_state=state,
+    )
+    payload = SH._worker_payload(config)
+    assert payload["collection_finished_epoch_s"] == 101.5
+    assert payload["real_repo_lock_intervals"] == [
+        {"acquired_epoch_s": 102.0, "released_epoch_s": 103.0}
+    ]
+    assert "first_test_started_epoch_s" not in payload
+    assert payload["records"] == state["records"]
+
+
+def test_controller_state_serial_uses_config_local_timeline(monkeypatch):
+    state = {
+        "records": [{"nodeid": "node"}],
+        "selected": ["node"],
+        "records_digest": "digest",
+        "collection_finished_epoch_s": 200.0,
+        "real_repo_lock_intervals": [
+            {"acquired_epoch_s": 201.0, "released_epoch_s": 202.0}
+        ],
+    }
+    monkeypatch.setattr(SH, "_WORKER_PAYLOADS", {"gw0": {"unexpected": True}})
+    result = SH._controller_state(SimpleNamespace(
+        _izanagi_acceptance_shard_state=state,
+    ))
+    assert result == (
+        state["records"], state["selected"], ["digest"], 200.0,
+        {"serial": [{"acquired_epoch_s": 201.0, "released_epoch_s": 202.0}]},
+    )
+
+
+def test_controller_state_xdist_uses_latest_collection_and_worker_lock_map(
+    monkeypatch,
+):
+    common = {"records_digest": "digest", "selected_digest": "selected"}
+    payloads = {
+        "gw0": {
+            **common,
+            "records": [{"nodeid": "node"}],
+            "selected": ["node"],
+            "collection_finished_epoch_s": 300.0,
+            "real_repo_lock_intervals": [
+                {"acquired_epoch_s": 301.0, "released_epoch_s": 302.0}
+            ],
+        },
+        "gw1": {
+            **common,
+            "collection_finished_epoch_s": 310.0,
+            "real_repo_lock_intervals": [],
+        },
+    }
+    monkeypatch.setattr(SH, "_WORKER_PAYLOADS", payloads)
+    records, selected, digests, collection_finished, locks = (
+        SH._controller_state(SimpleNamespace())
+    )
+    assert records == payloads["gw0"]["records"]
+    assert selected == ["node"]
+    assert digests == ["digest", "digest"]
+    assert collection_finished == 310.0
+    assert locks == {
+        "gw0": [{"acquired_epoch_s": 301.0, "released_epoch_s": 302.0}],
+        "gw1": [],
+    }
+    assert "gw2" not in locks
+
+
+def test_lock_interval_recorder_is_noop_without_shard_state():
+    state = {"real_repo_lock_intervals": []}
+    SH.record_real_repo_lock_interval(
+        SimpleNamespace(_izanagi_acceptance_shard_state=state), 1.0, 2.0,
+    )
+    assert state["real_repo_lock_intervals"] == []
+    SH.record_real_repo_lock_interval(
+        SimpleNamespace(_izanagi_acceptance_shard_spec=object()), 1.0, 2.0,
+    )
+    assert state["real_repo_lock_intervals"] == []
+    config = SimpleNamespace(
+        _izanagi_acceptance_shard_spec=object(),
+        _izanagi_acceptance_shard_state=state,
+    )
+    SH.record_real_repo_lock_interval(config, 1.0, 2.0)
+    assert state["real_repo_lock_intervals"] == [
+        {"acquired_epoch_s": 1.0, "released_epoch_s": 2.0}
+    ]
+
+
+def test_collection_finish_clock_runs_after_synthetic_modifyitems_wrapper(
+    monkeypatch,
+):
+    import pluggy
+
+    hookspec = pluggy.HookspecMarker("pytest")
+    hookimpl = pluggy.HookimplMarker("pytest")
+
+    class Spec:
+        @hookspec
+        def pytest_collection_modifyitems(self, config, items):
+            """Minimal collection-modification hook."""
+
+        @hookspec
+        def pytest_collection_finish(self, session):
+            """Minimal collection-finish hook."""
+
+    trace = []
+
+    class SyntheticCollectionPlugin:
+        @hookimpl(wrapper=True, tryfirst=True)
+        def pytest_collection_modifyitems(self, config, items):
+            trace.append("modify-before")
+            yield
+            trace.append("modify-after")
+
+        @hookimpl(tryfirst=True)
+        def pytest_collection_finish(self, session):
+            trace.append("finish-before-acceptance")
+
+    class AcceptancePlugin:
+        pytest_collection_finish = staticmethod(SH.pytest_collection_finish)
+
+    state = {}
+    config = SimpleNamespace(
+        _izanagi_acceptance_shard_spec=object(),
+        _izanagi_acceptance_shard_state=state,
+    )
+
+    def clock():
+        assert trace == [
+            "modify-before", "modify-after", "finish-before-acceptance",
+        ]
+        trace.append("acceptance-clock")
+        return 400.0
+
+    monkeypatch.setattr(SH.time, "time", clock)
+    manager = pluggy.PluginManager("pytest")
+    manager.add_hookspecs(Spec)
+    manager.register(SyntheticCollectionPlugin(), name="synthetic")
+    manager.register(AcceptancePlugin(), name="acceptance")
+    manager.hook.pytest_collection_modifyitems(config=config, items=[])
+    manager.hook.pytest_collection_finish(session=SimpleNamespace(config=config))
+    assert trace[-1] == "acceptance-clock"
+    assert state == {
+        "collection_finished_epoch_s": 400.0,
+        "real_repo_lock_intervals": [],
+    }
+
+
+def _suite_conftest_module():
+    import conftest as suite_conftest
+
+    return suite_conftest
+
+
+def _real_repo_protocol_item(suite_conftest, *, config=...):
+    node_id = next(iter(sorted(suite_conftest.REAL_REPO_RESOURCE_NODES)))
+    filename, function = node_id.split("::", 1)
+    access = suite_conftest.REAL_REPO_ACCESS_BY_NODE[node_id]
+    item = SimpleNamespace(
+        path=Path(__file__).resolve().parent / filename,
+        name=function,
+        originalname=function,
+    )
+    setattr(item, suite_conftest._REAL_REPO_ACCESS_ATTR, access)
+    if config is not ...:
+        item.config = config
+    return item, access
+
+
+def _finish_protocol(wrapper):
+    assert next(wrapper) is None
+    with pytest.raises(StopIteration):
+        next(wrapper)
+
+
+def test_runtest_protocol_configless_item_keeps_existing_lock_contract(
+    monkeypatch,
+):
+    suite_conftest = _suite_conftest_module()
+    from orchestrator.campaign import patchharness
+
+    trace = []
+
+    @contextlib.contextmanager
+    def locks(access):
+        trace.append(("lock-enter", access))
+        try:
+            yield
+        finally:
+            trace.append(("lock-exit", access))
+
+    @contextlib.contextmanager
+    def stamp(node_id, access):
+        trace.append(("stamp-enter", node_id, access))
+        try:
+            yield
+        finally:
+            trace.append(("stamp-exit", node_id, access))
+
+    item, access = _real_repo_protocol_item(suite_conftest)
+    monkeypatch.setattr(suite_conftest, "_real_repo_locks", locks)
+    monkeypatch.setattr(patchharness, "_pytest_node_context", stamp)
+    monkeypatch.setattr(
+        suite_conftest.time, "time",
+        lambda: pytest.fail("configless protocol read the acceptance clock"),
+    )
+    _finish_protocol(suite_conftest.pytest_runtest_protocol(item, None))
+    assert trace == [
+        ("lock-enter", access),
+        ("stamp-enter", suite_conftest._real_repo_node_id(item), access),
+        ("stamp-exit", suite_conftest._real_repo_node_id(item), access),
+        ("lock-exit", access),
+    ]
+
+
+def test_runtest_protocol_records_only_after_lock_release(monkeypatch):
+    suite_conftest = _suite_conftest_module()
+    from orchestrator.campaign import patchharness
+
+    trace = []
+
+    @contextlib.contextmanager
+    def locks(access):
+        trace.append("lock-enter")
+        try:
+            yield
+        finally:
+            trace.append("lock-exit")
+
+    @contextlib.contextmanager
+    def stamp(node_id, access):
+        trace.append("protocol-enter")
+        try:
+            yield
+        finally:
+            trace.append("protocol-exit")
+
+    clock_values = iter((500.0, 600.0))
+
+    def clock():
+        value = next(clock_values)
+        trace.append(("clock", value))
+        return value
+
+    def record(config, acquired, released):
+        trace.append(("record", config, acquired, released))
+
+    config = SimpleNamespace(_izanagi_acceptance_shard_spec=object())
+    item, _access = _real_repo_protocol_item(
+        suite_conftest, config=config,
+    )
+    monkeypatch.setattr(suite_conftest, "_real_repo_locks", locks)
+    monkeypatch.setattr(patchharness, "_pytest_node_context", stamp)
+    monkeypatch.setattr(suite_conftest.time, "time", clock)
+    monkeypatch.setattr(SH, "record_real_repo_lock_interval", record)
+    _finish_protocol(suite_conftest.pytest_runtest_protocol(item, None))
+    assert trace == [
+        "lock-enter", ("clock", 500.0), "protocol-enter", "protocol-exit",
+        "lock-exit", ("clock", 600.0), ("record", config, 500.0, 600.0),
+    ]
+
+
+def test_runtest_protocol_lock_acquire_and_release_failures_record_nothing(
+    monkeypatch,
+):
+    suite_conftest = _suite_conftest_module()
+    from orchestrator.campaign import patchharness
+
+    class AcquireFailure(RuntimeError):
+        pass
+
+    class ReleaseFailure(RuntimeError):
+        pass
+
+    @contextlib.contextmanager
+    def acquire_failure(access):
+        raise AcquireFailure("acquire")
+        yield
+
+    @contextlib.contextmanager
+    def release_failure(access):
+        yield
+        raise ReleaseFailure("release")
+
+    @contextlib.contextmanager
+    def stamp(node_id, access):
+        yield
+
+    calls = []
+    config = SimpleNamespace(_izanagi_acceptance_shard_spec=object())
+    item, _access = _real_repo_protocol_item(
+        suite_conftest, config=config,
+    )
+    monkeypatch.setattr(patchharness, "_pytest_node_context", stamp)
+    monkeypatch.setattr(
+        SH, "record_real_repo_lock_interval",
+        lambda *args: calls.append(args),
+    )
+    monkeypatch.setattr(suite_conftest, "_real_repo_locks", acquire_failure)
+    with pytest.raises(AcquireFailure, match="acquire"):
+        next(suite_conftest.pytest_runtest_protocol(item, None))
+    assert calls == []
+
+    monkeypatch.setattr(suite_conftest, "_real_repo_locks", release_failure)
+    wrapper = suite_conftest.pytest_runtest_protocol(item, None)
+    assert next(wrapper) is None
+    with pytest.raises(ReleaseFailure, match="release"):
+        next(wrapper)
+    assert calls == []
+
+
+def test_runtest_protocol_access_none_reads_no_clock_and_records_nothing(
+    monkeypatch,
+):
+    suite_conftest = _suite_conftest_module()
+    from orchestrator.campaign import patchharness
+
+    item = SimpleNamespace(
+        path=Path(__file__),
+        name="not_a_real_repo_node",
+        originalname="not_a_real_repo_node",
+        config=SimpleNamespace(_izanagi_acceptance_shard_spec=object()),
+    )
+
+    @contextlib.contextmanager
+    def stamp(node_id, access):
+        assert access is None
+        yield
+
+    calls = []
+    monkeypatch.setattr(patchharness, "_pytest_node_context", stamp)
+    monkeypatch.setattr(
+        suite_conftest.time, "time",
+        lambda: pytest.fail("access-none protocol read the acceptance clock"),
+    )
+    monkeypatch.setattr(
+        SH, "record_real_repo_lock_interval",
+        lambda *args: calls.append(args),
+    )
+    _finish_protocol(suite_conftest.pytest_runtest_protocol(item, None))
+    assert calls == []
+
+
+def test_runtest_protocol_preserves_inner_exception_without_recording(
+    monkeypatch,
+):
+    suite_conftest = _suite_conftest_module()
+    from orchestrator.campaign import patchharness
+
+    @contextlib.contextmanager
+    def locks(access):
+        yield
+
+    @contextlib.contextmanager
+    def stamp(node_id, access):
+        yield
+
+    calls = []
+    clock_calls = []
+    config = SimpleNamespace(_izanagi_acceptance_shard_spec=object())
+    item, _access = _real_repo_protocol_item(
+        suite_conftest, config=config,
+    )
+    monkeypatch.setattr(suite_conftest, "_real_repo_locks", locks)
+    monkeypatch.setattr(patchharness, "_pytest_node_context", stamp)
+    monkeypatch.setattr(
+        suite_conftest.time, "time",
+        lambda: clock_calls.append(700.0) or 700.0,
+    )
+    monkeypatch.setattr(
+        SH, "record_real_repo_lock_interval",
+        lambda *args: calls.append(args),
+    )
+    wrapper = suite_conftest.pytest_runtest_protocol(item, None)
+    assert next(wrapper) is None
+    expected = RuntimeError("inner protocol")
+    with pytest.raises(RuntimeError, match="inner protocol") as raised:
+        wrapper.throw(expected)
+    assert raised.value is expected
+    assert calls == []
+    assert clock_calls == [700.0]
+
+
+def test_sessionfinish_writes_serial_session_timeline(monkeypatch, tmp_path):
+    records = _records()
+    selected = list(SH.allocate(records, 2).selected[0])
+    raw_records = _payload(records)
+    spec = SH.InternalSpec(tmp_path, 2, 0)
+    state = {
+        "records": raw_records,
+        "records_digest": SH._digest(raw_records),
+        "selected": selected,
+        "selected_digest": SH._digest(selected),
+        "collection_finished_epoch_s": 800.0,
+        "real_repo_lock_intervals": [
+            {"acquired_epoch_s": 810.0, "released_epoch_s": 820.0}
+        ],
+    }
+    terminal = SimpleNamespace(stats={"passed": [object()] * len(selected)})
+
+    def get_plugin(name):
+        return terminal if name == "terminalreporter" else None
+
+    config = SimpleNamespace(
+        _izanagi_acceptance_shard_spec=spec,
+        _izanagi_acceptance_shard_state=state,
+        pluginmanager=SimpleNamespace(get_plugin=get_plugin),
+    )
+    setattr(config, SH._SCHEDULER_ATTR, "serial")
+    monkeypatch.setattr(SH, "_FINISHED_RAW", list(selected))
+    monkeypatch.setattr(SH, "_REPORT_WORKERS", {
+        nodeid: "serial" for nodeid in selected
+    })
+    monkeypatch.setattr(SH, "_REPORT_DURATIONS", SH.Counter({
+        nodeid: 1.0 for nodeid in selected
+    }))
+    monkeypatch.setattr(SH, "_FAILURES", set())
+    monkeypatch.setattr(SH, "_WORKER_TEST_BOUNDS", {
+        "serial": {
+            "first_test_started_epoch_s": 801.0,
+            "last_test_finished_epoch_s": 899.0,
+        }
+    })
+    written = []
+    monkeypatch.setattr(
+        SH, "_write_bytes_create_only",
+        lambda path, payload: written.append((path, payload)),
+    )
+    session = SimpleNamespace(config=config, exitstatus=0)
+    SH.pytest_sessionfinish(session, 0)
+    assert session.exitstatus == 0
+    assert len(written) == 1
+    report = json.loads(written[0][1])
+    assert report["session_timeline"] == {
+        "collection_finished_epoch_s": 800.0,
+        "workers": {
+            "serial": {
+                "first_test_started_epoch_s": 801.0,
+                "last_test_finished_epoch_s": 899.0,
+                "real_repo_lock_intervals": [
+                    {"acquired_epoch_s": 810.0, "released_epoch_s": 820.0}
+                ],
+            }
+        },
+    }
+    state["collection_finished_epoch_s"] = None
+    state["real_repo_lock_intervals"] = []
+    monkeypatch.setattr(SH, "_WORKER_TEST_BOUNDS", {})
+    written.clear()
+    SH.pytest_sessionfinish(session, 0)
+    empty_timeline = json.loads(written[0][1])["session_timeline"]
+    assert empty_timeline == {
+        "collection_finished_epoch_s": None,
+        "workers": {},
+    }
 
 
 def test_merged_output_has_exactly_one_scheduler_marker(capsys):
