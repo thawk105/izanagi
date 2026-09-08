@@ -52,8 +52,18 @@ title: [T-2314] inert 比較の受理条件を組 2 つのどちらか 1 つへ 
   fix は当てていない。
 - 変異 matrix は 4 変異すべて KILLED、期待 node 完全一致、MISMATCH 0 / SURVIVED 0、erratum なし。
   直積判定への緩和 (m02) は gate が交叉を先に弾くため、gate 層を中和した test だけが殺せる。
-- 工数: codex 子 6 本 (plan 1 / consult 2 / author 1 / review 2、いずれも gpt-5.6-sol、
+- **受入は login node の IO 競合で繰り返し落ちた。** 4〜7 走目はいずれも
+  `test_t1259_qsub_env_delivery_probe.py` の setup で `git ls-files --others --exclude-standard -z`
+  が 30 秒 timeout。非帰属の根拠は 4 点 — (1) 本文が `TimeoutExpired` で assert 不一致でない、
+  (2) 同 3 file の単独走は 287 passed / rc=0 で再現しない、(3) **他 wave の受入 session でも
+  同 file が 26 件赤**、(4) `git ls-files --others` の所要は本 wave の worktree 2.04 秒に対し隣の
+  wave の worktree 1.52 秒で同等 (木の大きさも 25180 対 24999 で同等)。赤が出た走の 1 分平均負荷は
+  12〜22。`--force-dispatch` で計算ノードへ回す案は採れない — `run_tests.py` へ引数を足すと
+  `_is_acceptance_run()` が False になり受入形でなくなる。同型の F が台帳に無いため
+  `flaky_test_holds.py` の登録要件を満たせず、DW-O18 に従い登録せず裁定へ返した。
+- 工数: codex 子 8 本 (plan 1 / consult 2 / author 3 / review 2、いずれも gpt-5.6-sol、
   plan・consult は reasoning=xhigh、author・review は docs 権威の effort)。fix 巡回 0 (must-fix ゼロ)。
+  author 3 本のうち 2 本は受入所要台帳の追加とその取り下げで、正味の実装は 1 本である。
 
 ## 次の一手差分
 
@@ -74,6 +84,14 @@ title: [T-2314] inert 比較の受理条件を組 2 つのどちらか 1 つへ 
   次に計算ノードで probe を走らせると `runtime PBS bytes differ` で落ちる見込み。
   成果物影響 = [T-2314] が塞いでいた関門を開けても、この 1 点で t316 の再実測は始められない。
   段 6 敵対レビューが指摘し、親が git 履歴で裏取りした。
+- {{T:acceptance-t1259-untracked-scan-timeout}} **P2・新規・ユーザー裁定待ち**: 受入全走で
+  `orchestrator/tests/test_t1259_qsub_env_delivery_probe.py` の setup が
+  `git ls-files --others --exclude-standard -z` の 30 秒 timeout で落ちる。並行 wave が 2 本以上
+  あると再現し、受入を通せない。単独走は緑で、他 wave の受入 session でも同 file が赤になるので
+  変更に帰属しない。同型の F が台帳に無いため `orchestrator/tests/flaky_test_holds.py` の登録要件
+  (既存 F を証拠とする) を満たせず、DW-O18 に従い登録していない。取りうる形は (a) 同 fixture の
+  untracked 走査を session 単位へ寄せる、(b) timeout を負荷に見合う値へ上げる、(c) 同 file 用の F を
+  起こして hold 登録を可能にする。成果物影響 = 放置すると混雑時間帯の wave が受入を取れない。
 - {{T:t316-root-location-reachability}} **P2・新規**: t316 driver 自身が
   `stock-inert-preprocess-root-location-only` の緑に到達する環境を、本 commit を束縛した
   計算ノード probe で実測する。現在の根拠は A-5 の別 driver が同じ evaluator で到達した記録で、

@@ -142,6 +142,30 @@ land 対象 tip の間で、変異が触れる 4 path はすべて blob が同�
 段 6 レンズ D は「root-location-only family を 3 回生成するので 1〜3 秒の重複」を nit として挙げたが、
 **実測では追加所要は観測されなかった** (4.50s → 4.44s)。fix は当てていない。
 
+## 受入全走の経緯と非帰属赤
+
+| 走 | 結果 | 判定 |
+|---|---|---|
+| 1 | `test_g5_real_ledger_covers_at_least_90_percent_of_real_collection` 89.991874% (19935/22152) | **本 wave 帰属**。5 node を除くと 90.0122%。台帳で是正 → 後に別 wave との競合で取り下げ |
+| 2 | `git` 子プロセスの 30 秒 timeout 50 件ほか | 非帰属 |
+| 3 | `terminal-merge` (受入所要台帳が main の `2fd1679dd` と競合) | 台帳を main と byte 同一へ戻して解消 |
+| 4〜7 | `test_t1259_qsub_env_delivery_probe.py` の setup で `git ls-files --others --exclude-standard -z` が 30 秒 timeout (9〜24 件、毎回別の node 集合) | 非帰属 |
+
+**非帰属の根拠 (実測 4 点)。**
+
+1. 失敗本文はすべて `subprocess.TimeoutExpired`。assert の不一致ではない。
+2. 同じ 3 file を単独走させると **287 passed / rc=0** で再現しない。
+3. 同じ file は**他 wave の受入 session でも赤**になっている
+   (`44ef8d2fe…` が 26 件、`8ce05242b…` が 1 件。いずれも本 wave の session ではない)。
+4. 時間のかかる `git ls-files --others` は本 wave の worktree で 2.04 秒、隣の wave の worktree で
+   1.52 秒と**同等**であり、木の大きさ (25180 file 対 24999 file) も同等である。
+   つまり本 wave の worktree に固有の遅さは無い。
+
+原因は login node の IO 競合である。受入は xdist 48 worker で走り、`t1259` の fixture は
+test ごとに 25k file の untracked 走査を起動するため、他 wave の受入と重なると 30 秒上限を超える。
+赤が出た走では 1 分平均負荷が 12〜22 だった。`--force-dispatch` で計算ノードへ回す案は採れない —
+`tools/run_tests.py` に引数を足すと `_is_acceptance_run()` が False になり受入形でなくなる。
+
 ## 裁定パッケージ (scope 外・ユーザー裁定へ返す)
 
 1. **`_BOUND_RELATIVE_PATHS` の index ずれ (既存の実在欠陥)。**
@@ -161,6 +185,13 @@ land 対象 tip の間で、変異が触れる 4 path はすべて blob が同�
    別問題として扱う必要がある。
 4. **t316 実経路での root-location-only 到達実測。** 上の「親 brief の訂正 2」を閉じるには、
    本 commit を束縛した計算ノード probe の実走が要る。本 wave は述語の変更のみ。
+5. **受入の login node 競合で `test_t1259_qsub_env_delivery_probe.py` が繰り返し赤になる。**
+   上の実測 4 点のとおり本 wave に帰属しないが、並行 wave が 2 本以上あると再現し、
+   受入を通せない。`docs/failures.md` に同型の F が無いため
+   `orchestrator/tests/flaky_test_holds.py` への登録要件 (既存 F を証拠とする) を満たせず、
+   `DW-O18` に従い登録せず裁定へ返す。取りうる形は (a) 同 fixture の untracked 走査を
+   session 単位へ寄せる、(b) 30 秒の timeout を負荷に見合う値へ上げる、(c) 同 file 用の F を
+   起こして hold 登録を可能にする、のいずれか。**本 wave の scope 外。**
 
 ## 構成
 
