@@ -1,0 +1,5 @@
+holdout rr80: conjunction_hits=0 []
+holdout rr20: conjunction_hits=0 []
+positive_control hit_count: 152
+elapsed_s: 149.6
+VERDICT: clean
