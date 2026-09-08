@@ -1,0 +1,223 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 420,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1200,
+  "mutations": [
+    {
+      "id": "M01-s1-prepare-binding-dropped",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_direct_comparison.py",
+          "old": "        if sort_oracle_contract_id is not None:\n            src_token = source_digest.resolve_evidence(",
+          "new": "        if False:\n            src_token = source_digest.resolve_evidence("
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_sort_best_binds_attested_oracle_contract_into_src_token",
+        "orchestrator/tests/test_sort_swo_oracle.py::test_s1_sort_best_runs_same_oracle_before_source_materializer"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M02-s1-prepare-wrong-contract",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_direct_comparison.py",
+          "old": "                sort_oracle_contract_id=sort_oracle_contract_id,\n            ).src_token",
+          "new": "                sort_oracle_contract_id=sort_oracle_contract_id + \"-x\",\n            ).src_token"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_sort_best_binds_attested_oracle_contract_into_src_token",
+        "orchestrator/tests/test_sort_swo_oracle.py::test_s1_sort_best_runs_same_oracle_before_source_materializer"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M03-s1-prepared-cell-field-none",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_direct_comparison.py",
+          "old": "            sort_oracle_contract_id=sort_oracle_contract_id,\n        )\n",
+          "new": "            sort_oracle_contract_id=None,\n        )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_sort_best_binds_attested_oracle_contract_into_src_token"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M04-s1-run-role-forward-dropped",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_direct_comparison.py",
+          "old": "                    if prepared.sort_oracle_contract_id is not None:\n                        kwargs[\"sort_oracle_contract_id\"] = (",
+          "new": "                    if False:\n                        kwargs[\"sort_oracle_contract_id\"] = ("
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_direct_comparison.py::test_run_role_forwards_sort_contract_only_when_prepared_cell_has_one"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M05-s1-run-role-forward-always",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_direct_comparison.py",
+          "old": "                    if prepared.sort_oracle_contract_id is not None:\n                        kwargs[\"sort_oracle_contract_id\"] = (",
+          "new": "                    if True:\n                        kwargs[\"sort_oracle_contract_id\"] = ("
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_direct_comparison.py::test_run_role_available_perf_keeps_evaluate_call_shape_exact",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_run_role_forwards_sort_contract_only_when_prepared_cell_has_one"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M06-s1-non-sort-uses-resolve-evidence",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_direct_comparison.py",
+          "old": "        else:\n            src_token = source_digest.resolve(\n                genome, ccbench_pin, ccbench_dir=sub, cxx=cxx,\n            )",
+          "new": "        else:\n            src_token = source_digest.resolve_evidence(\n                genome, ccbench_pin, ccbench_dir=sub, cxx=cxx,\n            ).src_token"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_backoff_fixed_best_preserves_evolve_block",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_cell_passes_site_cxx_to_source_digest",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_flags_only_configurations_do_not_patch_or_quarantine[p2_2_flag_opt]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_flags_only_configurations_do_not_patch_or_quarantine[stock_common]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_non_sort_cells_keep_unbound_resolve_path[backoff-fixed-best]",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_prepare_non_sort_cells_keep_unbound_resolve_path[stock-common]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M07-s8b-driver-prepared-for-eval-drops-contract",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_driver.py",
+          "old": "                        sort_oracle_contract_id=prepared.sort_oracle_contract_id,\n                    )",
+          "new": "                        sort_oracle_contract_id=None,\n                    )"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_success_wal_order_budget_and_evaluate_contract"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M08-s8b-driver-forward-always",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_driver.py",
+          "old": "                            if prepared_for_eval.sort_oracle_contract_id is not None:",
+          "new": "                            if True:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_success_wal_order_budget_and_evaluate_contract"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M09-s8b-floor-evidence-contract-dropped",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "            evidence_kwargs = {}\n            if prepared.sort_oracle_contract_id is not None:",
+          "new": "            evidence_kwargs = {}\n            if False:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_build_cells_resolves_site_compilers_and_binding_once_before_cell_loop"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10-s8b-floor-build-contract-dropped",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "            build_kwargs = {}\n            if prepared.sort_oracle_contract_id is not None:",
+          "new": "            build_kwargs = {}\n            if False:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_build_cells_resolves_site_compilers_and_binding_once_before_cell_loop"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11-s8b-floor-build-contract-always",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "            build_kwargs = {}\n            if prepared.sort_oracle_contract_id is not None:",
+          "new": "            build_kwargs = {}\n            if True:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_build_cells_resolves_site_compilers_and_binding_once_before_cell_loop",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_oracle_driver_accepts_conditional_sort_receipt_and_rejects_its_absence",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_transient_prepare_failure_retries_once",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_binary_mismatch_abort_maps_to_binary_mismatch_outcome",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_completed_driver_adapter_campaign_is_accepted_by_report",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_contract_sha256_mismatch_is_refused",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_floor_disk_swap_after_launch_uses_same_validated_object",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_foreign_cell_admission_receipt_is_refused_before_store_read",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_freeze_bytes_not_active_generation_is_refused",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_gate_happy_path_completes_and_binds_env_store_receipt",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_launch_validate_failure_is_refused",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_launch_validate_non_ratified_error_is_refused",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_post_run_store_change_is_reported_and_refused[removed]",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_post_run_store_change_is_reported_and_refused[replaced]",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_standalone_gate_check_requires_full_floor_validation",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_store_bytes_are_checked_against_admission_subject_independently",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_store_hash_mismatch_is_refused",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_store_missing_is_refused"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M12-s1-equivalent-rewrite",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_direct_comparison.py",
+          "old": "        if sort_oracle_contract_id is not None:\n            src_token = source_digest.resolve_evidence(",
+          "new": "        if not (sort_oracle_contract_id is None):\n            src_token = source_digest.resolve_evidence("
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

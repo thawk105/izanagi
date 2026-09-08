@@ -54476,3 +54476,183 @@ UA と `Accept` header の変更、content negotiation、別入口の試行ま�
 - metarefresh 型 challenge を追従する — 1 回目の応答には meta refresh があったが 2 回目以降は JS 駆動で、
   追従は challenge の模倣になる。
 - DBLP を母集合から外す — 7.7.4 違反。
+
+## D1801. 段 4 loop の job body で `CMAKE_PREFIX_PATH` を扱えるのは exact 3 行だけとし、事前構築にも同じ 2 root を explicit に渡す (2026-09-08)
+
+**決定:** D1773 の移植を実装するにあたり、契約テスト `orchestrator/tests/test_p3_s4_loop_job_contract.py` の
+`forbidden-cmake-environment-injection` を次の形へ改める。job body の実行面 (コメント専用行と heredoc を除いた面) で
+`CMAKE_PREFIX_PATH` を含む行は、出現順に (1) sanitize 段の `unset CMAKE_PREFIX_PATH CMAKE_TOOLCHAIN_FILE`、
+(2) glog configure の `-DWITH_UNWIND=OFF "-DCMAKE_PREFIX_PATH=$GFLAGS_INSTALL_DIR"`、
+(3) `export CMAKE_PREFIX_PATH="$GFLAGS_INSTALL_DIR:$GLOG_INSTALL_DIR"` の exact 3 行だけを受理し、
+他の代入・`unset`・`export -n`・`env -u` を含むあらゆる形を拒否する。(3) は gflags / glog の install 2 本の後、
+masstree 事前構築の呼出しの前に 1 回だけ置き、事前構築は driver 2 分岐の両方より前になければならない。
+`GFLAGS_INSTALL_DIR` / `GLOG_INSTALL_DIR` は `$TMPDIR` (job 別 scratch) 配下に束縛する。
+さらに job body は masstree 事前構築 (`buildcache.prepare_masstree_fetchcontent`) へ同じ 2 root を
+semicolon 区切りの `dependency_prefix` としても渡し、receipt の `configure_argv` に
+`-DCMAKE_PREFIX_PATH=<gflags-install>;<glog-install>` が残るようにする。receipt の schema と key 集合は変えない。
+admission registry の entry は分類・reason・gate・evidence に変えるものが無く不変とし、D1773 (c) の
+「同じ commit で更新する」は「変える場合は同じ commit」と読む。
+
+**理由:**
+
+- D1773 (d) は env の `CMAKE_PREFIX_PATH` を driver 本走まで持たせることを要求する。従来の契約は
+  同変数の代入を全面禁止していたので、受理形を足す必要があった。足す形を exact 1 行に限り、
+  `unset` / `export -n` / `env -u` を含む全形を拒否しなければ、export 後に driver だけから prefix を
+  外す job body が受理集合に残る (段 6 レビュー A の real 所見)。
+- F813 の型 (判定器が環境から解決した実体が証拠に残らない) を避けるため、事前構築の receipt にも
+  prefix を残す。driver 側は `buildcache.build_v2` が ambient prefix を identity へ束縛するが、事前構築の
+  receipt は `configure_argv` しか持たないので、explicit 引数で同じ値を露出させるのが schema 不変の最小手
+  (段 3 レンズ A / 段 4 裁定 A4)。計算ノードの実測 (job `983020.nqsv`) で receipt に
+  `-DCMAKE_PREFIX_PATH=/scr/.../gflags-install;/scr/.../glog-install` が入ることを確認した。
+- 検査面をコメント専用行と heredoc を除いた実行面に統一し、コメント専用行では heredoc opener を探さない。
+  heredoc 内の required fragment (policy の 4 key、`dependency_prefix=`) はコメント専用行を除いた raw source
+  でも照合する。これで「コメントアウトして契約だけ通す」型を塞ぐ (段 6 レビュー A / B の real 所見)。
+
+**却下した選択肢:**
+
+- **`printf -v` / `read` / 名前分割 `eval` / 綴りの難読化 / 行末コメントで marker を満たす形まで拒否する** —
+  本 wave 以前から全 marker に共通する盲点であり、D1773 の範囲外の gate 拡張になる。同一主体が gate と
+  検査を変えられる限り repo 内検査は完全防壁ではない (D387) ことを明記し、記録に留める。
+- **receipt に gflags / glog の source HEAD や install realpath を足す** — 粗い provenance で足りる方針
+  (D1773 (b)) と schema 不変の範囲を越える。
+- **admission registry に無内容の更新を入れる** — 分類が変わらない以上、盛るだけになる。
+
+## D1802. 凍結 spec の commit 束縛は真の祖先関係とし、tree の同値は主張しない (2026-09-08)
+
+**決定:** D1774 の実装として、`load_frozen_spec` は `provenance.source_commit` が
+`loaded_head` の**真の祖先**であることを要求する (`git merge-base --is-ancestor`、等値は拒否)。
+`loaded_head` は loader の冒頭で 1 回だけ解決し、spec・calibration・build receipt の全 blob 比較を
+その OID に対して行う。実行時と finalizer の期待 header も `loaded_head` に統一する。
+**保証するのは「spec の bytes が `loaded_head` の tracked blob と一致する」と
+「`source_commit` が `loaded_head` の真の祖先である」の 2 つだけで、その間に何の変更が入ったかは
+制限しない。** commit OID の同値も、実行中 module bytes が記録 commit に対応することも保証しない。
+
+**理由:**
+
+- 従来の「spec bytes == HEAD blob」と「source_commit == HEAD」の同時要求は hash の不動点であり、
+  追跡 file である spec を一度も作れない。実 git で再現した。
+- 等値を許すと不動点が戻る。真の祖先を要求することで、`source_commit` は spec を著した時点の
+  commit という意味を保つ。
+- 全 blob 比較を 1 回だけ解決した OID に束ねるのは、symbolic `HEAD:` を使うと blob 検査と
+  後から解決する HEAD が別 commit を指しうるためである。共通親から spec だけが異なる兄弟
+  commit を作り、blob 読取りと HEAD 解決の間に HEAD を動かすと、成果物が「検証していない
+  spec を検証したことにする」記録を残す。
+
+**却下した選択肢:**
+
+- **唯一の親 + spec 1 path 差分を要求する** — 保証は強く (tree が spec path を除いて同値)、
+  敵対レビュー 2 本と変異 9 件で検証もした。しかし freeze commit の後に 1 つでも commit が
+  乗ると spec が二度と load できない。閉じようとしている失敗を作り直す。D1774 の理由欄も
+  緩める方向を明示している。再裁定を求めて材料ごと返す。
+- **`source_commit` field を廃し `loaded_head` だけに束縛する** — 事前に「どの code state 向けの
+  spec か」を宣言する能力を失い、schema の exact key 集合も変わる。
+- **HEAD 完全一致を残す** — D1774 が却下済み。不動点そのものである。
+
+## D1803. 自己参照する VCS 束縛を模擬 git で裁定しない (2026-09-08)
+
+**決定:** commit hash・blob・祖先関係のように **spec 自身の内容が VCS の状態を指す**束縛は、
+`subprocess.run` を差し替えた模擬 git だけで正しさを主張しない。実 repository を作り、実際に
+commit した上で正例と負例を通す。模擬は schema・型・単発の分岐の高速検査に限る。
+
+**理由:**
+
+- `floor_pair_driver` の loader は 209 件のテストが緑だったが、production では spec を 1 度も
+  作れなかった。模擬が `rev-parse HEAD` を定数に、`SOURCE_COMMIT = HEAD` に固定していたため、
+  不動点が構造的に見えなかった。
+- 模擬は「呼び出し側が何を尋ねたか」は検査できるが、「その問いに実 VCS がどう答えるか」を
+  検査できない。自己参照する束縛では後者が本体である。
+
+**却下した選択肢:**
+
+- **模擬に不動点を再現させる** — 不動点は「commit すると hash が変わる」という VCS の性質から
+  来る。模擬でそれを再現するには実質 git を書くことになる。
+- **実 git のテストだけにする** — 型・schema の負例は模擬の方が速く、数も多い。両方を持つ。
+
+## D1804. balanced stock-inline の投入器は 1 job だけを出し、job body は既存物を無改変で再利用する (2026-09-08)
+
+**決定:** T-1998 の薄い sanctioned launcher は、balanced 1 workload だけを 1 回 `qsub` する
+新しい login 側投入器とする。計算ノードの job body は既存の A-5 job body を 1 byte も変えずに
+再利用し、新しい job body も新しい汎用 driver も作らない。A-5 の投入器・契約テスト・登録簿 entry も
+変更しない。
+
+**理由:**
+- 既存 A-5 投入器は同じ checkout から 2 job を出し、先に終わった job の終了処理が打つ
+  global `git worktree prune --expire now` が、共有 submodule gitdir 上の他 job の worktree 登録を
+  消す。後に終わる job が必ずこの経路で落ちる構造であり、実測でも 8 genome を計測した後に
+  finalizer 前で落ちている (F251 の 2026-09-07 再発)。1 job だけを出す投入器なら
+  同一 invocation 内にこの経路が成立しない。
+- job body を変えると A-5 の受理集合が変わる。契約テストが 2 workload fan-out と global prune を
+  正例として固定しており、そこを触るのは別の変更単位である。
+- 投入器だけを足すのは、既存の測定経路を呼ぶ薄い層という要求の範囲に収まる。
+
+**却下した選択肢:**
+- 既存 A-5 経路をそのまま使う — 後続 job が prune で落ちる構造が残る。
+- A-5 job body を balanced 専用へ直す — A-5 の受理集合を変える。
+- A-5 投入器を checkout ごとに分ける — 同じ欠陥の恒久対応であり、既にユーザー裁定へ返っている。
+
+**限界:** 別 invocation どうし、あるいは既存 A-5 job と同時に走る場合は、再利用している job body の
+global prune 経路が残る。この投入器はその競合を解消しない。
+
+## D1805. 診断 build の排除は「明示値の不在」でなく事前登録の source digest 照合で行う (2026-09-08)
+
+**決定:** 対照 consumer が診断 build 由来の値を拒否する根拠は、事前登録が arm ごとに持つ期待
+`source_bytes_sha256` と記録済み値の一致とする。genome と configure command に診断 knob の
+明示値が現れないことは補助的な検査に留め、単独の根拠にしない。configure argv は
+`-DNAME[:TYPE]=VALUE` を正規化してから判定する。
+
+**理由:**
+- producer の genome はそもそも診断 knob を持たないので、「明示値 1 が無い」は候補集合に
+  含意されて恒真になる。knob の既定値を 1 にした source から同じ genome で証拠を作れば素通りする。
+- 型付きの `-DNAME:STRING=1` は literal token の完全一致検査を通り抜ける。正規化しないと
+  同じ意味の入力が別の受理結果になる。
+- 診断計器の実効値は単一 field として記録されていない。commit 束縛の source bytes から
+  導出するしかない。
+
+**却下した選択肢:**
+- 明示値の不在だけを根拠にする — 恒真であり、診断 build を排除しない。
+- producer の result schema へ実効値 field を足す — 現在の受理条件には不要で、
+  既存 producer の出力 bytes を変える。
+
+## D1806. 固定 2 点だけ内容を読む契約の下でも、producer の形は全点で束縛する (2026-09-08)
+
+**決定:** 事前登録で固定した 2 点だけを読む consumer でも、campaign 全体に対して次を要求する。
+どの `build_start` の genome にも診断 knob の key が現れないこと、全 `verify_done` / `bench_done` が
+既知の build attempt に属すること、anomaly を報告する record や非 serializable の verdict が
+1 つも無いこと。対の外の点については throughput も median も順位も読まない。
+
+**理由:**
+- 束縛した job body は診断 knob 付き genome では結果を発行しない。そのような入力を受理すると
+  「束縛済みの sanctioned producer の完全な出力である」という provenance 結論が偽になる。
+- attempt に属さない verify record は上流の topology 検査も certified admission も見ない。
+  anomaly が明記された variant を通す経路になり、正しさゲートの迂回になる。
+- これらは値の内容を読む検査ではなく producer の形を束縛する検査なので、
+  「固定 2 点だけ内容を読む」契約と両立する。
+
+**却下した選択肢:**
+- 対の 2 点だけを見る — 診断 knob 付きの根や anomaly record を通す。
+- 対以外の throughput も読む — 事前登録で固定した 2 点だけを読むという契約を破る。
+
+## D1807. s1 materializer の sort 契約束縛は、同じ materializer を使う consumer が値を転送するだけで閉じ、stock 同一 bytes の短絡は D1630 の規約のまま据え置く (2026-09-08)
+
+**決定:** D1548 の sort 軸局所適用を s1 driver へ通すとき、(1) `prepare_cell` は sort_best だけ oracle が attest した
+`contract_id` で `source_digest.resolve_evidence(..., sort_oracle_contract_id=).src_token` を確定し、`PreparedCell` に
+その ID を持たせる。(2) `run_role`、`s8b_oracle_driver` の evaluate、`s8b_floor_campaign` の evidence 解決と build は、
+`PreparedCell.sort_oracle_contract_id` が非 None のときだけ同じ値を既存 keyword へ転送する。(3) 束縛値の出所は
+oracle 結果であり、campaign 宣言 (`_search_identity` の同じ定数) との exact 一致は既存の oracle 検査が担う。
+新しい gate・定数・producer は足さない。(4) comparator が stock と同一 bytes に materialize される sort_best で
+契約を改版しても token が `STOCK` のままになる挙動は、D1630 の binder 規約どおり変えない。
+
+**理由:**
+- s1 の束縛だけを入れると、同じ `prepare_cell` を使う s8b oracle driver と floor campaign が契約 ID 無しで
+  `pipeline.evaluate` / `build_v2` へ進み、src_token 照合で sort_best が全件 abort する。consumer の転送は
+  「gate の新設」ではなく、束縛値を落とさないための整合であり、D1548 が禁じた任意軸への一般化ではない。
+- `_require_sort_oracle_contract(cfg)` を s1 から呼ぶ案は、`prepare_cell` に cfg が無く `prepare_cell_fn` seam を
+  広げる。oracle 検査 (`oracle.contract_id != ORACLE_CONTRACT_ID` → DriverError) が同じ exact 一致を既に要求している。
+- stock 同一 bytes では build 結果も stock binary であり、契約 ID の改版が binary を変えない以上、cache の再利用は
+  stale build ではない。分離が要るなら `source_digest._resolved_src_token` (D1630) 側の設計変更であり、
+  本 wave の編集面ではない。
+
+**却下した選択肢:**
+- s8b 側を旧経路 (契約 ID 無し) のまま残す — s1 の束縛が consumer を壊す。
+- `prepare_cell` に束縛の opt-in 引数を足して s8b だけ束縛しない — identity 分断を s8b に残し、seam も広がる。
+- stock 短絡より先に契約 ID を束縛する — D1630 の規約変更で、loop 側 producer との不整合を生む。
