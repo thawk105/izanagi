@@ -24,30 +24,6 @@ seq: 3
 - 再発検知: 変異事前登録で当該述語を `if False and (...)` へ倒す変異を持ち、
   KILLED を要求する (本 wave の M9)。probe で SURVIVED になった時点で穴が露見する。
 
-### {{F:stray-gitlinks-without-gitmodules-block-every-wave}}. `.gitmodules` の無い gitlink を commit すると、以後の全 wave の受入 preflight と provenance 監査が赤になる [手順漏れ] [恒真ゲート]
-
-- 事象: local main の tip `c12e25078` が `.codex/worktrees/` 配下の gitlink 110 件を
-  `.gitmodules` の entry 無しで取り込んだ。これは commit した wave の成果物ではなく、
-  同じ checkout で別 session が作った Codex worktree の管理 dir である。
-  main を取り込んだ wave で 2 つのことが同時に起きる。
-  (a) `git submodule foreach --recursive` が `No url found for submodule path` で rc=128 になり、
-  受入待ち手が `stage=preflight-index-flags rc=70 source_rc=128` で
-  **テストを 1 件も走らせずに止まる**。
-  (b) provenance 監査が当該 commit を「実装面に Codex role=author がない (110 paths)」として
-  違反に数える。`--range c12e25078^..c12e25078` 単独で 1 件中 1 違反であり、
-  DW-O25 の全史監査が赤になるので land できない。
-- 因果の実測: 同じ wave の受入 1 回目 (main 取り込み**前**、commit `0b761064b`) は
-  preflight を通過して merge 段まで進んだ。main を取り込んだ 2 回目 (commit `3c888a8c2`) だけが
-  preflight で落ちる。差分は main の取り込みだけである。
-- 根本原因: 広い staging が、同じ checkout に別 session が作った worktree 管理 dir を拾った。
-  gitlink は `.gitmodules` を伴わなくても commit できるので commit 時点では何も止めない。
-  **壊れるのは次に main を取り込む別 wave の側である。**
-- 恒久対応: **未実施。** 他 session の commit を書き換えないので報告に留めた。候補は
-  (1) main 側で当該 gitlink を取り消す commit、(2) 受入 preflight の前に `.gitmodules` と
-  index の gitlink 集合の一致を検査する gate。どちらもユーザー裁定が要る。
-- 再発検知: main の gitlink path 集合と `.gitmodules` の `path =` 集合の一致検査。
-  不一致なら次の wave の受入は必ず preflight で落ちる。
-
 ### {{F:mutation-masked-by-asymmetric-negative-fixture}}. 片側だけを変える負例は、対称な層に mask されて狙った層の証拠にならない [テスト代表性]
 
 - 事象: 2 つの arm の toolchain manifest から canonical digest を再計算して記録値と照合する層を

@@ -71,6 +71,20 @@ title: [T-1998] balanced stock-inline 対照の最小 3 部品を実装した �
   D782 が委任した D730 の手順に従い、上限を引き上げず「実施しない」で閉じた。
   3 件とも session memory には入っているので、次 wave が同じ轍を踏む確率は下がっている。
 
+- **main 側の欠陥で受入が 1 回空振りし、並行セッションとの相談で解けた。** main の tip
+  `c12e25078` が `.codex/worktrees/` の gitlink 110 件を `.gitmodules` の entry 無しで取り込んでおり、
+  取り込んだ wave の受入が `stage=preflight-index-flags rc=70 source_rc=128` で
+  **テストを 1 件も走らせずに**止まった。因果は切り分けた — 受入 1 回目 (取り込み前) は
+  preflight を通過して merge 段まで進み、取り込んだ 2 回目だけが落ちる。
+  ユーザー指示で並行セッション 3 本へ相談したところ、別 wave が同じ失敗を独立に観測しており、
+  是正 (`48837186c` で index から除去、`cf837838a` で既知違反台帳の母集団 pin を追従) が
+  既に着地していた。**中継された SHA は自分の ref で読み直して検算した**
+  (`git ls-tree main -- .codex/worktrees/ | wc -l` = 0)。
+- **この失敗型の記録は別 wave の failures fragment が既に持っているので、本 wave の重複エントリは
+  取り下げた。** 1 事象に 2 つの F 番号を作らないためである。相談で得た知見として、
+  `.gitignore` / `info/exclude` へ足す案は F599 により採れない
+  (共有木観測が `?? .codex/worktrees/` の bytes を見ている)。これは repo の F599 本文で裏取りした。
+
 ## 次の一手差分
 
 ### 更新
