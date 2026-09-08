@@ -284,6 +284,7 @@ COMMAND_LIMITS = {
     ".claude/commands/dev-wave.md": TextLimit(9_520, 140),
     ".claude/commands/cleanup-branches.md": TextLimit(5_900, 110),
     ".claude/commands/rulings.md": TextLimit(5_623, 180),
+    ".claude/commands/next-tasks.md": TextLimit(27_100, 100),
 }
 SELF_LIMITS = {
     "docs/skill-self-improvement.md": TextLimit(6_000, 100),
@@ -774,6 +775,10 @@ COMMAND_INTERFACES = {
     ".claude/commands/rulings.md": {
         "frontmatter_keys": {"description", "argument-hint"},
         "arguments_count": 1,
+    },
+    ".claude/commands/next-tasks.md": {
+        "frontmatter_keys": {"description", "argument-hint"},
+        "arguments_count": 0,
     },
 }
 
