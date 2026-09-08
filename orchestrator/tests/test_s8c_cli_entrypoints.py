@@ -83,6 +83,14 @@ _REGISTRY = PredicateRegistry()
 def get_registry() -> PredicateRegistry:
     return _REGISTRY
 '''
+_VALUE_ERROR_RAISING_EVALUATOR = _RAISING_EVALUATOR.replace(
+    b'raise RuntimeError("secret-detail")',
+    b'raise ValueError("secret-detail")',
+)
+_RAISING_EVALUATORS = {
+    "RuntimeError": _RAISING_EVALUATOR,
+    "ValueError": _VALUE_ERROR_RAISING_EVALUATOR,
+}
 _NORMALIZER_DIAGNOSTIC_STDERR = (
     b'{"callsite":"_normalize_predicate_results",'
     b'"exception_type":"PreregistrationError",'
@@ -91,6 +99,11 @@ _NORMALIZER_DIAGNOSTIC_STDERR = (
 _EVALUATOR_DIAGNOSTIC_STDERR = (
     b'{"callsite":"default-registry.evaluate_all",'
     b'"exception_type":"RuntimeError",'
+    b'"preregistration_reason":null}\n'
+)
+_VALUE_ERROR_EVALUATOR_DIAGNOSTIC_STDERR = (
+    b'{"callsite":"default-registry.evaluate_all",'
+    b'"exception_type":"ValueError",'
     b'"preregistration_reason":null}\n'
 )
 
@@ -227,9 +240,12 @@ def malformed_evaluator_repo(
 
 @pytest.fixture(scope="module")
 def raising_evaluator_repo(
+    request: pytest.FixtureRequest,
     tmp_path_factory: pytest.TempPathFactory,
     closed_environment: dict[str, str],
 ) -> tuple[Path, str]:
+    exception_type = getattr(request, "param", "RuntimeError")
+    evaluator_source = _RAISING_EVALUATORS[exception_type]
     repo_root = tmp_path_factory.mktemp("s8c-cli-raising-evaluator")
     for relative_path in (
         P.CORE_MODULE_PATH,
@@ -242,7 +258,7 @@ def raising_evaluator_repo(
         shutil.copyfile(source, destination)
     evaluator_path = repo_root / P.EVALUATOR_MODULE_PATH
     evaluator_path.parent.mkdir(parents=True, exist_ok=True)
-    evaluator_path.write_bytes(_RAISING_EVALUATOR)
+    evaluator_path.write_bytes(evaluator_source)
 
     _git(repo_root, closed_environment, "init", "-q")
     _git(repo_root, closed_environment, "add", "-A")
@@ -593,10 +609,19 @@ def test_evaluator_exception_cli_preserves_stdout_and_emits_one_diagnostic(
     "json_output",
     [pytest.param(False, id="text"), pytest.param(True, id="json")],
 )
+@pytest.mark.parametrize(
+    ("raising_evaluator_repo", "exception_type"),
+    [
+        pytest.param("RuntimeError", "RuntimeError", id="runtime-error"),
+        pytest.param("ValueError", "ValueError", id="value-error"),
+    ],
+    indirect=["raising_evaluator_repo"],
+)
 def test_live_evaluator_runtime_error_cli_preserves_stdout_and_diagnostic(
     invocation: str,
     json_output: bool,
     raising_evaluator_repo: tuple[Path, str],
+    exception_type: str,
     raising_evaluator_oracle: dict[str, object],
     closed_environment: dict[str, str],
 ) -> None:
@@ -628,7 +653,11 @@ def test_live_evaluator_runtime_error_cli_preserves_stdout_and_diagnostic(
     assert isinstance(expected_stdout, str)
     assert completed.stdout == expected_stdout.encode("utf-8")
     assert completed.returncode == 1
-    assert completed.stderr == _EVALUATOR_DIAGNOSTIC_STDERR
+    if exception_type == "RuntimeError":
+        assert completed.stderr == _EVALUATOR_DIAGNOSTIC_STDERR
+    else:
+        assert exception_type == "ValueError"
+        assert completed.stderr == _VALUE_ERROR_EVALUATOR_DIAGNOSTIC_STDERR
 
 
 def test_main_keeps_stdout_and_exit_value_when_stderr_write_raises_oserror(
@@ -647,6 +676,46 @@ class BrokenStderr:
     def write(self, value):
         del value
         raise OSError("diagnostic sink unavailable")
+
+    def flush(self):
+        pass
+
+
+sys.stderr = BrokenStderr()
+raise SystemExit(P.main([
+    "check", "--json", "--repo-root", ".", "--commit", sys.argv[1]
+]))
+'''
+    completed = subprocess.run(
+        [sys.executable, "-c", script, commit],
+        cwd=repo_root,
+        check=False,
+        capture_output=True,
+        env=closed_environment,
+    )
+    expected_stdout = raising_evaluator_oracle["json_stdout"]
+    assert isinstance(expected_stdout, str)
+    assert completed.stdout == expected_stdout.encode("utf-8")
+    assert completed.returncode == 1
+    assert completed.stderr == b""
+
+
+def test_main_keeps_stdout_and_exit_value_when_stderr_write_raises_value_error(
+    raising_evaluator_repo: tuple[Path, str],
+    raising_evaluator_oracle: dict[str, object],
+    closed_environment: dict[str, str],
+) -> None:
+    repo_root, commit = raising_evaluator_repo
+    script = r'''
+import sys
+
+from orchestrator.campaign import s8c_preregistration as P
+
+
+class BrokenStderr:
+    def write(self, value):
+        del value
+        raise ValueError("diagnostic sink unavailable")
 
     def flush(self):
         pass

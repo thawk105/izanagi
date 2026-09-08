@@ -484,6 +484,25 @@ class _LazyTypeErrorEvaluator:
         return results()
 
 
+class _LazyExceptionEvaluator:
+    def __init__(self, exc: Exception) -> None:
+        self.exc = exc
+
+    def evaluate_all(self, commit: str, *, repo_root: Path):
+        del commit, repo_root
+
+        def results():
+            yield M.PredicateResult(
+                M.PREDICATE_IDS[0],
+                M.PredicateStatus.SATISFIED,
+                "fixture",
+                (),
+            )
+            raise self.exc
+
+        return results()
+
+
 class _MissingReason(M.PreregistrationError):
     def __init__(self) -> None:
         RuntimeError.__init__(self, "secret-detail")
@@ -512,6 +531,26 @@ class _HostileTypeMeta(type):
 
 
 class _HostileType(RuntimeError, metaclass=_HostileTypeMeta):
+    pass
+
+
+class _KeyboardInterruptReason(M.PreregistrationError):
+    def __init__(self) -> None:
+        RuntimeError.__init__(self, "secret-detail")
+
+    @property
+    def reason(self):
+        raise KeyboardInterrupt("secret-detail")
+
+
+class _KeyboardInterruptTypeMeta(type):
+    def __getattribute__(cls, name: str):
+        if name == "__name__":
+            raise KeyboardInterrupt("secret-detail")
+        return super().__getattribute__(name)
+
+
+class _KeyboardInterruptType(RuntimeError, metaclass=_KeyboardInterruptTypeMeta):
     pass
 
 
@@ -2737,6 +2776,60 @@ def test_default_registry_evaluator_value_error_remains_fail_closed(
     )
 
 
+@pytest.mark.parametrize(
+    ("exc", "exception_type"),
+    [
+        pytest.param(ValueError("secret-detail"), "ValueError", id="value-error"),
+        pytest.param(KeyError("secret-detail"), "KeyError", id="key-error"),
+    ],
+)
+def test_default_registry_evaluator_unrelated_exceptions_remain_fail_closed(
+    tmp_path: Path,
+    exc: Exception,
+    exception_type: str,
+) -> None:
+    results, diagnostics = M._default_registry_results(
+        tmp_path,
+        "fixture-commit",
+        _RaisingEvaluator(exc),
+    )
+    _assert_evaluator_fallback(results)
+    assert diagnostics == (
+        M.EvaluatorExceptionReason(
+            "default-registry.evaluate_all",
+            exception_type,
+            None,
+        ),
+    )
+
+
+@pytest.mark.parametrize(
+    ("exc", "exception_type"),
+    [
+        pytest.param(TypeError("secret-detail"), "TypeError", id="type-error"),
+        pytest.param(KeyError("secret-detail"), "KeyError", id="key-error"),
+    ],
+)
+def test_default_registry_normalizer_unrelated_exceptions_remain_fail_closed(
+    tmp_path: Path,
+    exc: Exception,
+    exception_type: str,
+) -> None:
+    results, diagnostics = M._default_registry_results(
+        tmp_path,
+        "fixture-commit",
+        _LazyExceptionEvaluator(exc),
+    )
+    _assert_evaluator_fallback(results)
+    assert diagnostics == (
+        M.EvaluatorExceptionReason(
+            "_normalize_predicate_results",
+            exception_type,
+            None,
+        ),
+    )
+
+
 def test_preregistration_exception_detail_is_not_copied_to_diagnostics(
     tmp_path: Path,
 ) -> None:
@@ -2827,13 +2920,46 @@ def test_invalid_exception_type_uses_bounded_sentinel_without_leaking(
     )
 
 
+def test_diagnostic_type_guard_catches_keyboard_interrupt(tmp_path: Path) -> None:
+    results, diagnostics = M._default_registry_results(
+        tmp_path,
+        "fixture-commit",
+        _RaisingEvaluator(_KeyboardInterruptType("secret-detail")),
+    )
+    _assert_evaluator_fallback(results)
+    assert diagnostics == (
+        M.EvaluatorExceptionReason(
+            "default-registry.evaluate_all",
+            M._DIAGNOSTIC_EXCEPTION_TYPE_SENTINEL,
+            None,
+        ),
+    )
+
+
+def test_diagnostic_reason_guard_catches_keyboard_interrupt(tmp_path: Path) -> None:
+    results, diagnostics = M._default_registry_results(
+        tmp_path,
+        "fixture-commit",
+        _RaisingEvaluator(_KeyboardInterruptReason()),
+    )
+    _assert_evaluator_fallback(results)
+    assert diagnostics == (
+        M.EvaluatorExceptionReason(
+            "default-registry.evaluate_all",
+            "_KeyboardInterruptReason",
+            M._DIAGNOSTIC_PREREGISTRATION_REASON_SENTINEL,
+        ),
+    )
+
+
 def test_diagnostic_text_length_boundary_accepts_128_and_rejects_129(
     tmp_path: Path,
 ) -> None:
-    accepted_reason = "r" * M._DIAGNOSTIC_TEXT_MAX_LENGTH
-    rejected_reason = "r" * (M._DIAGNOSTIC_TEXT_MAX_LENGTH + 1)
-    accepted_type = "T" * M._DIAGNOSTIC_TEXT_MAX_LENGTH
-    rejected_type = "T" * (M._DIAGNOSTIC_TEXT_MAX_LENGTH + 1)
+    assert M._DIAGNOSTIC_TEXT_MAX_LENGTH == 128
+    accepted_reason = "r" * 128
+    rejected_reason = "r" * 129
+    accepted_type = "T" * 128
+    rejected_type = "T" * 129
 
     accepted_reason_results, accepted_reason_diagnostics = (
         M._default_registry_results(
@@ -2929,6 +3055,20 @@ def test_default_registry_success_has_no_diagnostics(tmp_path: Path) -> None:
             "PreregistrationError",
             "predicate-result-type",
             id="normalize",
+        ),
+        pytest.param(
+            _RaisingEvaluator(ValueError("secret-detail")),
+            "test-registry.evaluate_all",
+            "ValueError",
+            None,
+            id="evaluate-all-value-error",
+        ),
+        pytest.param(
+            _LazyTypeErrorEvaluator(),
+            "test-registry._normalize_predicate_results",
+            "TypeError",
+            None,
+            id="normalize-type-error",
         ),
     ],
 )
