@@ -2410,8 +2410,8 @@ def test_v1_domain_and_claim_boundaries_are_exact():
         "BACKOFF_FIXED", "BACKOFF_INCR_MILLI", "BACKOFF_MAX_US",
         "BACKOFF_COUNT_WINDOW", "BACKOFF_COUNT_CAP_US", "BACKOFF_STEP_ADAPT",
         "BACKOFF_STEP_MIN_MILLI", "BACKOFF_STEP_MAX_MILLI",
-        "BACKOFF_DYN_CEILING", "BACKOFF_TRACE", "BACKOFF_STEP_POLICY",
-        "BACKOFF_STEP_POLICY_SEED",
+        "BACKOFF_DYN_CEILING", "BACKOFF_TRACE", "BACKOFF_TRACE_TERMINAL_US",
+        "BACKOFF_STEP_POLICY", "BACKOFF_STEP_POLICY_SEED",
         "BACKOFF_NOINLINE", "BACKOFF_REQUESTED_US", "BACKOFF_TRIGGER_GATING",
         "BACKOFF_UPDATE_US", "SORT_VARIANT", "SS2PL_LOCK_IMPL",
         "SS2PL_LOCK_KIND", "SS2PL_DLR", "SS2PL_WFG_DIAG",
@@ -2515,7 +2515,7 @@ def test_v1_domain_and_claim_boundaries_are_exact():
     ].companion_defines == (("IZANAGI_SILO_LADDER_RUNG1", "1"),)
     assert sum(
         spec.route == G.ROUTE_CMAKE_CACHE for spec in G.DEFINE_SPECS.values()
-    ) == 21
+    ) == 22
     assert sum(
         spec.route == G.ROUTE_CMAKE_CXX_FLAGS for spec in G.DEFINE_SPECS.values()
     ) == 16
@@ -2537,9 +2537,11 @@ def test_v1_domain_and_claim_boundaries_are_exact():
 def test_counterfactual_specs_are_exact() -> None:
     counterfactual_specs = {
         macro: (
+            spec.route,
             spec.patch_rel,
             spec.owner_tus,
             spec.target,
+            spec.companion_defines,
             spec.inert_values,
         )
         for macro, spec in G.DEFINE_SPECS.items()
@@ -2547,21 +2549,33 @@ def test_counterfactual_specs_are_exact() -> None:
     }
     assert counterfactual_specs == {
         "BACKOFF_STEP_POLICY": (
-            "patches/cicada-adaptive-counterfactual.patch",
-            ("cc/silo/transaction.cc",),
-            "ycsb_silo.exe",
-            ("0",),
-        ),
-        "BACKOFF_STEP_POLICY_SEED": (
+            G.ROUTE_CMAKE_CACHE,
             "patches/cicada-adaptive-counterfactual.patch",
             ("cc/silo/transaction.cc",),
             "ycsb_silo.exe",
             (),
+            ("0",),
+        ),
+        "BACKOFF_STEP_POLICY_SEED": (
+            G.ROUTE_CMAKE_CACHE,
+            "patches/cicada-adaptive-counterfactual.patch",
+            ("cc/silo/transaction.cc",),
+            "ycsb_silo.exe",
+            (),
+            (),
+        ),
+        "BACKOFF_TRACE_TERMINAL_US": (
+            G.ROUTE_CMAKE_CACHE,
+            "patches/cicada-adaptive-counterfactual.patch",
+            ("cc/silo/transaction.cc",),
+            "ycsb_silo.exe",
+            (),
+            ("0",),
         ),
     }
 
 
-def test_define_inventory_includes_step_policy_default_zero() -> None:
+def test_define_inventory_includes_counterfactual_defaults() -> None:
     patch_text = (
         _ROOT / "patches" / "cicada-adaptive-counterfactual.patch"
     ).read_text(encoding="utf-8")
@@ -2573,13 +2587,23 @@ def test_define_inventory_includes_step_policy_default_zero() -> None:
         '+set(CCBENCH_BACKOFF_STEP_POLICY_SEED 11400714819323198485 '
         'CACHE STRING "deterministic backoff step policy seed")'
     ) in patch_text
+    assert (
+        '+set(CCBENCH_BACKOFF_TRACE_TERMINAL_US 0 CACHE STRING '
+        '"count-closed terminal trace deadline in us (0=off)")'
+    ) in patch_text
     assert screening_driver._CONDITION_DEFAULTS["BACKOFF_STEP_POLICY"] == 0
     assert screening_driver._CONDITION_DEFAULTS[
         "BACKOFF_STEP_POLICY_SEED"
     ] == 11400714819323198485
+    assert screening_driver._CONDITION_DEFAULTS[
+        "BACKOFF_TRACE_TERMINAL_US"
+    ] == 0
     assert all(
         G.DEFINE_SPECS[macro].route == G.ROUTE_CMAKE_CACHE
-        for macro in ("BACKOFF_STEP_POLICY", "BACKOFF_STEP_POLICY_SEED")
+        for macro in (
+            "BACKOFF_STEP_POLICY", "BACKOFF_STEP_POLICY_SEED",
+            "BACKOFF_TRACE_TERMINAL_US",
+        )
     )
 
     stock_requests = {
@@ -2613,8 +2637,8 @@ def test_define_inventory_includes_step_policy_default_zero() -> None:
     assert stock_requests["BACKOFF_STEP_POLICY_SEED"].stock_comparison is True
 
 
-def test_module_claim_names_the_exact_37_define_supply_domain() -> None:
-    assert "supply domain contains the 37 patch-derived defines" in G.__doc__
+def test_module_claim_names_the_exact_38_define_supply_domain() -> None:
+    assert "supply domain contains the 38 patch-derived defines" in G.__doc__
     assert "registered macros plus three mocc controls additionally have a bounded" in G.__doc__
     assert "compile-time witness (12 total)" in G.__doc__
 

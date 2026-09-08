@@ -31,6 +31,7 @@ DEFAULT_DEFINES = (
     "-DBACKOFF_STEP_MAX_MILLI=100000",
     "-DBACKOFF_DYN_CEILING=0",
     "-DBACKOFF_TRACE=0",
+    "-DBACKOFF_TRACE_TERMINAL_US=0",
 )
 CCBENCH_WARNING_FLAGS = ("-Wall", "-Wextra", "-Werror")
 RULING_COMMON_DEFINES = (
@@ -40,6 +41,7 @@ RULING_COMMON_DEFINES = (
     "-DBACKOFF_UPDATE_US=2560",
     "-DBACKOFF_COUNT_WINDOW=10000",
     "-DBACKOFF_COUNT_CAP_US=10240",
+    "-DBACKOFF_TRACE_TERMINAL_US=0",
 )
 WARNING_COMPILE_VARIANTS = (
     *(
@@ -513,10 +515,13 @@ static void reset_backoff(Backoff& backoff) {
   backoff.backoff_step_policy_state_ = Backoff::kBackoffStepPolicySeed;
 #endif
 #if BACKOFF_TRACE
+  backoff.start_time_ = 0;
+  backoff.terminal_recorded_ = false;
   auto& state = Backoff::izanagi_backoff_trace_state_;
   state.izanagi_backoff_trace_write = 0;
   state.izanagi_backoff_trace_retained = 0;
   state.izanagi_backoff_trace_updates = 0;
+  state.izanagi_backoff_trace_flushes = 0;
   state.izanagi_backoff_trace_dropped = 0;
 #endif
 }
@@ -629,6 +634,59 @@ static int run_advance_special() {
   return 0;
 }
 
+#if BACKOFF_COUNT_WINDOW > 0
+static int run_terminal() {
+  Backoff backoff(1);
+  reset_backoff(backoff);
+  force_gradient(backoff, 1, 100, 100);
+  const uint64_t lcg_before_terminal = backoff.backoff_step_policy_state_;
+  const double backoff_before_terminal =
+      Backoff::Backoff_.load(std::memory_order_acquire);
+
+  std::vector<Result> results(2);
+  results[0].local_commit_counts_ = 55;
+  results[1].local_commit_counts_ = 55;
+  backoff.last_count_check_time_ = 0;
+  leaderBackoffWork(backoff, results);
+  const uint64_t lcg_after_terminal = backoff.backoff_step_policy_state_;
+  const double backoff_after_terminal =
+      Backoff::Backoff_.load(std::memory_order_acquire);
+
+  results[0].local_commit_counts_ = 60;
+  results[1].local_commit_counts_ = 60;
+  backoff.last_count_check_time_ = 0;
+  leaderBackoffWork(backoff, results);
+  const auto& terminal = trace_record(1);
+  const auto& state = Backoff::izanagi_backoff_trace_state_;
+  std::cout
+      << "updates=" << state.izanagi_backoff_trace_updates
+      << " retained=" << state.izanagi_backoff_trace_retained
+      << " dropped=" << state.izanagi_backoff_trace_dropped
+      << " flushes=" << state.izanagi_backoff_trace_flushes
+      << " terminal_recorded=" << backoff.terminal_recorded_
+      << " seq=" << terminal.izanagi_backoff_trace_seq
+      << " trigger=" << terminal.izanagi_backoff_trace_trigger
+      << " assigned=" << terminal.izanagi_backoff_trace_assigned_invert
+      << " recommended="
+      << terminal.izanagi_backoff_trace_recommended_delta_sign
+      << " realized=" << terminal.izanagi_backoff_trace_inversion_realized
+      << " feasible="
+      << terminal.izanagi_backoff_trace_both_actions_feasible
+      << " terminal_flush="
+      << terminal.izanagi_backoff_trace_terminal_flush
+      << " lcg_terminal_unchanged="
+      << (lcg_after_terminal == lcg_before_terminal)
+      << " lcg_repeat_unchanged="
+      << (backoff.backoff_step_policy_state_ == lcg_after_terminal)
+      << " backoff_unchanged="
+      << (backoff_after_terminal == backoff_before_terminal &&
+          Backoff::Backoff_.load(std::memory_order_acquire) ==
+              backoff_after_terminal)
+      << '\n';
+  return 0;
+}
+#endif
+
 static int run_trace_point(const std::string& mode) {
   Backoff backoff(1);
   reset_backoff(backoff);
@@ -687,6 +745,10 @@ int main(int argc, char** argv) {
     return run_lcg();
   if (mode == "advance-special")
     return run_advance_special();
+#if BACKOFF_COUNT_WINDOW > 0
+  if (mode == "terminal")
+    return run_terminal();
+#endif
   return run_trace_point(mode);
 #else
   return 2;
@@ -828,14 +890,17 @@ def _policy_defines(
     trace: int = 1,
     max_us: str = "1000",
     seed: str = STEP_POLICY_SEED,
+    count_window: str = "0",
+    count_cap_us: str = "0",
+    terminal_us: str = "0",
 ) -> tuple[str, ...]:
     return (
         "-DADD_ANALYSIS=0",
         "-DBACKOFF_INCR_MILLI=1000",
         f"-DBACKOFF_MAX_US={max_us}",
         "-DBACKOFF_UPDATE_US=10",
-        "-DBACKOFF_COUNT_WINDOW=0",
-        "-DBACKOFF_COUNT_CAP_US=0",
+        f"-DBACKOFF_COUNT_WINDOW={count_window}",
+        f"-DBACKOFF_COUNT_CAP_US={count_cap_us}",
         f"-DBACKOFF_STEP_ADAPT={step_adapt}",
         f"-DBACKOFF_STEP_POLICY={policy}",
         f"-DBACKOFF_STEP_POLICY_SEED={seed}",
@@ -843,6 +908,7 @@ def _policy_defines(
         "-DBACKOFF_STEP_MAX_MILLI=4000",
         f"-DBACKOFF_DYN_CEILING={dyn_ceiling}",
         f"-DBACKOFF_TRACE={trace}",
+        f"-DBACKOFF_TRACE_TERMINAL_US={terminal_us}",
     )
 
 
@@ -914,6 +980,15 @@ def policy_binaries(patched_sources, tmp_path_factory: pytest.TempPathFactory):
             patched_sources.after_c,
             _policy_defines(
                 policy=2, max_us="18014398509481984"
+            ),
+        ),
+        "p2-terminal": (
+            patched_sources.after_c,
+            _policy_defines(
+                policy=2,
+                count_window="10",
+                count_cap_us="9223372036854775807",
+                terminal_us="1",
             ),
         ),
     }
@@ -1010,6 +1085,22 @@ def test_count_window_fires_at_k_boundary_not_k_minus_one(transition_driver: Pat
 def test_count_window_cap_alone_fires_with_insufficient_count(transition_driver: Path) -> None:
     _, _, cap_only, _ = _driver_output(transition_driver, "window")[0].split()
     assert cap_only == "1"
+
+
+def test_count_window_cap_comparison_is_overflow_safe(patched_sources) -> None:
+    match = re.search(
+        r"bool check_update_backoff_at\(.*?\n  \}",
+        patched_sources.after_c,
+        re.DOTALL,
+    )
+    assert match is not None
+    function = match.group(0)
+    division = "elapsed / clocks_per_us_ >= cap_us"
+    zero_guard = "if (clocks_per_us_ == 0)\n      return false;"
+    assert division in function
+    assert "elapsed >= clocks_per_us_ * cap_us" not in function
+    assert zero_guard in function
+    assert function.index(zero_guard) < function.index(division)
 
 
 def test_count_window_never_fires_before_minimum_elapsed_time(transition_driver: Path) -> None:
@@ -1161,12 +1252,28 @@ def test_patch_c_uses_numeric_if_and_adds_no_include(patched_sources) -> None:
     ) is None
     assert patch_text.count("+#ifndef BACKOFF_STEP_POLICY\n") == 1
     assert patch_text.count("+#ifndef BACKOFF_STEP_POLICY_SEED\n") == 1
+    assert patch_text.count("+#ifndef BACKOFF_TRACE_TERMINAL_US\n") == 1
     assert re.search(r"^\+\s*#\s*include", patch_text, re.MULTILINE) is None
     assert patched_sources.pin_only_c.returncode != 0
     assert patched_sources.pin_a_c.returncode != 0
     assert patched_sources.pin_a_b_c.returncode == 0
     assert _include_lines(patched_sources.after_c) == _include_lines(
         patched_sources.after_b
+    )
+
+
+def test_patch_c_pins_trace_stdout_version_three() -> None:
+    patch_text = PATCH_C.read_text(encoding="utf-8")
+    assert patch_text.count('IZANAGI_BACKOFF_TRACE v=3 seq=') == 1
+    assert patch_text.count('IZANAGI_BACKOFF_TRACE_SUMMARY v=3 updates=') == 1
+    assert re.search(r'^\+.*IZANAGI_BACKOFF_TRACE v=2 ', patch_text, re.MULTILINE) is None
+    assert (
+        re.search(
+            r'^\+.*IZANAGI_BACKOFF_TRACE_SUMMARY v=2 ',
+            patch_text,
+            re.MULTILINE,
+        )
+        is None
     )
 
 
@@ -1199,13 +1306,20 @@ def test_patch_c_cmake_cache_default_is_zero(patched_sources) -> None:
         "set(CCBENCH_BACKOFF_STEP_POLICY_SEED 11400714819323198485 "
         'CACHE STRING "deterministic backoff step policy seed")'
     )
+    terminal_line = (
+        "set(CCBENCH_BACKOFF_TRACE_TERMINAL_US 0 CACHE STRING "
+        '"count-closed terminal trace deadline in us (0=off)")'
+    )
     patch_text = PATCH_C.read_text(encoding="utf-8")
     assert patch_text.count(f"+{policy_line}\n") == 1
     assert patch_text.count(f"+{seed_line}\n") == 1
+    assert patch_text.count(f"+{terminal_line}\n") == 1
     assert patched_sources.after_b_options.count(policy_line) == 0
     assert patched_sources.after_b_options.count(seed_line) == 0
+    assert patched_sources.after_b_options.count(terminal_line) == 0
     assert patched_sources.after_c_options.count(policy_line) == 1
     assert patched_sources.after_c_options.count(seed_line) == 1
+    assert patched_sources.after_c_options.count(terminal_line) == 1
 
 
 def test_patch_c_universal_definition_is_inside_the_function(
@@ -1222,6 +1336,7 @@ def test_patch_c_universal_definition_is_inside_the_function(
     expected_lines = (
         "BACKOFF_STEP_POLICY=${CCBENCH_BACKOFF_STEP_POLICY}",
         "BACKOFF_STEP_POLICY_SEED=${CCBENCH_BACKOFF_STEP_POLICY_SEED}",
+        "BACKOFF_TRACE_TERMINAL_US=${CCBENCH_BACKOFF_TRACE_TERMINAL_US}",
     )
     for line in expected_lines:
         assert options.count(line) == 1
@@ -1256,6 +1371,39 @@ def test_step_policy_static_assert_rejects_out_of_domain_values(
     )
     assert result.returncode != 0
     assert "backoff step policy must be 0, 1 or 2" in result.stderr
+
+
+@pytest.mark.parametrize("invalid_terminal_us", ("-1", "1.5"))
+def test_terminal_deadline_static_assert_rejects_out_of_domain_values(
+    patched_sources, tmp_path: Path, invalid_terminal_us: str
+) -> None:
+    source = tmp_path / f"invalid-terminal-{invalid_terminal_us}.cc"
+    source.write_text('#include "backoff.hh"\n', encoding="utf-8")
+    defines = tuple(
+        item
+        for item in _policy_defines(policy=0, trace=1)
+        if not item.startswith("-DBACKOFF_TRACE_TERMINAL_US=")
+    )
+    result = subprocess.run(
+        [
+            "g++",
+            "-std=c++17",
+            "-O0",
+            *CCBENCH_WARNING_FLAGS,
+            "-fsyntax-only",
+            f"-I{patched_sources.tree / 'include'}",
+            *defines,
+            f"-DBACKOFF_TRACE_TERMINAL_US={invalid_terminal_us}",
+            str(source),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    assert (
+        "terminal trace deadline must be a nonnegative whole number of us"
+        in result.stderr
+    )
 
 
 def test_policy_zero_matches_patch_b_transitions_exactly(policy_binaries) -> None:
@@ -1373,7 +1521,7 @@ def test_policy_two_lcg_advances_on_every_update(policy_binaries) -> None:
     ]
 
 
-def test_trace_v2_records_parity_recommendation_not_gradient_alias(
+def test_trace_v3_records_parity_recommendation_not_gradient_alias(
     policy_binaries,
 ) -> None:
     assert _driver_output(policy_binaries["p0-trace"], "parity") == [
@@ -1501,6 +1649,11 @@ def test_trace_preprocesses_out_of_trace_zero_builds(
         "assigned_invert",
         "inversion_realized",
         "both_actions_feasible",
+        "BACKOFF_TRACE_TERMINAL_US",
+        "kTraceTerminalUs",
+        "terminal_recorded_",
+        "terminal_flush",
+        "izanagi_backoff_trace_flushes",
     )
     for policy in (0, 1, 2):
         result = subprocess.run(
@@ -1527,12 +1680,102 @@ def test_trace_preprocesses_out_of_trace_zero_builds(
             )
 
 
+def test_terminal_instrumentation_preprocesses_completely_out_of_trace_zero(
+    patched_sources, tmp_path: Path
+) -> None:
+    source = tmp_path / "preprocess-terminal-trace-zero.cc"
+    source.write_text('#include "backoff.hh"\n', encoding="utf-8")
+    result = subprocess.run(
+        [
+            "g++",
+            "-std=c++17",
+            "-E",
+            "-P",
+            f"-I{patched_sources.tree / 'include'}",
+            *_policy_defines(
+                policy=2,
+                trace=0,
+                count_window="10000",
+                count_cap_us="9223372036854775807",
+                terminal_us="5000000",
+            ),
+            str(source),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    forbidden = (
+        "BACKOFF_TRACE_TERMINAL_US",
+        "kTraceTerminalUs",
+        "start_time_",
+        "terminal_recorded_",
+        "izanagi_backoff_trace_handle_terminal_at",
+        "izanagi_backoff_trace_terminal_flush",
+        "izanagi_backoff_trace_flushes",
+        "IZANAGI_BACKOFF_TRACE v=3",
+    )
+    for token in forbidden:
+        assert token not in result.stdout, f"trace=0 retained {token}"
+
+
+def test_terminal_is_recorded_once_and_remains_the_last_event(policy_binaries) -> None:
+    stdout = _raw_driver_output(policy_binaries["p2-terminal"], "terminal")
+    event_lines = [
+        line
+        for line in stdout.splitlines()
+        if line.startswith("IZANAGI_BACKOFF_TRACE v=3 ")
+    ]
+    assert len(event_lines) == 2
+    assert "seq=0 " in event_lines[0]
+    assert "terminal_flush=0" in event_lines[0]
+    assert "seq=1 " in event_lines[1]
+    assert "trigger=3 " in event_lines[1]
+    assert "terminal_flush=1" in event_lines[1]
+    assert sum("terminal_flush=1" in line for line in event_lines) == 1
+    assert (
+        "IZANAGI_BACKOFF_TRACE_SUMMARY v=3 updates=1 retained=1 "
+        "dropped=0 flushes=1"
+    ) in stdout
+
+
+def test_terminal_does_not_update_backoff_advance_lcg_or_assign(
+    policy_binaries,
+) -> None:
+    assert _driver_output(policy_binaries["p2-terminal"], "terminal") == [
+        "updates=1 retained=1 dropped=0 flushes=1 terminal_recorded=1 "
+        "seq=1 trigger=3 assigned=-1 recommended=0 realized=0 feasible=0 "
+        "terminal_flush=1 lcg_terminal_unchanged=1 lcg_repeat_unchanged=1 "
+        "backoff_unchanged=1"
+    ]
+
+
+def test_terminal_recorded_guard_precedes_all_terminal_eligibility_checks(
+    patched_sources,
+) -> None:
+    source = patched_sources.after_c
+    handler = re.search(
+        r"bool izanagi_backoff_trace_handle_terminal_at\(.*?\n  \}",
+        source,
+        re.DOTALL,
+    )
+    assert handler is not None
+    body = handler.group(0)
+    recorded_guard = "if (terminal_recorded_)\n      return true;"
+    eligibility = "if (kTraceTerminalUs == 0 || clocks_per_us_ == 0 ||"
+    assert recorded_guard in body
+    assert eligibility in body
+    assert body.index(recorded_guard) < body.index(eligibility)
+
+
 def test_emitter_stdout_parses_with_the_real_parser(policy_binaries) -> None:
     from tools.pegasus.probes import t2187_adaptive_const_probe as driver
 
     stdout = _raw_driver_output(policy_binaries["p2"], "emit")
-    assert stdout.startswith("IZANAGI_BACKOFF_TRACE v=2 ")
-    assert "IZANAGI_BACKOFF_TRACE_SUMMARY v=2 " in stdout
+    assert stdout.startswith("IZANAGI_BACKOFF_TRACE v=3 ")
+    assert " terminal_flush=0\n" in stdout
+    assert "IZANAGI_BACKOFF_TRACE_SUMMARY v=3 " in stdout
+    assert " flushes=0\n" in stdout
     driver._parse_backoff_trace(stdout)
 
 

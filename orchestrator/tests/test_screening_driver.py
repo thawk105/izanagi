@@ -578,6 +578,18 @@ def test_screening_condition_requests_cover_exact_define_specs():
     assert [request.requested_value for request in requests] == [
         flags[macro] for macro in sorted(condition_meaning_gate.DEFINE_SPECS)
     ]
+    terminal_request = next(
+        request for request in requests
+        if request.macro == "BACKOFF_TRACE_TERMINAL_US"
+    )
+    assert screening_driver._CONDITION_DEFAULTS[
+        "BACKOFF_TRACE_TERMINAL_US"
+    ] == 0
+    assert (
+        terminal_request.requested_value,
+        terminal_request.default_value,
+        terminal_request.stock_comparison,
+    ) == (1, 0, False)
 
 
 def test_screening_condition_requests_accept_no_non_domain_substitute():
