@@ -1,0 +1,190 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "m01-quote-plus-import",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/catalog.py",
+          "old": "from urllib.parse import quote\n",
+          "new": "from urllib.parse import quote_plus as quote\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m02-openalex-comma-encoded",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/catalog.py",
+          "old": "    safe = \"-_.~,\" if preserve_comma else \"-_.~\"\n",
+          "new": "    safe = \"-_.~\" if preserve_comma else \"-_.~\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m03-openalex-quoted-terms",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/catalog.py",
+          "old": "        \"(\" + \" OR \".join(_term_text(term_id) for term_id in group) + \")\"\n",
+          "new": "        \"(\" + \" OR \".join(f'\"{_term_text(term_id)}\"' for term_id in group) + \")\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m04-arxiv-abs-unquoted",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/catalog.py",
+          "old": "        \"(\" + \" OR \".join(f'abs:\"{_term_text(term_id)}\"' for term_id in group) + \")\"\n",
+          "new": "        \"(\" + \" OR \".join(f'abs:{_term_text(term_id)}' for term_id in group) + \")\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m05-term-order-sorted",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/catalog.py",
+          "old": "        for position, term in enumerate(_terms_for_block(block_id), 1)\n",
+          "new": "        for position, term in enumerate(sorted(_terms_for_block(block_id)), 1)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m06-dblp-product-zip",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/catalog.py",
+          "old": "        for left_id, right_id in product(\n",
+          "new": "        for left_id, right_id in zip(\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m07-dblp-drop-q10",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/catalog.py",
+          "old": "    \"B5-Q9\",\n    \"B5-Q10\",\n)\n",
+          "new": "    \"B5-Q9\",\n)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m08-term-id-no-zero-pad",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/catalog.py",
+          "old": "    return f\"{block_id}{position:02d}\"\n",
+          "new": "    return f\"{block_id}{position}\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m09-and2023-dblp-shares-null",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/catalog.py",
+          "old": "                    \"B5-CTL-AND@dblp\" if role == \"AND2023\" else None\n",
+          "new": "                    None\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m10-venue-year-range-short",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/catalog.py",
+          "old": "        for year in range(1993, 2027):\n",
+          "new": "        for year in range(1993, 2026):\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m11-render-no-trailing-newline",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/catalog.py",
+          "old": "        json.dumps(doc, ensure_ascii=False, indent=2, sort_keys=True) + \"\\n\"\n",
+          "new": "        json.dumps(doc, ensure_ascii=False, indent=2, sort_keys=True)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m12-verify-semantic-compare",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/catalog.py",
+          "old": "    return 0 if actual == render_catalog_json() else 1\n",
+          "new": "    return 0 if json.loads(actual) == build_catalog_document() else 1\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m13-equivalent-list-splat",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/catalog.py",
+          "old": "    return [list(group) for group in term_groups]\n",
+          "new": "    return [[*group] for group in term_groups]\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
