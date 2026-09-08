@@ -17,7 +17,15 @@ title: 受入全走の高速化 — contract-loader binding の blob 取得を 6
 - **land したもの:** blob 取得を `ls-tree -r -z <commit> -- :(literal)<path>...` + OID 指定 `cat-file --batch` の 2 process へ (`6e885df4f`)、
   wiring probe の許可形を production の exact argv に合わせ prelude まで exact 比較 (`c4e7c5f7b`、`66a2ea966`)。受理集合・拒否集合は不変、
   拒否の優先順位だけ契約外へ。login A/B (交互 3 標本): 旧 30.9 / 11.3 / 17.9 秒 → 新 9.6 / 6.4 / 4.6 秒、git 起動 802 → 142 回。
-- **計算ノードでの効果は本 wave の受入走の junit で読む (結果を見る前に記録を凍結した)。** 改修前の所在: 最遅 shard wall 中央値 286 秒 / p75 350 秒 (09-08 分)。
+- **計算ノードの実測 (受入形でない全 suite 1 走、1 node × 48 worker):** W 全体 28,734 → 17,236 秒 (0.60)、対象 module は 0.03〜0.40
+  (`test_autonomous_trial_completeness` 1,879 → 229、`test_p3_b4_closed_critic` 1,264 → 93、`test_trial_registry` 2,092 → 347)、
+  binding を通らない対照 2 module は 0.95〜1.07。profile した node は 56 → 5.7 秒。最遅 shard wall の改善は受入走が取れるまで主張しない
+  (insight の `measurements.md`)。改修前の所在: 最遅 shard wall 中央値 286 秒 / p75 350 秒 (09-08 分)。
+- **受入と land はユーザー裁定待ちで未実施。** main `c12e25078` ([T-2412]、別 session が main checkout で `git add -A` した docs commit) が
+  `.codex/worktrees/*` 110 本を gitlink として追跡し、(a) `git submodule status --recursive` が fatal になり受入の tree 指紋が落ちる、
+  (b) 全史 provenance 監査が `missing-codex-author` (110 path) を新規違反として出し land が rc=29 になる。訂正枠は消費済みで、known-violation
+  登録と gitlink 除去 commit の trailer 形を裁定 inbox `dev-wave-jobs/rulings-inbox/2026-09-08-main-codex-worktrees-gitlinks-block-acceptance-and-land.md` で依頼した。
+  **c12e25078 を含む限り全 wave の受入・land が止まる。**
 - 段 3 (2 レンズ、blocker 9) の主要 real: `<commit>:<path>` 形の batch は応答が path に束縛されず逆順 + 逆対応 digest で誤受理し得る (→ ls-tree + OID 照合)、
   timeout の per-process → 集約 (→ `GIT_TIMEOUT_SECONDS * n`)、拒否順序と NUL (→ 契約を狭める)、第 2 の `_run_git` fake、所要時間台帳の更新義務。
   段 6 (2 レンズ + 焦点 1、blocker 2 + should-fix 4): wiring probe の許可形 (D-01、親が login で赤を実測)、prelude の非 exact (E-01、旧来の穴)、

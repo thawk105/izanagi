@@ -85,9 +85,19 @@ public capture 1 回の process 数は 4 (`rev-parse --show-toplevel` / `rev-par
 
 ## 5. 計算ノードでの効果
 
-**本 wave の受入走 (canonical 起動、K=3、48 worker) の junit を、改修前 (2026-09-08 の 45 走) の分布と比べる。数値は worklog の
-次の一手と最終報告に置く。本書は結果を見る前に凍結する。** 改修前の所在: 最遅 shard wall 中央値 286 秒 / p75 350 秒、
-W 中央値 28,734 秒 (09-08 分)。読み方は D1714 に従い、最長単体でなく最遅 shard の wall と対象 module の W を併記する。
+受入走は main `c12e25078` の `.codex/worktrees/*` gitlink 事故 (受入の tree 指紋が `git submodule status` で落ちる、
+裁定 inbox `2026-09-08-main-codex-worktrees-gitlinks-block-acceptance-and-land.md`) で投入できなかったため、
+**受入形でない全 suite 走行 (dispatch、1 node × 48 worker、n=1)** で W を測った。詳細は `measurements.md`。
+
+| 対象 | 改修前 中央値 (09-08 受入 47 走) | 改修後 (n=1) | 比 |
+|---|---:|---:|---:|
+| W 全体 | 28,734 秒 | 17,236 秒 | 0.60 |
+| `test_autonomous_trial_completeness` / `test_p3_b4_closed_critic` / `test_trial_registry` / `test_layer3_report` | 1,879 / 1,264 / 2,092 / 850 | 229 / 93 / 347 / 29 | 0.12 / 0.07 / 0.17 / 0.03 |
+| 対照 `test_s8b_oracle_driver` / `test_s8b_floor_campaign` (binding を通らない) | 2,489 / 2,042 | 2,665 / 1,932 | 1.07 / 0.95 |
+| profile した node | 56.0 秒 | 5.7 秒 | 0.10 |
+
+対照 2 module が ≈ 1.0 なので低下は本変更に帰属できる。**最遅 shard wall (D1620 の測定面) の改善は、受入走が取れるまで主張しない。**
+改修前の所在: 最遅 shard wall 中央値 286 秒 / p75 350 秒。読み方は D1714 に従い、最長単体でなく最遅 shard の wall と対象 module の W を併記する。
 
 ## 6. 変異検査
 
