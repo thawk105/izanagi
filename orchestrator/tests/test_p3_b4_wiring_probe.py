@@ -18,6 +18,7 @@ import pytest
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_REPO_ROOT))
 
+from orchestrator.campaign import contract_loader_binding as B  # noqa: E402
 from orchestrator.campaign import p3_b4_wiring_probe as P  # noqa: E402
 
 
@@ -57,6 +58,8 @@ def _run_child(
 
 def _call_allow_read_only_git(
     operation: tuple[str, ...],
+    *,
+    argv: tuple[str, ...] | None = None,
 ) -> tuple[bool, P._ProcessGuard]:
     guard = P._ProcessGuard(())
     env = {
@@ -65,16 +68,15 @@ def _call_allow_read_only_git(
         "GIT_NO_REPLACE_OBJECTS": "1",
         "GIT_OPTIONAL_LOCKS": "0",
     }
-    argv = [
-        "/usr/bin/git",
-        "--no-pager",
-        "-c", "core.useReplaceRefs=false",
-        "-c", "core.commitGraph=false",
-        "-c", "core.fsmonitor=false",
-        "--no-replace-objects",
-        "-C", str(_REPO_ROOT),
-        *operation,
-    ]
+    if argv is None:
+        argv = (
+            os.fspath(B._GIT_EXECUTABLE),
+            *B._GIT_HARDEN,
+            "--no-replace-objects",
+            "-C", str(_REPO_ROOT),
+            *operation,
+        )
+    argv = list(argv)
     namespace = {
         "__name__": "orchestrator.campaign.contract_loader_binding",
         "audit_args": ("/usr/bin/git", argv, None, env),
@@ -159,6 +161,67 @@ def test_allow_read_only_git_rejects_nonproduction_batch_argv() -> None:
 
     for label, operation in invalid_operations:
         allowed, guard = _call_allow_read_only_git(operation)
+        assert allowed is False, label
+        assert guard.allowed_git_argv_sha256 == []
+
+    root = str(_REPO_ROOT)
+    batch = ("cat-file", "--batch")
+    invalid_argvs = (
+        (
+            "foreign-git-dir",
+            (
+                "/usr/bin/git", "--git-dir=/tmp/foreign.git",
+                *B._GIT_HARDEN, "--no-replace-objects", "-C", root, *batch,
+            ),
+        ),
+        (
+            "extra-config",
+            (
+                "/usr/bin/git", "-c", "safe.directory=*",
+                *B._GIT_HARDEN, "--no-replace-objects", "-C", root, *batch,
+            ),
+        ),
+        (
+            "missing-harden-option",
+            (
+                "/usr/bin/git", "--no-pager",
+                "-c", "core.useReplaceRefs=false",
+                "-c", "core.fsmonitor=false",
+                "--no-replace-objects", "-C", root, *batch,
+            ),
+        ),
+        (
+            "duplicate-harden-option",
+            (
+                "/usr/bin/git", "--no-pager",
+                "-c", "core.useReplaceRefs=false",
+                "-c", "core.commitGraph=false",
+                "-c", "core.commitGraph=false",
+                "-c", "core.fsmonitor=false",
+                "--no-replace-objects", "-C", root, *batch,
+            ),
+        ),
+        (
+            "harden-option-order",
+            (
+                "/usr/bin/git", "--no-pager",
+                "-c", "core.commitGraph=false",
+                "-c", "core.useReplaceRefs=false",
+                "-c", "core.fsmonitor=false",
+                "--no-replace-objects", "-C", root, *batch,
+            ),
+        ),
+        (
+            "duplicate-C",
+            (
+                "/usr/bin/git", *B._GIT_HARDEN, "--no-replace-objects",
+                "-C", root, "-C", root, *batch,
+            ),
+        ),
+    )
+
+    for label, argv in invalid_argvs:
+        allowed, guard = _call_allow_read_only_git((), argv=argv)
         assert allowed is False, label
         assert guard.allowed_git_argv_sha256 == []
 

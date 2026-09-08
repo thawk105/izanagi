@@ -425,18 +425,23 @@ class _ProcessGuard:
         return any(_is_relative_to(path, root) for root in self.protected_roots)
 
     def _allow_read_only_git(self, args: tuple[object, ...]) -> bool:
+        from .contract_loader_binding import _GIT_HARDEN
+
         if len(args) < 4:
             return False
         executable, argv, _cwd, env = args[:4]
         if os.fspath(executable) != "/usr/bin/git" or not isinstance(argv, (list, tuple)):
             return False
         words = [os.fspath(item) for item in argv]
-        if not words or words[0] != "/usr/bin/git":
+        expected_prelude = [
+            "/usr/bin/git",
+            *_GIT_HARDEN,
+            "--no-replace-objects",
+            "-C", str(_REPO_ROOT),
+        ]
+        if words[:len(expected_prelude)] != expected_prelude:
             return False
-        try:
-            separator = words.index("-C")
-        except ValueError:
-            return False
+        separator = len(expected_prelude) - 2
         if separator + 2 >= len(words) or _resolved(words[separator + 1]) != _REPO_ROOT:
             return False
         operation = words[separator + 2:]
