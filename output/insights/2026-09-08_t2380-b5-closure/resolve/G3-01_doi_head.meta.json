@@ -1,0 +1,73 @@
+{
+  "url": "https://doi.org/10.1145/872035.872048",
+  "method": "HEAD",
+  "status": 302,
+  "headers": [
+    [
+      "Date",
+      "Mon, 07 Sep 2026 22:52:57 GMT"
+    ],
+    [
+      "Content-Type",
+      "text/html;charset=utf-8"
+    ],
+    [
+      "Connection",
+      "close"
+    ],
+    [
+      "location",
+      "https://dl.acm.org/doi/10.1145/872035.872048"
+    ],
+    [
+      "Server",
+      "cloudflare"
+    ],
+    [
+      "vary",
+      "Origin"
+    ],
+    [
+      "vary",
+      "Accept"
+    ],
+    [
+      "expires",
+      "Mon, 07 Sep 2026 23:31:50 GMT"
+    ],
+    [
+      "permissions-policy",
+      "interest-cohort=(),browsing-topics=()"
+    ],
+    [
+      "cf-cache-status",
+      "DYNAMIC"
+    ],
+    [
+      "Strict-Transport-Security",
+      "max-age=31536000; includeSubDomains; preload"
+    ],
+    [
+      "Report-To",
+      "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=Ij4HsnPASygybWZKyZMaSAGr3EiivTHOuJYoFw5j13lGyq1hLFDZJF7owCW14wGHkzZmLyScu0io3MBBBxUsHah536hzrkT3PqG3LPQMBRRoWZrRzxG8PBk%3D\"}]}"
+    ],
+    [
+      "Nel",
+      "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}"
+    ],
+    [
+      "CF-RAY",
+      "a379496a6dc119c3-NRT"
+    ],
+    [
+      "alt-svc",
+      "h3=\":443\"; ma=86400"
+    ]
+  ],
+  "final_url": "https://doi.org/10.1145/872035.872048",
+  "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "body_bytes": 0,
+  "started_utc": "2026-09-07T22:52:57Z",
+  "finished_utc": "2026-09-07T22:52:57Z",
+  "error": null
+}
