@@ -44,7 +44,7 @@ NON_CERTIFYING_WORKLOAD_KEYS = frozenset({
 })
 _DISCLOSED_IDENTITY_KEY_DOMAIN = b"izanagi-a1-disclosed-identity-key/v1\0"
 _LOCK_IDENTITY_TAG_DOMAIN = b"izanagi-a1-lock-identity-tag/v1\0"
-# ``contract_loader_*`` は歴史的名称であり、この値は exact 62 path の
+# ``contract_loader_*`` は歴史的名称であり、この値は exact 63 path の
 # enforcement source closure である。
 CONTRACT_LOADER_RELATIVE_PATHS = (
     "orchestrator/campaign/env_contract.py",
@@ -109,6 +109,7 @@ CONTRACT_LOADER_RELATIVE_PATHS = (
     "orchestrator/qualification/qsub_binding.py",
     "orchestrator/qualification/retry_index.py",
     "orchestrator/qualification/series.py",
+    "orchestrator/campaign/verify_fanout_worker.py",
 )
 
 # T-733 より前に実在した v2 lock の歴史閲覧 grammar。現行 closure の
