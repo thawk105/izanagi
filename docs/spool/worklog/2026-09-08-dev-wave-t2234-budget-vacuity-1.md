@@ -31,6 +31,12 @@ title: [T-2234] 8c 予算 consumer の恒真な保証を発火する形へ直し
 - **段 6 の敵対レビュー 2 本は blocker・must-fix ともに 0 件だった。** `DW-M02` に従い、所見ゼロを
   変異なしで緑と数えず、親が変異 matrix を走らせて 12 件全件 KILLED を得た
   (`registered=12`・`matching=12`・`MISMATCH=0`・`SURVIVED=0`、baseline `PASSED`)。
+- **段 8 の候補 2 件はどちらも本文編集に至らなかった。** (a) 変異 probe を全件 SURVIVED で登録して
+  期待 node を集める作法は `DW-M07` に既に明文があり、追記不要だった (handoff の「明文が無い」は
+  親の誤り)。(b)「`git worktree add` も前景 timeout で SIGTERM され branch だけ残る」を `DW-C01` へ
+  統合しようとしたが、同節は exact 契約 pin 付きで単節予算 1000 bytes に対し現行が満杯であり、
+  最小の追記でも 1094 bytes になって `check_docs` が赤になった。予算引き上げには至らず、
+  独立 2 例にも達しないので D782 の手順で閉じた。
 - **エージェント工数。** codex 子 6 本 (plan 1・consult 2・author 1・review 2、いずれも
   `gpt-5.6-sol` / `xhigh`)。変異走行は probe と本走で計 26 run。
 - 逐語と実測は `output/insights/2026-09-08_t2234-budget-vacuity/`。
