@@ -7,7 +7,7 @@
 
 `tools/dev_wave_codex.py --stage <stage> [--lane <lane>] -o <出力>.md` で起動（他の引数は `--help`）。model は全段、effort は段 5 / 6 が docs 権威から導出。caller 指定は不可。
 背景jobは`nohup setsid bash -c '<cmd>; echo $? > <log>.done' </dev/null`でdetach。
-prompt非空と`--dry-run`のargvを先に検査（段別flag違反はrc=2即死）。既存`.done`を消去・再利用せず再投入を止める。
+prompt非空・参照path実在・`--dry-run`のargvを先に検査（段別flag違反はrc=2即死）。既存`.done`を消去・再利用せず再投入を止める。
 待機は `tools/dev_wave_wait.py producer` を使い、`--pid-file` は producer script 自身が `echo $$` で書く。
 wait側`--receipt-file`はworker launcher receiptと別pathにする（同pathは証拠を上書き）。
 完了は`.done`とexit codeだけで判定し、grepも通知も待ち手rcも判定にしない。成果物は最終メッセージから読む（F23/F24）。
@@ -18,10 +18,8 @@ wait側`--receipt-file`はworker launcher receiptと別pathにする（同path�
 
 ## DW-O02 — job artifact
 
-prompt・log・patch は wave 専用 subdirectory に置き、job tmp 直下や過去 wave と共有せず、
-確保できなければ止める。親 brief と前段の子成果物も同 dir へ置き、全文複製せず絶対パスで読ませる。prompt に読めなければ即停止と書き、context 無しの子出力を結果と数えない。
-必読資料と既裁定は逐語を job dir へ出す。repo 内 path は worktree の遅れで fail-closed。**prompt の repo path は投入先 worktree のもの**にする（親側だと子は書けず空の
-成功で戻る、F819）。
+prompt・log・patch は wave 専用 subdirectory に置き、job tmp 直下や過去 wave と共有せず、確保不能なら止める。親 brief と前段の子成果物も同 dir へ置き、全文複製せず絶対パスで読ませる。prompt に読めなければ即停止と書き、context 無しの子出力を結果と数えない。
+必読資料と既裁定は逐語を job dir へ出す。repo 内 path は worktree の遅れで fail-closed。**prompt の repo path は投入先 worktree のもの**にする（親側だと子は書けず空成功、F819）。
 出力へ結合文字 U+0300〜U+036F を使わせない。
 prompt 先頭は AGENTS.md の単独段例外と同形式。
 
