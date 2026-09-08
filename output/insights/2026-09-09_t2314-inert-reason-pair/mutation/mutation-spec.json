@@ -1,0 +1,73 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 900,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1500,
+  "mutations": [
+    {
+      "id": "m01-drop-root-location-only-pair",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+          "old": "    (\n        \"stock-inert-preprocess-root-location-only\",\n        \"stock-inert-root-location-only\",\n    ),\n})\n",
+          "new": "})\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_accepts_each_exact_inert_condition_gate_pair[root-location-only]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m02-pair-membership-to-cartesian-product",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+          "old": "        and (\n            supply.reason_code,\n            supply.evidence.get(\"comparison\"),\n        ) in _INERT_CONDITION_GATE_PAIRS\n",
+          "new": "        and supply.reason_code in {\n            pair[0] for pair in _INERT_CONDITION_GATE_PAIRS\n        }\n        and supply.evidence.get(\"comparison\") in {\n            pair[1] for pair in _INERT_CONDITION_GATE_PAIRS\n        }\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_rejects_crossed_inert_condition_gate_pair[identical_reason__root_location_comparison]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_rejects_crossed_inert_condition_gate_pair[root_location_reason__identity_comparison]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m03-admit-third-gate-reason",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+          "old": "    (\n        \"stock-inert-preprocess-root-location-only\",\n        \"stock-inert-root-location-only\",\n    ),\n})\n",
+          "new": "    (\n        \"stock-inert-preprocess-root-location-only\",\n        \"stock-inert-root-location-only\",\n    ),\n    (\n        \"requested-default-preprocess-different\",\n        \"requested-default-difference\",\n    ),\n})\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_rejects_requested_default_preprocess_difference"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m04-freeze-recorded-comparison-to-identity",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+          "old": "            \"comparison\": supply.evidence.get(\"comparison\"),\n",
+          "new": "            \"comparison\": \"stock-inert-identity\",\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_accepts_each_exact_inert_condition_gate_pair[root-location-only]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

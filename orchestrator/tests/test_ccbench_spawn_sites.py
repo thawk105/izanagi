@@ -882,7 +882,7 @@ _DEFERRED_GATE_MEMBERS = (
         "active wave owns this driver",
         "campaign",
         "<module>.run_formal",
-        4460,
+        4470,
     ),
     _DeferredGateMember(
         "orchestrator/campaign/paper_story_a1_paired.py",
@@ -907,17 +907,6 @@ _DEFERRED_GATE_MEMBERS = (
         "campaign",
         "<module>.main",
         8642,
-    ),
-    _DeferredGateMember(
-        "orchestrator/campaign/s8b_oracle_n_pilot.py",
-        "protocol-r33 preregistration",
-        (
-            "output/insights/2026-08-16_t1142-n-pilot-prereg/"
-            "protocol-r33.json binds driver_sha256"
-        ),
-        "injected-build_fn",
-        "<module>.build_binaries",
-        944,
     ),
     _DeferredGateMember(
         "tools/pegasus/probes/t2187_adaptive_const_probe.py",
@@ -2664,7 +2653,7 @@ def test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink():
         ),
         (
             "orchestrator/campaign/b10_backoff_shape_sweep.py",
-            "wave t1905", "campaign", "<module>.run_formal", 4460,
+            "wave t1905", "campaign", "<module>.run_formal", 4470,
         ),
         (
             "orchestrator/campaign/paper_story_a1_paired.py",
@@ -2678,11 +2667,6 @@ def test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink():
         (
             "orchestrator/campaign/s8b_floor_campaign.py",
             "wave t2027", "campaign", "<module>.main", 8642,
-        ),
-        (
-            "orchestrator/campaign/s8b_oracle_n_pilot.py",
-            "protocol-r33 preregistration", "injected-build_fn",
-            "<module>.build_binaries", 944,
         ),
         (
             "tools/pegasus/probes/t2187_adaptive_const_probe.py",

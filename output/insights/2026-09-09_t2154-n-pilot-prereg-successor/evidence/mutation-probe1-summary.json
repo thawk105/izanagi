@@ -1,0 +1,95 @@
+{
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "summary": {
+    "KILLED": 2,
+    "MISMATCH": 4,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 6,
+    "matching": 2,
+    "recorded": 6,
+    "registered": 6
+  },
+  "spec_sha256": "15fa0428faf1ff08c274eac5a2d24bc3cad3ab270e2f83a3e4569711c72217f8",
+  "repo_head": "02829b79b955db36c610f9bddc1a5786fe775555",
+  "mutations": [
+    {
+      "id": "m01-drop-returned-evidence-check",
+      "status": "MISMATCH",
+      "expected_nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_has_no_unreviewed_ungated_member",
+        "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_build_binaries_uses_binding_flags_and_prepared_records_independently",
+        "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_injected_build_fn_without_condition_records_is_rejected"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_has_no_unreviewed_ungated_member",
+        "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_build_binaries_uses_binding_flags_and_prepared_records_independently",
+        "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_injected_build_fn_without_condition_records_is_rejected",
+        "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_r33_successor_protocol_document_loads_from_repository"
+      ],
+      "matches_expectation": false
+    },
+    {
+      "id": "m02-expected-digests-from-prepared-genome",
+      "status": "MISMATCH",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_build_binaries_uses_binding_flags_and_prepared_records_independently"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_build_binaries_uses_binding_flags_and_prepared_records_independently",
+        "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_r33_successor_protocol_document_loads_from_repository"
+      ],
+      "matches_expectation": false
+    },
+    {
+      "id": "m03-adapter-drops-records",
+      "status": "MISMATCH",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_default_build_fn_wraps_build_v2_with_prepared_records"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_default_build_fn_wraps_build_v2_with_prepared_records",
+        "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_r33_successor_protocol_document_loads_from_repository"
+      ],
+      "matches_expectation": false
+    },
+    {
+      "id": "m04-swallow-condition-rejection",
+      "status": "MISMATCH",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_build_binaries_uses_binding_flags_and_prepared_records_independently",
+        "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_injected_build_fn_without_condition_records_is_rejected"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_build_binaries_uses_binding_flags_and_prepared_records_independently",
+        "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_injected_build_fn_without_condition_records_is_rejected",
+        "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_r33_successor_protocol_document_loads_from_repository"
+      ],
+      "matches_expectation": false
+    },
+    {
+      "id": "m05-successor-commit-does-not-exist",
+      "status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_r33_successor_protocol_document_loads_from_repository"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_r33_successor_protocol_document_loads_from_repository"
+      ],
+      "matches_expectation": true
+    },
+    {
+      "id": "m06-collapse-two-sha-constants-into-one",
+      "status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_r33_successor_protocol_document_loads_from_repository"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_r33_successor_protocol_document_loads_from_repository"
+      ],
+      "matches_expectation": true
+    }
+  ]
+}

@@ -182,16 +182,103 @@ def _condition_gate_family(
     return supply, meaning, admission
 
 
+def _root_location_only_condition_gate_family(
+    tmp_path: Path,
+) -> tuple[Any, Any, Any]:
+    gate = probe.condition_meaning_gate
+    source = (
+        _REPO
+        / "orchestrator/tests/fixtures/condition_meaning_gate/supplied"
+    )
+    root = tmp_path / "condition-gate-root-location-only"
+    shutil.copytree(source, root)
+    for header in (
+        root / "include/backoff.hh",
+        root / "stock/include/backoff.hh",
+    ):
+        header.write_text(
+            header.read_text(encoding="utf-8")
+            + '    static constexpr const char *condition_gate_file = __FILE__;\n',
+            encoding="utf-8",
+        )
+    request = gate.make_define_request(
+        driver_id="tools.pegasus.probes.t316_sandbox_backend_probe",
+        macro="BACKOFF_FIXED",
+        requested_value=-1,
+        default_value=None,
+        stock_comparison=True,
+    )
+    captured = gate.capture_define_inputs(
+        root, stock_root=root / "stock", configure_args=(),
+    )
+    cxx = shutil.which("c++")
+    cmake = shutil.which("cmake")
+    assert cxx is not None and cmake is not None
+    supply = gate.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=cxx, cmake=cmake,
+    )
+    assert supply.terminal_status == "green"
+    assert supply.reason_code == "stock-inert-preprocess-root-location-only"
+    assert supply.evidence["comparison"] == "stock-inert-root-location-only"
+    meaning = gate.evaluate_define_runtime_meaning(
+        captured, request=request, declaration=None, cxx=cxx,
+    )
+    admission = gate.require_condition_gate_family(
+        [supply], [meaning], use_class="raw-measurement",
+    )
+    assert admission.admitted is True
+    return supply, meaning, admission
+
+
+@functools.lru_cache(maxsize=None)
+def _requested_default_condition_gate_family() -> tuple[Any, Any, Any]:
+    gate = probe.condition_meaning_gate
+    source = (
+        _REPO
+        / "orchestrator/tests/fixtures/condition_meaning_gate/supplied"
+    )
+    request = gate.make_define_request(
+        driver_id="tools.pegasus.probes.t316_sandbox_backend_probe",
+        macro="BACKOFF_FIXED",
+        requested_value=5,
+        default_value=-1,
+        stock_comparison=False,
+    )
+    captured = gate.capture_define_inputs(source, configure_args=())
+    cxx = shutil.which("c++")
+    cmake = shutil.which("cmake")
+    assert cxx is not None and cmake is not None
+    supply = gate.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=cxx, cmake=cmake,
+    )
+    assert supply.terminal_status == "green"
+    assert supply.reason_code == "requested-default-preprocess-different"
+    assert supply.evidence["comparison"] == "requested-default-difference"
+    meaning = gate.evaluate_define_runtime_meaning(
+        captured, request=request, declaration=None, cxx=cxx,
+    )
+    admission = gate.require_condition_gate_family(
+        [supply], [meaning], use_class="raw-measurement",
+    )
+    assert admission.admitted is True
+    return supply, meaning, admission
+
+
 def _condition_gate_receipts(
     comparison: str = "stock-inert-identity",
+    *,
+    family: tuple[Any, Any, Any] | None = None,
 ) -> list[dict[str, Any]]:
-    supply, meaning, admission = _condition_gate_family(comparison)
+    if family is None:
+        family = _condition_gate_family(comparison)
+    supply, meaning, admission = family
     return [
         {
             "arm": supply.arm,
             "record_digest": supply.record_digest,
             "terminal_status": supply.terminal_status,
             "reason_code": supply.reason_code,
+            "comparison": supply.evidence.get("comparison"),
         },
         {
             "arm": meaning.arm,
@@ -869,6 +956,94 @@ def test_s6_unissued_condition_records_cannot_replace_live_family() -> None:
 def test_s6_receipt_summary_must_match_live_condition_conclusions() -> None:
     observation = _good_s6()
     observation["condition_gates"][0]["terminal_status"] = "red"
+    verdict = probe.verdict_s6(observation)
+    assert verdict.verdict == "inconclusive"
+    assert verdict.reason_codes == ("S6_CONDITION_GATE_UNPROVEN",)
+
+
+@pytest.mark.parametrize("pair_name", ("identity", "root-location-only"))
+def test_s6_accepts_each_exact_inert_condition_gate_pair(
+    pair_name: str,
+    tmp_path: Path,
+) -> None:
+    if pair_name == "identity":
+        family = _condition_gate_family("stock-inert-identity")
+    else:
+        family = _root_location_only_condition_gate_family(tmp_path)
+    observation = _good_s6()
+    observation["_condition_gate_family"] = family
+    observation["condition_gates"] = _condition_gate_receipts(family=family)
+    verdict = probe.verdict_s6(observation)
+    assert verdict.verdict == "go"
+    assert verdict.reason_codes == ("S6_SANDBOX_BUILD_SUCCEEDED",)
+
+
+@pytest.mark.parametrize(
+    ("reason_family_name", "comparison_family_name"),
+    (
+        pytest.param(
+            "identity",
+            "root-location-only",
+            id="identical_reason__root_location_comparison",
+        ),
+        pytest.param(
+            "root-location-only",
+            "identity",
+            id="root_location_reason__identity_comparison",
+        ),
+    ),
+)
+def test_s6_rejects_crossed_inert_condition_gate_pair(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    reason_family_name: str,
+    comparison_family_name: str,
+) -> None:
+    gate = probe.condition_meaning_gate
+    families = {
+        "identity": _condition_gate_family("stock-inert-identity"),
+        "root-location-only": _root_location_only_condition_gate_family(tmp_path),
+    }
+    reason_supply, meaning, admission = families[reason_family_name]
+    comparison_supply = families[comparison_family_name][0]
+    evidence = dict(reason_supply.evidence)
+    evidence["comparison"] = comparison_supply.evidence["comparison"]
+    request = gate.make_define_request(
+        driver_id="tools.pegasus.probes.t316_sandbox_backend_probe",
+        macro="BACKOFF_FIXED",
+        requested_value=-1,
+        default_value=None,
+        stock_comparison=True,
+    )
+    crossed_supply = gate._arm_record(
+        arm=reason_supply.arm,
+        terminal_status=reason_supply.terminal_status,
+        reason_code=reason_supply.reason_code,
+        request=request,
+        request_digest=reason_supply.request_digest,
+        evidence=evidence,
+    )
+    crossed_family = (crossed_supply, meaning, admission)
+    monkeypatch.setattr(
+        gate,
+        "require_condition_gate_family",
+        lambda _supply, _meaning, *, use_class: admission,
+    )
+    observation = _good_s6()
+    observation["_condition_gate_family"] = crossed_family
+    observation["condition_gates"] = _condition_gate_receipts(
+        family=crossed_family,
+    )
+    verdict = probe.verdict_s6(observation)
+    assert verdict.verdict == "inconclusive"
+    assert verdict.reason_codes == ("S6_CONDITION_GATE_UNPROVEN",)
+
+
+def test_s6_rejects_requested_default_preprocess_difference() -> None:
+    family = _requested_default_condition_gate_family()
+    observation = _good_s6()
+    observation["_condition_gate_family"] = family
+    observation["condition_gates"] = _condition_gate_receipts(family=family)
     verdict = probe.verdict_s6(observation)
     assert verdict.verdict == "inconclusive"
     assert verdict.reason_codes == ("S6_CONDITION_GATE_UNPROVEN",)

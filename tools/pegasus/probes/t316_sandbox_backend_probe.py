@@ -121,6 +121,16 @@ _PAYLOAD_NORMAL_RETURN_CODES = frozenset({0})
 _NETWORK_CONNECT_CATEGORIES = frozenset(
     {"network_direct_ip", "network_proxy", "network"}
 )
+_INERT_CONDITION_GATE_PAIRS: frozenset[tuple[str, str]] = frozenset({
+    (
+        "stock-inert-preprocess-identical",
+        "stock-inert-identity",
+    ),
+    (
+        "stock-inert-preprocess-root-location-only",
+        "stock-inert-root-location-only",
+    ),
+})
 
 
 @dataclasses.dataclass(frozen=True)
@@ -327,6 +337,7 @@ def _condition_gate_receipt_summary(
             "record_digest": supply.record_digest,
             "terminal_status": supply.terminal_status,
             "reason_code": supply.reason_code,
+            "comparison": supply.evidence.get("comparison"),
         },
         {
             "arm": meaning.arm,
@@ -367,8 +378,10 @@ def _condition_gate_family_valid(
         and supply.driver_id == "tools.pegasus.probes.t316_sandbox_backend_probe"
         and supply.macro == meaning.macro == "BACKOFF_FIXED"
         and supply.terminal_status == "green"
-        and supply.reason_code == "stock-inert-preprocess-identical"
-        and supply.evidence.get("comparison") == "stock-inert-identity"
+        and (
+            supply.reason_code,
+            supply.evidence.get("comparison"),
+        ) in _INERT_CONDITION_GATE_PAIRS
         and meaning.terminal_status == "unestablished"
         and meaning.reason_code == "meaning-witness-undeclared"
     )
