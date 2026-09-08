@@ -260,6 +260,48 @@ def _safe_component(value: str) -> str:
     return cleaned
 
 
+def _mkdir_no_follow_components(
+        scr_root: str, components: tuple[str, ...], *, leaf_exist_ok: bool,
+) -> Path:
+    if type(scr_root) is not str or not scr_root:
+        raise OSError("node-local /scr root is unavailable")
+    root = Path(os.path.abspath(scr_root))
+    if os.path.islink(root) or not os.path.isdir(root):
+        raise OSError("node-local /scr root is unavailable or not a real directory")
+    root_lexical = os.fspath(root)
+    if os.path.commonpath((root_lexical, os.path.realpath(root))) != root_lexical:
+        raise OSError("node-local /scr root resolves outside /scr")
+
+    current = root
+    for index, component in enumerate(components):
+        if (type(component) is not str or not component
+                or component in {".", ".."}
+                or os.sep in component
+                or (os.altsep is not None and os.altsep in component)):
+            raise OSError("node-local worker root component is not path-safe")
+        current = current / component
+        if os.path.islink(current):
+            raise OSError(
+                f"node-local worker root component is a symlink: {current}"
+            )
+        current.mkdir(
+            mode=0o700,
+            exist_ok=(leaf_exist_ok if index == len(components) - 1 else True),
+        )
+        if os.path.islink(current):
+            raise OSError(
+                f"node-local worker root component is a symlink: {current}"
+            )
+        if not os.path.isdir(current):
+            raise OSError(
+                f"node-local worker root component is not a directory: {current}"
+            )
+        if (os.path.commonpath((root_lexical, os.path.realpath(current)))
+                != root_lexical):
+            raise OSError("node-local worker root resolves outside /scr")
+    return current
+
+
 def _node_job_root(
         *, environment: Mapping[str, str], scr_root: str = "/scr",
 ) -> Path:
@@ -269,16 +311,15 @@ def _node_job_root(
         raise ValueError("USER is required for worker-local root")
     if type(job_raw) is not str or not job_raw:
         raise ValueError("PBS_JOBID is required for worker-local root")
-    if type(scr_root) is not str or not os.path.isdir(scr_root):
-        raise OSError("node-local /scr root is unavailable")
-    candidate = (
-        Path(scr_root) / _safe_component(user_raw)
-        / "izanagi-verify-fanout" / _safe_component(job_raw)
+    return _mkdir_no_follow_components(
+        scr_root,
+        (
+            _safe_component(user_raw),
+            "izanagi-verify-fanout",
+            _safe_component(job_raw),
+        ),
+        leaf_exist_ok=True,
     )
-    candidate.mkdir(mode=0o700, parents=True, exist_ok=True)
-    if not candidate.is_dir():
-        raise OSError("node-local worker root is not a directory")
-    return candidate
 
 
 def _copy_binary_exact(
@@ -413,9 +454,13 @@ def run_worker(
         )
         return 2
 
-    task_root = job_root / task["task_sha256"]
     try:
-        task_root.mkdir(mode=0o700, exist_ok=False)
+        job_relative = job_root.relative_to(Path(os.path.abspath(scr_root)))
+        task_root = _mkdir_no_follow_components(
+            scr_root,
+            (*job_relative.parts, task["task_sha256"]),
+            leaf_exist_ok=False,
+        )
     except Exception as exc:
         print(
             f"verify fan-out task root rejected: {type(exc).__name__}: {exc}",
@@ -574,7 +619,18 @@ def run_worker(
             os.environ.pop("TMPDIR", None)
         else:
             os.environ["TMPDIR"] = previous_tmpdir
-        shutil.rmtree(task_root, ignore_errors=True)
+        try:
+            shutil.rmtree(task_root)
+        except Exception as exc:
+            print(
+                _canonical_json_bytes({
+                    "event": "verify-fanout-task-root-cleanup-failed",
+                    "task_sha256": task["task_sha256"],
+                    "errno": getattr(exc, "errno", None),
+                    "exception": f"{type(exc).__name__}: {exc}",
+                }).decode("ascii"),
+                file=sys.stderr,
+            )
 
 
 def main(argv: Optional[list[str]] = None) -> int:

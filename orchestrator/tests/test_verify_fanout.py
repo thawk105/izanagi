@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import json
 import os
 import shutil
 import shlex
@@ -47,6 +48,7 @@ from orchestrator.verifier import (  # noqa: E402
     CAMPAIGN_WAL_SINK,
     QUALIFICATION_SINK,
 )
+from orchestrator.verifier import commit_receipt as commit_receipt_module  # noqa: E402
 from orchestrator.verifier.model import (  # noqa: E402
     CompiledProtocolSourceSnapshot,
     capture_compiled_protocol_source_snapshot,
@@ -389,13 +391,26 @@ def test_m3_remote_completion_is_emitted_in_rep_order() -> None:
 
 
 def test_m4_remote_receipt_rejects_task_sha_mismatch() -> None:
-    task_sha256 = "1" * 64
+    expected_task_sha256 = "1" * 64
     payload, authenticated_result = _authenticated_receipt_fixture(
-        task_sha256=task_sha256,
+        task_sha256="2" * 64,
     )
-    with pytest.raises(CommitReceiptError, match="binding mismatch"):
+    unsigned_result = dict(authenticated_result)
+    unsigned_result.pop("result_mac")
+    unsigned_result["task_sha256"] = expected_task_sha256
+    authenticated_result = _sign_result(unsigned_result)
+    assert authenticated_result["task_sha256"] == expected_task_sha256
+    assert (
+        authenticated_result["outcome"]["remote_verification_receipt"]
+        == payload
+    )
+    assert payload["task_sha256"] != expected_task_sha256
+    with pytest.raises(
+            CommitReceiptError,
+            match="^remote verification receipt binding mismatch$",
+    ):
         admit_remote_verification_receipt(
-            payload, expected_task_sha256="2" * 64,
+            payload, expected_task_sha256=expected_task_sha256,
             lock_identity_sha256="a" * 64, variant="v",
             operation_identity="op", workload_tag="performance",
             authenticated_result=authenticated_result,
@@ -730,6 +745,8 @@ def test_head_admitted_task_set_rejects_second_result_admission(
         admitted_task_sha256s=admitted_tasks,
     )
     assert first.abort is None
+    with commit_receipt_module._REMOTE_ADMISSION_LOCK:
+        commit_receipt_module._ADMITTED_REMOTE_RECEIPTS.clear()
     second = pipeline._admit_verify_fanout_result(
         task, host="host1", result_path=str(result_path),
         launch_result=subprocess.CompletedProcess([], 0, stdout="", stderr=""),
@@ -795,6 +812,61 @@ def test_m15_worker_unavailable_scr_exits_without_result(
     ) != 0
     assert not result_path.exists()
     assert executor_calls == []
+
+
+def test_m17_worker_rejects_symlinked_scr_component_without_result(
+        tmp_path: Path,
+) -> None:
+    task, task_path, result_path = _task_fixture(tmp_path)
+    binding = types.SimpleNamespace(
+        contract_loader_commit=task["expected_repo_head"],
+        contract_loader_blob_sha256s=task["contract_loader_blob_sha256s"],
+    )
+    scr_root = tmp_path / "scr"
+    scr_root.mkdir()
+    symlink_target = scr_root / "symlink-target"
+    symlink_target.mkdir()
+    (scr_root / _worker_environment(tmp_path)["USER"]).symlink_to(
+        symlink_target, target_is_directory=True,
+    )
+    executor_calls = []
+
+    def forbidden_executor(*args, **kwargs):
+        executor_calls.append((args, kwargs))
+        raise AssertionError("symlinked /scr component must stop before executor")
+
+    assert worker.run_worker(
+        str(task_path), str(result_path), result_secret=_RESULT_SECRET,
+        contract_loader_binding_resolver=lambda: binding,
+        repo_head_resolver=lambda _root: task["expected_repo_head"],
+        environment=_worker_environment(tmp_path),
+        scr_root=str(scr_root), repetition_executor=forbidden_executor,
+    ) != 0
+    assert not result_path.exists()
+    assert executor_calls == []
+    assert list(symlink_target.iterdir()) == []
+
+
+def test_worker_reports_cleanup_failure_without_changing_published_result_rc(
+        tmp_path: Path, capsys,
+) -> None:
+    task, task_path, result_path = _task_fixture(
+        tmp_path, expected_binary_sha256="0" * 64,
+    )
+    with mock.patch.object(
+            worker.shutil, "rmtree", side_effect=OSError(5, "cleanup failed"),
+    ):
+        assert _run_worker(task_path, result_path, tmp_path) == 0
+    assert result_path.exists()
+    cleanup_lines = capsys.readouterr().err.splitlines()
+    assert len(cleanup_lines) == 1
+    cleanup = json.loads(cleanup_lines[0])
+    assert cleanup == {
+        "event": "verify-fanout-task-root-cleanup-failed",
+        "task_sha256": task["task_sha256"],
+        "errno": 5,
+        "exception": "OSError: [Errno 5] cleanup failed",
+    }
 
 
 def test_worker_missing_pbs_jobid_exits_without_result(tmp_path: Path) -> None:
