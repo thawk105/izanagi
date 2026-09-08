@@ -57,15 +57,22 @@ meaning arm の `unestablished` / `meaning-witness-undeclared`。既存テスト
      19935/22152 だった。
   3. 受入全走: `test_g5_...` が **89.991874% (19935/22152)** で赤。5 件を除くと
      90.0122% (19935/22147) なので、**この赤は本 wave に帰属する**。段 7 の判断が誤りだった。
-  4. 是正: 本 wave の受入 JUnit を正本 producer
+  4. 是正 (1 回目): 本 wave の受入 JUnit を正本 producer
      (`tools/update_acceptance_duration_ledger.py --add-only`) へ通して台帳を更新した
      (commit `d44bc8a01`)。`nodeid_count` 20042 → 22118 (追加 2076、削除 0)、既存 entry の値と
      bytes は不変 (親が独立照合)、追加値はすべて本走の実測で 0.0 の placeholder は 0 件。
-     更新後の被覆は 22011/22152 = 99.363489%。道具に部分集合 mode は無く `--add-only` が唯一の
-     追加経路であり、D1152 の言う land 側の実装は land tool に存在しない。
+  5. **取り下げ (最終形)。** その直後、別 wave が local main で同じ台帳へ 2081 node を
+     add-only 登録して先に着地した (main 側 commit `2fd1679dd`、台帳は 22123 entry)。
+     両者は同じ挿入位置へ書くため forward merge が必ず競合し、実際に受入 3 回目の merge が
+     `terminal-merge` で落ちた。競合を解決した merge は land が拒否するので、
+     **本 wave 側の台帳追加を取り下げ、local main と byte 単位で同一に戻した**
+     (Codex `role=author` による revert)。sha256 は
+     `10fcebe306121258106f40880ff37252417662693ae30b5d4a24ebb12f6de1f4` で main 側と一致。
+     取り下げても被覆は main 側の 22123 entry で **21993/22152 = 99.282232%** となり閾値を割らない。
+     本 wave の 5 node は台帳に無いままだが、次に誰かが `--add-only` を回せば入る。
   段 4 の裁定文 (`verbatim/s4-ruling.md`) は当時の判断としてそのまま残し、ここで追記訂正する。
 
-  台帳へ入った本 wave の新規 nodeid は次の 5 件である。
+  **本 wave の新規 nodeid (台帳には入っていない)** は次の 5 件である。
 
   - `orchestrator/tests/test_t316_sandbox_probe.py::test_s6_accepts_each_exact_inert_condition_gate_pair[identity]`
   - `orchestrator/tests/test_t316_sandbox_probe.py::test_s6_accepts_each_exact_inert_condition_gate_pair[root-location-only]`

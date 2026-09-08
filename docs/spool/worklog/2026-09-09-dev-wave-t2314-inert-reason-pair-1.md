@@ -34,11 +34,15 @@ title: [T-2314] inert 比較の受理条件を組 2 つのどちらか 1 つへ 
   分母を取り違えた計算で、被覆の分母は台帳 entry 数ではなく collection の node 数である。
   受入全走が `test_g5_real_ledger_covers_at_least_90_percent_of_real_collection` を
   **89.991874% (19935/22152)** で赤にした。5 件を除くと 90.0122% なので**赤は本 wave に帰属する**。
-  正本 producer (`--add-only` + 本走の JUnit) で是正した (commit d44bc8a01、20042 → 22118、
-  既存値・bytes 不変、0.0 placeholder 0 件、更新後 99.363489%)。
-  **D1152 が言う land 側の実装は land tool に存在せず、閾値を割った wave が直すほかない。**
-  F67 の 3 件目 (near-miss) として追記した経緯は、この受入赤で「near-miss」ではなくなった
-  — 実際に受入 1 巡と Codex 子 1 本を余分に費やした。
+  正本 producer (`--add-only` + 本走の JUnit) で一度是正したが (commit d44bc8a01)、
+  **直後に別 wave が同じ台帳へ 2081 node を add-only 登録して先に着地し** (main 側 2fd1679dd)、
+  同じ挿入位置へ書くため受入 3 回目の merge が `terminal-merge` で落ちた。競合を解決した merge は
+  land が拒否するので、記憶にある抜け方 (a) を採り **台帳を local main と byte 単位で同一へ戻した**
+  (Codex role=author の revert、sha256 10fcebe30…)。取り下げても被覆は main 側の 22123 entry で
+  21993/22152 = 99.282232% となり閾値を割らない。本 wave の 5 node は台帳に無いままである。
+  **D1152 が言う land 側の実装は land tool に存在しないが、main 側の wave が同じ道具を回すので
+  実務上は次の登録で入る。** F67 の 3 件目は near-miss でなく実害あり — 受入 2 巡と Codex 子 2 本を
+  余分に費やした。
 - 段 8 の自己改善候補は 2 件。(1) 上記の担い手検索 → F67 追記。義務の `DW-S04` への追加は
   L1 予算の空きが 0 bytes と既に実測されているため裁定へ返す。(2) 変異 spec の必須 field
   (`expected_status` / `hang_risk`) が `DW-M01` / `DW-M08` に書かれておらず初回 `--plan-only` が
