@@ -2330,11 +2330,13 @@ def test_v2_loader_validation_rejects_valid_second_git_repository(
         "commit", "-q", "-m", "valid second repository",
     )
     real_run_git = contract_loader_binding._run_git
+    calls: list[tuple[str, ...]] = []
 
-    def redirected_git_view(root: Path, *args: str) -> bytes:
+    def redirected_git_view(root: Path, *args: str, **kwargs: object) -> bytes:
+        calls.append(args)
         if args == ("rev-parse", "--show-toplevel"):
             return f"{second.resolve()}\n".encode()
-        return real_run_git(root, *args)
+        return real_run_git(root, *args, **kwargs)
 
     monkeypatch.setattr(
         contract_loader_binding, "_run_git", redirected_git_view,
@@ -2342,6 +2344,7 @@ def test_v2_loader_validation_rejects_valid_second_git_repository(
 
     with pytest.raises(A.ArtifactAdmissionError, match="Git top-level"):
         A.classify_campaign(campaign)
+    assert calls == [("rev-parse", "--show-toplevel")]
 
 
 def test_v2_loader_validation_rejects_ambient_git_repository_override(
@@ -2389,18 +2392,33 @@ def test_v2_loader_validation_rejects_missing_blob(
     )
     assert decoded.authority is not None
     commit = decoded.authority.contract_loader_commit
+    calls: list[tuple[str, ...]] = []
 
-    def missing_blob(root: Path, *args: str) -> bytes:
-        if args == ("cat-file", "blob", f"{commit}:{missing}"):
-            raise contract_loader_binding.ContractLoaderBindingError(
-                "contract-loader-git-error: git command が失敗: blob 不在"
+    def missing_blob(root: Path, *args: str, **kwargs: object) -> bytes:
+        calls.append(args)
+        output = real_run_git(root, *args, **kwargs)
+        if args[:4] == ("ls-tree", "-r", "-z", commit):
+            raw_missing = os.fsencode(missing)
+            entries = output.split(b"\0")
+            output = b"\0".join(
+                entry for entry in entries
+                if entry.partition(b"\t")[2] != raw_missing
             )
-        return real_run_git(root, *args)
+        return output
 
     monkeypatch.setattr(contract_loader_binding, "_run_git", missing_blob)
 
-    with pytest.raises(A.ArtifactAdmissionError, match="git command"):
+    with pytest.raises(A.ArtifactAdmissionError, match="git command") as caught:
         A.classify_campaign(campaign)
+    assert missing in str(caught.value)
+    assert [
+        args for args in calls
+        if args[:4] == ("ls-tree", "-r", "-z", commit)
+    ] == [(
+        "ls-tree", "-r", "-z", commit, "--",
+        *(f":(literal){relative}"
+          for relative in campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS),
+    )]
 
 
 def test_contract_loader_rejects_leaf_symlink(tmp_path: Path) -> None:

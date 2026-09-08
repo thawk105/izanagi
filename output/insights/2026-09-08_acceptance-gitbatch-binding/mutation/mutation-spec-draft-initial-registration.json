@@ -1,0 +1,181 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 1500,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "M1-stdin-plumbing-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/contract_loader_binding.py",
+          "old": "            input=input_bytes,\n            stdout=subprocess.PIPE,",
+          "new": "            stdout=subprocess.PIPE,"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-batch-oid-check-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/contract_loader_binding.py",
+          "old": "        if (_HEX40_BYTES_RE.fullmatch(oid) is None\n                or oid != expected_oid):",
+          "new": "        if _HEX40_BYTES_RE.fullmatch(oid) is None:"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-blob-wrapper-sequential-regression",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/contract_loader_binding.py",
+          "old": "    blobs = tuple(_iter_blobs(root, commit, (relative,)))\n    return blobs[0][1]",
+          "new": "    _relative_parts(relative)\n    return _run_git(root, \"cat-file\", \"blob\", f\"{commit}:{relative}\")"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-batch-type-check-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/contract_loader_binding.py",
+          "old": "        if object_type != b\"blob\":\n            raise ContractLoaderBindingError(\n                \"contract-loader-git-error: git command の batch object が blob でない: \"",
+          "new": "        if object_type == b\"never-a-type\":\n            raise ContractLoaderBindingError(\n                \"contract-loader-git-error: git command の batch object が blob でない: \""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-exact-eof-check-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/contract_loader_binding.py",
+          "old": "    if offset != len(batch_output):\n        raise ContractLoaderBindingError(\n            \"contract-loader-git-error: git command の batch 出力に余剰 bytes\"",
+          "new": "    if offset > len(batch_output):\n        raise ContractLoaderBindingError(\n            \"contract-loader-git-error: git command の batch 出力に余剰 bytes\""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-committed-digest-compare-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/contract_loader_binding.py",
+          "old": "        if hashlib.sha256(blob).hexdigest() != binding.contract_loader_blob_sha256s[relative]:",
+          "new": "        if hashlib.sha256(blob).hexdigest() != binding.contract_loader_blob_sha256s[relative] and False:"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-live-disk-compare-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/contract_loader_binding.py",
+          "old": "        if disk != blob:\n            raise ContractLoaderBindingError(\n                f\"contract-loader-drift: disk bytes が記録 commit blob と不一致: {relative}\"",
+          "new": "        if disk != blob and False:\n            raise ContractLoaderBindingError(\n                f\"contract-loader-drift: disk bytes が記録 commit blob と不一致: {relative}\""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8-lstree-missing-path-check-removed-redundant",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/contract_loader_binding.py",
+          "old": "    for relative in unique_paths:\n        if relative not in oid_by_relative:",
+          "new": "    for relative in unique_paths:\n        if relative not in oid_by_relative and False:"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9-body-eof-check-removed-redundant",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/contract_loader_binding.py",
+          "old": "        if body_end >= len(batch_output):",
+          "new": "        if body_end > len(batch_output):"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10-record-lf-check-removed-redundant",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/contract_loader_binding.py",
+          "old": "        if batch_output[body_end:body_end + 1] != b\"\\n\":",
+          "new": "        if batch_output[body_end:body_end + 1] not in (b\"\\n\", b\"\"):"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M12-both-layers-body-eof-and-record-lf",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/contract_loader_binding.py",
+          "old": "        if body_end >= len(batch_output):",
+          "new": "        if body_end > len(batch_output):"
+        },
+        {
+          "file": "orchestrator/campaign/contract_loader_binding.py",
+          "old": "        if batch_output[body_end:body_end + 1] != b\"\\n\":",
+          "new": "        if batch_output[body_end:body_end + 1] not in (b\"\\n\", b\"\"):"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11-equivalent-tuple-iter",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/contract_loader_binding.py",
+          "old": "    relatives = tuple(relative_paths)\n    encoded_by_relative: dict[str, bytes] = {}",
+          "new": "    relatives = tuple(iter(relative_paths))\n    encoded_by_relative: dict[str, bytes] = {}"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
