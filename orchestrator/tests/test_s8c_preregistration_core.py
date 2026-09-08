@@ -583,30 +583,34 @@ class _HostileType(
     pass
 
 
-class _KeyboardInterruptReason(_ArmedDiagnosticFixture, M.PreregistrationError):
+class _DiagnosticGuardBaseException(BaseException):
+    pass
+
+
+class _BaseExceptionReason(_ArmedDiagnosticFixture, M.PreregistrationError):
     def __init__(self) -> None:
         RuntimeError.__init__(self, "secret-detail")
 
     @property
     def reason(self):
         if self._diagnostic_armed:
-            raise KeyboardInterrupt("secret-detail")
+            raise _DiagnosticGuardBaseException("secret-detail")
         return "safe-reason"
 
 
-class _KeyboardInterruptTypeMeta(type):
+class _BaseExceptionTypeMeta(type):
     def __getattribute__(cls, name: str):
         if name == "__name__" and type.__getattribute__(
             cls, "_diagnostic_armed"
         ):
-            raise KeyboardInterrupt("secret-detail")
+            raise _DiagnosticGuardBaseException("secret-detail")
         return super().__getattribute__(name)
 
 
-class _KeyboardInterruptType(
+class _BaseExceptionType(
     _ArmedDiagnosticFixture,
     RuntimeError,
-    metaclass=_KeyboardInterruptTypeMeta,
+    metaclass=_BaseExceptionTypeMeta,
 ):
     pass
 
@@ -2985,8 +2989,8 @@ def test_invalid_exception_type_uses_bounded_sentinel_without_leaking(
     )
 
 
-def test_diagnostic_type_guard_catches_keyboard_interrupt(tmp_path: Path) -> None:
-    exc = _KeyboardInterruptType("secret-detail")
+def test_diagnostic_type_guard_catches_base_exception(tmp_path: Path) -> None:
+    exc = _BaseExceptionType("secret-detail")
     with _armed_diagnostic_fixture(exc):
         results, diagnostics = M._default_registry_results(
             tmp_path,
@@ -3003,8 +3007,8 @@ def test_diagnostic_type_guard_catches_keyboard_interrupt(tmp_path: Path) -> Non
     )
 
 
-def test_diagnostic_reason_guard_catches_keyboard_interrupt(tmp_path: Path) -> None:
-    exc = _KeyboardInterruptReason()
+def test_diagnostic_reason_guard_catches_base_exception(tmp_path: Path) -> None:
+    exc = _BaseExceptionReason()
     with _armed_diagnostic_fixture(exc):
         results, diagnostics = M._default_registry_results(
             tmp_path,
@@ -3015,7 +3019,7 @@ def test_diagnostic_reason_guard_catches_keyboard_interrupt(tmp_path: Path) -> N
     assert diagnostics == (
         M.EvaluatorExceptionReason(
             "default-registry.evaluate_all",
-            "_KeyboardInterruptReason",
+            "_BaseExceptionReason",
             M._DIAGNOSTIC_PREREGISTRATION_REASON_SENTINEL,
         ),
     )
