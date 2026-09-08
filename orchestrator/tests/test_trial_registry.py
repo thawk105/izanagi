@@ -6820,13 +6820,13 @@ def test_genesis_cli_derives_manifest_digest_and_creates_canonical_registry(
         manifest.raw_bytes
     ).hexdigest()
     assert genesis["slots"] == slots
-    assert capsys.readouterr().out == (
-        R._canonical_json_bytes({
+    assert capsys.readouterr().out.encode("utf-8") == (
+        _canonical({
             "attempt_registry_path": R.DEFAULT_ATTEMPT_REGISTRY_PATH.as_posix(),
             "manifest_sha256": manifest.sha256,
             "slot_count": len(slots),
-        }).decode("utf-8")
-        + "\n"
+        })
+        + b"\n"
     )
 
 
@@ -6855,7 +6855,15 @@ def test_genesis_cli_rejects_slot_generation_mismatch_before_creation(
     repo, _manifest_path, _manifest, slots_path, slots, argv = (
         _genesis_cli_fixture(tmp_path)
     )
-    slots[0]["prereg_generation"] = 3
+    for slot in slots:
+        slot["prereg_generation"] = 3
+        slot["schedule_row_sha256"] = hashlib.sha256(_canonical({
+            key: slot[key]
+            for key in (
+                "trial_id", "arm", "holdout", "campaign_id",
+                "prereg_generation", "replicate_index", "attempt_index",
+            )
+        })).hexdigest()
     slots_path.write_bytes(_canonical(slots) + b"\n")
 
     with pytest.raises(SystemExit) as excinfo:
@@ -6870,27 +6878,75 @@ def test_genesis_cli_rejects_slot_generation_mismatch_before_creation(
 
 
 @pytest.mark.parametrize(
-    ("slots_bytes", "expected_error"),
+    ("case", "expected_error"),
     [
-        (b"{}\n", "slots file root must be an array"),
         (
-            b'[{"slot_id":"first","slot_id":"second"}]\n',
-            "duplicate object key: 'slot_id'",
+            "object",
+            "[attempt-registry-genesis] slots file root must be an array",
         ),
-        (b"[\xff]\n", "slots file is not strict UTF-8 JSON"),
-        (b"[NaN]\n", "non-finite JSON number is forbidden: NaN"),
+        ("duplicate-key", "[json] duplicate object key: 'slot_id'"),
+        ("non-utf8", "[json] slots file is not strict UTF-8 JSON"),
+        ("non-finite", "[json] non-finite JSON number is forbidden: NaN"),
     ],
     ids=("object", "duplicate-key", "non-utf8", "non-finite"),
 )
 def test_genesis_cli_rejects_non_strict_slots_without_creating_artifact(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
-    slots_bytes: bytes,
+    case: str,
     expected_error: str,
 ) -> None:
-    repo, _manifest_path, _manifest, slots_path, _slots, argv = (
+    repo, _manifest_path, _manifest, slots_path, slots, argv = (
         _genesis_cli_fixture(tmp_path)
     )
+    valid_slots_bytes = _canonical(slots)
+    if case == "object":
+        slots_bytes = b"{}\n"
+    elif case == "duplicate-key":
+        first_slot = _canonical(slots[0])
+        duplicated_first_slot = (
+            first_slot[:-1]
+            + b',"slot_id":'
+            + _canonical(slots[0]["slot_id"])
+            + b"}"
+        )
+        slots_bytes = (
+            b"["
+            + duplicated_first_slot
+            + b","
+            + b",".join(_canonical(slot) for slot in slots[1:])
+            + b"]\n"
+        )
+        assert json.loads(slots_bytes) == slots
+    elif case == "non-utf8":
+        slot_id_field = b'"slot_id":' + _canonical(slots[0]["slot_id"])
+        assert valid_slots_bytes.count(slot_id_field) == 1
+        slots_bytes = valid_slots_bytes.replace(
+            slot_id_field, b'"slot_id":"\xff"', 1,
+        ) + b"\n"
+        permissive_slots = json.loads(slots_bytes.decode("latin-1"))
+        assert permissive_slots[0] == {**slots[0], "slot_id": "ÿ"}
+        assert permissive_slots[1:] == slots[1:]
+    else:
+        replicate_field = b'"replicate_index":0'
+        assert replicate_field in valid_slots_bytes
+        slots_bytes = valid_slots_bytes.replace(
+            replicate_field, b'"replicate_index":NaN', 1,
+        ) + b"\n"
+        permissive_slots = json.loads(slots_bytes)
+        assert permissive_slots[0]["replicate_index"] != permissive_slots[0][
+            "replicate_index"
+        ]
+        assert {
+            key: value
+            for key, value in permissive_slots[0].items()
+            if key != "replicate_index"
+        } == {
+            key: value
+            for key, value in slots[0].items()
+            if key != "replicate_index"
+        }
+        assert permissive_slots[1:] == slots[1:]
     slots_path.write_bytes(slots_bytes)
 
     with pytest.raises(SystemExit) as excinfo:
