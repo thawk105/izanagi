@@ -1,0 +1,521 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 180,
+ "timeout_seconds": 600,
+ "hang_timeout_seconds": 600,
+ "mutations": [
+  {
+   "id": "m1-evaluator-fallback-satisfied",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "old": "PredicateStatus.ERROR, \"evaluator-exception\"),\n            (\n                _evaluator_exception_reason(\n                    \"default-registry.evaluate_all\",",
+     "new": "PredicateStatus.SATISFIED, \"evaluator-exception\"),\n            (\n                _evaluator_exception_reason(\n                    \"default-registry.evaluate_all\","
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_default_registry_evaluator_runtime_error_is_structured",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_default_registry_evaluator_unrelated_exceptions_remain_fail_closed[key-error]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_default_registry_evaluator_unrelated_exceptions_remain_fail_closed[value-error]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_default_registry_evaluator_value_error_remains_fail_closed",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_diagnostic_reason_guard_catches_base_exception",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_diagnostic_text_length_boundary_accepts_128_and_rejects_129",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_diagnostic_type_guard_catches_base_exception",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_invalid_exception_type_uses_bounded_sentinel_without_leaking[charset]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_invalid_exception_type_uses_bounded_sentinel_without_leaking[hostile-type-name]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_invalid_exception_type_uses_bounded_sentinel_without_leaking[length]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_invalid_exception_type_uses_bounded_sentinel_without_leaking[non-string-type-name]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_invalid_preregistration_reasons_use_bounded_sentinel_without_leaking[hostile-reason-property]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_invalid_preregistration_reasons_use_bounded_sentinel_without_leaking[long-reason]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_invalid_preregistration_reasons_use_bounded_sentinel_without_leaking[missing-reason]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_invalid_preregistration_reasons_use_bounded_sentinel_without_leaking[non-string-reason]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_invalid_preregistration_reasons_use_bounded_sentinel_without_leaking[path-reason]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_preregistration_exception_detail_is_not_copied_to_diagnostics",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_preregistration_reason_with_underscore_uses_sentinel"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m2-normalize-fallback-reason-code",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "old": "PredicateStatus.ERROR, \"evaluator-exception\"),\n            (\n                _evaluator_exception_reason(\n                    \"_normalize_predicate_results\",",
+     "new": "PredicateStatus.ERROR, \"evaluator-internal-error\"),\n            (\n                _evaluator_exception_reason(\n                    \"_normalize_predicate_results\","
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_evaluator_exception_remains_fail_closed",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_default_registry_normalizer_exception_remains_fail_closed",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_default_registry_normalizer_unrelated_exceptions_remain_fail_closed[key-error]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_default_registry_normalizer_unrelated_exceptions_remain_fail_closed[type-error]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_lazy_evaluator_exception_is_caught_at_normalization_callsite",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_lazy_type_error_remains_fail_closed_at_normalization_callsite"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m3-drop-normalizer",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "old": "        return _normalize_predicate_results(raw), ()",
+     "new": "        return tuple(raw), ()"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_evaluator_exception_cli_preserves_stdout_and_emits_one_diagnostic[json-module]",
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_evaluator_exception_cli_preserves_stdout_and_emits_one_diagnostic[json-path]",
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_evaluator_exception_cli_preserves_stdout_and_emits_one_diagnostic[text-module]",
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_evaluator_exception_cli_preserves_stdout_and_emits_one_diagnostic[text-path]",
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_evaluator_exception_reason_names_real_normalizer_failure",
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_evaluator_exception_remains_fail_closed",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_default_registry_normalizer_exception_remains_fail_closed"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m4-evaluator-catch-narrowed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "old": "        raw = evaluator(commit, repo_root=root)\n    except Exception as exc:",
+     "new": "        raw = evaluator(commit, repo_root=root)\n    except RuntimeError as exc:"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_default_registry_evaluator_unrelated_exceptions_remain_fail_closed[key-error]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_default_registry_evaluator_unrelated_exceptions_remain_fail_closed[value-error]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_default_registry_evaluator_value_error_remains_fail_closed"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m5-normalize-catch-narrowed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "old": "        return _normalize_predicate_results(raw), ()\n    except Exception as exc:",
+     "new": "        return _normalize_predicate_results(raw), ()\n    except RuntimeError as exc:"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_default_registry_normalizer_unrelated_exceptions_remain_fail_closed[key-error]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_default_registry_normalizer_unrelated_exceptions_remain_fail_closed[type-error]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_lazy_type_error_remains_fail_closed_at_normalization_callsite"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "d1-normalize-diagnostic-emptied",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "old": "            (\n                _evaluator_exception_reason(\n                    \"_normalize_predicate_results\",\n                    exc,\n                ),\n            ),",
+     "new": "            (),"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_evaluator_exception_cli_preserves_stdout_and_emits_one_diagnostic[json-module]",
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_evaluator_exception_cli_preserves_stdout_and_emits_one_diagnostic[json-path]",
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_evaluator_exception_cli_preserves_stdout_and_emits_one_diagnostic[text-module]",
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_evaluator_exception_cli_preserves_stdout_and_emits_one_diagnostic[text-path]",
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_evaluator_exception_reason_names_real_normalizer_failure",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_default_registry_normalizer_exception_remains_fail_closed",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_default_registry_normalizer_unrelated_exceptions_remain_fail_closed[key-error]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_default_registry_normalizer_unrelated_exceptions_remain_fail_closed[type-error]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_lazy_evaluator_exception_is_caught_at_normalization_callsite",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_lazy_type_error_remains_fail_closed_at_normalization_callsite"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "d2-exception-type-constant",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "old": "            exception_type = candidate_type",
+     "new": "            exception_type = \"PreregistrationError\""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_live_evaluator_runtime_error_cli_preserves_stdout_and_diagnostic[runtime-error-json-module]",
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_live_evaluator_runtime_error_cli_preserves_stdout_and_diagnostic[runtime-error-json-path]",
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_live_evaluator_runtime_error_cli_preserves_stdout_and_diagnostic[runtime-error-text-module]",
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_live_evaluator_runtime_error_cli_preserves_stdout_and_diagnostic[runtime-error-text-path]",
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_live_evaluator_runtime_error_cli_preserves_stdout_and_diagnostic[value-error-json-module]",
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_live_evaluator_runtime_error_cli_preserves_stdout_and_diagnostic[value-error-json-path]",
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_live_evaluator_runtime_error_cli_preserves_stdout_and_diagnostic[value-error-text-module]",
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_live_evaluator_runtime_error_cli_preserves_stdout_and_diagnostic[value-error-text-path]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_default_registry_evaluator_runtime_error_is_structured",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_default_registry_evaluator_unrelated_exceptions_remain_fail_closed[key-error]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_default_registry_evaluator_unrelated_exceptions_remain_fail_closed[value-error]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_default_registry_evaluator_value_error_remains_fail_closed",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_default_registry_normalizer_unrelated_exceptions_remain_fail_closed[key-error]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_default_registry_normalizer_unrelated_exceptions_remain_fail_closed[type-error]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_diagnostic_reason_guard_catches_base_exception",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_diagnostic_text_length_boundary_accepts_128_and_rejects_129",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_lazy_evaluator_exception_is_caught_at_normalization_callsite",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_lazy_type_error_remains_fail_closed_at_normalization_callsite",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_test_registry_exceptions_always_return_diagnostics[evaluate-all-value-error]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_test_registry_exceptions_always_return_diagnostics[evaluate-all]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_test_registry_exceptions_always_return_diagnostics[normalize-type-error]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "d3-reason-uses-str-exc",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "old": "                preregistration_reason = candidate_reason",
+     "new": "                preregistration_reason = str(exc)"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_preregistration_exception_detail_is_not_copied_to_diagnostics"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "d4-callsite-collapsed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "old": "                    \"_normalize_predicate_results\",\n                    exc,",
+     "new": "                    \"default-registry.evaluate_all\",\n                    exc,"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_evaluator_exception_cli_preserves_stdout_and_emits_one_diagnostic[json-module]",
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_evaluator_exception_cli_preserves_stdout_and_emits_one_diagnostic[json-path]",
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_evaluator_exception_cli_preserves_stdout_and_emits_one_diagnostic[text-module]",
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_evaluator_exception_cli_preserves_stdout_and_emits_one_diagnostic[text-path]",
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_evaluator_exception_reason_names_real_normalizer_failure",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_default_registry_normalizer_exception_remains_fail_closed",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_default_registry_normalizer_unrelated_exceptions_remain_fail_closed[key-error]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_default_registry_normalizer_unrelated_exceptions_remain_fail_closed[type-error]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_lazy_evaluator_exception_is_caught_at_normalization_callsite",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_lazy_type_error_remains_fail_closed_at_normalization_callsite"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "d5-diagnostic-on-clean-path",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "old": "    diagnostics: tuple[EvaluatorExceptionReason, ...] = ()",
+     "new": "    diagnostics: tuple[EvaluatorExceptionReason, ...] = (EvaluatorExceptionReason(\"default-registry.evaluate_all\", \"PreregistrationError\", \"predicate-result-type\"),)"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_test_registry_success_has_no_diagnostics"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "d6-test-registry-diagnostic-emptied",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "old": "            diagnostics = (\n                _evaluator_exception_reason(\n                    \"test-registry.evaluate_all\",\n                    exc,\n                ),\n            )",
+     "new": "            diagnostics = ()"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_test_registry_exceptions_always_return_diagnostics[evaluate-all-value-error]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_test_registry_exceptions_always_return_diagnostics[evaluate-all]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "d7-diagnostic-to-stdout",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "old": "                        file=sys.stderr,",
+     "new": "                        file=sys.stdout,"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_evaluator_exception_cli_preserves_stdout_and_emits_one_diagnostic[json-module]",
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_evaluator_exception_cli_preserves_stdout_and_emits_one_diagnostic[json-path]",
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_evaluator_exception_cli_preserves_stdout_and_emits_one_diagnostic[text-module]",
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_evaluator_exception_cli_preserves_stdout_and_emits_one_diagnostic[text-path]",
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_live_evaluator_runtime_error_cli_preserves_stdout_and_diagnostic[runtime-error-json-module]",
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_live_evaluator_runtime_error_cli_preserves_stdout_and_diagnostic[runtime-error-json-path]",
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_live_evaluator_runtime_error_cli_preserves_stdout_and_diagnostic[runtime-error-text-module]",
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_live_evaluator_runtime_error_cli_preserves_stdout_and_diagnostic[runtime-error-text-path]",
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_live_evaluator_runtime_error_cli_preserves_stdout_and_diagnostic[value-error-json-module]",
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_live_evaluator_runtime_error_cli_preserves_stdout_and_diagnostic[value-error-json-path]",
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_live_evaluator_runtime_error_cli_preserves_stdout_and_diagnostic[value-error-text-module]",
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_live_evaluator_runtime_error_cli_preserves_stdout_and_diagnostic[value-error-text-path]",
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_main_keeps_stdout_and_exit_value_when_stderr_write_raises_oserror",
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_main_keeps_stdout_and_exit_value_when_stderr_write_raises_value_error"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "d8-reason-totality-removed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "old": "    except BaseException:\n        preregistration_reason = _DIAGNOSTIC_PREREGISTRATION_REASON_SENTINEL",
+     "new": "    except ZeroDivisionError:\n        preregistration_reason = _DIAGNOSTIC_PREREGISTRATION_REASON_SENTINEL"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_diagnostic_reason_guard_catches_base_exception",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_invalid_preregistration_reasons_use_bounded_sentinel_without_leaking[hostile-reason-property]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_invalid_preregistration_reasons_use_bounded_sentinel_without_leaking[missing-reason]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "d9-cli-drops-evaluator-callsite",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "old": "                for diagnostic in diagnostics:",
+     "new": "                for diagnostic in [\n                    item\n                    for item in diagnostics\n                    if item.callsite != \"default-registry.evaluate_all\"\n                ]:"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_live_evaluator_runtime_error_cli_preserves_stdout_and_diagnostic[runtime-error-json-module]",
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_live_evaluator_runtime_error_cli_preserves_stdout_and_diagnostic[runtime-error-json-path]",
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_live_evaluator_runtime_error_cli_preserves_stdout_and_diagnostic[runtime-error-text-module]",
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_live_evaluator_runtime_error_cli_preserves_stdout_and_diagnostic[runtime-error-text-path]",
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_live_evaluator_runtime_error_cli_preserves_stdout_and_diagnostic[value-error-json-module]",
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_live_evaluator_runtime_error_cli_preserves_stdout_and_diagnostic[value-error-json-path]",
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_live_evaluator_runtime_error_cli_preserves_stdout_and_diagnostic[value-error-text-module]",
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_live_evaluator_runtime_error_cli_preserves_stdout_and_diagnostic[value-error-text-path]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "d10-reason-length-boundary",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "old": "                and len(candidate_reason) <= _DIAGNOSTIC_TEXT_MAX_LENGTH",
+     "new": "                and len(candidate_reason) < _DIAGNOSTIC_TEXT_MAX_LENGTH"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_diagnostic_text_length_boundary_accepts_128_and_rejects_129"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "d11-type-length-boundary",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "old": "            and len(candidate_type) <= _DIAGNOSTIC_TEXT_MAX_LENGTH",
+     "new": "            and len(candidate_type) < _DIAGNOSTIC_TEXT_MAX_LENGTH"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_diagnostic_text_length_boundary_accepts_128_and_rejects_129"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "d12-reason-charset-widened",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "old": "_DIAGNOSTIC_PREREGISTRATION_REASON_RE = re.compile(r\"[a-z0-9-]+\\Z\")",
+     "new": "_DIAGNOSTIC_PREREGISTRATION_REASON_RE = re.compile(r\"[a-z0-9_-]+\\Z\")"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_preregistration_reason_with_underscore_uses_sentinel"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "d13-cli-diagnostic-guard-removed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "old": "            except Exception:\n                # Diagnostic output failure must not change stdout or the exit value.",
+     "new": "            except ZeroDivisionError:\n                # Diagnostic output failure must not change stdout or the exit value."
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_main_keeps_stdout_and_exit_value_when_stderr_write_raises_oserror",
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_main_keeps_stdout_and_exit_value_when_stderr_write_raises_value_error"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "d14-reason-sentinel-inside-accepted-language",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "old": "_DIAGNOSTIC_PREREGISTRATION_REASON_SENTINEL = (\n    \"<diagnostic-preregistration-reason-unavailable>\"\n)",
+     "new": "_DIAGNOSTIC_PREREGISTRATION_REASON_SENTINEL = (\n    \"diagnostic-preregistration-reason-unavailable\"\n)"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_diagnostic_sentinels_are_outside_accepted_text_languages"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m6-test-registry-evaluator-catch-narrowed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "old": "            raw = registry.evaluate_all(resolved, repo_root=root)\n        except Exception as exc:",
+     "new": "            raw = registry.evaluate_all(resolved, repo_root=root)\n        except RuntimeError as exc:"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_test_registry_exceptions_always_return_diagnostics[evaluate-all-value-error]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m7-test-registry-normalize-catch-narrowed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "old": "                predicates = _normalize_predicate_results(raw)\n            except Exception as exc:",
+     "new": "                predicates = _normalize_predicate_results(raw)\n            except RuntimeError as exc:"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_test_registry_exceptions_always_return_diagnostics[normalize-type-error]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m8-type-guard-narrowed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "old": "            exception_type = candidate_type\n    except BaseException:",
+     "new": "            exception_type = candidate_type\n    except SystemExit:"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_diagnostic_type_guard_catches_base_exception"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m9-reason-guard-narrowed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "old": "    except BaseException:\n        preregistration_reason = _DIAGNOSTIC_PREREGISTRATION_REASON_SENTINEL",
+     "new": "    except (AttributeError, SystemExit):\n        preregistration_reason = _DIAGNOSTIC_PREREGISTRATION_REASON_SENTINEL"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_diagnostic_reason_guard_catches_base_exception"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m10-cli-guard-narrowed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "old": "            except Exception:\n                # Diagnostic output failure must not change stdout or the exit value.",
+     "new": "            except OSError:\n                # Diagnostic output failure must not change stdout or the exit value."
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_main_keeps_stdout_and_exit_value_when_stderr_write_raises_value_error"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "d15-max-length-constant",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "old": "_DIAGNOSTIC_TEXT_MAX_LENGTH = 128",
+     "new": "_DIAGNOSTIC_TEXT_MAX_LENGTH = 129"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_diagnostic_text_length_boundary_accepts_128_and_rejects_129"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "d16-cli-drops-value-error-diagnostic",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "old": "                for diagnostic in diagnostics:",
+     "new": "                for diagnostic in [\n                    item\n                    for item in diagnostics\n                    if item.exception_type != \"ValueError\"\n                ]:"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_live_evaluator_runtime_error_cli_preserves_stdout_and_diagnostic[value-error-json-module]",
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_live_evaluator_runtime_error_cli_preserves_stdout_and_diagnostic[value-error-json-path]",
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_live_evaluator_runtime_error_cli_preserves_stdout_and_diagnostic[value-error-text-module]",
+    "orchestrator/tests/test_s8c_cli_entrypoints.py::test_live_evaluator_runtime_error_cli_preserves_stdout_and_diagnostic[value-error-text-path]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}
