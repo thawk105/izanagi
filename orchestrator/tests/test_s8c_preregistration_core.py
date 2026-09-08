@@ -468,6 +468,22 @@ class _LazyRaisingEvaluator:
         return results()
 
 
+class _LazyTypeErrorEvaluator:
+    def evaluate_all(self, commit: str, *, repo_root: Path):
+        del commit, repo_root
+
+        def results():
+            yield M.PredicateResult(
+                M.PREDICATE_IDS[0],
+                M.PredicateStatus.SATISFIED,
+                "fixture",
+                (),
+            )
+            raise TypeError("secret-detail")
+
+        return results()
+
+
 class _MissingReason(M.PreregistrationError):
     def __init__(self) -> None:
         RuntimeError.__init__(self, "secret-detail")
@@ -2667,6 +2683,24 @@ def test_lazy_evaluator_exception_is_caught_at_normalization_callsite(
     )
 
 
+def test_lazy_type_error_remains_fail_closed_at_normalization_callsite(
+    tmp_path: Path,
+) -> None:
+    results, diagnostics = M._default_registry_results(
+        tmp_path,
+        "fixture-commit",
+        _LazyTypeErrorEvaluator(),
+    )
+    _assert_evaluator_fallback(results)
+    assert diagnostics == (
+        M.EvaluatorExceptionReason(
+            "_normalize_predicate_results",
+            "TypeError",
+            None,
+        ),
+    )
+
+
 def test_default_registry_evaluator_runtime_error_is_structured(
     tmp_path: Path,
 ) -> None:
@@ -2680,6 +2714,24 @@ def test_default_registry_evaluator_runtime_error_is_structured(
         M.EvaluatorExceptionReason(
             "default-registry.evaluate_all",
             "RuntimeError",
+            None,
+        ),
+    )
+
+
+def test_default_registry_evaluator_value_error_remains_fail_closed(
+    tmp_path: Path,
+) -> None:
+    results, diagnostics = M._default_registry_results(
+        tmp_path,
+        "fixture-commit",
+        _RaisingEvaluator(ValueError("secret-detail")),
+    )
+    _assert_evaluator_fallback(results)
+    assert diagnostics == (
+        M.EvaluatorExceptionReason(
+            "default-registry.evaluate_all",
+            "ValueError",
             None,
         ),
     )
@@ -2773,6 +2825,81 @@ def test_invalid_exception_type_uses_bounded_sentinel_without_leaking(
             None,
         ),
     )
+
+
+def test_diagnostic_text_length_boundary_accepts_128_and_rejects_129(
+    tmp_path: Path,
+) -> None:
+    accepted_reason = "r" * M._DIAGNOSTIC_TEXT_MAX_LENGTH
+    rejected_reason = "r" * (M._DIAGNOSTIC_TEXT_MAX_LENGTH + 1)
+    accepted_type = "T" * M._DIAGNOSTIC_TEXT_MAX_LENGTH
+    rejected_type = "T" * (M._DIAGNOSTIC_TEXT_MAX_LENGTH + 1)
+
+    accepted_reason_results, accepted_reason_diagnostics = (
+        M._default_registry_results(
+            tmp_path,
+            "fixture-commit",
+            _RaisingEvaluator(M.PreregistrationError(accepted_reason)),
+        )
+    )
+    rejected_reason_results, rejected_reason_diagnostics = (
+        M._default_registry_results(
+            tmp_path,
+            "fixture-commit",
+            _RaisingEvaluator(M.PreregistrationError(rejected_reason)),
+        )
+    )
+    accepted_type_results, accepted_type_diagnostics = M._default_registry_results(
+        tmp_path,
+        "fixture-commit",
+        _RaisingEvaluator(type(accepted_type, (RuntimeError,), {})()),
+    )
+    rejected_type_results, rejected_type_diagnostics = M._default_registry_results(
+        tmp_path,
+        "fixture-commit",
+        _RaisingEvaluator(type(rejected_type, (RuntimeError,), {})()),
+    )
+
+    for results in (
+        accepted_reason_results,
+        rejected_reason_results,
+        accepted_type_results,
+        rejected_type_results,
+    ):
+        _assert_evaluator_fallback(results)
+    assert accepted_reason_diagnostics[0].preregistration_reason == accepted_reason
+    assert rejected_reason_diagnostics[0].preregistration_reason == (
+        M._DIAGNOSTIC_PREREGISTRATION_REASON_SENTINEL
+    )
+    assert accepted_type_diagnostics[0].exception_type == accepted_type
+    assert rejected_type_diagnostics[0].exception_type == (
+        M._DIAGNOSTIC_EXCEPTION_TYPE_SENTINEL
+    )
+
+
+def test_preregistration_reason_with_underscore_uses_sentinel(tmp_path: Path) -> None:
+    results, diagnostics = M._default_registry_results(
+        tmp_path,
+        "fixture-commit",
+        _RaisingEvaluator(M.PreregistrationError("fixture_reason")),
+    )
+    _assert_evaluator_fallback(results)
+    assert diagnostics == (
+        M.EvaluatorExceptionReason(
+            "default-registry.evaluate_all",
+            "PreregistrationError",
+            M._DIAGNOSTIC_PREREGISTRATION_REASON_SENTINEL,
+        ),
+    )
+
+
+def test_diagnostic_sentinels_are_outside_accepted_text_languages() -> None:
+    assert M._DIAGNOSTIC_EXCEPTION_TYPE_RE.fullmatch(
+        M._DIAGNOSTIC_EXCEPTION_TYPE_SENTINEL
+    ) is None
+    assert M._DIAGNOSTIC_PREREGISTRATION_REASON_RE.fullmatch(
+        M._DIAGNOSTIC_PREREGISTRATION_REASON_SENTINEL
+    ) is None
 
 
 def test_default_registry_success_has_no_diagnostics(tmp_path: Path) -> None:

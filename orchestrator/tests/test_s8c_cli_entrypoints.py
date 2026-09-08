@@ -67,10 +67,31 @@ _REGISTRY = PredicateRegistry()
 def get_registry() -> PredicateRegistry:
     return _REGISTRY
 '''
+_RAISING_EVALUATOR = b'''# -*- coding: utf-8 -*-
+from pathlib import Path
+
+
+class PredicateRegistry:
+    def evaluate_all(self, commit: str, *, repo_root: Path):
+        del commit, repo_root
+        raise RuntimeError("secret-detail")
+
+
+_REGISTRY = PredicateRegistry()
+
+
+def get_registry() -> PredicateRegistry:
+    return _REGISTRY
+'''
 _NORMALIZER_DIAGNOSTIC_STDERR = (
     b'{"callsite":"_normalize_predicate_results",'
     b'"exception_type":"PreregistrationError",'
     b'"preregistration_reason":"predicate-result-type"}\n'
+)
+_EVALUATOR_DIAGNOSTIC_STDERR = (
+    b'{"callsite":"default-registry.evaluate_all",'
+    b'"exception_type":"RuntimeError",'
+    b'"preregistration_reason":null}\n'
 )
 
 
@@ -205,6 +226,58 @@ def malformed_evaluator_repo(
 
 
 @pytest.fixture(scope="module")
+def raising_evaluator_repo(
+    tmp_path_factory: pytest.TempPathFactory,
+    closed_environment: dict[str, str],
+) -> tuple[Path, str]:
+    repo_root = tmp_path_factory.mktemp("s8c-cli-raising-evaluator")
+    for relative_path in (
+        P.CORE_MODULE_PATH,
+        P.PROJECTION_MODULE_PATH,
+        P.EVIDENCE_CONTRACT_PATH,
+    ):
+        source = _ROOT / relative_path
+        destination = repo_root / relative_path
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, destination)
+    evaluator_path = repo_root / P.EVALUATOR_MODULE_PATH
+    evaluator_path.parent.mkdir(parents=True, exist_ok=True)
+    evaluator_path.write_bytes(_RAISING_EVALUATOR)
+
+    _git(repo_root, closed_environment, "init", "-q")
+    _git(repo_root, closed_environment, "add", "-A")
+    _git(
+        repo_root,
+        closed_environment,
+        "-c",
+        "user.email=s8c-cli@example.invalid",
+        "-c",
+        "user.name=S8C CLI test",
+        "commit",
+        "-q",
+        "-m",
+        "raising evaluator fixture",
+    )
+    commit = _git(
+        repo_root, closed_environment, "rev-parse", "--verify", "HEAD^{commit}"
+    )
+    for relative_path in (
+        P.CORE_MODULE_PATH,
+        P.EVALUATOR_MODULE_PATH,
+        P.PROJECTION_MODULE_PATH,
+    ):
+        blob = subprocess.run(
+            ["git", "show", f"{commit}:{relative_path}"],
+            cwd=repo_root,
+            check=True,
+            capture_output=True,
+            env=closed_environment,
+        ).stdout
+        assert blob == (repo_root / relative_path).read_bytes()
+    return repo_root, commit
+
+
+@pytest.fixture(scope="module")
 def malformed_evaluator_oracle(
     malformed_evaluator_repo: tuple[Path, str],
     closed_environment: dict[str, str],
@@ -246,6 +319,51 @@ payload = {
     ),
     "json_stdout": json.dumps(
         P._jsonable(plain), ensure_ascii=False, sort_keys=True
+    ) + "\n",
+    "text_stdout": "\n".join(lines) + "\n",
+}
+print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+'''
+    completed = subprocess.run(
+        [sys.executable, "-c", script, commit],
+        cwd=repo_root,
+        check=True,
+        capture_output=True,
+        env=closed_environment,
+    )
+    assert completed.stderr == b""
+    return json.loads(completed.stdout)
+
+
+@pytest.fixture(scope="module")
+def raising_evaluator_oracle(
+    raising_evaluator_repo: tuple[Path, str],
+    closed_environment: dict[str, str],
+) -> dict[str, object]:
+    repo_root, commit = raising_evaluator_repo
+    script = r'''
+import json
+import sys
+
+from orchestrator.campaign import s8c_preregistration as P
+
+commit = sys.argv[1]
+report = P.activation_report_at(".", commit)
+lines = [
+    f"{'EFFECTIVE' if report.effective else 'NOT_EFFECTIVE'} commit={report.commit} freeze={report.freeze_reason_code}",
+    f"decider_version {report.decider_version_reason_code}",
+]
+lines.extend(
+    f"section5 {finding.status.value} {finding.name}: {finding.reason_code}"
+    for finding in report.section5_findings
+)
+lines.extend(
+    f"{result.id} {result.status.value}: {result.reason_code}"
+    for result in report.predicates
+)
+payload = {
+    "json_stdout": json.dumps(
+        P._jsonable(report), ensure_ascii=False, sort_keys=True
     ) + "\n",
     "text_stdout": "\n".join(lines) + "\n",
 }
@@ -465,6 +583,92 @@ def test_evaluator_exception_cli_preserves_stdout_and_emits_one_diagnostic(
     assert completed.stderr == _NORMALIZER_DIAGNOSTIC_STDERR
     assert b"Traceback" not in completed.stderr
     assert str(repo_root).encode("utf-8") not in completed.stderr
+
+
+@pytest.mark.parametrize(
+    "invocation",
+    [pytest.param("path", id="path"), pytest.param("module", id="module")],
+)
+@pytest.mark.parametrize(
+    "json_output",
+    [pytest.param(False, id="text"), pytest.param(True, id="json")],
+)
+def test_live_evaluator_runtime_error_cli_preserves_stdout_and_diagnostic(
+    invocation: str,
+    json_output: bool,
+    raising_evaluator_repo: tuple[Path, str],
+    raising_evaluator_oracle: dict[str, object],
+    closed_environment: dict[str, str],
+) -> None:
+    repo_root, commit = raising_evaluator_repo
+    target = (
+        [sys.executable, str(repo_root / P.CORE_MODULE_PATH)]
+        if invocation == "path"
+        else [sys.executable, "-m", "orchestrator.campaign.s8c_preregistration"]
+    )
+    command = [
+        *target,
+        "check",
+        "--repo-root",
+        str(repo_root),
+        "--commit",
+        commit,
+    ]
+    if json_output:
+        command.append("--json")
+    completed = subprocess.run(
+        command,
+        cwd=repo_root,
+        check=False,
+        capture_output=True,
+        env=closed_environment,
+    )
+    expected_key = "json_stdout" if json_output else "text_stdout"
+    expected_stdout = raising_evaluator_oracle[expected_key]
+    assert isinstance(expected_stdout, str)
+    assert completed.stdout == expected_stdout.encode("utf-8")
+    assert completed.returncode == 1
+    assert completed.stderr == _EVALUATOR_DIAGNOSTIC_STDERR
+
+
+def test_main_keeps_stdout_and_exit_value_when_stderr_write_raises_oserror(
+    raising_evaluator_repo: tuple[Path, str],
+    raising_evaluator_oracle: dict[str, object],
+    closed_environment: dict[str, str],
+) -> None:
+    repo_root, commit = raising_evaluator_repo
+    script = r'''
+import sys
+
+from orchestrator.campaign import s8c_preregistration as P
+
+
+class BrokenStderr:
+    def write(self, value):
+        del value
+        raise OSError("diagnostic sink unavailable")
+
+    def flush(self):
+        pass
+
+
+sys.stderr = BrokenStderr()
+raise SystemExit(P.main([
+    "check", "--json", "--repo-root", ".", "--commit", sys.argv[1]
+]))
+'''
+    completed = subprocess.run(
+        [sys.executable, "-c", script, commit],
+        cwd=repo_root,
+        check=False,
+        capture_output=True,
+        env=closed_environment,
+    )
+    expected_stdout = raising_evaluator_oracle["json_stdout"]
+    assert isinstance(expected_stdout, str)
+    assert completed.stdout == expected_stdout.encode("utf-8")
+    assert completed.returncode == 1
+    assert completed.stderr == b""
 
 
 if __name__ == "__main__":

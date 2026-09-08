@@ -67,9 +67,9 @@ _DECIDER_VERSION_RE = re.compile(r"s8c-decider/v[1-9][0-9]*\Z")
 _DIAGNOSTIC_EXCEPTION_TYPE_RE = re.compile(r"[A-Za-z0-9_]+\Z")
 _DIAGNOSTIC_PREREGISTRATION_REASON_RE = re.compile(r"[a-z0-9-]+\Z")
 _DIAGNOSTIC_TEXT_MAX_LENGTH = 128
-_DIAGNOSTIC_EXCEPTION_TYPE_SENTINEL = "DiagnosticExceptionTypeUnavailable"
+_DIAGNOSTIC_EXCEPTION_TYPE_SENTINEL = "<DiagnosticExceptionTypeUnavailable>"
 _DIAGNOSTIC_PREREGISTRATION_REASON_SENTINEL = (
-    "diagnostic-preregistration-reason-unavailable"
+    "<diagnostic-preregistration-reason-unavailable>"
 )
 _ATX_RE = re.compile(r"^( {0,3})(#{1,6})[ \t]+(.+?)[ \t]*#*[ \t]*$")
 _TOP_ITEM_RE = re.compile(r"^ {0,3}([0-9]+)[.)][ \t]+(.*)$")
@@ -2334,16 +2334,20 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     print(f"section5 {finding.status.value} {finding.name}: {finding.reason_code}")
                 for result in report.predicates:
                     print(f"{result.id} {result.status.value}: {result.reason_code}")
-            for diagnostic in diagnostics:
-                print(
-                    json.dumps(
-                        _jsonable(diagnostic),
-                        ensure_ascii=False,
-                        sort_keys=True,
-                        separators=(",", ":"),
-                    ),
-                    file=sys.stderr,
-                )
+            try:
+                for diagnostic in diagnostics:
+                    print(
+                        json.dumps(
+                            _jsonable(diagnostic),
+                            ensure_ascii=False,
+                            sort_keys=True,
+                            separators=(",", ":"),
+                        ),
+                        file=sys.stderr,
+                    )
+            except Exception:
+                # Diagnostic output failure must not change stdout or the exit value.
+                pass
             return 0 if report.effective else 1
         path = prepare_revision(
             args.repo_root,
