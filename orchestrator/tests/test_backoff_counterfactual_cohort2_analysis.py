@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from orchestrator.campaign import backoff_counterfactual_analysis as cohort1
 from orchestrator.campaign import backoff_counterfactual_cohort2_analysis as analysis
+from tools.pegasus.probes import t2187_adaptive_const_probe as producer
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -35,6 +36,7 @@ def _build_bindings() -> dict:
             {"path": path, "sha256": digest}
             for path, digest in analysis.PATCH_STACK
         ],
+        "patch_stack_sha256": analysis.PATCH_STACK_SHA256,
     }
 
 
@@ -220,6 +222,40 @@ def _primary_row(document: dict) -> dict:
     )
 
 
+def _producer_stdout(events: list[dict]) -> str:
+    records = [
+        " ".join(
+            (
+                "IZANAGI_BACKOFF_TRACE v=3",
+                f"seq={event['seq']}",
+                f"tsc={event['tsc']}",
+                f"window_us={event['window_us']}",
+                f"window_commits={event['window_commits']}",
+                "trigger=1",
+                f"backoff_before={event['backoff_before']}",
+                f"backoff_after={event['backoff_after']}",
+                "gradient_sign=0",
+                "step_us=1",
+                "ceiling_us=1000",
+                "ceiling_changed=0",
+                "parity_branch=-1",
+                f"recommended_delta_sign={event['recommended_delta_sign']}",
+                f"assigned_invert={event['assigned_invert']}",
+                f"inversion_realized={event['inversion_realized']}",
+                f"both_actions_feasible={event['both_actions_feasible']}",
+                "terminal_flush=0",
+            )
+        )
+        for event in events
+    ]
+    count = len(records)
+    records.append(
+        "IZANAGI_BACKOFF_TRACE_SUMMARY v=3 "
+        f"updates={count} retained={count} dropped=0 flushes=0"
+    )
+    return "\n".join(records) + "\n"
+
+
 def test_assignment_lcg_accepts_exact_positive_sequence_and_rejects_one_bit_flip(
     tmp_path: Path,
 ) -> None:
@@ -362,14 +398,22 @@ def test_missing_terminal_makes_whole_primary_inconclusive_without_replacement(
     tmp_path: Path,
 ) -> None:
     paths = _write_artifacts(tmp_path / "artifacts")
-    missing_seed = json.loads(paths[0].read_text())["step_policy_seed"]
+    document = json.loads(paths[0].read_text())
+    missing_seed = document["step_policy_seed"]
+    row = _primary_row(document)
+    stdout = _producer_stdout(row["trace_events"][:-1])
+    events, summary, _directional = producer._parse_backoff_trace(stdout)
+    assert all(event["terminal_flush"] == 0 for event in events)
+    assert summary == {
+        "updates": len(events),
+        "retained": len(events),
+        "dropped": 0,
+        "flushes": 0,
+    }
 
-    def remove_terminal(document: dict) -> None:
-        row = _primary_row(document)
-        row["trace_events"].pop()
-        row["trace_summary"]["flushes"] = 0
-
-    _rewrite(paths[0], remove_terminal)
+    row["trace_events"] = events
+    row["trace_summary"] = summary
+    paths[0].write_text(json.dumps(document) + "\n", encoding="utf-8")
     primary = analysis.analyze_counterfactual(paths, PREREGISTRATION)["primary"]
     assert primary["decision"] == "inconclusive"
     assert "terminal_not_closed" in primary["reasons"]
@@ -439,6 +483,35 @@ def test_exact_cohort2_cells_extime_patch_and_preregistration_are_bound(
         analysis._load_artifact(path)
 
 
+@pytest.mark.parametrize(
+    ("binding", "mutation"),
+    (
+        ("top", "missing"),
+        ("top", "one-character-drift"),
+        ("row", "missing"),
+        ("row", "one-character-drift"),
+    ),
+)
+def test_patch_stack_sha256_is_exact_at_top_and_row_bindings(
+    tmp_path: Path,
+    binding: str,
+    mutation: str,
+) -> None:
+    document = _document(SEEDS[0])
+    target = document if binding == "top" else _primary_row(document)
+    if mutation == "missing":
+        target.pop("patch_stack_sha256")
+    else:
+        observed = target["patch_stack_sha256"]
+        target["patch_stack_sha256"] = (
+            ("0" if observed[0] != "0" else "1") + observed[1:]
+        )
+    path = tmp_path / f"bad-stack-sha-{binding}-{mutation}.json"
+    path.write_text(json.dumps(document) + "\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="ordered patch stack mismatch"):
+        analysis._load_artifact(path)
+
+
 def test_cohort2_literal_pins_are_independent_of_fixture_helpers() -> None:
     expected_cells = {
         0: "cw-as-dyn-c2-p0:1:1:1000:2560:10000:9223372036854775807:1:1:4:1:0",
@@ -448,15 +521,24 @@ def test_cohort2_literal_pins_are_independent_of_fixture_helpers() -> None:
     expected_patch = (
         "b5649becded2ad62d015d94263b3e4b3e32f8c271892647e6567772c234dad5f"
     )
+    expected_stack = (
+        "790a6e7bfdb2b78ea1a05a242acbfeabbe16a07d3f30e6e6148909a7ac59fdb8"
+    )
     assert analysis.TRACE_SCHEMA_VERSION == "izanagi-dynamic-backoff-trace/v4"
     assert analysis.CELL_LITERALS == expected_cells
     assert analysis.COUNTERFACTUAL_CELLS == ",".join(expected_cells.values())
     assert analysis.MEASUREMENT_PREREGISTRATION_SHA256 == PREREGISTRATION_SHA256
     assert analysis.ANALYSIS_PREREGISTRATION_SHA256 == PREREGISTRATION_SHA256
     assert analysis.PATCH_C_SHA256 == expected_patch
+    assert analysis.PATCH_STACK_SHA256 == expected_stack
     assert hashlib.sha256(
         (ROOT / "patches" / "cicada-adaptive-counterfactual.patch").read_bytes()
     ).hexdigest() == expected_patch
+    stack_text = "izanagi-patch-stack/v1\n" + "".join(
+        f"{path} {hashlib.sha256((ROOT / path).read_bytes()).hexdigest()}\n"
+        for path, _digest in analysis.PATCH_STACK
+    )
+    assert hashlib.sha256(stack_text.encode("utf-8")).hexdigest() == expected_stack
 
 
 def test_final_normal_assignment_changes_estimate_through_terminal_following_window() -> None:

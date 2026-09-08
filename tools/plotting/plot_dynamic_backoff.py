@@ -749,20 +749,27 @@ def _parse_trace_run(
             for event_index, event in enumerate(events)
             if event["terminal_flush"] == 1
         ]
-        if terminal_indices != [len(events) - 1]:
-            _fail(f"{label} must contain exactly one terminal event at the end")
-        normal_events = events[:-1]
+        if len(terminal_indices) > 1 or (
+            terminal_indices and terminal_indices[0] != len(events) - 1
+        ):
+            _fail(
+                f"{label} must contain zero or exactly one terminal event at the end"
+            )
+        normal_events = events[:-1] if terminal_indices else events
         if any(
             event["trigger"] != "count"
             or event["window_commits"] < configuration["count_window"]
             for event in normal_events
         ):
             _fail(f"{label} normal events must be count-closed")
-        terminal = events[-1]
-        if terminal["window_commits"] < configuration["count_window"]:
-            _fail(f"{label} terminal event must be count-closed")
         if (
-            flushes != 1
+            terminal_indices
+            and events[-1]["window_commits"] < configuration["count_window"]
+        ):
+            _fail(f"{label} terminal event must be count-closed")
+        expected_flushes = len(terminal_indices)
+        if (
+            flushes != expected_flushes
             or updates != len(normal_events)
             or retained != updates
             or dropped != 0

@@ -38,6 +38,9 @@ PATCH_STACK = (
     ("patches/cicada-adaptive-dynamic.patch", PATCH_B_SHA256),
     ("patches/cicada-adaptive-counterfactual.patch", PATCH_C_SHA256),
 )
+PATCH_STACK_SHA256 = (
+    "790a6e7bfdb2b78ea1a05a242acbfeabbe16a07d3f30e6e6148909a7ac59fdb8"
+)
 COUNTERFACTUAL_CELLS = (
     "cw-as-dyn-c2-p0:1:1:1000:2560:10000:9223372036854775807:1:1:4:1:0,"
     "cw-as-dyn-c2-p1:1:1:1000:2560:10000:9223372036854775807:1:1:4:1:1,"
@@ -128,6 +131,7 @@ def _validate_build_bindings(document: dict, *, binding: str) -> None:
             {"path": path, "sha256": sha256}
             for path, sha256 in PATCH_STACK
         ],
+        "patch_stack_sha256": PATCH_STACK_SHA256,
     }
     if not _matches_exact(document, expected):
         _fail(f"{binding}: ccbench pin or ordered patch stack mismatch")

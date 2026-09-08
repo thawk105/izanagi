@@ -656,6 +656,12 @@ static int run_terminal() {
   results[1].local_commit_counts_ = 60;
   backoff.last_count_check_time_ = 0;
   leaderBackoffWork(backoff, results);
+  const uint64_t lcg_after_repeat = backoff.backoff_step_policy_state_;
+  const uint64_t expected_lcg_after_repeat =
+      lcg_after_terminal * 6364136223846793005ULL +
+      1442695040888963407ULL;
+  const double backoff_after_repeat =
+      Backoff::Backoff_.load(std::memory_order_acquire);
   const auto& terminal = trace_record(1);
   const auto& state = Backoff::izanagi_backoff_trace_state_;
   std::cout
@@ -676,12 +682,14 @@ static int run_terminal() {
       << terminal.izanagi_backoff_trace_terminal_flush
       << " lcg_terminal_unchanged="
       << (lcg_after_terminal == lcg_before_terminal)
-      << " lcg_repeat_unchanged="
-      << (backoff.backoff_step_policy_state_ == lcg_after_terminal)
-      << " backoff_unchanged="
-      << (backoff_after_terminal == backoff_before_terminal &&
-          Backoff::Backoff_.load(std::memory_order_acquire) ==
-              backoff_after_terminal)
+      << " lcg_repeat_advanced="
+      << (lcg_after_repeat == expected_lcg_after_repeat &&
+          lcg_after_repeat != lcg_after_terminal)
+      << " controller_repeat_updated="
+      << (backoff.last_committed_txs_ == 120 && backoff.last_time_ > 100)
+      << " backoff_terminal_unchanged="
+      << (backoff_after_terminal == backoff_before_terminal)
+      << " backoff_after_repeat=" << backoff_after_repeat
       << '\n';
   return 0;
 }
@@ -1719,6 +1727,35 @@ def test_terminal_instrumentation_preprocesses_completely_out_of_trace_zero(
         assert token not in result.stdout, f"trace=0 retained {token}"
 
 
+def test_trace_zero_compiles_without_terminal_deadline_define(
+    patched_sources, tmp_path: Path
+) -> None:
+    source = tmp_path / "compile-trace-zero-without-terminal-define.cc"
+    source.write_text('#include "backoff.hh"\n', encoding="utf-8")
+    defines = tuple(
+        item
+        for item in _policy_defines(policy=2, trace=0)
+        if not item.startswith("-DBACKOFF_TRACE_TERMINAL_US=")
+    )
+    assert all("BACKOFF_TRACE_TERMINAL_US" not in item for item in defines)
+    result = subprocess.run(
+        [
+            "g++",
+            "-std=c++17",
+            "-O0",
+            *CCBENCH_WARNING_FLAGS,
+            "-fsyntax-only",
+            f"-I{patched_sources.tree / 'include'}",
+            *defines,
+            str(source),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert result.stderr == ""
+
+
 def test_terminal_is_recorded_once_and_remains_the_last_event(policy_binaries) -> None:
     stdout = _raw_driver_output(policy_binaries["p2-terminal"], "terminal")
     event_lines = [
@@ -1739,18 +1776,19 @@ def test_terminal_is_recorded_once_and_remains_the_last_event(policy_binaries) -
     ) in stdout
 
 
-def test_terminal_does_not_update_backoff_advance_lcg_or_assign(
+def test_terminal_call_stops_once_then_controller_lcg_and_assignment_resume(
     policy_binaries,
 ) -> None:
     assert _driver_output(policy_binaries["p2-terminal"], "terminal") == [
         "updates=1 retained=1 dropped=0 flushes=1 terminal_recorded=1 "
         "seq=1 trigger=3 assigned=-1 recommended=0 realized=0 feasible=0 "
-        "terminal_flush=1 lcg_terminal_unchanged=1 lcg_repeat_unchanged=1 "
-        "backoff_unchanged=1"
+        "terminal_flush=1 lcg_terminal_unchanged=1 lcg_repeat_advanced=1 "
+        "controller_repeat_updated=1 backoff_terminal_unchanged=1 "
+        "backoff_after_repeat=102"
     ]
 
 
-def test_terminal_recorded_guard_precedes_all_terminal_eligibility_checks(
+def test_terminal_recorded_guard_resumes_controller_before_eligibility_checks(
     patched_sources,
 ) -> None:
     source = patched_sources.after_c
@@ -1761,22 +1799,45 @@ def test_terminal_recorded_guard_precedes_all_terminal_eligibility_checks(
     )
     assert handler is not None
     body = handler.group(0)
-    recorded_guard = "if (terminal_recorded_)\n      return true;"
+    recorded_guard = "if (terminal_recorded_)\n      return false;"
     eligibility = "if (kTraceTerminalUs == 0 || clocks_per_us_ == 0 ||"
     assert recorded_guard in body
     assert eligibility in body
     assert body.index(recorded_guard) < body.index(eligibility)
 
 
-def test_emitter_stdout_parses_with_the_real_parser(policy_binaries) -> None:
+@pytest.mark.parametrize(
+    ("binary_name", "mode", "expected_terminal_count"),
+    (("p2", "emit", 0), ("p2-terminal", "terminal", 1)),
+    ids=("terminal-0", "terminal-1"),
+)
+def test_emitter_stdout_parses_with_the_real_parser(
+    policy_binaries, binary_name: str, mode: str, expected_terminal_count: int
+) -> None:
     from tools.pegasus.probes import t2187_adaptive_const_probe as driver
 
-    stdout = _raw_driver_output(policy_binaries["p2"], "emit")
-    assert stdout.startswith("IZANAGI_BACKOFF_TRACE v=3 ")
-    assert " terminal_flush=0\n" in stdout
+    stdout = _raw_driver_output(policy_binaries[binary_name], mode)
+    event_lines = [
+        line
+        for line in stdout.splitlines()
+        if line.startswith("IZANAGI_BACKOFF_TRACE v=3 ")
+    ]
+    assert len(event_lines) == 1 + expected_terminal_count
+    assert sum(" terminal_flush=1" in line for line in event_lines) == (
+        expected_terminal_count
+    )
     assert "IZANAGI_BACKOFF_TRACE_SUMMARY v=3 " in stdout
-    assert " flushes=0\n" in stdout
-    driver._parse_backoff_trace(stdout)
+    assert f" flushes={expected_terminal_count}\n" in stdout
+    events, summary, _directional = driver._parse_backoff_trace(stdout)
+    assert sum(event["terminal_flush"] for event in events) == (
+        expected_terminal_count
+    )
+    assert summary == {
+        "updates": 1,
+        "retained": 1,
+        "dropped": 0,
+        "flushes": expected_terminal_count,
+    }
 
 
 def _run() -> int:

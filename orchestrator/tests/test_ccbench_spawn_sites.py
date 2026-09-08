@@ -2928,10 +2928,10 @@ def test_define_sink_cross_product_classifies_t2155_production_sinks_exactly():
     assert classifications[s1_sink] == Counter({
         "covered": 4,
         # Patches B and C plus the mocc controls cannot reach this sink.
-        "proven-unreachable": 33,
+        "proven-unreachable": 34,
     })
     # Patch-derived define interfaces are covered by the s8b sink.
-    assert classifications[s8b_sink] == Counter({"covered": 37})
+    assert classifications[s8b_sink] == Counter({"covered": 38})
     assert failures == []
 
 

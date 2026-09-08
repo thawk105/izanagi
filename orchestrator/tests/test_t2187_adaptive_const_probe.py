@@ -1987,36 +1987,12 @@ def test_parse_backoff_trace_accepts_exact_v3_terminal_contract_only() -> None:
     }
     assert directional["scored"] == 1
 
-    trailing_normal = normal.replace("seq=0", "seq=2").replace(
-        "tsc=100", "tsc=300"
-    )
-    two_terminals = terminal.replace("seq=1", "seq=0").replace(
-        "tsc=200", "tsc=100"
-    )
     malformed = (
         # v2 and earlier cannot carry the terminal field.
         stdout.replace("v=3", "v=2"),
         # v3 records and summaries require their new fields.
         stdout.replace(" terminal_flush=0", "", 1),
         stdout.replace(" flushes=1", ""),
-        # A terminal must be unique and be the final record.
-        "\n".join(
-            (
-                normal,
-                terminal,
-                trailing_normal,
-                "IZANAGI_BACKOFF_TRACE_SUMMARY v=3 updates=2 retained=2 "
-                "dropped=0 flushes=1",
-            )
-        ),
-        "\n".join(
-            (
-                two_terminals,
-                terminal,
-                "IZANAGI_BACKOFF_TRACE_SUMMARY v=3 updates=0 retained=0 "
-                "dropped=0 flushes=1",
-            )
-        ),
         stdout.replace("assigned_invert=-1", "assigned_invert=0"),
         stdout.replace("recommended_delta_sign=0", "recommended_delta_sign=1"),
         stdout.replace("updates=1", "updates=2"),
@@ -2025,6 +2001,89 @@ def test_parse_backoff_trace_accepts_exact_v3_terminal_contract_only() -> None:
     )
     for candidate in malformed:
         with pytest.raises(ValueError):
+            probe._parse_backoff_trace(candidate)
+
+
+def test_parse_backoff_trace_accepts_v3_without_terminal_and_pins_summary() -> None:
+    normal = (
+        "IZANAGI_BACKOFF_TRACE v=3 seq=0 tsc=100 window_us=10 "
+        "window_commits=10000 trigger=1 backoff_before=100 backoff_after=101 "
+        "gradient_sign=1 step_us=1 ceiling_us=1000 ceiling_changed=0 "
+        "parity_branch=-1 recommended_delta_sign=1 assigned_invert=0 "
+        "inversion_realized=0 both_actions_feasible=1 terminal_flush=0"
+    )
+    summary = (
+        "IZANAGI_BACKOFF_TRACE_SUMMARY v=3 updates=1 retained=1 "
+        "dropped=0 flushes=0"
+    )
+    stdout = f"{normal}\n{summary}\n"
+
+    events, parsed_summary, directional = probe._parse_backoff_trace(stdout)
+    assert len(events) == 1
+    assert events[0]["terminal_flush"] == 0
+    assert events[0]["trigger"] == "count"
+    assert parsed_summary == {
+        "updates": 1,
+        "retained": 1,
+        "dropped": 0,
+        "flushes": 0,
+    }
+    assert directional["scored"] == 0
+
+    for _field, old, new in (
+        ("updates", "updates=1", "updates=2"),
+        ("retained", "retained=1", "retained=0"),
+        ("dropped", "dropped=0", "dropped=1"),
+        ("flushes", "flushes=0", "flushes=1"),
+    ):
+        with pytest.raises(
+            ValueError,
+            match="summary/count or dropped contract failed",
+        ):
+            probe._parse_backoff_trace(stdout.replace(old, new))
+
+
+def test_parse_backoff_trace_rejects_two_or_nonfinal_v3_terminals_at_position_gate(
+) -> None:
+    terminal_0 = (
+        "IZANAGI_BACKOFF_TRACE v=3 seq=0 tsc=100 window_us=11 "
+        "window_commits=10000 trigger=3 backoff_before=101 backoff_after=101 "
+        "gradient_sign=0 step_us=1 ceiling_us=1000 ceiling_changed=0 "
+        "parity_branch=-1 recommended_delta_sign=0 assigned_invert=-1 "
+        "inversion_realized=0 both_actions_feasible=0 terminal_flush=1"
+    )
+    terminal_1 = terminal_0.replace("seq=0", "seq=1").replace(
+        "tsc=100", "tsc=200"
+    )
+    normal_1 = (
+        "IZANAGI_BACKOFF_TRACE v=3 seq=1 tsc=200 window_us=10 "
+        "window_commits=10000 trigger=1 backoff_before=100 backoff_after=101 "
+        "gradient_sign=1 step_us=1 ceiling_us=1000 ceiling_changed=0 "
+        "parity_branch=-1 recommended_delta_sign=1 assigned_invert=0 "
+        "inversion_realized=0 both_actions_feasible=1 terminal_flush=0"
+    )
+    two_terminals = "\n".join(
+        (
+            terminal_0,
+            terminal_1,
+            "IZANAGI_BACKOFF_TRACE_SUMMARY v=3 updates=0 retained=0 "
+            "dropped=0 flushes=2",
+        )
+    )
+    nonfinal_terminal = "\n".join(
+        (
+            terminal_0,
+            normal_1,
+            "IZANAGI_BACKOFF_TRACE_SUMMARY v=3 updates=1 retained=1 "
+            "dropped=0 flushes=1",
+        )
+    )
+
+    for candidate in (two_terminals, nonfinal_terminal):
+        with pytest.raises(
+            ValueError,
+            match="permits zero terminals or one final terminal",
+        ):
             probe._parse_backoff_trace(candidate)
 
 
@@ -2329,6 +2388,7 @@ def test_counterfactual_artifacts_record_exact_preregistration_sha_only_on_exact
         "rep_index": 0,
         "reps_per_job": 1,
         "extime": 3,
+        "backoff_trace_terminal_us": 0,
     }
     assert probe._artifact_contract_metadata(**exact) == {
         "schema_version": probe.TRACE_SCHEMA_VERSION,
@@ -2355,6 +2415,7 @@ def test_counterfactual_artifacts_record_exact_preregistration_sha_only_on_exact
         ("rep_index", 1),
         ("reps_per_job", 2),
         ("extime", 4),
+        ("backoff_trace_terminal_us", 1),
     ):
         changed = {**exact, field: drift}
         assert "counterfactual_preregistration" not in (

@@ -369,6 +369,25 @@ def _policy_diagnostic_document(*, cohort2: bool) -> dict:
     return document
 
 
+def _remove_policy_terminals(document: dict) -> None:
+    for row in document["trace_runs"]:
+        terminal = row["trace_events"].pop()
+        assert terminal["terminal_flush"] == 1
+        events = row["trace_events"]
+        row["trace_summary"] = {
+            "updates": len(events),
+            "retained": len(events),
+            "dropped": 0,
+            "flushes": 0,
+        }
+        scored, successes, rate = plot._directional_success(events)
+        row["directional_success"] = {
+            "scored": scored,
+            "successes": successes,
+            "rate": rate,
+        }
+
+
 def _policy_fixture_inputs(
     tmp_path: Path, *, cohort2: bool,
 ) -> tuple[list[Path], Path]:
@@ -594,6 +613,49 @@ def test_plot_accepts_exact_cohort2_grid_and_uses_artifact_cells_in_figure_loop(
         )
     finally:
         plot.plt.close(figure)
+
+
+def test_cohort2_plot_accepts_zero_terminal_with_exact_summary(
+    tmp_path: Path,
+):
+    performance, _diagnostic = _policy_fixture_inputs(tmp_path, cohort2=True)
+    document = _policy_diagnostic_document(cohort2=True)
+    _remove_policy_terminals(document)
+    diagnostic = _write(tmp_path / "cohort2-zero-terminal.json", document)
+    data = plot.load_inputs(performance, diagnostic)
+    run = data["diagnostic"]["runs"][
+        (COHORT2_TRACE_CELLS[2], "write-heavy", 48)
+    ]
+    assert len(run["trace_events"]) == 4
+    assert all(event["terminal_flush"] == 0 for event in run["trace_events"])
+    assert run["trace_summary"] == {
+        "updates": 4,
+        "retained": 4,
+        "dropped": 0,
+        "flushes": 0,
+    }
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    (
+        ("updates", 3),
+        ("retained", 3),
+        ("dropped", 1),
+        ("flushes", 1),
+    ),
+)
+def test_cohort2_zero_terminal_requires_exact_summary(
+    tmp_path: Path,
+    field: str,
+    value: int,
+):
+    document = _policy_diagnostic_document(cohort2=True)
+    _remove_policy_terminals(document)
+    document["trace_runs"][0]["trace_summary"][field] = value
+    path = _write(tmp_path / f"bad-zero-terminal-{field}.json", document)
+    with pytest.raises(plot.FigureDataError, match="schema v4 count contract"):
+        plot._parse_diagnostic(path)
 
 
 def test_plot_policy_grid_literals_and_field_counts_are_exact() -> None:

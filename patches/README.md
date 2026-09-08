@@ -288,7 +288,8 @@ HEAD と逐語比較するため)。CMake option 7 つ (既定はすべて stock
 **C = `cicada-adaptive-counterfactual.patch`** は **pin `511c9538` + A + B を当てた木だけを preimage
 とし、B の上に重ねる** (pin 単独にも pin+A にも当たらない)。触るのは A / B と同じ
 `cmake/Options.cmake` と `include/backoff.hh` の 2 file で、**`#include` 行を 1 行も足さない**。
-CMake option は 3 つ (既定はすべて stock 同値、`#ifndef ... #error` で欠落を止める)。
+CMake option は 3 つ (既定はすべて stock 同値)。step policy と seed は
+`#ifndef ... #error` で欠落を止め、terminal deadline は trace 有効時だけ同じ欠落検査を行う。
 
 | option | 既定 | 意味 |
 |---|---|---|
@@ -311,16 +312,19 @@ CMake option は 3 つ (既定はすべて stock 同値、`#ifndef ... #error` �
   (`inversion_realized` での層別は処置後選択になり偏るため、偏らない副解析の材料を先に残す)。
   通常 event は `terminal_flush=0`。cohort 2 では init から 5000000 us 以後の最初の count 閉鎖を、
   controller 更新と LCG 割当の前に `trigger=3 assigned_invert=-1 terminal_flush=1` として 1 件だけ記録する。
-  その run では以後 controller を更新せず、terminal は常に末尾になるが、worker と extime は通常どおり進む。
+  terminal を記録した呼出しだけ controller 更新を止める。その後は controller と LCG 割当を通常どおり進め、
+  trace event の追加だけを抑止するため、terminal は常に末尾になる。worker と extime も通常どおり進む。
   summary は `updates` = 通常 event 数、`retained` = 保持した通常 event 数、`dropped` = 失った通常 event 数、
-  `flushes` = terminal event 数。cohort 2 の適格 run は `retained=updates`、`dropped=0`、`flushes=1` である。
+  `flushes` = terminal event 数。terminal 1 件なら `retained=updates`、`dropped=0`、`flushes=1`、
+  terminal 0 件なら `updates=retained=通常 event 数`、`dropped=0`、`flushes=0` である。
   driver の parser は旧 stdout v=1/v=2 と新 v=3 を版ごとの連言で受理し、混在・版不一致・項目欠け・
   余分な項目を拒否する。正規化後の schema は terminal 無しの既存 v3 を継続受理し、terminal 付きだけ
   `izanagi-dynamic-backoff-trace/v4` とする。
 - cell 書式は 5 / 11 field を不変のまま **12 field** を足す (12 番目 = `step_policy` ∈ {0,1,2})。
   11 field と明示 policy 0 の 12 field は identity 上も区別する。
 - 診断走行の exact 述語には **2 本目の literal** を足した (Python と `.pbs` の 2 層に同じもの)。
-  **正しさゲート (認証の exact 2 cell 契約、A の hard pin、既存の逐語 pin) は 1 byte も変えていない。**
+  **正しさゲートの認証 cell 受理集合は exact 2 cell から exact 4 cell へ制御された拡張を行った。**
+  A の hard pin と既存の逐語 pin は変えていない。
   診断入力の受理集合は exact literal 1 本ぶんの**制御された拡張**であり、「緩めていない」とは言わない。
 - 登録簿: 3 define は `orchestrator/campaign/condition_meaning_gate.py` の `DefineSpec`
   (patch_rel = C) と `screening_driver.py` の `_CONDITION_DEFAULTS` に登録する。terminal option の

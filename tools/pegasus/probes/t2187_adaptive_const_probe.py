@@ -1288,13 +1288,13 @@ def _parse_backoff_trace(stdout: str) -> tuple[list[dict], dict, dict]:
             for index, event in enumerate(events)
             if event["terminal_flush"] == 1
         ]
-        if terminal_positions != [len(events) - 1]:
-            raise ValueError("v3 trace requires one terminal event at the end")
+        if terminal_positions not in ([], [len(events) - 1]):
+            raise ValueError("v3 trace permits zero terminals or one final terminal")
         expected_summary = {
-            "updates": len(events) - 1,
-            "retained": len(events) - 1,
+            "updates": len(events) - len(terminal_positions),
+            "retained": len(events) - len(terminal_positions),
             "dropped": 0,
-            "flushes": 1,
+            "flushes": len(terminal_positions),
         }
     else:
         expected_summary = {
@@ -3114,7 +3114,7 @@ def _artifact_contract_metadata(
         and threads_text == ",".join(str(value) for value in TRACE_THREADS)
         and rep_index == 0
         and reps_per_job == 1
-        and extime == 3
+        and extime == 3 and backoff_trace_terminal_us == 0
     ):
         metadata["counterfactual_preregistration"] = (
             _counterfactual_prereg_sha256()
