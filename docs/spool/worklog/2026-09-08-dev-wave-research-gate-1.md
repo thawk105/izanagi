@@ -28,6 +28,12 @@ title: dev-wave が土台へのゴミ流入を止めているかを実測し、�
 - docs-only のため実装子・変異 matrix なし。`python3 tools/check_docs.py` 違反なし。pytest はログインノードで
   guard に拒否されるため、受入全走は本記録 commit 後の tip へ計算ノード dispatch で投入し、結果は受入 receipt
   と land 出力で束縛する (本文執筆時点では未実施)。
+- 受入 attempt 1 は main 自動 merge (`7c0440ffb`、main `c12e25078` を取り込み) 直後の走行前 fingerprint で
+  `rc=70 source_rc=128` に落ちた。原因は main 側に混入した codex 子 worktree の gitlink 110 個
+  ({{F:codex-worktrees-gitlinks-in-main}}、本 wave の差分に非帰属)。同 commit は provenance 違反でもあり
+  (計算ノード range 監査で確定)、是正は別 wave の commit (`48837186c` / `c9c97525e`) が担っていたため二重登録せず、
+  main への着地を待って取り込み、受入を取り直した。ユーザー裁定「この wave で是正する」は、是正 commit が既に
+  存在すると判明した時点で「待って取り込む」へ親が切り替えた。
 - 素材: 土台の伸び (tools 0 → 148K 行、orchestrator 6.8K → 267K 行、tests 2.2K → 524K 行、7/1 → 9/8) は
   「AI 開発ループが自己増殖する土台」の定量例として論文の議論節に使える。
 
