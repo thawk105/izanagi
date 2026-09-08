@@ -1735,6 +1735,7 @@ def run_block(
                         cache_root=str(output_root / "s8b-build-cache"),
                         condition_supply_records=prepared.condition_supply_records,
                         condition_meaning_records=prepared.condition_meaning_records,
+                        sort_oracle_contract_id=prepared.sort_oracle_contract_id,
                     )
                     perf = _perf_for_holdout(freeze, holdout_id, run_contract)
                     before = len(wal.read_records(layout))
@@ -1784,6 +1785,10 @@ def run_block(
                                     observation_admission
                                 ),
                             )
+                            if prepared_for_eval.sort_oracle_contract_id is not None:
+                                evaluate_kwargs["sort_oracle_contract_id"] = (
+                                    prepared_for_eval.sort_oracle_contract_id
+                                )
                             if evaluate_fn is None:
                                 result = pipeline.evaluate(
                                     prepared_for_eval.genome, layout, env_tag,
