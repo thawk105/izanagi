@@ -750,7 +750,7 @@ CODEX_CLEANUP_BRANCHES_OPENAI_YAML = """interface:
   default_prompt: "Use $cleanup-branches to safely clean up merged local branches and worktrees."
 """
 CLEANUP_COMMAND_SHA256 = (
-    "b2daf0068ac34e321f95d14edd473bfe867f53a6d96947deb1263cf21e161a63"
+    "ad9b33625776d056bae9b953e29cc874cd97bd1be2a449281f818fb481a4fd35"
 )
 CLEANUP_OCCUPANCY_SECTION = "3. worktree の削除手順 (F26)"
 CLEANUP_OCCUPANCY_CONTRACT = (
