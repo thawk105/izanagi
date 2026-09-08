@@ -155,3 +155,52 @@ PBS job が孤児化し、orphan hold が立って以後の dispatch が全部 r
 request `985457.nqsv` が稼働中 (STT=PRR) と確認できたので終端まで待ち、
 source の clean と HEAD 一致を確かめてから `orphan-hold.json` と
 `orphan-holds/985457.nqsv.json` の 2 file を削除した。作業ツリーへの被害はゼロ。
+
+## [T-2408] 着地後の取り込みと追随 (2026-09-09)
+
+本 wave の受入待機中に [T-2408] / D1771 が同じ 2 file を大きく変えて着地した (+1215 / -223)。
+先方は約束どおり本 wave の変更面 (`_verification_source_disclosure` の `verify_done` ループと、
+`_collect_report_inputs` 内の同関数の呼出し 2 行) に触れていない。
+
+### 競合 1 件 — 行番号 pin が「両親のどちらでもない値」になった
+
+`test_ccbench_spawn_sites.py` の deferred-gate 登録簿が pin する build sink の行番号で 2 箇所競合した。
+本 wave 側 4061、取り込み側 4460。**2 つの wave が同じ file の別の場所へ行を足したので、
+merge 後の真の値はどちらでもない。** merge 後の現物で測ると `run_formal` 内の `run_campaign(`
+呼出しは **4470** 行だった。両親と異なる実装面なので Codex `role=author` が解決し、
+親も独立に測って一致を確認した。
+
+### API 追随 2 点
+
+report 経路が live `Preregistration` を作らなくなった結果、次の 2 つが変わった。
+
+1. 3 つの `_legacy_*_binding()` から引数が消えた (`TypeError` で 2 node が赤)。
+2. `_assert_report_lock_binding` へ `expected_lock_sha256` が必須引数として増えた。
+   **本 wave の collector 正例は合成 lock を書いていたので、lock 全体の digest 照合で必ず落ちる。**
+
+追随は Codex `role=author` 2 巡で閉じた。**production は 1 行も変えていない。**
+
+- 1 巡目: 引数を外し、[T-2408] が収載した現物 lock snapshot を `_historical_layout` 経由で配置。
+- 2 巡目: 1 巡目が自分で入れた `assert spec == prereg.spec` が原因で残った赤を閉じた。
+  collector は現物 lock から導出した歴史 spec を validator へ渡すので、合成 spec との等値比較は
+  必ず落ちる。合成 `prereg.spec` への依存を外し、受信した spec の `spec_sha256` が歴史 literal で
+  あることを固定し、cell も受信 spec の `block_orders` から組み立てる形へ変えた。
+
+**2 本の test が検査している中身は変えていない。** 拒否側は依然として、件数 90・tag の内訳
+legacy 15 / performance 75・variant の列・block record 45 件・lock bytes をすべて保ったまま
+1 record の `anomalies` だけを 0 から 1 にし、`legacy-wal-verdict` で止まることを固定している。
+
+### 取り込み後の実測
+
+| 走 | 結果 |
+|---|---|
+| `test_b10_backoff_shape_sweep.py` 単独 | 203 passed、rc=0 |
+| consumer 拡張 6 file | 800 passed / 3 skipped、rc=0 |
+| **変異本走 (最終 tip `75a760478`)** | **baseline PASSED、12/12 KILLED、MISMATCH 0・SURVIVED 0、期待 node 完全一致** |
+
+変異は 12 anchor すべてが merge 後も一意に一致することを確かめてから走らせた (`DW-M07`)。
+台帳は `mutation-ledger-postmerge.json`。
+
+`test_t1905_a5_tmp_official_root_is_rejected_by_real_durable_policy` は、取り込み直後に単独では
+赤だったが (main の clean checkout でも同じ赤を再現した = 本 wave 非帰属)、file 全体の走行では
+緑である。順序依存であり、本 wave は触っていない。
