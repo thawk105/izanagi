@@ -3756,6 +3756,16 @@ def _verification_source_disclosure(
         if record.stage != STAGE_VERIFY_DONE:
             continue
         public["raw_verify_done_records"] = int(public["raw_verify_done_records"]) + 1
+        if not (
+            type(record.payload.get("anomalies")) is int
+            and record.payload.get("anomalies") == 0
+            and record.payload.get("certified") is True
+            and record.payload.get("verdict") == "serializable"
+        ):
+            raise PreflightError(
+                "legacy-wal-verdict",
+                f"campaign {campaign_id} variant {record.variant} の WAL 判定が不正",
+            )
         workload_payload = record.payload.get("workload")
         tag = workload_payload.get("tag") if type(workload_payload) is dict else None
         if type(tag) is not str or tag not in ("legacy", "performance"):
