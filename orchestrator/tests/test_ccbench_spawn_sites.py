@@ -887,7 +887,7 @@ _DEFERRED_GATE_MEMBERS = (
         "active wave owns the build_fn injection seam",
         "injected-build_fn",
         "<module>.build_cells.invoke_build",
-        4705,
+        4715,
     ),
     _DeferredGateMember(
         "orchestrator/campaign/s8b_floor_campaign.py",
@@ -895,7 +895,7 @@ _DEFERRED_GATE_MEMBERS = (
         "稼働 wave t2027 の所有面。動的 protocol 経由の campaign sink",
         "campaign",
         "<module>.main",
-        8632,
+        8642,
     ),
     _DeferredGateMember(
         "orchestrator/campaign/s8b_oracle_n_pilot.py",
@@ -2662,11 +2662,11 @@ def test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink():
         (
             "orchestrator/campaign/s8b_floor_campaign.py",
             "wave t2027", "injected-build_fn",
-            "<module>.build_cells.invoke_build", 4705,
+            "<module>.build_cells.invoke_build", 4715,
         ),
         (
             "orchestrator/campaign/s8b_floor_campaign.py",
-            "wave t2027", "campaign", "<module>.main", 8632,
+            "wave t2027", "campaign", "<module>.main", 8642,
         ),
         (
             "orchestrator/campaign/s8b_oracle_n_pilot.py",
@@ -2905,13 +2905,13 @@ def test_define_sink_cross_product_classifies_t2155_production_sinks_exactly():
     s1_sink = _BuildSink(
         "orchestrator/campaign/s1_direct_comparison.py",
         "<module>.run_role",
-        1219,
+        1233,
         "campaign",
     )
     s8b_sink = _BuildSink(
         "orchestrator/campaign/s8b_oracle_driver.py",
         "<module>.run_block",
-        1788,
+        1793,
         "campaign",
     )
     assert classifications[s1_sink] == Counter({
