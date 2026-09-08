@@ -94,7 +94,7 @@ spec は `mutation-probe-spec.json` / `mutation-final-spec.json` (spec 要約値
 **識別 3 欄の変異がそれぞれ自分の parametrize case だけを落としたことは、3 つの検査が独立していて
 1 つの過剰決定 gate になっていないことの証拠である。**
 
-## 5. 受入全走を実行しない判断 (main 側の欠陥)
+## 5. 受入全走 — 一度止め、main の是正後に 3 attempt で緑にした
 
 **受入待ち手は投入前に local main の先端を merge するが、その先端が壊れていた。**
 `.codex/worktrees/` 配下の Codex 子 worktree **110 個が mode 160000 の gitlink として commit**
@@ -104,8 +104,23 @@ spec は `mutation-probe-spec.json` / `mutation-final-spec.json` (spec 要約値
 staged された** (直後に abort、汚染 0 件)。静かに伝播する。
 
 混入は先端 1 commit だけで、1 つ前の `6172ea26b` は 0 件で健全。**汚染を飲んで gate を満たすのは
-規律 6 と停止条件の迂回にあたるため、受入全走は実行せず、健全側を固定 SHA で取り込んだ。**
-代わりに**同じ全走を受入の儀式抜きで回した。これは権威ある受入 receipt ではない。**
+規律 6 と停止条件の迂回にあたるため、いったん受入全走を止め、健全側を固定 SHA で取り込んだ。**
+その間は受入の儀式抜きの全走で回帰を見た (**権威ある受入 receipt ではない**)。
+
+**段 9 に入った時点で別 wave (`dev-wave-research-gate`) が同じ欠陥を独立に検出し `48837186c` で
+是正していた**ため、是正後の main を取り込んで受入を投入し直した。
+
+| attempt | 結果 | 判定 |
+|---|---|---|
+| 1 | rc=70 `child-verdict`、赤 49 件 | 赤は `test_t1259_qsub_env_delivery_probe.py` 1 file に集中。同 file は本 wave の変更 file を 1 つも import しない。**単独走は 51 passed で緑**なので非再現と判定し、規定どおり同一 tip で 1 度だけ再走 |
+| 2 | rc=70 `merge-message-provenance` | main がさらに前進し、両親が同じ実装面 (`tools/check_docs.py` と対応 test) を触った。Codex `role=author` の merge message が必要 |
+| 3 | **`child-green`** | **22,034 passed / 68 skipped / 0 failed。** receipt は `acceptance-receipt.json`、tested main `efba99a88` / tested tip `1cdafc4c0` |
+
+**競合 0 件は合成の正しさを含意しない**ので、attempt 3 の前に親が staged 合成で
+`check_docs` rc=0 / `test_check_docs.py` 572 passed を実測し、**その裏取りを Codex 子に独立検証
+させてから** merge message を書かせた。子は `COMMAND_LIMITS` / `COMMAND_INTERFACES` /
+`DEV_WAVE_DW_O26_SECTION_LITERAL` / `_SYNTHETIC_DW_O26_SECTION` を名指しして、同じ定数・辞書 key・
+登録簿要素の奪い合いが無く両側の変更が残ることを確認した。
 
 ## 6. その全走が本 wave 帰属の欠陥を掘り当てた (F335 再発)
 
@@ -127,7 +142,8 @@ F335 が「焦点走の緑を根拠に汚染なしと判断してはならない
 
 ## 7. 最終状態の実測
 
-- **全走 22,016 passed / 0 failed** (受入形ではない)。
+- **受入全走 `child-green`: 22,034 passed / 68 skipped / 0 failed** (attempt 3、receipt 発行済み)。
+- 受入形でない全走 (attempt 前) は 22,016 passed / 0 failed。
 - setup 段の error 17 件は `git ls-files --others` の 30 秒 timeout。単独実測でも同コマンドは
   **13.1 秒** (user 0.023s / sys 0.531s = ほぼ I/O 待ち) かかり、48 worker 下で超過した。
   該当は投入系 fixture のみで、**本 wave の変更 file とは無関係。非帰属**と判定した。
