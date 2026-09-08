@@ -1,0 +1,207 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 3600,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "M1prime-validator-automatic-retry-inverted",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "old": "    if preregistration[\"automatic_retry\"] is not False:\n",
+          "new": "    if preregistration[\"automatic_retry\"] is False:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_full_materializer_writes_reread_receipt_bytes_not_supplied_bytes",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m11_materializer_stages_marker_before_single_noreplace_rename",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_allows_resultless_preregistered_sibling",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_counts_completion_only_as_sibling_result",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_einval_fails_closed_on_publish_claim_collision",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_einval_refuses_destination_created_before_recheck",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_einval_uses_exclusive_claim_and_flags_zero_rename",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_ignores_result_from_different_policy_cohort",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_invalid_sibling_footprint_reports_identity_and_path[fixed-directory]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_invalid_sibling_footprint_reports_identity_and_path[fixed-fifo]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_invalid_sibling_footprint_reports_identity_and_path[fixed-symlink]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_invalid_sibling_footprint_reports_identity_and_path[raw-file]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_invalid_sibling_footprint_reports_identity_and_path[raw-symlink]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_non_einval_publish_error_does_not_enter_fallback",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_noreplace_success_does_not_enter_fallback",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_normalizes_short_and_full_commit_to_one_cohort",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_rejects_invalid_preregistration_on_production_path[automatic-non-bool]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_rejects_invalid_preregistration_on_production_path[automatic-true]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_rejects_second_result_before_creating_stage",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_p2_a6_full_v3_path_collects_and_materializes",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_anomaly_production_chain_rejects_without_failed_raw",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_authoritative_science_can_remain_inconclusive",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_positive_and_nonpositive_effect_statuses[0.9-reject-authoritative-workload-effect-nonpositive:rr50]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_positive_and_nonpositive_effect_statuses[1.0-reject-authoritative-workload-effect-nonpositive:rr50]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_positive_and_nonpositive_effect_statuses[1.1-partial-authoritative-workload-positive:rr50]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_real_a6_preregistration_literal_is_materialization_eligible",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_synthetic_pbs_free_preregister_through_analyze_positive"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-validator-automatic-retry-check-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "old": "    if preregistration[\"automatic_retry\"] is not False:\n        raise CertificationError(\n            \"preregistration automatic_retry must be exact false\")\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_rejects_invalid_preregistration_on_production_path[automatic-non-bool]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_rejects_invalid_preregistration_on_production_path[automatic-true]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-materialize-gate-call-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "old": "    _require_materialization_attempt_selection(policy, report, evidence)\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_allows_resultless_preregistered_sibling",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_census_is_fail_closed[malformed-name]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_census_is_fail_closed[permission-error]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_census_is_fail_closed[preregistration-corrupt]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_census_is_fail_closed[preregistration-key-missing]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_census_is_fail_closed[preregistration-missing]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_census_is_fail_closed[regular-file]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_census_is_fail_closed[symlink]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_counts_completion_only_as_sibling_result",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_invalid_sibling_footprint_reports_identity_and_path[fixed-directory]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_invalid_sibling_footprint_reports_identity_and_path[fixed-fifo]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_invalid_sibling_footprint_reports_identity_and_path[fixed-symlink]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_invalid_sibling_footprint_reports_identity_and_path[raw-file]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_invalid_sibling_footprint_reports_identity_and_path[raw-symlink]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_normalizes_short_and_full_commit_to_one_cohort",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_rejects_invalid_preregistration_on_production_path[automatic-missing]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_rejects_invalid_preregistration_on_production_path[automatic-non-bool]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_rejects_invalid_preregistration_on_production_path[automatic-true]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_rejects_invalid_preregistration_on_production_path[extra-key]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_rejects_invalid_preregistration_on_production_path[other-key-missing]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_rejects_second_result_before_creating_stage"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-cohort-pin-normalization-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "old": "    return value[:7]\n",
+          "new": "    return value\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_normalizes_short_and_full_commit_to_one_cohort",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_real_a6_preregistration_literal_is_materialization_eligible"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5prime-census-drops-siblings-only",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "old": "    for sibling_root in _durable_attempt_census(policy):\n",
+          "new": "    for sibling_root in (target_root,):\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_allows_resultless_preregistered_sibling",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_census_is_fail_closed[malformed-name]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_census_is_fail_closed[permission-error]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_census_is_fail_closed[preregistration-corrupt]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_census_is_fail_closed[preregistration-key-missing]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_census_is_fail_closed[preregistration-missing]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_census_is_fail_closed[regular-file]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_census_is_fail_closed[symlink]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_counts_completion_only_as_sibling_result",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_invalid_sibling_footprint_reports_identity_and_path[fixed-directory]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_invalid_sibling_footprint_reports_identity_and_path[fixed-fifo]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_invalid_sibling_footprint_reports_identity_and_path[fixed-symlink]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_invalid_sibling_footprint_reports_identity_and_path[raw-file]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_invalid_sibling_footprint_reports_identity_and_path[raw-symlink]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_normalizes_short_and_full_commit_to_one_cohort",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_rejects_second_result_before_creating_stage"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-completion-footprint-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "old": "    \"receipts/completion.json\",\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_counts_completion_only_as_sibling_result"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-writer-automatic-retry-true",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "old": "        \"automatic_retry\": False,\n",
+          "new": "        \"automatic_retry\": True,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_full_materializer_writes_reread_receipt_bytes_not_supplied_bytes",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m11_materializer_stages_marker_before_single_noreplace_rename",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_allows_resultless_preregistered_sibling",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_counts_completion_only_as_sibling_result",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_einval_fails_closed_on_publish_claim_collision",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_einval_refuses_destination_created_before_recheck",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_einval_uses_exclusive_claim_and_flags_zero_rename",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_ignores_result_from_different_policy_cohort",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_invalid_sibling_footprint_reports_identity_and_path[fixed-directory]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_invalid_sibling_footprint_reports_identity_and_path[fixed-fifo]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_invalid_sibling_footprint_reports_identity_and_path[fixed-symlink]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_invalid_sibling_footprint_reports_identity_and_path[raw-file]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_invalid_sibling_footprint_reports_identity_and_path[raw-symlink]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_non_einval_publish_error_does_not_enter_fallback",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_noreplace_success_does_not_enter_fallback",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_normalizes_short_and_full_commit_to_one_cohort",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_rejects_second_result_before_creating_stage",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_p2_a6_full_v3_path_collects_and_materializes",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_anomaly_production_chain_rejects_without_failed_raw",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_authoritative_science_can_remain_inconclusive",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_positive_and_nonpositive_effect_statuses[0.9-reject-authoritative-workload-effect-nonpositive:rr50]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_positive_and_nonpositive_effect_statuses[1.0-reject-authoritative-workload-effect-nonpositive:rr50]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_positive_and_nonpositive_effect_statuses[1.1-partial-authoritative-workload-positive:rr50]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_real_a6_preregistration_literal_is_materialization_eligible",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_synthetic_pbs_free_preregister_through_analyze_positive"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

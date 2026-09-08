@@ -1,0 +1,258 @@
+{
+  "run1_initial_registration": {
+    "baseline": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2025-attempt-selection/output/pegasus-dispatch/8c0a3f902814655401254d6129962975/izdw-8c0a3f9028.o985529",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2025-attempt-selection/output/pegasus-dispatch/8c0a3f902814655401254d6129962975/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 34%]\n........................................................................ [ 69%]\n...............................................................          [100%]\n207 passed in 6.09s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "66fcc1c85a02630b546375e0a8575ed1a51b4e126b129a5200052db65ef074d3"
+      },
+      "artifact_error": null,
+      "collection_sha256": "263c9259e63a7276c8f157f33044473474370508b24ebd79765208090fb9397d",
+      "duration_s": 28.48,
+      "failed_nodes": [],
+      "rc": 0,
+      "registration_sha256": "c71f960629c5a1fe75f060dbc401c965c0756f4428c4fb2654a7c210f439cdde",
+      "repo_head": "967159da4701744ccc0b43d6ea7b87000b60b798",
+      "runner_sha256": "f4e63a8cfbe924992dd1965257a4fbcd4e87feabb8e17110ce334245bce754c9",
+      "spec_sha256": "2fbf8ab85e23d62172822850a26a4043d329b42c564745e4d12b983d5daf5f0f",
+      "status": "PASSED",
+      "test_output_sha256": "66fcc1c85a02630b546375e0a8575ed1a51b4e126b129a5200052db65ef074d3",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "0c34f6cf945952044db846a1ff704e4fbf3f512e352cedf41e0394d34961c109"
+    },
+    "label": "run1",
+    "mutations": [
+      {
+        "duration_s": 33.249,
+        "expected_nodes_count": 1,
+        "expected_status": "KILLED",
+        "expected_subset_of_failed": true,
+        "failed_nodes_count": 27,
+        "id": "M1prime-validator-automatic-retry-inverted",
+        "injection_diff_sha256": "8e81d0b923c223a23ccc9a283c4e79830f4fa9de4be0c5043bbc80cf7c349aea",
+        "rc": 1,
+        "status": "MISMATCH",
+        "test_output_sha256": "a9c383ec55b1f0b8f46bc866675bfa5740d33ccc6c4bcb10582e4b52d453efe0"
+      },
+      {
+        "duration_s": 33.251,
+        "expected_nodes_count": 1,
+        "expected_status": "KILLED",
+        "expected_subset_of_failed": true,
+        "failed_nodes_count": 2,
+        "id": "M2-validator-automatic-retry-check-removed",
+        "injection_diff_sha256": "31e474d67429617cf991a005c41fc672cb9ae449d93de5af82f073efaf12f18f",
+        "rc": 1,
+        "status": "MISMATCH",
+        "test_output_sha256": "f3054e0e0189cf65e0843248bade2d89506f592041f7942c0f3beda2bfe0fee6"
+      },
+      {
+        "duration_s": 33.22,
+        "expected_nodes_count": 2,
+        "expected_status": "KILLED",
+        "expected_subset_of_failed": true,
+        "failed_nodes_count": 21,
+        "id": "M3-materialize-gate-call-removed",
+        "injection_diff_sha256": "212ca59b7304ff59c2b06e1ce7456a5c2d666ffa4f518b3f0ee359d026feb448",
+        "rc": 1,
+        "status": "MISMATCH",
+        "test_output_sha256": "807ded9109beeb732a029ca50f3addbc362709361ed1501474323c62c70a6962"
+      },
+      {
+        "duration_s": 33.255,
+        "expected_nodes_count": 1,
+        "expected_status": "KILLED",
+        "expected_subset_of_failed": true,
+        "failed_nodes_count": 2,
+        "id": "M4-cohort-pin-normalization-removed",
+        "injection_diff_sha256": "f343b64d405c006ef2e2221a69a9715453399f914756bd1b9809fb2dd4c2ebfc",
+        "rc": 1,
+        "status": "MISMATCH",
+        "test_output_sha256": "afb2f4ff0c95bc6414ced45e6260ad418a548c0183cd54cb17eefff509557a8a"
+      },
+      {
+        "duration_s": 33.363,
+        "expected_nodes_count": 1,
+        "expected_status": "KILLED",
+        "expected_subset_of_failed": true,
+        "failed_nodes_count": 16,
+        "id": "M5prime-census-drops-siblings-only",
+        "injection_diff_sha256": "83d3a3884e767d67c5f2ca2b11dffef6713536114b3784d82ed39ef60b01c677",
+        "rc": 1,
+        "status": "MISMATCH",
+        "test_output_sha256": "8abb26cc4cc7a6abba4ba159651b8b463d98461195b6685fa563418120f400e4"
+      },
+      {
+        "duration_s": 33.333,
+        "expected_nodes_count": 1,
+        "expected_status": "KILLED",
+        "expected_subset_of_failed": true,
+        "failed_nodes_count": 1,
+        "id": "M6-completion-footprint-removed",
+        "injection_diff_sha256": "08d326bb59afef4e029048573fa51734291404cf530b56110e73a1957f05588a",
+        "rc": 1,
+        "status": "KILLED",
+        "test_output_sha256": "499eda39bd465c267248cb531ede364a4165ce12714e36797dc9464c8bd40465"
+      },
+      {
+        "duration_s": 33.303,
+        "expected_nodes_count": 1,
+        "expected_status": "KILLED",
+        "expected_subset_of_failed": true,
+        "failed_nodes_count": 25,
+        "id": "M7-writer-automatic-retry-true",
+        "injection_diff_sha256": "de0dd8dbff8c636163655b2a9a7097fa28bc0bc52f32db522515537cf16f93fd",
+        "rc": 1,
+        "status": "MISMATCH",
+        "test_output_sha256": "c63352249ffc7891b1d42f28c592dec00f34f0af5bb16bd2698e30736facc8c7"
+      }
+    ],
+    "repo_head": "967159da4701744ccc0b43d6ea7b87000b60b798",
+    "runner_sha256": "f4e63a8cfbe924992dd1965257a4fbcd4e87feabb8e17110ce334245bce754c9",
+    "schema": "izanagi-dev-wave-mutation/v4",
+    "spec_sha256": "2fbf8ab85e23d62172822850a26a4043d329b42c564745e4d12b983d5daf5f0f",
+    "summary": {
+      "KILLED": 1,
+      "MISMATCH": 6,
+      "PARSE_ERROR": 0,
+      "SURVIVED": 0,
+      "TIMEOUT": 0,
+      "completed": 7,
+      "matching": 1,
+      "recorded": 7,
+      "registered": 7
+    },
+    "tool_sha256": "0c34f6cf945952044db846a1ff704e4fbf3f512e352cedf41e0394d34961c109"
+  },
+  "run2_exact_node_sets": {
+    "baseline": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2025-attempt-selection/output/pegasus-dispatch/1ab293c3f4987d1bcc086cfe2dabd88f/izdw-1ab293c3f4.o985562",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2025-attempt-selection/output/pegasus-dispatch/1ab293c3f4987d1bcc086cfe2dabd88f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 34%]\n........................................................................ [ 69%]\n...............................................................          [100%]\n207 passed in 6.44s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "ea2c863b36ea02f6c0c4e1a76af6c865479b1d571a02c1624a89202548391d5b"
+      },
+      "artifact_error": null,
+      "collection_sha256": "0742fad38a6dd6622b9d8bb0aaf276af7b7eb1b23a5ca140bc0795a1741fb8f2",
+      "duration_s": 33.406,
+      "failed_nodes": [],
+      "rc": 0,
+      "registration_sha256": "3d5593b7d8f3d2c9668155ca92e8f8a39e8b17d1cd3e926610018f3fc4647130",
+      "repo_head": "967159da4701744ccc0b43d6ea7b87000b60b798",
+      "runner_sha256": "f4e63a8cfbe924992dd1965257a4fbcd4e87feabb8e17110ce334245bce754c9",
+      "spec_sha256": "5d5f88ae9e7709670ca7a6de38b0dd0c4c5a48a96cd66a8a0f0a02f566a2b3a6",
+      "status": "PASSED",
+      "test_output_sha256": "ea2c863b36ea02f6c0c4e1a76af6c865479b1d571a02c1624a89202548391d5b",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "0c34f6cf945952044db846a1ff704e4fbf3f512e352cedf41e0394d34961c109"
+    },
+    "label": "run2",
+    "mutations": [
+      {
+        "duration_s": 33.857,
+        "expected_nodes_count": 27,
+        "expected_status": "KILLED",
+        "expected_subset_of_failed": true,
+        "failed_nodes_count": 27,
+        "id": "M1prime-validator-automatic-retry-inverted",
+        "injection_diff_sha256": "8e81d0b923c223a23ccc9a283c4e79830f4fa9de4be0c5043bbc80cf7c349aea",
+        "rc": 1,
+        "status": "KILLED",
+        "test_output_sha256": "5e1aea46d41dc1e52a7e6660076a3d5067d0e9d572bac851c56008d9f2e0eab9"
+      },
+      {
+        "duration_s": 38.548,
+        "expected_nodes_count": 2,
+        "expected_status": "KILLED",
+        "expected_subset_of_failed": true,
+        "failed_nodes_count": 2,
+        "id": "M2-validator-automatic-retry-check-removed",
+        "injection_diff_sha256": "31e474d67429617cf991a005c41fc672cb9ae449d93de5af82f073efaf12f18f",
+        "rc": 1,
+        "status": "KILLED",
+        "test_output_sha256": "ba96f6184ba7d3294d86e19748789147bef03ba5e1faae6c4ff060073df83713"
+      },
+      {
+        "duration_s": 33.425,
+        "expected_nodes_count": 21,
+        "expected_status": "KILLED",
+        "expected_subset_of_failed": true,
+        "failed_nodes_count": 21,
+        "id": "M3-materialize-gate-call-removed",
+        "injection_diff_sha256": "212ca59b7304ff59c2b06e1ce7456a5c2d666ffa4f518b3f0ee359d026feb448",
+        "rc": 1,
+        "status": "KILLED",
+        "test_output_sha256": "b4dcd9bb144f1a3d64e6457ae46f16f2d04e507d633411ec7567207dfb6c0c42"
+      },
+      {
+        "duration_s": 33.804,
+        "expected_nodes_count": 2,
+        "expected_status": "KILLED",
+        "expected_subset_of_failed": true,
+        "failed_nodes_count": 2,
+        "id": "M4-cohort-pin-normalization-removed",
+        "injection_diff_sha256": "f343b64d405c006ef2e2221a69a9715453399f914756bd1b9809fb2dd4c2ebfc",
+        "rc": 1,
+        "status": "KILLED",
+        "test_output_sha256": "a6aa7df074af6ccd8fa1fb6bff121ad855fdd3f6245c36b907e22b77388687b3"
+      },
+      {
+        "duration_s": 38.768,
+        "expected_nodes_count": 16,
+        "expected_status": "KILLED",
+        "expected_subset_of_failed": true,
+        "failed_nodes_count": 16,
+        "id": "M5prime-census-drops-siblings-only",
+        "injection_diff_sha256": "83d3a3884e767d67c5f2ca2b11dffef6713536114b3784d82ed39ef60b01c677",
+        "rc": 1,
+        "status": "KILLED",
+        "test_output_sha256": "01f2289a5542167692af28bf5e55604c60e6aa9471a96413b90a621cde58c1e2"
+      },
+      {
+        "duration_s": 33.243,
+        "expected_nodes_count": 1,
+        "expected_status": "KILLED",
+        "expected_subset_of_failed": true,
+        "failed_nodes_count": 1,
+        "id": "M6-completion-footprint-removed",
+        "injection_diff_sha256": "08d326bb59afef4e029048573fa51734291404cf530b56110e73a1957f05588a",
+        "rc": 1,
+        "status": "KILLED",
+        "test_output_sha256": "c7b311b2739072ef91a23b1f0a28dbc5ddf52e8454cd724206510184060f76c0"
+      },
+      {
+        "duration_s": 202.294,
+        "expected_nodes_count": 25,
+        "expected_status": "KILLED",
+        "expected_subset_of_failed": true,
+        "failed_nodes_count": 25,
+        "id": "M7-writer-automatic-retry-true",
+        "injection_diff_sha256": "de0dd8dbff8c636163655b2a9a7097fa28bc0bc52f32db522515537cf16f93fd",
+        "rc": 1,
+        "status": "KILLED",
+        "test_output_sha256": "888434fe4f630ef674537c0eee8e882e8e479344b99cad2017a9b84fbb907893"
+      }
+    ],
+    "repo_head": "967159da4701744ccc0b43d6ea7b87000b60b798",
+    "runner_sha256": "f4e63a8cfbe924992dd1965257a4fbcd4e87feabb8e17110ce334245bce754c9",
+    "schema": "izanagi-dev-wave-mutation/v4",
+    "spec_sha256": "5d5f88ae9e7709670ca7a6de38b0dd0c4c5a48a96cd66a8a0f0a02f566a2b3a6",
+    "summary": {
+      "KILLED": 7,
+      "MISMATCH": 0,
+      "PARSE_ERROR": 0,
+      "SURVIVED": 0,
+      "TIMEOUT": 0,
+      "completed": 7,
+      "matching": 7,
+      "recorded": 7,
+      "registered": 7
+    },
+    "tool_sha256": "0c34f6cf945952044db846a1ff704e4fbf3f512e352cedf41e0394d34961c109"
+  }
+}
