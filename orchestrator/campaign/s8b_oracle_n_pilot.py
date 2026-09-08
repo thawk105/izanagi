@@ -46,7 +46,14 @@ from .build_admission import (
     derive_build_admission,
 )
 from .p2_2 import _assert_single_tenant
-from .s1_direct_comparison import _PREPARE_CELL_CONFIGURATIONS, prepare_cell
+from .s1_direct_comparison import (
+    DriverError as S1DriverError,
+    _PREPARE_CELL_CONFIGURATIONS,
+    _condition_driver_id,
+    _condition_request_digests_for_flags,
+    prepare_cell,
+    require_returned_condition_evidence,
+)
 from .s8b_experiment_numbers import APPROVED_EXTIME_S, APPROVED_REPS
 from .s8b_floor_campaign import (
     _canonical_floor_fetchcontent_base,
@@ -55,7 +62,11 @@ from .s8b_floor_campaign import (
 )
 from .s8b_freeze_io import load_verified_freeze
 from .s8b_holdout_freeze import holdout_conjunction_hits, verify_document
-from .s8b_materialization import prepared_binding, reviewed_source_capability
+from .s8b_materialization import (
+    binding_entry,
+    prepared_binding,
+    reviewed_source_capability,
+)
 from . import source_digest
 
 
@@ -834,12 +845,45 @@ def _prepare_sort_swo_oracle_environment(
     return dependency_root, compiler
 
 
+@dataclass(frozen=True, slots=True)
+class _ConditionEvidencedBuildReceipt:
+    build_result: object
+    condition_supply_records: tuple[object, ...]
+    condition_meaning_records: tuple[object, ...]
+
+    def __getattr__(self, name: str) -> object:
+        return getattr(self.build_result, name)
+
+
+@dataclass(frozen=True, slots=True)
+class _DefaultConditionEvidencedBuildFn:
+    delegate: Callable[..., object]
+
+    def __call__(
+        self,
+        genome: object,
+        *,
+        condition_supply_records: tuple[object, ...],
+        condition_meaning_records: tuple[object, ...],
+        **kwargs: object,
+    ) -> _ConditionEvidencedBuildReceipt:
+        built = self.delegate(genome, **kwargs)
+        return _ConditionEvidencedBuildReceipt(
+            build_result=built,
+            condition_supply_records=condition_supply_records,
+            condition_meaning_records=condition_meaning_records,
+        )
+
+
+_DEFAULT_BUILD_FN = _DefaultConditionEvidencedBuildFn(buildcache.build_v2)
+
+
 def build_binaries(
     inputs: PilotInputs,
     *,
     cache_root: Path,
     prepare_fn: Callable[..., object] = prepare_cell,
-    build_fn: Callable[..., object] = buildcache.build_v2,
+    build_fn: Callable[..., object] = _DEFAULT_BUILD_FN,
     repo_root: Path = ROOT,
     worktree_roots: Sequence[Path] | None = None,
     allocation_mode: bool | None = None,
@@ -904,11 +948,20 @@ def build_binaries(
     seen_worktrees: set[str] = set()
     for cell in inputs.cells:
         cell_id = str(cell["cell_id"])
+        holdout_id = str(cell["holdout_id"])
+        configuration_id = str(cell["configuration_id"])
+        expected_entry = binding_entry(
+            inputs.freeze, holdout_id, configuration_id,
+        )
+        expected_request_digests = _condition_request_digests_for_flags(
+            expected_entry["flags"],
+            driver_id=_condition_driver_id(configuration_id),
+        )
         started = monotonic_fn()
         with prepared_binding(
             freeze=inputs.freeze,
-            holdout_id=str(cell["holdout_id"]),
-            configuration_id=str(cell["configuration_id"]),
+            holdout_id=holdout_id,
+            configuration_id=configuration_id,
             ccbench_pin=inputs.protocol.ccbench_pin,
             cxx=cxx,
             prepare_fn=effective_prepare_fn,
@@ -956,9 +1009,24 @@ def build_binaries(
                     ccbench_dir=prepared.ccbench_dir,
                     timeout_s=900,
                     expected_toolchain_manifest=toolchain_manifest,
+                    condition_supply_records=prepared.condition_supply_records,
+                    condition_meaning_records=prepared.condition_meaning_records,
                 )
             finally:
                 _assert_directory_identity(canonical_cache, cache_identity, "cache_root")
+            try:
+                require_returned_condition_evidence(
+                    built,
+                    expected_request_digests=expected_request_digests,
+                    expected_records=(
+                        prepared.condition_supply_records,
+                        prepared.condition_meaning_records,
+                    ),
+                    use_class="oracle",
+                    label="n-pilot build_fn return",
+                )
+            except S1DriverError as exc:
+                raise PilotError(f"build condition evidence rejected: {exc}") from exc
             if getattr(built, "trace", None) is not False:
                 raise PilotError(f"trace-disabled build receipt でない: {cell_id}")
             cached = getattr(built, "cached", None)

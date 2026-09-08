@@ -1,5 +1,25 @@
 {
   "duration_seconds_by_nodeid": {
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g5_real_ledger_covers_at_least_90_percent_of_real_collection": 62.0,
+    "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_legacy_verify_done_verdict_accepts_exact_values_and_extra_payload": 0.001,
+    "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_legacy_verify_done_verdict_is_checked_before_disclosure_filter[unknown-tag]": 0.001,
+    "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_legacy_verify_done_verdict_is_checked_before_disclosure_filter[unmapped-variant]": 0.001,
+    "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_legacy_verify_done_verdict_rejects_field_mutation[anomalies-bool-false]": 0.001,
+    "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_legacy_verify_done_verdict_rejects_field_mutation[anomalies-missing]": 0.001,
+    "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_legacy_verify_done_verdict_rejects_field_mutation[anomalies-nonzero]": 0.001,
+    "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_legacy_verify_done_verdict_rejects_field_mutation[certified-false]": 0.001,
+    "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_legacy_verify_done_verdict_rejects_field_mutation[certified-int-one]": 0.001,
+    "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_legacy_verify_done_verdict_rejects_field_mutation[certified-missing]": 0.001,
+    "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_legacy_verify_done_verdict_rejects_field_mutation[verdict-missing]": 0.001,
+    "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_legacy_verify_done_verdict_rejects_field_mutation[verdict-other]": 0.001,
+    "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_report_collector_accepts_exact_legacy_verdict_fixture": 0.66,
+    "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_report_collector_rejects_same_counts_and_tags_when_legacy_wal_verdict_changes": 0.39,
+    "orchestrator/tests/test_paper_story_a2_job_contract.py::test_job_body_nonzero_job_number_exits_without_durable_output[observed-rank-4]": 0.007,
+    "orchestrator/tests/test_paper_story_a2_job_contract.py::test_job_body_nonzero_job_number_exits_without_durable_output[rank-1]": 0.009,
+    "orchestrator/tests/test_paper_story_a2_job_contract.py::test_job_body_rejects_malformed_pbs_jobid_without_durable_output[empty-request-id]": 0.006,
+    "orchestrator/tests/test_paper_story_a2_job_contract.py::test_job_body_rejects_malformed_pbs_jobid_without_durable_output[leading-zero-job-number]": 0.006,
+    "orchestrator/tests/test_paper_story_a2_job_contract.py::test_job_body_rejects_malformed_pbs_jobid_without_durable_output[missing-job-number]": 0.007,
+    "orchestrator/tests/test_paper_story_a2_job_contract.py::test_job_body_rejects_malformed_pbs_jobid_without_durable_output[nondecimal-job-number]": 0.006,
     "orchestrator/tests/test_a5_second_boot_job_contract.py::test_current_scripts_are_a_positive_example_of_the_complete_contract": 0.029,
     "orchestrator/tests/test_a5_second_boot_job_contract.py::test_finalizer_denominator_is_exactly_no_backoff": 0.01,
     "orchestrator/tests/test_a5_second_boot_job_contract.py::test_finalizer_requires_all_eight_commits_and_zero_aborts": 0.02,
@@ -22124,7 +22144,7 @@
     "orchestrator/tests/test_t1998_stock_inline_pair.py::test_unstable_arm_is_inconclusive[target]": 0.0,
     "orchestrator/tests/test_t1998_stock_inline_pair.py::test_verify_environment_tag_drift_is_rejected": 0.0
   },
-  "nodeid_count": 22123,
+  "nodeid_count": 22143,
   "schema_version": 1,
   "unit": "seconds"
 }
