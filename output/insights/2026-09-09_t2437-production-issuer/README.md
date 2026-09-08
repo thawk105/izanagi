@@ -199,3 +199,16 @@ run_campaign → 実 _authorize_measurement → 実 calibration loader → 実 v
   S1・S3 だけでなく、同じ closure に載る全 file の将来の wave にも当てはまる。
 - 段 3 が指摘した恒真な検査 2 件 (`derive_physical_result` の mixed-attempt 拒否、
   `result_to_dict()` 由来の派生値検査) は、既存 API の意味であって本 wave が足した防護ではない。
+
+## 10. 段 8 — 自己改善は 3 件とも本文編集をせず候補記録に留めた
+
+| 候補 | 実測 | 裁定 |
+| --- | --- | --- |
+| `tools/run_tests.py` の file 引数は repo 相対 path でないと無言で 0 件収集 rc=5 になる (`_normalize_args` が repo root 基準の存在検査に失敗して絶対 path 化しない) | 親が 1 回踏み、dispatch 1 本を無駄にした | **見送り。**統合先の `DW-O26` は 946/1000 bytes で 1 行は収まるが、**節全体が `tools/check_docs.py` の exact 契約に pin されている。**追記には checker の編集 = 実装面の変更と Codex author 子が要り、2 分の損失に対して不釣り合い |
+| `DW-S05-A` の「gate 実測値の NOTE が非 0 なら anchor を読み直す」は、midflight gate が隔離 worktree で必ず「main より N commit 遅れ」を NOTE に出すため常に発火する | 3 回とも発火。親は anchor を読み直して問題なしを確認した | **見送り。**手順としては機能した。親の読解が狭かった可能性を排除できない |
+| `EnterWorktree` 失敗 (symlink cwd) からの回復手順が `docs/dev-wave/` に無い | 1 件 | **見送り。**memory に既にあり、そこから回復できた。同じ内容を複数の行き先へ複製しない (自己改善契約) |
+
+**この 3 件から出た一般的な観察。** `docs/dev-wave/` の reference 節は
+**byte 予算 (L2 節は 1000 bytes) に加えて節全体の exact pin を持つ。**
+1 行の明確化でも「予算に収まるか」だけでは足りず、pin を持つ checker の編集が要る。
+事故を伴わない明確化は、この二重の関門に対して割に合わないことが多い。
