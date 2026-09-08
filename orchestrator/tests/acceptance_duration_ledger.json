@@ -11172,7 +11172,7 @@
     "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_role_metric_payloads_preserve_unobserved_none": 0.001,
     "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_role_metric_payloads_reject_percent_overflow": 0.001,
     "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_role_payload_validators_are_immediately_before_provider_invoke_by_ast": 0.022,
-    "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_role_sink_bytes_vary_only_at_declared_declassifications": 140.0,
+    "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_role_sink_bytes_vary_only_at_declared_declassifications": 18.0,
     "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_trial_build_public_entry_passes_exploration_layout_to_trigger": 0.15,
     "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_trial_closes_owned_providers_in_reverse_order[success]": 0.099,
     "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_run_trial_closes_owned_providers_in_reverse_order[supervisor-error]": 0.15,
