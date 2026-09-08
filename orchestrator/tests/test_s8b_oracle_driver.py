@@ -2182,6 +2182,8 @@ def _prepare_factory(
     *, fail_first: bool = False, token_suffix: str = "",
     suffix_first_only: bool = False,
 ):
+    from orchestrator.campaign.sort_swo_oracle import ORACLE_CONTRACT_ID
+
     calls: list[dict] = []
 
     @contextlib.contextmanager
@@ -2203,6 +2205,10 @@ def _prepare_factory(
             ccbench_dir="/tmp/fixture-ccbench", cache_root="/tmp/fixture-cache",
             condition_supply_records=supply,
             condition_meaning_records=meaning,
+            sort_oracle_contract_id=(
+                ORACLE_CONTRACT_ID
+                if cell["configuration"] == "sort_best" else None
+            ),
         )
 
     fake_prepare.calls = calls
@@ -3877,6 +3883,8 @@ def test_active_resolution_and_manifest_structure_refusals_are_aggregated(tmp_pa
 
 
 def test_success_wal_order_budget_and_evaluate_contract(tmp_path):
+    from orchestrator.campaign.sort_swo_oracle import ORACLE_CONTRACT_ID
+
     freeze_path = _synthetic_freeze(tmp_path)
     prepare_fn = _prepare_factory()
     manifest_path, document = _write_manifest(tmp_path, freeze_path, prepare_fn)
@@ -3900,9 +3908,21 @@ def test_success_wal_order_budget_and_evaluate_contract(tmp_path):
     assert set(terminal["execution_identity"]) == {
         "job", "host", "boot", "pid", "starttime",
     }
-    assert len(evaluate_fn.calls) == len(document["schedule"]["rows"])
-    for call in evaluate_fn.calls:
+    assert len(prepare_fn.calls) == len(evaluate_fn.calls) == len(
+        document["schedule"]["rows"]
+    )
+    seen_unbound = set()
+    saw_sort_best = False
+    for prepare_call, call in zip(prepare_fn.calls, evaluate_fn.calls):
         kwargs = call["kwargs"]
+        configuration = prepare_call["cell"]["configuration"]
+        if configuration == "sort_best":
+            saw_sort_best = True
+            assert kwargs["sort_oracle_contract_id"] == ORACLE_CONTRACT_ID
+        else:
+            assert "sort_oracle_contract_id" not in kwargs
+            if configuration in {"backoff_fixed_best", "stock_common"}:
+                seen_unbound.add(configuration)
         assert kwargs["do_bench"] is True
         assert kwargs["screening"] is None
         assert kwargs["env_contract"] is ec.lookup(V2_ENV_TAG)
@@ -3931,6 +3951,8 @@ def test_success_wal_order_budget_and_evaluate_contract(tmp_path):
         tag, workload = kwargs["extra_correctness"][0]
         assert tag == pipeline.S2_TAG
         assert workload.flags == pipeline.s2_correctness_workload().flags
+    assert saw_sort_best
+    assert seen_unbound == {"backoff_fixed_best", "stock_common"}
     ledger = s8b_budget.read_ledger(
         tmp_path / "budget.json",
         manifest_sha256=result["manifest_sha256"],

@@ -2,10 +2,12 @@
 """A-2 certification figure: authority, projection, layout, and mutation pins."""
 from __future__ import annotations
 
+import ast
 import collections
 import base64
 import hashlib
 import importlib.util
+import inspect
 import json
 import os
 import statistics
@@ -28,6 +30,10 @@ REAL_ROOT = Path(os.environ.get(
     "IZANAGI_A2_CERTIFICATION_MEASUREMENT_ROOT",
     "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2022-20260828c",
 ))
+T2364_REAL_ROOT = Path(
+    "/work/1/SFC/tanab/izanagi-measurements/"
+    "dev-wave-paper-story-a2-cert-20260824/t2364-20260907b"
+)
 SAMPLES = {
     "rr5-stock": [2715421, 2565367, 2496060, 2470354, 2527542],
     "rr5-fixed10": [1348263, 1355011, 1345709, 1387690, 1362175],
@@ -382,18 +388,27 @@ def _historical_policy_fixture(plot, fixture: dict, monkeypatch) -> tuple[str, s
     )
     certification_sha256 = _sha(fixture["cert"])
     monkeypatch.setattr(plot, "HISTORICAL_CURRENT_POLICY_VIEWS", {
-        (certification_sha256, policy_sha256): {
-            "protocol_schema": "paper-story-a2-certification-policy/v2",
-            "protocol_sha256": protocol_sha256,
-            "trace0_configure_keys": frozenset({
-                "source_option", "build_directory_option", "fixed_arguments",
-                "toolchain_arguments", "dependency_prefix_argument",
-                "controlled_define_argument",
-            }),
-        },
+        (certification_sha256, policy_sha256): (
+            producer.POLICY_GENERATION_PRE_FETCHCONTENT_PATHS
+        ),
     })
     fixture["historical_policy_bytes"] = policy_bytes
     return certification_sha256, policy_sha256
+
+
+def _register_historical_fixture(
+        plot, fixture: dict, monkeypatch, *, policy_sha256: str | None = None,
+) -> tuple[str, str]:
+    certification = json.loads(fixture["cert"].read_text(encoding="utf-8"))
+    selected_policy_sha256 = (
+        certification["policy_sha256"]
+        if policy_sha256 is None else policy_sha256
+    )
+    pair = (_sha(fixture["cert"]), selected_policy_sha256)
+    monkeypatch.setattr(plot, "HISTORICAL_CURRENT_POLICY_VIEWS", {
+        pair: _producer().POLICY_GENERATION_PRE_FETCHCONTENT_PATHS,
+    })
+    return pair
 
 
 def _hashes(fixture: dict) -> dict[str, str]:
@@ -515,20 +530,203 @@ def test_current_full_profile_uses_producer_policy_and_exact_twelve_file_closure
 
 def test_historical_policy_registry_contains_only_the_exact_t2364_pair():
     plot = _plot()
+    producer = _producer()
     pair = (
         "e74d0f870497941b95ac4d1e244634188813e249f2821d571178e4854a3ed671",
         "67dce5a785dfc52d5df9b773f7a65905a030b7bd61ab7706704e2ed8e85a0487",
     )
     assert set(plot.HISTORICAL_CURRENT_POLICY_VIEWS) == {pair}
-    assert plot.HISTORICAL_CURRENT_POLICY_VIEWS[pair] == {
-        "protocol_schema": "paper-story-a2-certification-policy/v2",
-        "protocol_sha256": "136b823e60a4b43e07dbbb4e3f8b5be48964226c955e143d59955325f0e0d9f4",
-        "trace0_configure_keys": frozenset({
-            "source_option", "build_directory_option", "fixed_arguments",
-            "toolchain_arguments", "dependency_prefix_argument",
-            "controlled_define_argument",
-        }),
+    assert plot.HISTORICAL_CURRENT_POLICY_VIEWS[pair] == (
+        producer.POLICY_GENERATION_PRE_FETCHCONTENT_PATHS
+    )
+
+
+def test_policy_generation_key_sets_are_independent_exact_literals():
+    producer = _producer()
+    current = frozenset({
+        "source_option", "build_directory_option", "fixed_arguments",
+        "toolchain_arguments", "dependency_prefix_argument",
+        "fetchcontent_path_argument_prefixes",
+        "controlled_define_argument",
+    })
+    historical = frozenset({
+        "source_option", "build_directory_option", "fixed_arguments",
+        "toolchain_arguments", "dependency_prefix_argument",
+        "controlled_define_argument",
+    })
+    assert producer._TRACE0_CONFIGURE_ARGV_KEYS == current
+    assert producer._TRACE0_CONFIGURE_ARGV_KEYS_BY_POLICY_GENERATION == {
+        producer.POLICY_GENERATION_CURRENT: current,
+        producer.POLICY_GENERATION_PRE_FETCHCONTENT_PATHS: historical,
     }
+
+    syntax = ast.parse(Path(producer.__file__).read_text(encoding="utf-8"))
+    names = {
+        "_TRACE0_CONFIGURE_ARGV_KEYS",
+        "_TRACE0_CONFIGURE_ARGV_KEYS_BY_POLICY_GENERATION",
+    }
+    assignments = {name: [] for name in names}
+
+    class ModuleAssignmentVisitor(ast.NodeVisitor):
+        def _record(self, target, node):
+            if isinstance(target, ast.Name) and target.id in assignments:
+                assignments[target.id].append(node)
+            elif isinstance(target, (ast.List, ast.Tuple)):
+                for element in target.elts:
+                    self._record(element, node)
+
+        def visit_Assign(self, node):
+            for target in node.targets:
+                self._record(target, node)
+            self.visit(node.value)
+
+        def visit_AnnAssign(self, node):
+            self._record(node.target, node)
+            if node.value is not None:
+                self.visit(node.value)
+
+        def visit_AugAssign(self, node):
+            self._record(node.target, node)
+            self.visit(node.value)
+
+        def visit_NamedExpr(self, node):
+            self._record(node.target, node)
+            self.visit(node.value)
+
+        def visit_FunctionDef(self, node):
+            return
+
+        def visit_AsyncFunctionDef(self, node):
+            return
+
+        def visit_ClassDef(self, node):
+            return
+
+        def visit_Lambda(self, node):
+            return
+
+    ModuleAssignmentVisitor().visit(syntax)
+    assert all(len(assignments[name]) == 1 for name in names)
+    assert not [
+        node for node in ast.walk(syntax)
+        if isinstance(node, ast.Subscript)
+        and isinstance(node.value, ast.Name)
+        and node.value.id in names
+        and isinstance(node.ctx, (ast.Store, ast.Del))
+    ]
+    mutating_methods = {
+        "add", "clear", "difference_update", "discard", "intersection_update",
+        "pop", "popitem", "remove", "setdefault", "symmetric_difference_update",
+        "update", "__delitem__", "__ior__", "__setitem__",
+    }
+    assert not [
+        node for node in ast.walk(syntax)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id in names
+        and node.func.attr in mutating_methods
+    ]
+
+    current_assignment = assignments["_TRACE0_CONFIGURE_ARGV_KEYS"][0]
+    table_assignment = assignments[
+        "_TRACE0_CONFIGURE_ARGV_KEYS_BY_POLICY_GENERATION"
+    ][0]
+    assert isinstance(current_assignment, ast.Assign)
+    assert isinstance(table_assignment, ast.Assign)
+
+    def literal_frozenset(value):
+        assert (
+            isinstance(value, ast.Call)
+            and isinstance(value.func, ast.Name)
+            and value.func.id == "frozenset"
+            and len(value.args) == 1
+            and isinstance(value.args[0], ast.Set)
+            and not value.keywords
+        )
+        result = frozenset(
+            element.value for element in value.args[0].elts
+            if isinstance(element, ast.Constant)
+            and type(element.value) is str
+        )
+        assert len(result) == len(value.args[0].elts)
+        return result
+
+    assert literal_frozenset(current_assignment.value) == current
+    assert isinstance(table_assignment.value, ast.Dict)
+    literal_values = []
+    for value in table_assignment.value.values:
+        literal_values.append(literal_frozenset(value))
+    assert literal_values == [current, historical]
+
+
+def test_public_policy_loader_signature_remains_path_only():
+    producer = _producer()
+    parameters = list(inspect.signature(producer.load_policy).parameters.values())
+    assert len(parameters) == 1
+    assert parameters[0].name == "path"
+    assert parameters[0].kind is inspect.Parameter.POSITIONAL_OR_KEYWORD
+    assert parameters[0].default == producer.POLICY_PATH
+
+
+@pytest.mark.parametrize(
+    "generation", ["unknown-policy-generation", 1],
+    ids=["unknown-string", "non-string"],
+)
+def test_historical_policy_loader_rejects_unknown_or_non_string_generation(
+        generation):
+    producer = _producer()
+    with pytest.raises(
+            producer.CertificationError,
+            match="unsupported policy grammar generation"):
+        producer._load_historical_policy(
+            producer.POLICY_PATH, generation=generation)
+
+
+def test_t2364_canonical_current_full_measurements_load_without_override():
+    plot = _plot()
+    current_full = []
+    for relative in plot.CANONICAL_SHA256:
+        certification_path = REPO / relative
+        raw_manifest_path = certification_path.with_name("raw-manifest.json")
+        certification = json.loads(
+            certification_path.read_text(encoding="utf-8"))
+        manifest = json.loads(raw_manifest_path.read_text(encoding="utf-8"))
+        if plot._profile(certification, manifest) == "current-full":
+            current_full.append((
+                relative, certification_path, raw_manifest_path,
+                certification, manifest,
+            ))
+
+    assert [relative for relative, *_rest in current_full] == [
+        "output/insights/2026-09-07_t2364-paper-story-a2-certification/"
+        "certification.json"
+    ]
+    for (_relative, certification_path, raw_manifest_path,
+         certification, manifest) in current_full:
+        _require_complete_external_root(
+            T2364_REAL_ROOT, list(manifest["files"]))
+        data = plot.load_measurements(
+            T2364_REAL_ROOT, certification_path, raw_manifest_path)
+        certified_cells = {
+            row["cell_id"]: row for row in certification["cells"]
+        }
+        assert [row["cell_id"] for row in data["cells"]] == [
+            row["cell_id"] for row in certification["cells"]
+        ]
+        assert {
+            row["cell_id"]: row["median_tps"] for row in data["cells"]
+        } == {
+            cell_id: row["performance"]["median_tps"]
+            for cell_id, row in certified_cells.items()
+        }
+        assert {
+            workload: row["computed"]
+            for workload, row in data["effect_crosschecks"].items()
+        } == pytest.approx(certification["effects"], rel=0, abs=1e-12)
+        assert {
+            row["path"] for row in data["external_inputs"]
+        } == set(manifest["files"])
 
 
 def test_historical_exact_hash_pair_uses_the_historical_policy_view(
@@ -568,10 +766,17 @@ def test_historical_rejects_changed_embedded_policy_hash(tmp_path, monkeypatch):
 def test_historical_rejects_unknown_bytes_with_the_same_v2_version(
         tmp_path, monkeypatch):
     plot, fixture = _plot(), _current_fixture(tmp_path)
-    _historical_policy_fixture(plot, fixture, monkeypatch)
+    _certification_sha256, registered_policy_sha256 = (
+        _historical_policy_fixture(plot, fixture, monkeypatch)
+    )
     unknown = fixture["historical_policy_bytes"] + b"\n"
     _replace_embedded_policy_bytes(fixture, unknown)
+    _register_historical_fixture(
+        plot, fixture, monkeypatch,
+        policy_sha256=registered_policy_sha256,
+    )
     assert json.loads(unknown)["schema_version"] == "paper-story-a2-certification-policy/v2"
+    assert hashlib.sha256(unknown).hexdigest() != registered_policy_sha256
     with pytest.raises(
             plot.FigureDataError,
             match="fetchcontent_path_argument_prefixes"):
@@ -583,9 +788,10 @@ def test_historical_rejects_unknown_content_with_the_same_six_keys(
     plot, fixture = _plot(), _current_fixture(tmp_path)
     _historical_policy_fixture(plot, fixture, monkeypatch)
     document = json.loads(fixture["historical_policy_bytes"])
-    document["tracked_destination"] = "output/insights/unknown-policy-content"
+    document["tracked_destination"] = "../outside"
     unknown = (json.dumps(document, ensure_ascii=True, indent=2) + "\n").encode()
     _replace_embedded_policy_bytes(fixture, unknown)
+    _register_historical_fixture(plot, fixture, monkeypatch)
     assert set(document["trace0_cmake_argv"]["configure"]) == {
         "source_option", "build_directory_option", "fixed_arguments",
         "toolchain_arguments", "dependency_prefix_argument",
@@ -593,7 +799,71 @@ def test_historical_rejects_unknown_content_with_the_same_six_keys(
     }
     with pytest.raises(
             plot.FigureDataError,
-            match="fetchcontent_path_argument_prefixes"):
+            match="tracked destination must be a bounded relative path"):
+        _load(plot, fixture)
+
+
+def test_current_rejects_unbounded_tracked_destination(tmp_path):
+    plot, fixture = _plot(), _current_fixture(tmp_path)
+    certification = json.loads(fixture["cert"].read_text(encoding="utf-8"))
+    document = json.loads(base64.b64decode(
+        certification["policy_bytes_base64"], validate=True))
+    assert set(document["trace0_cmake_argv"]["configure"]) == (
+        _producer()._TRACE0_CONFIGURE_ARGV_KEYS
+    )
+    document["tracked_destination"] = "../outside"
+    policy_bytes = (
+        json.dumps(document, ensure_ascii=True, indent=2) + "\n"
+    ).encode("utf-8")
+    _replace_embedded_policy_bytes(fixture, policy_bytes)
+    certification = json.loads(fixture["cert"].read_text(encoding="utf-8"))
+    certification_sha256 = _sha(fixture["cert"])
+    assert (
+        certification_sha256, certification["policy_sha256"]
+    ) not in plot.HISTORICAL_CURRENT_POLICY_VIEWS
+    with pytest.raises(plot.FigureDataError) as caught:
+        plot._load_current_policy(certification, certification_sha256)
+    assert str(caught.value) == (
+        "current certification embedded policy is invalid: "
+        "tracked destination must be a bounded relative path"
+    )
+
+
+def test_historical_current_policy_directly_rejects_nonbound_source_binding_status(
+        tmp_path, monkeypatch):
+    plot, fixture = _plot(), _current_fixture(tmp_path)
+    _historical_policy_fixture(plot, fixture, monkeypatch)
+    _change_cert(
+        fixture,
+        lambda report: report["cells"][1].__setitem__(
+            "source_binding_status", "token-mismatch"),
+    )
+    certification_sha256, _policy_sha256 = _register_historical_fixture(
+        plot, fixture, monkeypatch)
+    assert plot.HISTORICAL_CURRENT_POLICY_VIEWS[
+        (certification_sha256, _policy_sha256)
+    ] == _producer().POLICY_GENERATION_PRE_FETCHCONTENT_PATHS
+    certification = json.loads(fixture["cert"].read_text(encoding="utf-8"))
+    with pytest.raises(plot.FigureDataError) as caught:
+        plot._load_current_policy(certification, certification_sha256)
+    assert str(caught.value) == (
+        "current certification source_binding_status is not bound"
+    )
+
+
+def test_historical_still_rejects_nonbound_source_binding_status(
+        tmp_path, monkeypatch):
+    plot, fixture = _plot(), _current_fixture(tmp_path)
+    _historical_policy_fixture(plot, fixture, monkeypatch)
+    _change_cert(
+        fixture,
+        lambda report: report["cells"][1].__setitem__(
+            "source_binding_status", "token-mismatch"),
+    )
+    _register_historical_fixture(plot, fixture, monkeypatch)
+    with pytest.raises(
+            plot.FigureDataError,
+            match="source_binding_status is not bound"):
         _load(plot, fixture)
 
 
@@ -607,16 +877,16 @@ def test_unknown_policy_hash_flows_to_the_current_producer_loader(
     original = producer.load_policy
     observed = []
 
-    def observe(path):
-        observed.append(Path(path).read_bytes())
-        return original(path)
+    def observe(path, **kwargs):
+        observed.append((Path(path).read_bytes(), kwargs))
+        return original(path, **kwargs)
 
     monkeypatch.setattr(producer, "load_policy", observe)
     with pytest.raises(
             plot.FigureDataError,
             match="fetchcontent_path_argument_prefixes"):
         _load(plot, fixture)
-    assert observed == [unknown]
+    assert observed == [(unknown, {})]
 
 
 @pytest.mark.parametrize(

@@ -133,6 +133,13 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
         "campaign/pipeline.py",
         "<module>._require_canonical_build_source_state._git",
     ): 1,
+    # Read-only `git rev-parse HEAD` binds fan-out tasks to this repository;
+    # the fixed argv cannot name or execute CCBench.
+    ("campaign/pipeline.py", "<module>._current_repo_head"): 1,
+    # Fixed ssh argv with local shell expansion disabled launches the Python
+    # worker on a sibling node.  CCBench itself is launched only through that
+    # worker's reuse of the reviewed pipeline._run_trace path.
+    ("campaign/pipeline.py", "<module>._default_verify_fanout_launcher"): 1,
     # Exact scheduler submission argv; CCBench remains compute-job-owned.
     ("campaign/paper_story_a1_paired.py", "<module>._run_qsub"): 1,
     # Login-side qstat observations never name a CCBench binary.
@@ -259,6 +266,9 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     ("campaign/t152_write_intent_coverage.py", "<module>._verify"): 1,
     ("campaign/t810_validator.py", "<module>._git"): 1,
     ("campaign/trial_registry.py", "<module>._git"): 1,
+    # Read-only `git rev-parse HEAD` checks the worker checkout against its
+    # task binding; it cannot name or execute CCBench.
+    ("campaign/verify_fanout_worker.py", "<module>._repo_head"): 1,
 })
 
 
@@ -888,7 +898,7 @@ _DEFERRED_GATE_MEMBERS = (
         "active wave owns the build_fn injection seam",
         "injected-build_fn",
         "<module>.build_cells.invoke_build",
-        4705,
+        4715,
     ),
     _DeferredGateMember(
         "orchestrator/campaign/s8b_floor_campaign.py",
@@ -896,7 +906,7 @@ _DEFERRED_GATE_MEMBERS = (
         "稼働 wave t2027 の所有面。動的 protocol 経由の campaign sink",
         "campaign",
         "<module>.main",
-        8632,
+        8642,
     ),
     _DeferredGateMember(
         "orchestrator/campaign/s8b_oracle_n_pilot.py",
@@ -2664,11 +2674,11 @@ def test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink():
         (
             "orchestrator/campaign/s8b_floor_campaign.py",
             "wave t2027", "injected-build_fn",
-            "<module>.build_cells.invoke_build", 4705,
+            "<module>.build_cells.invoke_build", 4715,
         ),
         (
             "orchestrator/campaign/s8b_floor_campaign.py",
-            "wave t2027", "campaign", "<module>.main", 8632,
+            "wave t2027", "campaign", "<module>.main", 8642,
         ),
         (
             "orchestrator/campaign/s8b_oracle_n_pilot.py",
@@ -2908,13 +2918,13 @@ def test_define_sink_cross_product_classifies_t2155_production_sinks_exactly():
     s1_sink = _BuildSink(
         "orchestrator/campaign/s1_direct_comparison.py",
         "<module>.run_role",
-        1219,
+        1233,
         "campaign",
     )
     s8b_sink = _BuildSink(
         "orchestrator/campaign/s8b_oracle_driver.py",
         "<module>.run_block",
-        1788,
+        1793,
         "campaign",
     )
     assert classifications[s1_sink] == Counter({

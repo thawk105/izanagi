@@ -266,6 +266,7 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                  holdout_observation_admission: Optional[
                      HoldoutObservationAdmission
                  ] = None,
+                 verify_fanout_hosts: tuple[str, ...] = (),
                  ) -> CampaignSummary:
     """`ccbench_dir`/`cache_root` (段5 git worktree 隔離): pipeline.evaluate と同じ実行時
     引数の素通し。`declared_use_class` は official / exploration の閉じた
@@ -549,7 +550,9 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
             done.add(v)
             log(f"[campaign] evaluate {g.canonical()}")
             try:
-                evaluate_options = {}
+                evaluate_options = {
+                    "verify_fanout_hosts": verify_fanout_hosts,
+                }
                 if env_contract is not None:
                     evaluate_options["env_contract"] = env_contract
                     evaluate_options["declared_use_class"] = declared_use_class

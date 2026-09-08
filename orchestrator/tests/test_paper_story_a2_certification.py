@@ -1960,7 +1960,7 @@ def test_a6_policy_is_exact_read_heavy_pair_with_twelve_hour_walltime():
         ("rr95-fixed2", "adopted", {"BACK_OFF": 1, "BACKOFF_FIXED": 2}),
     ]
     assert policy.document["scheduler"] == {
-        "project": "SFC", "queue": "gen_S", "nodes": 1,
+        "project": "SFC", "queue": "gen_S", "nodes": 5,
         "walltime": "12:00:00",
         "job_body": "tools/pegasus/paper_story_a2_certification.sh",
     }
@@ -1993,9 +1993,59 @@ def test_a6_policy_is_exact_read_heavy_pair_with_twelve_hour_walltime():
         },
     }
     assert policy.bytes_sha256 == (
-        "96ed47d0ea72811aa8ee8ced6740fa58c5896e026cb24fa4420a31919d12384a")
+        "682e0f4ed980b74d509426d8f074f51f5b8062a1ca7cf82cd8dbbaae93c4446a")
     assert policy.protocol_sha256 == (
         "21427e71793ea744777d11bd90429ce2db1a8d3333ea9e2e0f227ecf377c25dc")
+
+
+def test_a6_scheduler_fanout_changes_policy_bytes_but_not_protocol_preimage():
+    policy = A2.load_policy(A2.A6_POLICY_PATH)
+    previous_scheduler = copy.deepcopy(policy.document)
+    previous_scheduler["scheduler"]["nodes"] = 1
+
+    assert policy.bytes_sha256 == hashlib.sha256(
+        A2.A6_POLICY_PATH.read_bytes()).hexdigest()
+    assert policy.bytes_sha256 != (
+        "96ed47d0ea72811aa8ee8ced6740fa58c5896e026cb24fa4420a31919d12384a")
+    assert hashlib.sha256(A2._canonical_json(
+        A2._protocol_preimage(previous_scheduler))).hexdigest() == (
+            policy.protocol_sha256)
+
+
+def test_verify_fanout_hosts_accept_exact_policy_counts():
+    a2 = A2.load_policy(A2.POLICY_PATH)
+    a6 = A2.load_policy(A2.A6_POLICY_PATH)
+    hosts = ("bnode002", "bnode003", "bnode004", "bnode005")
+
+    assert A2._validate_verify_fanout_hosts(
+        a2, (), current_host="bnode001") == ()
+    assert A2._validate_verify_fanout_hosts(
+        a6, hosts, current_host="bnode001") == hosts
+
+
+@pytest.mark.parametrize(
+    ("hosts", "message"),
+    (
+        (("bnode002", "bnode002", "bnode004", "bnode005"), "duplicate"),
+        (("bnode001", "bnode003", "bnode004", "bnode005"), "current host"),
+        (("bnode002", "bnode003", "bnode004"), "count differs"),
+        (("bnode002", "bad_host", "bnode004", "bnode005"), "malformed"),
+    ),
+)
+def test_verify_fanout_hosts_reject_invalid_binding(hosts, message):
+    policy = A2.load_policy(A2.A6_POLICY_PATH)
+
+    with pytest.raises(A2.CertificationError, match=message):
+        A2._validate_verify_fanout_hosts(
+            policy, hosts, current_host="bnode001")
+
+
+def test_single_node_policy_rejects_any_verify_fanout_host():
+    policy = A2.load_policy(A2.POLICY_PATH)
+
+    with pytest.raises(A2.CertificationError, match="count differs"):
+        A2._validate_verify_fanout_hosts(
+            policy, ("bnode002",), current_host="bnode001")
 
 
 def test_production_policy_protocol_maps_to_real_silo_layout_and_artifacts(
@@ -2429,6 +2479,9 @@ def test_p2_a6_full_v3_path_collects_and_materializes(tmp_path):
         frozen_files=evidence["raw_files"], attempt_root=root,
     )
     report["source_commit"] = evidence["source_commit"]
+    assert A2._canonical_full_report(
+        policy, evidence, attempt_id=root.name,
+        current_pin=CURRENT_PIN) == report
     repository = tmp_path / "a6-materialized-repository"
     repository.mkdir()
     destination = A2.materialize(
@@ -2990,6 +3043,115 @@ def _partial_materializer_forgery_case(tmp_path, attempt_id):
     report = A2._canonical_partial_report(
         policy, evidence, current_pin=CURRENT_PIN)
     return policy, root, evidence, report
+
+
+def _full_materializer_forgery_case(tmp_path, attempt_id):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(policy, attempt_id, CURRENT_PIN)
+    acquisition, _submission = _write_receipt_bundle(policy, root)
+    evidence = A2.validate_acquisition_bundle(
+        policy, acquisition, current_pin=CURRENT_PIN)
+    report = A2._canonical_full_report(
+        policy, evidence, attempt_id=root.name, current_pin=CURRENT_PIN)
+    assert report["status"] == "observed-positive"
+    return policy, root, evidence, report
+
+
+def test_full_materializer_writes_reread_receipt_bytes_not_supplied_bytes(
+        tmp_path):
+    policy, _root, evidence, report = _full_materializer_forgery_case(
+        tmp_path, "attempt-full-forged-receipt-bytes")
+    forged_evidence = copy.deepcopy(evidence)
+    forged_bytes = b'{"forged": true}\n'
+    for key in (
+            "acquisition_bytes", "submission_bytes", "completion_bytes"):
+        forged_evidence[key] = forged_bytes
+    repo = tmp_path / "full-forged-receipt-bytes-repo"
+    repo.mkdir()
+    destination = A2.materialize(
+        policy, report, forged_evidence, repo_root=repo)
+    receipt_files = {
+        "acquisition-receipt.json": "acquisition_bytes",
+        "submission-receipt.json": "submission_bytes",
+        "completion-receipt.json": "completion_bytes",
+    }
+    manifest = json.loads(
+        (destination / "artifact-manifest.json").read_text(encoding="utf-8"))
+    for name, key in receipt_files.items():
+        materialized = (destination / name).read_bytes()
+        assert materialized == evidence[key]
+        assert materialized != forged_evidence[key]
+        assert manifest["files"][name] == hashlib.sha256(evidence[key]).hexdigest()
+
+
+def test_full_materializer_rejects_reread_partial_receipt_chain_behind_forged_full_fields(
+        tmp_path):
+    policy, root, evidence, _report = _partial_materializer_forgery_case(
+        tmp_path, "attempt-full-forged-partial-receipt-chain")
+    forged_evidence = copy.deepcopy(evidence)
+    forged_evidence["acquisition_schema"] = A2.ACQUISITION_SCHEMA
+    forged_evidence["completion_schema"] = A2.COMPLETION_SCHEMA
+    forged_evidence["raw_manifest_valid"] = False
+    forged_evidence["raw_manifest_schema"] = None
+    forged = A2._canonical_full_report(
+        policy, forged_evidence, attempt_id=root.name,
+        current_pin=CURRENT_PIN)
+    repo = tmp_path / "full-forged-partial-receipt-chain-repo"
+    repo.mkdir()
+    with pytest.raises(
+            A2.SchemaChainError,
+            match="crossed with a re-read partial receipt chain"):
+        A2.materialize(policy, forged, forged_evidence, repo_root=repo)
+    assert not (repo / policy.tracked_destination).exists()
+
+
+def test_full_materializer_rejects_forged_status_from_positive_evidence(
+        tmp_path):
+    policy, _root, evidence, report = _full_materializer_forgery_case(
+        tmp_path, "attempt-full-forged-status")
+    forged = copy.deepcopy(report)
+    forged["status"] = "reject"
+    repo = tmp_path / "full-forged-status-repo"
+    repo.mkdir()
+    with pytest.raises(
+            A2.CertificationError, match="differs from evidence re-derivation"):
+        A2.materialize(policy, forged, evidence, repo_root=repo)
+    assert not (repo / policy.tracked_destination).exists()
+
+
+def test_full_materializer_rejects_forged_effects_from_positive_evidence(
+        tmp_path):
+    policy, _root, evidence, report = _full_materializer_forgery_case(
+        tmp_path, "attempt-full-forged-effects")
+    forged = copy.deepcopy(report)
+    first_workload = A2.workload_ids(policy)[0]
+    forged["effects"][first_workload] = report["effects"][first_workload] + 1.0
+    repo = tmp_path / "full-forged-effects-repo"
+    repo.mkdir()
+    with pytest.raises(
+            A2.CertificationError, match="differs from evidence re-derivation"):
+        A2.materialize(policy, forged, evidence, repo_root=repo)
+    assert not (repo / policy.tracked_destination).exists()
+
+
+def test_full_materializer_rejects_indeterminate_report_from_full_success_acquisition(
+        tmp_path):
+    policy, root, evidence, _report = _full_materializer_forgery_case(
+        tmp_path, "attempt-full-forged-indeterminate")
+    forged_evidence = copy.deepcopy(evidence)
+    first_workload = A2.workload_ids(policy)[0]
+    forged_evidence["driver_rcs"][first_workload] = 7
+    failed_drivers = {first_workload: 7}
+    forged = A2._indeterminate_report(
+        policy, forged_evidence, attempt_id=root.name,
+        current_pin=CURRENT_PIN,
+        reason=f"compute driver exited nonzero: {failed_drivers}")
+    repo = tmp_path / "full-forged-indeterminate-repo"
+    repo.mkdir()
+    with pytest.raises(
+            A2.CertificationError, match="differs from evidence re-derivation"):
+        A2.materialize(policy, forged, forged_evidence, repo_root=repo)
+    assert not (repo / policy.tracked_destination).exists()
 
 
 def test_m7_partial_materializer_rejects_forged_authority_and_status(tmp_path):
@@ -4371,6 +4533,41 @@ def test_p3_cli_selects_default_a2_and_explicit_a6_policy():
         ("rr95",), "paper-a6-cert")
 
 
+@pytest.mark.parametrize(
+    ("raw_hosts", "expected"),
+    (
+        (None, ()),
+        ("bnode002,bnode003,bnode004,bnode005",
+         ("bnode002", "bnode003", "bnode004", "bnode005")),
+    ),
+)
+def test_run_workload_cli_converts_optional_comma_separated_verify_hosts(
+        monkeypatch, raw_hosts, expected):
+    arguments = [
+        "run-workload", "--workload", "rr5",
+        "--attempt-root", "/attempt", "--raw-root", "/raw",
+        "--current-pin", REPO_CURRENT_PIN,
+        "--dependency-prefix", "/dependencies",
+        "--ccbench-dir", "/ccbench",
+        "--third-party-source-root", "/third-party",
+    ]
+    if raw_hosts is not None:
+        arguments.extend(["--verify-fanout-hosts", raw_hosts])
+    args = A2._parser().parse_args(arguments)
+    calls = []
+
+    def fake_run_workload(*_args, **kwargs):
+        calls.append(kwargs)
+        return A2.SimpleNamespace(
+            campaign_id="fixture", committed=2, aborted=0,
+            condition_gate_receipts=None,
+        )
+
+    monkeypatch.setattr(A2, "run_workload", fake_run_workload)
+    assert args.handler(args) == 0
+    assert calls[0]["verify_fanout_hosts"] == expected
+
+
 @pytest.mark.parametrize("mutation", ("wrong-prefix", "resolver-failure", "dirty"))
 def test_run_workload_production_pin_gate_rejects_noncanonical_source(
         tmp_path, monkeypatch, mutation):
@@ -4758,14 +4955,16 @@ def test_official_run_observes_dependency_receipt_after_condition_prebuild(
     assert calls["adopted_receipt_repeat"] == calls["adopted_receipt"]
 
 
-def test_official_run_forwards_exact_fetchcontent_five_tuple(
+def test_m10_official_run_forwards_verify_hosts_and_fetchcontent_five_tuple(
         tmp_path, monkeypatch):
     from orchestrator.campaign import layout as campaign_layout
 
-    policy = _policy(tmp_path)
+    policy = _a6_policy(tmp_path)
+    workload = "rr95"
+    verify_hosts = ("bnode002", "bnode003", "bnode004", "bnode005")
     attempt = A2.preregister_attempt(
         policy, "driver-source-token-binding", REPO_CURRENT_PIN)
-    job_root = A2.workload_job_root(policy, attempt, "rr5")
+    job_root = A2.workload_job_root(policy, attempt, workload)
     raw_root = job_root / "raw"
     raw_root.mkdir()
     dependency = tmp_path / "dependency"
@@ -4846,7 +5045,8 @@ def test_official_run_forwards_exact_fetchcontent_five_tuple(
             "masstree_head": "a" * 40,
             "config_sha256": "b" * 64,
         }
-        receipt = attempt / A2._condition_gate_receipt_relative("rr5")
+        assert kwargs["verify_fanout_hosts"] == verify_hosts
+        receipt = attempt / A2._condition_gate_receipt_relative(workload)
         assert receipt.is_file()
         events.append(("campaign", receipt.read_bytes()))
         genomes = _args[1]
@@ -4886,23 +5086,25 @@ def test_official_run_forwards_exact_fetchcontent_five_tuple(
         buildcache, "observed_toolchain_manifest",
         lambda *_args: {"fixture": "toolchain"})
     monkeypatch.setattr(env_contract, "authorize", lambda _tag: object())
+    monkeypatch.setattr(A2.socket, "gethostname", lambda: "bnode001")
 
     A2.run_workload(
-        policy, workload_id="rr5", attempt_root=attempt, raw_root=raw_root,
+        policy, workload_id=workload, attempt_root=attempt, raw_root=raw_root,
         current_pin=REPO_CURRENT_PIN, dependency_prefix=dependency,
         ccbench_dir=source_root,
         third_party_source_root=fetchcontent_root,
+        verify_fanout_hosts=verify_hosts,
         log=lambda *_args: None)
 
     assert [event[0] for event in events] == [
         "resolve", "resolve", "campaign", "raw", "raw"]
     assert forwarded == [
-        ("rr5-stock", source_digest.STOCK),
-        ("rr5-fixed10", "9" * 64),
+        ("rr95-stock", source_digest.STOCK),
+        ("rr95-fixed2", "9" * 64),
     ]
     assert role_predicate_calls == forwarded
     parsed = A2._parse_condition_gate_admissions(
-        policy, "rr5", events[2][1], current_pin=REPO_CURRENT_PIN)
+        policy, workload, events[2][1], current_pin=REPO_CURRENT_PIN)
     assert [parsed[cell.cell_id].src_token for cell in policy.cells[:2]] \
         == list(tokens)
 

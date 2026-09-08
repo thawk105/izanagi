@@ -4380,11 +4380,17 @@ def _build_cells_impl(
                     "non-sort cell に SWO receipt がある: "
                     f"cell={cell['cell_id']}"
                 )
+            evidence_kwargs = {}
+            if prepared.sort_oracle_contract_id is not None:
+                evidence_kwargs["sort_oracle_contract_id"] = (
+                    prepared.sort_oracle_contract_id
+                )
             evidence = source_digest.resolve_evidence(
                 prepared.genome,
                 ccbench_pin,
                 ccbench_dir=prepared.ccbench_dir,
                 cxx=cxx,
+                **evidence_kwargs,
             )
             receipt_identity = dict(identity)
             if receipt_identity["src_token"] != evidence.src_token:
@@ -4422,6 +4428,10 @@ def _build_cells_impl(
                     dependency=dependency_binding,
                 )
             build_kwargs = {}
+            if prepared.sort_oracle_contract_id is not None:
+                build_kwargs["sort_oracle_contract_id"] = (
+                    prepared.sort_oracle_contract_id
+                )
             if dependency_binding is not None:
                 # The run-scoped dependency source was validated before any
                 # cell build.  Reuse it only as the current compiler-input

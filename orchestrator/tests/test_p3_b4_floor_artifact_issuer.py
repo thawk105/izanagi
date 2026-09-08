@@ -6,6 +6,7 @@ import copy
 import hashlib
 import inspect
 import json
+from dataclasses import replace
 from fractions import Fraction
 from pathlib import Path
 
@@ -14,6 +15,7 @@ import pytest
 from orchestrator.campaign import floor_pair_driver
 from orchestrator.campaign import p3_b4_analysis_contract
 from orchestrator.campaign import p3_b4_floor_artifact_issuer as issuer
+from orchestrator.campaign.model import Genome
 from orchestrator.tests import test_floor_pair_driver as driver_tests
 
 
@@ -37,6 +39,17 @@ def _write_bytes(root: Path, relpath: str, raw: bytes) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
+def _mocc_genome_canonicals() -> dict[str, str]:
+    return {
+        "candidate": Genome(
+            protocol="mocc", flags={"FIXTURE": 1}
+        ).canonical(),
+        "reference": Genome(
+            protocol="mocc", flags={"FIXTURE": 2}
+        ).canonical(),
+    }
+
+
 def _synthetic_source(
     root: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -45,43 +58,19 @@ def _synthetic_source(
     reference_1: float = 100.0,
     candidate_2: float = 104.0,
     reference_2: float = 100.0,
-    receipt_has_protocol: bool = False,
+    genome_canonicals: dict[str, str] | None = None,
 ) -> tuple[Path, dict[str, object]]:
     """Write a closed-schema producer spec and an internally derived summary."""
 
-    hashes = driver_tests._write_inputs(root)
+    hashes = driver_tests._write_inputs(
+        root, genome_canonicals=genome_canonicals
+    )
     spec = driver_tests._valid_document(hashes)
     spec["environment"]["env_tag"] = "synthetic-env"
     spec["cells"][0]["perf_config"]["threads"] = 4
-    if receipt_has_protocol:
-        for artifact in spec["artifacts"]:
-            receipt_path = artifact["build_receipt"]["path"]
-            receipt = json.loads((root / receipt_path).read_text(encoding="utf-8"))
-            receipt["protocol"] = "silo"
-            artifact["build_receipt"]["sha256"] = _write_bytes(
-                root, receipt_path, _canonical(receipt)
-            )
     spec["outputs"]["summary_relpath"] = "out/summary.json"
     spec_sha = _write_bytes(root, "refs/spec.json", _canonical(spec))
     driver_tests._install_git(monkeypatch, root)
-    if receipt_has_protocol:
-        # The portable receipt contract does not yet carry the protocol field.
-        # Preserve every real receipt check while isolating only that known
-        # unresolved outer-key delta for identity-positive issuer tests.
-        validate_portable_record = (
-            floor_pair_driver.s8b_binary_admission.validate_portable_binary_record
-        )
-
-        def validate_with_fixture_protocol(record, **kwargs):
-            record_without_protocol = dict(record)
-            assert record_without_protocol.pop("protocol") == "silo"
-            return validate_portable_record(record_without_protocol, **kwargs)
-
-        monkeypatch.setattr(
-            floor_pair_driver.s8b_binary_admission,
-            "validate_portable_binary_record",
-            validate_with_fixture_protocol,
-        )
     monkeypatch.setattr(
         floor_pair_driver.calibration_verify,
         "load_verified_calibration",
@@ -214,12 +203,21 @@ def test_m04_summary_schema_pin_is_one_exact_string() -> None:
     )
 
 
-def test_real_finalize_floor_summary_is_accepted_before_missing_protocol_blocks_issue(
+def test_real_finalize_floor_summary_is_issued_with_receipt_protocol(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Use the actual producer finalizer; only measurement execution is synthetic."""
 
+    write_inputs = driver_tests._write_inputs
+    genome_canonicals = _mocc_genome_canonicals()
+    monkeypatch.setattr(
+        driver_tests,
+        "_write_inputs",
+        lambda root: write_inputs(
+            root, genome_canonicals=genome_canonicals
+        ),
+    )
     spec, plan = driver_tests._run_production(
         tmp_path,
         monkeypatch,
@@ -241,13 +239,19 @@ def test_real_finalize_floor_summary_is_accepted_before_missing_protocol_blocks_
     )
     assert accepted.summary_sha256 == produced.summary_sha256
     assert accepted.candidate_floor == produced.candidate_floor
-    assert accepted.missing_identity_elements == ("protocol",)
-    with pytest.raises(issuer.B4FloorIdentityError) as caught:
-        issuer.issue_authoritative_floor(
-            repo_root=tmp_path,
-            summary_path=Path(produced.summary_relpath),
-        )
-    assert caught.value.missing_elements == ("protocol",)
+    assert accepted.missing_identity_elements == ()
+    assert accepted.identity is not None
+    assert accepted.identity.protocol == "mocc"
+
+    result = issuer.issue_authoritative_floor(
+        repo_root=tmp_path,
+        summary_path=Path(produced.summary_relpath),
+    )
+    assert "__protocol-mocc" in Path(result.artifact_path).name
+    authority = json.loads(
+        (tmp_path / result.artifact_path).read_text(encoding="utf-8")
+    )
+    assert authority["artifact_identity"]["protocol"] == "mocc"
 
 
 def test_m01_exact_conversion_preserves_candidate_binary64_and_accepts_zero(
@@ -470,9 +474,27 @@ def test_summary_spec_hash_and_closed_top_level_are_required(
     assert isinstance(caught.value.__cause__, floor_pair_driver.FloorPairSpecError)
 
 
-def test_identity_is_not_a_caller_surface_and_missing_protocol_is_named(
+@pytest.mark.parametrize(
+    "genome_canonicals",
+    (
+        None,
+        {
+            "candidate": "mocc|B=1,A=2",
+            "reference": "mocc|B=1,A=2",
+        },
+        {
+            "candidate": Genome(
+                protocol="mocc", flags={"FIXTURE": 1}
+            ).canonical(),
+            "reference": "mocc|B=1,A=2",
+        },
+    ),
+    ids=("json-fixture", "unsorted-flags", "partial-noncanonical"),
+)
+def test_identity_is_not_a_caller_surface_and_noncanonical_genomes_are_rejected(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    genome_canonicals: dict[str, str] | None,
 ) -> None:
     assert set(inspect.signature(issuer.issue_authoritative_floor).parameters) == {
         "repo_root",
@@ -483,7 +505,9 @@ def test_identity_is_not_a_caller_surface_and_missing_protocol_is_named(
         inspect.Parameter.empty
     )
     summary_path, _summary = _synthetic_source(
-        tmp_path, monkeypatch, receipt_has_protocol=False
+        tmp_path,
+        monkeypatch,
+        genome_canonicals=genome_canonicals,
     )
     accepted = issuer.load_floor_pair_summary(
         repo_root=tmp_path, summary_path=summary_path
@@ -497,12 +521,63 @@ def test_identity_is_not_a_caller_surface_and_missing_protocol_is_named(
     assert caught.value.missing_elements == ("protocol",)
 
 
+def test_mixed_receipt_protocols_are_rejected(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    summary_path, _summary = _synthetic_source(
+        tmp_path,
+        monkeypatch,
+        genome_canonicals={
+            "candidate": Genome(
+                protocol="mocc", flags={"FIXTURE": 1}
+            ).canonical(),
+            "reference": Genome(
+                protocol="silo", flags={"FIXTURE": 1}
+            ).canonical(),
+        },
+    )
+    accepted = issuer.load_floor_pair_summary(
+        repo_root=tmp_path, summary_path=summary_path
+    )
+    assert accepted.identity is None
+    assert accepted.missing_identity_elements == ("protocol",)
+    with pytest.raises(issuer.B4FloorIdentityError) as caught:
+        issuer.issue_authoritative_floor(
+            repo_root=tmp_path, summary_path=summary_path
+        )
+    assert caught.value.missing_elements == ("protocol",)
+
+
+def test_authority_value_rejects_nonempty_missing_protocol_with_valid_identity(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    summary_path, _summary = _synthetic_source(
+        tmp_path,
+        monkeypatch,
+        genome_canonicals=_mocc_genome_canonicals(),
+    )
+    accepted = issuer.load_floor_pair_summary(
+        repo_root=tmp_path, summary_path=summary_path
+    )
+    assert accepted.identity is not None
+    broken = replace(
+        accepted, missing_identity_elements=("protocol",)
+    )
+    with pytest.raises(issuer.B4FloorIdentityError) as caught:
+        issuer._authority_value(broken)
+    assert caught.value.missing_elements == ("protocol",)
+
+
 def test_authority_issue_is_create_only_exact_and_loadable(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     summary_path, summary = _synthetic_source(
-        tmp_path, monkeypatch, receipt_has_protocol=True
+        tmp_path,
+        monkeypatch,
+        genome_canonicals=_mocc_genome_canonicals(),
     )
     accepted_summary = issuer.load_floor_pair_summary(
         repo_root=tmp_path, summary_path=summary_path
@@ -560,7 +635,9 @@ def test_authority_non_guarantees_pin_required_verbatim_limitations(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     summary_path, _summary = _synthetic_source(
-        tmp_path, monkeypatch, receipt_has_protocol=True
+        tmp_path,
+        monkeypatch,
+        genome_canonicals=_mocc_genome_canonicals(),
     )
     result = issuer.issue_authoritative_floor(
         repo_root=tmp_path, summary_path=summary_path
@@ -581,7 +658,9 @@ def test_authority_filename_contains_all_five_derived_components(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     summary_path, _summary = _synthetic_source(
-        tmp_path, monkeypatch, receipt_has_protocol=True
+        tmp_path,
+        monkeypatch,
+        genome_canonicals=_mocc_genome_canonicals(),
     )
     accepted = issuer.load_floor_pair_summary(
         repo_root=tmp_path, summary_path=summary_path
@@ -626,7 +705,9 @@ def test_resolver_returns_exact_fraction_from_valid_pin(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     summary_path, _summary = _synthetic_source(
-        tmp_path, monkeypatch, receipt_has_protocol=True
+        tmp_path,
+        monkeypatch,
+        genome_canonicals=_mocc_genome_canonicals(),
     )
     result = issuer.issue_authoritative_floor(
         repo_root=tmp_path, summary_path=summary_path
@@ -655,7 +736,9 @@ def test_m05_m06_resolver_fails_closed_without_absence_fallback(
     mode: str,
 ) -> None:
     summary_path, _summary = _synthetic_source(
-        tmp_path, monkeypatch, receipt_has_protocol=True
+        tmp_path,
+        monkeypatch,
+        genome_canonicals=_mocc_genome_canonicals(),
     )
     result = issuer.issue_authoritative_floor(
         repo_root=tmp_path, summary_path=summary_path

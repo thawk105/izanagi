@@ -1,0 +1,280 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 150,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "M1-accepted-verify-configs-unchecked",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_result_evidence.py",
+          "old": "if type(verify_configs) is not list or tuple(verify_configs) != verifier_order:",
+          "new": "if type(verify_configs) is not list:"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-rejected-clean-unchecked-both-layers",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_result_evidence.py",
+          "old": "and verify_result.integrity.clean() is True",
+          "new": "and True"
+        },
+        {
+          "file": "orchestrator/campaign/reflux_result_evidence.py",
+          "old": "    if integrity.get(\"clean\") is not True:",
+          "new": "    if False:"
+        },
+        {
+          "file": "orchestrator/campaign/reflux_result_evidence.py",
+          "old": "        type(integrity[key]) is int and integrity[key] == 0",
+          "new": "        type(integrity[key]) is int"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-first-of-many-anomalies-both-layers",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_result_evidence.py",
+          "old": "or len(verify_result.anomalies) != 1",
+          "new": "or len(verify_result.anomalies) < 1"
+        },
+        {
+          "file": "orchestrator/campaign/reflux_result_evidence.py",
+          "old": "if type(anomalies) is not list or len(anomalies) != 1:",
+          "new": "if type(anomalies) is not list or len(anomalies) < 1:"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-total-cycles-unchecked-both-layers",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_result_evidence.py",
+          "old": "        or verify_result.total_cycles != len(verify_result.anomalies)\n",
+          "new": ""
+        },
+        {
+          "file": "orchestrator/campaign/reflux_result_evidence.py",
+          "old": "if anomaly_count != len(anomalies) or total_cycles != anomaly_count:",
+          "new": "if anomaly_count != len(anomalies):"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-witness-structure-unchecked",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_result_evidence.py",
+          "old": "    return validate_witness_anomaly(anomalies[0])",
+          "new": "    return True"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-class-digest-noncanonical",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_result_evidence.py",
+          "old": "    return hashlib.sha256(canonical_json_bytes(anomaly)).hexdigest()",
+          "new": "    return hashlib.sha256(json.dumps(anomaly).encode(\"utf-8\")).hexdigest()"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8-terminal-snapshot-unbound",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_result_evidence.py",
+          "old": "    if not snapshot_matches_terminal:",
+          "new": "    if False:"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9-reason-unbound",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_result_evidence.py",
+          "old": "    if payload.get(\"reason\") != verify_result.verdict:",
+          "new": "    if False:"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10-rejected-outcome-flipped",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_result_evidence.py",
+          "old": "        \"rejected\",",
+          "new": "        \"accepted\","
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11-accepted-with-constraint",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_result_evidence.py",
+          "old": "            build_attempt_id, \"accepted\", None, ordered_wal_sha256",
+          "new": "            build_attempt_id, \"accepted\", \"0\" * 64, ordered_wal_sha256"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M12-assembler-validate-bypassed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_result_evidence.py",
+          "old": "    return validate_result_evidence(record)",
+          "new": "    return record"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M13-issuer-writes-before-resolve",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_result_evidence.py",
+          "old": "    resolve_content_addressed_ref(\n        evidence_root=Path(evidence_root), reference=refs[\"ordered_wal_ref\"]\n    )\n    resolve_content_addressed_ref(\n        evidence_root=Path(evidence_root),\n        reference=refs[\"execution_provenance_ref\"],\n    )\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M14a-stats-exact-int-relaxed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_result_evidence.py",
+          "old": "        type(stats[key]) is int and stats[key] >= 0",
+          "new": "        isinstance(stats[key], int) and stats[key] >= 0"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M14b-cycle-exact-int-relaxed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_result_evidence.py",
+          "old": "        or any(type(txid) is not int for txid in cycle)",
+          "new": "        or any(not isinstance(txid, int) for txid in cycle)"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M15-projection-digest-unbound",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_result_evidence.py",
+          "old": "    if ordered_ref[\"sha256\"] != derived.ordered_wal_sha256:",
+          "new": "    if False:"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M16-terminal-outer-shape-unchecked",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_result_evidence.py",
+          "old": "    if set(terminal) != _PRODUCTION_WAL_RECORD_KEYS:",
+          "new": "    if False:"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "MC1-consumer-fc07-conversion-dropped",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "old": "        return result_evidence.witness_class_sha256(anomaly)\n    except ArtifactError as exc:\n        raise _ContractFailure(FormalReasonCode.FC07) from exc",
+          "new": "        return result_evidence.witness_class_sha256(anomaly)\n    except ArtifactError as exc:\n        raise"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "MP1-refusal-message-only",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_result_evidence.py",
+          "old": "\"result evidence issuance refused: \"",
+          "new": "\"issuance refused: \""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
