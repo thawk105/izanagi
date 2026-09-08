@@ -1,0 +1,206 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 90,
+  "timeout_seconds": 600,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "M1-cell-positive-to-nonnegative",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_budget.py",
+          "old": "    all_cells_reserved = all(cell.reserved_bench_s > 0.0 for cell in cells)",
+          "new": "    all_cells_reserved = all(cell.reserved_bench_s >= 0.0 for cell in cells)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_budget.py::test_all_zero_cell_reservations_are_insufficient",
+        "orchestrator/tests/test_s8c_budget.py::test_one_zero_cell_reservation_makes_whole_matrix_insufficient",
+        "orchestrator/tests/test_s8c_budget.py::test_zero_reservation_ledger_recorded_as_held_is_rejected_on_read"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-all-to-any",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_budget.py",
+          "old": "    all_cells_reserved = all(cell.reserved_bench_s > 0.0 for cell in cells)",
+          "new": "    all_cells_reserved = any(cell.reserved_bench_s > 0.0 for cell in cells)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_budget.py::test_one_zero_cell_reservation_makes_whole_matrix_insufficient"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-drop-cell-conjunct",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_budget.py",
+          "old": "        all_cells_reserved and total_ok and arm_ok and holdout_ok,",
+          "new": "        total_ok and arm_ok and holdout_ok,"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_budget.py::test_all_zero_cell_reservations_are_insufficient",
+        "orchestrator/tests/test_s8c_budget.py::test_one_zero_cell_reservation_makes_whole_matrix_insufficient",
+        "orchestrator/tests/test_s8c_budget.py::test_zero_reservation_ledger_recorded_as_held_is_rejected_on_read"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-arm-positive-boundary",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_budget.py",
+          "old": "            if self.per_arm_bench_s[arm] <= 0.0:",
+          "new": "            if self.per_arm_bench_s[arm] < 0.0:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_nonpositive_caps[arm]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-holdout-positive-boundary",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_budget.py",
+          "old": "            if self.per_holdout_bench_s[holdout] <= 0.0:",
+          "new": "            if self.per_holdout_bench_s[holdout] < 0.0:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_nonpositive_caps[holdout]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-drop-arm-symmetry-raise",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_budget.py",
+          "old": "            raise BudgetError(\"per_arm_bench_s が arm 間で対称でない\")",
+          "new": "            pass"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_asymmetric_arm_caps[gross]",
+        "orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_asymmetric_arm_caps[ulp]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-arm-symmetry-tolerant",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_budget.py",
+          "old": "        if min(self.per_arm_bench_s.values()) != max(self.per_arm_bench_s.values()):",
+          "new": "        if not math.isclose(min(self.per_arm_bench_s.values()), max(self.per_arm_bench_s.values()), rel_tol=0.0, abs_tol=_TOLERANCE):"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_asymmetric_arm_caps[ulp]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8-drop-holdout-sum-raise",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_budget.py",
+          "old": "            raise BudgetError(\"per_holdout_bench_s の和が総上限と一致しない\")",
+          "new": "            pass"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_holdout_caps_not_summing_to_total[gross]",
+        "orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_holdout_caps_not_summing_to_total[ulp]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9-holdout-sum-tolerant",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_budget.py",
+          "old": "        if (\n            sum(self.per_holdout_bench_s[holdout] for holdout in sorted(_HOLDOUTS))\n            != self.total_bench_s\n        ):",
+          "new": "        if not math.isclose(\n            sum(self.per_holdout_bench_s[holdout] for holdout in sorted(_HOLDOUTS)),\n            self.total_bench_s,\n            rel_tol=0.0,\n            abs_tol=_TOLERANCE,\n        ):"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_budget.py::test_budget_limits_reject_holdout_caps_not_summing_to_total[ulp]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10-total-layer-true",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_budget.py",
+          "old": "    total_ok = total_reserved_bench_s <= limits.total_bench_s + _TOLERANCE",
+          "new": "    total_ok = True"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_budget.py::test_each_budget_layer_has_a_numeric_insufficient_witness[total]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11-arm-layer-true",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_budget.py",
+          "old": "    arm_ok = all(\n        value <= limits.per_arm_bench_s[arm] + _TOLERANCE\n        for arm, value in by_arm.items()\n    )",
+          "new": "    arm_ok = True"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_budget.py::test_each_budget_layer_has_a_numeric_insufficient_witness[arm]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M12-holdout-layer-true",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_budget.py",
+          "old": "    holdout_ok = all(\n        value <= limits.per_holdout_bench_s[holdout] + _TOLERANCE\n        for holdout, value in by_holdout.items()\n    )",
+          "new": "    holdout_ok = True"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_budget.py::test_each_budget_layer_has_a_numeric_insufficient_witness[holdout]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

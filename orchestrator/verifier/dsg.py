@@ -521,7 +521,7 @@ class DSG:
         v_writes = {w.key: vt.commit for w in vt.writes}
 
         # ww: u の版の直後版を v が書いた
-        for k in u_writes.keys() & v_writes.keys():
+        for k in sorted(u_writes.keys() & v_writes.keys()):
             vs = self.versions.get(k)
             if not vs:
                 continue
