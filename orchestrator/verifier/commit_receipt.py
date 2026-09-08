@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import os
 import re
 import secrets
+import threading
 from types import MappingProxyType
 from typing import Any, Mapping, Sequence
 
@@ -21,6 +23,9 @@ _HEX64 = re.compile(r"^[0-9a-f]{64}$")
 _RECEIPT_TOKEN = object()
 _PROCESS_SEAL = secrets.token_bytes(32)
 _PROCESS_SEAL_SHA256 = hashlib.sha256(_PROCESS_SEAL).hexdigest()
+_REMOTE_ADMISSION_LOCK = threading.Lock()
+_REMOTE_ADMISSION_PID = os.getpid()
+_ADMITTED_REMOTE_RECEIPTS: set[tuple[str, str]] = set()
 CAMPAIGN_LOCK_ABSENT_SHA256 = hashlib.sha256(
     b"izanagi-campaign-lock-absent-snapshot-v1"
 ).hexdigest()
@@ -285,13 +290,19 @@ def _validate_hex(value: object, label: str) -> str:
 
 def serialize_remote_verification_receipt(
         capability: object, *, task_sha256: str,
+        verify_payload_sha256: str,
 ) -> dict[str, Any]:
     """Consume one live worker capability into a task-bound wire receipt."""
     from .core import VerificationCapability
 
     _validate_hex(task_sha256, "task sha256")
+    _validate_hex(verify_payload_sha256, "verify payload sha256")
     if type(capability) is not VerificationCapability:
         raise CommitReceiptError("exact VerificationCapability is required")
+    if capability._sink_kind != CAMPAIGN_WAL_SINK:
+        raise CommitReceiptError(
+            "remote verification receipts are campaign-wal only"
+        )
     capability._assert_matches(
         sink_kind=capability._sink_kind,
         lock_identity_sha256=capability._lock_identity_sha256,
@@ -306,6 +317,7 @@ def serialize_remote_verification_receipt(
         "verdict": verdict,
         "certified": certified,
         "verifier_result_sha256": result_sha256,
+        "verify_payload_sha256": verify_payload_sha256,
         "sink_kind": capability._sink_kind,
         "lock_identity_sha256": capability._lock_identity_sha256,
         "variant": capability._variant,
@@ -326,18 +338,51 @@ def admit_remote_verification_receipt(
         payload: object, *, expected_task_sha256: str,
         lock_identity_sha256: str, variant: str,
         operation_identity: str, workload_tag: str,
+        authenticated_result: object = None,
+        result_secret: object = None,
 ) -> RemoteVerificationEvidence:
     """Admit an exact worker receipt into one main-PID, one-shot capability."""
     required = {
         "schema", "task_sha256", "verdict", "certified",
-        "verifier_result_sha256", "sink_kind", "lock_identity_sha256",
-        "variant", "operation_identity", "workload_tag", "receipt_sha256",
+        "verifier_result_sha256", "verify_payload_sha256", "sink_kind",
+        "lock_identity_sha256", "variant", "operation_identity",
+        "workload_tag", "receipt_sha256",
     }
     if type(payload) is not dict or set(payload) != required:
         raise CommitReceiptError("remote verification receipt key set mismatch")
+    if type(result_secret) is not bytes or len(result_secret) != 32:
+        raise CommitReceiptError(
+            "remote verification receipt requires a one-task transport secret"
+        )
+    result_keys = {
+        "schema", "task_sha256", "build_attempt_id", "tag", "rep",
+        "trace_bin_sha256", "outcome", "result_mac",
+    }
+    if type(authenticated_result) is not dict or set(authenticated_result) != result_keys:
+        raise CommitReceiptError("authenticated remote result is absent or malformed")
+    unsigned_result = dict(authenticated_result)
+    result_mac = unsigned_result.pop("result_mac")
+    if type(result_mac) is not str or _HEX64.fullmatch(result_mac) is None:
+        raise CommitReceiptError("authenticated remote result MAC is malformed")
+    expected_result_mac = hmac.new(
+        result_secret, _canonical_bytes(unsigned_result), hashlib.sha256,
+    ).hexdigest()
+    if not hmac.compare_digest(result_mac, expected_result_mac):
+        raise CommitReceiptError("authenticated remote result MAC mismatch")
+    outcome = authenticated_result["outcome"]
+    if (authenticated_result["task_sha256"] != expected_task_sha256
+            or type(outcome) is not dict
+            or outcome.get("kind") != "success"
+            or outcome.get("remote_verification_receipt") != payload
+            or type(outcome.get("verify_payload")) is not dict):
+        raise CommitReceiptError("authenticated remote result binding mismatch")
+    actual_verify_payload_sha256 = hashlib.sha256(
+        _canonical_bytes(outcome["verify_payload"])
+    ).hexdigest()
     _validate_hex(expected_task_sha256, "expected task sha256")
     _validate_hex(payload["task_sha256"], "remote task sha256")
     _validate_hex(payload["verifier_result_sha256"], "verifier result digest")
+    _validate_hex(payload["verify_payload_sha256"], "verify payload digest")
     _validate_hex(payload["lock_identity_sha256"], "lock identity")
     core = dict(payload)
     receipt_sha256 = core.pop("receipt_sha256")
@@ -348,13 +393,28 @@ def admit_remote_verification_receipt(
             or payload["task_sha256"] != expected_task_sha256
             or payload["verdict"] != "serializable"
             or payload["certified"] is not True
-            or payload["sink_kind"] not in _SINK_KINDS
+            or payload["verify_payload_sha256"]
+            != actual_verify_payload_sha256
+            or payload["sink_kind"] != CAMPAIGN_WAL_SINK
             or payload["lock_identity_sha256"] != lock_identity_sha256
             or payload["variant"] != variant
             or payload["operation_identity"] != operation_identity
             or payload["workload_tag"] != workload_tag
             or receipt_sha256 != expected_receipt_sha256):
         raise CommitReceiptError("remote verification receipt binding mismatch")
+    global _REMOTE_ADMISSION_PID
+    with _REMOTE_ADMISSION_LOCK:
+        if _REMOTE_ADMISSION_PID != os.getpid():
+            _REMOTE_ADMISSION_PID = os.getpid()
+            _ADMITTED_REMOTE_RECEIPTS.clear()
+        admission_identity = (
+            payload["task_sha256"], payload["receipt_sha256"],
+        )
+        if admission_identity in _ADMITTED_REMOTE_RECEIPTS:
+            raise CommitReceiptError(
+                "remote verification receipt was already admitted"
+            )
+        _ADMITTED_REMOTE_RECEIPTS.add(admission_identity)
     return _issue_remote_verification_evidence((
         payload["task_sha256"], payload["verdict"], payload["certified"],
         payload["verifier_result_sha256"], payload["sink_kind"],

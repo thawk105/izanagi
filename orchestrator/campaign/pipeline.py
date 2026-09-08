@@ -13,12 +13,14 @@ fitness を付けない)。**I (isolation):** bench は bench_lock + settle で�
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import os
 import re
 import secrets
 import shlex
 import shutil
+import socket
 import subprocess
 import sys
 import tempfile
@@ -49,12 +51,14 @@ from ..verifier.model import (                                   # noqa: E402
     capture_compiled_protocol_source_snapshot,
 )
 
-from . import (buildcache, env_contract as _env_contract, execution_guard, ident,
+from . import (buildcache, campaign_lock as _campaign_lock,
+               env_contract as _env_contract, execution_guard, ident,
                source_digest, wal)  # noqa: E402
 from .build_admission import (  # noqa: E402
     BuildAdmission,
     BuildAdmissionError,
     BuildRunContext,
+    GeneratorId,
     GeneratorReceipt,
     ReviewReceipt,
     derive_build_admission,
@@ -77,7 +81,10 @@ from .model import (COMMIT_CONTRACT_SHA256_KEY, Genome, STAGE_ABORT,
                     STAGE_VERIFY_DONE)
 from .reflux_ir import TriggerGateIR, emit_predicate             # noqa: E402
 from .trigger_gate_binding import SourceBinding, TriggerGateBinding
-from .source_digest import SourceEvidence                         # noqa: E402
+from .source_digest import (                                     # noqa: E402
+    SourceEvidence,
+    serialize_compiled_protocol_source_snapshot,
+)
 
 _DEFAULT_CXX = buildcache.DEFAULT_CXX
 _compilers_for_current_site = buildcache.compilers_for_current_site
@@ -732,6 +739,23 @@ def _current_repo_head(repo_root: str) -> str:
     ).stdout.strip()
 
 
+def _campaign_lock_contract_loader_binding(
+        layout: CampaignLayout,
+) -> tuple[str, dict[str, str]]:
+    """Read the fixed enforcement closure from this campaign's v2 lock."""
+    lock_text = wal.read_lock(layout)
+    if type(lock_text) is not str or not lock_text:
+        raise ValueError("verify fan-out requires a campaign-lock/v2 authority")
+    decoded = _campaign_lock.decode_campaign_lock(lock_text)
+    authority = decoded.authority
+    if authority is None:
+        raise ValueError("verify fan-out requires a campaign-lock/v2 authority")
+    return (
+        authority.contract_loader_commit,
+        dict(authority.contract_loader_blob_sha256s),
+    )
+
+
 def _make_verify_fanout_task(
         *, campaign_lock_sha256: str, variant: str, build_attempt_id: str,
         tag: str, rep: int, trace_binary: str, trace_bin_sha256: str,
@@ -739,6 +763,8 @@ def _make_verify_fanout_task(
         numactl_prefix: Sequence[str], genome: Genome,
         source_evidence: SourceEvidence, build_admission: BuildAdmission,
         receipt_sink_kind: str, expected_repo_head: str,
+        contract_loader_blob_sha256s: Mapping[str, str],
+        generator_id: GeneratorId,
 ) -> dict[str, Any]:
     if (type(trace_binary) is not str or not os.path.isabs(trace_binary)
             or type(rep) is not int or isinstance(rep, bool) or rep < 1
@@ -748,6 +774,16 @@ def _make_verify_fanout_task(
             or type(numactl_prefix) not in {tuple, list}
             or any(type(item) is not str or not item for item in numactl_prefix)):
         raise ValueError("verify fan-out task inputs are not exact")
+    if (receipt_sink_kind != CAMPAIGN_WAL_SINK
+            or generator_id is not GeneratorId.BACKOFF_REPRO
+            or type(contract_loader_blob_sha256s) is not dict
+            or not contract_loader_blob_sha256s
+            or any(type(path) is not str or not path
+                   or type(digest) is not str
+                   or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+                   for path, digest in contract_loader_blob_sha256s.items())
+            or source_evidence.proof_source_snapshot is None):
+        raise ValueError("verify fan-out task is outside the admitted scope")
     body: dict[str, Any] = {
         "schema": _VERIFY_FANOUT_TASK_SCHEMA,
         "campaign_lock_sha256": campaign_lock_sha256,
@@ -765,19 +801,32 @@ def _make_verify_fanout_task(
         "TRACE_TIMEOUT_S": TRACE_TIMEOUT_S,
         "genome": genome.canonical(),
         "source_evidence": source_evidence.as_receipt(),
+        "proof_source_snapshot": (
+            serialize_compiled_protocol_source_snapshot(
+                source_evidence.proof_source_snapshot
+            )
+        ),
         "build_admission": dict(build_admission.as_wal_receipt()),
         "receipt_sink_kind": receipt_sink_kind,
+        "generator_id": generator_id.value,
         "expected_repo_head": expected_repo_head,
+        "contract_loader_blob_sha256s": dict(
+            contract_loader_blob_sha256s
+        ),
     }
     return {**body, "task_sha256": _json_sha256(body)}
 
 
 def _default_verify_fanout_launcher(
-        host: str, task_path: str, result_path: str,
+        host: str, task_path: str, result_path: str, result_secret: bytes,
 ) -> subprocess.CompletedProcess:
+    if type(result_secret) is not bytes or len(result_secret) != 32:
+        raise ValueError("verify fan-out result secret must be exactly 32 bytes")
+    pbs_jobid = os.environ["PBS_JOBID"]
     repo_root = os.path.realpath(os.path.join(os.path.dirname(__file__), "../.."))
     remote_command = (
-        f"cd {shlex.quote(repo_root)} && exec {shlex.quote(sys.executable)} "
+        f"cd {shlex.quote(repo_root)} && exec env "
+        f"PBS_JOBID={shlex.quote(pbs_jobid)} {shlex.quote(sys.executable)} "
         "-B -m orchestrator.campaign.verify_fanout_worker "
         f"--task {shlex.quote(task_path)} --result {shlex.quote(result_path)}"
     )
@@ -789,7 +838,7 @@ def _default_verify_fanout_launcher(
             # receives the complete ``cd ... && exec ...`` string as argv[0].
             host, "bash", "-c", shlex.quote(remote_command),
         ],
-        capture_output=True, text=True,
+        capture_output=True, input=result_secret,
     )
 
 
@@ -820,11 +869,14 @@ def _remote_unavailable_outcome(
 
 def _admit_verify_fanout_result(
         task: Mapping[str, Any], *, host: str, result_path: str,
-        launch_result: object,
+        launch_result: object, result_secret: bytes,
+        admitted_task_sha256s: Optional[set[str]] = None,
 ) -> _RepetitionExecutionOutcome:
     """Validate one worker result and issue only task-bound main evidence."""
     rc = getattr(launch_result, "returncode", None)
     stderr = getattr(launch_result, "stderr", "")
+    if type(stderr) is bytes:
+        stderr = stderr.decode("utf-8", errors="backslashreplace")
     if type(stderr) is not str:
         stderr = repr(stderr)
     rep = task.get("rep")
@@ -846,9 +898,22 @@ def _admit_verify_fanout_result(
         )
     try:
         result = _read_exact_json(result_path)
+        unsigned_result = dict(result)
+        result_mac = unsigned_result.pop("result_mac", None)
+        if (type(result_secret) is not bytes or len(result_secret) != 32
+                or type(result_mac) is not str
+                or re.fullmatch(r"[0-9a-f]{64}", result_mac) is None
+                or not hmac.compare_digest(
+                    result_mac,
+                    hmac.new(
+                        result_secret, _canonical_json_bytes(unsigned_result),
+                        hashlib.sha256,
+                    ).hexdigest(),
+                )):
+            raise ValueError("remote result HMAC mismatch or missing")
         if set(result) != {
                 "schema", "task_sha256", "build_attempt_id", "tag", "rep",
-                "trace_bin_sha256", "outcome"}:
+                "trace_bin_sha256", "outcome", "result_mac"}:
             raise ValueError("remote result key set mismatch")
         if (result["schema"] != _VERIFY_FANOUT_RESULT_SCHEMA
                 or result["task_sha256"] != task["task_sha256"]
@@ -857,6 +922,12 @@ def _admit_verify_fanout_result(
                 or result["rep"] != rep
                 or result["trace_bin_sha256"] != task["trace_bin_sha256"]):
             raise ValueError("remote result task echo mismatch")
+        if admitted_task_sha256s is not None:
+            if type(admitted_task_sha256s) is not set:
+                raise TypeError("admitted task set must be exact set")
+            if result["task_sha256"] in admitted_task_sha256s:
+                raise ValueError("remote task was already admitted")
+            admitted_task_sha256s.add(result["task_sha256"])
         outcome = result["outcome"]
         if type(outcome) is not dict or type(outcome.get("kind")) is not str:
             raise ValueError("remote result outcome is malformed")
@@ -933,7 +1004,9 @@ def _admit_verify_fanout_result(
         remote_receipt = outcome["remote_verification_receipt"]
         if (type(remote_receipt) is not dict
                 or remote_receipt.get("sink_kind")
-                != task["receipt_sink_kind"]):
+                != task["receipt_sink_kind"]
+                or remote_receipt.get("verify_payload_sha256")
+                != _json_sha256(verify_payload)):
             raise ValueError("remote receipt sink binding mismatch")
         remote_evidence = admit_remote_verification_receipt(
             remote_receipt,
@@ -942,6 +1015,8 @@ def _admit_verify_fanout_result(
             variant=task["variant"],
             operation_identity=task["build_attempt_id"],
             workload_tag=tag,
+            authenticated_result=result,
+            result_secret=result_secret,
         )
         return _RepetitionExecutionOutcome(
             verify_payload=verify_payload,
@@ -1539,6 +1614,9 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
                    or _VERIFY_FANOUT_COMPONENT_RE.fullmatch(host) is None
                    for host in verify_fanout_hosts)):
         raise ValueError("verify_fanout_hosts は safe hostname の exact tuple が必要")
+    if (len(set(verify_fanout_hosts)) != len(verify_fanout_hosts)
+            or socket.gethostname() in verify_fanout_hosts):
+        raise ValueError("verify_fanout_hosts は重複と current host を含められない")
     if (verify_fanout_launcher is not None
             and not callable(verify_fanout_launcher)):
         raise TypeError("verify_fanout_launcher は callable または None が必要")
@@ -2051,11 +2129,27 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
         if workload.reps == 1:
             return _run_one_repetition(tag, workload, pass_numactl)
 
-        repo_root = os.path.realpath(os.path.join(os.path.dirname(__file__), "../.."))
-        expected_repo_head = _current_repo_head(repo_root)
+        try:
+            (
+                expected_repo_head,
+                contract_loader_blob_sha256s,
+            ) = _campaign_lock_contract_loader_binding(layout)
+        except Exception as exc:
+            return _abort(
+                "verify-remote-unavailable",
+                f"campaign lock の remote closure を確定できない "
+                f"({tag}) → reject",
+                {"remote": {
+                    "host": verify_fanout_hosts[0], "rep": 1, "rc": None,
+                    "stderr_tail": _exc_summary(exc)[-2000:],
+                }},
+                workload_tag=tag,
+            )
         parent = os.path.join(layout.root, "verify-fanout", v)
         os.makedirs(parent, mode=0o700, exist_ok=True)
-        tasks: dict[int, tuple[str, str, str, dict[str, Any]]] = {}
+        tasks: dict[
+            int, tuple[str, str, str, dict[str, Any], bytes]
+        ] = {}
         for rep in range(1, workload.reps):
             host = verify_fanout_hosts[(rep - 1) % len(verify_fanout_hosts)]
             leaf_name = f"{tag}-{rep}"
@@ -2089,10 +2183,15 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
                     build_admission=admission,
                     receipt_sink_kind=receipt_sink_kind,
                     expected_repo_head=expected_repo_head,
+                    contract_loader_blob_sha256s=(
+                        contract_loader_blob_sha256s
+                    ),
+                    generator_id=build_context.generator_id,
                 )
                 task_path = os.path.join(leaf, "task.json")
                 result_path = os.path.join(leaf, "result.json")
                 _write_create_only_json(task_path, task)
+                result_secret = secrets.token_bytes(32)
             except Exception as exc:
                 return _abort(
                     "verify-remote-unavailable",
@@ -2104,11 +2203,14 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
                     }},
                     workload_tag=tag,
                 )
-            tasks[rep] = (host, task_path, result_path, task)
+            tasks[rep] = (
+                host, task_path, result_path, task, result_secret,
+            )
 
         launcher = verify_fanout_launcher or _default_verify_fanout_launcher
         next_rep = 1
         local_done = False
+        admitted_task_sha256s: set[str] = set()
         while next_rep < workload.reps:
             wave_reps = tuple(
                 range(next_rep, min(next_rep + len(verify_fanout_hosts), workload.reps))
@@ -2119,6 +2221,7 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
                 futures = {
                     rep: pool.submit(
                         launcher, tasks[rep][0], tasks[rep][1], tasks[rep][2],
+                        tasks[rep][4],
                     )
                     for rep in wave_reps
                 }
@@ -2138,10 +2241,12 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
             if local_aborted is not None:
                 return local_aborted
             for rep in wave_reps:
-                host, _task_path, result_path, task = tasks[rep]
+                host, _task_path, result_path, task, result_secret = tasks[rep]
                 outcome = _admit_verify_fanout_result(
                     task, host=host, result_path=result_path,
                     launch_result=launch_results[rep],
+                    result_secret=result_secret,
+                    admitted_task_sha256s=admitted_task_sha256s,
                 )
                 aborted = _project_repetition_outcome(tag, outcome)
                 if aborted is not None:
@@ -2244,7 +2349,11 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
                             "計測のまま採用せず reject (規律4)",
                             {"competing": comp}, workload_tag=tag)
                     else:
-                        if verify_fanout_hosts and tag == PERFORMANCE_TAG:
+                        if (verify_fanout_hosts
+                                and tag == PERFORMANCE_TAG
+                                and receipt_sink_kind == CAMPAIGN_WAL_SINK
+                                and build_context.generator_id
+                                is GeneratorId.BACKOFF_REPRO):
                             aborted_result = _run_fanout_pass(
                                 tag, workload, numactl,
                             )
