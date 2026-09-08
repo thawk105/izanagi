@@ -288,12 +288,14 @@ HEAD と逐語比較するため)。CMake option 7 つ (既定はすべて stock
 **C = `cicada-adaptive-counterfactual.patch`** は **pin `511c9538` + A + B を当てた木だけを preimage
 とし、B の上に重ねる** (pin 単独にも pin+A にも当たらない)。触るのは A / B と同じ
 `cmake/Options.cmake` と `include/backoff.hh` の 2 file で、**`#include` 行を 1 行も足さない**。
-CMake option は 2 つ (既定はどちらも stock 同値、`#ifndef ... #error` で欠落を止める)。
+CMake option は 3 つ (既定はすべて stock 同値)。step policy と seed は
+`#ifndef ... #error` で欠落を止め、terminal deadline は trace 有効時だけ同じ欠落検査を行う。
 
 | option | 既定 | 意味 |
 |---|---|---|
 | `CCBENCH_BACKOFF_STEP_POLICY` | 0 | 0 = stock / 1 = 常に反転 / 2 = 更新ごとに 1/2 で無作為に反転。`static_assert` で 0/1/2 に限る |
 | `CCBENCH_BACKOFF_STEP_POLICY_SEED` | 11400714819323198485 | policy 2 の決定的 LCG の種。`STEP_POLICY != 2` のとき inert |
+| `CCBENCH_BACKOFF_TRACE_TERMINAL_US` | 0 | count-closed terminal event の期限。0 = 無効。trace 有効時だけ値域検査と実装が残り、cohort 2 は 5000000 を使う |
 
 - **反転点は 1 箇所。** `#if BACKOFF_STEP_ADAPT` 枝と非 `STEP_ADAPT` 枝の共通の出口の後、clamp の前。
   反転するのは `new_backoff` に付いた差分の符号だけで、parity 分岐 (`gradient == 0`) が選んだ一歩も含む。
@@ -301,19 +303,34 @@ CMake option は 2 つ (既定はどちらも stock 同値、`#ifndef ... #error
 - policy 2 の割当は `state = state * 6364136223846793005 + 1442695040888963407 (mod 2^64)` の bit 63。
   勾配 0・推奨差分 0・clamp のときも毎更新で進める。既定 seed の最初の 16 割当は `0111001000100110`
   (実装を読まずに式から独立再計算して一致を確認)。
-- **診断 trace は v=2 へ上がる** (`#if BACKOFF_TRACE` の中だけ。規律 1)。既存 12 項目の書式と順序は
+- count cap は `elapsed / clocks_per_us_ >= cap_us` で判定し、巨大 cap と TSC 換算値の積を作らない。
+  `clocks_per_us_ == 0` は CLI の実在入力なので更新判定を止め、整数 0 除算を避ける。この比較は
+  trace 計装ではなく CC 本来の機構であり、trace 無効 build にも残る。
+- **診断 trace の stdout は v=3 へ上がる** (`#if BACKOFF_TRACE` の中だけ。規律 1)。既存 12 項目の書式と順序は
   変えず、`recommended_delta_sign` / `assigned_invert` / `inversion_realized` / `both_actions_feasible`
-  の 4 項目を足す。**`both_actions_feasible` は割当を適用する前**に pre-state から求める
+  / `terminal_flush` の 5 項目を足す。**`both_actions_feasible` は割当を適用する前**に pre-state から求める
   (`inversion_realized` での層別は処置後選択になり偏るため、偏らない副解析の材料を先に残す)。
-  driver の parser は v=1 と v=2 を版ごとの連言で受理し、混在・版不一致・項目欠け・余分な項目を拒否する。
+  通常 event は `terminal_flush=0`。cohort 2 では init から 5000000 us 以後の最初の count 閉鎖を、
+  controller 更新と LCG 割当の前に `trigger=3 assigned_invert=-1 terminal_flush=1` として 1 件だけ記録する。
+  terminal を記録した呼出しだけ controller 更新を止める。その後は controller と LCG 割当を通常どおり進め、
+  trace event の追加だけを抑止するため、terminal は常に末尾になる。worker と extime も通常どおり進む。
+  summary は `updates` = 通常 event 数、`retained` = 保持した通常 event 数、`dropped` = 失った通常 event 数、
+  `flushes` = terminal event 数。terminal 1 件なら `retained=updates`、`dropped=0`、`flushes=1`、
+  terminal 0 件なら `updates=retained=通常 event 数`、`dropped=0`、`flushes=0` である。
+  driver の parser は旧 stdout v=1/v=2 と新 v=3 を版ごとの連言で受理し、混在・版不一致・項目欠け・
+  余分な項目を拒否する。正規化後の schema は terminal 無しの既存 v3 を継続受理し、terminal 付きだけ
+  `izanagi-dynamic-backoff-trace/v4` とする。
 - cell 書式は 5 / 11 field を不変のまま **12 field** を足す (12 番目 = `step_policy` ∈ {0,1,2})。
   11 field と明示 policy 0 の 12 field は identity 上も区別する。
 - 診断走行の exact 述語には **2 本目の literal** を足した (Python と `.pbs` の 2 層に同じもの)。
-  **正しさゲート (認証の exact 2 cell 契約、A の hard pin、既存の逐語 pin) は 1 byte も変えていない。**
+  **正しさゲートの認証 cell 受理集合は exact 2 cell から exact 4 cell へ制御された拡張を行った。**
+  A の hard pin と既存の逐語 pin は変えていない。
   診断入力の受理集合は exact literal 1 本ぶんの**制御された拡張**であり、「緩めていない」とは言わない。
-- 登録簿: 2 define は `orchestrator/campaign/condition_meaning_gate.py` の `DefineSpec`
-  (patch_rel = C) と `screening_driver.py` の `_CONDITION_DEFAULTS` に登録。
-- patch stack は A → B → C の exact 順序。C を含む走行の artifact は schema v3 とし、
+- 登録簿: 3 define は `orchestrator/campaign/condition_meaning_gate.py` の `DefineSpec`
+  (patch_rel = C) と `screening_driver.py` の `_CONDITION_DEFAULTS` に登録する。terminal option の
+  inert 値は 0 で、trace 専用の CMake 入力として扱う。
+- patch stack は A → B → C の exact 順序。既存 cohort 1 の artifact は schema v3 のまま、
+  count-closed terminal を要求する cohort 2 の artifact は schema v4 とし、
   事前登録の exact 3 腕・3 workload・threads 24/48・rep 0・reps 1・extime 3 の診断走行にだけ、
   `counterfactual_preregistration` として凍結済み
   `docs/backoff-counterfactual-preregistration.md` の bytes の SHA-256 を記録する。ほかの格子には

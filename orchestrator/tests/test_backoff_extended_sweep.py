@@ -251,6 +251,46 @@ def test_b5_pipeline_balanced_schedule_is_a_seven_key_subset_consumer():
     ]
 
 
+def _measure_t2418_round(
+        capture: M._T2418RepCapture, point_index: int,
+) -> list[float]:
+    """Drive the T-2418 capture through the real measurement/parser path."""
+    abort_rates = [
+        0.01 * (point_index + 1) + 0.001 * rep for rep in range(5)
+    ]
+    calls = 0
+
+    def subprocess_runner(*_args, **_kwargs):
+        nonlocal calls
+        rep = calls
+        calls += 1
+        throughput = 2_000_000.0 + point_index * 100.0 + rep
+        return SimpleNamespace(
+            returncode=0,
+            stdout=(
+                f"throughput[tps]:\t{throughput}\n"
+                f"abort_rate:\t{abort_rates[rep]}\n"
+                "latency[ns]:\t200\n"
+            ),
+            stderr="",
+        )
+
+    M.campaign_pipeline.measure_point(
+        f"/fixture/t2418-point-{point_index}",
+        records=1,
+        threads=1,
+        clocks_per_us=1,
+        extime=3,
+        reps=5,
+        workload={},
+        subprocess_runner=subprocess_runner,
+        require_all_reps=True,
+        use_perf=False,
+    )
+    assert calls == 5
+    return abort_rates
+
+
 def _t2266_certified_view(tmp_path: Path, capture: M._T2266RepCapture):
     """Build the real immutable WAL projection consumed by the report loader."""
     records = []
@@ -316,6 +356,75 @@ def _t2266_certified_view(tmp_path: Path, capture: M._T2266RepCapture):
         decision=decision,
         campaign_verifier_epoch=epoch,
         persisted_certified_commit_count=8,
+        _certification_token=artifact_admission._CERTIFIED_VIEW_TOKEN,
+    )
+
+
+def _t2418_certified_view(tmp_path: Path, capture: M._T2418RepCapture):
+    """Freeze the T-2418 WAL through artifact_admission's production freezer."""
+    records = []
+    for point_index, genome in enumerate(M.t2418_genomes("balanced")):
+        captured = capture.rounds[point_index]
+        variant = f"t2418-fixture-variant-{point_index}"
+        attempt = f"t2418-fixture-attempt-{point_index}"
+        common = {"build_attempt_id": attempt}
+        records.extend((
+            artifact_admission.ImmutableWalRecord(
+                variant, M.wal.STAGE_BUILD_START, "fixture-env", point_index * 4,
+                {**common, "genome": genome.canonical()},
+            ),
+            artifact_admission.ImmutableWalRecord(
+                variant, M.wal.STAGE_VERIFY_DONE, "fixture-env", point_index * 4 + 1,
+                {**common, "certified": True},
+            ),
+            artifact_admission.ImmutableWalRecord(
+                variant, M.wal.STAGE_BENCH_DONE, "fixture-env", point_index * 4 + 2,
+                {
+                    **common,
+                    "run_cmd": captured["run_cmd"],
+                    "tps": captured["throughput_tps"],
+                    "median_tps": captured["throughput_tps"][2],
+                    "leading_indicators": {
+                        "abort_rate": captured["reps"][2]["abort_rate"],
+                        "latency_ns": 200.0,
+                    },
+                    "cv": 0.002,
+                    "unstable": False,
+                },
+            ),
+            artifact_admission.ImmutableWalRecord(
+                variant, M.wal.STAGE_COMMIT, "fixture-env", point_index * 4 + 3,
+                common,
+            ),
+        ))
+    campaign_id = "t2418-fixture-campaign"
+    root = tmp_path / "campaigns" / campaign_id
+    (root / "reports").mkdir(parents=True)
+    digest = "1" * 64
+    decision = artifact_admission.CampaignAdmissionDecision(
+        classification="official-certified",
+        admission_status="admitted",
+        verification_status="verified",
+        campaign_id=campaign_id,
+        campaign_path=str(root),
+        campaign_lock_sha256=digest,
+        wal_sha256=digest,
+        policy_sha256=None,
+        attempt_receipt_sha256s=(),
+        overlay_ledger_sha256=digest,
+        overlay_record_key=None,
+        validator_sha256=digest,
+    )
+    epoch = artifact_admission.CampaignVerifierEpoch(
+        f"E1:{digest}", "E1", "recorded-closure",
+    )
+    immutable_records = artifact_admission._immutable_records(tuple(records))
+    return artifact_admission.CertifiedCampaignView(
+        layout=artifact_admission.CampaignLayout(str(root)),
+        records=immutable_records,
+        decision=decision,
+        campaign_verifier_epoch=epoch,
+        persisted_certified_commit_count=5,
         _certification_token=artifact_admission._CERTIFIED_VIEW_TOKEN,
     )
 
@@ -444,6 +553,94 @@ def test_t2266_requested_realized_and_unrealized_are_separate_identity_fields():
     assert report["realized_us"] == [150, 200, 300, 500, 750, 1000]
 
 
+def test_t2418_exact_grid_identity_order_and_disclosure_are_literal_pinned():
+    assert M.T2418_RUN_KIND == "t2418-explore"
+    assert M.T2418_REQUESTED_US == (2000, 4000, 9999)
+    assert M.T2418_REALIZED_US == (2000, 4000, 9999)
+    assert M.T2418_UNREALIZED == {}
+    assert M.T2418_REPORT_SCHEMA == "t2418-backoff-static-explore-report/v1"
+    assert M.T2418_CLAIM_SCOPE == (
+        "exploratory_backoff_tail_only_not_formal_series"
+    )
+    assert M.T2418_FORMAL_GRID_STATUS == "not_selected_in_this_wave"
+    assert M.T2418_FORMAL_STOPPING_CRITERION_STATUS == (
+        "not_defined_in_this_wave"
+    )
+    assert M.T2418_MEANING_WITNESS_STATUS == (
+        "unestablished_for_positive_backoff_fixed_as_in_existing_sweep"
+    )
+    assert p2_2.REPS == 5
+    assert p2_2.EXTIME == 3
+
+    unshuffled = M._t2418_points("balanced")
+    assert [
+        (flags["BACK_OFF"], flags["BACKOFF_FIXED"])
+        for _label, flags in unshuffled
+    ] == [(0, -1), (1, -1), (1, 4000), (1, 6000), (1, 11999)]
+    assert [label for label, _flags in unshuffled] == [
+        "none", "adaptive", "fixed-2000us", "fixed-4000us", "fixed-9999us",
+    ]
+
+    labels = [
+        "none", "adaptive", "fixed-2000us", "fixed-4000us", "fixed-9999us",
+    ]
+    seeds = {
+        "write-heavy": 0xB10005,
+        "balanced": 0xB10050,
+        "read-heavy": 0xB10095,
+    }
+    for tag, seed in seeds.items():
+        expected_order = list(labels)
+        random.Random(seed).shuffle(expected_order)
+        assert M.t2418_measurement_order(tag) == expected_order
+        assert len(M.t2418_genomes(tag)) == 5
+        assert len({genome.canonical() for genome in M.t2418_genomes(tag)}) == 5
+
+    cfg = M.t2418_config_for("balanced", M.WORKLOAD_BY_TAG["balanced"])
+    assert cfg.spec_slug == "t2418-backoff-static-explore-v1-silo-balanced"
+    assert cfg.search_tag == "sweep"
+    assert cfg.trial == "t2418-backoff-static-explore-v1"
+    assert cfg.search_config["scale"] == "t2418-backoff-static-explore-v1"
+    assert cfg.spec_content == (
+        "T-2418 exploratory static-backoff right-tail measurement; "
+        "not a formal series; workload=balanced"
+    )
+    disclosure = {
+        key: cfg.search_config[key]
+        for key in (
+            "run_kind", "claim_scope", "exploratory", "formal_series",
+            "declared_use_class", "exploration_values_us", "requested_us",
+            "realized_us", "unrealized", "formal_grid_status",
+            "formal_stopping_criterion_status", "meaning_witness_status",
+            "reps", "extime_s", "records", "threads",
+        )
+    }
+    assert disclosure == {
+        "run_kind": "t2418-explore",
+        "claim_scope": "exploratory_backoff_tail_only_not_formal_series",
+        "exploratory": True,
+        "formal_series": False,
+        "declared_use_class": "official",
+        "exploration_values_us": [2000, 4000, 9999],
+        "requested_us": [2000, 4000, 9999],
+        "realized_us": [2000, 4000, 9999],
+        "unrealized": [],
+        "formal_grid_status": "not_selected_in_this_wave",
+        "formal_stopping_criterion_status": "not_defined_in_this_wave",
+        "meaning_witness_status": (
+            "unestablished_for_positive_backoff_fixed_as_in_existing_sweep"
+        ),
+        "reps": 5,
+        "extime_s": 3,
+        "records": 1_000_000,
+        "threads": 48,
+    }
+    assert [
+        (point["flags"]["BACK_OFF"], point["flags"]["BACKOFF_FIXED"])
+        for point in cfg.search_config["grid"]
+    ] == [(0, -1), (1, -1), (1, 4000), (1, 6000), (1, 11999)]
+
+
 def test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep(
         tmp_path, monkeypatch):
     capture = M._T2266RepCapture()
@@ -510,6 +707,123 @@ def test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep(
     assert '"source_measurement":"trace_disabled"' in dat
     assert '"performance_certified":false' in dat
     assert '"correctness_verified":true' in dat
+
+
+def test_t2418_frozen_wal_view_flows_through_capture_loader_and_reports(
+        tmp_path, monkeypatch):
+    capture = M._T2418RepCapture()
+    expected_abort_rates = []
+    with capture.installed():
+        for point_index in range(5):
+            expected_abort_rates.append(_measure_t2418_round(capture, point_index))
+    view = _t2418_certified_view(tmp_path, capture)
+    bench_payloads = [
+        record.payload
+        for record in view.records
+        if record.stage == M.wal.STAGE_BENCH_DONE
+    ]
+    assert len(bench_payloads) == 5
+    assert [type(payload["tps"]) for payload in bench_payloads] == [tuple] * 5
+    assert [
+        type(payload["leading_indicators"]) for payload in bench_payloads
+    ] == [MappingProxyType] * 5
+
+    def discover(slug, search_tag, output_root, *, purpose):
+        assert slug == "t2418-backoff-static-explore-v1-silo-balanced"
+        assert search_tag == "sweep"
+        assert output_root == str(tmp_path)
+        assert purpose is M.CampaignReadPurpose.CERTIFIED_ACCEPTANCE
+        return view
+
+    monkeypatch.setattr(M, "discover_campaign_dir", discover)
+    paths = M.materialize_t2418_report("balanced", str(tmp_path), capture)
+    assert Path(paths["dat"]).name == (
+        "t2418-backoff-static-explore-balanced.dat"
+    )
+    assert Path(paths["json"]).name == (
+        "t2418-backoff-static-explore-balanced.json"
+    )
+    document = json.loads(Path(paths["json"]).read_text(encoding="utf-8"))
+    dat_lines = Path(paths["dat"]).read_text(encoding="utf-8").splitlines()
+
+    disclosure_keys = (
+        "run_kind", "claim_scope", "exploratory", "formal_series",
+        "declared_use_class", "exploration_values_us", "requested_us",
+        "realized_us", "unrealized", "formal_grid_status",
+        "formal_stopping_criterion_status", "meaning_witness_status",
+        "reps", "extime_s", "records", "threads",
+    )
+    expected_disclosure = {
+        "run_kind": "t2418-explore",
+        "claim_scope": "exploratory_backoff_tail_only_not_formal_series",
+        "exploratory": True,
+        "formal_series": False,
+        "declared_use_class": "official",
+        "exploration_values_us": [2000, 4000, 9999],
+        "requested_us": [2000, 4000, 9999],
+        "realized_us": [2000, 4000, 9999],
+        "unrealized": [],
+        "formal_grid_status": "not_selected_in_this_wave",
+        "formal_stopping_criterion_status": "not_defined_in_this_wave",
+        "meaning_witness_status": (
+            "unestablished_for_positive_backoff_fixed_as_in_existing_sweep"
+        ),
+        "reps": 5,
+        "extime_s": 3,
+        "records": 1_000_000,
+        "threads": 48,
+    }
+    assert document["schema_version"] == (
+        "t2418-backoff-static-explore-report/v1"
+    )
+    assert {key: document[key] for key in disclosure_keys} == expected_disclosure
+    assert document["campaign_id"] == "t2418-fixture-campaign"
+    assert document["workload"] == "balanced"
+    assert document["source_measurement"] == "trace_disabled"
+    assert document["performance_certified"] is False
+    assert document["correctness_verified"] is True
+    assert len(document["points"]) == 5
+    for point_index, point in enumerate(document["points"]):
+        assert len(point["reps"]) == 5
+        assert point["throughput_tps_reps"] == (
+            capture.rounds[point_index]["throughput_tps"]
+        )
+        assert point["abort_rate_reps"] == expected_abort_rates[point_index]
+        assert point["claim_scope"] == (
+            "exploratory_backoff_tail_only_not_formal_series"
+        )
+        assert point["source_measurement"] == "trace_disabled"
+        assert point["correctness_verified"] is True
+        assert point["performance_certified"] is False
+        assert point["certified"] is False
+
+    provenance_line = next(
+        line for line in dat_lines if line.startswith("# provenance: ")
+    )
+    provenance = json.loads(provenance_line.removeprefix("# provenance: "))
+    assert {key: provenance[key] for key in disclosure_keys} == expected_disclosure
+    data_rows = [line.split() for line in dat_lines if not line.startswith("#")]
+    assert [int(row[0]) for row in data_rows] == [2000, 4000, 9999]
+    assert len(data_rows) == 3
+
+
+def test_t2418_frozen_campaign_is_rejected_by_existing_t2266_consumer(
+        tmp_path, monkeypatch):
+    capture = M._T2418RepCapture()
+    with capture.installed():
+        for point_index in range(5):
+            _measure_t2418_round(capture, point_index)
+    view = _t2418_certified_view(tmp_path, capture)
+    assert any(
+        type(record.payload.get("tps")) is tuple
+        for record in view.records
+        if record.stage == M.wal.STAGE_BENCH_DONE
+    )
+    monkeypatch.setattr(M, "discover_campaign_dir", lambda *_args, **_kwargs: view)
+
+    with pytest.raises(
+            RuntimeError, match="T-2266 committed genome set differs"):
+        M._load_t2266_report_points("balanced", str(tmp_path), capture)
 
 
 def test_t2266_rep_capture_rejects_extra_abort_parser_call():
@@ -772,6 +1086,137 @@ def test_t2266_none_and_adaptive_must_have_distinct_perf_binaries(monkeypatch):
         )
 
 
+def test_t2418_prebuild_requires_five_distinct_trace_disabled_binaries(
+        monkeypatch):
+    points = M.t2418_genomes("balanced")
+    monkeypatch.setattr(
+        M.source_digest, "resolve_evidence",
+        lambda genome, *_args, **_kwargs: SimpleNamespace(
+            src_token=hashlib.sha256(genome.canonical().encode()).hexdigest(),
+        ),
+    )
+    monkeypatch.setattr(M, "derive_build_admission", lambda *_args, **_kwargs: object())
+
+    def build_v2(genome, **kwargs):
+        return M.buildcache.BuildResult(
+            genome=genome,
+            trace=kwargs["trace"],
+            binary=f"/bin/t2418-{hashlib.sha256(genome.canonical().encode()).hexdigest()}",
+            bin_sha256=hashlib.sha256(
+                ("unique-" + genome.canonical()).encode()
+            ).hexdigest(),
+            build_dir=f"/build/t2418-{genome.flags['BACKOFF_FIXED']}",
+            cached=False,
+        )
+
+    monkeypatch.setattr(M.buildcache, "build_v2", build_v2)
+    built = M._prebuild_backoff_binaries(
+        points,
+        contract=object(),
+        cache_root="/cache",
+        ccbench_dir="/ccbench",
+        resolved_cc="cc",
+        resolved_cxx="c++",
+        expected_toolchain_manifest={},
+        build_context=object(),
+        capability_resolver=lambda _evidence: object(),
+        trace_modes=(False,),
+        require_all_t2418_binary_hashes=True,
+    )
+    assert len(built) == 5
+    assert len({result.bin_sha256 for result in built.values()}) == 5
+
+    shared_reference_sha256 = hashlib.sha256(b"same-reference").hexdigest()
+
+    def duplicate_reference_build(genome, **kwargs):
+        sha256 = (
+            shared_reference_sha256
+            if genome.flags["BACKOFF_FIXED"] == -1
+            else hashlib.sha256(genome.canonical().encode()).hexdigest()
+        )
+        return M.buildcache.BuildResult(
+            genome=genome,
+            trace=kwargs["trace"],
+            binary=f"/bin/t2418-{genome.flags['BACK_OFF']}",
+            bin_sha256=sha256,
+            build_dir=f"/build/t2418-{genome.flags['BACKOFF_FIXED']}",
+            cached=False,
+        )
+
+    monkeypatch.setattr(M.buildcache, "build_v2", duplicate_reference_build)
+    with pytest.raises(RuntimeError, match="T-2418 genomes produced the same binary"):
+        M._prebuild_backoff_binaries(
+            points,
+            contract=object(),
+            cache_root="/cache",
+            ccbench_dir="/ccbench",
+            resolved_cc="cc",
+            resolved_cxx="c++",
+            expected_toolchain_manifest={},
+            build_context=object(),
+            capability_resolver=lambda _evidence: object(),
+            trace_modes=(False,),
+            require_all_t2418_binary_hashes=True,
+        )
+
+
+def test_t2418_binary_identity_rejects_incomplete_or_malformed_bindings():
+    points = M.t2418_genomes("balanced")
+
+    def result(genome, *, trace=False, sha256=None):
+        return M.buildcache.BuildResult(
+            genome=genome,
+            trace=trace,
+            binary="/bin/t2418",
+            bin_sha256=(
+                sha256
+                if sha256 is not None
+                else hashlib.sha256(genome.canonical().encode()).hexdigest()
+            ),
+            build_dir="/build/t2418",
+            cached=False,
+        )
+
+    builds = {
+        (genome.canonical(), False): result(genome) for genome in points
+    }
+    M._require_distinct_t2418_binary_hashes(builds, points)
+
+    with pytest.raises(RuntimeError, match="exactly five genomes"):
+        M._require_distinct_t2418_binary_hashes(builds, points[:4])
+
+    malformed = dict(builds)
+    malformed[(points[0].canonical(), False)] = object()
+    with pytest.raises(RuntimeError, match="every trace-disabled BuildResult"):
+        M._require_distinct_t2418_binary_hashes(malformed, points)
+
+    malformed = dict(builds)
+    malformed[(points[0].canonical(), False)] = result(points[0], trace=True)
+    with pytest.raises(RuntimeError, match="lost its genome binding"):
+        M._require_distinct_t2418_binary_hashes(malformed, points)
+
+    malformed = dict(builds)
+    malformed[(points[0].canonical(), False)] = result(points[1])
+    with pytest.raises(RuntimeError, match="lost its genome binding"):
+        M._require_distinct_t2418_binary_hashes(malformed, points)
+
+    malformed = dict(builds)
+    malformed[(points[0].canonical(), False)] = result(points[0], sha256="short")
+    with pytest.raises(RuntimeError, match="non-canonical binary sha256"):
+        M._require_distinct_t2418_binary_hashes(malformed, points)
+
+    malformed = dict(builds)
+    shared = hashlib.sha256(b"shared").hexdigest()
+    malformed[(points[0].canonical(), False)] = result(points[0], sha256=shared)
+    malformed[(points[1].canonical(), False)] = result(points[1], sha256=shared)
+    with pytest.raises(RuntimeError, match="T-2418 genomes produced the same binary"):
+        M._require_distinct_t2418_binary_hashes(malformed, points)
+
+    repeated = [*points[:4], points[0]]
+    with pytest.raises(RuntimeError, match="identity check is incomplete"):
+        M._require_distinct_t2418_binary_hashes(builds, repeated)
+
+
 def test_mu4_workload_literal_oracle_reaches_config_diagnostic_and_argv():
     oracle = {
         "write-heavy": {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "5", "ycsb_rmw": "0"},
@@ -929,6 +1374,111 @@ def test_extended_run_path_prepares_and_gates_the_same_patched_tree(
     assert "dependency_prefix" not in prepare
 
 
+def test_t2418_run_path_uses_exact_five_genomes_and_shared_campaign_call(
+        tmp_path, monkeypatch):
+    contract = p2_2._legacy_linux_contract()
+    authorization = env_contract.authorize(contract.env_tag)
+    events = _stub_patch_and_prebuild(monkeypatch)
+    patched_root = tmp_path / "ccbench"
+    patched_root.mkdir()
+    monkeypatch.setattr(M, "_resolve_ccbench_dir", lambda _value: str(patched_root))
+    monkeypatch.setattr(M.p2_2, "_assert_single_tenant", lambda: None)
+    monkeypatch.setattr(
+        M.p2_2,
+        "resolve_site_runtime",
+        lambda: (site_policy.OTHER, contract, authorization),
+    )
+    monkeypatch.setattr(M.p2_2, "_assert_matches_calibration", lambda _contract: None)
+    monkeypatch.setattr(
+        M.buildcache, "compilers_for_current_site", lambda: ("cc", "c++"),
+    )
+    monkeypatch.setattr(
+        M.buildcache,
+        "observed_toolchain_manifest",
+        lambda *_args: {"cc": {}, "cxx": {}},
+    )
+
+    committed_results = iter((4, 5))
+
+    def run_campaign(*args, **kwargs):
+        events.append(("campaign", args, kwargs))
+        return SimpleNamespace(
+            total=5, committed=next(committed_results), aborted=0,
+            campaign_id="cid",
+        )
+
+    monkeypatch.setattr(M, "run_campaign", run_campaign)
+    materialize_calls = []
+
+    def materialize_t2418_report(*args, **kwargs):
+        materialize_calls.append((args, kwargs))
+        return {"dat": "/fixture/report.dat", "json": "/fixture/report.json"}
+
+    monkeypatch.setattr(M, "materialize_t2418_report", materialize_t2418_report)
+    M.run_workload(
+        "balanced",
+        M.WORKLOAD_BY_TAG["balanced"],
+        log=lambda *_args: None,
+        cache_root=str(tmp_path / "cache"),
+        ccbench_dir=str(patched_root),
+        run_kind=M.T2418_RUN_KIND,
+    )
+    assert len(materialize_calls) == 0
+
+    assert [event[0] for event in events] == [
+        "patch-enter", "patch-materialized", "masstree-prepare",
+        "condition-gate", "prebuild", "campaign", "patch-exit",
+    ]
+    gate_event = next(event for event in events if event[0] == "condition-gate")
+    prebuild_event = next(event for event in events if event[0] == "prebuild")
+    campaign_event = next(event for event in events if event[0] == "campaign")
+    flag_by_label = {
+        "none": (0, -1),
+        "adaptive": (1, -1),
+        "fixed-2000us": (1, 4000),
+        "fixed-4000us": (1, 6000),
+        "fixed-9999us": (1, 11999),
+    }
+    expected_labels = [
+        "none", "adaptive", "fixed-2000us", "fixed-4000us", "fixed-9999us",
+    ]
+    random.Random(0xB10050).shuffle(expected_labels)
+    expected_flags = [flag_by_label[label] for label in expected_labels]
+
+    gate_points = gate_event[2]["points"]
+    prebuild_points = prebuild_event[1][0]
+    campaign_points = campaign_event[1][1]
+    for actual in (gate_points, prebuild_points, campaign_points):
+        assert [
+            (genome.flags["BACK_OFF"], genome.flags["BACKOFF_FIXED"])
+            for genome in actual
+        ] == expected_flags
+    assert gate_points is prebuild_points is campaign_points
+    assert prebuild_event[2]["require_all_binary_hashes"] is False
+    assert prebuild_event[2]["require_all_t2418_binary_hashes"] is True
+
+    cfg = campaign_event[1][0]
+    perf = campaign_event[1][2]
+    assert cfg.spec_slug == "t2418-backoff-static-explore-v1-silo-balanced"
+    assert cfg.search_config["run_kind"] == "t2418-explore"
+    assert cfg.search_config["scale"] == "t2418-backoff-static-explore-v1"
+    assert cfg.trial == "t2418-backoff-static-explore-v1"
+    assert perf.reps == 5
+    assert perf.extime == 3
+    assert perf.records == 1_000_000
+    assert perf.threads == 48
+
+    M.run_workload(
+        "balanced",
+        M.WORKLOAD_BY_TAG["balanced"],
+        log=lambda *_args: None,
+        cache_root=str(tmp_path / "cache"),
+        ccbench_dir=str(patched_root),
+        run_kind=M.T2418_RUN_KIND,
+    )
+    assert len(materialize_calls) == 1
+
+
 def test_all_genomes_must_be_committed_and_none_aborted(monkeypatch):
     total = len(M.genomes("balanced"))
     argv = [
@@ -946,6 +1496,45 @@ def test_all_genomes_must_be_committed_and_none_aborted(monkeypatch):
                 ),
         )
         assert M.main(argv) == expected
+
+
+def test_t2418_cli_requires_exact_five_and_both_report_artifacts(
+        tmp_path, monkeypatch):
+    def invoke(
+            name, *, total=5, committed=5, aborted=0,
+            dat=True, json_report=True):
+        layout_root = tmp_path / name
+        reports = layout_root / "reports"
+        reports.mkdir(parents=True)
+        stem = reports / "t2418-backoff-static-explore-balanced"
+        if dat:
+            Path(f"{stem}.dat").write_text("fixture\n", encoding="utf-8")
+        if json_report:
+            Path(f"{stem}.json").write_text("{}\n", encoding="utf-8")
+        monkeypatch.setattr(
+            M,
+            "run_workload",
+            lambda *_args, **_kwargs: SimpleNamespace(
+                total=total,
+                committed=committed,
+                aborted=aborted,
+                campaign_id=name,
+                layout_root=str(layout_root),
+            ),
+        )
+        return M.main([
+            "balanced",
+            "--output-root", str(tmp_path / f"output-{name}"),
+            "--cache-root", str(tmp_path / f"cache-{name}"),
+            "--run-kind", "t2418-explore",
+        ])
+
+    assert invoke("complete") == 0
+    assert invoke("four-commits", committed=4) == 1
+    assert invoke("wrong-total", total=4) == 1
+    assert invoke("aborted", aborted=1) == 1
+    assert invoke("missing-dat", dat=False) == 1
+    assert invoke("missing-json", json_report=False) == 1
 
 
 def _probe_error_receipt():
@@ -1124,6 +1713,37 @@ def test_b10_run_kind_routes_t2266_only_by_opt_in_and_binds_all_receipts():
     assert 'if run_kind == "t2266-tail":' in job
     assert "len(commits) != 8" in job
     assert 'for suffix in (".dat", ".json")' in job
+
+
+def test_b10_run_kind_routes_t2418_through_job_submit_and_finalizer():
+    root = Path(__file__).resolve().parents[2]
+    job_path = root / "tools/pegasus/b10_backoff_grid.sh"
+    submit_path = root / "tools/pegasus/submit_b10_backoff_grid.sh"
+    for path in (job_path, submit_path):
+        subprocess.run(["bash", "-n", str(path)], check=True)
+    job = job_path.read_text(encoding="utf-8")
+    submit = submit_path.read_text(encoding="utf-8")
+
+    assert "extended|t2266-tail|t2418-explore" in job
+    assert "extended|t2266-tail|t2418-explore" in submit
+    assert "CURRENT_STAGE=t2418_explore_sweep" in job
+    assert (
+        'if [[ "$B10_RUN_KIND" == "t2266-tail" \\\n'
+        '    || "$B10_RUN_KIND" == "t2418-explore" ]]; then'
+    ) in job
+    assert (
+        'if [[ "$B10_RUN_KIND" == "t2266-tail" \\\n'
+        '      || "$B10_RUN_KIND" == "t2418-explore" ]]; then'
+    ) in submit
+    assert 'SWEEP_COMMAND+=(--run-kind "$B10_RUN_KIND")' in job
+    assert 'QSUB_ENV="$QSUB_ENV,B10_RUN_KIND=$B10_RUN_KIND"' in submit
+
+    finalizer = job.split('elif run_kind == "t2418-explore":', 1)[1]
+    assert "len(commits) != 5" in finalizer
+    assert "T-2418 requires five committed genomes" in finalizer
+    assert "t2418-backoff-static-explore-{workload}" in finalizer
+    assert 'for suffix in (".dat", ".json")' in finalizer
+    assert "report.is_symlink()" in finalizer
 
 
 def test_b10_job_builds_pinned_dependencies_in_job_scratch():

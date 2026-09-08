@@ -179,6 +179,8 @@ def _driver_argv(
     arm: Arm,
     proposal_path: Path,
     terminal_receipt_path: Path | None,
+    b4_prerun_publication: Path | None = None,
+    b4_attempt_id: str | None = None,
 ) -> list[str]:
     argv = [
         "--reflux",
@@ -188,7 +190,25 @@ def _driver_argv(
         str(proposal_path),
         "--allow-coder-derived-build",
     ]
-    if terminal_receipt_path is not None:
+    has_prerun_binding = (
+        b4_prerun_publication is not None or b4_attempt_id is not None
+    )
+    if terminal_receipt_path is None:
+        if b4_prerun_publication is None or b4_attempt_id is None:
+            raise B4LauncherAuthorizationError(
+                "B-4 bootstrap requires publication root and attempt id"
+            )
+        argv.extend([
+            "--b4-prerun-publication",
+            str(b4_prerun_publication),
+            "--b4-attempt-id",
+            b4_attempt_id,
+        ])
+    else:
+        if has_prerun_binding:
+            raise B4LauncherAuthorizationError(
+                "B-4 continuation rejects bootstrap proposal binding arguments"
+            )
         argv.extend(["--b4-closed-critic-receipt", str(terminal_receipt_path)])
     return argv
 
@@ -535,6 +555,8 @@ def _build_launcher_closure():
         arm: Arm,
         admission_record_path: Path,
         proposal_path: Path,
+        b4_prerun_publication: Path,
+        b4_attempt_id: str,
     ) -> int:
         """Verify admission before touching the real driver, then run bootstrap."""
         context, on_cfg, off_cfg = prepare_launch(
@@ -551,6 +573,8 @@ def _build_launcher_closure():
                     arm=arm,
                     proposal_path=proposal_path,
                     terminal_receipt_path=None,
+                    b4_prerun_publication=b4_prerun_publication,
+                    b4_attempt_id=b4_attempt_id,
                 ),
                 _b4_launch_context=context,
             )
@@ -637,16 +661,32 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--admission-record", required=True, type=Path)
     parser.add_argument("--proposal", required=True, type=Path)
     parser.add_argument("--artifact-root", type=Path)
+    parser.add_argument("--b4-prerun-publication", type=Path)
+    parser.add_argument("--b4-attempt-id")
     args = parser.parse_args(argv)
     if args.mode == "bootstrap":
         if args.artifact_root is not None:
             parser.error("bootstrap does not accept --artifact-root")
+        if (
+            args.b4_prerun_publication is None
+            or args.b4_attempt_id is None
+        ):
+            parser.error(
+                "bootstrap requires --b4-prerun-publication and --b4-attempt-id"
+            )
         return launch_bootstrap(
             driver_kind=args.driver,
             arm=args.arm,
             admission_record_path=args.admission_record,
             proposal_path=args.proposal,
+            b4_prerun_publication=args.b4_prerun_publication,
+            b4_attempt_id=args.b4_attempt_id,
         )
+    if (
+        args.b4_prerun_publication is not None
+        or args.b4_attempt_id is not None
+    ):
+        parser.error("continuation rejects bootstrap proposal binding arguments")
     if args.artifact_root is None:
         parser.error("continuation requires --artifact-root")
     return launch_continuation(

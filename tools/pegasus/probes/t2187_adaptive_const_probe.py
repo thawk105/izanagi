@@ -58,6 +58,7 @@ UNSUPPORTED_V2_GROUP_RECEIPT_SCHEMA_VERSION = (
 )
 SCHEMA_VERSION = "izanagi-cicada-adaptive-3const-probe/v3"
 TRACE_SCHEMA_VERSION = "izanagi-dynamic-backoff-trace/v3"
+COHORT2_TRACE_SCHEMA_VERSION = "izanagi-dynamic-backoff-trace/v4"
 CERTIFICATION_SCHEMA_VERSION = "izanagi-cicada-adaptive-3const-certification/v3"
 GROUP_RECEIPT_SCHEMA_VERSION = (
     "izanagi-cicada-adaptive-3const-certification-group/v3"
@@ -84,6 +85,9 @@ PREREGISTRATION = ROOT / "docs" / "dynamic-backoff-preregistration.md"
 COUNTERFACTUAL_PREREGISTRATION = (
     ROOT / "docs" / "backoff-counterfactual-preregistration.md"
 )
+COUNTERFACTUAL_COHORT2_PREREGISTRATION = (
+    ROOT / "docs" / "backoff-counterfactual-cohort2-preregistration.md"
+)
 PBS_DRIVER = Path(__file__).with_suffix(".pbs").resolve()
 DYNAMIC_OUT_PREFIX = Path(
     "/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/"
@@ -104,7 +108,10 @@ RUN_TIMEOUT_S = 180.0
 
 CERT_RECORDS = 1_000_000
 CERT_THREADS = (48,)
+# Compatibility constant for the two original certification cells.
 CERT_EXTIME = 3
+COHORT2_EXTIME = 6
+COHORT2_BACKOFF_TRACE_TERMINAL_US = 5_000_000
 CERT_REPS_PER_JOB = 1
 CERT_SLOTS = tuple(range(8))
 CERT_WORKLOADS = ("write-heavy", "balanced", "read-heavy")
@@ -135,6 +142,27 @@ DYNAMIC_GROUP_CLAIM = (
     "適応刻み 1〜4 µs、動的上限 下限 50 µs) の `cw-as-dyn` build の "
     "trace-enabled 走行 24 件すべてが verifier で certified serializable "
     "となり、anomaly を 1 件も観測しなかった。機構の各枝の被覆は認証しない。"
+)
+COHORT2_POLICY1_GROUP_CLAIM = (
+    "固定条件 (records=1,000,000 / threads=48 / extime=6 / max_ope=10 / "
+    "zipf=0.9 / rmw=0、workload rr5・rr50・rr95、独立反復 8、計 24 trace) "
+    "の下で、count 窓 K=10000 / 最小 2560 us / cap "
+    "9223372036854775807 us、適応刻み 1〜4 us、動的上限 下限 50 us、"
+    "step policy 1 の `cw-as-dyn-c2-p1` build の trace-enabled 走行 "
+    "24 件すべてが verifier で certified serializable となり、anomaly を "
+    "1 件も観測しなかった。認証対象は 48 threads の既定 seed 実行体に限り、"
+    "機構の各枝の被覆は認証しない。"
+)
+COHORT2_POLICY2_GROUP_CLAIM = (
+    "固定条件 (records=1,000,000 / threads=48 / extime=6 / max_ope=10 / "
+    "zipf=0.9 / rmw=0、workload rr5・rr50・rr95、独立反復 8、計 24 trace) "
+    "の下で、count 窓 K=10000 / 最小 2560 us / cap "
+    "9223372036854775807 us、適応刻み 1〜4 us、動的上限 下限 50 us、"
+    "step policy 2、default compile seed 11400714819323198485 の "
+    "`cw-as-dyn-c2-p2` build の trace-enabled 走行 24 件すべてが verifier "
+    "で certified serializable となり、anomaly を 1 件も観測しなかった。"
+    "認証対象はこの既定 seed 実行体と 48 threads に限り、12 seed 別実行体、"
+    "24 threads、機構の各枝の被覆は認証しない。"
 )
 CLAIM_LIMITATIONS = (
     "固定条件外へ直列化可能性を一般化しない",
@@ -239,17 +267,89 @@ CERT_DYNAMIC_CELL = Cell(
     dyn_ceiling=1,
     extended=True,
 )
-CERT_CELLS = (CERT_TUNED_CELL, CERT_DYNAMIC_CELL)
+CERT_COHORT2_POLICY1_CELL = Cell(
+    "cw-as-dyn-c2-p1",
+    1,
+    1.0,
+    1_000,
+    2_560,
+    count_window=10_000,
+    count_cap_us=9_223_372_036_854_775_807,
+    step_adapt=1,
+    step_min_us=1.0,
+    step_max_us=4.0,
+    dyn_ceiling=1,
+    extended=True,
+    step_policy=1,
+    has_step_policy=True,
+)
+CERT_COHORT2_POLICY2_CELL = Cell(
+    "cw-as-dyn-c2-p2",
+    1,
+    1.0,
+    1_000,
+    2_560,
+    count_window=10_000,
+    count_cap_us=9_223_372_036_854_775_807,
+    step_adapt=1,
+    step_min_us=1.0,
+    step_max_us=4.0,
+    dyn_ceiling=1,
+    extended=True,
+    step_policy=2,
+    has_step_policy=True,
+)
+CERT_CELLS = (
+    CERT_TUNED_CELL,
+    CERT_DYNAMIC_CELL,
+    CERT_COHORT2_POLICY1_CELL,
+    CERT_COHORT2_POLICY2_CELL,
+)
+DYNAMIC_CERT_CELLS = (
+    CERT_DYNAMIC_CELL,
+    CERT_COHORT2_POLICY1_CELL,
+    CERT_COHORT2_POLICY2_CELL,
+)
 # Compatibility alias: its literal and five-field genome remain unchanged.
 CERT_CELL = CERT_TUNED_CELL
 CERT_CLAIMS = {
     CERT_TUNED_CELL: ALLOWED_GROUP_CLAIM,
     CERT_DYNAMIC_CELL: DYNAMIC_GROUP_CLAIM,
+    CERT_COHORT2_POLICY1_CELL: COHORT2_POLICY1_GROUP_CLAIM,
+    CERT_COHORT2_POLICY2_CELL: COHORT2_POLICY2_GROUP_CLAIM,
 }
 CERT_TUNED_CELL_TEXT = "tuned:1:1:1000:2560"
 CERT_DYNAMIC_CELL_TEXT = (
     "cw-as-dyn:1:1:1000:2560:10000:10240:1:1:4:1"
 )
+CERT_COHORT2_POLICY1_CELL_TEXT = (
+    "cw-as-dyn-c2-p1:1:1:1000:2560:10000:9223372036854775807:1:1:4:1:1"
+)
+CERT_COHORT2_POLICY2_CELL_TEXT = (
+    "cw-as-dyn-c2-p2:1:1:1000:2560:10000:9223372036854775807:1:1:4:1:2"
+)
+CERT_CELL_BY_TEXT = {
+    CERT_TUNED_CELL_TEXT: CERT_TUNED_CELL,
+    CERT_DYNAMIC_CELL_TEXT: CERT_DYNAMIC_CELL,
+    CERT_COHORT2_POLICY1_CELL_TEXT: CERT_COHORT2_POLICY1_CELL,
+    CERT_COHORT2_POLICY2_CELL_TEXT: CERT_COHORT2_POLICY2_CELL,
+}
+CERT_EXTIME_BY_CELL = {
+    CERT_TUNED_CELL: CERT_EXTIME,
+    CERT_DYNAMIC_CELL: CERT_EXTIME,
+    CERT_COHORT2_POLICY1_CELL: COHORT2_EXTIME,
+    CERT_COHORT2_POLICY2_CELL: COHORT2_EXTIME,
+}
+CERT_PREREGISTRATION_BY_CELL = {
+    CERT_TUNED_CELL: PREREGISTRATION,
+    CERT_DYNAMIC_CELL: PREREGISTRATION,
+    CERT_COHORT2_POLICY1_CELL: COUNTERFACTUAL_COHORT2_PREREGISTRATION,
+    CERT_COHORT2_POLICY2_CELL: COUNTERFACTUAL_COHORT2_PREREGISTRATION,
+}
+CERT_STEP_POLICY_SEED_BY_CELL = {
+    CERT_COHORT2_POLICY1_CELL: STOCK_STEP_POLICY_SEED,
+    CERT_COHORT2_POLICY2_CELL: STOCK_STEP_POLICY_SEED,
+}
 
 TRACE_CELLS = (
     Cell(
@@ -273,6 +373,11 @@ COUNTERFACTUAL_TRACE_CELLS_TEXT = (
     "cw-as-dyn-p0:1:1:1000:2560:10000:10240:1:1:4:1:0,"
     "cw-as-dyn-p1:1:1:1000:2560:10000:10240:1:1:4:1:1,"
     "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2"
+)
+COUNTERFACTUAL_COHORT2_TRACE_CELLS_TEXT = (
+    "cw-as-dyn-c2-p0:1:1:1000:2560:10000:9223372036854775807:1:1:4:1:0,"
+    "cw-as-dyn-c2-p1:1:1:1000:2560:10000:9223372036854775807:1:1:4:1:1,"
+    "cw-as-dyn-c2-p2:1:1:1000:2560:10000:9223372036854775807:1:1:4:1:2"
 )
 
 
@@ -446,6 +551,9 @@ def parse_cells(text: str) -> tuple[Cell, ...]:
 
 _parse_cells = parse_cells
 COUNTERFACTUAL_TRACE_CELLS = parse_cells(COUNTERFACTUAL_TRACE_CELLS_TEXT)
+COUNTERFACTUAL_COHORT2_TRACE_CELLS = parse_cells(
+    COUNTERFACTUAL_COHORT2_TRACE_CELLS_TEXT
+)
 
 
 def _validate_grid_contract(cells: tuple[Cell, ...]) -> None:
@@ -580,7 +688,12 @@ def genome_for(
     *,
     backoff_trace: bool = False,
     step_policy_seed: int | None = None,
+    backoff_trace_terminal_us: int = 0,
 ) -> Genome:
+    if type(backoff_trace_terminal_us) is not int or backoff_trace_terminal_us < 0:
+        raise ValueError("backoff trace terminal us must be a nonnegative integer")
+    if backoff_trace_terminal_us and not backoff_trace:
+        raise ValueError("backoff trace terminal us requires backoff trace mode")
     flags = {
         **BASE,
         "BACK_OFF": cell.back_off,
@@ -607,6 +720,8 @@ def genome_for(
                 else STOCK_STEP_POLICY_SEED
             ),
         )
+    if backoff_trace_terminal_us:
+        flags["BACKOFF_TRACE_TERMINAL_US"] = backoff_trace_terminal_us
     return Genome("silo", flags)
 
 
@@ -848,6 +963,29 @@ def _counterfactual_prereg_sha256() -> str:
     return hashlib.sha256(COUNTERFACTUAL_PREREGISTRATION.read_bytes()).hexdigest()
 
 
+def _counterfactual_cohort2_prereg_sha256() -> str:
+    if not COUNTERFACTUAL_COHORT2_PREREGISTRATION.is_file():
+        raise FileNotFoundError(
+            "cohort 2 counterfactual preregistration is missing: "
+            f"{COUNTERFACTUAL_COHORT2_PREREGISTRATION}"
+        )
+    return hashlib.sha256(
+        COUNTERFACTUAL_COHORT2_PREREGISTRATION.read_bytes()
+    ).hexdigest()
+
+
+def _certification_prereg_sha256(cell: Cell) -> str:
+    path = CERT_PREREGISTRATION_BY_CELL.get(cell)
+    if path is None:
+        raise CertificationReject(
+            "certification-cell-mismatch",
+            "certification cell has no exact preregistration binding",
+        )
+    if not path.is_file():
+        raise FileNotFoundError(f"certification preregistration is missing: {path}")
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
 def _validate_dynamic_output_path(out: Path) -> None:
     candidate = out.resolve(strict=False)
     prefix = DYNAMIC_OUT_PREFIX.resolve(strict=False)
@@ -879,7 +1017,7 @@ def _require_child_path(path: Path, root: Path, *, binding: str) -> None:
 def _validate_dynamic_certification_namespaces(
     args: argparse.Namespace, cell: Cell
 ) -> None:
-    if cell != CERT_DYNAMIC_CELL:
+    if cell not in DYNAMIC_CERT_CELLS:
         return
     assert args.group_receipt_out is not None
     assert args.performance_artifact is not None
@@ -933,11 +1071,11 @@ def _validate_trace_binary_counts(
 
 
 _TRACE_RECORD_RE = re.compile(
-    r"^IZANAGI_BACKOFF_TRACE v=(?P<version>1|2) "
+    r"^IZANAGI_BACKOFF_TRACE v=(?P<version>1|2|3) "
     r"seq=(?P<seq>[0-9]+) tsc=(?P<tsc>[0-9]+) "
     r"window_us=(?P<window_us>[0-9]+) "
     r"window_commits=(?P<window_commits>[0-9]+) "
-    r"trigger=(?P<trigger>0|1|2) "
+    r"trigger=(?P<trigger>0|1|2|3) "
     r"backoff_before=(?P<backoff_before>[0-9]+(?:[.][0-9]+)?) "
     r"backoff_after=(?P<backoff_after>[0-9]+(?:[.][0-9]+)?) "
     r"gradient_sign=(?P<gradient_sign>-1|0|1) "
@@ -946,16 +1084,18 @@ _TRACE_RECORD_RE = re.compile(
     r"ceiling_changed=(?P<ceiling_changed>0|1) "
     r"parity_branch=(?P<parity_branch>-1|0|1)"
     r"(?: recommended_delta_sign=(?P<recommended_delta_sign>-1|0|1)"
-    r" assigned_invert=(?P<assigned_invert>0|1)"
+    r" assigned_invert=(?P<assigned_invert>-1|0|1)"
     r" inversion_realized=(?P<inversion_realized>0|1)"
-    r" both_actions_feasible=(?P<both_actions_feasible>0|1))?$"
+    r" both_actions_feasible=(?P<both_actions_feasible>0|1)"
+    r"(?: terminal_flush=(?P<terminal_flush>0|1))?)?$"
 )
-_TRACE_TRIGGER_NAMES = {0: "time", 1: "count", 2: "cap"}
+_TRACE_TRIGGER_NAMES = {0: "time", 1: "count", 2: "cap", 3: "terminal"}
 _TRACE_PARITY_BRANCH_NAMES = {-1: "none", 0: "decrement", 1: "increment"}
 _TRACE_SUMMARY_RE = re.compile(
-    r"^IZANAGI_BACKOFF_TRACE_SUMMARY v=(?P<version>1|2) "
+    r"^IZANAGI_BACKOFF_TRACE_SUMMARY v=(?P<version>1|2|3) "
     r"updates=(?P<updates>[0-9]+) retained=(?P<retained>[0-9]+) "
-    r"dropped=(?P<dropped>[0-9]+)$"
+    r"dropped=(?P<dropped>[0-9]+)"
+    r"(?: flushes=(?P<flushes>[0-9]+))?$"
 )
 
 
@@ -1038,8 +1178,11 @@ def _parse_backoff_trace(stdout: str) -> tuple[list[dict], dict, dict]:
             raw = record_match.groupdict()
             version = int(raw["version"])
             tail_present = raw["recommended_delta_sign"] is not None
-            if (version == 2) != tail_present:
+            terminal_field_present = raw["terminal_flush"] is not None
+            if (version in {2, 3}) != tail_present:
                 raise ValueError("trace version and counterfactual tail disagree")
+            if (version == 3) != terminal_field_present:
+                raise ValueError("trace version and terminal field disagree")
             if trace_version is not None and version != trace_version:
                 raise ValueError("backoff trace record versions must not mix")
             trace_version = version
@@ -1059,25 +1202,47 @@ def _parse_backoff_trace(stdout: str) -> tuple[list[dict], dict, dict]:
                     int(raw["parity_branch"])
                 ],
             }
-            if version == 2:
+            if version != 3 and event["trigger"] == "terminal":
+                raise ValueError("terminal trigger requires trace version 3")
+            if version in {2, 3}:
                 event.update(
                     recommended_delta_sign=int(raw["recommended_delta_sign"]),
                     assigned_invert=int(raw["assigned_invert"]),
                     inversion_realized=int(raw["inversion_realized"]),
                     both_actions_feasible=int(raw["both_actions_feasible"]),
                 )
-                if event["inversion_realized"] > event["assigned_invert"]:
+                if version == 3:
+                    event["terminal_flush"] = int(raw["terminal_flush"])
+                is_terminal = version == 3 and event["terminal_flush"] == 1
+                if is_terminal:
+                    if (
+                        event["trigger"] != "terminal"
+                        or event["assigned_invert"] != -1
+                        or event["recommended_delta_sign"] != 0
+                        or event["inversion_realized"] != 0
+                        or event["both_actions_feasible"] != 0
+                    ):
+                        raise ValueError("terminal trace event fields are invalid")
+                elif (
+                    event["trigger"] == "terminal"
+                    or event["assigned_invert"] not in {0, 1}
+                ):
+                    raise ValueError("nonterminal trace event fields are invalid")
+                if not is_terminal and (
+                    event["inversion_realized"] > event["assigned_invert"]
+                ):
                     raise ValueError(
                         "trace inversion_realized exceeds assigned_invert"
                     )
                 if (
-                    event["recommended_delta_sign"] == 0
+                    not is_terminal
+                    and event["recommended_delta_sign"] == 0
                     and event["inversion_realized"] != 0
                 ):
                     raise ValueError(
                         "zero recommended delta cannot realize an inversion"
                     )
-                if event["inversion_realized"] == 1:
+                if not is_terminal and event["inversion_realized"] == 1:
                     applied_delta = Decimal(raw["backoff_after"]) - Decimal(
                         raw["backoff_before"]
                     )
@@ -1094,10 +1259,15 @@ def _parse_backoff_trace(stdout: str) -> tuple[list[dict], dict, dict]:
         elif summary_match is not None and summary is None:
             raw_summary = summary_match.groupdict()
             summary_version = int(raw_summary.pop("version"))
+            flushes_present = raw_summary["flushes"] is not None
+            if (summary_version == 3) != flushes_present:
+                raise ValueError("trace summary version and flushes field disagree")
             if trace_version is not None and summary_version != trace_version:
                 raise ValueError("trace summary version differs from record version")
             summary = {
-                key: int(value) for key, value in raw_summary.items()
+                key: int(value)
+                for key, value in raw_summary.items()
+                if value is not None
             }
         else:
             raise ValueError(f"malformed backoff trace line: {line!r}")
@@ -1112,11 +1282,27 @@ def _parse_backoff_trace(stdout: str) -> tuple[list[dict], dict, dict]:
         for current, following in zip(events, events[1:])
     ):
         raise ValueError("backoff trace tsc must be monotonic")
-    if summary != {
-        "updates": len(events),
-        "retained": len(events),
-        "dropped": 0,
-    }:
+    if trace_version == 3:
+        terminal_positions = [
+            index
+            for index, event in enumerate(events)
+            if event["terminal_flush"] == 1
+        ]
+        if terminal_positions not in ([], [len(events) - 1]):
+            raise ValueError("v3 trace permits zero terminals or one final terminal")
+        expected_summary = {
+            "updates": len(events) - len(terminal_positions),
+            "retained": len(events) - len(terminal_positions),
+            "dropped": 0,
+            "flushes": len(terminal_positions),
+        }
+    else:
+        expected_summary = {
+            "updates": len(events),
+            "retained": len(events),
+            "dropped": 0,
+        }
+    if summary != expected_summary:
         raise ValueError("backoff trace summary/count or dropped contract failed")
     return events, summary, _directional_success(events)
 
@@ -1184,7 +1370,8 @@ def _positive_float(text: str) -> float:
 
 def _certification_contract(args: argparse.Namespace) -> tuple[Cell, str, int]:
     """Return the exact one-request certification axes or reject widening."""
-    if args.cells not in {CERT_TUNED_CELL_TEXT, CERT_DYNAMIC_CELL_TEXT}:
+    expected_cell = CERT_CELL_BY_TEXT.get(args.cells)
+    if expected_cell is None:
         raise CertificationReject(
             "certification-cell-mismatch",
             "certify requires one exact preregistered cell string",
@@ -1192,20 +1379,22 @@ def _certification_contract(args: argparse.Namespace) -> tuple[Cell, str, int]:
     cells = parse_cells(args.cells)
     workloads = _parse_workloads(args.workloads)
     threads = _parse_threads(args.threads)
-    if len(cells) != 1 or cells[0] not in CERT_CELLS:
+    if len(cells) != 1 or cells[0] != expected_cell:
         raise CertificationReject(
             "certification-cell-mismatch",
-            "certify requires exactly one of the two preregistered cells",
+            "certify requires exactly one of the four preregistered cells",
         )
     if len(workloads) != 1 or workloads[0] not in CERT_WORKLOADS:
         raise CertificationReject(
             "certification-workload-mismatch",
             "certify requires exactly one of write-heavy, balanced, read-heavy",
         )
-    if threads != CERT_THREADS or args.extime != CERT_EXTIME:
+    expected_extime = CERT_EXTIME_BY_CELL[expected_cell]
+    if threads != CERT_THREADS or args.extime != expected_extime:
         raise CertificationReject(
             "certification-workload-shape-mismatch",
-            "certify requires records=1000000, threads=48, extime=3",
+            "certify requires records=1000000, threads=48, and the exact "
+            "cell-specific extime",
         )
     if args.reps_per_job != CERT_REPS_PER_JOB:
         raise CertificationReject(
@@ -1752,6 +1941,7 @@ def _performance_artifact_identity(
     expected_prereg_sha256: str | None = None,
     expected_patch_stack_sha256: str | None = None,
     required_cell: Cell | None = None,
+    expected_extime: int | None = None,
 ) -> dict:
     if type(expected_sha256) is not str or _SHA256_RE.fullmatch(expected_sha256) is None:
         raise CertificationReject(
@@ -1787,6 +1977,7 @@ def _performance_artifact_identity(
         expected_prereg_sha256,
         expected_patch_stack_sha256,
         required_cell,
+        expected_extime,
     )
     if any(value is not None for value in expected_values):
         if any(value is None for value in expected_values):
@@ -1807,6 +1998,7 @@ def _performance_artifact_identity(
             or document.get("prereg_sha256") != expected_prereg_sha256
             or document.get("patch_stack_sha256")
             != expected_patch_stack_sha256
+            or document.get("extime_s") != expected_extime
             or type(cells) is not list
             or not any(
                 type(row) is dict
@@ -1829,6 +2021,41 @@ def _performance_artifact_identity(
                 "performance-artifact-identity-mismatch",
                 "dynamic performance artifact lacks the full ccbench pin",
             )
+        if required_cell in {
+            CERT_COHORT2_POLICY1_CELL,
+            CERT_COHORT2_POLICY2_CELL,
+        }:
+            expected_genome = genome_for(required_cell).canonical()
+            expected_seed = CERT_STEP_POLICY_SEED_BY_CELL[required_cell]
+            matching_rows = [
+                row
+                for row in cells
+                if type(row) is dict
+                and {
+                    key: row.get(key) for key in expected_cell_identity
+                }
+                == expected_cell_identity
+            ]
+            if (
+                not matching_rows
+                or any(row.get("genome") != expected_genome for row in matching_rows)
+                or (
+                    required_cell == CERT_COHORT2_POLICY2_CELL
+                    and any(
+                        row.get("step_policy_seed") != expected_seed
+                        for row in matching_rows
+                    )
+                )
+                or (
+                    required_cell == CERT_COHORT2_POLICY1_CELL
+                    and any("step_policy_seed" in row for row in matching_rows)
+                )
+            ):
+                raise CertificationReject(
+                    "performance-artifact-identity-mismatch",
+                    "cohort 2 performance artifact is not the exact default-seed "
+                    "certification build identity",
+                )
     return {
         "path": str(path.resolve(strict=True)),
         "sha256": actual_sha256,
@@ -1988,21 +2215,35 @@ def _validated_certification_row(
         raise CertificationReject(
             "group-result-invalid", f"result workload/slot is invalid: {path}"
         )
+    cell = _cell_from_document(document)
+    expected_extime = CERT_EXTIME_BY_CELL.get(cell)
+    if expected_extime is None:
+        raise CertificationReject(
+            "group-workload-contract-mismatch",
+            f"result cell is not an exact certification cell: {path}",
+        )
     expected_workload_flags = {
         **WORKLOADS[workload],
         "ycsb_tuple_num": str(CERT_RECORDS),
         "thread_num": str(CERT_THREADS[0]),
-        "extime": str(CERT_EXTIME),
+        "extime": str(expected_extime),
     }
-    cell = _cell_from_document(document)
+    expected_step_policy_seed = CERT_STEP_POLICY_SEED_BY_CELL.get(cell)
     if (
         document.get("workload_flags") != expected_workload_flags
         or document.get("records") != CERT_RECORDS
         or document.get("threads") != CERT_THREADS[0]
-        or document.get("extime_s") != CERT_EXTIME
-        or cell not in CERT_CELLS
+        or document.get("extime_s") != expected_extime
         or document.get("cell_order") != [cell.label]
         or document.get("allowed_group_claim") != CERT_CLAIMS[cell]
+        or document.get("prereg_sha256")
+        != _certification_prereg_sha256(cell)
+        or ("step_policy_seed" in document)
+        != (expected_step_policy_seed is not None)
+        or (
+            expected_step_policy_seed is not None
+            and document.get("step_policy_seed") != expected_step_policy_seed
+        )
         or document.get("rng_seed_controlled") is not False
     ):
         raise CertificationReject(
@@ -2048,7 +2289,6 @@ def _validated_certification_row(
         or document.get("genome") != expected_genome
         or type(document.get("repo_head")) is not str
         or _COMMIT_RE.fullmatch(document["repo_head"]) is None
-        or document.get("prereg_sha256") != _prereg_sha256()
         or type(document.get("hostname")) is not str
         or not document["hostname"]
         or document.get("backoff_trace_symbol_count") != 0
@@ -2174,6 +2414,10 @@ def _validated_certification_row(
             **_cell_identity(cell),
             "cell_order": document["cell_order"],
             "claim": document["allowed_group_claim"],
+            "workload_flags": document["workload_flags"],
+            "records": document["records"],
+            "threads": document["threads"],
+            "extime_s": document["extime_s"],
             "patch_sha256": document["patch_sha256"],
             "dynamic_patch_sha256": document["dynamic_patch_sha256"],
             "counterfactual_patch_sha256": document[
@@ -2195,6 +2439,11 @@ def _validated_certification_row(
             ],
             "backoff_trace": document["backoff_trace"],
             "attempt_id": attempt_id,
+            **(
+                {"step_policy_seed": expected_step_policy_seed}
+                if expected_step_policy_seed is not None
+                else {}
+            ),
         },
         (workload, slot),
     )
@@ -2255,6 +2504,7 @@ def _group_receipt_payload(
         raise CertificationReject(
             "group-request-identity-duplicate", "request ids must be unique"
         )
+    row_cells = [_cell_from_document(row) for row in rows]
     if (
         len({row["trace_dir"] for row in rows}) != 24
         or len(
@@ -2266,19 +2516,7 @@ def _group_receipt_payload(
             }
         ) != 1
         or len({row["genome"] for row in rows}) != 1
-        or len(
-            {
-                json.dumps(
-                    {
-                        key: row[key]
-                        for key in _cell_identity(CERT_TUNED_CELL)
-                    },
-                    sort_keys=True,
-                    separators=(",", ":"),
-                )
-                for row in rows
-            }
-        ) != 1
+        or len(set(row_cells)) != 1
         or len({row["claim"] for row in rows}) != 1
         or len({tuple(row["cell_order"]) for row in rows}) != 1
         or len({row["proof_surface"]["protocol"] for row in rows}) != 1
@@ -2342,11 +2580,46 @@ def _group_receipt_payload(
             "source_snapshot_identity"
         ],
     }
-    cell = _cell_from_document(rows[0])
-    if cell not in CERT_CELLS or rows[0]["claim"] != CERT_CLAIMS[cell]:
+    cell = row_cells[0]
+    expected_extime = CERT_EXTIME_BY_CELL.get(cell)
+    expected_step_policy_seed = CERT_STEP_POLICY_SEED_BY_CELL.get(cell)
+    if (
+        expected_extime is None
+        or rows[0]["claim"] != CERT_CLAIMS[cell]
+        or any(row["records"] != CERT_RECORDS for row in rows)
+        or any(row["threads"] != CERT_THREADS[0] for row in rows)
+        or any(row["extime_s"] != expected_extime for row in rows)
+        or any(
+            row["workload_flags"]
+            != {
+                **WORKLOADS[row["workload"]],
+                "ycsb_tuple_num": str(CERT_RECORDS),
+                "thread_num": str(CERT_THREADS[0]),
+                "extime": str(expected_extime),
+            }
+            for row in rows
+        )
+        or any(
+            row["prereg_sha256"] != _certification_prereg_sha256(cell)
+            for row in rows
+        )
+        or any(
+            ("step_policy_seed" in row)
+            != (expected_step_policy_seed is not None)
+            for row in rows
+        )
+        or (
+            expected_step_policy_seed is not None
+            and any(
+                row.get("step_policy_seed") != expected_step_policy_seed
+                for row in rows
+            )
+        )
+    ):
         raise CertificationReject(
             "group-cell-identity-mismatch",
-            "group cell and claim are not one exact certification identity",
+            "group cell, extime, preregistration, seed, and claim are not one "
+            "exact certification identity",
         )
     group_execution_identity = execution_identity or {
         key: rows[0][key]
@@ -2371,6 +2644,9 @@ def _group_receipt_payload(
         **_cell_identity(cell),
         "cell_order": [cell.label],
         "backoff_trace": False,
+        "records": CERT_RECORDS,
+        "threads": CERT_THREADS[0],
+        "extime_s": expected_extime,
         "claim_limitations": list(CLAIM_LIMITATIONS),
         # The correctness campaign binds the trace-disabled performance
         # artifact, but never relabels its measurements as verifier outputs.
@@ -2396,6 +2672,11 @@ def _group_receipt_payload(
         "genome": rows[0]["genome"],
         "source_evidence": rows[0]["source_evidence"],
         "proof_surface": proof_surface,
+        **(
+            {"step_policy_seed": expected_step_policy_seed}
+            if expected_step_policy_seed is not None
+            else {}
+        ),
         "results": rows,
     }
 
@@ -2434,6 +2715,8 @@ def _validate_published_group(
     rows = receipt.get("results")
     proof_surface = receipt.get("proof_surface")
     cell = _cell_from_document(receipt)
+    expected_extime = CERT_EXTIME_BY_CELL.get(cell)
+    expected_step_policy_seed = CERT_STEP_POLICY_SEED_BY_CELL.get(cell)
     expected_patch_identity = _patch_stack_identity()
     receipt_execution_identity = _validate_recorded_execution_identity(
         receipt, reason="group-receipt-collision"
@@ -2454,13 +2737,23 @@ def _validate_published_group(
         )
         or type(rows) is not list
         or len(rows) != 24
-        or cell not in CERT_CELLS
+        or expected_extime is None
         or receipt.get("cell_order") != [cell.label]
         or receipt.get("claim") != CERT_CLAIMS[cell]
         or receipt.get("backoff_trace") is not False
+        or receipt.get("records") != CERT_RECORDS
+        or receipt.get("threads") != CERT_THREADS[0]
+        or receipt.get("extime_s") != expected_extime
+        or ("step_policy_seed" in receipt)
+        != (expected_step_policy_seed is not None)
+        or (
+            expected_step_policy_seed is not None
+            and receipt.get("step_policy_seed") != expected_step_policy_seed
+        )
         or type(receipt.get("hostname")) is not str
         or not receipt["hostname"]
-        or receipt.get("prereg_sha256") != _prereg_sha256()
+        or receipt.get("prereg_sha256")
+        != _certification_prereg_sha256(cell)
         or type(receipt.get("repo_head")) is not str
         or _COMMIT_RE.fullmatch(receipt["repo_head"]) is None
         or any(
@@ -2506,6 +2799,23 @@ def _validate_published_group(
         or row.get("cell_order") != [cell.label]
         or row.get("claim") != CERT_CLAIMS[cell]
         or row.get("backoff_trace") is not False
+        or row.get("records") != CERT_RECORDS
+        or row.get("threads") != CERT_THREADS[0]
+        or row.get("extime_s") != expected_extime
+        or row.get("workload") not in CERT_WORKLOADS
+        or row.get("workload_flags")
+        != {
+            **WORKLOADS[row["workload"]],
+            "ycsb_tuple_num": str(CERT_RECORDS),
+            "thread_num": str(CERT_THREADS[0]),
+            "extime": str(expected_extime),
+        }
+        or ("step_policy_seed" in row)
+        != (expected_step_policy_seed is not None)
+        or (
+            expected_step_policy_seed is not None
+            and row.get("step_policy_seed") != expected_step_policy_seed
+        )
         or row.get("repo_head") != receipt["repo_head"]
         or row.get("prereg_sha256") != receipt["prereg_sha256"]
         or row.get("ccbench_commit") != receipt["ccbench_commit"]
@@ -2693,6 +3003,9 @@ def _argument_parser() -> argparse.ArgumentParser:
     parser.add_argument("--rep-index", type=_nonnegative_int, default=0)
     parser.add_argument("--reps-per-job", type=_positive_int, default=1)
     parser.add_argument("--step-policy-seed", type=_uint64_decimal)
+    parser.add_argument(
+        "--backoff-trace-terminal-us", type=_nonnegative_int, default=0
+    )
     parser.add_argument("--stage", type=int, choices=(1, 2, 3), default=1)
     parser.add_argument("--extime", type=_positive_int, default=EXTIME)
     parser.add_argument(
@@ -2736,10 +3049,25 @@ def _validate_backoff_trace_contract(
     threads: tuple[int, ...],
 ) -> None:
     trace_contracts = {
-        TRACE_CELLS_TEXT: TRACE_CELLS,
-        COUNTERFACTUAL_TRACE_CELLS_TEXT: COUNTERFACTUAL_TRACE_CELLS,
+        TRACE_CELLS_TEXT: (TRACE_CELLS, EXTIME),
+        COUNTERFACTUAL_TRACE_CELLS_TEXT: (
+            COUNTERFACTUAL_TRACE_CELLS,
+            EXTIME,
+        ),
+        COUNTERFACTUAL_COHORT2_TRACE_CELLS_TEXT: (
+            COUNTERFACTUAL_COHORT2_TRACE_CELLS,
+            COHORT2_EXTIME,
+        ),
     }
-    expected_cells = trace_contracts.get(args.cells)
+    expected_contract = trace_contracts.get(args.cells)
+    expected_cells, expected_extime = (
+        expected_contract if expected_contract is not None else (None, None)
+    )
+    expected_terminal_us = (
+        COHORT2_BACKOFF_TRACE_TERMINAL_US
+        if args.cells == COUNTERFACTUAL_COHORT2_TRACE_CELLS_TEXT
+        else 0
+    )
     if (
         expected_cells is None
         or cells != expected_cells
@@ -2749,12 +3077,14 @@ def _validate_backoff_trace_contract(
         or threads != TRACE_THREADS
         or args.rep_index != 0
         or args.reps_per_job != 1
-        or args.extime != 3
+        or args.extime != expected_extime
+        or args.backoff_trace_terminal_us != expected_terminal_us
     ):
         raise ValueError(
             "--backoff-trace requires exact diagnostic axes and one exact "
             "diagnostic cell set, "
-            "three workloads, threads 24,48, rep index 0, reps 1, and extime 3"
+            "three workloads, threads 24,48, rep index 0, reps 1, and exact "
+            "cell-specific extime/terminal settings"
         )
 
 
@@ -2767,6 +3097,7 @@ def _artifact_contract_metadata(
     rep_index: int,
     reps_per_job: int,
     extime: int,
+    backoff_trace_terminal_us: int = 0,
 ) -> dict:
     metadata = {
         "schema_version": (
@@ -2783,10 +3114,24 @@ def _artifact_contract_metadata(
         and threads_text == ",".join(str(value) for value in TRACE_THREADS)
         and rep_index == 0
         and reps_per_job == 1
-        and extime == 3
+        and extime == 3 and backoff_trace_terminal_us == 0
     ):
         metadata["counterfactual_preregistration"] = (
             _counterfactual_prereg_sha256()
+        )
+    if (
+        backoff_trace is True
+        and cells_text == COUNTERFACTUAL_COHORT2_TRACE_CELLS_TEXT
+        and workloads_text == ",".join(TRACE_WORKLOADS)
+        and threads_text == ",".join(str(value) for value in TRACE_THREADS)
+        and rep_index == 0
+        and reps_per_job == 1
+        and extime == COHORT2_EXTIME
+        and backoff_trace_terminal_us == COHORT2_BACKOFF_TRACE_TERMINAL_US
+    ):
+        metadata["schema_version"] = COHORT2_TRACE_SCHEMA_VERSION
+        metadata["counterfactual_preregistration"] = (
+            _counterfactual_cohort2_prereg_sha256()
         )
     return metadata
 
@@ -2842,18 +3187,24 @@ def _certify_main(args: argparse.Namespace) -> int:
     )
     patch_identity = _patch_stack_identity()
     repo_head = _validated_repo_head(args.repo_head)
-    prereg_sha256 = _prereg_sha256()
+    prereg_sha256 = _certification_prereg_sha256(cell)
+    cert_extime = CERT_EXTIME_BY_CELL[cell]
+    cert_step_policy_seed = CERT_STEP_POLICY_SEED_BY_CELL.get(cell)
     execution_identity = _execution_identity(args.repo_clean)
     performance_expectations = (
         {
             "expected_repo_head": repo_head,
-            "expected_prereg_sha256": prereg_sha256,
+            # Performance artifacts retain the dynamic-backoff preregistration
+            # identity.  The certification receipt itself is bound by the
+            # cell-specific preregistration table above.
+            "expected_prereg_sha256": _prereg_sha256(),
             "expected_patch_stack_sha256": patch_identity[
                 "patch_stack_sha256"
             ],
             "required_cell": cell,
+            "expected_extime": cert_extime,
         }
-        if cell == CERT_DYNAMIC_CELL
+        if cell in DYNAMIC_CERT_CELLS
         else {}
     )
     if not performance_artifact.is_file():
@@ -2900,11 +3251,11 @@ def _certify_main(args: argparse.Namespace) -> int:
             **WORKLOADS[workload_id],
             "ycsb_tuple_num": str(CERT_RECORDS),
             "thread_num": str(threads),
-            "extime": str(CERT_EXTIME),
+            "extime": str(cert_extime),
         },
         "records": CERT_RECORDS,
         "threads": threads,
-        "extime_s": CERT_EXTIME,
+        "extime_s": cert_extime,
         "independent_run_slot": args.rep_index,
         "rng_seed_controlled": False,
         **_cell_identity(cell),
@@ -2959,6 +3310,11 @@ def _certify_main(args: argparse.Namespace) -> int:
             ),
         },
         "started_utc": started_utc,
+        **(
+            {"step_policy_seed": cert_step_policy_seed}
+            if cert_step_policy_seed is not None
+            else {}
+        ),
     }
     rejected: CertificationReject | None = None
     try:
@@ -3248,7 +3604,6 @@ def _certify_main(args: argparse.Namespace) -> int:
 def main(argv: list[str] | None = None) -> int:
     args = _argument_parser().parse_args(argv)
     cells = parse_cells(args.cells)
-    _validate_step_policy_seed(cells, args.step_policy_seed)
     if args.mode == "certify":
         if args.backoff_trace:
             raise CertificationReject(
@@ -3256,6 +3611,11 @@ def main(argv: list[str] | None = None) -> int:
         if args.step_policy_seed is not None:
             raise CertificationReject("step-policy-seed-certification-conflict", "--step-policy-seed cannot be combined with --mode certify")
         return _certify_main(args)
+    _validate_step_policy_seed(cells, args.step_policy_seed)
+    if not args.backoff_trace and args.backoff_trace_terminal_us != 0:
+        raise ValueError(
+            "--backoff-trace-terminal-us requires --backoff-trace"
+        )
     workloads = _parse_workloads(args.workloads)
     threads_axis = _parse_threads(args.threads)
     out = Path(args.out)
@@ -3310,6 +3670,7 @@ def main(argv: list[str] | None = None) -> int:
             rep_index=args.rep_index,
             reps_per_job=args.reps_per_job,
             extime=args.extime,
+            backoff_trace_terminal_us=args.backoff_trace_terminal_us,
         ),
         "kind": (
             "diagnostic-backoff-trace"
@@ -3363,6 +3724,7 @@ def main(argv: list[str] | None = None) -> int:
                     cell,
                     backoff_trace=args.backoff_trace,
                     step_policy_seed=args.step_policy_seed,
+                    backoff_trace_terminal_us=args.backoff_trace_terminal_us,
                 )
                 evidence = source_digest.resolve_evidence(
                     genome,

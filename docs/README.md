@@ -32,6 +32,10 @@
 - `backoff-counterfactual-preregistration.md` — adaptive backoff の反実仮想対照 ([T-2265]) の事前登録。
   3 値 step policy の腕、割当についての 1 窓先 ITT の定義式と符号、対称 log 等価域と TOST、
   主層と副次層、除外規則、12 seed の逐語一覧、検出力が仮定に条件付くこと、束縛と主張範囲の正本
+- `backoff-counterfactual-cohort2-preregistration.md` — 同じ機序を独立 cohort で測る事前登録
+  ([T-2265])。時間 cap を実質無効化した count-closed 窓、割当を持たない terminal event、
+  cohort 1 と推定対象が同一でないこと、terminal 非閉鎖と 0 commit の扱い、cohort 2 の 12 seed、
+  割当整合性検査、認証の射程が既定 seed と 48 スレッドに限られることの正本
 - `b10-multinode-formal-run-design.md` — B-10 正式系列を複数ノードへ分散する設計 ([T-1905])。
   分散単位 4 案の判定、律速が正しさ検査であることと多重化が正しさ受領証の発行境界に当たる事実、
   投入前の必須修正、ユーザー裁定へ返す項目。**投入の承認ではない**

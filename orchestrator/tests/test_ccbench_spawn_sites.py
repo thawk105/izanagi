@@ -909,28 +909,17 @@ _DEFERRED_GATE_MEMBERS = (
         8636,
     ),
     _DeferredGateMember(
-        "orchestrator/campaign/s8b_oracle_n_pilot.py",
-        "protocol-r33 preregistration",
-        (
-            "output/insights/2026-08-16_t1142-n-pilot-prereg/"
-            "protocol-r33.json binds driver_sha256"
-        ),
-        "injected-build_fn",
-        "<module>.build_binaries",
-        944,
-    ),
-    _DeferredGateMember(
         "tools/pegasus/probes/t2187_adaptive_const_probe.py",
         "wave dynamic-backoff-mechanism",
         (
-            "明示 certify mode の A+B+C stack、exact 2 cell の各一値 build。"
+            "明示 certify mode の A+B+C stack、exact 4 cell の各一値 build。"
             "workload contract、実 verifier 陽性対照、target gate、closure "
             "identity に束縛される。condition-gate family admission は本 wave "
             "の scope 外"
         ),
         "buildcache",
         "<module>._certify_main._build_trace_binary",
-        3019,
+        3375,
     ),
     _DeferredGateMember(
         "tools/pegasus/probes/t2187_adaptive_const_probe.py",
@@ -938,11 +927,11 @@ _DEFERRED_GATE_MEMBERS = (
         (
             "A+B+C stack の performance / diagnostic build。performance は "
             "trace-disabled、diagnostic は別 schema / headline 不適格であり、"
-            "certify の exact 2 cell contract と分離される"
+            "certify の exact 4 cell contract と分離される"
         ),
         "buildcache",
         "<module>.main",
-        3387,
+        3749,
     ),
 )
 
@@ -2680,18 +2669,13 @@ def test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink():
             "wave t2027", "campaign", "<module>.main", 8636,
         ),
         (
-            "orchestrator/campaign/s8b_oracle_n_pilot.py",
-            "protocol-r33 preregistration", "injected-build_fn",
-            "<module>.build_binaries", 944,
-        ),
-        (
             "tools/pegasus/probes/t2187_adaptive_const_probe.py",
             "wave dynamic-backoff-mechanism", "buildcache",
-            "<module>._certify_main._build_trace_binary", 3019,
+            "<module>._certify_main._build_trace_binary", 3375,
         ),
         (
             "tools/pegasus/probes/t2187_adaptive_const_probe.py",
-            "wave dynamic-backoff-mechanism", "buildcache", "<module>.main", 3387,
+            "wave dynamic-backoff-mechanism", "buildcache", "<module>.main", 3749,
         ),
     }
     assert all(item.reason for item in _DEFERRED_GATE_MEMBERS)
@@ -2703,7 +2687,7 @@ def test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink():
     ] == [
         (
             "<module>._certify_main._build_trace_binary",
-            "明示 certify mode の A+B+C stack、exact 2 cell の各一値 build。"
+            "明示 certify mode の A+B+C stack、exact 4 cell の各一値 build。"
             "workload contract、実 verifier 陽性対照、target gate、closure "
             "identity に束縛される。condition-gate family admission は本 wave "
             "の scope 外",
@@ -2712,7 +2696,7 @@ def test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink():
             "<module>.main",
             "A+B+C stack の performance / diagnostic build。performance は "
             "trace-disabled、diagnostic は別 schema / headline 不適格であり、"
-            "certify の exact 2 cell contract と分離される",
+            "certify の exact 4 cell contract と分離される",
         ),
     ]
     assert all(
@@ -2928,10 +2912,10 @@ def test_define_sink_cross_product_classifies_t2155_production_sinks_exactly():
     assert classifications[s1_sink] == Counter({
         "covered": 4,
         # Patches B and C plus the mocc controls cannot reach this sink.
-        "proven-unreachable": 33,
+        "proven-unreachable": 34,
     })
     # Patch-derived define interfaces are covered by the s8b sink.
-    assert classifications[s8b_sink] == Counter({"covered": 37})
+    assert classifications[s8b_sink] == Counter({"covered": 38})
     assert failures == []
 
 

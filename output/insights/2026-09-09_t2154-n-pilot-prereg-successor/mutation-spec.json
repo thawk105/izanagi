@@ -1,0 +1,117 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 1800,
+  "timeout_seconds": 1500,
+  "hang_timeout_seconds": 1500,
+  "mutations": [
+    {
+      "id": "m01-drop-returned-evidence-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_n_pilot.py",
+          "old": "            try:\n                require_returned_condition_evidence(\n                    built,\n                    expected_request_digests=expected_request_digests,\n                    expected_records=(\n                        prepared.condition_supply_records,\n                        prepared.condition_meaning_records,\n                    ),\n                    use_class=\"oracle\",\n                    label=\"n-pilot build_fn return\",\n                )\n            except S1DriverError as exc:\n                raise PilotError(f\"build condition evidence rejected: {exc}\") from exc\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_has_no_unreviewed_ungated_member",
+        "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_build_binaries_uses_binding_flags_and_prepared_records_independently",
+        "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_injected_build_fn_without_condition_records_is_rejected",
+        "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_r33_successor_protocol_document_loads_from_repository"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m02-expected-digests-from-prepared-genome",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_n_pilot.py",
+          "old": "        expected_entry = binding_entry(\n            inputs.freeze, holdout_id, configuration_id,\n        )\n        expected_request_digests = _condition_request_digests_for_flags(\n            expected_entry[\"flags\"],\n            driver_id=_condition_driver_id(configuration_id),\n        )\n",
+          "new": ""
+        },
+        {
+          "file": "orchestrator/campaign/s8b_oracle_n_pilot.py",
+          "old": "                    expected_request_digests=expected_request_digests,",
+          "new": "                    expected_request_digests=_condition_request_digests_for_flags(\n                        prepared.genome.flags,\n                        driver_id=_condition_driver_id(configuration_id),\n                    ),"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_build_binaries_uses_binding_flags_and_prepared_records_independently",
+        "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_r33_successor_protocol_document_loads_from_repository"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m03-adapter-drops-records",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_n_pilot.py",
+          "old": "        built = self.delegate(genome, **kwargs)\n        return _ConditionEvidencedBuildReceipt(\n            build_result=built,\n            condition_supply_records=condition_supply_records,\n            condition_meaning_records=condition_meaning_records,\n        )",
+          "new": "        return self.delegate(genome, **kwargs)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_default_build_fn_wraps_build_v2_with_prepared_records",
+        "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_r33_successor_protocol_document_loads_from_repository"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m04-swallow-condition-rejection",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_n_pilot.py",
+          "old": "            except S1DriverError as exc:\n                raise PilotError(f\"build condition evidence rejected: {exc}\") from exc",
+          "new": "            except S1DriverError:\n                pass"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_build_binaries_uses_binding_flags_and_prepared_records_independently",
+        "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_injected_build_fn_without_condition_records_is_rejected",
+        "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_r33_successor_protocol_document_loads_from_repository"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m05-successor-commit-does-not-exist",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "output/insights/2026-09-09_t2154-n-pilot-prereg-successor/protocol-r33-successor.json",
+          "old": "\"commit\": \"ecf690a26825b0d8d693505c3bb7b842824cbc8f\"",
+          "new": "\"commit\": \"0123456789abcdef0123456789abcdef01234567\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_r33_successor_protocol_document_loads_from_repository"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m06-collapse-two-sha-constants-into-one",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_oracle_n_pilot.py",
+          "old": "R33_SUCCESSOR_ANALYSIS_DRIVER_SHA256 = (\n    \"65527f026d6e3cd55e513938d50d5454de55f562b9a289ce6a55101f03728301\"\n)",
+          "new": "R33_SUCCESSOR_ANALYSIS_DRIVER_SHA256 = (\n    \"d447688a39734a292cf5710dbd4656320c45be846b13a995278e083b403a4ab1\"\n)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_r33_successor_protocol_document_loads_from_repository"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

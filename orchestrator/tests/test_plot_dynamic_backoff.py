@@ -2,6 +2,7 @@
 """End-to-end tests for the preregistered dynamic-backoff figure generator."""
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import math
@@ -30,6 +31,10 @@ CELLS = (
     "none", "stock", "tuned", "tuned-u10240", "cw", "cw-as", "cw-as-dyn",
 )
 TRACE_CELLS = ("cw", "cw-as", "cw-as-dyn")
+COHORT1_TRACE_CELLS = ("cw-as-dyn-p0", "cw-as-dyn-p1", "cw-as-dyn-p2")
+COHORT2_TRACE_CELLS = (
+    "cw-as-dyn-c2-p0", "cw-as-dyn-c2-p1", "cw-as-dyn-c2-p2",
+)
 PIN = "511c953"
 FULL_PIN = "511c9538e4e8efa54b45cda62e72389ed3b706ec"
 PATCH_A = "9b2153e0547e167888ba2616750951365c4a075a80f9a95be6000e60b6f8f54b"
@@ -242,9 +247,9 @@ def _diagnostic_document(*, zero_scored: bool = False) -> dict:
                     "median_tps": 1_000_000.0 + 1000 * threads,
                     "backoff_trace_symbol_count": 1,
                     "backoff_trace_string_count": 2,
-                    "trace_events": events,
-                    "trace_summary": summary,
-                    "directional_success": directional,
+                    "trace_events": copy.deepcopy(events),
+                    "trace_summary": copy.deepcopy(summary),
+                    "directional_success": copy.deepcopy(directional),
                 })
     assert len(runs) == 18
     return {
@@ -258,6 +263,148 @@ def _diagnostic_document(*, zero_scored: bool = False) -> dict:
         "pbs_jobid": "0:980099.nqsv",
         "trace_runs": runs,
     }
+
+
+def _policy_trace(*, terminal: bool) -> tuple[list[dict], dict, dict]:
+    events = []
+    for index, assigned in enumerate((0, 1, 0, 1)):
+        events.append({
+            "seq": index,
+            "tsc": 1_000_000 + index * 210_000,
+            "window_us": 100,
+            "window_commits": 10_000 + index * 100,
+            "trigger": "count",
+            "backoff_before": 100 + index,
+            "backoff_after": 101 + index,
+            "gradient_sign": 1,
+            "step_us": 1,
+            "ceiling_us": 1000,
+            "ceiling_changed": 0,
+            "parity_branch": "none" if index == 0 else "increment",
+            "assigned_invert": assigned,
+            "recommended_delta_sign": (-1, 0, 1, 1)[index],
+            "inversion_realized": 0,
+            "both_actions_feasible": index % 2,
+            **({"terminal_flush": 0} if terminal else {}),
+        })
+    if terminal:
+        events.append({
+            "seq": 4,
+            "tsc": 1_840_000,
+            "window_us": 100,
+            "window_commits": 10_400,
+            "trigger": "terminal",
+            "backoff_before": 104,
+            "backoff_after": 104,
+            "gradient_sign": 0,
+            "step_us": 1,
+            "ceiling_us": 1000,
+            "ceiling_changed": 0,
+            "parity_branch": "none",
+            "assigned_invert": -1,
+            "recommended_delta_sign": 0,
+            "inversion_realized": 0,
+            "both_actions_feasible": 0,
+            "terminal_flush": 1,
+        })
+    scored, successes, rate = plot._directional_success(events)
+    summary = {
+        "updates": 4,
+        "retained": 4,
+        "dropped": 0,
+        **({"flushes": 1} if terminal else {}),
+    }
+    return events, summary, {
+        "scored": scored, "successes": successes, "rate": rate,
+    }
+
+
+def _policy_diagnostic_document(*, cohort2: bool) -> dict:
+    cells = COHORT2_TRACE_CELLS if cohort2 else COHORT1_TRACE_CELLS
+    literals = (
+        plot.COHORT2_CELL_LITERALS if cohort2 else plot.COHORT1_CELL_LITERALS
+    )
+    events, summary, directional = _policy_trace(terminal=cohort2)
+    runs = []
+    for policy, cell in enumerate(cells):
+        for workload in WORKLOADS:
+            for threads in (24, 48):
+                runs.append({
+                    "cell": cell,
+                    "workload": workload,
+                    "threads": threads,
+                    **dict(zip(CONFIG_FIELDS, plot.CELL_CONFIGS[cell], strict=True)),
+                    "cell_format_fields": 12,
+                    "step_policy": policy,
+                    "genome": f"fixture:{cell}:{workload}:{threads}",
+                    "binary_sha256": hashlib.sha256(cell.encode("utf-8")).hexdigest(),
+                    "throughputs": [1_000_000.0 + 1000 * threads],
+                    "median_tps": 1_000_000.0 + 1000 * threads,
+                    "backoff_trace_symbol_count": 1,
+                    "backoff_trace_string_count": 2,
+                    "trace_events": copy.deepcopy(events),
+                    "trace_summary": copy.deepcopy(summary),
+                    "directional_success": copy.deepcopy(directional),
+                })
+    document = {
+        "schema_version": DIAGNOSTIC_SCHEMA,
+        "kind": "diagnostic-backoff-trace",
+        "headline_eligible": False,
+        "rep_index": 0,
+        "hostname": "bnode099",
+        **_identity(),
+        **_execution(0, diagnostic=True),
+        "pbs_jobid": "0:980099.nqsv",
+        "cell_order": list(cells),
+        "grid_spec": ",".join(literals),
+        "trace_runs": runs,
+    }
+    _use_counterfactual_stack(document)
+    if cohort2:
+        document["schema_version"] = plot.COHORT2_DIAGNOSTIC_SCHEMA
+        document["extime_s"] = 6
+        document["counterfactual_preregistration"] = (
+            "8b4127f4be895da0d25da88b0837f679ecf06d43ab656b16d2944146b9f7a9e9"
+        )
+    return document
+
+
+def _remove_policy_terminals(document: dict) -> None:
+    for row in document["trace_runs"]:
+        terminal = row["trace_events"].pop()
+        assert terminal["terminal_flush"] == 1
+        events = row["trace_events"]
+        row["trace_summary"] = {
+            "updates": len(events),
+            "retained": len(events),
+            "dropped": 0,
+            "flushes": 0,
+        }
+        scored, successes, rate = plot._directional_success(events)
+        row["directional_success"] = {
+            "scored": scored,
+            "successes": successes,
+            "rate": rate,
+        }
+
+
+def _policy_fixture_inputs(
+    tmp_path: Path, *, cohort2: bool,
+) -> tuple[list[Path], Path]:
+    performance = []
+    for index in range(7):
+        document = _performance_document(index)
+        _use_counterfactual_stack(document)
+        if cohort2:
+            document["extime_s"] = 6
+        performance.append(
+            _write(tmp_path / f"policy-performance-rep-{index}.json", document)
+        )
+    diagnostic = _write(
+        tmp_path / "policy-diagnostic.json",
+        _policy_diagnostic_document(cohort2=cohort2),
+    )
+    return performance, diagnostic
 
 
 def _write(path: Path, value: dict) -> Path:
@@ -416,6 +563,174 @@ def test_plot_accepts_both_ab_and_abc_stacks(tmp_path: Path):
         plot.FigureDataError, match=r"ordered A\+B or A\+B\+C stack",
     ):
         plot._common_identity(invalid, "invalid")
+
+
+def test_plot_accepts_exact_cohort1_policy_grid_at_extime_three(
+    tmp_path: Path,
+):
+    performance, diagnostic = _policy_fixture_inputs(tmp_path, cohort2=False)
+    data = plot.load_inputs(performance, diagnostic)
+    assert data["diagnostic_schema_version"] == COUNTERFACTUAL_DIAGNOSTIC_SCHEMA
+    assert data["diagnostic"]["contract"] == "cohort1"
+    assert data["diagnostic"]["cell_order"] == list(COHORT1_TRACE_CELLS)
+    assert data["identity"]["extime_s"] == 3
+    assert len(data["diagnostic"]["runs"]) == 18
+    event = data["diagnostic"]["runs"][
+        (COHORT1_TRACE_CELLS[2], "write-heavy", 48)
+    ]["trace_events"][0]
+    assert event["assigned_invert"] == 0
+    assert event["recommended_delta_sign"] == -1
+    assert "terminal_flush" not in event
+
+
+def test_plot_accepts_exact_cohort2_grid_and_uses_artifact_cells_in_figure_loop(
+    tmp_path: Path,
+):
+    performance, diagnostic = _policy_fixture_inputs(tmp_path, cohort2=True)
+    data = plot.load_inputs(performance, diagnostic)
+    assert data["diagnostic_schema_version"] == plot.COHORT2_DIAGNOSTIC_SCHEMA
+    assert data["diagnostic"]["contract"] == "cohort2"
+    assert data["diagnostic"]["cell_order"] == list(COHORT2_TRACE_CELLS)
+    assert data["identity"]["extime_s"] == 6
+    assert len(data["diagnostic"]["runs"]) == 18
+    values = plot._diagnostic_values(data)
+    assert len(values) == 18
+    assert {row["cell"] for row in values} == set(COHORT2_TRACE_CELLS)
+    run = data["diagnostic"]["runs"][
+        (COHORT2_TRACE_CELLS[2], "write-heavy", 48)
+    ]
+    assert run["step_policy"] == 2
+    assert run["trace_summary"] == {
+        "updates": 4, "retained": 4, "dropped": 0, "flushes": 1,
+    }
+    assert run["trace_events"][-1]["trigger"] == "terminal"
+    assert run["trace_events"][-1]["assigned_invert"] == -1
+    figure, axes = plot.make_diagnostic_figure(data)
+    try:
+        assert axes.shape == (2, 3)
+        assert [tick.get_text() for tick in axes[1, 0].get_xticklabels()] == list(
+            COHORT2_TRACE_CELLS
+        )
+    finally:
+        plot.plt.close(figure)
+
+
+def test_cohort2_plot_accepts_zero_terminal_with_exact_summary(
+    tmp_path: Path,
+):
+    performance, _diagnostic = _policy_fixture_inputs(tmp_path, cohort2=True)
+    document = _policy_diagnostic_document(cohort2=True)
+    _remove_policy_terminals(document)
+    diagnostic = _write(tmp_path / "cohort2-zero-terminal.json", document)
+    data = plot.load_inputs(performance, diagnostic)
+    run = data["diagnostic"]["runs"][
+        (COHORT2_TRACE_CELLS[2], "write-heavy", 48)
+    ]
+    assert len(run["trace_events"]) == 4
+    assert all(event["terminal_flush"] == 0 for event in run["trace_events"])
+    assert run["trace_summary"] == {
+        "updates": 4,
+        "retained": 4,
+        "dropped": 0,
+        "flushes": 0,
+    }
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    (
+        ("updates", 3),
+        ("retained", 3),
+        ("dropped", 1),
+        ("flushes", 1),
+    ),
+)
+def test_cohort2_zero_terminal_requires_exact_summary(
+    tmp_path: Path,
+    field: str,
+    value: int,
+):
+    document = _policy_diagnostic_document(cohort2=True)
+    _remove_policy_terminals(document)
+    document["trace_runs"][0]["trace_summary"][field] = value
+    path = _write(tmp_path / f"bad-zero-terminal-{field}.json", document)
+    with pytest.raises(plot.FigureDataError, match="schema v4 count contract"):
+        plot._parse_diagnostic(path)
+
+
+def test_plot_policy_grid_literals_and_field_counts_are_exact() -> None:
+    assert plot.COUNTERFACTUAL_DIAGNOSTIC_SCHEMA == (
+        "izanagi-dynamic-backoff-trace/v3"
+    )
+    assert plot.COHORT2_DIAGNOSTIC_SCHEMA == "izanagi-dynamic-backoff-trace/v4"
+    assert plot.COHORT1_CELL_LITERALS == (
+        "cw-as-dyn-p0:1:1:1000:2560:10000:10240:1:1:4:1:0",
+        "cw-as-dyn-p1:1:1:1000:2560:10000:10240:1:1:4:1:1",
+        "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+    )
+    assert plot.COHORT2_CELL_LITERALS == (
+        "cw-as-dyn-c2-p0:1:1:1000:2560:10000:9223372036854775807:1:1:4:1:0",
+        "cw-as-dyn-c2-p1:1:1:1000:2560:10000:9223372036854775807:1:1:4:1:1",
+        "cw-as-dyn-c2-p2:1:1:1000:2560:10000:9223372036854775807:1:1:4:1:2",
+    )
+    assert all(plot.CELL_FORMAT_FIELDS[cell] == 11 for cell in TRACE_CELLS)
+    assert all(
+        plot.CELL_FORMAT_FIELDS[cell] == 12
+        for cell in (*COHORT1_TRACE_CELLS, *COHORT2_TRACE_CELLS)
+    )
+    assert [plot.CELL_CONFIGS[cell][5] for cell in COHORT2_TRACE_CELLS] == [
+        9223372036854775807,
+        9223372036854775807,
+        9223372036854775807,
+    ]
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    (
+        ("middle-terminal", "exactly one terminal event at the end"),
+        ("double-terminal", "exactly one terminal event at the end"),
+        ("normal-trigger", "trigger must be count"),
+        ("missing-terminal-field", "terminal_flush"),
+        ("step-policy", "step_policy does not match"),
+        ("count-cap", "count_cap_us does not match"),
+        ("extime", "extime_s must be exactly 6"),
+        ("mixed-cell", "outside the exact 3 x 3 x 2 diagnostic grid"),
+    ),
+)
+def test_cohort2_plot_contract_rejects_near_misses_and_nonfinal_terminal(
+    tmp_path: Path,
+    mutation: str,
+    message: str,
+):
+    document = _policy_diagnostic_document(cohort2=True)
+    row = document["trace_runs"][0]
+    if mutation == "middle-terminal":
+        terminal = row["trace_events"].pop()
+        row["trace_events"].insert(1, terminal)
+        for index, event in enumerate(row["trace_events"]):
+            event["seq"] = index
+            event["tsc"] = 1_000_000 + index * 210_000
+    elif mutation == "double-terminal":
+        terminal = dict(row["trace_events"][-1])
+        terminal["seq"] = len(row["trace_events"])
+        terminal["tsc"] += 1
+        row["trace_events"].append(terminal)
+    elif mutation == "normal-trigger":
+        row["trace_events"][0]["trigger"] = "time"
+    elif mutation == "missing-terminal-field":
+        del row["trace_events"][0]["terminal_flush"]
+    elif mutation == "step-policy":
+        row["step_policy"] = 1
+    elif mutation == "count-cap":
+        row["count_cap_us"] -= 1
+    elif mutation == "extime":
+        document["extime_s"] = 5
+    else:
+        row["cell"] = COHORT1_TRACE_CELLS[0]
+    path = _write(tmp_path / f"bad-{mutation}.json", document)
+    with pytest.raises(plot.FigureDataError, match=message):
+        plot._parse_diagnostic(path)
 
 
 def test_plot_propagates_patch_c_hash_when_present(tmp_path: Path):

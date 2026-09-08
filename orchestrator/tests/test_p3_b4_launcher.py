@@ -340,6 +340,8 @@ def test_g9_bootstrap_uses_real_verifier_before_driver(tmp_path, monkeypatch):
             arm="on",
             admission_record_path=invalid_record,
             proposal_path=tmp_path / "proposal.json",
+            b4_prerun_publication=tmp_path / "publication",
+            b4_attempt_id="attempt-0000",
         )
     assert driver_spy.call_count == 0
 
@@ -365,9 +367,20 @@ def test_bootstrap_matching_record_checks_all_projections_then_launches(
         arm="on",
         admission_record_path=admission.record_path,
         proposal_path=tmp_path / "proposal.json",
+        b4_prerun_publication=tmp_path / "publication",
+        b4_attempt_id="attempt-0000",
     )
     assert result == 23
     driver_spy.assert_called_once()
+    driver_argv = driver_spy.call_args.args[0]
+    assert driver_argv.count("--b4-prerun-publication") == 1
+    assert driver_argv.count("--b4-attempt-id") == 1
+    assert driver_argv[driver_argv.index("--b4-prerun-publication") + 1] == str(
+        tmp_path / "publication"
+    )
+    assert driver_argv[driver_argv.index("--b4-attempt-id") + 1] == (
+        "attempt-0000"
+    )
     assert len(layouts) == 1
     layout = next(iter(layouts.values()))
     assert (Path(layout.root) / B4L.B4_LAUNCH_SIDECAR).is_file()
@@ -418,6 +431,8 @@ def test_bootstrap_rejects_stale_or_driver_mismatched_projection_before_sidecar(
                 arm="on",
                 admission_record_path=admission.record_path,
                 proposal_path=tmp_path / f"{case_name}-proposal.json",
+                b4_prerun_publication=tmp_path / "publication",
+                b4_attempt_id="attempt-0000",
             )
         driver_spy.assert_not_called()
         layout_spy.assert_not_called()

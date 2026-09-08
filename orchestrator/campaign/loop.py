@@ -19,7 +19,7 @@ import secrets
 from contextlib import ExitStack
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, List, Mapping, Optional, Sequence
+from typing import TYPE_CHECKING, Callable, List, Mapping, Optional, Sequence
 
 from ..calibrator import perf_preflight as _perf_preflight
 from ..holdout_observation import HoldoutObservationAdmission
@@ -53,6 +53,9 @@ from .trigger_gate_binding import (
 
 _DEFAULT_CXX = buildcache.DEFAULT_CXX
 _compilers_for_current_site = buildcache.compilers_for_current_site
+
+if TYPE_CHECKING:
+    from . import reflux_result_evidence
 
 
 @dataclass
@@ -168,6 +171,7 @@ def _authorize_measurement(
         declared_use_class: str,
         output_root: str,
         durable_root_policy=None,
+        pre_write_validator: Optional[Callable[[str], None]] = None,
 ) -> _AuthorizationResult:
     """明示 contract と required attestation を最初の書込みより前に検査する。"""
     contract = execution_guard.require_certified_writer_authorization(
@@ -195,6 +199,8 @@ def _authorize_measurement(
     bound_cfg = ident.bind_environment_contract(cfg, contract)
     campaign_identity = str(ident.campaign_id(bound_cfg))
     validate_campaign_id(campaign_identity)
+    if pre_write_validator is not None:
+        pre_write_validator(campaign_identity)
 
     if reservation.is_reservation_required(contract.isolation_policy):
         env = os.environ
@@ -237,6 +243,107 @@ def _authorize_measurement(
     )
 
 
+def _validate_result_evidence_context(
+        context: Optional[
+            reflux_result_evidence.ResultEvidenceIssuanceContext
+        ], *,
+        genomes: Sequence[Genome],
+        balanced_schedule: Optional[BalancedScheduleConfig],
+) -> None:
+    """Reject an ambiguous issuance request before any durable campaign write."""
+    if context is None:
+        return
+    from . import reflux_result_evidence as result_evidence
+
+    if type(context) is not result_evidence.ResultEvidenceIssuanceContext:
+        raise TypeError(
+            "result_evidence_context must be an exact "
+            "ResultEvidenceIssuanceContext"
+        )
+    if len(genomes) != 1:
+        raise result_evidence.ResultEvidenceIssuanceRefused(
+            "result evidence issuance refused: campaign issuance requires "
+            "exactly one genome"
+        )
+    if balanced_schedule is not None:
+        raise result_evidence.ResultEvidenceIssuanceRefused(
+            "result evidence issuance refused: campaign issuance cannot be "
+            "combined with a balanced schedule"
+        )
+    try:
+        evidence_root = Path(context.evidence_root).resolve(strict=True)
+    except (OSError, TypeError, ValueError) as exc:
+        raise result_evidence.ResultEvidenceError(
+            "result evidence root must be an existing directory"
+        ) from exc
+    if not evidence_root.is_dir():
+        raise result_evidence.ResultEvidenceError(
+            "result evidence root must be an existing directory"
+        )
+
+
+def _validate_result_evidence_layout(
+        context: Optional[
+            reflux_result_evidence.ResultEvidenceIssuanceContext
+        ],
+        layout_root: str,
+) -> None:
+    """Bind the prospective campaign layout beneath the existing evidence root."""
+    if context is None:
+        return
+    from . import reflux_result_evidence as result_evidence
+
+    evidence_root = Path(context.evidence_root).resolve(strict=True)
+    try:
+        physical_root = Path(layout_root).resolve(strict=False)
+    except (OSError, TypeError, ValueError) as exc:
+        raise result_evidence.ResultEvidenceError(
+            "campaign layout root cannot be resolved"
+        ) from exc
+    if not physical_root.is_relative_to(evidence_root):
+        raise result_evidence.ResultEvidenceError(
+            "campaign layout root is outside the result evidence root"
+        )
+
+
+def _issue_campaign_result_evidence(
+        *,
+        layout: object,
+        context: Optional[
+            reflux_result_evidence.ResultEvidenceIssuanceContext
+        ],
+        build_attempt_id: str,
+        verify_result: object | None,
+        campaign_run_identity: str,
+        environment_contract: ExecutionEnvironmentContract,
+        execution_receipt: object | None,
+) -> None:
+    if context is None:
+        return
+    from . import reflux_result_evidence as result_evidence
+
+    try:
+        origin_campaign_id = context.origin_capability.campaign_id
+    except AttributeError as exc:
+        raise result_evidence.ResultEvidenceError(
+            "origin capability campaign id is absent or invalid"
+        ) from exc
+    if type(origin_campaign_id) is not str or not origin_campaign_id:
+        raise result_evidence.ResultEvidenceError(
+            "origin capability campaign id is absent or invalid"
+        )
+    result_evidence.issue_campaign_result_evidence(
+        layout=layout,
+        context=context,
+        build_attempt_id=build_attempt_id,
+        verify_result=verify_result,
+        campaign_run_identity=campaign_run_identity,
+        campaign_id=origin_campaign_id,
+        environment_contract=environment_contract,
+        execution_receipt=execution_receipt,
+    )
+
+
 def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                  perf: PerfConfig, env_tag: str, clocks_per_us: int,
                  numactl: Optional[Sequence[str]] = None,
@@ -267,6 +374,9 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                      HoldoutObservationAdmission
                  ] = None,
                  verify_fanout_hosts: tuple[str, ...] = (),
+                 result_evidence_context: Optional[
+                     reflux_result_evidence.ResultEvidenceIssuanceContext
+                 ] = None,
                  ) -> CampaignSummary:
     """`ccbench_dir`/`cache_root` (段5 git worktree 隔離): pipeline.evaluate と同じ実行時
     引数の素通し。`declared_use_class` は official / exploration の閉じた
@@ -277,6 +387,11 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
     identity へ束縛し、source ごとの capability resolver は evidence 解決後の pipeline へ渡す。
     `bench_max_rounds` は既定 3 の既存経路では従来の evaluate 呼出し形を維持し、明示的な
     非既定値だけを pipeline へ渡す。`balanced_schedule` は二 arm 専用 opt-in。"""
+    _validate_result_evidence_context(
+        result_evidence_context,
+        genomes=genomes,
+        balanced_schedule=balanced_schedule,
+    )
     fetchcontent_prebuild = _validate_fetchcontent_prebuild_inputs(
         env_contract=env_contract,
         fetchcontent_base_dir=fetchcontent_base_dir,
@@ -397,6 +512,14 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
         numactl=numactl, env_contract=env_contract,
         declared_use_class=declared_use_class, output_root=output_root,
         durable_root_policy=durable_root_policy,
+        pre_write_validator=(
+            None
+            if result_evidence_context is None
+            else lambda campaign_identity: _validate_result_evidence_layout(
+                result_evidence_context,
+                layout_constructor(campaign_identity, output_root).root,
+            )
+        ),
     )
     authorized_contract = authorization.authorized_contract
     execution_receipt = authorization.execution_receipt
@@ -517,6 +640,13 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                     s.identity_skipped += 1
                     log(f"[campaign] {g.canonical()} identity 確定不能かつ stock id は "
                         f"terminal 済み → この run はスキップ (環境修復後の次 run で再評価): {e}")
+                    if result_evidence_context is not None:
+                        from . import reflux_result_evidence as result_evidence
+                        raise result_evidence.ResultEvidenceIssuanceRefused(
+                            "result evidence issuance refused: an existing "
+                            "terminal attempt cannot be reissued after identity "
+                            "resolution failed"
+                        )
                     continue
                 done.add(v0)
                 attempt_id = secrets.token_hex(16)
@@ -534,15 +664,35 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                         {"reason": "identity-error", "error": str(e),
                          "build_attempt_id": attempt_id})
                 log(f"[campaign] {v0} identity 確定不能 → abort 隔離して継続: {e}")
-                s.results.append(EvalResult(genome=g, variant=v0, certified=False,
-                                            aborted=True,
-                                            notes=[f"source_digest 確定不能 → reject ({e})"]))
+                r = EvalResult(
+                    genome=g, variant=v0, certified=False, aborted=True,
+                    notes=[f"source_digest 確定不能 → reject ({e})"],
+                    build_attempt_id=attempt_id,
+                )
+                # A helper-side None check is too late: call arguments are evaluated first.
+                if result_evidence_context is not None:
+                    _issue_campaign_result_evidence(
+                        layout=layout,
+                        context=result_evidence_context,
+                        build_attempt_id=r.build_attempt_id,
+                        verify_result=r.verify_result,
+                        campaign_run_identity=cid,
+                        environment_contract=authorized_contract,
+                        execution_receipt=execution_receipt,
+                    )
+                s.results.append(r)
                 s.evaluated += 1
                 s.aborted += 1
                 balanced_prepare_failed = balanced_schedule is not None
                 continue
             v = variant_id(g, src_tok)
             if v in done:
+                if result_evidence_context is not None:
+                    from . import reflux_result_evidence as result_evidence
+                    raise result_evidence.ResultEvidenceIssuanceRefused(
+                        "result evidence issuance refused: an existing terminal "
+                        "attempt cannot be reissued"
+                    )
                 s.skipped += 1
                 s.skipped_variants.append(v)
                 balanced_prepare_failed = balanced_schedule is not None
@@ -634,29 +784,43 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                 if isinstance(e, (wal.WalAppendError, wal.WalFramingError)):
                     # WAL I/O が壊れた同じ台帳へ診断を重ねない。元の構造化例外を保つ。
                     raise
-                abort_payload = {"reason": f"eval-exception: {type(e).__name__}: {e}"}
                 replayed = replay(
                     layout, admission_policy=build_context.policy,
                 ).get(v)
+                result_attempt_id = ""
+                abort_payload = {"reason": f"eval-exception: {type(e).__name__}: {e}"}
                 if replayed is not None:
                     active = [
                         attempt for attempt in replayed.attempts.values()
                         if not attempt.committed and not attempt.aborted
                     ]
                     if len(active) == 1:
-                        abort_payload["build_attempt_id"] = active[0].attempt_id
+                        result_attempt_id = active[0].attempt_id
+                        abort_payload["build_attempt_id"] = result_attempt_id
                         if active[0].receipt_sha256 is not None:
                             abort_payload["build_admission_receipt_sha256"] = \
                                 active[0].receipt_sha256
                 wal.log(layout, v, STAGE_ABORT, env_tag, abort_payload)
                 log(f"[campaign] {v} 評価中に例外 → abort 隔離して継続: {e}")
                 r = EvalResult(genome=g, variant=v, certified=False, aborted=True,
-                               notes=[f"評価中の例外 → reject ({e})"])
+                               notes=[f"評価中の例外 → reject ({e})"],
+                               build_attempt_id=result_attempt_id)
             if type(r) is _PreparedEvaluation:
                 balanced_prepared.append(r)
                 continue
             if balanced_schedule is not None:
                 balanced_prepare_failed = True
+            # Guard argument evaluation as well as the helper body for originless runs.
+            if result_evidence_context is not None:
+                _issue_campaign_result_evidence(
+                    layout=layout,
+                    context=result_evidence_context,
+                    build_attempt_id=r.build_attempt_id,
+                    verify_result=r.verify_result,
+                    campaign_run_identity=cid,
+                    environment_contract=authorized_contract,
+                    execution_receipt=execution_receipt,
+                )
             s.results.append(r)
             s.evaluated += 1
             if r.aborted:
