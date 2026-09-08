@@ -3452,7 +3452,7 @@ def test_unregistered_malformed_finding_remains_rc1_with_production_registry(
     ) == 1
     captured = capsys.readouterr()
     assert f"{commit[:12]} outside registry: AI-Agent の形式違反" in captured.err
-    assert captured.out == _known_violation_group_stdout(53, 2)
+    assert captured.out == _known_violation_group_stdout(53, 3)
 
 
 def test_malformed_known_violation_missing_finding_is_stale_rc2(
@@ -3946,7 +3946,7 @@ def test_ledgered_3f2c43d7580b_is_known_and_rc0(
         "note=trailer は本文に実在するが、AI-Agent 行と Co-Authored-By 行の間の"
         "空行で trailer block 不成立\n"
         "check_ai_provenance: known-violations=1\n"
-        + _known_violation_group_stdout(53, 2)
+        + _known_violation_group_stdout(53, 3)
         + "check_ai_provenance: 1 件、新規違反なし\n"
     )
     assert captured.err == ""
@@ -4902,7 +4902,7 @@ def test_forward_correction_unrelated_history_remains_native_valid(
     assert _run_range(monkeypatch, f"{commit}^!") == 0
     captured = capsys.readouterr()
     assert captured.out == (
-        _known_violation_group_stdout(53, 2)
+        _known_violation_group_stdout(53, 3)
         + "check_ai_provenance: 1 件、違反なし\n"
     )
     assert captured.err == ""
@@ -7079,7 +7079,7 @@ def test_audit_history_empty_range_returns_zero_findings(
     assert _run_range(monkeypatch, f"{commit}..{commit}") == 0
     captured = capsys.readouterr()
     assert captured.out == (
-        _known_violation_group_stdout(53, 2)
+        _known_violation_group_stdout(53, 3)
         + "check_ai_provenance: 0 件、違反なし\n"
     )
     assert captured.err == ""
