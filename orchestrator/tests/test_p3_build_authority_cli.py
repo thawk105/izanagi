@@ -165,6 +165,7 @@ MANUAL_BUILD_FILES = {
     "s8b_oracle_n_pilot.py",
     "silo_ladder_rung1.py",
     "t152_write_intent_coverage.py",
+    "t1998_stock_inline_pair.py",
 }
 
 ADMITTED_MANUAL_BUILD_FILES = {"s8a_trigger_coverage.py"}
@@ -180,6 +181,7 @@ EXPECTED_NON_ADMISSIBLE = {
     "orchestrator.campaign.s8b_expected_materialization.produce_expected_materialization_sha256",
     "orchestrator.campaign.s8b_oracle_n_pilot.build_binaries",
     "orchestrator.campaign.t152_write_intent_coverage._build",
+    "orchestrator.campaign.t1998_stock_inline_pair._build_dir_from_build",
     "orchestrator.campaign.silo_ladder_rung1._build_variant",
     "orchestrator.campaign.silo_ladder_rung1._correctness_command",
 }
