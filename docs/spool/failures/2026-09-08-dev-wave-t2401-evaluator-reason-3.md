@@ -54,6 +54,12 @@ seq: 3
   事前登録して実際に走らせる**。生存したら、そのテストは guard を観測していない。
   終了コードだけを見る検査は、未処理例外の終了コードと衝突しうる。
 
+## 再発
+
+### F521
+
+- **再発: 2026-09-08** — [T-2401] wave が同じ型を踏んだ。新設 test が Python を明示 `env=` 付きで起動する 4 箇所に bytecode guard が無く、受入全走 (22016 件緑) が `test_check_subprocess_bytecode_guard.py::test_real_repo_clean` 1 件だけで rc=70 になった。`python3 tools/check_subprocess_bytecode_guard.py --repo <worktree>` を直接叩けば 1 分で分かる違反である。**恒久対応は既に F521 が書いていたが、受入前の棚卸しをしなかった。** 焦点走 (`DW-O26`) は参照関係で対象を引くため、repo 全体を走査する checker 系 test は今回も対象に入らなかった。
+
 ## supersede 追記
 
 - F631 **supersede: 2026-09-08** — 「なぜ通らなかったかが消える」部分のコード側修正が着地した。評価器呼び出しを囲む広い例外捕捉は、fail-closed の終端 (12 件の `ERROR / evaluator-exception`、`effective=False`、CLI stdout の bytes、report digest) を 1 bit も変えないまま、捕捉した理由を `callsite` / `exception_type` / `preregistration_reason` の 3 field へ構造化して残すようになった。判定器 CLI の `check` はこれを stderr へ 1 行の JSON で出す。設計と却下案は {{D:evaluator-diagnostic-outside-report-digest}}。**gate report CLI と、判定器 CLI の外側 catch が出す `str(exc)` は本 wave の対象外である。**
