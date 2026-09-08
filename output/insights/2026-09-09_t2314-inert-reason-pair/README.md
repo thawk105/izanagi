@@ -111,6 +111,19 @@ spec は実装前に段 4 で登録した (`mutation/mutation-spec.json`、sha25
 m02 は gate が交叉を先に弾くため、**gate 層を中和した test だけが殺せる** (DW-M02 の両層裏取りに相当)。
 初回登録のまま probe 化・再登録は不要で、erratum はない。
 
+**本走後に tip が進んだので、anchor の成立を内容同一性で再検証した。** 本走の commit `bf09c81df` と
+land 対象 tip の間で、変異が触れる 4 path はすべて blob が同一である。
+
+| path | blob |
+|---|---|
+| `tools/pegasus/probes/t316_sandbox_backend_probe.py` | 同一 |
+| `orchestrator/tests/test_t316_sandbox_probe.py` | 同一 |
+| `orchestrator/campaign/condition_meaning_gate.py` | 同一 |
+| `orchestrator/tests/fixtures/condition_meaning_gate/supplied` | 同一 |
+
+間に入ったのは `merge main` (無関係な module)、受入所要台帳、docs だけである。変異の anchor 逐語も
+期待 node の所属 file も動いていないので、本走をやり直していない。
+
 ## 実測
 
 | 走行 | 結果 |
