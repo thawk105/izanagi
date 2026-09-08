@@ -3892,6 +3892,12 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 親が段 7 の記録を**必ず本機構自身で生成する** (dogfooding)。
   本件はその dogfooding が land 前に検出した。
 
+
+- **再発: 2026-09-08** — B-10 の report が読む campaign lock の検査 test が、`schema_version` を持たない
+  旧 v1 形式の合成 lock を正例にしていた。`decode_campaign_lock` は `schema_version` が無ければ
+  authority を一切検査しないため、この fixture は緑のまま、現物 3 本 (v2 + pre-T733 24 path) は
+  同じ経路で必ず拒否される状態が続いていた。現物 3 本を snapshot として収載し、
+  raw bytes のまま decoder へ通す正例と v1 / 現行 grammar の負例へ置き換えた。
 ### F82. 防壁の禁止集合が広すぎ、守ろうとした正規経路を 2 度禁止した [受理集合の過剰縮小]
 
 - 事象: 再開 wave の段 6 で受入全走が 2 度赤になった (44 failed → 28 failed → 0)。
@@ -13846,6 +13852,12 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (10:30 頃に除去、10:54 に再作成を実測)。
   既存記述は「14.5 時間存在し続けた」という長寿の観測だったが、短時間で復活する挙動も起きる。
   どちらの読み方も固定できないため、**長時間の受入全走はこの窓に掛かりうる**前提で扱う。
+
+- **再発: 2026-09-08** — login node の焦点走で
+  `test_b10_backoff_shape_sweep.py::test_t1905_a5_tmp_official_root_is_rejected_by_real_durable_policy`
+  が赤になった。原因は別ユーザー (`makiart`) が 2026-09-07 に作った空の `/tmp/.git` で、
+  `/tmp` 配下の一時 root が repository 内と判定されるため。同じ commit を計算ノードで走らせると
+  `190 passed` で緑になり、変更へ帰属しないことを確認した。
 ### F458. T-181/T-1434の既存test群がreal codex execの実ネットワーク経路を一度も検証していなかった [テスト代表性]
 
 - 事象: T-189 stage2-plan-replayer実装のsmoke gate (DW-G01) で、`tools/codex_reasoning_ab.py`
@@ -15559,6 +15571,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   「repo 全体を見る test」は誰も参照しないので集まらない。**
   後者は checker を直接叩いて先に潰す。
 
+
+- **再発: 2026-09-08** — [T-2401] wave が同じ型を踏んだ。新設 test が Python を明示 `env=` 付きで起動する 4 箇所に bytecode guard が無く、受入全走 (22016 件緑) が `test_check_subprocess_bytecode_guard.py::test_real_repo_clean` 1 件だけで rc=70 になった。`python3 tools/check_subprocess_bytecode_guard.py --repo <worktree>` を直接叩けば 1 分で分かる違反である。**恒久対応は既に F521 が書いていたが、受入前の棚卸しをしなかった。** 焦点走 (`DW-O26`) は参照関係で対象を引くため、repo 全体を走査する checker 系 test は今回も対象に入らなかった。
 ### F522. acceptance 直前に session-start resume gate を再実行し、既存の main 取り込み経路を使わず停止した [手順漏れ] [コンテキスト浪費]
 
 - 事象: [T-1376] の stale-main 再開で固定 main を取り込んだ後、acceptance 直前に local main が
@@ -17987,6 +18001,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 同じ判定を返すはずの 2 経路が異なる答えを返さないことを、CLI を subprocess として
   起動する検査で固定する (未実装。次の一手で追跡)。
 - **supersede: 2026-09-07** — 恒久対応が独立入口として名指しした `-m` 形式は、判定器では同じ二重実体化を起こす (`runpy` が対象コードを `__main__` の namespace で実行するため)。gate report の `-m` が正しい内訳を返すのは、そこで core が通常の canonical import になるからであって `-m` 形式が安全だからではない。CLI を実プロセスとして起動する再発検知は `orchestrator/tests/test_s8c_cli_entrypoints.py` として実装済みで、判定器と gate report をファイルパスと `-m` の両形で起動し、同じ commit の library 判定と突き合わせる。
+- **supersede: 2026-09-08** — 「なぜ通らなかったかが消える」部分のコード側修正が着地した。評価器呼び出しを囲む広い例外捕捉は、fail-closed の終端 (12 件の `ERROR / evaluator-exception`、`effective=False`、CLI stdout の bytes、report digest) を 1 bit も変えないまま、捕捉した理由を `callsite` / `exception_type` / `preregistration_reason` の 3 field へ構造化して残すようになった。判定器 CLI の `check` はこれを stderr へ 1 行の JSON で出す。設計と却下案は D1837。**gate report CLI と、判定器 CLI の外側 catch が出す `str(exc)` は本 wave の対象外である。**
 
 ### F632. 新規 worktree の初回受入全走は `output/runs` 不在で必ず 3 件赤になる [テスト代表性]
 
@@ -23614,3 +23629,49 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   end-to-end の負例は正当な検査として残した。
 - 再発検知: 変異本走で、当該変異が新設した単一理由テスト 1 node だけを殺し、
   end-to-end 版は緑のままであることを実測した。冗長性が実測で裏付けられている。
+
+### F915. 敵対 fixture が pytest の失敗報告経路を壊し、変異走行が失敗 node を抽出できなくなる [テスト代表性] [恒真ゲート]
+
+- 事象: 診断抽出の totality を検査するために、`__name__` の取得で例外を出す metaclass と、
+  `KeyboardInterrupt` を送出する property を fixture に置いた。正常時は全件緑だったが、
+  変異走行で近傍のテストが落ちた瞬間に走行系が壊れた。2 形を実測した。
+  (a) metaclass が `SystemExit` を出す形では pytest が `INTERNALERROR` を出して xdist worker が死に、
+  rc=3 になった。失敗は failure digest に出るが `FAILED` の要約行が出ないため node を抽出できない。
+  (b) `KeyboardInterrupt` を出す形では pytest が session 中断と解釈して rc=2 を返した。
+  変異 harness はどちらも rc が 0/1 でないため結果を分類できず停止した。
+- 根本原因: pytest は失敗を整形するとき `_pytest/_io/saferepr.py` -> `reprlib.repr1` ->
+  `typename = type(x).__name__` を通る。敵対的な属性取得はこの経路で発火する。
+  **正常時に緑であることは、失敗時に正しく報告できることを含意しない。**
+  `KeyboardInterrupt` と `SystemExit` は runner が特別扱いする型でもある。
+- なぜ静的レビューで捕まらなかったか: 段 3 の敵対相談 2 本と段 6 の焦点再レビュー 1 本は、
+  いずれもこの型を挙げなかった。**テストが緑になる経路しか読んでおらず、
+  テストが落ちたときに走行系がどうなるかを誰も見ていなかった。**
+- 恒久対応: 危険な挙動は検査対象の呼び出しの瞬間だけ有効にする (arm / disarm)。
+  armed でない状態で `repr(instance)` / `repr(type(instance))` / `type(instance).__name__` を
+  評価しても例外が出ず `__name__` が `str` であることを assertion で固定する。
+  `BaseException` の負例には、runner が特別扱いしない専用 subclass を使う
+  (`Exception` を継承すると「`except Exception` では捕まらない例外」という命題が検査できない)。
+  実体は `orchestrator/tests/test_s8c_preregistration_core.py` の arm 機構と
+  `_DiagnosticGuardBaseException`。
+- 再発検知: 敵対 fixture を足した wave では、**その fixture を使うテストを意図的に失敗させて
+  harness の rc が 1 であることを実測する**。rc が 2 や 3 なら本件である。
+
+### F916. 例外 guard の検査が guard の有無を区別できていなかった [恒真ゲート] [テスト代表性]
+
+- 事象: CLI の診断出力を囲む `except Exception` を `except ZeroDivisionError` /
+  `except OSError` へ狭める変異が、事前登録した 26 変異のうち 2 件として生存した。
+  対応する 2 つのテストは緑のままだった。
+- 根本原因: テストは子 process で `sys.stderr` を「write すると例外を出す object」へ差し替え、
+  `raise SystemExit(main([...]))` を実行し、stdout の完全一致・`returncode == 1`・
+  `stderr == b""` を検査していた。**guard が捕まえなくてもこの 3 つはすべて成立する。**
+  例外が `main()` の外へ出ると未処理例外になるが**その終了コードも 1** であり、
+  traceback は差し替えた object へ書かれるので**実 fd 2 は空**、stdout は診断より前に出力済みで
+  **不変**である。「guard が効いて `main()` が値を返した」ことを 1 つも観測していなかった。
+- 恒久対応: `main()` の返り値を受け取れたこと自体を、壊れていない出力先へ記録し、
+  その実在と値を assertion で固定する。実体は
+  `orchestrator/tests/test_s8c_cli_entrypoints.py` の
+  `test_main_keeps_stdout_and_exit_value_when_stderr_write_raises_oserror` と
+  同 `_value_error` の返り値記録 assertion。
+- 再発検知: 「例外が握り潰されること」を検査するテストを書いたら、**握り潰しを外す変異を
+  事前登録して実際に走らせる**。生存したら、そのテストは guard を観測していない。
+  終了コードだけを見る検査は、未処理例外の終了コードと衝突しうる。

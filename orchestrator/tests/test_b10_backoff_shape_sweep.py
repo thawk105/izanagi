@@ -20,6 +20,7 @@ from pathlib import Path
 import pytest
 
 from orchestrator.campaign import b10_backoff_shape_sweep as B
+from orchestrator.campaign import patchharness
 from orchestrator.campaign.durable_root import DurableRootError
 from orchestrator.campaign.layout import (
     CampaignLayout,
@@ -28,6 +29,73 @@ from orchestrator.campaign.layout import (
 
 
 ROOT = Path(__file__).resolve().parents[2]
+# These raw snapshots prove campaign.lock byte compatibility only.  They do
+# not freeze the external evidence tree or the corresponding records,
+# submission receipts, and WAL files.
+HISTORICAL_LOCK_FIXTURES = ROOT / "orchestrator/tests/fixtures/b10_backoff_shape_locks"
+HISTORICAL_LOCKS = {
+    "write-heavy": (
+        "write-heavy.campaign.lock",
+        B.LEGACY_WRITE_HEAVY_CAMPAIGN_ID,
+        "0a32c22b8afedd6b5542d0ec1da6cba713e55d77fd83cc878d173e568ee91674",
+    ),
+    "balanced": (
+        "balanced.campaign.lock",
+        B.LEGACY_BALANCED_CAMPAIGN_ID,
+        "087e46dfc825b4db6b1fba585e339f989ea94b8e68c14bbb9cb7088fa7ad86b9",
+    ),
+    "read-heavy": (
+        "read-heavy.campaign.lock",
+        B.LEGACY_READ_HEAVY_CAMPAIGN_ID,
+        "5abdfe110ac418b9d98a541ce7bfc3b4aa8975a97fbd6e82b5570f76330180b7",
+    ),
+}
+
+
+def _historical_lock_text(workload: str) -> str:
+    fixture_name, _campaign_id, expected_sha256 = HISTORICAL_LOCKS[workload]
+    raw = (HISTORICAL_LOCK_FIXTURES / fixture_name).read_bytes()
+    assert hashlib.sha256(raw).hexdigest() == expected_sha256
+    return raw.decode("utf-8")
+
+
+def _historical_layout(tmp_path: Path, workload: str) -> CampaignLayout:
+    _fixture_name, campaign_id, _expected_sha256 = HISTORICAL_LOCKS[workload]
+    layout = CampaignLayout(str(tmp_path / campaign_id))
+    Path(layout.root).mkdir(parents=True)
+    Path(layout.lock_file).write_text(
+        _historical_lock_text(workload), encoding="utf-8",
+    )
+    return layout
+
+
+def _legacy_binding_for(workload: str) -> dict[str, str]:
+    return {
+        "write-heavy": B._legacy_write_heavy_binding,
+        "balanced": B._legacy_balanced_binding,
+        "read-heavy": B._legacy_read_heavy_binding,
+    }[workload]()
+
+
+def _legacy_lock_sha256_for(workload: str) -> str:
+    return {
+        "write-heavy": B.LEGACY_WRITE_HEAVY_LOCK_SHA256,
+        "balanced": B.LEGACY_BALANCED_LOCK_SHA256,
+        "read-heavy": B.LEGACY_READ_HEAVY_LOCK_SHA256,
+    }[workload]
+
+
+def _historical_report_identity_fixture(tmp_path: Path) -> B.HistoricalReportIdentity:
+    identities = []
+    for workload, (_fixture_name, campaign_id, _sha256) in HISTORICAL_LOCKS.items():
+        identities.append(B._assert_report_lock_binding(
+            _historical_layout(tmp_path, workload),
+            workload=workload,
+            campaign_id=campaign_id,
+            expected_binding=_legacy_binding_for(workload),
+            expected_lock_sha256=_legacy_lock_sha256_for(workload),
+        ))
+    return B._historical_report_identity(identities)
 
 
 def _job_script_output_root(
@@ -1912,7 +1980,7 @@ def test_e3de15eb_legacy_adapter_enforces_injected_exact_digest_set(
         "analysis_code_sha256": B.LEGACY_WRITE_HEAVY_ANALYSIS_SHA256,
         "binding_sha256": B.LEGACY_WRITE_HEAVY_BINDING_SHA256,
     }
-    assert B._legacy_write_heavy_binding(prereg) == expected_binding
+    assert B._legacy_write_heavy_binding() == expected_binding
     assert records[0]["preregistration_binding"] == expected_binding
     assert prereg.binding.patch_sha256 != expected_binding["patch_sha256"]
     assert prereg.spec.spec_sha256 != records[0]["spec_sha256"]
@@ -1921,7 +1989,7 @@ def test_e3de15eb_legacy_adapter_enforces_injected_exact_digest_set(
     indexed = B._validate_legacy_write_heavy_records(
         records,
         campaign_id=B.LEGACY_WRITE_HEAVY_CAMPAIGN_ID,
-        prereg=prereg,
+        spec=prereg.spec,
         expected_record_digests=expected_digests,
     )
     assert len(indexed) == 45
@@ -1938,7 +2006,7 @@ def test_e3de15eb_legacy_adapter_enforces_injected_exact_digest_set(
         lambda: B._validate_legacy_write_heavy_records(
             mutated,
             campaign_id=B.LEGACY_WRITE_HEAVY_CAMPAIGN_ID,
-            prereg=prereg,
+            spec=prereg.spec,
             expected_record_digests=expected_digests,
         ),
     )
@@ -1963,7 +2031,7 @@ def test_e3de15eb_legacy_adapter_rejects_current_v5_patch_binding(
         lambda: B._validate_legacy_write_heavy_records(
             records,
             campaign_id=B.LEGACY_WRITE_HEAVY_CAMPAIGN_ID,
-            prereg=prereg,
+            spec=prereg.spec,
             expected_record_digests=expected_digests,
         ),
     )
@@ -1974,7 +2042,7 @@ def test_e3de15eb_legacy_adapter_rejects_other_campaign_id():
         "legacy-record",
         lambda: B._validate_legacy_write_heavy_records(
             [], campaign_id="b10-backoff-shape-silo-write-heavy-formal-other",
-            prereg=B.Preregistration(_binding(), B.PREREG_REL, _spec()),
+            spec=_spec(),
         ),
     )
 
@@ -1997,7 +2065,7 @@ def test_143a3f74_balanced_adapter_accepts_only_pinned_series(tmp_path: Path):
     ).hexdigest()
     assert meta_digest \
         == "8e5f0b48ba9e635e3d0e4e6c9c312c7436008dbe1a34f91a5763300920c37bad"
-    binding = B._legacy_balanced_binding(prereg)
+    binding = B._legacy_balanced_binding()
     assert binding == {
         **_legacy_v4_preregistration_binding_literal(),
         "analysis_code_sha256": B.LEGACY_BALANCED_ANALYSIS_SHA256,
@@ -2007,7 +2075,7 @@ def test_143a3f74_balanced_adapter_accepts_only_pinned_series(tmp_path: Path):
     indexed = B._validate_legacy_balanced_records(
         records,
         campaign_id=B.LEGACY_BALANCED_CAMPAIGN_ID,
-        prereg=prereg,
+        spec=prereg.spec,
         expected_record_digests=expected_digests,
     )
     assert len(indexed) == 45
@@ -2048,7 +2116,7 @@ def test_balanced_legacy_content_change_is_outside_frozen_digest_set(
         lambda: B._validate_legacy_balanced_records(
             records,
             campaign_id=B.LEGACY_BALANCED_CAMPAIGN_ID,
-            prereg=prereg,
+            spec=prereg.spec,
             expected_record_digests=expected,
         ),
     )
@@ -2061,7 +2129,7 @@ def test_balanced_legacy_rejects_other_campaign_id(tmp_path: Path):
         lambda: B._validate_legacy_balanced_records(
             records,
             campaign_id="b10-backoff-shape-silo-balanced-formal-other",
-            prereg=prereg,
+            spec=prereg.spec,
             expected_record_digests={row["record_sha256"] for row in records},
         ),
     )
@@ -2092,7 +2160,7 @@ def test_balanced_legacy_semantic_gate_rejects_even_with_mutated_digest_injected
         lambda: B._validate_legacy_balanced_records(
             records,
             campaign_id=B.LEGACY_BALANCED_CAMPAIGN_ID,
-            prereg=prereg,
+            spec=prereg.spec,
             expected_record_digests=expected,
         ),
     )
@@ -2107,7 +2175,7 @@ def test_balanced_legacy_46th_record_belongs_to_exact_cell_gate(tmp_path: Path):
         lambda: B._validate_legacy_balanced_records(
             [*records, extra],
             campaign_id=B.LEGACY_BALANCED_CAMPAIGN_ID,
-            prereg=prereg,
+            spec=prereg.spec,
             expected_record_digests={row["record_sha256"] for row in records},
         ),
     )
@@ -2131,7 +2199,7 @@ def test_acf840c8_read_heavy_adapter_accepts_only_pinned_series(tmp_path: Path):
     ).hexdigest()
     assert meta_digest \
         == "27195442abce632ffae7a7241abd3cd8e765fe63fb590a62a37d4166049400c8"
-    binding = B._legacy_read_heavy_binding(prereg)
+    binding = B._legacy_read_heavy_binding()
     assert binding == {
         **_legacy_v4_preregistration_binding_literal(),
         "analysis_code_sha256": B.LEGACY_READ_HEAVY_ANALYSIS_SHA256,
@@ -2143,7 +2211,7 @@ def test_acf840c8_read_heavy_adapter_accepts_only_pinned_series(tmp_path: Path):
     indexed = B._validate_legacy_read_heavy_records(
         records,
         campaign_id=B.LEGACY_READ_HEAVY_CAMPAIGN_ID,
-        prereg=prereg,
+        spec=prereg.spec,
         expected_record_digests=expected_digests,
     )
     assert len(indexed) == 45
@@ -2173,7 +2241,7 @@ def test_acf840c8_read_heavy_adapter_rejects_current_v5_patch_binding(
         lambda: B._validate_legacy_read_heavy_records(
             records,
             campaign_id=B.LEGACY_READ_HEAVY_CAMPAIGN_ID,
-            prereg=prereg,
+            spec=prereg.spec,
             expected_record_digests=expected_digests,
         ),
     )
@@ -2218,7 +2286,7 @@ def test_acf840c8_frozen_read_heavy_records_match_production_contract():
     current_prereg = B.Preregistration(
         _binding(), B.PREREG_REL, _spec(),
     )
-    expected_binding = B._legacy_read_heavy_binding(current_prereg)
+    expected_binding = B._legacy_read_heavy_binding()
     assert set(expected_binding) == {
         "prereg_commit", "prereg_blob_sha", "spec_sha256", "patch_sha256",
         "formula_sha256", "analysis_code_sha256", "binding_sha256",
@@ -2282,7 +2350,7 @@ def test_read_heavy_legacy_content_change_is_outside_frozen_digest_set(
         lambda: B._validate_legacy_read_heavy_records(
             records,
             campaign_id=B.LEGACY_READ_HEAVY_CAMPAIGN_ID,
-            prereg=prereg,
+            spec=prereg.spec,
             expected_record_digests=expected,
         ),
     )
@@ -2295,7 +2363,7 @@ def test_read_heavy_legacy_rejects_other_campaign_id(tmp_path: Path):
         lambda: B._validate_legacy_read_heavy_records(
             records,
             campaign_id="b10-backoff-shape-silo-read-heavy-formal-other",
-            prereg=prereg,
+            spec=prereg.spec,
             expected_record_digests={row["record_sha256"] for row in records},
         ),
     )
@@ -2311,7 +2379,7 @@ def test_read_heavy_legacy_46th_record_belongs_to_record_count_gate(
         lambda: B._validate_legacy_read_heavy_records(
             [*records, extra],
             campaign_id=B.LEGACY_READ_HEAVY_CAMPAIGN_ID,
-            prereg=prereg,
+            spec=prereg.spec,
             expected_record_digests={row["record_sha256"] for row in records},
         ),
     )
@@ -2325,7 +2393,7 @@ def test_read_heavy_legacy_rejects_mismatched_record_self_hash(tmp_path: Path):
         lambda: B._validate_legacy_read_heavy_records(
             records,
             campaign_id=B.LEGACY_READ_HEAVY_CAMPAIGN_ID,
-            prereg=prereg,
+            spec=prereg.spec,
             expected_record_digests={row["record_sha256"] for row in records},
         ),
     )
@@ -2348,7 +2416,7 @@ def test_read_heavy_legacy_variant_id_requires_lowercase_hex_string(
         lambda: B._validate_legacy_read_heavy_records(
             records,
             campaign_id=B.LEGACY_READ_HEAVY_CAMPAIGN_ID,
-            prereg=prereg,
+            spec=prereg.spec,
             expected_record_digests=expected,
         ),
     )
@@ -2407,7 +2475,7 @@ def test_read_heavy_legacy_semantic_gates_reject_mutated_digest_injected(
         lambda: B._validate_legacy_read_heavy_records(
             records,
             campaign_id=B.LEGACY_READ_HEAVY_CAMPAIGN_ID,
-            prereg=prereg,
+            spec=prereg.spec,
             expected_record_digests=expected,
         ),
     )
@@ -2421,7 +2489,7 @@ def test_read_heavy_legacy_rejects_changed_receipt_bytes(tmp_path: Path):
         lambda: B._validate_legacy_read_heavy_records(
             records,
             campaign_id=B.LEGACY_READ_HEAVY_CAMPAIGN_ID,
-            prereg=prereg,
+            spec=prereg.spec,
             expected_record_digests={row["record_sha256"] for row in records},
         ),
     )
@@ -2437,7 +2505,7 @@ def test_read_heavy_legacy_rejects_duplicate_cell_before_digest_gate(
         lambda: B._validate_legacy_read_heavy_records(
             duplicated,
             campaign_id=B.LEGACY_READ_HEAVY_CAMPAIGN_ID,
-            prereg=prereg,
+            spec=prereg.spec,
             expected_record_digests={row["record_sha256"] for row in records},
         ),
     )
@@ -2460,27 +2528,500 @@ def test_legacy_digest_helper_rejects_nonexact_sets_directly(mutation: str):
     )
 
 
-def test_report_lock_binding_reads_the_real_campaign_lock_codec(tmp_path: Path):
-    layout = CampaignLayout(str(tmp_path / "campaign"))
-    Path(layout.root).mkdir(parents=True)
-    binding = _binding().as_dict()
-    identity = {
-        "spec_content": "fixture",
-        "ccbench_commit": B.PIN,
-        "search_tag": "formal",
-        "search_config": {"preregistration_binding": binding},
-        "trial": "fixture",
-    }
-    Path(layout.lock_file).write_text(
-        B.campaign_lock.canonical_json(identity), encoding="utf-8",
+@pytest.mark.parametrize("workload", tuple(HISTORICAL_LOCKS))
+def test_report_lock_identity_accepts_exact_pre_t733_real_snapshots(
+    tmp_path: Path, workload: str,
+):
+    _fixture_name, campaign_id, _expected_sha256 = HISTORICAL_LOCKS[workload]
+    raw = _historical_lock_text(workload)
+    decoded = B.campaign_lock.decode_historical_campaign_lock(raw)
+    assert type(decoded) is B.campaign_lock.DecodedHistoricalCampaignLock
+    assert decoded.authority is not None
+    assert decoded.authority.recorded_contract_loader_relative_paths \
+        == B.campaign_lock.PRE_T733_CONTRACT_LOADER_RELATIVE_PATHS
+    identity = B._assert_report_lock_binding(
+        _historical_layout(tmp_path, workload),
+        workload=workload,
+        campaign_id=campaign_id,
+        expected_binding=_legacy_binding_for(workload),
+        expected_lock_sha256=_legacy_lock_sha256_for(workload),
     )
-    B._assert_report_lock_binding(layout, binding)
+    assert identity.workload == workload
+    assert identity.preregistration_spec.spec_sha256 \
+        == "9c59411476018d510c8fc5d57f203920ccd3b216e6c5f341ce6b97e45041a7c2"
+    assert identity.calibration.as_dict() == {
+        "path": "output/env/pegasus/calibration/registered/calibration-753f535a8d024727.json",
+        "sha256": "753f535a8d02472781bb51b8f56cc383112a791ff2a1e80963039e83bcce5a49",
+        "schema_version": "calibration/v2",
+        "records": 1000000,
+        "threads": 48,
+        "env_tag": "pegasus",
+        "clocks_per_us": 2100,
+        "saturated": False,
+        "lower_bound_selected": True,
+        "cache_floor_warning": False,
+    }
+
+
+@pytest.mark.parametrize("grammar", ("v1", "current-v2"))
+def test_report_lock_identity_rejects_v1_and_current_grammar(
+    tmp_path: Path, grammar: str,
+):
+    workload = "write-heavy"
+    _fixture_name, campaign_id, _expected_sha256 = HISTORICAL_LOCKS[workload]
+    outer = json.loads(_historical_lock_text(workload))
+    if grammar == "v1":
+        candidate = outer["identity_preimage"]
+    else:
+        outer["authority"]["contract_loader_blob_sha256s"] = {
+            path: "0" * 64
+            for path in sorted(B.campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS)
+        }
+        candidate = B.campaign_lock.canonical_json(outer)
+    layout = _historical_layout(tmp_path, workload)
+    Path(layout.lock_file).write_text(candidate, encoding="utf-8")
     _expect_code(
         "resume-binding",
         lambda: B._assert_report_lock_binding(
-            layout, {**binding, "binding_sha256": "0" * 64},
+            layout,
+            workload=workload,
+            campaign_id=campaign_id,
+            expected_binding=_legacy_binding_for(workload),
+            expected_lock_sha256=hashlib.sha256(
+                candidate.encode("utf-8"),
+            ).hexdigest(),
         ),
     )
+
+
+def test_report_lock_identity_rejects_recanonicalized_false_authority(
+    tmp_path: Path,
+):
+    workload = "write-heavy"
+    _fixture_name, campaign_id, _expected_sha256 = HISTORICAL_LOCKS[workload]
+    outer = json.loads(_historical_lock_text(workload))
+    outer["authority"]["contract_loader_commit"] = "f" * 40
+    outer["authority"]["contract_loader_blob_sha256s"] = {
+        path: "0" * 64
+        for path in outer["authority"]["contract_loader_blob_sha256s"]
+    }
+    layout = _historical_layout(tmp_path, workload)
+    candidate = B.campaign_lock.canonical_json(outer)
+    Path(layout.lock_file).write_text(candidate, encoding="utf-8")
+    _expect_code(
+        "resume-binding",
+        lambda: B._assert_report_lock_binding(
+            layout,
+            workload=workload,
+            campaign_id=campaign_id,
+            expected_binding=_legacy_binding_for(workload),
+            expected_lock_sha256=hashlib.sha256(
+                candidate.encode("utf-8"),
+            ).hexdigest(),
+        ),
+    )
+
+
+def _mutated_historical_identity_lock(
+    workload: str, mutation,
+) -> str:
+    outer = json.loads(_historical_lock_text(workload))
+    identity = json.loads(outer["identity_preimage"])
+    mutation(identity)
+    outer["identity_preimage"] = B.campaign_lock.canonical_json(identity)
+    return B.campaign_lock.canonical_json(outer)
+
+
+def _expect_report_lock_digest_rejection(
+    tmp_path: Path, workload: str, candidate: str,
+) -> None:
+    _fixture_name, campaign_id, _expected_sha256 = HISTORICAL_LOCKS[workload]
+    layout = _historical_layout(tmp_path, workload)
+    Path(layout.lock_file).write_text(candidate, encoding="utf-8")
+    with pytest.raises(B.PreflightError) as caught:
+        B._assert_report_lock_binding(
+            layout,
+            workload=workload,
+            campaign_id=campaign_id,
+            expected_binding=_legacy_binding_for(workload),
+            expected_lock_sha256=_legacy_lock_sha256_for(workload),
+        )
+    assert caught.value.code == "resume-binding"
+    assert "content digest" in str(caught.value)
+
+
+def test_report_lock_digest_rejects_recanonicalized_forged_locks(
+    tmp_path: Path,
+):
+    for workload in HISTORICAL_LOCKS:
+        candidate = _mutated_historical_identity_lock(
+            workload,
+            lambda identity: identity["search_config"]["calibration"].__setitem__(
+                "records", 999999,
+            ),
+        )
+        _expect_report_lock_digest_rejection(
+            tmp_path / f"calibration-{workload}", workload, candidate,
+        )
+
+    def forge_space_and_trial(identity):
+        identity["search_config"]["space_version"] = "b10-backoff-shape/v3"
+        identity["trial"] = "b10-backoff-shape-v3-9c59411476018d51"
+
+    candidate = _mutated_historical_identity_lock(
+        "write-heavy", forge_space_and_trial,
+    )
+    _expect_report_lock_digest_rejection(
+        tmp_path / "space-trial", "write-heavy", candidate,
+    )
+
+    write_heavy = json.loads(_historical_lock_text("write-heavy"))
+    balanced = json.loads(_historical_lock_text("balanced"))
+    write_heavy["authority"] = copy.deepcopy(balanced["authority"])
+    _expect_report_lock_digest_rejection(
+        tmp_path / "authority",
+        "write-heavy",
+        B.campaign_lock.canonical_json(write_heavy),
+    )
+
+
+def test_report_lock_identity_rejects_paired_space_and_trial_drift(
+    tmp_path: Path,
+):
+    def forge_space_and_trial(identity):
+        identity["search_config"]["space_version"] = "b10-backoff-shape/v3"
+        identity["trial"] = "b10-backoff-shape-v3-9c59411476018d51"
+
+    workload = "write-heavy"
+    _fixture_name, campaign_id, _expected_sha256 = HISTORICAL_LOCKS[workload]
+    candidate = _mutated_historical_identity_lock(
+        workload, forge_space_and_trial,
+    )
+    layout = _historical_layout(tmp_path, workload)
+    Path(layout.lock_file).write_text(candidate, encoding="utf-8")
+    _expect_code(
+        "resume-binding",
+        lambda: B._assert_report_lock_binding(
+            layout,
+            workload=workload,
+            campaign_id=campaign_id,
+            expected_binding=_legacy_binding_for(workload),
+            expected_lock_sha256=hashlib.sha256(
+                candidate.encode("utf-8"),
+            ).hexdigest(),
+        ),
+    )
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        lambda identity: identity.__setitem__("search_tag", "trial"),
+        lambda identity: identity.__setitem__("ccbench_commit", "other-pin"),
+        lambda identity: identity.__setitem__("trial", "forged"),
+        lambda identity: identity.__setitem__("spec_content", "forged"),
+        lambda identity: identity["search_config"].__setitem__(
+            "workload", "balanced",
+        ),
+        lambda identity: identity["search_config"].__setitem__(
+            "preregistration_path", "docs/other.md",
+        ),
+    ),
+)
+def test_report_lock_identity_rejects_recanonicalized_identity_drift(
+    tmp_path: Path, mutation,
+):
+    workload = "write-heavy"
+    _fixture_name, campaign_id, _expected_sha256 = HISTORICAL_LOCKS[workload]
+    layout = _historical_layout(tmp_path, workload)
+    candidate = _mutated_historical_identity_lock(workload, mutation)
+    Path(layout.lock_file).write_text(candidate, encoding="utf-8")
+    _expect_code(
+        "resume-binding",
+        lambda: B._assert_report_lock_binding(
+            layout,
+            workload=workload,
+            campaign_id=campaign_id,
+            expected_binding=_legacy_binding_for(workload),
+            expected_lock_sha256=hashlib.sha256(
+                candidate.encode("utf-8"),
+            ).hexdigest(),
+        ),
+    )
+
+
+def test_report_lock_identity_rejects_analysis_binding_drift(
+    tmp_path: Path,
+):
+    workload = "write-heavy"
+    _fixture_name, campaign_id, _expected_sha256 = HISTORICAL_LOCKS[workload]
+    changed_literal = _legacy_binding_for(workload)
+    changed_literal["analysis_code_sha256"] = "0" * 64
+    _expect_code(
+        "resume-binding",
+        lambda: B._assert_report_lock_binding(
+            _historical_layout(tmp_path, workload),
+            workload=workload,
+            campaign_id=campaign_id,
+            expected_binding=changed_literal,
+            expected_lock_sha256=_legacy_lock_sha256_for(workload),
+        ),
+    )
+
+
+def test_report_lock_identity_rejects_series_binding_exchange(
+    tmp_path: Path,
+):
+    workload = "write-heavy"
+    _fixture_name, campaign_id, _expected_sha256 = HISTORICAL_LOCKS[workload]
+    candidate = _mutated_historical_identity_lock(
+        workload,
+        lambda identity: identity["search_config"].__setitem__(
+            "preregistration_binding", B._legacy_balanced_binding(),
+        ),
+    )
+    layout = _historical_layout(tmp_path, workload)
+    Path(layout.lock_file).write_text(candidate, encoding="utf-8")
+    _expect_code(
+        "resume-binding",
+        lambda: B._assert_report_lock_binding(
+            layout,
+            workload=workload,
+            campaign_id=campaign_id,
+            expected_binding=B._legacy_write_heavy_binding(),
+            expected_lock_sha256=hashlib.sha256(
+                candidate.encode("utf-8"),
+            ).hexdigest(),
+        ),
+    )
+
+
+def test_report_lock_identity_rejects_locked_spec_drift(tmp_path: Path):
+    workload = "write-heavy"
+    _fixture_name, campaign_id, _expected_sha256 = HISTORICAL_LOCKS[workload]
+    candidate = _mutated_historical_identity_lock(
+        workload,
+        lambda identity: identity["search_config"]["preregistration_spec"][
+            "analysis"
+        ].__setitem__("alpha", 0.01),
+    )
+    layout = _historical_layout(tmp_path, workload)
+    Path(layout.lock_file).write_text(candidate, encoding="utf-8")
+    _expect_code(
+        "prereg-spec",
+        lambda: B._assert_report_lock_binding(
+            layout,
+            workload=workload,
+            campaign_id=campaign_id,
+            expected_binding=_legacy_binding_for(workload),
+            expected_lock_sha256=hashlib.sha256(
+                candidate.encode("utf-8"),
+            ).hexdigest(),
+        ),
+    )
+
+
+def test_report_identity_reconstructs_exact_common_locked_calibration(
+    tmp_path: Path,
+):
+    identity = _historical_report_identity_fixture(tmp_path)
+    assert tuple(item.workload for item in identity.series) == tuple(B.WORKLOADS)
+    assert identity.calibration == identity.series[0].calibration
+    assert identity.preregistration_spec.canonical_json \
+        == identity.series[1].preregistration_spec.canonical_json \
+        == identity.series[2].preregistration_spec.canonical_json
+    changed = replace(
+        identity.series[2],
+        calibration=replace(identity.series[2].calibration, records=999999),
+    )
+    _expect_code(
+        "resume-binding",
+        lambda: B._historical_report_identity((*identity.series[:2], changed)),
+    )
+
+
+def test_report_commit_gate_accepts_only_frozen_prereg_commit():
+    frozen = "77b33e37d2d63b1f83d10652792c3c93eba9fe8f"
+    assert B._require_report_prereg_commit(frozen) == frozen
+    for candidate in ("77b33e37", "0" * 40, "f" * 40):
+        _expect_code(
+            "prereg-commit",
+            lambda candidate=candidate: B._require_report_prereg_commit(candidate),
+        )
+
+
+def test_legacy_record_digest_literals_remain_exact_135():
+    digests = sorted(
+        B.LEGACY_WRITE_HEAVY_RECORD_SHA256S
+        | B.LEGACY_BALANCED_RECORD_SHA256S
+        | B.LEGACY_READ_HEAVY_RECORD_SHA256S
+    )
+    assert len(digests) == 135
+    assert hashlib.sha256(
+        ("\n".join(digests) + "\n").encode("ascii"),
+    ).hexdigest() \
+        == "97b0726e1dd45542be40bc9b39a76f6f739c02b1166b380a2c8a2d1b07cc4b00"
+
+
+def test_run_formal_report_accepts_unset_binary_path_policy(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.delenv(B.buildcache.B10_BINARY_PATH_POLICY_ENV, raising=False)
+    test_run_formal_report_reaches_locked_collection_and_writer_without_live_inputs(
+        tmp_path, monkeypatch,
+    )
+
+
+def test_run_formal_report_reaches_locked_collection_and_writer_without_live_inputs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    frozen_commit = "77b33e37d2d63b1f83d10652792c3c93eba9fe8f"
+
+    def forbidden(name: str):
+        def fail(*_args, **_kwargs):
+            pytest.fail(f"report called forbidden live path: {name}")
+        return fail
+
+    monkeypatch.delenv(B.buildcache.B10_BINARY_PATH_POLICY_ENV, raising=False)
+    assert B.buildcache.B10_BINARY_PATH_POLICY_ENV not in os.environ
+    monkeypatch.setattr(B, "load_preregistration", forbidden("load_preregistration"))
+    monkeypatch.setattr(B, "load_calibration", forbidden("load_calibration"))
+    monkeypatch.setattr(B, "validate_patch_bytes", forbidden("validate_patch_bytes"))
+    monkeypatch.setattr(B, "validate_applied_tree", forbidden("validate_applied_tree"))
+    monkeypatch.setattr(patchharness, "checkout", forbidden("checkout"))
+    monkeypatch.setattr(patchharness, "applied", forbidden("applied"))
+    monkeypatch.setattr(
+        patchharness, "assert_pinned_clean", forbidden("assert_pinned_clean"),
+    )
+    monkeypatch.setattr(B, "_repo_root", lambda: tmp_path)
+    monkeypatch.setattr(
+        B,
+        "_load_current_analysis_identity",
+        lambda _root: B.ReportAnalyzerIdentity(
+            source_commit="a" * 40,
+            module_path=B.ANALYSIS_REL,
+            module_sha256="b" * 64,
+        ),
+    )
+
+    def submission_identity(_root, _receipt, **kwargs):
+        assert kwargs == {
+            "prereg_commit": frozen_commit,
+            "phase": "report",
+            "workload": None,
+        }
+        return B.SubmissionIdentity(
+            receipt_path="submit-receipt.json",
+            receipt_sha256="c" * 64,
+            request_id="report-request",
+            nonce="d" * 32,
+            source_commit="a" * 40,
+            prereg_commit=frozen_commit,
+            job_script_sha256="e" * 64,
+            phase="report",
+            workload=None,
+        )
+
+    monkeypatch.setattr(B, "load_submission_identity", submission_identity)
+    monkeypatch.setattr(
+        B.pipeline,
+        "_require_measurement_site",
+        forbidden("pipeline._require_measurement_site"),
+    )
+    monkeypatch.setattr(
+        B.p2_2,
+        "resolve_site_runtime",
+        forbidden("p2_2.resolve_site_runtime"),
+    )
+    monkeypatch.setattr(
+        B,
+        "_prepare_official_output",
+        forbidden("_prepare_official_output"),
+    )
+
+    def official_output_root(purpose: str) -> str:
+        assert purpose == "official"
+        return str(tmp_path / purpose)
+
+    monkeypatch.setattr(
+        B,
+        "resolve_campaign_output_root",
+        official_output_root,
+    )
+
+    campaign_to_workload = {
+        campaign_id: workload
+        for workload, (_name, campaign_id, _sha256) in HISTORICAL_LOCKS.items()
+    }
+    monkeypatch.setattr(
+        B,
+        "campaign_layout",
+        lambda campaign_id, _output: _historical_layout(
+            tmp_path / "locks", campaign_to_workload[campaign_id],
+        ),
+    )
+    monkeypatch.setattr(B, "_read_block_records", lambda _root: [])
+
+    def indexed(workload: str, spec: B.PreregistrationSpec):
+        return {
+            (block_id, point): {
+                "workload": workload,
+                "block_id": block_id,
+                "point": point,
+            }
+            for block_id, order in spec.block_orders
+            for point in order
+        }
+
+    monkeypatch.setattr(
+        B, "_validate_legacy_write_heavy_records",
+        lambda *_args, **kwargs: indexed("write-heavy", kwargs["spec"]),
+    )
+    monkeypatch.setattr(
+        B, "_validate_legacy_balanced_records",
+        lambda *_args, **kwargs: indexed("balanced", kwargs["spec"]),
+    )
+    monkeypatch.setattr(
+        B, "_validate_legacy_read_heavy_records",
+        lambda *_args, **kwargs: indexed("read-heavy", kwargs["spec"]),
+    )
+    monkeypatch.setattr(
+        B,
+        "_verification_source_disclosure",
+        lambda _layout, *, workload, campaign_id, indexed: (
+            {
+                "workload": workload,
+                "campaign_id": campaign_id,
+                "raw_verify_done_records": 0,
+            },
+            {},
+        ),
+    )
+    written = {}
+
+    def write_reports(report_root, **kwargs):
+        written.update(kwargs)
+        return report_root / "report.json", report_root / "report.md"
+
+    monkeypatch.setattr(B, "_write_reports", write_reports)
+    json_path, markdown_path, complete = B.run_formal(
+        phase="report",
+        workload=None,
+        prereg_commit=frozen_commit,
+        submission_receipt="submit-receipt.json",
+    )
+    assert complete is True
+    assert json_path.name == "report.json"
+    assert markdown_path.name == "report.md"
+    assert "9c59411476018d51" in json_path.parts
+    assert B.LEGACY_WRITE_HEAVY_BINDING_SHA256[:16] not in json_path.parts
+    assert B.LEGACY_BALANCED_BINDING_SHA256[:16] not in json_path.parts
+    assert B.LEGACY_READ_HEAVY_BINDING_SHA256[:16] not in json_path.parts
+    assert written["identity"].preregistration_spec.as_dict()["schema_version"] \
+        == "izanagi-b10-backoff-shape-preregistration/v4"
+    assert written["identity"].calibration.as_dict()["records"] == 1000000
+    assert written["submission"].prereg_commit == frozen_commit
+    assert "applied_evidence" not in written
 
 
 def test_report_admission_requires_exactly_135_registered_block_cells():
@@ -2492,14 +3033,16 @@ def test_report_admission_requires_exactly_135_registered_block_cells():
         for point in order
     ]
     assert len(records) == 135
-    B._require_exact_report_cells(records, prereg)
+    B._require_exact_report_cells(records, prereg.spec)
     _expect_code(
         "report-completeness",
-        lambda: B._require_exact_report_cells(records[:-1], prereg),
+        lambda: B._require_exact_report_cells(records[:-1], prereg.spec),
     )
     _expect_code(
         "report-completeness",
-        lambda: B._require_exact_report_cells([*records, records[0]], prereg),
+        lambda: B._require_exact_report_cells(
+            [*records, records[0]], prereg.spec,
+        ),
     )
 
 
@@ -2523,7 +3066,7 @@ def test_report_admission_rejects_same_size_unique_nonregistered_grid():
     assert len(observed) == len(set(observed)) == 135
     _expect_code(
         "report-completeness",
-        lambda: B._require_exact_report_cells(records, prereg),
+        lambda: B._require_exact_report_cells(records, prereg.spec),
     )
 
 
@@ -2579,23 +3122,24 @@ def test_report_collector_reads_only_three_formal_series_and_discloses_sources(
             for point in order
         }
 
+    seen_specs = {}
+
+    def validate_series(workload: str, **kwargs):
+        seen_specs[workload] = kwargs["spec"]
+        return indexed(workload)
+
     monkeypatch.setattr(B, "_read_block_records", lambda _root: [])
     monkeypatch.setattr(
         B, "_validate_legacy_write_heavy_records",
-        lambda *_args, **_kwargs: indexed("write-heavy"),
+        lambda *_args, **kwargs: validate_series("write-heavy", **kwargs),
     )
     monkeypatch.setattr(
         B, "_validate_legacy_balanced_records",
-        lambda *_args, **_kwargs: indexed("balanced"),
+        lambda *_args, **kwargs: validate_series("balanced", **kwargs),
     )
     monkeypatch.setattr(
         B, "_validate_legacy_read_heavy_records",
-        lambda *_args, **_kwargs: indexed("read-heavy"),
-    )
-    lock_bindings = []
-    monkeypatch.setattr(
-        B, "_assert_report_lock_binding",
-        lambda _layout, expected: lock_bindings.append(expected),
+        lambda *_args, **kwargs: validate_series("read-heavy", **kwargs),
     )
     monkeypatch.setattr(
         B, "_verification_source_disclosure",
@@ -2611,11 +3155,15 @@ def test_report_collector_reads_only_three_formal_series_and_discloses_sources(
 
     def layout_for_campaign(campaign_id: str) -> CampaignLayout:
         requested.append(campaign_id)
-        return CampaignLayout(str(tmp_path / campaign_id))
+        workload = next(
+            workload
+            for workload, (_name, expected_id, _sha256) in HISTORICAL_LOCKS.items()
+            if expected_id == campaign_id
+        )
+        return _historical_layout(tmp_path, workload)
 
-    _records, performance, _verification = B._collect_report_inputs(
-        str(tmp_path), prereg=prereg, calibration=calibration,
-        context=context, contract=contract,
+    _records, report_identity, performance, _verification = B._collect_report_inputs(
+        str(tmp_path),
         layout_for_campaign=layout_for_campaign,
     )
     assert requested == [
@@ -2625,11 +3173,15 @@ def test_report_collector_reads_only_three_formal_series_and_discloses_sources(
     ]
     assert formal_read_id not in requested
     assert trial_read_id not in requested
-    assert lock_bindings == [
-        B._legacy_write_heavy_binding(prereg),
-        B._legacy_balanced_binding(prereg),
-        B._legacy_read_heavy_binding(prereg),
+    assert [dict(item.preregistration_binding) for item in report_identity.series] == [
+        B._legacy_write_heavy_binding(),
+        B._legacy_balanced_binding(),
+        B._legacy_read_heavy_binding(),
     ]
+    assert all(
+        seen_specs[item.workload] is item.preregistration_spec
+        for item in report_identity.series
+    )
     measured = {
         source["workload"]: source["measured_with"]
         for source in performance["source_campaigns"]
@@ -2685,7 +3237,7 @@ def test_report_discloses_manual_termination_guarantee_and_wal_limitations(
             for workload in prereg.spec.workload_map
         ],
         observed_cells=135,
-        prereg=prereg,
+        spec=prereg.spec,
     )
     verification = {
         "expected_slots": 270,
@@ -2714,20 +3266,45 @@ def test_report_discloses_manual_termination_guarantee_and_wal_limitations(
         "registered_tag_overruns": [{"workload": "write-heavy", "variant": "none"}],
         "missing_slots": [],
     }
+    identity = _historical_report_identity_fixture(tmp_path / "identity")
+    analyzer = B.ReportAnalyzerIdentity(
+        source_commit="b" * 40,
+        module_path=B.ANALYSIS_REL,
+        module_sha256="a" * 64,
+    )
     report_root = tmp_path / "reports/final"
     json_path, markdown_path = B._write_reports(
         report_root,
-        prereg=prereg,
-        calibration=calibration,
+        identity=identity,
+        analyzer=analyzer,
         records=_complete_records(),
-        applied_evidence={},
         submission=submission,
         performance_cell_completeness=performance,
         verification_slot_completeness=verification,
     )
     document = json.loads(json_path.read_text(encoding="utf-8"))
     markdown = markdown_path.read_text(encoding="utf-8")
-    assert document["schema_version"] == "b10-backoff-shape-provenance/v2"
+    assert document["schema_version"] == "b10-backoff-shape-provenance/v3"
+    assert document["measurement_identity"]["space_version"] \
+        == "b10-backoff-shape/v2"
+    assert document["measurement_identity"]["formula_sha256"] \
+        == "5b3d8deefed35d05597891592d7af442c96b2fa094cdebc8376b2e9bc9cd7662"
+    assert document["measurement_identity"]["formula_sha256"] \
+        != B.FORMULA_SHA256
+    assert document["measurement_identity"]["patch_sha256"] \
+        == "36cd974c56c6f103d894a53048ac734d9859def266c05898d3794d2c48470832"
+    assert document["report_analyzer"] == analyzer.as_dict()
+    series_bindings = document["measurement_identity"]["preregistration"][
+        "series_bindings"
+    ]
+    assert set(series_bindings) == set(B.WORKLOADS)
+    assert {
+        workload: row["binding"] for workload, row in series_bindings.items()
+    } == {
+        workload: _legacy_binding_for(workload) for workload in B.WORKLOADS
+    }
+    assert "measurement space: `b10-backoff-shape/v2`" in markdown
+    assert "report analyzer:" in markdown
     assert document["performance_cell_completeness"][
         "proves_all_workload_jobs_terminated"
     ] is False
@@ -2739,10 +3316,9 @@ def test_report_discloses_manual_termination_guarantee_and_wal_limitations(
     with pytest.raises(FileExistsError):
         B._write_reports(
             report_root,
-            prereg=prereg,
-            calibration=calibration,
+            identity=identity,
+            analyzer=analyzer,
             records=_complete_records(),
-            applied_evidence={},
             submission=submission,
             performance_cell_completeness=performance,
             verification_slot_completeness=verification,
@@ -2829,14 +3405,18 @@ def test_verification_completeness_counts_records_and_discloses_wal_anomalies(
             "observed_cells": 45,
         } for workload in prereg.spec.workload_map],
         observed_cells=135,
-        prereg=prereg,
+        spec=prereg.spec,
     )
+    identity = _historical_report_identity_fixture(tmp_path / "identity")
     json_path, markdown_path = B._write_reports(
         tmp_path / "reports/final",
-        prereg=prereg,
-        calibration=calibration,
+        identity=identity,
+        analyzer=B.ReportAnalyzerIdentity(
+            source_commit="b" * 40,
+            module_path=B.ANALYSIS_REL,
+            module_sha256="a" * 64,
+        ),
         records=_complete_records(),
-        applied_evidence={},
         submission=submission,
         performance_cell_completeness=performance,
         verification_slot_completeness=completeness,
