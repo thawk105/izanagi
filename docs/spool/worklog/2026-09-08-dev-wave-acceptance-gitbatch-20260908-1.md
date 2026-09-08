@@ -21,11 +21,19 @@ title: 受入全走の高速化 — contract-loader binding の blob 取得を 6
   (`test_autonomous_trial_completeness` 1,879 → 229、`test_p3_b4_closed_critic` 1,264 → 93、`test_trial_registry` 2,092 → 347)、
   binding を通らない対照 2 module は 0.95〜1.07。profile した node は 56 → 5.7 秒。最遅 shard wall の改善は受入走が取れるまで主張しない
   (insight の `measurements.md`)。改修前の所在: 最遅 shard wall 中央値 286 秒 / p75 350 秒 (09-08 分)。
-- **受入と land はユーザー裁定待ちで未実施。** main `c12e25078` ([T-2412]、別 session が main checkout で `git add -A` した docs commit) が
-  `.codex/worktrees/*` 110 本を gitlink として追跡し、(a) `git submodule status --recursive` が fatal になり受入の tree 指紋が落ちる、
-  (b) 全史 provenance 監査が `missing-codex-author` (110 path) を新規違反として出し land が rc=29 になる。訂正枠は消費済みで、known-violation
-  登録と gitlink 除去 commit の trailer 形を裁定 inbox `dev-wave-jobs/rulings-inbox/2026-09-08-main-codex-worktrees-gitlinks-block-acceptance-and-land.md` で依頼した。
-  **c12e25078 を含む限り全 wave の受入・land が止まる。**
+- **受入が 1 度止まった。** main `c12e25078` ([T-2412]) が `.codex/worktrees/*` 110 本を gitlink として追跡し、
+  (a) `git submodule status --recursive` が fatal になり受入の tree 指紋が落ちる、(b) 全史 provenance 監査が `missing-codex-author` (110 path) を
+  新規違反として出し land が rc=29 になる、の 2 つで全 wave が止まった。裁定 inbox
+  `dev-wave-jobs/rulings-inbox/2026-09-08-main-codex-worktrees-gitlinks-block-acceptance-and-land.md` へ起票してユーザー承認を得たが、
+  **起票と並行して別 session が既に `48837186c` で index から除き既知違反へ登録し、`cf837838a` で post-baseline 母集団 pin を 2 → 3 へ
+  追従させていた。** 本 wave は自前の是正子を止めて `cf837838a` を取り込むだけにした (重複登録を作らない)。
+- **親の起草した `.gitignore` 案は誤りだった。** 「`.codex/worktrees/` を versioned な `.gitignore` へ足して再発を機械的に塞ぐ」を推奨として
+  裁定へ載せ承認も得たが、F599 が同型の near miss を既に記録していた — `?? .codex/worktrees/` の 1 行は `tools/mutation_worktree.py` の
+  `_observe_shared()` が走行前後で bytes 一致を要求する観測対象そのもので、除外を足すと**並行中の変異走行が `shared_snapshot_matches=false` /
+  rc=125 で空振りする**。別 session も `42f2b6d0c` で同じ理由により取り下げていた。**一括承認された推奨でも、AI が起草した機構は
+  一次資料 (failures 台帳) で裏を取ってから実装する。**
+- gitlink 除去 commit を main へ ff-only しても実体の入れ子 worktree が消えないことは、着手前に使い捨て repo の実験で確かめた
+  (`warning: unable to rmdir` が出るだけで残る。他 wave の稼働 worktree 110 本が対象だったため生死実験を先行させた)。
 - 段 3 (2 レンズ、blocker 9) の主要 real: `<commit>:<path>` 形の batch は応答が path に束縛されず逆順 + 逆対応 digest で誤受理し得る (→ ls-tree + OID 照合)、
   timeout の per-process → 集約 (→ `GIT_TIMEOUT_SECONDS * n`)、拒否順序と NUL (→ 契約を狭める)、第 2 の `_run_git` fake、所要時間台帳の更新義務。
   段 6 (2 レンズ + 焦点 1、blocker 2 + should-fix 4): wiring probe の許可形 (D-01、親が login で赤を実測)、prelude の非 exact (E-01、旧来の穴)、

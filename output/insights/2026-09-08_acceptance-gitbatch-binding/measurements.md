@@ -25,5 +25,17 @@
 
 読み方: 対照 2 module が ≈ 1.0 なので、対象 module の低下は node 負荷の差ではなく本変更に帰属できる。
 ただし n=1 かつ受入形でないので、最遅 shard wall (D1620 の測定面) の改善は主張しない。
-受入走が投入できるようになったら (裁定 inbox `2026-09-08-main-codex-worktrees-gitlinks-block-acceptance-and-land.md`)、
-同じ表を受入 junit で取り直す。junit の原本: `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-acceptance-gitbatch-20260908/fullsuite-junit.xml` (3.5 MB、repo 外)。
+同じ表を受入 junit (K=3、canonical 起動) で取り直すのは次の一手として残す。
+junit の原本: `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-acceptance-gitbatch-20260908/fullsuite-junit.xml` (3.5 MB、repo 外)。
+
+## 付記 — この測定を止めていた事故と、その回避
+
+本走を測った時点で受入形が投入できなかったのは、main `c12e25078` が `.codex/worktrees/*` 110 本を gitlink として
+追跡し `git submodule status --recursive` が fatal になっていたためである (別 session が `48837186c` / `cf837838a` で是正済み)。
+親は「`.codex/worktrees/` を `.gitignore` へ足して再発を機械的に塞ぐ」を推奨したが、**これは誤りである** —
+F599 のとおり `?? .codex/worktrees/` の 1 行は `tools/mutation_worktree.py` の `_observe_shared()` が走行前後で
+bytes 一致を要求する観測対象そのもので、除外を足すと並行中の変異走行が rc=125 で空振りする。採らない。
+
+gitlink を index から外す commit へ `git merge --ff-only` しても実体の入れ子 repo は残ることは、着手前に
+使い捨て repo で確かめた (`warning: unable to rmdir ...: ディレクトリは空ではありません` が出るだけで残り、
+`git submodule status --recursive` も回復する)。対象が他 wave の稼働 worktree 110 本だったため生死実験を先行させた。

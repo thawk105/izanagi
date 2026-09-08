@@ -85,9 +85,9 @@ public capture 1 回の process 数は 4 (`rev-parse --show-toplevel` / `rev-par
 
 ## 5. 計算ノードでの効果
 
-受入走は main `c12e25078` の `.codex/worktrees/*` gitlink 事故 (受入の tree 指紋が `git submodule status` で落ちる、
-裁定 inbox `2026-09-08-main-codex-worktrees-gitlinks-block-acceptance-and-land.md`) で投入できなかったため、
-**受入形でない全 suite 走行 (dispatch、1 node × 48 worker、n=1)** で W を測った。詳細は `measurements.md`。
+受入走は一度 main `c12e25078` の `.codex/worktrees/*` gitlink 事故 (受入の tree 指紋が `git submodule status` で落ちる) で
+投入できず、その間に **受入形でない全 suite 走行 (dispatch、1 node × 48 worker、n=1)** で W を測った。詳細は `measurements.md`。
+事故は別 session の `48837186c` / `cf837838a` で是正され、本 wave はそれを取り込んで受入へ進んだ。
 
 | 対象 | 改修前 中央値 (09-08 受入 47 走) | 改修後 (n=1) | 比 |
 |---|---:|---:|---:|
