@@ -1611,19 +1611,37 @@ def test_multi_ww_reason_report_is_hash_seed_deterministic():
 
     try:
         reports = []
+        output_tail_bytes = 4096
+
+        def _output_tail(output):
+            return (output or b"")[-output_tail_bytes:]
+
         for seed in ("1", "777"):
             environment = dict(os.environ)
             environment["PYTHONHASHSEED"] = seed
             environment["PYTHONDONTWRITEBYTECODE"] = "1"
-            reports.append(subprocess.run(
-                [sys.executable, "-c", script, trace_dir],
-                cwd=_REPO,
-                env=environment,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                check=True,
-                timeout=30,
-            ).stdout)
+            try:
+                completed = subprocess.run(
+                    [sys.executable, "-c", script, trace_dir],
+                    cwd=_REPO,
+                    env=environment,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    check=False,
+                    timeout=120,
+                )
+            except subprocess.TimeoutExpired as exc:
+                assert False, (
+                    f"seed={seed} subprocess timed out after {exc.timeout}s; "
+                    f"stdout_tail={_output_tail(exc.stdout)!r}; "
+                    f"stderr_tail={_output_tail(exc.stderr)!r}"
+                )
+            assert completed.returncode == 0, (
+                f"seed={seed}; returncode={completed.returncode}; "
+                f"stdout_tail={_output_tail(completed.stdout)!r}; "
+                f"stderr_tail={_output_tail(completed.stderr)!r}"
+            )
+            reports.append(completed.stdout)
 
         assert reports[0] == reports[1]
         for raw in reports:
