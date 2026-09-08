@@ -27,6 +27,12 @@ title: [T-2457] A-6 認証を 5 ノードで実走し 73 分が 17 分 37 秒に
 - 子の工数: 段 3 相談 1 本、段 5 実装 1 本、段 6 レビュー 2 本、段 6 fix 1 本 (すべて
   codex `gpt-5.6-sol` / xhigh)。実装子と fix 子はいずれも `run_tests.py` が `rc=16`
   (`qstat -Q preflight rc=1`) で実走できず「実装済み・未実走」で戻した。テストは親が実走した。
+- **段 8 の自己改善 1 件は byte 予算で入らなかった。**
+  {{F:probe-summary-file-cannot-discriminate-per-rank}} の恒久対応を
+  `docs/dev-wave/core.md` の `DW-G01` へ 2 行足そうとしたところ、L1 の unique footprint が
+  10,835 bytes となり予算 10,625 を 210 bytes 超えて `check_docs.py` が赤になった。安全義務を
+  削って詰めることはせず、恒久対応の実体を memory
+  `liveness-probe-must-separate-observation-per-subject` に置いた。上限の引き上げは求めていない。
 - 設計判断は {{D:certification-body-runs-on-job-number-zero-only}}、
   失敗は {{F:probe-summary-file-cannot-discriminate-per-rank}}。
 
