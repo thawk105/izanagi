@@ -113,6 +113,15 @@ probe を 3 回まわしてから本走した (`mutation/`)。
 
 `matching 8/8`、`MISMATCH 0`。
 
+**F358 が課す共通核の検査 (実測)。** 全 KILLED 変異の `failed_nodes` の交差を取ると
+**核は 0 件**である。したがって「ファイルが 1 byte 変わったこと」だけで発火する
+`contract-loader-drift` 由来の node は 1 つも kill に数えられていない。
+核を差し引いた delta は m1=6 / m2=1 / m3=1 / m4=6 / m6=1 / m7=2 / m8=1 で、
+4 変異は delta=1 = その node が唯一の killer である。
+
+F358 の恒久対応は「核を取って差し引く」だが、本 wave は**核が空になる runner scope を先に選ぶ**
+経路を採った (上記のとおり `test_p3_b4_launcher.py` 単独)。結果として核は事後にも 0 件だった。
+
 **m5 は等価変異である。** `p3_s4_loop._campaign_cfg_for_site` と
 `p3_s4_loop_trigger_gating._campaign_cfg_for_site` は signature・docstring・body が逐語同一で、
 参照する `_SITE_ENV_TAGS` / `_CAMPAIGN_ENV_KEY` / `_lookup` も同じ値である
@@ -195,3 +204,27 @@ base・sort・trigger の `projection_sha256` がすべて変わる。「sort �
 `verbatim/` に段 1 brief、段 2 plan (prompt 込み)、段 3 敵対相談 2 本、親の実測値、
 段 4 裁定、段 5 実装子、段 6 敵対レビュー 2 本と fix 子を全文で置いた。
 `mutation/` に 4 本の spec と 4 本の ledger を置いた。
+
+## 12. 段 8 自己改善の裁定
+
+候補 4 件を評価し、1 件を routing、3 件を見送った。
+
+1. **routing 済み — 変異 wrapper の `rc=125` (F300)。** 既存 F への再発追記として
+   `docs/spool/failures/` へ書いた。同型の既存エントリがあるので新規 F は採らない。
+   恒久対応追補 (独立 clone を `--source-repo` へ渡す) の有効性を独立 2 例目として確認した。
+2. **見送り — 変異 runner scope と `contract-loader-drift` の関係。** F357 と F358 が
+   既にこの型を扱い、F358 の恒久対応 (共通核の集合演算) は本 wave の台帳で満たしている
+   (核 0 件を実測)。本 wave が採った「核が空になる runner scope を先に選ぶ」経路は F358 の
+   恒久対応を古くしないので supersede に当たらず、再発でもない。
+   `docs/dev-wave/mutation.md` への追記は L1.5 層の byte 予算が満杯であることが
+   先行 wave の実測で確定しており (9772 > 9566)、予算のために安全義務を削ることは
+   自己改善契約が禁じている。よって記録のみとする。
+3. **見送り — 重複編集面検査の偽陽性フィルタ。** 「staged blob が main の HEAD blob と
+   byte 一致するだけの古い worktree」を自動で落とす手が無く、毎回 blob 照合を手で書いている。
+   ただし `docs/dev-wave/` に重複編集面検査を課す節は存在せず (本 wave の検査は依頼本文が
+   指示したもの)、新規 L2 節の登録は D271 の 3 条件を満たさない。見送る。
+4. **見送り — orphan hold が 2 箇所にある件。** `orphan-hold.json` と
+   `orphan-holds/<request>.json` の両方を消さないと次の投入が hold を再武装する。
+   これは既知で、解除手順も既に運用知見として確立している。repo 側の変更は不要。
+
+段構成・実装子権限・正しさ防壁・裁定境界・予算の変更は 1 件も行っていない。
