@@ -8,6 +8,7 @@ import shlex
 import shutil
 import struct
 import subprocess
+import sys
 from dataclasses import replace
 from pathlib import Path
 
@@ -2249,6 +2250,182 @@ def test_compiler_failure_fails_closed(tmp_path: Path):
     with pytest.raises(G.ConditionMeaningGateError) as raised:
         G.assert_backoff_fixed_meaning(captured, [_case(5)], cxx=os.fspath(compiler))
     assert raised.value.reason_code == "compiler-failed"
+
+
+def test_run_process_real_failures_report_exact_argv_and_stderr():
+    failed_argv = [
+        sys.executable,
+        "-c",
+        "import sys; sys.stderr.write('t2449-real-stderr\\n'); sys.exit(23)",
+        "t2449-real-argv-element",
+    ]
+    with pytest.raises(G.ConditionMeaningGateError) as failed:
+        G._run_process(
+            failed_argv,
+            timeout_reason="t2449-timeout",
+            failure_reason="t2449-failure",
+        )
+    assert failed.value.reason_code == "t2449-failure"
+    assert "rc=23" in failed.value.detail
+    assert "t2449-real-stderr" in failed.value.detail
+    assert "t2449-real-argv-element" in failed.value.detail
+    assert f"argv={shlex.join(failed_argv)}" in failed.value.detail
+
+    stderr_argv = [
+        sys.executable,
+        "-c",
+        "import sys; sys.stderr.write('t2449-success-stderr\\n')",
+        "t2449-stderr-argv-element",
+    ]
+    with pytest.raises(G.ConditionMeaningGateError) as stderr_failure:
+        G._run_process(
+            stderr_argv,
+            timeout_reason="t2449-timeout",
+            failure_reason="t2449-failure",
+        )
+    assert stderr_failure.value.reason_code == "t2449-failure"
+    assert "successful process wrote stderr=" in stderr_failure.value.detail
+    assert "t2449-success-stderr" in stderr_failure.value.detail
+    assert "t2449-stderr-argv-element" in stderr_failure.value.detail
+    assert f"argv={shlex.join(stderr_argv)}" in stderr_failure.value.detail
+
+
+def test_run_process_timeout_and_execution_failures_report_exact_argv(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    missing_argv = [
+        os.fspath(tmp_path / "t2449-missing-command"),
+        "--t2449-execution-element",
+    ]
+    with pytest.raises(G.ConditionMeaningGateError) as missing:
+        G._run_process(
+            missing_argv,
+            timeout_reason="t2449-timeout",
+            failure_reason="t2449-failure",
+        )
+    assert missing.value.reason_code == "t2449-failure"
+    assert "process could not be executed" in missing.value.detail
+    assert f"argv={shlex.join(missing_argv)}" in missing.value.detail
+
+    timeout_argv = ["t2449-timeout-command", "--t2449-timeout-element"]
+
+    def timeout(argv, **kwargs):
+        raise subprocess.TimeoutExpired(argv, kwargs["timeout"])
+
+    monkeypatch.setattr(G.subprocess, "run", timeout)
+    with pytest.raises(G.ConditionMeaningGateError) as timed_out:
+        G._run_process(
+            timeout_argv,
+            timeout_reason="t2449-timeout",
+            failure_reason="t2449-failure",
+        )
+    assert timed_out.value.reason_code == "t2449-timeout"
+    assert "process exceeded 120 seconds" in timed_out.value.detail
+    assert f"argv={shlex.join(timeout_argv)}" in timed_out.value.detail
+
+
+def test_run_process_argv_detail_is_bounded_and_marks_truncation():
+    long_element = "t2449-long-" + ("x" * 1000) + "-tail-must-be-truncated"
+    argv = [
+        sys.executable,
+        "-c",
+        "import sys; sys.stderr.write('t2449-bounded-stderr\\n'); sys.exit(31)",
+        long_element,
+    ]
+    with pytest.raises(G.ConditionMeaningGateError) as raised:
+        G._run_process(
+            argv,
+            timeout_reason="t2449-timeout",
+            failure_reason="t2449-failure",
+        )
+    assert "rc=31" in raised.value.detail
+    assert "t2449-bounded-stderr" in raised.value.detail
+    argv_detail = raised.value.detail.rsplit("; argv=", 1)[1]
+    assert len(argv_detail.encode("utf-8")) <= G._PROCESS_ARGV_DETAIL_LIMIT_BYTES
+    assert (
+        f"limit={G._PROCESS_ARGV_DETAIL_LIMIT_BYTES} bytes" in argv_detail
+    )
+    assert "original=" in argv_detail
+    assert "sha256=" in argv_detail
+    assert "argv truncated" in argv_detail
+    assert "tail-must-be-truncated" not in argv_detail
+
+
+def test_run_process_argv_detail_failure_preserves_original_rejection(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    assert G._bounded_process_argv_detail([object()]) == (
+        G._PROCESS_ARGV_DETAIL_UNAVAILABLE
+    )
+
+    def fail_render(_argv):
+        raise RuntimeError("t2449 argv rendering failure")
+
+    monkeypatch.setattr(G.shlex, "join", fail_render)
+    assert G._bounded_process_argv_detail(["t2449-command"]) == (
+        G._PROCESS_ARGV_DETAIL_UNAVAILABLE
+    )
+
+    def fail_execution(_argv, **_kwargs):
+        raise OSError("t2449 original execution failure")
+
+    monkeypatch.setattr(G.subprocess, "run", fail_execution)
+    with pytest.raises(G.ConditionMeaningGateError) as raised:
+        G._run_process(
+            ["t2449-command"],
+            timeout_reason="t2449-timeout",
+            failure_reason="t2449-original-reason",
+        )
+    assert raised.value.reason_code == "t2449-original-reason"
+    assert raised.value.detail == (
+        "process could not be executed; "
+        f"argv={G._PROCESS_ARGV_DETAIL_UNAVAILABLE}"
+    )
+
+
+def test_run_process_truncated_argv_detail_binds_full_command_and_short_is_unchanged():
+    common = "t2449-common-" + ("x" * 1000)
+    argv_a = ["t2449-command", common + "a"]
+    argv_b = ["t2449-command", common + "b"]
+    rendered_a = shlex.join(argv_a).encode("utf-8")
+    rendered_b = shlex.join(argv_b).encode("utf-8")
+    assert rendered_a[:G._PROCESS_ARGV_DETAIL_LIMIT_BYTES] == (
+        rendered_b[:G._PROCESS_ARGV_DETAIL_LIMIT_BYTES]
+    )
+    assert len(rendered_a) == len(rendered_b)
+
+    detail_a = G._bounded_process_argv_detail(argv_a)
+    detail_b = G._bounded_process_argv_detail(argv_b)
+    assert detail_a != detail_b
+    assert f"sha256={hashlib.sha256(rendered_a).hexdigest()}" in detail_a
+    assert f"sha256={hashlib.sha256(rendered_b).hexdigest()}" in detail_b
+
+    short_argv = ["t2449-command", "short value"]
+    assert G._bounded_process_argv_detail(short_argv) == shlex.join(short_argv)
+
+
+def test_run_process_success_returns_completed_process_unchanged(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    def forbidden_argv_render(_argv):
+        raise AssertionError("successful process must not render failure argv detail")
+
+    monkeypatch.setattr(G, "_bounded_process_argv_detail", forbidden_argv_render)
+    argv = [
+        sys.executable,
+        "-c",
+        "import sys; sys.stdout.write('t2449-success-stdout')",
+    ]
+    completed = G._run_process(
+        argv,
+        timeout_reason="t2449-timeout",
+        failure_reason="t2449-failure",
+    )
+    assert completed.args == argv
+    assert completed.returncode == 0
+    assert completed.stdout == b"t2449-success-stdout"
+    assert completed.stderr == b""
 
 
 def _process_phase(argv: list[str]) -> str:
