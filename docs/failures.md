@@ -16935,6 +16935,22 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   行っていない手順を列挙する」を実装 wave が段 1 brief で行っていれば、段 2 で見えていた。
   帰属と対応案は D1737、実装は
   [T-2406] で裁定待ち。
+
+- **再発: 2026-09-09** — (2) と同一症状の 3 例目。A-1 pilot attempt-0003 で 3 job とも
+  `v3 BACKOFF_FIXED condition gate rejected measurement: supply-effectuation:configure-failed`
+  により 40 秒前後で停止した (request `986702` / `986703` / `986704`)。今回止まったのは job body の
+  build ではなく、**条件関門が別に走らせる configure** である。job body 自身は同じ job の中で
+  gflags / glog の staging を完了しており、欠けていたのは関門への供給だけだった。
+  probe job `986707.nqsv` が取った detail は逐語で
+  `Could NOT find gflags (missing: gflags_LIBRARY_FILE gflags_INCLUDE_DIR)` /
+  `cmake/Findgflags.cmake:9` / `CMakeLists.txt:33 (find_package)`。
+  A-1 の呼び出しは `capture_define_inputs` へ configure 引数を 1 つも渡していない
+  (`captured.configure_args` が `()` であることを同 probe が印字した)。同じ関門に届く他の
+  production 経路 (`backoff_sweep.py:107`、`screening_driver.py:189-196`) は渡している。
+  本 F の再発検知が求める「同種の既存経路を 1 本名指しして、そこが行っていて自分が行っていない
+  手順を列挙する」を、関門の呼び出し側にも適用していれば投入前に見えていた。
+  一次資料は `output/insights/2026-09-09_t2397-a1-pilot-attempt-0003/README.md` §6.1、
+  裁定は [T-2512] 待ち。
 ### F581. 敵対レビュー 2 巡を通過した実装に発火しない保証が 2 件残っていた [恒真ゲート] [テスト代表性]
 
 - 事象: 段 6 の変異 matrix 第 1 巡 (22 件) で SURVIVED が 6 件出た。うち 2 件は実欠落だった。
@@ -18334,6 +18350,13 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 相手が junit の本文まで読んで反証を返したことで判明した。
   伝える側が「行番号で照合した」と明言できない案内はしない。
 
+
+- **再発: 2026-09-09** — 親が段 1 brief で「関門が発火しない 8 型」の出典を `F1402` と書き、
+  その番号を段 3 の子 prompt へそのまま渡した。実際の出典は **F794** で、`F1402` は台帳に
+  存在しない。原因は同型で、本文の行 (`docs/failures.md` の当該記述) を読んで番号を
+  周辺の記憶と結び付け、**見出し行で照合しなかった**こと。今回は段 2 の子が読解で訂正し、
+  親が見出しを引いて確認してから段 3 の prompt を直したので、子が誤った番号を辿る事故には
+  至らなかった。伝える側が「見出し行で照合した」と言えない番号は prompt へ書かない。
 ### F644. 段 3 の敵対相談 prompt が provider の内容フィルタで拒否された [手順漏れ]
 
 - 事象: `--stage consult --lane sol` の子が `thread.started` と最初の agent_message まで
@@ -23911,3 +23934,52 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (CLAUDE.md 規律 3。設計判断は D1853)。
 - 再発検知: 変異 m7 / m7b / m7c (`mutation/mutation-final-spec.json`) が 3 層それぞれを単独で pin する。
   本走で KILLED 3 / 3、期待 node 完全一致。
+
+### F926. 非 certified 先例と文書レイアウトを根拠に、既裁定が却下済みの受理集合拡大へ向かった [手順漏れ] [誤前提]
+
+- 事象: 段 1 brief と段 2 plan が「凍結 spec の calibration↔cell workload 一致要求は repo の先例と
+  整合しない欠陥」と判定し、一致要求を外す案を採った。根拠は (a) b10 formal run の provenance が
+  3 workload すべてに同一 calibration を束縛し束縛 field に `workload` を含まないこと、
+  (b) 事前登録 §5 の校正済み `PerfConfig` 欄が単数であること。段 3 のレンズ A が D15 を引いて反証し、
+  親が一次資料で確認して不採用にした。D15 の却下欄は同じ案を「飽和点が skew 依存と実測で割れた以上、
+  虚偽」と明記していた。実装前に止まったので実害はコード 0 行。
+- 根本原因: 既裁定の閉包検索を**主題語**(`floor`、`b4`、成果物パス) だけで行い、
+  変更しようとしている**機構語**(calibration の keying、workload 署名) で `docs/decisions.md` を
+  引かなかった。加えて根拠に採った先例の権威を確認しなかった — b10 provenance の
+  `official_certification` は `false` で、certified 受理集合を広げる権威ではない。
+  文書のレイアウト (欄が 1 セルであること) から意味上の個数を導いたのも同型の誤りである。
+- 恒久対応: `docs/dev-wave/core.md` の `DW-C00`「設計択一が割れる・正しさ防壁に触る・受理集合が
+  変わる段では独立の敵対検証子を省かない」。本件はこの敵対検証子が実際に発火して止めた事例である
+  (軽量版で段 3 を省いていれば実装まで通っていた)。加えて memory
+  `closure-and-search-discipline` を「受理集合を緩める前に、緩める対象の機構名で decisions を引く /
+  根拠に採る先例は certified か確認する」で更新した。
+- 再発検知: 受理集合を緩める差分を持つ wave では、段 3 のレンズに「その緩めを却下した既裁定が
+  無いか」を機構語で検索させる項目を入れる (本 wave のレンズ A prompt がこの形)。
+  機械検査ではないので、`DW-C00` の敵対検証子の非省略が唯一の防壁である。
+
+### F927. 入れ子関数の build sink は閉包検査から macro を隠し、繰延べ台帳の entry を無効化する [恒真ゲート] [テスト代表性]
+
+- 事象: `orchestrator/tests/test_ccbench_spawn_sites.py` の繰延べ台帳が
+  `tools/pegasus/probes/t2187_adaptive_const_probe.py` の build sink 2 件を先送りしているが、
+  親が閉包分類を実走したところ、certify 側の sink
+  (`<module>._certify_main._build_trace_binary`) は
+  `{'proven-unreachable': 38}` に分類されており、**`deferred` は 1 件も計上されていなかった。**
+  もう 1 件の sink (`<module>.main`) は `{'deferred': 14, 'proven-unreachable': 24}` で、
+  こちらは繰延べが実際に効いている。
+- 根本原因: 到達可能性は sink の source text から判定する。certify 側の sink は
+  引数を取らない入れ子関数 `def _build_trace_binary():` の中に在り、build へ渡す
+  `genome` を外側 scope の閉包変数から受け取る。macro の字面が sink の範囲に現れないため、
+  検査は 38 macro すべてを到達不能と結論する。**build sink は、条件を外側 scope から
+  受け取るだけで閉包検査の網から外れる。**
+- 影響: この sink について繰延べ台帳の entry は何も抑止していない。entry を削除しても
+  閉包検査は緑のままで、関門を 1 行も足さずに「繰延べを解除した」状態を作れる。
+  台帳の厳密性検査は entry が生きた sink を一意に指すことしか見ないので、これも通る。
+  **「台帳から entry を消して検査が緑」は関門が効いた証拠にならない。**
+- 恒久対応: 本 wave では検査本体を変更していない (族全体に効く共有機構の変更であり
+  依頼範囲外)。代わりに D1856 が、
+  この sink の繰延べを維持したうえで「解除は緑ではなく、関門除去変異が当該 sink だけを
+  赤にすることで示す」ことを配線時の必須条件として固定した。
+  検査本体の強化は同 D の次の一手へ送った。
+- 再発検知: 繰延べ台帳へ新しい member を足す wave は、その sink の分類を実走して
+  `deferred` が実際に計上されることを確かめる。計上されないなら、その entry は
+  抑止していないので、繰延べではなく閉包検査の穴として扱う。
