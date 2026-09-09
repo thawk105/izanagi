@@ -22,7 +22,8 @@ SOURCE_FILE_SHA256 = {
     # Reviewed 2026-08-26: T-1690 fix; backoff hole の suffix-free literal 1個・1文制約を汎用 coder に軸限定で追記。
     "coder": "5573a39d611ac519b2a5025e73e0e5585a79292ebf20fafdb02985306031a7e0",
     # Reviewed 2026-08-26: T-1690; suffix-free literal/value一致・1文の producer 契約を追加。
-    "coder-v4-autonomous": "4073ac4223eaca9c353685f116a4dfb53db5b3412011373b717c44e3b25ec10d",
+    # Reviewed 2026-09-09: T-2249; 段 4 の delta_pct≡None 不変と食い違う固定例 (-1.2) を入力例から除去。
+    "coder-v4-autonomous": "ba6c9c116fadf0d21a3e55acf1fdcaf83c412c869fcbfdf59dfad842cbfcf806",
     # Reviewed 2026-09-02: T-2200; K2 宣言アーム用 sibling role 契約を追加。
     # Reviewed 2026-09-03: T-2246; empty-source と明示 consumer の境界を追記。
     "coder-v4-autonomous-k2": "c149f0955bdeee69edc93d52f2437122e0d533a8737d5bbb3376ef93699d67a6",
@@ -38,7 +39,8 @@ SOURCE_FILE_SHA256 = {
     # 例中の全 key を ROLE_IO_CONTRACTS 宣言と exact 照合するため)。ROLE_IO_CONTRACTS の
     # input_required_fields (3 field) は不変 (hint は任意であり「常に必須」の宣言に加えない、
     # dormant Codex adapter parity は対象外)。
-    "planner-v4": "0893644a9eae73a18fcf822c582f6007e8795f314fc1c97a3db7a6d8d439cb0e",
+    # Reviewed 2026-09-09: T-2249; 段 4 の delta_pct≡None 不変と食い違う固定例 (-1.2) を入力例から除去。
+    "planner-v4": "3a3d35fafbaaeac5b63c8f36a1cd4542fba4e7cef2793c71cc59fc40884c8374",
     "profiler": "8a3f5bc1cba31d366c7ea3f0149e04917c07fe7677aa609ce6f05f5c8decbd6d",
     "selector-8b": "23483aeb871ad7363060a183d85df6dd10b9e74b40337037a6cf6bbcc34c799c",
     "verifier": "80ce00b78832cb18a95d0ee8047124fbb8435cf2ec4d312b9d4ed2e6c7f0300f",

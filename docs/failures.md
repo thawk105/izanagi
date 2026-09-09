@@ -521,6 +521,19 @@
 - 再発検知: certification ジョブの forensic (stage 別 failure.json) が発見コストを 1 attempt
   ~0.01pt に抑える — 逐次発見自体は安全。型として残すのは「rc=0 ≠ 検収完了」。
 
+
+- **再発: 2026-09-09** — [T-2265] の投入・待機 script で、NQSV の実機表記を消費側と突合しないまま
+  4 件の欠陥が積み上がった。`qstat -f` を PBS Pro の `Job Id:` / `job_state =` で parse (実機は
+  `Request ID:` / `Current State`)、`qsub` の stdout を素の job ID として検査 (実機は
+  `Request <id> submitted to queue: <q>.`)、投入側 RequestID から期待 file 名を組み立て
+  (job 内の `PBS_JOBID` にだけ `0:` prefix が付く。**本項が既に名指ししていた prefix である**)、
+  state 語彙検査を `qstat` 一覧の全行へ適用 (他 session の job で監視が死ぬ)。
+  子は 4 件すべてを偽 `qstat` / 偽 `qsub` で緑にしており、実機書式は親が測るまで誰も知らなかった。
+  2 番目の欠陥では job が queue に入ったのに台帳へ記録されず、警告が発火して `qdel` で取り消した。
+  恒久対応 (a) の「消費側との突合まで」は表記を fixture 化した certification 経路には効いていたが、
+  **新しく書く消費側には効かない**。実効的に閉じたのは `DW-O16` の「実行環境依存の実装は
+  レビュー通過で closed とせず実機で動かす」であり、親が実機の `qstat` で待ち手を 1 回走らせ、
+  実機に 1 本投げて `qsub` の出力を採ったことで 4 件とも顕在化した。
 ### F23. codex exec の stdin 未クローズ — 並列レビュー 3 本が 100 分沈黙 [手順漏れ]
 - 事象: バックグラウンド起動した codex exec (プロンプトは引数渡し) が「Reading additional input
   from stdin...」で停止し、敵対レビュー 3 本が約 100 分無進捗 (2026-07-19)。ユーザーの指摘で発覚。
@@ -1743,6 +1756,20 @@
   provenance 違反が local main へ入った (`c12e25078`)。F37 の初出は `&&` の右辺、今回は
   `set -e` 下の逐次実行で、**どちらも「パイプの rc は最後のコマンドのもの」という同じ取り違え**である。
   出力を短くする `| tail` を検査コマンドに付けた時点で guard は恒真になる。
+
+- **再発: 2026-09-09** — [T-2486] wave の親が wave worktree を
+  `timeout 300 git worktree add ... | tail -20; echo "rc=$?"` で作り、表示された `rc=0` は
+  `tail` のものだった。実際は `timeout` の SIGTERM で checkout が殺され (rc=143)、
+  **worktree directory ごと消えて branch だけが残っていた**。
+  **検査ではなく状態変更コマンドで、しかも「消滅」が「成功」に見えた点がこれまでの再発と違う。**
+  直後の `git worktree list` に対象が無いことで検出し、timeout 無しの detach で作り直した
+  (負荷 53 のログインノードでは 22,955 file の checkout が 5 分を超える)。
+  実害は約 6 分の空転だけで、偽緑の記録には至っていない。
+  **恒久対応を `DW-O20` へ 1 行統合しようとしたが、byte 予算で入らなかった** — 同節が
+  1066 bytes となり単節予算 1000 bytes を 66 bytes 超えた。安全義務を削って詰めることはせず、
+  実体は memory `enterworktree-fails-on-symlinked-cwd` に置いた
+  (timeout を掛けない・rc を pipe へ通さない・timeout 無しの detach と `tail --pid` で待つ)。
+  上限の引き上げは求めていない。
 ### F38. 記録後検査の値を埋める amend で、worklog 内の記録 commit hash が dangling になった [ドリフト] [手順漏れ]
 
 - 事象: `DW-S07` の F34 恒久対応 (記録 commit の後に再走) と F36 恒久対応 (実測前に欄を作らない) を
@@ -6674,6 +6701,17 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: pin 件数を 2 種類の検索 (`git grep -l` と部分木起点の `grep -rl`) で突き合わせ、
   食い違えば brief を書かない。
 
+
+- **再発: 2026-09-09** ([T-2249] wave)。pin 閉包の件数を `git grep -c` で数えて
+  「bytes を pin する箇所は 3 系統 6 hit だけ」と段 1 brief に断定した。段 3 のレンズ B が反証した。
+  `git grep -c` は**一致した行数**を数えるため、`orchestrator/tests/test_reflux_originless_compatibility.py:372`
+  の凍結 baseline (物理 1 行の巨大 JSON) に**同じ sha が 7 回**あるのを `1` と数えていた。
+  literal 出現の実数は coder 3 + planner 10 = 13 件だった。F169 と同じ「pin 閉包の検索が
+  silent に取りこぼす」型であり、取りこぼしの機序が検索起点でなく**計数単位**だった点が新しい。
+  同じ brief は「この凍結 baseline は保存済み `output/` の値なので role file 編集では動かない」とも
+  書いていたが、これも誤りで、同 test は `run_trial()` を実走して journal を作るため live な
+  role bytes が届く。恒久対応は memory `closure-and-search-discipline` へ
+  「`git grep -c` は行数であって出現回数ではない。件数は `grep -o | wc -l` で数える」を追記した。
 ### F170. 契約 drift を止める pin を文字列の出現数で書き、3 巡続けて恒真だった [恒真ゲート] [テスト代表性]
 
 - 事象: `docs/dev-wave/workers.md` の段 6 契約が黙って書き換わるのを止める pin を実装したが、
@@ -23983,3 +24021,109 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 繰延べ台帳へ新しい member を足す wave は、その sink の分類を実走して
   `deferred` が実際に計上されることを確かめる。計上されないなら、その entry は
   抑止していないので、繰延べではなく閉包検査の穴として扱う。
+
+### F928. 依頼が指す成果物の同定を段 1 の前に台帳へ当てず、子を 1 本無駄にした [手順漏れ]
+
+- 事象: 依頼は「機序の主張と限界を**材料レポート**へ書く」だった。親は段 1 で材料レポートを
+  `docs/paper-story-backoff/` (backoff 単独論文) と読み、新しい凍結版を全面再導出する計画で
+  段 2 の子を起動した。実際の対象は本体論文 `docs/paper-story/` の見送り台帳 §8 の項目 B-10 で
+  あり、両者は「別物であり『backoff の機序』の一語で束ねない」と**両系列の文書が明示していた**。
+  親は段 2 の子の走行中に自力で気づき、brief を v2 として書き直して子をもう 1 本立てた。
+  成果物への実害は無いが、Codex 子 1 本 (model call 38) が本題に使われなかった。
+- 根本原因: 「材料レポート」は repo 内で複数の意味に使われる語である。roadmap と `CLAUDE.md` では
+  層3の機械射影成果物を指すが、worklog と failures には「材料レポート = その wave の insight」と
+  いう用例が多数ある。依頼文の中でその曖昧さを解く鍵は**識別子 `B-10`** だったが、親はそれを
+  段 1 の brief を書く前に台帳へ引いていなかった。`DW-S01` は変更面を実アンカー表で渡すことを
+  求めるが、**成果物 path の同定根拠**までは要求していない。曖昧な成果物名は
+  「分類でなく実アンカー」の対象外に落ちていた。
+- 恒久対応: memory `deliverable-identity-resolve-before-brief` — 依頼が成果物を一般名で指すなら、
+  一般名と依頼中の識別子の両方で台帳・docs を検索し、両者が別を指したら識別子の側を採り、
+  成果物 path と同定根拠を段 1 の brief に書く。`docs/dev-wave/core.md` の `DW-S01` への収容は
+  試みたが、L1 の unique footprint が 10,795 bytes となり予算 10,625 bytes を超えたので採らなかった。
+  単発事故であり `DW-G03` (族一般化には独立 2 例) にも掛かる。**2 例目が出たら共有 docs へ上げる。**
+- 再発検知: 段 3 の敵対相談のレンズに「成果物の同定根拠が brief にあるか、無ければ何を根拠に
+  その path を選んだか」を含める。今回は親が自力で見つけたため、この検知は未発火である。
+
+### F929. レビューの是正案をそのまま実装し、根拠の裁定より強い断定を書いた [権限逸脱]
+
+- 事象: 段 6 のレビューが「A-2 の候補段落を現在化した結果、fig5 の恒久 erratum の期限条件
+  (『取り直しまで』) が満了したように読める」という real な所見を出した。親は是正として
+  「その用途制限は新しい attempt があっても変わらない」と書いた。**これは根拠であるユーザー裁定
+  D1645 より強い断定である。** D1645 の逐語は「論文素材からは、正しい identity で取り直した
+  attempt が出るまで A-2 の結論を外す」であり、期限条件つきの除外を定めている。親には期限条件を
+  無期限へ読み替える権限が無い。焦点再レビューへ出す前に親が D1645 の現物を読み直して撤回し、
+  「本節は D1645 の条件を満たすかどうかを判定していない。したがって除外と用途制限は解除せず
+  そのまま有効なものとして扱う」へ改めた。**着地はしていない。**
+- 根本原因: 所見が real であることと、**レビューが添えた是正案を採ってよいこと**を区別しなかった。
+  所見は「入口が矛盾して読める」で正しく、是正案は「無期限の制限へ統一する」だった。後者は裁定の
+  変更を含むのに、親は所見の real 判定をそのまま是正案の採用根拠に流用した。`DW-S04` が持つ
+  「承認済み裁定は親が不採用にせずユーザー再裁定へ返す」境界は、裁定を弱める方向だけでなく
+  **強める方向にも掛かる**が、その字面は弱める側しか書いていない。
+- 恒久対応: memory `reviewer-remedy-can-override-a-ruling` — 段 6 の fix を書いたら、その fix が
+  引用・依拠する D 番号の逐語を読み直し、fix の文がその逐語より強い断定になっていないか照合する。
+  `docs/dev-wave/workers.md` の `DW-S06-C` への収容は試みたが、L1.5 の unique footprint が
+  9,941 bytes となり予算 9,696 bytes を超えたので採らなかった。単発事故であり `DW-G03` にも掛かる。
+- 再発検知: 上記の照合を段 6 の fix 直後に行う。今回はこの照合で発見した。
+
+### F930. Codex 実装子が `.codex/**` へ書けず段 5 が途中停止した [手順漏れ] [誤前提]
+
+- 事象: [T-2249] wave の段 5 実装子が、role 定義と `SOURCE_FILE_SHA256` の更新までは終えたが、
+  生成物 `.codex/role-adapters/{coder-v4-autonomous,planner-v4}.json` の更新で
+  `patch rejected: writing outside of the project; rejected by user approval settings` を受けて停止した。
+  `test -w` も rc=1 だった。作業 root を `.codex/worktrees/t2249-author` から
+  `.claude/worktrees/dev-wave-t2249-role-example-delta` へ移して継続子を投げても同じだった。
+  段 5 が 2 本の実装子を消費し、adapter は 1 bit も書けなかった。
+- 根本原因: `codex exec --sandbox workspace-write` は `.codex/` を自身の設定領域として
+  書込禁止にしている。**path 依存ではない構造的制約**で、作業 root を変えても直らない。
+  段 1 の変更面棚卸しは「`.codex/` 配下の非 `.md` は D95 の実装面だから実装子が書く」と
+  分類したが、**実装子が実際に書けるかを起動前に実測していなかった**。
+  1 回目の拒否を「作業 root が `.codex/` 配下だから」と読んだのも誤前提だった。
+- 恒久対応: memory `codex-children-cannot-write-dot-codex` — 段 1 の変更面棚卸しで `.codex/**` の
+  非 `.md` を含む wave は実装子起動前に `test -w` を実測し、書けないなら段 4 で「誰が書くか」を
+  決める。生成物は親が repo 自身の renderer の出力で render し、**書く前に**旧版との field 単位比較で
+  「変わる pointer 集合が exact 一致・key set 不変」を検算してから書く。
+  `AI-Agent: product=claude; ...; role=integrator; scope=patch-and-render` で記録する。
+  `.codex/**` を D95 の適用外と明文化するか D105 の `AI-Agent-Waiver` を要求するかは
+  D1861 で裁定パッケージへ送った。
+- 再発検知: 段 6 の敵対レビュー 1 本へ「親が書いた bytes が renderer の出力そのもので人手の判断が
+  混じっていないこと」を独立に再計算させる。本 wave では byte 一致・4 pointer・key set 不変を
+  レビューが独立に確認した (レビューは著者性の代替にしないので、機構で確かめさせる)。
+
+### F931. 変異 wrapper の共有木不変検査が並行 wave の worktree 増減で破れ、2 分の走行が中止した [手順漏れ]
+
+- 事象: [T-2249] wave の変異本走を `tools/mutation_worktree.py` で投げ、約 2 分で
+  `共有木の事後検査に失敗: source/main 共有木の観測 bytes が変化した`
+  (`shared_snapshot_matches: false`) で中止した。container が保持され、8 走のうち 0 走が完了した。
+- 根本原因: 同 wrapper は `git status --porcelain=v1 --untracked-files=all --ignore-submodules=none` の
+  stdout bytes を source worktree と**主 checkout**の両方で取り、前後一致を要求する。
+  主 checkout のこの出力は `?? .codex/worktrees/<name>/` を 1 行ずつ含み、実測 **171 行**あった。
+  並行 session が codex 実装子・fix 子の worktree を作る/消すたびに bytes が変わる。
+  19 job が並走する状況では、2 分でも破れる。HEAD の前進では破れない
+  (`--porcelain=v1` は branch/HEAD を出さない) — 破るのは `.codex/worktrees/` の増減である。
+- 恒久対応: memory `mutation-worktree-shared-observation-fails-under-churn` — 変異本走は
+  `tools/mutation_harness.py` を job dir 内の専用 detached worktree
+  (`git worktree add --detach <job dir>/mutation-tree <統合 commit>`) に対して直接使う。
+  主 tree を変異させない性質 (DW-O19 の目的) と、harness 自身の固定 HEAD 束縛・起動/復元の内容比較・
+  `flock` 単一走行・signal 復元は保たれる。失うのは wrapper の共有木 attestation だけで、
+  それはこの環境では成立しない。wrapper 経路を選ぶ前に主 checkout で
+  `git status --porcelain=v1 --untracked-files=all --ignore-submodules=none | wc -l` を数える。
+- 再発検知: 上記の行数計測が数十行を超えていたら wrapper 経路を選ばない。中止した wrapper の
+  container は `rm -rf <scratch>/.izanagi-mutation-worktree` の後 `git worktree prune` まで行う。
+
+### F932. D612 の dispatch 上書きを変異 spec の timeout より大きくして、変異走行が 1 走も始まらなかった [手順漏れ]
+
+- 事象: dispatch 混雑を避けるため D612 の
+  `IZANAGI_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE=3600` /
+  `IZANAGI_DISPATCH_OVERALL_GRACE_OVERRIDE=600` を設定して変異本走を投げたところ、harness が
+  `mutation harness aborted: mutation collection の外側 timeout が明示された dispatch 待機契約より短い:
+  timeout_seconds=900.0, queue_wait_timeout_s=3600.0, overall_grace_s=600.0`
+  で起動時に fail-closed した。8 走のうち 0 走が始まらなかった。
+- 根本原因: `DW-O13` の「内側予算の和 + 終了余裕 < 外側 watchdog」を、**dispatch 待機 (内側) と
+  変異 collection の `timeout_seconds` (外側) の関係**へ適用していなかった。受入走行で有効だった
+  上書きを、spec を見直さずに変異走行へ持ち込んだ。
+- 恒久対応: memory `mutation-timeout-includes-dispatch-queue-wait` へ追記 —
+  spec の `timeout_seconds` は `queue_wait_timeout_s + overall_grace_s` より大きくする。
+  実際に通した組は queue_wait=1200 / grace=300 / `timeout_seconds`=2400 /
+  `hang_timeout_seconds`=3000 (job walltime 3600 未満、`DW-M06`)。
+- 再発検知: harness 自身が起動時に fail-closed で拒否する (既に機械化済み)。
+  spec を変えると sha256 が変わり `--resume` は使えないので、新しい `--out` / `--attempt-out` で走り直す。
