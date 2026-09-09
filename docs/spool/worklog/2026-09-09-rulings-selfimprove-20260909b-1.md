@@ -28,8 +28,13 @@ title: /rulings 全件 第 17 回 — 索引 52 件と推奨を出し、相談�
   覆っているか確かめられなかった 2 点 (対象集合・統計関数) を索引に残した。
 - **別系統モデル 4 本を起動した** (索引構成の当否・索引漏れ・推奨の当否を前半後半に 2 分割、いずれも
   consult 段・read-only・reasoning=high)。**4 本とも本文を出したが receipt は `not_accepted` で、
-  `stop_reason` は `max_attempts` だった** (model call 33 ほか、上限 100 と 3600 秒には未達)。
+  `stop_reason` は `max_attempts` だった** (model call は 31〜46、上限 100 と 3600 秒には未達)。
   内容は現物照合に使い、不受理の事実は索引の冒頭に出した。
+- **`--lane luna` を渡した 2 本も `recorded_model` は `gpt-5.6-sol` だった。** 4 本の
+  `requested_model` / `recorded_model` はすべて `gpt-5.6-sol` である。lane は必須引数だが、
+  少なくとも本回の経路では model を切り替えていない。別系統 (Claude に対する Codex) である点は
+  保たれるが、**2 lane を「別々の model 2 本」と数えてはいけない。**同じ model に別の問いを
+  投げた 2 本である。{{T:codex-consult-receipt-not-accepted}} と同じ切り分けで扱う。
 - **自己改善の gate が 3 型で発火した。** (1) 出力規則が誤解を招いた — `all` 指定で索引だけを出したところ、
   ユーザーは推奨が既に Codex と相談済みだと思っていた。(2) 正本との食い違い — command が
   「AI 側の待ちは載せない」と書く一方 D1836 が AI 手番 7 件の収載を命じていた。(3) 前回が `all` で
