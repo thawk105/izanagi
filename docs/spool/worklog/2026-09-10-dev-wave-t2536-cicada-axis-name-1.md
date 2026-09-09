@@ -42,10 +42,18 @@ title: [T-2536] genome 軸名を CCBench 実体の CMake cache 変数へ合わ�
   付けて再投入し、20 file が 1744 passed / 23 skipped で緑になった (130.92s)。
 - **セッション異常 2:** 親が自分で掛けた 900 秒の timeout で 1 回目の単独走が rc=124 で切れた。
   出力は 1 行も flush されていなかった。赤ではない。
-- **変異走行の手順で 2 つの門に当たった** (段 8 で `docs/dev-wave/mutation.md` へ収容)。
-  (a) spec / out / attempt-out は試験対象 checkout の外に置く必要がある。insight dir へ置いたら
-  起動前に拒否された。(b) spec の `timeout_seconds` は dispatch 待機契約 (queue_wait + grace) 以上で
-  なければならない。D612 上書きを使うと 4200 秒以上が要る。
+- **変異走行の手順で 2 つの門に当たった。** (a) spec / out / attempt-out は試験対象 checkout の外に
+  置く必要がある。insight dir へ置いたら起動前に拒否された。(b) spec の `timeout_seconds` は
+  dispatch 待機契約 (queue_wait + grace) 以上でなければならない。D612 上書きを使うと 4200 秒以上が要る。
+  **段 8 でこの 2 件は収容しないと裁定した。** D730 の手順どおり収容先を探したが、L1.5 層は残り
+  2 bytes、`DW-M07` は 11 bytes、`DW-O19` は 40 bytes しか空いておらず、どこにも意味を保って
+  入らない。上限引き上げまで進めなかったのは、**どちらの義務も harness が起動前に fail-closed で
+  拒否しており、機械代替済みの義務へ予算を割く形になる**ためである (D271 の鏡像基準)。
+  誤っても即座に rc≠0 で、正確な理由文が出る。
+- **段 8 で 1 件だけ収容した。** `DW-O12` の「最終受入投入は `DW-S07` の記録 commit 完了後」は、
+  段 8 が commit を作る wave では不足である。本 wave は記録 commit 直後に受入を投げ、その後
+  段 8 の commit を積んだため、受入をやり直すことになった。こちらは機械代替が無く、
+  land の rc=23 まで発覚しない。`DW-O12` を「`DW-S07` と段 8 の commit 完了後」へ直した (+3 bytes)。
 - **変異は probe → 本走の 2 段で回した。** probe は全件 SURVIVED で登録して観測 node を集め、
   本走 spec はその実測から機械生成した。本走は 5/5 KILLED、期待 node 完全一致、baseline PASSED。
   runner argv は `orchestrator/tests/test_pegasus_calibration_workload.py` 1 本に限った —
