@@ -1,0 +1,19 @@
+{
+  "meta": {
+    "count": 3,
+    "per_page": 2,
+    "next_cursor": null,
+    "x_query": {
+      "oql": "title_and_abstract.search:(backoff)",
+      "oqo": {
+        "join": "and",
+        "filters": [
+          {"title_and_abstract.search": "backoff"}
+        ]
+      }
+    }
+  },
+  "results": [
+    {"id": "https://openalex.org/W1000000003"}
+  ]
+}
