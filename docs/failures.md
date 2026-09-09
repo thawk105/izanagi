@@ -8746,6 +8746,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   いずれも登録簿と F660 に触れる)。判別 = 同一 checkout の gitdir を共有する job が複数走るとき、
   どれか 1 本でも `worktree prune` を打つなら他は生きていても落ちる。記録は
   `output/insights/2026-09-07_t2320-backoff-sweep-gate-layer2/README.md` §5。
+- **supersede: 2026-09-09** — 2026-09-07 再発の「対応は裁定へ返した」は D1700 として裁定され、A-5 job 本体からの共有 gitdir prune 撤去として着地した ([T-2354])。job 本体の掃除は自 path の `worktree remove --force` だけになり、remove 失敗時は残置 path を receipt へ明示する。
 ### F252. 汚染判定器が sandbox の方針拒否を誤検知した [計測汚染]
 
 - 事象: 上記の汚染を検出する判定器で `Rejected(...)` を徴候に使ったところ、第 2 走の 1 cell を
@@ -23537,6 +23538,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   委ねられる。合成 merge より安く、閾値も一切下げない。この抜け方が使えるのは
   **main 側の被覆に余裕がある場合だけ**で、余裕が 1 node 未満のときは F902 の恒久対応どおり
   producer による合成が要る。判定は受入 1 回目の被覆分数を反実仮想と突き合わせて行う。
+- **supersede: 2026-09-09** — 「main 側の余裕は 1 node 未満」は 2026-09-09 時点では解消している。[T-2354] が test node を 2 件足した状態でも被覆 gate は登録前から緑で、`test_acceptance_schedule_order.py` は 79 passed だった。登録は F902 の恒久対応どおり正本 producer の `--add-only` で行った。
 ### F903. 受入台帳の `nodeid_count` が、test node を足す wave 同士の必然的な衝突点になっている [資源競合]
 
 - 事象: 受入全走の post-claim merge が `stage=merge rc=70 source_rc=1` で落ち、受入 attempt を
