@@ -261,6 +261,15 @@ repo HEAD は `0b8c5bfa3`。
    レビュー A が挙げた論点で、`pgrep` による競合 probe は「他の CCBench が走っていないか」を
    見るだけで、scheduler の資源所有を証明しない。**17 分 37 秒という所要も、兄弟側の検査が
    割当の資源保証の下で走ったことを前提にしていない。**
+   - **追記 (2026-09-09、[T-2486])。** 本 attempt とは**別の request `986762.nqsv`** (3 ノード) で
+     この点だけを測った。結果は
+     `output/insights/2026-09-09_t2486-ssh-cgroup-equivalence/README.md`。
+     ssh session は rank 側とは別の cgroup object (systemd の login session scope) に入り、
+     それは rank の終了とは無関係だった。ただし **per-job の cgroup 境界は rank 側にも無く**、
+     cpuset と task affinity はどちらの側も全 48 CPU である。
+     **本 attempt (`986046.nqsv`) の観測ではないので、上の記述はそのまま残す。**
+     17 分 37 秒は実測 elapsed として不変であり、A-6 の正しさ結論も変わらない
+     (D1810 決定 3 は遠隔結果の権威を HMAC に置いており、資源保証に置いていない)。
 3. **`/scr` の後始末が失敗しても成功 result からは分からない。** worker は result を publish した
    後に task root を消し、失敗を stderr へ出すだけで、成功経路では永続化しない。
 4. **遠隔実行に walltime より短い総 timeout が無い。** ssh の `subprocess.run` に timeout が無く、
