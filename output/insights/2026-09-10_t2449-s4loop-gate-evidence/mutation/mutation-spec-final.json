@@ -1,0 +1,161 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 600,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1500,
+  "mutations": [
+    {
+      "id": "m01-rc-branch-drops-argv",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_run_process_argv_detail_is_bounded_and_marks_truncation",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_run_process_real_failures_report_exact_argv_and_stderr"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "            f\"process returned rc={completed.returncode}; \"\n            f\"stderr={completed.stderr[-500:]!r}; \"\n            f\"argv={_bounded_process_argv_detail(run_argv)}\",\n",
+          "new": "            f\"process returned rc={completed.returncode}; \"\n            f\"stderr={completed.stderr[-500:]!r}\",\n"
+        }
+      ]
+    },
+    {
+      "id": "m02-stderr-branch-drops-argv",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_run_process_real_failures_report_exact_argv_and_stderr"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "            f\"successful process wrote stderr={completed.stderr[-500:]!r}; \"\n            f\"argv={_bounded_process_argv_detail(run_argv)}\",\n",
+          "new": "            f\"successful process wrote stderr={completed.stderr[-500:]!r}\",\n"
+        }
+      ]
+    },
+    {
+      "id": "m03-formatter-reraises",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_run_process_argv_detail_failure_preserves_original_rejection"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "    except Exception:\n        return _PROCESS_ARGV_DETAIL_UNAVAILABLE\n",
+          "new": "    except Exception:\n        raise\n"
+        }
+      ]
+    },
+    {
+      "id": "m04-truncation-drops-full-argv-sha256",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_run_process_argv_detail_is_bounded_and_marks_truncation",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_run_process_truncated_argv_detail_binds_full_command_and_short_is_unchanged"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "            f\"original={len(encoded)} bytes; \"\n            f\"sha256={_sha256(encoded)}>\"\n",
+          "new": "            f\"original={len(encoded)} bytes>\"\n"
+        }
+      ]
+    },
+    {
+      "id": "m05-never-persists",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_condition_gate_partial_temp_write_failure_leaves_no_final_or_temp",
+        "orchestrator/tests/test_p3_s4_loop.py::test_condition_gate_rejection_persists_records_by_digest_across_retry",
+        "orchestrator/tests/test_p3_s4_loop.py::test_condition_gate_serialization_failure_preserves_gate_rejection",
+        "orchestrator/tests/test_p3_s4_loop.py::test_condition_gate_unwritable_destinations_preserve_gate_rejection"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "        if evidence_root:\n",
+          "new": "        if False:\n"
+        }
+      ]
+    },
+    {
+      "id": "m06-persists-supply-only",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_condition_gate_partial_temp_write_failure_leaves_no_final_or_temp",
+        "orchestrator/tests/test_p3_s4_loop.py::test_condition_gate_rejection_persists_records_by_digest_across_retry",
+        "orchestrator/tests/test_p3_s4_loop.py::test_condition_gate_serialization_failure_preserves_gate_rejection",
+        "orchestrator/tests/test_p3_s4_loop.py::test_condition_gate_unwritable_destinations_preserve_gate_rejection"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "            records = (\n                (\"supply\", supply, \"record_digest\"),\n                (\"meaning\", meaning, \"record_digest\"),\n                (\"admission\", admission, \"admission_digest\"),\n            )\n",
+          "new": "            records = (\n                (\"supply\", supply, \"record_digest\"),\n            )\n"
+        }
+      ]
+    },
+    {
+      "id": "m07-writes-final-name-directly",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_condition_gate_partial_temp_write_failure_leaves_no_final_or_temp",
+        "orchestrator/tests/test_p3_s4_loop.py::test_condition_gate_rejection_persists_records_by_digest_across_retry"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "        _write_condition_gate_temp(temporary_path, canonical_bytes)\n        os.replace(temporary_path, output_path)\n",
+          "new": "        _write_condition_gate_temp(output_path, canonical_bytes)\n"
+        }
+      ]
+    },
+    {
+      "id": "m08-drops-directory-fsync",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_condition_gate_rejection_persists_records_by_digest_across_retry"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "        _fsync_condition_gate_directory(output_path.parent)\n",
+          "new": "        pass\n"
+        }
+      ]
+    },
+    {
+      "id": "m09-detail-absent-branch-emits-none",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_condition_gate_rejection_persists_records_by_digest_across_retry"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "                rejection_parts.append(\n                    f\"{label}_evidence_keys={sorted(record.evidence.keys())}\"\n                )\n",
+          "new": "                rejection_parts.append(f\"{label}_detail=None\")\n"
+        }
+      ]
+    }
+  ]
+}
