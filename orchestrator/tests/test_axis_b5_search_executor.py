@@ -405,19 +405,26 @@ def _run_successful_live_preflight(
     return record, output, issued
 
 
-def test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal(
-    tmp_path: Path,
-) -> None:
-    cache_directory = ROOT / "orchestrator/axis_b5_search/__pycache__"
-    cache_directory.mkdir(exist_ok=True)
-    cache_file = cache_directory / "axis_b5_registration_probe.pyc"
-    cache_file.write_bytes(b"ignored bytecode probe")
-    try:
-        result = verify_registration(
-            COMMIT, repo_root=ROOT, git_backend=_worktree_git()
-        )
-    finally:
-        cache_file.unlink()
+def test_worktree_scan_excludes_pycache_and_pyc(tmp_path: Path) -> None:
+    relative_root = "orchestrator/axis_b5_search"
+    source_directory = tmp_path / relative_root
+    source_directory.mkdir(parents=True)
+    (source_directory / "registered.py").write_bytes(b"REGISTERED = True\n")
+    (source_directory / "standalone.pyc").write_bytes(b"ignored bytecode")
+    cache_directory = source_directory / "__pycache__"
+    cache_directory.mkdir()
+    (cache_directory / "registered.cpython-312.pyc").write_bytes(
+        b"ignored cached bytecode"
+    )
+
+    assert preflight_module._walk_files(tmp_path, relative_root) == {
+        "orchestrator/axis_b5_search/registered.py"
+    }
+
+
+def test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal() -> None:
+    head = preflight_module.SubprocessGit(ROOT).head()
+    result = verify_registration(head, repo_root=ROOT)
     assert result.passed is True
     assert result.reason_code is None
     assert result.seal_record is not None
@@ -432,23 +439,6 @@ def test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal(
         "orchestrator/axis_b5_search/runner.py",
     }.issubset(sealed_paths)
 
-    fake_repo, fake_backend = _registration_repo(tmp_path)
-    fake = verify_registration(
-        COMMIT, repo_root=fake_repo, git_backend=fake_backend
-    )
-    assert fake.passed is False
-    assert fake.reason_code == "module_path_mismatch"
-
-
-def test_registration_rejects_extra_file_in_exact_directory(tmp_path: Path) -> None:
-    repo, backend = _registration_repo(tmp_path)
-    extra = repo / "orchestrator/axis_b5_search/unregistered_extra.py"
-    extra.write_text("EXTRA = True\n", encoding="utf-8")
-    result = verify_registration(COMMIT, repo_root=repo, git_backend=backend)
-    assert result.passed is False
-    assert result.reason_code == "registered_path_set_mismatch"
-    assert "unregistered_extra.py" in result.detail
-
 
 def test_registration_rejects_invalid_or_non_head_commit(tmp_path: Path) -> None:
     repo, backend = _registration_repo(tmp_path)
@@ -458,8 +448,25 @@ def test_registration_rejects_invalid_or_non_head_commit(tmp_path: Path) -> None
     assert mismatch.reason_code == "head_mismatch"
 
 
-def test_registration_rejects_dirty_mode_and_byte_mismatches(tmp_path: Path) -> None:
-    repo, backend = _registration_repo(tmp_path)
+def test_registration_rejects_path_module_mode_and_byte_mismatches(
+    tmp_path: Path,
+) -> None:
+    repo, backend = _registration_repo(tmp_path / "extra")
+    extra = repo / "orchestrator/axis_b5_search/unregistered_extra.py"
+    extra.write_text("EXTRA = True\n", encoding="utf-8")
+    path_mismatch = verify_registration(COMMIT, repo_root=repo, git_backend=backend)
+    assert path_mismatch.passed is False
+    assert path_mismatch.reason_code == "registered_path_set_mismatch"
+    assert "unregistered_extra.py" in path_mismatch.detail
+
+    fake_repo, fake_backend = _registration_repo(tmp_path / "module")
+    module_mismatch = verify_registration(
+        COMMIT, repo_root=fake_repo, git_backend=fake_backend
+    )
+    assert module_mismatch.passed is False
+    assert module_mismatch.reason_code == "module_path_mismatch"
+
+    repo, backend = _registration_repo(tmp_path / "dirty")
     backend.status = lambda paths: b" M orchestrator/axis_b5_search/registered.py\n"  # type: ignore[method-assign]
     dirty = verify_registration(COMMIT, repo_root=repo, git_backend=backend)
     assert dirty.reason_code == "registration_paths_dirty"
