@@ -1,5 +1,19 @@
 {
   "duration_seconds_by_nodeid": {
+    "orchestrator/tests/test_related_work_search.py::test_host_pacing_uses_actual_pre_send_time_and_persists_across_limiters": 0.42,
+    "orchestrator/tests/test_related_work_search.py::test_preflight_report_observed_interval_is_nonblocking_n3": 2.6,
+    "orchestrator/tests/test_related_work_search.py::test_cooldown_and_missing_limiter_state_survive_new_instance": 0.22,
+    "orchestrator/tests/test_related_work_search.py::test_final_retryable_tail_remains_nonfinalizable": 0.001,
+    "orchestrator/tests/test_related_work_search.py::test_http_failure_cannot_be_followed_by_inline_success": 0.12,
+    "orchestrator/tests/test_related_work_search.py::test_live_session_records_issue_time_immediately_before_transport_send": 0.14,
+    "orchestrator/tests/test_related_work_search.py::test_packed_wal_commits_transport_failure_without_pending_intent": 0.32,
+    "orchestrator/tests/test_related_work_search.py::test_preflight_does_not_swallow_non_transport_contract_errors": 1.45,
+    "orchestrator/tests/test_related_work_search.py::test_preflight_exhausts_four_dblp_transport_attempts_then_cools_down": 6.14,
+    "orchestrator/tests/test_related_work_search.py::test_preflight_retries_live_transport_and_never_retries_http_status": 5.61,
+    "orchestrator/tests/test_related_work_search.py::test_preflight_wal_accepts_four_transport_attempts_and_rejects_fifth": 0.003,
+    "orchestrator/tests/test_related_work_search.py::test_resume_pacing_intervals_are_unmeasured_null": 0.001,
+    "orchestrator/tests/test_related_work_search.py::test_transport_exception_materializes_pending_attempt_before_reraise": 1.7,
+    "orchestrator/tests/test_related_work_search.py::test_wire_budget_rejection_precedes_attempt_intent": 0.061,
     "orchestrator/tests/test_silo_validation_isolation.py::test_cmake_trace_default_reports_macro_closure_intersections": 0.16,
     "orchestrator/tests/test_silo_validation_isolation.py::test_claim_boundary_records_every_required_non_guarantee": 0.17,
     "orchestrator/tests/test_silo_validation_isolation.py::test_claim_boundary_records_unmodeled_implicit_lifetime_edges": 0.18,
@@ -22178,7 +22192,7 @@
     "orchestrator/tests/test_t1998_stock_inline_pair.py::test_unstable_arm_is_inconclusive[target]": 0.0,
     "orchestrator/tests/test_t1998_stock_inline_pair.py::test_verify_environment_tag_drift_is_rejected": 0.0
   },
-  "nodeid_count": 22177,
+  "nodeid_count": 22191,
   "schema_version": 1,
   "unit": "seconds"
 }
