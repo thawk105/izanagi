@@ -1,0 +1,145 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 300,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "m1-drop-base-projection",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_launcher.py",
+          "old": "    if driver_kind == \"base\":\n        site = p3_s4_loop._current_site()\n        contract = p3_s4_loop._admit_env_contract(site)\n        configs = tuple(\n            p3_s4_loop._campaign_cfg_for_site(\n                cfg, site, _contract=contract,\n            )\n            for cfg in configs\n        )\n    elif driver_kind == \"trigger\":",
+          "new": "    if driver_kind == \"trigger\":"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_launcher.py::test_base_driver_configs_bind_resolved_contract_for_both_admitted_sites",
+        "orchestrator/tests/test_p3_b4_launcher.py::test_base_driver_configs_project_both_arms_for_pegasus_compute",
+        "orchestrator/tests/test_p3_b4_launcher.py::test_base_driver_configs_project_pegasus_compute_for_off_launch_context",
+        "orchestrator/tests/test_p3_b4_launcher.py::test_base_driver_configs_reject_unadmitted_pegasus_sites[login]",
+        "orchestrator/tests/test_p3_b4_launcher.py::test_base_driver_configs_reject_unadmitted_pegasus_sites[suspect]",
+        "orchestrator/tests/test_p3_b4_launcher.py::test_base_launcher_pegasus_context_passes_real_authorization_and_g4"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-marker-without-contract-bind",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_launcher.py",
+          "old": "            p3_s4_loop._campaign_cfg_for_site(\n                cfg, site, _contract=contract,\n            )",
+          "new": "            (replace(\n                cfg,\n                search_config={\n                    **cfg.search_config,\n                    p3_s4_loop._CAMPAIGN_ENV_KEY:\n                        p3_s4_loop._SITE_ENV_TAGS[site],\n                },\n            ) if site == p3_s4_loop.site_policy.PEGASUS_COMPUTE else cfg)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_launcher.py::test_base_driver_configs_bind_resolved_contract_for_both_admitted_sites"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-widen-branch-to-sort",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_launcher.py",
+          "old": "    if driver_kind == \"base\":\n        site = p3_s4_loop._current_site()",
+          "new": "    if driver_kind in {\"base\", \"sort\"}:\n        site = p3_s4_loop._current_site()"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_launcher.py::test_sort_driver_configs_remain_unprojected_on_pegasus_compute"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-hardcode-other-site",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_launcher.py",
+          "old": "        site = p3_s4_loop._current_site()",
+          "new": "        site = p3_s4_loop.site_policy.OTHER"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_launcher.py::test_base_driver_configs_bind_resolved_contract_for_both_admitted_sites",
+        "orchestrator/tests/test_p3_b4_launcher.py::test_base_driver_configs_project_both_arms_for_pegasus_compute",
+        "orchestrator/tests/test_p3_b4_launcher.py::test_base_driver_configs_project_pegasus_compute_for_off_launch_context",
+        "orchestrator/tests/test_p3_b4_launcher.py::test_base_driver_configs_reject_unadmitted_pegasus_sites[login]",
+        "orchestrator/tests/test_p3_b4_launcher.py::test_base_driver_configs_reject_unadmitted_pegasus_sites[suspect]",
+        "orchestrator/tests/test_p3_b4_launcher.py::test_base_launcher_pegasus_context_passes_real_authorization_and_g4"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m5-equivalent-trigger-helper",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_launcher.py",
+          "old": "            p3_s4_loop._campaign_cfg_for_site(\n                cfg, site, _contract=contract,\n            )",
+          "new": "            p3_s4_loop_trigger_gating._campaign_cfg_for_site(\n                cfg, site, _contract=contract,\n            )"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m6-projection-only-for-on-arm",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_launcher.py",
+          "old": "    if driver_kind == \"base\":\n        site = p3_s4_loop._current_site()",
+          "new": "    if driver_kind == \"base\" and context.arm == \"on\":\n        site = p3_s4_loop._current_site()"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_launcher.py::test_base_driver_configs_project_pegasus_compute_for_off_launch_context"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m7-round-unadmitted-sites-to-other",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_launcher.py",
+          "old": "        site = p3_s4_loop._current_site()\n        contract = p3_s4_loop._admit_env_contract(site)",
+          "new": "        site = p3_s4_loop._current_site()\n        if site not in {\n            p3_s4_loop.site_policy.OTHER,\n            p3_s4_loop.site_policy.PEGASUS_COMPUTE,\n        }:\n            site = p3_s4_loop.site_policy.OTHER\n        contract = p3_s4_loop._admit_env_contract(site)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_launcher.py::test_base_driver_configs_reject_unadmitted_pegasus_sites[login]",
+        "orchestrator/tests/test_p3_b4_launcher.py::test_base_driver_configs_reject_unadmitted_pegasus_sites[suspect]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m8-sort-contract-bind-only",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_launcher.py",
+          "old": "    elif driver_kind == \"trigger\":\n        site = p3_s4_loop_trigger_gating._current_site()",
+          "new": "    elif driver_kind == \"sort\":\n        site = p3_s4_loop._current_site()\n        contract = p3_s4_loop._admit_env_contract(site)\n        configs = tuple(\n            ident.bind_environment_contract(cfg, contract)\n            for cfg in configs\n        )\n    elif driver_kind == \"trigger\":\n        site = p3_s4_loop_trigger_gating._current_site()"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_launcher.py::test_sort_driver_configs_remain_unprojected_on_pegasus_compute"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

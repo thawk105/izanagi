@@ -1,0 +1,78 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 300,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "m1-drop-base-projection",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_launcher.py",
+          "old": "    if driver_kind == \"base\":\n        site = p3_s4_loop._current_site()\n        contract = p3_s4_loop._admit_env_contract(site)\n        configs = tuple(\n            p3_s4_loop._campaign_cfg_for_site(\n                cfg, site, _contract=contract,\n            )\n            for cfg in configs\n        )\n    elif driver_kind == \"trigger\":",
+          "new": "    if driver_kind == \"trigger\":"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-marker-without-contract-bind",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_launcher.py",
+          "old": "            p3_s4_loop._campaign_cfg_for_site(\n                cfg, site, _contract=contract,\n            )",
+          "new": "            (replace(\n                cfg,\n                search_config={\n                    **cfg.search_config,\n                    p3_s4_loop._CAMPAIGN_ENV_KEY:\n                        p3_s4_loop._SITE_ENV_TAGS[site],\n                },\n            ) if site == p3_s4_loop.site_policy.PEGASUS_COMPUTE else cfg)"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-widen-branch-to-sort",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_launcher.py",
+          "old": "    if driver_kind == \"base\":\n        site = p3_s4_loop._current_site()",
+          "new": "    if driver_kind in {\"base\", \"sort\"}:\n        site = p3_s4_loop._current_site()"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-hardcode-other-site",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_launcher.py",
+          "old": "        site = p3_s4_loop._current_site()",
+          "new": "        site = p3_s4_loop.site_policy.OTHER"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m5-equivalent-trigger-helper",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_launcher.py",
+          "old": "            p3_s4_loop._campaign_cfg_for_site(\n                cfg, site, _contract=contract,\n            )",
+          "new": "            p3_s4_loop_trigger_gating._campaign_cfg_for_site(\n                cfg, site, _contract=contract,\n            )"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

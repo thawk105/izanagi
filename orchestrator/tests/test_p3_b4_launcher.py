@@ -13,6 +13,7 @@ from unittest import mock
 import pytest
 
 from orchestrator.campaign import backoff_hole_grammar
+from orchestrator.campaign import execution_guard
 from orchestrator.campaign import ident
 from orchestrator.campaign import p3_b4_admission_record as A
 from orchestrator.campaign import p3_b4_closed_critic as C
@@ -21,6 +22,7 @@ from orchestrator.campaign import p3_b4_protocol as B4P
 from orchestrator.campaign import p3_s4_loop as L
 from orchestrator.campaign import p3_s4_loop_sort as S
 from orchestrator.campaign import p3_s4_loop_trigger_gating as T
+from orchestrator.campaign import site_policy
 from orchestrator.campaign import wal
 from orchestrator.campaign.layout import CampaignLayout
 from orchestrator.campaign.model import STAGE_COMMIT, WalRecord
@@ -326,6 +328,248 @@ def test_m18_driver_registry_uses_real_main_object_identity():
     assert B4L.DRIVER_REGISTRY["base"] is L.main
     assert B4L.DRIVER_REGISTRY["sort"] is S.main
     assert B4L.DRIVER_REGISTRY["trigger"] is T.main
+
+
+def test_base_driver_configs_project_both_arms_for_pegasus_compute(monkeypatch):
+    """N1: the base launcher returns the driver-projected identities."""
+    monkeypatch.setattr(
+        site_policy,
+        "socket",
+        mock.Mock(gethostname=lambda: "bnode116"),
+    )
+    context = _test_context()
+    raw_configs = tuple(
+        L.default_cfg(
+            reflux=reflux,
+            b4_reflux_ablation=True,
+            _b4_launch_context=context,
+        )
+        for reflux in (True, False)
+    )
+    site = L._current_site()
+    assert site == site_policy.PEGASUS_COMPUTE
+    contract = L._admit_env_contract(site)
+    expected_configs = tuple(
+        L._campaign_cfg_for_site(cfg, site, _contract=contract)
+        for cfg in raw_configs
+    )
+
+    actual_configs = B4L._driver_configs("base", context)
+
+    for actual, raw, expected in zip(
+        actual_configs, raw_configs, expected_configs, strict=True,
+    ):
+        assert ident.campaign_id(actual) != ident.campaign_id(raw)
+        assert ident.campaign_id(actual) == ident.campaign_id(expected)
+
+
+def test_base_driver_configs_project_pegasus_compute_for_off_launch_context(
+    monkeypatch,
+):
+    """F1: the base projection also applies to an off launch context."""
+    monkeypatch.setattr(
+        site_policy,
+        "socket",
+        mock.Mock(gethostname=lambda: "bnode116"),
+    )
+    context = _test_context(arm="off")
+    raw_configs = tuple(
+        L.default_cfg(
+            reflux=reflux,
+            b4_reflux_ablation=True,
+            _b4_launch_context=context,
+        )
+        for reflux in (True, False)
+    )
+    site = L._current_site()
+    assert site == site_policy.PEGASUS_COMPUTE
+    contract = L._admit_env_contract(site)
+    expected_configs = tuple(
+        L._campaign_cfg_for_site(cfg, site, _contract=contract)
+        for cfg in raw_configs
+    )
+
+    actual_configs = B4L._driver_configs("base", context)
+
+    for actual, raw, expected in zip(
+        actual_configs, raw_configs, expected_configs, strict=True,
+    ):
+        assert ident.campaign_id(actual) != ident.campaign_id(raw)
+        assert ident.campaign_id(actual) == ident.campaign_id(expected)
+
+
+def test_base_driver_configs_bind_resolved_contract_for_both_admitted_sites(
+    monkeypatch,
+):
+    """N2: projection binds the exact resolved contract at both admitted sites."""
+    for hostname, expected_site in (
+        ("bnode116", site_policy.PEGASUS_COMPUTE),
+        ("developer-host", site_policy.OTHER),
+    ):
+        monkeypatch.setattr(
+            site_policy,
+            "socket",
+            mock.Mock(gethostname=lambda hostname=hostname: hostname),
+        )
+        site = L._current_site()
+        assert site == expected_site
+        contract = L._admit_env_contract(site)
+
+        configs = B4L._driver_configs("base", _test_context())
+
+        assert all(
+            cfg.bound_environment_contract == contract
+            for cfg in configs
+        ), f"hostname={hostname!r} expected_site={expected_site!r}"
+
+
+@pytest.mark.parametrize(
+    ("hostname", "expected_site"),
+    (
+        ("pegasus02", site_policy.PEGASUS_LOGIN),
+        ("pegasus-mystery", site_policy.PEGASUS_SUSPECT),
+    ),
+    ids=("login", "suspect"),
+)
+def test_base_driver_configs_reject_unadmitted_pegasus_sites(
+    monkeypatch, hostname, expected_site,
+):
+    """F2: base config projection fails closed at login and suspect sites."""
+    monkeypatch.setattr(
+        site_policy,
+        "socket",
+        mock.Mock(gethostname=lambda: hostname),
+    )
+    monkeypatch.setattr(site_policy, "_has_nqsv", lambda: True)
+    assert L._current_site() == expected_site
+
+    with pytest.raises(execution_guard.ExecutionGuardError) as exc_info:
+        B4L._driver_configs("base", _test_context())
+
+    assert type(exc_info.value) is execution_guard.ExecutionGuardError
+
+
+def test_base_launcher_pegasus_context_passes_real_authorization_and_g4(
+    tmp_path, monkeypatch,
+):
+    """N3: a launcher context passes the real driver boundary and G4."""
+    monkeypatch.setattr(
+        site_policy,
+        "socket",
+        mock.Mock(gethostname=lambda: "bnode116"),
+    )
+    admission = _committed_admission_fixture()
+    layouts = {}
+    observed = {}
+
+    def layout_for(campaign_id):
+        return layouts.setdefault(
+            campaign_id,
+            CampaignLayout(str(tmp_path / campaign_id)),
+        )
+
+    def driver_spy(_argv, *, _b4_launch_context):
+        site = L._current_site()
+        assert site == site_policy.PEGASUS_COMPUTE
+        contract = L._admit_env_contract(site)
+        driver_cfg = L._campaign_cfg_for_site(
+            L.default_cfg(
+                reflux=True,
+                b4_reflux_ablation=True,
+                _b4_launch_context=_b4_launch_context,
+            ),
+            site,
+            _contract=contract,
+        )
+        expected_campaign_id = str(ident.campaign_id(driver_cfg))
+        observed["context"] = _b4_launch_context
+        observed["authorization"] = B4L.require_b4_production_context(
+            _b4_launch_context,
+            expected_driver_kind="base",
+            expected_campaign_id=expected_campaign_id,
+            expected_arm="on",
+            boundary="base driver projection regression",
+        )
+        assert len(layouts) == 1
+        observed["g4"] = B4L.verify_b4_launch_context(
+            next(iter(layouts.values())),
+            expected_driver_kind="base",
+            expected_campaign_id=expected_campaign_id,
+            expected_arm="on",
+        )
+        return 29
+
+    monkeypatch.setattr(C, "REPOSITORY_ROOT", admission.repository)
+    monkeypatch.setattr(B4L, "exploration_campaign_layout", layout_for)
+    monkeypatch.setitem(B4L.DRIVER_REGISTRY, "base", driver_spy)
+
+    result = B4L.launch_bootstrap(
+        driver_kind="base",
+        arm="on",
+        admission_record_path=admission.record_path,
+        proposal_path=tmp_path / "proposal.json",
+        b4_prerun_publication=tmp_path / "publication",
+        b4_attempt_id="attempt-0000",
+    )
+
+    assert result == 29
+    assert observed["authorization"] is observed["context"]
+    assert observed["g4"] is observed["context"]
+
+
+def test_base_driver_configs_preserve_other_campaign_ids(monkeypatch):
+    """N4: OTHER keeps the raw campaign identities and no measurement marker."""
+    monkeypatch.setattr(
+        site_policy,
+        "socket",
+        mock.Mock(gethostname=lambda: "developer-host"),
+    )
+    context = _test_context()
+    raw_configs = tuple(
+        L.default_cfg(
+            reflux=reflux,
+            b4_reflux_ablation=True,
+            _b4_launch_context=context,
+        )
+        for reflux in (True, False)
+    )
+    assert L._current_site() == site_policy.OTHER
+
+    actual_configs = B4L._driver_configs("base", context)
+
+    for actual, raw in zip(actual_configs, raw_configs, strict=True):
+        assert ident.campaign_id(actual) == ident.campaign_id(raw)
+        assert "measurement_env" not in actual.search_config
+
+
+def test_sort_driver_configs_remain_unprojected_on_pegasus_compute(monkeypatch):
+    """N5: the base projection branch does not expand to sort."""
+    monkeypatch.setattr(
+        site_policy,
+        "socket",
+        mock.Mock(gethostname=lambda: "bnode116"),
+    )
+    context = _test_context(driver_kind="sort")
+    raw_configs = tuple(
+        S.default_cfg(
+            reflux=reflux,
+            b4_reflux_ablation=True,
+            _b4_launch_context=context,
+        )
+        for reflux in (True, False)
+    )
+    assert site_policy.current_site() == site_policy.PEGASUS_COMPUTE
+
+    actual_configs = B4L._driver_configs("sort", context)
+
+    assert tuple(map(ident.campaign_id, actual_configs)) == tuple(
+        map(ident.campaign_id, raw_configs)
+    )
+    assert tuple(
+        cfg.bound_environment_contract for cfg in actual_configs
+    ) == tuple(
+        cfg.bound_environment_contract for cfg in raw_configs
+    )
 
 
 def test_g9_bootstrap_uses_real_verifier_before_driver(tmp_path, monkeypatch):
