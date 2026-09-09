@@ -8,7 +8,9 @@ import functools
 import importlib.util
 import inspect
 import json
+import os
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -1399,6 +1401,160 @@ def test_performance_discharge_requires_s7_go(
         "single stock trace-disabled binary sandbox elapsed-overhead sample"
         not in receipt["r3_1_coverage"]["discharged_by_this_probe"]
     )
+
+
+def _prepare_execution_binding_repo(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> tuple[Path, Path, Path, Path]:
+    for name in (
+        "GIT_DIR",
+        "GIT_WORK_TREE",
+        "GIT_INDEX_FILE",
+        "GIT_COMMON_DIR",
+        "GIT_OBJECT_DIRECTORY",
+        "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+        "GIT_CONFIG_COUNT",
+        "GIT_CONFIG_PARAMETERS",
+        "GIT_AUTHOR_NAME",
+        "GIT_AUTHOR_EMAIL",
+        "GIT_COMMITTER_NAME",
+        "GIT_COMMITTER_EMAIL",
+        "GIT_TEMPLATE_DIR",
+    ):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    monkeypatch.setenv("GIT_DEFAULT_HASH", "sha1")
+
+    git = shutil.which("git")
+    assert git is not None
+    repo_root = (tmp_path / "repo").resolve()
+    repo_root.mkdir()
+    empty_template = tmp_path / "empty-git-template"
+    empty_template.mkdir()
+    bound_bytes = {
+        "orchestrator/campaign/condition_meaning_gate.py": b"# fixture condition gate\n",
+        "tools/pegasus/probes/t316_sandbox_backend_probe.py": b"print('fixture probe')\n",
+        "tools/pegasus/probes/t316_sandbox_backend_probe.pbs": b"#!/bin/bash\nexit 0\n",
+        "tools/pegasus/policies/t316_sandbox_backend_v1.json": b'{"fixture":"sandbox-policy"}\n',
+        "tools/pegasus/policy.json": b'{"fixture":"shared-policy"}\n',
+    }
+    assert len(set(bound_bytes.values())) == len(bound_bytes)
+    for relative, contents in bound_bytes.items():
+        path = repo_root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(contents)
+    repo_py = repo_root / "tools/pegasus/probes/t316_sandbox_backend_probe.py"
+    repo_pbs = repo_root / "tools/pegasus/probes/t316_sandbox_backend_probe.pbs"
+    assert repo_py.read_bytes() != repo_pbs.read_bytes()
+
+    subprocess.run(
+        [git, "-C", str(repo_root), "init", f"--template={empty_template}"],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    subprocess.run(
+        [git, "-C", str(repo_root), "add", "--all"],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    subprocess.run(
+        [
+            git,
+            "-C",
+            str(repo_root),
+            "-c",
+            "user.name=T316 Fixture",
+            "-c",
+            "user.email=t316-fixture@example.invalid",
+            "-c",
+            "commit.gpgsign=false",
+            "commit",
+            "-m",
+            "fixture",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    head = subprocess.run(
+        [git, "-C", str(repo_root), "rev-parse", "HEAD"],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    ).stdout.strip()
+    status = subprocess.run(
+        [
+            git,
+            "-C",
+            str(repo_root),
+            "status",
+            "--porcelain",
+            "--untracked-files=all",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert status.stdout == ""
+
+    runtime_pbs = (tmp_path / "runtime-spool.pbs").resolve()
+    runtime_pbs.write_bytes(repo_pbs.read_bytes())
+    nodefile = (tmp_path / "PBS_NODEFILE").resolve()
+    nodefile.write_text("compute-test.example\n", encoding="utf-8")
+    assert not runtime_pbs.is_relative_to(repo_root)
+    assert not nodefile.is_relative_to(repo_root)
+    monkeypatch.setattr(
+        probe.socket, "gethostname", lambda: "compute-test.example"
+    )
+    monkeypatch.setenv("PBS_JOBID", "12345.test")
+    monkeypatch.setenv("IZANAGI_T316_EXPECTED_COMMIT", head)
+    monkeypatch.setenv("IZANAGI_T316_EXPECTED_WORKTREE_ROOT", str(repo_root))
+    monkeypatch.setenv("PBS_NODEFILE", str(nodefile))
+    monkeypatch.setenv("IZANAGI_T316_RUNTIME_PBS", str(runtime_pbs))
+    return repo_root, repo_py, repo_pbs, runtime_pbs
+
+
+def test_execution_binding_binds_runtime_spool_to_pbs(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo_root, _repo_py, repo_pbs, _runtime_pbs = (
+        _prepare_execution_binding_repo(tmp_path, monkeypatch)
+    )
+    binding = probe._execution_binding(repo_root)
+    assert isinstance(binding, dict)
+    pbs_sha256 = probe._sha256_file(repo_pbs)
+    assert binding["runtime_sha256"]["runtime_pbs_spool"] == pbs_sha256
+    assert (
+        binding["runtime_sha256"][
+            "tools/pegasus/probes/t316_sandbox_backend_probe.pbs"
+        ]
+        == pbs_sha256
+    )
+
+
+def test_execution_binding_rejects_runtime_spool_matching_python_instead_of_pbs(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo_root, repo_py, _repo_pbs, runtime_pbs = (
+        _prepare_execution_binding_repo(tmp_path, monkeypatch)
+    )
+    runtime_pbs.write_bytes(repo_py.read_bytes())
+    with pytest.raises(
+        ValueError,
+        match="^runtime PBS bytes differ from worktree PBS bytes$",
+    ):
+        probe._execution_binding(repo_root)
 
 
 def _run() -> int:

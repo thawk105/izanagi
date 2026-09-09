@@ -2287,10 +2287,11 @@ def _git_metadata(repo_root: Path) -> dict[str, Any]:
     return {"head": head, "status": status}
 
 
+_RUNTIME_PBS_RELATIVE_PATH = "tools/pegasus/probes/t316_sandbox_backend_probe.pbs"
 _BOUND_RELATIVE_PATHS = (
     "orchestrator/campaign/condition_meaning_gate.py",
     "tools/pegasus/probes/t316_sandbox_backend_probe.py",
-    "tools/pegasus/probes/t316_sandbox_backend_probe.pbs",
+    _RUNTIME_PBS_RELATIVE_PATH,
     "tools/pegasus/policies/t316_sandbox_backend_v1.json",
     "tools/pegasus/policy.json",
 )
@@ -2334,7 +2335,7 @@ def _execution_binding(repo_root: Path) -> dict[str, Any]:
     if dirty.get("rc") != 0 or dirty.get("stdout", {}).get("tail", "").strip():
         raise ValueError("bound probe paths are dirty")
     runtime_pbs = Path(runtime_pbs_raw).resolve(strict=True)
-    repo_pbs = repo_root / _BOUND_RELATIVE_PATHS[1]
+    repo_pbs = repo_root / _RUNTIME_PBS_RELATIVE_PATH
     if _sha256_file(runtime_pbs) != _sha256_file(repo_pbs):
         raise ValueError("runtime PBS bytes differ from worktree PBS bytes")
     runtime_hashes = {
