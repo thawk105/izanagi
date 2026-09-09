@@ -15,7 +15,7 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, os.path.dirname(_ORCH))
 
-from orchestrator.campaign import backoff_sweep
+from orchestrator.campaign import backoff_extended_sweep, backoff_sweep
 from orchestrator.campaign.durable_root import DurableRootPolicy
 
 
@@ -150,6 +150,7 @@ def test_real_family_helper_admits_effective_define_and_recomputes_file_digest()
         stock_root=None,
         driver_id="orchestrator/campaign/backoff_sweep.py",
         macro_values={"BACKOFF_FIXED": (5,)},
+        backoff_fixed_physical_us={5: 5},
         cxx=_available_executable("g++-13", "g++-12", "g++"),
         cmake=_available_executable("cmake"),
         configure_args=(configure_arg,),
@@ -163,7 +164,115 @@ def test_real_family_helper_admits_effective_define_and_recomputes_file_digest()
     assert configure_arg in supply.evidence["requested_configure_argv"]
     assert configure_arg in supply.evidence["control_configure_argv"]
     assert _independent_replay_digest(supply) == supply.evidence["requested_digest"]
-    assert run.meaning_records[0].terminal_status == "unestablished"
+    meaning = run.meaning_records[0]
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "green", "declared-meaning-observed",
+    )
+    expected_bits = backoff_sweep.condition_meaning_gate.canonical_float64_bits(5.0)
+    assert {
+        (row.expected_bits, row.observed_bits)
+        for row in meaning.evidence["observations"]
+    } == {(expected_bits, expected_bits)}
+    assert run.admission.unestablished_meaning_macros == ()
+
+
+def test_real_family_helper_observes_raw_3000_as_intended_static_1000():
+    """An extended-style encoded point is checked against driver intent."""
+    _available_executable("cmake")
+    run = backoff_extended_sweep._require_condition_gate_before_measurement(
+        str(_condition_fixture("supplied")),
+        stock_root=str(_condition_fixture("supplied") / "stock"),
+        points=[backoff_sweep.Genome("silo", {"BACKOFF_FIXED": 3000})],
+        physical_grid=(1000,),
+        cxx=_available_executable("g++-13", "g++-12", "g++"),
+    )
+
+    meaning = run.meaning_records[0]
+    assert run.admission.admitted is True
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "green", "declared-meaning-observed",
+    )
+    expected_bits = backoff_sweep.condition_meaning_gate.canonical_float64_bits(
+        1000.0
+    )
+    assert {
+        (row.expected_bits, row.observed_bits)
+        for row in meaning.evidence["observations"]
+    } == {(expected_bits, expected_bits)}
+    assert run.admission.unestablished_meaning_macros == ()
+
+
+def test_real_family_helper_rejects_f718_intent_and_evaluator_records_red():
+    """Raw 1000 cannot masquerade as the driver's intended static 1000 us."""
+    condition_gate = backoff_sweep.condition_meaning_gate
+    source_root = str(_condition_fixture("supplied"))
+    cxx = _available_executable("g++-13", "g++-12", "g++")
+    cmake = _available_executable("cmake")
+    with pytest.raises(RuntimeError) as excinfo:
+        backoff_sweep._require_backoff_condition_gate(
+            source_root,
+            stock_root=None,
+            driver_id="orchestrator/campaign/backoff_sweep.py",
+            macro_values={"BACKOFF_FIXED": (1000,)},
+            backoff_fixed_physical_us={1000: 1000},
+            cxx=cxx,
+            cmake=cmake,
+        )
+    assert "BACKOFF_FIXED=red/decoded-meaning-mismatch" in str(excinfo.value)
+
+    captured = condition_gate.capture_define_inputs(source_root)
+    request = condition_gate.make_define_request(
+        driver_id="orchestrator/campaign/backoff_sweep.py",
+        macro="BACKOFF_FIXED",
+        requested_value=1000,
+        default_value=-1,
+    )
+    supply = condition_gate.evaluate_define_supply_effectuation(
+        captured,
+        request=request,
+        cxx=cxx,
+        cmake=cmake,
+    )
+    assert (supply.terminal_status, supply.reason_code) == (
+        "green", "requested-default-preprocess-different",
+    )
+    expected_bits = condition_gate.canonical_float64_bits(1000.0)
+    declaration = condition_gate.MeaningWitnessDeclaration(
+        "BACKOFF_FIXED",
+        (condition_gate.MeaningCase(1000, (expected_bits, expected_bits)),),
+    )
+    meaning = condition_gate.evaluate_define_runtime_meaning(
+        captured,
+        request=request,
+        declaration=declaration,
+        cxx=cxx,
+    )
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "red", "decoded-meaning-mismatch",
+    )
+    assert meaning.evidence["expected"] == expected_bits
+    assert meaning.evidence["observed"] == condition_gate.canonical_float64_bits(0.0)
+
+
+def test_family_helper_rejects_physical_intent_contract_before_source_capture():
+    """Missing, extra, and malformed intent entries fail before any build input."""
+    common = {
+        "source_root": "/source-must-not-be-captured",
+        "stock_root": None,
+        "driver_id": "orchestrator/campaign/backoff_sweep.py",
+        "macro_values": {"BACKOFF_FIXED": (5,)},
+        "cxx": "compiler-must-not-be-resolved",
+    }
+    for mapping in ({}, {5: 5, 6: 6}):
+        with pytest.raises(RuntimeError, match="physical intent key mismatch"):
+            backoff_sweep._require_backoff_condition_gate(
+                **common, backoff_fixed_physical_us=mapping,
+            )
+    for mapping in ({5: True}, {5: -1}):
+        with pytest.raises(RuntimeError, match="non-negative exact integers"):
+            backoff_sweep._require_backoff_condition_gate(
+                **common, backoff_fixed_physical_us=mapping,
+            )
 
 
 def test_real_family_helper_treats_minus_one_as_stock_identity():
@@ -174,6 +283,7 @@ def test_real_family_helper_treats_minus_one_as_stock_identity():
         stock_root=str(source_root / "stock"),
         driver_id="orchestrator/campaign/backoff_sweep.py",
         macro_values={"BACKOFF_FIXED": (-1,)},
+        backoff_fixed_physical_us={},
         cxx=_available_executable("g++-13", "g++-12", "g++"),
         cmake=_available_executable("cmake"),
     )
@@ -202,6 +312,7 @@ def test_real_family_helper_rejects_minus_one_without_stock_tree():
             stock_root=None,
             driver_id="orchestrator/campaign/backoff_sweep.py",
             macro_values={"BACKOFF_FIXED": (-1,)},
+            backoff_fixed_physical_us={},
             cxx=_available_executable("g++-13", "g++-12", "g++"),
             cmake=_available_executable("cmake"),
         )
@@ -215,6 +326,7 @@ def test_real_family_helper_rejects_ignored_define_before_any_driver_build():
             stock_root=None,
             driver_id="orchestrator/campaign/backoff_sweep.py",
             macro_values={"BACKOFF_FIXED": (5,)},
+            backoff_fixed_physical_us={5: 5},
             cxx=_available_executable("g++-13", "g++-12", "g++"),
             cmake=_available_executable("cmake"),
         )
@@ -271,6 +383,7 @@ def test_run_workload_gates_the_prepared_patched_tree_with_fetchcontent_base(
     assert gate_kwargs["configure_args"] == (
         f"-DFETCHCONTENT_BASE_DIR={canonical_base}",
     )
+    assert gate_kwargs["backoff_fixed_physical_us"] == {5: 5}
     prepared_root = Path(prepare["ccbench_dir"]).resolve()
     gated_root = Path(gate_args[0]).resolve()
     patched_root = Path(backoff_sweep.buildcache._ccbench_dir()).resolve()
