@@ -49,6 +49,17 @@ pegasusinfo
 固定される。通常は CPU 数、メモリ量、GPU 枚数を個別指定する運用ではない。1 CPU 構成のため、
 NUMA を意識する必要は基本的にない。
 
+**cgroup による per-job の資源境界は無い (2026-09-09 実測、request `986762.nqsv`、3 ノード、[T-2486])。**
+rank process が入るのは per-job cgroup ではなく、node ごとに job 間で共有する NQSV service の
+cgroup である (非 head rank は `/system.slice/nqs-jsv.service`、job 番号 0 の head は
+`/system.slice/nqs-lchd.service`)。**head から兄弟ノードへ張った ssh session はそこには入らず、
+systemd の login session scope (`/user.slice/user-<uid>.slice/session-<N>.scope`) に入る** —
+rank が生きているノードでも同じで、rank の終了とは無関係である。採取した PBS 環境変数も
+ssh session には継承されない。cpuset と task affinity はどちらの側も全 48 CPU だが、
+`memory.max` と `pids.max` の上限文脈は非対称である。詳細と生記録は
+`output/insights/2026-09-09_t2486-ssh-cgroup-equivalence/README.md`。
+**これは実行場所分類 (§7.0) の実測ではなく、`admission_registry.json` の class 根拠にしてはならない。**
+
 ## 2. 短時間の対話ジョブ
 
 デバッグや短時間の動作確認には `qlogin` を使う。`debug` と `interactive` は対話専用キューであり、
