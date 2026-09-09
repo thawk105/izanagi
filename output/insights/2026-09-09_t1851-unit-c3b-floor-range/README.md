@@ -1,7 +1,25 @@
 # [T-1851] 単位 C3b — 史上初の official 床値 campaign を投入し、止めた gate を実値で特定した
 
-branch `worktree-dev-wave-t1851-unit-c2`、base `8fbcb70a5` (単位 C3a の tip)。**land しない (D1341)。**
+branch `worktree-dev-wave-t1851-unit-c2`、base `8fbcb70a5` (単位 C3a の tip)。
 実装面の差分は 0。本 wave が repo へ足したのは docs (本 insight と台帳 fragment) だけである。
+
+## この記録の射程 — どこが main の事実で、どこが未 land branch の事実か
+
+**§4 と §5 の欠陥 2 件は main のコードに実在する。** 走行は wave の checkout で行ったが、
+**main から official 床値を投入しても同じ場所で止まる。** 実測した対応は次のとおり。
+
+| 事実 | main 側の所在 |
+|---|---|
+| allowlist が resolved protocol の hash を legacy 固定 path へ束縛する | `orchestrator/campaign/s8b_floor_campaign.py:5323` (`_FLOOR_PROTOCOL_REL: protocol_sha256`) |
+| 停止文言 `launch certificate: freeze allowlist hash 不一致` | 同 `:5488` |
+| 凍結 hold の分岐 `s8b-floor.protocol-bytes-expected-pin` | 同 `:5251` |
+| 投入器・job body・凍結成果物 | `tools/pegasus/floor_campaign.sh`、`tools/pegasus/submit_floor.sh`、`output/s8b-freeze/` は **wave と main で同一** (差分 0) |
+
+**一方 §1 が言う配線 (campaign → certified launcher → attempt registry → result v5) は
+単位 C3a の成果で、branch `worktree-dev-wave-t1851-unit-c2` 上にあり main には無い。**
+その branch は D1341 と D1703 (どちらもユーザー裁定) により、単位 D2 (consumers/fixtures) が
+揃うまで land しない。branch は 4 単位 (C1b / C2 / C3a / C3b) を載せており、2026-09-02 以降の
+実装が未 land のまま溜まっている。**この branch を失うと 4 単位分の実装が失われる。**
 
 ---
 
