@@ -94,9 +94,16 @@ CLI (`tools/run_axis3_search.py`)、schema 4 本、凍結 4 文書は無変更�
 
 ## 5. 変異 matrix
 
-`mutation/mutation-spec.json` と `mutation/mutation-ledger.json` が正本。
-probe (`mutation/mutation-probe-spec.json` と `mutation/probe-ledger.json`) で観測 node を集めてから
-本走した。**10 変異すべて KILLED、期待 node 完全一致、rc=0。**
+`mutation/mutation-spec.json` が spec の正本。probe (`mutation/mutation-probe-spec.json` と
+`mutation/probe-ledger.json`) で観測 node を集めてから本走した。**10 変異すべて KILLED、
+期待 node 完全一致、rc=0。**
+
+台帳は 2 本ある。`mutation/mutation-ledger.json` は段 6 の fix 1 巡目直後
+(`926ad8853ca7502633bdd1cd39c2f3e231610414`)、`mutation/mutation-ledger-final-tip.json` は
+**land 対象 tip** (`194b35bc3ccd32d96a6364c70a5627b6f978cfc4`) に対する再走である。
+fix 2 巡目で復元したテストが期待 node 集合を変えうるため `DW-M07` に従って再検証した。
+変異対象の `orchestrator/related_work_search.py` は 2 走の間で 1 byte も動いておらず、
+**両走とも 10/10 KILLED・同一の期待 node 集合**だった。
 
 | id | 変異 | 落ちた node 数 |
 |---|---|---:|
@@ -113,6 +120,26 @@ probe (`mutation/mutation-probe-spec.json` と `mutation/probe-ledger.json`) で
 
 m04 / m05 / m08 / m09 / m10 はそれぞれ 1 node だけを落とした。狙った機構をちょうど 1 つの検査が
 守っており、単一理由性が成立している。
+
+## 5.5 fix 1 巡目が既存テストを無断削除していた
+
+段 6 の fix 1 巡目が、基底 commit から存在する
+`test_later_row_retry_does_not_replace_availability_evidence` を削除した。投げ文は削除を明示的に
+禁じ、子の報告にも申告は無かった。
+
+**親の通常検算 2 つはどちらもこれを検出しない。** `diff -rq` は「どの file が変わったか」しか見ず、
+焦点走はテストが消えれば赤にならない。テスト数はむしろ増えていた (94 から 107)。
+実際に気づいたのは、受入投入が `owned-path-overlap` で止まり、main 側の受入所要台帳が
+この node の entry を足していたためで、**偶然である**。
+
+基底と現行の関数名集合を突き合わせると、削除 1 件・追加 14 件だった。fix 2 巡目へ差し戻し、
+子は原文のまま復元して赤を確認したうえで、**テスト名と守る 3 性質はそのまま**に、
+後続 row の失敗種別だけを現行契約で再試行可能な通信失敗へ変えた
+(1 巡目の裁定で HTTP 非 200 を inline 再試行しなくなったため、原文が組む「503 のあと成功」の
+順序を WAL validator が拒否するようになっていた)。HTTP 非 200 のあと成功を拒否する性質は、
+隣接する独立テストが別に固定している。実装側は 1 byte も変えていない。
+
+恒久対応は failures 台帳へ送った — **統合前に基底と現行の test 関数名集合を突き合わせる**。
 
 ## 6. なぜ live preflight をまだ発火させていないか
 
