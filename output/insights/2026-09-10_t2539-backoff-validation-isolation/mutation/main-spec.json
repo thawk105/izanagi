@@ -1,0 +1,163 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 900,
+ "timeout_seconds": 3600,
+ "hang_timeout_seconds": 600,
+ "mutations": [
+  {
+   "id": "MUT-T2539-M1-BFS-DOES-NOT-RECURSE",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_silo_validation_isolation.py",
+     "old": "                queue.append(target)\n",
+     "new": "                pass\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_silo_validation_isolation.py::test_cli_reports_depth_two_intersection_for_iterator_unlock",
+    "orchestrator/tests/test_silo_validation_isolation.py::test_cmake_trace_default_reports_macro_closure_intersections",
+    "orchestrator/tests/test_silo_validation_isolation.py::test_real_raw_closure_contains_root_helpers_and_implicit_comparators"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MUT-T2539-M2-NO-SORT-COMPARATOR-EDGE",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_silo_validation_isolation.py",
+     "old": "                    target = write_comparator\n",
+     "new": "                    target = None\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_silo_validation_isolation.py::test_real_raw_closure_contains_root_helpers_and_implicit_comparators"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MUT-T2539-M3-UNCONSUMED-EDITS-IGNORED",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_silo_validation_isolation.py",
+     "old": "        if unconsumed:\n            result[\"error\"] = {\n                \"code\": \"UNCONSUMED_EDITS\",\n",
+     "new": "        if False:\n            result[\"error\"] = {\n                \"code\": \"UNCONSUMED_EDITS\",\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_silo_validation_isolation.py::test_cli_unconsumed_edit_is_reported_and_errors",
+    "orchestrator/tests/test_silo_validation_isolation.py::test_comment_directive_text_does_not_create_macro_intersection"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MUT-T2539-M4-ERROR-EXITS-ZERO",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_silo_validation_isolation.py",
+     "old": "    if result[\"verdict\"] == INTERSECTION:\n        return 1\n    return 2\n",
+     "new": "    if result[\"verdict\"] == INTERSECTION:\n        return 1\n    return 0\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_silo_validation_isolation.py::test_cli_missing_patch_is_error_not_no_intersection",
+    "orchestrator/tests/test_silo_validation_isolation.py::test_cli_unconsumed_edit_is_reported_and_errors",
+    "orchestrator/tests/test_silo_validation_isolation.py::test_cli_unmappable_hunk_is_error_not_no_intersection",
+    "orchestrator/tests/test_silo_validation_isolation.py::test_comment_directive_text_does_not_create_macro_intersection",
+    "orchestrator/tests/test_silo_validation_isolation.py::test_default_argument_callee_edit_is_not_reported_as_no_intersection"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MUT-T2539-M5-EVERY-EDITED-REGION-INTERSECTS",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_silo_validation_isolation.py",
+     "old": "            for symbol in item[\"targets\"]:\n                if symbol in closure_by_symbol:\n",
+     "new": "            for symbol in item[\"targets\"]:\n                if symbol in closure_by_symbol or True:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_silo_validation_isolation.py::test_cli_reports_no_intersection_for_registered_backoff_patch",
+    "orchestrator/tests/test_silo_validation_isolation.py::test_cli_reports_no_intersection_for_same_file_unreachable_decoy",
+    "orchestrator/tests/test_silo_validation_isolation.py::test_default_argument_callee_edit_is_not_reported_as_no_intersection",
+    "orchestrator/tests/test_silo_validation_isolation.py::test_early_unlock_is_outside_closure_and_claims_no_correctness"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MUT-T2539-M6-CMAKE-MACRO-LEG-DROPPED",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_silo_validation_isolation.py",
+     "old": "        for macro in sorted(all_macros):\n            for ref in references.get(macro, []):\n",
+     "new": "        for macro in sorted(set()):\n            for ref in references.get(macro, []):\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_silo_validation_isolation.py::test_cmake_trace_default_reports_macro_closure_intersections"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MUT-T2539-M7-EXPANSION-ERROR-OUTRANKS-INTERSECTION",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_silo_validation_isolation.py",
+     "old": "        if intersections:\n            result[\"verdict\"] = INTERSECTION\n            return result\n",
+     "new": "        if intersections and not expansion_errors and not unconsumed:\n            result[\"verdict\"] = INTERSECTION\n            return result\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_silo_validation_isolation.py::test_known_root_edit_wins_over_unconsumed_edit",
+    "orchestrator/tests/test_silo_validation_isolation.py::test_known_root_edits_win_over_incomplete_closure_expansion"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MUT-T2539-M8-EXACT-ARITY-ONLY",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_silo_validation_isolation.py",
+     "old": "        return self.min_arity <= arity and (self.variadic or arity <= self.arity)\n",
+     "new": "        return self.arity == arity\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_silo_validation_isolation.py::test_default_argument_callee_edit_is_not_reported_as_no_intersection"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MUT-T2539-M9-SPAN-LINES-KEEP-COMMENTS",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_silo_validation_isolation.py",
+     "old": "    clean_lines = _strip_comments_and_literals(source).splitlines()\n    return [clean_lines[number - 1] for number in line_numbers]\n",
+     "new": "    clean_lines = source.splitlines()\n    return [clean_lines[number - 1] for number in line_numbers]\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_silo_validation_isolation.py::test_cli_reports_no_intersection_for_registered_backoff_patch"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}
