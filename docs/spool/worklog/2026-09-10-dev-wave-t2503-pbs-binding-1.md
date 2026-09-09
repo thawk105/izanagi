@@ -54,3 +54,14 @@ title: [T-2503] t316 probe の runtime PBS 束縛を .pbs へ戻し、誤対象�
   成果物影響 = 放置すると、t316 の receipt が「束縛された 5 path で走った」と記録していても、
   そのうち 1 path については実行より後に検査したことになる。
   [T-2503] の段 3 レンズ A が出し、段 6 の 2 レンズが追認した scope 外の real 所見。
+- {{T:dev-wave-mutation-runner-contract-unreachable}} **P2・新規・ユーザー裁定待ち**:
+  dev-wave の条件 dispatch 15 は「fix 後に変異を走らせる直前」でだけ `DW-M07` を読ませる。
+  `DW-M07` は fix 後の anchor 再検証だけでなく、変異走行そのものの runner 契約
+  (`--runner-mode dispatch` 既定、`--force-dispatch`、`--attempt-out` と `--wrapper-attempt` の
+  同時指定必須、`--out` と `--scratch-root` の device 一致) を持つ。fix が 0 件の wave は
+  この条件が成立せず、段 6 の無条件行も `DW-M02`〜`DW-M06`・`DW-M08` で `DW-M07` を含まないため、
+  runner 契約に一度も到達しない。[T-2503] で実測した (`--attempt-out` 単独指定で 1 回中止)。
+  条件を「変異を走らせる直前」へ広げるのが最小の是正だが、`tools/check_docs.py` が条件 15 の
+  発火条件を逐語 pin しているため、入口だけを直すと検査が赤になる。実装面の変更を伴うので
+  段 8 の自動是正には当たらず、裁定へ返す。
+  成果物影響 = 放置すると、fix の無い wave が変異走行のたびに同じ argv 誤りで走行を落とす。
