@@ -10735,6 +10735,80 @@ def test_resume_runner_replays_only_admission_proved_cut6_m_plus_a_minus(
     assert len(resumed_measure.calls) == len(outcome["result"]["sessions"])
 
 
+def test_certified_cut6_existing_marker_competing_probe_aborts_without_result(
+    tmp_path, monkeypatch,
+):
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+    original_append = s8b_floor_campaign._holdout_admission._append_ledger
+    crashed = {"done": False}
+
+    def crash_after_marker(path, rows):
+        if path.name == "attempt-ledger.jsonl" and not crashed["done"]:
+            crashed["done"] = True
+            raise _SimulatedCrash("fixture: certified cut6 after marker")
+        return original_append(path, rows)
+
+    launcher = s8b_floor_campaign.s8b_floor_attempt_launcher
+    monkeypatch.setattr(
+        launcher,
+        "_owned_post_probe",
+        lambda: {"rc": 1, "stdout": "", "stderr": "", "competing": False},
+    )
+    with monkeypatch.context() as scoped:
+        scoped.setattr(
+            s8b_floor_campaign._holdout_admission,
+            "_append_ledger",
+            crash_after_marker,
+        )
+        with pytest.raises(_SimulatedCrash, match="certified cut6"):
+            _run_campaign(
+                protocol, verified, out_root=out_root,
+                build_root=tmp_path / "bin", measure_fn=None,
+                probe_fn=lambda: pytest.fail("legacy probe path was called"),
+                perf_preflight_fn=lambda **_kwargs: _perf_receipt(available=False),
+            )
+
+    run_dir = _only_run_dir(out_root)
+    before = _read_journal_lines(run_dir / "journal.jsonl")
+    cut6_start = next(row for row in before if row.get("event") == "session-start")
+    authority = _test_holdout_authority(out_root, protocol, verified)
+    shared = s8b_floor_campaign._holdout_admission.shared_admission_root(authority)
+    assert len(list((shared / "measurement-generation-consumed").iterdir())) == 1
+    attempt_ledger = shared / "attempt-ledger.jsonl"
+    assert not attempt_ledger.exists() or attempt_ledger.read_bytes() == b""
+
+    measured_probe = {
+        "rc": 0,
+        "stdout": "resume competitor",
+        "stderr": "resume probe stderr",
+        "competing": True,
+    }
+    monkeypatch.setattr(launcher, "_owned_post_probe", lambda: measured_probe)
+    with pytest.raises(
+        s8b_floor_campaign.CampaignAbort,
+        match="^cut6_replay_pre_probe_competing_existing_marker$",
+    ):
+        _run_campaign(
+            protocol, verified, out_root=out_root,
+            build_root=tmp_path / "bin", resume_dir=run_dir,
+            measure_fn=None,
+            probe_fn=lambda: pytest.fail("legacy probe path was called"),
+            perf_preflight_fn=lambda **_kwargs: _perf_receipt(available=False),
+        )
+
+    after = _read_journal_lines(run_dir / "journal.jsonl")
+    assert not any(
+        row.get("event") == "session"
+        and row.get("attempt_id") == cut6_start["attempt_id"]
+        for row in after
+    )
+    assert not (run_dir / "result.json").exists()
+    assert not (run_dir / "result.md").exists()
+
+
 def test_resume_rejects_tampered_binary_but_succeeds_when_untampered(tmp_path):
     freeze = _freeze_document()
     verified = _verified_freeze(freeze)
@@ -14824,6 +14898,22 @@ def _first_clean_then_competing_probe():
     return probe
 
 
+def _first_two_clean_then_competing_probe():
+    calls = 0
+
+    def probe():
+        nonlocal calls
+        calls += 1
+        competing = calls > 4
+        return {
+            "rc": 0 if competing else 1,
+            "stdout": "competitor" if competing else "",
+            "stderr": "", "competing": competing,
+        }
+
+    return probe
+
+
 def test_default_production_attempt_uses_certified_launcher_once(
         tmp_path, monkeypatch):
     case = _new_certified_attempt_case(tmp_path)
@@ -14835,9 +14925,8 @@ def test_default_production_attempt_uses_certified_launcher_once(
 
     assert certified.call_count == 1
     assert record["retry_ordinal"] is None
-    rows = launcher.attempt_registry.read_attempt_registry(
-        case["authority"], profile=case["plan"].profile,
-        binding=case["plan"].binding,
+    rows = launcher.read_floor_attempt_registry(
+        case["authority"], case["plan"],
     )
     assert [row["event"] for row in rows].count("terminal") == 1
 
@@ -14869,15 +14958,11 @@ def test_registry_plan_declares_exact_planned_and_retry_slot_closure():
         for row in schedule
         for measurement_ordinal in range(protocol["retry_slots_per_cell"] + 1)
     }
-    actual = {
-        plan.profile.slot_codec.slot_id(slot) for slot in plan.genesis.slots
-    }
+    actual = set(
+        s8b_floor_campaign.s8b_floor_attempt_launcher
+        .floor_attempt_registry_plan_slot_ids(plan)
+    )
     assert actual == expected
-    assert set(plan.slots_by_key) == {
-        (row["cell_id"], row["round"], measurement_ordinal)
-        for row in schedule
-        for measurement_ordinal in range(protocol["retry_slots_per_cell"] + 1)
-    }
 
 
 def test_registry_plan_maps_round_to_zero_based_repetition():
@@ -14898,11 +14983,19 @@ def test_registry_plan_maps_round_to_zero_based_repetition():
         protocol_sha256=s8b_floor_campaign._canonical_sha256(protocol),
     )
     row = next(row for row in schedule if row["round"] == protocol["n_sessions"])
-    planned = plan.slots_by_key[(row["cell_id"], row["round"], 0)]
-    retry = plan.slots_by_key[(row["cell_id"], row["round"], 1)]
-    assert planned.repetition == retry.repetition == row["round"] - 1
-    assert planned.measurement_ordinal == 0
-    assert retry.measurement_ordinal == 1
+    cell = next(cell for cell in cells if cell["cell_id"] == row["cell_id"])
+    slot_ids = set(
+        s8b_floor_campaign.s8b_floor_attempt_launcher
+        .floor_attempt_registry_plan_slot_ids(plan)
+    )
+    planned = (
+        cell["holdout_id"], cell["configuration_id"], row["round"] - 1, 0, 0,
+    )
+    retry = (
+        cell["holdout_id"], cell["configuration_id"], row["round"] - 1, 1, 0,
+    )
+    assert planned in slot_ids
+    assert retry in slot_ids
 
 
 def test_certified_campaign_rejects_unissued_consumption_marker(
@@ -15003,90 +15096,98 @@ def test_production_v5_self_check_rejects_prefix_head_mismatch(
 
 def test_v5_prefix_covers_every_consumed_non_competing_session(
         tmp_path, monkeypatch):
-    case = _new_certified_attempt_case(tmp_path)
-    first = _run_certified_attempt_case(case, monkeypatch, competing=False)
-    runner = case["runner"]
-    later_rows = [
-        row for row in case["schedule"]
-        if row["cell_id"] == case["cell"]["cell_id"]
-        and row["round"] != case["schedule_row"]["round"]
-    ]
-    second_row, third_row = later_rows[:2]
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+    launcher = s8b_floor_campaign.s8b_floor_attempt_launcher
     monkeypatch.setattr(
-        s8b_floor_campaign.s8b_floor_attempt_launcher,
-        "_owned_post_probe",
-        lambda: {"rc": 1, "stdout": "", "stderr": "", "competing": False},
+        launcher, "_owned_post_probe", _first_two_clean_then_competing_probe(),
     )
-    second = runner._run_session(
-        seq=second_row["seq"], round_no=second_row["round"],
-        cell_id=second_row["cell_id"], kind="planned",
-        retry_ordinal=None, trigger=None,
+
+    outcome = _run_campaign(
+        protocol, verified, out_root=out_root,
+        build_root=tmp_path / "bin", measure_fn=None,
+        probe_fn=lambda: pytest.fail("legacy probe path was called"),
+        perf_preflight_fn=lambda **_kwargs: _perf_receipt(available=False),
     )
-    monkeypatch.setattr(
-        s8b_floor_campaign.s8b_floor_attempt_launcher,
-        "_owned_post_probe",
-        lambda: {"rc": 0, "stdout": "competitor", "stderr": "", "competing": True},
+
+    validated = s8b_floor_campaign.validate_protocol(protocol)
+    cells = s8b_floor_campaign.enumerate_cells(
+        freeze, stock_configuration=validated["stock_configuration"],
     )
-    third = runner._run_session(
-        seq=third_row["seq"], round_no=third_row["round"],
-        cell_id=third_row["cell_id"], kind="planned",
-        retry_ordinal=None, trigger=None,
+    schedule = s8b_floor_campaign.build_schedule(
+        cells=cells, master_seed=validated["master_seed"],
+        n_sessions=validated["n_sessions"],
     )
-    inspection = _inspect_certified_attempt_case(case)
-    proof = s8b_floor_campaign._capture_floor_attempt_registry_prefix(
-        case["authority"], case["plan"],
+    plan = s8b_floor_campaign._build_floor_attempt_registry_plan(
+        protocol=validated, cells=cells, schedule=schedule,
+        freeze_sha256=_freeze_sha(freeze),
+        protocol_sha256=s8b_floor_campaign._canonical_sha256(validated),
     )
-    adapter = s8b_floor_campaign.s8b_floor_attempt_launcher.attempt_registry
-    rows = adapter.read_attempt_registry(
-        case["authority"], profile=case["plan"].profile,
-        binding=case["plan"].binding,
-    )
-    consumed_non_competing = {
-        record["attempt_id"] for record in runner.records
-        if record.get("event") == "session"
-        and record["probe_before"]["competing"] is False
-    }
-    all_sessions = {
-        record["attempt_id"] for record in runner.records
-        if record.get("event") == "session"
-    }
-    attempt_rows = s8b_floor_campaign._holdout_admission._read_ledger(
-        s8b_floor_campaign._holdout_admission.shared_admission_root(
-            case["authority"]
-        ) / "attempt-ledger.jsonl"
-    )
-    consumed_attempts = {row["attempt_id"] for row in attempt_rows}
-    terminal_slots = {
-        case["plan"].profile.slot_codec.slot_id(
-            case["plan"].profile.slot_codec.parse(
-                {
-                    key: row[key]
-                    for key in case["plan"].profile.slot_codec.exact_keys
-                },
-                label="terminal row",
+    authority = _test_holdout_authority(out_root, protocol, verified)
+    rows = launcher.read_floor_attempt_registry(authority, plan)
+    live = launcher.capture_floor_attempt_registry_prefix(authority, plan)
+    proof = outcome["result"]["attempt_registry"]
+
+    assert sum(row.get("event") == "terminal" for row in rows) == 2
+    assert proof["row_count"] == len(rows), "result registry row_count is stale"
+    assert proof["row_count"] == live["row_count"]
+    assert proof["chain_head_sha256"] == live["chain_head_sha256"]
+
+
+def test_v5_prefix_assertions_kill_first_terminal_stale_result_proof(
+        tmp_path, monkeypatch):
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+    launcher = s8b_floor_campaign.s8b_floor_attempt_launcher
+    issued_plans = []
+    stale_prefixes = []
+    original_prepare = launcher.prepare_floor_attempt_registry_plan
+    original_launch = launcher.launch_probed_floor_attempt
+
+    def prepare(*args, **kwargs):
+        plan = original_prepare(*args, **kwargs)
+        issued_plans.append(plan)
+        return plan
+
+    def launch(*args, **kwargs):
+        result = original_launch(*args, **kwargs)
+        if not stale_prefixes:
+            stale_prefixes.append(
+                launcher.capture_floor_attempt_registry_prefix(
+                    args[0].repo_root, issued_plans[0],
+                )
             )
-        )
-        for row in rows if row.get("event") == "terminal"
-    }
-    expected_terminal_slots = {
-        case["plan"].profile.slot_codec.slot_id(
-            case["plan"].slots_by_key[
-                (record["cell_id"], record["round"], 0)
-            ]
-        )
-        for record in runner.records
-        if record.get("event") == "session"
-        and record["probe_before"]["competing"] is False
-    }
-    assert consumed_attempts == consumed_non_competing == {
-        first["attempt_id"], second["attempt_id"],
-    }
-    assert terminal_slots == expected_terminal_slots
-    assert all_sessions == {
-        first["attempt_id"], second["attempt_id"], third["attempt_id"],
-    }
-    assert inspection["attempt_row_count"] == 2
-    assert proof["row_count"] == len(rows)
+        return result
+
+    monkeypatch.setattr(launcher, "prepare_floor_attempt_registry_plan", prepare)
+    monkeypatch.setattr(launcher, "launch_probed_floor_attempt", launch)
+    monkeypatch.setattr(
+        launcher, "_owned_post_probe", _first_two_clean_then_competing_probe(),
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign,
+        "_capture_floor_attempt_registry_prefix",
+        lambda *_args, **_kwargs: dict(stale_prefixes[0]),
+    )
+
+    outcome = _run_campaign(
+        protocol, verified, out_root=out_root,
+        build_root=tmp_path / "bin", measure_fn=None,
+        probe_fn=lambda: pytest.fail("legacy probe path was called"),
+        perf_preflight_fn=lambda **_kwargs: _perf_receipt(available=False),
+    )
+    authority = _test_holdout_authority(out_root, protocol, verified)
+    rows = launcher.read_floor_attempt_registry(authority, issued_plans[0])
+    proof = outcome["result"]["attempt_registry"]
+
+    assert proof == stale_prefixes[0]
+    assert proof["row_count"] < len(rows)
+    with pytest.raises(AssertionError, match="result registry row_count is stale"):
+        assert proof["row_count"] == len(rows), "result registry row_count is stale"
 
 
 def test_competing_pre_probe_consumes_no_marker_and_writes_no_registry_row(
@@ -15100,10 +15201,26 @@ def test_competing_pre_probe_consumes_no_marker_and_writes_no_registry_row(
     )
     attempt_ledger = shared / "attempt-ledger.jsonl"
 
-    assert record["probe_before"]["competing"] is True
+    actual_probe = {
+        "rc": 0, "stdout": "competitor", "stderr": "", "competing": True,
+    }
+    journal_record = _read_journal_lines(case["journal_path"])[-1]
+    assert record["probe_before"] == actual_probe
+    assert journal_record["probe_before"] == actual_probe
     assert not attempt_ledger.exists() or attempt_ledger.read_bytes() == b""
     assert list((shared / "floor-attempt-registries").rglob("registry.jsonl")) == []
     assert inspection["attempt_row_count"] == 0
+
+
+def test_campaign_has_no_indirect_registry_profile_or_core_attributes():
+    source = Path(s8b_floor_campaign.__file__).read_text(encoding="utf-8")
+    forbidden = {"attempt_registry", "profile8b", "core"}
+    references = sorted(
+        (node.attr, node.lineno)
+        for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.Attribute) and node.attr in forbidden
+    )
+    assert references == []
 
 
 def test_injected_measurement_core_retains_noncertifying_legacy_path(

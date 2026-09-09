@@ -19,7 +19,8 @@ import stat
 import subprocess
 import threading
 import time
-from typing import Any
+from types import MappingProxyType
+from typing import Any, Sequence
 import weakref
 
 from orchestrator.calibrator.perf_preflight import use_perf_from_receipt
@@ -41,7 +42,7 @@ from .s8b_terminal_evidence import (
     _terminal_source_document,
     seal_terminal_evidence,
 )
-from .s8b_floor_contract import canonical_protocol_sha256
+from .s8b_floor_contract import _SCHEDULE_KEYS, canonical_protocol_sha256
 
 
 POST_PROBE_COMPETING_REASON = "competing_process"
@@ -77,6 +78,9 @@ class FloorAttemptLauncherError(RuntimeError):
     """The trusted launcher rejected an invalid seam result."""
 
 
+FloorAttemptRegistryError = attempt_registry.S8BAttemptRegistryError
+
+
 @dataclass(frozen=True, slots=True)
 class FloorAttemptReservation:
     """All durable identity inputs required before measurement capture."""
@@ -109,6 +113,20 @@ class FloorAttemptRegistryGenesis:
     """The complete planned-plus-retry slot set fixed before observation."""
 
     slots: tuple[object, ...]
+
+
+_FLOOR_ATTEMPT_REGISTRY_PLAN_SEAL = object()
+
+
+@dataclass(frozen=True, slots=True, init=False)
+class FloorAttemptRegistryPlan:
+    """Launcher-owned registry profile, binding, genesis, and slot index."""
+
+    _profile: object = field(repr=False)
+    _binding: object = field(repr=False)
+    _genesis: FloorAttemptRegistryGenesis = field(repr=False)
+    _slots_by_key: Mapping[tuple[str, int, int], object] = field(repr=False)
+    _seal: object = field(repr=False, compare=False)
 
 
 @dataclass(frozen=True, slots=True)
@@ -315,6 +333,259 @@ def _canonical_json_bytes(value: object, *, label: str) -> bytes:
         ) from exc
 
 
+def _require_floor_attempt_registry_plan(
+    value: object,
+) -> FloorAttemptRegistryPlan:
+    if (
+        type(value) is not FloorAttemptRegistryPlan
+        or getattr(value, "_seal", None) is not _FLOOR_ATTEMPT_REGISTRY_PLAN_SEAL
+    ):
+        raise FloorAttemptLauncherError(
+            "floor attempt registry plan was not launcher-issued"
+        )
+    return value
+
+
+def prepare_floor_attempt_registry_plan(
+    *,
+    protocol: Mapping[str, object],
+    cells: Sequence[Mapping[str, object]],
+    schedule: Sequence[Mapping[str, object]],
+    freeze_sha256: str,
+    protocol_sha256: str,
+) -> FloorAttemptRegistryPlan:
+    """Build the exact campaign slot closure behind the launcher boundary."""
+
+    retry_slots = protocol.get("retry_slots_per_cell")
+    n_sessions = protocol.get("n_sessions")
+    if (
+        type(retry_slots) is not int
+        or retry_slots < 0
+        or type(n_sessions) is not int
+        or n_sessions <= 0
+    ):
+        raise FloorAttemptLauncherError(
+            "attempt registry plan protocol budget is invalid"
+        )
+    cell_by_id: dict[str, Mapping[str, object]] = {}
+    for cell in cells:
+        if not isinstance(cell, Mapping):
+            raise FloorAttemptLauncherError(
+                "attempt registry plan cells are invalid or duplicate"
+            )
+        cell_id = cell.get("cell_id")
+        if type(cell_id) is not str or cell_id in cell_by_id:
+            raise FloorAttemptLauncherError(
+                "attempt registry plan cells are invalid or duplicate"
+            )
+        cell_by_id[cell_id] = cell
+    if len(cell_by_id) != len(cells):
+        raise FloorAttemptLauncherError(
+            "attempt registry plan cells are invalid or duplicate"
+        )
+    binding = profile8b.S8BAttemptBinding(
+        freeze_sha256=freeze_sha256,
+        protocol_sha256=protocol_sha256,
+        schedule_sha256=hashlib.sha256(
+            attempt_registry.core.canonical_json_bytes(list(schedule))
+        ).hexdigest(),
+    )
+    profile = profile8b.make_s8b_v2_domain_profile(
+        max_consumptions_per_budget_key=n_sessions + retry_slots,
+        recovery_authority_id=attempt_registry.scheduler_accounting.AUTHORITY_ID,
+        recovery_authority_policy_sha256=(
+            attempt_registry.scheduler_accounting.AUTHORITY_POLICY_SHA256
+        ),
+    )
+    slots: list[object] = []
+    slots_by_key: dict[tuple[str, int, int], object] = {}
+    rounds_by_cell: dict[str, set[int]] = {
+        cell_id: set() for cell_id in cell_by_id
+    }
+    for schedule_row in schedule:
+        if (
+            not isinstance(schedule_row, Mapping)
+            or set(schedule_row) != set(_SCHEDULE_KEYS)
+        ):
+            raise FloorAttemptLauncherError(
+                "attempt registry plan schedule row is invalid"
+            )
+        cell_id = schedule_row.get("cell_id")
+        round_no = schedule_row.get("round")
+        if (
+            type(cell_id) is not str
+            or cell_id not in cell_by_id
+            or type(round_no) is not int
+            or round_no <= 0
+            or round_no in rounds_by_cell[cell_id]
+        ):
+            raise FloorAttemptLauncherError(
+                "attempt registry plan schedule cell/round is invalid or duplicate"
+            )
+        rounds_by_cell[cell_id].add(round_no)
+        cell = cell_by_id[cell_id]
+        schedule_row_sha256 = hashlib.sha256(
+            attempt_registry.core.canonical_json_bytes(dict(schedule_row))
+        ).hexdigest()
+        for measurement_ordinal in range(retry_slots + 1):
+            slot = profile8b.S8BV2AttemptSlot(
+                freeze_holdout_key=str(cell.get("holdout_id")),
+                configuration_id=str(cell.get("configuration_id")),
+                repetition=round_no - 1,
+                measurement_ordinal=measurement_ordinal,
+                attempt_ordinal=0,
+                schedule_row_sha256=schedule_row_sha256,
+            )
+            key = (cell_id, round_no, measurement_ordinal)
+            if key in slots_by_key:
+                raise FloorAttemptLauncherError(
+                    "attempt registry plan slot key is duplicate"
+                )
+            slots.append(slot)
+            slots_by_key[key] = slot
+    if any(len(rounds) != n_sessions for rounds in rounds_by_cell.values()):
+        raise FloorAttemptLauncherError(
+            "attempt registry plan does not cover every cell and repetition"
+        )
+    plan = object.__new__(FloorAttemptRegistryPlan)
+    object.__setattr__(plan, "_profile", profile)
+    object.__setattr__(plan, "_binding", binding)
+    object.__setattr__(
+        plan, "_genesis", FloorAttemptRegistryGenesis(slots=tuple(slots))
+    )
+    object.__setattr__(
+        plan, "_slots_by_key", MappingProxyType(dict(slots_by_key))
+    )
+    object.__setattr__(plan, "_seal", _FLOOR_ATTEMPT_REGISTRY_PLAN_SEAL)
+    return plan
+
+
+def floor_attempt_registry_plan_slot_ids(
+    plan: FloorAttemptRegistryPlan,
+) -> tuple[tuple[str, str, int, int, int], ...]:
+    """Return an immutable slot-id projection for plan verification."""
+
+    owned = _require_floor_attempt_registry_plan(plan)
+    return tuple(
+        owned._profile.slot_codec.slot_id(slot)
+        for slot in owned._genesis.slots
+    )
+
+
+def floor_attempt_registry_genesis(
+    plan: FloorAttemptRegistryPlan,
+) -> FloorAttemptRegistryGenesis:
+    """Return the immutable launcher genesis for a launcher-issued plan."""
+
+    return _require_floor_attempt_registry_plan(plan)._genesis
+
+
+def require_floor_attempt_registry_slot(
+    plan: FloorAttemptRegistryPlan,
+    slot_key: tuple[str, int, int],
+) -> None:
+    """Fail closed unless a slot belongs to the launcher-issued plan."""
+
+    owned = _require_floor_attempt_registry_plan(plan)
+    if slot_key not in owned._slots_by_key:
+        raise FloorAttemptLauncherError(
+            "certified floor attempt slot is absent from the registry plan"
+        )
+
+
+def floor_attempt_reservation(
+    plan: FloorAttemptRegistryPlan,
+    *,
+    slot_key: tuple[str, int, int],
+    repo_root: Path,
+    protocol: Mapping[str, object],
+    mode: str,
+    perf_preflight_receipt: Mapping[str, object] | None,
+    consumption_marker: object | None,
+    run_start_receipt_sha256: str,
+    process_identity: Mapping[str, Any],
+    started_at: str,
+    admission_claim_digest: str,
+    attempt_id: str,
+    campaign_run_id: str,
+    manifest_sha256: str,
+    run_relpath: str,
+    cell_id: str,
+    records: int,
+    threads: int,
+    workload: Mapping[str, object],
+) -> FloorAttemptReservation:
+    """Bind one campaign attempt to a slot in a launcher-issued plan."""
+
+    owned = _require_floor_attempt_registry_plan(plan)
+    slot = owned._slots_by_key.get(slot_key)
+    if slot is None:
+        raise FloorAttemptLauncherError(
+            "certified floor attempt slot is absent from the registry plan"
+        )
+    return FloorAttemptReservation(
+        repo_root=Path(repo_root),
+        profile=owned._profile,
+        binding=owned._binding,
+        slot_id=owned._profile.slot_codec.slot_id(slot),
+        protocol=protocol,
+        mode=mode,
+        perf_preflight_receipt=perf_preflight_receipt,
+        consumption_marker=consumption_marker,
+        run_start_receipt_sha256=run_start_receipt_sha256,
+        process_identity=process_identity,
+        started_at=started_at,
+        admission_claim_digest=admission_claim_digest,
+        attempt_id=attempt_id,
+        campaign_run_id=campaign_run_id,
+        manifest_sha256=manifest_sha256,
+        run_relpath=run_relpath,
+        cell_id=cell_id,
+        schedule_row_sha256=slot.schedule_row_sha256,
+        records=records,
+        threads=threads,
+        workload=workload,
+    )
+
+
+def capture_floor_attempt_registry_prefix(
+    repo_root: Path,
+    plan: FloorAttemptRegistryPlan,
+) -> dict[str, object]:
+    """Capture the live prefix for a launcher-issued campaign plan."""
+
+    owned = _require_floor_attempt_registry_plan(plan)
+    return attempt_registry.capture_attempt_registry_prefix(
+        Path(repo_root), expected_binding=owned._binding
+    )
+
+
+def read_floor_attempt_registry(
+    repo_root: Path,
+    plan: FloorAttemptRegistryPlan,
+) -> tuple[Mapping[str, object], ...]:
+    """Read a campaign plan's registry without exposing its adapter profile."""
+
+    owned = _require_floor_attempt_registry_plan(plan)
+    return attempt_registry.read_attempt_registry(
+        Path(repo_root), profile=owned._profile, binding=owned._binding
+    )
+
+
+def serialize_floor_session_record(record: Mapping[str, object]) -> bytes:
+    """Serialize one campaign session with the owned registry profile."""
+
+    return profile8b.serialize_session_line(record)
+
+
+def canonical_floor_payload_sha256(value: object) -> str:
+    """Hash canonical campaign payload bytes at the registry boundary."""
+
+    return hashlib.sha256(
+        attempt_registry.core.canonical_json_bytes(value)
+    ).hexdigest()
+
+
 _CLASSIFICATION_AUTHORITY = ClassificationAuthority(
     authority_id="s8b-floor-attempt-launcher/pre-output-classification/v1",
     authority_policy_sha256=hashlib.sha256(_canonical_json_bytes(_CLASSIFICATION_POLICY, label="classification policy")).hexdigest(),
@@ -433,6 +704,30 @@ def probe_floor_attempt_preconditions(
     with _PRE_PROBE_STATES_LOCK:
         _PRE_PROBE_STATES[pre_probe] = state
     return pre_probe
+
+
+def read_floor_attempt_pre_probe(
+    value: FloorAttemptPreProbe,
+) -> Mapping[str, object]:
+    """Return an immutable raw snapshot without consuming the one-shot seal."""
+
+    if type(value) is not FloorAttemptPreProbe:
+        raise FloorAttemptLauncherError(
+            "pre_probe must be a launcher-issued sealed pre-probe"
+        )
+    with _PRE_PROBE_STATES_LOCK:
+        state = _PRE_PROBE_STATES.get(value)
+        if state is None or state.owner() is not value:
+            raise FloorAttemptLauncherError(
+                "pre_probe must be a launcher-issued sealed pre-probe"
+            )
+        _assert_owned_post_probe_capability(state.post_probe)
+        probe_before = _post_probe(state.probe_before)
+        if value.competing is not probe_before["competing"]:
+            raise FloorAttemptLauncherError(
+                "pre_probe differs from its launcher-issued seal"
+            )
+        return MappingProxyType(probe_before)
 
 
 def _claim_floor_attempt_pre_probe(

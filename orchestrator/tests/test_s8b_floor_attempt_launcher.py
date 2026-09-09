@@ -2389,6 +2389,48 @@ def test_probe_floor_attempt_preconditions_runs_owned_probe_once_and_seals_only_
     assert not hasattr(pre_probe, "capability")
 
 
+def test_pre_probe_raw_snapshot_is_immutable_and_does_not_consume_seal(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    raw_probe = {
+        "rc": 0,
+        "stdout": "measured competitor output",
+        "stderr": "measured probe stderr",
+        "competing": True,
+    }
+    events: list[str] = []
+    registry = _RecorderRegistry(events)
+    monkeypatch.setattr(launcher, "_owned_post_probe", lambda: raw_probe)
+    monkeypatch.setattr(
+        launcher,
+        "_PRODUCTION_DEPENDENCIES",
+        launcher._LauncherDependencies(
+            registry=registry,
+            capture_measure_point=lambda *_args, **_kwargs: pytest.fail(
+                "competing pre-probe must not capture"
+            ),
+        ),
+    )
+    pre_probe = launcher.probe_floor_attempt_preconditions(
+        post_probe=launcher.floor_post_probe_capability(),
+    )
+
+    snapshot = launcher.read_floor_attempt_pre_probe(pre_probe)
+
+    assert dict(snapshot) == raw_probe
+    with pytest.raises(TypeError):
+        snapshot["stdout"] = "forged"  # type: ignore[index]
+    launched = launcher.launch_probed_floor_attempt(
+        _reservation(),
+        _genesis(),
+        _measurement(),
+        pre_probe=pre_probe,
+        classified_at=lambda: "2026-08-26T00:00:01+00:00",
+        terminal_builder=_terminal,
+    )
+    assert launched.opened.probe_before == raw_probe
+
+
 def test_probe_floor_attempt_preconditions_rejects_unissued_capability_without_probe(
 ) -> None:
     effects: list[str] = []

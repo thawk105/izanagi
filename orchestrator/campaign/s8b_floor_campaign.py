@@ -6214,7 +6214,7 @@ class _Runner:
 
     def _run_session(self, *, seq: int, round_no: int, cell_id: str, kind: str,
                      retry_ordinal: Optional[int], trigger: Optional[str],
-                     _cut6_authorization_already_recorded: bool = False) -> dict:
+                     _cut6_authorization_already_recorded: bool = False, _cut6_existing_consumption_marker: bool = False) -> dict:
         self._recheck_reservation_before_measurement()
         attempt_id = _attempt_id(cell_id, kind, seq, retry_ordinal)
         # authorization record: retry 枠はこの fsync 時点で消費される (crash しても再発行しない)。
@@ -6239,7 +6239,7 @@ class _Runner:
                 f"binary receipt 不一致: cell={cell_id} 記録={recorded_bin_sha} "
                 f"実測直前={measured_bin_sha} (計測 bytes 差し替えの疑い)"
             )
-        if self.certified_attempt_context is not None: return _run_certified_floor_session(self, seq=seq, round_no=round_no, cell_id=cell_id, kind=kind, retry_ordinal=retry_ordinal, attempt_id=attempt_id, trigger=trigger, start_mono=start_mono)
+        if self.certified_attempt_context is not None: return _run_certified_floor_session(self, seq=seq, round_no=round_no, cell_id=cell_id, kind=kind, retry_ordinal=retry_ordinal, attempt_id=attempt_id, trigger=trigger, start_mono=start_mono, cut6_existing_consumption_marker=_cut6_existing_consumption_marker)
         # pre-probe: rc>1/OSError/parse 不能 → CampaignAbort。競合列挙 → competing_process。
         probe_before = strict_probe(self.probe_fn)
         if probe_before["competing"]:
@@ -6432,7 +6432,7 @@ class _Runner:
             cell_id=cell_id, kind=str(start["kind"]),
             retry_ordinal=start.get("retry_ordinal"),
             trigger=start.get("trigger"),
-            _cut6_authorization_already_recorded=True,
+            _cut6_authorization_already_recorded=True, _cut6_existing_consumption_marker=True,
         )
         return True
 
@@ -8653,12 +8653,7 @@ def main(argv=None) -> int:
     return 0
 
 
-@dataclass(frozen=True, slots=True)
-class _FloorAttemptRegistryPlan:
-    profile: object
-    binding: object
-    genesis: object
-    slots_by_key: Mapping[tuple[str, int, int], object]
+_FloorAttemptRegistryPlan = s8b_floor_attempt_launcher.FloorAttemptRegistryPlan
 
 
 @dataclass(frozen=True, slots=True)
@@ -8698,92 +8693,21 @@ def _build_floor_attempt_registry_plan(
         schedule: Sequence[Mapping[str, object]], freeze_sha256: str,
         protocol_sha256: str) -> _FloorAttemptRegistryPlan:
     """Freeze the exact planned and retry slot closure for one campaign."""
-
-    adapter = s8b_floor_attempt_launcher.attempt_registry
-    profile8b = s8b_floor_attempt_launcher.profile8b
-    core = adapter.core
-    retry_slots = protocol.get("retry_slots_per_cell")
-    n_sessions = protocol.get("n_sessions")
-    if (
-        type(retry_slots) is not int or retry_slots < 0
-        or type(n_sessions) is not int or n_sessions <= 0
-    ):
-        raise FloorCampaignError("attempt registry plan protocol budget is invalid")
-    cell_by_id = {cell.get("cell_id"): cell for cell in cells}
-    if len(cell_by_id) != len(cells) or None in cell_by_id:
-        raise FloorCampaignError("attempt registry plan cells are invalid or duplicate")
-    binding = profile8b.S8BAttemptBinding(
-        freeze_sha256=freeze_sha256,
-        protocol_sha256=protocol_sha256,
-        schedule_sha256=hashlib.sha256(
-            core.canonical_json_bytes(list(schedule))
-        ).hexdigest(),
-    )
-    profile = profile8b.make_s8b_v2_domain_profile(
-        max_consumptions_per_budget_key=n_sessions + retry_slots,
-        recovery_authority_id=adapter.scheduler_accounting.AUTHORITY_ID,
-        recovery_authority_policy_sha256=(
-            adapter.scheduler_accounting.AUTHORITY_POLICY_SHA256
-        ),
-    )
-    slots = []
-    slots_by_key: dict[tuple[str, int, int], object] = {}
-    rounds_by_cell: dict[str, set[int]] = {str(cell_id): set() for cell_id in cell_by_id}
-    for schedule_row in schedule:
-        if (
-            not isinstance(schedule_row, Mapping)
-            or set(schedule_row) != set(_floor_contract._SCHEDULE_KEYS)
-        ):
-            raise FloorCampaignError("attempt registry plan schedule row is invalid")
-        cell_id = schedule_row.get("cell_id")
-        round_no = schedule_row.get("round")
-        if (
-            type(cell_id) is not str or cell_id not in cell_by_id
-            or type(round_no) is not int or round_no <= 0
-            or round_no in rounds_by_cell[cell_id]
-        ):
-            raise FloorCampaignError(
-                "attempt registry plan schedule cell/round is invalid or duplicate"
-            )
-        rounds_by_cell[cell_id].add(round_no)
-        cell = cell_by_id[cell_id]
-        schedule_row_sha256 = hashlib.sha256(
-            core.canonical_json_bytes(dict(schedule_row))
-        ).hexdigest()
-        for measurement_ordinal in range(retry_slots + 1):
-            slot = profile8b.S8BV2AttemptSlot(
-                freeze_holdout_key=str(cell.get("holdout_id")),
-                configuration_id=str(cell.get("configuration_id")),
-                repetition=round_no - 1,
-                measurement_ordinal=measurement_ordinal,
-                attempt_ordinal=0,
-                schedule_row_sha256=schedule_row_sha256,
-            )
-            key = (cell_id, round_no, measurement_ordinal)
-            if key in slots_by_key:
-                raise FloorCampaignError("attempt registry plan slot key is duplicate")
-            slots.append(slot)
-            slots_by_key[key] = slot
-    if any(len(rounds) != n_sessions for rounds in rounds_by_cell.values()):
-        raise FloorCampaignError(
-            "attempt registry plan does not cover every cell and repetition"
+    try:
+        return s8b_floor_attempt_launcher.prepare_floor_attempt_registry_plan(
+            protocol=protocol, cells=cells, schedule=schedule,
+            freeze_sha256=freeze_sha256, protocol_sha256=protocol_sha256,
         )
-    return _FloorAttemptRegistryPlan(
-        profile=profile,
-        binding=binding,
-        genesis=s8b_floor_attempt_launcher.FloorAttemptRegistryGenesis(
-            slots=tuple(slots),
-        ),
-        slots_by_key=slots_by_key,
-    )
+    except s8b_floor_attempt_launcher.FloorAttemptLauncherError as exc:
+        raise FloorCampaignError(str(exc)) from exc
 
 
 def _capture_floor_attempt_registry_prefix(
         repo_root: Path, plan: _FloorAttemptRegistryPlan) -> dict[str, object]:
     if type(plan) is not _FloorAttemptRegistryPlan:
         raise FloorCampaignError("attempt registry plan is unavailable")
-    return s8b_floor_attempt_launcher.attempt_registry.capture_attempt_registry_prefix(
-        Path(repo_root), expected_binding=plan.binding,
+    return s8b_floor_attempt_launcher.capture_floor_attempt_registry_prefix(
+        Path(repo_root), plan,
     )
 
 
@@ -8919,13 +8843,11 @@ def _floor_terminal_builder(
             ),
             "binary_sha256_at_measure": opened.binary_sha256_at_measure,
         }
-        raw = s8b_floor_attempt_launcher.profile8b.serialize_session_line(record)
+        raw = s8b_floor_attempt_launcher.serialize_floor_session_record(record)
         observation_sha256 = (
-            hashlib.sha256(
-                s8b_floor_attempt_launcher.attempt_registry.core.canonical_json_bytes(
-                    record["rep_observations"]
-                )
-            ).hexdigest()
+            s8b_floor_attempt_launcher.canonical_floor_payload_sha256(
+                record["rep_observations"]
+            )
             if valid else None
         )
         return s8b_floor_attempt_launcher.FloorAttemptTerminal(
@@ -8944,7 +8866,7 @@ def _floor_terminal_builder(
 def _run_certified_floor_session(
         runner: _Runner, *, seq: int, round_no: int, cell_id: str, kind: str,
         retry_ordinal: Optional[int], attempt_id: str, trigger: Optional[str],
-        start_mono: float) -> dict:
+        start_mono: float, cut6_existing_consumption_marker: bool) -> dict:
     """Run phase 1, preserve the unconsumed competing branch, then launch."""
 
     context = runner.certified_attempt_context
@@ -8958,6 +8880,13 @@ def _run_certified_floor_session(
         raise CampaignAbort(f"certified floor pre-probe refused: {exc}") from exc
     cell = runner.cell_by_id[cell_id]
     if pre_probe.competing:
+        if cut6_existing_consumption_marker:
+            raise CampaignAbort(
+                "cut6_replay_pre_probe_competing_existing_marker"
+            )
+        probe_before = s8b_floor_attempt_launcher.read_floor_attempt_pre_probe(
+            pre_probe
+        )
         return runner._finish_session(
             seq=seq, round_no=round_no, cell_id=cell_id, kind=kind,
             retry_ordinal=retry_ordinal, attempt_id=attempt_id, trigger=trigger,
@@ -8965,7 +8894,7 @@ def _run_certified_floor_session(
             excluded_reason=_REASON_COMPETING, rep_observations=[],
             rep_integrity_failures=None, assessed_median=None, session_cv=None,
             duration_s=runner._elapsed(start_mono),
-            probe_before={"rc": 0, "stdout": "", "stderr": "", "competing": True},
+            probe_before=dict(probe_before),
             probe_after=None, run_cmd=None,
             notes=["preflight probe 競合で計測をスキップ"],
             binary_sha256_at_measure=runner.binaries[cell_id]["binary_sha256"],
@@ -8974,11 +8903,13 @@ def _run_certified_floor_session(
     measurement_ordinal = 0 if kind == "planned" else retry_ordinal
     if type(measurement_ordinal) is not int or measurement_ordinal < 0:
         raise CampaignAbort("certified floor measurement ordinal is invalid")
-    slot = context.registry_plan.slots_by_key.get(
-        (cell_id, round_no, measurement_ordinal)
-    )
-    if slot is None:
-        raise CampaignAbort("certified floor attempt slot is absent from the registry plan")
+    slot_key = (cell_id, round_no, measurement_ordinal)
+    try:
+        s8b_floor_attempt_launcher.require_floor_attempt_registry_slot(
+            context.registry_plan, slot_key,
+        )
+    except s8b_floor_attempt_launcher.FloorAttemptLauncherError as exc:
+        raise CampaignAbort(str(exc)) from exc
     try:
         runner.holdout_assert_fn(
             admission, cell=_admission_cell(cell), protocol=runner.protocol,
@@ -9002,20 +8933,19 @@ def _run_certified_floor_session(
     process_identity = {
         key: run_start.get(key) for key in ("pid", "starttime", "execution_uuid")
     }
-    reservation_request = s8b_floor_attempt_launcher.FloorAttemptReservation(
+    reservation_request = s8b_floor_attempt_launcher.floor_attempt_reservation(
+        context.registry_plan,
+        slot_key=slot_key,
         repo_root=context.repo_root,
-        profile=context.registry_plan.profile,
-        binding=context.registry_plan.binding,
-        slot_id=context.registry_plan.profile.slot_codec.slot_id(slot),
         protocol=runner.protocol,
         mode=runner.mode,
         perf_preflight_receipt=runner.perf_preflight,
         consumption_marker=marker,
-        run_start_receipt_sha256=hashlib.sha256(
-            s8b_floor_attempt_launcher.attempt_registry.core.canonical_json_bytes(
+        run_start_receipt_sha256=(
+            s8b_floor_attempt_launcher.canonical_floor_payload_sha256(
                 dict(run_start)
             )
-        ).hexdigest(),
+        ),
         process_identity=process_identity,
         started_at=str(run_start.get("utc")),
         admission_claim_digest=admission.measurement_generation_claim_digest,
@@ -9024,7 +8954,6 @@ def _run_certified_floor_session(
         manifest_sha256=runner.manifest_sha256,
         run_relpath=context.run_relpath,
         cell_id=cell_id,
-        schedule_row_sha256=slot.schedule_row_sha256,
         records=int(cell["records"]),
         threads=int(cell["threads"]),
         workload=dict(cell["workload"]),
@@ -9044,7 +8973,9 @@ def _run_certified_floor_session(
     try:
         launched = s8b_floor_attempt_launcher.launch_probed_floor_attempt(
             reservation_request,
-            context.registry_plan.genesis,
+            s8b_floor_attempt_launcher.floor_attempt_registry_genesis(
+                context.registry_plan
+            ),
             measurement,
             pre_probe=pre_probe,
             classified_at=lambda: runner.now_fn().isoformat(),
@@ -9052,7 +8983,7 @@ def _run_certified_floor_session(
         )
     except (
         s8b_floor_attempt_launcher.FloorAttemptLauncherError,
-        s8b_floor_attempt_launcher.attempt_registry.S8BAttemptRegistryError,
+        s8b_floor_attempt_launcher.FloorAttemptRegistryError,
         _holdout_admission.HoldoutAdmissionError,
     ) as exc:
         raise CampaignAbort(f"certified floor attempt refused: {exc}") from exc
