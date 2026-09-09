@@ -1,0 +1,166 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "m1-measurement-sha-gate-disabled",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+          "old": "    _require_equal(\n        measurement_preregistration_sha256,\n        MEASUREMENT_TIME_PREREGISTRATION_SHA256,\n        code=\"measurement-preregistration-sha-mismatch\",\n        field=\"preregistration.measurement.sha256\",\n        arm=\"unknown\",\n    )\n",
+          "new": "    if False:\n        _require_equal(\n            measurement_preregistration_sha256,\n            MEASUREMENT_TIME_PREREGISTRATION_SHA256,\n            code=\"measurement-preregistration-sha-mismatch\",\n            field=\"preregistration.measurement.sha256\",\n            arm=\"unknown\",\n        )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_measurement_preregistration_sha_mismatch_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m1b-measurement-blob-lookup-disabled",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+          "old": "    except ValueError as exc:\n        _reject(\n            \"measurement-preregistration-sha-mismatch\",\n            \"preregistration.measurement.sha256\",\n            MEASUREMENT_TIME_PREREGISTRATION_SHA256,\n            str(exc),\n            \"unknown\",\n        )\n",
+          "new": "    except ValueError:\n        measurement_preregistration = current_preregistration\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_measurement_commit_without_preregistration_blob_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-current-sha-gate-disabled",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+          "old": "    _require_equal(\n        current_preregistration_sha256,\n        CURRENT_PREREGISTRATION_SHA256,\n        code=\"current-preregistration-sha-mismatch\",\n        field=\"preregistration.current.sha256\",\n        arm=\"unknown\",\n    )\n",
+          "new": "    if False:\n        _require_equal(\n            current_preregistration_sha256,\n            CURRENT_PREREGISTRATION_SHA256,\n            code=\"current-preregistration-sha-mismatch\",\n            field=\"preregistration.current.sha256\",\n            arm=\"unknown\",\n        )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_current_preregistration_sha_mismatch_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-document-identity-comparison-disabled",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+          "old": "        _require_equal(\n            actual,\n            expected,\n            code=\"preregistration-identity-mismatch\",\n            field=field,\n            arm=arm,\n        )\n",
+          "new": "        if False:\n            _require_equal(\n                actual,\n                expected,\n                code=\"preregistration-identity-mismatch\",\n                field=field,\n                arm=arm,\n            )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_document_identity_mismatch_is_rejected_after_artifact_checks"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-document-target-source-digest-reverted-to-unpatched-value",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "docs/t1998-balanced-stock-inline-preregistration.md",
+          "old": "    \"source_bytes_sha256\": \"678b7203aa1f9fdca4c35f9b3219d0b9662b60b22331484027adfc6c34580b12\"",
+          "new": "    \"source_bytes_sha256\": \"6454d9f34b04fdb148bc3324c5b07786d933dcc1ab0f7267aa0b91d414f70a84\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_baseline_and_target_source_identities_may_normally_differ",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_document_identity_mismatch_is_rejected_after_artifact_checks",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_load_preregistration_returns_document_identity_from_real_head",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_measurement_commit_without_preregistration_blob_is_rejected",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_measurement_preregistration_sha_mismatch_is_rejected",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_real_admission_and_receipts_accept_only_the_fixed_pair",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_typed_trace_disabled_define_is_normalized",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_unstable_arm_is_inconclusive[baseline]",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_unstable_arm_is_inconclusive[target]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m5-document-job-body-digest-reverted-to-old-value",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "docs/t1998-balanced-stock-inline-preregistration.md",
+          "old": "    \"launcher_script_sha256\": \"dff913cb1044858b56f25721f2d0aac6539bbcf2a7ddb63b9e6b4bbcac7aecd8\"",
+          "new": "    \"launcher_script_sha256\": \"0ef4d41ee1ddf8ecd7a86a32a3b9dbaf128279125ef4820c54421973ee281d84\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_baseline_and_target_source_identities_may_normally_differ",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_document_identity_mismatch_is_rejected_after_artifact_checks",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_load_preregistration_returns_document_identity_from_real_head",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_measurement_commit_without_preregistration_blob_is_rejected",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_measurement_preregistration_sha_mismatch_is_rejected",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_real_admission_and_receipts_accept_only_the_fixed_pair",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_typed_trace_disabled_define_is_normalized",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_unstable_arm_is_inconclusive[baseline]",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_unstable_arm_is_inconclusive[target]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m6-loader-blob-equality-disabled",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+          "old": "    if raw != blob:\n        raise ValueError(\"working preregistration bytes differ from commit blob\")\n",
+          "new": "    if False:\n        raise ValueError(\"working preregistration bytes differ from commit blob\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_load_preregistration_rejects_worktree_blob_mismatch"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m7-two-pins-collapsed-into-one",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+          "old": "CURRENT_PREREGISTRATION_SHA256 = (\n    \"464e3af59a1ef0f776cad022a52ab87e1fdf2709abfc2062c058203bc813719c\"\n)\n",
+          "new": "CURRENT_PREREGISTRATION_SHA256 = MEASUREMENT_TIME_PREREGISTRATION_SHA256\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m8-duplicate-key-rejection-disabled",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+          "old": "            matches[0],\n            object_pairs_hook=_reject_duplicate_keys,\n",
+          "new": "            matches[0],\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_parse_preregistration_rejects_duplicate_key"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

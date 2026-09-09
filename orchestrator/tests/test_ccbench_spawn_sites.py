@@ -264,6 +264,16 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     ("campaign/t080_freeze_migration.py", "<module>._git_rc"): 1,
     ("campaign/t152_write_intent_coverage.py", "<module>._run_process"): 1,
     ("campaign/t152_write_intent_coverage.py", "<module>._verify"): 1,
+    # Fixed Git argv with a sanitized environment only reads the T-1998
+    # preregistration blob or checks its ancestry; neither executes CCBench.
+    (
+        "campaign/t1998_stock_inline_pair.py",
+        "<module>._preregistration_blob",
+    ): 1,
+    (
+        "campaign/t1998_stock_inline_pair.py",
+        "<module>.load_preregistration",
+    ): 1,
     ("campaign/t810_validator.py", "<module>._git"): 1,
     ("campaign/trial_registry.py", "<module>._git"): 1,
     # Read-only `git rev-parse HEAD` checks the worker checkout against its

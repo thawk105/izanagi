@@ -1,0 +1,37 @@
+{
+  "arms": {
+    "baseline": {
+      "canonical_genome": "silo|BACKOFF_FIXED=-1,BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+      "genome_sha256": "84319b1127a6362c01c21e34ad09f982acaa7dfd75ac464d9822602d1eba20c2",
+      "ok": true,
+      "source_bytes_sha256": "2d691b45afd02a7979b1872eeb0a5c5c58223550892331b31641599aa239a2c6",
+      "src_token": "stock",
+      "tracked_clean": false,
+      "tracked_diff_sha256": "29aef2bc1b9f30524ad8ceeff59ffdbfda626612986cb7851cce8accbdaa3682",
+      "tracked_paths": [
+        "cmake/Options.cmake",
+        "include/backoff.hh"
+      ]
+    },
+    "target": {
+      "canonical_genome": "silo|BACKOFF_FIXED=5,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+      "genome_sha256": "7deff2b013e46cedfdb192b0e356b2912cc0eb745b00f7a041c759ec244fc8ea",
+      "ok": true,
+      "source_bytes_sha256": "678b7203aa1f9fdca4c35f9b3219d0b9662b60b22331484027adfc6c34580b12",
+      "src_token": "678b7203aa1f9fdca4c35f9b3219d0b9662b60b22331484027adfc6c34580b12",
+      "tracked_clean": false,
+      "tracked_diff_sha256": "29aef2bc1b9f30524ad8ceeff59ffdbfda626612986cb7851cce8accbdaa3682",
+      "tracked_paths": [
+        "cmake/Options.cmake",
+        "include/backoff.hh"
+      ]
+    }
+  },
+  "cxx": "g++",
+  "patch": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2533-t1998-prereg-digest/patches/silo-backoff-fixed.patch",
+  "patched_files": [
+    "cmake/Options.cmake",
+    "include/backoff.hh"
+  ],
+  "pin": "511c953"
+}
