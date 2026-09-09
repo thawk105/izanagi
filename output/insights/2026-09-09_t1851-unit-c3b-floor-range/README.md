@@ -203,7 +203,45 @@ repo 外 `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1851-unit-c3b/bundle/` に *
 
 **run directory と binary store は存在しない** — 計測段へ到達していないため生成されていない。
 
-## 10. 収録物
+## 10. 受入全走 (6 attempt、非帰属赤 1 回)
+
+**attempt 6 が `child-green`。22,662 passed / 68 skipped / 0 failed。** receipt 発行済み、
+tested main `7f17e1c63b5db01b424c87cf5778635dd653dab2`、tested tip `af5397619`。
+`--lease-optional` で走らせ、lease は別 session が保持していたため取得していない (解放対象なし)。
+
+| attempt | 結果 | 帰属 |
+|---|---|---|
+| 1 | 走行前に停止 (`merge-abort` / `cleanup-failure`、source_rc=128) | **非帰属。** post-claim merge の cleanup が失敗し `MERGE_HEAD` を残した。親が `git merge --abort` で戻し、`DW-O17` の非 ff 手順で改めて取り込んだところ**競合 0 件で auto-merge が通った** — merge 内容ではなく cleanup 側の問題 |
+| 2 | 22,650 passed / 68 skipped / **12 error** | **非帰属 (環境)。** 下記参照 |
+| 3 | 走行前に停止 (`preclaim-history-provenance` / dispatch `queue-wait-timeout`) | **非帰属 (infra)。** child 未起動 |
+| 4 | 走行前に停止 (`preclaim-history-provenance` / `TimeoutExpired`) | **非帰属 (infra)。** D612 上書きを 3600/600 にしたところ外側 watchdog が先に切った |
+| 5 | 走行前に停止 (dispatch `queue-wait-timeout`) | **非帰属 (infra)。** 上書き 1000/150 でも queue が飽和 |
+| 6 | **22,662 passed / 68 skipped / 0 failed** | — |
+
+### attempt 2 の 12 error はなぜ非帰属か
+
+12 件すべてが `orchestrator/tests/test_t1259_qsub_env_delivery_probe.py` の **error** (autouse
+fixture 段の失敗) で、1 file に閉じていた。この fixture は `probe._repo_snapshot(REPO_ROOT)` を呼び、
+`_run_git()` が git subprocess ごとに **`timeout=30.0`** を掛ける
+(`tools/pegasus/probes/t1259_qsub_env_delivery_probe.py:133-144`)。そのうち
+`git ls-files --others --exclude-standard` は、この worktree で高負荷時に **16.80 秒**かかることを
+git 自身が警告として出しており、load 3.58 の時点では **1.64 秒**だった。3 shard 並列の受入走行中に
+30 秒を超えるのは十分ありうる。
+
+- pin される 3 file (`probe.py` / `probe.pbs` / `s8b_floor_campaign.py`) はすべて実在する。
+- `_repo_snapshot` は現在正常に走る (`head=af539761918c`、`untracked=0`)。
+- 本 wave の変更は docs のみで、この file と編集面が交わらない。
+- **attempt 6 で再現しなかった。**
+
+### 併せて実測した既知の締切不一致 ([T-2484])
+
+受入の `preclaim-history-provenance` 段は `check_ai_provenance.py` を subprocess で呼び、待ち手側の
+`_STAGE_TIMEOUT_SECONDS = 1200` が掛かる (`tools/dev_wave_wait.py:234`)。一方 dispatch の既定予算は
+queue 待ち 900 + grace 300 = **ちょうど 1200** で余裕が無い。**D612 の opt-in 上書きを 3600/600 に
+すると必ず外側 watchdog が先に切る** (attempt 4 で実測)。1000/150 まで下げても queue 飽和では
+届かない (attempt 5)。上書きは queue 待ちを伸ばせるが、この段では 1200 秒の天井を越えられない。
+
+## 11. 収録物
 
 - `s1-brief.md` — 段 1 brief ((P1) 4 件が段 3 の攻撃対象)
 - `s4-adjudication.md` — 段 4 裁定 (所見 25 件の real/refuted と plan v2)
