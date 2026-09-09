@@ -1,0 +1,154 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 2400,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "M1-submitter-whitelist-admits-ermia",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_certify.sh",
+          "old": "      && \"$PROTOCOL\" != \"tictoc\" ]]; then",
+          "new": "      && \"$PROTOCOL\" != \"tictoc\" \\\n      && \"$PROTOCOL\" != \"ermia\" ]]; then"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_exposes_only_the_calibration_whitelist",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_unregistered_protocol_before_side_effects[ermia]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-mocc-axis-table-drops-key-sort",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "old": "      -DCCBENCH_KEY_SORT=0\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_non_silo_defines_contain_no_axis_outsider[mocc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_axes_match_independent_genome_spaces",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_axis_values_satisfy_genome_spaces",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_defines_match_exact_values"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-mocc-axis-table-admits-foreign-wal",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "old": "      -DCCBENCH_TEMPERATURE_RESET_OPT=1\n",
+          "new": "      -DCCBENCH_TEMPERATURE_RESET_OPT=1\n      -DCCBENCH_WAL=0\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_non_silo_defines_contain_no_axis_outsider[mocc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_axes_match_independent_genome_spaces",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_axis_values_satisfy_genome_spaces",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_defines_match_exact_values"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-binary-path-pinned-to-silo",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "old": "BINARY=\"$BUILD_DIR/cc/$CALIBRATION_PROTOCOL/${build_argv[4]}\"",
+          "new": "BINARY=\"$BUILD_DIR/cc/silo/${build_argv[4]}\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_derives_protocol_target_and_binary_path[mocc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_derives_protocol_target_and_binary_path[silo]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_derives_protocol_target_and_binary_path[tictoc]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-mocc-build-target-reverts-to-silo",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "old": "    build_argv=(\"$CMAKE_PATH\" --build \"$BUILD_DIR\" --target ycsb_mocc.exe -j 48)",
+          "new": "    build_argv=(\"$CMAKE_PATH\" --build \"$BUILD_DIR\" --target ycsb_silo.exe -j 48)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_derives_protocol_target_and_binary_path[mocc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_derives_protocol_target_and_binary_path[silo]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_derives_protocol_target_and_binary_path[tictoc]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-backoff-fixed-extended-to-mocc",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "old": "      -DCCBENCH_BACK_OFF=1\n      -DCCBENCH_KEY_SORT=0\n",
+          "new": "      -DCCBENCH_BACK_OFF=1\n      -DCCBENCH_BACKOFF_FIXED=-1\n      -DCCBENCH_KEY_SORT=0\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_keeps_backoff_fixed_and_condition_gate_silo_only",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_non_silo_defines_contain_no_axis_outsider[mocc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_axes_match_independent_genome_spaces",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_axis_values_satisfy_genome_spaces",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_defines_match_exact_values"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-job-drops-protocol-recheck",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "old": "    \"calibration_protocol\": doc.get(\"calibration\", {}).get(\"protocol\") == protocol,\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_job_rechecks_the_submission_workload_and_records_it",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_submit_binding_requires_matching_calibration_protocol",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_submit_binding_requires_matching_calibration_rratio"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8-submitter-marks-omitted-protocol-explicit",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_certify.sh",
+          "old": "PROTOCOL_EXPLICIT=0\n",
+          "new": "PROTOCOL_EXPLICIT=1\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_exposes_only_the_calibration_whitelist",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_omitted_protocol_is_silo_without_changing_qsub_argv"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
