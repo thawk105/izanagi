@@ -15,6 +15,7 @@ import shutil
 import stat
 import sys
 import tempfile
+from types import SimpleNamespace
 from unittest import mock
 
 import pytest
@@ -30,6 +31,7 @@ from orchestrator.campaign import p3_b4_material_report as material_report
 from orchestrator.campaign import p3_b4_prerun_issuer as issuer
 from orchestrator.campaign import p3_b4_raw_record_producer as P
 from orchestrator.campaign import p3_s4_loop as L
+from orchestrator.campaign import site_policy
 from orchestrator.campaign import wal
 from orchestrator.campaign.layout import CampaignLayout
 from orchestrator.campaign.model import (
@@ -315,6 +317,38 @@ MUTATION_NODE_IDS = {
 
 @contextlib.contextmanager
 def _evidence_scope(
+    root: Path,
+    *,
+    iteration: int,
+    assignment: tuple[str, str] = ("on", "off"),
+    terminal: str = "commit",
+    admission=None,
+    red_detail: bool = True,
+):
+    with contextlib.ExitStack() as stack:
+        stack.enter_context(mock.patch.object(
+            site_policy,
+            "socket",
+            SimpleNamespace(gethostname=lambda: "test-host"),
+        ))
+        stack.enter_context(mock.patch.object(
+            site_policy,
+            "_has_nqsv",
+            return_value=False,
+        ))
+        with _evidence_scope_at_declared_site(
+            root,
+            iteration=iteration,
+            assignment=assignment,
+            terminal=terminal,
+            admission=admission,
+            red_detail=red_detail,
+        ) as evidence:
+            yield evidence
+
+
+@contextlib.contextmanager
+def _evidence_scope_at_declared_site(
     root: Path,
     *,
     iteration: int,
