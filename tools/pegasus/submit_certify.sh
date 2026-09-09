@@ -48,6 +48,21 @@ if [[ "$PROTOCOL" != "silo" \
   exit 2
 fi
 
+THIRD_PARTY_SOURCE_ROOT="$REPO_ROOT/output/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src"
+if [[ "$THIRD_PARTY_SOURCE_ROOT" != /* \
+      || ! -d "$THIRD_PARTY_SOURCE_ROOT" \
+      || -L "$THIRD_PARTY_SOURCE_ROOT" ]]; then
+  echo "pinned third-party staging root is unavailable: $THIRD_PARTY_SOURCE_ROOT" >&2
+  exit 2
+fi
+for third_party_name in masstree mimalloc googletest; do
+  third_party_source="$THIRD_PARTY_SOURCE_ROOT/$third_party_name"
+  if [[ ! -d "$third_party_source" || -L "$third_party_source" ]]; then
+    echo "pinned third-party staging source is unavailable: $third_party_name" >&2
+    exit 2
+  fi
+done
+
 if [[ ! -f "$JOB_SCRIPT" ]]; then
   echo "job script not found: $JOB_SCRIPT" >&2
   exit 2
