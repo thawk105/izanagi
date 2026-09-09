@@ -3122,6 +3122,27 @@ def test_preflight_wal_accepts_four_transport_attempts_and_rejects_fifth(catalog
     assert caught.value.code == "bundle_preflight_sequence"
 
 
+def test_later_row_retry_does_not_replace_availability_evidence(
+    catalog, green_preflight_report
+):
+    report, _transport = green_preflight_report
+    initial = copy.deepcopy(report["preflight_evidence"])
+    failure = {
+        "stream_id": initial[-1]["stream_id"],
+        "request": copy.deepcopy(initial[-1]["request"]),
+        "transport_error": "live_transport",
+    }
+    retry = copy.deepcopy(initial[-1])
+    sequence = [*initial[:-1], failure, retry]
+    state = search._validate_preflight_wal_attempt_sequence(catalog, sequence)
+    assert state["initial_plan_complete"] is True
+    assert state["retry_stream_id"] is None
+    assert sequence[0] == report["availability_evidence"]
+    assert sequence[0]["stream_id"] == (
+        "AX3A1-L-ID-01@openalex"
+    )
+
+
 def test_http_failure_cannot_be_followed_by_inline_success(
     catalog, green_preflight_report
 ):
