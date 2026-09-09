@@ -51,6 +51,11 @@ title: [T-2449] 段 4 loop の condition gate supply arm は現行 main で既�
 - **変異は DW-M08 の diagnostic sensitivity pin として記録した。** 本 wave の変更は gate の受理集合を
   1 bit も変えないので、kill は「拒否すべき入力を受理しなくなった」ことではなく「失敗本文が失われる
   実装を検査が捕らえる」ことを示す。
+- **段 8: 収容を 1 件試して入らなかった。** {{F:frozen-record-read-as-live-contract}} の恒久対応
+  (「hit した pin が生きた契約か過去実走の記録かを分ける」) を `DW-O09` へ収容しようとしたが、
+  同節は 992 bytes / 上限 1000 bytes で、必要な約 110 bytes が入らない。予算のために他の安全義務を
+  削るのは skill-self-improvement.md が明示的に禁じているので削らなかった。D782 の梯子でいう
+  「収容できなかった実測 1 例」として記録する。恒久対応の正本は失敗台帳側に残る。
 
 ## 次の一手差分
 
@@ -72,6 +77,10 @@ title: [T-2449] 段 4 loop の condition gate supply arm は現行 main で既�
   `condition_meaning_gate._run_process` の「rc=0 でも stderr が非空なら失敗」規則は configure に
   対して脆く、CMake が新しい警告を 1 行出すだけで gate が `configure-failed` になる。規律 2 を
   緩めずに扱う方向 (configure に限った警告 allowlist / 別 reason code / 現状維持) の裁定が要る。
+- {{T:pegasus-readme-s7-stale-thirdparty-path}} **P3・新規**: `tools/pegasus/README.md` §7 が
+  `THIRDPARTY_SOURCE_ROOT` の実例として挙げる過去 wave の submit-tree 配下の path は既に存在しない。
+  本 wave は `fetch_third_party.py hydrate --staging-root` で作り直したが、§7 の記述は過去 root を
+  再利用できると読める。§6 の hydrate 出力を毎回作る形へ直す。
 - {{T:s4-loop-evidence-root-reexport}} **P2・新規・ユーザー裁定待ち**:
   `tools/pegasus/p3_s4_loop_pegasus.sh` が canonical 化した `evidence_root` を元の環境変数名へ
   再 export していないため、相対 path が渡ると shell と driver が別 directory を指しうる。

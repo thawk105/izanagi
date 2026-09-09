@@ -220,6 +220,26 @@ unknown 扱いになる fail-soft 設計である。登録には JUnit 実走を
    (`tools/pegasus/p3_s4_loop_pegasus.sh`)。相対 path が渡ると shell と driver が別 directory を
    指しうる。job body の変更は D1773/D1801 の契約テストに触れるため裁定が要る。
 
+## 段 8 (自己改善) の結果
+
+候補は 3 件出た。
+
+1. **失敗台帳の恒久対応を `DW-O09` へ収容する** — 「hit した pin が生きた契約か過去実走の
+   provenance 記録かを分ける」の 1 行。**入らなかった。** 同節は 992 bytes / 上限 1000 bytes で、
+   必要な約 110 bytes の headroom が無い。予算のために他の安全義務を削るのは
+   `docs/skill-self-improvement.md` が明示的に禁じているので削らなかった。D782 の梯子でいう
+   「収容できなかった実測 1 例」として記録する。恒久対応の正本は失敗台帳側に残る。
+2. **焦点走 script に D612 の opt-in 上書きを最初から入れる** — 本 wave でも書き忘れて焦点走を
+   1 巡失った。同型は既に記憶側に記録があり、docs 側 (`DW-O18` 997 bytes / `DW-O26`) も予算満杯で
+   収容できないことが過去 wave で実測済みである。本 wave は新しい情報を足さないので、
+   候補の再掲に留める。
+3. **`tools/pegasus/README.md` §7 の `THIRDPARTY_SOURCE_ROOT` 実例が腐っている** — 過去 wave の
+   submit-tree 配下を指しており、その checkout は既に無い。dev-wave の入口・reference ではなく
+   製品側 docs なので本契約の routing 対象外とし、次の一手 (`pegasus-readme-s7-stale-thirdparty-path`)
+   として起票した。
+
+段構成・実装子権限・正しさ防壁・裁定境界・予算の変更は実装していない。
+
 ## 次 wave の出発点
 
 - `trace-parse-error` の帰属と修正 (裁定パッケージ 2)。段 4 loop の compute 実走を 1 件でも
