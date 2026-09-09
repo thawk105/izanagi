@@ -9414,6 +9414,13 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   本 wave では機構を新設せず、hold 登録による迂回も採らない。**
   他 wave 所有のテストを hold へ入れて自分の wave を通すことは、共有の正しさ関門を
   弱める方向であり、本 wave の scope 外である。land を保留してユーザー裁定へ返す。
+
+- **再発: 2026-09-10** — 親が同一 worktree へ `check_ai_provenance.py` の full 監査と
+  変異走行を続けて投入し、監査側の pending orphan hold を変異 harness が検知して停止した
+  (`DW-O26` の直列化義務違反、親の操作ミス)。監査自身も QUE 10 本 / RUN 0 本の窓で
+  `queue-wait-timeout` になった。直列化の義務は `DW-O26` に書かれているが、同節の題は
+  「焦点走の consumer test 拡張」であり、条件 dispatch 表でも受入・テスト前の条件からしか
+  引かれない。変異走行の直前に読む節 (`DW-M05`) からは到達しない。
 ### F274. 単走の差を実装効果へ帰属させかけた [計測汚染]
 
 - 事象: fix 後の焦点走が 73.42 秒で、fix 前の単走 60.55 秒より遅かったため、親は
@@ -13246,6 +13253,21 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   closing commit 対応も、2026-08-25 の再発が足した「許可が後続 decision で狭められていないか」も、
   **根拠 D 自体が後続 decision に上書きされている**形は取り逃す。局所修復として、本 wave で
   [T-1985] を終端させ D1318 に射程を記録した。
+
+- **再発: 2026-09-09** — 既存 3 例はいずれも**別 ID・別 wave**の成果が carry の実体を満たした型
+  だったのに対し、本件は **carry を閉じ損ねたのが、その作業を実装した wave 自身**である点が新しい。
+  [T-2369] (D1699、B-4 対照対 driver を候補と参照の 1 session 形へ直す) は 2026-09-08 のエントリ 1327
+  (branch `worktree-dev-wave-b4-paired-session-driver`) が実装して land したが、同エントリの
+  次の一手差分は [T-2369] を carry stub のまま残し 完了 にしなかった。以後の fold が保存則どおり
+  毎回運び、1403〜1408 まで持ち越された結果、2026-09-09 に「残るのは driver の設計と実装である」
+  という依頼で本 wave が起動した。着手前実測 (`DW-S01` の裁定前提実測) が段 1 で覆し、実害は
+  実装子を 1 本も起動しないまま docs-only の終端記録へ切り替えたことで止まった。
+  **本件は既存の恒久対応が挙げる「ID 単位で closing commit との対応を機械検査する lint」が
+  最も安く効く型である** — エントリ 1327 の題と実装 commit `003ef6173` の件名は、どちらも
+  carry 本文の逐語 (「対照対 driver を、candidate と reference を 1 つの低水準 session で測る形へ直し、
+  reference の個数と D の式を実走前に凍結する」) とほぼ一致しており、別 ID を辿る必要がない。
+  同一 fragment 内で「本文が閉じたと書いている作業の ID が、同じ fragment の 完了 節に無い」を
+  見るだけで検出できる。lint は未実装のままなので、局所修復として本 wave が [T-2369] を 完了 にした。
 ### F429. 大量失敗を伴う変異走行で pytest-xdist の集約・終了処理が host 混雑下で無応答になる [infra不調] [測定汚染]
 
 - 事象: `tools/pegasus/dispatch_compute.py` の `_accounting_present` へ「常に False を返す」
@@ -24144,6 +24166,11 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: harness 自身が起動時に fail-closed で拒否する (既に機械化済み)。
   spec を変えると sha256 が変わり `--resume` は使えないので、新しい `--out` / `--attempt-out` で走り直す。
 
+
+- **再発: 2026-09-10** — D612 の opt-in 上書きを queue-wait 3600 秒 / grace 600 秒で当てた結果、
+  事前登録済み spec の `timeout_seconds=1800` を上回り、変異走行が 1 走も始まらなかった。
+  `qstat` の request ID が実際には進んでいる (988638〜642 が既に完了) ことを実測して、
+  上書きを 1200 秒 / 300 秒へ下げ、spec を書き換えずに走らせた。
 ### F933. 背景 script に包んだ重量 command が login 判定をすり抜けた [手順漏れ] [恒真ゲート]
 
 - 事象: 親が生死確認のため CCBench を login node でビルドした。`cmake --build` を直接叩くと
