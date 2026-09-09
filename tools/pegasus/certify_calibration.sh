@@ -167,6 +167,22 @@ if [[ "$CALIBRATION_PROTOCOL" != "silo" \
     "IZANAGI_CALIBRATION_PROTOCOL must be exactly silo, mocc, or tictoc"
   exit 2
 fi
+THIRD_PARTY_SOURCE_ROOT="$REPO_ROOT/output/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src"
+if [[ "$THIRD_PARTY_SOURCE_ROOT" != /* \
+      || ! -d "$THIRD_PARTY_SOURCE_ROOT" \
+      || -L "$THIRD_PARTY_SOURCE_ROOT" ]]; then
+  write_failure 2 third_party_source \
+    "pinned third-party staging root is unavailable"
+  exit 2
+fi
+for third_party_name in masstree mimalloc googletest; do
+  third_party_source="$THIRD_PARTY_SOURCE_ROOT/$third_party_name"
+  if [[ ! -d "$third_party_source" || -L "$third_party_source" ]]; then
+    write_failure 2 third_party_source \
+      "pinned third-party staging source is unavailable: $third_party_name"
+    exit 2
+  fi
+done
 if [[ -n "${PEGASUS_EFFECTIVE_CLOCK_TOLERANCE_PCT+x}" ]]; then
   write_failure 2 submit_binding "legacy effective clock tolerance input is forbidden"
   exit 2
@@ -533,6 +549,43 @@ if [[ "$glog_rc" -ne 0 ]]; then
 fi
 
 # (iv-c) pinned-clean CCBench + /scr の fresh worktree/build。
+FETCHCONTENT_SOURCE_ROOT="$TMPDIR/fetchcontent-src"
+FETCHCONTENT_BASE_DIR="$TMPDIR/fetchcontent-base"
+mkdir -p "$FETCHCONTENT_SOURCE_ROOT" "$FETCHCONTENT_BASE_DIR"
+for third_party_name in masstree mimalloc googletest; do
+  third_party_copy_rc=0
+  timeout 120 cp -a \
+    "$THIRD_PARTY_SOURCE_ROOT/$third_party_name" \
+    "$FETCHCONTENT_SOURCE_ROOT/${third_party_name}-src" \
+    || third_party_copy_rc=$?
+  if [[ "$third_party_copy_rc" -ne 0 ]]; then
+    write_failure 2 third_party_source \
+      "cannot copy pinned third-party staging source: $third_party_name"
+    exit 2
+  fi
+done
+third_party_verify_rc=0
+(cd "$REPO_ROOT" && timeout 120 python3 - \
+  "$FETCHCONTENT_SOURCE_ROOT" "$REPO_ROOT" <<'PY'
+import sys
+from pathlib import Path
+
+from orchestrator.campaign.s8b_floor_campaign import (
+    _verify_pristine_floor_dependency_sources,
+)
+
+_verify_pristine_floor_dependency_sources(
+    Path(sys.argv[1]), repo_root=Path(sys.argv[2]),
+)
+PY
+) >"$ATTEMPT_DIR/third-party-source-verify.stdout" \
+  2>"$ATTEMPT_DIR/third-party-source-verify.stderr" \
+  || third_party_verify_rc=$?
+if [[ "$third_party_verify_rc" -ne 0 ]]; then
+  write_failure 2 third_party_source \
+    "job-private FetchContent sources are not pinned-pristine"
+  exit 2
+fi
 CCBENCH_BASE="$REPO_ROOT/external/ccbench"
 CCBENCH_HEAD=$(git -C "$CCBENCH_BASE" rev-parse HEAD)
 GITLINK=$(git -C "$REPO_ROOT" ls-tree HEAD external/ccbench | awk '{print $3}')
@@ -574,7 +627,13 @@ case "$CALIBRATION_PROTOCOL" in
     ;;
 esac
 configure_argv=("$CMAKE_PATH" -S "$BUILD_SOURCE" -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=Release
-  -DENABLE_SANITIZER=OFF "${ccbench_define_argv[@]}"
+  -DENABLE_SANITIZER=OFF
+  "-DFETCHCONTENT_BASE_DIR=$FETCHCONTENT_BASE_DIR"
+  -DFETCHCONTENT_FULLY_DISCONNECTED=ON
+  "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=$FETCHCONTENT_SOURCE_ROOT/masstree-src"
+  "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=$FETCHCONTENT_SOURCE_ROOT/mimalloc-src"
+  "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=$FETCHCONTENT_SOURCE_ROOT/googletest-src"
+  "${ccbench_define_argv[@]}"
   "-DCMAKE_PREFIX_PATH=$GFLAGS_INSTALL_DIR;$GLOG_INSTALL_DIR"
   "-DIZANAGI_GFLAGS_SRC_HEAD=$GFLAGS_SOURCE_HEAD"
   "-DIZANAGI_GLOG_SRC_HEAD=$GLOG_SOURCE_HEAD"

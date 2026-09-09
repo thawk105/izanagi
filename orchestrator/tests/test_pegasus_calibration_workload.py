@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import re
 import shlex
 import shutil
@@ -20,6 +21,7 @@ SUBMIT = ROOT / "tools/pegasus/submit_certify.sh"
 JOB = ROOT / "tools/pegasus/certify_calibration.sh"
 COST_PROBE = ROOT / "tools/pegasus/probes/t1683_rr5_cost_probe.py"
 README = ROOT / "tools/pegasus/README.md"
+THIRD_PARTY_NAMES = ("masstree", "mimalloc", "googletest")
 
 
 def _load_cost_probe():
@@ -110,7 +112,12 @@ def _certify_protocol_define_table() -> dict[str, dict[str, str]]:
     return table
 
 
-def _protocol_shell_observation(protocol: str) -> dict[str, object]:
+def _protocol_shell_observation(
+    protocol: str,
+    *,
+    fetchcontent_base_dir: str = "/fixture/fetchcontent-base",
+    fetchcontent_source_root: str = "/fixture/fetchcontent-src",
+) -> dict[str, object]:
     source = JOB.read_text(encoding="utf-8")
     define_case_start = source.index('case "$CALIBRATION_PROTOCOL" in')
     define_case_end = (
@@ -139,6 +146,8 @@ CALIBRATION_PROTOCOL={shlex.quote(protocol)}
 CMAKE_PATH=/fixture/cmake
 BUILD_SOURCE=/fixture/source
 BUILD_DIR=/fixture/build
+FETCHCONTENT_BASE_DIR={shlex.quote(fetchcontent_base_dir)}
+FETCHCONTENT_SOURCE_ROOT={shlex.quote(fetchcontent_source_root)}
 GFLAGS_INSTALL_DIR=/fixture/gflags
 GLOG_INSTALL_DIR=/fixture/glog
 GFLAGS_SOURCE_HEAD={'a' * 40}
@@ -146,12 +155,21 @@ GLOG_SOURCE_HEAD={'b' * 40}
 CC_PATH=/bin/true
 CXX_PATH=/bin/true
 gate_calls=0
-run_condition_gate() {{ gate_calls=$((gate_calls + 1)); }}
+gate_configure_argv=()
+run_condition_gate() {{
+  gate_calls=$((gate_calls + 1))
+  gate_configure_argv=("${{configure_argv[@]:5}}")
+}}
 {fragment}
 printf 'gate=%s\n' "$gate_calls"
 printf 'binary=%s\n' "$BINARY"
 printf 'configure:'; printf ' %q' "${{configure_argv[@]}}"; printf '\n'
 printf 'build:'; printf ' %q' "${{build_argv[@]}}"; printf '\n'
+printf 'gate-configure:'
+if (( ${{#gate_configure_argv[@]}} > 0 )); then
+  printf ' %q' "${{gate_configure_argv[@]}}"
+fi
+printf '\n'
 """
     completed = subprocess.run(
         ["bash", "-c", command], capture_output=True, text=True, check=False,
@@ -165,6 +183,9 @@ printf 'build:'; printf ' %q' "${{build_argv[@]}}"; printf '\n'
         "binary": lines[1].removeprefix("binary="),
         "configure_argv": shlex.split(lines[2].removeprefix("configure:")),
         "build_argv": build_argv,
+        "gate_configure_argv": shlex.split(
+            lines[4].removeprefix("gate-configure:"),
+        ),
     }
 
 
@@ -193,6 +214,171 @@ printf 'calibrate:'; printf ' %q' "${{calibrate_argv[@]}}"; printf '\n'
     )
     assert completed.returncode == 0, completed.stderr
     return shlex.split(completed.stdout.removeprefix("calibrate:").strip())
+
+
+def _offline_fetchcontent_tokens(
+    *, source_root: Path | str, base_dir: Path | str,
+) -> list[str]:
+    return [
+        f"-DFETCHCONTENT_BASE_DIR={base_dir}",
+        "-DFETCHCONTENT_FULLY_DISCONNECTED=ON",
+        f"-DFETCHCONTENT_SOURCE_DIR_MASSTREE={source_root}/masstree-src",
+        f"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC={source_root}/mimalloc-src",
+        f"-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST={source_root}/googletest-src",
+    ]
+
+
+def _third_party_staging_root(repo_root: Path) -> Path:
+    return (
+        repo_root
+        / "output/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src"
+    )
+
+
+def _make_verified_third_party_fixture(
+    tmp_path: Path, *, ignored_name: str | None = None,
+) -> tuple[Path, Path]:
+    fixture_repo = tmp_path / "repo"
+    policy_path = fixture_repo / "tools/pegasus/policy.json"
+    third_party_cmake = fixture_repo / "external/ccbench/cmake/ThirdParty.cmake"
+    policy_path.parent.mkdir(parents=True)
+    third_party_cmake.parent.mkdir(parents=True)
+    shutil.copy2(ROOT / "tools/pegasus/policy.json", policy_path)
+    shutil.copy2(ROOT / "external/ccbench/cmake/ThirdParty.cmake", third_party_cmake)
+
+    staging_root = _third_party_staging_root(fixture_repo)
+    staging_root.mkdir(parents=True)
+    heads: dict[str, str] = {}
+    for name in THIRD_PARTY_NAMES:
+        source = staging_root / name
+        source.mkdir()
+        (source / ".gitignore").write_text("ignored-artifact\n", encoding="utf-8")
+        (source / "marker.txt").write_text(f"{name}-pristine\n", encoding="utf-8")
+        (source / "CMakeLists.txt").write_text(
+            "cmake_minimum_required(VERSION 3.14)\n"
+            f"project(fixture_{name} NONE)\n",
+            encoding="utf-8",
+        )
+        subprocess.run(["git", "init", "-q", str(source)], check=True)
+        subprocess.run(
+            ["git", "-C", str(source), "config", "user.email", "fixture@example.invalid"],
+            check=True,
+        )
+        subprocess.run(
+            ["git", "-C", str(source), "config", "user.name", "Fixture"],
+            check=True,
+        )
+        subprocess.run(["git", "-C", str(source), "add", "."], check=True)
+        subprocess.run(
+            ["git", "-C", str(source), "commit", "-qm", "fixture"], check=True,
+        )
+        heads[name] = subprocess.run(
+            ["git", "-C", str(source), "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+        if name == ignored_name:
+            (source / "ignored-artifact").write_text("dirty\n", encoding="utf-8")
+
+    policy = json.loads(policy_path.read_text(encoding="utf-8"))
+    records = policy["silo_ladder_rung1"]["third_party_sources"]
+    assert isinstance(records, list)
+    records_by_name = {record["name"]: record for record in records}
+    assert set(records_by_name) == set(THIRD_PARTY_NAMES)
+    for name in THIRD_PARTY_NAMES:
+        records_by_name[name]["pin"] = heads[name]
+        for ref_key in ("ref", "declared_ref", "fetchcontent_ref", "tag"):
+            if ref_key in records_by_name[name]:
+                records_by_name[name][ref_key] = heads[name]
+    policy_path.write_text(
+        json.dumps(policy, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    cmake_text = third_party_cmake.read_text(encoding="utf-8")
+    tag_variables = {
+        "masstree": "CCBENCH_MASSTREE_TAG",
+        "mimalloc": "CCBENCH_MIMALLOC_TAG",
+        "googletest": "CCBENCH_GOOGLETEST_TAG",
+    }
+    for name, variable in tag_variables.items():
+        cmake_text, count = re.subn(
+            rf'(set\({variable}\s+")[^"]+("\))',
+            rf"\g<1>{heads[name]}\g<2>",
+            cmake_text,
+        )
+        assert count == 1
+    third_party_cmake.write_text(cmake_text, encoding="utf-8")
+    return fixture_repo, staging_root
+
+
+def _job_copy_fragment() -> str:
+    source = JOB.read_text(encoding="utf-8")
+    anchor = "# (iv-c) pinned-clean CCBench + /scr の fresh worktree/build。"
+    start = source.index(anchor) + len(anchor)
+    end = source.index("\nCCBENCH_BASE=", start)
+    return source[start:end]
+
+
+def _run_job_copy_fragment(
+    *, repo_root: Path, staging_root: Path, scratch_root: Path,
+) -> tuple[subprocess.CompletedProcess[str], Path | None, Path | None]:
+    attempt_dir = scratch_root / "attempt"
+    command = f"""set -Eeuo pipefail
+REPO_ROOT={shlex.quote(str(repo_root))}
+TMPDIR={shlex.quote(str(scratch_root))}
+THIRD_PARTY_SOURCE_ROOT={shlex.quote(str(staging_root))}
+ATTEMPT_DIR={shlex.quote(str(attempt_dir))}
+mkdir -p "$ATTEMPT_DIR"
+write_failure() {{ printf 'failure:%s:%s\n' "$2" "$3" >&2; }}
+{_job_copy_fragment()}
+printf 'source-root=%s\n' "$FETCHCONTENT_SOURCE_ROOT"
+printf 'base-dir=%s\n' "$FETCHCONTENT_BASE_DIR"
+"""
+    env = dict(os.environ)
+    env["PYTHONPATH"] = str(ROOT)
+    completed = subprocess.run(
+        ["bash", "-c", command],
+        cwd=ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=180,
+        check=False,
+    )
+    if completed.returncode != 0:
+        verifier_stderr = attempt_dir / "third-party-source-verify.stderr"
+        if verifier_stderr.is_file():
+            completed.stderr += verifier_stderr.read_text(
+                encoding="utf-8", errors="replace",
+            )
+        return completed, None, None
+    values = dict(line.split("=", 1) for line in completed.stdout.splitlines())
+    return completed, Path(values["source-root"]), Path(values["base-dir"])
+
+
+def _job_third_party_precheck() -> str:
+    source = JOB.read_text(encoding="utf-8")
+    protocol_gate = source.index(
+        'if [[ "$CALIBRATION_PROTOCOL" != "silo"',
+    )
+    start = source.index("THIRD_PARTY_SOURCE_ROOT=", protocol_gate)
+    end = source.index(
+        'if [[ -n "${PEGASUS_EFFECTIVE_CLOCK_TOLERANCE_PCT+x}"', start,
+    )
+    return source[start:end]
+
+
+def _run_job_third_party_precheck(repo_root: Path) -> subprocess.CompletedProcess[str]:
+    command = f"""set -Eeuo pipefail
+REPO_ROOT={shlex.quote(str(repo_root))}
+write_failure() {{ printf 'failure:%s:%s\n' "$2" "$3" >&2; }}
+{_job_third_party_precheck()}
+"""
+    return subprocess.run(
+        ["bash", "-c", command], capture_output=True, text=True, check=False,
+    )
 
 
 def test_certify_shell_protocol_axes_match_independent_genome_spaces() -> None:
@@ -315,12 +501,17 @@ def test_certify_keeps_backoff_fixed_and_condition_gate_silo_only() -> None:
     assert len(re.findall(r"(?m)^[ \t]*run_condition_gate[ \t]*$", source)) == 1
 
 
-def test_default_silo_build_and_calibrate_argv_are_byte_compatible() -> None:
+def test_default_silo_build_and_calibrate_argv_match_offline_contract() -> None:
     observed = _protocol_shell_observation("silo")
     true_path = str(Path("/bin/true").resolve())
     assert observed["configure_argv"] == [
         "/fixture/cmake", "-S", "/fixture/source", "-B", "/fixture/build",
         "-DCMAKE_BUILD_TYPE=Release", "-DENABLE_SANITIZER=OFF",
+        "-DFETCHCONTENT_BASE_DIR=/fixture/fetchcontent-base",
+        "-DFETCHCONTENT_FULLY_DISCONNECTED=ON",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/fixture/fetchcontent-src/masstree-src",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/fixture/fetchcontent-src/mimalloc-src",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/fixture/fetchcontent-src/googletest-src",
         "-DCCBENCH_TRACE=0", "-DCCBENCH_BACK_OFF=0",
         "-DCCBENCH_BACKOFF_FIXED=-1",
         "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
@@ -343,6 +534,287 @@ def test_default_silo_build_and_calibrate_argv_are_byte_compatible() -> None:
         "/fixture/build/cc/silo/ycsb_silo.exe", "--binary-sha256", "c" * 64,
         "--receipt-json", "/fixture/attempt/acquisition-receipt.json",
     ]
+
+
+def test_certify_offline_fetchcontent_contract_is_identical_for_all_protocols() -> None:
+    expected = _offline_fetchcontent_tokens(
+        source_root="/fixture/fetchcontent-src",
+        base_dir="/fixture/fetchcontent-base",
+    )
+    assert "for third_party_name in masstree mimalloc googletest; do" in (
+        _job_copy_fragment()
+    )
+    for protocol in ("silo", "mocc", "tictoc"):
+        observed = _protocol_shell_observation(protocol)
+        assert [
+            argument for argument in observed["configure_argv"]
+            if argument.startswith("-DFETCHCONTENT_")
+        ] == expected
+
+
+def test_certify_condition_gate_receives_the_same_fetchcontent_tokens() -> None:
+    expected = _offline_fetchcontent_tokens(
+        source_root="/fixture/fetchcontent-src",
+        base_dir="/fixture/fetchcontent-base",
+    )
+    silo = _protocol_shell_observation("silo")
+    assert [
+        argument for argument in silo["gate_configure_argv"]
+        if argument.startswith("-DFETCHCONTENT_")
+    ] == expected
+    for protocol in ("mocc", "tictoc"):
+        observed = _protocol_shell_observation(protocol)
+        assert observed["gate_calls"] == 0
+        assert observed["gate_configure_argv"] == []
+
+
+def test_certify_offline_configure_resolves_three_local_sources_and_fails_without_each(
+    tmp_path: Path,
+) -> None:
+    cmake = shutil.which("cmake")
+    timeout_command = shutil.which("timeout")
+    assert cmake is not None
+    assert timeout_command is not None
+    fixture_repo, staging_root = _make_verified_third_party_fixture(tmp_path)
+    project = tmp_path / "cmake-project"
+    project.mkdir()
+    (project / "CMakeLists.txt").write_text(
+        """cmake_minimum_required(VERSION 3.14)
+project(offline_fetchcontent_contract NONE)
+include(FetchContent)
+if(NOT FETCHCONTENT_FULLY_DISCONNECTED)
+  FetchContent_Declare(
+    offline_connectivity_probe
+    URL "https://offline-connectivity-probe.invalid/source.tar.gz"
+  )
+  FetchContent_MakeAvailable(offline_connectivity_probe)
+endif()
+foreach(dependency IN ITEMS masstree mimalloc googletest)
+  FetchContent_Declare(
+    ${dependency}
+    URL "https://${dependency}.offline.invalid/source.tar.gz"
+  )
+  FetchContent_MakeAvailable(${dependency})
+  FetchContent_GetProperties(${dependency})
+  set(source_variable "${dependency}_SOURCE_DIR")
+  set(resolved_source "${${source_variable}}")
+  if(NOT EXISTS "${resolved_source}/CMakeLists.txt")
+    message(FATAL_ERROR "${dependency} did not resolve to a local source")
+  endif()
+  file(WRITE "${CMAKE_BINARY_DIR}/resolved-${dependency}.txt" "${resolved_source}")
+endforeach()
+""",
+        encoding="utf-8",
+    )
+
+    def run_configure(label: str, *, omitted_prefix: str | None = None) -> tuple[
+        subprocess.CompletedProcess[str], Path, Path, Path,
+    ]:
+        scratch = tmp_path / f"scratch-{label}"
+        copied, source_root, base_dir = _run_job_copy_fragment(
+            repo_root=fixture_repo,
+            staging_root=staging_root,
+            scratch_root=scratch,
+        )
+        assert copied.returncode == 0, copied.stderr
+        assert source_root is not None and base_dir is not None
+        observed = _protocol_shell_observation(
+            "mocc",
+            fetchcontent_base_dir=str(base_dir),
+            fetchcontent_source_root=str(source_root),
+        )
+        tokens = [
+            argument for argument in observed["configure_argv"]
+            if argument.startswith("-DFETCHCONTENT_")
+        ]
+        assert tokens == _offline_fetchcontent_tokens(
+            source_root=source_root, base_dir=base_dir,
+        )
+        if omitted_prefix is not None:
+            tokens = [
+                argument for argument in tokens
+                if not argument.startswith(omitted_prefix)
+            ]
+        build_dir = tmp_path / f"build-{label}"
+        completed = subprocess.run(
+            [
+                timeout_command, "--kill-after=2", "5",
+                cmake, "-S", str(project), "-B", str(build_dir), *tokens,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+        return completed, source_root, base_dir, build_dir
+
+    positive, source_root, base_dir, build_dir = run_configure("positive")
+    assert source_root != base_dir
+    assert positive.returncode == 0, positive.stdout + positive.stderr
+    for name in THIRD_PARTY_NAMES:
+        resolved = (build_dir / f"resolved-{name}.txt").read_text(encoding="utf-8")
+        assert Path(resolved).resolve() == (source_root / f"{name}-src").resolve()
+
+    missing_tokens = (
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=",
+        "-DFETCHCONTENT_FULLY_DISCONNECTED=",
+    )
+    for index, prefix in enumerate(missing_tokens):
+        negative, _source_root, _base_dir, _build_dir = run_configure(
+            f"negative-{index}", omitted_prefix=prefix,
+        )
+        assert negative.returncode != 0, prefix
+
+    coupled_base = tmp_path / "coupled-base"
+    coupled_base.mkdir()
+    for name in THIRD_PARTY_NAMES:
+        shutil.copytree(staging_root / name, coupled_base / f"{name}-src")
+    coupled_tokens = _offline_fetchcontent_tokens(
+        source_root=coupled_base, base_dir=coupled_base,
+    )
+    coupled_tokens = [
+        argument for argument in coupled_tokens
+        if not argument.startswith("-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=")
+    ]
+    coupled_build = tmp_path / "build-coupled-control"
+    coupled = subprocess.run(
+        [
+            timeout_command, "--kill-after=2", "5",
+            cmake, "-S", str(project), "-B", str(coupled_build), *coupled_tokens,
+        ],
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+    assert coupled.returncode == 0, coupled.stdout + coupled.stderr
+    coupled_mimalloc = (coupled_build / "resolved-mimalloc.txt").read_text(
+        encoding="utf-8",
+    )
+    assert Path(coupled_mimalloc).resolve() == (coupled_base / "mimalloc-src").resolve()
+
+
+def test_certify_job_copy_leaves_the_staging_sources_untouched_and_writable(
+    tmp_path: Path,
+) -> None:
+    fixture_repo, staging_root = _make_verified_third_party_fixture(tmp_path)
+    before = {
+        name: (
+            (staging_root / name / "marker.txt").read_bytes(),
+            (staging_root / name / "marker.txt").stat().st_ino,
+        )
+        for name in THIRD_PARTY_NAMES
+    }
+    completed, source_root, base_dir = _run_job_copy_fragment(
+        repo_root=fixture_repo,
+        staging_root=staging_root,
+        scratch_root=tmp_path / "scratch-copy",
+    )
+    assert completed.returncode == 0, completed.stderr
+    assert source_root is not None and base_dir is not None
+    assert source_root != base_dir
+    for name in THIRD_PARTY_NAMES:
+        upstream_marker = staging_root / name / "marker.txt"
+        copied_marker = source_root / f"{name}-src" / "marker.txt"
+        assert copied_marker.stat().st_ino != before[name][1]
+        copied_marker.write_text(f"{name}-job-write\n", encoding="utf-8")
+        assert upstream_marker.read_bytes() == before[name][0]
+        assert upstream_marker.stat().st_ino == before[name][1]
+
+
+def test_certify_job_rejects_a_staging_source_with_ignored_artifacts(
+    tmp_path: Path,
+) -> None:
+    fixture_repo, staging_root = _make_verified_third_party_fixture(
+        tmp_path, ignored_name="mimalloc",
+    )
+    completed, source_root, base_dir = _run_job_copy_fragment(
+        repo_root=fixture_repo,
+        staging_root=staging_root,
+        scratch_root=tmp_path / "scratch-dirty",
+    )
+    assert completed.returncode == 2
+    assert source_root is None and base_dir is None
+    assert "failure:third_party_source:" in completed.stderr
+    assert "pinned-pristine" in completed.stderr
+
+
+def test_submitter_rejects_a_missing_or_malformed_third_party_staging_root(
+    tmp_path: Path,
+) -> None:
+    submit_source = SUBMIT.read_text(encoding="utf-8")
+    precheck_start = submit_source.index("THIRD_PARTY_SOURCE_ROOT=")
+    precheck_end = submit_source.index('\nif [[ ! -f "$JOB_SCRIPT"', precheck_start)
+    submit_precheck = submit_source[precheck_start:precheck_end]
+    assert "silo_ladder_rung1/job-staging/thirdparty-src" in submit_precheck
+    assert "git" not in submit_precheck
+    assert "clone" not in submit_precheck
+    assert "hydrate" not in submit_precheck
+
+    malformed_repos: list[Path] = []
+
+    missing_repo = tmp_path / "missing-repo"
+    missing_repo.mkdir()
+    malformed_repos.append(missing_repo)
+
+    root_symlink_repo = tmp_path / "root-symlink-repo"
+    root_symlink_repo.mkdir()
+    root_symlink = _third_party_staging_root(root_symlink_repo)
+    root_symlink.parent.mkdir(parents=True)
+    root_symlink_target = tmp_path / "root-symlink-target"
+    root_symlink_target.mkdir()
+    for name in THIRD_PARTY_NAMES:
+        (root_symlink_target / name).mkdir()
+    root_symlink.symlink_to(root_symlink_target, target_is_directory=True)
+    malformed_repos.append(root_symlink_repo)
+
+    missing_child_repo = tmp_path / "missing-child-repo"
+    missing_child_repo.mkdir()
+    missing_child_root = _third_party_staging_root(missing_child_repo)
+    missing_child_root.mkdir(parents=True)
+    for name in ("masstree", "mimalloc"):
+        (missing_child_root / name).mkdir()
+    malformed_repos.append(missing_child_repo)
+
+    child_symlink_repo = tmp_path / "child-symlink-repo"
+    child_symlink_repo.mkdir()
+    child_symlink_root = _third_party_staging_root(child_symlink_repo)
+    child_symlink_root.mkdir(parents=True)
+    child_target = tmp_path / "child-symlink-target"
+    child_target.mkdir()
+    for name in ("masstree", "mimalloc"):
+        (child_symlink_root / name).mkdir()
+    (child_symlink_root / "googletest").symlink_to(
+        child_target, target_is_directory=True,
+    )
+    malformed_repos.append(child_symlink_repo)
+
+    for repo_root in malformed_repos:
+        completed = subprocess.run(
+            [
+                str(SUBMIT), "--repo-root", str(repo_root),
+                "--job-script", str(repo_root / "missing-job.sh"),
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert completed.returncode == 2
+        assert "pinned third-party staging" in completed.stderr
+
+        job_completed = _run_job_third_party_precheck(repo_root)
+        assert job_completed.returncode == 2
+        assert "failure:third_party_source:" in job_completed.stderr
+
+    valid_repo = tmp_path / "valid-repo"
+    valid_repo.mkdir()
+    valid_root = _third_party_staging_root(valid_repo)
+    valid_root.mkdir(parents=True)
+    for name in THIRD_PARTY_NAMES:
+        (valid_root / name).mkdir()
+    assert _run_job_third_party_precheck(valid_repo).returncode == 0
 
 
 def test_calibration_shell_scripts_parse() -> None:
@@ -491,6 +963,10 @@ def _run_submit_dry_run_in_clean_fixture(
         ["git", "-C", str(fixture_repo), "commit", "-qm", "fixture"],
         check=True,
     )
+    staging_root = _third_party_staging_root(fixture_repo)
+    staging_root.mkdir(parents=True)
+    for name in THIRD_PARTY_NAMES:
+        (staging_root / name).mkdir()
 
     command = [
         "bash",
