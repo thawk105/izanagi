@@ -1,0 +1,2 @@
+Preparing worktree (detached HEAD 511c9538)
+HEAD is now at 511c9538 feat(silo/trace): trace v2 — C 行に read/write 件数、txn 終端に E 行 (izanagi [T-816], FN-2)
