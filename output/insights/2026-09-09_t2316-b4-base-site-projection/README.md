@@ -228,3 +228,49 @@ base・sort・trigger の `projection_sha256` がすべて変わる。「sort �
    これは既知で、解除手順も既に運用知見として確立している。repo 側の変更は不要。
 
 段構成・実装子権限・正しさ防壁・裁定境界・予算の変更は 1 件も行っていない。
+
+## 13. 受入全走が暴いた 4 件目 — 証拠 fixture のホスト依存
+
+段 6 のレビューと変異を通過した後、**受入全走で 35 件の setup error** が出た。
+`orchestrator/tests/test_p3_b4_material_report.py` の全 module fixture 消費者である。
+main 単独 (clone を `fdf9c40c8` へ checkout) では同 file が **49 passed / rc=0** なので、
+本 wave に帰属する赤である。
+
+### 機序 (実測で確定)
+
+1. 証拠 fixture は **module scope** (`test_p3_b4_material_report.py:146`、
+   `test_p3_b4_raw_record_producer.py:1146`)。
+2. `conftest.py:239` の site 中立化は **function scope の autouse** である。
+   **module fixture の setup はそれより先に走るので中立化が効かない。**
+3. テストは Pegasus の計算ノード (`bnodeNNN`) へ dispatch されるため、実 site は
+   `PEGASUS_COMPUTE` に解決される。
+4. `_evidence_scope` は `_marked_driver_configs()` = `B4L._driver_configs("base", ...)` を使う。
+   **本 wave が足した base の site 射影**が `pegasus` 契約を cfg へ束縛する。
+5. replica 側の lock writer `_write_campaign_lock_with_writer` は
+   `bound_environment_contract is None` のときだけ `L.ENV_TAG` (= `linux-baremetal`) で補う。
+   **変更前は base の cfg が契約を持たなかったので常にこの分岐が発火し、seed 側と偶然一致していた。**
+   変更後は cfg が `pegasus` を持つのでそれが使われ、seed の `linux-baremetal` と食い違う。
+
+実測値: seed `contract_sha256=1b2ee853...` (`linux-baremetal`)、
+replica `contract_sha256=e576e9cd...` (`pegasus`)。
+`L.ENV_TAG='linux-baremetal'`、
+`_SITE_ENV_TAGS={'OTHER':'linux-baremetal','PEGASUS_COMPUTE':'pegasus'}`。
+
+### 直し方と、直さなかったもの
+
+直したのは **fixture のホスト依存性**である。`_evidence_scope` の最外周で conftest と同値の
+中立化 (`site_policy.socket` と `site_policy._has_nqsv` の**両方**) を掛け、seed と replica の
+双方が同じ契約を使うようにした。`ExitStack` が証拠 scope 全体を覆うので正常終了でも例外でも復元する。
+raw-record producer と material-report が共有する経路なので両 consumer が同時に直る。
+
+**実装 (`p3_b4_launcher.py`) は 1 byte も変えていない。** 本題の射影は正しく、
+壊れていたのは fixture が実ホスト名に依存していたことである。
+`_assert_replicas_match_real_except_identity` の比較は緩めていない。`conftest.py` も触っていない。
+
+### この wave の手順の失敗
+
+段 6 の consumer 列挙を module 名の参照検索
+(`git grep -ln "p3_b4_launcher\|B4L\."` on `orchestrator/tests/`) で行ったため、
+`_marked_driver_configs` 経由でしか触らない `test_p3_b4_material_report.py` を取り逃がした。
+`DW-O26` は「名前の推測でなく参照関係で引く」と課すが、**間接参照 (helper 経由) まで辿らないと
+同じ取り逃がしが起きる**。焦点走に入っていれば受入 1 走 (約 30 分) を使わずに見つかっていた。

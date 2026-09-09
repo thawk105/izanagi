@@ -52,8 +52,20 @@ title: [T-2316] base の B4 launcher へ site 射影を入れ、PEGASUS_COMPUTE 
   既知 unit の順位から fallback cost が付く (段 6 レンズ B が `conftest.py` の実装で確認)。
   台帳を触る wave は land 競合のたび forward merge で競合し rc=23 の循環に入るため、
   触らない側を選んだ。
-- **エージェント工数:** codex 子 7 本 (plan 1 / consult 2 / author 1 / review 2 / fix 1)、
-  model call 合計 177 回。全子 `outcome=accepted`。receipt は job artifact 側にある。
+- **受入全走が 4 件目の所見を出した。** 段 6 の敵対レビューと変異 8 件を通過した後、受入で
+  `test_p3_b4_material_report.py` の 35 件が setup error になった。main 単独では同 file が
+  49 passed なので本 wave に帰属する。原因は**証拠 fixture のホスト依存**で、
+  module scope の fixture は function scope autouse の site 中立化より先に走るため実ホスト名が
+  漏れ、計算ノード上で `PEGASUS_COMPUTE` に解決される。そこへ本 wave の base 射影が
+  `pegasus` 契約を束縛したことで、`L.ENV_TAG` (`linux-baremetal`) 前提で書かれていた
+  replica 側の lock writer と食い違った。変更前は base の cfg が契約を持たなかったので
+  偶然一致していた。fixture 側だけで閉じ、実装は 1 byte も変えていない。
+- **この wave の手順の失敗:** 段 6 の consumer 列挙を module 名の参照検索で行ったため、
+  `_marked_driver_configs` 経由でしか触らない同 file を焦点走から取り逃がした。
+  `DW-O26` の「参照関係で引く」は**間接参照 (helper 経由) まで辿らないと足りない**。
+  焦点走に入っていれば受入 1 走を使わずに見つかっていた。
+- **エージェント工数:** codex 子 8 本 (plan 1 / consult 2 / author 1 / review 2 / fix 2)、
+  model call 合計 177 回 + fix 2 巡目分。全子 `outcome=accepted`。receipt は job artifact 側にある。
 
 ## 次の一手差分
 
