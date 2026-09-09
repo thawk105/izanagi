@@ -1,0 +1,488 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2354-a5-prune-removal/output/pegasus-dispatch/b57e2ecb1e9e45eafdd580524a93f5df/izdw-b57e2ecb1e.o986826",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2354-a5-prune-removal/output/pegasus-dispatch/b57e2ecb1e9e45eafdd580524a93f5df/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n.........                                                                [100%]\n9 passed in 3.99s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "7bb58b67e3e3def92b7799f9c97f27beca9825e2044e9493bd147ce7bcd87061"
+    },
+    "artifact_error": null,
+    "collection_sha256": "17cf6c1191ae875618b6c7f8435f9d4f998b4b86de432e9f2ecdeac5ecf2ced8",
+    "duration_s": 27.11,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "0dd1a9f2e64c93ebe5d326215d3183b76d88c7b0d421a01a23da7b47ba4fa264",
+    "repo_head": "99f36357154415ca484d9d4f94fa52f12b56279b",
+    "runner_sha256": "1aa14f1f553ffd9878cf0fc9e4c2b2c117b1527f99eb438c6f41d120826ed7a3",
+    "spec_sha256": "faa3a51d41c1d8d2f133f8cdbaaa73567132540975043238464aec4fdb5e8fd9",
+    "status": "PASSED",
+    "test_output_sha256": "7bb58b67e3e3def92b7799f9c97f27beca9825e2044e9493bd147ce7bcd87061",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "68f4dd452e4373031394129a71f371d6ccf6d605d3d1e9ec6c26058152c0b089"
+  },
+  "date": "2026-09-09T00:19:55.969900+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2354-a5-prune-removal/output/pegasus-dispatch/6b8958ebf9318803036fe30c0dbff419/izdw-6b8958ebf9.o986828",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2354-a5-prune-removal/output/pegasus-dispatch/6b8958ebf9318803036fe30c0dbff419/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n......FF.                                                                [100%]\n=================================== FAILURES ===================================\n_____ test_current_scripts_are_a_positive_example_of_the_complete_contract _____\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_current_scripts_are_a_positive_example_of_the_complete_contract():\n>       _assert_current_pair_contract()\n\norchestrator/tests/test_a5_second_boot_job_contract.py:460: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_a5_second_boot_job_contract.py:418: in _assert_current_pair_contract\n    _assert_execution_shape(job, submitter)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\njob = '#!/bin/bash\\n#PBS -A SFC\\n#PBS -q gen_S\\n#PBS -l elapstim_req=02:00:00\\n#PBS -b 1\\n\\nset -Eeuo pipefail\\numask 077\\n\\..., \"O_DIRECTORY\", 0))\\ntry:\\n    os.fsync(parent_fd)\\nfinally:\\n    os.close(parent_fd)\\nPY\\n\\nCURRENT_STAGE=complete\\n'\nsubmitter = '#!/bin/bash\\n# Login-side fan-out: submit one independent A-5 job for each adopted workload.\\nset -Eeuo pipefail\\numa...ission_event submitted \\\\\\n    \"$workload\" \"$job_id\" \"$root\" \"$stdout\" \"$stderr\"\\n  printf \\'%s\\\\n\\' \"$job_id\"\\ndone\\n'\n\n    def _assert_execution_shape(job: str, submitter: str) -> None:\n        normalized_job = re.sub(r\"\\\\\\n\\s*\", \" \", job)\n        normalized_submitter = re.sub(r\"\\\\\\n\\s*\", \" \", submitter)\n        normalized_job = re.sub(r\"[ \\t]+\", \" \", normalized_job)\n        normalized_submitter = re.sub(r\"[ \\t]+\", \" \", normalized_submitter)\n        driver = (\n            'timeout \"$SWEEP_CAP_S\" \"$PY\" -I -B '\n            '\"$JOB_REPO/orchestrator/campaign/backoff_sweep.py\" \"$WORKLOAD\"'\n        )\n        assert normalized_job.count(driver) == 1\n        assert \"read-heavy\" not in job\n        assert \"read-heavy\" not in submitter\n        assert \"--screening\" not in job\n        assert \"--screening-fixed-us\" not in job\n        assert \"--confirm-each-candidate\" not in job\n        assert \"IZANAGI_PEGASUS_THIRDPARTY_CACHE\" not in job\n        assert 'export http_proxy=\"$BUILD_NETWORK_PROXY_URL\"' in job\n        assert 'export https_proxy=\"$BUILD_NETWORK_PROXY_URL\"' in job\n        assert 'JOB_REPO=\"$TMPDIR/job-repo\"' in job\n        assert 'JOB_CCBENCH=\"$JOB_REPO/external/ccbench\"' in job\n        assert 'mkdir -m 0700 \"$OUTPUT_ROOT/env/pegasus\" \"$OUTPUT_ROOT/env/pegasus/claims\"' in job\n        assert 'destination = base / \"result.json\"' in job\n        assert 'fd = os.open(temporary, flags, 0o600)' in job\n        assert 'os.link(temporary, destination, follow_symlinks=False)' in job\n>       assert re.search(r\"\\bworktree\\s+prune\\b\", normalized_job) is None\nE       assert <re.Match object; span=(4456, 4470), match='worktree prune'> is None\nE        +  where <re.Match object; span=(4456, 4470), match='worktree prune'> = <function search at 0x155121b5d1b0>('\\\\bworktree\\\\s+prune\\\\b', '#!/bin/bash\\n#PBS -A SFC\\n#PBS -q gen_S\\n#PBS -l elapstim_req=02:00:00\\n#PBS -b 1\\n\\nset -Eeuo pipefail\\numask 077\\n\\...ttr(os, \"O_DIRECTORY\", 0))\\ntry:\\n os.fsync(parent_fd)\\nfinally:\\n os.close(parent_fd)\\nPY\\n\\nCURRENT_STAGE=complete\\n')\nE        +    where <function search at 0x155121b5d1b0> = re.search\n\norchestrator/tests/test_a5_second_boot_job_contract.py:387: AssertionError\n___ test_a5_job_exit_cleanup_preserves_missing_sibling_worktree_registration ___\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_a5_job_exit_cleanup_preserves_missing_sibling_worktree_registration():\n        job = JOB.read_text(encoding=\"utf-8\")\n        with tempfile.TemporaryDirectory() as temporary_directory:\n            temporary = Path(temporary_directory)\n            for job_rc in (0, 23):\n                case = temporary / f\"job-rc-{job_rc}\"\n                repo_root = case / \"repo\"\n                ccbench_root = case / \"ccbench\"\n                repo_root.mkdir(parents=True)\n                ccbench_root.mkdir()\n                repo_repository, repo_commit, _repo_other = (\n                    _fixture_git_repository(repo_root)\n                )\n                ccbench_repository, ccbench_commit, _ccbench_other = (\n                    _fixture_git_repository(ccbench_root)\n                )\n                job_repo = case / \"job-repo\"\n                _add_detached_worktree(repo_repository, job_repo, repo_commit)\n                (job_repo / \"external\").mkdir()\n                job_ccbench = job_repo / \"external/ccbench\"\n                _add_detached_worktree(\n                    ccbench_repository, job_ccbench, ccbench_commit,\n                )\n                sibling_ccbench = case / \"sibling-ccbench\"\n                _add_detached_worktree(\n                    ccbench_repository, sibling_ccbench, ccbench_commit,\n                )\n                shutil.rmtree(sibling_ccbench)\n                ccbench_before = _git(\n                    ccbench_repository, \"worktree\", \"list\", \"--porcelain\",\n                )\n                assert f\"worktree {sibling_ccbench}\" in ccbench_before\n    \n                output_root = case / \"output\"\n                (output_root / \"env\").mkdir(parents=True)\n                failure_receipt_calls = output_root / \"failure-receipt.calls\"\n                completed = _run_a5_cleanup_snippet(\n                    job,\n                    repo_repository,\n                    job_repo,\n                    ccbench_repository,\n                    job_ccbench,\n                    output_root,\n                    failure_receipt_calls,\n                    job_rc,\n                )\n    \n                assert completed.returncode == job_rc, completed.stderr\n                assert not job_ccbench.exists()\n                assert not job_repo.exists()\n                repo_after = _git(\n                    repo_repository, \"worktree\", \"list\", \"--porcelain\",\n                )\n                ccbench_after = _git(\n                    ccbench_repository, \"worktree\", \"list\", \"--porcelain\",\n                )\n                assert f\"worktree {job_repo}\" not in repo_after\n                assert f\"worktree {job_ccbench}\" not in ccbench_after\n>               assert f\"worktree {sibling_ccbench}\" in ccbench_after\nE               AssertionError: assert 'worktree /tmp/tmpc0vwqt0s/job-rc-0/sibling-ccbench' in 'worktree /tmp/tmpc0vwqt0s/job-rc-0/ccbench/objects.git\\nbare'\n\norchestrator/tests/test_a5_second_boot_job_contract.py:521: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_a5_second_boot_job_contract.py::test_current_scripts_are_a_positive_example_of_the_complete_contract\nFAILED orchestrator/tests/test_a5_second_boot_job_contract.py::test_a5_job_exit_cleanup_preserves_missing_sibling_worktree_registration\n2 failed, 7 passed in 3.91s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_a5_second_boot_job_contract.py::test_current_scripts_are_a_positive_example_of_the_complete_contract\" nodeid_bytes=124 nodeid_omitted_bytes=0 source_bytes=3091 retained_bytes=3091 omitted_bytes=0 rendered_excerpt_bytes=3378 sha256=d0d827a74bd9fef29984ef95381b4bf7f0424054530537ec446c010e190a125b\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_current_scripts_are_a_positive_example_of_the_complete_contract():\n> >       _assert_current_pair_contract()\n> \n> orchestrator/tests/test_a5_second_boot_job_contract.py:460: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_a5_second_boot_job_contract.py:418: in _assert_current_pair_contract\n>     _assert_execution_shape(job, submitter)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> job = '#!/bin/bash\\x5cn#PBS -A SFC\\x5cn#PBS -q gen_S\\x5cn#PBS -l elapstim_req=02:00:00\\x5cn#PBS -b 1\\x5cn\\x5cnset -Eeuo pipefail\\x5cnumask 077\\x5cn\\x5c..., \"O_DIRECTORY\", 0))\\x5cntry:\\x5cn    os.fsync(parent_fd)\\x5cnfinally:\\x5cn    os.close(parent_fd)\\x5cnPY\\x5cn\\x5cnCURRENT_STAGE=complete\\x5cn'\n> submitter = '#!/bin/bash\\x5cn# Login-side fan-out: submit one independent A-5 job for each adopted workload.\\x5cnset -Eeuo pipefail\\x5cnuma...ission_event submitted \\x5c\\x5c\\x5cn    \"$workload\" \"$job_id\" \"$root\" \"$stdout\" \"$stderr\"\\x5cn  printf \\x5c'%s\\x5c\\x5cn\\x5c' \"$job_id\"\\x5cndone\\x5cn'\n> \n>     def _assert_execution_shape(job: str, submitter: str) -> None:\n>         normalized_job = re.sub(r\"\\x5c\\x5c\\x5cn\\x5cs*\", \" \", job)\n>         normalized_submitter = re.sub(r\"\\x5c\\x5c\\x5cn\\x5cs*\", \" \", submitter)\n>         normalized_job = re.sub(r\"[ \\x5ct]+\", \" \", normalized_job)\n>         normalized_submitter = re.sub(r\"[ \\x5ct]+\", \" \", normalized_submitter)\n>         driver = (\n>             'timeout \"$SWEEP_CAP_S\" \"$PY\" -I -B '\n>             '\"$JOB_REPO/orchestrator/campaign/backoff_sweep.py\" \"$WORKLOAD\"'\n>         )\n>         assert normalized_job.count(driver) == 1\n>         assert \"read-heavy\" not in job\n>         assert \"read-heavy\" not in submitter\n>         assert \"--screening\" not in job\n>         assert \"--screening-fixed-us\" not in job\n>         assert \"--confirm-each-candidate\" not in job\n>         assert \"IZANAGI_PEGASUS_THIRDPARTY_CACHE\" not in job\n>         assert 'export http_proxy=\"$BUILD_NETWORK_PROXY_URL\"' in job\n>         assert 'export https_proxy=\"$BUILD_NETWORK_PROXY_URL\"' in job\n>         assert 'JOB_REPO=\"$TMPDIR/job-repo\"' in job\n>         assert 'JOB_CCBENCH=\"$JOB_REPO/external/ccbench\"' in job\n>         assert 'mkdir -m 0700 \"$OUTPUT_ROOT/env/pegasus\" \"$OUTPUT_ROOT/env/pegasus/claims\"' in job\n>         assert 'destination = base / \"result.json\"' in job\n>         assert 'fd = os.open(temporary, flags, 0o600)' in job\n>         assert 'os.link(temporary, destination, follow_symlinks=False)' in job\n> >       assert re.search(r\"\\x5cbworktree\\x5cs+prune\\x5cb\", normalized_job) is None\n> E       assert <re.Match object; span=(4456, 4470), match='worktree prune'> is None\n> E        +  where <re.Match object; span=(4456, 4470), match='worktree prune'> = <function search at 0x155121b5d1b0>('\\x5c\\x5cbworktree\\x5c\\x5cs+prune\\x5c\\x5cb', '#!/bin/bash\\x5cn#PBS -A SFC\\x5cn#PBS -q gen_S\\x5cn#PBS -l elapstim_req=02:00:00\\x5cn#PBS -b 1\\x5cn\\x5cnset -Eeuo pipefail\\x5cnumask 077\\x5cn\\x5c...ttr(os, \"O_DIRECTORY\", 0))\\x5cntry:\\x5cn os.fsync(parent_fd)\\x5cnfinally:\\x5cn os.close(parent_fd)\\x5cnPY\\x5cn\\x5cnCURRENT_STAGE=complete\\x5cn')\n> E        +    where <function search at 0x155121b5d1b0> = re.search\n> \n> orchestrator/tests/test_a5_second_boot_job_contract.py:387: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_a5_second_boot_job_contract.py::test_a5_job_exit_cleanup_preserves_missing_sibling_worktree_registration\" nodeid_bytes=128 nodeid_omitted_bytes=0 source_bytes=3027 retained_bytes=3027 omitted_bytes=0 rendered_excerpt_bytes=3159 sha256=89027f2070549bfda3bb1c2d105fa82cdc47b27f69d0f00383d29437092f0bed\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_a5_job_exit_cleanup_preserves_missing_sibling_worktree_registration():\n>         job = JOB.read_text(encoding=\"utf-8\")\n>         with tempfile.TemporaryDirectory() as temporary_directory:\n>             temporary = Path(temporary_directory)\n>             for job_rc in (0, 23):\n>                 case = temporary / f\"job-rc-{job_rc}\"\n>                 repo_root = case / \"repo\"\n>                 ccbench_root = case / \"ccbench\"\n>                 repo_root.mkdir(parents=True)\n>                 ccbench_root.mkdir()\n>                 repo_repository, repo_commit, _repo_other = (\n>                     _fixture_git_repository(repo_root)\n>                 )\n>                 ccbench_repository, ccbench_commit, _ccbench_other = (\n>                     _fixture_git_repository(ccbench_root)\n>                 )\n>                 job_repo = case / \"job-repo\"\n>                 _add_detached_worktree(repo_repository, job_repo, repo_commit)\n>                 (job_repo / \"external\").mkdir()\n>                 job_ccbench = job_repo / \"external/ccbench\"\n>                 _add_detached_worktree(\n>                     ccbench_repository, job_ccbench, ccbench_commit,\n>                 )\n>                 sibling_ccbench = case / \"sibling-ccbench\"\n>                 _add_detached_worktree(\n>                     ccbench_repository, sibling_ccbench, ccbench_commit,\n>                 )\n>                 shutil.rmtree(sibling_ccbench)\n>                 ccbench_before = _git(\n>                     ccbench_repository, \"worktree\", \"list\", \"--porcelain\",\n>                 )\n>                 assert f\"worktree {sibling_ccbench}\" in ccbench_before\n>     \n>                 output_root = case / \"output\"\n>                 (output_root / \"env\").mkdir(parents=True)\n>                 failure_receipt_calls = output_root / \"failure-receipt.calls\"\n>                 completed = _run_a5_cleanup_snippet(\n>                     job,\n>                     repo_repository,\n>                     job_repo,\n>                     ccbench_repository,\n>                     job_ccbench,\n>                     output_root,\n>                     failure_receipt_calls,\n>                     job_rc,\n>                 )\n>     \n>                 assert completed.returncode == job_rc, completed.stderr\n>                 assert not job_ccbench.exists()\n>                 assert not job_repo.exists()\n>                 repo_after = _git(\n>                     repo_repository, \"worktree\", \"list\", \"--porcelain\",\n>                 )\n>                 ccbench_after = _git(\n>                     ccbench_repository, \"worktree\", \"list\", \"--porcelain\",\n>                 )\n>                 assert f\"worktree {job_repo}\" not in repo_after\n>                 assert f\"worktree {job_ccbench}\" not in ccbench_after\n> >               assert f\"worktree {sibling_ccbench}\" in ccbench_after\n> E               AssertionError: assert 'worktree /tmp/tmpc0vwqt0s/job-rc-0/sibling-ccbench' in 'worktree /tmp/tmpc0vwqt0s/job-rc-0/ccbench/objects.git\\x5cnbare'\n> \n> orchestrator/tests/test_a5_second_boot_job_contract.py:521: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=6118 retained_bytes=6118 omitted_bytes=0 budget_bytes=49152 rendered_bytes=7758 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "e59c81bebbcc925913363db70e7f6bb3ccfff0ec30c7b4097b17e12c998752eb"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "17cf6c1191ae875618b6c7f8435f9d4f998b4b86de432e9f2ecdeac5ecf2ced8",
+      "duration_s": 27.125,
+      "expected_nodes": [
+        "orchestrator/tests/test_a5_second_boot_job_contract.py::test_current_scripts_are_a_positive_example_of_the_complete_contract",
+        "orchestrator/tests/test_a5_second_boot_job_contract.py::test_a5_job_exit_cleanup_preserves_missing_sibling_worktree_registration"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_a5_second_boot_job_contract.py::test_current_scripts_are_a_positive_example_of_the_complete_contract",
+        "orchestrator/tests/test_a5_second_boot_job_contract.py::test_a5_job_exit_cleanup_preserves_missing_sibling_worktree_registration"
+      ],
+      "hang_risk": false,
+      "id": "m1-literal-prune-restored",
+      "injection_diff_sha256": "c740b945a29e9035b054c86dd820eb4aa14b67ecb13218f2cf805d271113420f",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "1bf8556911bc2cf84058f3a24c0b01572911ad7d36c62489256920678571db36",
+      "replacements": [
+        {
+          "file": "tools/pegasus/a5_second_boot_backoff_sweep.sh",
+          "new": "  timeout \"$remaining\" git -C \"$CCBENCH_BASE\" worktree prune --expire now || true\n  return \"$cleanup_rc\"",
+          "old": "  return \"$cleanup_rc\""
+        }
+      ],
+      "repo_head": "99f36357154415ca484d9d4f94fa52f12b56279b",
+      "runner_sha256": "1aa14f1f553ffd9878cf0fc9e4c2b2c117b1527f99eb438c6f41d120826ed7a3",
+      "spec_sha256": "faa3a51d41c1d8d2f133f8cdbaaa73567132540975043238464aec4fdb5e8fd9",
+      "status": "KILLED",
+      "test_output_sha256": "e59c81bebbcc925913363db70e7f6bb3ccfff0ec30c7b4097b17e12c998752eb",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "68f4dd452e4373031394129a71f371d6ccf6d605d3d1e9ec6c26058152c0b089"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2354-a5-prune-removal/output/pegasus-dispatch/22b43b53b7d4e0dfe97c5ac39f65b1ed/izdw-22b43b53b7.o986829",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2354-a5-prune-removal/output/pegasus-dispatch/22b43b53b7d4e0dfe97c5ac39f65b1ed/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........F                                                                [100%]\n=================================== FAILURES ===================================\n___ test_a5_job_exit_cleanup_preserves_missing_sibling_worktree_registration ___\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_a5_job_exit_cleanup_preserves_missing_sibling_worktree_registration():\n        job = JOB.read_text(encoding=\"utf-8\")\n        with tempfile.TemporaryDirectory() as temporary_directory:\n            temporary = Path(temporary_directory)\n            for job_rc in (0, 23):\n                case = temporary / f\"job-rc-{job_rc}\"\n                repo_root = case / \"repo\"\n                ccbench_root = case / \"ccbench\"\n                repo_root.mkdir(parents=True)\n                ccbench_root.mkdir()\n                repo_repository, repo_commit, _repo_other = (\n                    _fixture_git_repository(repo_root)\n                )\n                ccbench_repository, ccbench_commit, _ccbench_other = (\n                    _fixture_git_repository(ccbench_root)\n                )\n                job_repo = case / \"job-repo\"\n                _add_detached_worktree(repo_repository, job_repo, repo_commit)\n                (job_repo / \"external\").mkdir()\n                job_ccbench = job_repo / \"external/ccbench\"\n                _add_detached_worktree(\n                    ccbench_repository, job_ccbench, ccbench_commit,\n                )\n                sibling_ccbench = case / \"sibling-ccbench\"\n                _add_detached_worktree(\n                    ccbench_repository, sibling_ccbench, ccbench_commit,\n                )\n                shutil.rmtree(sibling_ccbench)\n                ccbench_before = _git(\n                    ccbench_repository, \"worktree\", \"list\", \"--porcelain\",\n                )\n                assert f\"worktree {sibling_ccbench}\" in ccbench_before\n    \n                output_root = case / \"output\"\n                (output_root / \"env\").mkdir(parents=True)\n                failure_receipt_calls = output_root / \"failure-receipt.calls\"\n                completed = _run_a5_cleanup_snippet(\n                    job,\n                    repo_repository,\n                    job_repo,\n                    ccbench_repository,\n                    job_ccbench,\n                    output_root,\n                    failure_receipt_calls,\n                    job_rc,\n                )\n    \n                assert completed.returncode == job_rc, completed.stderr\n                assert not job_ccbench.exists()\n                assert not job_repo.exists()\n                repo_after = _git(\n                    repo_repository, \"worktree\", \"list\", \"--porcelain\",\n                )\n                ccbench_after = _git(\n                    ccbench_repository, \"worktree\", \"list\", \"--porcelain\",\n                )\n                assert f\"worktree {job_repo}\" not in repo_after\n                assert f\"worktree {job_ccbench}\" not in ccbench_after\n>               assert f\"worktree {sibling_ccbench}\" in ccbench_after\nE               AssertionError: assert 'worktree /tmp/tmpqkf7gbts/job-rc-0/sibling-ccbench' in 'worktree /tmp/tmpqkf7gbts/job-rc-0/ccbench/objects.git\\nbare'\n\norchestrator/tests/test_a5_second_boot_job_contract.py:521: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_a5_second_boot_job_contract.py::test_a5_job_exit_cleanup_preserves_missing_sibling_worktree_registration\n1 failed, 8 passed in 3.90s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_a5_second_boot_job_contract.py::test_a5_job_exit_cleanup_preserves_missing_sibling_worktree_registration\" nodeid_bytes=128 nodeid_omitted_bytes=0 source_bytes=3027 retained_bytes=3027 omitted_bytes=0 rendered_excerpt_bytes=3159 sha256=47dec7f897b02fa84bd00b70845c8d4ed61e450615a276dc8b0149d4f00eab37\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_a5_job_exit_cleanup_preserves_missing_sibling_worktree_registration():\n>         job = JOB.read_text(encoding=\"utf-8\")\n>         with tempfile.TemporaryDirectory() as temporary_directory:\n>             temporary = Path(temporary_directory)\n>             for job_rc in (0, 23):\n>                 case = temporary / f\"job-rc-{job_rc}\"\n>                 repo_root = case / \"repo\"\n>                 ccbench_root = case / \"ccbench\"\n>                 repo_root.mkdir(parents=True)\n>                 ccbench_root.mkdir()\n>                 repo_repository, repo_commit, _repo_other = (\n>                     _fixture_git_repository(repo_root)\n>                 )\n>                 ccbench_repository, ccbench_commit, _ccbench_other = (\n>                     _fixture_git_repository(ccbench_root)\n>                 )\n>                 job_repo = case / \"job-repo\"\n>                 _add_detached_worktree(repo_repository, job_repo, repo_commit)\n>                 (job_repo / \"external\").mkdir()\n>                 job_ccbench = job_repo / \"external/ccbench\"\n>                 _add_detached_worktree(\n>                     ccbench_repository, job_ccbench, ccbench_commit,\n>                 )\n>                 sibling_ccbench = case / \"sibling-ccbench\"\n>                 _add_detached_worktree(\n>                     ccbench_repository, sibling_ccbench, ccbench_commit,\n>                 )\n>                 shutil.rmtree(sibling_ccbench)\n>                 ccbench_before = _git(\n>                     ccbench_repository, \"worktree\", \"list\", \"--porcelain\",\n>                 )\n>                 assert f\"worktree {sibling_ccbench}\" in ccbench_before\n>     \n>                 output_root = case / \"output\"\n>                 (output_root / \"env\").mkdir(parents=True)\n>                 failure_receipt_calls = output_root / \"failure-receipt.calls\"\n>                 completed = _run_a5_cleanup_snippet(\n>                     job,\n>                     repo_repository,\n>                     job_repo,\n>                     ccbench_repository,\n>                     job_ccbench,\n>                     output_root,\n>                     failure_receipt_calls,\n>                     job_rc,\n>                 )\n>     \n>                 assert completed.returncode == job_rc, completed.stderr\n>                 assert not job_ccbench.exists()\n>                 assert not job_repo.exists()\n>                 repo_after = _git(\n>                     repo_repository, \"worktree\", \"list\", \"--porcelain\",\n>                 )\n>                 ccbench_after = _git(\n>                     ccbench_repository, \"worktree\", \"list\", \"--porcelain\",\n>                 )\n>                 assert f\"worktree {job_repo}\" not in repo_after\n>                 assert f\"worktree {job_ccbench}\" not in ccbench_after\n> >               assert f\"worktree {sibling_ccbench}\" in ccbench_after\n> E               AssertionError: assert 'worktree /tmp/tmpqkf7gbts/job-rc-0/sibling-ccbench' in 'worktree /tmp/tmpqkf7gbts/job-rc-0/ccbench/objects.git\\x5cnbare'\n> \n> orchestrator/tests/test_a5_second_boot_job_contract.py:521: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=3027 retained_bytes=3027 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3915 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "a7d5fd806113a5d2b98660506839f6597af3002be4c5fe4b38fb75427a80a50b"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "17cf6c1191ae875618b6c7f8435f9d4f998b4b86de432e9f2ecdeac5ecf2ced8",
+      "duration_s": 27.288,
+      "expected_nodes": [
+        "orchestrator/tests/test_a5_second_boot_job_contract.py::test_a5_job_exit_cleanup_preserves_missing_sibling_worktree_registration"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_a5_second_boot_job_contract.py::test_a5_job_exit_cleanup_preserves_missing_sibling_worktree_registration"
+      ],
+      "hang_risk": false,
+      "id": "m1b-obfuscated-prune-inside-cleanup",
+      "injection_diff_sha256": "a0fc3a940407d5adf7d11cf3c7d1950ef248420910152c534c24420019495240",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "7b5988ce3050192b0e72052811350495f99dd372d672c1735135eaf0705a5b58",
+      "replacements": [
+        {
+          "file": "tools/pegasus/a5_second_boot_backoff_sweep.sh",
+          "new": "  timeout \"$remaining\" git -C \"$CCBENCH_BASE\" worktree \"pr\"\"une\" --expire now || true\n  return \"$cleanup_rc\"",
+          "old": "  return \"$cleanup_rc\""
+        }
+      ],
+      "repo_head": "99f36357154415ca484d9d4f94fa52f12b56279b",
+      "runner_sha256": "1aa14f1f553ffd9878cf0fc9e4c2b2c117b1527f99eb438c6f41d120826ed7a3",
+      "spec_sha256": "faa3a51d41c1d8d2f133f8cdbaaa73567132540975043238464aec4fdb5e8fd9",
+      "status": "KILLED",
+      "test_output_sha256": "a7d5fd806113a5d2b98660506839f6597af3002be4c5fe4b38fb75427a80a50b",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "68f4dd452e4373031394129a71f371d6ccf6d605d3d1e9ec6c26058152c0b089"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2354-a5-prune-removal/output/pegasus-dispatch/b6c422e5cb0bf408afffc20e2152a45b/izdw-b6c422e5cb.o986830",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2354-a5-prune-removal/output/pegasus-dispatch/b6c422e5cb0bf408afffc20e2152a45b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.......F.                                                                [100%]\n=================================== FAILURES ===================================\n_ test_a5_cleanup_failure_records_remaining_paths_and_preserves_exit_precedence _\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_a5_cleanup_failure_records_remaining_paths_and_preserves_exit_precedence():\n        job = JOB.read_text(encoding=\"utf-8\")\n        with tempfile.TemporaryDirectory() as temporary_directory:\n            temporary = Path(temporary_directory)\n            for job_rc in (0, 23):\n                case = temporary / f\"job-rc-{job_rc}\"\n                repo_root = case / \"repo\"\n                ccbench_root = case / \"ccbench\"\n                repo_root.mkdir(parents=True)\n                ccbench_root.mkdir()\n                repo_repository, repo_commit, _repo_other = (\n                    _fixture_git_repository(repo_root)\n                )\n                ccbench_repository, ccbench_commit, _ccbench_other = (\n                    _fixture_git_repository(ccbench_root)\n                )\n                job_repo = case / \"job-repo\"\n                _add_detached_worktree(repo_repository, job_repo, repo_commit)\n                (job_repo / \"external\").mkdir()\n                job_ccbench = job_repo / \"external/ccbench\"\n                _add_detached_worktree(\n                    ccbench_repository, job_ccbench, ccbench_commit,\n                )\n                _git(ccbench_repository, \"worktree\", \"lock\", str(job_ccbench))\n                _git(repo_repository, \"worktree\", \"lock\", str(job_repo))\n    \n                output_root = case / \"output\"\n                (output_root / \"env\").mkdir(parents=True)\n                failure_receipt_calls = output_root / \"failure-receipt.calls\"\n                completed = _run_a5_cleanup_snippet(\n                    job,\n                    repo_repository,\n                    job_repo,\n                    ccbench_repository,\n                    job_ccbench,\n                    output_root,\n                    failure_receipt_calls,\n                    job_rc,\n                )\n    \n                receipt_lines = (\n                    output_root / \"env/worktree-remove.rc\"\n                ).read_text().splitlines()\n                cleanup_rc = int(receipt_lines[0])\n                assert cleanup_rc != 0\n                assert receipt_lines[1:] == [\n                    f\"remaining_ccbench_path={job_ccbench}\",\n                    f\"remaining_repo_path={job_repo}\",\n                ]\n                assert job_ccbench.is_dir()\n                assert job_repo.is_dir()\n                assert f\"worktree {job_ccbench}\" in _git(\n                    ccbench_repository, \"worktree\", \"list\", \"--porcelain\",\n                )\n                assert f\"worktree {job_repo}\" in _git(\n                    repo_repository, \"worktree\", \"list\", \"--porcelain\",\n                )\n                if job_rc == 0:\n>                   assert completed.returncode == cleanup_rc, completed.stderr\nE                   AssertionError: \nE                   assert 0 == 128\nE                    +  where 0 = CompletedProcess(args=['bash', '-c', 'set -Eeuo pipefail\\nWORKTREE_CLEANUP_CAP_S=30\\nREPO_BASE=\"$1\"\\nJOB_REPO=\"$2\"\\nCC...n/job-rc-0/output', '/tmp/tmpvex1zwqn/job-rc-0/output/failure-receipt.calls', '0'], returncode=0, stdout='', stderr='').returncode\n\norchestrator/tests/test_a5_second_boot_job_contract.py:584: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_a5_second_boot_job_contract.py::test_a5_cleanup_failure_records_remaining_paths_and_preserves_exit_precedence\n1 failed, 8 passed in 3.93s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_a5_second_boot_job_contract.py::test_a5_cleanup_failure_records_remaining_paths_and_preserves_exit_precedence\" nodeid_bytes=133 nodeid_omitted_bytes=0 source_bytes=3219 retained_bytes=3219 omitted_bytes=0 rendered_excerpt_bytes=3364 sha256=c5ca4b5f181f987817db7acd43d177a07e35e471e79479a18a87c77b3f26784b\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_a5_cleanup_failure_records_remaining_paths_and_preserves_exit_precedence():\n>         job = JOB.read_text(encoding=\"utf-8\")\n>         with tempfile.TemporaryDirectory() as temporary_directory:\n>             temporary = Path(temporary_directory)\n>             for job_rc in (0, 23):\n>                 case = temporary / f\"job-rc-{job_rc}\"\n>                 repo_root = case / \"repo\"\n>                 ccbench_root = case / \"ccbench\"\n>                 repo_root.mkdir(parents=True)\n>                 ccbench_root.mkdir()\n>                 repo_repository, repo_commit, _repo_other = (\n>                     _fixture_git_repository(repo_root)\n>                 )\n>                 ccbench_repository, ccbench_commit, _ccbench_other = (\n>                     _fixture_git_repository(ccbench_root)\n>                 )\n>                 job_repo = case / \"job-repo\"\n>                 _add_detached_worktree(repo_repository, job_repo, repo_commit)\n>                 (job_repo / \"external\").mkdir()\n>                 job_ccbench = job_repo / \"external/ccbench\"\n>                 _add_detached_worktree(\n>                     ccbench_repository, job_ccbench, ccbench_commit,\n>                 )\n>                 _git(ccbench_repository, \"worktree\", \"lock\", str(job_ccbench))\n>                 _git(repo_repository, \"worktree\", \"lock\", str(job_repo))\n>     \n>                 output_root = case / \"output\"\n>                 (output_root / \"env\").mkdir(parents=True)\n>                 failure_receipt_calls = output_root / \"failure-receipt.calls\"\n>                 completed = _run_a5_cleanup_snippet(\n>                     job,\n>                     repo_repository,\n>                     job_repo,\n>                     ccbench_repository,\n>                     job_ccbench,\n>                     output_root,\n>                     failure_receipt_calls,\n>                     job_rc,\n>                 )\n>     \n>                 receipt_lines = (\n>                     output_root / \"env/worktree-remove.rc\"\n>                 ).read_text().splitlines()\n>                 cleanup_rc = int(receipt_lines[0])\n>                 assert cleanup_rc != 0\n>                 assert receipt_lines[1:] == [\n>                     f\"remaining_ccbench_path={job_ccbench}\",\n>                     f\"remaining_repo_path={job_repo}\",\n>                 ]\n>                 assert job_ccbench.is_dir()\n>                 assert job_repo.is_dir()\n>                 assert f\"worktree {job_ccbench}\" in _git(\n>                     ccbench_repository, \"worktree\", \"list\", \"--porcelain\",\n>                 )\n>                 assert f\"worktree {job_repo}\" in _git(\n>                     repo_repository, \"worktree\", \"list\", \"--porcelain\",\n>                 )\n>                 if job_rc == 0:\n> >                   assert completed.returncode == cleanup_rc, completed.stderr\n> E                   AssertionError: \n> E                   assert 0 == 128\n> E                    +  where 0 = CompletedProcess(args=['bash', '-c', 'set -Eeuo pipefail\\x5cnWORKTREE_CLEANUP_CAP_S=30\\x5cnREPO_BASE=\"$1\"\\x5cnJOB_REPO=\"$2\"\\x5cnCC...n/job-rc-0/output', '/tmp/tmpvex1zwqn/job-rc-0/output/failure-receipt.calls', '0'], returncode=0, stdout='', stderr='').returncode\n> \n> orchestrator/tests/test_a5_second_boot_job_contract.py:584: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=3219 retained_bytes=3219 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4125 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "24e49eda852644b01a58d3935966b5c0142661fd6544dfb2115d809835409aa3"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "17cf6c1191ae875618b6c7f8435f9d4f998b4b86de432e9f2ecdeac5ecf2ced8",
+      "duration_s": 27.879,
+      "expected_nodes": [
+        "orchestrator/tests/test_a5_second_boot_job_contract.py::test_a5_cleanup_failure_records_remaining_paths_and_preserves_exit_precedence"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_a5_second_boot_job_contract.py::test_a5_cleanup_failure_records_remaining_paths_and_preserves_exit_precedence"
+      ],
+      "hang_risk": false,
+      "id": "m2-cleanup-rc-swallowed",
+      "injection_diff_sha256": "d08f1e0a9100b61a782780fe892ed8226ac0179d9cc603fee9151911899e510f",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "f84c3df03d7b87e118b0de9620216d67055b17cffa96f76cd0a33295f32df59f",
+      "replacements": [
+        {
+          "file": "tools/pegasus/a5_second_boot_backoff_sweep.sh",
+          "new": "  return 0",
+          "old": "  return \"$cleanup_rc\""
+        }
+      ],
+      "repo_head": "99f36357154415ca484d9d4f94fa52f12b56279b",
+      "runner_sha256": "1aa14f1f553ffd9878cf0fc9e4c2b2c117b1527f99eb438c6f41d120826ed7a3",
+      "spec_sha256": "faa3a51d41c1d8d2f133f8cdbaaa73567132540975043238464aec4fdb5e8fd9",
+      "status": "KILLED",
+      "test_output_sha256": "24e49eda852644b01a58d3935966b5c0142661fd6544dfb2115d809835409aa3",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "68f4dd452e4373031394129a71f371d6ccf6d605d3d1e9ec6c26058152c0b089"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2354-a5-prune-removal/output/pegasus-dispatch/a4feb674a8d54f6c9ead7b520634b045/izdw-a4feb674a8.o986832",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2354-a5-prune-removal/output/pegasus-dispatch/a4feb674a8d54f6c9ead7b520634b045/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.......F.                                                                [100%]\n=================================== FAILURES ===================================\n_ test_a5_cleanup_failure_records_remaining_paths_and_preserves_exit_precedence _\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_a5_cleanup_failure_records_remaining_paths_and_preserves_exit_precedence():\n        job = JOB.read_text(encoding=\"utf-8\")\n        with tempfile.TemporaryDirectory() as temporary_directory:\n            temporary = Path(temporary_directory)\n            for job_rc in (0, 23):\n                case = temporary / f\"job-rc-{job_rc}\"\n                repo_root = case / \"repo\"\n                ccbench_root = case / \"ccbench\"\n                repo_root.mkdir(parents=True)\n                ccbench_root.mkdir()\n                repo_repository, repo_commit, _repo_other = (\n                    _fixture_git_repository(repo_root)\n                )\n                ccbench_repository, ccbench_commit, _ccbench_other = (\n                    _fixture_git_repository(ccbench_root)\n                )\n                job_repo = case / \"job-repo\"\n                _add_detached_worktree(repo_repository, job_repo, repo_commit)\n                (job_repo / \"external\").mkdir()\n                job_ccbench = job_repo / \"external/ccbench\"\n                _add_detached_worktree(\n                    ccbench_repository, job_ccbench, ccbench_commit,\n                )\n                _git(ccbench_repository, \"worktree\", \"lock\", str(job_ccbench))\n                _git(repo_repository, \"worktree\", \"lock\", str(job_repo))\n    \n                output_root = case / \"output\"\n                (output_root / \"env\").mkdir(parents=True)\n                failure_receipt_calls = output_root / \"failure-receipt.calls\"\n                completed = _run_a5_cleanup_snippet(\n                    job,\n                    repo_repository,\n                    job_repo,\n                    ccbench_repository,\n                    job_ccbench,\n                    output_root,\n                    failure_receipt_calls,\n                    job_rc,\n                )\n    \n                receipt_lines = (\n                    output_root / \"env/worktree-remove.rc\"\n                ).read_text().splitlines()\n                cleanup_rc = int(receipt_lines[0])\n                assert cleanup_rc != 0\n>               assert receipt_lines[1:] == [\n                    f\"remaining_ccbench_path={job_ccbench}\",\n                    f\"remaining_repo_path={job_repo}\",\n                ]\nE               AssertionError: assert ['remaining_r...c-0/job-repo'] == ['remaining_c...c-0/job-repo']\nE                 \nE                 At index 0 diff: 'remaining_repo_path=/tmp/tmpj3os3d9g/job-rc-0/job-repo' != 'remaining_ccbench_path=/tmp/tmpj3os3d9g/job-rc-0/job-repo/external/ccbench'\nE                 Right contains one more item: 'remaining_repo_path=/tmp/tmpj3os3d9g/job-rc-0/job-repo'\nE                 Use -v to get more diff\n\norchestrator/tests/test_a5_second_boot_job_contract.py:571: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_a5_second_boot_job_contract.py::test_a5_cleanup_failure_records_remaining_paths_and_preserves_exit_precedence\n1 failed, 8 passed in 3.92s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_a5_second_boot_job_contract.py::test_a5_cleanup_failure_records_remaining_paths_and_preserves_exit_precedence\" nodeid_bytes=133 nodeid_omitted_bytes=0 source_bytes=2809 retained_bytes=2809 omitted_bytes=0 rendered_excerpt_bytes=2926 sha256=d5b5a0420b8e52e802df31dc848a8932777e9aedc5411222b05ae7cce702bc0c\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_a5_cleanup_failure_records_remaining_paths_and_preserves_exit_precedence():\n>         job = JOB.read_text(encoding=\"utf-8\")\n>         with tempfile.TemporaryDirectory() as temporary_directory:\n>             temporary = Path(temporary_directory)\n>             for job_rc in (0, 23):\n>                 case = temporary / f\"job-rc-{job_rc}\"\n>                 repo_root = case / \"repo\"\n>                 ccbench_root = case / \"ccbench\"\n>                 repo_root.mkdir(parents=True)\n>                 ccbench_root.mkdir()\n>                 repo_repository, repo_commit, _repo_other = (\n>                     _fixture_git_repository(repo_root)\n>                 )\n>                 ccbench_repository, ccbench_commit, _ccbench_other = (\n>                     _fixture_git_repository(ccbench_root)\n>                 )\n>                 job_repo = case / \"job-repo\"\n>                 _add_detached_worktree(repo_repository, job_repo, repo_commit)\n>                 (job_repo / \"external\").mkdir()\n>                 job_ccbench = job_repo / \"external/ccbench\"\n>                 _add_detached_worktree(\n>                     ccbench_repository, job_ccbench, ccbench_commit,\n>                 )\n>                 _git(ccbench_repository, \"worktree\", \"lock\", str(job_ccbench))\n>                 _git(repo_repository, \"worktree\", \"lock\", str(job_repo))\n>     \n>                 output_root = case / \"output\"\n>                 (output_root / \"env\").mkdir(parents=True)\n>                 failure_receipt_calls = output_root / \"failure-receipt.calls\"\n>                 completed = _run_a5_cleanup_snippet(\n>                     job,\n>                     repo_repository,\n>                     job_repo,\n>                     ccbench_repository,\n>                     job_ccbench,\n>                     output_root,\n>                     failure_receipt_calls,\n>                     job_rc,\n>                 )\n>     \n>                 receipt_lines = (\n>                     output_root / \"env/worktree-remove.rc\"\n>                 ).read_text().splitlines()\n>                 cleanup_rc = int(receipt_lines[0])\n>                 assert cleanup_rc != 0\n> >               assert receipt_lines[1:] == [\n>                     f\"remaining_ccbench_path={job_ccbench}\",\n>                     f\"remaining_repo_path={job_repo}\",\n>                 ]\n> E               AssertionError: assert ['remaining_r...c-0/job-repo'] == ['remaining_c...c-0/job-repo']\n> E                 \n> E                 At index 0 diff: 'remaining_repo_path=/tmp/tmpj3os3d9g/job-rc-0/job-repo' != 'remaining_ccbench_path=/tmp/tmpj3os3d9g/job-rc-0/job-repo/external/ccbench'\n> E                 Right contains one more item: 'remaining_repo_path=/tmp/tmpj3os3d9g/job-rc-0/job-repo'\n> E                 Use -v to get more diff\n> \n> orchestrator/tests/test_a5_second_boot_job_contract.py:571: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2809 retained_bytes=2809 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3687 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "8e12fc088ef6bfab84799a4111f4efd0d43b80698b7959403a8554807a90497d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "17cf6c1191ae875618b6c7f8435f9d4f998b4b86de432e9f2ecdeac5ecf2ced8",
+      "duration_s": 27.487,
+      "expected_nodes": [
+        "orchestrator/tests/test_a5_second_boot_job_contract.py::test_a5_cleanup_failure_records_remaining_paths_and_preserves_exit_precedence"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_a5_second_boot_job_contract.py::test_a5_cleanup_failure_records_remaining_paths_and_preserves_exit_precedence"
+      ],
+      "hang_risk": false,
+      "id": "m3-remaining-path-forgotten",
+      "injection_diff_sha256": "038bce3c78e37526d7f4470873386fa3a7cee7c928dacffe1ebf370032793583",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "2af818c995b4b39e8c3cf55ed448d366d000881eba8e309e1fd1d1c635eb8696",
+      "replacements": [
+        {
+          "file": "tools/pegasus/a5_second_boot_backoff_sweep.sh",
+          "new": "    JOB_CCBENCH=\"\"",
+          "old": "    [[ \"$command_rc\" -eq 0 ]] && JOB_CCBENCH=\"\""
+        }
+      ],
+      "repo_head": "99f36357154415ca484d9d4f94fa52f12b56279b",
+      "runner_sha256": "1aa14f1f553ffd9878cf0fc9e4c2b2c117b1527f99eb438c6f41d120826ed7a3",
+      "spec_sha256": "faa3a51d41c1d8d2f133f8cdbaaa73567132540975043238464aec4fdb5e8fd9",
+      "status": "KILLED",
+      "test_output_sha256": "8e12fc088ef6bfab84799a4111f4efd0d43b80698b7959403a8554807a90497d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "68f4dd452e4373031394129a71f371d6ccf6d605d3d1e9ec6c26058152c0b089"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2354-a5-prune-removal/output/pegasus-dispatch/9ee20fcb47fa344f47b2ff7eabb3d5d6/izdw-9ee20fcb47.o986833",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2354-a5-prune-removal/output/pegasus-dispatch/9ee20fcb47fa344f47b2ff7eabb3d5d6/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........F                                                                [100%]\n=================================== FAILURES ===================================\n_ test_a5_cleanup_failure_records_remaining_paths_and_preserves_exit_precedence _\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_a5_cleanup_failure_records_remaining_paths_and_preserves_exit_precedence():\n        job = JOB.read_text(encoding=\"utf-8\")\n        with tempfile.TemporaryDirectory() as temporary_directory:\n            temporary = Path(temporary_directory)\n            for job_rc in (0, 23):\n                case = temporary / f\"job-rc-{job_rc}\"\n                repo_root = case / \"repo\"\n                ccbench_root = case / \"ccbench\"\n                repo_root.mkdir(parents=True)\n                ccbench_root.mkdir()\n                repo_repository, repo_commit, _repo_other = (\n                    _fixture_git_repository(repo_root)\n                )\n                ccbench_repository, ccbench_commit, _ccbench_other = (\n                    _fixture_git_repository(ccbench_root)\n                )\n                job_repo = case / \"job-repo\"\n                _add_detached_worktree(repo_repository, job_repo, repo_commit)\n                (job_repo / \"external\").mkdir()\n                job_ccbench = job_repo / \"external/ccbench\"\n                _add_detached_worktree(\n                    ccbench_repository, job_ccbench, ccbench_commit,\n                )\n                _git(ccbench_repository, \"worktree\", \"lock\", str(job_ccbench))\n                _git(repo_repository, \"worktree\", \"lock\", str(job_repo))\n    \n                output_root = case / \"output\"\n                (output_root / \"env\").mkdir(parents=True)\n                failure_receipt_calls = output_root / \"failure-receipt.calls\"\n                completed = _run_a5_cleanup_snippet(\n                    job,\n                    repo_repository,\n                    job_repo,\n                    ccbench_repository,\n                    job_ccbench,\n                    output_root,\n                    failure_receipt_calls,\n                    job_rc,\n                )\n    \n                receipt_lines = (\n                    output_root / \"env/worktree-remove.rc\"\n                ).read_text().splitlines()\n                cleanup_rc = int(receipt_lines[0])\n                assert cleanup_rc != 0\n                assert receipt_lines[1:] == [\n                    f\"remaining_ccbench_path={job_ccbench}\",\n                    f\"remaining_repo_path={job_repo}\",\n                ]\n                assert job_ccbench.is_dir()\n                assert job_repo.is_dir()\n                assert f\"worktree {job_ccbench}\" in _git(\n                    ccbench_repository, \"worktree\", \"list\", \"--porcelain\",\n                )\n                assert f\"worktree {job_repo}\" in _git(\n                    repo_repository, \"worktree\", \"list\", \"--porcelain\",\n                )\n                if job_rc == 0:\n                    assert completed.returncode == cleanup_rc, completed.stderr\n                    assert failure_receipt_calls.read_text() == (\n                        f\"{cleanup_rc} worktree_cleanup\\n\"\n                    )\n                else:\n>                   assert completed.returncode == job_rc, completed.stderr\nE                   AssertionError: \nE                   assert 128 == 23\nE                    +  where 128 = CompletedProcess(args=['bash', '-c', 'set -Eeuo pipefail\\nWORKTREE_CLEANUP_CAP_S=30\\nREPO_BASE=\"$1\"\\nJOB_REPO=\"$2\"\\nCC...-rc-23/output', '/tmp/tmp0lrwe09i/job-rc-23/output/failure-receipt.calls', '23'], returncode=128, stdout='', stderr='').returncode\n\norchestrator/tests/test_a5_second_boot_job_contract.py:589: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_a5_second_boot_job_contract.py::test_a5_cleanup_failure_records_remaining_paths_and_preserves_exit_precedence\n1 failed, 8 passed in 3.97s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_a5_second_boot_job_contract.py::test_a5_cleanup_failure_records_remaining_paths_and_preserves_exit_precedence\" nodeid_bytes=133 nodeid_omitted_bytes=0 source_bytes=3467 retained_bytes=3467 omitted_bytes=0 rendered_excerpt_bytes=3625 sha256=ff68115bd25e838860d89166641c1da4b6469dd4ec09e68ff7ead9498617eb76\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_a5_cleanup_failure_records_remaining_paths_and_preserves_exit_precedence():\n>         job = JOB.read_text(encoding=\"utf-8\")\n>         with tempfile.TemporaryDirectory() as temporary_directory:\n>             temporary = Path(temporary_directory)\n>             for job_rc in (0, 23):\n>                 case = temporary / f\"job-rc-{job_rc}\"\n>                 repo_root = case / \"repo\"\n>                 ccbench_root = case / \"ccbench\"\n>                 repo_root.mkdir(parents=True)\n>                 ccbench_root.mkdir()\n>                 repo_repository, repo_commit, _repo_other = (\n>                     _fixture_git_repository(repo_root)\n>                 )\n>                 ccbench_repository, ccbench_commit, _ccbench_other = (\n>                     _fixture_git_repository(ccbench_root)\n>                 )\n>                 job_repo = case / \"job-repo\"\n>                 _add_detached_worktree(repo_repository, job_repo, repo_commit)\n>                 (job_repo / \"external\").mkdir()\n>                 job_ccbench = job_repo / \"external/ccbench\"\n>                 _add_detached_worktree(\n>                     ccbench_repository, job_ccbench, ccbench_commit,\n>                 )\n>                 _git(ccbench_repository, \"worktree\", \"lock\", str(job_ccbench))\n>                 _git(repo_repository, \"worktree\", \"lock\", str(job_repo))\n>     \n>                 output_root = case / \"output\"\n>                 (output_root / \"env\").mkdir(parents=True)\n>                 failure_receipt_calls = output_root / \"failure-receipt.calls\"\n>                 completed = _run_a5_cleanup_snippet(\n>                     job,\n>                     repo_repository,\n>                     job_repo,\n>                     ccbench_repository,\n>                     job_ccbench,\n>                     output_root,\n>                     failure_receipt_calls,\n>                     job_rc,\n>                 )\n>     \n>                 receipt_lines = (\n>                     output_root / \"env/worktree-remove.rc\"\n>                 ).read_text().splitlines()\n>                 cleanup_rc = int(receipt_lines[0])\n>                 assert cleanup_rc != 0\n>                 assert receipt_lines[1:] == [\n>                     f\"remaining_ccbench_path={job_ccbench}\",\n>                     f\"remaining_repo_path={job_repo}\",\n>                 ]\n>                 assert job_ccbench.is_dir()\n>                 assert job_repo.is_dir()\n>                 assert f\"worktree {job_ccbench}\" in _git(\n>                     ccbench_repository, \"worktree\", \"list\", \"--porcelain\",\n>                 )\n>                 assert f\"worktree {job_repo}\" in _git(\n>                     repo_repository, \"worktree\", \"list\", \"--porcelain\",\n>                 )\n>                 if job_rc == 0:\n>                     assert completed.returncode == cleanup_rc, completed.stderr\n>                     assert failure_receipt_calls.read_text() == (\n>                         f\"{cleanup_rc} worktree_cleanup\\x5cn\"\n>                     )\n>                 else:\n> >                   assert completed.returncode == job_rc, completed.stderr\n> E                   AssertionError: \n> E                   assert 128 == 23\n> E                    +  where 128 = CompletedProcess(args=['bash', '-c', 'set -Eeuo pipefail\\x5cnWORKTREE_CLEANUP_CAP_S=30\\x5cnREPO_BASE=\"$1\"\\x5cnJOB_REPO=\"$2\"\\x5cnCC...-rc-23/output', '/tmp/tmp0lrwe09i/job-rc-23/output/failure-receipt.calls', '23'], returncode=128, stdout='', stderr='').returncode\n> \n> orchestrator/tests/test_a5_second_boot_job_contract.py:589: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=3467 retained_bytes=3467 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4386 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "ba9420ea2d9ae349369e1459394f3520804f8aa0f3526854c4af777a8264e228"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "17cf6c1191ae875618b6c7f8435f9d4f998b4b86de432e9f2ecdeac5ecf2ced8",
+      "duration_s": 27.081,
+      "expected_nodes": [
+        "orchestrator/tests/test_a5_second_boot_job_contract.py::test_a5_cleanup_failure_records_remaining_paths_and_preserves_exit_precedence"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_a5_second_boot_job_contract.py::test_a5_cleanup_failure_records_remaining_paths_and_preserves_exit_precedence"
+      ],
+      "hang_risk": false,
+      "id": "m4-original-rc-precedence-lost",
+      "injection_diff_sha256": "21d22a5ee86e0506c31e49742d2e13e2b7a64716facfc2d27ab194ac7cf54114",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "5e12edbca138705075fa50b5cddac2b2e7e3ceab83a2e438e555360f4d4390b6",
+      "replacements": [
+        {
+          "file": "tools/pegasus/a5_second_boot_backoff_sweep.sh",
+          "new": "  if [[ \"$cleanup_rc\" -ne 0 ]]; then",
+          "old": "  if [[ \"$original_rc\" -eq 0 && \"$cleanup_rc\" -ne 0 ]]; then"
+        }
+      ],
+      "repo_head": "99f36357154415ca484d9d4f94fa52f12b56279b",
+      "runner_sha256": "1aa14f1f553ffd9878cf0fc9e4c2b2c117b1527f99eb438c6f41d120826ed7a3",
+      "spec_sha256": "faa3a51d41c1d8d2f133f8cdbaaa73567132540975043238464aec4fdb5e8fd9",
+      "status": "KILLED",
+      "test_output_sha256": "ba9420ea2d9ae349369e1459394f3520804f8aa0f3526854c4af777a8264e228",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "68f4dd452e4373031394129a71f371d6ccf6d605d3d1e9ec6c26058152c0b089"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2354-a5-prune-removal/output/pegasus-dispatch/733235f385e8f6f9bf9d409adf933bb7/izdw-733235f385.o986836",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2354-a5-prune-removal/output/pegasus-dispatch/733235f385e8f6f9bf9d409adf933bb7/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.........                                                                [100%]\n9 passed in 3.91s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "5ad417788432221d495ca27457a4c6d42fb25cee7cde64a75568bf4fc311cacf"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "17cf6c1191ae875618b6c7f8435f9d4f998b4b86de432e9f2ecdeac5ecf2ced8",
+      "duration_s": 27.987,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "m5-obfuscated-prune-outside-cleanup-detection-gap",
+      "injection_diff_sha256": "20747173867049340d066bf0e62486fd7fc76afe4a6aa3f8e87b92bd424e9536",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "c80a014cffec75596b303146a263c23dd855176d8e6817fa0ce5b0df4b566709",
+      "replacements": [
+        {
+          "file": "tools/pegasus/a5_second_boot_backoff_sweep.sh",
+          "new": "CURRENT_STAGE=complete\ntimeout 30 git -C \"$CCBENCH_BASE\" worktree \"pr\"\"une\" --expire now || true",
+          "old": "CURRENT_STAGE=complete"
+        }
+      ],
+      "repo_head": "99f36357154415ca484d9d4f94fa52f12b56279b",
+      "runner_sha256": "1aa14f1f553ffd9878cf0fc9e4c2b2c117b1527f99eb438c6f41d120826ed7a3",
+      "spec_sha256": "faa3a51d41c1d8d2f133f8cdbaaa73567132540975043238464aec4fdb5e8fd9",
+      "status": "SURVIVED",
+      "test_output_sha256": "5ad417788432221d495ca27457a4c6d42fb25cee7cde64a75568bf4fc311cacf",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "68f4dd452e4373031394129a71f371d6ccf6d605d3d1e9ec6c26058152c0b089"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2354-a5-prune-removal/output/pegasus-dispatch/e069f8839a5cfdcbfe61edbaf6878a89/izdw-e069f8839a.o986824",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2354-a5-prune-removal/output/pegasus-dispatch/e069f8839a5cfdcbfe61edbaf6878a89/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_a5_second_boot_job_contract.py::test_submitter_workload_set_is_exactly_the_two_adopted_values\norchestrator/tests/test_a5_second_boot_job_contract.py::test_job_body_accepts_exactly_the_two_adopted_workloads\norchestrator/tests/test_a5_second_boot_job_contract.py::test_finalizer_denominator_is_exactly_no_backoff\norchestrator/tests/test_a5_second_boot_job_contract.py::test_finalizer_requires_all_eight_commits_and_zero_aborts\norchestrator/tests/test_a5_second_boot_job_contract.py::test_inner_caps_and_final_margin_fit_strictly_inside_pbs_walltime\norchestrator/tests/test_a5_second_boot_job_contract.py::test_job_body_is_registered_only_as_dispatch_required\norchestrator/tests/test_a5_second_boot_job_contract.py::test_current_scripts_are_a_positive_example_of_the_complete_contract\norchestrator/tests/test_a5_second_boot_job_contract.py::test_a5_job_exit_cleanup_preserves_missing_sibling_worktree_registration\norchestrator/tests/test_a5_second_boot_job_contract.py::test_a5_cleanup_failure_records_remaining_paths_and_preserves_exit_precedence\n\n9 tests collected in 0.48s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "66c645148bc9becae99227c0e3b40448f2f89d2c924eb3171b1b385a64a89b4a"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_a5_second_boot_job_contract.py::test_submitter_workload_set_is_exactly_the_two_adopted_values",
+        "orchestrator/tests/test_a5_second_boot_job_contract.py::test_job_body_accepts_exactly_the_two_adopted_workloads",
+        "orchestrator/tests/test_a5_second_boot_job_contract.py::test_finalizer_denominator_is_exactly_no_backoff",
+        "orchestrator/tests/test_a5_second_boot_job_contract.py::test_finalizer_requires_all_eight_commits_and_zero_aborts",
+        "orchestrator/tests/test_a5_second_boot_job_contract.py::test_inner_caps_and_final_margin_fit_strictly_inside_pbs_walltime",
+        "orchestrator/tests/test_a5_second_boot_job_contract.py::test_job_body_is_registered_only_as_dispatch_required",
+        "orchestrator/tests/test_a5_second_boot_job_contract.py::test_current_scripts_are_a_positive_example_of_the_complete_contract",
+        "orchestrator/tests/test_a5_second_boot_job_contract.py::test_a5_job_exit_cleanup_preserves_missing_sibling_worktree_registration",
+        "orchestrator/tests/test_a5_second_boot_job_contract.py::test_a5_cleanup_failure_records_remaining_paths_and_preserves_exit_precedence"
+      ],
+      "duration_s": 247.15,
+      "rc": 0,
+      "repo_head": "99f36357154415ca484d9d4f94fa52f12b56279b",
+      "runner_sha256": "1aa14f1f553ffd9878cf0fc9e4c2b2c117b1527f99eb438c6f41d120826ed7a3",
+      "spec_sha256": "faa3a51d41c1d8d2f133f8cdbaaa73567132540975043238464aec4fdb5e8fd9",
+      "status": "PASSED",
+      "tool_sha256": "68f4dd452e4373031394129a71f371d6ccf6d605d3d1e9ec6c26058152c0b089"
+    },
+    "hang_timeout_seconds": 900.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "m1-literal-prune-restored": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_a5_second_boot_job_contract.py::test_current_scripts_are_a_positive_example_of_the_complete_contract",
+          "orchestrator/tests/test_a5_second_boot_job_contract.py::test_a5_job_exit_cleanup_preserves_missing_sibling_worktree_registration"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "c740b945a29e9035b054c86dd820eb4aa14b67ecb13218f2cf805d271113420f",
+        "replacements": [
+          {
+            "file": "tools/pegasus/a5_second_boot_backoff_sweep.sh",
+            "new": "  timeout \"$remaining\" git -C \"$CCBENCH_BASE\" worktree prune --expire now || true\n  return \"$cleanup_rc\"",
+            "old": "  return \"$cleanup_rc\""
+          }
+        ]
+      },
+      "m1b-obfuscated-prune-inside-cleanup": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_a5_second_boot_job_contract.py::test_a5_job_exit_cleanup_preserves_missing_sibling_worktree_registration"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a0fc3a940407d5adf7d11cf3c7d1950ef248420910152c534c24420019495240",
+        "replacements": [
+          {
+            "file": "tools/pegasus/a5_second_boot_backoff_sweep.sh",
+            "new": "  timeout \"$remaining\" git -C \"$CCBENCH_BASE\" worktree \"pr\"\"une\" --expire now || true\n  return \"$cleanup_rc\"",
+            "old": "  return \"$cleanup_rc\""
+          }
+        ]
+      },
+      "m2-cleanup-rc-swallowed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_a5_second_boot_job_contract.py::test_a5_cleanup_failure_records_remaining_paths_and_preserves_exit_precedence"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d08f1e0a9100b61a782780fe892ed8226ac0179d9cc603fee9151911899e510f",
+        "replacements": [
+          {
+            "file": "tools/pegasus/a5_second_boot_backoff_sweep.sh",
+            "new": "  return 0",
+            "old": "  return \"$cleanup_rc\""
+          }
+        ]
+      },
+      "m3-remaining-path-forgotten": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_a5_second_boot_job_contract.py::test_a5_cleanup_failure_records_remaining_paths_and_preserves_exit_precedence"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "038bce3c78e37526d7f4470873386fa3a7cee7c928dacffe1ebf370032793583",
+        "replacements": [
+          {
+            "file": "tools/pegasus/a5_second_boot_backoff_sweep.sh",
+            "new": "    JOB_CCBENCH=\"\"",
+            "old": "    [[ \"$command_rc\" -eq 0 ]] && JOB_CCBENCH=\"\""
+          }
+        ]
+      },
+      "m4-original-rc-precedence-lost": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_a5_second_boot_job_contract.py::test_a5_cleanup_failure_records_remaining_paths_and_preserves_exit_precedence"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "21d22a5ee86e0506c31e49742d2e13e2b7a64716facfc2d27ab194ac7cf54114",
+        "replacements": [
+          {
+            "file": "tools/pegasus/a5_second_boot_backoff_sweep.sh",
+            "new": "  if [[ \"$cleanup_rc\" -ne 0 ]]; then",
+            "old": "  if [[ \"$original_rc\" -eq 0 && \"$cleanup_rc\" -ne 0 ]]; then"
+          }
+        ]
+      },
+      "m5-obfuscated-prune-outside-cleanup-detection-gap": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "20747173867049340d066bf0e62486fd7fc76afe4a6aa3f8e87b92bd424e9536",
+        "replacements": [
+          {
+            "file": "tools/pegasus/a5_second_boot_backoff_sweep.sh",
+            "new": "CURRENT_STAGE=complete\ntimeout 30 git -C \"$CCBENCH_BASE\" worktree \"pr\"\"une\" --expire now || true",
+            "old": "CURRENT_STAGE=complete"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "0dd1a9f2e64c93ebe5d326215d3183b76d88c7b0d421a01a23da7b47ba4fa264",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2354-a5-prune-removal/tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_a5_second_boot_job_contract.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 900.0
+  },
+  "repo_head": "99f36357154415ca484d9d4f94fa52f12b56279b",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2354-a5-prune-removal/tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_a5_second_boot_job_contract.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2354-a5-prune-removal/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2354-a5-prune-removal/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "d96f923750c1369dc4fcce3852f183e03b4d5055",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "1aa14f1f553ffd9878cf0fc9e4c2b2c117b1527f99eb438c6f41d120826ed7a3",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "faa3a51d41c1d8d2f133f8cdbaaa73567132540975043238464aec4fdb5e8fd9",
+  "summary": {
+    "KILLED": 5,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 6,
+    "matching": 6,
+    "recorded": 6,
+    "registered": 6
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2354-a5-prune-removal/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "68f4dd452e4373031394129a71f371d6ccf6d605d3d1e9ec6c26058152c0b089",
+  "updated_at": "2026-09-09T00:23:59.228415+00:00"
+}

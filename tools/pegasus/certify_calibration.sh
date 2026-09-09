@@ -159,6 +159,14 @@ if [[ -z "${IZANAGI_CALIBRATION_RRATIO:-}" \
   exit 2
 fi
 CALIBRATION_RRATIO="$IZANAGI_CALIBRATION_RRATIO"
+CALIBRATION_PROTOCOL=${IZANAGI_CALIBRATION_PROTOCOL-silo}
+if [[ "$CALIBRATION_PROTOCOL" != "silo" \
+      && "$CALIBRATION_PROTOCOL" != "mocc" \
+      && "$CALIBRATION_PROTOCOL" != "tictoc" ]]; then
+  write_failure 2 submit_binding \
+    "IZANAGI_CALIBRATION_PROTOCOL must be exactly silo, mocc, or tictoc"
+  exit 2
+fi
 if [[ -n "${PEGASUS_EFFECTIVE_CLOCK_TOLERANCE_PCT+x}" ]]; then
   write_failure 2 submit_binding "legacy effective clock tolerance input is forbidden"
   exit 2
@@ -187,11 +195,11 @@ fi
 CURRENT_SCRIPT_SHA=$(sha256sum "$TOOLS/certify_calibration.sh" | awk '{print $1}')
 python3 - "$ATTEMPT_DIR/submit-receipt.json" "$CURRENT_COMMIT" "$CURRENT_SCRIPT_SHA" \
   "$PBS_JOBID" "$PROJECT" "$QUEUE" "$NODES" "$REQUESTED_S" \
-  "$CALIBRATION_RRATIO" "$REPO_ROOT" <<'PY'
+  "$CALIBRATION_RRATIO" "$CALIBRATION_PROTOCOL" "$REPO_ROOT" <<'PY'
 import json
 import sys
 (path, commit, script_sha, job_id, project, queue, nodes, requested_s,
- rratio, repo_root) = sys.argv[1:]
+ rratio, protocol, repo_root) = sys.argv[1:]
 sys.path.insert(0, repo_root)
 from orchestrator.calibrator.schema_v2 import normalize_request_id
 with open(path, encoding="utf-8") as handle:
@@ -213,6 +221,7 @@ checks = {
         doc.get("calibration", {}).get("workload", {}).get("ycsb_rratio")
         == str(rratio)
     ),
+    "calibration_protocol": doc.get("calibration", {}).get("protocol") == protocol,
 }
 if not all(checks.values()):
     raise SystemExit("submit binding mismatch: " + repr(checks))
@@ -534,19 +543,63 @@ BUILD_DIR="$TMPDIR/ccbench-build"
 git -C "$CCBENCH_BASE" worktree add --detach "$BUILD_SOURCE" "$CCBENCH_HEAD" \
   >"$ATTEMPT_DIR/worktree-add.stdout" 2>"$ATTEMPT_DIR/worktree-add.stderr"
 mkdir "$BUILD_DIR"
+case "$CALIBRATION_PROTOCOL" in
+  silo)
+    ccbench_define_argv=(
+      -DCCBENCH_TRACE=0
+      -DCCBENCH_BACK_OFF=0
+      -DCCBENCH_BACKOFF_FIXED=-1
+      -DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1
+      -DCCBENCH_NO_WAIT_OF_TICTOC=0
+      -DCCBENCH_WAL=0
+    )
+    ;;
+  mocc)
+    ccbench_define_argv=(
+      -DCCBENCH_TRACE=0
+      -DCCBENCH_BACK_OFF=1
+      -DCCBENCH_KEY_SORT=0
+      -DCCBENCH_TEMPERATURE_RESET_OPT=1
+    )
+    ;;
+  tictoc)
+    ccbench_define_argv=(
+      -DCCBENCH_TRACE=0
+      -DCCBENCH_BACK_OFF=1
+      -DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1
+      -DCCBENCH_NO_WAIT_OF_TICTOC=0
+      -DCCBENCH_PREEMPTIVE_ABORTS=1
+      -DCCBENCH_TIMESTAMP_HISTORY=1
+    )
+    ;;
+esac
 configure_argv=("$CMAKE_PATH" -S "$BUILD_SOURCE" -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=Release
-  -DENABLE_SANITIZER=OFF -DCCBENCH_TRACE=0 -DCCBENCH_BACK_OFF=0
-  -DCCBENCH_BACKOFF_FIXED=-1 -DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1
-  -DCCBENCH_NO_WAIT_OF_TICTOC=0 -DCCBENCH_WAL=0
+  -DENABLE_SANITIZER=OFF "${ccbench_define_argv[@]}"
   "-DCMAKE_PREFIX_PATH=$GFLAGS_INSTALL_DIR;$GLOG_INSTALL_DIR"
   "-DIZANAGI_GFLAGS_SRC_HEAD=$GFLAGS_SOURCE_HEAD"
   "-DIZANAGI_GLOG_SRC_HEAD=$GLOG_SOURCE_HEAD"
   "-DCMAKE_C_COMPILER=$(realpath "$CC_PATH")" "-DCMAKE_CXX_COMPILER=$(realpath "$CXX_PATH")")
-run_condition_gate
-build_argv=("$CMAKE_PATH" --build "$BUILD_DIR" --target ycsb_silo.exe -j 48)
+# The current CCBench pin does not contain the BACKOFF_FIXED macro.
+# Passing it for a new protocol would declare a define the source does not supply.
+# Therefore the condition gate and define are not extended beyond silo.
+# Silo keeps its existing behavior pending a separate user ruling.
+if [[ "$CALIBRATION_PROTOCOL" == "silo" ]]; then
+  run_condition_gate
+fi
+case "$CALIBRATION_PROTOCOL" in
+  silo)
+    build_argv=("$CMAKE_PATH" --build "$BUILD_DIR" --target ycsb_silo.exe -j 48)
+    ;;
+  mocc)
+    build_argv=("$CMAKE_PATH" --build "$BUILD_DIR" --target ycsb_mocc.exe -j 48)
+    ;;
+  tictoc)
+    build_argv=("$CMAKE_PATH" --build "$BUILD_DIR" --target ycsb_tictoc.exe -j 48)
+    ;;
+esac
 timeout 900 "${configure_argv[@]}" >"$ATTEMPT_DIR/configure.stdout" 2>"$ATTEMPT_DIR/configure.stderr"
 timeout 900 "${build_argv[@]}" >"$ATTEMPT_DIR/build.stdout" 2>"$ATTEMPT_DIR/build.stderr"
-BINARY="$BUILD_DIR/cc/silo/ycsb_silo.exe"
+BINARY="$BUILD_DIR/cc/$CALIBRATION_PROTOCOL/${build_argv[4]}"
 [[ -x "$BINARY" ]]
 timeout 60 sha256sum "$BINARY" >"$ATTEMPT_DIR/binary.sha256"
 BINARY_SHA=$(awk '{print $1}' "$ATTEMPT_DIR/binary.sha256")
@@ -818,16 +871,19 @@ if [[ "$calibrate_rc" -eq 0 ]]; then
 fi
 
 python3 - "$ATTEMPT_DIR/job-result.json" "$PBS_JOBID" "$calibrate_rc" "$BINARY_SHA" \
-  "$CURRENT_SCRIPT_SHA" "$CALIBRATION_RRATIO" <<'PY'
+  "$CURRENT_SCRIPT_SHA" "$CALIBRATION_RRATIO" "$CALIBRATION_PROTOCOL" <<'PY'
 import json, sys, time
-path, job_id, rc, binary_sha, job_script_sha, rratio = sys.argv[1:]
+path, job_id, rc, binary_sha, job_script_sha, rratio, protocol = sys.argv[1:]
 payload = {
     "schema_version": "pegasus-job-result/v1",
     "pbs_jobid": job_id,
     "calibrate_rc": int(rc),
     "binary_sha256": binary_sha,
     "job_script_sha256": job_script_sha,
-    "calibration": {"workload": {"ycsb_rratio": rratio}},
+    "calibration": {
+        "protocol": protocol,
+        "workload": {"ycsb_rratio": rratio},
+    },
     "completed_epoch": int(time.time()),
 }
 with open(path, "x", encoding="utf-8") as handle:

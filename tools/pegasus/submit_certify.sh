@@ -6,6 +6,7 @@ usage() {
   cat <<'EOF'
 usage: submit_certify.sh [--dry-run] [--repo-root PATH] [--attempts-root PATH]
                          [--job-script PATH] [--rratio 20|50|80]
+                         [--protocol silo|mocc|tictoc]
 EOF
 }
 
@@ -15,6 +16,8 @@ JOB_SCRIPT="$SCRIPT_DIR/certify_calibration.sh"
 ATTEMPTS_ROOT=""
 DRY_RUN=0
 RRATIO=50
+PROTOCOL=silo
+PROTOCOL_EXPLICIT=0
 
 if [[ -n "${PEGASUS_EFFECTIVE_CLOCK_TOLERANCE_PCT+x}" ]]; then
   echo "legacy PEGASUS_EFFECTIVE_CLOCK_TOLERANCE_PCT is forbidden" >&2
@@ -28,6 +31,7 @@ while [[ $# -gt 0 ]]; do
     --attempts-root) ATTEMPTS_ROOT=${2:?}; shift 2 ;;
     --job-script) JOB_SCRIPT=${2:?}; shift 2 ;;
     --rratio) RRATIO=${2:?}; shift 2 ;;
+    --protocol) PROTOCOL=${2:?}; PROTOCOL_EXPLICIT=1; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "unknown argument: $1" >&2; usage >&2; exit 2 ;;
   esac
@@ -35,6 +39,12 @@ done
 
 if [[ "$RRATIO" != "20" && "$RRATIO" != "50" && "$RRATIO" != "80" ]]; then
   echo "--rratio must be exactly 20, 50, or 80" >&2
+  exit 2
+fi
+if [[ "$PROTOCOL" != "silo" \
+      && "$PROTOCOL" != "mocc" \
+      && "$PROTOCOL" != "tictoc" ]]; then
+  echo "--protocol must be exactly silo, mocc, or tictoc" >&2
   exit 2
 fi
 
@@ -132,14 +142,14 @@ fi
 
 python3 - "$SUBMISSION_DIR" "$SOURCE_COMMIT" "$JOB_SCRIPT" "$JOB_SCRIPT_SHA256" \
   "$SUBMIT_EPOCH" "$NONCE" "$PROJECT" "$QUEUE" "$NODES" "$WALLTIME_S" \
-  "$RRATIO" "$DRY_RUN" <<'PY'
+  "$RRATIO" "$PROTOCOL" "$DRY_RUN" <<'PY'
 import hashlib
 import json
 import os
 import sys
 
 (root, source_commit, script, script_sha, submit_epoch, nonce, project, queue,
- nodes, walltime_s, rratio, dry_run) = sys.argv[1:]
+ nodes, walltime_s, rratio, protocol, dry_run) = sys.argv[1:]
 captures = {}
 for name in ("qstat_Q", "pegasusinfo", "rbudgetcheck", "check_quota"):
     def read(suffix):
@@ -161,6 +171,7 @@ payload = {
         "project": project, "queue": queue, "nodes": int(nodes),
         "elapstim_req_s": int(walltime_s),
         "calibration_rratio": int(rratio),
+        "calibration_protocol": protocol,
     },
     "preflight": captures,
     "dry_run": bool(int(dry_run)),
@@ -176,6 +187,9 @@ if [[ "$preflight_rc" -ne 0 ]]; then
 fi
 
 export_spec="IZANAGI_SUBMISSION_NONCE=$NONCE,IZANAGI_CALIBRATION_RRATIO=$RRATIO"
+if [[ "$PROTOCOL_EXPLICIT" -eq 1 ]]; then
+  export_spec+=",IZANAGI_CALIBRATION_PROTOCOL=$PROTOCOL"
+fi
 SCHEDULER_STDOUT="$SCHEDULER_OUTPUT_ROOT/$NONCE.scheduler.stdout"
 SCHEDULER_STDERR="$SCHEDULER_OUTPUT_ROOT/$NONCE.scheduler.stderr"
 qsub_cmd=(qsub -o "$SCHEDULER_STDOUT" -e "$SCHEDULER_STDERR" -v "$export_spec" "$JOB_SCRIPT")
@@ -236,6 +250,7 @@ payload = {
         "elapstim_req_s": request["elapstim_req_s"],
     },
     "calibration": {
+        "protocol": request["calibration_protocol"],
         "workload": {"ycsb_rratio": str(request["calibration_rratio"])},
     },
     "preflight": pre["preflight"],

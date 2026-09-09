@@ -521,12 +521,13 @@ def test_certify_cmake_paths_derive_from_colon_free_job_tmpdir():
         "build_argv",
     }
     cmake_path_arrays = re.findall(
-        r'(?m)^([a-z_]+_argv)=\("\$CMAKE_PATH"(?=[ \n])', source,
+        r'(?m)^[ \t]*([a-z_]+_argv)=\("\$CMAKE_PATH"(?=[ \n])', source,
     )
-    assert len(cmake_path_arrays) == 8
+    # build_argv has one assignment in each of the three protocol branches.
+    assert len(cmake_path_arrays) == 10
     assert set(cmake_path_arrays) == expected_cmake_arrays
     assert not re.findall(
-        r"(?m)^([a-z_]+_argv)=\(cmake(?=[ \n])", source,
+        r"(?m)^[ \t]*([a-z_]+_argv)=\(cmake(?=[ \n])", source,
     )
     assert 'for argument in "${configure_argv[@]:5}"; do' in source
     for required in (
@@ -1390,6 +1391,7 @@ def test_calibrate_failure_survives_err_trap_and_writes_job_result(tmp_path):
 PBS_JOBID=123.server
 remaining=30
 CALIBRATION_RRATIO=50
+CALIBRATION_PROTOCOL=silo
 REPO_ROOT={json.dumps(str(tmp_path))}
 TOOLS={json.dumps(str(TOOL_DIR))}
 BINARY=/unused/binary
@@ -1406,6 +1408,9 @@ CALIBRATE_PYTHON=/fixture/python3.10
     assert json.loads((attempt / "failure.json").read_text())["stage"] == "calibrate"
     assert json.loads((attempt / "job-result.json").read_text())["calibrate_rc"] == 7
     assert json.loads((attempt / "job-result.json").read_text())["job_script_sha256"] == "b" * 64
+    assert json.loads((attempt / "job-result.json").read_text())["calibration"] == {
+        "protocol": "silo", "workload": {"ycsb_rratio": "50"},
+    }
     argv = json.loads((attempt / "calibrate-argv.json").read_text())
     assert argv[:3] == [
         "env", "PATH=/fixture/perf/bin:/usr/bin", "/fixture/python3.10",
@@ -1484,7 +1489,9 @@ def test_certify_submit_binding_uses_narrow_request_id_normalization(
         "dry_run": False,
         "source_commit": commit,
         "job_script_sha256": script_sha,
-        "calibration": {"workload": {"ycsb_rratio": "50"}},
+        "calibration": {
+            "protocol": "silo", "workload": {"ycsb_rratio": "50"},
+        },
         "qsub": {
             "request_id": qsub_id, "project": "SFC", "queue": "gen_S",
             "nodes": 1, "elapstim_req_s": 7200,
@@ -1497,6 +1504,7 @@ CURRENT_COMMIT={commit}
 CURRENT_SCRIPT_SHA={script_sha}
 PBS_JOBID={pbs_jobid}
 CALIBRATION_RRATIO=50
+CALIBRATION_PROTOCOL=silo
 PROJECT=SFC
 QUEUE=gen_S
 NODES=1
@@ -1522,7 +1530,9 @@ def test_certify_submit_binding_requires_matching_calibration_rratio(tmp_path):
         "dry_run": False,
         "source_commit": commit,
         "job_script_sha256": script_sha,
-        "calibration": {"workload": {"ycsb_rratio": "50"}},
+        "calibration": {
+            "protocol": "silo", "workload": {"ycsb_rratio": "50"},
+        },
         "qsub": {
             "request_id": "123.server", "project": "SFC", "queue": "gen_S",
             "nodes": 1, "elapstim_req_s": 7200,
@@ -1538,6 +1548,7 @@ PROJECT=SFC
 QUEUE=gen_S
 NODES=1
 REQUESTED_S=7200
+CALIBRATION_PROTOCOL=silo
 REPO_ROOT={json.dumps(str(REPO))}
 """
     mismatch = subprocess.run(
@@ -1549,13 +1560,66 @@ REPO_ROOT={json.dumps(str(REPO))}
         "submit binding mismatch: {'dry_run': True, 'source_commit': True, "
         "'job_script_sha256': True, 'request_id': True, 'project': True, "
         "'queue': True, 'nodes': True, 'walltime': True, "
-        "'calibration_rratio': False}\n"
+        "'calibration_rratio': False, 'calibration_protocol': True}\n"
     )
 
     receipt["calibration"]["workload"]["ycsb_rratio"] = "80"
     receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
     match = subprocess.run(
         ["bash", "-c", prefix + "CALIBRATION_RRATIO=80\n" + fragment],
+        capture_output=True, text=True,
+    )
+    assert match.returncode == 0, match.stderr
+
+
+def test_certify_submit_binding_requires_matching_calibration_protocol(tmp_path):
+    source = (TOOL_DIR / "certify_calibration.sh").read_text(encoding="utf-8")
+    start = source.index('python3 - "$ATTEMPT_DIR/submit-receipt.json"')
+    end = source.index("\n\n# (ii) allocation receipt", start)
+    fragment = source[start:end]
+    attempt = tmp_path / "attempt"
+    attempt.mkdir()
+    commit = "a" * 40
+    script_sha = "b" * 64
+    receipt = {
+        "dry_run": False,
+        "source_commit": commit,
+        "job_script_sha256": script_sha,
+        "calibration": {
+            "protocol": "mocc", "workload": {"ycsb_rratio": "50"},
+        },
+        "qsub": {
+            "request_id": "123.server", "project": "SFC", "queue": "gen_S",
+            "nodes": 1, "elapstim_req_s": 7200,
+        },
+    }
+    receipt_path = attempt / "submit-receipt.json"
+    receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
+    prefix = f"""ATTEMPT_DIR={json.dumps(str(attempt))}
+CURRENT_COMMIT={commit}
+CURRENT_SCRIPT_SHA={script_sha}
+PBS_JOBID=0:123.server
+CALIBRATION_RRATIO=50
+PROJECT=SFC
+QUEUE=gen_S
+NODES=1
+REQUESTED_S=7200
+REPO_ROOT={json.dumps(str(REPO))}
+"""
+    mismatch = subprocess.run(
+        ["bash", "-c", prefix + "CALIBRATION_PROTOCOL=tictoc\n" + fragment],
+        capture_output=True, text=True,
+    )
+    assert mismatch.returncode == 1
+    assert mismatch.stderr == (
+        "submit binding mismatch: {'dry_run': True, 'source_commit': True, "
+        "'job_script_sha256': True, 'request_id': True, 'project': True, "
+        "'queue': True, 'nodes': True, 'walltime': True, "
+        "'calibration_rratio': True, 'calibration_protocol': False}\n"
+    )
+
+    match = subprocess.run(
+        ["bash", "-c", prefix + "CALIBRATION_PROTOCOL=mocc\n" + fragment],
         capture_output=True, text=True,
     )
     assert match.returncode == 0, match.stderr

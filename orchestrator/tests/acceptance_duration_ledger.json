@@ -326,6 +326,8 @@
     "orchestrator/tests/test_s8b_terminal_evidence.py::test_validated_binding_has_exact_twelve_keys_and_real_spelling": 0.003,
     "orchestrator/tests/test_s8b_terminal_evidence.py::test_validated_sha256_and_canonical_bytes_are_recomputed": 0.003,
     "orchestrator/tests/test_s8b_terminal_evidence.py::test_workload_authority_is_rechecked_without_plaintext_disclosure": 0.003,
+    "orchestrator/tests/test_a5_second_boot_job_contract.py::test_a5_cleanup_failure_records_remaining_paths_and_preserves_exit_precedence": 0.12,
+    "orchestrator/tests/test_a5_second_boot_job_contract.py::test_a5_job_exit_cleanup_preserves_missing_sibling_worktree_registration": 0.13,
     "orchestrator/tests/test_p3_s4_loop.py::test_prebuild_offline_tokens_reach_real_condition_gate_configure_argv": 0.01,
     "orchestrator/tests/test_p3_s4_loop.py::test_prebuild_offline_tokens_without_dependency_prefix_match_production_shape": 0.012,
     "orchestrator/tests/test_p3_s4_loop.py::test_without_prebuild_real_condition_gate_configure_args_remain_empty": 0.009,
@@ -22482,7 +22484,7 @@
     "orchestrator/tests/test_t1998_stock_inline_pair.py::test_unstable_arm_is_inconclusive[target]": 0.0,
     "orchestrator/tests/test_t1998_stock_inline_pair.py::test_verify_environment_tag_drift_is_rejected": 0.0
   },
-  "nodeid_count": 22481,
+  "nodeid_count": 22483,
   "schema_version": 1,
   "unit": "seconds"
 }
