@@ -246,13 +246,17 @@ def _reserve(
 
 def _v2_registry_capability_case(
     tmp_path: Path,
+    *,
+    retry_ordinal: int = 0,
 ) -> tuple[
     dict[str, Any],
     core.DomainProfile[Any, Any],
     profile8b.S8BAttemptBinding,
     profile8b.S8BV2AttemptSlot,
 ]:
-    case = admission_cases._consumed_marker_capability_case(tmp_path)
+    case = admission_cases._consumed_marker_capability_case(
+        tmp_path, retry_ordinal=retry_ordinal,
+    )
     marker = case["marker"]
     generation_claim = admission._read_canonical_document(  # noqa: SLF001
         case["claim_path"]
@@ -332,8 +336,11 @@ def _sealed_v2_case(
     durable_identity_override: Mapping[str, object] | None = None,
     classification_external_override: str | None = None,
     capture_failure: bool = False,
+    retry_ordinal: int = 0,
 ) -> dict[str, Any]:
-    case, profile, binding, slot = _v2_registry_capability_case(tmp_path)
+    case, profile, binding, slot = _v2_registry_capability_case(
+        tmp_path, retry_ordinal=retry_ordinal,
+    )
     claim = admission._read_canonical_document(case["claim_path"])
     protocol_path = case["repo_root"] / "output/s8b-freeze/floor_protocol.json"
     protocol = {
@@ -375,7 +382,7 @@ def _sealed_v2_case(
         "exclusion_class": "launch_failure" if capture_failure else None,
         "exec_failures": reps if capture_failure else 0,
         "holdout_id": slot.freeze_holdout_key,
-        "kind": "planned",
+        "kind": "retry" if retry_ordinal else "planned",
         "notes": ["sealed adapter test"],
         "probe_after": dict(probe),
         "probe_before": dict(probe),
@@ -383,8 +390,8 @@ def _sealed_v2_case(
         "rep_integrity_failures": None if capture_failure else 0,
         "rep_observations": observations,
         "reps_expected": reps,
-        "retry": False,
-        "retry_ordinal": slot.attempt_ordinal,
+        "retry": bool(retry_ordinal),
+        "retry_ordinal": retry_ordinal or None,
         "round": slot.repetition + 1,
         "run_cmd": ["ycsb_test.exe"],
         "seq": slot.repetition,
@@ -477,7 +484,7 @@ def _sealed_v2_case(
                 "configuration_id"
             ]
         if "retry_ordinal" in durable_identity_override:
-            evidence_slot_id[4] = durable_identity_override["retry_ordinal"]
+            evidence_slot_id[3] = durable_identity_override["retry_ordinal"]
     reservation = SimpleNamespace(
         binding=binding,
         slot_id=tuple(evidence_slot_id),
@@ -4006,6 +4013,64 @@ def test_sealed_v2_terminal_publishes_evidence_and_replays_old_and_candidate(
     assert path.read_bytes() == _bytes(rows)
     assert terminal["measurement_retry_reason"] is None
     assert terminal["terminal_status"] == "observed"
+
+
+def test_durable_replay_binds_measurement_ordinal(tmp_path: Path) -> None:
+    sealed = _sealed_v2_case(tmp_path, retry_ordinal=1)
+    assert sealed["slot"].measurement_ordinal == 1
+    assert sealed["slot"].attempt_ordinal == 0
+    assert sealed["record"]["retry_ordinal"] == 1
+
+    registry.record_sealed_attempt_terminal(
+        sealed["observation"], sealed["draft"],
+    )
+
+    rows = registry.read_attempt_registry(
+        sealed["repo_root"],
+        profile=sealed["profile"],
+        binding=sealed["binding"],
+    )
+    assert rows[-1]["terminal_status"] == "observed"
+
+
+def test_durable_replay_rejects_recovery_ordinal_substitution(
+    tmp_path: Path,
+) -> None:
+    sealed = _sealed_v2_case(tmp_path, retry_ordinal=1)
+    registry.record_sealed_attempt_terminal(
+        sealed["observation"], sealed["draft"],
+    )
+    root = admission.shared_admission_root(sealed["repo_root"])
+    path = registry.registry_path(
+        sealed["repo_root"],
+        freeze_sha256=sealed["binding"].freeze_sha256,
+        protocol_sha256=sealed["binding"].protocol_sha256,
+    )
+    rows = list(registry._registry_documents_for_evidence(path.read_bytes()))
+    terminal = dict(rows[-1])
+    old_path = registry._terminal_evidence_path(
+        root, terminal["terminal_evidence_sha256"],
+    )
+    document = json.loads(old_path.read_text(encoding="utf-8"))
+    document["campaign_record"]["retry_ordinal"] = (
+        sealed["slot"].attempt_ordinal)
+    payload = core.canonical_json_bytes(document)
+    digest = hashlib.sha256(payload).hexdigest()
+    registry._terminal_evidence_path(root, digest).write_bytes(payload)
+    terminal["terminal_evidence_sha256"] = digest
+    terminal["event_sha256"] = core.event_sha256(terminal)
+    rows[-1] = terminal
+    path.write_bytes(_bytes(tuple(rows)))
+
+    with pytest.raises(
+        registry.S8BAttemptRegistryError,
+        match="campaign record differs from slot: retry_ordinal",
+    ):
+        registry.read_attempt_registry(
+            sealed["repo_root"],
+            profile=sealed["profile"],
+            binding=sealed["binding"],
+        )
 
 
 def test_sealed_v2_issuer_rederives_external_component_digests(

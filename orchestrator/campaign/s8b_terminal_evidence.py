@@ -764,7 +764,10 @@ def _campaign_plaintext(value: object) -> dict[str, object]:
     _text(record['configuration_id'], label='campaign_record.configuration_id')
     _text(record['holdout_id'], label='campaign_record.holdout_id')
     _positive_int(record['records'], label='campaign_record.records')
-    _nonnegative_int(record['retry_ordinal'], label='campaign_record.retry_ordinal')
+    retry_ordinal = record['retry_ordinal']
+    if retry_ordinal is not None:
+        _nonnegative_int(
+            retry_ordinal, label='campaign_record.retry_ordinal')
     _positive_int(record['threads'], label='campaign_record.threads')
     _sha256(record['binary_sha256_at_measure'], label='campaign_record.binary_sha256_at_measure')
     _finite_float(record['duration_s'], label='campaign_record.duration_s', nonnegative=True)
@@ -1143,13 +1146,16 @@ def _assert_authoritative_identity(
     slot_id = reservation['slot_id']
     if type(slot_id) is not list or len(slot_id) != 5:
         _fail('reservation.slot_id is not an exact v2 slot identity')
+    measurement_ordinal = _nonnegative_int(
+        slot_id[3], label='reservation.slot_id[3]')
     expected = {
         'attempt_id': reservation['attempt_id'],
         'cell_id': reservation['cell_id'],
         'configuration_id': slot_id[1],
         'holdout_id': slot_id[0],
         'records': reservation['records'],
-        'retry_ordinal': slot_id[4],
+        'retry_ordinal': (
+            None if measurement_ordinal == 0 else measurement_ordinal),
         'threads': reservation['threads'],
     }
     for (name, value) in expected.items():

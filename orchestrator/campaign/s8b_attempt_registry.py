@@ -1416,10 +1416,13 @@ def _assert_terminal_durable_identity(
         _fail("s8b-terminal-evidence", "durable claim path differs")
     document = evidence.document
     campaign_record = document["campaign_record"]
+    expected_retry_ordinal = (
+        None if slot.measurement_ordinal == 0 else slot.measurement_ordinal
+    )
     slot_identity = {
         "holdout_id": slot.freeze_holdout_key,
         "configuration_id": slot.configuration_id,
-        "retry_ordinal": slot.attempt_ordinal,
+        "retry_ordinal": expected_retry_ordinal,
     }
     for field_name, expected_value in slot_identity.items():
         if campaign_record.get(field_name) != expected_value:

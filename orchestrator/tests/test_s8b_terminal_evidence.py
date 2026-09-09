@@ -125,7 +125,7 @@ def _base_reservation() -> _Reservation:
     workload = {'ycsb_rratio': '81', 'ycsb_zipf_skew': '0.9', 'ycsb_rmw': '0'}
     return _Reservation(
         binding=_Binding(),
-        slot_id=('holdout-a', 'configuration-a', 7, 0, 2),
+        slot_id=('holdout-a', 'configuration-a', 7, 2, 0),
         protocol={'reps': 3, 'session_cv_max': '0.5'},
         mode='pilot',
         perf_preflight_receipt={'status': 'unavailable', 'available': False},
@@ -161,7 +161,7 @@ def _record(
         'kind': 'retry',
         'seq': 17,
         'round': 4,
-        'retry_ordinal': reservation.slot_id[4],
+        'retry_ordinal': reservation.slot_id[3],
         'attempt_id': reservation.attempt_id,
         'trigger': 'round-end',
         'cell_id': reservation.cell_id,
@@ -795,6 +795,66 @@ def test_campaign_source_exact_types_are_checked_before_canonical_copy(
     case.terminal.campaign_record[field] = replacement
     with pytest.raises(evidence.TerminalEvidenceError, match=message):
         _seal(case)
+
+
+def test_planned_terminal_binds_none_retry_ordinal() -> None:
+    case = _case()
+    case.reservation.slot_id = (*case.reservation.slot_id[:3], 0, 0)
+    case.terminal.campaign_record.update({
+        'kind': 'planned',
+        'retry': False,
+        'retry_ordinal': None,
+        'trigger': None,
+    })
+    case.terminal.raw_output_bytes = profile8b.serialize_session_line(
+        case.terminal.campaign_record)
+    case.terminal.report_sha256 = hashlib.sha256(
+        case.terminal.raw_output_bytes).hexdigest()
+
+    draft = _seal(case)
+
+    assert draft.document['campaign_record']['retry_ordinal'] is None
+
+
+def test_planned_terminal_rejects_nonnull_retry_ordinal() -> None:
+    case = _case()
+    case.reservation.slot_id = (*case.reservation.slot_id[:3], 0, 0)
+    case.terminal.campaign_record.update({
+        'kind': 'planned',
+        'retry': False,
+        'retry_ordinal': 1,
+        'trigger': None,
+    })
+    case.terminal.raw_output_bytes = profile8b.serialize_session_line(
+        case.terminal.campaign_record)
+    case.terminal.report_sha256 = hashlib.sha256(
+        case.terminal.raw_output_bytes).hexdigest()
+
+    with pytest.raises(
+        evidence.TerminalEvidenceError,
+        match='campaign_record.retry_ordinal differs from durable identity',
+    ):
+        _seal(case)
+
+
+def test_campaign_retry_binds_measurement_ordinal_not_recovery_ordinal() -> None:
+    case = _case()
+    assert case.reservation.slot_id[3] == 2
+    assert case.reservation.slot_id[4] == 0
+    assert _seal(case).document['campaign_record']['retry_ordinal'] == 2
+
+    case.terminal.campaign_record['retry_ordinal'] = (
+        case.reservation.slot_id[4])
+    case.terminal.raw_output_bytes = profile8b.serialize_session_line(
+        case.terminal.campaign_record)
+    case.terminal.report_sha256 = hashlib.sha256(
+        case.terminal.raw_output_bytes).hexdigest()
+    with pytest.raises(
+        evidence.TerminalEvidenceError,
+        match='campaign_record.retry_ordinal differs from durable identity',
+    ):
+        _seal(case)
+
 
 def test_campaign_excluded_reason_must_equal_rederived_word() -> None:
     case = _case()
