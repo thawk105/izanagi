@@ -561,14 +561,11 @@ def _replay_admitted_wal_with_writer(
     assert Path(target.wal_file).read_bytes() == admitted_bytes
 
 
-def _append_replayed_attempt_with_writer(
+def _source_attempt_record_for_replay(
     *,
     source_layout: CampaignLayout,
     source_receipt_path: Path,
-    target_layout: CampaignLayout,
-    ts: float,
-    live_commit_receipt,
-) -> None:
+):
     invocation_id = json.loads(source_receipt_path.read_bytes())["invocation_id"]
     admitted_path = source_receipt_path.parent / (
         f"admitted_view_{invocation_id}.wal"
@@ -580,7 +577,21 @@ def _append_replayed_attempt_with_writer(
     assert suffix.endswith(b"\n")
     frames = suffix.splitlines()
     assert len(frames) == 1
-    source_record = wal.parse_line(frames[0].decode("utf-8"))
+    return wal.parse_line(frames[0].decode("utf-8"))
+
+
+def _append_replayed_attempt_with_writer(
+    *,
+    source_layout: CampaignLayout,
+    source_receipt_path: Path,
+    target_layout: CampaignLayout,
+    ts: float,
+    live_commit_receipt,
+) -> None:
+    source_record = _source_attempt_record_for_replay(
+        source_layout=source_layout,
+        source_receipt_path=source_receipt_path,
+    )
     if source_record.stage == STAGE_COMMIT:
         assert live_commit_receipt is not None
         stored_receipt = source_record.payload["commit_verification_receipt"]
@@ -676,6 +687,7 @@ def _clone_arm_evidence_with_writers(
     ts: float,
     terminal: str,
     live_commit_receipt,
+    replay_non_commit_sidecar: bool,
 ) -> Path:
     source_terminal = json.loads(source_receipt_path.read_bytes())
     invocation_id = source_terminal["invocation_id"]
@@ -694,19 +706,44 @@ def _clone_arm_evidence_with_writers(
         target_layout,
         iteration=iteration,
     )
-    _production_launch_context(
-        cfg,
-        admission=source.admission,
-        arm=arm,
-        layout=target_layout,
-        action=lambda _context, live_layout: _append_replayed_attempt_with_writer(
+    if replay_non_commit_sidecar:
+        source_record = _source_attempt_record_for_replay(
             source_layout=source_layout,
             source_receipt_path=source_receipt_path,
-            target_layout=live_layout,
+        )
+        if live_commit_receipt is not None:
+            raise AssertionError(
+                "sidecar replay requires live_commit_receipt is None"
+            )
+        if source_record.stage == STAGE_COMMIT:
+            raise AssertionError("sidecar replay requires a non-COMMIT source")
+        C._write_exclusive_bytes(
+            Path(target_layout.root) / P.launcher.B4_LAUNCH_SIDECAR,
+            (
+                Path(source_layout.root) / P.launcher.B4_LAUNCH_SIDECAR
+            ).read_bytes(),
+        )
+        _append_replayed_attempt_with_writer(
+            source_layout=source_layout,
+            source_receipt_path=source_receipt_path,
+            target_layout=target_layout,
             ts=ts,
             live_commit_receipt=live_commit_receipt,
-        ),
-    )
+        )
+    else:
+        _production_launch_context(
+            cfg,
+            admission=source.admission,
+            arm=arm,
+            layout=target_layout,
+            action=lambda _context, live_layout: _append_replayed_attempt_with_writer(
+                source_layout=source_layout,
+                source_receipt_path=source_receipt_path,
+                target_layout=live_layout,
+                ts=ts,
+                live_commit_receipt=live_commit_receipt,
+            ),
+        )
     if terminal == "commit":
         current_state = copy.deepcopy(receipt_state)
         current_state.iteration += 1
@@ -751,6 +788,7 @@ def _clone_evidence_with_writers(
     iteration: int,
     assignment: tuple[str, str],
     terminal: str,
+    replay_non_commit_sidecar: bool = False,
 ) -> _Evidence:
     on_id = str(ident.campaign_id(source.on_cfg))
     off_id = str(ident.campaign_id(source.off_cfg))
@@ -784,6 +822,7 @@ def _clone_evidence_with_writers(
         ts=timestamps["on"],
         terminal=terminal,
         live_commit_receipt=source.on_commit_receipt,
+        replay_non_commit_sidecar=replay_non_commit_sidecar,
     )
     off_receipt = _clone_arm_evidence_with_writers(
         source=source,
@@ -798,6 +837,7 @@ def _clone_evidence_with_writers(
         ts=timestamps["off"],
         terminal=terminal,
         live_commit_receipt=source.off_commit_receipt,
+        replay_non_commit_sidecar=replay_non_commit_sidecar,
     )
     return _Evidence(
         admission=source.admission,

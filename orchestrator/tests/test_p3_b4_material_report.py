@@ -167,7 +167,11 @@ def immutable_publication(tmp_path_factory) -> _ImmutablePublication:
         assert kwargs["terminal"] == "abort"
         cloned = original_clone(
             *args,
-            **{**kwargs, "terminal": "absent"},
+            **{
+                **kwargs,
+                "terminal": "absent",
+                "replay_non_commit_sidecar": True,
+            },
         )
         for layout in (cloned.on_layout, cloned.off_layout):
             state = loop.load_loop_state(layout)
