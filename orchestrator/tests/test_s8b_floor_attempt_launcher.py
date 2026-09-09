@@ -1031,7 +1031,7 @@ def test_v2_profile_reaches_draft_but_fake_cannot_issue_capability(
             ],
             "reps_expected": 3,
             "retry": False,
-            "retry_ordinal": 0,
+            "retry_ordinal": None,
             "round": 8,
             "run_cmd": "v2 command",
             "seq": 7,
@@ -1440,6 +1440,8 @@ def _v2_terminal_from_opened(
     *,
     session_cv_max: str,
 ) -> launcher.FloorAttemptTerminal:
+    measurement_ordinal = reservation.slot_id[3]
+    is_retry = measurement_ordinal != 0
     values = [] if opened.measurement is None else list(
         opened.measurement.throughputs
     )
@@ -1474,7 +1476,7 @@ def _v2_terminal_from_opened(
             opened.reps_expected if opened.failure is not None else 0
         ),
         "holdout_id": reservation.slot_id[0],
-        "kind": "planned",
+        "kind": "retry" if is_retry else "planned",
         "notes": [],
         "probe_after": (
             None if opened.probe_after is None else dict(opened.probe_after)
@@ -1486,8 +1488,8 @@ def _v2_terminal_from_opened(
         ),
         "rep_observations": observations,
         "reps_expected": opened.reps_expected,
-        "retry": False,
-        "retry_ordinal": reservation.slot_id[4],
+        "retry": is_retry,
+        "retry_ordinal": measurement_ordinal if is_retry else None,
         "round": 8,
         "run_cmd": "v2 command",
         "seq": 7,
@@ -1497,7 +1499,7 @@ def _v2_terminal_from_opened(
         ),
         "threads": reservation.threads,
         "throughputs": values,
-        "trigger": None,
+        "trigger": "launcher-retry-test" if is_retry else None,
         "valid": observed,
         "workload": dict(reservation.workload),
     }
@@ -1525,6 +1527,8 @@ def _v2_fake_launch_case(
     tmp_path: Path,
     *,
     throughputs: tuple[float, float, float] = (100.0, 101.0, 102.0),
+    measurement_ordinal: int = 0,
+    attempt_ordinal: int = 0,
 ) -> tuple[
     launcher.FloorAttemptReservation,
     launcher.FloorMeasurementCapture,
@@ -1533,6 +1537,15 @@ def _v2_fake_launch_case(
     _RecorderRegistry,
 ]:
     reservation, measurement, slot = _v2_policy_case(tmp_path)
+    slot = replace(
+        slot,
+        measurement_ordinal=measurement_ordinal,
+        attempt_ordinal=attempt_ordinal,
+    )
+    reservation = replace(
+        reservation,
+        slot_id=s8b_attempt_profile.S8B_V2_SLOT_CODEC.slot_id(slot),
+    )
     token = _OpenedV2Token([])
     token.throughputs = list(throughputs)
     token.records = reservation.records
@@ -1545,6 +1558,99 @@ def _v2_fake_launch_case(
         token,
         registry,
     )
+
+
+def _terminal_with_retry_ordinal(
+    terminal: launcher.FloorAttemptTerminal,
+    retry_ordinal: int | None,
+) -> launcher.FloorAttemptTerminal:
+    assert isinstance(terminal.campaign_record, Mapping)
+    record = {**terminal.campaign_record, "retry_ordinal": retry_ordinal}
+    raw = s8b_attempt_profile.serialize_session_line(record)
+    return replace(
+        terminal,
+        raw_output_bytes=raw,
+        report_sha256=hashlib.sha256(raw).hexdigest(),
+        campaign_record=record,
+    )
+
+
+def test_planned_terminal_rejects_nonnull_retry_ordinal(
+    tmp_path: Path,
+) -> None:
+    reservation, measurement, genesis, token, _registry = (
+        _v2_fake_launch_case(tmp_path)
+    )
+    registry = _AcceptOnlyRecorderRegistry([])
+
+    def build(
+        opened: launcher.OpenedFloorAttempt,
+    ) -> launcher.FloorAttemptTerminal:
+        terminal = _v2_terminal_from_opened(
+            reservation, opened, session_cv_max="0.10",
+        )
+        assert terminal.campaign_record["retry_ordinal"] is None
+        return _terminal_with_retry_ordinal(
+            terminal, reservation.slot_id[4],
+        )
+
+    with pytest.raises(
+        s8b_terminal_evidence.TerminalEvidenceError,
+        match="campaign_record.retry_ordinal differs from durable identity",
+    ):
+        launcher._launch_floor_attempt_for_test(
+            reservation,
+            genesis,
+            measurement,
+            post_probe=_probe,
+            classified_at=lambda: "2026-09-08T00:00:01+00:00",
+            terminal_builder=build,
+            registry=registry,
+            capture_measure_point=_capture_token(token),
+        )
+    assert registry.sealed_draft is None
+
+
+def test_retry_terminal_rejects_recovery_ordinal_substitution(
+    tmp_path: Path,
+) -> None:
+    reservation, measurement, genesis, token, _registry = (
+        _v2_fake_launch_case(
+            tmp_path,
+            measurement_ordinal=2,
+            attempt_ordinal=1,
+        )
+    )
+    registry = _AcceptOnlyRecorderRegistry([])
+    assert reservation.slot_id[3] == 2
+    assert reservation.slot_id[4] == 1
+
+    def build(
+        opened: launcher.OpenedFloorAttempt,
+    ) -> launcher.FloorAttemptTerminal:
+        terminal = _v2_terminal_from_opened(
+            reservation, opened, session_cv_max="0.10",
+        )
+        assert terminal.campaign_record["retry_ordinal"] == 2
+        return _terminal_with_retry_ordinal(
+            terminal, reservation.slot_id[4],
+        )
+
+    with pytest.raises(
+        s8b_terminal_evidence.TerminalEvidenceError,
+        match="campaign_record.retry_ordinal differs from durable identity",
+    ):
+        launcher._launch_floor_attempt_for_test(
+            reservation,
+            genesis,
+            measurement,
+            post_probe=_probe,
+            classified_at=lambda: "2026-09-08T00:00:01+00:00",
+            terminal_builder=build,
+            registry=registry,
+            capture_measure_point=_capture_token(token),
+        )
+    assert registry.sealed_draft is None
 
 
 def _real_v2_launch_case(
