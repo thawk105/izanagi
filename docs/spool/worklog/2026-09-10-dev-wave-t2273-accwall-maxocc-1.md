@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-09-10
 wave: dev-wave-t2273-accwall-maxocc
 seq: 1
-title: [T-2273] 最遅 shard の最大 worker 占有を分解し、その 6 割を占めていた 1 node を削った — 依頼が名指しした床 (t080) は最遅 shard の床ではなかった (コード + 実測 + insight、branch worktree-dev-wave-t2273-accwall-maxocc、変異 4/4 検出・撤回 2 件)
+title: [T-2273] shard-2 の最大 worker 占有を 308.57 → 146.54〜177.0 秒へ削り wall を 300 秒未満へ入れた — 依頼が名指しした床 (t080) は最遅 shard の床ではなく、最遅は shard-0 へ移った (コード + 実測 + insight、branch worktree-dev-wave-t2273-accwall-maxocc、変異 4/4 検出・撤回 2 件、受入 5 走目で緑)
 ---
 
 ## 本文
@@ -38,17 +38,29 @@ title: [T-2273] 最遅 shard の最大 worker 占有を分解し、その 6 割�
   検出は rc と `errors=N` で確定している。{{D:fixture-owned-oracle-kills-are-parse-error}}。
 - 実装子は Pegasus dispatch の `qstat -Q` が `Unknown user-id` で pytest を 1 件も実走できず、
   「実装済み・未実走」で戻した。実走はすべて親が行った。
+- **受入全走は 5 回投入して 5 走目で緑**になった (`22319 passed, 68 skipped`)。
+  1 回目は親が走行中に insight と fragment を書いて untracked を作り `prerun-clean` rc=70 で
+  拒否された (親起因)。2〜4 回目の赤はすべて差分から到達不能で単独再走は緑、
+  赤の node 集合が走ごとに移動した。この型は F57 に既載であり、緑が取れたので hold は登録していない。
+- **shard-2 の wall は 3 走とも 300 秒未満 (218.92 / 277.80 / 222.32 秒)** になり、
+  group は shard-2 の最大 worker 占有ではなくなった。
+  **一方で最遅 shard は shard-0 へ移り (484.82 / 367.11 / 339.05 秒)、
+  目標「最遅 shard を 5 分以内」自体は未達である。**
 
 ## 次の一手差分
 
 ### 更新
 
-- [T-2273] **P1・単位 A 着地 → 次の手番は最遅 shard の再同定**: 受入全走の最遅 shard を
+- [T-2273] **P1・単位 A 着地・目標は未達 → 次の手番は shard-0**: 受入全走の最遅 shard を
   5 分以内へ入れる作業。単位 A (shard-2 の group `p3-b4-material-report` の
   module fixture が作る replica 200 組を sidecar replay へ) を land した。
-  paired 焦点走で material module は 241.06 → 134.10 秒 (−106.96 秒、−44.4%)。
-  **短縮後の最遅 shard は shard-0 へ移った可能性が高く、次の手番はまず 3 走以上で
-  最遅 shard を測り直すこと。** shard-0 は仕事量律速に近く、単一 node の短縮では閉じない。
+  group の worker 占有は 256.93〜308.57 → 146.54 / 177.0 / 153.3 秒、
+  shard-2 の wall は 313.27〜365.94 → 218.92 / 277.80 / 222.32 秒になり、
+  group は shard-2 の最大 worker 占有ではなくなった。
+  paired 焦点走でも material module は 241.06 → 134.10 秒 (−106.96 秒、−44.4%)。
+  **ただし最遅 shard は shard-0 へ移り (変更後 3 走で 484.82 / 367.11 / 339.05 秒)、
+  目標そのものは未達である。** shard-0 は上位 worker がほぼ横並びの仕事量律速に近く、
+  単一 node の短縮では閉じない。次の手番は shard-0 の最大 worker 占有の分解である。
   base: 0caffca2cd2caf79343117d6e6560e5348b318411a25b1e47a2a93c57e5dd803
 - [T-2495] **P2・訂正**: 「受入の現在の床は `test_t080_*` 群」は *shard-0 の* 床としては
   正しいが *最遅 shard の* 床ではない。9 走の実測で最遅は 8 走が shard-2 だった。

@@ -133,7 +133,67 @@ D104 決定 3「効果を示せない機構は land しない」に従い、実�
 `dd43fcb70d40685610f0d40b12ee098a75d10dbf` と出て、wave 開始時の `7f17e1c63` から
 local main が進んでいたことも判明した。
 
-2 回目以降の結果は本節へ追記する。
+**2 回目以降は 4 回走った。** 実走した 4 走 (attempt 2〜5) の shard 別 wall と
+最大 worker 占有は次のとおり。値の源は各 shard の `junit.xml` root の `time` と
+`report.json` の `worker_occupancy` である。receipt に wall 欄が無いことは D1830 の既知事実で、
+本 wave もそれを変えていない。
+
+| attempt | verdict | shard-0 wall | shard-1 wall | shard-2 wall | shard-2 の最大占有 | うち group `p3-b4-material-report` |
+|---|---|---|---|---|---|---|
+| 2 | 赤 (13 error) | 484.82 | 205.15 | **218.92** | 163.07 (gw2) | **146.54** (gw0) |
+| 3 | 赤 (1 failed) | 367.11 | 161.76 | **277.80** | 222.01 (gw2) | **177.0** (gw0) |
+| 4 | 赤 (4 failed) | — | — | — | — | — |
+| 5 | **緑 (`22319 passed, 68 skipped`)** | 339.05 | 192.99 | **222.32** | 163.78 (gw2) | **153.3** (gw0) |
+
+attempt 5 の receipt は `dev-wave-acceptance-receipt/v5`、`verdict = child-green`、
+`tested_main = 960466384da56a92dd78ca8d10e50f0986496219`、
+`tested_tip = 6451008c1e97c899a677fb0a59f90da4f4a4eb99`。
+
+上の 4 走はいずれも**本節を含む記録 commit より前の tip** に対する走行である。
+DW-O12 に従い、land 対象 tip への最終受入は記録 commit の完了後に別途投入する。
+**その最終走の receipt が land の権威**であり、本節の数値は wall と占有の実測として読む。
+
+**変更前後の対比 (変更前は 2026-09-09 の 9 走、変更後は実走 3 走):**
+
+| 指標 | 変更前 | 変更後 |
+|---|---|---|
+| group `p3-b4-material-report` の worker 占有 | 256.93〜308.57 秒 | **146.54 / 177.0 / 153.3 秒** |
+| shard-2 の wall | 313.27〜365.94 秒 (9 走とも 300 秒超) | **218.92 / 277.80 / 222.32 秒** |
+| shard-2 の最大 worker が group か | 9 走すべて **はい** (wall の 78〜84%) | 3 走すべて **いいえ** |
+| 対象 node の所要 | 198.48 秒 (9 走目) | **26.27 秒** (attempt 2) |
+
+裁定の達成条件は「group を 65.94 秒以上縮める」だった。**実測の短縮は 131〜162 秒**である。
+group は shard-2 の最大 worker 占有ではなくなった。
+
+**最遅 shard は shard-0 へ移った。** 変更後 3 走の shard-0 は 484.82 / 367.11 / 339.05 秒で、
+いずれも shard-2 より遅い。shard-0 は上位 worker がほぼ横並びの仕事量律速に近く、
+単一 node の短縮では閉じない。**目標「最遅 shard を 5 分以内」はまだ達成していない。**
+残っているのは shard-0 側であり、次の手番はそこを測り直すことである。
+
+### 主張の範囲
+
+- 言えるのは「観測した 3 走で shard-2 の wall が 300 秒を切り、group が最大 worker 占有では
+  なくなった」までである。3 走はいずれも host が異なり選択 node 集合も 7442〜7457 と違う。
+- D104 決定 4 が求める同一 allocation の paired A-B / B-A には、この受入全走は届かない。
+  §4 の焦点 paired (241.06 → 134.10 秒) も host が違う。**因果はコード上の作業量削減
+  (replica 200 組の bootstrap launch 除去) から論じ、受入の数値は到達事実として扱う。**
+
+### 赤 3 走の帰属 (DW-O18)
+
+attempt 2〜4 の赤はすべて**本 wave の差分から到達不能**で、単独再走で緑になった。
+
+| attempt | 赤 node | 単独再走 |
+|---|---|---|
+| 2 | `test_t1259_qsub_env_delivery_probe.py` 13 error | 51 passed / rc=0 |
+| 3 | `test_codex_worker_launch.py::test_manifest_is_appended_while_correlated_session_is_running` | 211 passed / rc=0 |
+| 4 | 上記に加え `test_campaign_claim.py::test_two_real_processes_racing_acquire_have_exactly_one_winner`、`test_codex_worker_launch.py::test_sigterm_ignoring_child_is_killed`、`same::test_all_v3_stages_reject_prior_invalid_attempt[consult-sol]` | (3 と同型のため単独再走は 3 で代表) |
+
+赤の node 集合が走ごとに移動し、単独では通る。この型は **F57** に既載であり、同 F は
+「高負荷帯では赤の node が単独再走でも移動し、再走すれば緑が取れるという運用上の前提が
+成り立たない」と記録している。attempt 5 で全件緑になったので hold 登録は行わなかった。
+attempt 2 の 13 件は取り込んだ main の範囲にある別 wave の commit
+(`f07761100` [T-2503] runtime PBS spool の束縛変更) が同じ領域を触っており、
+`test_t1259_*` はその commit の対象である。
 
 ## 7. 変異 matrix
 
