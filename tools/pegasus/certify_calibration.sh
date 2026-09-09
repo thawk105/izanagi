@@ -552,6 +552,29 @@ fi
 FETCHCONTENT_SOURCE_ROOT="$TMPDIR/fetchcontent-src"
 FETCHCONTENT_BASE_DIR="$TMPDIR/fetchcontent-base"
 mkdir -p "$FETCHCONTENT_SOURCE_ROOT" "$FETCHCONTENT_BASE_DIR"
+
+# The pristine-source verifier imports Python 3.10-only runtime APIs. Resolve
+# its interpreter independently because the calibrator resolver below cannot
+# run until after the perf candidate has been selected.
+THIRD_PARTY_VERIFY_PYTHON=""
+third_party_verify_python_rejected=""
+for candidate in python3.10 /usr/bin/python3.10 /bin/python3.10; do
+  resolved=$(command -v "$candidate" 2>/dev/null || true)
+  [[ -n "$resolved" ]] || continue
+  if "$resolved" -I -B -c \
+      'import sys; raise SystemExit(0 if sys.version_info[:2] >= (3, 10) else 1)' \
+      >/dev/null 2>&1; then
+    THIRD_PARTY_VERIFY_PYTHON="$resolved"
+    break
+  fi
+  third_party_verify_python_rejected+="${third_party_verify_python_rejected:+ }$candidate=$resolved"
+done
+if [[ -z "$THIRD_PARTY_VERIFY_PYTHON" ]]; then
+  write_failure 2 interpreter \
+    "no python3.10 interpreter passed smoke check (rejected: ${third_party_verify_python_rejected:-none})"
+  exit 2
+fi
+
 for third_party_name in masstree mimalloc googletest; do
   third_party_copy_rc=0
   timeout 120 cp -a \
@@ -565,7 +588,7 @@ for third_party_name in masstree mimalloc googletest; do
   fi
 done
 third_party_verify_rc=0
-(cd "$REPO_ROOT" && timeout 120 python3 - \
+(cd "$REPO_ROOT" && timeout 120 "$THIRD_PARTY_VERIFY_PYTHON" - \
   "$FETCHCONTENT_SOURCE_ROOT" "$REPO_ROOT" <<'PY'
 import sys
 from pathlib import Path

@@ -9,6 +9,7 @@ import re
 import shlex
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -119,6 +120,13 @@ def _protocol_shell_observation(
     fetchcontent_source_root: str = "/fixture/fetchcontent-src",
 ) -> dict[str, object]:
     source = JOB.read_text(encoding="utf-8")
+    condition_function_start = source.index("run_condition_gate() {")
+    condition_function_end = (
+        source.index("\n}\n", condition_function_start) + len("\n}")
+    )
+    condition_function = source[
+        condition_function_start:condition_function_end
+    ]
     define_case_start = source.index('case "$CALIBRATION_PROTOCOL" in')
     define_case_end = (
         source.index("\nesac", define_case_start) + len("\nesac")
@@ -141,11 +149,27 @@ def _protocol_shell_observation(
         source[build_case_start:build_case_end],
         binary_line,
     ))
-    command = f"""set -Eeuo pipefail
+    with tempfile.TemporaryDirectory(prefix="izanagi-condition-gate-") as raw_tmp:
+        fixture_root = Path(raw_tmp)
+        fake_bin = fixture_root / "bin"
+        fake_bin.mkdir()
+        fake_python = fake_bin / "python3"
+        fake_python.write_text(
+            "#!/bin/sh\n"
+            ": \"${GATE_ARGV_PATH:?}\"\n"
+            "printf '%s\\n' \"$@\" >\"$GATE_ARGV_PATH\"\n",
+            encoding="utf-8",
+        )
+        fake_python.chmod(0o755)
+        attempt_dir = fixture_root / "attempt"
+        attempt_dir.mkdir()
+        gate_argv_path = fixture_root / "gate.argv"
+        command = f"""set -Eeuo pipefail
 CALIBRATION_PROTOCOL={shlex.quote(protocol)}
 CMAKE_PATH=/fixture/cmake
 BUILD_SOURCE=/fixture/source
 BUILD_DIR=/fixture/build
+CCBENCH_BASE=/fixture/stock
 FETCHCONTENT_BASE_DIR={shlex.quote(fetchcontent_base_dir)}
 FETCHCONTENT_SOURCE_ROOT={shlex.quote(fetchcontent_source_root)}
 GFLAGS_INSTALL_DIR=/fixture/gflags
@@ -154,38 +178,49 @@ GFLAGS_SOURCE_HEAD={'a' * 40}
 GLOG_SOURCE_HEAD={'b' * 40}
 CC_PATH=/bin/true
 CXX_PATH=/bin/true
-gate_calls=0
-gate_configure_argv=()
-run_condition_gate() {{
-  gate_calls=$((gate_calls + 1))
-  gate_configure_argv=("${{configure_argv[@]:5}}")
-}}
+REPO_ROOT={shlex.quote(str(ROOT))}
+ATTEMPT_DIR={shlex.quote(str(attempt_dir))}
+{condition_function}
 {fragment}
-printf 'gate=%s\n' "$gate_calls"
 printf 'binary=%s\n' "$BINARY"
 printf 'configure:'; printf ' %q' "${{configure_argv[@]}}"; printf '\n'
 printf 'build:'; printf ' %q' "${{build_argv[@]}}"; printf '\n'
-printf 'gate-configure:'
-if (( ${{#gate_configure_argv[@]}} > 0 )); then
-  printf ' %q' "${{gate_configure_argv[@]}}"
-fi
-printf '\n'
 """
-    completed = subprocess.run(
-        ["bash", "-c", command], capture_output=True, text=True, check=False,
-    )
-    assert completed.returncode == 0, completed.stderr
-    lines = completed.stdout.splitlines()
-    build_argv = shlex.split(lines[3].removeprefix("build:"))
+        env = dict(os.environ)
+        env["PATH"] = str(fake_bin) + os.pathsep + env.get("PATH", "")
+        env["GATE_ARGV_PATH"] = str(gate_argv_path)
+        completed = subprocess.run(
+            ["bash", "-c", command],
+            capture_output=True,
+            text=True,
+            check=False,
+            env=env,
+        )
+        assert completed.returncode == 0, completed.stderr
+        lines = completed.stdout.splitlines()
+        gate_argv = (
+            gate_argv_path.read_text(encoding="utf-8").splitlines()
+            if gate_argv_path.is_file()
+            else []
+        )
+    if gate_argv:
+        assert gate_argv[:2] == [
+            "-m", "orchestrator.campaign.condition_meaning_gate",
+        ]
+    gate_configure_argv = [
+        argument.removeprefix("--configure-arg=")
+        for argument in gate_argv
+        if argument.startswith("--configure-arg=")
+    ]
+    build_argv = shlex.split(lines[2].removeprefix("build:"))
     return {
-        "gate_calls": int(lines[0].removeprefix("gate=")),
+        "gate_calls": int(bool(gate_argv)),
         "target": build_argv[build_argv.index("--target") + 1],
-        "binary": lines[1].removeprefix("binary="),
-        "configure_argv": shlex.split(lines[2].removeprefix("configure:")),
+        "binary": lines[0].removeprefix("binary="),
+        "configure_argv": shlex.split(lines[1].removeprefix("configure:")),
         "build_argv": build_argv,
-        "gate_configure_argv": shlex.split(
-            lines[4].removeprefix("gate-configure:"),
-        ),
+        "gate_argv": gate_argv,
+        "gate_configure_argv": gate_configure_argv,
     }
 
 
@@ -259,6 +294,10 @@ def _make_verified_third_party_fixture(
             f"project(fixture_{name} NONE)\n",
             encoding="utf-8",
         )
+        (source / "nested").mkdir()
+        (source / "nested/source.txt").write_text(
+            f"{name}-nested-pristine\n", encoding="utf-8",
+        )
         subprocess.run(["git", "init", "-q", str(source)], check=True)
         subprocess.run(
             ["git", "-C", str(source), "config", "user.email", "fixture@example.invalid"],
@@ -319,6 +358,22 @@ def _job_copy_fragment() -> str:
     start = source.index(anchor) + len(anchor)
     end = source.index("\nCCBENCH_BASE=", start)
     return source[start:end]
+
+
+def _third_party_verify_interpreter_fragment() -> str:
+    fragment = _job_copy_fragment()
+    start = fragment.index('THIRD_PARTY_VERIFY_PYTHON=""')
+    end = fragment.index("\nfor third_party_name in", start)
+    return fragment[start:end]
+
+
+def _configure_invocation_fragment() -> str:
+    source = JOB.read_text(encoding="utf-8")
+    matches = re.findall(
+        r'^timeout 900 .*configure_argv.*$', source, re.MULTILINE,
+    )
+    assert len(matches) == 1
+    return matches[0]
 
 
 def _run_job_copy_fragment(
@@ -559,13 +614,106 @@ def test_certify_condition_gate_receives_the_same_fetchcontent_tokens() -> None:
     )
     silo = _protocol_shell_observation("silo")
     assert [
+        argument for argument in silo["gate_argv"]
+        if argument.startswith("--configure-arg=-DFETCHCONTENT_")
+    ] == [f"--configure-arg={argument}" for argument in expected]
+    assert [
         argument for argument in silo["gate_configure_argv"]
         if argument.startswith("-DFETCHCONTENT_")
     ] == expected
     for protocol in ("mocc", "tictoc"):
         observed = _protocol_shell_observation(protocol)
         assert observed["gate_calls"] == 0
+        assert observed["gate_argv"] == []
         assert observed["gate_configure_argv"] == []
+
+
+def test_certify_configure_use_site_passes_the_complete_configure_argv(
+    tmp_path: Path,
+) -> None:
+    configure_argv = _protocol_shell_observation("silo")["configure_argv"]
+    assert isinstance(configure_argv, list)
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake_timeout = fake_bin / "timeout"
+    fake_timeout.write_text(
+        "#!/bin/sh\n"
+        ": \"${TIMEOUT_ARGV_PATH:?}\"\n"
+        "printf '%s\\n' \"$@\" >\"$TIMEOUT_ARGV_PATH\"\n",
+        encoding="utf-8",
+    )
+    fake_timeout.chmod(0o755)
+    attempt_dir = tmp_path / "attempt"
+    attempt_dir.mkdir()
+    timeout_argv_path = tmp_path / "timeout.argv"
+    command = f"""set -Eeuo pipefail
+ATTEMPT_DIR={shlex.quote(str(attempt_dir))}
+configure_argv=({shlex.join(configure_argv)})
+{_configure_invocation_fragment()}
+"""
+    env = dict(os.environ)
+    env["PATH"] = str(fake_bin) + os.pathsep + env.get("PATH", "")
+    env["TIMEOUT_ARGV_PATH"] = str(timeout_argv_path)
+    completed = subprocess.run(
+        ["bash", "-c", command],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+    )
+    assert completed.returncode == 0, completed.stderr
+    assert timeout_argv_path.read_text(encoding="utf-8").splitlines() == [
+        "900", *configure_argv,
+    ]
+
+
+def test_certify_third_party_verifier_uses_version_checked_interpreter() -> None:
+    source = JOB.read_text(encoding="utf-8")
+    fragment = _job_copy_fragment()
+    resolver = _third_party_verify_interpreter_fragment()
+    assert source.index('THIRD_PARTY_VERIFY_PYTHON=""') < source.index(
+        "for third_party_name in masstree mimalloc googletest; do",
+        source.index("# (iv-c)"),
+    )
+    assert "python3.10 /usr/bin/python3.10 /bin/python3.10" in resolver
+    assert (
+        'if "$resolved" -I -B -c \\\n'
+        "      'import sys; raise SystemExit(0 if sys.version_info[:2] >= (3, 10) else 1)'"
+        in resolver
+    )
+    assert 'write_failure 2 interpreter \\\n' in resolver
+    assert 'timeout 120 "$THIRD_PARTY_VERIFY_PYTHON" - \\\n' in fragment
+    assert "timeout 120 python3 -" not in fragment
+
+
+def test_certify_third_party_verifier_interpreter_resolution_fails_closed(
+    tmp_path: Path,
+) -> None:
+    fragment = _third_party_verify_interpreter_fragment()
+    fragment = fragment.replace(
+        "/usr/bin/python3.10", str(tmp_path / "missing-usr-python3.10"),
+    )
+    fragment = fragment.replace(
+        "/bin/python3.10", str(tmp_path / "missing-bin-python3.10"),
+    )
+    writer_bin = tmp_path / "writer-bin"
+    writer_bin.mkdir()
+    writer_python = shutil.which("python3")
+    assert writer_python is not None
+    (writer_bin / "python3").symlink_to(writer_python)
+    failure_path = tmp_path / "failure.txt"
+    command = f"""set -Eeuo pipefail
+PATH={shlex.quote(str(writer_bin))}
+write_failure() {{ printf '%s:%s:%s\\n' "$1" "$2" "$3" >{shlex.quote(str(failure_path))}; }}
+{fragment}
+"""
+    completed = subprocess.run(
+        ["bash", "-c", command], capture_output=True, text=True, check=False,
+    )
+    assert completed.returncode == 2, completed.stderr
+    failure = failure_path.read_text(encoding="utf-8")
+    assert failure.startswith("2:interpreter:")
+    assert "no python3.10 interpreter passed smoke check" in failure
 
 
 def test_certify_offline_configure_resolves_three_local_sources_and_fails_without_each(
@@ -707,6 +855,14 @@ def test_certify_job_copy_leaves_the_staging_sources_untouched_and_writable(
         )
         for name in THIRD_PARTY_NAMES
     }
+    before_trees = {
+        name: {
+            path.relative_to(staging_root / name): path.read_bytes()
+            for path in (staging_root / name).rglob("*")
+            if path.is_file()
+        }
+        for name in THIRD_PARTY_NAMES
+    }
     completed, source_root, base_dir = _run_job_copy_fragment(
         repo_root=fixture_repo,
         staging_root=staging_root,
@@ -722,13 +878,20 @@ def test_certify_job_copy_leaves_the_staging_sources_untouched_and_writable(
         copied_marker.write_text(f"{name}-job-write\n", encoding="utf-8")
         assert upstream_marker.read_bytes() == before[name][0]
         assert upstream_marker.stat().st_ino == before[name][1]
+        after_tree = {
+            path.relative_to(staging_root / name): path.read_bytes()
+            for path in (staging_root / name).rglob("*")
+            if path.is_file()
+        }
+        assert after_tree == before_trees[name]
 
 
+@pytest.mark.parametrize("ignored_name", THIRD_PARTY_NAMES)
 def test_certify_job_rejects_a_staging_source_with_ignored_artifacts(
-    tmp_path: Path,
+    tmp_path: Path, ignored_name: str,
 ) -> None:
     fixture_repo, staging_root = _make_verified_third_party_fixture(
-        tmp_path, ignored_name="mimalloc",
+        tmp_path, ignored_name=ignored_name,
     )
     completed, source_root, base_dir = _run_job_copy_fragment(
         repo_root=fixture_repo,
@@ -790,6 +953,17 @@ def test_submitter_rejects_a_missing_or_malformed_third_party_staging_root(
         child_target, target_is_directory=True,
     )
     malformed_repos.append(child_symlink_repo)
+
+    regular_file_child_repo = tmp_path / "regular-file-child-repo"
+    regular_file_child_repo.mkdir()
+    regular_file_child_root = _third_party_staging_root(regular_file_child_repo)
+    regular_file_child_root.mkdir(parents=True)
+    for name in ("masstree", "mimalloc"):
+        (regular_file_child_root / name).mkdir()
+    (regular_file_child_root / "googletest").write_text(
+        "not a directory\n", encoding="utf-8",
+    )
+    malformed_repos.append(regular_file_child_repo)
 
     for repo_root in malformed_repos:
         completed = subprocess.run(
