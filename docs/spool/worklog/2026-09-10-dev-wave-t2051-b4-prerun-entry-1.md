@@ -55,6 +55,12 @@ title: [T-2051] 依頼 4 項目のうち 3 項目は着地済みで、実際に�
   1 投入で 1 件しか出ないため 3 回投げ直した。
 - **焦点走を 1 回取り下げた。** レビュー前に投入した 28 file の走行は、fix 子が worktree を編集すると
   計測が汚染される。対象集合も作り直しになるため `qdel` し、orphan hold の残留が無いことを確認した。
+- **段 8 の自己改善は予算に阻まれて実施しなかった。** 候補は `DW-M06` へ「spec の
+  `timeout_seconds` は dispatch 待機契約 (queue-wait + grace) 以上にする」を足すことだった。
+  実際に足すと `docs/dev-wave/**` の L1.5 unique footprint が 9871 bytes となり予算 9696 bytes を
+  超える。D782 / D730 の手順に従い、(1) 既存記述の削減を試したが、削れる箇所はいずれも安全義務の
+  文であり意味を保った圧縮ができなかった、(2) 独立 3 例の例外条件は本 wave の 1 例では満たさない、
+  ため上限は引き上げず候補を実施しないで閉じた。編集は revert し `check_docs.py` rc=0 を確認した。
 - **エージェント工数:** codex 子 7 本 (plan 1 / consult 2 / author 1 / review 2 / fix 1)。
   全件 `tools/check_codex_output.py` rc=0。read-only の子は pytest を実走していない。
 
