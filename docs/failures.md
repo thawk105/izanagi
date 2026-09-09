@@ -9414,6 +9414,13 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   本 wave では機構を新設せず、hold 登録による迂回も採らない。**
   他 wave 所有のテストを hold へ入れて自分の wave を通すことは、共有の正しさ関門を
   弱める方向であり、本 wave の scope 外である。land を保留してユーザー裁定へ返す。
+
+- **再発: 2026-09-10** — 親が同一 worktree へ `check_ai_provenance.py` の full 監査と
+  変異走行を続けて投入し、監査側の pending orphan hold を変異 harness が検知して停止した
+  (`DW-O26` の直列化義務違反、親の操作ミス)。監査自身も QUE 10 本 / RUN 0 本の窓で
+  `queue-wait-timeout` になった。直列化の義務は `DW-O26` に書かれているが、同節の題は
+  「焦点走の consumer test 拡張」であり、条件 dispatch 表でも受入・テスト前の条件からしか
+  引かれない。変異走行の直前に読む節 (`DW-M05`) からは到達しない。
 ### F274. 単走の差を実装効果へ帰属させかけた [計測汚染]
 
 - 事象: fix 後の焦点走が 73.42 秒で、fix 前の単走 60.55 秒より遅かったため、親は
@@ -24159,6 +24166,11 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: harness 自身が起動時に fail-closed で拒否する (既に機械化済み)。
   spec を変えると sha256 が変わり `--resume` は使えないので、新しい `--out` / `--attempt-out` で走り直す。
 
+
+- **再発: 2026-09-10** — D612 の opt-in 上書きを queue-wait 3600 秒 / grace 600 秒で当てた結果、
+  事前登録済み spec の `timeout_seconds=1800` を上回り、変異走行が 1 走も始まらなかった。
+  `qstat` の request ID が実際には進んでいる (988638〜642 が既に完了) ことを実測して、
+  上書きを 1200 秒 / 300 秒へ下げ、spec を書き換えずに走らせた。
 ### F933. 背景 script に包んだ重量 command が login 判定をすり抜けた [手順漏れ] [恒真ゲート]
 
 - 事象: 親が生死確認のため CCBench を login node でビルドした。`cmake --build` を直接叩くと
