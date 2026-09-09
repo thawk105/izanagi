@@ -1,0 +1,103 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "m1-literal-prune-restored",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/a5_second_boot_backoff_sweep.sh",
+          "old": "  return \"$cleanup_rc\"",
+          "new": "  timeout \"$remaining\" git -C \"$CCBENCH_BASE\" worktree prune --expire now || true\n  return \"$cleanup_rc\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_a5_second_boot_job_contract.py::test_current_scripts_are_a_positive_example_of_the_complete_contract",
+        "orchestrator/tests/test_a5_second_boot_job_contract.py::test_a5_job_exit_cleanup_preserves_missing_sibling_worktree_registration"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m1b-obfuscated-prune-inside-cleanup",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/a5_second_boot_backoff_sweep.sh",
+          "old": "  return \"$cleanup_rc\"",
+          "new": "  timeout \"$remaining\" git -C \"$CCBENCH_BASE\" worktree \"pr\"\"une\" --expire now || true\n  return \"$cleanup_rc\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_a5_second_boot_job_contract.py::test_a5_job_exit_cleanup_preserves_missing_sibling_worktree_registration"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-cleanup-rc-swallowed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/a5_second_boot_backoff_sweep.sh",
+          "old": "  return \"$cleanup_rc\"",
+          "new": "  return 0"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_a5_second_boot_job_contract.py::test_a5_cleanup_failure_records_remaining_paths_and_preserves_exit_precedence"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-remaining-path-forgotten",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/a5_second_boot_backoff_sweep.sh",
+          "old": "    [[ \"$command_rc\" -eq 0 ]] && JOB_CCBENCH=\"\"",
+          "new": "    JOB_CCBENCH=\"\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_a5_second_boot_job_contract.py::test_a5_cleanup_failure_records_remaining_paths_and_preserves_exit_precedence"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-original-rc-precedence-lost",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/a5_second_boot_backoff_sweep.sh",
+          "old": "  if [[ \"$original_rc\" -eq 0 && \"$cleanup_rc\" -ne 0 ]]; then",
+          "new": "  if [[ \"$cleanup_rc\" -ne 0 ]]; then"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_a5_second_boot_job_contract.py::test_a5_cleanup_failure_records_remaining_paths_and_preserves_exit_precedence"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m5-obfuscated-prune-outside-cleanup-detection-gap",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/a5_second_boot_backoff_sweep.sh",
+          "old": "CURRENT_STAGE=complete",
+          "new": "CURRENT_STAGE=complete\ntimeout 30 git -C \"$CCBENCH_BASE\" worktree \"pr\"\"une\" --expire now || true"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

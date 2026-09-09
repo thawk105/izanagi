@@ -123,8 +123,6 @@ trap on_error ERR
 remove_worktrees() {
   local cleanup_rc=0
   local command_rc=0
-  local remove_rc=0
-  local prune_rc=0
   local deadline=$((SECONDS + WORKTREE_CLEANUP_CAP_S))
   local remaining
   if [[ -n "$CCBENCH_BASE" && -n "$JOB_CCBENCH" ]]; then
@@ -152,20 +150,13 @@ remove_worktrees() {
       [[ "$command_rc" -eq 0 ]] && JOB_REPO=""
     fi
   fi
-  remove_rc=$cleanup_rc
-  if [[ -n "$CCBENCH_BASE" ]]; then
-    remaining=$((deadline - SECONDS))
-    if [[ "$remaining" -le 0 ]]; then
-      prune_rc=124
-    else
-      timeout "$remaining" git -C "$CCBENCH_BASE" worktree prune --expire now \
-        >>"$OUTPUT_ROOT/env/ccbench-worktree-prune.stdout" \
-        2>>"$OUTPUT_ROOT/env/ccbench-worktree-prune.stderr" || prune_rc=$?
-    fi
-    [[ "$cleanup_rc" -ne 0 || "$prune_rc" -eq 0 ]] || cleanup_rc=$prune_rc
-  fi
-  printf '%s\nprune_rc=%s\n' "$remove_rc" "$prune_rc" \
-    >"$OUTPUT_ROOT/env/worktree-remove.rc" || true
+  {
+    printf '%s\n' "$cleanup_rc"
+    [[ -z "$JOB_CCBENCH" ]] || \
+      printf 'remaining_ccbench_path=%s\n' "$JOB_CCBENCH"
+    [[ -z "$JOB_REPO" ]] || \
+      printf 'remaining_repo_path=%s\n' "$JOB_REPO"
+  } >"$OUTPUT_ROOT/env/worktree-remove.rc" || true
   return "$cleanup_rc"
 }
 
