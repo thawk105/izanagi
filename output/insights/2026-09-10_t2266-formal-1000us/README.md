@@ -232,6 +232,17 @@ PBS に触る test で、受入は 3 shard の並行走行である。`DW-O18` �
 当たらないので hold は登録していない。**この後さらに走行が要ったかどうかは、job dir に並ぶ
 `acceptance-receipt-*.json` と `acceptance-child-*.log` の本数が示す。**
 
+**(iii) 型の原因は junit から特定できた。読み取り方も含めて書いておく。** 受入の子 log は
+FAILED の行しか持たないが、**shard の `session_root` に `junit.xml` があり、そこに
+`failed on setup with ...` の本文が入っている** (`session_root` は子 log 冒頭の
+`IZANAGI_ACCEPTANCE_SHARD_ARTIFACTS_V1` 行が示す)。本文は
+`subprocess.TimeoutExpired: Command '['git', '-C', '<wave worktree>', 'ls-files', '--others',
+'--exclude-standard', '-z']' timed out after 30.0 seconds` で、
+`test_t1259_qsub_env_delivery_probe.py` の autouse fixture が実 repo の untracked 走査を
+30 秒 timeout で行う形になっている。**親が同じ command を手で測ると 2.7 秒・untracked 0 件**
+だった。**受入 3 shard の並行走行が file system を混ませると同じ走査が 30 秒を超える。**
+変更に帰属する赤ではない。
+
 ## 7. 敵対レビューが見つけたもの
 
 段 6 で 2 レンズを並列に走らせた。**2 本とも独立に NO-GO を返し、同じ 4 つの穴へ収束した。**
