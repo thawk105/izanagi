@@ -13,6 +13,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 CHECKER = REPO / "tools" / "check_silo_validation_isolation.py"
 CCBENCH = REPO / "external" / "ccbench"
+OPTIONS = CCBENCH / "cmake" / "Options.cmake"
 TRANSACTION = CCBENCH / "cc" / "silo" / "transaction.cc"
 SILO_OP_ELEMENT = CCBENCH / "cc" / "silo" / "include" / "silo_op_element.hh"
 TRANSACTION_HEADER = CCBENCH / "cc" / "silo" / "include" / "transaction.hh"
@@ -220,6 +221,24 @@ def _comment_directive_patch(directory: Path) -> Path:
     )
 
 
+def _trace_default_patch(directory: Path) -> Path:
+    relative = "cmake/Options.cmake"
+    original = OPTIONS.read_text(encoding="utf-8")
+    old = (
+        'set(CCBENCH_TRACE         0 CACHE STRING '
+        '"izanagi correctness trace (0=off, perf)")\n'
+    )
+    new = (
+        'set(CCBENCH_TRACE         1 CACHE STRING '
+        '"izanagi correctness trace (0=off, perf)")\n'
+    )
+    assert original.count(old) == 1
+    return _temporary_ccbench_patch(
+        directory, "trace-default.patch", relative,
+        original, original.replace(old, new, 1),
+    )
+
+
 def _closure_map(payload: dict) -> dict[str, dict]:
     return {item["symbol"]: item for item in payload["closure"]}
 
@@ -308,8 +327,12 @@ def test_default_argument_callee_edit_is_not_reported_as_no_intersection() -> No
         default_rc, default_payload = _invoke(default_patch)
         control_rc, control_payload = _invoke(control_patch)
         mismatch_rc, mismatch_payload = _invoke(mismatch_patch)
-    assert default_rc != 0
-    assert default_payload["verdict"] != NO_INTERSECTION
+    assert default_rc == 1
+    assert default_payload["verdict"] == INTERSECTION
+    assert {
+        (item["kind"], item["symbol"], item["depth"])
+        for item in default_payload["intersections"]
+    } == {("function-region", "ReadElement::get_tidword/1", 1)}
     assert control_rc == 1
     assert control_payload["verdict"] == INTERSECTION
     assert {
@@ -323,6 +346,37 @@ def test_default_argument_callee_edit_is_not_reported_as_no_intersection() -> No
     assert {
         item["code"] for item in mismatch_payload["closure_expansion_errors"]
     } == {"FIRST_PARTY_ARITY_MISMATCH"}
+
+
+def test_cmake_trace_default_reports_macro_closure_intersections() -> None:
+    with tempfile.TemporaryDirectory() as temporary:
+        patch = _trace_default_patch(Path(temporary))
+        rc, payload = _invoke(patch)
+    assert rc == 1
+    assert payload["verdict"] == INTERSECTION
+    assert len(payload["cmake_macros"]) == 1
+    trace = payload["cmake_macros"][0]
+    assert trace["macro"] == "TRACE"
+    assert trace["change_kinds"] == ["cache-default"]
+    expected = {
+        ("TxExecutor::validationPhase/0", 0),
+        ("TxExecutor::lockWriteSet/0", 1),
+        ("TxExecutor::unlockWriteSet/0", 1),
+        ("TxExecutor::unlockWriteSet/1", 2),
+    }
+    assert len(trace["closure_references"]) == 4
+    assert {
+        (item["symbol"], item["depth"])
+        for item in trace["closure_references"]
+    } == expected
+    assert len(payload["intersections"]) == 4
+    assert {
+        (item["kind"], item["macro"], item["symbol"], item["depth"])
+        for item in payload["intersections"]
+    } == {
+        ("macro-reference", "TRACE", symbol, depth)
+        for symbol, depth in expected
+    }
 
 
 def test_comment_directive_text_does_not_create_macro_intersection() -> None:
@@ -519,6 +573,7 @@ TESTS = (
     test_known_root_edits_win_over_incomplete_closure_expansion,
     test_known_root_edit_wins_over_unconsumed_edit,
     test_default_argument_callee_edit_is_not_reported_as_no_intersection,
+    test_cmake_trace_default_reports_macro_closure_intersections,
     test_comment_directive_text_does_not_create_macro_intersection,
     test_cli_reports_no_intersection_for_same_file_unreachable_decoy,
     test_cli_reports_depth_two_intersection_for_iterator_unlock,

@@ -1,5 +1,6 @@
 {
   "duration_seconds_by_nodeid": {
+    "orchestrator/tests/test_silo_validation_isolation.py::test_cmake_trace_default_reports_macro_closure_intersections": 0.16,
     "orchestrator/tests/test_silo_validation_isolation.py::test_claim_boundary_records_every_required_non_guarantee": 0.17,
     "orchestrator/tests/test_silo_validation_isolation.py::test_claim_boundary_records_unmodeled_implicit_lifetime_edges": 0.18,
     "orchestrator/tests/test_silo_validation_isolation.py::test_claim_boundary_requires_external_runtime_anomaly_evidence": 0.17,
@@ -22177,7 +22178,7 @@
     "orchestrator/tests/test_t1998_stock_inline_pair.py::test_unstable_arm_is_inconclusive[target]": 0.0,
     "orchestrator/tests/test_t1998_stock_inline_pair.py::test_verify_environment_tag_drift_is_rejected": 0.0
   },
-  "nodeid_count": 22176,
+  "nodeid_count": 22177,
   "schema_version": 1,
   "unit": "seconds"
 }
