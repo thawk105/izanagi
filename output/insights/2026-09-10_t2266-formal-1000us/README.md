@@ -205,10 +205,17 @@ symlink は 1 つも足していない。よって `DW-S04` により変異 matr
   (`diff_bytes = 0`、`status_bytes = 0`)。
 
 **本節を書いた commit は 2 回目の tested tip より後にある。** そのため land 対象の最終 tip に対して
-**3 回目の受入**を走らせ、その受領証を repo 外の job dir の `acceptance-receipt-3.json` へ残す。
-land が使う tested main / tested tip はそちらの値である (`DW-O12`)。
-**3 回目の値を本節へ書くと同じ理由でまた次の commit が要るので、値は repo 外の受領証に置く。**
-ここで止めないと回帰が終わらない。
+受入を走らせ直す。**land が使う tested main / tested tip は、repo 外の job dir に並ぶ
+`acceptance-receipt-<N>.json` のうち最後のものの値である** (`DW-O12`)。
+**最後の走行の値を本節へ書くと、同じ理由でまた次の commit と次の走行が要る。** ここで止めないと
+回帰が終わらないので、値は repo 外の受領証に置く。
+
+**走行回数は land が成立するまでの競合回数で決まる。** 並行 wave が local main を進めると
+land は `stale-main` で拒否し (main は 1 bit も動かない)、`DW-O23` に従って wave 側で main を
+取り込み、受入を取り直して land をやり直す。**本 wave は実際にこれを踏んだ** — 3 回目の受入
+(tested main `66beffb6d`、tested tip `ded6da49d`、`child-green`) の直後、land が lock を取る間に
+main が `960466384` へ進み、`status = stale-main`、`reason = main moved outside the tested audited
+closure while locking` で止まった。
 
 ## 7. 敵対レビューが見つけたもの
 
