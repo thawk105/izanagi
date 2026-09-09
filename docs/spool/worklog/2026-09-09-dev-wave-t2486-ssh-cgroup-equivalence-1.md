@@ -37,6 +37,13 @@ title: [T-2486] 遠隔検査の ssh session は rank と別の cgroup object に
   **`tools/dev_wave_submodule_init.py` の内部 timeout は 30 秒固定**
   (`tools/dev_waves/git_state.py`) で、同じ負荷では初回が必ず落ちる。同じ argv を timeout 無しで
   温めてから再実行して通した。
+- **受入 1 走目の赤 1 件は本 wave に帰属しない。**
+  `test_manifest_is_appended_while_correlated_session_is_running` が落ちた
+  (22,253 passed / 1 failed)。この test は fake codex process を起動して
+  `time.monotonic() + 3` の deadline で manifest を polling する時間依存の test であり、
+  本 wave の差分は docs 4 file だけで、test が temp root へ写すのは `docs/dev-wave/` 配下だけである
+  (差分から到達できない)。単独再走は rc=0・`1 passed in 5.10s` で非再現だったので、受入を投げ直した。
+  閾値も除外リストも変えていない。
 - 工数: codex 子 3 本 (consult 1 / author 1 / review 1、いずれも `gpt-5.6-sol`)。
   実装子は `tools/run_tests.py` を実走できず「実装済み・未実走」で戻した。probe の投入・実走・
   検算はすべて親が行った。
