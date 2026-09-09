@@ -379,6 +379,14 @@ COUNTERFACTUAL_COHORT2_TRACE_CELLS_TEXT = (
     "cw-as-dyn-c2-p1:1:1:1000:2560:10000:9223372036854775807:1:1:4:1:1,"
     "cw-as-dyn-c2-p2:1:1:1000:2560:10000:9223372036854775807:1:1:4:1:2"
 )
+NONMONOTONIC_TRACE_CELLS_TEXT = (
+    "nm-step0.5:1:0.5:1000:10:0:0:0:100:100:0,"
+    "nm-step1:1:1:1000:10:0:0:0:100:100:0,"
+    "nm-step1-u2560:1:1:1000:2560:0:0:0:100:100:0,"
+    "nm-step2:1:2:1000:10:0:0:0:100:100:0,"
+    "nm-step25:1:25:1000:10:0:0:0:100:100:0,"
+    "nm-step100:1:100:1000:10:0:0:0:100:100:0"
+)
 
 
 class CertificationReject(RuntimeError):
@@ -554,6 +562,37 @@ COUNTERFACTUAL_TRACE_CELLS = parse_cells(COUNTERFACTUAL_TRACE_CELLS_TEXT)
 COUNTERFACTUAL_COHORT2_TRACE_CELLS = parse_cells(
     COUNTERFACTUAL_COHORT2_TRACE_CELLS_TEXT
 )
+NONMONOTONIC_TRACE_CELLS = parse_cells(NONMONOTONIC_TRACE_CELLS_TEXT)
+BACKOFF_TRACE_CONTRACTS = {
+    TRACE_CELLS_TEXT: (
+        TRACE_CELLS,
+        TRACE_WORKLOADS,
+        TRACE_THREADS,
+        EXTIME,
+        0,
+    ),
+    COUNTERFACTUAL_TRACE_CELLS_TEXT: (
+        COUNTERFACTUAL_TRACE_CELLS,
+        TRACE_WORKLOADS,
+        TRACE_THREADS,
+        EXTIME,
+        0,
+    ),
+    COUNTERFACTUAL_COHORT2_TRACE_CELLS_TEXT: (
+        COUNTERFACTUAL_COHORT2_TRACE_CELLS,
+        TRACE_WORKLOADS,
+        TRACE_THREADS,
+        COHORT2_EXTIME,
+        COHORT2_BACKOFF_TRACE_TERMINAL_US,
+    ),
+    NONMONOTONIC_TRACE_CELLS_TEXT: (
+        NONMONOTONIC_TRACE_CELLS,
+        ("write-heavy",),
+        (48,),
+        EXTIME,
+        0,
+    ),
+}
 
 
 def _validate_grid_contract(cells: tuple[Cell, ...]) -> None:
@@ -1163,7 +1202,9 @@ def _directional_success(events: list[dict]) -> dict:
     return result
 
 
-def _parse_backoff_trace(stdout: str) -> tuple[list[dict], dict, dict]:
+def _parse_backoff_trace(
+    stdout: str, allow_overflow: bool = False
+) -> tuple[list[dict], dict, dict]:
     events = []
     summary = None
     trace_version = None
@@ -1275,13 +1316,17 @@ def _parse_backoff_trace(stdout: str) -> tuple[list[dict], dict, dict]:
         raise ValueError("backoff trace summary is missing")
     if not events:
         raise ValueError("backoff trace must contain at least one event")
-    if [event["seq"] for event in events] != list(range(len(events))):
+    if (
+        not allow_overflow
+        and [event["seq"] for event in events] != list(range(len(events)))
+    ):
         raise ValueError("backoff trace seq must be contiguous from zero")
     if any(
         following["tsc"] < current["tsc"]
         for current, following in zip(events, events[1:])
     ):
         raise ValueError("backoff trace tsc must be monotonic")
+    terminal_positions = []
     if trace_version == 3:
         terminal_positions = [
             index
@@ -1290,20 +1335,40 @@ def _parse_backoff_trace(stdout: str) -> tuple[list[dict], dict, dict]:
         ]
         if terminal_positions not in ([], [len(events) - 1]):
             raise ValueError("v3 trace permits zero terminals or one final terminal")
-        expected_summary = {
-            "updates": len(events) - len(terminal_positions),
-            "retained": len(events) - len(terminal_positions),
-            "dropped": 0,
-            "flushes": len(terminal_positions),
-        }
+    if allow_overflow:
+        updates = summary["updates"]
+        retained = summary["retained"]
+        dropped = summary["dropped"]
+        sequence = [event["seq"] for event in events]
+        if (
+            updates != retained + dropped
+            or retained != min(updates, 65_536)
+            or len(events) != retained
+            or sequence[0] != dropped
+            or sequence[-1] != updates - 1
+            or sequence != list(range(dropped, updates))
+            or (
+                trace_version == 3
+                and summary["flushes"] != len(terminal_positions)
+            )
+        ):
+            raise ValueError("backoff trace overflow contract failed")
     else:
-        expected_summary = {
-            "updates": len(events),
-            "retained": len(events),
-            "dropped": 0,
-        }
-    if summary != expected_summary:
-        raise ValueError("backoff trace summary/count or dropped contract failed")
+        if trace_version == 3:
+            expected_summary = {
+                "updates": len(events) - len(terminal_positions),
+                "retained": len(events) - len(terminal_positions),
+                "dropped": 0,
+                "flushes": len(terminal_positions),
+            }
+        else:
+            expected_summary = {
+                "updates": len(events),
+                "retained": len(events),
+                "dropped": 0,
+            }
+        if summary != expected_summary:
+            raise ValueError("backoff trace summary/count or dropped contract failed")
     return events, summary, _directional_success(events)
 
 
@@ -3048,33 +3113,25 @@ def _validate_backoff_trace_contract(
     workloads: tuple[str, ...],
     threads: tuple[int, ...],
 ) -> None:
-    trace_contracts = {
-        TRACE_CELLS_TEXT: (TRACE_CELLS, EXTIME),
-        COUNTERFACTUAL_TRACE_CELLS_TEXT: (
-            COUNTERFACTUAL_TRACE_CELLS,
-            EXTIME,
-        ),
-        COUNTERFACTUAL_COHORT2_TRACE_CELLS_TEXT: (
-            COUNTERFACTUAL_COHORT2_TRACE_CELLS,
-            COHORT2_EXTIME,
-        ),
-    }
-    expected_contract = trace_contracts.get(args.cells)
-    expected_cells, expected_extime = (
-        expected_contract if expected_contract is not None else (None, None)
-    )
-    expected_terminal_us = (
-        COHORT2_BACKOFF_TRACE_TERMINAL_US
-        if args.cells == COUNTERFACTUAL_COHORT2_TRACE_CELLS_TEXT
-        else 0
+    expected_contract = BACKOFF_TRACE_CONTRACTS.get(args.cells)
+    (
+        expected_cells,
+        expected_workloads,
+        expected_threads,
+        expected_extime,
+        expected_terminal_us,
+    ) = (
+        expected_contract
+        if expected_contract is not None
+        else (None, None, None, None, None)
     )
     if (
         expected_cells is None
         or cells != expected_cells
-        or args.workloads != ",".join(TRACE_WORKLOADS)
-        or args.threads != ",".join(str(value) for value in TRACE_THREADS)
-        or workloads != TRACE_WORKLOADS
-        or threads != TRACE_THREADS
+        or args.workloads != ",".join(expected_workloads)
+        or args.threads != ",".join(str(value) for value in expected_threads)
+        or workloads != expected_workloads
+        or threads != expected_threads
         or args.rep_index != 0
         or args.reps_per_job != 1
         or args.extime != expected_extime
@@ -3083,7 +3140,7 @@ def _validate_backoff_trace_contract(
         raise ValueError(
             "--backoff-trace requires exact diagnostic axes and one exact "
             "diagnostic cell set, "
-            "three workloads, threads 24,48, rep index 0, reps 1, and exact "
+            "cell-specific workloads/threads, rep index 0, reps 1, and exact "
             "cell-specific extime/terminal settings"
         )
 
@@ -3846,7 +3903,10 @@ def main(argv: list[str] | None = None) -> int:
                         }
                         if args.backoff_trace:
                             events, summary, directional = _parse_backoff_trace(
-                                "".join(stdout_chunks)
+                                "".join(stdout_chunks),
+                                allow_overflow=(
+                                    args.cells == NONMONOTONIC_TRACE_CELLS_TEXT
+                                ),
                             )
                             row.update(
                                 trace_events=events,
