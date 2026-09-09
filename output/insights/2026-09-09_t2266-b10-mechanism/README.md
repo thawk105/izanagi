@@ -172,7 +172,19 @@ B-1 の 1 巡目の fix で、親は「fig5 の用途制限は新しい attempt 
 
 ## 7. 受入と検査
 
-(受入の実測後に追記する)
+- `python3 tools/check_docs.py` は着手前・段 5 の fix 後・段 8 の revert 後・段 7 の fragment 追加後の
+  いずれも **rc=0**。
+- `python3 tools/check_ai_provenance.py` の全史監査は docs commit 後・記録 commit 後とも **rc=0**
+  (計算ノード job 986808 / 986831)。
+- `python3 tools/spool_fold.py --dry-run` は **rc=0**。
+- **受入全走 (1 回目)** は `tools/dev_wave_wait.py acceptance` 経由で
+  `verdict = child-green`、`child_rc = 0`、赤 0 件・flake 0 件。
+  tested main `4dcf07650`、tested tip `0c2e84e0c` (記録 commit `e1b374219` を含む merge)。
+  受領証は repo 外の job dir の `acceptance-receipt-1.json`。
+- **本節を書いた commit は 1 回目の tested tip の後にある。** そのため land 対象の最終 tip に対して
+  **2 回目の受入**を走らせた。その受領証は同じ job dir の `acceptance-receipt-2.json` にあり、
+  land が使う tested main / tested tip はそちらの値である (`DW-O12`)。
+- 変更した実装面は無く、変異 matrix は `DW-S04` により免除 (§6)。
 
 ## 8. 再現条件
 

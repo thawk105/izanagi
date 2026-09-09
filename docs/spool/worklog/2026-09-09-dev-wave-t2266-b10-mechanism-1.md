@@ -38,6 +38,10 @@ title: [T-2266] B-10 の stale 状態を本体論文の入口へ書いた — �
 - **手順のつまずき 1 件。** 段 6 のレビュー子 2 本を `--stage review` に `--reasoning` を付けて
   投入し、argv 検査で即死させた (rc=2)。`DW-C01` が「`--reasoning` は plan / consult で必須。
   他段指定は rc=2」と明記していた既知の罠である。job-id と成果物 path を変えて投入し直した。
+- **受入全走は 2 回走らせた。** 1 回目は記録 commit を含む tip (tested main `4dcf07650`、
+  tested tip `0c2e84e0c`) で `child-green`、赤 0 件・flake 0 件。その値を insight §7 へ書いた
+  commit が 1 回目の tested tip の後に来るため、`DW-O12` に従い land 対象の最終 tip へ
+  2 回目を走らせた。受領証はいずれも repo 外の job dir にある。
 - 工数: Codex 子 9 本を起動し 7 本が accepted (plan 2 / consult 2 / review 2 / focus 1)。
   model はすべて `gpt-5.6-sol`、effort は全段 `xhigh`。model call は 38 + 28 + 22 + 38 + 27 + 14 + 22
   の計 189。死んだ 2 本の model call は 0。
