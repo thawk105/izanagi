@@ -1,0 +1,31 @@
+{
+  "meta": {
+    "count": 3,
+    "per_page": 2,
+    "next_cursor": "cursor-token:2/+==",
+    "x_query": {
+      "oql": "title_and_abstract.search:(backoff)",
+      "oqo": {
+        "get_rows": "200",
+        "filter_rows": [
+          {
+            "join": "and",
+            "filters": [
+              {
+                "join": "or",
+                "filters": [
+                  {"column_id": "title_and_abstract.search", "value": "backoff"}
+                ]
+              },
+              {"column_id": "to_publication_date", "value": "2026-12-31"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "results": [
+    {"id": "https://openalex.org/W1000000001"},
+    {"id": "https://openalex.org/W1000000002"}
+  ]
+}
