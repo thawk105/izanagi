@@ -9,10 +9,22 @@ import shlex
 import shutil
 import subprocess
 from pathlib import Path
+from typing import Mapping
 
 import pytest
 
+from orchestrator.calibrator.cli import (
+    CertificationError,
+    _canonical_genome_from_receipt,
+)
+from orchestrator.campaign import source_digest
 from orchestrator.campaign.genome import SPACES
+from orchestrator.campaign.model import (
+    GENOME_AXIS_CMAKE_CACHE_VARIABLES,
+    Genome,
+    cmake_cache_variable_for_axis,
+    genome_axis_from_cmake_cache_variable,
+)
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -20,6 +32,321 @@ SUBMIT = ROOT / "tools/pegasus/submit_certify.sh"
 JOB = ROOT / "tools/pegasus/certify_calibration.sh"
 COST_PROBE = ROOT / "tools/pegasus/probes/t1683_rr5_cost_probe.py"
 README = ROOT / "tools/pegasus/README.md"
+CCBENCH_ROOT = ROOT / "external/ccbench"
+
+
+def _ccbench_axis_cache_table(
+    ccbench_root: Path,
+) -> dict[tuple[str, str], str]:
+    """Read the independent CCBench macro-to-cache mapping with its parser."""
+    options_text = (ccbench_root / "cmake/Options.cmake").read_text(
+        encoding="utf-8",
+    )
+    table: dict[tuple[str, str], str] = {}
+    for protocol, space in SPACES.items():
+        protocol_cmake_text = (
+            ccbench_root / f"cc/{protocol}/CMakeLists.txt"
+        ).read_text(encoding="utf-8")
+        supplied, bare, cache_by_macro = (
+            source_digest._parse_supplied_macro_details(
+                options_text, protocol_cmake_text,
+            )
+        )
+        for axis in space.axes:
+            assert axis in supplied
+            assert axis not in bare
+            cache_name = cache_by_macro.get(axis)
+            assert cache_name is not None
+            table[(protocol, axis)] = f"CCBENCH_{cache_name}"
+    return table
+
+
+def _assert_axis_cache_table_matches_ccbench(
+    ccbench_root: Path,
+    declared: Mapping[tuple[str, str], str],
+) -> None:
+    assert _ccbench_axis_cache_table(ccbench_root) == dict(declared)
+
+
+def _copy_ccbench_axis_cache_sources(destination: Path) -> Path:
+    fixture_root = destination / "ccbench"
+    options_target = fixture_root / "cmake/Options.cmake"
+    options_target.parent.mkdir(parents=True)
+    shutil.copy2(CCBENCH_ROOT / "cmake/Options.cmake", options_target)
+    for protocol in SPACES:
+        protocol_target = fixture_root / f"cc/{protocol}/CMakeLists.txt"
+        protocol_target.parent.mkdir(parents=True)
+        shutil.copy2(
+            CCBENCH_ROOT / f"cc/{protocol}/CMakeLists.txt",
+            protocol_target,
+        )
+    return fixture_root
+
+
+def _receipt(protocol: str, configure_defines: list[str]) -> dict:
+    return {
+        "ccbench": {
+            "build_argv": [
+                "cmake", "-S", "/fixture/source", "-B", "/fixture/build",
+                *configure_defines,
+                "&&",
+                "cmake", "--build", "/fixture/build", "--target",
+                f"ycsb_{protocol}.exe", "-j", "48",
+            ],
+        },
+    }
+
+
+def test_genome_axis_cache_table_matches_ccbench_sources() -> None:
+    _assert_axis_cache_table_matches_ccbench(
+        CCBENCH_ROOT, GENOME_AXIS_CMAKE_CACHE_VARIABLES,
+    )
+
+
+def test_genome_axis_cache_mapping_roundtrips_every_declared_entry() -> None:
+    for (protocol, axis), cache_variable in (
+        GENOME_AXIS_CMAKE_CACHE_VARIABLES.items()
+    ):
+        assert cmake_cache_variable_for_axis(protocol, axis) == cache_variable
+        assert genome_axis_from_cmake_cache_variable(
+            protocol, cache_variable,
+        ) == axis
+
+
+def test_genome_axis_cache_table_accepts_empty_cache_default(
+    tmp_path: Path,
+) -> None:
+    fixture_root = _copy_ccbench_axis_cache_sources(tmp_path)
+    options_path = fixture_root / "cmake/Options.cmake"
+    source = options_path.read_text(encoding="utf-8")
+    pattern = re.compile(
+        r"(set\(\s*CCBENCH_INLINE_VERSION_OPT_CICADA\s+)"
+        r'(?:"[^"]*"|\S+)(\s+CACHE\s+STRING\b)',
+    )
+    source, replacements = pattern.subn(r'\1""\2', source, count=1)
+    assert replacements == 1
+    options_path.write_text(source, encoding="utf-8")
+
+    _assert_axis_cache_table_matches_ccbench(
+        fixture_root, GENOME_AXIS_CMAKE_CACHE_VARIABLES,
+    )
+
+
+def test_genome_axis_cache_table_rejects_ccbench_side_rename(
+    tmp_path: Path,
+) -> None:
+    fixture_root = _copy_ccbench_axis_cache_sources(tmp_path)
+    old = "CCBENCH_INLINE_VERSION_OPT_CICADA"
+    new = "CCBENCH_INLINE_VERSION_OPT_CICADA_RENAMED"
+    for relative in ("cmake/Options.cmake", "cc/cicada/CMakeLists.txt"):
+        path = fixture_root / relative
+        source = path.read_text(encoding="utf-8")
+        assert old in source
+        path.write_text(source.replace(old, new), encoding="utf-8")
+
+    with pytest.raises(AssertionError):
+        _assert_axis_cache_table_matches_ccbench(
+            fixture_root, GENOME_AXIS_CMAKE_CACHE_VARIABLES,
+        )
+
+
+def test_genome_axis_cache_table_rejects_non_cicada_ccbench_side_rename(
+    tmp_path: Path,
+) -> None:
+    fixture_root = _copy_ccbench_axis_cache_sources(tmp_path)
+    old = "CCBENCH_KEY_SORT"
+    new = "CCBENCH_KEY_SORT_RENAMED"
+    for relative in ("cmake/Options.cmake", "cc/mocc/CMakeLists.txt"):
+        path = fixture_root / relative
+        source = path.read_text(encoding="utf-8")
+        assert old in source
+        path.write_text(source.replace(old, new), encoding="utf-8")
+
+    with pytest.raises(AssertionError):
+        _assert_axis_cache_table_matches_ccbench(
+            fixture_root, GENOME_AXIS_CMAKE_CACHE_VARIABLES,
+        )
+
+
+def test_genome_axis_cache_table_rejects_izanagi_side_rename() -> None:
+    declared = dict(GENOME_AXIS_CMAKE_CACHE_VARIABLES)
+    declared[("cicada", "INLINE_VERSION_OPT")] = (
+        "CCBENCH_INLINE_VERSION_OPT_CICADA_RENAMED"
+    )
+
+    with pytest.raises(AssertionError):
+        _assert_axis_cache_table_matches_ccbench(CCBENCH_ROOT, declared)
+
+
+@pytest.mark.parametrize("protocol", ["silo", "mocc", "tictoc", "cicada"])
+def test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol(
+    protocol: str,
+) -> None:
+    mapping = dict(GENOME_AXIS_CMAKE_CACHE_VARIABLES)
+    entries = [
+        (axis, cache_variable)
+        for (entry_protocol, axis), cache_variable in mapping.items()
+        if entry_protocol == protocol
+    ]
+    assert len(entries) >= 2
+    (_first_axis, first_cache_variable), (second_axis, _second_cache_variable) = (
+        entries[:2]
+    )
+    mapping[(protocol, second_axis)] = first_cache_variable
+
+    with pytest.raises(ValueError, match="単射でない"):
+        cmake_cache_variable_for_axis(
+            protocol, second_axis, mapping=mapping,
+        )
+    with pytest.raises(ValueError, match="単射でない"):
+        genome_axis_from_cmake_cache_variable(
+            protocol, first_cache_variable, mapping=mapping,
+        )
+
+
+def test_genome_axis_cache_mapping_keeps_unknown_axis_identity_fallback() -> None:
+    assert cmake_cache_variable_for_axis(
+        "silo", "BACKOFF_FIXED",
+    ) == "CCBENCH_BACKOFF_FIXED"
+    assert genome_axis_from_cmake_cache_variable(
+        "silo", "CCBENCH_BACKOFF_FIXED",
+    ) == "BACKOFF_FIXED"
+
+
+def test_cicada_cmake_defines_preserve_distinct_axis_values() -> None:
+    genome = Genome("cicada", {
+        "BACK_OFF": 11,
+        "INLINE_VERSION_OPT": 22,
+        "INLINE_VERSION_PROMOTION": 33,
+        "REUSE_VERSION": 44,
+        "WRITE_LATEST_ONLY": 55,
+    })
+
+    assert genome.canonical() == (
+        "cicada|BACK_OFF=11,INLINE_VERSION_OPT=22,"
+        "INLINE_VERSION_PROMOTION=33,REUSE_VERSION=44,WRITE_LATEST_ONLY=55"
+    )
+    assert genome.cmake_defines() == [
+        "-DCCBENCH_BACK_OFF=11",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=22",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=33",
+        "-DCCBENCH_REUSE_VERSION=44",
+        "-DCCBENCH_WRITE_LATEST_ONLY=55",
+    ]
+
+
+def test_cicada_receipt_accepts_real_cache_name_with_distinct_axis_values() -> None:
+    receipt = _receipt("cicada", [
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_BACK_OFF=11",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=22",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=33",
+        "-DCCBENCH_REUSE_VERSION=44",
+        "-DCCBENCH_WRITE_LATEST_ONLY=55",
+    ])
+
+    assert _canonical_genome_from_receipt(
+        receipt, "/fixture/build/cc/cicada/ycsb_cicada.exe",
+    ) == (
+        "cicada|BACK_OFF=11,INLINE_VERSION_OPT=22,"
+        "INLINE_VERSION_PROMOTION=33,REUSE_VERSION=44,WRITE_LATEST_ONLY=55"
+    )
+
+
+def test_cicada_receipt_rejects_generic_cache_name() -> None:
+    receipt = _receipt("cicada", [
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_BACK_OFF=11",
+        "-DCCBENCH_INLINE_VERSION_OPT=22",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=33",
+        "-DCCBENCH_REUSE_VERSION=44",
+        "-DCCBENCH_WRITE_LATEST_ONLY=55",
+    ])
+
+    with pytest.raises(CertificationError) as caught:
+        _canonical_genome_from_receipt(
+            receipt, "/fixture/build/cc/cicada/ycsb_cicada.exe",
+        )
+    assert caught.value.code == "receipt-genome-invalid"
+
+
+def test_cicada_receipt_rejects_unmapped_cicada_suffix_alias() -> None:
+    configure_defines = [
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_BACK_OFF=11",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=22",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=33",
+        "-DCCBENCH_REUSE_VERSION=44",
+        "-DCCBENCH_WRITE_LATEST_ONLY=55",
+    ]
+    correct = "-DCCBENCH_REUSE_VERSION=44"
+    alias = "-DCCBENCH_REUSE_VERSION_CICADA=44"
+    configure_defines = [
+        alias if token == correct else token for token in configure_defines
+    ]
+    assert correct not in configure_defines
+    assert alias in configure_defines
+    receipt = _receipt("cicada", configure_defines)
+
+    with pytest.raises(CertificationError) as caught:
+        _canonical_genome_from_receipt(
+            receipt, "/fixture/build/cc/cicada/ycsb_cicada.exe",
+        )
+    assert caught.value.code == "receipt-genome-invalid"
+
+
+@pytest.mark.parametrize(
+    ("protocol", "configure_defines", "expected"),
+    [
+        (
+            "silo",
+            [
+                "-DCCBENCH_TRACE=0",
+                "-DCCBENCH_BACK_OFF=11",
+                "-DCCBENCH_BACKOFF_FIXED=-1",
+                "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=22",
+                "-DCCBENCH_NO_WAIT_OF_TICTOC=33",
+                "-DCCBENCH_WAL=44",
+            ],
+            "silo|BACKOFF_FIXED=-1,BACK_OFF=11,"
+            "NO_WAIT_LOCKING_IN_VALIDATION=22,NO_WAIT_OF_TICTOC=33,WAL=44",
+        ),
+        (
+            "mocc",
+            [
+                "-DCCBENCH_TRACE=0",
+                "-DCCBENCH_BACK_OFF=11",
+                "-DCCBENCH_KEY_SORT=22",
+                "-DCCBENCH_TEMPERATURE_RESET_OPT=33",
+            ],
+            "mocc|BACK_OFF=11,KEY_SORT=22,TEMPERATURE_RESET_OPT=33",
+        ),
+        (
+            "tictoc",
+            [
+                "-DCCBENCH_TRACE=0",
+                "-DCCBENCH_BACK_OFF=11",
+                "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=22",
+                "-DCCBENCH_NO_WAIT_OF_TICTOC=33",
+                "-DCCBENCH_PREEMPTIVE_ABORTS=44",
+                "-DCCBENCH_TIMESTAMP_HISTORY=55",
+            ],
+            "tictoc|BACK_OFF=11,NO_WAIT_LOCKING_IN_VALIDATION=22,"
+            "NO_WAIT_OF_TICTOC=33,PREEMPTIVE_ABORTS=44,TIMESTAMP_HISTORY=55",
+        ),
+    ],
+    ids=["silo", "mocc", "tictoc"],
+)
+def test_receipt_accepts_real_cache_names_for_certification_protocols(
+    protocol: str,
+    configure_defines: list[str],
+    expected: str,
+) -> None:
+    receipt = _receipt(protocol, configure_defines)
+
+    assert _canonical_genome_from_receipt(
+        receipt, f"/fixture/build/cc/{protocol}/ycsb_{protocol}.exe",
+    ) == expected
 
 
 def _load_cost_probe():

@@ -14,7 +14,7 @@ orchestrator を **DB のトランザクション実行エンジンの原理**�
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional
 
 if TYPE_CHECKING:
     from .env_contract import ExecutionEnvironmentContract
@@ -34,6 +34,91 @@ STAGE_S1_SESSION = "s1-session"
 STAGE_S8B_ORACLE_SESSION = "s8b-oracle-session"
 S8B_ORACLE_SESSION_ISSUER = "oracle-session"
 WAL_STAGES = STAGES + (STAGE_S1_SESSION, STAGE_S8B_ORACLE_SESSION)
+
+
+GENOME_AXIS_CMAKE_CACHE_VARIABLES: Dict[tuple[str, str], str] = {
+    ("silo", "BACK_OFF"): "CCBENCH_BACK_OFF",
+    ("silo", "NO_WAIT_LOCKING_IN_VALIDATION"): (
+        "CCBENCH_NO_WAIT_LOCKING_IN_VALIDATION"
+    ),
+    ("silo", "NO_WAIT_OF_TICTOC"): "CCBENCH_NO_WAIT_OF_TICTOC",
+    ("silo", "WAL"): "CCBENCH_WAL",
+    ("mocc", "BACK_OFF"): "CCBENCH_BACK_OFF",
+    ("mocc", "KEY_SORT"): "CCBENCH_KEY_SORT",
+    ("mocc", "TEMPERATURE_RESET_OPT"): "CCBENCH_TEMPERATURE_RESET_OPT",
+    ("tictoc", "BACK_OFF"): "CCBENCH_BACK_OFF",
+    ("tictoc", "NO_WAIT_LOCKING_IN_VALIDATION"): (
+        "CCBENCH_NO_WAIT_LOCKING_IN_VALIDATION"
+    ),
+    ("tictoc", "NO_WAIT_OF_TICTOC"): "CCBENCH_NO_WAIT_OF_TICTOC",
+    ("tictoc", "PREEMPTIVE_ABORTS"): "CCBENCH_PREEMPTIVE_ABORTS",
+    ("tictoc", "TIMESTAMP_HISTORY"): "CCBENCH_TIMESTAMP_HISTORY",
+    ("cicada", "BACK_OFF"): "CCBENCH_BACK_OFF",
+    ("cicada", "INLINE_VERSION_OPT"): "CCBENCH_INLINE_VERSION_OPT_CICADA",
+    ("cicada", "INLINE_VERSION_PROMOTION"): (
+        "CCBENCH_INLINE_VERSION_PROMOTION"
+    ),
+    ("cicada", "REUSE_VERSION"): "CCBENCH_REUSE_VERSION",
+    ("cicada", "WRITE_LATEST_ONLY"): "CCBENCH_WRITE_LATEST_ONLY",
+}
+
+
+def _protocol_axis_cache_variables(
+    protocol: str,
+    mapping: Mapping[tuple[str, str], str],
+) -> tuple[tuple[str, str], ...]:
+    """Return one protocol's mapping after enforcing its injectivity."""
+    entries = tuple(
+        (axis, cache_variable)
+        for (entry_protocol, axis), cache_variable in mapping.items()
+        if entry_protocol == protocol
+    )
+    cache_variables = [cache_variable for _axis, cache_variable in entries]
+    if len(cache_variables) != len(set(cache_variables)):
+        raise ValueError(
+            f"genome axis の CMake cache 写像が単射でない: protocol={protocol!r}"
+        )
+    return entries
+
+
+def cmake_cache_variable_for_axis(
+    protocol: str,
+    axis: str,
+    *,
+    mapping: Mapping[tuple[str, str], str] = GENOME_AXIS_CMAKE_CACHE_VARIABLES,
+) -> str:
+    """Map a logical genome axis to its protocol-specific CMake cache name."""
+    _protocol_axis_cache_variables(protocol, mapping)
+    return mapping.get((protocol, axis), f"CCBENCH_{axis}")
+
+
+def genome_axis_from_cmake_cache_variable(
+    protocol: str,
+    cache_variable: str,
+    *,
+    mapping: Mapping[tuple[str, str], str] = GENOME_AXIS_CMAKE_CACHE_VARIABLES,
+) -> str:
+    """Invert the protocol mapping, rejecting aliases and ambiguous tables."""
+    entries = _protocol_axis_cache_variables(protocol, mapping)
+    matches = [axis for axis, mapped in entries if mapped == cache_variable]
+    if len(matches) > 1:
+        raise ValueError(
+            f"CMake cache 変数から genome axis を一意に逆引きできない: "
+            f"protocol={protocol!r} cache_variable={cache_variable!r}"
+        )
+    if matches:
+        return matches[0]
+
+    candidate = cache_variable.removeprefix("CCBENCH_")
+    if (candidate == cache_variable
+            or cmake_cache_variable_for_axis(
+                protocol, candidate, mapping=mapping,
+            ) != cache_variable):
+        raise ValueError(
+            f"CMake cache 変数は genome axis の正規名でない: "
+            f"protocol={protocol!r} cache_variable={cache_variable!r}"
+        )
+    return candidate
 
 
 @dataclass(frozen=True)
@@ -60,7 +145,11 @@ class Genome:
 
     def cmake_defines(self) -> List[str]:
         """cmake に渡す `-DCCBENCH_<FLAG>=<v>` のリスト。"""
-        return [f"-DCCBENCH_{k}={self.flags[k]}" for k in sorted(self.flags)]
+        return [
+            f"-D{cmake_cache_variable_for_axis(self.protocol, axis)}="
+            f"{self.flags[axis]}"
+            for axis in sorted(self.flags)
+        ]
 
 
 @dataclass(frozen=True)
