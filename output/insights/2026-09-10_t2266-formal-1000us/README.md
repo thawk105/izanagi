@@ -212,10 +212,25 @@ symlink は 1 つも足していない。よって `DW-S04` により変異 matr
 
 **走行回数は land が成立するまでの競合回数で決まる。** 並行 wave が local main を進めると
 land は `stale-main` で拒否し (main は 1 bit も動かない)、`DW-O23` に従って wave 側で main を
-取り込み、受入を取り直して land をやり直す。**本 wave は実際にこれを踏んだ** — 3 回目の受入
-(tested main `66beffb6d`、tested tip `ded6da49d`、`child-green`) の直後、land が lock を取る間に
-main が `960466384` へ進み、`status = stale-main`、`reason = main moved outside the tested audited
-closure while locking` で止まった。
+取り込み、受入を取り直して land をやり直す。**本 wave は実際にこれを踏んだ。**
+
+- 3 回目の受入 (tested main `66beffb6d`、tested tip `ded6da49d`、`child-green`) の直後、
+  land が lock を取る間に main が `960466384` へ進み、`status = stale-main`、
+  `reason = main moved outside the tested audited closure while locking` で止まった。
+- 5 回目の受入 (tested main `960466384`、tested tip `f9e2a5771`、`child-green`) の後は、
+  land が 1 度目に `status = lock-busy` (別の協調 land が lock を保持、
+  `retryable_same_request = true`)、同じ request の再試行で再び `stale-main`
+  (main は `693c915b6` へ前進) となった。
+- 以後は**受入と land を 1 本の script に連結**して、緑の受領証をその場で land へ渡す形にした
+  (`accept-and-land.sh`)。窓を詰める以外に打てる手が無いためである。
+
+**非帰属の赤が 3 回、それぞれ別の file で出た。** (i) `test_dev_waves_worker.py` の byte 上限 1 件、
+(ii) `test_codex_worker_launch_budget.py` の 2 件、(iii) `test_t1259_qsub_env_delivery_probe.py` の
+**12 件 setup error**。いずれも単独走では緑で ((iii) は同 file 51 passed)、
+**本 wave の差分は docs と測定記録だけでどれにも到達しない。** 3 件とも subprocess を起こすか
+PBS に触る test で、受入は 3 shard の並行走行である。`DW-O18` の登録条件 (再赤 / 決定的赤) に
+当たらないので hold は登録していない。**この後さらに走行が要ったかどうかは、job dir に並ぶ
+`acceptance-receipt-*.json` と `acceptance-child-*.log` の本数が示す。**
 
 ## 7. 敵対レビューが見つけたもの
 
