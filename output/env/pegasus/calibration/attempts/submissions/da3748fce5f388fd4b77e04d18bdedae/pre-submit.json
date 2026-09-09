@@ -1,0 +1,39 @@
+{
+  "dry_run": true,
+  "job_script_path": "../../../../tools/pegasus/certify_calibration.sh",
+  "job_script_sha256": "86132245a3286b52b668e93c74c6742262940762d5d7162e004a9d00700827ec",
+  "preflight": {
+    "check_quota": {
+      "rc": 0,
+      "stderr_raw": "",
+      "stdout_raw": "not run (--dry-run)\n"
+    },
+    "pegasusinfo": {
+      "rc": 0,
+      "stderr_raw": "",
+      "stdout_raw": "not run (--dry-run)\n"
+    },
+    "qstat_Q": {
+      "rc": 0,
+      "stderr_raw": "",
+      "stdout_raw": "not run (--dry-run)\n"
+    },
+    "rbudgetcheck": {
+      "rc": 0,
+      "stderr_raw": "",
+      "stdout_raw": "not run (--dry-run)\n"
+    }
+  },
+  "request": {
+    "calibration_protocol": "mocc",
+    "calibration_rratio": 50,
+    "elapstim_req_s": 7200,
+    "nodes": 1,
+    "project": "SFC",
+    "queue": "gen_S"
+  },
+  "schema_version": "pegasus-pre-submit/v1",
+  "source_commit": "05b22671f39860c3ddae104f08db0039ffc541c3",
+  "submission_nonce": "da3748fce5f388fd4b77e04d18bdedae",
+  "submit_epoch": 1788975034
+}

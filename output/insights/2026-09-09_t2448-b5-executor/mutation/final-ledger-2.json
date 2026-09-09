@@ -1,0 +1,977 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2448-mutation2/output/pegasus-dispatch/15322d2e3bb416797ce17c658d20c8bb/izdw-15322d2e3b.o989364",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2448-mutation2/output/pegasus-dispatch/15322d2e3bb416797ce17c658d20c8bb/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n......................................................                   [100%]\n54 passed in 5.20s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "109747efa0aa3093f1d0b5026b15f4f00c7845251e34915c33dc844e1a4693d3"
+    },
+    "artifact_error": null,
+    "collection_sha256": "6814a4c6056524d8659511790f0f12654e24de316cb9169a2d77b1c9216fabb0",
+    "duration_s": 33.517,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "5fab7bfe800f4d3fd27c6652e7dd18e0c2c8acfb2fd1cc8f730da00e8097d87b",
+    "repo_head": "61f7813ec12e97d1920df114142580b4e455bada",
+    "runner_sha256": "15994ab6f104e2f22160b37a73fef3f22a6e9144ca996825a3873db9b4998023",
+    "spec_sha256": "fad64f426de611670e492aa25bde57446f825eac547511ab46ece06418e7d3a6",
+    "status": "PASSED",
+    "test_output_sha256": "109747efa0aa3093f1d0b5026b15f4f00c7845251e34915c33dc844e1a4693d3",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "bccdc1b9bd1dfa4702ffae069848cc851d5771cce59aac4a47b370bd9898cecd"
+  },
+  "date": "2026-09-09T18:35:43.075083+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2448-mutation2/output/pegasus-dispatch/b9caf55234cb4087d67892aa09a43b24/izdw-b9caf55234.o989371",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2448-mutation2/output/pegasus-dispatch/b9caf55234cb4087d67892aa09a43b24/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.............................................F.F......                   [100%]\n=================================== FAILURES ===================================\n___ test_openalex_initial_cursor_is_literal_star_and_continuation_is_encoded ___\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_openalex_initial_cursor_is_literal_star_and_continuation_is_encoded() -> None:\n        leaf = resolve_leaf(_catalog(), \"B5-Q1@openalex\")\n>       first = build_request(leaf, 0, None)\n\norchestrator/tests/test_axis_b5_search_executor.py:776: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nleaf = LeafDefinition(leaf_id='B5-Q1@openalex', kind='query', index='openalex', request_template='https://api.openalex.org/wo...nvariant', 'V07': 'verification', 'V08': 'proof', 'V09': 'progress guarantee', 'V10': 'liveness'}, cutoff='2026-12-31')\npage_number = 0, position = None\n\n    def build_request(\n        leaf: LeafDefinition, page_number: int, position: int | str | None\n    ) -> RequestSpec:\n        \"\"\"Replace only the registered position placeholder for one leaf page.\"\"\"\n    \n        page = _validate_page_number(page_number)\n        if leaf.index in POSITION_PARAMETER:\n            expected_position = page * PAGE_SIZE[leaf.index]\n            if position is not None and (\n                isinstance(position, bool)\n                or not isinstance(position, (int, str))\n                or str(position) != str(expected_position)\n            ):\n                raise ValueError(\"offset position is not the registered fixed step\")\n            raw_position: int | str = expected_position\n            url = _template_replace(leaf.request_template, \"{POS}\", str(expected_position))\n        elif leaf.index == \"openalex\":\n            if page == 0:\n                if position not in (None, \"*\"):\n                    raise ValueError(\"OpenAlex page 0 cursor must be literal '*'\")\n                raw_position = \"*\"\n                encoded = \"%2A\"\n            else:\n                if not isinstance(position, str) or not position:\n                    raise ValueError(\"OpenAlex continuation requires the preceding next_cursor\")\n                raw_position = position\n                encoded = quote(position, safe=\"-_.~\")\n            url = _template_replace(leaf.request_template, \"{CUR}\", encoded)\n        else:  # guarded by LeafDefinition construction\n            raise ValueError(\"unsupported leaf index\")\n        if page == 0 and url != leaf.first_page_url:\n>           raise ValueError(\"page 0 URL differs from catalog first_page_url\")\nE           ValueError: page 0 URL differs from catalog first_page_url\n\norchestrator/axis_b5_search/runner.py:411: ValueError\n__ test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal ___\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal() -> None:\n        head = preflight_module.SubprocessGit(ROOT).head()\n        result = verify_registration(head, repo_root=ROOT)\n>       assert result.passed is True\nE       AssertionError: assert False is True\nE        +  where False = RegistrationResult(passed=False, reason_code='registration_paths_dirty', detail='a registered path is modified, deleted, or untracked', seal_record=None).passed\n\norchestrator/tests/test_axis_b5_search_executor.py:428: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_axis_b5_search_executor.py::test_openalex_initial_cursor_is_literal_star_and_continuation_is_encoded\nFAILED orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal\n2 failed, 52 passed in 5.26s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_axis_b5_search_executor.py::test_openalex_initial_cursor_is_literal_star_and_continuation_is_encoded\" nodeid_bytes=124 nodeid_omitted_bytes=0 source_bytes=2459 retained_bytes=2459 omitted_bytes=0 rendered_excerpt_bytes=2554 sha256=e8d6175512d72ed17d0da85b7a7fb9e296ffb4f9e14654104d4cbbb383b9c8a9\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_openalex_initial_cursor_is_literal_star_and_continuation_is_encoded() -> None:\n>         leaf = resolve_leaf(_catalog(), \"B5-Q1@openalex\")\n> >       first = build_request(leaf, 0, None)\n> \n> orchestrator/tests/test_axis_b5_search_executor.py:776: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> leaf = LeafDefinition(leaf_id='B5-Q1@openalex', kind='query', index='openalex', request_template='https://api.openalex.org/wo...nvariant', 'V07': 'verification', 'V08': 'proof', 'V09': 'progress guarantee', 'V10': 'liveness'}, cutoff='2026-12-31')\n> page_number = 0, position = None\n> \n>     def build_request(\n>         leaf: LeafDefinition, page_number: int, position: int | str | None\n>     ) -> RequestSpec:\n>         \"\"\"Replace only the registered position placeholder for one leaf page.\"\"\"\n>     \n>         page = _validate_page_number(page_number)\n>         if leaf.index in POSITION_PARAMETER:\n>             expected_position = page * PAGE_SIZE[leaf.index]\n>             if position is not None and (\n>                 isinstance(position, bool)\n>                 or not isinstance(position, (int, str))\n>                 or str(position) != str(expected_position)\n>             ):\n>                 raise ValueError(\"offset position is not the registered fixed step\")\n>             raw_position: int | str = expected_position\n>             url = _template_replace(leaf.request_template, \"{POS}\", str(expected_position))\n>         elif leaf.index == \"openalex\":\n>             if page == 0:\n>                 if position not in (None, \"*\"):\n>                     raise ValueError(\"OpenAlex page 0 cursor must be literal '*'\")\n>                 raw_position = \"*\"\n>                 encoded = \"%2A\"\n>             else:\n>                 if not isinstance(position, str) or not position:\n>                     raise ValueError(\"OpenAlex continuation requires the preceding next_cursor\")\n>                 raw_position = position\n>                 encoded = quote(position, safe=\"-_.~\")\n>             url = _template_replace(leaf.request_template, \"{CUR}\", encoded)\n>         else:  # guarded by LeafDefinition construction\n>             raise ValueError(\"unsupported leaf index\")\n>         if page == 0 and url != leaf.first_page_url:\n> >           raise ValueError(\"page 0 URL differs from catalog first_page_url\")\n> E           ValueError: page 0 URL differs from catalog first_page_url\n> \n> orchestrator/axis_b5_search/runner.py:411: ValueError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal\" nodeid_bytes=125 nodeid_omitted_bytes=0 source_bytes=598 retained_bytes=598 omitted_bytes=0 rendered_excerpt_bytes=619 sha256=618eb1c9c68bd219e8abc72f9ace49489fa80ce5bbbcc87482cb7e5cb15b84da\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal() -> None:\n>         head = preflight_module.SubprocessGit(ROOT).head()\n>         result = verify_registration(head, repo_root=ROOT)\n> >       assert result.passed is True\n> E       AssertionError: assert False is True\n> E        +  where False = RegistrationResult(passed=False, reason_code='registration_paths_dirty', detail='a registered path is modified, deleted, or untracked', seal_record=None).passed\n> \n> orchestrator/tests/test_axis_b5_search_executor.py:428: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=3057 retained_bytes=3057 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4388 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "c461f07a6f0c54e6230172e921354b4a289b155d9153cbb4bec4452e3ef8f659"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "6814a4c6056524d8659511790f0f12654e24de316cb9169a2d77b1c9216fabb0",
+      "duration_s": 28.653,
+      "expected_nodes": [
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_openalex_initial_cursor_is_literal_star_and_continuation_is_encoded",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_openalex_initial_cursor_is_literal_star_and_continuation_is_encoded",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal"
+      ],
+      "hang_risk": false,
+      "id": "m01-openalex-first-cursor-encoded",
+      "injection_diff_sha256": "e27c11921190fc2c8e8250deca1d4cc275b84718ac1fbf10965256bf515d5b0b",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "a7e633ef90855144327834515a0dc727b9df7112d2d873e0a9b9c4e4cdc1807c",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/runner.py",
+          "new": "            raw_position = \"*\"\n            encoded = \"%2A\"\n",
+          "old": "            raw_position = \"*\"\n            encoded = \"*\"\n"
+        }
+      ],
+      "repo_head": "61f7813ec12e97d1920df114142580b4e455bada",
+      "runner_sha256": "15994ab6f104e2f22160b37a73fef3f22a6e9144ca996825a3873db9b4998023",
+      "spec_sha256": "fad64f426de611670e492aa25bde57446f825eac547511ab46ece06418e7d3a6",
+      "status": "KILLED",
+      "test_output_sha256": "c461f07a6f0c54e6230172e921354b4a289b155d9153cbb4bec4452e3ef8f659",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bccdc1b9bd1dfa4702ffae069848cc851d5771cce59aac4a47b370bd9898cecd"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2448-mutation2/output/pegasus-dispatch/ab7567970486a89f5dcb36c9e13274af/izdw-ab75679704.o989373",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2448-mutation2/output/pegasus-dispatch/ab7567970486a89f5dcb36c9e13274af/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..............................................FF......                   [100%]\n=================================== FAILURES ===================================\n______ test_openalex_ast_preserves_multiplicity_but_ignores_sibling_order ______\n[gw44] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_openalex_ast_preserves_multiplicity_but_ignores_sibling_order() -> None:\n        control = resolve_leaf(_catalog(), \"B5-CTL-AND2023@openalex\")\n        frozen_control_ast = {\n            \"get_rows\": \"200\",\n            \"filter_rows\": [\n                {\n                    \"join\": \"and\",\n                    \"filters\": [\n                        {\n                            \"join\": \"or\",\n                            \"filters\": [\n                                {\n                                    \"column_id\": \"title_and_abstract.search\",\n                                    \"value\": \"backoff\",\n                                }\n                            ],\n                        },\n                        {\n                            \"join\": \"or\",\n                            \"filters\": [\n                                {\n                                    \"column_id\": \"title_and_abstract.search\",\n                                    \"value\": \"update interval\",\n                                }\n                            ],\n                        },\n                        {\n                            \"column_id\": \"to_publication_date\",\n                            \"value\": \"2023-12-31\",\n                        },\n                    ],\n                }\n            ],\n        }\n        assert openalex_ast_matches(\n            frozen_control_ast, build_expected_openalex_ast(control)\n        ) is True\n    \n        leaf = LeafDefinition(\n            \"B5-TEST@openalex\",\n            \"query\",\n            \"openalex\",\n            \"https://api.openalex.org/works?filter=x&per-page=200&cursor={CUR}\",\n            \"https://api.openalex.org/works?filter=x&per-page=200&cursor=*\",\n            ((\"M01\", \"M01\"),),\n            {\"M01\": \"backoff\"},\n            \"2026-12-31\",\n        )\n        expected = build_expected_openalex_ast(leaf)\n        single_leaf = replace(leaf, term_groups=((\"M01\",),))\n        missing_occurrence = build_expected_openalex_ast(single_leaf)\n        assert openalex_ast_matches(expected, expected) is True\n>       assert openalex_ast_matches(expected, missing_occurrence) is False\nE       AssertionError: assert True is False\nE        +  where True = openalex_ast_matches(JsonObject(members=(('get_rows', '200'), ('filter_rows', (JsonObject(members=(('join', 'and'), ('filters', (JsonObject...'value', 'backoff'))))))), JsonObject(members=(('column_id', 'to_publication_date'), ('value', '2026-12-31'))))))),)))), JsonObject(members=(('get_rows', '200'), ('filter_rows', (JsonObject(members=(('join', 'and'), ('filters', (JsonObject...value', 'backoff'))),)))), JsonObject(members=(('column_id', 'to_publication_date'), ('value', '2026-12-31'))))))),)))))\n\norchestrator/tests/test_axis_b5_search_executor.py:884: AssertionError\n__ test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal ___\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal() -> None:\n        head = preflight_module.SubprocessGit(ROOT).head()\n        result = verify_registration(head, repo_root=ROOT)\n>       assert result.passed is True\nE       AssertionError: assert False is True\nE        +  where False = RegistrationResult(passed=False, reason_code='registration_paths_dirty', detail='a registered path is modified, deleted, or untracked', seal_record=None).passed\n\norchestrator/tests/test_axis_b5_search_executor.py:428: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_axis_b5_search_executor.py::test_openalex_ast_preserves_multiplicity_but_ignores_sibling_order\nFAILED orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal\n2 failed, 52 passed in 5.25s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_axis_b5_search_executor.py::test_openalex_ast_preserves_multiplicity_but_ignores_sibling_order\" nodeid_bytes=118 nodeid_omitted_bytes=0 source_bytes=2824 retained_bytes=2824 omitted_bytes=0 rendered_excerpt_bytes=2943 sha256=99717de76039ea661cdd874017f783ede9a97181fdf84494fa4d6f1bf8282848\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw44] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_openalex_ast_preserves_multiplicity_but_ignores_sibling_order() -> None:\n>         control = resolve_leaf(_catalog(), \"B5-CTL-AND2023@openalex\")\n>         frozen_control_ast = {\n>             \"get_rows\": \"200\",\n>             \"filter_rows\": [\n>                 {\n>                     \"join\": \"and\",\n>                     \"filters\": [\n>                         {\n>                             \"join\": \"or\",\n>                             \"filters\": [\n>                                 {\n>                                     \"column_id\": \"title_and_abstract.search\",\n>                                     \"value\": \"backoff\",\n>                                 }\n>                             ],\n>                         },\n>                         {\n>                             \"join\": \"or\",\n>                             \"filters\": [\n>                                 {\n>                                     \"column_id\": \"title_and_abstract.search\",\n>                                     \"value\": \"update interval\",\n>                                 }\n>                             ],\n>                         },\n>                         {\n>                             \"column_id\": \"to_publication_date\",\n>                             \"value\": \"2023-12-31\",\n>                         },\n>                     ],\n>                 }\n>             ],\n>         }\n>         assert openalex_ast_matches(\n>             frozen_control_ast, build_expected_openalex_ast(control)\n>         ) is True\n>     \n>         leaf = LeafDefinition(\n>             \"B5-TEST@openalex\",\n>             \"query\",\n>             \"openalex\",\n>             \"https://api.openalex.org/works?filter=x&per-page=200&cursor={CUR}\",\n>             \"https://api.openalex.org/works?filter=x&per-page=200&cursor=*\",\n>             ((\"M01\", \"M01\"),),\n>             {\"M01\": \"backoff\"},\n>             \"2026-12-31\",\n>         )\n>         expected = build_expected_openalex_ast(leaf)\n>         single_leaf = replace(leaf, term_groups=((\"M01\",),))\n>         missing_occurrence = build_expected_openalex_ast(single_leaf)\n>         assert openalex_ast_matches(expected, expected) is True\n> >       assert openalex_ast_matches(expected, missing_occurrence) is False\n> E       AssertionError: assert True is False\n> E        +  where True = openalex_ast_matches(JsonObject(members=(('get_rows', '200'), ('filter_rows', (JsonObject(members=(('join', 'and'), ('filters', (JsonObject...'value', 'backoff'))))))), JsonObject(members=(('column_id', 'to_publication_date'), ('value', '2026-12-31'))))))),)))), JsonObject(members=(('get_rows', '200'), ('filter_rows', (JsonObject(members=(('join', 'and'), ('filters', (JsonObject...value', 'backoff'))),)))), JsonObject(members=(('column_id', 'to_publication_date'), ('value', '2026-12-31'))))))),)))))\n> \n> orchestrator/tests/test_axis_b5_search_executor.py:884: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal\" nodeid_bytes=125 nodeid_omitted_bytes=0 source_bytes=598 retained_bytes=598 omitted_bytes=0 rendered_excerpt_bytes=619 sha256=618eb1c9c68bd219e8abc72f9ace49489fa80ce5bbbcc87482cb7e5cb15b84da\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal() -> None:\n>         head = preflight_module.SubprocessGit(ROOT).head()\n>         result = verify_registration(head, repo_root=ROOT)\n> >       assert result.passed is True\n> E       AssertionError: assert False is True\n> E        +  where False = RegistrationResult(passed=False, reason_code='registration_paths_dirty', detail='a registered path is modified, deleted, or untracked', seal_record=None).passed\n> \n> orchestrator/tests/test_axis_b5_search_executor.py:428: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=3422 retained_bytes=3422 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4771 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "8f7e324c3bec1e5e44062864c61e30e67e2a3c7978be184ca6ed02dd08b9f26f"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "6814a4c6056524d8659511790f0f12654e24de316cb9169a2d77b1c9216fabb0",
+      "duration_s": 28.211,
+      "expected_nodes": [
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_openalex_ast_preserves_multiplicity_but_ignores_sibling_order",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_openalex_ast_preserves_multiplicity_but_ignores_sibling_order",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal"
+      ],
+      "hang_risk": false,
+      "id": "m02-openalex-ast-multiplicity-dropped",
+      "injection_diff_sha256": "ea357d72551fdf5e5e5453d2bd69576bf46296493bbb95c0141cf4040501fe8f",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "8a03b42670aed2f7be429f780ae34d763237898ff17ac581a6f067d2959b0b31",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/runner.py",
+          "new": "        canonical = tuple(\n            sorted(\n                set(_canonical_openalex_node(child) for child in children),\n                key=_ast_sort_key,\n            )\n        )\n",
+          "old": "        canonical = tuple(\n            sorted(\n                (_canonical_openalex_node(child) for child in children),\n                key=_ast_sort_key,\n            )\n        )\n"
+        }
+      ],
+      "repo_head": "61f7813ec12e97d1920df114142580b4e455bada",
+      "runner_sha256": "15994ab6f104e2f22160b37a73fef3f22a6e9144ca996825a3873db9b4998023",
+      "spec_sha256": "fad64f426de611670e492aa25bde57446f825eac547511ab46ece06418e7d3a6",
+      "status": "KILLED",
+      "test_output_sha256": "8f7e324c3bec1e5e44062864c61e30e67e2a3c7978be184ca6ed02dd08b9f26f",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bccdc1b9bd1dfa4702ffae069848cc851d5771cce59aac4a47b370bd9898cecd"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2448-mutation2/output/pegasus-dispatch/e30791a9bf241a4263d0f58311982bf7/izdw-e30791a9bf.o989379",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2448-mutation2/output/pegasus-dispatch/e30791a9bf241a4263d0f58311982bf7/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...........................................F..FF......                   [100%]\n=================================== FAILURES ===================================\n______ test_live_preflight_29_recorded_plus_one_unreachable_cannot_start _______\n[gw24] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_live_preflight_29_recorded_plus_one_unreachable_cannot_start() -> None:\n        for final_classification in (\"不達\", \"非収録\"):\n            results = [\n                _lookup_result(anchor_id, index, \"収録\")\n                for anchor_id, index in MEMBERS[:-1]\n            ] + [_lookup_result(\"G3-07\", \"dblp\", final_classification)]\n            record = _evaluate_live_preflight_for_test(\n                results,\n                registration_seal=_minimal_seal(),\n                timeout_s=17,\n                user_agent=\"axis-b5-test/contact@example.invalid\",\n                request_interval_s=2.5,\n            )\n            assert record[\"exact_member_set\"] is True\n>           assert record[\"passed\"] is False\nE           assert True is False\n\norchestrator/tests/test_axis_b5_search_executor.py:702: AssertionError\n_______ test_live_record_is_schema_valid_and_unclassified_is_false_side ________\n[gw7] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_live_record_is_schema_valid_and_unclassified_is_false_side() -> None:\n        results = [_lookup_result(anchor_id, index, \"収録\") for anchor_id, index in MEMBERS]\n        results[-1] = _lookup_result(\"G3-07\", \"dblp\", \"unclassified\")\n        record = _evaluate_live_preflight_for_test(\n            results,\n            registration_seal=_minimal_seal(),\n            timeout_s=5,\n            user_agent=\"schema-test\",\n            request_interval_s=1,\n        )\n        schema = json.loads(\n            (ROOT / \"orchestrator/schemas/axis_b5_search_live_preflight.schema.json\").read_text(\n                encoding=\"utf-8\"\n            )\n        )\n        jsonschema.Draft7Validator.check_schema(schema)\n        jsonschema.validate(record, schema)\n>       assert record[\"passed\"] is False\nE       assert True is False\n\norchestrator/tests/test_axis_b5_search_executor.py:1291: AssertionError\n__ test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal ___\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal() -> None:\n        head = preflight_module.SubprocessGit(ROOT).head()\n        result = verify_registration(head, repo_root=ROOT)\n>       assert result.passed is True\nE       AssertionError: assert False is True\nE        +  where False = RegistrationResult(passed=False, reason_code='registration_paths_dirty', detail='a registered path is modified, deleted, or untracked', seal_record=None).passed\n\norchestrator/tests/test_axis_b5_search_executor.py:428: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_axis_b5_search_executor.py::test_live_preflight_29_recorded_plus_one_unreachable_cannot_start\nFAILED orchestrator/tests/test_axis_b5_search_executor.py::test_live_record_is_schema_valid_and_unclassified_is_false_side\nFAILED orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal\n3 failed, 51 passed in 5.25s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_axis_b5_search_executor.py::test_live_record_is_schema_valid_and_unclassified_is_false_side\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=947 retained_bytes=947 omitted_bytes=0 rendered_excerpt_bytes=1000 sha256=82bf4c0cddc77bf2779008273c700d798042cb0f5168602c82024991c7b6b92a\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw7] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_live_record_is_schema_valid_and_unclassified_is_false_side() -> None:\n>         results = [_lookup_result(anchor_id, index, \"\\u53ce\\u9332\") for anchor_id, index in MEMBERS]\n>         results[-1] = _lookup_result(\"G3-07\", \"dblp\", \"unclassified\")\n>         record = _evaluate_live_preflight_for_test(\n>             results,\n>             registration_seal=_minimal_seal(),\n>             timeout_s=5,\n>             user_agent=\"schema-test\",\n>             request_interval_s=1,\n>         )\n>         schema = json.loads(\n>             (ROOT / \"orchestrator/schemas/axis_b5_search_live_preflight.schema.json\").read_text(\n>                 encoding=\"utf-8\"\n>             )\n>         )\n>         jsonschema.Draft7Validator.check_schema(schema)\n>         jsonschema.validate(record, schema)\n> >       assert record[\"passed\"] is False\n> E       assert True is False\n> \n> orchestrator/tests/test_axis_b5_search_executor.py:1291: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_axis_b5_search_executor.py::test_live_preflight_29_recorded_plus_one_unreachable_cannot_start\" nodeid_bytes=117 nodeid_omitted_bytes=0 source_bytes=888 retained_bytes=888 omitted_bytes=0 rendered_excerpt_bytes=950 sha256=ff9a98e9ea63835db3ce05ee93418587c7fea698276d741b0ce034a5771043f9\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw24] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_live_preflight_29_recorded_plus_one_unreachable_cannot_start() -> None:\n>         for final_classification in (\"\\u4e0d\\u9054\", \"\\u975e\\u53ce\\u9332\"):\n>             results = [\n>                 _lookup_result(anchor_id, index, \"\\u53ce\\u9332\")\n>                 for anchor_id, index in MEMBERS[:-1]\n>             ] + [_lookup_result(\"G3-07\", \"dblp\", final_classification)]\n>             record = _evaluate_live_preflight_for_test(\n>                 results,\n>                 registration_seal=_minimal_seal(),\n>                 timeout_s=17,\n>                 user_agent=\"axis-b5-test/contact@example.invalid\",\n>                 request_interval_s=2.5,\n>             )\n>             assert record[\"exact_member_set\"] is True\n> >           assert record[\"passed\"] is False\n> E           assert True is False\n> \n> orchestrator/tests/test_axis_b5_search_executor.py:702: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal\" nodeid_bytes=125 nodeid_omitted_bytes=0 source_bytes=598 retained_bytes=598 omitted_bytes=0 rendered_excerpt_bytes=619 sha256=618eb1c9c68bd219e8abc72f9ace49489fa80ce5bbbcc87482cb7e5cb15b84da\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal() -> None:\n>         head = preflight_module.SubprocessGit(ROOT).head()\n>         result = verify_registration(head, repo_root=ROOT)\n> >       assert result.passed is True\n> E       AssertionError: assert False is True\n> E        +  where False = RegistrationResult(passed=False, reason_code='registration_paths_dirty', detail='a registered path is modified, deleted, or untracked', seal_record=None).passed\n> \n> orchestrator/tests/test_axis_b5_search_executor.py:428: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=2433 retained_bytes=2433 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4228 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "14442fe5d808b8cbe2fdecb83d994e58bfff979b3fa337b7b720f5e3277c4fba"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "6814a4c6056524d8659511790f0f12654e24de316cb9169a2d77b1c9216fabb0",
+      "duration_s": 28.633,
+      "expected_nodes": [
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_live_preflight_29_recorded_plus_one_unreachable_cannot_start",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_live_record_is_schema_valid_and_unclassified_is_false_side",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_live_preflight_29_recorded_plus_one_unreachable_cannot_start",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_live_record_is_schema_valid_and_unclassified_is_false_side",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal"
+      ],
+      "hang_risk": false,
+      "id": "m03-live-preflight-all-to-any",
+      "injection_diff_sha256": "ce1a399c9e05a409ae838f44c81f51b492e96d1b31910836c04480626cbfe7ba",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "eca3e5bbdb2c81e395955fad7cb46333ec6b1d2490d94dab99fdf8204306ab1c",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/preflight.py",
+          "new": "    all_recorded = exact_members and any(\n        result.classification == \"収録\" for result in results\n    )\n",
+          "old": "    all_recorded = exact_members and all(\n        result.classification == \"収録\" for result in results\n    )\n"
+        }
+      ],
+      "repo_head": "61f7813ec12e97d1920df114142580b4e455bada",
+      "runner_sha256": "15994ab6f104e2f22160b37a73fef3f22a6e9144ca996825a3873db9b4998023",
+      "spec_sha256": "fad64f426de611670e492aa25bde57446f825eac547511ab46ece06418e7d3a6",
+      "status": "KILLED",
+      "test_output_sha256": "14442fe5d808b8cbe2fdecb83d994e58bfff979b3fa337b7b720f5e3277c4fba",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bccdc1b9bd1dfa4702ffae069848cc851d5771cce59aac4a47b370bd9898cecd"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2448-mutation2/output/pegasus-dispatch/cb726d38dc42ac33c8bb344621dc09ff/izdw-cb726d38dc.o989380",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2448-mutation2/output/pegasus-dispatch/cb726d38dc42ac33c8bb344621dc09ff/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n............................................F.FF..F...                   [100%]\n=================================== FAILURES ===================================\n______ test_condition3_accepts_normal_partial_final_despite_capacity_echo ______\n[gw14] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_condition3_accepts_normal_partial_final_despite_capacity_echo() -> None:\n        leaf = _arxiv_leaf(\"final page query\")\n        request = build_request(leaf, 0, None)\n        evidence = build_page_evidence(\n            leaf,\n            0,\n            None,\n            _stored(_fixture(\"arxiv_final.xml\"), request.url, \"application/atom+xml\"),\n        )\n        result = evaluate_leaf(\n            leaf, [evidence], expected_content_types=(\"application/atom+xml\",)\n        )\n        assert evidence.parsed.capacity_echo == 2\n        assert evidence.parsed.actual_count == 1\n>       assert _condition(result, 3).passed is True\nE       AssertionError: assert False is True\nE        +  where False = ConditionResult(condition=3, passed=False, reason_code='actual_count_mismatch', detail='final offset plus actual_count does not equal declared total').passed\nE        +    where ConditionResult(condition=3, passed=False, reason_code='actual_count_mismatch', detail='final offset plus actual_count does not equal declared total') = _condition(LeafEvaluation(leaf_id='B5-TEST@arxiv', index='arxiv', completion=RequestCompletion(state='未完走', condition_results=(Co...v1', page_number=0, ordinal=0, raw_year=None, included_by_cutoff=None, requires_ruling=False),), parse_errors=())),),)), 3)\n\norchestrator/tests/test_axis_b5_search_executor.py:993: AssertionError\n_____________ test_condition3_uses_actual_count_not_capacity_echo ______________\n[gw26] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_condition3_uses_actual_count_not_capacity_echo() -> None:\n        leaf = _arxiv_leaf(\"short page query\")\n        request = build_request(leaf, 0, None)\n        evidence = build_page_evidence(\n            leaf,\n            0,\n            None,\n            _stored(\n                _fixture(\"arxiv_nonfinal_short.xml\"),\n                request.url,\n                \"application/atom+xml; charset=utf-8\",\n            ),\n        )\n        final = _page(\n            page_number=1,\n            declared_total=400,\n            actual_count=200,\n            position=200,\n            work_ids=tuple(f\"final-{number}\" for number in range(200)),\n        )\n        result = evaluate_leaf(\n            leaf, [evidence, final], expected_content_types=(\"application/atom+xml\",)\n        )\n        assert evidence.parsed.capacity_echo == 200\n        assert evidence.parsed.actual_count == 1\n>       assert _condition(result, 3).passed is False\nE       AssertionError: assert True is False\nE        +  where True = ConditionResult(condition=3, passed=True, reason_code=None, detail='actual container counts satisfy terminal/non-terminal rules').passed\nE        +    where ConditionResult(condition=3, passed=True, reason_code=None, detail='actual container counts satisfy terminal/non-terminal rules') = _condition(LeafEvaluation(leaf_id='B5-TEST@arxiv', index='arxiv', completion=RequestCompletion(state='未完走', condition_results=(Co...99', page_number=1, ordinal=199, raw_year=None, included_by_cutoff=None, requires_ruling=False)), parse_errors=()))),)), 3)\n\norchestrator/tests/test_axis_b5_search_executor.py:975: AssertionError\n__ test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal ___\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal() -> None:\n        head = preflight_module.SubprocessGit(ROOT).head()\n        result = verify_registration(head, repo_root=ROOT)\n>       assert result.passed is True\nE       AssertionError: assert False is True\nE        +  where False = RegistrationResult(passed=False, reason_code='registration_paths_dirty', detail='a registered path is modified, deleted, or untracked', seal_record=None).passed\n\norchestrator/tests/test_axis_b5_search_executor.py:428: AssertionError\n________ test_condition6_accepts_media_parameter_and_rejects_wrong_type ________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_condition6_accepts_media_parameter_and_rejects_wrong_type() -> None:\n        body = (\n            b'<?xml version=\"1.0\"?><feed xmlns=\"http://www.w3.org/2005/Atom\" '\n            b'xmlns:opensearch=\"http://a9.com/-/spec/opensearch/1.1/\">'\n            b'<title>q</title><opensearch:totalResults>0</opensearch:totalResults>'\n            b'<opensearch:itemsPerPage>200</opensearch:itemsPerPage>'\n            b'<opensearch:startIndex>0</opensearch:startIndex></feed>'\n        )\n        leaf = _arxiv_leaf(\"q\")\n        request = build_request(leaf, 0, None)\n        accepted = build_page_evidence(\n            leaf,\n            0,\n            None,\n            _stored(body, request.url, \"application/atom+xml; charset=utf-8\"),\n        )\n        accepted_result = evaluate_leaf(\n            leaf, [accepted], expected_content_types=(\"application/atom+xml\",)\n        )\n>       assert accepted_result.passed is True\nE       AssertionError: assert False is True\nE        +  where False = LeafEvaluation(leaf_id='B5-TEST@arxiv', index='arxiv', completion=RequestCompletion(state='未完走', condition_results=(Co...ion=0, next_cursor=None, interpreted_query_text='q', interpreted_query_ast=None, occurrences=(), parse_errors=())),),)).passed\n\norchestrator/tests/test_axis_b5_search_executor.py:1160: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_axis_b5_search_executor.py::test_condition3_accepts_normal_partial_final_despite_capacity_echo\nFAILED orchestrator/tests/test_axis_b5_search_executor.py::test_condition3_uses_actual_count_not_capacity_echo\nFAILED orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal\nFAILED orchestrator/tests/test_axis_b5_search_executor.py::test_condition6_accepts_media_parameter_and_rejects_wrong_type\n4 failed, 50 passed in 5.25s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_axis_b5_search_executor.py::test_condition3_uses_actual_count_not_capacity_echo\" nodeid_bytes=103 nodeid_omitted_bytes=0 source_bytes=1682 retained_bytes=1682 omitted_bytes=0 rendered_excerpt_bytes=1758 sha256=56d5fcde855dbbab117fccb2898a7d1c91ff9a413e1be3299992546162cc80b3\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw26] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_condition3_uses_actual_count_not_capacity_echo() -> None:\n>         leaf = _arxiv_leaf(\"short page query\")\n>         request = build_request(leaf, 0, None)\n>         evidence = build_page_evidence(\n>             leaf,\n>             0,\n>             None,\n>             _stored(\n>                 _fixture(\"arxiv_nonfinal_short.xml\"),\n>                 request.url,\n>                 \"application/atom+xml; charset=utf-8\",\n>             ),\n>         )\n>         final = _page(\n>             page_number=1,\n>             declared_total=400,\n>             actual_count=200,\n>             position=200,\n>             work_ids=tuple(f\"final-{number}\" for number in range(200)),\n>         )\n>         result = evaluate_leaf(\n>             leaf, [evidence, final], expected_content_types=(\"application/atom+xml\",)\n>         )\n>         assert evidence.parsed.capacity_echo == 200\n>         assert evidence.parsed.actual_count == 1\n> >       assert _condition(result, 3).passed is False\n> E       AssertionError: assert True is False\n> E        +  where True = ConditionResult(condition=3, passed=True, reason_code=None, detail='actual container counts satisfy terminal/non-terminal rules').passed\n> E        +    where ConditionResult(condition=3, passed=True, reason_code=None, detail='actual container counts satisfy terminal/non-terminal rules') = _condition(LeafEvaluation(leaf_id='B5-TEST@arxiv', index='arxiv', completion=RequestCompletion(state='\\u672a\\u5b8c\\u8d70', condition_results=(Co...99', page_number=1, ordinal=199, raw_year=None, included_by_cutoff=None, requires_ruling=False)), parse_errors=()))),)), 3)\n> \n> orchestrator/tests/test_axis_b5_search_executor.py:975: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_axis_b5_search_executor.py::test_condition3_accepts_normal_partial_final_despite_capacity_echo\" nodeid_bytes=118 nodeid_omitted_bytes=0 source_bytes=1423 retained_bytes=1423 omitted_bytes=0 rendered_excerpt_bytes=1477 sha256=cb2b05ac6704923b90eef9126cfba6d6b45edccf11aa74885fbcd856c1121a79\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw14] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_condition3_accepts_normal_partial_final_despite_capacity_echo() -> None:\n>         leaf = _arxiv_leaf(\"final page query\")\n>         request = build_request(leaf, 0, None)\n>         evidence = build_page_evidence(\n>             leaf,\n>             0,\n>             None,\n>             _stored(_fixture(\"arxiv_final.xml\"), request.url, \"application/atom+xml\"),\n>         )\n>         result = evaluate_leaf(\n>             leaf, [evidence], expected_content_types=(\"application/atom+xml\",)\n>         )\n>         assert evidence.parsed.capacity_echo == 2\n>         assert evidence.parsed.actual_count == 1\n> >       assert _condition(result, 3).passed is True\n> E       AssertionError: assert False is True\n> E        +  where False = ConditionResult(condition=3, passed=False, reason_code='actual_count_mismatch', detail='final offset plus actual_count does not equal declared total').passed\n> E        +    where ConditionResult(condition=3, passed=False, reason_code='actual_count_mismatch', detail='final offset plus actual_count does not equal declared total') = _condition(LeafEvaluation(leaf_id='B5-TEST@arxiv', index='arxiv', completion=RequestCompletion(state='\\u672a\\u5b8c\\u8d70', condition_results=(Co...v1', page_number=0, ordinal=0, raw_year=None, included_by_cutoff=None, requires_ruling=False),), parse_errors=())),),)), 3)\n> \n> orchestrator/tests/test_axis_b5_search_executor.py:993: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_axis_b5_search_executor.py::test_condition6_accepts_media_parameter_and_rejects_wrong_type\" nodeid_bytes=114 nodeid_omitted_bytes=0 source_bytes=1364 retained_bytes=1364 omitted_bytes=0 rendered_excerpt_bytes=1426 sha256=1b403231fd44b693caf17a90263d3561c9746bae056692b3597028ef8bee8357\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_condition6_accepts_media_parameter_and_rejects_wrong_type() -> None:\n>         body = (\n>             b'<?xml version=\"1.0\"?><feed xmlns=\"http://www.w3.org/2005/Atom\" '\n>             b'xmlns:opensearch=\"http://a9.com/-/spec/opensearch/1.1/\">'\n>             b'<title>q</title><opensearch:totalResults>0</opensearch:totalResults>'\n>             b'<opensearch:itemsPerPage>200</opensearch:itemsPerPage>'\n>             b'<opensearch:startIndex>0</opensearch:startIndex></feed>'\n>         )\n>         leaf = _arxiv_leaf(\"q\")\n>         request = build_request(leaf, 0, None)\n>         accepted = build_page_evidence(\n>             leaf,\n>             0,\n>             None,\n>             _stored(body, request.url, \"application/atom+xml; charset=utf-8\"),\n>         )\n>         accepted_result = evaluate_leaf(\n>             leaf, [accepted], expected_content_types=(\"application/atom+xml\",)\n>         )\n> >       assert accepted_result.passed is True\n> E       AssertionError: assert False is True\n> E        +  where False = LeafEvaluation(leaf_id='B5-TEST@arxiv', index='arxiv', completion=RequestCompletion(state='\\u672a\\u5b8c\\u8d70', condition_results=(Co...ion=0, next_cursor=None, interpreted_query_text='q', interpreted_query_ast=None, occurrences=(), parse_errors=())),),)).passed\n> \n> orchestrator/tests/test_axis_b5_search_executor.py:1160: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal\" nodeid_bytes=125 nodeid_omitted_bytes=0 source_bytes=598 retained_bytes=598 omitted_bytes=0 rendered_excerpt_bytes=619 sha256=618eb1c9c68bd219e8abc72f9ace49489fa80ce5bbbcc87482cb7e5cb15b84da\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal() -> None:\n>         head = preflight_module.SubprocessGit(ROOT).head()\n>         result = verify_registration(head, repo_root=ROOT)\n> >       assert result.passed is True\n> E       AssertionError: assert False is True\n> E        +  where False = RegistrationResult(passed=False, reason_code='registration_paths_dirty', detail='a registered path is modified, deleted, or untracked', seal_record=None).passed\n> \n> orchestrator/tests/test_axis_b5_search_executor.py:428: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=4 failed=4 errors=0 selected=4 omitted_failures=0 source_bytes=5067 retained_bytes=5067 omitted_bytes=0 budget_bytes=49152 rendered_bytes=7388 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "9a962655ea6faf21d5ea08c0f9e2b5d05bb2d0785f34a1436de12365a676b622"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "6814a4c6056524d8659511790f0f12654e24de316cb9169a2d77b1c9216fabb0",
+      "duration_s": 33.46,
+      "expected_nodes": [
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_condition3_accepts_normal_partial_final_despite_capacity_echo",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_condition3_uses_actual_count_not_capacity_echo",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_condition6_accepts_media_parameter_and_rejects_wrong_type",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_condition3_accepts_normal_partial_final_despite_capacity_echo",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_condition3_uses_actual_count_not_capacity_echo",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_condition6_accepts_media_parameter_and_rejects_wrong_type"
+      ],
+      "hang_risk": false,
+      "id": "m05-condition3-uses-capacity-echo",
+      "injection_diff_sha256": "a228a725c827a51c398d2c9bd8961605f456fa73f2225a67dd8dd50d6171438b",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "97583bbaaf2a10ee10f4865e7810d1311389d86f484f641c1a9b9e15702893ac",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/runner.py",
+          "new": "        actual = page.parsed.capacity_echo\n",
+          "old": "        actual = page.parsed.actual_count\n"
+        }
+      ],
+      "repo_head": "61f7813ec12e97d1920df114142580b4e455bada",
+      "runner_sha256": "15994ab6f104e2f22160b37a73fef3f22a6e9144ca996825a3873db9b4998023",
+      "spec_sha256": "fad64f426de611670e492aa25bde57446f825eac547511ab46ece06418e7d3a6",
+      "status": "KILLED",
+      "test_output_sha256": "9a962655ea6faf21d5ea08c0f9e2b5d05bb2d0785f34a1436de12365a676b622",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bccdc1b9bd1dfa4702ffae069848cc851d5771cce59aac4a47b370bd9898cecd"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2448-mutation2/output/pegasus-dispatch/2cdc018d1cf103d63f25d9b1228b8285/izdw-2cdc018d1c.o989381",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2448-mutation2/output/pegasus-dispatch/2cdc018d1cf103d63f25d9b1228b8285/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...............................................FF.....                   [100%]\n=================================== FAILURES ===================================\n_____ test_main_run_issuance_fails_closed_with_all_six_unregistered_fields _____\n[gw9] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_main_run_issuance_fails_c0')\n\n    def test_main_run_issuance_fails_closed_with_all_six_unregistered_fields(\n        tmp_path: Path,\n    ) -> None:\n        leaf = resolve_leaf(_catalog(), \"B5-Q1@arxiv\")\n        request = build_request(leaf, 0, None)\n>       with pytest.raises(UnregisteredRunPolicyError) as captured:\nE       Failed: DID NOT RAISE UnregisteredRunPolicyError\n\norchestrator/tests/test_axis_b5_search_executor.py:1179: Failed\n__ test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal ___\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal() -> None:\n        head = preflight_module.SubprocessGit(ROOT).head()\n        result = verify_registration(head, repo_root=ROOT)\n>       assert result.passed is True\nE       AssertionError: assert False is True\nE        +  where False = RegistrationResult(passed=False, reason_code='registration_paths_dirty', detail='a registered path is modified, deleted, or untracked', seal_record=None).passed\n\norchestrator/tests/test_axis_b5_search_executor.py:428: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_axis_b5_search_executor.py::test_main_run_issuance_fails_closed_with_all_six_unregistered_fields\nFAILED orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal\n2 failed, 52 passed in 4.63s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal\" nodeid_bytes=125 nodeid_omitted_bytes=0 source_bytes=598 retained_bytes=598 omitted_bytes=0 rendered_excerpt_bytes=619 sha256=618eb1c9c68bd219e8abc72f9ace49489fa80ce5bbbcc87482cb7e5cb15b84da\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal() -> None:\n>         head = preflight_module.SubprocessGit(ROOT).head()\n>         result = verify_registration(head, repo_root=ROOT)\n> >       assert result.passed is True\n> E       AssertionError: assert False is True\n> E        +  where False = RegistrationResult(passed=False, reason_code='registration_paths_dirty', detail='a registered path is modified, deleted, or untracked', seal_record=None).passed\n> \n> orchestrator/tests/test_axis_b5_search_executor.py:428: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_axis_b5_search_executor.py::test_main_run_issuance_fails_closed_with_all_six_unregistered_fields\" nodeid_bytes=120 nodeid_omitted_bytes=0 source_bytes=552 retained_bytes=552 omitted_bytes=0 rendered_excerpt_bytes=579 sha256=1ee62df0a825cc1aef694c5d8a72e387a46db985e15257ce92fb7b4afb4a0122\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw9] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_main_run_issuance_fails_c0')\n> \n>     def test_main_run_issuance_fails_closed_with_all_six_unregistered_fields(\n>         tmp_path: Path,\n>     ) -> None:\n>         leaf = resolve_leaf(_catalog(), \"B5-Q1@arxiv\")\n>         request = build_request(leaf, 0, None)\n> >       with pytest.raises(UnregisteredRunPolicyError) as captured:\n> E       Failed: DID NOT RAISE UnregisteredRunPolicyError\n> \n> orchestrator/tests/test_axis_b5_search_executor.py:1179: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=1150 retained_bytes=1150 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2406 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "f32b9a77853025e46448b3da2ac132e0d9c7937b1613f77d3c000803c7b02754"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "6814a4c6056524d8659511790f0f12654e24de316cb9169a2d77b1c9216fabb0",
+      "duration_s": 28.13,
+      "expected_nodes": [
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_main_run_issuance_fails_closed_with_all_six_unregistered_fields",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_main_run_issuance_fails_closed_with_all_six_unregistered_fields",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal"
+      ],
+      "hang_risk": false,
+      "id": "m06-main-run-issuance-not-fail-closed",
+      "injection_diff_sha256": "a375725a560d0effc6b9a53966dbfb054e6d9be8b6e375aee1bb63a716310f00",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "0228f3334164a8622b01ecff767867874dba58236c3104627cfd61d3e0f72e2e",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/runner.py",
+          "new": "    return None\n",
+          "old": "    raise UnregisteredRunPolicyError()\n"
+        }
+      ],
+      "repo_head": "61f7813ec12e97d1920df114142580b4e455bada",
+      "runner_sha256": "15994ab6f104e2f22160b37a73fef3f22a6e9144ca996825a3873db9b4998023",
+      "spec_sha256": "fad64f426de611670e492aa25bde57446f825eac547511ab46ece06418e7d3a6",
+      "status": "KILLED",
+      "test_output_sha256": "f32b9a77853025e46448b3da2ac132e0d9c7937b1613f77d3c000803c7b02754",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bccdc1b9bd1dfa4702ffae069848cc851d5771cce59aac4a47b370bd9898cecd"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2448-mutation2/output/pegasus-dispatch/5a9c32e311f151e2bfa9c06aff01429f/izdw-5a9c32e311.o989382",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2448-mutation2/output/pegasus-dispatch/5a9c32e311f151e2bfa9c06aff01429f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.................................................F..F.                   [100%]\n=================================== FAILURES ===================================\n__ test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal ___\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal() -> None:\n        head = preflight_module.SubprocessGit(ROOT).head()\n        result = verify_registration(head, repo_root=ROOT)\n>       assert result.passed is True\nE       AssertionError: assert False is True\nE        +  where False = RegistrationResult(passed=False, reason_code='registration_paths_dirty', detail='a registered path is modified, deleted, or untracked', seal_record=None).passed\n\norchestrator/tests/test_axis_b5_search_executor.py:428: AssertionError\n________ test_registration_rejects_path_module_mode_and_byte_mismatches ________\n[gw40] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw40/test_registration_rejects_path0')\n\n    def test_registration_rejects_path_module_mode_and_byte_mismatches(\n        tmp_path: Path,\n    ) -> None:\n        repo, backend = _registration_repo(tmp_path / \"extra\")\n        extra = repo / \"orchestrator/axis_b5_search/unregistered_extra.py\"\n        extra.write_text(\"EXTRA = True\\n\", encoding=\"utf-8\")\n        path_mismatch = verify_registration(COMMIT, repo_root=repo, git_backend=backend)\n        assert path_mismatch.passed is False\n>       assert path_mismatch.reason_code == \"registered_path_set_mismatch\"\nE       AssertionError: assert 'module_path_mismatch' == 'registered_path_set_mismatch'\nE         \nE         - registered_path_set_mismatch\nE         + module_path_mismatch\n\norchestrator/tests/test_axis_b5_search_executor.py:459: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal\nFAILED orchestrator/tests/test_axis_b5_search_executor.py::test_registration_rejects_path_module_mode_and_byte_mismatches\n2 failed, 52 passed in 5.21s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_axis_b5_search_executor.py::test_registration_rejects_path_module_mode_and_byte_mismatches\" nodeid_bytes=114 nodeid_omitted_bytes=0 source_bytes=909 retained_bytes=909 omitted_bytes=0 rendered_excerpt_bytes=951 sha256=055aa4498528e21940d2616c50e81ae1b8249ef235737a9f1fa27dab11f1f7ed\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw40] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw40/test_registration_rejects_path0')\n> \n>     def test_registration_rejects_path_module_mode_and_byte_mismatches(\n>         tmp_path: Path,\n>     ) -> None:\n>         repo, backend = _registration_repo(tmp_path / \"extra\")\n>         extra = repo / \"orchestrator/axis_b5_search/unregistered_extra.py\"\n>         extra.write_text(\"EXTRA = True\\x5cn\", encoding=\"utf-8\")\n>         path_mismatch = verify_registration(COMMIT, repo_root=repo, git_backend=backend)\n>         assert path_mismatch.passed is False\n> >       assert path_mismatch.reason_code == \"registered_path_set_mismatch\"\n> E       AssertionError: assert 'module_path_mismatch' == 'registered_path_set_mismatch'\n> E         \n> E         - registered_path_set_mismatch\n> E         + module_path_mismatch\n> \n> orchestrator/tests/test_axis_b5_search_executor.py:459: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal\" nodeid_bytes=125 nodeid_omitted_bytes=0 source_bytes=598 retained_bytes=598 omitted_bytes=0 rendered_excerpt_bytes=619 sha256=618eb1c9c68bd219e8abc72f9ace49489fa80ce5bbbcc87482cb7e5cb15b84da\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal() -> None:\n>         head = preflight_module.SubprocessGit(ROOT).head()\n>         result = verify_registration(head, repo_root=ROOT)\n> >       assert result.passed is True\n> E       AssertionError: assert False is True\n> E        +  where False = RegistrationResult(passed=False, reason_code='registration_paths_dirty', detail='a registered path is modified, deleted, or untracked', seal_record=None).passed\n> \n> orchestrator/tests/test_axis_b5_search_executor.py:428: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=1507 retained_bytes=1507 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2772 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "a31b5c0f74e85bbbd0371fbbb53be7e74740ce2e56abdc4528daf955949a5d89"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "6814a4c6056524d8659511790f0f12654e24de316cb9169a2d77b1c9216fabb0",
+      "duration_s": 146.037,
+      "expected_nodes": [
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_rejects_path_module_mode_and_byte_mismatches"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_rejects_path_module_mode_and_byte_mismatches"
+      ],
+      "hang_risk": false,
+      "id": "m07-seal-exact-set-to-subset",
+      "injection_diff_sha256": "65bf57f97a7aa81b789dc60cff2529a15d0c4179147e8ca4c1ab801fcdfb401a",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "39ebee1b2a69f13059204d60451bfd09a0fa2fb92aad4aa9647c6f1954764cc1",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/preflight.py",
+          "new": "        if not set(tree).issubset(worktree_paths):\n",
+          "old": "        if worktree_paths != set(tree):\n"
+        }
+      ],
+      "repo_head": "61f7813ec12e97d1920df114142580b4e455bada",
+      "runner_sha256": "15994ab6f104e2f22160b37a73fef3f22a6e9144ca996825a3873db9b4998023",
+      "spec_sha256": "fad64f426de611670e492aa25bde57446f825eac547511ab46ece06418e7d3a6",
+      "status": "KILLED",
+      "test_output_sha256": "a31b5c0f74e85bbbd0371fbbb53be7e74740ce2e56abdc4528daf955949a5d89",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bccdc1b9bd1dfa4702ffae069848cc851d5771cce59aac4a47b370bd9898cecd"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2448-mutation2/output/pegasus-dispatch/6a8b2199f49175c5cf02b5a162a6371a/izdw-6a8b2199f4.o989386",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2448-mutation2/output/pegasus-dispatch/6a8b2199f49175c5cf02b5a162a6371a/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n............................................FF.F......                   [100%]\n=================================== FAILURES ===================================\n________ test_dblp_cutoff_fields_flow_without_dropping_raw_occurrences _________\n[gw27] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_dblp_cutoff_fields_flow_without_dropping_raw_occurrences() -> None:\n        leaf = LeafDefinition(\n            \"B5-TEST@dblp\",\n            \"query\",\n            \"dblp\",\n            \"https://dblp.org/search/publ/api?q=transaction%20backoff&format=json&h=100&f={POS}\",\n            \"https://dblp.org/search/publ/api?q=transaction%20backoff&format=json&h=100&f=0\",\n            ((\"T01\",), (\"M01\",)),\n            {\"T01\": \"transaction\", \"M01\": \"backoff\"},\n            \"2026-12-31\",\n        )\n        request = build_request(leaf, 0, None)\n        evidence = build_page_evidence(\n            leaf,\n            0,\n            None,\n            _stored(_fixture(\"dblp_cutoff.json\"), request.url, \"application/json\"),\n        )\n        assert evidence.parsed.actual_count == 4\n>       assert tuple(item.included_by_cutoff for item in evidence.parsed.occurrences) == (\n            True,\n            False,\n            None,\n            None,\n        )\nE       assert (True, True, None, None) == (True, False, None, None)\nE         \nE         At index 1 diff: True != False\nE         Use -v to get more diff\n\norchestrator/tests/test_axis_b5_search_executor.py:1126: AssertionError\n______ test_contract_5_rejects_future_year_and_routes_bad_years_to_ruling ______\n[gw36] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_contract_5_rejects_future_year_and_routes_bad_years_to_ruling() -> None:\n        page = parse_dblp_page(_fixture(\"synthetic/dblp_cutoff.json\"), 0)\n        future, missing, invalid = page.occurrences[1:]\n    \n        assert page.actual_count == 4\n>       assert (future.raw_year, future.included_by_cutoff, future.requires_ruling) == (\n            \"2027\",\n            False,\n            False,\n        )\nE       AssertionError: assert ('2027', True, False) == ('2027', False, False)\nE         \nE         At index 1 diff: True != False\nE         Use -v to get more diff\n\norchestrator/tests/test_axis_b5_search_parsers.py:152: AssertionError\n__ test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal ___\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal() -> None:\n        head = preflight_module.SubprocessGit(ROOT).head()\n        result = verify_registration(head, repo_root=ROOT)\n>       assert result.passed is True\nE       AssertionError: assert False is True\nE        +  where False = RegistrationResult(passed=False, reason_code='registration_paths_dirty', detail='a registered path is modified, deleted, or untracked', seal_record=None).passed\n\norchestrator/tests/test_axis_b5_search_executor.py:428: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_axis_b5_search_executor.py::test_dblp_cutoff_fields_flow_without_dropping_raw_occurrences\nFAILED orchestrator/tests/test_axis_b5_search_parsers.py::test_contract_5_rejects_future_year_and_routes_bad_years_to_ruling\nFAILED orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal\n3 failed, 51 passed in 5.22s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_axis_b5_search_executor.py::test_dblp_cutoff_fields_flow_without_dropping_raw_occurrences\" nodeid_bytes=113 nodeid_omitted_bytes=0 source_bytes=1227 retained_bytes=1227 omitted_bytes=0 rendered_excerpt_bytes=1294 sha256=dba8e05e63ee591e28826a978f859a695841ab67fe141fa306d8170dc91a2f1a\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw27] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_dblp_cutoff_fields_flow_without_dropping_raw_occurrences() -> None:\n>         leaf = LeafDefinition(\n>             \"B5-TEST@dblp\",\n>             \"query\",\n>             \"dblp\",\n>             \"https://dblp.org/search/publ/api?q=transaction%20backoff&format=json&h=100&f={POS}\",\n>             \"https://dblp.org/search/publ/api?q=transaction%20backoff&format=json&h=100&f=0\",\n>             ((\"T01\",), (\"M01\",)),\n>             {\"T01\": \"transaction\", \"M01\": \"backoff\"},\n>             \"2026-12-31\",\n>         )\n>         request = build_request(leaf, 0, None)\n>         evidence = build_page_evidence(\n>             leaf,\n>             0,\n>             None,\n>             _stored(_fixture(\"dblp_cutoff.json\"), request.url, \"application/json\"),\n>         )\n>         assert evidence.parsed.actual_count == 4\n> >       assert tuple(item.included_by_cutoff for item in evidence.parsed.occurrences) == (\n>             True,\n>             False,\n>             None,\n>             None,\n>         )\n> E       assert (True, True, None, None) == (True, False, None, None)\n> E         \n> E         At index 1 diff: True != False\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_axis_b5_search_executor.py:1126: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_axis_b5_search_parsers.py::test_contract_5_rejects_future_year_and_routes_bad_years_to_ruling\" nodeid_bytes=117 nodeid_omitted_bytes=0 source_bytes=699 retained_bytes=699 omitted_bytes=0 rendered_excerpt_bytes=736 sha256=6912ca58b7485da984ea43ff08d6fa032bd2fde57c229a1c90772a6f67f0b88f\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw36] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_contract_5_rejects_future_year_and_routes_bad_years_to_ruling() -> None:\n>         page = parse_dblp_page(_fixture(\"synthetic/dblp_cutoff.json\"), 0)\n>         future, missing, invalid = page.occurrences[1:]\n>     \n>         assert page.actual_count == 4\n> >       assert (future.raw_year, future.included_by_cutoff, future.requires_ruling) == (\n>             \"2027\",\n>             False,\n>             False,\n>         )\n> E       AssertionError: assert ('2027', True, False) == ('2027', False, False)\n> E         \n> E         At index 1 diff: True != False\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_axis_b5_search_parsers.py:152: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal\" nodeid_bytes=125 nodeid_omitted_bytes=0 source_bytes=598 retained_bytes=598 omitted_bytes=0 rendered_excerpt_bytes=619 sha256=618eb1c9c68bd219e8abc72f9ace49489fa80ce5bbbcc87482cb7e5cb15b84da\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal() -> None:\n>         head = preflight_module.SubprocessGit(ROOT).head()\n>         result = verify_registration(head, repo_root=ROOT)\n> >       assert result.passed is True\n> E       AssertionError: assert False is True\n> E        +  where False = RegistrationResult(passed=False, reason_code='registration_paths_dirty', detail='a registered path is modified, deleted, or untracked', seal_record=None).passed\n> \n> orchestrator/tests/test_axis_b5_search_executor.py:428: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=2524 retained_bytes=2524 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4308 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "17670718f7e3d76435552f9283e6b808981a44f232aacb611d9474600f303f81"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "6814a4c6056524d8659511790f0f12654e24de316cb9169a2d77b1c9216fabb0",
+      "duration_s": 509.269,
+      "expected_nodes": [
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_dblp_cutoff_fields_flow_without_dropping_raw_occurrences",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal",
+        "orchestrator/tests/test_axis_b5_search_parsers.py::test_contract_5_rejects_future_year_and_routes_bad_years_to_ruling"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_dblp_cutoff_fields_flow_without_dropping_raw_occurrences",
+        "orchestrator/tests/test_axis_b5_search_parsers.py::test_contract_5_rejects_future_year_and_routes_bad_years_to_ruling",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal"
+      ],
+      "hang_risk": false,
+      "id": "m08-dblp-cutoff-dropped",
+      "injection_diff_sha256": "7af93fd9675b508d444cd3345010d61e8ef9b826a3d2e2ee59afd6d86de6a196",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "b311dd73ff0db81efcbef28910ee0748f877168809ca6c64e67fbb11fb9a90e0",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/parsers.py",
+          "new": "    return raw_value, True, False\n",
+          "old": "    return raw_value, int(text) <= _DBLP_CUTOFF_YEAR, False\n"
+        }
+      ],
+      "repo_head": "61f7813ec12e97d1920df114142580b4e455bada",
+      "runner_sha256": "15994ab6f104e2f22160b37a73fef3f22a6e9144ca996825a3873db9b4998023",
+      "spec_sha256": "fad64f426de611670e492aa25bde57446f825eac547511ab46ece06418e7d3a6",
+      "status": "KILLED",
+      "test_output_sha256": "17670718f7e3d76435552f9283e6b808981a44f232aacb611d9474600f303f81",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bccdc1b9bd1dfa4702ffae069848cc851d5771cce59aac4a47b370bd9898cecd"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2448-mutation2/output/pegasus-dispatch/032424cbfb989d78c19f952ebe0d02ab/izdw-032424cbfb.o989398",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2448-mutation2/output/pegasus-dispatch/032424cbfb989d78c19f952ebe0d02ab/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n............................................F....F....                   [100%]\n=================================== FAILURES ===================================\n__ test_dblp_matching_doi_is_recorded_but_unknown_json_shape_is_unclassified ___\n[gw22] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_dblp_matching_doi_is_recorded_but_unknown_json_shape_is_unclassified() -> None:\n        anchor = load_anchor_registry()[0]\n        request_url = build_lookup_request(anchor, \"dblp\").url\n        hit = json.dumps(\n            {\n                \"result\": {\n                    \"hits\": {\n                        \"@total\": \"1\",\n                        \"hit\": [\n                            {\n                                \"info\": {\n                                    \"key\": \"conf/sigmod/LimKA17\",\n                                    \"doi\": \"10.1145/3035918.3064015\",\n                                }\n                            }\n                        ],\n                    }\n                }\n            }\n        ).encode()\n        unknown = b'{\"result\":{\"hits\":{\"@total\":\"1\",\"hit\":[]}}}'\n        recorded = classify_lookup_response(\n            anchor,\n            \"dblp\",\n            LookupResponse(200, ((\"Content-Type\", \"application/json\"),), hit, request_url),\n        )\n        unclassified = classify_lookup_response(\n            anchor,\n            \"dblp\",\n            LookupResponse(\n                200,\n                ((\"Content-Type\", \"application/json; charset=UTF-8\"),),\n                unknown,\n                request_url,\n            ),\n        )\n        assert recorded.classification == \"収録\"\n        assert recorded.observed_index_work_id == \"conf/sigmod/LimKA17\"\n>       assert unclassified.classification == \"unclassified\"\nE       AssertionError: assert '収録' == 'unclassified'\nE         \nE         - unclassified\nE         + 収録\n\norchestrator/tests/test_axis_b5_search_executor.py:668: AssertionError\n__ test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal ___\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal() -> None:\n        head = preflight_module.SubprocessGit(ROOT).head()\n        result = verify_registration(head, repo_root=ROOT)\n>       assert result.passed is True\nE       AssertionError: assert False is True\nE        +  where False = RegistrationResult(passed=False, reason_code='registration_paths_dirty', detail='a registered path is modified, deleted, or untracked', seal_record=None).passed\n\norchestrator/tests/test_axis_b5_search_executor.py:428: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_axis_b5_search_executor.py::test_dblp_matching_doi_is_recorded_but_unknown_json_shape_is_unclassified\nFAILED orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal\n2 failed, 52 passed in 5.26s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_axis_b5_search_executor.py::test_dblp_matching_doi_is_recorded_but_unknown_json_shape_is_unclassified\" nodeid_bytes=125 nodeid_omitted_bytes=0 source_bytes=1698 retained_bytes=1698 omitted_bytes=0 rendered_excerpt_bytes=1811 sha256=a60494ddefc5e90f5d55a0612f24b1d5a968d32021bbde82ce8475d53d8d517c\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw22] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_dblp_matching_doi_is_recorded_but_unknown_json_shape_is_unclassified() -> None:\n>         anchor = load_anchor_registry()[0]\n>         request_url = build_lookup_request(anchor, \"dblp\").url\n>         hit = json.dumps(\n>             {\n>                 \"result\": {\n>                     \"hits\": {\n>                         \"@total\": \"1\",\n>                         \"hit\": [\n>                             {\n>                                 \"info\": {\n>                                     \"key\": \"conf/sigmod/LimKA17\",\n>                                     \"doi\": \"10.1145/3035918.3064015\",\n>                                 }\n>                             }\n>                         ],\n>                     }\n>                 }\n>             }\n>         ).encode()\n>         unknown = b'{\"result\":{\"hits\":{\"@total\":\"1\",\"hit\":[]}}}'\n>         recorded = classify_lookup_response(\n>             anchor,\n>             \"dblp\",\n>             LookupResponse(200, ((\"Content-Type\", \"application/json\"),), hit, request_url),\n>         )\n>         unclassified = classify_lookup_response(\n>             anchor,\n>             \"dblp\",\n>             LookupResponse(\n>                 200,\n>                 ((\"Content-Type\", \"application/json; charset=UTF-8\"),),\n>                 unknown,\n>                 request_url,\n>             ),\n>         )\n>         assert recorded.classification == \"\\u53ce\\u9332\"\n>         assert recorded.observed_index_work_id == \"conf/sigmod/LimKA17\"\n> >       assert unclassified.classification == \"unclassified\"\n> E       AssertionError: assert '\\u53ce\\u9332' == 'unclassified'\n> E         \n> E         - unclassified\n> E         + \\u53ce\\u9332\n> \n> orchestrator/tests/test_axis_b5_search_executor.py:668: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal\" nodeid_bytes=125 nodeid_omitted_bytes=0 source_bytes=598 retained_bytes=598 omitted_bytes=0 rendered_excerpt_bytes=619 sha256=618eb1c9c68bd219e8abc72f9ace49489fa80ce5bbbcc87482cb7e5cb15b84da\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal() -> None:\n>         head = preflight_module.SubprocessGit(ROOT).head()\n>         result = verify_registration(head, repo_root=ROOT)\n> >       assert result.passed is True\n> E       AssertionError: assert False is True\n> E        +  where False = RegistrationResult(passed=False, reason_code='registration_paths_dirty', detail='a registered path is modified, deleted, or untracked', seal_record=None).passed\n> \n> orchestrator/tests/test_axis_b5_search_executor.py:428: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2296 retained_bytes=2296 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3646 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "72ae25f7750f25756ebbccdafa9ca9a0f33a3b76f39995b2d587f8c295d576e1"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "6814a4c6056524d8659511790f0f12654e24de316cb9169a2d77b1c9216fabb0",
+      "duration_s": 586.172,
+      "expected_nodes": [
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_dblp_matching_doi_is_recorded_but_unknown_json_shape_is_unclassified",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_dblp_matching_doi_is_recorded_but_unknown_json_shape_is_unclassified",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal"
+      ],
+      "hang_risk": false,
+      "id": "m09-unclassified-rounded-to-included",
+      "injection_diff_sha256": "e80007d7ef684c116fc932b0d088ad80564bc5179cbe9f50aa19c9293673c8a3",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "8372fd6f59393ebf79a5d7c54c42b079e9b14c845e7aae0f4e4e7db10812e82a",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/preflight.py",
+          "new": "    classification = \"収録\"\n",
+          "old": "    classification = \"unclassified\"\n"
+        }
+      ],
+      "repo_head": "61f7813ec12e97d1920df114142580b4e455bada",
+      "runner_sha256": "15994ab6f104e2f22160b37a73fef3f22a6e9144ca996825a3873db9b4998023",
+      "spec_sha256": "fad64f426de611670e492aa25bde57446f825eac547511ab46ece06418e7d3a6",
+      "status": "KILLED",
+      "test_output_sha256": "72ae25f7750f25756ebbccdafa9ca9a0f33a3b76f39995b2d587f8c295d576e1",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bccdc1b9bd1dfa4702ffae069848cc851d5771cce59aac4a47b370bd9898cecd"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2448-mutation2/output/pegasus-dispatch/f6f7eacb50dd111dc2dff78bc14e328d/izdw-f6f7eacb50.o989415",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2448-mutation2/output/pegasus-dispatch/f6f7eacb50dd111dc2dff78bc14e328d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..............................................FF......                   [100%]\n=================================== FAILURES ===================================\n__________ test_openalex_404_is_nonrecorded_before_content_type_check __________\n[gw20] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_openalex_404_is_nonrecorded_before_content_type_check() -> None:\n        anchor = load_anchor_registry()[0]\n        result = classify_lookup_response(\n            anchor,\n            \"openalex\",\n            LookupResponse(\n                404,\n                ((\"Content-Type\", \"text/html; charset=utf-8\"),),\n                b\"<html>not found</html>\",\n                build_lookup_request(anchor, \"openalex\").url,\n            ),\n        )\n>       assert result.classification == \"非収録\"\nE       AssertionError: assert '不達' == '非収録'\nE         \nE         - 非収録\nE         + 不達\n\norchestrator/tests/test_axis_b5_search_executor.py:577: AssertionError\n__ test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal ___\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal() -> None:\n        head = preflight_module.SubprocessGit(ROOT).head()\n        result = verify_registration(head, repo_root=ROOT)\n>       assert result.passed is True\nE       AssertionError: assert False is True\nE        +  where False = RegistrationResult(passed=False, reason_code='registration_paths_dirty', detail='a registered path is modified, deleted, or untracked', seal_record=None).passed\n\norchestrator/tests/test_axis_b5_search_executor.py:428: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_axis_b5_search_executor.py::test_openalex_404_is_nonrecorded_before_content_type_check\nFAILED orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal\n2 failed, 52 passed in 5.22s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_axis_b5_search_executor.py::test_openalex_404_is_nonrecorded_before_content_type_check\" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=730 retained_bytes=730 omitted_bytes=0 rendered_excerpt_bytes=812 sha256=e91928f1d14aeff756977e9149417f53851fb0964220cda07c6d7ddd44da2df3\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw20] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_openalex_404_is_nonrecorded_before_content_type_check() -> None:\n>         anchor = load_anchor_registry()[0]\n>         result = classify_lookup_response(\n>             anchor,\n>             \"openalex\",\n>             LookupResponse(\n>                 404,\n>                 ((\"Content-Type\", \"text/html; charset=utf-8\"),),\n>                 b\"<html>not found</html>\",\n>                 build_lookup_request(anchor, \"openalex\").url,\n>             ),\n>         )\n> >       assert result.classification == \"\\u975e\\u53ce\\u9332\"\n> E       AssertionError: assert '\\u4e0d\\u9054' == '\\u975e\\u53ce\\u9332'\n> E         \n> E         - \\u975e\\u53ce\\u9332\n> E         + \\u4e0d\\u9054\n> \n> orchestrator/tests/test_axis_b5_search_executor.py:577: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal\" nodeid_bytes=125 nodeid_omitted_bytes=0 source_bytes=598 retained_bytes=598 omitted_bytes=0 rendered_excerpt_bytes=619 sha256=618eb1c9c68bd219e8abc72f9ace49489fa80ce5bbbcc87482cb7e5cb15b84da\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal() -> None:\n>         head = preflight_module.SubprocessGit(ROOT).head()\n>         result = verify_registration(head, repo_root=ROOT)\n> >       assert result.passed is True\n> E       AssertionError: assert False is True\n> E        +  where False = RegistrationResult(passed=False, reason_code='registration_paths_dirty', detail='a registered path is modified, deleted, or untracked', seal_record=None).passed\n> \n> orchestrator/tests/test_axis_b5_search_executor.py:428: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=1328 retained_bytes=1328 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2629 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "73bd652b5c2c203bede7aea4043885ce068d032cda8b4b80e2836321170004b8"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "6814a4c6056524d8659511790f0f12654e24de316cb9169a2d77b1c9216fabb0",
+      "duration_s": 28.646,
+      "expected_nodes": [
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_openalex_404_is_nonrecorded_before_content_type_check",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_openalex_404_is_nonrecorded_before_content_type_check",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal"
+      ],
+      "hang_risk": false,
+      "id": "m10-openalex-content-type-before-status",
+      "injection_diff_sha256": "a787b0ae5e22a2c6dad71cf5e25a2dc3dfb871bd7030ec95af56e8ee2d3420fe",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "cb2450f1fd368559c8e0cee5d26a79564225cc5bb0d78a7f1d0161839db40b20",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/preflight.py",
+          "new": "        if media_type != \"application/json\":\n            classification = \"不達\"\n        elif response.status == 404:\n            classification = \"非収録\"\n        elif response.status != 200:\n            classification = \"不達\"\n",
+          "old": "        if response.status == 404:\n            classification = \"非収録\"\n        elif response.status != 200:\n            classification = \"不達\"\n        elif media_type != \"application/json\":\n            classification = \"不達\"\n"
+        }
+      ],
+      "repo_head": "61f7813ec12e97d1920df114142580b4e455bada",
+      "runner_sha256": "15994ab6f104e2f22160b37a73fef3f22a6e9144ca996825a3873db9b4998023",
+      "spec_sha256": "fad64f426de611670e492aa25bde57446f825eac547511ab46ece06418e7d3a6",
+      "status": "KILLED",
+      "test_output_sha256": "73bd652b5c2c203bede7aea4043885ce068d032cda8b4b80e2836321170004b8",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bccdc1b9bd1dfa4702ffae069848cc851d5771cce59aac4a47b370bd9898cecd"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2448-mutation2/output/pegasus-dispatch/1adf0d4b8070a0ef3cfbfb422db4433a/izdw-1adf0d4b80.o989417",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2448-mutation2/output/pegasus-dispatch/1adf0d4b8070a0ef3cfbfb422db4433a/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...........................................F..FF......                   [100%]\n=================================== FAILURES ===================================\n____________ test_lookup_builder_emits_only_registered_three_forms _____________\n[gw19] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_lookup_builder_emits_only_registered_three_forms() -> None:\n        anchors = {item.anchor_id: item for item in load_anchor_registry()}\n        assert build_lookup_request(anchors[\"G1-01\"], \"openalex\").url == (\n            \"https://api.openalex.org/works/https://doi.org/10.1145/3035918.3064015\"\n            \"?select=id,doi,title,publication_year,ids,authorships,referenced_works_count\"\n        )\n>       assert build_lookup_request(anchors[\"G2-08\"], \"arxiv\").url == (\n            \"https://export.arxiv.org/api/query?id_list=1710.11258&max_results=1\"\n        )\nE       AssertionError: assert 'https://expo...max_results=1' == 'https://expo...max_results=1'\nE         \nE         Skipping 34 identical leading characters in diff, use -v to show\nE         - ?id_list=1710.11258&max_results=1\nE         ?           --    ^ ^\nE         + ?id_list=10.1137/17M1154679&max_results=1\nE         ?               ^^^^^^^^ ^^^^\n\norchestrator/tests/test_axis_b5_search_executor.py:555: AssertionError\n__________ test_registry_has_frozen_members_and_g208_doi_primary_key ___________\n[gw13] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_registry_has_frozen_members_and_g208_doi_primary_key() -> None:\n        anchors = load_anchor_registry()\n        g208 = next(item for item in anchors if item.anchor_id == \"G2-08\")\n        observed = {\n            item.anchor_id: (\n                item.slot,\n                item.doi,\n                item.arxiv_id,\n                item.openalex_work_id,\n                item.first_author_id,\n                item.last_author_id,\n                item.member_indexes,\n            )\n            for item in anchors\n        }\n>       assert observed == {\n            \"G1-01\": (\"G1-CICADA\", \"10.1145/3035918.3064015\", None, \"W2613970404\", \"A5050218314\", \"A5085479490\", (\"openalex\", \"dblp\")),\n            \"G2-01\": (\"G2-SA\", \"10.1214/aoms/1177729586\", None, \"W1994616650\", \"A5110883277\", \"A5065560698\", (\"openalex\",)),\n            \"G2-02\": (\"G2-SA\", \"10.1214/aoms/1177729392\", None, \"W2009797711\", \"A5110860590\", \"A5049527866\", (\"openalex\",)),\n            \"G2-03\": (\"G2-SA\", \"10.1214/aoms/1177706705\", None, \"W1996235804\", \"A5082829165\", \"A5082829165\", (\"openalex\",)),\n            \"G2-04\": (\"G2-SA\", \"10.1109/9.119632\", None, \"W2124289529\", \"A5066890566\", \"A5066890566\", (\"openalex\", \"dblp\")),\n            \"G2-05\": (\"G2-SA\", \"10.1109/7.705889\", None, \"W2128452997\", \"A5066890566\", \"A5066890566\", (\"openalex\", \"dblp\")),\n            \"G2-06\": (\"G2-SA\", \"10.1137/0803045\", None, \"W2065450730\", \"A5059841305\", \"A5039659947\", (\"openalex\", \"dblp\")),\n            \"G2-07\": (\"G2-SA\", \"10.1007/s10107-012-0572-5\", None, \"W2061570747\", \"A5110661221\", \"A5032317649\", (\"openalex\", \"dblp\")),\n            \"G2-08\": (\"G2-SA\", \"10.1137/17M1154679\", \"1710.11258\", \"W2766854590\", \"A5083156016\", \"A5081856145\", (\"openalex\", \"arxiv\", \"dblp\")),\n            \"G3-01\": (\"G3-STM\", \"10.1145/872035.872048\", None, \"W2105055683\", \"A5086347882\", \"A5066189979\", (\"openalex\", \"dblp\")),\n            \"G3-02\": (\"G3-STM\", \"10.1145/1073814.1073861\", None, \"W1988800505\", \"A5066189979\", \"A5079254515\", (\"openalex\", \"dblp\")),\n            \"G3-03\": (\"G3-STM\", \"10.1007/11561927_23\", None, \"W1759214032\", \"A5049321288\", \"A5015726068\", (\"openalex\", \"dblp\")),\n            \"G3-04\": (\"G3-STM\", \"10.1145/1073814.1073863\", None, \"W2106871513\", \"A5049321288\", \"A5015726068\", (\"openalex\", \"dblp\")),\n            \"G3-05\": (\"G3-STM\", \"10.1145/1378533.1378564\", None, \"W2165791323\", \"A5023107016\", \"A5072539515\", (\"openalex\", \"dblp\")),\n            \"G3-06\": (\"G3-STM\", \"10.1145/1504176.1504199\", None, \"W2122621236\", \"A5017374713\", \"A5079254515\", (\"openalex\", \"dblp\")),\n            \"G3-07\": (\"G3-STM\", \"10.1145/1582716.1582725\", None, \"W2036987653\", \"A5070096854\", \"A5001418143\", (\"openalex\", \"dblp\")),\n        }\nE       AssertionError: assert {'G1-01': ('G...5', ...), ...} == {'G1-01': ('G...5', ...), ...}\nE         \nE         Omitting 15 identical items, use -vv to show\nE         Differing items:\nE         {'G2-08': ('G2-SA', '1710.11258', '10.1137/17M1154679', 'W2766854590', 'A5083156016', 'A5081856145', ...)} != {'G2-08': ('G2-SA', '10.1137/17M1154679', '1710.11258', 'W2766854590', 'A5083156016', 'A5081856145', ...)}\nE         Use -v to get more diff\n\norchestrator/tests/test_axis_b5_search_executor.py:525: AssertionError\n__ test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal ___\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal() -> None:\n        head = preflight_module.SubprocessGit(ROOT).head()\n        result = verify_registration(head, repo_root=ROOT)\n>       assert result.passed is True\nE       AssertionError: assert False is True\nE        +  where False = RegistrationResult(passed=False, reason_code='registration_paths_dirty', detail='a registered path is modified, deleted, or untracked', seal_record=None).passed\n\norchestrator/tests/test_axis_b5_search_executor.py:428: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_axis_b5_search_executor.py::test_lookup_builder_emits_only_registered_three_forms\nFAILED orchestrator/tests/test_axis_b5_search_executor.py::test_registry_has_frozen_members_and_g208_doi_primary_key\nFAILED orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal\n3 failed, 51 passed in 5.18s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_axis_b5_search_executor.py::test_registry_has_frozen_members_and_g208_doi_primary_key\" nodeid_bytes=109 nodeid_omitted_bytes=0 source_bytes=3231 retained_bytes=3231 omitted_bytes=0 rendered_excerpt_bytes=3318 sha256=9bffaf46c1f9bfb288f77d0c37fc6ec9c1b94abadbf658324ef0039691504299\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw13] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_registry_has_frozen_members_and_g208_doi_primary_key() -> None:\n>         anchors = load_anchor_registry()\n>         g208 = next(item for item in anchors if item.anchor_id == \"G2-08\")\n>         observed = {\n>             item.anchor_id: (\n>                 item.slot,\n>                 item.doi,\n>                 item.arxiv_id,\n>                 item.openalex_work_id,\n>                 item.first_author_id,\n>                 item.last_author_id,\n>                 item.member_indexes,\n>             )\n>             for item in anchors\n>         }\n> >       assert observed == {\n>             \"G1-01\": (\"G1-CICADA\", \"10.1145/3035918.3064015\", None, \"W2613970404\", \"A5050218314\", \"A5085479490\", (\"openalex\", \"dblp\")),\n>             \"G2-01\": (\"G2-SA\", \"10.1214/aoms/1177729586\", None, \"W1994616650\", \"A5110883277\", \"A5065560698\", (\"openalex\",)),\n>             \"G2-02\": (\"G2-SA\", \"10.1214/aoms/1177729392\", None, \"W2009797711\", \"A5110860590\", \"A5049527866\", (\"openalex\",)),\n>             \"G2-03\": (\"G2-SA\", \"10.1214/aoms/1177706705\", None, \"W1996235804\", \"A5082829165\", \"A5082829165\", (\"openalex\",)),\n>             \"G2-04\": (\"G2-SA\", \"10.1109/9.119632\", None, \"W2124289529\", \"A5066890566\", \"A5066890566\", (\"openalex\", \"dblp\")),\n>             \"G2-05\": (\"G2-SA\", \"10.1109/7.705889\", None, \"W2128452997\", \"A5066890566\", \"A5066890566\", (\"openalex\", \"dblp\")),\n>             \"G2-06\": (\"G2-SA\", \"10.1137/0803045\", None, \"W2065450730\", \"A5059841305\", \"A5039659947\", (\"openalex\", \"dblp\")),\n>             \"G2-07\": (\"G2-SA\", \"10.1007/s10107-012-0572-5\", None, \"W2061570747\", \"A5110661221\", \"A5032317649\", (\"openalex\", \"dblp\")),\n>             \"G2-08\": (\"G2-SA\", \"10.1137/17M1154679\", \"1710.11258\", \"W2766854590\", \"A5083156016\", \"A5081856145\", (\"openalex\", \"arxiv\", \"dblp\")),\n>             \"G3-01\": (\"G3-STM\", \"10.1145/872035.872048\", None, \"W2105055683\", \"A5086347882\", \"A5066189979\", (\"openalex\", \"dblp\")),\n>             \"G3-02\": (\"G3-STM\", \"10.1145/1073814.1073861\", None, \"W1988800505\", \"A5066189979\", \"A5079254515\", (\"openalex\", \"dblp\")),\n>             \"G3-03\": (\"G3-STM\", \"10.1007/11561927_23\", None, \"W1759214032\", \"A5049321288\", \"A5015726068\", (\"openalex\", \"dblp\")),\n>             \"G3-04\": (\"G3-STM\", \"10.1145/1073814.1073863\", None, \"W2106871513\", \"A5049321288\", \"A5015726068\", (\"openalex\", \"dblp\")),\n>             \"G3-05\": (\"G3-STM\", \"10.1145/1378533.1378564\", None, \"W2165791323\", \"A5023107016\", \"A5072539515\", (\"openalex\", \"dblp\")),\n>             \"G3-06\": (\"G3-STM\", \"10.1145/1504176.1504199\", None, \"W2122621236\", \"A5017374713\", \"A5079254515\", (\"openalex\", \"dblp\")),\n>             \"G3-07\": (\"G3-STM\", \"10.1145/1582716.1582725\", None, \"W2036987653\", \"A5070096854\", \"A5001418143\", (\"openalex\", \"dblp\")),\n>         }\n> E       AssertionError: assert {'G1-01': ('G...5', ...), ...} == {'G1-01': ('G...5', ...), ...}\n> E         \n> E         Omitting 15 identical items, use -vv to show\n> E         Differing items:\n> E         {'G2-08': ('G2-SA', '1710.11258', '10.1137/17M1154679', 'W2766854590', 'A5083156016', 'A5081856145', ...)} != {'G2-08': ('G2-SA', '10.1137/17M1154679', '1710.11258', 'W2766854590', 'A5083156016', 'A5081856145', ...)}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_axis_b5_search_executor.py:525: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_axis_b5_search_executor.py::test_lookup_builder_emits_only_registered_three_forms\" nodeid_bytes=105 nodeid_omitted_bytes=0 source_bytes=1047 retained_bytes=1047 omitted_bytes=0 rendered_excerpt_bytes=1088 sha256=5b8d1608eddbbb99bc60ee03861b6093787bab3fda7c62d3f726fd3fd03da851\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw19] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_lookup_builder_emits_only_registered_three_forms() -> None:\n>         anchors = {item.anchor_id: item for item in load_anchor_registry()}\n>         assert build_lookup_request(anchors[\"G1-01\"], \"openalex\").url == (\n>             \"https://api.openalex.org/works/https://doi.org/10.1145/3035918.3064015\"\n>             \"?select=id,doi,title,publication_year,ids,authorships,referenced_works_count\"\n>         )\n> >       assert build_lookup_request(anchors[\"G2-08\"], \"arxiv\").url == (\n>             \"https://export.arxiv.org/api/query?id_list=1710.11258&max_results=1\"\n>         )\n> E       AssertionError: assert 'https://expo...max_results=1' == 'https://expo...max_results=1'\n> E         \n> E         Skipping 34 identical leading characters in diff, use -v to show\n> E         - ?id_list=1710.11258&max_results=1\n> E         ?           --    ^ ^\n> E         + ?id_list=10.1137/17M1154679&max_results=1\n> E         ?               ^^^^^^^^ ^^^^\n> \n> orchestrator/tests/test_axis_b5_search_executor.py:555: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal\" nodeid_bytes=125 nodeid_omitted_bytes=0 source_bytes=598 retained_bytes=598 omitted_bytes=0 rendered_excerpt_bytes=619 sha256=618eb1c9c68bd219e8abc72f9ace49489fa80ce5bbbcc87482cb7e5cb15b84da\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal() -> None:\n>         head = preflight_module.SubprocessGit(ROOT).head()\n>         result = verify_registration(head, repo_root=ROOT)\n> >       assert result.passed is True\n> E       AssertionError: assert False is True\n> E        +  where False = RegistrationResult(passed=False, reason_code='registration_paths_dirty', detail='a registered path is modified, deleted, or untracked', seal_record=None).passed\n> \n> orchestrator/tests/test_axis_b5_search_executor.py:428: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=4876 retained_bytes=4876 omitted_bytes=0 budget_bytes=49152 rendered_bytes=6671 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "76bf02111a178316b4988380fb0f12b580cc454cfd0b8f0c0385fd6b38b9b233"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "6814a4c6056524d8659511790f0f12654e24de316cb9169a2d77b1c9216fabb0",
+      "duration_s": 28.249,
+      "expected_nodes": [
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_lookup_builder_emits_only_registered_three_forms",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registry_has_frozen_members_and_g208_doi_primary_key"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_lookup_builder_emits_only_registered_three_forms",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registry_has_frozen_members_and_g208_doi_primary_key",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal"
+      ],
+      "hang_risk": false,
+      "id": "m11-g208-primary-key-swapped",
+      "injection_diff_sha256": "a00e20971d5bd54162b30350a091e88e26f1ea3b0f4f18c984c087dd33717824",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "dfd352b26fc86c2dc4a619e65b1c85869efe936ed86cf56925f96d9ee0b4444f",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/anchor_registry.json",
+          "new": "      \"doi\": \"1710.11258\",\n      \"arxiv_id\": \"10.1137/17M1154679\",\n",
+          "old": "      \"doi\": \"10.1137/17M1154679\",\n      \"arxiv_id\": \"1710.11258\",\n"
+        },
+        {
+          "file": "orchestrator/axis_b5_search/preflight.py",
+          "new": "    if g208.doi != \"1710.11258\" or g208.arxiv_id != \"10.1137/17M1154679\":\n",
+          "old": "    if g208.doi != \"10.1137/17M1154679\" or g208.arxiv_id != \"1710.11258\":\n"
+        }
+      ],
+      "repo_head": "61f7813ec12e97d1920df114142580b4e455bada",
+      "runner_sha256": "15994ab6f104e2f22160b37a73fef3f22a6e9144ca996825a3873db9b4998023",
+      "spec_sha256": "fad64f426de611670e492aa25bde57446f825eac547511ab46ece06418e7d3a6",
+      "status": "KILLED",
+      "test_output_sha256": "76bf02111a178316b4988380fb0f12b580cc454cfd0b8f0c0385fd6b38b9b233",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bccdc1b9bd1dfa4702ffae069848cc851d5771cce59aac4a47b370bd9898cecd"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2448-mutation2/output/pegasus-dispatch/4124c2229851ccd397ca19a6b098c9b1/izdw-4124c22298.o989421",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2448-mutation2/output/pegasus-dispatch/4124c2229851ccd397ca19a6b098c9b1/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..............................................FF......                   [100%]\n=================================== FAILURES ===================================\n____________________ test_retry_delays_are_the_frozen_tuple ____________________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_retry_delays_are_the_frozen_tuple() -> None:\n        \"\"\"Freeze the registered delay tuple; this is not an effective retry test.\"\"\"\n    \n>       assert RETRY_DELAYS_S == (3.0, 6.0, 12.0)\nE       assert (3.0, 7.0, 12.0) == (3.0, 6.0, 12.0)\nE         \nE         At index 1 diff: 7.0 != 6.0\nE         Use -v to get more diff\n\norchestrator/tests/test_axis_b5_search_executor.py:1240: AssertionError\n__ test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal ___\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal() -> None:\n        head = preflight_module.SubprocessGit(ROOT).head()\n        result = verify_registration(head, repo_root=ROOT)\n>       assert result.passed is True\nE       AssertionError: assert False is True\nE        +  where False = RegistrationResult(passed=False, reason_code='registration_paths_dirty', detail='a registered path is modified, deleted, or untracked', seal_record=None).passed\n\norchestrator/tests/test_axis_b5_search_executor.py:428: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_axis_b5_search_executor.py::test_retry_delays_are_the_frozen_tuple\nFAILED orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal\n2 failed, 52 passed in 5.22s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal\" nodeid_bytes=125 nodeid_omitted_bytes=0 source_bytes=598 retained_bytes=598 omitted_bytes=0 rendered_excerpt_bytes=619 sha256=618eb1c9c68bd219e8abc72f9ace49489fa80ce5bbbcc87482cb7e5cb15b84da\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal() -> None:\n>         head = preflight_module.SubprocessGit(ROOT).head()\n>         result = verify_registration(head, repo_root=ROOT)\n> >       assert result.passed is True\n> E       AssertionError: assert False is True\n> E        +  where False = RegistrationResult(passed=False, reason_code='registration_paths_dirty', detail='a registered path is modified, deleted, or untracked', seal_record=None).passed\n> \n> orchestrator/tests/test_axis_b5_search_executor.py:428: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_axis_b5_search_executor.py::test_retry_delays_are_the_frozen_tuple\" nodeid_bytes=90 nodeid_omitted_bytes=0 source_bytes=453 retained_bytes=453 omitted_bytes=0 rendered_excerpt_bytes=478 sha256=d97ed02079e2024bb6540b1b503538b356110fd79e8edfe369e0da6b91146180\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_retry_delays_are_the_frozen_tuple() -> None:\n>         \"\"\"Freeze the registered delay tuple; this is not an effective retry test.\"\"\"\n>     \n> >       assert RETRY_DELAYS_S == (3.0, 6.0, 12.0)\n> E       assert (3.0, 7.0, 12.0) == (3.0, 6.0, 12.0)\n> E         \n> E         At index 1 diff: 7.0 != 6.0\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_axis_b5_search_executor.py:1240: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=1051 retained_bytes=1051 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2274 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "0ad52dc0232b1c554949224c2316bbcd07136935d0e4e5770935d9a819d0a197"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "6814a4c6056524d8659511790f0f12654e24de316cb9169a2d77b1c9216fabb0",
+      "duration_s": 28.488,
+      "expected_nodes": [
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_retry_delays_are_the_frozen_tuple"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_retry_delays_are_the_frozen_tuple",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal"
+      ],
+      "hang_risk": false,
+      "id": "m12-retry-delay-middle-changed",
+      "injection_diff_sha256": "a4cec90684cde59e3b45261bc26d3b449a93dca876f264ac7126323e614e0850",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "1e3ee7b7ae9ca560860d4740e6d1670c7a671a7b0bb1965d9ba527e1d70e4d2f",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/runner.py",
+          "new": "RETRY_DELAYS_S = (3.0, 7.0, 12.0)\n",
+          "old": "RETRY_DELAYS_S = (3.0, 6.0, 12.0)\n"
+        }
+      ],
+      "repo_head": "61f7813ec12e97d1920df114142580b4e455bada",
+      "runner_sha256": "15994ab6f104e2f22160b37a73fef3f22a6e9144ca996825a3873db9b4998023",
+      "spec_sha256": "fad64f426de611670e492aa25bde57446f825eac547511ab46ece06418e7d3a6",
+      "status": "KILLED",
+      "test_output_sha256": "0ad52dc0232b1c554949224c2316bbcd07136935d0e4e5770935d9a819d0a197",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bccdc1b9bd1dfa4702ffae069848cc851d5771cce59aac4a47b370bd9898cecd"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2448-mutation2/output/pegasus-dispatch/2112cc666a6866c27d0ffc33f7040f1b/izdw-2112cc666a.o989422",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2448-mutation2/output/pegasus-dispatch/2112cc666a6866c27d0ffc33f7040f1b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n............................................F..F......                   [100%]\n=================================== FAILURES ===================================\n_________________ test_worktree_scan_excludes_pycache_and_pyc __________________\n[gw39] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw39/test_worktree_scan_excludes_py0')\n\n    def test_worktree_scan_excludes_pycache_and_pyc(tmp_path: Path) -> None:\n        relative_root = \"orchestrator/axis_b5_search\"\n        source_directory = tmp_path / relative_root\n        source_directory.mkdir(parents=True)\n        (source_directory / \"registered.py\").write_bytes(b\"REGISTERED = True\\n\")\n        (source_directory / \"standalone.pyc\").write_bytes(b\"ignored bytecode\")\n        cache_directory = source_directory / \"__pycache__\"\n        cache_directory.mkdir()\n        (cache_directory / \"registered.cpython-312.pyc\").write_bytes(\n            b\"ignored cached bytecode\"\n        )\n    \n>       assert preflight_module._walk_files(tmp_path, relative_root) == {\n            \"orchestrator/axis_b5_search/registered.py\"\n        }\nE       AssertionError: assert {'orchestrato...andalone.pyc'} == {'orchestrato...egistered.py'}\nE         \nE         Extra items in the left set:\nE         'orchestrator/axis_b5_search/__pycache__/registered.cpython-312.pyc'\nE         'orchestrator/axis_b5_search/standalone.pyc'\nE         Use -v to get more diff\n\norchestrator/tests/test_axis_b5_search_executor.py:420: AssertionError\n__ test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal ___\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal() -> None:\n        head = preflight_module.SubprocessGit(ROOT).head()\n        result = verify_registration(head, repo_root=ROOT)\n>       assert result.passed is True\nE       AssertionError: assert False is True\nE        +  where False = RegistrationResult(passed=False, reason_code='registration_paths_dirty', detail='a registered path is modified, deleted, or untracked', seal_record=None).passed\n\norchestrator/tests/test_axis_b5_search_executor.py:428: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_axis_b5_search_executor.py::test_worktree_scan_excludes_pycache_and_pyc\nFAILED orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal\n2 failed, 52 passed in 5.25s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_axis_b5_search_executor.py::test_worktree_scan_excludes_pycache_and_pyc\" nodeid_bytes=95 nodeid_omitted_bytes=0 source_bytes=1274 retained_bytes=1274 omitted_bytes=0 rendered_excerpt_bytes=1332 sha256=2b20583f3c9a360623a514bdccd69f1c2c4c43a9e981994263187275aa450b16\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw39] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw39/test_worktree_scan_excludes_py0')\n> \n>     def test_worktree_scan_excludes_pycache_and_pyc(tmp_path: Path) -> None:\n>         relative_root = \"orchestrator/axis_b5_search\"\n>         source_directory = tmp_path / relative_root\n>         source_directory.mkdir(parents=True)\n>         (source_directory / \"registered.py\").write_bytes(b\"REGISTERED = True\\x5cn\")\n>         (source_directory / \"standalone.pyc\").write_bytes(b\"ignored bytecode\")\n>         cache_directory = source_directory / \"__pycache__\"\n>         cache_directory.mkdir()\n>         (cache_directory / \"registered.cpython-312.pyc\").write_bytes(\n>             b\"ignored cached bytecode\"\n>         )\n>     \n> >       assert preflight_module._walk_files(tmp_path, relative_root) == {\n>             \"orchestrator/axis_b5_search/registered.py\"\n>         }\n> E       AssertionError: assert {'orchestrato...andalone.pyc'} == {'orchestrato...egistered.py'}\n> E         \n> E         Extra items in the left set:\n> E         'orchestrator/axis_b5_search/__pycache__/registered.cpython-312.pyc'\n> E         'orchestrator/axis_b5_search/standalone.pyc'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_axis_b5_search_executor.py:420: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal\" nodeid_bytes=125 nodeid_omitted_bytes=0 source_bytes=598 retained_bytes=598 omitted_bytes=0 rendered_excerpt_bytes=619 sha256=618eb1c9c68bd219e8abc72f9ace49489fa80ce5bbbcc87482cb7e5cb15b84da\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal() -> None:\n>         head = preflight_module.SubprocessGit(ROOT).head()\n>         result = verify_registration(head, repo_root=ROOT)\n> >       assert result.passed is True\n> E       AssertionError: assert False is True\n> E        +  where False = RegistrationResult(passed=False, reason_code='registration_paths_dirty', detail='a registered path is modified, deleted, or untracked', seal_record=None).passed\n> \n> orchestrator/tests/test_axis_b5_search_executor.py:428: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=1872 retained_bytes=1872 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3136 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "38df4f2d51749954a087f3fb2fa765ad000403cd6b4450a8003f2a4daf70d6e0"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "6814a4c6056524d8659511790f0f12654e24de316cb9169a2d77b1c9216fabb0",
+      "duration_s": 28.358,
+      "expected_nodes": [
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_worktree_scan_excludes_pycache_and_pyc"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_worktree_scan_excludes_pycache_and_pyc",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal"
+      ],
+      "hang_risk": false,
+      "id": "m13-pycache-exclusion-removed",
+      "injection_diff_sha256": "85981aeb7ecd1e582fbdb024c7dce3e7fd7d823719feb363602c3d7497b7fea9",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "fab488f0b9be81fd9e6bf697b2cff55861b891997268bf087101a65973448a7c",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/preflight.py",
+          "new": "            if dirname == \"__never_matches__\":\n",
+          "old": "            if dirname == \"__pycache__\":\n"
+        },
+        {
+          "file": "orchestrator/axis_b5_search/preflight.py",
+          "new": "            if filename.endswith(\".never-matches\"):\n                continue\n",
+          "old": "            if filename.endswith(\".pyc\"):\n                continue\n"
+        }
+      ],
+      "repo_head": "61f7813ec12e97d1920df114142580b4e455bada",
+      "runner_sha256": "15994ab6f104e2f22160b37a73fef3f22a6e9144ca996825a3873db9b4998023",
+      "spec_sha256": "fad64f426de611670e492aa25bde57446f825eac547511ab46ece06418e7d3a6",
+      "status": "KILLED",
+      "test_output_sha256": "38df4f2d51749954a087f3fb2fa765ad000403cd6b4450a8003f2a4daf70d6e0",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bccdc1b9bd1dfa4702ffae069848cc851d5771cce59aac4a47b370bd9898cecd"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2448-mutation2/output/pegasus-dispatch/5265900e296408a51dca37093482ceee/izdw-5265900e29.o989362",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2448-mutation2/output/pegasus-dispatch/5265900e296408a51dca37093482ceee/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_axis_b5_search_executor.py::test_worktree_scan_excludes_pycache_and_pyc\norchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal\norchestrator/tests/test_axis_b5_search_executor.py::test_registration_rejects_invalid_or_non_head_commit\norchestrator/tests/test_axis_b5_search_executor.py::test_registration_rejects_path_module_mode_and_byte_mismatches\norchestrator/tests/test_axis_b5_search_executor.py::test_failed_registration_returns_before_live_transport_creation\norchestrator/tests/test_axis_b5_search_executor.py::test_registry_has_frozen_members_and_g208_doi_primary_key\norchestrator/tests/test_axis_b5_search_executor.py::test_lookup_builder_emits_only_registered_three_forms\norchestrator/tests/test_axis_b5_search_executor.py::test_openalex_404_is_nonrecorded_before_content_type_check\norchestrator/tests/test_axis_b5_search_executor.py::test_openalex_200_json_id_is_recorded\norchestrator/tests/test_axis_b5_search_executor.py::test_arxiv_media_type_parameters_are_ignored_and_malformed_is_unreachable\norchestrator/tests/test_axis_b5_search_executor.py::test_dblp_matching_doi_is_recorded_but_unknown_json_shape_is_unclassified\norchestrator/tests/test_axis_b5_search_executor.py::test_dblp_zero_total_is_nonrecorded\norchestrator/tests/test_axis_b5_search_executor.py::test_live_preflight_29_recorded_plus_one_unreachable_cannot_start\norchestrator/tests/test_axis_b5_search_executor.py::test_live_preflight_accepts_exact_30_and_wid_drift_is_evidence_only\norchestrator/tests/test_axis_b5_search_executor.py::test_live_preflight_has_no_defaults_for_caller_policy_values\norchestrator/tests/test_axis_b5_search_executor.py::test_resolve_leaf_accepts_one_location_and_rejects_duplicate_or_wrong_host\norchestrator/tests/test_axis_b5_search_executor.py::test_openalex_initial_cursor_is_literal_star_and_continuation_is_encoded\norchestrator/tests/test_axis_b5_search_executor.py::test_offset_request_uses_fixed_step_and_rejects_actual_count_style_position\norchestrator/tests/test_axis_b5_search_executor.py::test_text_echo_normalization_decodes_once_and_does_not_accept_parentheses\norchestrator/tests/test_axis_b5_search_executor.py::test_openalex_ast_preserves_multiplicity_but_ignores_sibling_order\norchestrator/tests/test_axis_b5_search_executor.py::test_openalex_ast_rejects_unknown_key_join_and_get_rows_type\norchestrator/tests/test_axis_b5_search_executor.py::test_condition3_uses_actual_count_not_capacity_echo\norchestrator/tests/test_axis_b5_search_executor.py::test_condition3_accepts_normal_partial_final_despite_capacity_echo\norchestrator/tests/test_axis_b5_search_executor.py::test_condition2_checks_position_only_not_short_page_count\norchestrator/tests/test_axis_b5_search_executor.py::test_declared_total_drift_is_not_accepted_from_final_page_value\norchestrator/tests/test_axis_b5_search_executor.py::test_drift_allows_exactly_one_page_zero_rerun\norchestrator/tests/test_axis_b5_search_executor.py::test_duplicate_occurrence_is_rejected_but_retained_in_ledger\norchestrator/tests/test_axis_b5_search_executor.py::test_dblp_cutoff_fields_flow_without_dropping_raw_occurrences\norchestrator/tests/test_axis_b5_search_executor.py::test_condition6_accepts_media_parameter_and_rejects_wrong_type\norchestrator/tests/test_axis_b5_search_executor.py::test_main_run_issuance_fails_closed_with_all_six_unregistered_fields\norchestrator/tests/test_axis_b5_search_executor.py::test_retry_delays_are_the_frozen_tuple\norchestrator/tests/test_axis_b5_search_executor.py::test_page_and_leaf_records_are_draft07_schema_valid\norchestrator/tests/test_axis_b5_search_executor.py::test_live_record_is_schema_valid_and_unclassified_is_false_side\norchestrator/tests/test_axis_b5_search_executor.py::test_live_missing_member_is_schema_valid_and_false_side\norchestrator/tests/test_axis_b5_search_parsers.py::test_contract_1_accepts_valid_page_with_b5_parser\norchestrator/tests/test_axis_b5_search_parsers.py::test_contract_1_rejects_axis1_parser_dependency\norchestrator/tests/test_axis_b5_search_parsers.py::test_contract_2_accepts_openalex_cursor_chain_verbatim\norchestrator/tests/test_axis_b5_search_parsers.py::test_contract_2_rejects_calculated_offset_next_position\norchestrator/tests/test_axis_b5_search_parsers.py::test_contract_3_accepts_container_count_for_full_and_final_pages\norchestrator/tests/test_axis_b5_search_parsers.py::test_contract_3_rejects_capacity_echo_as_actual_count\norchestrator/tests/test_axis_b5_search_parsers.py::test_contract_4_accepts_distinct_occurrences_in_container_order\norchestrator/tests/test_axis_b5_search_parsers.py::test_contract_4_rejects_page_local_deduplication\norchestrator/tests/test_axis_b5_search_parsers.py::test_contract_4_rejects_cross_page_deduplication\norchestrator/tests/test_axis_b5_search_parsers.py::test_contract_5_accepts_four_digit_year_at_cutoff\norchestrator/tests/test_axis_b5_search_parsers.py::test_contract_5_rejects_future_year_and_routes_bad_years_to_ruling\norchestrator/tests/test_axis_b5_search_parsers.py::test_contract_6_accepts_raw_query_text_and_structured_ast\norchestrator/tests/test_axis_b5_search_parsers.py::test_contract_6_rejects_lossy_ast_object_decoding\norchestrator/tests/test_axis_b5_search_parsers.py::test_contract_6_rejects_missing_ast_with_literal_error_code\norchestrator/tests/test_axis_b5_search_parsers.py::test_contract_7_accepts_only_the_registered_literal_error_vocabulary\norchestrator/tests/test_axis_b5_search_parsers.py::test_contract_7_rejects_malformed_bodies_without_raising\norchestrator/tests/test_axis_b5_search_parsers.py::test_contract_7_rejects_invalid_page_number_without_raising\norchestrator/tests/test_axis_b5_search_parsers.py::test_missing_total_is_a_literal_parse_error_and_records_occurrence\norchestrator/tests/test_axis_b5_search_parsers.py::test_saved_real_arxiv_hit_and_miss_shapes\norchestrator/tests/test_axis_b5_search_parsers.py::test_saved_real_openalex_lookup_and_404_are_not_search_pages\n\n54 tests collected in 0.53s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "4007a0d1b713afeb25c1237c610160c2d097ba45f5e7dc1ed3a9de981082346a"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_worktree_scan_excludes_pycache_and_pyc",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_rejects_invalid_or_non_head_commit",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_rejects_path_module_mode_and_byte_mismatches",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_failed_registration_returns_before_live_transport_creation",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registry_has_frozen_members_and_g208_doi_primary_key",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_lookup_builder_emits_only_registered_three_forms",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_openalex_404_is_nonrecorded_before_content_type_check",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_openalex_200_json_id_is_recorded",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_arxiv_media_type_parameters_are_ignored_and_malformed_is_unreachable",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_dblp_matching_doi_is_recorded_but_unknown_json_shape_is_unclassified",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_dblp_zero_total_is_nonrecorded",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_live_preflight_29_recorded_plus_one_unreachable_cannot_start",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_live_preflight_accepts_exact_30_and_wid_drift_is_evidence_only",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_live_preflight_has_no_defaults_for_caller_policy_values",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_resolve_leaf_accepts_one_location_and_rejects_duplicate_or_wrong_host",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_openalex_initial_cursor_is_literal_star_and_continuation_is_encoded",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_offset_request_uses_fixed_step_and_rejects_actual_count_style_position",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_text_echo_normalization_decodes_once_and_does_not_accept_parentheses",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_openalex_ast_preserves_multiplicity_but_ignores_sibling_order",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_openalex_ast_rejects_unknown_key_join_and_get_rows_type",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_condition3_uses_actual_count_not_capacity_echo",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_condition3_accepts_normal_partial_final_despite_capacity_echo",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_condition2_checks_position_only_not_short_page_count",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_declared_total_drift_is_not_accepted_from_final_page_value",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_drift_allows_exactly_one_page_zero_rerun",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_duplicate_occurrence_is_rejected_but_retained_in_ledger",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_dblp_cutoff_fields_flow_without_dropping_raw_occurrences",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_condition6_accepts_media_parameter_and_rejects_wrong_type",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_main_run_issuance_fails_closed_with_all_six_unregistered_fields",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_retry_delays_are_the_frozen_tuple",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_page_and_leaf_records_are_draft07_schema_valid",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_live_record_is_schema_valid_and_unclassified_is_false_side",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_live_missing_member_is_schema_valid_and_false_side",
+        "orchestrator/tests/test_axis_b5_search_parsers.py::test_contract_1_accepts_valid_page_with_b5_parser",
+        "orchestrator/tests/test_axis_b5_search_parsers.py::test_contract_1_rejects_axis1_parser_dependency",
+        "orchestrator/tests/test_axis_b5_search_parsers.py::test_contract_2_accepts_openalex_cursor_chain_verbatim",
+        "orchestrator/tests/test_axis_b5_search_parsers.py::test_contract_2_rejects_calculated_offset_next_position",
+        "orchestrator/tests/test_axis_b5_search_parsers.py::test_contract_3_accepts_container_count_for_full_and_final_pages",
+        "orchestrator/tests/test_axis_b5_search_parsers.py::test_contract_3_rejects_capacity_echo_as_actual_count",
+        "orchestrator/tests/test_axis_b5_search_parsers.py::test_contract_4_accepts_distinct_occurrences_in_container_order",
+        "orchestrator/tests/test_axis_b5_search_parsers.py::test_contract_4_rejects_page_local_deduplication",
+        "orchestrator/tests/test_axis_b5_search_parsers.py::test_contract_4_rejects_cross_page_deduplication",
+        "orchestrator/tests/test_axis_b5_search_parsers.py::test_contract_5_accepts_four_digit_year_at_cutoff",
+        "orchestrator/tests/test_axis_b5_search_parsers.py::test_contract_5_rejects_future_year_and_routes_bad_years_to_ruling",
+        "orchestrator/tests/test_axis_b5_search_parsers.py::test_contract_6_accepts_raw_query_text_and_structured_ast",
+        "orchestrator/tests/test_axis_b5_search_parsers.py::test_contract_6_rejects_lossy_ast_object_decoding",
+        "orchestrator/tests/test_axis_b5_search_parsers.py::test_contract_6_rejects_missing_ast_with_literal_error_code",
+        "orchestrator/tests/test_axis_b5_search_parsers.py::test_contract_7_accepts_only_the_registered_literal_error_vocabulary",
+        "orchestrator/tests/test_axis_b5_search_parsers.py::test_contract_7_rejects_malformed_bodies_without_raising",
+        "orchestrator/tests/test_axis_b5_search_parsers.py::test_contract_7_rejects_invalid_page_number_without_raising",
+        "orchestrator/tests/test_axis_b5_search_parsers.py::test_missing_total_is_a_literal_parse_error_and_records_occurrence",
+        "orchestrator/tests/test_axis_b5_search_parsers.py::test_saved_real_arxiv_hit_and_miss_shapes",
+        "orchestrator/tests/test_axis_b5_search_parsers.py::test_saved_real_openalex_lookup_and_404_are_not_search_pages"
+      ],
+      "duration_s": 22.036,
+      "rc": 0,
+      "repo_head": "61f7813ec12e97d1920df114142580b4e455bada",
+      "runner_sha256": "15994ab6f104e2f22160b37a73fef3f22a6e9144ca996825a3873db9b4998023",
+      "spec_sha256": "fad64f426de611670e492aa25bde57446f825eac547511ab46ece06418e7d3a6",
+      "status": "PASSED",
+      "tool_sha256": "bccdc1b9bd1dfa4702ffae069848cc851d5771cce59aac4a47b370bd9898cecd"
+    },
+    "hang_timeout_seconds": 1800.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "m01-openalex-first-cursor-encoded": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_axis_b5_search_executor.py::test_openalex_initial_cursor_is_literal_star_and_continuation_is_encoded",
+          "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "e27c11921190fc2c8e8250deca1d4cc275b84718ac1fbf10965256bf515d5b0b",
+        "replacements": [
+          {
+            "file": "orchestrator/axis_b5_search/runner.py",
+            "new": "            raw_position = \"*\"\n            encoded = \"%2A\"\n",
+            "old": "            raw_position = \"*\"\n            encoded = \"*\"\n"
+          }
+        ]
+      },
+      "m02-openalex-ast-multiplicity-dropped": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_axis_b5_search_executor.py::test_openalex_ast_preserves_multiplicity_but_ignores_sibling_order",
+          "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ea357d72551fdf5e5e5453d2bd69576bf46296493bbb95c0141cf4040501fe8f",
+        "replacements": [
+          {
+            "file": "orchestrator/axis_b5_search/runner.py",
+            "new": "        canonical = tuple(\n            sorted(\n                set(_canonical_openalex_node(child) for child in children),\n                key=_ast_sort_key,\n            )\n        )\n",
+            "old": "        canonical = tuple(\n            sorted(\n                (_canonical_openalex_node(child) for child in children),\n                key=_ast_sort_key,\n            )\n        )\n"
+          }
+        ]
+      },
+      "m03-live-preflight-all-to-any": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_axis_b5_search_executor.py::test_live_preflight_29_recorded_plus_one_unreachable_cannot_start",
+          "orchestrator/tests/test_axis_b5_search_executor.py::test_live_record_is_schema_valid_and_unclassified_is_false_side",
+          "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ce1a399c9e05a409ae838f44c81f51b492e96d1b31910836c04480626cbfe7ba",
+        "replacements": [
+          {
+            "file": "orchestrator/axis_b5_search/preflight.py",
+            "new": "    all_recorded = exact_members and any(\n        result.classification == \"収録\" for result in results\n    )\n",
+            "old": "    all_recorded = exact_members and all(\n        result.classification == \"収録\" for result in results\n    )\n"
+          }
+        ]
+      },
+      "m05-condition3-uses-capacity-echo": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_axis_b5_search_executor.py::test_condition3_accepts_normal_partial_final_despite_capacity_echo",
+          "orchestrator/tests/test_axis_b5_search_executor.py::test_condition3_uses_actual_count_not_capacity_echo",
+          "orchestrator/tests/test_axis_b5_search_executor.py::test_condition6_accepts_media_parameter_and_rejects_wrong_type",
+          "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a228a725c827a51c398d2c9bd8961605f456fa73f2225a67dd8dd50d6171438b",
+        "replacements": [
+          {
+            "file": "orchestrator/axis_b5_search/runner.py",
+            "new": "        actual = page.parsed.capacity_echo\n",
+            "old": "        actual = page.parsed.actual_count\n"
+          }
+        ]
+      },
+      "m06-main-run-issuance-not-fail-closed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_axis_b5_search_executor.py::test_main_run_issuance_fails_closed_with_all_six_unregistered_fields",
+          "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a375725a560d0effc6b9a53966dbfb054e6d9be8b6e375aee1bb63a716310f00",
+        "replacements": [
+          {
+            "file": "orchestrator/axis_b5_search/runner.py",
+            "new": "    return None\n",
+            "old": "    raise UnregisteredRunPolicyError()\n"
+          }
+        ]
+      },
+      "m07-seal-exact-set-to-subset": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal",
+          "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_rejects_path_module_mode_and_byte_mismatches"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "65bf57f97a7aa81b789dc60cff2529a15d0c4179147e8ca4c1ab801fcdfb401a",
+        "replacements": [
+          {
+            "file": "orchestrator/axis_b5_search/preflight.py",
+            "new": "        if not set(tree).issubset(worktree_paths):\n",
+            "old": "        if worktree_paths != set(tree):\n"
+          }
+        ]
+      },
+      "m08-dblp-cutoff-dropped": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_axis_b5_search_executor.py::test_dblp_cutoff_fields_flow_without_dropping_raw_occurrences",
+          "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal",
+          "orchestrator/tests/test_axis_b5_search_parsers.py::test_contract_5_rejects_future_year_and_routes_bad_years_to_ruling"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "7af93fd9675b508d444cd3345010d61e8ef9b826a3d2e2ee59afd6d86de6a196",
+        "replacements": [
+          {
+            "file": "orchestrator/axis_b5_search/parsers.py",
+            "new": "    return raw_value, True, False\n",
+            "old": "    return raw_value, int(text) <= _DBLP_CUTOFF_YEAR, False\n"
+          }
+        ]
+      },
+      "m09-unclassified-rounded-to-included": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_axis_b5_search_executor.py::test_dblp_matching_doi_is_recorded_but_unknown_json_shape_is_unclassified",
+          "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "e80007d7ef684c116fc932b0d088ad80564bc5179cbe9f50aa19c9293673c8a3",
+        "replacements": [
+          {
+            "file": "orchestrator/axis_b5_search/preflight.py",
+            "new": "    classification = \"収録\"\n",
+            "old": "    classification = \"unclassified\"\n"
+          }
+        ]
+      },
+      "m10-openalex-content-type-before-status": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_axis_b5_search_executor.py::test_openalex_404_is_nonrecorded_before_content_type_check",
+          "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a787b0ae5e22a2c6dad71cf5e25a2dc3dfb871bd7030ec95af56e8ee2d3420fe",
+        "replacements": [
+          {
+            "file": "orchestrator/axis_b5_search/preflight.py",
+            "new": "        if media_type != \"application/json\":\n            classification = \"不達\"\n        elif response.status == 404:\n            classification = \"非収録\"\n        elif response.status != 200:\n            classification = \"不達\"\n",
+            "old": "        if response.status == 404:\n            classification = \"非収録\"\n        elif response.status != 200:\n            classification = \"不達\"\n        elif media_type != \"application/json\":\n            classification = \"不達\"\n"
+          }
+        ]
+      },
+      "m11-g208-primary-key-swapped": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_axis_b5_search_executor.py::test_lookup_builder_emits_only_registered_three_forms",
+          "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal",
+          "orchestrator/tests/test_axis_b5_search_executor.py::test_registry_has_frozen_members_and_g208_doi_primary_key"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a00e20971d5bd54162b30350a091e88e26f1ea3b0f4f18c984c087dd33717824",
+        "replacements": [
+          {
+            "file": "orchestrator/axis_b5_search/anchor_registry.json",
+            "new": "      \"doi\": \"1710.11258\",\n      \"arxiv_id\": \"10.1137/17M1154679\",\n",
+            "old": "      \"doi\": \"10.1137/17M1154679\",\n      \"arxiv_id\": \"1710.11258\",\n"
+          },
+          {
+            "file": "orchestrator/axis_b5_search/preflight.py",
+            "new": "    if g208.doi != \"1710.11258\" or g208.arxiv_id != \"10.1137/17M1154679\":\n",
+            "old": "    if g208.doi != \"10.1137/17M1154679\" or g208.arxiv_id != \"1710.11258\":\n"
+          }
+        ]
+      },
+      "m12-retry-delay-middle-changed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal",
+          "orchestrator/tests/test_axis_b5_search_executor.py::test_retry_delays_are_the_frozen_tuple"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a4cec90684cde59e3b45261bc26d3b449a93dca876f264ac7126323e614e0850",
+        "replacements": [
+          {
+            "file": "orchestrator/axis_b5_search/runner.py",
+            "new": "RETRY_DELAYS_S = (3.0, 7.0, 12.0)\n",
+            "old": "RETRY_DELAYS_S = (3.0, 6.0, 12.0)\n"
+          }
+        ]
+      },
+      "m13-pycache-exclusion-removed": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal",
+          "orchestrator/tests/test_axis_b5_search_executor.py::test_worktree_scan_excludes_pycache_and_pyc"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "85981aeb7ecd1e582fbdb024c7dce3e7fd7d823719feb363602c3d7497b7fea9",
+        "replacements": [
+          {
+            "file": "orchestrator/axis_b5_search/preflight.py",
+            "new": "            if dirname == \"__never_matches__\":\n",
+            "old": "            if dirname == \"__pycache__\":\n"
+          },
+          {
+            "file": "orchestrator/axis_b5_search/preflight.py",
+            "new": "            if filename.endswith(\".never-matches\"):\n                continue\n",
+            "old": "            if filename.endswith(\".pyc\"):\n                continue\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "5fab7bfe800f4d3fd27c6652e7dd18e0c2c8acfb2fd1cc8f730da00e8097d87b",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_axis_b5_search_executor.py",
+      "orchestrator/tests/test_axis_b5_search_parsers.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 3600.0
+  },
+  "repo_head": "61f7813ec12e97d1920df114142580b4e455bada",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_axis_b5_search_executor.py",
+      "orchestrator/tests/test_axis_b5_search_parsers.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2448-mutation2/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2448-mutation2/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "28bb724556709c6b2b17ea1674bcbebfb9a682aa",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "15994ab6f104e2f22160b37a73fef3f22a6e9144ca996825a3873db9b4998023",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "fad64f426de611670e492aa25bde57446f825eac547511ab46ece06418e7d3a6",
+  "summary": {
+    "KILLED": 12,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 12,
+    "matching": 12,
+    "recorded": 12,
+    "registered": 12
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2448-mutation2/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "bccdc1b9bd1dfa4702ffae069848cc851d5771cce59aac4a47b370bd9898cecd",
+  "updated_at": "2026-09-09T19:02:47.998809+00:00"
+}

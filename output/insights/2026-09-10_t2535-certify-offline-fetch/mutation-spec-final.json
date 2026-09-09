@@ -1,0 +1,165 @@
+{
+  "estimated_run_seconds": 180,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_condition_gate_receives_the_same_fetchcontent_tokens",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_offline_configure_resolves_three_local_sources_and_fails_without_each",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_offline_fetchcontent_contract_is_identical_for_all_protocols",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_default_silo_build_and_calibrate_argv_match_offline_contract"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M1-drop-fully-disconnected",
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "new": "",
+          "old": "  -DFETCHCONTENT_FULLY_DISCONNECTED=ON\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_condition_gate_receives_the_same_fetchcontent_tokens",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_offline_configure_resolves_three_local_sources_and_fails_without_each",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_offline_fetchcontent_contract_is_identical_for_all_protocols",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_default_silo_build_and_calibrate_argv_match_offline_contract"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M2-mimalloc-source-dir-points-elsewhere",
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "new": "\"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=$FETCHCONTENT_SOURCE_ROOT/absent-src\"",
+          "old": "\"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=$FETCHCONTENT_SOURCE_ROOT/mimalloc-src\""
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_job_rejects_a_staging_source_with_ignored_artifacts[googletest]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_job_rejects_a_staging_source_with_ignored_artifacts[masstree]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_job_rejects_a_staging_source_with_ignored_artifacts[mimalloc]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M3-drop-pristine-verifier-call",
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "new": "pass\n",
+          "old": "_verify_pristine_floor_dependency_sources(\n    Path(sys.argv[1]), repo_root=Path(sys.argv[2]),\n)\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_job_copy_leaves_the_staging_sources_untouched_and_writable",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_offline_configure_resolves_three_local_sources_and_fails_without_each",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_offline_fetchcontent_contract_is_identical_for_all_protocols",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_third_party_verifier_uses_version_checked_interpreter"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M4-copy-only-masstree",
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "new": "for third_party_name in masstree; do\n  third_party_copy_rc=0",
+          "old": "for third_party_name in masstree mimalloc googletest; do\n  third_party_copy_rc=0"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_job_copy_leaves_the_staging_sources_untouched_and_writable",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_offline_configure_resolves_three_local_sources_and_fails_without_each"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M6-couple-source-root-into-base-dir",
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "new": "FETCHCONTENT_BASE_DIR=\"$TMPDIR/fetchcontent-src\"",
+          "old": "FETCHCONTENT_BASE_DIR=\"$TMPDIR/fetchcontent-base\""
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_a_missing_or_malformed_third_party_staging_root"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M7-drop-staging-root-structure-check",
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "new": "if false; then",
+          "old": "if [[ \"$THIRD_PARTY_SOURCE_ROOT\" != /* \\\n      || ! -d \"$THIRD_PARTY_SOURCE_ROOT\" \\\n      || -L \"$THIRD_PARTY_SOURCE_ROOT\" ]]; then"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_condition_gate_receives_the_same_fetchcontent_tokens",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_cmake_paths_derive_from_colon_free_job_tmpdir"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M8-condition-gate-slice-skips-offline-tokens",
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "new": "  for argument in \"${configure_argv[@]:12}\"; do",
+          "old": "  for argument in \"${configure_argv[@]:5}\"; do"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_configure_use_site_passes_the_complete_configure_argv"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M9-configure-use-site-truncates-argv",
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "new": "timeout 900 \"${configure_argv[@]:0:7}\" >\"$ATTEMPT_DIR/configure.stdout\"",
+          "old": "timeout 900 \"${configure_argv[@]}\" >\"$ATTEMPT_DIR/configure.stdout\""
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_third_party_verifier_uses_version_checked_interpreter"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M10-verifier-uses-bare-python3",
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "new": "timeout 120 python3 - \\",
+          "old": "timeout 120 \"$THIRD_PARTY_VERIFY_PYTHON\" - \\"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 2400
+}

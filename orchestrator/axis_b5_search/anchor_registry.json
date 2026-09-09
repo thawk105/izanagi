@@ -1,0 +1,165 @@
+{
+  "schema_version": "izanagi-axis-b5-anchor-registry/v1",
+  "anchors": [
+    {
+      "anchor_id": "G1-01",
+      "slot": "G1-CICADA",
+      "doi": "10.1145/3035918.3064015",
+      "arxiv_id": null,
+      "openalex_work_id": "W2613970404",
+      "first_author_id": "A5050218314",
+      "last_author_id": "A5085479490",
+      "member_indexes": ["openalex", "dblp"]
+    },
+    {
+      "anchor_id": "G2-01",
+      "slot": "G2-SA",
+      "doi": "10.1214/aoms/1177729586",
+      "arxiv_id": null,
+      "openalex_work_id": "W1994616650",
+      "first_author_id": "A5110883277",
+      "last_author_id": "A5065560698",
+      "member_indexes": ["openalex"]
+    },
+    {
+      "anchor_id": "G2-02",
+      "slot": "G2-SA",
+      "doi": "10.1214/aoms/1177729392",
+      "arxiv_id": null,
+      "openalex_work_id": "W2009797711",
+      "first_author_id": "A5110860590",
+      "last_author_id": "A5049527866",
+      "member_indexes": ["openalex"]
+    },
+    {
+      "anchor_id": "G2-03",
+      "slot": "G2-SA",
+      "doi": "10.1214/aoms/1177706705",
+      "arxiv_id": null,
+      "openalex_work_id": "W1996235804",
+      "first_author_id": "A5082829165",
+      "last_author_id": "A5082829165",
+      "member_indexes": ["openalex"]
+    },
+    {
+      "anchor_id": "G2-04",
+      "slot": "G2-SA",
+      "doi": "10.1109/9.119632",
+      "arxiv_id": null,
+      "openalex_work_id": "W2124289529",
+      "first_author_id": "A5066890566",
+      "last_author_id": "A5066890566",
+      "member_indexes": ["openalex", "dblp"]
+    },
+    {
+      "anchor_id": "G2-05",
+      "slot": "G2-SA",
+      "doi": "10.1109/7.705889",
+      "arxiv_id": null,
+      "openalex_work_id": "W2128452997",
+      "first_author_id": "A5066890566",
+      "last_author_id": "A5066890566",
+      "member_indexes": ["openalex", "dblp"]
+    },
+    {
+      "anchor_id": "G2-06",
+      "slot": "G2-SA",
+      "doi": "10.1137/0803045",
+      "arxiv_id": null,
+      "openalex_work_id": "W2065450730",
+      "first_author_id": "A5059841305",
+      "last_author_id": "A5039659947",
+      "member_indexes": ["openalex", "dblp"]
+    },
+    {
+      "anchor_id": "G2-07",
+      "slot": "G2-SA",
+      "doi": "10.1007/s10107-012-0572-5",
+      "arxiv_id": null,
+      "openalex_work_id": "W2061570747",
+      "first_author_id": "A5110661221",
+      "last_author_id": "A5032317649",
+      "member_indexes": ["openalex", "dblp"]
+    },
+    {
+      "anchor_id": "G2-08",
+      "slot": "G2-SA",
+      "doi": "10.1137/17M1154679",
+      "arxiv_id": "1710.11258",
+      "openalex_work_id": "W2766854590",
+      "first_author_id": "A5083156016",
+      "last_author_id": "A5081856145",
+      "member_indexes": ["openalex", "arxiv", "dblp"]
+    },
+    {
+      "anchor_id": "G3-01",
+      "slot": "G3-STM",
+      "doi": "10.1145/872035.872048",
+      "arxiv_id": null,
+      "openalex_work_id": "W2105055683",
+      "first_author_id": "A5086347882",
+      "last_author_id": "A5066189979",
+      "member_indexes": ["openalex", "dblp"]
+    },
+    {
+      "anchor_id": "G3-02",
+      "slot": "G3-STM",
+      "doi": "10.1145/1073814.1073861",
+      "arxiv_id": null,
+      "openalex_work_id": "W1988800505",
+      "first_author_id": "A5066189979",
+      "last_author_id": "A5079254515",
+      "member_indexes": ["openalex", "dblp"]
+    },
+    {
+      "anchor_id": "G3-03",
+      "slot": "G3-STM",
+      "doi": "10.1007/11561927_23",
+      "arxiv_id": null,
+      "openalex_work_id": "W1759214032",
+      "first_author_id": "A5049321288",
+      "last_author_id": "A5015726068",
+      "member_indexes": ["openalex", "dblp"]
+    },
+    {
+      "anchor_id": "G3-04",
+      "slot": "G3-STM",
+      "doi": "10.1145/1073814.1073863",
+      "arxiv_id": null,
+      "openalex_work_id": "W2106871513",
+      "first_author_id": "A5049321288",
+      "last_author_id": "A5015726068",
+      "member_indexes": ["openalex", "dblp"]
+    },
+    {
+      "anchor_id": "G3-05",
+      "slot": "G3-STM",
+      "doi": "10.1145/1378533.1378564",
+      "arxiv_id": null,
+      "openalex_work_id": "W2165791323",
+      "first_author_id": "A5023107016",
+      "last_author_id": "A5072539515",
+      "member_indexes": ["openalex", "dblp"]
+    },
+    {
+      "anchor_id": "G3-06",
+      "slot": "G3-STM",
+      "doi": "10.1145/1504176.1504199",
+      "arxiv_id": null,
+      "openalex_work_id": "W2122621236",
+      "first_author_id": "A5017374713",
+      "last_author_id": "A5079254515",
+      "member_indexes": ["openalex", "dblp"]
+    },
+    {
+      "anchor_id": "G3-07",
+      "slot": "G3-STM",
+      "doi": "10.1145/1582716.1582725",
+      "arxiv_id": null,
+      "openalex_work_id": "W2036987653",
+      "first_author_id": "A5070096854",
+      "last_author_id": "A5001418143",
+      "member_indexes": ["openalex", "dblp"]
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "result": {
+    "query": "short* page*",
+    "hits": {
+      "@total": "200",
+      "@sent": "100",
+      "@first": "0",
+      "hit": [
+        {"info": {"key": "conf/test/OnlyHit", "year": "2025"}}
+      ]
+    }
+  }
+}

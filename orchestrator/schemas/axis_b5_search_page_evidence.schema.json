@@ -1,0 +1,276 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://izanagi.invalid/schemas/axis_b5_search_page_evidence.schema.json",
+  "title": "Izanagi Axis B5 page evidence or leaf evaluation",
+  "oneOf": [
+    {"$ref": "#/definitions/page_evidence"},
+    {"$ref": "#/definitions/leaf_evaluation"}
+  ],
+  "definitions": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "nullable_string": {
+      "anyOf": [{"type": "string"}, {"type": "null"}]
+    },
+    "nullable_nonnegative_integer": {
+      "anyOf": [
+        {"type": "integer", "minimum": 0},
+        {"type": "null"}
+      ]
+    },
+    "index": {
+      "enum": ["arxiv", "openalex", "dblp"]
+    },
+    "leaf_kind": {
+      "enum": ["query", "control", "aux_venue"]
+    },
+    "header": {
+      "type": "array",
+      "items": [
+        {"type": "string", "minLength": 1},
+        {"type": "string"}
+      ],
+      "additionalItems": false,
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "json_member": {
+      "type": "array",
+      "items": [
+        {"type": "string"},
+        {"$ref": "#/definitions/json_value"}
+      ],
+      "additionalItems": false,
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "json_object": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["members"],
+      "properties": {
+        "members": {
+          "description": "Ordered pairs retain duplicate JSON object keys.",
+          "type": "array",
+          "items": {"$ref": "#/definitions/json_member"}
+        }
+      }
+    },
+    "json_value": {
+      "oneOf": [
+        {"type": "null"},
+        {"type": "boolean"},
+        {"type": "number"},
+        {"type": "string"},
+        {"type": "array", "items": {"$ref": "#/definitions/json_value"}},
+        {"$ref": "#/definitions/json_object"}
+      ]
+    },
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["url", "position"],
+      "properties": {
+        "url": {
+          "type": "string",
+          "pattern": "^https://(export\\.arxiv\\.org|api\\.openalex\\.org|dblp\\.org)/"
+        },
+        "position": {
+          "oneOf": [
+            {"type": "integer", "minimum": 0},
+            {"type": "string", "minLength": 1}
+          ]
+        }
+      }
+    },
+    "response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "headers",
+        "content_type",
+        "media_type",
+        "final_url",
+        "byte_count",
+        "body_sha256"
+      ],
+      "properties": {
+        "status": {"type": "integer", "minimum": 100, "maximum": 599},
+        "headers": {
+          "description": "Ordered response headers; duplicate names and values are retained.",
+          "type": "array",
+          "items": {"$ref": "#/definitions/header"}
+        },
+        "content_type": {"$ref": "#/definitions/nullable_string"},
+        "media_type": {"$ref": "#/definitions/nullable_string"},
+        "final_url": {"type": "string", "minLength": 1},
+        "byte_count": {"type": "integer", "minimum": 0},
+        "body_sha256": {"$ref": "#/definitions/sha256"}
+      }
+    },
+    "parse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "page_number",
+        "declared_total",
+        "capacity_echo",
+        "actual_count",
+        "position",
+        "next_cursor",
+        "interpreted_query_text",
+        "interpreted_query_ast",
+        "parse_errors"
+      ],
+      "properties": {
+        "page_number": {"$ref": "#/definitions/nullable_nonnegative_integer"},
+        "declared_total": {"$ref": "#/definitions/nullable_nonnegative_integer"},
+        "capacity_echo": {"$ref": "#/definitions/nullable_nonnegative_integer"},
+        "actual_count": {"type": "integer", "minimum": 0},
+        "position": {"$ref": "#/definitions/nullable_nonnegative_integer"},
+        "next_cursor": {"$ref": "#/definitions/nullable_string"},
+        "interpreted_query_text": {"$ref": "#/definitions/nullable_string"},
+        "interpreted_query_ast": {"$ref": "#/definitions/json_value"},
+        "parse_errors": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        }
+      }
+    },
+    "occurrence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "index_work_id",
+        "page_number",
+        "ordinal",
+        "raw_year",
+        "included_by_cutoff",
+        "requires_ruling"
+      ],
+      "properties": {
+        "index_work_id": {"$ref": "#/definitions/nullable_string"},
+        "page_number": {"type": "integer", "minimum": 0},
+        "ordinal": {"type": "integer", "minimum": 0},
+        "raw_year": {"$ref": "#/definitions/json_value"},
+        "included_by_cutoff": {
+          "anyOf": [{"type": "boolean"}, {"type": "null"}]
+        },
+        "requires_ruling": {"type": "boolean"}
+      }
+    },
+    "page_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "document_type",
+        "leaf_id",
+        "leaf_kind",
+        "index",
+        "page_number",
+        "request",
+        "response",
+        "parse",
+        "occurrences"
+      ],
+      "properties": {
+        "schema_version": {"const": "izanagi-axis-b5-search-page-evidence/v1"},
+        "document_type": {"const": "page_evidence"},
+        "leaf_id": {"type": "string", "minLength": 1},
+        "leaf_kind": {"$ref": "#/definitions/leaf_kind"},
+        "index": {"$ref": "#/definitions/index"},
+        "page_number": {"type": "integer", "minimum": 0},
+        "request": {"$ref": "#/definitions/request"},
+        "response": {"$ref": "#/definitions/response"},
+        "parse": {"$ref": "#/definitions/parse"},
+        "occurrences": {
+          "type": "array",
+          "items": {"$ref": "#/definitions/occurrence"}
+        }
+      }
+    },
+    "condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["condition", "passed", "reason_code", "detail"],
+      "properties": {
+        "condition": {"type": "integer", "minimum": 1, "maximum": 6},
+        "passed": {"type": "boolean"},
+        "reason_code": {
+          "anyOf": [
+            {"type": "string", "minLength": 1},
+            {"type": "null"}
+          ]
+        },
+        "detail": {"type": "string", "minLength": 1}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"passed": {"const": true}}, "required": ["passed"]},
+          "then": {"properties": {"reason_code": {"type": "null"}}},
+          "else": {"properties": {"reason_code": {"type": "string", "minLength": 1}}}
+        }
+      ]
+    },
+    "conditions": {
+      "type": "array",
+      "items": {"$ref": "#/definitions/condition"},
+      "minItems": 6,
+      "maxItems": 6,
+      "allOf": [
+        {"contains": {"properties": {"condition": {"const": 1}}, "required": ["condition"]}},
+        {"contains": {"properties": {"condition": {"const": 2}}, "required": ["condition"]}},
+        {"contains": {"properties": {"condition": {"const": 3}}, "required": ["condition"]}},
+        {"contains": {"properties": {"condition": {"const": 4}}, "required": ["condition"]}},
+        {"contains": {"properties": {"condition": {"const": 5}}, "required": ["condition"]}},
+        {"contains": {"properties": {"condition": {"const": 6}}, "required": ["condition"]}}
+      ]
+    },
+    "duplicate_occurrence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["index_work_id", "page_number", "ordinal"],
+      "properties": {
+        "index_work_id": {"type": "string", "minLength": 1},
+        "page_number": {"type": "integer", "minimum": 0},
+        "ordinal": {"type": "integer", "minimum": 0}
+      }
+    },
+    "leaf_evaluation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "document_type",
+        "leaf_id",
+        "index",
+        "request_state",
+        "conditions",
+        "duplicate_occurrences",
+        "rerun_requested",
+        "rerun_performed",
+        "evidence_run_count"
+      ],
+      "properties": {
+        "schema_version": {"const": "izanagi-axis-b5-search-leaf-evaluation/v1"},
+        "document_type": {"const": "leaf_evaluation"},
+        "leaf_id": {"type": "string", "minLength": 1},
+        "index": {"$ref": "#/definitions/index"},
+        "request_state": {"enum": ["完走", "未完走"]},
+        "conditions": {"$ref": "#/definitions/conditions"},
+        "duplicate_occurrences": {
+          "type": "array",
+          "items": {"$ref": "#/definitions/duplicate_occurrence"}
+        },
+        "rerun_requested": {"type": "boolean"},
+        "rerun_performed": {"type": "boolean"},
+        "evidence_run_count": {"type": "integer", "minimum": 1, "maximum": 2}
+      }
+    }
+  }
+}

@@ -1,0 +1,148 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "m01-zero-minimum-interval",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/related_work_search.py",
+          "old": "HOST_MINIMUM_INTERVAL_SECONDS: Mapping[str, float] = {\n    \"export.arxiv.org\": 3.0,\n    \"api.openalex.org\": 1.0,\n    \"dblp.org\": 45.0,\n}",
+          "new": "HOST_MINIMUM_INTERVAL_SECONDS: Mapping[str, float] = {\n    \"export.arxiv.org\": 0.0,\n    \"api.openalex.org\": 0.0,\n    \"dblp.org\": 0.0,\n}"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m02-attempt-cap-five",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/related_work_search.py",
+          "old": "MAX_PREFLIGHT_ATTEMPTS_PER_STREAM = 4",
+          "new": "MAX_PREFLIGHT_ATTEMPTS_PER_STREAM = 5"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m03-zero-dblp-cooldown",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/related_work_search.py",
+          "old": "DBLP_FAILURE_COOLDOWN_SECONDS = 2700.0",
+          "new": "DBLP_FAILURE_COOLDOWN_SECONDS = 0.0"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m04-drop-budget-precheck",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/related_work_search.py",
+          "old": "    attempt_at = clock()\n    try:\n        budget.check(attempt_at)\n        if writer is not None:",
+          "new": "    attempt_at = clock()\n    try:\n        if writer is not None:"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m05-issue-time-before-live-checks",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/related_work_search.py",
+          "old": "                response_value, receipt = transport._send_with_receipt(\n                    outgoing,\n                    live_ordinal,\n                    before_send=mark_issued,\n                )",
+          "new": "                mark_issued()\n                response_value, receipt = transport._send_with_receipt(\n                    outgoing,\n                    live_ordinal,\n                    before_send=None,\n                )"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m06-no-transport-retry",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/related_work_search.py",
+          "old": "            attempts_for_row += 1\n            if response is not None:\n                return response, evidence, probe, checkpoint, attempts_for_row\n        return None, None, None, None, attempts_for_row",
+          "new": "            attempts_for_row += 1\n            return response, evidence, probe, checkpoint, attempts_for_row\n        return None, None, None, None, attempts_for_row"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m07-retry-http-status-inline",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/related_work_search.py",
+          "old": "            attempts_for_row += 1\n            if response is not None:\n                return response, evidence, probe, checkpoint, attempts_for_row\n        return None, None, None, None, attempts_for_row",
+          "new": "            attempts_for_row += 1\n            if response is not None and response.status not in RETRYABLE_HTTP_STATUSES:\n                return response, evidence, probe, checkpoint, attempts_for_row\n        return None, None, None, None, attempts_for_row"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m08-final-retryability-narrowed-to-preflight",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/related_work_search.py",
+          "old": "    retry_available = (\n        kind == \"final\"\n        and tail_status in RETRYABLE_HTTP_STATUSES\n        and wire_attempt_count < MAX_WIRE_ATTEMPTS\n    )",
+          "new": "    retry_available = (\n        kind == \"preflight\"\n        and tail_status in RETRYABLE_HTTP_STATUSES\n        and wire_attempt_count < MAX_WIRE_ATTEMPTS\n    )"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m09-fabricate-resume-interval",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/related_work_search.py",
+          "old": "                \"request_intent_at\": intent_at,\n                \"minimum_interval_seconds\": minimum_interval_seconds,\n                \"observed_interval_seconds\": None,\n            }\n        )\n    return observations",
+          "new": "                \"request_intent_at\": intent_at,\n                \"minimum_interval_seconds\": minimum_interval_seconds,\n                \"observed_interval_seconds\": minimum_interval_seconds,\n            }\n        )\n    return observations"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m10-add-n3-value-gate",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/related_work_search.py",
+          "old": "    pacing_values = report.get(\"pacing_observations\")\n    assert isinstance(pacing_values, list)\n    if len(pacing_values) != attempts:\n        raise ContractError(\n            \"preflight_pacing\", \"全wire attemptにpacing observationが1件必要\"\n        )",
+          "new": "    pacing_values = report.get(\"pacing_observations\")\n    assert isinstance(pacing_values, list)\n    if len(pacing_values) != attempts:\n        raise ContractError(\n            \"preflight_pacing\", \"全wire attemptにpacing observationが1件必要\"\n        )\n    for _mutant_observation in pacing_values:\n        _mutant_observed = _mutant_observation.get(\"observed_interval_seconds\")\n        _mutant_floor = _mutant_observation.get(\"minimum_interval_seconds\")\n        if (\n            isinstance(_mutant_observed, (int, float))\n            and isinstance(_mutant_floor, (int, float))\n            and _mutant_observed < _mutant_floor\n        ):\n            raise ContractError(\n                \"preflight_pacing\", \"observed intervalが最小間隔未満\"\n            )"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
