@@ -878,6 +878,72 @@ def test_host_pacing_uses_actual_pre_send_time_and_persists_across_limiters(
     )
 
 
+def test_live_session_records_issue_time_immediately_before_transport_send(
+    catalog, seal, tmp_path, monkeypatch
+):
+    row = next(
+        item
+        for item in catalog["rows"]
+        if item["stream_id"] == "AX3A1-L-ID-01@openalex"
+    )
+    request = search.materialize_request(row)
+    fake_time = _FakeTime()
+    session = search.create_live_search_session()
+    sent_at = []
+
+    def fake_live_send(_transport, outgoing):
+        sent_at.append(fake_time.clock())
+        response = _dynamic_response(outgoing)
+        return search.TransportResponse.from_mapping(
+            response, strict_transport_boundary=True
+        )
+
+    monkeypatch.setattr(search.LiveHTTPTransport, "send", fake_live_send)
+    monkeypatch.setattr(search, "_CANONICAL_LIVE_SEND", fake_live_send)
+    original_validate = search._validate_production_transport_identity
+
+    def delayed_identity_check(transport):
+        original_validate(transport)
+        fake_time.advance(7.0)
+
+    monkeypatch.setattr(
+        search, "_validate_production_transport_identity", delayed_identity_check
+    )
+    writer = session._open_writer(
+        tmp_path,
+        kind="preflight",
+        seal=seal,
+        phase_argv=search.validate_effective_phase_argv(
+            LIVE_PREFLIGHT_ARGV, "preflight"
+        ),
+        defer_manifest_fold=True,
+    )
+    state_path = tmp_path / "state" / "host-limiter.json"
+    response = search._send_with_raw_commit(
+        session,
+        request,
+        search.WireBudget(),
+        fake_time.clock,
+        limiter=search.HostLimiter(
+            clock=fake_time.clock,
+            sleeper=fake_time.sleep,
+            state_path=state_path,
+        ),
+        writer=writer,
+        pass_number=0,
+        page_number=0,
+    )
+
+    assert response.status == 200
+    assert sent_at == [
+        _fixed_clock() + timedelta(seconds=7)
+    ]
+    persisted = json.loads(state_path.read_text(encoding="utf-8"))
+    assert persisted["hosts"]["api.openalex.org"]["last_issued_at"] == (
+        "2026-08-28T00:00:07.000000Z"
+    )
+
+
 def test_wire_budget_rejection_precedes_attempt_intent(catalog, seal, tmp_path):
     row = next(
         item
@@ -1664,7 +1730,88 @@ def test_mutation_m6_openalex_429_sends_exactly_one_request_and_checkpoints(
     search.validate_checkpoint(json.loads(checkpoint_path.read_text(encoding="utf-8")))
 
 
-def test_preflight_retries_retryable_dblp_three_attempts_then_cools_down(
+def test_preflight_retries_live_transport_and_never_retries_http_status(
+    catalog, catalog_data, seal
+):
+    fake_time = _FakeTime()
+    arxiv_stream_id = next(
+        stream_id
+        for stream_id in search._preflight_planned_stream_ids(catalog)
+        if stream_id.endswith("@arxiv")
+    )
+    dblp_stream_id = next(
+        stream_id
+        for stream_id in search._preflight_planned_stream_ids(catalog)
+        if stream_id.endswith("@dblp")
+    )
+    arxiv_failures = 0
+    dblp_responses = 0
+    sends = []
+
+    def handler(request):
+        nonlocal arxiv_failures, dblp_responses
+        sends.append((request["stream_id"], fake_time.clock()))
+        if request["stream_id"] == arxiv_stream_id and arxiv_failures < 3:
+            arxiv_failures += 1
+            raise search.ContractError("live_transport", "simulated disconnect")
+        if request["stream_id"] == dblp_stream_id:
+            dblp_responses += 1
+            return {
+                "status": 503,
+                "entity_body": b"DBLP unavailable",
+                "headers": [],
+                "endpoint": search.DBLP_ENDPOINT,
+                "final_url": request["url"],
+                "content_type": "text/plain",
+            }
+        return _dynamic_response(request)
+
+    transport = search.NonProductionTransport(handler)
+    report = search.run_preflight(
+        catalog,
+        catalog_data,
+        seal,
+        argv=SEALED_ARGV,
+        commit=COMMIT,
+        transport=transport,
+        clock=fake_time.clock,
+        sleeper=fake_time.sleep,
+    )
+
+    arxiv_sends = [sent_at for stream_id, sent_at in sends if stream_id == arxiv_stream_id]
+    assert len(arxiv_sends) == 4
+    assert [
+        (right - left).total_seconds()
+        for left, right in zip(arxiv_sends, arxiv_sends[1:])
+    ] == [3.0, 6.0, 12.0]
+    arxiv_row = next(row for row in report["rows"] if row["stream_id"] == arxiv_stream_id)
+    assert arxiv_row["status"] == "ready"
+    arxiv_offset = next(
+        offset for offset, (stream_id, _sent_at) in enumerate(sends)
+        if stream_id == arxiv_stream_id
+    )
+    assert [stream_id for stream_id, _sent_at in sends[arxiv_offset : arxiv_offset + 4]] == [
+        arxiv_stream_id
+    ] * 4
+    assert sends[arxiv_offset + 4][0] != arxiv_stream_id
+
+    assert dblp_responses == 1
+    dblp_evidence = [
+        evidence
+        for evidence in report["preflight_evidence"]
+        if evidence["stream_id"] == dblp_stream_id
+    ]
+    assert [evidence["status"] for evidence in dblp_evidence] == [503]
+    dblp_row = next(row for row in report["rows"] if row["stream_id"] == dblp_stream_id)
+    assert dblp_row["status"] == "unavailable"
+    assert dblp_row["reason"] == "http_503"
+    assert report["wire_attempt_count"] == 1932
+    assert len(transport.calls) == 1932
+    assert len(report["preflight_evidence"]) == 1929
+    assert len(report["pacing_observations"]) == 1932
+
+
+def test_preflight_exhausts_four_dblp_transport_attempts_then_cools_down(
     catalog, catalog_data, seal
 ):
     fake_time = _FakeTime()
@@ -1677,16 +1824,9 @@ def test_preflight_retries_retryable_dblp_three_attempts_then_cools_down(
         sends.append((request["stream_id"], fake_time.clock()))
         if request["index"] == "dblp" and failed_stream_id is None:
             failed_stream_id = request["stream_id"]
-        if request["stream_id"] == failed_stream_id and failed_attempts < 3:
+        if request["stream_id"] == failed_stream_id and failed_attempts < 4:
             failed_attempts += 1
-            return {
-                "status": 503,
-                "entity_body": b"retryable DBLP failure",
-                "headers": [],
-                "endpoint": search.DBLP_ENDPOINT,
-                "final_url": request["url"],
-                "content_type": "text/plain",
-            }
+            raise search.ContractError("live_transport", "simulated DBLP disconnect")
         return _dynamic_response(request)
 
     transport = search.NonProductionTransport(handler)
@@ -1707,14 +1847,24 @@ def test_preflight_retries_retryable_dblp_three_attempts_then_cools_down(
         for evidence in report["preflight_evidence"]
         if evidence["stream_id"] == failed_stream_id
     ]
-    assert [evidence["status"] for evidence in failed_evidence] == [503, 503, 503]
-    assert report["wire_attempt_count"] == 1931
-    assert len(transport.calls) == 1931
+    assert failed_evidence == []
+    assert report["wire_attempt_count"] == 1932
+    assert len(transport.calls) == 1932
     assert search.DBLP_FAILURE_COOLDOWN_SECONDS in fake_time.sleeps
-    last_failure_offset = max(
-        offset for offset, (stream_id, _sent_at) in enumerate(sends)
+    failure_offsets = [
+        offset
+        for offset, (stream_id, _sent_at) in enumerate(sends)
         if stream_id == failed_stream_id
+    ]
+    assert failure_offsets == list(
+        range(failure_offsets[0], failure_offsets[0] + 4)
     )
+    failed_send_times = [sends[offset][1] for offset in failure_offsets]
+    assert [
+        (right - left).total_seconds()
+        for left, right in zip(failed_send_times, failed_send_times[1:])
+    ] == [45.0, 45.0, 60.0]
+    last_failure_offset = failure_offsets[-1]
     assert sends[last_failure_offset + 1][1] - sends[last_failure_offset][1] == (
         timedelta(seconds=search.DBLP_FAILURE_COOLDOWN_SECONDS)
     )
@@ -1722,7 +1872,31 @@ def test_preflight_retries_retryable_dblp_three_attempts_then_cools_down(
         row for row in report["rows"] if row["stream_id"] == failed_stream_id
     )
     assert failed_row["status"] == "unavailable"
-    assert failed_row["reason"] == "http_503"
+    assert failed_row["reason"] == "live_transport_retry_exhausted"
+
+
+def test_preflight_does_not_swallow_non_transport_contract_errors(
+    catalog, catalog_data, seal
+):
+    transport = search.NonProductionTransport(
+        lambda _request: (_ for _ in ()).throw(
+            search.ContractError("wire_budget_exceeded", "simulated budget failure")
+        )
+    )
+    fake_time = _FakeTime()
+    with pytest.raises(search.ContractError) as caught:
+        search.run_preflight(
+            catalog,
+            catalog_data,
+            seal,
+            argv=SEALED_ARGV,
+            commit=COMMIT,
+            transport=transport,
+            clock=fake_time.clock,
+            sleeper=fake_time.sleep,
+        )
+    assert caught.value.code == "wire_budget_exceeded"
+    assert len(transport.calls) == 1
 
 
 def test_registration_seal_failure_calls_no_transport(catalog, catalog_data, seal):
@@ -2923,27 +3097,32 @@ def test_preflight_successful_prefix_resumes_without_checkpoint(catalog):
     assert state["initial_plan_complete"] is False
 
 
-def test_preflight_wal_accepts_three_inline_attempts_and_rejects_fourth(catalog):
+def test_preflight_wal_accepts_four_transport_attempts_and_rejects_fifth(catalog):
     first = search._preflight_planned_stream_ids(catalog)[0]
-    three_attempts = [
-        {"stream_id": first, "status": 503},
-        {"stream_id": first, "status": 503},
-        {"stream_id": first, "status": 503},
+    four_attempts = [
+        {"stream_id": first, "transport_error": "live_transport"},
+        {"stream_id": first, "transport_error": "live_transport"},
+        {"stream_id": first, "transport_error": "live_transport"},
+        {"stream_id": first, "transport_error": "live_transport"},
     ]
     state = search._validate_preflight_wal_attempt_sequence(
-        catalog, three_attempts
+        catalog, four_attempts
     )
-    assert state["current_stream_attempts"] == 3
+    assert state["current_stream_attempts"] == 4
     assert state["retry_stream_id"] is None
 
     with pytest.raises(search.ContractError) as caught:
         search._validate_preflight_wal_attempt_sequence(
-            catalog, [*three_attempts, {"stream_id": first, "status": 503}]
+            catalog,
+            [
+                *four_attempts,
+                {"stream_id": first, "transport_error": "live_transport"},
+            ],
         )
     assert caught.value.code == "bundle_preflight_sequence"
 
 
-def test_later_row_retry_does_not_replace_availability_evidence(
+def test_http_failure_cannot_be_followed_by_inline_success(
     catalog, green_preflight_report
 ):
     report, _transport = green_preflight_report
@@ -2952,12 +3131,135 @@ def test_later_row_retry_does_not_replace_availability_evidence(
     failure["status"] = 503
     retry = copy.deepcopy(initial[-1])
     sequence = [*initial[:-1], failure, retry]
-    state = search._validate_preflight_wal_attempt_sequence(catalog, sequence)
-    assert state["initial_plan_complete"] is True
-    assert state["retry_stream_id"] is None
+    with pytest.raises(search.ContractError) as caught:
+        search._validate_preflight_wal_attempt_sequence(catalog, sequence)
+    assert caught.value.code == "bundle_preflight_sequence"
     assert sequence[0] == report["availability_evidence"]
     assert sequence[0]["stream_id"] == (
         "AX3A1-L-ID-01@openalex"
+    )
+
+
+def test_final_retryable_tail_remains_nonfinalizable():
+    eligibility = search._derive_finalize_eligibility(
+        kind="final",
+        ledger=[{"stream_id": "AX3A1-Q01@openalex", "status": 503}],
+        attempt_intent=None,
+        wire_attempt_count=1,
+    )
+    assert eligibility["finalize_eligible"] is False
+    assert eligibility["reason"] == "retryable_http_503"
+
+
+def test_resume_pacing_intervals_are_unmeasured_null(catalog):
+    row = next(
+        item
+        for item in catalog["rows"]
+        if item["stream_id"] == "AX3A1-L-ID-01@openalex"
+    )
+    request = search.materialize_request(row)
+    observations = search._pacing_observations_from_intents(
+        [
+            {"request": request, "intent_at": "2026-08-28T00:00:00Z"},
+            {"request": request, "intent_at": "2026-08-28T00:00:10Z"},
+        ]
+    )
+    assert [
+        observation["observed_interval_seconds"]
+        for observation in observations
+    ] == [None, None]
+
+
+def test_cooldown_and_missing_limiter_state_survive_new_instance(
+    catalog, seal, tmp_path
+):
+    fake_time = _FakeTime()
+    cooldown_state = tmp_path / "cooldown" / "host-limiter.json"
+    limiter = search.HostLimiter(
+        clock=fake_time.clock,
+        sleeper=fake_time.sleep,
+        state_path=cooldown_state,
+    )
+    limiter.acquire("dblp.org", 45.0)
+    issued_at, _observed = limiter.issue("dblp.org")
+    limiter.finish_issue("dblp.org", issued_at)
+    limiter.enter_cooldown("dblp.org", 45.0, 2700.0)
+
+    resumed_limiter = search.HostLimiter(
+        clock=fake_time.clock,
+        sleeper=fake_time.sleep,
+        state_path=cooldown_state,
+    )
+    resumed_limiter.acquire("dblp.org", 45.0)
+    resumed_limiter.release()
+    assert fake_time.sleeps == [2700.0]
+
+    bundle = tmp_path / "missing-state-bundle"
+    writer, response, evidence = _packed_preflight_attempt(
+        catalog, seal, bundle
+    )
+    writer.record_raw_response(response)
+    writer.commit_response(
+        evidence=evidence,
+        entity_body=response.entity_body,
+        checkpoint=None,
+    )
+    manifest = search._read_bundle_manifest(bundle)[0]
+    missing_state = bundle / "state" / "host-limiter.json"
+    assert not missing_state.exists()
+    fallback = search._preflight_resume_limiter_fallback(bundle, manifest)
+    resumed_time = _FakeTime()
+    recovered_limiter = search.HostLimiter(
+        clock=resumed_time.clock,
+        sleeper=resumed_time.sleep,
+        state_path=missing_state,
+        fallback_last_issued=fallback,
+    )
+    recovered_limiter.acquire("api.openalex.org", 1.0)
+    recovered_limiter.release()
+    assert resumed_time.sleeps == [1.0]
+
+
+def test_packed_wal_commits_transport_failure_without_pending_intent(
+    catalog, seal, tmp_path
+):
+    writer, response, evidence = _packed_preflight_attempt(
+        catalog, seal, tmp_path
+    )
+    writer.materialize_pending_attempt()
+    writer.commit_transport_failure("live_transport")
+    replayed = search._replay_preflight_wal(
+        tmp_path, writer._journal_descriptor(sealed=False)
+    )
+    assert replayed["attempt_intent"] is None
+    assert replayed["attempt_outcomes"] == [
+        {
+            "stream_id": "AX3A1-L-ID-01@openalex",
+            "request": replayed["attempt_intents"][0]["request"],
+            "transport_error": "live_transport",
+        }
+    ]
+    assert replayed["descriptor"]["record_count"] == 2
+    writer.begin_attempt(
+        request=evidence["request"],
+        pass_number=0,
+        page_number=0,
+        expected_wire_attempt_count=2,
+        intent_at=_fixed_clock() + timedelta(seconds=3),
+    )
+    writer.record_raw_response(response)
+    writer.commit_response(
+        evidence=evidence,
+        entity_body=response.entity_body,
+        checkpoint=None,
+    )
+    replayed = search._replay_preflight_wal(
+        tmp_path, writer._journal_descriptor(sealed=False)
+    )
+    assert len(replayed["attempt_outcomes"]) == 2
+    assert replayed["committed_intents"][0]["expected_wire_attempt_count"] == 2
+    assert replayed["ledger"][0]["raw_response_path"] == (
+        "attempts/000002.response.json"
     )
 
 
