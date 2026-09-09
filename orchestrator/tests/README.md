@@ -161,7 +161,6 @@ pytest 専用テストで、`python3 file.py` 直接実行は no-op (偽緑で�
 - test_s8b_budget.py
 - test_s8b_budget_approval_preflight.py
 - test_s8b_descriptor.py
-- test_s8b_floor_campaign.py
 - test_s8b_floor_stats.py
 - test_s8b_holdout_freeze.py
 - test_s8b_materialization.py
