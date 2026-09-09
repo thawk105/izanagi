@@ -1,13 +1,18 @@
-"""rr80/rr20 calibration selection is bound, finite, and shell-valid."""
+"""Calibration workload/protocol selection is bound, finite, and shell-valid."""
 
 from __future__ import annotations
 
 import importlib.util
+import json
 import re
 import shlex
 import shutil
 import subprocess
 from pathlib import Path
+
+import pytest
+
+from orchestrator.campaign.genome import SPACES
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -31,12 +36,28 @@ def test_submitter_exposes_only_the_calibration_whitelist() -> None:
     source = SUBMIT.read_text(encoding="utf-8")
 
     assert "[--job-script PATH] [--rratio 20|50|80]" in source
+    assert "[--protocol silo|mocc|tictoc]" in source
     assert 'RRATIO=50' in source
+    assert 'PROTOCOL=silo' in source
+    assert 'PROTOCOL_EXPLICIT=0' in source
     assert 'RRATIO" != "20"' in source
     assert 'RRATIO" != "50"' in source
     assert 'RRATIO" != "80"' in source
+    assert 'PROTOCOL" != "silo"' in source
+    assert 'PROTOCOL" != "mocc"' in source
+    assert 'PROTOCOL" != "tictoc"' in source
+    protocol_gate = source[
+        source.index('if [[ "$PROTOCOL" != "silo"'):
+        source.index("\nfi", source.index('if [[ "$PROTOCOL" != "silo"'))
+    ]
+    assert re.findall(r'\$PROTOCOL" != "([^"]+)"', protocol_gate) == [
+        "silo", "mocc", "tictoc",
+    ]
     assert "IZANAGI_CALIBRATION_RRATIO=$RRATIO" in source
+    assert 'export_spec+=",IZANAGI_CALIBRATION_PROTOCOL=$PROTOCOL"' in source
     assert '"calibration_rratio": int(rratio)' in source
+    assert '"calibration_protocol": protocol' in source
+    assert '"protocol": request["calibration_protocol"]' in source
     assert '"ycsb_rratio": str(request["calibration_rratio"])' in source
     assert "':(exclude)output'" in source
 
@@ -45,9 +66,12 @@ def test_job_rechecks_the_submission_workload_and_records_it() -> None:
     source = JOB.read_text(encoding="utf-8")
 
     assert 'CALIBRATION_RRATIO="$IZANAGI_CALIBRATION_RRATIO"' in source
+    assert 'CALIBRATION_PROTOCOL=${IZANAGI_CALIBRATION_PROTOCOL-silo}' in source
     assert '"calibration_rratio": (' in source
+    assert '"calibration_protocol": doc.get("calibration", {}).get("protocol") == protocol' in source
     assert 'ycsb_rratio=$CALIBRATION_RRATIO' in source
-    assert '"calibration": {"workload": {"ycsb_rratio": rratio}}' in source
+    assert '"protocol": protocol' in source
+    assert '"workload": {"ycsb_rratio": rratio}' in source
     assert "ycsb_rratio=50" not in source
     assert source.index("condition_gate_argv=") < source.index("build_argv=")
     assert "--macro BACKOFF_FIXED" in source
@@ -56,6 +80,269 @@ def test_job_rechecks_the_submission_workload_and_records_it() -> None:
     assert "--use-class certified-selection" in source
     assert "-DCCBENCH_BACKOFF_FIXED=-1" in source
     assert '"-DCMAKE_CXX_FLAGS=-DBACKOFF_FIXED=-1"' not in source
+
+
+def _certify_protocol_define_table() -> dict[str, dict[str, str]]:
+    """Parse the shell-owned protocol table; do not derive it from SPACES."""
+    source = JOB.read_text(encoding="utf-8")
+    match = re.search(
+        r'^case "\$CALIBRATION_PROTOCOL" in\n(?P<body>.*?)^esac$',
+        source,
+        re.MULTILINE | re.DOTALL,
+    )
+    assert match is not None
+    branches = re.findall(
+        r"^  ([a-z0-9_]+)\)\n(.*?)^    ;;$",
+        match.group("body"),
+        re.MULTILINE | re.DOTALL,
+    )
+    assert {protocol for protocol, _body in branches} == {
+        "silo", "mocc", "tictoc",
+    }
+    table: dict[str, dict[str, str]] = {}
+    for protocol, body in branches:
+        pairs = re.findall(
+            r"^      -DCCBENCH_([A-Z0-9_]+)=([^\s]+)$", body, re.MULTILINE,
+        )
+        assert len(pairs) == body.count("-DCCBENCH_")
+        assert len(pairs) == len(dict(pairs))
+        table[protocol] = dict(pairs)
+    return table
+
+
+def _protocol_shell_observation(protocol: str) -> dict[str, object]:
+    source = JOB.read_text(encoding="utf-8")
+    define_case_start = source.index('case "$CALIBRATION_PROTOCOL" in')
+    define_case_end = (
+        source.index("\nesac", define_case_start) + len("\nesac")
+    )
+    configure_start = source.index("configure_argv=(", define_case_end)
+    configure_end = source.index("\n# The current CCBench pin", configure_start)
+    gate_start = source.index(
+        'if [[ "$CALIBRATION_PROTOCOL" == "silo" ]]', configure_end,
+    )
+    gate_end = source.index("\nfi", gate_start) + len("\nfi")
+    build_case_start = source.index('case "$CALIBRATION_PROTOCOL" in', gate_end)
+    build_case_end = source.index("\nesac", build_case_start) + len("\nesac")
+    binary_match = re.search(r'^BINARY=.*$', source[build_case_end:], re.MULTILINE)
+    assert binary_match is not None
+    binary_line = binary_match.group(0)
+    fragment = "\n".join((
+        source[define_case_start:define_case_end],
+        source[configure_start:configure_end],
+        source[gate_start:gate_end],
+        source[build_case_start:build_case_end],
+        binary_line,
+    ))
+    command = f"""set -Eeuo pipefail
+CALIBRATION_PROTOCOL={shlex.quote(protocol)}
+CMAKE_PATH=/fixture/cmake
+BUILD_SOURCE=/fixture/source
+BUILD_DIR=/fixture/build
+GFLAGS_INSTALL_DIR=/fixture/gflags
+GLOG_INSTALL_DIR=/fixture/glog
+GFLAGS_SOURCE_HEAD={'a' * 40}
+GLOG_SOURCE_HEAD={'b' * 40}
+CC_PATH=/bin/true
+CXX_PATH=/bin/true
+gate_calls=0
+run_condition_gate() {{ gate_calls=$((gate_calls + 1)); }}
+{fragment}
+printf 'gate=%s\n' "$gate_calls"
+printf 'binary=%s\n' "$BINARY"
+printf 'configure:'; printf ' %q' "${{configure_argv[@]}}"; printf '\n'
+printf 'build:'; printf ' %q' "${{build_argv[@]}}"; printf '\n'
+"""
+    completed = subprocess.run(
+        ["bash", "-c", command], capture_output=True, text=True, check=False,
+    )
+    assert completed.returncode == 0, completed.stderr
+    lines = completed.stdout.splitlines()
+    build_argv = shlex.split(lines[3].removeprefix("build:"))
+    return {
+        "gate_calls": int(lines[0].removeprefix("gate=")),
+        "target": build_argv[build_argv.index("--target") + 1],
+        "binary": lines[1].removeprefix("binary="),
+        "configure_argv": shlex.split(lines[2].removeprefix("configure:")),
+        "build_argv": build_argv,
+    }
+
+
+def _calibrate_argv(binary: str) -> list[str]:
+    source = JOB.read_text(encoding="utf-8")
+    start = source.index("calibrate_argv=(")
+    end = source.index("\n)", start) + len("\n)")
+    assignment = source[start:end]
+    binary_assignments = re.findall(
+        r"(?<![A-Za-z0-9_])BINARY=", source[:start],
+    )
+    assert len(binary_assignments) == 1
+    command = f"""set -Eeuo pipefail
+CALIBRATE_PATH=/fixture/perf/bin:/usr/bin
+CALIBRATE_PYTHON=/fixture/python3.10
+REPO_ROOT=/fixture/repo
+CALIBRATION_RRATIO=50
+BINARY={shlex.quote(binary)}
+BINARY_SHA={'c' * 64}
+ATTEMPT_DIR=/fixture/attempt
+{assignment}
+printf 'calibrate:'; printf ' %q' "${{calibrate_argv[@]}}"; printf '\n'
+"""
+    completed = subprocess.run(
+        ["bash", "-c", command], capture_output=True, text=True, check=False,
+    )
+    assert completed.returncode == 0, completed.stderr
+    return shlex.split(completed.stdout.removeprefix("calibrate:").strip())
+
+
+def test_certify_shell_protocol_axes_match_independent_genome_spaces() -> None:
+    table = _certify_protocol_define_table()
+    for protocol in ("silo", "mocc", "tictoc"):
+        assert table[protocol]["TRACE"] == "0"
+        excluded = {"TRACE"}
+        if protocol == "silo":
+            excluded.add("BACKOFF_FIXED")
+        assert set(table[protocol]) - excluded == set(SPACES[protocol].axes)
+
+
+def test_certify_shell_protocol_defines_match_exact_values() -> None:
+    assert _certify_protocol_define_table() == {
+        "silo": {
+            "TRACE": "0",
+            "BACK_OFF": "0",
+            "BACKOFF_FIXED": "-1",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "WAL": "0",
+        },
+        "mocc": {
+            "TRACE": "0",
+            "BACK_OFF": "1",
+            "KEY_SORT": "0",
+            "TEMPERATURE_RESET_OPT": "1",
+        },
+        "tictoc": {
+            "TRACE": "0",
+            "BACK_OFF": "1",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PREEMPTIVE_ABORTS": "1",
+            "TIMESTAMP_HISTORY": "1",
+        },
+    }
+
+
+def test_certify_shell_protocol_axis_values_satisfy_genome_spaces() -> None:
+    table = _certify_protocol_define_table()
+    for protocol in ("silo", "mocc", "tictoc"):
+        excluded = {"TRACE"}
+        if protocol == "silo":
+            excluded.add("BACKOFF_FIXED")
+        shell_axis_assignment = {
+            name: int(value)
+            for name, value in table[protocol].items()
+            if name not in excluded
+        }
+        assert any(
+            genome.flags == shell_axis_assignment
+            for genome in SPACES[protocol].enumerate()
+        )
+
+
+@pytest.mark.parametrize("protocol", ["mocc", "tictoc"])
+def test_certify_non_silo_defines_contain_no_axis_outsider(protocol: str) -> None:
+    defines = set(_certify_protocol_define_table()[protocol])
+    assert defines == {"TRACE", *SPACES[protocol].axes}
+    configure_defines = {
+        argument.removeprefix("-DCCBENCH_").split("=", 1)[0]
+        for argument in _protocol_shell_observation(protocol)["configure_argv"]
+        if argument.startswith("-DCCBENCH_")
+    }
+    assert configure_defines == defines
+    assert "BACKOFF_FIXED" not in defines
+    if protocol == "mocc":
+        assert "WAL" not in defines
+        assert "NO_WAIT_LOCKING_IN_VALIDATION" not in defines
+
+
+@pytest.mark.parametrize("protocol", ["silo", "mocc", "tictoc"])
+def test_certify_derives_protocol_target_and_binary_path(protocol: str) -> None:
+    observed = _protocol_shell_observation(protocol)
+    target = f"ycsb_{protocol}.exe"
+    assert observed["target"] == target
+    assert observed["binary"] == f"/fixture/build/cc/{protocol}/{target}"
+    assert observed["build_argv"] == [
+        "/fixture/cmake", "--build", "/fixture/build", "--target", target,
+        "-j", "48",
+    ]
+    source = JOB.read_text(encoding="utf-8")
+    assert "cc/silo" not in source
+    build_case_start = source.index(
+        'case "$CALIBRATION_PROTOCOL" in',
+        source.index('case "$CALIBRATION_PROTOCOL" in') + 1,
+    )
+    build_case_end = source.index("\nesac", build_case_start)
+    build_case = source[build_case_start:build_case_end]
+    branches = dict(re.findall(
+        r"^  (silo|mocc|tictoc)\)\s+build_argv=\((.*?)\)\s+;;$",
+        build_case,
+        re.MULTILINE,
+    ))
+    assert set(branches) == {"silo", "mocc", "tictoc"}
+    for branch_protocol, branch in branches.items():
+        branch_targets = re.findall(r"\bycsb_[A-Za-z0-9_.-]+", branch)
+        assert branch_targets == [f"ycsb_{branch_protocol}.exe"]
+
+
+@pytest.mark.parametrize("protocol", ["silo", "mocc", "tictoc"])
+def test_certify_final_calibrate_binary_matches_built_binary(protocol: str) -> None:
+    observed = _protocol_shell_observation(protocol)
+    binary = observed["binary"]
+    assert isinstance(binary, str)
+    calibrate_argv = _calibrate_argv(binary)
+    assert calibrate_argv[calibrate_argv.index("--binary") + 1] == binary
+
+
+def test_certify_keeps_backoff_fixed_and_condition_gate_silo_only() -> None:
+    table = _certify_protocol_define_table()
+    assert table["silo"]["BACKOFF_FIXED"] == "-1"
+    for protocol in ("mocc", "tictoc"):
+        assert "BACKOFF_FIXED" not in table[protocol]
+    assert _protocol_shell_observation("silo")["gate_calls"] == 1
+    assert _protocol_shell_observation("mocc")["gate_calls"] == 0
+    assert _protocol_shell_observation("tictoc")["gate_calls"] == 0
+    source = JOB.read_text(encoding="utf-8")
+    assert len(re.findall(r"(?m)^[ \t]*run_condition_gate[ \t]*$", source)) == 1
+
+
+def test_default_silo_build_and_calibrate_argv_are_byte_compatible() -> None:
+    observed = _protocol_shell_observation("silo")
+    true_path = str(Path("/bin/true").resolve())
+    assert observed["configure_argv"] == [
+        "/fixture/cmake", "-S", "/fixture/source", "-B", "/fixture/build",
+        "-DCMAKE_BUILD_TYPE=Release", "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_TRACE=0", "-DCCBENCH_BACK_OFF=0",
+        "-DCCBENCH_BACKOFF_FIXED=-1",
+        "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+        "-DCCBENCH_NO_WAIT_OF_TICTOC=0", "-DCCBENCH_WAL=0",
+        "-DCMAKE_PREFIX_PATH=/fixture/gflags;/fixture/glog",
+        f"-DIZANAGI_GFLAGS_SRC_HEAD={'a' * 40}",
+        f"-DIZANAGI_GLOG_SRC_HEAD={'b' * 40}",
+        f"-DCMAKE_C_COMPILER={true_path}",
+        f"-DCMAKE_CXX_COMPILER={true_path}",
+    ]
+    assert observed["build_argv"] == [
+        "/fixture/cmake", "--build", "/fixture/build", "--target",
+        "ycsb_silo.exe", "-j", "48",
+    ]
+    assert _calibrate_argv("/fixture/build/cc/silo/ycsb_silo.exe") == [
+        "env", "PATH=/fixture/perf/bin:/usr/bin", "/fixture/python3.10",
+        "/fixture/repo/orchestrator/calibrate.py", "--certify", "--env-tag",
+        "pegasus", "--threads", "48", "--workload",
+        "ycsb_zipf_skew=0.9,ycsb_rratio=50,ycsb_rmw=0", "--binary",
+        "/fixture/build/cc/silo/ycsb_silo.exe", "--binary-sha256", "c" * 64,
+        "--receipt-json", "/fixture/attempt/acquisition-receipt.json",
+    ]
 
 
 def test_calibration_shell_scripts_parse() -> None:
@@ -159,8 +446,28 @@ def test_submitter_rejects_an_unregistered_ratio_before_side_effects(tmp_path: P
     assert not (tmp_path / "attempts").exists()
 
 
+@pytest.mark.parametrize("protocol", ["cicada", "ermia"])
+def test_submitter_rejects_unregistered_protocol_before_side_effects(
+    tmp_path: Path, protocol: str,
+) -> None:
+    attempts = tmp_path / "attempts"
+    completed = subprocess.run(
+        [str(SUBMIT), "--protocol", protocol, "--attempts-root", str(attempts)],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert completed.returncode == 2
+    assert "--protocol must be exactly silo, mocc, or tictoc" in completed.stderr
+    assert not attempts.exists()
+
+
 def _run_submit_dry_run_in_clean_fixture(
     tmp_path: Path,
+    *,
+    protocol: str | None = None,
 ) -> tuple[Path, Path, Path, list[str]]:
     fixture_repo = tmp_path / "repo"
     fixture_tools = fixture_repo / "tools" / "pegasus"
@@ -185,16 +492,19 @@ def _run_submit_dry_run_in_clean_fixture(
         check=True,
     )
 
+    command = [
+        "bash",
+        str(fixture_tools / "submit_certify.sh"),
+        "--repo-root",
+        str(fixture_repo),
+        "--attempts-root",
+        str(tmp_path / "attempts"),
+        "--dry-run",
+    ]
+    if protocol is not None:
+        command.extend(["--protocol", protocol])
     completed = subprocess.run(
-        [
-            "bash",
-            str(fixture_tools / "submit_certify.sh"),
-            "--repo-root",
-            str(fixture_repo),
-            "--attempts-root",
-            str(tmp_path / "attempts"),
-            "--dry-run",
-        ],
+        command,
         capture_output=True,
         text=True,
         check=False,
@@ -226,6 +536,59 @@ def _run_submit_dry_run_in_clean_fixture(
         / "calibration-certify"
     )
     return fixture_repo, git_common_dir.parent, expected_root, qsub_argv
+
+
+@pytest.mark.parametrize("protocol", ["silo", "mocc", "tictoc"])
+def test_submitter_accepts_exact_protocol_whitelist_and_records_it(
+    tmp_path: Path, protocol: str,
+) -> None:
+    _repo, _common, _output, qsub_argv = _run_submit_dry_run_in_clean_fixture(
+        tmp_path, protocol=protocol,
+    )
+    submissions = list((tmp_path / "attempts" / "submissions").iterdir())
+    assert len(submissions) == 1
+    pre_submit = json.loads(
+        (submissions[0] / "pre-submit.json").read_text(encoding="utf-8"),
+    )
+    receipt = json.loads(
+        (submissions[0] / "submit-receipt.json").read_text(encoding="utf-8"),
+    )
+    assert pre_submit["request"]["calibration_protocol"] == protocol
+    assert receipt["calibration"]["protocol"] == protocol
+    export_spec = qsub_argv[qsub_argv.index("-v") + 1]
+    nonce = submissions[0].name
+    assert export_spec == (
+        f"IZANAGI_SUBMISSION_NONCE={nonce},IZANAGI_CALIBRATION_RRATIO=50,"
+        f"IZANAGI_CALIBRATION_PROTOCOL={protocol}"
+    )
+
+
+def test_submitter_omitted_protocol_is_silo_without_changing_qsub_argv(
+    tmp_path: Path,
+) -> None:
+    fixture_repo, _common, expected_root, qsub_argv = (
+        _run_submit_dry_run_in_clean_fixture(tmp_path)
+    )
+    submissions = list((tmp_path / "attempts" / "submissions").iterdir())
+    assert len(submissions) == 1
+    nonce = submissions[0].name
+    pre_submit = json.loads(
+        (submissions[0] / "pre-submit.json").read_text(encoding="utf-8"),
+    )
+    receipt = json.loads(
+        (submissions[0] / "submit-receipt.json").read_text(encoding="utf-8"),
+    )
+    assert pre_submit["request"]["calibration_protocol"] == "silo"
+    assert receipt["calibration"]["protocol"] == "silo"
+    assert qsub_argv == [
+        "qsub", "-o", str(expected_root / f"{nonce}.scheduler.stdout"),
+        "-e", str(expected_root / f"{nonce}.scheduler.stderr"),
+        "-v", (
+            f"IZANAGI_SUBMISSION_NONCE={nonce},"
+            "IZANAGI_CALIBRATION_RRATIO=50"
+        ),
+        str(fixture_repo / "tools/pegasus/certify_calibration.sh"),
+    ]
 
 
 def test_submit_dry_run_passes_scheduler_file_paths_to_qsub(tmp_path: Path) -> None:
@@ -278,4 +641,8 @@ def test_runbook_shows_ai_driven_h1_h2_submission_path() -> None:
 
     assert "submit_certify.sh --rratio 80" in source
     assert "submit_certify.sh --rratio 20" in source
+    assert "--protocol mocc" in source
+    assert "silo / mocc / tictoc" in source
+    assert "INLINE_VERSION_OPT" in source
+    assert "BACKOFF_FIXED" in source
     assert "人間が JSON を編集・登録する必要はなく" in source
