@@ -1,0 +1,87 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 900,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1500,
+  "mutations": [
+    {
+      "id": "m01-reintroduce-index-1-python-target",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+          "old": "    repo_pbs = repo_root / _RUNTIME_PBS_RELATIVE_PATH\n",
+          "new": "    repo_pbs = repo_root / _BOUND_RELATIVE_PATHS[1]\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_execution_binding_binds_runtime_spool_to_pbs",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_execution_binding_rejects_runtime_spool_matching_python_instead_of_pbs"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m02-point-binding-at-condition-gate",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+          "old": "    repo_pbs = repo_root / _RUNTIME_PBS_RELATIVE_PATH\n",
+          "new": "    repo_pbs = repo_root / _BOUND_RELATIVE_PATHS[0]\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_execution_binding_binds_runtime_spool_to_pbs"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m03-remove-the-comparison",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+          "old": "    if _sha256_file(runtime_pbs) != _sha256_file(repo_pbs):\n",
+          "new": "    if False:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_execution_binding_rejects_runtime_spool_matching_python_instead_of_pbs"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m04-change-rejection-message",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+          "old": "        raise ValueError(\"runtime PBS bytes differ from worktree PBS bytes\")\n",
+          "new": "        raise ValueError(\"runtime PBS mismatch\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_execution_binding_rejects_runtime_spool_matching_python_instead_of_pbs"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m05-record-repo-pbs-hash-as-spool-hash",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+          "old": "    runtime_hashes[\"runtime_pbs_spool\"] = _sha256_file(runtime_pbs)\n",
+          "new": "    runtime_hashes[\"runtime_pbs_spool\"] = _sha256_file(repo_pbs)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
