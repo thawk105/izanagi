@@ -1640,6 +1640,13 @@ def test_submit_dry_run_does_not_resolve_cluster_commands(tmp_path):
     subprocess.run(["git", "-C", str(fixture_repo), "config", "user.name", "Fixture"], check=True)
     subprocess.run(["git", "-C", str(fixture_repo), "add", "."], check=True)
     subprocess.run(["git", "-C", str(fixture_repo), "commit", "-qm", "fixture"], check=True)
+    staging_root = (
+        fixture_repo
+        / "output/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src"
+    )
+    staging_root.mkdir(parents=True)
+    for name in ("masstree", "mimalloc", "googletest"):
+        (staging_root / name).mkdir()
     attempts = tmp_path / "attempts"
     env = os.environ.copy()
     # qstat 等が PATH に存在しても dry-run が起動しないことは capture 内容で確認する。
