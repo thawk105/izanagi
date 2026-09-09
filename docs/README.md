@@ -42,6 +42,10 @@
   ([T-2265])。時間 cap を実質無効化した count-closed 窓、割当を持たない terminal event、
   cohort 1 と推定対象が同一でないこと、terminal 非閉鎖と 0 commit の扱い、cohort 2 の 12 seed、
   割当整合性検査、認証の射程が既定 seed と 48 スレッドに限られることの正本
+- `t1998-balanced-stock-inline-preregistration.md` — balanced の「無 backoff 対 静的 fixed 5 µs」
+  1 対を現行 Pegasus 環境で測り直す事前登録 ([T-1998]、認可は D1874)。gitlink・環境契約 digest・
+  job body script digest・arm 別 source digest の実値、測定時点と現行解析規則の 2 つの sha を
+  別々に pin する束縛規則、事前登録前に取れた生値を主張へ入れないことの正本
 - `b10-multinode-formal-run-design.md` — B-10 正式系列を複数ノードへ分散する設計 ([T-1905])。
   分散単位 4 案の判定、律速が正しさ検査であることと多重化が正しさ受領証の発行境界に当たる事実、
   投入前の必須修正、ユーザー裁定へ返す項目。**投入の承認ではない**
