@@ -91,6 +91,43 @@ def test_matching_bootstrap_accepts_reordered_spaced_unicode_spelling(
 
 
 @pytest.mark.parametrize("driver_kind", tuple(_DRIVERS))
+def test_registry_attempt_outside_analysis_manifest_rejects(
+    driver_kind: str,
+    tmp_path: Path,
+) -> None:
+    _module, loader = _DRIVERS[driver_kind]
+    document = proposal_document(driver_kind)
+    binding = issue_proposal_binding_fixture(
+        tmp_path / "fixture",
+        driver_kind=driver_kind,
+        document=document,
+        attempt_count=202,
+        bound_attempt_index=201,
+    )
+    publication = binding.publication
+    registry_only = publication.registry.scheduled_attempts[201]
+    assert len(publication.registry.scheduled_attempts) == 202
+    assert registry_only.attempt_id == binding.attempt_id
+    assert registry_only.driver == driver_kind
+    assert registry_only.initial_proposal_sha256 == (
+        L.canonical_b4_proposal_sha256(document)
+    )
+    assert registry_only.attempt_id not in {
+        row.attempt_id for row in publication.manifest.rows
+    }
+    proposal_path = tmp_path / "proposal.json"
+    _write_document(proposal_path, document)
+
+    with pytest.raises(L.B4ProtocolError, match="analysis manifest.*membership"):
+        loader(
+            str(proposal_path),
+            b4_reflux_ablation=True,
+            b4_prerun_publication=binding.publication.publication_root,
+            b4_attempt_id=registry_only.attempt_id,
+        )
+
+
+@pytest.mark.parametrize("driver_kind", tuple(_DRIVERS))
 def test_same_publication_and_attempt_reject_schema_valid_proposal_mutation(
     driver_kind: str,
     tmp_path: Path,
@@ -520,7 +557,8 @@ def test_non_guarantees_are_the_verbatim_ruling_set() -> None:
     assert L.B4_PROPOSAL_BINDING_NON_GUARANTEES == (
         "continuation の提案は内容束縛されない (裁定パッケージ 1)。",
         "どの publication が権威かは強制されない (裁定パッケージ 2)。",
-        "manifest membership は検査しない (裁定パッケージ 3)。",
+        "bootstrap 束縛は読み込んだ publication の manifest 外 attempt を拒否するが、"
+        "その manifest の権威性は保証しない (D1880)。",
         "束縛の成功は耐久証拠に残らない (S12)。",
         "束縛されるのは実行される提案 (parse 結果の canonical 形) であって file の raw bytes ではない。",
         "照合の前に単独性検査 (`pgrep`)、Git pin 検査、launcher sidecar と campaign directory 作成が起きる。",

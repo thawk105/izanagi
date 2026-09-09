@@ -172,7 +172,8 @@ B4_PROPOSAL_RECEIPT_SHA256_KEY = "b4_closed_critic_receipt_sha256"
 B4_PROPOSAL_BINDING_NON_GUARANTEES = (
     "continuation の提案は内容束縛されない (裁定パッケージ 1)。",
     "どの publication が権威かは強制されない (裁定パッケージ 2)。",
-    "manifest membership は検査しない (裁定パッケージ 3)。",
+    "bootstrap 束縛は読み込んだ publication の manifest 外 attempt を拒否するが、"
+    "その manifest の権威性は保証しない (D1880)。",
     "束縛の成功は耐久証拠に残らない (S12)。",
     "束縛されるのは実行される提案 (parse 結果の canonical 形) であって "
     "file の raw bytes ではない。",
@@ -574,6 +575,15 @@ def require_b4_proposal_registry_binding(
         )
     except (TypeError, ValueError, OSError) as exc:
         raise B4ProtocolError("B-4 prerun publication load failed") from exc
+    manifest_matches = tuple(
+        row for row in publication.manifest.rows
+        if row.attempt_id == attempt_id
+    )
+    if len(manifest_matches) != 1:
+        raise B4ProtocolError(
+            "B-4 attempt id must match exactly one analysis manifest row "
+            "for membership"
+        )
     expected = _require_b4_registry_attempt_hash(
         publication.registry.scheduled_attempts,
         attempt_id,
