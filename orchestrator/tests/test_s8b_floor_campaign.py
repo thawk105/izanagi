@@ -14982,20 +14982,41 @@ def test_registry_plan_maps_round_to_zero_based_repetition():
         freeze_sha256=_freeze_sha(freeze),
         protocol_sha256=s8b_floor_campaign._canonical_sha256(protocol),
     )
-    row = next(row for row in schedule if row["round"] == protocol["n_sessions"])
-    cell = next(cell for cell in cells if cell["cell_id"] == row["cell_id"])
+    cell = cells[0]
+    first_row = next(
+        row for row in schedule
+        if row["cell_id"] == cell["cell_id"] and row["round"] == 1
+    )
+    last_row = next(
+        row for row in schedule
+        if (
+            row["cell_id"] == cell["cell_id"]
+            and row["round"] == protocol["n_sessions"]
+        )
+    )
     slot_ids = set(
         s8b_floor_campaign.s8b_floor_attempt_launcher
         .floor_attempt_registry_plan_slot_ids(plan)
     )
-    planned = (
-        cell["holdout_id"], cell["configuration_id"], row["round"] - 1, 0, 0,
+    planned_repetitions = sorted(
+        repetition
+        for holdout_id, configuration_id, repetition,
+        measurement_ordinal, attempt_ordinal in slot_ids
+        if (
+            holdout_id == cell["holdout_id"]
+            and configuration_id == cell["configuration_id"]
+            and measurement_ordinal == 0
+            and attempt_ordinal == 0
+        )
     )
-    retry = (
-        cell["holdout_id"], cell["configuration_id"], row["round"] - 1, 1, 0,
-    )
-    assert planned in slot_ids
-    assert retry in slot_ids
+
+    assert 0 in planned_repetitions
+    assert protocol["n_sessions"] not in planned_repetitions
+    for row, repetition in (
+        (first_row, planned_repetitions[0]),
+        (last_row, planned_repetitions[-1]),
+    ):
+        assert repetition == row["round"] - 1
 
 
 def test_certified_campaign_rejects_unissued_consumption_marker(
