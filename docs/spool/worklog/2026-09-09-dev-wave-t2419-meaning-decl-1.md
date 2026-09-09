@@ -34,6 +34,15 @@ title: [T-2419] 非負 BACKOFF_FIXED の意味を production 経路で確立で�
   `--resume` と新しい attempt 対で残り 4 変異だけを走らせて回復した。
 - エージェント工数: codex 子 7 本 (plan 1、consult 2、author 1、review 2、fix 1)。すべて exit 0、
   `tools/check_codex_output.py` rc=0。
+- 段 8 の自己改善候補 2 件はいずれも**見送った**。(1) 変異 spec の `timeout_seconds` が
+  dispatch 待機契約以上でないと止まる件は、harness が fail-closed で、error 本文が
+  `timeout_seconds` / `queue_wait_timeout_s` / `overall_grace_s` の 3 値を挙げて理由を説明する。
+  義務が機械で代替済みなので docs 行を足さない (D271 の鏡像)。(2)
+  `tools/dev_wave_submodule_init.py` が新規 worktree の初回で `update-no-fetch` の rc=1 になり、
+  `git submodule update --init --recursive --no-fetch` を長い timeout で 1 回通すと回復する件は、
+  `docs/dev-wave/**` の L1.5 unique footprint が予算満杯 (追記で 9838 > 9696 bytes) で、
+  さらに `DW-C01` が節全体の exact 契約に束縛されており pin 更新に Codex author が要る。
+  同節内に 142 bytes を空ける意味等価の縮約余地が無いため見送る。
 
 ## 次の一手差分
 
