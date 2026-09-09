@@ -11,14 +11,15 @@ import jsonschema
 import pytest
 
 from orchestrator.axis_b5_search import catalog as catalog_module
+from orchestrator.axis_b5_search import preflight as preflight_module
 from orchestrator.axis_b5_search.parsers import JsonObject, Occurrence, ParsedPage
 from orchestrator.axis_b5_search.preflight import (
     CATALOG_PATH,
     LookupResponse,
     LookupResult,
+    _evaluate_live_preflight_for_test,
     build_lookup_request,
     classify_lookup_response,
-    evaluate_live_preflight,
     load_anchor_registry,
     run_live_preflight,
     verify_registration,
@@ -28,6 +29,7 @@ from orchestrator.axis_b5_search.runner import (
     LeafDefinition,
     LeafResolutionError,
     PageEvidence,
+    PreflightError,
     StoredResponse,
     UnregisteredRunPolicyError,
     build_expected_openalex_ast,
@@ -38,6 +40,7 @@ from orchestrator.axis_b5_search.runner import (
     normalize_interpreted_query,
     openalex_ast_matches,
     resolve_leaf,
+    run_leaf,
 )
 
 
@@ -167,6 +170,40 @@ class _FakeGit:
         }
 
 
+def _worktree_git() -> _FakeGit:
+    fixed = (
+        "docs/related-work/claim-survey/2026-09-07-backoff-axis-b5-search-preregistration.md",
+        "docs/related-work/claim-survey/2026-09-08-backoff-axis-b5-closure-preregistration.md",
+        "docs/related-work/claim-survey/2026-09-08-backoff-axis-b5-closure-record.md",
+        CATALOG_PATH,
+    )
+    paths = {ROOT / relative for relative in fixed}
+    for relative_root in (
+        "orchestrator/axis_b5_search",
+        "orchestrator/tests/fixtures/axis_b5_search",
+    ):
+        paths.update(
+            path
+            for path in (ROOT / relative_root).rglob("*")
+            if path.is_file()
+            and "__pycache__" not in path.parts
+            and path.suffix != ".pyc"
+        )
+    paths.update(
+        path
+        for path in (ROOT / "orchestrator/schemas").glob(
+            "axis_b5_search_*.schema.json"
+        )
+        if path.is_file()
+    )
+    return _FakeGit(
+        {
+            path.relative_to(ROOT).as_posix(): path.read_bytes()
+            for path in paths
+        }
+    )
+
+
 def _registration_repo(tmp_path: Path) -> tuple[Path, _FakeGit]:
     documents = (
         "docs/related-work/claim-survey/2026-09-07-backoff-axis-b5-search-preregistration.md",
@@ -291,17 +328,116 @@ def _lookup_result(anchor_id: str, index: str, classification: str) -> LookupRes
     )
 
 
+def _run_successful_live_preflight(
+    tmp_path: Path,
+) -> tuple[dict[str, Any], Path, list[tuple[str, str, str]]]:
+    anchors = {anchor.anchor_id: anchor for anchor in load_anchor_registry()}
+    issued: list[tuple[str, str, str]] = []
+
+    class Transport:
+        def get(self, spec: Any) -> LookupResponse:
+            issued.append((spec.anchor_id, spec.index, spec.url))
+            anchor = anchors[spec.anchor_id]
+            if spec.index == "openalex":
+                content_type = "application/json; charset=utf-8"
+                body = json.dumps(
+                    {"id": f"https://openalex.org/{anchor.openalex_work_id}"}
+                ).encode("utf-8")
+            elif spec.index == "arxiv":
+                content_type = "application/atom+xml; charset=utf-8"
+                body = (
+                    '<feed xmlns="http://www.w3.org/2005/Atom" '
+                    'xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/">'
+                    '<opensearch:totalResults>1</opensearch:totalResults>'
+                    f"<entry><id>http://arxiv.org/abs/{anchor.arxiv_id}v1</id></entry>"
+                    "</feed>"
+                ).encode("utf-8")
+            else:
+                content_type = "application/json"
+                body = json.dumps(
+                    {
+                        "result": {
+                            "hits": {
+                                "@total": "1",
+                                "hit": [
+                                    {
+                                        "info": {
+                                            "key": f"test/{anchor.anchor_id}",
+                                            "doi": anchor.doi,
+                                        }
+                                    }
+                                ],
+                            }
+                        }
+                    }
+                ).encode("utf-8")
+            return LookupResponse(
+                200,
+                (("Content-Type", content_type),),
+                body,
+                spec.url,
+            )
+
+    created: list[Mapping[str, Any]] = []
+
+    def factory(**kwargs: Any) -> Transport:
+        created.append(kwargs)
+        return Transport()
+
+    output = tmp_path / "live-preflight.json"
+    record = run_live_preflight(
+        COMMIT,
+        repo_root=ROOT,
+        output_path=output,
+        timeout_s=11,
+        user_agent="axis-b5-test/contact@example.invalid",
+        request_interval_s=0.25,
+        git_backend=_worktree_git(),
+        _transport_factory=factory,
+        _sleeper=lambda _delay: None,
+    )
+    assert created == [
+        {
+            "timeout_s": 11,
+            "user_agent": "axis-b5-test/contact@example.invalid",
+        }
+    ]
+    return record, output, issued
+
+
 def test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal(
     tmp_path: Path,
 ) -> None:
-    repo, backend = _registration_repo(tmp_path)
-    result = verify_registration(COMMIT, repo_root=repo, git_backend=backend)
+    cache_directory = ROOT / "orchestrator/axis_b5_search/__pycache__"
+    cache_directory.mkdir(exist_ok=True)
+    cache_file = cache_directory / "axis_b5_registration_probe.pyc"
+    cache_file.write_bytes(b"ignored bytecode probe")
+    try:
+        result = verify_registration(
+            COMMIT, repo_root=ROOT, git_backend=_worktree_git()
+        )
+    finally:
+        cache_file.unlink()
     assert result.passed is True
     assert result.reason_code is None
     assert result.seal_record is not None
     assert result.seal_record["seal_scope"]["kind"] == "leaf-executor-provisional"
     assert "checkpoint" in result.seal_record["seal_scope"]["excludes"]
     assert "seal_sha256" not in result.seal_record
+    sealed_paths = {item["path"] for item in result.seal_record["files"]}
+    assert {
+        "orchestrator/axis_b5_search/catalog.py",
+        "orchestrator/axis_b5_search/parsers.py",
+        "orchestrator/axis_b5_search/preflight.py",
+        "orchestrator/axis_b5_search/runner.py",
+    }.issubset(sealed_paths)
+
+    fake_repo, fake_backend = _registration_repo(tmp_path)
+    fake = verify_registration(
+        COMMIT, repo_root=fake_repo, git_backend=fake_backend
+    )
+    assert fake.passed is False
+    assert fake.reason_code == "module_path_mismatch"
 
 
 def test_registration_rejects_extra_file_in_exact_directory(tmp_path: Path) -> None:
@@ -543,28 +679,31 @@ def test_dblp_zero_total_is_nonrecorded() -> None:
 
 
 def test_live_preflight_29_recorded_plus_one_unreachable_cannot_start() -> None:
-    results = [
-        _lookup_result(anchor_id, index, "収録")
-        for anchor_id, index in MEMBERS[:-1]
-    ] + [_lookup_result("G3-07", "dblp", "不達")]
-    record = evaluate_live_preflight(
-        results,
-        registration_seal=_minimal_seal(),
-        timeout_s=17,
-        user_agent="axis-b5-test/contact@example.invalid",
-        request_interval_s=2.5,
-    )
-    assert record["exact_member_set"] is True
-    assert record["passed"] is False
-    assert record["axis_status"] == "未完走"
-    assert record["may_start_run"] is False
-    assert record["transport_policy"]["timeout_s"] == 17
-    assert record["transport_policy"]["request_interval_s"] == 2.5
+    for final_classification in ("不達", "非収録"):
+        results = [
+            _lookup_result(anchor_id, index, "収録")
+            for anchor_id, index in MEMBERS[:-1]
+        ] + [_lookup_result("G3-07", "dblp", final_classification)]
+        record = _evaluate_live_preflight_for_test(
+            results,
+            registration_seal=_minimal_seal(),
+            timeout_s=17,
+            user_agent="axis-b5-test/contact@example.invalid",
+            request_interval_s=2.5,
+        )
+        assert record["exact_member_set"] is True
+        assert record["passed"] is False
+        assert record["axis_status"] == "未完走"
+        assert record["may_start_run"] is False
+        assert record["transport_policy"]["timeout_s"] == 17
+        assert record["transport_policy"]["request_interval_s"] == 2.5
 
 
-def test_live_preflight_accepts_exact_30_and_wid_drift_is_evidence_only() -> None:
+def test_live_preflight_accepts_exact_30_and_wid_drift_is_evidence_only(
+    tmp_path: Path,
+) -> None:
     results = [_lookup_result(anchor_id, index, "収録") for anchor_id, index in MEMBERS]
-    record = evaluate_live_preflight(
+    record = _evaluate_live_preflight_for_test(
         results,
         registration_seal=_minimal_seal(),
         timeout_s=9,
@@ -577,12 +716,26 @@ def test_live_preflight_accepts_exact_30_and_wid_drift_is_evidence_only() -> Non
     assert first_openalex["registered_openalex_work_id"] == "W1000000000"
     assert first_openalex["observed_index_work_id"] == "W9999999999"
 
+    live_record, output, issued = _run_successful_live_preflight(tmp_path)
+    assert len(issued) == 30
+    assert {(anchor_id, index) for anchor_id, index, _url in issued} == set(MEMBERS)
+    assert {url.split("/", 3)[2] for _anchor_id, _index, url in issued} == {
+        "api.openalex.org",
+        "export.arxiv.org",
+        "dblp.org",
+    }
+    assert live_record["passed"] is True
+    assert live_record["may_start_run"] is True
+    assert json.loads(output.read_text(encoding="utf-8")) == live_record
+
 
 def test_live_preflight_has_no_defaults_for_caller_policy_values() -> None:
     signature = inspect.signature(run_live_preflight)
     assert signature.parameters["timeout_s"].default is inspect.Parameter.empty
     assert signature.parameters["user_agent"].default is inspect.Parameter.empty
     assert signature.parameters["request_interval_s"].default is inspect.Parameter.empty
+    assert "evaluate_live_preflight" not in preflight_module.__all__
+    assert not hasattr(preflight_module, "evaluate_live_preflight")
 
 
 def test_resolve_leaf_accepts_one_location_and_rejects_duplicate_or_wrong_host() -> None:
@@ -621,6 +774,26 @@ def test_openalex_initial_cursor_is_literal_star_and_continuation_is_encoded() -
     with pytest.raises(ValueError, match="page 0 cursor"):
         build_request(leaf, 0, "%2A")
 
+    terminal = build_page_evidence(
+        leaf,
+        0,
+        None,
+        _stored(_fixture("openalex_cursor_page_2.json"), first.url, "application/json"),
+    )
+    terminal_result = evaluate_leaf(
+        leaf, [terminal], expected_content_types=("application/json",)
+    )
+    assert terminal.parsed.next_cursor is None
+    assert _condition(terminal_result, 3).passed is True
+    nonterminal = replace(
+        terminal,
+        parsed=replace(terminal.parsed, next_cursor="unexpected-continuation"),
+    )
+    nonterminal_result = evaluate_leaf(
+        leaf, [nonterminal], expected_content_types=("application/json",)
+    )
+    assert _condition(nonterminal_result, 3).reason_code == "cursor_not_terminal"
+
 
 def test_offset_request_uses_fixed_step_and_rejects_actual_count_style_position() -> None:
     leaf = resolve_leaf(_catalog(), "B5-Q10@dblp/T01-O01")
@@ -636,11 +809,57 @@ def test_text_echo_normalization_decodes_once_and_does_not_accept_parentheses() 
         "arxiv", "submittedDate:%5B1991%20TO%202026%5D"
     ) == "submittedDate:[1991 TO 2026]"
     assert normalize_interpreted_query(
+        "arxiv", 'submittedDate:"1991 TO 2026"'
+    ) == "submittedDate:[1991 TO 2026]"
+    assert normalize_interpreted_query(
         "arxiv", "submittedDate:(1991 TO 2026)"
     ) == "submittedDate:(1991 TO 2026)"
+    assert normalize_interpreted_query(
+        "arxiv", 'submittedDate:[1991 TO 2026"'
+    ) != "submittedDate:[1991 TO 2026]"
+    assert normalize_interpreted_query(
+        "arxiv", 'submittedDate:"1991 TO 2026]'
+    ) != "submittedDate:[1991 TO 2026]"
 
 
 def test_openalex_ast_preserves_multiplicity_but_ignores_sibling_order() -> None:
+    control = resolve_leaf(_catalog(), "B5-CTL-AND2023@openalex")
+    frozen_control_ast = {
+        "get_rows": "200",
+        "filter_rows": [
+            {
+                "join": "and",
+                "filters": [
+                    {
+                        "join": "or",
+                        "filters": [
+                            {
+                                "column_id": "title_and_abstract.search",
+                                "value": "backoff",
+                            }
+                        ],
+                    },
+                    {
+                        "join": "or",
+                        "filters": [
+                            {
+                                "column_id": "title_and_abstract.search",
+                                "value": "update interval",
+                            }
+                        ],
+                    },
+                    {
+                        "column_id": "to_publication_date",
+                        "value": "2023-12-31",
+                    },
+                ],
+            }
+        ],
+    }
+    assert openalex_ast_matches(
+        frozen_control_ast, build_expected_openalex_ast(control)
+    ) is True
+
     leaf = LeafDefinition(
         "B5-TEST@openalex",
         "query",
@@ -665,8 +884,19 @@ def test_openalex_ast_rejects_unknown_key_join_and_get_rows_type() -> None:
             {
                 "join": "and",
                 "filters": [
-                    {"title_and_abstract.search": "backoff"},
-                    {"to_publication_date": "2026-12-31"},
+                    {
+                        "join": "or",
+                        "filters": [
+                            {
+                                "column_id": "title_and_abstract.search",
+                                "value": "backoff",
+                            }
+                        ],
+                    },
+                    {
+                        "column_id": "to_publication_date",
+                        "value": "2026-12-31",
+                    },
                 ],
             }
         ],
@@ -675,8 +905,19 @@ def test_openalex_ast_rejects_unknown_key_join_and_get_rows_type() -> None:
         "filter_rows": [
             {
                 "filters": [
-                    {"to_publication_date": "2026-12-31"},
-                    {"title_and_abstract.search": "backoff"},
+                    {
+                        "column_id": "to_publication_date",
+                        "value": "2026-12-31",
+                    },
+                    {
+                        "filters": [
+                            {
+                                "value": "backoff",
+                                "column_id": "title_and_abstract.search",
+                            }
+                        ],
+                        "join": "or",
+                    },
                 ],
                 "join": "and",
             }
@@ -743,6 +984,27 @@ def test_condition3_accepts_normal_partial_final_despite_capacity_echo() -> None
     assert evidence.parsed.capacity_echo == 2
     assert evidence.parsed.actual_count == 1
     assert _condition(result, 3).passed is True
+
+    integrated = build_page_evidence(
+        leaf,
+        0,
+        None,
+        _stored(
+            _fixture("arxiv_partial_final_valid.xml"),
+            request.url,
+            "application/atom+xml; charset=utf-8",
+        ),
+    )
+    integrated_result = evaluate_leaf(
+        leaf, [integrated], expected_content_types=("application/atom+xml",)
+    )
+    assert integrated.parsed.capacity_echo == 200
+    assert integrated.parsed.actual_count == 1
+    assert tuple(
+        condition.passed
+        for condition in integrated_result.completion.condition_results
+    ) == (True, True, True, True, True, True)
+    assert integrated_result.passed is True
 
 
 def test_condition2_checks_position_only_not_short_page_count() -> None:
@@ -902,7 +1164,9 @@ def test_condition6_accepts_media_parameter_and_rejects_wrong_type() -> None:
     ]
 
 
-def test_main_run_issuance_fails_closed_with_all_six_unregistered_fields() -> None:
+def test_main_run_issuance_fails_closed_with_all_six_unregistered_fields(
+    tmp_path: Path,
+) -> None:
     leaf = resolve_leaf(_catalog(), "B5-Q1@arxiv")
     request = build_request(leaf, 0, None)
     with pytest.raises(UnregisteredRunPolicyError) as captured:
@@ -919,8 +1183,53 @@ def test_main_run_issuance_fails_closed_with_all_six_unregistered_fields() -> No
         ],
     }
 
+    _record, live_path, _issued = _run_successful_live_preflight(tmp_path)
+    with pytest.raises(UnregisteredRunPolicyError) as production_captured:
+        run_leaf(
+            "B5-Q1@arxiv",
+            registration_commit=COMMIT,
+            repo_root=ROOT,
+            live_preflight_path=live_path,
+            _git_backend=_worktree_git(),
+        )
+    assert production_captured.value.as_record() == captured.value.as_record()
+
+    pristine = json.loads(live_path.read_text(encoding="utf-8"))
+    mutations = (
+        ("arxiv", "status", 404),
+        ("openalex", "content_type", "text/html"),
+        ("dblp", "transport_error", "timeout"),
+        ("arxiv", "arxiv_entry_count", 0),
+        ("openalex", "json_root_type", "list"),
+        ("dblp", "dblp_matching_doi_count", 0),
+    )
+    for index, field, replacement in mutations:
+        inconsistent = json.loads(json.dumps(pristine))
+        lookup = next(
+            item for item in inconsistent["lookups"] if item["index"] == index
+        )
+        if field in lookup["observed_shape"]:
+            lookup["observed_shape"][field] = replacement
+        else:
+            lookup[field] = replacement
+        live_path.write_text(
+            json.dumps(inconsistent, ensure_ascii=False), encoding="utf-8"
+        )
+        with pytest.raises(
+            PreflightError, match="inconsistent with its observation"
+        ):
+            run_leaf(
+                "B5-Q1@arxiv",
+                registration_commit=COMMIT,
+                repo_root=ROOT,
+                live_preflight_path=live_path,
+                _git_backend=_worktree_git(),
+            )
+
 
 def test_retry_delays_are_the_frozen_tuple() -> None:
+    """Freeze the registered delay tuple; this is not an effective retry test."""
+
     assert RETRY_DELAYS_S == (3.0, 6.0, 12.0)
 
 
@@ -958,7 +1267,7 @@ def test_page_and_leaf_records_are_draft07_schema_valid() -> None:
 def test_live_record_is_schema_valid_and_unclassified_is_false_side() -> None:
     results = [_lookup_result(anchor_id, index, "収録") for anchor_id, index in MEMBERS]
     results[-1] = _lookup_result("G3-07", "dblp", "unclassified")
-    record = evaluate_live_preflight(
+    record = _evaluate_live_preflight_for_test(
         results,
         registration_seal=_minimal_seal(),
         timeout_s=5,
@@ -975,13 +1284,29 @@ def test_live_record_is_schema_valid_and_unclassified_is_false_side() -> None:
     assert record["passed"] is False
     assert record["may_start_run"] is False
 
+    standalone_schema = json.loads(
+        (
+            ROOT
+            / "orchestrator/schemas/axis_b5_search_registration_seal.schema.json"
+        ).read_text(encoding="utf-8")
+    )
+    jsonschema.validate(record["registration_seal"], standalone_schema)
+    invalid_seal = json.loads(json.dumps(record["registration_seal"]))
+    invalid_seal["seal_scope"]["includes"].append("unregistered-layer")
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(invalid_seal, standalone_schema)
+    invalid_record = json.loads(json.dumps(record))
+    invalid_record["registration_seal"] = invalid_seal
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(invalid_record, schema)
+
 
 def test_live_missing_member_is_schema_valid_and_false_side() -> None:
     results = [
         _lookup_result(anchor_id, index, "収録")
         for anchor_id, index in MEMBERS[:-1]
     ]
-    record = evaluate_live_preflight(
+    record = _evaluate_live_preflight_for_test(
         results,
         registration_seal=_minimal_seal(),
         timeout_s=5,

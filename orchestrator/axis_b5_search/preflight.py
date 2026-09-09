@@ -213,11 +213,16 @@ def _walk_files(repo_root: Path, relative_root: str) -> set[str]:
     ):
         current = Path(current_root)
         for dirname in tuple(dirnames):
+            if dirname == "__pycache__":
+                dirnames.remove(dirname)
+                continue
             candidate = current / dirname
             if candidate.is_symlink():
                 result.add(candidate.relative_to(repo_root).as_posix())
                 dirnames.remove(dirname)
         for filename in filenames:
+            if filename.endswith(".pyc"):
+                continue
             result.add((current / filename).relative_to(repo_root).as_posix())
     return result
 
@@ -269,6 +274,32 @@ def _validate_schema(schema: Mapping[str, Any], value: Any) -> None:
         first = errors[0]
         location = "/".join(str(item) for item in first.path) or "<root>"
         raise ValueError(f"{location}: {first.message}")
+
+
+def _module_paths_match_repo_root(repo_root: Path) -> tuple[bool, str]:
+    from . import parsers, runner
+
+    modules = {
+        "catalog": (catalog, "orchestrator/axis_b5_search/catalog.py"),
+        "parsers": (parsers, "orchestrator/axis_b5_search/parsers.py"),
+        "preflight": (
+            __import__(__name__, fromlist=["__name__"]),
+            "orchestrator/axis_b5_search/preflight.py",
+        ),
+        "runner": (runner, "orchestrator/axis_b5_search/runner.py"),
+    }
+    for name, (module, relative) in modules.items():
+        module_file = getattr(module, "__file__", None)
+        if not isinstance(module_file, str):
+            return False, f"{name}.__file__ is unavailable"
+        actual = Path(module_file).resolve()
+        expected = (repo_root / relative).resolve()
+        if actual != expected:
+            return (
+                False,
+                f"{name}.__file__={actual} does not match repo path {expected}",
+            )
+    return True, ""
 
 
 def verify_registration(
@@ -369,6 +400,9 @@ def verify_registration(
                 "catalog_render_mismatch",
                 "catalog bytes differ from catalog.render_catalog_json()",
             )
+        module_paths_match, module_path_detail = _module_paths_match_repo_root(root)
+        if not module_paths_match:
+            return _failure("module_path_mismatch", module_path_detail)
 
         seal: dict[str, Any] = {
             "schema_version": "izanagi-axis-b5-registration-seal/v1",
@@ -741,7 +775,7 @@ def _lookup_record(result: LookupResult) -> dict[str, Any]:
     }
 
 
-def evaluate_live_preflight(
+def _evaluate_live_preflight_for_test(
     results: Sequence[LookupResult],
     *,
     registration_seal: Mapping[str, Any],
@@ -897,7 +931,7 @@ def run_live_preflight(
             response = transport.get(spec)
             results.append(classify_lookup_response(anchor, index, response))
             requests_issued += 1
-    record = evaluate_live_preflight(
+    record = _evaluate_live_preflight_for_test(
         results,
         registration_seal=registration.seal_record,
         timeout_s=timeout_s,
@@ -927,7 +961,6 @@ __all__ = [
     "SubprocessGit",
     "build_lookup_request",
     "classify_lookup_response",
-    "evaluate_live_preflight",
     "load_anchor_registry",
     "run_live_preflight",
     "verify_registration",

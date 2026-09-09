@@ -6,9 +6,20 @@
     "x_query": {
       "oql": "title_and_abstract.search:(backoff)",
       "oqo": {
-        "join": "and",
-        "filters": [
-          {"title_and_abstract.search": "backoff"}
+        "get_rows": "200",
+        "filter_rows": [
+          {
+            "join": "and",
+            "filters": [
+              {
+                "join": "or",
+                "filters": [
+                  {"column_id": "title_and_abstract.search", "value": "backoff"}
+                ]
+              },
+              {"column_id": "to_publication_date", "value": "2026-12-31"}
+            ]
+          }
         ]
       }
     }

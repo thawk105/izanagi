@@ -173,11 +173,54 @@ def test_contract_6_accepts_raw_query_text_and_structured_ast() -> None:
     )
 
     assert page.interpreted_query_text == "title_and_abstract.search:(backoff)"
-    assert isinstance(page.interpreted_query_ast, JsonObject)
-    assert _member_values(page.interpreted_query_ast, "join") == ("and",)
-    filters = _member_values(page.interpreted_query_ast, "filters")
-    assert len(filters) == 1
-    assert isinstance(filters[0], tuple)
+    assert page.interpreted_query_ast == JsonObject(
+        (
+            ("get_rows", "200"),
+            (
+                "filter_rows",
+                (
+                    JsonObject(
+                        (
+                            ("join", "and"),
+                            (
+                                "filters",
+                                (
+                                    JsonObject(
+                                        (
+                                            ("join", "or"),
+                                            (
+                                                "filters",
+                                                (
+                                                    JsonObject(
+                                                        (
+                                                            (
+                                                                "column_id",
+                                                                "title_and_abstract.search",
+                                                            ),
+                                                            ("value", "backoff"),
+                                                        )
+                                                    ),
+                                                ),
+                                            ),
+                                        )
+                                    ),
+                                    JsonObject(
+                                        (
+                                            (
+                                                "column_id",
+                                                "to_publication_date",
+                                            ),
+                                            ("value", "2026-12-31"),
+                                        )
+                                    ),
+                                ),
+                            ),
+                        )
+                    ),
+                ),
+            ),
+        )
+    )
     assert page.parse_errors == ()
 
 

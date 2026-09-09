@@ -27,6 +27,7 @@ from .parsers import (
 )
 from .preflight import (
     CATALOG_PATH,
+    GitBackend,
     LIVE_PREFLIGHT_SCHEMA_PATH,
     _seal_digest,
     _validate_schema,
@@ -509,8 +510,12 @@ def normalize_interpreted_query(index: str, value: str) -> str:
     normalized = " ".join(unquote(value).split())
     if index == "arxiv":
         normalized = re.sub(
-            r"submittedDate\s*:\s*(?:\[|\")\s*([^\]\"]+?)\s*(?:\]|\")",
-            lambda match: f"submittedDate:[{' '.join(match.group(1).split())}]",
+            r'submittedDate\s*:\s*(?:\[\s*([^\]\"]+?)\s*\]|"\s*([^\]\"]+?)\s*")',
+            lambda match: (
+                "submittedDate:["
+                + " ".join((match.group(1) or match.group(2)).split())
+                + "]"
+            ),
             normalized,
         )
     return normalized
@@ -653,9 +658,14 @@ def build_expected_openalex_ast(leaf: LeafDefinition) -> JsonObject:
             for term_id in group
         )
         groups.append(JsonObject((("join", "or"), ("filters", filters))))
+    cutoff = (
+        "2023-12-31"
+        if leaf.leaf_id == "B5-CTL-AND2023@openalex"
+        else leaf.cutoff
+    )
     groups.append(
         JsonObject(
-            (("column_id", "to_publication_date"), ("value", leaf.cutoff))
+            (("column_id", "to_publication_date"), ("value", cutoff))
         )
     )
     top = JsonObject((("join", "and"), ("filters", tuple(groups))))
@@ -903,6 +913,62 @@ def issue_run_request(_request: RequestSpec) -> None:
     raise UnregisteredRunPolicyError()
 
 
+def _recorded_lookup_is_consistent(item: Mapping[str, Any]) -> bool:
+    index = item.get("index")
+    expected_media_type = {
+        "arxiv": "application/atom+xml",
+        "openalex": "application/json",
+        "dblp": "application/json",
+    }.get(index)
+    raw_headers = item.get("response_headers")
+    if not isinstance(raw_headers, list):
+        return False
+    try:
+        observed_media_type = _media_type(_content_type(_headers(raw_headers)))
+    except TypeError:
+        return False
+    if (
+        item.get("classification") != "収録"
+        or item.get("status") != 200
+        or item.get("transport_error") is not None
+        or item.get("content_type") != expected_media_type
+        or observed_media_type != expected_media_type
+        or item.get("final_url") != item.get("request_url")
+    ):
+        return False
+    shape = item.get("observed_shape")
+    observed_id = item.get("observed_index_work_id")
+    if not isinstance(shape, Mapping) or shape.get("parse_error") is not None:
+        return False
+    if index == "openalex":
+        return (
+            shape.get("json_root_type") == "dict"
+            and isinstance(observed_id, str)
+            and observed_id.startswith("W")
+        )
+    if index == "arxiv":
+        return (
+            shape.get("arxiv_entry_count") == 1
+            and isinstance(observed_id, str)
+            and bool(observed_id)
+        )
+    if index == "dblp":
+        total = shape.get("dblp_total")
+        matches = shape.get("dblp_matching_doi_count")
+        return (
+            isinstance(total, int)
+            and not isinstance(total, bool)
+            and total > 0
+            and isinstance(matches, int)
+            and not isinstance(matches, bool)
+            and matches > 0
+            and isinstance(observed_id, str)
+            and bool(observed_id)
+            and shape.get("json_root_type") == "dict"
+        )
+    return False
+
+
 def _load_live_preflight(
     path: Path,
     *,
@@ -949,6 +1015,12 @@ def _load_live_preflight(
             != (anchor.openalex_work_id if index == "openalex" else None)
         ):
             raise PreflightError("live preflight lookup differs from anchor registration")
+        if item.get("classification") == "収録" and not _recorded_lookup_is_consistent(
+            item
+        ):
+            raise PreflightError(
+                "live preflight recorded lookup is inconsistent with its observation"
+            )
     if (
         record.get("exact_member_set") is not True
         or record.get("passed") is not True
@@ -966,11 +1038,14 @@ def run_leaf(
     registration_commit: str,
     repo_root: str | os.PathLike[str],
     live_preflight_path: str | os.PathLike[str],
+    _git_backend: GitBackend | None = None,
 ) -> None:
     """Production entry: recompute registration, verify durable live evidence, stop."""
 
     root = Path(repo_root).resolve()
-    registration = verify_registration(registration_commit, repo_root=root)
+    registration = verify_registration(
+        registration_commit, repo_root=root, git_backend=_git_backend
+    )
     if not registration.passed or registration.seal_record is None:
         raise PreflightError(
             f"registration preflight failed: {registration.reason_code}: {registration.detail}"
