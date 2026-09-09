@@ -527,16 +527,29 @@ def t2418_genomes(tag: str) -> list[Genome]:
 def _require_condition_gate_before_measurement(
         source_root: str, *, stock_root: str, points: list[Genome], cxx: str,
         configure_args: Sequence[str] = (),
+        physical_grid: Optional[Sequence[int]] = None,
 ):
     """Bind this driver's concrete BACKOFF_FIXED requests to the family gate."""
+    raw_values = tuple(point.flags["BACKOFF_FIXED"] for point in points)
+    if physical_grid is None:
+        requested_nonnegative = {value for value in raw_values if value >= 0}
+        physical_grid = tuple(
+            amount
+            for amount in dict.fromkeys((
+                *EXTENDED_SWEEP_US,
+                *T2266_REALIZED_US,
+                *T2418_REALIZED_US,
+            ))
+            if encode_static_backoff_us(amount) in requested_nonnegative
+        )
     return _require_backoff_condition_gate(
         source_root,
         stock_root=stock_root,
         driver_id="orchestrator/campaign/backoff_extended_sweep.py",
-        macro_values={
-            "BACKOFF_FIXED": tuple(
-                point.flags["BACKOFF_FIXED"] for point in points
-            ),
+        macro_values={"BACKOFF_FIXED": raw_values},
+        backoff_fixed_physical_us={
+            encode_static_backoff_us(amount): amount
+            for amount in physical_grid
         },
         cxx=cxx,
         use_class="raw-measurement",
@@ -1330,6 +1343,7 @@ def run_workload(
         selected_config = t2266_config_for
         selected_genomes = t2266_genomes
         selected_order = t2266_measurement_order
+        selected_physical_grid = T2266_REALIZED_US
         run_label = "T-2266 static tail"
         rep_capture: Optional[_T2266RepCapture | _T2418RepCapture] = (
             _T2266RepCapture()
@@ -1338,12 +1352,14 @@ def run_workload(
         selected_config = t2418_config_for
         selected_genomes = t2418_genomes
         selected_order = t2418_measurement_order
+        selected_physical_grid = T2418_REALIZED_US
         run_label = "T-2418 exploratory static tail"
         rep_capture = _T2418RepCapture()
     else:
         selected_config = config_for
         selected_genomes = genomes
         selected_order = measurement_order
+        selected_physical_grid = EXTENDED_SWEEP_US
         run_label = "B-10 extended sweep"
         rep_capture = None
     cfg = p2_2._campaign_cfg_for_site(
@@ -1407,6 +1423,7 @@ def run_workload(
                         configure_args=(
                             f"-DFETCHCONTENT_BASE_DIR={canonical_base}",
                         ),
+                        physical_grid=selected_physical_grid,
                     )
                 _prebuild_backoff_binaries(
                     ordered_genomes,
