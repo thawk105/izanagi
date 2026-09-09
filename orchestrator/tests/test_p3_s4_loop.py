@@ -20,6 +20,7 @@ import json
 import os
 from pathlib import Path
 import re
+import stat
 import subprocess
 import sys
 import tempfile
@@ -108,6 +109,418 @@ def test_condition_gate_precedes_run_campaign_in_build_path():
     )
     assert "p3_kickoff_condition_gate.json" in kickoff
     assert "s4_condition_gate.json" in red
+
+
+def _condition_gate_arm_record(
+    *,
+    arm: str,
+    terminal_status: str,
+    reason_code: str,
+    digest_character: str,
+    evidence: dict[str, object],
+):
+    digest = digest_character * 64
+    return L.condition_meaning_gate.ConditionArmRecord(
+        record_id=f"condition-gate/{arm}/{digest}",
+        record_digest=digest,
+        arm=arm,
+        terminal_status=terminal_status,
+        reason_code=reason_code,
+        driver_id="orchestrator.campaign.p3_s4_loop",
+        macro="BACKOFF_FIXED",
+        request_digest="9" * 64,
+        evidence=evidence,
+    )
+
+
+def _condition_gate_admission(
+    supply,
+    meaning,
+    *,
+    admitted: bool,
+    digest_character: str,
+):
+    digest = digest_character * 64
+    return L.condition_meaning_gate.ConditionFamilyAdmission(
+        admission_id=f"condition-gate/admission/{digest}",
+        admission_digest=digest,
+        use_class="certified-selection",
+        admitted=admitted,
+        record_ids=(supply.record_id, meaning.record_id),
+        unestablished_meaning_macros=(),
+    )
+
+
+def _install_condition_gate_outcome(monkeypatch, supply, meaning, admission):
+    monkeypatch.setattr(
+        L.buildcache, "compilers_for_current_site", lambda: ("cc", "cxx")
+    )
+    monkeypatch.setattr(
+        L.condition_meaning_gate, "capture_define_inputs",
+        lambda *_a, **_k: object(),
+    )
+    monkeypatch.setattr(
+        L.condition_meaning_gate, "evaluate_define_supply_effectuation",
+        lambda *_a, **_k: supply,
+    )
+    monkeypatch.setattr(
+        L.condition_meaning_gate, "evaluate_define_runtime_meaning",
+        lambda *_a, **_k: meaning,
+    )
+    monkeypatch.setattr(
+        L.condition_meaning_gate, "require_condition_gate_family",
+        lambda *_a, **_k: admission,
+    )
+
+
+def _condition_gate_record_path(root: Path, record) -> Path:
+    arm_name = getattr(record, "arm", "admission")
+    digest = (
+        record.record_digest
+        if hasattr(record, "record_digest")
+        else record.admission_digest
+    )
+    return root / f"condition-gate-{arm_name}-{digest}.json"
+
+
+def test_condition_gate_rejection_persists_records_by_digest_across_retry(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setenv("IZANAGI_S4_EVIDENCE_ROOT", os.fspath(tmp_path))
+    fsync_kinds = []
+    real_fsync = os.fsync
+    real_replace = os.replace
+    first_publish_state = {}
+
+    def observed_fsync(fd):
+        mode = os.fstat(fd).st_mode
+        fsync_kinds.append("directory" if stat.S_ISDIR(mode) else "file")
+        real_fsync(fd)
+
+    def observed_replace(source, destination):
+        destination = Path(destination)
+        was_published = destination in first_publish_state
+        assert destination.exists() is was_published
+        assert Path(source).is_file()
+        real_replace(source, destination)
+        first_publish_state[destination] = True
+
+    monkeypatch.setattr(L.os, "fsync", observed_fsync)
+    monkeypatch.setattr(L.os, "replace", observed_replace)
+    supply_first = _condition_gate_arm_record(
+        arm="supply-effectuation",
+        terminal_status="red",
+        reason_code="preprocess-failed",
+        digest_character="a",
+        evidence={"detail": "first supply argv and stderr"},
+    )
+    meaning_first = _condition_gate_arm_record(
+        arm="runtime-meaning",
+        terminal_status="green",
+        reason_code="declared-meaning-observed",
+        digest_character="b",
+        evidence={"proof_kind": "first-meaning-proof"},
+    )
+    admission_first = _condition_gate_admission(
+        supply_first, meaning_first, admitted=False, digest_character="c",
+    )
+    _install_condition_gate_outcome(
+        monkeypatch, supply_first, meaning_first, admission_first,
+    )
+
+    with pytest.raises(RuntimeError) as first_rejection:
+        _REAL_CONDITION_GATE(
+            "/t2449/source", SimpleNamespace(flags={"BACKOFF_FIXED": 5})
+        )
+    assert "supply=preprocess-failed" in str(first_rejection.value)
+    assert "first supply argv and stderr" in str(first_rejection.value)
+    assert "meaning_evidence_keys=['proof_kind']" in str(first_rejection.value)
+    assert "None" not in str(first_rejection.value)
+
+    first_records = (supply_first, meaning_first, admission_first)
+    first_paths = tuple(
+        _condition_gate_record_path(tmp_path, record) for record in first_records
+    )
+    first_bytes = tuple(path.read_bytes() for path in first_paths)
+    assert first_bytes == tuple(
+        record.canonical_json().encode("ascii") for record in first_records
+    )
+
+    with pytest.raises(RuntimeError) as same_digest_rejection:
+        _REAL_CONDITION_GATE(
+            "/t2449/source", SimpleNamespace(flags={"BACKOFF_FIXED": 5})
+        )
+    assert "evidence_write_failures" not in str(same_digest_rejection.value)
+    assert tuple(path.read_bytes() for path in first_paths) == first_bytes
+
+    supply_second = _condition_gate_arm_record(
+        arm="supply-effectuation",
+        terminal_status="green",
+        reason_code="requested-default-preprocess-different",
+        digest_character="d",
+        evidence={"comparison": "requested-default-difference"},
+    )
+    meaning_second = _condition_gate_arm_record(
+        arm="runtime-meaning",
+        terminal_status="red",
+        reason_code="compiler-identity-drift",
+        digest_character="e",
+        evidence={
+            "compiler_path": "/t2449/cxx",
+            "preprocess_argv": ("cxx", "-E"),
+        },
+    )
+    admission_second = _condition_gate_admission(
+        supply_second, meaning_second, admitted=False, digest_character="f",
+    )
+    _install_condition_gate_outcome(
+        monkeypatch, supply_second, meaning_second, admission_second,
+    )
+
+    with pytest.raises(RuntimeError) as second_rejection:
+        _REAL_CONDITION_GATE(
+            "/t2449/source", SimpleNamespace(flags={"BACKOFF_FIXED": 6})
+        )
+    assert "meaning=compiler-identity-drift" in str(second_rejection.value)
+    assert (
+        "meaning_evidence_keys=['compiler_path', 'preprocess_argv']"
+        in str(second_rejection.value)
+    )
+    assert "None" not in str(second_rejection.value)
+
+    second_records = (supply_second, meaning_second, admission_second)
+    second_paths = tuple(
+        _condition_gate_record_path(tmp_path, record) for record in second_records
+    )
+    assert tuple(path.read_bytes() for path in first_paths) == first_bytes
+    assert tuple(path.read_bytes() for path in second_paths) == tuple(
+        record.canonical_json().encode("ascii") for record in second_records
+    )
+    assert {path.name for path in tmp_path.iterdir()} == {
+        *(path.name for path in first_paths),
+        *(path.name for path in second_paths),
+    }
+    assert fsync_kinds == ["file", "directory"] * 9
+
+
+def test_condition_gate_partial_temp_write_failure_leaves_no_final_or_temp(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setenv("IZANAGI_S4_EVIDENCE_ROOT", os.fspath(tmp_path))
+    supply = _condition_gate_arm_record(
+        arm="supply-effectuation",
+        terminal_status="red",
+        reason_code="preprocess-failed",
+        digest_character="a",
+        evidence={"detail": "partial-write supply rejection detail"},
+    )
+    meaning = _condition_gate_arm_record(
+        arm="runtime-meaning",
+        terminal_status="green",
+        reason_code="declared-meaning-observed",
+        digest_character="b",
+        evidence={"proof_kind": "meaning-proof"},
+    )
+    admission = _condition_gate_admission(
+        supply, meaning, admitted=False, digest_character="c",
+    )
+    _install_condition_gate_outcome(monkeypatch, supply, meaning, admission)
+
+    def fail_after_partial_temp_write(path, canonical_bytes):
+        with path.open("xb") as output:
+            output.write(canonical_bytes[:7])
+            output.flush()
+        raise OSError("t2449 partial temporary write failure")
+
+    monkeypatch.setattr(
+        L, "_write_condition_gate_temp", fail_after_partial_temp_write,
+    )
+    with pytest.raises(RuntimeError) as rejection:
+        _REAL_CONDITION_GATE(
+            "/t2449/source", SimpleNamespace(flags={"BACKOFF_FIXED": 5})
+        )
+    message = str(rejection.value)
+    assert "supply=preprocess-failed" in message
+    assert "partial-write supply rejection detail" in message
+    assert "evidence_write_failures=" in message
+    assert all(f"{label}:OSError" in message
+               for label in ("supply", "meaning", "admission"))
+    assert not any(
+        _condition_gate_record_path(tmp_path, record).exists()
+        for record in (supply, meaning, admission)
+    )
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_condition_gate_rejection_without_evidence_root_does_not_write(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    supply = _condition_gate_arm_record(
+        arm="supply-effectuation",
+        terminal_status="red",
+        reason_code="preprocess-failed",
+        digest_character="1",
+        evidence={"detail": "unset-root rejection detail"},
+    )
+    meaning = _condition_gate_arm_record(
+        arm="runtime-meaning",
+        terminal_status="green",
+        reason_code="declared-meaning-observed",
+        digest_character="2",
+        evidence={"proof_kind": "meaning-proof"},
+    )
+    admission = _condition_gate_admission(
+        supply, meaning, admitted=False, digest_character="3",
+    )
+    _install_condition_gate_outcome(monkeypatch, supply, meaning, admission)
+
+    class ForbiddenPath:
+        def __init__(self, *_args, **_kwargs):
+            raise AssertionError("unset evidence root must not construct a path")
+
+    monkeypatch.setattr(L, "Path", ForbiddenPath)
+    for evidence_root in (None, ""):
+        if evidence_root is None:
+            monkeypatch.delenv("IZANAGI_S4_EVIDENCE_ROOT", raising=False)
+        else:
+            monkeypatch.setenv("IZANAGI_S4_EVIDENCE_ROOT", evidence_root)
+        with pytest.raises(RuntimeError) as rejection:
+            _REAL_CONDITION_GATE(
+                "/t2449/source", SimpleNamespace(flags={"BACKOFF_FIXED": 5})
+            )
+        assert "supply=preprocess-failed" in str(rejection.value)
+        assert "unset-root rejection detail" in str(rejection.value)
+        assert "evidence_write_failures" not in str(rejection.value)
+
+
+def test_condition_gate_unwritable_destinations_preserve_gate_rejection(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setenv("IZANAGI_S4_EVIDENCE_ROOT", os.fspath(tmp_path))
+    supply = _condition_gate_arm_record(
+        arm="supply-effectuation",
+        terminal_status="green",
+        reason_code="requested-default-preprocess-different",
+        digest_character="4",
+        evidence={"comparison": "requested-default-difference"},
+    )
+    meaning = _condition_gate_arm_record(
+        arm="runtime-meaning",
+        terminal_status="red",
+        reason_code="compiler-failed",
+        digest_character="5",
+        evidence={"detail": "unwritable-root meaning rejection detail"},
+    )
+    admission = _condition_gate_admission(
+        supply, meaning, admitted=False, digest_character="6",
+    )
+    records = (supply, meaning, admission)
+    for record in records:
+        _condition_gate_record_path(tmp_path, record).mkdir()
+    _install_condition_gate_outcome(monkeypatch, supply, meaning, admission)
+
+    with pytest.raises(RuntimeError) as rejection:
+        _REAL_CONDITION_GATE(
+            "/t2449/source", SimpleNamespace(flags={"BACKOFF_FIXED": 5})
+        )
+    message = str(rejection.value)
+    assert "meaning=compiler-failed" in message
+    assert "unwritable-root meaning rejection detail" in message
+    assert "evidence_write_failures=" in message
+    assert all(f"{label}:" in message for label in ("supply", "meaning", "admission"))
+    assert all(_condition_gate_record_path(tmp_path, record).is_dir()
+               for record in records)
+
+
+def test_condition_gate_serialization_failure_preserves_gate_rejection(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setenv("IZANAGI_S4_EVIDENCE_ROOT", os.fspath(tmp_path))
+
+    def fail_serialization():
+        raise RuntimeError("t2449 serialization failure")
+
+    supply = SimpleNamespace(
+        record_id=f"condition-gate/supply-effectuation/{'a' * 64}",
+        record_digest="a" * 64,
+        arm="supply-effectuation",
+        reason_code="preprocess-failed",
+        evidence={"detail": "serialization rejection detail"},
+        canonical_json=fail_serialization,
+    )
+    meaning = _condition_gate_arm_record(
+        arm="runtime-meaning",
+        terminal_status="green",
+        reason_code="declared-meaning-observed",
+        digest_character="b",
+        evidence={"proof_kind": "meaning-proof"},
+    )
+    admission = _condition_gate_admission(
+        supply, meaning, admitted=False, digest_character="c",
+    )
+    _install_condition_gate_outcome(monkeypatch, supply, meaning, admission)
+
+    with pytest.raises(RuntimeError) as rejection:
+        _REAL_CONDITION_GATE(
+            "/t2449/source", SimpleNamespace(flags={"BACKOFF_FIXED": 5})
+        )
+    message = str(rejection.value)
+    assert "supply=preprocess-failed" in message
+    assert "serialization rejection detail" in message
+    assert "evidence_write_failures=supply:RuntimeError" in message
+    assert not _condition_gate_record_path(tmp_path, supply).exists()
+    assert _condition_gate_record_path(tmp_path, meaning).read_bytes() == (
+        meaning.canonical_json().encode("ascii")
+    )
+    assert _condition_gate_record_path(tmp_path, admission).read_bytes() == (
+        admission.canonical_json().encode("ascii")
+    )
+
+
+def test_condition_gate_green_path_does_not_read_environment_or_write(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    supply = _condition_gate_arm_record(
+        arm="supply-effectuation",
+        terminal_status="green",
+        reason_code="requested-default-preprocess-different",
+        digest_character="7",
+        evidence={"comparison": "requested-default-difference"},
+    )
+    meaning = _condition_gate_arm_record(
+        arm="runtime-meaning",
+        terminal_status="green",
+        reason_code="declared-meaning-observed",
+        digest_character="8",
+        evidence={"proof_kind": "meaning-proof"},
+    )
+    admission = _condition_gate_admission(
+        supply, meaning, admitted=True, digest_character="9",
+    )
+    _install_condition_gate_outcome(monkeypatch, supply, meaning, admission)
+
+    class ForbiddenEnvironment:
+        def get(self, *_args, **_kwargs):
+            raise AssertionError("green path must not read the evidence environment")
+
+    class ForbiddenPath:
+        def __init__(self, *_args, **_kwargs):
+            raise AssertionError("green path must not construct an evidence path")
+
+    monkeypatch.setattr(L, "os", SimpleNamespace(environ=ForbiddenEnvironment()))
+    monkeypatch.setattr(L, "Path", ForbiddenPath)
+    result = _REAL_CONDITION_GATE(
+        "/t2449/source", SimpleNamespace(flags={"BACKOFF_FIXED": 5})
+    )
+    assert result == {
+        "supply_record": json.loads(supply.canonical_json()),
+        "meaning_record": json.loads(meaning.canonical_json()),
+        "admission": json.loads(admission.canonical_json()),
+    }
 
 
 def _site_contract(
