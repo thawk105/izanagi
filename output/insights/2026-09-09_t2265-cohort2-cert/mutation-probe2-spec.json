@@ -1,0 +1,41 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 90,
+ "timeout_seconds": 1800,
+ "hang_timeout_seconds": 1800,
+ "mutations": [
+  {
+   "id": "m1a-contract-seed-table-open",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+     "old": "        if args.step_policy_seed not in CERT_POLICY2_STEP_POLICY_SEEDS:\n",
+     "new": "        if False:\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m1b-both-layer-seed-table-open",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+     "old": "        if args.step_policy_seed not in CERT_POLICY2_STEP_POLICY_SEEDS:\n",
+     "new": "        if False:\n"
+    },
+    {
+     "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+     "old": "                or self.step_policy_seed not in CERT_POLICY2_STEP_POLICY_SEEDS\n",
+     "new": "                or False\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}

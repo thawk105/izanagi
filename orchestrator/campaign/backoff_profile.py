@@ -356,6 +356,9 @@ def _require_condition_gate_before_measurement(
             ),
             "BACKOFF_NOINLINE": (1,),
         },
+        backoff_fixed_physical_us={
+            amount: amount for amount in amounts if amount is not None
+        },
         cxx=cxx,
         use_class="raw-measurement",
     )

@@ -6701,6 +6701,17 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: pin 件数を 2 種類の検索 (`git grep -l` と部分木起点の `grep -rl`) で突き合わせ、
   食い違えば brief を書かない。
 
+
+- **再発: 2026-09-09** ([T-2249] wave)。pin 閉包の件数を `git grep -c` で数えて
+  「bytes を pin する箇所は 3 系統 6 hit だけ」と段 1 brief に断定した。段 3 のレンズ B が反証した。
+  `git grep -c` は**一致した行数**を数えるため、`orchestrator/tests/test_reflux_originless_compatibility.py:372`
+  の凍結 baseline (物理 1 行の巨大 JSON) に**同じ sha が 7 回**あるのを `1` と数えていた。
+  literal 出現の実数は coder 3 + planner 10 = 13 件だった。F169 と同じ「pin 閉包の検索が
+  silent に取りこぼす」型であり、取りこぼしの機序が検索起点でなく**計数単位**だった点が新しい。
+  同じ brief は「この凍結 baseline は保存済み `output/` の値なので role file 編集では動かない」とも
+  書いていたが、これも誤りで、同 test は `run_trial()` を実走して journal を作るため live な
+  role bytes が届く。恒久対応は memory `closure-and-search-discipline` へ
+  「`git grep -c` は行数であって出現回数ではない。件数は `grep -o | wc -l` で数える」を追記した。
 ### F170. 契約 drift を止める pin を文字列の出現数で書き、3 巡続けて恒真だった [恒真ゲート] [テスト代表性]
 
 - 事象: `docs/dev-wave/workers.md` の段 6 契約が黙って書き換わるのを止める pin を実装したが、
@@ -8735,6 +8746,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   いずれも登録簿と F660 に触れる)。判別 = 同一 checkout の gitdir を共有する job が複数走るとき、
   どれか 1 本でも `worktree prune` を打つなら他は生きていても落ちる。記録は
   `output/insights/2026-09-07_t2320-backoff-sweep-gate-layer2/README.md` §5。
+- **supersede: 2026-09-09** — 2026-09-07 再発の「対応は裁定へ返した」は D1700 として裁定され、A-5 job 本体からの共有 gitdir prune 撤去として着地した ([T-2354])。job 本体の掃除は自 path の `worktree remove --force` だけになり、remove 失敗時は残置 path を receipt へ明示する。
 ### F252. 汚染判定器が sandbox の方針拒否を誤検知した [計測汚染]
 
 - 事象: 上記の汚染を検出する判定器で `Rejected(...)` を徴候に使ったところ、第 2 走の 1 cell を
@@ -23526,6 +23538,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   委ねられる。合成 merge より安く、閾値も一切下げない。この抜け方が使えるのは
   **main 側の被覆に余裕がある場合だけ**で、余裕が 1 node 未満のときは F902 の恒久対応どおり
   producer による合成が要る。判定は受入 1 回目の被覆分数を反実仮想と突き合わせて行う。
+- **supersede: 2026-09-09** — 「main 側の余裕は 1 node 未満」は 2026-09-09 時点では解消している。[T-2354] が test node を 2 件足した状態でも被覆 gate は登録前から緑で、`test_acceptance_schedule_order.py` は 79 passed だった。登録は F902 の恒久対応どおり正本 producer の `--add-only` で行った。
 ### F903. 受入台帳の `nodeid_count` が、test node を足す wave 同士の必然的な衝突点になっている [資源競合]
 
 - 事象: 受入全走の post-claim merge が `stage=merge rc=70 source_rc=1` で落ち、受入 attempt を
@@ -24053,3 +24066,115 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `docs/dev-wave/workers.md` の `DW-S06-C` への収容は試みたが、L1.5 の unique footprint が
   9,941 bytes となり予算 9,696 bytes を超えたので採らなかった。単発事故であり `DW-G03` にも掛かる。
 - 再発検知: 上記の照合を段 6 の fix 直後に行う。今回はこの照合で発見した。
+
+### F930. Codex 実装子が `.codex/**` へ書けず段 5 が途中停止した [手順漏れ] [誤前提]
+
+- 事象: [T-2249] wave の段 5 実装子が、role 定義と `SOURCE_FILE_SHA256` の更新までは終えたが、
+  生成物 `.codex/role-adapters/{coder-v4-autonomous,planner-v4}.json` の更新で
+  `patch rejected: writing outside of the project; rejected by user approval settings` を受けて停止した。
+  `test -w` も rc=1 だった。作業 root を `.codex/worktrees/t2249-author` から
+  `.claude/worktrees/dev-wave-t2249-role-example-delta` へ移して継続子を投げても同じだった。
+  段 5 が 2 本の実装子を消費し、adapter は 1 bit も書けなかった。
+- 根本原因: `codex exec --sandbox workspace-write` は `.codex/` を自身の設定領域として
+  書込禁止にしている。**path 依存ではない構造的制約**で、作業 root を変えても直らない。
+  段 1 の変更面棚卸しは「`.codex/` 配下の非 `.md` は D95 の実装面だから実装子が書く」と
+  分類したが、**実装子が実際に書けるかを起動前に実測していなかった**。
+  1 回目の拒否を「作業 root が `.codex/` 配下だから」と読んだのも誤前提だった。
+- 恒久対応: memory `codex-children-cannot-write-dot-codex` — 段 1 の変更面棚卸しで `.codex/**` の
+  非 `.md` を含む wave は実装子起動前に `test -w` を実測し、書けないなら段 4 で「誰が書くか」を
+  決める。生成物は親が repo 自身の renderer の出力で render し、**書く前に**旧版との field 単位比較で
+  「変わる pointer 集合が exact 一致・key set 不変」を検算してから書く。
+  `AI-Agent: product=claude; ...; role=integrator; scope=patch-and-render` で記録する。
+  `.codex/**` を D95 の適用外と明文化するか D105 の `AI-Agent-Waiver` を要求するかは
+  D1861 で裁定パッケージへ送った。
+- 再発検知: 段 6 の敵対レビュー 1 本へ「親が書いた bytes が renderer の出力そのもので人手の判断が
+  混じっていないこと」を独立に再計算させる。本 wave では byte 一致・4 pointer・key set 不変を
+  レビューが独立に確認した (レビューは著者性の代替にしないので、機構で確かめさせる)。
+
+### F931. 変異 wrapper の共有木不変検査が並行 wave の worktree 増減で破れ、2 分の走行が中止した [手順漏れ]
+
+- 事象: [T-2249] wave の変異本走を `tools/mutation_worktree.py` で投げ、約 2 分で
+  `共有木の事後検査に失敗: source/main 共有木の観測 bytes が変化した`
+  (`shared_snapshot_matches: false`) で中止した。container が保持され、8 走のうち 0 走が完了した。
+- 根本原因: 同 wrapper は `git status --porcelain=v1 --untracked-files=all --ignore-submodules=none` の
+  stdout bytes を source worktree と**主 checkout**の両方で取り、前後一致を要求する。
+  主 checkout のこの出力は `?? .codex/worktrees/<name>/` を 1 行ずつ含み、実測 **171 行**あった。
+  並行 session が codex 実装子・fix 子の worktree を作る/消すたびに bytes が変わる。
+  19 job が並走する状況では、2 分でも破れる。HEAD の前進では破れない
+  (`--porcelain=v1` は branch/HEAD を出さない) — 破るのは `.codex/worktrees/` の増減である。
+- 恒久対応: memory `mutation-worktree-shared-observation-fails-under-churn` — 変異本走は
+  `tools/mutation_harness.py` を job dir 内の専用 detached worktree
+  (`git worktree add --detach <job dir>/mutation-tree <統合 commit>`) に対して直接使う。
+  主 tree を変異させない性質 (DW-O19 の目的) と、harness 自身の固定 HEAD 束縛・起動/復元の内容比較・
+  `flock` 単一走行・signal 復元は保たれる。失うのは wrapper の共有木 attestation だけで、
+  それはこの環境では成立しない。wrapper 経路を選ぶ前に主 checkout で
+  `git status --porcelain=v1 --untracked-files=all --ignore-submodules=none | wc -l` を数える。
+- 再発検知: 上記の行数計測が数十行を超えていたら wrapper 経路を選ばない。中止した wrapper の
+  container は `rm -rf <scratch>/.izanagi-mutation-worktree` の後 `git worktree prune` まで行う。
+
+### F932. D612 の dispatch 上書きを変異 spec の timeout より大きくして、変異走行が 1 走も始まらなかった [手順漏れ]
+
+- 事象: dispatch 混雑を避けるため D612 の
+  `IZANAGI_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE=3600` /
+  `IZANAGI_DISPATCH_OVERALL_GRACE_OVERRIDE=600` を設定して変異本走を投げたところ、harness が
+  `mutation harness aborted: mutation collection の外側 timeout が明示された dispatch 待機契約より短い:
+  timeout_seconds=900.0, queue_wait_timeout_s=3600.0, overall_grace_s=600.0`
+  で起動時に fail-closed した。8 走のうち 0 走が始まらなかった。
+- 根本原因: `DW-O13` の「内側予算の和 + 終了余裕 < 外側 watchdog」を、**dispatch 待機 (内側) と
+  変異 collection の `timeout_seconds` (外側) の関係**へ適用していなかった。受入走行で有効だった
+  上書きを、spec を見直さずに変異走行へ持ち込んだ。
+- 恒久対応: memory `mutation-timeout-includes-dispatch-queue-wait` へ追記 —
+  spec の `timeout_seconds` は `queue_wait_timeout_s + overall_grace_s` より大きくする。
+  実際に通した組は queue_wait=1200 / grace=300 / `timeout_seconds`=2400 /
+  `hang_timeout_seconds`=3000 (job walltime 3600 未満、`DW-M06`)。
+- 再発検知: harness 自身が起動時に fail-closed で拒否する (既に機械化済み)。
+  spec を変えると sha256 が変わり `--resume` は使えないので、新しい `--out` / `--attempt-out` で走り直す。
+
+### F933. 背景 script に包んだ重量 command が login 判定をすり抜けた [手順漏れ] [恒真ゲート]
+
+- 事象: 親が生死確認のため CCBench を login node でビルドした。`cmake --build` を直接叩くと
+  `hooks/guard_bash.py` が「Pegasus ログインノードでは重い処理を実行できません」と拒否することは、
+  後から実測で確認した。しかし実際の起動は dev-wave の背景投入の定型
+  (`nohup setsid bash <script>`) で行ったため、guard が見るコマンド本文に `cmake` が現れず、
+  分類されないまま login で 4 protocol 分の build と 3 回の再ビルドが走った。
+- 根本原因: guard は Bash tool へ渡されたコマンド**文字列**を分類する。script の中身は見ない。
+  `DW-O01` が定める背景投入の形は必ず `bash <script>` になるため、**script に包めばあらゆる重量
+  command が分類対象から外れる**。防壁の射程と、規定の起動導線が構造的に食い違っている。
+- 恒久対応: 実行場所の判定は script の中身に対しても効く必要がある。実施形は
+  D1863 の範囲外なのでユーザー裁定へ返す。
+  本 wave では、以後の実測を `tools/pegasus/dispatch_compute.py --task generic` の計算ノード経路へ
+  載せ替え、login で取得した値には取得経路が正規でないことを成果物へ明記した。
+- 再発検知: なし (宣言だけの対応にしないため、実体を持つ検査はユーザー裁定の後に置く)。
+
+### F934. patch 由来 define の条件関門が、patch を materialize しない driver では構造的に通らない [恒真ゲート] [誤前提]
+
+- 事象: 認定 launcher `tools/pegasus/certify_calibration.sh` と同じ argv で
+  `orchestrator.campaign.condition_meaning_gate` を実走したところ rc=2、`admitted=false` で、
+  2 アームとも red だった。`supply-effectuation` は `configure-failed` で detail が CMake の
+  「Manually-specified variables were not used by the project: CCBENCH_BACKOFF_FIXED」、
+  `runtime-meaning` は `materialized-branch-invalid` で detail が
+  「unique BACKOFF_FIXED conditional is unavailable」である。
+  `run_condition_gate` は `set -Eeuo pipefail` 下の裸の関数呼び出しなので、job は configure 前に
+  rc=2 で止まる。
+- 根本原因: `CCBENCH_BACKOFF_FIXED` は `patches/silo-backoff-fixed.patch` が
+  `cmake/Options.cmake` と `include/backoff.hh` へ供給する define である。launcher は pin された
+  CCBench の素の detached worktree をビルドし、patch を materialize しない。
+  **供給していない define を渡しているので、供給と実効化を見る関門は正しく拒否している。**
+  D1198 が義務化した関門の射程に、patch を当てない driver が入っていた。
+- **独立 2 例目である。** 同じ `runtime-meaning` 赤を
+  `output/insights/2026-09-09_t2397-a1-pilot-attempt-0003/README.md` §6.2 が A-1 driver
+  (`orchestrator/campaign/paper_story_a1_paired.py`) で先に記録している。原因 (marker が patch 側に
+  あり pin された CCBench に無い) も同一で、driver だけが異なる。
+  `supply-effectuation` の原因は 2 例で異なり、A-1 は関門へ configure 引数を渡していない
+  (F580 の 3 例目)、本件は引数を正しく渡した上で macro 自体が供給されていない。
+- 一次資料: 認定 attempt 12 件 (`output/env/pegasus/calibration/job-staging/`) すべてに
+  `condition-gate.jsonl` が無く、この関門は認定経路で一度も実走していない。
+  `calibrate_rc=0` の 2 件は関門導入 commit `0218acc61` より前である。
+  job `0:892707.nqsv` の `configure.stderr` には当時から同じ未使用変数警告が出ている。
+- 恒久対応: 認定 launcher が `-DCCBENCH_BACKOFF_FIXED=-1` を渡し続けるかはユーザー裁定へ返した
+  (実測では、この flag の有無で silo バイナリの sha256 は完全一致する)。
+  本 wave は新 protocol へこの define を広げないことを
+  D1864 で固定した。
+- 再発検知: `orchestrator/tests/test_pegasus_calibration_workload.py` の
+  `test_certify_keeps_backoff_fixed_and_condition_gate_silo_only` が、この define と関門呼び出しが
+  silo 分岐の内側にだけあることを固定する (変異 M6 で KILLED を確認)。

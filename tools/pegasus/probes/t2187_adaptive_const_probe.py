@@ -107,7 +107,20 @@ EXTIME = 3
 RUN_TIMEOUT_S = 180.0
 
 CERT_RECORDS = 1_000_000
-CERT_THREADS = (48,)
+CERT_PREREGISTERED_STEP_POLICY_SEEDS = (
+    14_481_721_328_008_317_845,
+    7_453_732_891_837_486_670,
+    766_609_016_836_229_506,
+    14_479_507_243_158_715_447,
+    3_736_279_228_254_271_919,
+    6_574_519_577_559_702_715,
+    15_525_319_108_568_766_040,
+    13_039_315_294_558_381_935,
+    16_889_140_200_793_892_447,
+    15_536_816_158_447_092_057,
+    13_171_317_188_614_694_465,
+    3_421_410_286_381_859_835,
+)
 # Compatibility constant for the two original certification cells.
 CERT_EXTIME = 3
 COHORT2_EXTIME = 6
@@ -346,10 +359,126 @@ CERT_PREREGISTRATION_BY_CELL = {
     CERT_COHORT2_POLICY1_CELL: COUNTERFACTUAL_COHORT2_PREREGISTRATION,
     CERT_COHORT2_POLICY2_CELL: COUNTERFACTUAL_COHORT2_PREREGISTRATION,
 }
-CERT_STEP_POLICY_SEED_BY_CELL = {
-    CERT_COHORT2_POLICY1_CELL: STOCK_STEP_POLICY_SEED,
-    CERT_COHORT2_POLICY2_CELL: STOCK_STEP_POLICY_SEED,
+CERT_THREADS_BY_CELL = {
+    CERT_TUNED_CELL: (48,),
+    CERT_DYNAMIC_CELL: (48,),
+    CERT_COHORT2_POLICY1_CELL: (24, 48),
+    CERT_COHORT2_POLICY2_CELL: (24, 48),
 }
+CERT_POLICY2_STEP_POLICY_SEEDS = frozenset(
+    (*CERT_PREREGISTERED_STEP_POLICY_SEEDS, STOCK_STEP_POLICY_SEED)
+)
+
+
+@dataclass(frozen=True)
+class CertificationAxes:
+    """Validated certification identity used by every claim consumer."""
+
+    cell: Cell
+    threads: int
+    step_policy_seed: int | None
+
+    def __post_init__(self) -> None:
+        allowed_threads = CERT_THREADS_BY_CELL.get(self.cell)
+        if (
+            allowed_threads is None
+            or type(self.threads) is not int
+            or self.threads not in allowed_threads
+        ):
+            raise ValueError("certification threads are outside the cell closed table")
+        if self.cell == CERT_COHORT2_POLICY2_CELL:
+            if (
+                type(self.step_policy_seed) is not int
+                or self.step_policy_seed not in CERT_POLICY2_STEP_POLICY_SEEDS
+            ):
+                raise ValueError("policy 2 seed is outside the certification closed table")
+        elif self.cell == CERT_COHORT2_POLICY1_CELL:
+            if self.step_policy_seed != STOCK_STEP_POLICY_SEED:
+                raise ValueError("policy 1 must use the exact default compile seed")
+        elif self.step_policy_seed is not None:
+            raise ValueError("this certification cell has no step-policy seed axis")
+
+
+def _make_certification_axes(
+    cell: Cell,
+    threads: object,
+    step_policy_seed: object,
+    *,
+    reason: str,
+    detail: str,
+) -> CertificationAxes:
+    try:
+        return CertificationAxes(cell, threads, step_policy_seed)  # type: ignore[arg-type]
+    except ValueError as exc:
+        raise CertificationReject(reason, detail) from exc
+
+
+def _certification_claim(axes: CertificationAxes) -> str:
+    """Build a claim only from a closed-table, immutable certification identity."""
+    if type(axes) is not CertificationAxes:
+        raise TypeError("claim construction requires CertificationAxes")
+    published_claims = {
+        CertificationAxes(CERT_TUNED_CELL, 48, None): ALLOWED_GROUP_CLAIM,
+        CertificationAxes(CERT_DYNAMIC_CELL, 48, None): DYNAMIC_GROUP_CLAIM,
+        CertificationAxes(
+            CERT_COHORT2_POLICY1_CELL, 48, STOCK_STEP_POLICY_SEED
+        ): COHORT2_POLICY1_GROUP_CLAIM,
+        CertificationAxes(
+            CERT_COHORT2_POLICY2_CELL, 48, STOCK_STEP_POLICY_SEED
+        ): COHORT2_POLICY2_GROUP_CLAIM,
+    }
+    published_claim = published_claims.get(axes)
+    if published_claim is not None:
+        return published_claim
+    build_scope = (
+        "BACKOFF_TRACE=0 かつ BACKOFF_TRACE_TERMINAL_US の terminal define なしで "
+        "build した実行体"
+    )
+    prefix = (
+        f"固定条件 (records=1,000,000 / threads={axes.threads} / "
+        f"extime={CERT_EXTIME_BY_CELL[axes.cell]} / max_ope=10 / zipf=0.9 / "
+        "rmw=0、workload rr5・rr50・rr95、独立反復 8、計 24 trace) の下で、"
+    )
+    if axes.cell == CERT_TUNED_CELL:
+        subject = "調整済み定数"
+        seed_scope = "step policy seed 非適用"
+        limitation = "固定条件外と機構の各枝の被覆は認証しない。"
+    elif axes.cell == CERT_DYNAMIC_CELL:
+        subject = (
+            "全機構 on (計数窓 K=10000 / 最小 2560 us / 最大 10240 us、"
+            "適応刻み 1〜4 us、動的上限 下限 50 us) の `cw-as-dyn`"
+        )
+        seed_scope = "step policy seed 非適用"
+        limitation = "機構の各枝の被覆は認証しない。"
+    elif axes.cell == CERT_COHORT2_POLICY1_CELL:
+        subject = (
+            "count 窓 K=10000 / 最小 2560 us / cap 9223372036854775807 us、"
+            "適応刻み 1〜4 us、動的上限 下限 50 us、step policy 1 の "
+            "`cw-as-dyn-c2-p1`"
+        )
+        seed_scope = f"compile seed {axes.step_policy_seed}"
+        limitation = "機構の各枝の被覆は認証しない。"
+    else:
+        subject = (
+            "count 窓 K=10000 / 最小 2560 us / cap 9223372036854775807 us、"
+            "適応刻み 1〜4 us、動的上限 下限 50 us、step policy 2 の "
+            "`cw-as-dyn-c2-p2`"
+        )
+        seed_scope = f"compile seed {axes.step_policy_seed}"
+        default_seed_note = (
+            "この既定 seed は事前登録 12 seed のいずれでもない。"
+            if axes.step_policy_seed == STOCK_STEP_POLICY_SEED
+            else ""
+        )
+        limitation = (
+            f"{default_seed_note}他の seed、thread 数、機構の各枝は認証しない。"
+        )
+    return (
+        f"{prefix}{subject} build の trace-enabled 走行 24 件すべてが verifier "
+        "で certified serializable となり、anomaly を 1 件も観測しなかった。"
+        f"認証対象は {axes.threads} threads、{seed_scope}、{build_scope}に限る。"
+        f"{limitation}"
+    )
 
 TRACE_CELLS = (
     Cell(
@@ -631,6 +760,8 @@ def _uint64_decimal(text: str) -> int:
     value = int(text)
     if value >= 2**64:
         raise argparse.ArgumentTypeError("must be smaller than 2**64")
+    if text != str(value):
+        raise argparse.ArgumentTypeError("must use canonical decimal spelling")
     return value
 
 
@@ -801,6 +932,50 @@ def _cell_from_document(document: dict) -> Cell:
             "certification cell identity is not canonical",
         )
     return cell
+
+
+def _certification_axes_from_document(
+    document: dict,
+    *,
+    cell: Cell | None = None,
+    reason: str,
+    detail: str,
+) -> CertificationAxes:
+    """Validate document axes against the same closed tables as live requests."""
+    actual_cell = _cell_from_document(document) if cell is None else cell
+    seed_required = actual_cell in {
+        CERT_COHORT2_POLICY1_CELL,
+        CERT_COHORT2_POLICY2_CELL,
+    }
+    if ("step_policy_seed" in document) != seed_required:
+        raise CertificationReject(reason, detail)
+    seed = document.get("step_policy_seed") if seed_required else None
+    return _make_certification_axes(
+        actual_cell,
+        document.get("threads"),
+        seed,
+        reason=reason,
+        detail=detail,
+    )
+
+
+def _group_certification_axes(
+    rows: list[dict],
+    *,
+    reason: str = "group-cell-identity-mismatch",
+    detail: str = "group thread and seed axes are not one exact identity",
+) -> CertificationAxes:
+    axes = {
+        _certification_axes_from_document(
+            row,
+            reason=reason,
+            detail=detail,
+        )
+        for row in rows
+    }
+    if len(axes) != 1:
+        raise CertificationReject(reason, detail)
+    return next(iter(axes))
 
 
 def _patch_stack_identity() -> dict:
@@ -1368,8 +1543,18 @@ def _positive_float(text: str) -> float:
     return value
 
 
-def _certification_contract(args: argparse.Namespace) -> tuple[Cell, str, int]:
+def _certification_contract(
+    args: argparse.Namespace,
+) -> tuple[CertificationAxes, str]:
     """Return the exact one-request certification axes or reject widening."""
+    if (
+        args.step_policy_seed is not None
+        and args.cells != CERT_COHORT2_POLICY2_CELL_TEXT
+    ):
+        raise CertificationReject(
+            "step-policy-seed-certification-conflict",
+            "--step-policy-seed cannot be combined with this certification cell",
+        )
     expected_cell = CERT_CELL_BY_TEXT.get(args.cells)
     if expected_cell is None:
         raise CertificationReject(
@@ -1378,6 +1563,11 @@ def _certification_contract(args: argparse.Namespace) -> tuple[Cell, str, int]:
         )
     cells = parse_cells(args.cells)
     workloads = _parse_workloads(args.workloads)
+    if type(args.threads) is not str or _INTEGER_RE.fullmatch(args.threads) is None:
+        raise CertificationReject(
+            "certification-workload-shape-mismatch",
+            "certify requires one canonical raw thread literal",
+        )
     threads = _parse_threads(args.threads)
     if len(cells) != 1 or cells[0] != expected_cell:
         raise CertificationReject(
@@ -1390,12 +1580,41 @@ def _certification_contract(args: argparse.Namespace) -> tuple[Cell, str, int]:
             "certify requires exactly one of write-heavy, balanced, read-heavy",
         )
     expected_extime = CERT_EXTIME_BY_CELL[expected_cell]
-    if threads != CERT_THREADS or args.extime != expected_extime:
+    allowed_threads = CERT_THREADS_BY_CELL[expected_cell]
+    if (
+        len(threads) != 1
+        or args.threads != str(threads[0])
+        or threads[0] not in allowed_threads
+        or args.extime != expected_extime
+    ):
         raise CertificationReject(
             "certification-workload-shape-mismatch",
-            "certify requires records=1000000, threads=48, and the exact "
-            "cell-specific extime",
+            "certify requires records=1000000, one exact cell-allowed thread "
+            "literal, and the exact cell-specific extime",
         )
+    if expected_cell == CERT_COHORT2_POLICY2_CELL:
+        if args.step_policy_seed is None:
+            raise CertificationReject(
+                "certification-step-policy-seed-missing",
+                "policy 2 certification requires an explicit step-policy seed",
+            )
+        if args.step_policy_seed not in CERT_POLICY2_STEP_POLICY_SEEDS:
+            raise CertificationReject(
+                "certification-step-policy-seed-mismatch",
+                "policy 2 certification seed is outside the exact closed table",
+            )
+        compile_seed = args.step_policy_seed
+    elif expected_cell == CERT_COHORT2_POLICY1_CELL:
+        compile_seed = STOCK_STEP_POLICY_SEED
+    else:
+        compile_seed = None
+    axes = _make_certification_axes(
+        expected_cell,
+        threads[0],
+        compile_seed,
+        reason="certification-workload-shape-mismatch",
+        detail="certification axes are outside the exact cell contract",
+    )
     if args.reps_per_job != CERT_REPS_PER_JOB:
         raise CertificationReject(
             "certification-repetition-mismatch",
@@ -1469,7 +1688,7 @@ def _certification_contract(args: argparse.Namespace) -> tuple[Cell, str, int]:
             "build + run + positive-control + target-verifier + exit margin "
             "must be strictly below the outer walltime",
         )
-    return cells[0], workloads[0], threads[0]
+    return axes, workloads[0]
 
 
 def _validate_verifier_identity_shape(identity: object) -> dict:
@@ -1855,6 +2074,7 @@ def _validate_target(
         or document.get("indeterminate") != 0
         or result.get("verdict") != "serializable"
         or result.get("certified") is not True
+        or result.get("anomalies") != []
     ):
         raise CertificationReject(
             "target-verdict", "target is not exactly one certified serializable result"
@@ -1942,6 +2162,7 @@ def _performance_artifact_identity(
     expected_patch_stack_sha256: str | None = None,
     required_cell: Cell | None = None,
     expected_extime: int | None = None,
+    expected_axes: CertificationAxes | None = None,
 ) -> dict:
     if type(expected_sha256) is not str or _SHA256_RE.fullmatch(expected_sha256) is None:
         raise CertificationReject(
@@ -1978,6 +2199,7 @@ def _performance_artifact_identity(
         expected_patch_stack_sha256,
         required_cell,
         expected_extime,
+        expected_axes,
     )
     if any(value is not None for value in expected_values):
         if any(value is None for value in expected_values):
@@ -1985,9 +2207,25 @@ def _performance_artifact_identity(
                 "performance-artifact-identity-mismatch",
                 "dynamic performance identity expectations are incomplete",
             )
-        assert required_cell is not None
+        assert required_cell is not None and expected_axes is not None
         cells = document.get("cells")
         expected_cell_identity = _cell_identity(required_cell)
+        if expected_axes.cell != required_cell:
+            raise CertificationReject(
+                "performance-artifact-identity-mismatch",
+                "dynamic performance identity expects inconsistent cell axes",
+            )
+        matching_rows = (
+            [
+                row
+                for row in cells
+                if type(row) is dict
+                and {key: row.get(key) for key in expected_cell_identity}
+                == expected_cell_identity
+            ]
+            if type(cells) is list
+            else []
+        )
         if (
             (
                 expected_patch_stack_sha256
@@ -2000,13 +2238,11 @@ def _performance_artifact_identity(
             != expected_patch_stack_sha256
             or document.get("extime_s") != expected_extime
             or type(cells) is not list
+            or not matching_rows
             or not any(
-                type(row) is dict
-                and {
-                    key: row.get(key) for key in expected_cell_identity
-                }
-                == expected_cell_identity
-                for row in cells
+                type(row.get("threads")) is int
+                and row["threads"] == expected_axes.threads
+                for row in matching_rows
             )
         ):
             raise CertificationReject(
@@ -2025,20 +2261,13 @@ def _performance_artifact_identity(
             CERT_COHORT2_POLICY1_CELL,
             CERT_COHORT2_POLICY2_CELL,
         }:
-            expected_genome = genome_for(required_cell).canonical()
-            expected_seed = CERT_STEP_POLICY_SEED_BY_CELL[required_cell]
-            matching_rows = [
-                row
-                for row in cells
-                if type(row) is dict
-                and {
-                    key: row.get(key) for key in expected_cell_identity
-                }
-                == expected_cell_identity
-            ]
+            expected_genome = genome_for(
+                required_cell,
+                step_policy_seed=expected_axes.step_policy_seed,
+            ).canonical()
+            expected_seed = expected_axes.step_policy_seed
             if (
-                not matching_rows
-                or any(row.get("genome") != expected_genome for row in matching_rows)
+                any(row.get("genome") != expected_genome for row in matching_rows)
                 or (
                     required_cell == CERT_COHORT2_POLICY2_CELL
                     and any(
@@ -2053,7 +2282,7 @@ def _performance_artifact_identity(
             ):
                 raise CertificationReject(
                     "performance-artifact-identity-mismatch",
-                    "cohort 2 performance artifact is not the exact default-seed "
+                    "cohort 2 performance artifact is not the exact request-seed "
                     "certification build identity",
                 )
     return {
@@ -2222,28 +2451,26 @@ def _validated_certification_row(
             "group-workload-contract-mismatch",
             f"result cell is not an exact certification cell: {path}",
         )
+    axes = _certification_axes_from_document(
+        document,
+        cell=cell,
+        reason="group-workload-contract-mismatch",
+        detail=f"result thread/seed axes are outside the closed table: {path}",
+    )
     expected_workload_flags = {
         **WORKLOADS[workload],
         "ycsb_tuple_num": str(CERT_RECORDS),
-        "thread_num": str(CERT_THREADS[0]),
+        "thread_num": str(axes.threads),
         "extime": str(expected_extime),
     }
-    expected_step_policy_seed = CERT_STEP_POLICY_SEED_BY_CELL.get(cell)
     if (
         document.get("workload_flags") != expected_workload_flags
         or document.get("records") != CERT_RECORDS
-        or document.get("threads") != CERT_THREADS[0]
         or document.get("extime_s") != expected_extime
         or document.get("cell_order") != [cell.label]
-        or document.get("allowed_group_claim") != CERT_CLAIMS[cell]
+        or document.get("allowed_group_claim") != _certification_claim(axes)
         or document.get("prereg_sha256")
         != _certification_prereg_sha256(cell)
-        or ("step_policy_seed" in document)
-        != (expected_step_policy_seed is not None)
-        or (
-            expected_step_policy_seed is not None
-            and document.get("step_policy_seed") != expected_step_policy_seed
-        )
         or document.get("rng_seed_controlled") is not False
     ):
         raise CertificationReject(
@@ -2270,7 +2497,22 @@ def _validated_certification_row(
     execution_identity = _validate_recorded_execution_identity(
         document, reason="group-build-identity-mismatch"
     )
-    expected_genome = genome_for(cell).canonical()
+    if cell == CERT_COHORT2_POLICY2_CELL:
+        driver_argv = execution_identity["driver_argv"]
+        option = "--step-policy-seed"
+        if (
+            driver_argv.count(option) != 1
+            or driver_argv.index(option) + 1 >= len(driver_argv)
+            or driver_argv[driver_argv.index(option) + 1]
+            != str(axes.step_policy_seed)
+        ):
+            raise CertificationReject(
+                "group-workload-contract-mismatch",
+                f"result driver argv does not bind the policy 2 seed: {path}",
+            )
+    expected_genome = genome_for(
+        cell, step_policy_seed=axes.step_policy_seed
+    ).canonical()
     expected_genome_sha256 = hashlib.sha256(
         expected_genome.encode("utf-8")
     ).hexdigest()
@@ -2440,8 +2682,8 @@ def _validated_certification_row(
             "backoff_trace": document["backoff_trace"],
             "attempt_id": attempt_id,
             **(
-                {"step_policy_seed": expected_step_policy_seed}
-                if expected_step_policy_seed is not None
+                {"step_policy_seed": axes.step_policy_seed}
+                if axes.step_policy_seed is not None
                 else {}
             ),
         },
@@ -2505,6 +2747,7 @@ def _group_receipt_payload(
             "group-request-identity-duplicate", "request ids must be unique"
         )
     row_cells = [_cell_from_document(row) for row in rows]
+    group_axes = _group_certification_axes(rows)
     if (
         len({row["trace_dir"] for row in rows}) != 24
         or len(
@@ -2580,21 +2823,19 @@ def _group_receipt_payload(
             "source_snapshot_identity"
         ],
     }
-    cell = row_cells[0]
+    cell = group_axes.cell
     expected_extime = CERT_EXTIME_BY_CELL.get(cell)
-    expected_step_policy_seed = CERT_STEP_POLICY_SEED_BY_CELL.get(cell)
     if (
         expected_extime is None
-        or rows[0]["claim"] != CERT_CLAIMS[cell]
+        or rows[0]["claim"] != _certification_claim(group_axes)
         or any(row["records"] != CERT_RECORDS for row in rows)
-        or any(row["threads"] != CERT_THREADS[0] for row in rows)
         or any(row["extime_s"] != expected_extime for row in rows)
         or any(
             row["workload_flags"]
             != {
                 **WORKLOADS[row["workload"]],
                 "ycsb_tuple_num": str(CERT_RECORDS),
-                "thread_num": str(CERT_THREADS[0]),
+                "thread_num": str(group_axes.threads),
                 "extime": str(expected_extime),
             }
             for row in rows
@@ -2602,18 +2843,6 @@ def _group_receipt_payload(
         or any(
             row["prereg_sha256"] != _certification_prereg_sha256(cell)
             for row in rows
-        )
-        or any(
-            ("step_policy_seed" in row)
-            != (expected_step_policy_seed is not None)
-            for row in rows
-        )
-        or (
-            expected_step_policy_seed is not None
-            and any(
-                row.get("step_policy_seed") != expected_step_policy_seed
-                for row in rows
-            )
         )
     ):
         raise CertificationReject(
@@ -2640,12 +2869,12 @@ def _group_receipt_payload(
         "expected_requests": 24,
         "terminal_requests": 24,
         "certified_requests": 24,
-        "claim": CERT_CLAIMS[cell],
+        "claim": _certification_claim(group_axes),
         **_cell_identity(cell),
         "cell_order": [cell.label],
         "backoff_trace": False,
         "records": CERT_RECORDS,
-        "threads": CERT_THREADS[0],
+        "threads": group_axes.threads,
         "extime_s": expected_extime,
         "claim_limitations": list(CLAIM_LIMITATIONS),
         # The correctness campaign binds the trace-disabled performance
@@ -2673,8 +2902,8 @@ def _group_receipt_payload(
         "source_evidence": rows[0]["source_evidence"],
         "proof_surface": proof_surface,
         **(
-            {"step_policy_seed": expected_step_policy_seed}
-            if expected_step_policy_seed is not None
+            {"step_policy_seed": group_axes.step_policy_seed}
+            if group_axes.step_policy_seed is not None
             else {}
         ),
         "results": rows,
@@ -2716,8 +2945,35 @@ def _validate_published_group(
     proof_surface = receipt.get("proof_surface")
     cell = _cell_from_document(receipt)
     expected_extime = CERT_EXTIME_BY_CELL.get(cell)
-    expected_step_policy_seed = CERT_STEP_POLICY_SEED_BY_CELL.get(cell)
+    receipt_axes = _certification_axes_from_document(
+        receipt,
+        cell=cell,
+        reason="group-receipt-collision",
+        detail="published receipt axes are outside the exact closed tables",
+    )
+    if type(rows) is not list or len(rows) != 24:
+        raise CertificationReject(
+            "group-receipt-collision",
+            "published group receipt does not contain exactly 24 rows",
+        )
+    row_axes = [
+        _certification_axes_from_document(
+            row,
+            reason="group-receipt-collision",
+            detail="published row axes are outside the exact closed tables",
+        )
+        for row in rows
+        if type(row) is dict
+    ]
+    if len(row_axes) != 24 or set(row_axes) != {receipt_axes}:
+        raise CertificationReject(
+            "group-receipt-collision",
+            "published group rows do not share the receipt thread/seed axes",
+        )
     expected_patch_identity = _patch_stack_identity()
+    expected_genome = genome_for(
+        cell, step_policy_seed=receipt_axes.step_policy_seed
+    ).canonical()
     receipt_execution_identity = _validate_recorded_execution_identity(
         receipt, reason="group-receipt-collision"
     )
@@ -2735,21 +2991,12 @@ def _validate_published_group(
             performance_artifact_sha256,
             **(performance_expectations or {}),
         )
-        or type(rows) is not list
-        or len(rows) != 24
         or expected_extime is None
         or receipt.get("cell_order") != [cell.label]
-        or receipt.get("claim") != CERT_CLAIMS[cell]
+        or receipt.get("claim") != _certification_claim(receipt_axes)
         or receipt.get("backoff_trace") is not False
         or receipt.get("records") != CERT_RECORDS
-        or receipt.get("threads") != CERT_THREADS[0]
         or receipt.get("extime_s") != expected_extime
-        or ("step_policy_seed" in receipt)
-        != (expected_step_policy_seed is not None)
-        or (
-            expected_step_policy_seed is not None
-            and receipt.get("step_policy_seed") != expected_step_policy_seed
-        )
         or type(receipt.get("hostname")) is not str
         or not receipt["hostname"]
         or receipt.get("prereg_sha256")
@@ -2762,7 +3009,7 @@ def _validate_published_group(
         )
         or receipt.get("ccbench_commit") != PIN_FULL
         or receipt.get("ccbench_head") != PIN_FULL
-        or type(receipt.get("genome")) is not str
+        or receipt.get("genome") != expected_genome
         or type(receipt.get("source_evidence")) is not dict
         or receipt["source_evidence"]
         != (
@@ -2797,25 +3044,18 @@ def _validate_published_group(
         or {key: row.get(key) for key in _cell_identity(cell)}
         != _cell_identity(cell)
         or row.get("cell_order") != [cell.label]
-        or row.get("claim") != CERT_CLAIMS[cell]
+        or row.get("claim") != receipt.get("claim")
         or row.get("backoff_trace") is not False
         or row.get("records") != CERT_RECORDS
-        or row.get("threads") != CERT_THREADS[0]
         or row.get("extime_s") != expected_extime
         or row.get("workload") not in CERT_WORKLOADS
         or row.get("workload_flags")
         != {
             **WORKLOADS[row["workload"]],
             "ycsb_tuple_num": str(CERT_RECORDS),
-            "thread_num": str(CERT_THREADS[0]),
+            "thread_num": str(receipt_axes.threads),
             "extime": str(expected_extime),
         }
-        or ("step_policy_seed" in row)
-        != (expected_step_policy_seed is not None)
-        or (
-            expected_step_policy_seed is not None
-            and row.get("step_policy_seed") != expected_step_policy_seed
-        )
         or row.get("repo_head") != receipt["repo_head"]
         or row.get("prereg_sha256") != receipt["prereg_sha256"]
         or row.get("ccbench_commit") != receipt["ccbench_commit"]
@@ -2935,7 +3175,22 @@ def _try_finalize_group(
                 performance_expectations=performance_expectations,
                 execution_identity=execution_identity,
             )
-        except CertificationReject:
+        except CertificationReject as exc:
+            try:
+                failure_out = group_out.with_name(
+                    f"group-failure-{attempt_id}.json"
+                )
+                _write_json_create_only(
+                    failure_out,
+                    {
+                        "reason": exc.reason,
+                        "detail": exc.detail,
+                        "attempt_id": attempt_id,
+                        "failed_utc": datetime.now(timezone.utc).isoformat(),
+                    },
+                )
+            except (OSError, TypeError, ValueError):
+                pass
             return False
         encoded = (
             json.dumps(receipt, indent=2, ensure_ascii=False) + "\n"
@@ -2979,6 +3234,25 @@ def _remove_group_traces(group_out: Path) -> None:
             shutil.rmtree(trace_dir, ignore_errors=True)
 
 
+class _StoreOnceAction(argparse.Action):
+    """Store one option value while rejecting a repeated option token."""
+
+    def __call__(
+        self,
+        parser: argparse.ArgumentParser,
+        namespace: argparse.Namespace,
+        values: object,
+        option_string: str | None = None,
+    ) -> None:
+        seen_attribute = f"_{self.dest}_option_seen"
+        if getattr(namespace, seen_attribute, False):
+            raise argparse.ArgumentError(
+                self, f"{option_string or self.dest} may not be repeated"
+            )
+        setattr(namespace, seen_attribute, True)
+        setattr(namespace, self.dest, values)
+
+
 def _argument_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -2998,11 +3272,15 @@ def _argument_parser() -> argparse.ArgumentParser:
         "--workloads", default=",".join(DEFAULT_WORKLOADS)
     )
     parser.add_argument(
-        "--threads", default=",".join(str(value) for value in DEFAULT_THREADS)
+        "--threads",
+        action=_StoreOnceAction,
+        default=",".join(str(value) for value in DEFAULT_THREADS),
     )
     parser.add_argument("--rep-index", type=_nonnegative_int, default=0)
     parser.add_argument("--reps-per-job", type=_positive_int, default=1)
-    parser.add_argument("--step-policy-seed", type=_uint64_decimal)
+    parser.add_argument(
+        "--step-policy-seed", action=_StoreOnceAction, type=_uint64_decimal
+    )
     parser.add_argument(
         "--backoff-trace-terminal-us", type=_nonnegative_int, default=0
     )
@@ -3165,7 +3443,10 @@ def _certify_main(args: argparse.Namespace) -> int:
     """Run one exact workload × independent-slot certification request."""
     out = Path(args.out)
     _validate_output_path(out)
-    cell, workload_id, threads = _certification_contract(args)
+    axes, workload_id = _certification_contract(args)
+    cell = axes.cell
+    threads = axes.threads
+    claim = _certification_claim(axes)
     _validate_dynamic_certification_namespaces(args, cell)
     if cell.extended:
         _validate_dynamic_output_path(out)
@@ -3189,7 +3470,7 @@ def _certify_main(args: argparse.Namespace) -> int:
     repo_head = _validated_repo_head(args.repo_head)
     prereg_sha256 = _certification_prereg_sha256(cell)
     cert_extime = CERT_EXTIME_BY_CELL[cell]
-    cert_step_policy_seed = CERT_STEP_POLICY_SEED_BY_CELL.get(cell)
+    cert_step_policy_seed = axes.step_policy_seed
     execution_identity = _execution_identity(args.repo_clean)
     performance_expectations = (
         {
@@ -3203,6 +3484,7 @@ def _certify_main(args: argparse.Namespace) -> int:
             ],
             "required_cell": cell,
             "expected_extime": cert_extime,
+            "expected_axes": axes,
         }
         if cell in DYNAMIC_CERT_CELLS
         else {}
@@ -3235,7 +3517,7 @@ def _certify_main(args: argparse.Namespace) -> int:
         "schema_version": CERTIFICATION_SCHEMA_VERSION,
         "kind": "correctness-certification-request",
         "claim_status": "not-yet-group-certified",
-        "allowed_group_claim": CERT_CLAIMS[cell],
+        "allowed_group_claim": claim,
         "claim_limitations": list(CLAIM_LIMITATIONS),
         "performance_values_remain_uncertified": True,
         "attempt_id": args.attempt_id,
@@ -3327,7 +3609,7 @@ def _certify_main(args: argparse.Namespace) -> int:
         cc, cxx = buildcache.compilers_for_current_site()
         cache_root = Path(os.environ["TMPDIR"]) / "build-variants"
         cache_root.mkdir(mode=0o700)
-        genome = genome_for(cell)
+        genome = genome_for(cell, step_policy_seed=cert_step_policy_seed)
         protocol = _certification_protocol(genome)
 
         build_wall_started = time.monotonic()
@@ -3608,8 +3890,6 @@ def main(argv: list[str] | None = None) -> int:
         if args.backoff_trace:
             raise CertificationReject(
                 "backoff-trace-certification-conflict", "--backoff-trace cannot be combined with --mode certify")
-        if args.step_policy_seed is not None:
-            raise CertificationReject("step-policy-seed-certification-conflict", "--step-policy-seed cannot be combined with --mode certify")
         return _certify_main(args)
     _validate_step_policy_seed(cells, args.step_policy_seed)
     if not args.backoff_trace and args.backoff_trace_terminal_us != 0:

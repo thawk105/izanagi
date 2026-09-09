@@ -124,18 +124,28 @@ smoke 実測では gcc/cmake module は存在しないため、certification は
 # admission-site: login-direct
 tools/pegasus/submit_certify.sh --rratio 80   # H1 / rr80
 tools/pegasus/submit_certify.sh --rratio 20   # H2 / rr20
+tools/pegasus/submit_certify.sh --protocol mocc --rratio 50
 ```
 
 この wrapper は `qstat -Q`、`pegasusinfo`、`rbudgetcheck`、`check_quota` の rc と raw output、source
 commit、job script SHA-256、queue/project/node/walltime を nonce staging に保存する。その後だけ qsub
-を実行し、応答 request ID と選択した `ycsb_rratio` (20 / 50 / 80 の固定 whitelist) を
-`submit-receipt.json` に追加する。job は nonce と同じ workload binding を受け取り、この receipt
-が現れるまで最大 60 秒待ってから source・script・request ID・workload を再照合する。
+を実行し、応答 request ID、選択した `ycsb_rratio` (20 / 50 / 80 の固定 whitelist)、実効 protocol を
+`submit-receipt.json` に追加する。job は nonce と同じ workload / protocol binding を受け取り、
+この receipt が現れるまで最大 60 秒待ってから source・script・request ID・workload・protocol を
+再照合する。
 
 `--rratio` を省略した場合は既存互換の rr50 になる。rr80/rr20 の calibration はこの引数を
 指定すれば人間が JSON を編集・登録する必要はなく、compute-node job の certification が
 既存の schema / acquisition receipt / 自己比較 / create-only publish を通った場合だけ
 `output/env/pegasus/calibration/registered/` へ自動登録する。
+
+`--protocol` の受理集合は `silo / mocc / tictoc` ちょうどで、省略時は既存互換の `silo` になる。
+`cicada` は、探索軸 `INLINE_VERSION_OPT` と実際の CMake cache 名
+`CCBENCH_INLINE_VERSION_OPT_CICADA` が食い違い、汎用名では値が compiler へ届かないため受理しない。
+現行の軸名のまま届いていない値を genome として記録しないための除外である。
+
+`BACKOFF_FIXED=-1` とその condition gate は、従来 argv を保つ `silo` だけの例外である。
+現行 CCBench pin に macro がないため、供給していない define を mocc / tictoc へ広げない。
 
 qsub を実行せず、生成するコマンドだけ確認する場合は `--dry-run` を付ける。
 
@@ -157,7 +167,7 @@ certification job は 1 node・2 時間で、次の順に fail-closed で進む�
    dynamic pre-attestation を fatal gate として通す
 9. 凍結 CLI (`--certify`, `--receipt-json`, `--binary-sha256`) で
    t48 / 選択した `skew0p9_rr{20|50|80}_rmw0` calibration を実行する
-10. 成功時だけ post-attestation と `job-result.json` を作る
+10. 成功時だけ post-attestation を作り、calibrator の成否にかかわらず `job-result.json` を作る
 
 numactl 方針は calibrator が attestation の NUMA node 数から自動導出する (1 node はなし、複数は
 interleave-all)。job wrapper から CLI override は渡さない。
