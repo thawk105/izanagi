@@ -1,5 +1,25 @@
 {
   "duration_seconds_by_nodeid": {
+    "orchestrator/tests/test_silo_validation_isolation.py::test_cmake_trace_default_reports_macro_closure_intersections": 0.16,
+    "orchestrator/tests/test_silo_validation_isolation.py::test_claim_boundary_records_every_required_non_guarantee": 0.17,
+    "orchestrator/tests/test_silo_validation_isolation.py::test_claim_boundary_records_unmodeled_implicit_lifetime_edges": 0.18,
+    "orchestrator/tests/test_silo_validation_isolation.py::test_claim_boundary_requires_external_runtime_anomaly_evidence": 0.17,
+    "orchestrator/tests/test_silo_validation_isolation.py::test_cli_missing_patch_is_error_not_no_intersection": 0.049,
+    "orchestrator/tests/test_silo_validation_isolation.py::test_cli_reports_depth_one_intersection_for_guarded_lockskip_patch": 0.17,
+    "orchestrator/tests/test_silo_validation_isolation.py::test_cli_reports_depth_two_intersection_for_iterator_unlock": 0.18,
+    "orchestrator/tests/test_silo_validation_isolation.py::test_cli_reports_no_intersection_for_registered_backoff_patch": 0.17,
+    "orchestrator/tests/test_silo_validation_isolation.py::test_cli_reports_no_intersection_for_same_file_unreachable_decoy": 0.18,
+    "orchestrator/tests/test_silo_validation_isolation.py::test_cli_reports_root_intersection_for_guarded_norw_patch": 0.18,
+    "orchestrator/tests/test_silo_validation_isolation.py::test_cli_unconsumed_edit_is_reported_and_errors": 0.18,
+    "orchestrator/tests/test_silo_validation_isolation.py::test_cli_unmappable_hunk_is_error_not_no_intersection": 0.049,
+    "orchestrator/tests/test_silo_validation_isolation.py::test_comment_directive_text_does_not_create_macro_intersection": 0.17,
+    "orchestrator/tests/test_silo_validation_isolation.py::test_default_argument_callee_edit_is_not_reported_as_no_intersection": 0.43,
+    "orchestrator/tests/test_silo_validation_isolation.py::test_early_unlock_is_outside_closure_and_claims_no_correctness": 0.17,
+    "orchestrator/tests/test_silo_validation_isolation.py::test_known_root_edit_wins_over_unconsumed_edit": 0.18,
+    "orchestrator/tests/test_silo_validation_isolation.py::test_known_root_edits_win_over_incomplete_closure_expansion": 0.98,
+    "orchestrator/tests/test_silo_validation_isolation.py::test_missing_repo_root_is_error_not_empty_closure": 0.014,
+    "orchestrator/tests/test_silo_validation_isolation.py::test_real_raw_closure_contains_root_helpers_and_implicit_comparators": 0.18,
+    "orchestrator/tests/test_silo_validation_isolation.py::test_real_raw_closure_excludes_callers_postvalidation_and_abort_path": 0.18,
     "orchestrator/tests/test_a5_second_boot_job_contract.py::test_a5_cleanup_failure_records_remaining_paths_and_preserves_exit_precedence": 0.12,
     "orchestrator/tests/test_a5_second_boot_job_contract.py::test_a5_job_exit_cleanup_preserves_missing_sibling_worktree_registration": 0.13,
     "orchestrator/tests/test_p3_s4_loop.py::test_prebuild_offline_tokens_reach_real_condition_gate_configure_argv": 0.01,
@@ -22158,7 +22178,7 @@
     "orchestrator/tests/test_t1998_stock_inline_pair.py::test_unstable_arm_is_inconclusive[target]": 0.0,
     "orchestrator/tests/test_t1998_stock_inline_pair.py::test_verify_environment_tag_drift_is_rejected": 0.0
   },
-  "nodeid_count": 22157,
+  "nodeid_count": 22177,
   "schema_version": 1,
   "unit": "seconds"
 }
