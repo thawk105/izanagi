@@ -1,0 +1,353 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 200,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 7200,
+  "mutations": [
+    {
+      "id": "M1-campaign-does-not-dispatch-to-certified-launcher",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "        if self.certified_attempt_context is not None: return _run_certified_floor_session(",
+          "new": "        if False and self.certified_attempt_context is not None: return _run_certified_floor_session("
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_certified_campaign_rejects_unissued_consumption_marker",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_certified_cut6_existing_marker_competing_probe_aborts_without_result",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_competing_pre_probe_consumes_no_marker_and_writes_no_registry_row",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_default_production_attempt_uses_certified_launcher_once",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_default_production_result_is_v5",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_finalize_pending_replays_live_v5_prefix",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_journal_emits_launcher_terminal_record_byte_identically",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_production_v5_self_check_rejects_prefix_head_mismatch",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_v5_prefix_assertions_kill_first_terminal_stale_result_proof",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_v5_prefix_covers_every_consumed_non_competing_session"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-registry-plan-maps-round-to-one-based-repetition",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+          "old": "                repetition=round_no - 1,",
+          "new": "                repetition=round_no,"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_default_production_attempt_uses_certified_launcher_once",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_default_production_result_is_v5",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_finalize_pending_replays_live_v5_prefix",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_journal_emits_launcher_terminal_record_byte_identically",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_production_v5_self_check_rejects_prefix_head_mismatch",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_registry_plan_declares_exact_planned_and_retry_slot_closure",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_registry_plan_maps_round_to_zero_based_repetition",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_v5_prefix_assertions_kill_first_terminal_stale_result_proof",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_v5_prefix_covers_every_consumed_non_competing_session"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-campaign-skips-consumption-marker-validation",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "        marker = _holdout_admission.validate_floor_attempt_consumption_marker(\n            admission, attempt_id=attempt_id,\n        )",
+          "new": "        marker = {\"attempt_id\": attempt_id}"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_certified_campaign_rejects_unissued_consumption_marker",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_default_production_attempt_uses_certified_launcher_once",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_default_production_result_is_v5",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_finalize_pending_replays_live_v5_prefix",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_journal_emits_launcher_terminal_record_byte_identically",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_production_v5_self_check_rejects_prefix_head_mismatch",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_v5_prefix_assertions_kill_first_terminal_stale_result_proof",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_v5_prefix_covers_every_consumed_non_competing_session"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-journal-emits-a-modified-copy-of-the-launcher-terminal",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "    runner._emit(record)\n    return record",
+          "new": "    runner._emit(dict(record, duration_s=0.0))\n    return record"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_journal_emits_launcher_terminal_record_byte_identically"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9-production-result-schema-falls-back-to-v4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "        \"schema\": _floor_contract.RESULT_SCHEMA_V5 if attempt_registry is not None else RESULT_SCHEMA,",
+          "new": "        \"schema\": RESULT_SCHEMA,"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_default_production_result_is_v5",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_finalize_pending_replays_live_v5_prefix",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_v5_prefix_assertions_kill_first_terminal_stale_result_proof",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_v5_prefix_covers_every_consumed_non_competing_session"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10-captured-prefix-drops-the-last-row",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+          "old": "    owned = _require_floor_attempt_registry_plan(plan)\n    return attempt_registry.capture_attempt_registry_prefix(\n        Path(repo_root), expected_binding=owned._binding\n    )",
+          "new": "    owned = _require_floor_attempt_registry_plan(plan)\n    captured = attempt_registry.capture_attempt_registry_prefix(\n        Path(repo_root), expected_binding=owned._binding\n    )\n    count = captured.get(\"row_count\") if isinstance(captured, dict) else None\n    if isinstance(count, int) and count > 1:\n        captured = dict(captured, row_count=count - 1)\n    return captured"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_default_production_result_is_v5",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_finalize_pending_replays_live_v5_prefix",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_v5_prefix_assertions_kill_first_terminal_stale_result_proof",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_v5_prefix_covers_every_consumed_non_competing_session"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11-terminal-identity-binds-recovery-ordinal",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_terminal_evidence.py",
+          "old": "    measurement_ordinal = _nonnegative_int(\n        slot_id[3], label='reservation.slot_id[3]')",
+          "new": "    measurement_ordinal = _nonnegative_int(\n        slot_id[4], label='reservation.slot_id[4]')"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_durable_replay_binds_measurement_ordinal",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_durable_replay_rejects_recovery_ordinal_substitution",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_sealed_issuer_rejects_structural_reservation_identity_transplant[retry_ordinal-9]",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_retry_terminal_rejects_recovery_ordinal_substitution",
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_all_source_digests_are_rederived",
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_authoritative_campaign_identity_is_rechecked[threads-9-threads]",
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_campaign_excluded_reason_must_equal_rederived_word",
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_campaign_probe_and_observations_are_digest_bound",
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_campaign_retry_binds_measurement_ordinal_not_recovery_ordinal",
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_canonical_bytes_reject_lf_and_spacing_without_other_validation",
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_capture_failure_requires_zero_launch_failure_count_pair",
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_constructor_and_dataclasses_replace_attacks_are_closed",
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_document_is_a_fresh_detached_tree_on_every_access",
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_end_to_end_e1_representative_cases[full-exec-retryable-failure-launch_failure-measurement_execution_unavailable-launch_failure]",
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_end_to_end_e1_representative_cases[observed-observed-None-None-None]",
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_end_to_end_e1_representative_cases[oserror-retryable-failure-launch_failure-measurement_execution_unavailable-launch_failure]",
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_end_to_end_e1_representative_cases[precompeting-retryable-failure-competing_process-measurement_environment_conflict-competing_process]",
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_execution_failure_without_throughput_is_a_valid_sealed_input",
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_failure_requires_unavailable_projection",
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_holdout_safe_positive_and_plaintext_negative_are_paired",
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_identity_four_groups_are_disjoint_and_exhaustive",
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_mutation_l01_outer_extra_key_has_one_exact_schema_gate",
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_mutation_l02_draft_binding_extra_key_has_one_exact_gate",
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_mutation_l03_validated_old_observation_spelling_has_one_gate",
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_mutation_l06_nonfinite_plaintext_has_only_finite_gate",
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_mutation_l12_primary_must_be_assessment_median",
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_mutation_l13_launcher_captured_set_is_exact[OSError]",
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_mutation_l13_launcher_captured_set_is_exact[RuntimeError]",
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_mutation_l13_launcher_captured_set_is_exact[subprocess.TimeoutExpired]",
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_mutation_l15_require_uses_exact_type_not_isinstance",
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_mutation_l17_report_digest_is_rederived_from_raw_bytes",
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_mutation_l18_canonical_bytes_never_returns_internal_reference",
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_mutations_l04_l05_noncanonical_bytes_have_only_canonical_gate[<lambda>0]",
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_mutations_l04_l05_noncanonical_bytes_have_only_canonical_gate[<lambda>1]",
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_nonzero_rc_integrity_failure_reaches_sealed_terminal",
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_opened_mutual_consistency_rejects_each_independent_break[mutation0]",
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_opened_mutual_consistency_rejects_each_independent_break[mutation1]",
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_opened_mutual_consistency_rejects_each_independent_break[mutation2]",
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_outer_schema_and_draft_binding_are_exact",
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_projection_is_rebuilt_from_canonical_bytes",
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_raw_output_relation_uses_the_existing_session_serializer",
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_require_never_promotes_a_draft",
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_terminal_rejects_exec_count_mismatch_against_private_sink",
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_validated_binding_has_exact_twelve_keys_and_real_spelling",
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_validated_sha256_and_canonical_bytes_are_recomputed",
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_workload_authority_is_rechecked_without_plaintext_disclosure"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M16-terminal-leaf-rejects-planned-none-retry-ordinal",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_terminal_evidence.py",
+          "old": "    retry_ordinal = record['retry_ordinal']\n    if retry_ordinal is not None:\n        _nonnegative_int(\n            retry_ordinal, label='campaign_record.retry_ordinal')",
+          "new": "    retry_ordinal = record['retry_ordinal']\n    _nonnegative_int(\n        retry_ordinal, label='campaign_record.retry_ordinal')"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_capture_failure_zero_launch_count_issues_and_replays",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_classification_receipt_rechecks_terminal_source_digest",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_draft_promotion_rebuilds_bytes_and_rejects_foreign_issuer",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_durable_replay_rejects_campaign_identity_transplant[configuration_id-transplanted-configuration]",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_durable_replay_rejects_campaign_identity_transplant[holdout_id-transplanted-holdout]",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_durable_replay_rejects_campaign_identity_transplant[retry_ordinal-9]",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_durable_replay_rejects_capture_failure_with_nonzero_launch_count",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_orphan_terminal_evidence_file_without_row_is_permitted",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_plain_v2_profile_rejects_transition_after_sealed_terminal",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_private_validating_profile_rejects_capability_with_foreign_issuer",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_sealed_issuer_rechecks_durable_claim_identity[cell_id-different-cell]",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_sealed_issuer_rechecks_durable_claim_identity[mode-official]",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_sealed_issuer_rechecks_durable_claim_identity[records-1]",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_sealed_issuer_rechecks_durable_claim_identity[threads-1]",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_sealed_issuer_rechecks_durable_claim_identity[workload-replacement4]",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_sealed_issuer_rejects_structural_reservation_identity_transplant[configuration_id-transplanted-configuration]",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_sealed_issuer_rejects_structural_reservation_identity_transplant[holdout_id-transplanted-holdout]",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_sealed_profile_directly_checks_all_eleven_row_equalities",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_sealed_v2_issuer_rederives_external_component_digests",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_sealed_v2_replay_rederives_external_component_digests",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_sealed_v2_replay_rejects_each_unshadowed_row_projection_mismatch[finished_at]",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_sealed_v2_replay_rejects_each_unshadowed_row_projection_mismatch[observation_sha256]",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_sealed_v2_replay_rejects_each_unshadowed_row_projection_mismatch[primary_value]",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_sealed_v2_replay_rejects_each_unshadowed_row_projection_mismatch[raw_output_sha256]",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_sealed_v2_replay_rejects_each_unshadowed_row_projection_mismatch[report_sha256]",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_sealed_v2_replay_rejects_file_schema_and_canonical_mutations[binding-extra-durable evidence is invalid]",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_sealed_v2_replay_rejects_file_schema_and_canonical_mutations[outer-extra-durable evidence is invalid]",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_sealed_v2_replay_rejects_file_schema_and_canonical_mutations[spaced-separator-not one canonical object]",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_sealed_v2_replay_rejects_file_schema_and_canonical_mutations[trailing-lf-LF-free canonical JSON bytes]",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_sealed_v2_replay_rejects_missing_or_digest_changed_file[digest]",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_sealed_v2_replay_rejects_missing_or_digest_changed_file[missing]",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_sealed_v2_replay_requires_no_follow_regular_evidence_file",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_sealed_v2_terminal_publishes_evidence_and_replays_old_and_candidate",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_second_clean_reservation_rejects_tampered_terminal_evidence",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_terminal_evidence_publish_precedes_registry_staging_and_orphan_is_safe",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_two_clean_v2_attempts_reserve_classify_and_begin_observation",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_certified_pre_probe_competing_branch_publishes_sealed_terminal",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_launch_probed_clean_matches_existing_terminal_and_classification",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_launch_probed_competing_skips_capture_and_matches_existing_terminal",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_test_seam_forwarding_registry_lacks_launcher_origin_capability",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_v2_builder_receives_detached_sources_not_private_snapshot[probe-campaign_record.probe_before differs]",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_v2_builder_receives_detached_sources_not_private_snapshot[repetition-terminal.observation_sha256 differs]",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_v2_campaign_record_snapshot_is_shared_by_launcher_and_sealer",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_v2_capture_subclasses_reach_a_sealed_draft[failure0-OSError]",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_v2_capture_subclasses_reach_a_sealed_draft[failure1-OSError]",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_v2_capture_subclasses_reach_a_sealed_draft[failure2-RuntimeError]",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_v2_perf_receipt_snapshot_precedes_builder_mutation",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_v2_profile_reaches_draft_but_fake_cannot_issue_capability",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_v2_protocol_snapshot_precedes_builder_mutation",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_default_production_attempt_uses_certified_launcher_once",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_default_production_result_is_v5",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_finalize_pending_replays_live_v5_prefix",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_journal_emits_launcher_terminal_record_byte_identically",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_production_v5_self_check_rejects_prefix_head_mismatch",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_v5_prefix_assertions_kill_first_terminal_stale_result_proof",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_v5_prefix_covers_every_consumed_non_competing_session",
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_planned_terminal_binds_none_retry_ordinal"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M17-durable-replay-binds-recovery-ordinal",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "    expected_retry_ordinal = (\n        None if slot.measurement_ordinal == 0 else slot.measurement_ordinal\n    )",
+          "new": "    expected_retry_ordinal = (\n        None if slot.attempt_ordinal == 0 else slot.attempt_ordinal\n    )"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_durable_replay_binds_measurement_ordinal",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_durable_replay_rejects_recovery_ordinal_substitution"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M18-competing-pre-probe-still-consumes-marker-and-launches",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "    if pre_probe.competing:\n        if cut6_existing_consumption_marker:",
+          "new": "    if False and pre_probe.competing:\n        if cut6_existing_consumption_marker:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_certified_cut6_existing_marker_competing_probe_aborts_without_result",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_competing_pre_probe_consumes_no_marker_and_writes_no_registry_row",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_default_production_result_is_v5",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_finalize_pending_replays_live_v5_prefix",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_v5_prefix_assertions_kill_first_terminal_stale_result_proof",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_v5_prefix_covers_every_consumed_non_competing_session"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M19-competing-branch-records-a-synthetic-probe-payload",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "        probe_before = s8b_floor_attempt_launcher.read_floor_attempt_pre_probe(\n            pre_probe\n        )",
+          "new": "        probe_before = {\"rc\": 0, \"stdout\": \"\", \"stderr\": \"\", \"competing\": True}"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_competing_pre_probe_consumes_no_marker_and_writes_no_registry_row"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M20-cut6-replay-writes-a-competing-completion-under-an-existing-marker",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "        if cut6_existing_consumption_marker:\n            raise CampaignAbort(\n                \"cut6_replay_pre_probe_competing_existing_marker\"\n            )",
+          "new": "        if False and cut6_existing_consumption_marker:\n            raise CampaignAbort(\n                \"cut6_replay_pre_probe_competing_existing_marker\"\n            )"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_certified_cut6_existing_marker_competing_probe_aborts_without_result"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M21-campaign-reaches-the-registry-through-a-launcher-module-attribute",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "    if type(plan) is not _FloorAttemptRegistryPlan:\n        raise FloorCampaignError(\"attempt registry plan is unavailable\")\n    return s8b_floor_attempt_launcher.capture_floor_attempt_registry_prefix(",
+          "new": "    _adapter = s8b_floor_attempt_launcher.attempt_registry\n    if type(plan) is not _FloorAttemptRegistryPlan:\n        raise FloorCampaignError(\"attempt registry plan is unavailable\")\n    return s8b_floor_attempt_launcher.capture_floor_attempt_registry_prefix("
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_campaign_has_no_indirect_registry_profile_or_core_attributes"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
