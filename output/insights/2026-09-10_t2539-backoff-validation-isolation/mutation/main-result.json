@@ -1,0 +1,722 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2539-validation-isolation/output/pegasus-dispatch/edcdf3cfbfdf43bba5136349736f38d5/izdw-edcdf3cfbf.o988848",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2539-validation-isolation/output/pegasus-dispatch/edcdf3cfbfdf43bba5136349736f38d5/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n....................                                                     [100%]\n20 passed in 4.77s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "ee71f0a6d3c1016e54ec754ccb2147fc5578325bbd4598eed888380ee75b8bf9"
+    },
+    "artifact_error": null,
+    "collection_sha256": "755b7e4a35c162533df0f252eb6ef634bce75c631a3c0dd84dbb45dd35a7e6c1",
+    "duration_s": 27.412,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "ddb508ff687bb71347e735e4eb0dc8cf26330d7d6b1f0102f9cfe2af09091faf",
+    "repo_head": "b826701c9e1f042050da105ef8ee23791e62a9ba",
+    "runner_sha256": "b7c4d12cb5a0f6bc2f52b5183a94372c7fdca62e8c6e1f68401d4b5a2ec6b646",
+    "spec_sha256": "ea3353a8ee427d1140b4feb551e24480b0a72ea5653f2bb5f80a0db9f5fbf5e1",
+    "status": "PASSED",
+    "test_output_sha256": "ee71f0a6d3c1016e54ec754ccb2147fc5578325bbd4598eed888380ee75b8bf9",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "058fb6c11d1df275538eff064101208ade7a00c2d974ce7f4be16ebce4aedb08"
+  },
+  "date": "2026-09-09T16:06:27.243505+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2539-validation-isolation/output/pegasus-dispatch/c3bfdf5d5a833cd6b4e5ddb90f91e3fc/izdw-c3bfdf5d5a.o988854",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2539-validation-isolation/output/pegasus-dispatch/c3bfdf5d5a833cd6b4e5ddb90f91e3fc/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...............FFF..                                                     [100%]\n=================================== FAILURES ===================================\n_________ test_cli_reports_depth_two_intersection_for_iterator_unlock __________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_cli_reports_depth_two_intersection_for_iterator_unlock() -> None:\n        with tempfile.TemporaryDirectory() as temporary:\n            patch = _depth_two_patch(Path(temporary))\n            rc, payload = _invoke(patch)\n>       assert rc == 1\nE       assert 0 == 1\n\norchestrator/tests/test_silo_validation_isolation.py:414: AssertionError\n_________ test_cmake_trace_default_reports_macro_closure_intersections _________\n[gw16] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_cmake_trace_default_reports_macro_closure_intersections() -> None:\n        with tempfile.TemporaryDirectory() as temporary:\n            patch = _trace_default_patch(Path(temporary))\n            rc, payload = _invoke(patch)\n        assert rc == 1\n        assert payload[\"verdict\"] == INTERSECTION\n        assert len(payload[\"cmake_macros\"]) == 1\n        trace = payload[\"cmake_macros\"][0]\n        assert trace[\"macro\"] == \"TRACE\"\n        assert trace[\"change_kinds\"] == [\"cache-default\"]\n        expected = {\n            (\"TxExecutor::validationPhase/0\", 0),\n            (\"TxExecutor::lockWriteSet/0\", 1),\n            (\"TxExecutor::unlockWriteSet/0\", 1),\n            (\"TxExecutor::unlockWriteSet/1\", 2),\n        }\n>       assert len(trace[\"closure_references\"]) == 4\nE       AssertionError: assert 3 == 4\nE        +  where 3 = len([{'depth': 0, 'path': 'cc/silo/transaction.cc', 'symbol': 'TxExecutor::validationPhase/0'}, {'depth': 1, 'path': 'cc/s...TxExecutor::lockWriteSet/0'}, {'depth': 1, 'path': 'cc/silo/transaction.cc', 'symbol': 'TxExecutor::unlockWriteSet/0'}])\n\norchestrator/tests/test_silo_validation_isolation.py:367: AssertionError\n_____ test_real_raw_closure_contains_root_helpers_and_implicit_comparators _____\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_real_raw_closure_contains_root_helpers_and_implicit_comparators() -> None:\n        with tempfile.TemporaryDirectory() as temporary:\n            _, payload = _invoke(_decoy_patch(Path(temporary)))\n        closure = _closure_map(payload)\n        assert closure[\"TxExecutor::validationPhase/0\"][\"depth\"] == 0\n        assert closure[\"TxExecutor::lockWriteSet/0\"][\"depth\"] == 1\n>       assert closure[\"TxExecutor::unlockWriteSet/1\"][\"depth\"] == 2\nE       KeyError: 'TxExecutor::unlockWriteSet/1'\n\norchestrator/tests/test_silo_validation_isolation.py:429: KeyError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_silo_validation_isolation.py::test_cli_reports_depth_two_intersection_for_iterator_unlock\nFAILED orchestrator/tests/test_silo_validation_isolation.py::test_cmake_trace_default_reports_macro_closure_intersections\nFAILED orchestrator/tests/test_silo_validation_isolation.py::test_real_raw_closure_contains_root_helpers_and_implicit_comparators\n3 failed, 17 passed in 4.73s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_silo_validation_isolation.py::test_cmake_trace_default_reports_macro_closure_intersections\" nodeid_bytes=114 nodeid_omitted_bytes=0 source_bytes=1206 retained_bytes=1206 omitted_bytes=0 rendered_excerpt_bytes=1253 sha256=60ec5876751070e5407ccfaad2503b0b8b88c94acd9e7c41ecce1e4e4667e69c\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw16] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_cmake_trace_default_reports_macro_closure_intersections() -> None:\n>         with tempfile.TemporaryDirectory() as temporary:\n>             patch = _trace_default_patch(Path(temporary))\n>             rc, payload = _invoke(patch)\n>         assert rc == 1\n>         assert payload[\"verdict\"] == INTERSECTION\n>         assert len(payload[\"cmake_macros\"]) == 1\n>         trace = payload[\"cmake_macros\"][0]\n>         assert trace[\"macro\"] == \"TRACE\"\n>         assert trace[\"change_kinds\"] == [\"cache-default\"]\n>         expected = {\n>             (\"TxExecutor::validationPhase/0\", 0),\n>             (\"TxExecutor::lockWriteSet/0\", 1),\n>             (\"TxExecutor::unlockWriteSet/0\", 1),\n>             (\"TxExecutor::unlockWriteSet/1\", 2),\n>         }\n> >       assert len(trace[\"closure_references\"]) == 4\n> E       AssertionError: assert 3 == 4\n> E        +  where 3 = len([{'depth': 0, 'path': 'cc/silo/transaction.cc', 'symbol': 'TxExecutor::validationPhase/0'}, {'depth': 1, 'path': 'cc/s...TxExecutor::lockWriteSet/0'}, {'depth': 1, 'path': 'cc/silo/transaction.cc', 'symbol': 'TxExecutor::unlockWriteSet/0'}])\n> \n> orchestrator/tests/test_silo_validation_isolation.py:367: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_silo_validation_isolation.py::test_real_raw_closure_contains_root_helpers_and_implicit_comparators\" nodeid_bytes=122 nodeid_omitted_bytes=0 source_bytes=618 retained_bytes=618 omitted_bytes=0 rendered_excerpt_bytes=643 sha256=18b95bb18e48a8c9114e1d977615d6c745a0ff861ffec6a71c7fdc0e117a833a\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw6] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_real_raw_closure_contains_root_helpers_and_implicit_comparators() -> None:\n>         with tempfile.TemporaryDirectory() as temporary:\n>             _, payload = _invoke(_decoy_patch(Path(temporary)))\n>         closure = _closure_map(payload)\n>         assert closure[\"TxExecutor::validationPhase/0\"][\"depth\"] == 0\n>         assert closure[\"TxExecutor::lockWriteSet/0\"][\"depth\"] == 1\n> >       assert closure[\"TxExecutor::unlockWriteSet/1\"][\"depth\"] == 2\n> E       KeyError: 'TxExecutor::unlockWriteSet/1'\n> \n> orchestrator/tests/test_silo_validation_isolation.py:429: KeyError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_silo_validation_isolation.py::test_cli_reports_depth_two_intersection_for_iterator_unlock\" nodeid_bytes=113 nodeid_omitted_bytes=0 source_bytes=396 retained_bytes=396 omitted_bytes=0 rendered_excerpt_bytes=417 sha256=f7e7e1060c8ad6f9d9d5f0eeaa4d6a23ed6246eedc92f249c3b33ffb26baebb2\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_cli_reports_depth_two_intersection_for_iterator_unlock() -> None:\n>         with tempfile.TemporaryDirectory() as temporary:\n>             patch = _depth_two_patch(Path(temporary))\n>             rc, payload = _invoke(patch)\n> >       assert rc == 1\n> E       assert 0 == 1\n> \n> orchestrator/tests/test_silo_validation_isolation.py:414: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=2220 retained_bytes=2220 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3966 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "9aca5139bad2f937dd1c01a1f173d88fcdb248b39d89e8c03c80e0a8e5ecbdaa"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "755b7e4a35c162533df0f252eb6ef634bce75c631a3c0dd84dbb45dd35a7e6c1",
+      "duration_s": 27.078,
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_validation_isolation.py::test_cli_reports_depth_two_intersection_for_iterator_unlock",
+        "orchestrator/tests/test_silo_validation_isolation.py::test_cmake_trace_default_reports_macro_closure_intersections",
+        "orchestrator/tests/test_silo_validation_isolation.py::test_real_raw_closure_contains_root_helpers_and_implicit_comparators"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_silo_validation_isolation.py::test_cli_reports_depth_two_intersection_for_iterator_unlock",
+        "orchestrator/tests/test_silo_validation_isolation.py::test_cmake_trace_default_reports_macro_closure_intersections",
+        "orchestrator/tests/test_silo_validation_isolation.py::test_real_raw_closure_contains_root_helpers_and_implicit_comparators"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2539-M1-BFS-DOES-NOT-RECURSE",
+      "injection_diff_sha256": "f792a6627081901e1b75c261751e6a94ac3edd60f116164b0a7de301a12fa54f",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "ee48cdc6ada93fb7ebd5b14b557343b23f8ee972b70e39f0cafb5417cdd4cffc",
+      "replacements": [
+        {
+          "file": "tools/check_silo_validation_isolation.py",
+          "new": "                pass\n",
+          "old": "                queue.append(target)\n"
+        }
+      ],
+      "repo_head": "b826701c9e1f042050da105ef8ee23791e62a9ba",
+      "runner_sha256": "b7c4d12cb5a0f6bc2f52b5183a94372c7fdca62e8c6e1f68401d4b5a2ec6b646",
+      "spec_sha256": "ea3353a8ee427d1140b4feb551e24480b0a72ea5653f2bb5f80a0db9f5fbf5e1",
+      "status": "KILLED",
+      "test_output_sha256": "9aca5139bad2f937dd1c01a1f173d88fcdb248b39d89e8c03c80e0a8e5ecbdaa",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "058fb6c11d1df275538eff064101208ade7a00c2d974ce7f4be16ebce4aedb08"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2539-validation-isolation/output/pegasus-dispatch/c6e5d10efbd41f6b5b137a61d0f93026/izdw-c6e5d10efb.o988856",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2539-validation-isolation/output/pegasus-dispatch/c6e5d10efbd41f6b5b137a61d0f93026/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.................F..                                                     [100%]\n=================================== FAILURES ===================================\n_____ test_real_raw_closure_contains_root_helpers_and_implicit_comparators _____\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_real_raw_closure_contains_root_helpers_and_implicit_comparators() -> None:\n        with tempfile.TemporaryDirectory() as temporary:\n            _, payload = _invoke(_decoy_patch(Path(temporary)))\n        closure = _closure_map(payload)\n        assert closure[\"TxExecutor::validationPhase/0\"][\"depth\"] == 0\n        assert closure[\"TxExecutor::lockWriteSet/0\"][\"depth\"] == 1\n        assert closure[\"TxExecutor::unlockWriteSet/1\"][\"depth\"] == 2\n>       assert closure[\"WriteElement::operator</1\"][\"depth\"] == 1\nE       KeyError: 'WriteElement::operator</1'\n\norchestrator/tests/test_silo_validation_isolation.py:430: KeyError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_silo_validation_isolation.py::test_real_raw_closure_contains_root_helpers_and_implicit_comparators\n1 failed, 19 passed in 4.73s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_silo_validation_isolation.py::test_real_raw_closure_contains_root_helpers_and_implicit_comparators\" nodeid_bytes=122 nodeid_omitted_bytes=0 source_bytes=681 retained_bytes=681 omitted_bytes=0 rendered_excerpt_bytes=708 sha256=20e98c4e62ddb699ce53d2f3df12f8412d14bc388b04ee896586a3ecd4732a07\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw6] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_real_raw_closure_contains_root_helpers_and_implicit_comparators() -> None:\n>         with tempfile.TemporaryDirectory() as temporary:\n>             _, payload = _invoke(_decoy_patch(Path(temporary)))\n>         closure = _closure_map(payload)\n>         assert closure[\"TxExecutor::validationPhase/0\"][\"depth\"] == 0\n>         assert closure[\"TxExecutor::lockWriteSet/0\"][\"depth\"] == 1\n>         assert closure[\"TxExecutor::unlockWriteSet/1\"][\"depth\"] == 2\n> >       assert closure[\"WriteElement::operator</1\"][\"depth\"] == 1\n> E       KeyError: 'WriteElement::operator</1'\n> \n> orchestrator/tests/test_silo_validation_isolation.py:430: KeyError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=681 retained_bytes=681 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1453 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "41aa542e13909b50e45b2363aa119c65339b1d45366952c540668e7585aac970"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "755b7e4a35c162533df0f252eb6ef634bce75c631a3c0dd84dbb45dd35a7e6c1",
+      "duration_s": 27.072,
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_validation_isolation.py::test_real_raw_closure_contains_root_helpers_and_implicit_comparators"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_silo_validation_isolation.py::test_real_raw_closure_contains_root_helpers_and_implicit_comparators"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2539-M2-NO-SORT-COMPARATOR-EDGE",
+      "injection_diff_sha256": "3eeaee9e3bc69bbb2be513dbe5fb3a7304f0687178b90591ab47ac493a0a6e98",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "5e452c19e9c0a962713d005ea2cf3eb6f8e39d7548be1d3c537f339ab6ecba4e",
+      "replacements": [
+        {
+          "file": "tools/check_silo_validation_isolation.py",
+          "new": "                    target = None\n",
+          "old": "                    target = write_comparator\n"
+        }
+      ],
+      "repo_head": "b826701c9e1f042050da105ef8ee23791e62a9ba",
+      "runner_sha256": "b7c4d12cb5a0f6bc2f52b5183a94372c7fdca62e8c6e1f68401d4b5a2ec6b646",
+      "spec_sha256": "ea3353a8ee427d1140b4feb551e24480b0a72ea5653f2bb5f80a0db9f5fbf5e1",
+      "status": "KILLED",
+      "test_output_sha256": "41aa542e13909b50e45b2363aa119c65339b1d45366952c540668e7585aac970",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "058fb6c11d1df275538eff064101208ade7a00c2d974ce7f4be16ebce4aedb08"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2539-validation-isolation/output/pegasus-dispatch/e4d519f50e464f09c5de132a80a574db/izdw-e4d519f50e.o988860",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2539-validation-isolation/output/pegasus-dispatch/e4d519f50e464f09c5de132a80a574db/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...............F.F..                                                     [100%]\n=================================== FAILURES ===================================\n________ test_comment_directive_text_does_not_create_macro_intersection ________\n[gw12] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_comment_directive_text_does_not_create_macro_intersection() -> None:\n        with tempfile.TemporaryDirectory() as temporary:\n            patch = _comment_directive_patch(Path(temporary))\n            rc, payload = _invoke(patch)\n>       assert rc == 2\nE       assert 0 == 2\n\norchestrator/tests/test_silo_validation_isolation.py:386: AssertionError\n_______________ test_cli_unconsumed_edit_is_reported_and_errors ________________\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_cli_unconsumed_edit_is_reported_and_errors() -> None:\n        original = TRANSACTION.read_text(encoding=\"utf-8\")\n        old = \"extern void displayDB();\"\n        new = \"extern void displayDB_t2539_decoy();\"\n        assert original.count(old) == 1\n        with tempfile.TemporaryDirectory() as temporary:\n            patch = _temporary_transaction_patch(\n                Path(temporary), \"unconsumed-file-scope.patch\",\n                original.replace(old, new, 1),\n            )\n            rc, payload = _invoke(patch)\n>       assert rc == 2\nE       assert 0 == 2\n\norchestrator/tests/test_silo_validation_isolation.py:486: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_silo_validation_isolation.py::test_comment_directive_text_does_not_create_macro_intersection\nFAILED orchestrator/tests/test_silo_validation_isolation.py::test_cli_unconsumed_edit_is_reported_and_errors\n2 failed, 18 passed in 4.73s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_silo_validation_isolation.py::test_cli_unconsumed_edit_is_reported_and_errors\" nodeid_bytes=101 nodeid_omitted_bytes=0 source_bytes=698 retained_bytes=698 omitted_bytes=0 rendered_excerpt_bytes=733 sha256=3924dcf00d175b649ac12f0d6ffffdb6c4fb15070dbf591b2363af07528ae101\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw8] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_cli_unconsumed_edit_is_reported_and_errors() -> None:\n>         original = TRANSACTION.read_text(encoding=\"utf-8\")\n>         old = \"extern void displayDB();\"\n>         new = \"extern void displayDB_t2539_decoy();\"\n>         assert original.count(old) == 1\n>         with tempfile.TemporaryDirectory() as temporary:\n>             patch = _temporary_transaction_patch(\n>                 Path(temporary), \"unconsumed-file-scope.patch\",\n>                 original.replace(old, new, 1),\n>             )\n>             rc, payload = _invoke(patch)\n> >       assert rc == 2\n> E       assert 0 == 2\n> \n> orchestrator/tests/test_silo_validation_isolation.py:486: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_silo_validation_isolation.py::test_comment_directive_text_does_not_create_macro_intersection\" nodeid_bytes=116 nodeid_omitted_bytes=0 source_bytes=408 retained_bytes=408 omitted_bytes=0 rendered_excerpt_bytes=429 sha256=11f7dcfdda156735458ee5675e1bbd367133cc8f250c5b9c3b05dbbeff3eea96\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw12] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_comment_directive_text_does_not_create_macro_intersection() -> None:\n>         with tempfile.TemporaryDirectory() as temporary:\n>             patch = _comment_directive_patch(Path(temporary))\n>             rc, payload = _invoke(patch)\n> >       assert rc == 2\n> E       assert 0 == 2\n> \n> orchestrator/tests/test_silo_validation_isolation.py:386: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=1106 retained_bytes=1106 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2342 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "9ac526cdfd126b30a2f147b26279a616b982d2aa2e9f1fefa13b324e59601acd"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "755b7e4a35c162533df0f252eb6ef634bce75c631a3c0dd84dbb45dd35a7e6c1",
+      "duration_s": 27.053,
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_validation_isolation.py::test_cli_unconsumed_edit_is_reported_and_errors",
+        "orchestrator/tests/test_silo_validation_isolation.py::test_comment_directive_text_does_not_create_macro_intersection"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_silo_validation_isolation.py::test_comment_directive_text_does_not_create_macro_intersection",
+        "orchestrator/tests/test_silo_validation_isolation.py::test_cli_unconsumed_edit_is_reported_and_errors"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2539-M3-UNCONSUMED-EDITS-IGNORED",
+      "injection_diff_sha256": "44cb4c5d75acd3bd01fda51ce7b64c8f073674a55800e651f40d2827dd35414d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "4717a12149eb3dde7dbba7631bc98ba064ea190cd771a7f8560f9c7906b6467c",
+      "replacements": [
+        {
+          "file": "tools/check_silo_validation_isolation.py",
+          "new": "        if False:\n            result[\"error\"] = {\n                \"code\": \"UNCONSUMED_EDITS\",\n",
+          "old": "        if unconsumed:\n            result[\"error\"] = {\n                \"code\": \"UNCONSUMED_EDITS\",\n"
+        }
+      ],
+      "repo_head": "b826701c9e1f042050da105ef8ee23791e62a9ba",
+      "runner_sha256": "b7c4d12cb5a0f6bc2f52b5183a94372c7fdca62e8c6e1f68401d4b5a2ec6b646",
+      "spec_sha256": "ea3353a8ee427d1140b4feb551e24480b0a72ea5653f2bb5f80a0db9f5fbf5e1",
+      "status": "KILLED",
+      "test_output_sha256": "9ac526cdfd126b30a2f147b26279a616b982d2aa2e9f1fefa13b324e59601acd",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "058fb6c11d1df275538eff064101208ade7a00c2d974ce7f4be16ebce4aedb08"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2539-validation-isolation/output/pegasus-dispatch/9c9b641480e51e4334df1ddf971bcff3/izdw-9c9b641480.o988868",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2539-validation-isolation/output/pegasus-dispatch/9c9b641480e51e4334df1ddf971bcff3/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.FF.............FFF.                                                     [100%]\n=================================== FAILURES ===================================\n____________ test_cli_unmappable_hunk_is_error_not_no_intersection _____________\n[gw18] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_cli_unmappable_hunk_is_error_not_no_intersection() -> None:\n        patch_text = \"\"\"diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc\n    --- a/cc/silo/transaction.cc\n    +++ b/cc/silo/transaction.cc\n    @@ -1,1 +1,1 @@\n    -this line is not in the source\n    +nor is this replacement\n    \"\"\"\n        with tempfile.TemporaryDirectory() as temporary:\n            patch = Path(temporary) / \"unmappable.patch\"\n            patch.write_text(patch_text, encoding=\"utf-8\")\n            rc, payload = _invoke(patch)\n>       assert rc == 2\nE       assert 0 == 2\n\norchestrator/tests/test_silo_validation_isolation.py:470: AssertionError\n_____________ test_cli_missing_patch_is_error_not_no_intersection ______________\n[gw17] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_cli_missing_patch_is_error_not_no_intersection() -> None:\n        missing = REPO / \"patches\" / \"does-not-exist-t2539.patch\"\n        rc, payload = _invoke(missing)\n>       assert rc == 2\nE       assert 0 == 2\n\norchestrator/tests/test_silo_validation_isolation.py:453: AssertionError\n________ test_comment_directive_text_does_not_create_macro_intersection ________\n[gw12] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_comment_directive_text_does_not_create_macro_intersection() -> None:\n        with tempfile.TemporaryDirectory() as temporary:\n            patch = _comment_directive_patch(Path(temporary))\n            rc, payload = _invoke(patch)\n>       assert rc == 2\nE       assert 0 == 2\n\norchestrator/tests/test_silo_validation_isolation.py:386: AssertionError\n_______________ test_cli_unconsumed_edit_is_reported_and_errors ________________\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_cli_unconsumed_edit_is_reported_and_errors() -> None:\n        original = TRANSACTION.read_text(encoding=\"utf-8\")\n        old = \"extern void displayDB();\"\n        new = \"extern void displayDB_t2539_decoy();\"\n        assert original.count(old) == 1\n        with tempfile.TemporaryDirectory() as temporary:\n            patch = _temporary_transaction_patch(\n                Path(temporary), \"unconsumed-file-scope.patch\",\n                original.replace(old, new, 1),\n            )\n            rc, payload = _invoke(patch)\n>       assert rc == 2\nE       assert 0 == 2\n\norchestrator/tests/test_silo_validation_isolation.py:486: AssertionError\n_____ test_default_argument_callee_edit_is_not_reported_as_no_intersection _____\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_default_argument_callee_edit_is_not_reported_as_no_intersection() -> None:\n        with tempfile.TemporaryDirectory() as temporary:\n            default_patch, control_patch, mismatch_patch = _get_tidword_patches(\n                Path(temporary),\n            )\n            default_rc, default_payload = _invoke(default_patch)\n            control_rc, control_payload = _invoke(control_patch)\n            mismatch_rc, mismatch_payload = _invoke(mismatch_patch)\n        assert default_rc == 1\n        assert default_payload[\"verdict\"] == INTERSECTION\n        assert {\n            (item[\"kind\"], item[\"symbol\"], item[\"depth\"])\n            for item in default_payload[\"intersections\"]\n        } == {(\"function-region\", \"ReadElement::get_tidword/1\", 1)}\n        assert control_rc == 1\n        assert control_payload[\"verdict\"] == INTERSECTION\n        assert {\n            (item[\"symbol\"], item[\"depth\"])\n            for item in control_payload[\"intersections\"]\n            if item[\"kind\"] == \"function-region\"\n        } == {(\"ReadElement::get_tidword/0\", 1)}\n>       assert mismatch_rc == 2\nE       assert 0 == 2\n\norchestrator/tests/test_silo_validation_isolation.py:343: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_silo_validation_isolation.py::test_cli_unmappable_hunk_is_error_not_no_intersection\nFAILED orchestrator/tests/test_silo_validation_isolation.py::test_cli_missing_patch_is_error_not_no_intersection\nFAILED orchestrator/tests/test_silo_validation_isolation.py::test_comment_directive_text_does_not_create_macro_intersection\nFAILED orchestrator/tests/test_silo_validation_isolation.py::test_cli_unconsumed_edit_is_reported_and_errors\nFAILED orchestrator/tests/test_silo_validation_isolation.py::test_default_argument_callee_edit_is_not_reported_as_no_intersection\n5 failed, 15 passed in 4.78s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_silo_validation_isolation.py::test_default_argument_callee_edit_is_not_reported_as_no_intersection\" nodeid_bytes=122 nodeid_omitted_bytes=0 source_bytes=1239 retained_bytes=1239 omitted_bytes=0 rendered_excerpt_bytes=1294 sha256=a988178b5480bfa485978bd11b45ffc369b37f35737b6fd5a0797a9c061103a7\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_default_argument_callee_edit_is_not_reported_as_no_intersection() -> None:\n>         with tempfile.TemporaryDirectory() as temporary:\n>             default_patch, control_patch, mismatch_patch = _get_tidword_patches(\n>                 Path(temporary),\n>             )\n>             default_rc, default_payload = _invoke(default_patch)\n>             control_rc, control_payload = _invoke(control_patch)\n>             mismatch_rc, mismatch_payload = _invoke(mismatch_patch)\n>         assert default_rc == 1\n>         assert default_payload[\"verdict\"] == INTERSECTION\n>         assert {\n>             (item[\"kind\"], item[\"symbol\"], item[\"depth\"])\n>             for item in default_payload[\"intersections\"]\n>         } == {(\"function-region\", \"ReadElement::get_tidword/1\", 1)}\n>         assert control_rc == 1\n>         assert control_payload[\"verdict\"] == INTERSECTION\n>         assert {\n>             (item[\"symbol\"], item[\"depth\"])\n>             for item in control_payload[\"intersections\"]\n>             if item[\"kind\"] == \"function-region\"\n>         } == {(\"ReadElement::get_tidword/0\", 1)}\n> >       assert mismatch_rc == 2\n> E       assert 0 == 2\n> \n> orchestrator/tests/test_silo_validation_isolation.py:343: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_silo_validation_isolation.py::test_cli_unconsumed_edit_is_reported_and_errors\" nodeid_bytes=101 nodeid_omitted_bytes=0 source_bytes=698 retained_bytes=698 omitted_bytes=0 rendered_excerpt_bytes=733 sha256=3924dcf00d175b649ac12f0d6ffffdb6c4fb15070dbf591b2363af07528ae101\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw8] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_cli_unconsumed_edit_is_reported_and_errors() -> None:\n>         original = TRANSACTION.read_text(encoding=\"utf-8\")\n>         old = \"extern void displayDB();\"\n>         new = \"extern void displayDB_t2539_decoy();\"\n>         assert original.count(old) == 1\n>         with tempfile.TemporaryDirectory() as temporary:\n>             patch = _temporary_transaction_patch(\n>                 Path(temporary), \"unconsumed-file-scope.patch\",\n>                 original.replace(old, new, 1),\n>             )\n>             rc, payload = _invoke(patch)\n> >       assert rc == 2\n> E       assert 0 == 2\n> \n> orchestrator/tests/test_silo_validation_isolation.py:486: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_silo_validation_isolation.py::test_cli_unmappable_hunk_is_error_not_no_intersection\" nodeid_bytes=107 nodeid_omitted_bytes=0 source_bytes=697 retained_bytes=697 omitted_bytes=0 rendered_excerpt_bytes=734 sha256=7020eb8fb31d03b7bf1ffcc8e2e64eeea6b21d67d99da537ac3c76a7ece5ea93\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw18] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_cli_unmappable_hunk_is_error_not_no_intersection() -> None:\n>         patch_text = \"\"\"diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc\n>     --- a/cc/silo/transaction.cc\n>     +++ b/cc/silo/transaction.cc\n>     @@ -1,1 +1,1 @@\n>     -this line is not in the source\n>     +nor is this replacement\n>     \"\"\"\n>         with tempfile.TemporaryDirectory() as temporary:\n>             patch = Path(temporary) / \"unmappable.patch\"\n>             patch.write_text(patch_text, encoding=\"utf-8\")\n>             rc, payload = _invoke(patch)\n> >       assert rc == 2\n> E       assert 0 == 2\n> \n> orchestrator/tests/test_silo_validation_isolation.py:470: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_silo_validation_isolation.py::test_comment_directive_text_does_not_create_macro_intersection\" nodeid_bytes=116 nodeid_omitted_bytes=0 source_bytes=408 retained_bytes=408 omitted_bytes=0 rendered_excerpt_bytes=429 sha256=11f7dcfdda156735458ee5675e1bbd367133cc8f250c5b9c3b05dbbeff3eea96\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw12] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_comment_directive_text_does_not_create_macro_intersection() -> None:\n>         with tempfile.TemporaryDirectory() as temporary:\n>             patch = _comment_directive_patch(Path(temporary))\n>             rc, payload = _invoke(patch)\n> >       assert rc == 2\n> E       assert 0 == 2\n> \n> orchestrator/tests/test_silo_validation_isolation.py:386: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_silo_validation_isolation.py::test_cli_missing_patch_is_error_not_no_intersection\" nodeid_bytes=105 nodeid_omitted_bytes=0 source_bytes=342 retained_bytes=342 omitted_bytes=0 rendered_excerpt_bytes=361 sha256=126ed5cbffa5f15a43bed793edfe463d2ace701d92d25c88168549548e5f739a\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw17] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_cli_missing_patch_is_error_not_no_intersection() -> None:\n>         missing = REPO / \"patches\" / \"does-not-exist-t2539.patch\"\n>         rc, payload = _invoke(missing)\n> >       assert rc == 2\n> E       assert 0 == 2\n> \n> orchestrator/tests/test_silo_validation_isolation.py:453: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=5 failed=5 errors=0 selected=5 omitted_failures=0 source_bytes=3384 retained_bytes=3384 omitted_bytes=0 budget_bytes=49152 rendered_bytes=6082 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "f29fd89f159dab3b02ae58c0e8f24b683693c38ce92c7f06f6fc91df6117a36d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "755b7e4a35c162533df0f252eb6ef634bce75c631a3c0dd84dbb45dd35a7e6c1",
+      "duration_s": 27.083,
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_validation_isolation.py::test_cli_missing_patch_is_error_not_no_intersection",
+        "orchestrator/tests/test_silo_validation_isolation.py::test_cli_unconsumed_edit_is_reported_and_errors",
+        "orchestrator/tests/test_silo_validation_isolation.py::test_cli_unmappable_hunk_is_error_not_no_intersection",
+        "orchestrator/tests/test_silo_validation_isolation.py::test_comment_directive_text_does_not_create_macro_intersection",
+        "orchestrator/tests/test_silo_validation_isolation.py::test_default_argument_callee_edit_is_not_reported_as_no_intersection"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_silo_validation_isolation.py::test_cli_unmappable_hunk_is_error_not_no_intersection",
+        "orchestrator/tests/test_silo_validation_isolation.py::test_cli_missing_patch_is_error_not_no_intersection",
+        "orchestrator/tests/test_silo_validation_isolation.py::test_comment_directive_text_does_not_create_macro_intersection",
+        "orchestrator/tests/test_silo_validation_isolation.py::test_cli_unconsumed_edit_is_reported_and_errors",
+        "orchestrator/tests/test_silo_validation_isolation.py::test_default_argument_callee_edit_is_not_reported_as_no_intersection"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2539-M4-ERROR-EXITS-ZERO",
+      "injection_diff_sha256": "aaa1d4295d7756ed10f8ce466b38efba2cc6373e2e8d68ad8a4328f0ff2a0f87",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "d24932856ee70c1426d9f67cd232ab6d5cae595dc27fc7d823fddc6eee304281",
+      "replacements": [
+        {
+          "file": "tools/check_silo_validation_isolation.py",
+          "new": "    if result[\"verdict\"] == INTERSECTION:\n        return 1\n    return 0\n",
+          "old": "    if result[\"verdict\"] == INTERSECTION:\n        return 1\n    return 2\n"
+        }
+      ],
+      "repo_head": "b826701c9e1f042050da105ef8ee23791e62a9ba",
+      "runner_sha256": "b7c4d12cb5a0f6bc2f52b5183a94372c7fdca62e8c6e1f68401d4b5a2ec6b646",
+      "spec_sha256": "ea3353a8ee427d1140b4feb551e24480b0a72ea5653f2bb5f80a0db9f5fbf5e1",
+      "status": "KILLED",
+      "test_output_sha256": "f29fd89f159dab3b02ae58c0e8f24b683693c38ce92c7f06f6fc91df6117a36d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "058fb6c11d1df275538eff064101208ade7a00c2d974ce7f4be16ebce4aedb08"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2539-validation-isolation/output/pegasus-dispatch/247a0fa379cf5c2d5191d1629e0d4b98/izdw-247a0fa379.o988870",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2539-validation-isolation/output/pegasus-dispatch/247a0fa379cf5c2d5191d1629e0d4b98/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...............FFFF.                                                     [100%]\n=================================== FAILURES ===================================\n________ test_cli_reports_no_intersection_for_registered_backoff_patch _________\n[gw10] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_cli_reports_no_intersection_for_registered_backoff_patch() -> None:\n        rc, payload = _invoke(POSITIVE_PATCH)\n>       assert rc == 0\nE       assert 2 == 0\n\norchestrator/tests/test_silo_validation_isolation.py:248: AssertionError\n________ test_early_unlock_is_outside_closure_and_claims_no_correctness ________\n[gw13] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_early_unlock_is_outside_closure_and_claims_no_correctness() -> None:\n        rc, payload = _invoke(EARLY_UNLOCK_PATCH)\n>       assert rc == 0\nE       assert 2 == 0\n\norchestrator/tests/test_silo_validation_isolation.py:517: AssertionError\n_______ test_cli_reports_no_intersection_for_same_file_unreachable_decoy _______\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_cli_reports_no_intersection_for_same_file_unreachable_decoy() -> None:\n        with tempfile.TemporaryDirectory() as temporary:\n            patch = _decoy_patch(Path(temporary))\n            rc, payload = _invoke(patch)\n>       assert rc == 0\nE       assert 2 == 0\n\norchestrator/tests/test_silo_validation_isolation.py:399: AssertionError\n_____ test_default_argument_callee_edit_is_not_reported_as_no_intersection _____\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_default_argument_callee_edit_is_not_reported_as_no_intersection() -> None:\n        with tempfile.TemporaryDirectory() as temporary:\n            default_patch, control_patch, mismatch_patch = _get_tidword_patches(\n                Path(temporary),\n            )\n            default_rc, default_payload = _invoke(default_patch)\n            control_rc, control_payload = _invoke(control_patch)\n            mismatch_rc, mismatch_payload = _invoke(mismatch_patch)\n        assert default_rc == 1\n        assert default_payload[\"verdict\"] == INTERSECTION\n        assert {\n            (item[\"kind\"], item[\"symbol\"], item[\"depth\"])\n            for item in default_payload[\"intersections\"]\n        } == {(\"function-region\", \"ReadElement::get_tidword/1\", 1)}\n        assert control_rc == 1\n        assert control_payload[\"verdict\"] == INTERSECTION\n        assert {\n            (item[\"symbol\"], item[\"depth\"])\n            for item in control_payload[\"intersections\"]\n            if item[\"kind\"] == \"function-region\"\n        } == {(\"ReadElement::get_tidword/0\", 1)}\n        assert mismatch_rc == 2\n        assert mismatch_payload[\"verdict\"] == \"ERROR\"\n>       assert mismatch_payload[\"error\"][\"code\"] == \"INCOMPLETE_CLOSURE_EXPANSION\"\nE       AssertionError: assert 'INTERNAL_ANALYSIS_FAILURE' == 'INCOMPLETE_CLOSURE_EXPANSION'\nE         \nE         - INCOMPLETE_CLOSURE_EXPANSION\nE         + INTERNAL_ANALYSIS_FAILURE\n\norchestrator/tests/test_silo_validation_isolation.py:345: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_silo_validation_isolation.py::test_cli_reports_no_intersection_for_registered_backoff_patch\nFAILED orchestrator/tests/test_silo_validation_isolation.py::test_early_unlock_is_outside_closure_and_claims_no_correctness\nFAILED orchestrator/tests/test_silo_validation_isolation.py::test_cli_reports_no_intersection_for_same_file_unreachable_decoy\nFAILED orchestrator/tests/test_silo_validation_isolation.py::test_default_argument_callee_edit_is_not_reported_as_no_intersection\n4 failed, 16 passed in 4.77s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_silo_validation_isolation.py::test_default_argument_callee_edit_is_not_reported_as_no_intersection\" nodeid_bytes=122 nodeid_omitted_bytes=0 source_bytes=1537 retained_bytes=1537 omitted_bytes=0 rendered_excerpt_bytes=1602 sha256=91b60285d108f1058ece944b6ceb3a288841bfe9dba8e09a4af4dd5e206a7e14\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_default_argument_callee_edit_is_not_reported_as_no_intersection() -> None:\n>         with tempfile.TemporaryDirectory() as temporary:\n>             default_patch, control_patch, mismatch_patch = _get_tidword_patches(\n>                 Path(temporary),\n>             )\n>             default_rc, default_payload = _invoke(default_patch)\n>             control_rc, control_payload = _invoke(control_patch)\n>             mismatch_rc, mismatch_payload = _invoke(mismatch_patch)\n>         assert default_rc == 1\n>         assert default_payload[\"verdict\"] == INTERSECTION\n>         assert {\n>             (item[\"kind\"], item[\"symbol\"], item[\"depth\"])\n>             for item in default_payload[\"intersections\"]\n>         } == {(\"function-region\", \"ReadElement::get_tidword/1\", 1)}\n>         assert control_rc == 1\n>         assert control_payload[\"verdict\"] == INTERSECTION\n>         assert {\n>             (item[\"symbol\"], item[\"depth\"])\n>             for item in control_payload[\"intersections\"]\n>             if item[\"kind\"] == \"function-region\"\n>         } == {(\"ReadElement::get_tidword/0\", 1)}\n>         assert mismatch_rc == 2\n>         assert mismatch_payload[\"verdict\"] == \"ERROR\"\n> >       assert mismatch_payload[\"error\"][\"code\"] == \"INCOMPLETE_CLOSURE_EXPANSION\"\n> E       AssertionError: assert 'INTERNAL_ANALYSIS_FAILURE' == 'INCOMPLETE_CLOSURE_EXPANSION'\n> E         \n> E         - INCOMPLETE_CLOSURE_EXPANSION\n> E         + INTERNAL_ANALYSIS_FAILURE\n> \n> orchestrator/tests/test_silo_validation_isolation.py:345: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_silo_validation_isolation.py::test_cli_reports_no_intersection_for_same_file_unreachable_decoy\" nodeid_bytes=118 nodeid_omitted_bytes=0 source_bytes=397 retained_bytes=397 omitted_bytes=0 rendered_excerpt_bytes=418 sha256=2732d03064fc26444c7a347e8142bac7727aa4823c7cca5d3361791fe2d2487c\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_cli_reports_no_intersection_for_same_file_unreachable_decoy() -> None:\n>         with tempfile.TemporaryDirectory() as temporary:\n>             patch = _decoy_patch(Path(temporary))\n>             rc, payload = _invoke(patch)\n> >       assert rc == 0\n> E       assert 2 == 0\n> \n> orchestrator/tests/test_silo_validation_isolation.py:399: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_silo_validation_isolation.py::test_early_unlock_is_outside_closure_and_claims_no_correctness\" nodeid_bytes=116 nodeid_omitted_bytes=0 source_bytes=298 retained_bytes=298 omitted_bytes=0 rendered_excerpt_bytes=315 sha256=31b10eed12b0c83ed84f6a099f530b5fffbbf7f99962df14cad9af70a6a64ce7\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw13] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_early_unlock_is_outside_closure_and_claims_no_correctness() -> None:\n>         rc, payload = _invoke(EARLY_UNLOCK_PATCH)\n> >       assert rc == 0\n> E       assert 2 == 0\n> \n> orchestrator/tests/test_silo_validation_isolation.py:517: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_silo_validation_isolation.py::test_cli_reports_no_intersection_for_registered_backoff_patch\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=293 retained_bytes=293 omitted_bytes=0 rendered_excerpt_bytes=310 sha256=e1741d868ec9c66a9dc582f6382422257ae7397d165351a1bab535e01e2a11b6\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw10] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_cli_reports_no_intersection_for_registered_backoff_patch() -> None:\n>         rc, payload = _invoke(POSITIVE_PATCH)\n> >       assert rc == 0\n> E       assert 2 == 0\n> \n> orchestrator/tests/test_silo_validation_isolation.py:248: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=4 failed=4 errors=0 selected=4 omitted_failures=0 source_bytes=2525 retained_bytes=2525 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4758 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "4705d48e787ef6287f44af7341c394a7df74b2426495899cf8fed8aeaa997eca"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "755b7e4a35c162533df0f252eb6ef634bce75c631a3c0dd84dbb45dd35a7e6c1",
+      "duration_s": 27.028,
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_validation_isolation.py::test_cli_reports_no_intersection_for_registered_backoff_patch",
+        "orchestrator/tests/test_silo_validation_isolation.py::test_cli_reports_no_intersection_for_same_file_unreachable_decoy",
+        "orchestrator/tests/test_silo_validation_isolation.py::test_default_argument_callee_edit_is_not_reported_as_no_intersection",
+        "orchestrator/tests/test_silo_validation_isolation.py::test_early_unlock_is_outside_closure_and_claims_no_correctness"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_silo_validation_isolation.py::test_cli_reports_no_intersection_for_registered_backoff_patch",
+        "orchestrator/tests/test_silo_validation_isolation.py::test_early_unlock_is_outside_closure_and_claims_no_correctness",
+        "orchestrator/tests/test_silo_validation_isolation.py::test_cli_reports_no_intersection_for_same_file_unreachable_decoy",
+        "orchestrator/tests/test_silo_validation_isolation.py::test_default_argument_callee_edit_is_not_reported_as_no_intersection"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2539-M5-EVERY-EDITED-REGION-INTERSECTS",
+      "injection_diff_sha256": "cd43758df9703fe820416479b1ac76f8b6bb5182715cc9d262c236c2d9432a52",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "1afac384530ca24568c24648ab240f35e05cb7669025e1a98461946fd509c8d5",
+      "replacements": [
+        {
+          "file": "tools/check_silo_validation_isolation.py",
+          "new": "            for symbol in item[\"targets\"]:\n                if symbol in closure_by_symbol or True:\n",
+          "old": "            for symbol in item[\"targets\"]:\n                if symbol in closure_by_symbol:\n"
+        }
+      ],
+      "repo_head": "b826701c9e1f042050da105ef8ee23791e62a9ba",
+      "runner_sha256": "b7c4d12cb5a0f6bc2f52b5183a94372c7fdca62e8c6e1f68401d4b5a2ec6b646",
+      "spec_sha256": "ea3353a8ee427d1140b4feb551e24480b0a72ea5653f2bb5f80a0db9f5fbf5e1",
+      "status": "KILLED",
+      "test_output_sha256": "4705d48e787ef6287f44af7341c394a7df74b2426495899cf8fed8aeaa997eca",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "058fb6c11d1df275538eff064101208ade7a00c2d974ce7f4be16ebce4aedb08"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2539-validation-isolation/output/pegasus-dispatch/a02890aafd77862e13c298c9a824d2a3/izdw-a02890aafd.o988878",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2539-validation-isolation/output/pegasus-dispatch/a02890aafd77862e13c298c9a824d2a3/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.................F..                                                     [100%]\n=================================== FAILURES ===================================\n_________ test_cmake_trace_default_reports_macro_closure_intersections _________\n[gw16] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_cmake_trace_default_reports_macro_closure_intersections() -> None:\n        with tempfile.TemporaryDirectory() as temporary:\n            patch = _trace_default_patch(Path(temporary))\n            rc, payload = _invoke(patch)\n>       assert rc == 1\nE       assert 0 == 1\n\norchestrator/tests/test_silo_validation_isolation.py:355: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_silo_validation_isolation.py::test_cmake_trace_default_reports_macro_closure_intersections\n1 failed, 19 passed in 4.80s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_silo_validation_isolation.py::test_cmake_trace_default_reports_macro_closure_intersections\" nodeid_bytes=114 nodeid_omitted_bytes=0 source_bytes=402 retained_bytes=402 omitted_bytes=0 rendered_excerpt_bytes=423 sha256=5d79aee2c5694f45d6b43011b65af14b18b1794dcffba4d2a06d97ac032372a9\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw16] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_cmake_trace_default_reports_macro_closure_intersections() -> None:\n>         with tempfile.TemporaryDirectory() as temporary:\n>             patch = _trace_default_patch(Path(temporary))\n>             rc, payload = _invoke(patch)\n> >       assert rc == 1\n> E       assert 0 == 1\n> \n> orchestrator/tests/test_silo_validation_isolation.py:355: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=402 retained_bytes=402 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1160 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "e78d7634c123ffa1b81f5f8396da576c6d0cdf4d8110a4bfbfa4d369c920d542"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "755b7e4a35c162533df0f252eb6ef634bce75c631a3c0dd84dbb45dd35a7e6c1",
+      "duration_s": 221.632,
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_validation_isolation.py::test_cmake_trace_default_reports_macro_closure_intersections"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_silo_validation_isolation.py::test_cmake_trace_default_reports_macro_closure_intersections"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2539-M6-CMAKE-MACRO-LEG-DROPPED",
+      "injection_diff_sha256": "558b79028b6e3a465340779aad468cf30342a6eb81fe545b5422ee9845a8cbb7",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "23438817c246ffc51aac05af999c1b6ed236c799b3995a559375c4d1ab64e807",
+      "replacements": [
+        {
+          "file": "tools/check_silo_validation_isolation.py",
+          "new": "        for macro in sorted(set()):\n            for ref in references.get(macro, []):\n",
+          "old": "        for macro in sorted(all_macros):\n            for ref in references.get(macro, []):\n"
+        }
+      ],
+      "repo_head": "b826701c9e1f042050da105ef8ee23791e62a9ba",
+      "runner_sha256": "b7c4d12cb5a0f6bc2f52b5183a94372c7fdca62e8c6e1f68401d4b5a2ec6b646",
+      "spec_sha256": "ea3353a8ee427d1140b4feb551e24480b0a72ea5653f2bb5f80a0db9f5fbf5e1",
+      "status": "KILLED",
+      "test_output_sha256": "e78d7634c123ffa1b81f5f8396da576c6d0cdf4d8110a4bfbfa4d369c920d542",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "058fb6c11d1df275538eff064101208ade7a00c2d974ce7f4be16ebce4aedb08"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2539-validation-isolation/output/pegasus-dispatch/2a6e6b7c6460b8844e4e8fd9e0727ed1/izdw-2a6e6b7c64.o988884",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2539-validation-isolation/output/pegasus-dispatch/2a6e6b7c6460b8844e4e8fd9e0727ed1/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.................FF.                                                     [100%]\n=================================== FAILURES ===================================\n_________ test_known_root_edits_win_over_incomplete_closure_expansion __________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_known_root_edits_win_over_incomplete_closure_expansion() -> None:\n        for patch in ROOT_EDIT_PATCHES:\n            rc, payload = _invoke(patch)\n>           assert rc == 1, patch.name\nE           AssertionError: broken-silo-permutation-erase.patch\nE           assert 2 == 1\n\norchestrator/tests/test_silo_validation_isolation.py:294: AssertionError\n________________ test_known_root_edit_wins_over_unconsumed_edit ________________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_known_root_edit_wins_over_unconsumed_edit() -> None:\n        with tempfile.TemporaryDirectory() as temporary:\n            patch = _root_and_unconsumed_patch(Path(temporary))\n            rc, payload = _invoke(patch)\n>       assert rc == 1\nE       assert 2 == 1\n\norchestrator/tests/test_silo_validation_isolation.py:313: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_silo_validation_isolation.py::test_known_root_edits_win_over_incomplete_closure_expansion\nFAILED orchestrator/tests/test_silo_validation_isolation.py::test_known_root_edit_wins_over_unconsumed_edit\n2 failed, 18 passed in 4.16s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_silo_validation_isolation.py::test_known_root_edits_win_over_incomplete_closure_expansion\" nodeid_bytes=113 nodeid_omitted_bytes=0 source_bytes=409 retained_bytes=409 omitted_bytes=0 rendered_excerpt_bytes=430 sha256=e7395f077d626afa499bacee4de5c742db246373ddcafbd67a0677416b3f0040\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_known_root_edits_win_over_incomplete_closure_expansion() -> None:\n>         for patch in ROOT_EDIT_PATCHES:\n>             rc, payload = _invoke(patch)\n> >           assert rc == 1, patch.name\n> E           AssertionError: broken-silo-permutation-erase.patch\n> E           assert 2 == 1\n> \n> orchestrator/tests/test_silo_validation_isolation.py:294: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_silo_validation_isolation.py::test_known_root_edit_wins_over_unconsumed_edit\" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=393 retained_bytes=393 omitted_bytes=0 rendered_excerpt_bytes=414 sha256=6410464ca34e20946a9292b0f694c86c8fe79292691a2c197a445b99107b768e\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_known_root_edit_wins_over_unconsumed_edit() -> None:\n>         with tempfile.TemporaryDirectory() as temporary:\n>             patch = _root_and_unconsumed_patch(Path(temporary))\n>             rc, payload = _invoke(patch)\n> >       assert rc == 1\n> E       assert 2 == 1\n> \n> orchestrator/tests/test_silo_validation_isolation.py:313: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=802 retained_bytes=802 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2018 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "73e3ba00940830a0402c32411dc24bb01f9472518a269f45eef6eadb65e5310f"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "755b7e4a35c162533df0f252eb6ef634bce75c631a3c0dd84dbb45dd35a7e6c1",
+      "duration_s": 52.753,
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_validation_isolation.py::test_known_root_edit_wins_over_unconsumed_edit",
+        "orchestrator/tests/test_silo_validation_isolation.py::test_known_root_edits_win_over_incomplete_closure_expansion"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_silo_validation_isolation.py::test_known_root_edits_win_over_incomplete_closure_expansion",
+        "orchestrator/tests/test_silo_validation_isolation.py::test_known_root_edit_wins_over_unconsumed_edit"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2539-M7-EXPANSION-ERROR-OUTRANKS-INTERSECTION",
+      "injection_diff_sha256": "66c40e934b0846586275accbe80af3e3c08fce43c9cf1675edd22da470d97762",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "51e8102eea0075d65e970df446893b3067614e7085a29fd621a4eab37c066ca1",
+      "replacements": [
+        {
+          "file": "tools/check_silo_validation_isolation.py",
+          "new": "        if intersections and not expansion_errors and not unconsumed:\n            result[\"verdict\"] = INTERSECTION\n            return result\n",
+          "old": "        if intersections:\n            result[\"verdict\"] = INTERSECTION\n            return result\n"
+        }
+      ],
+      "repo_head": "b826701c9e1f042050da105ef8ee23791e62a9ba",
+      "runner_sha256": "b7c4d12cb5a0f6bc2f52b5183a94372c7fdca62e8c6e1f68401d4b5a2ec6b646",
+      "spec_sha256": "ea3353a8ee427d1140b4feb551e24480b0a72ea5653f2bb5f80a0db9f5fbf5e1",
+      "status": "KILLED",
+      "test_output_sha256": "73e3ba00940830a0402c32411dc24bb01f9472518a269f45eef6eadb65e5310f",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "058fb6c11d1df275538eff064101208ade7a00c2d974ce7f4be16ebce4aedb08"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2539-validation-isolation/output/pegasus-dispatch/96910fdc3b7e699fcb3d5cc4037b2937/izdw-96910fdc3b.o988888",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2539-validation-isolation/output/pegasus-dispatch/96910fdc3b7e699fcb3d5cc4037b2937/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..................F.                                                     [100%]\n=================================== FAILURES ===================================\n_____ test_default_argument_callee_edit_is_not_reported_as_no_intersection _____\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_default_argument_callee_edit_is_not_reported_as_no_intersection() -> None:\n        with tempfile.TemporaryDirectory() as temporary:\n            default_patch, control_patch, mismatch_patch = _get_tidword_patches(\n                Path(temporary),\n            )\n            default_rc, default_payload = _invoke(default_patch)\n            control_rc, control_payload = _invoke(control_patch)\n            mismatch_rc, mismatch_payload = _invoke(mismatch_patch)\n>       assert default_rc == 1\nE       assert 2 == 1\n\norchestrator/tests/test_silo_validation_isolation.py:330: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_silo_validation_isolation.py::test_default_argument_callee_edit_is_not_reported_as_no_intersection\n1 failed, 19 passed in 4.74s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_silo_validation_isolation.py::test_default_argument_callee_edit_is_not_reported_as_no_intersection\" nodeid_bytes=122 nodeid_omitted_bytes=0 source_bytes=644 retained_bytes=644 omitted_bytes=0 rendered_excerpt_bytes=673 sha256=d1b1128c2f7f4ded220ecb7e551227ced959f669bfbd7a3c257e1d78a2e4aab0\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_default_argument_callee_edit_is_not_reported_as_no_intersection() -> None:\n>         with tempfile.TemporaryDirectory() as temporary:\n>             default_patch, control_patch, mismatch_patch = _get_tidword_patches(\n>                 Path(temporary),\n>             )\n>             default_rc, default_payload = _invoke(default_patch)\n>             control_rc, control_payload = _invoke(control_patch)\n>             mismatch_rc, mismatch_payload = _invoke(mismatch_patch)\n> >       assert default_rc == 1\n> E       assert 2 == 1\n> \n> orchestrator/tests/test_silo_validation_isolation.py:330: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=644 retained_bytes=644 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1418 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "bad515a7c62e01d4db2b21b1396b503e01d62506fbb675b0749f16e602cdd8b4"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "755b7e4a35c162533df0f252eb6ef634bce75c631a3c0dd84dbb45dd35a7e6c1",
+      "duration_s": 257.405,
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_validation_isolation.py::test_default_argument_callee_edit_is_not_reported_as_no_intersection"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_silo_validation_isolation.py::test_default_argument_callee_edit_is_not_reported_as_no_intersection"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2539-M8-EXACT-ARITY-ONLY",
+      "injection_diff_sha256": "294cece1172a77951b51a59a1c0dd8fb0eba07480202788d6261db199d814c45",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "5aebd83cab68ca1a8243b92c7dcb231e1c6b500ba82bab9f206dd22ecd9666b3",
+      "replacements": [
+        {
+          "file": "tools/check_silo_validation_isolation.py",
+          "new": "        return self.arity == arity\n",
+          "old": "        return self.min_arity <= arity and (self.variadic or arity <= self.arity)\n"
+        }
+      ],
+      "repo_head": "b826701c9e1f042050da105ef8ee23791e62a9ba",
+      "runner_sha256": "b7c4d12cb5a0f6bc2f52b5183a94372c7fdca62e8c6e1f68401d4b5a2ec6b646",
+      "spec_sha256": "ea3353a8ee427d1140b4feb551e24480b0a72ea5653f2bb5f80a0db9f5fbf5e1",
+      "status": "KILLED",
+      "test_output_sha256": "bad515a7c62e01d4db2b21b1396b503e01d62506fbb675b0749f16e602cdd8b4",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "058fb6c11d1df275538eff064101208ade7a00c2d974ce7f4be16ebce4aedb08"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2539-validation-isolation/output/pegasus-dispatch/79a737124058146564e42c5c4d09f0be/izdw-79a7371240.o988924",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2539-validation-isolation/output/pegasus-dispatch/79a737124058146564e42c5c4d09f0be/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.................F..                                                     [100%]\n=================================== FAILURES ===================================\n________ test_cli_reports_no_intersection_for_registered_backoff_patch _________\n[gw10] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_cli_reports_no_intersection_for_registered_backoff_patch() -> None:\n        rc, payload = _invoke(POSITIVE_PATCH)\n>       assert rc == 0\nE       assert 2 == 0\n\norchestrator/tests/test_silo_validation_isolation.py:248: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_silo_validation_isolation.py::test_cli_reports_no_intersection_for_registered_backoff_patch\n1 failed, 19 passed in 4.88s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_silo_validation_isolation.py::test_cli_reports_no_intersection_for_registered_backoff_patch\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=293 retained_bytes=293 omitted_bytes=0 rendered_excerpt_bytes=310 sha256=e1741d868ec9c66a9dc582f6382422257ae7397d165351a1bab535e01e2a11b6\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw10] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_cli_reports_no_intersection_for_registered_backoff_patch() -> None:\n>         rc, payload = _invoke(POSITIVE_PATCH)\n> >       assert rc == 0\n> E       assert 2 == 0\n> \n> orchestrator/tests/test_silo_validation_isolation.py:248: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=293 retained_bytes=293 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1048 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "d2a4cc53c8df9fd56ded538fddad69dd5c47f04935ac7bb7d4b5b01d11bdcc55"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "755b7e4a35c162533df0f252eb6ef634bce75c631a3c0dd84dbb45dd35a7e6c1",
+      "duration_s": 242.075,
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_validation_isolation.py::test_cli_reports_no_intersection_for_registered_backoff_patch"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_silo_validation_isolation.py::test_cli_reports_no_intersection_for_registered_backoff_patch"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2539-M9-SPAN-LINES-KEEP-COMMENTS",
+      "injection_diff_sha256": "b327b0c76e5413bc192b25c703bf2ff31944efbcd8da7006ab495b86ecaa54e9",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "f7d52baa943cf46e46d08b949cd4437e84ed643541c928c26bdb1c0473ae971e",
+      "replacements": [
+        {
+          "file": "tools/check_silo_validation_isolation.py",
+          "new": "    clean_lines = source.splitlines()\n    return [clean_lines[number - 1] for number in line_numbers]\n",
+          "old": "    clean_lines = _strip_comments_and_literals(source).splitlines()\n    return [clean_lines[number - 1] for number in line_numbers]\n"
+        }
+      ],
+      "repo_head": "b826701c9e1f042050da105ef8ee23791e62a9ba",
+      "runner_sha256": "b7c4d12cb5a0f6bc2f52b5183a94372c7fdca62e8c6e1f68401d4b5a2ec6b646",
+      "spec_sha256": "ea3353a8ee427d1140b4feb551e24480b0a72ea5653f2bb5f80a0db9f5fbf5e1",
+      "status": "KILLED",
+      "test_output_sha256": "d2a4cc53c8df9fd56ded538fddad69dd5c47f04935ac7bb7d4b5b01d11bdcc55",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "058fb6c11d1df275538eff064101208ade7a00c2d974ce7f4be16ebce4aedb08"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2539-validation-isolation/output/pegasus-dispatch/b523382ede472183479a6eeb46b53da1/izdw-b523382ede.o988846",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2539-validation-isolation/output/pegasus-dispatch/b523382ede472183479a6eeb46b53da1/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_silo_validation_isolation.py::test_cli_reports_no_intersection_for_registered_backoff_patch\norchestrator/tests/test_silo_validation_isolation.py::test_cli_reports_root_intersection_for_guarded_norw_patch\norchestrator/tests/test_silo_validation_isolation.py::test_cli_reports_depth_one_intersection_for_guarded_lockskip_patch\norchestrator/tests/test_silo_validation_isolation.py::test_known_root_edits_win_over_incomplete_closure_expansion\norchestrator/tests/test_silo_validation_isolation.py::test_known_root_edit_wins_over_unconsumed_edit\norchestrator/tests/test_silo_validation_isolation.py::test_default_argument_callee_edit_is_not_reported_as_no_intersection\norchestrator/tests/test_silo_validation_isolation.py::test_cmake_trace_default_reports_macro_closure_intersections\norchestrator/tests/test_silo_validation_isolation.py::test_comment_directive_text_does_not_create_macro_intersection\norchestrator/tests/test_silo_validation_isolation.py::test_cli_reports_no_intersection_for_same_file_unreachable_decoy\norchestrator/tests/test_silo_validation_isolation.py::test_cli_reports_depth_two_intersection_for_iterator_unlock\norchestrator/tests/test_silo_validation_isolation.py::test_real_raw_closure_contains_root_helpers_and_implicit_comparators\norchestrator/tests/test_silo_validation_isolation.py::test_real_raw_closure_excludes_callers_postvalidation_and_abort_path\norchestrator/tests/test_silo_validation_isolation.py::test_cli_missing_patch_is_error_not_no_intersection\norchestrator/tests/test_silo_validation_isolation.py::test_cli_unmappable_hunk_is_error_not_no_intersection\norchestrator/tests/test_silo_validation_isolation.py::test_cli_unconsumed_edit_is_reported_and_errors\norchestrator/tests/test_silo_validation_isolation.py::test_missing_repo_root_is_error_not_empty_closure\norchestrator/tests/test_silo_validation_isolation.py::test_early_unlock_is_outside_closure_and_claims_no_correctness\norchestrator/tests/test_silo_validation_isolation.py::test_claim_boundary_records_every_required_non_guarantee\norchestrator/tests/test_silo_validation_isolation.py::test_claim_boundary_requires_external_runtime_anomaly_evidence\norchestrator/tests/test_silo_validation_isolation.py::test_claim_boundary_records_unmodeled_implicit_lifetime_edges\n\n20 tests collected in 0.38s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "4e9899c2a1df559b8fdca9e1f635ad97c753f213fee0c7e9ec2bfadc8053ccfc"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_silo_validation_isolation.py::test_cli_reports_no_intersection_for_registered_backoff_patch",
+        "orchestrator/tests/test_silo_validation_isolation.py::test_cli_reports_root_intersection_for_guarded_norw_patch",
+        "orchestrator/tests/test_silo_validation_isolation.py::test_cli_reports_depth_one_intersection_for_guarded_lockskip_patch",
+        "orchestrator/tests/test_silo_validation_isolation.py::test_known_root_edits_win_over_incomplete_closure_expansion",
+        "orchestrator/tests/test_silo_validation_isolation.py::test_known_root_edit_wins_over_unconsumed_edit",
+        "orchestrator/tests/test_silo_validation_isolation.py::test_default_argument_callee_edit_is_not_reported_as_no_intersection",
+        "orchestrator/tests/test_silo_validation_isolation.py::test_cmake_trace_default_reports_macro_closure_intersections",
+        "orchestrator/tests/test_silo_validation_isolation.py::test_comment_directive_text_does_not_create_macro_intersection",
+        "orchestrator/tests/test_silo_validation_isolation.py::test_cli_reports_no_intersection_for_same_file_unreachable_decoy",
+        "orchestrator/tests/test_silo_validation_isolation.py::test_cli_reports_depth_two_intersection_for_iterator_unlock",
+        "orchestrator/tests/test_silo_validation_isolation.py::test_real_raw_closure_contains_root_helpers_and_implicit_comparators",
+        "orchestrator/tests/test_silo_validation_isolation.py::test_real_raw_closure_excludes_callers_postvalidation_and_abort_path",
+        "orchestrator/tests/test_silo_validation_isolation.py::test_cli_missing_patch_is_error_not_no_intersection",
+        "orchestrator/tests/test_silo_validation_isolation.py::test_cli_unmappable_hunk_is_error_not_no_intersection",
+        "orchestrator/tests/test_silo_validation_isolation.py::test_cli_unconsumed_edit_is_reported_and_errors",
+        "orchestrator/tests/test_silo_validation_isolation.py::test_missing_repo_root_is_error_not_empty_closure",
+        "orchestrator/tests/test_silo_validation_isolation.py::test_early_unlock_is_outside_closure_and_claims_no_correctness",
+        "orchestrator/tests/test_silo_validation_isolation.py::test_claim_boundary_records_every_required_non_guarantee",
+        "orchestrator/tests/test_silo_validation_isolation.py::test_claim_boundary_requires_external_runtime_anomaly_evidence",
+        "orchestrator/tests/test_silo_validation_isolation.py::test_claim_boundary_records_unmodeled_implicit_lifetime_edges"
+      ],
+      "duration_s": 21.846,
+      "rc": 0,
+      "repo_head": "b826701c9e1f042050da105ef8ee23791e62a9ba",
+      "runner_sha256": "b7c4d12cb5a0f6bc2f52b5183a94372c7fdca62e8c6e1f68401d4b5a2ec6b646",
+      "spec_sha256": "ea3353a8ee427d1140b4feb551e24480b0a72ea5653f2bb5f80a0db9f5fbf5e1",
+      "status": "PASSED",
+      "tool_sha256": "058fb6c11d1df275538eff064101208ade7a00c2d974ce7f4be16ebce4aedb08"
+    },
+    "hang_timeout_seconds": 600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "MUT-T2539-M1-BFS-DOES-NOT-RECURSE": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_validation_isolation.py::test_cli_reports_depth_two_intersection_for_iterator_unlock",
+          "orchestrator/tests/test_silo_validation_isolation.py::test_cmake_trace_default_reports_macro_closure_intersections",
+          "orchestrator/tests/test_silo_validation_isolation.py::test_real_raw_closure_contains_root_helpers_and_implicit_comparators"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f792a6627081901e1b75c261751e6a94ac3edd60f116164b0a7de301a12fa54f",
+        "replacements": [
+          {
+            "file": "tools/check_silo_validation_isolation.py",
+            "new": "                pass\n",
+            "old": "                queue.append(target)\n"
+          }
+        ]
+      },
+      "MUT-T2539-M2-NO-SORT-COMPARATOR-EDGE": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_validation_isolation.py::test_real_raw_closure_contains_root_helpers_and_implicit_comparators"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "3eeaee9e3bc69bbb2be513dbe5fb3a7304f0687178b90591ab47ac493a0a6e98",
+        "replacements": [
+          {
+            "file": "tools/check_silo_validation_isolation.py",
+            "new": "                    target = None\n",
+            "old": "                    target = write_comparator\n"
+          }
+        ]
+      },
+      "MUT-T2539-M3-UNCONSUMED-EDITS-IGNORED": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_validation_isolation.py::test_cli_unconsumed_edit_is_reported_and_errors",
+          "orchestrator/tests/test_silo_validation_isolation.py::test_comment_directive_text_does_not_create_macro_intersection"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "44cb4c5d75acd3bd01fda51ce7b64c8f073674a55800e651f40d2827dd35414d",
+        "replacements": [
+          {
+            "file": "tools/check_silo_validation_isolation.py",
+            "new": "        if False:\n            result[\"error\"] = {\n                \"code\": \"UNCONSUMED_EDITS\",\n",
+            "old": "        if unconsumed:\n            result[\"error\"] = {\n                \"code\": \"UNCONSUMED_EDITS\",\n"
+          }
+        ]
+      },
+      "MUT-T2539-M4-ERROR-EXITS-ZERO": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_validation_isolation.py::test_cli_missing_patch_is_error_not_no_intersection",
+          "orchestrator/tests/test_silo_validation_isolation.py::test_cli_unconsumed_edit_is_reported_and_errors",
+          "orchestrator/tests/test_silo_validation_isolation.py::test_cli_unmappable_hunk_is_error_not_no_intersection",
+          "orchestrator/tests/test_silo_validation_isolation.py::test_comment_directive_text_does_not_create_macro_intersection",
+          "orchestrator/tests/test_silo_validation_isolation.py::test_default_argument_callee_edit_is_not_reported_as_no_intersection"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "aaa1d4295d7756ed10f8ce466b38efba2cc6373e2e8d68ad8a4328f0ff2a0f87",
+        "replacements": [
+          {
+            "file": "tools/check_silo_validation_isolation.py",
+            "new": "    if result[\"verdict\"] == INTERSECTION:\n        return 1\n    return 0\n",
+            "old": "    if result[\"verdict\"] == INTERSECTION:\n        return 1\n    return 2\n"
+          }
+        ]
+      },
+      "MUT-T2539-M5-EVERY-EDITED-REGION-INTERSECTS": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_validation_isolation.py::test_cli_reports_no_intersection_for_registered_backoff_patch",
+          "orchestrator/tests/test_silo_validation_isolation.py::test_cli_reports_no_intersection_for_same_file_unreachable_decoy",
+          "orchestrator/tests/test_silo_validation_isolation.py::test_default_argument_callee_edit_is_not_reported_as_no_intersection",
+          "orchestrator/tests/test_silo_validation_isolation.py::test_early_unlock_is_outside_closure_and_claims_no_correctness"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "cd43758df9703fe820416479b1ac76f8b6bb5182715cc9d262c236c2d9432a52",
+        "replacements": [
+          {
+            "file": "tools/check_silo_validation_isolation.py",
+            "new": "            for symbol in item[\"targets\"]:\n                if symbol in closure_by_symbol or True:\n",
+            "old": "            for symbol in item[\"targets\"]:\n                if symbol in closure_by_symbol:\n"
+          }
+        ]
+      },
+      "MUT-T2539-M6-CMAKE-MACRO-LEG-DROPPED": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_validation_isolation.py::test_cmake_trace_default_reports_macro_closure_intersections"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "558b79028b6e3a465340779aad468cf30342a6eb81fe545b5422ee9845a8cbb7",
+        "replacements": [
+          {
+            "file": "tools/check_silo_validation_isolation.py",
+            "new": "        for macro in sorted(set()):\n            for ref in references.get(macro, []):\n",
+            "old": "        for macro in sorted(all_macros):\n            for ref in references.get(macro, []):\n"
+          }
+        ]
+      },
+      "MUT-T2539-M7-EXPANSION-ERROR-OUTRANKS-INTERSECTION": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_validation_isolation.py::test_known_root_edit_wins_over_unconsumed_edit",
+          "orchestrator/tests/test_silo_validation_isolation.py::test_known_root_edits_win_over_incomplete_closure_expansion"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "66c40e934b0846586275accbe80af3e3c08fce43c9cf1675edd22da470d97762",
+        "replacements": [
+          {
+            "file": "tools/check_silo_validation_isolation.py",
+            "new": "        if intersections and not expansion_errors and not unconsumed:\n            result[\"verdict\"] = INTERSECTION\n            return result\n",
+            "old": "        if intersections:\n            result[\"verdict\"] = INTERSECTION\n            return result\n"
+          }
+        ]
+      },
+      "MUT-T2539-M8-EXACT-ARITY-ONLY": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_validation_isolation.py::test_default_argument_callee_edit_is_not_reported_as_no_intersection"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "294cece1172a77951b51a59a1c0dd8fb0eba07480202788d6261db199d814c45",
+        "replacements": [
+          {
+            "file": "tools/check_silo_validation_isolation.py",
+            "new": "        return self.arity == arity\n",
+            "old": "        return self.min_arity <= arity and (self.variadic or arity <= self.arity)\n"
+          }
+        ]
+      },
+      "MUT-T2539-M9-SPAN-LINES-KEEP-COMMENTS": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_validation_isolation.py::test_cli_reports_no_intersection_for_registered_backoff_patch"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "b327b0c76e5413bc192b25c703bf2ff31944efbcd8da7006ab495b86ecaa54e9",
+        "replacements": [
+          {
+            "file": "tools/check_silo_validation_isolation.py",
+            "new": "    clean_lines = source.splitlines()\n    return [clean_lines[number - 1] for number in line_numbers]\n",
+            "old": "    clean_lines = _strip_comments_and_literals(source).splitlines()\n    return [clean_lines[number - 1] for number in line_numbers]\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "ddb508ff687bb71347e735e4eb0dc8cf26330d7d6b1f0102f9cfe2af09091faf",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_silo_validation_isolation.py",
+      "--force-dispatch",
+      "-p",
+      "no:randomly",
+      "-rf",
+      "-q",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 3600.0
+  },
+  "repo_head": "b826701c9e1f042050da105ef8ee23791e62a9ba",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_silo_validation_isolation.py",
+      "--force-dispatch",
+      "-p",
+      "no:randomly",
+      "-rf",
+      "-q",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2539-validation-isolation/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2539-validation-isolation/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "002d3a0ce7acdbb6260db6c02176898f1898d3f2",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "b7c4d12cb5a0f6bc2f52b5183a94372c7fdca62e8c6e1f68401d4b5a2ec6b646",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "ea3353a8ee427d1140b4feb551e24480b0a72ea5653f2bb5f80a0db9f5fbf5e1",
+  "summary": {
+    "KILLED": 9,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 9,
+    "matching": 9,
+    "recorded": 9,
+    "registered": 9
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2539-validation-isolation/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "058fb6c11d1df275538eff064101208ade7a00c2d974ce7f4be16ebce4aedb08",
+  "updated_at": "2026-09-09T16:22:55.486391+00:00"
+}
