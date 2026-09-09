@@ -1,0 +1,215 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+umask 077
+
+REP_INDEXES=()
+JOB_IDS=()
+EXPECTED_JSONS=()
+
+print_inventory() {
+  local index json_status
+  for index in "${!JOB_IDS[@]}"; do
+    if [[ -f "${EXPECTED_JSONS[$index]}" ]]; then
+      json_status=present
+    else
+      json_status=missing
+    fi
+    printf 'inventory\trep_index=%s\tpbs_jobid=%s\texpected_json=%s\t%s\n' \
+      "${REP_INDEXES[$index]}" "${JOB_IDS[$index]}" \
+      "${EXPECTED_JSONS[$index]}" "$json_status"
+  done
+}
+
+fail_input() {
+  echo "wait input error: $*" >&2
+  exit 2
+}
+
+fail_monitor() {
+  echo "monitoring error: $*" >&2
+  print_inventory
+  exit 4
+}
+
+fail_timeout() {
+  echo "maximum wait exceeded with $1 job(s) still live" >&2
+  print_inventory
+  exit 5
+}
+
+[[ -n "${IZ_LEDGER:-}" ]] || fail_input "IZ_LEDGER is required"
+IZ_POLL_S=${IZ_POLL_S:-30}
+# Six hours leaves queue-wait headroom beyond each job's one-hour runtime limit.
+IZ_MAX_WAIT_S=${IZ_MAX_WAIT_S:-21600}
+[[ "$IZ_POLL_S" =~ ^[1-9][0-9]*$ ]] || fail_input "IZ_POLL_S must be a positive integer"
+[[ "$IZ_MAX_WAIT_S" =~ ^[0-9]+$ ]] || fail_input "IZ_MAX_WAIT_S must be a nonnegative integer"
+[[ -f "$IZ_LEDGER" ]] || fail_input "IZ_LEDGER must be a regular file"
+
+header_seen=0
+while IFS= read -r ledger_line || [[ -n "$ledger_line" ]]; do
+  if (( header_seen == 0 )); then
+    if [[ "$ledger_line" == $'columns\tsubmitted_utc\trep_index\tpbs_jobid\texpected_json\tqsub_argv' ]]; then
+      header_seen=1
+    fi
+    continue
+  fi
+  [[ -n "$ledger_line" ]] || continue
+  IFS=$'\t' read -r submitted_utc rep_index jobid expected_json qsub_argv extra <<< "$ledger_line"
+  [[ -n "$submitted_utc" && -n "$rep_index" && -n "$jobid" && -n "$expected_json" && -n "$qsub_argv" && -z "${extra:-}" ]] ||
+    fail_monitor "malformed job row in IZ_LEDGER"
+  [[ "$jobid" =~ ^([0-9]+:)?[A-Za-z0-9._-]+$ ]] ||
+    fail_monitor "malformed PBS job ID in IZ_LEDGER: $jobid"
+  REP_INDEXES+=("$rep_index")
+  JOB_IDS+=("$jobid")
+  EXPECTED_JSONS+=("$expected_json")
+done < "$IZ_LEDGER"
+
+(( header_seen == 1 )) || fail_monitor "columns row is missing from IZ_LEDGER"
+
+LEDGER_PARTIAL=0
+if (( ${#JOB_IDS[@]} != 7 )); then
+  LEDGER_PARTIAL=1
+fi
+for expected_rep in 0 1 2 3 4 5 6; do
+  rep_count=0
+  for rep_index in "${REP_INDEXES[@]}"; do
+    if [[ "$rep_index" == "$expected_rep" ]]; then
+      rep_count=$((rep_count + 1))
+    fi
+  done
+  if (( rep_count != 1 )); then
+    LEDGER_PARTIAL=1
+  fi
+done
+for left_index in "${!JOB_IDS[@]}"; do
+  for ((right_index = left_index + 1; right_index < ${#JOB_IDS[@]}; right_index++)); do
+    if [[ "${JOB_IDS[$left_index]}" == "${JOB_IDS[$right_index]}" ]]; then
+      LEDGER_PARTIAL=1
+    fi
+  done
+done
+if (( LEDGER_PARTIAL == 1 )); then
+  printf 'ledger status=partial: expected exactly seven rows, reps 0..6 once each, and distinct pbs_jobid values; monitoring %s recorded job row(s) without resubmission\n' \
+    "${#JOB_IDS[@]}" >&2
+fi
+
+DONE=()
+for _ in "${JOB_IDS[@]}"; do
+  DONE+=(0)
+done
+
+declare -A QSTAT_STATES=()
+parse_qstat_listing() {
+  local qstat_output=$1
+  local listing_header_seen=0 line request_id state own_jobid is_own_job
+  local -a fields=()
+  QSTAT_STATES=()
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    fields=()
+    read -r -a fields <<< "$line"
+    if (( listing_header_seen == 0 )); then
+      if [[ "${fields[*]}" == "RequestID ReqName UserName Queue Pri STT S Memory CPU Elapse R H M Jobs" ]]; then
+        listing_header_seen=1
+      fi
+      continue
+    fi
+    (( ${#fields[@]} > 0 )) || continue
+    if [[ "$line" =~ ^[-[:space:]]+$ ]]; then
+      continue
+    fi
+    (( ${#fields[@]} >= 6 )) ||
+      fail_monitor "cannot parse an NQSV qstat row: $line"
+    request_id=${fields[0]}
+    state=${fields[5]}
+    [[ "$request_id" =~ ^([0-9]+:)?[A-Za-z0-9._-]+$ ]] ||
+      fail_monitor "malformed RequestID in NQSV qstat row: $request_id"
+    is_own_job=0
+    for own_jobid in "${JOB_IDS[@]}"; do
+      if [[ "$request_id" == "$own_jobid" ]]; then
+        is_own_job=1
+        break
+      fi
+    done
+    if (( is_own_job == 1 )); then
+      case "$state" in
+        QUE|HLD|RUN|PRR)
+          ;;
+        *)
+          fail_monitor "unknown NQSV STT for RequestID $request_id: $state"
+          ;;
+      esac
+    fi
+    [[ -z "${QSTAT_STATES[$request_id]+present}" ]] ||
+      fail_monitor "duplicate RequestID in NQSV qstat listing: $request_id"
+    QSTAT_STATES["$request_id"]=$state
+  done <<< "$qstat_output"
+
+  (( listing_header_seen == 1 )) ||
+    fail_monitor "NQSV qstat listing header is missing or malformed"
+}
+
+start_seconds=$SECONDS
+remaining=${#JOB_IDS[@]}
+while (( remaining > 0 )); do
+  if qstat_output=$(qstat 2>&1); then
+    :
+  else
+    qstat_rc=$?
+    fail_monitor "qstat listing failed with rc=$qstat_rc"
+  fi
+  parse_qstat_listing "$qstat_output"
+
+  for index in "${!JOB_IDS[@]}"; do
+    [[ "${DONE[$index]}" == 0 ]] || continue
+    jobid=${JOB_IDS[$index]}
+    expected_json=${EXPECTED_JSONS[$index]}
+
+    if [[ -n "${QSTAT_STATES[$jobid]+present}" ]]; then
+      printf 'live\tpbs_jobid=%s\tstate=%s\n' "$jobid" "${QSTAT_STATES[$jobid]}"
+      continue
+    fi
+
+    DONE[$index]=1
+    if [[ -f "$expected_json" ]]; then
+      json_status=present
+    else
+      json_status=missing
+    fi
+    printf 'terminal\trep_index=%s\tpbs_jobid=%s\texpected_json=%s\tjson=%s\n' \
+      "${REP_INDEXES[$index]}" "$jobid" "$expected_json" "$json_status"
+  done
+
+  remaining=0
+  for done_value in "${DONE[@]}"; do
+    if [[ "$done_value" == 0 ]]; then
+      remaining=$((remaining + 1))
+    fi
+  done
+  (( remaining > 0 )) || break
+
+  elapsed=$((SECONDS - start_seconds))
+  if (( elapsed >= IZ_MAX_WAIT_S )); then
+    fail_timeout "$remaining"
+  fi
+  sleep "$IZ_POLL_S" || fail_monitor "sleep failed while jobs remained live"
+done
+
+print_inventory
+
+if (( LEDGER_PARTIAL == 1 )); then
+  echo "ledger remained partial after all recorded jobs became terminal" >&2
+  exit 7
+fi
+
+missing_count=0
+for expected_json in "${EXPECTED_JSONS[@]}"; do
+  if [[ ! -f "$expected_json" ]]; then
+    missing_count=$((missing_count + 1))
+  fi
+done
+if (( missing_count > 0 )); then
+  printf '%s terminal job(s) have missing expected JSON files\n' "$missing_count" >&2
+  exit 6
+fi
