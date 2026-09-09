@@ -375,6 +375,41 @@ def _condition_gate_offline_configure_args(
     return configure_args
 
 
+def _write_condition_gate_temp(path: Path, canonical_bytes: bytes) -> None:
+    with path.open("xb") as output:
+        output.write(canonical_bytes)
+        output.flush()
+        os.fsync(output.fileno())
+
+
+def _fsync_condition_gate_directory(path: Path) -> None:
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+    descriptor = os.open(path, flags)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def _persist_condition_gate_record(
+        output_path: Path, canonical_bytes: bytes,
+) -> None:
+    temporary_path: Path | None = None
+    try:
+        temporary_path = output_path.parent / (
+            f".{output_path.name}.tmp-{os.getpid()}-{secrets.token_hex(16)}"
+        )
+        _write_condition_gate_temp(temporary_path, canonical_bytes)
+        os.replace(temporary_path, output_path)
+        _fsync_condition_gate_directory(output_path.parent)
+    finally:
+        if temporary_path is not None:
+            try:
+                temporary_path.unlink(missing_ok=True)
+            except Exception:
+                pass
+
+
 def _require_condition_gate(
         source_root: str, genome: Genome, *,
         configure_args: Tuple[str, ...] = (),
@@ -405,10 +440,54 @@ def _require_condition_gate(
         [supply], [meaning], use_class="certified-selection",
     )
     if not admission.admitted:
-        raise RuntimeError(
+        rejection_parts = [
             "condition gate rejected P3 S4 loop: "
             f"supply={supply.reason_code} meaning={meaning.reason_code}"
-        )
+        ]
+        for label, record in (("supply", supply), ("meaning", meaning)):
+            detail = record.evidence.get("detail")
+            if detail is not None:
+                rejection_parts.append(f"{label}_detail={detail}")
+            else:
+                rejection_parts.append(
+                    f"{label}_evidence_keys={sorted(record.evidence.keys())}"
+                )
+        rejection_message = "; ".join(rejection_parts)
+
+        evidence_write_failures = []
+        try:
+            evidence_root = os.environ.get("IZANAGI_S4_EVIDENCE_ROOT")
+        except Exception as exc:
+            evidence_root = None
+            evidence_write_failures.append(
+                f"evidence-root:{type(exc).__name__}"
+            )
+        if evidence_root:
+            records = (
+                ("supply", supply, "record_digest"),
+                ("meaning", meaning, "record_digest"),
+                ("admission", admission, "admission_digest"),
+            )
+            for label, record, digest_field in records:
+                try:
+                    arm_name = getattr(record, "arm", "admission")
+                    record_digest = getattr(record, digest_field)
+                    filename = (
+                        f"condition-gate-{arm_name}-{record_digest}.json"
+                    )
+                    canonical_bytes = record.canonical_json().encode("ascii")
+                    output_path = Path(evidence_root) / filename
+                    _persist_condition_gate_record(output_path, canonical_bytes)
+                except Exception as exc:
+                    evidence_write_failures.append(
+                        f"{label}:{type(exc).__name__}"
+                    )
+        if evidence_write_failures:
+            rejection_message += (
+                "; evidence_write_failures="
+                + ",".join(evidence_write_failures)
+            )
+        raise RuntimeError(rejection_message)
     return {
         "supply_record": json.loads(supply.canonical_json()),
         "meaning_record": json.loads(meaning.canonical_json()),
