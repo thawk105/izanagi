@@ -146,7 +146,20 @@ M11 / M16 が広い (46 / 57) のは、1 つの gate に多数の検査がぶら
 - 親の consumer 拡張走 (`DW-O26`、31 file): **3080 passed / 11 skipped / 1 error**。
   error は `from tests import` の file 選択走で出る既知の偽赤で (`DW-O18` が明記)、変更に帰属しない。
 - 変異本走: **13 / 13 KILLED**、`repo_head` `3d3576882`。
-- 受入全走: 本 README の記録 commit の後に投入する (`DW-O12`)。結果は追記する。
+- **受入全走 `child-green`: 22,654 passed / 68 skipped / 0 failed** (attempt 4、receipt 発行済み)。
+  tested main `61171ddf0`、tested tip `4f9b8c081`。
+
+### 受入 4 回の内訳と赤の帰属
+
+| attempt | 結果 | 帰属 |
+|---|---|---|
+| 1 | 走行前に停止 | 親の argv 誤り (`--wave` が branch 名の接尾辞と不一致)。実装とは無関係 |
+| 2 | 走行前に停止 | post-claim merge が受入所要台帳 1 file で競合 (main が node を追加したため) |
+| 3 | 22,653 passed / 1 failed | **帰属** — 自走 harness を足した file が pytest 専用 allowlist に残っていた |
+| 4 | **22,654 passed / 0 failed** | — |
+
+**非帰属の赤は 1 件も出なかった。** attempt 3 の 1 件は本 wave に帰属し、
+allowlist の 1 行削除で閉じた (fix 5)。
 
 ## 8. commit 列 (base `21dfbe0f3` から)
 
@@ -159,6 +172,9 @@ M11 / M16 が広い (46 / 57) のは、1 つの gate に多数の検査がぶら
 | `adb740134` | fix2: adapter 3 遷移へ検証済み evidence profile | +21 / +361 |
 | `197d529b9` | fix3: 敵対レビュー real 4 件 | +592 -207 (4 file) |
 | `3d3576882` | fix4: 恒真な検査を境界値で発火する形へ | — / +30 -9 |
+| `246ed2dd9` | 段 7 の記録 (insight・erratum・台帳 fragment 3 本) | docs |
+| `dc1a28730` | 受入 post-claim の main 取り込み (台帳を和集合 22,483 件へ) | — |
+| `4f9b8c081` | fix5: 自走 harness を足した file を allowlist から外す | — / -1 |
 
 ## 9. 収録物
 
