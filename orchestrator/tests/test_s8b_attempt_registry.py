@@ -565,6 +565,270 @@ def _sealed_v2_case(
     }
 
 
+def _two_clean_v2_attempt_case(tmp_path: Path) -> dict[str, Any]:
+    (
+        repo_root,
+        _protocol_document,
+        cell,
+        admitted,
+        first_attempt_id,
+        _manifest_sha256,
+    ) = admission_cases._issued_cell(tmp_path)
+    state = admission._cell_state(admitted)
+    schedule_rows = [
+        row for row in state.schedule if row["cell_id"] == cell["cell_id"]
+    ]
+    assert len(schedule_rows) >= 2
+    first_schedule = next(
+        row
+        for row in schedule_rows
+        if first_attempt_id == f"{cell['cell_id']}::seq{row['seq']}"
+    )
+    second_schedule = next(row for row in schedule_rows if row != first_schedule)
+    second_attempt_id = f"{cell['cell_id']}::seq{second_schedule['seq']}"
+    admission_cases._append_journal_rows(
+        admitted,
+        {
+            "event": "session-start",
+            "seq": second_schedule["seq"],
+            "round": second_schedule["round"],
+            "kind": "planned",
+            "cell_id": cell["cell_id"],
+            "attempt_id": second_attempt_id,
+            "trigger": None,
+        },
+    )
+
+    attempts = []
+    for schedule, attempt_id in (
+        (first_schedule, first_attempt_id),
+        (second_schedule, second_attempt_id),
+    ):
+        admission.consume_attempt_ticket(admitted, attempt_id=attempt_id)
+        marker = admission_cases._floor_expected_marker(admitted, attempt_id)
+        capability = admission.validate_floor_attempt_consumption_marker(
+            admitted, attempt_id=attempt_id,
+        )
+        identity = {
+            "freeze_holdout_key": marker["freeze_holdout_key"],
+            "configuration_id": marker["configuration_id"],
+            "repetition": int(schedule["round"]) - 1,
+            "measurement_ordinal": 0,
+            "attempt_ordinal": 0,
+        }
+        slot = profile8b.S8BV2AttemptSlot(
+            **identity,
+            schedule_row_sha256=hashlib.sha256(
+                core.canonical_json_bytes(identity)
+            ).hexdigest(),
+        )
+        attempts.append({
+            "attempt_id": attempt_id,
+            "schedule": schedule,
+            "marker": marker,
+            "capability": capability,
+            "slot": slot,
+        })
+
+    root = admission.shared_admission_root(repo_root)
+    claim_digest = attempts[0]["marker"][
+        "measurement_generation_claim_digest"
+    ]
+    claim_path = admission._measurement_generation_claim_path(
+        root, claim_digest,
+    )
+    claim = admission._read_canonical_document(claim_path)
+    generation_key = claim["key"]
+    assert isinstance(generation_key, Mapping)
+    binding = profile8b.S8BAttemptBinding(
+        freeze_sha256=str(generation_key["freeze_sha256"]),
+        protocol_sha256=str(claim["protocol_sha256"]),
+        schedule_sha256=_SCHEDULE,
+    )
+    profile = _v2_authority_profile()
+    registry.create_attempt_registry(
+        repo_root,
+        profile=profile,
+        slots=[attempt["slot"] for attempt in attempts],
+        binding=binding,
+    )
+    protocol_path = repo_root / "output/s8b-freeze/floor_protocol.json"
+    protocol = {
+        **json.loads(protocol_path.read_text(encoding="utf-8")),
+        "session_cv_max": "0.10",
+    }
+    return {
+        "repo_root": repo_root,
+        "profile": profile,
+        "binding": binding,
+        "claim": claim,
+        "protocol": protocol,
+        "attempts": attempts,
+    }
+
+
+def _open_clean_v2_attempt(
+    case: Mapping[str, Any], attempt: Mapping[str, Any],
+) -> dict[str, Any]:
+    profile = case["profile"]
+    binding = case["binding"]
+    claim = case["claim"]
+    protocol = case["protocol"]
+    slot = attempt["slot"]
+    marker = attempt["marker"]
+    schedule = attempt["schedule"]
+    reps = int(protocol["reps"])
+    values = [100.0 for _index in range(reps)]
+    observations = [
+        {
+            "rep_index": index,
+            "returncode": 0,
+            "execution_failure": False,
+            "counter_status": "not_required",
+            "missing_perf_events": [],
+            "perf_raw": {event: None for event in floor_stats.PERF_EVENTS},
+            "throughput": value,
+        }
+        for index, value in enumerate(values)
+    ]
+    probe = {"rc": 1, "stdout": "", "stderr": "", "competing": False}
+    assessment = floor_stats.assess_session(
+        values,
+        reps=reps,
+        session_cv_max=str(protocol["session_cv_max"]),
+    )
+    record = {
+        "attempt_id": marker["attempt_id"],
+        "binary_sha256_at_measure": hashlib.sha256(b"binary").hexdigest(),
+        "cell_id": claim["cell_id"],
+        "configuration_id": slot.configuration_id,
+        "duration_s": 1.25,
+        "event": "session",
+        "excluded_reason": None,
+        "exclusion_class": None,
+        "exec_failures": 0,
+        "holdout_id": slot.freeze_holdout_key,
+        "kind": "planned",
+        "notes": ["two-clean-attempt adapter test"],
+        "probe_after": dict(probe),
+        "probe_before": dict(probe),
+        "records": claim["records"],
+        "rep_integrity_failures": 0,
+        "rep_observations": observations,
+        "reps_expected": reps,
+        "retry": False,
+        "retry_ordinal": None,
+        "round": schedule["round"],
+        "run_cmd": ["ycsb_test.exe"],
+        "seq": schedule["seq"],
+        "session_cv": assessment.cv,
+        "session_median": assessment.median,
+        "threads": claim["threads"],
+        "throughputs": values,
+        "trigger": None,
+        "valid": True,
+        "workload": claim["workload"],
+    }
+    raw_output = profile8b.serialize_session_line(record)
+    launcher_origin = registry._new_launcher_origin_capability()
+    reserved = registry.reserve_attempt_slot(
+        case["repo_root"],
+        profile=profile,
+        binding=binding,
+        slot_id=profile.slot_codec.slot_id(slot),
+        run_start_receipt_sha256=_RUN_START,
+        process_identity=_PROCESS,
+        started_at="2026-09-09T00:00:00+00:00",
+        admission_claim_digest=marker["measurement_generation_claim_digest"],
+        attempt_id=marker["attempt_id"],
+        campaign_run_id=marker["campaign_run_id"],
+        manifest_sha256=marker["manifest_sha256"],
+        run_relpath=marker["run_relpath"],
+        cell_id=marker["cell_id"],
+        deferred_output_reader=lambda: raw_output,
+        launcher_origin_capability=launcher_origin,
+        consumption_marker=attempt["capability"],
+    )
+    external_evidence_bytes = evidence._pre_output_evidence_bytes(
+        probe_before=probe,
+        probe_after=probe,
+        launch_failures=(),
+        failure=None,
+    )
+    external_evidence_sha256 = hashlib.sha256(
+        external_evidence_bytes
+    ).hexdigest()
+    classified = registry.classify_attempt(
+        reserved,
+        pre_observation_failure_reason=None,
+        authority_id=_CLASSIFICATION_AUTHORITY,
+        authority_policy_sha256=_POLICY,
+        external_evidence_sha256=external_evidence_sha256,
+        classified_at="2026-09-09T00:00:01+00:00",
+        external_evidence_bytes=external_evidence_bytes,
+    )
+    assert type(classified) is registry.ClassifiedAttempt
+    observation = registry.begin_attempt_observation(classified)
+    reservation = SimpleNamespace(
+        binding=binding,
+        slot_id=profile.slot_codec.slot_id(slot),
+        protocol=protocol,
+        mode=claim["mode"],
+        perf_preflight_receipt=None,
+        admission_claim_digest=marker["measurement_generation_claim_digest"],
+        attempt_id=marker["attempt_id"],
+        campaign_run_id=marker["campaign_run_id"],
+        manifest_sha256=marker["manifest_sha256"],
+        run_relpath=marker["run_relpath"],
+        cell_id=record["cell_id"],
+        schedule_row_sha256=slot.schedule_row_sha256,
+        records=record["records"],
+        threads=record["threads"],
+        workload=record["workload"],
+    )
+    opened = SimpleNamespace(
+        measurement=SimpleNamespace(throughputs=values),
+        failure=None,
+        probe_before=probe,
+        probe_after=probe,
+        launch_failures=(),
+        pre_observation_failure_reason=None,
+        external_evidence_sha256=external_evidence_sha256,
+        repetition_evidence=tuple(observations),
+        expected_use_perf=False,
+        reps_expected=reps,
+    )
+    terminal = SimpleNamespace(
+        raw_output_bytes=raw_output,
+        terminal_status="observed",
+        report_sha256=hashlib.sha256(raw_output).hexdigest(),
+        observation_sha256=hashlib.sha256(
+            core.canonical_json_bytes(observations)
+        ).hexdigest(),
+        primary_value=float(assessment.median),
+        finished_at="2026-09-09T00:00:02+00:00",
+        campaign_record=record,
+    )
+    reservation_snapshot = evidence._snapshot_reservation_source(
+        reservation,
+        launcher_origin_capability=launcher_origin,
+    )
+    opened_snapshot = evidence._snapshot_opened_source(
+        reservation_snapshot, opened,
+    )
+    draft = evidence.seal_terminal_evidence(
+        reservation,
+        opened_snapshot,
+        evidence._snapshot_terminal_source(terminal),
+    )
+    return {
+        "reserved": reserved,
+        "classified": classified,
+        "observation": observation,
+        "draft": draft,
+    }
+
+
 def _classify(
     reserved: registry.ReservedAttempt,
     *,
@@ -4678,6 +4942,103 @@ def test_terminal_evidence_publish_precedes_registry_staging_and_orphan_is_safe(
         / "floor-attempt-registry-receipts/terminal-evidence"
     )
     assert len(tuple(evidence_root.glob("*.json"))) == 1
+
+
+def test_two_clean_v2_attempts_reserve_classify_and_begin_observation(
+    tmp_path: Path,
+) -> None:
+    case = _two_clean_v2_attempt_case(tmp_path)
+    transitions = []
+    for index, attempt in enumerate(case["attempts"]):
+        transition = _open_clean_v2_attempt(case, attempt)
+        transitions.append(transition)
+        if index == 0:
+            registry.record_sealed_attempt_terminal(
+                transition["observation"], transition["draft"],
+            )
+
+    assert all(
+        type(transition["reserved"]) is registry.ReservedAttempt
+        and type(transition["classified"]) is registry.ClassifiedAttempt
+        and type(transition["observation"]) is registry.CapturedObservation
+        for transition in transitions
+    )
+    rows = registry.read_attempt_registry(
+        case["repo_root"],
+        profile=case["profile"],
+        binding=case["binding"],
+    )
+    assert [row["event"] for row in rows].count("start") == 2
+    assert [row["event"] for row in rows].count("classification") == 2
+    assert [row["event"] for row in rows].count("observation-start") == 2
+    assert [row["event"] for row in rows].count("terminal") == 1
+
+
+def test_second_clean_reservation_rejects_tampered_terminal_evidence(
+    tmp_path: Path,
+) -> None:
+    case = _two_clean_v2_attempt_case(tmp_path)
+    first = _open_clean_v2_attempt(case, case["attempts"][0])
+    registry.record_sealed_attempt_terminal(
+        first["observation"], first["draft"],
+    )
+    rows = registry.read_attempt_registry(
+        case["repo_root"],
+        profile=case["profile"],
+        binding=case["binding"],
+    )
+    terminal = next(row for row in rows if row["event"] == "terminal")
+    evidence_path = registry._terminal_evidence_path(
+        admission.shared_admission_root(case["repo_root"]),
+        terminal["terminal_evidence_sha256"],
+    )
+    path = registry.registry_path(
+        case["repo_root"],
+        freeze_sha256=case["binding"].freeze_sha256,
+        protocol_sha256=case["binding"].protocol_sha256,
+    )
+    before = path.read_bytes()
+    evidence_path.write_bytes(evidence_path.read_bytes() + b" ")
+    with pytest.raises(
+        registry.S8BAttemptRegistryError,
+        match="terminal evidence bytes digest differs",
+    ):
+        _open_clean_v2_attempt(case, case["attempts"][1])
+    assert path.read_bytes() == before
+
+
+def test_plain_v2_profile_rejects_transition_after_sealed_terminal(
+    tmp_path: Path,
+) -> None:
+    case = _two_clean_v2_attempt_case(tmp_path)
+    first = _open_clean_v2_attempt(case, case["attempts"][0])
+    registry.record_sealed_attempt_terminal(
+        first["observation"], first["draft"],
+    )
+    path = registry.registry_path(
+        case["repo_root"],
+        freeze_sha256=case["binding"].freeze_sha256,
+        protocol_sha256=case["binding"].protocol_sha256,
+    )
+    rows = registry._registry_documents_for_evidence(path.read_bytes())
+    second_slot = case["attempts"][1]["slot"]
+    with pytest.raises(
+        core.AttemptRegistryCoreError,
+        match=(
+            r"^\[s8b-v2-terminal\] v2 terminal requires "
+            r"the sealed evidence API$"
+        ),
+    ):
+        core.reserve_attempt_slot(
+            rows,
+            profile=case["profile"],
+            freeze_id=case["binding"].freeze_sha256,
+            slot_id=case["profile"].slot_codec.slot_id(second_slot),
+            binding=case["binding"],
+            run_start_receipt_sha256=_RUN_START,
+            process_identity=_PROCESS,
+            started_at="2026-09-09T00:00:00+00:00",
+        )
 
 
 def test_private_validating_profile_rejects_capability_with_foreign_issuer(

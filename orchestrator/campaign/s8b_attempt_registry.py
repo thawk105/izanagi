@@ -2556,10 +2556,13 @@ def reserve_attempt_slot(
 
     def transition(
         rows: core.RegistryRows,
-        _evidence_by_digest: Mapping[
+        evidence_by_digest: Mapping[
             str, terminal_evidence.ValidatedTerminalEvidence
         ],
     ) -> tuple[core.RegistryRows, tuple[profile8b.S8BAttemptSlot, str]]:
+        validating_profile = _terminal_validating_profile(
+            profile, evidence_by_digest,
+        )
         slot = _slot_from_rows(rows, profile=profile, slot_id=slot_id)
         _consumption_identity(
             campaign_run_id=campaign_run_id,
@@ -2578,7 +2581,7 @@ def reserve_attempt_slot(
         )
         candidate = core.reserve_attempt_slot(
             rows,
-            profile=profile,
+            profile=validating_profile,
             freeze_id=binding.freeze_sha256,
             slot_id=slot_id,
             binding=binding,
@@ -2778,10 +2781,13 @@ def classify_attempt(
 
     def transition(
         rows: core.RegistryRows,
-        _evidence_by_digest: Mapping[
+        evidence_by_digest: Mapping[
             str, terminal_evidence.ValidatedTerminalEvidence
         ],
     ) -> tuple[core.RegistryRows, _ClassificationResult]:
+        validating_profile = _terminal_validating_profile(
+            state.profile, evidence_by_digest,
+        )
         slot = _slot_from_rows(rows, profile=state.profile, slot_id=state.slot_id)
         capability = core.capability_digest(
             profile=state.profile,
@@ -2834,7 +2840,7 @@ def classify_attempt(
             )
         candidate, receipt = core.classify_attempt(
             rows,
-            profile=state.profile,
+            profile=validating_profile,
             freeze_id=state.freeze_id,
             slot_id=state.slot_id,
             binding=state.binding,
@@ -3027,10 +3033,13 @@ def _begin_attempt_observation(state: _AttemptState) -> CapturedObservation:
 
     def transition(
         rows: core.RegistryRows,
-        _evidence_by_digest: Mapping[
+        evidence_by_digest: Mapping[
             str, terminal_evidence.ValidatedTerminalEvidence
         ],
     ) -> tuple[core.RegistryRows, str]:
+        validating_profile = _terminal_validating_profile(
+            state.profile, evidence_by_digest,
+        )
         slot, classification, _receipt, _claim = _assert_classification_artifacts(
             root=root,
             rows=rows,
@@ -3050,7 +3059,7 @@ def _begin_attempt_observation(state: _AttemptState) -> CapturedObservation:
             _assert_legacy_consumed_marker(root, state=state, slot=slot)
         candidate = core.begin_attempt_observation(
             rows,
-            profile=state.profile,
+            profile=validating_profile,
             freeze_id=state.freeze_id,
             slot_id=state.slot_id,
         )
