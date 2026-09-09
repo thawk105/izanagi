@@ -1,0 +1,204 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "m1-typed-not-forwarded",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "old": "                verify_result=outcome.verify_result,",
+          "new": "                verify_result=None,"
+        }
+      ]
+    },
+    {
+      "id": "m2-abort-exact-type-gate",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "old": "        if verify_result is not None and type(verify_result) is not VerifyResult:",
+          "new": "        if False and verify_result is not None:"
+        }
+      ]
+    },
+    {
+      "id": "m4-source-not-prefix-bound",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_result_evidence.py",
+          "old": "    if any(\n        terminal_prefix_snapshot[frame.byte_start:frame.byte_end] != frame.raw_bytes\n        for frame in frames\n    ):",
+          "new": "    if False:"
+        }
+      ]
+    },
+    {
+      "id": "m5-byte-start-zero",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_result_evidence.py",
+          "old": "        \"byte_start\": frames[0].byte_start,",
+          "new": "        \"byte_start\": 0,"
+        }
+      ]
+    },
+    {
+      "id": "m7-receipt-authenticity-gate",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_result_evidence.py",
+          "old": "    if not execution_guard.receipt_matches_contract(",
+          "new": "    if False and not execution_guard.receipt_matches_contract("
+        }
+      ]
+    },
+    {
+      "id": "m7b-contract-env-binding",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_result_evidence.py",
+          "old": "    if (\n        context.env_tag != environment_contract.env_tag\n        or context.attestation_mode != environment_contract.attestation_mode\n    ):",
+          "new": "    if False:"
+        }
+      ]
+    },
+    {
+      "id": "m7c-required-calibration",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_result_evidence.py",
+          "old": "    if (\n        environment_contract.attestation_mode == \"required\"\n        and context.verified_calibration is None\n    ):",
+          "new": "    if False:"
+        }
+      ]
+    },
+    {
+      "id": "m9b-identity-skip-refusal",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/loop.py",
+          "old": "                    if result_evidence_context is not None:\n                        from . import reflux_result_evidence as result_evidence\n                        raise result_evidence.ResultEvidenceIssuanceRefused(",
+          "new": "                    if False:\n                        from . import reflux_result_evidence as result_evidence\n                        raise result_evidence.ResultEvidenceIssuanceRefused("
+        }
+      ]
+    },
+    {
+      "id": "m9c-terminal-skip-refusal",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/loop.py",
+          "old": "                if result_evidence_context is not None:\n                    from . import reflux_result_evidence as result_evidence\n                    raise result_evidence.ResultEvidenceIssuanceRefused(\n                        \"result evidence issuance refused: an existing terminal \"\n                        \"attempt cannot be reissued\"\n                    )",
+          "new": "                if False:\n                    from . import reflux_result_evidence as result_evidence\n                    raise result_evidence.ResultEvidenceIssuanceRefused(\n                        \"result evidence issuance refused: an existing terminal \"\n                        \"attempt cannot be reissued\"\n                    )"
+        }
+      ]
+    },
+    {
+      "id": "m10a-single-genome",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/loop.py",
+          "old": "    if len(genomes) != 1:",
+          "new": "    if False:"
+        }
+      ]
+    },
+    {
+      "id": "m10b-balanced-refusal",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/loop.py",
+          "old": "    if balanced_schedule is not None:\n        raise result_evidence.ResultEvidenceIssuanceRefused(\n            \"result evidence issuance refused: campaign issuance cannot be \"\n            \"combined with a balanced schedule\"\n        )",
+          "new": "    if False:\n        raise result_evidence.ResultEvidenceIssuanceRefused(\n            \"result evidence issuance refused: campaign issuance cannot be \"\n            \"combined with a balanced schedule\"\n        )"
+        }
+      ]
+    },
+    {
+      "id": "m11-issuer-exception-swallowed",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/loop.py",
+          "old": "    result_evidence.issue_campaign_result_evidence(\n        layout=layout,\n        context=context,\n        build_attempt_id=build_attempt_id,\n        verify_result=verify_result,\n        campaign_run_identity=campaign_run_identity,\n        campaign_id=origin_campaign_id,\n        environment_contract=environment_contract,\n        execution_receipt=execution_receipt,\n    )",
+          "new": "    try:\n        result_evidence.issue_campaign_result_evidence(\n            layout=layout,\n            context=context,\n            build_attempt_id=build_attempt_id,\n            verify_result=verify_result,\n            campaign_run_identity=campaign_run_identity,\n            campaign_id=origin_campaign_id,\n            environment_contract=environment_contract,\n            execution_receipt=execution_receipt,\n        )\n    except Exception:\n        return"
+        }
+      ]
+    },
+    {
+      "id": "m12-call-site-guard",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/loop.py",
+          "old": "            # Guard argument evaluation as well as the helper body for originless runs.\n            if result_evidence_context is not None:\n                _issue_campaign_result_evidence(",
+          "new": "            # Guard argument evaluation as well as the helper body for originless runs.\n            if True:\n                _issue_campaign_result_evidence("
+        }
+      ]
+    },
+    {
+      "id": "m13-expected-record-path",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_result_evidence.py",
+          "old": "    if expected_record_path != actual_record_relative.as_posix():",
+          "new": "    if False:"
+        }
+      ]
+    }
+  ]
+}

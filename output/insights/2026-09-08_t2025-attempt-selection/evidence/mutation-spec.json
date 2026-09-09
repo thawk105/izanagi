@@ -1,0 +1,121 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 420,
+  "timeout_seconds": 3600,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "M1prime-validator-automatic-retry-inverted",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "old": "    if preregistration[\"automatic_retry\"] is not False:\n",
+          "new": "    if preregistration[\"automatic_retry\"] is False:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_real_a6_preregistration_literal_is_materialization_eligible"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-validator-automatic-retry-check-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "old": "    if preregistration[\"automatic_retry\"] is not False:\n        raise CertificationError(\n            \"preregistration automatic_retry must be exact false\")\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_rejects_invalid_preregistration_on_production_path[automatic-true]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-materialize-gate-call-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "old": "    _require_materialization_attempt_selection(policy, report, evidence)\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_rejects_invalid_preregistration_on_production_path[automatic-true]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_rejects_second_result_before_creating_stage"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-cohort-pin-normalization-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "old": "    return value[:7]\n",
+          "new": "    return value\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_normalizes_short_and_full_commit_to_one_cohort"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5prime-census-drops-siblings-only",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "old": "    for sibling_root in _durable_attempt_census(policy):\n",
+          "new": "    for sibling_root in (target_root,):\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_rejects_second_result_before_creating_stage"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-completion-footprint-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "old": "    \"receipts/completion.json\",\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_counts_completion_only_as_sibling_result"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-writer-automatic-retry-true",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "old": "        \"automatic_retry\": False,\n",
+          "new": "        \"automatic_retry\": True,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_real_a6_preregistration_literal_is_materialization_eligible"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

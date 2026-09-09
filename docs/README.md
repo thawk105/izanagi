@@ -41,6 +41,10 @@
   step policy の source 置換と build の非再現性ゆえに成立しえないことの実測と、
   identity 述語だけを訂正して「3 腕は互いに異なる」正の対照を足した記録。
   推定量・等価域・判定語・欠測規則・seed・巡回・block 数は v1 のまま
+- `backoff-counterfactual-cohort2-preregistration.md` — 同じ機序を独立 cohort で測る事前登録
+  ([T-2265])。時間 cap を実質無効化した count-closed 窓、割当を持たない terminal event、
+  cohort 1 と推定対象が同一でないこと、terminal 非閉鎖と 0 commit の扱い、cohort 2 の 12 seed、
+  割当整合性検査、認証の射程が既定 seed と 48 スレッドに限られることの正本
 - `b10-multinode-formal-run-design.md` — B-10 正式系列を複数ノードへ分散する設計 ([T-1905])。
   分散単位 4 案の判定、律速が正しさ検査であることと多重化が正しさ受領証の発行境界に当たる事実、
   投入前の必須修正、ユーザー裁定へ返す項目。**投入の承認ではない**

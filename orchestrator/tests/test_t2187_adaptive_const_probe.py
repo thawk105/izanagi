@@ -60,6 +60,12 @@ CERT_CELL = "tuned:1:1:1000:2560"
 DYNAMIC_CERT_CELL = (
     "cw-as-dyn:1:1:1000:2560:10000:10240:1:1:4:1"
 )
+COHORT2_POLICY1_CERT_CELL = (
+    "cw-as-dyn-c2-p1:1:1:1000:2560:10000:9223372036854775807:1:1:4:1:1"
+)
+COHORT2_POLICY2_CERT_CELL = (
+    "cw-as-dyn-c2-p2:1:1:1000:2560:10000:9223372036854775807:1:1:4:1:2"
+)
 TRACE_CELLS = (
     "cw:1:1:1000:2560:10000:10240:0:100:100:0,"
     "cw-as:1:1:1000:2560:10000:10240:1:1:4:0,"
@@ -114,6 +120,11 @@ EXPECTED_POLICY_WORKLOADS = "write-heavy,balanced,read-heavy"
 EXPECTED_POLICY_THREADS = "6,12,18,24,30,36,42,48"
 EXPECTED_POLICY_PREREG_SHA256 = (
     "2f5170c99dda9dd70647a611bff798b6e54c5e29b60e872cd755e5b8515cc25c"
+)
+COUNTERFACTUAL_COHORT2_TRACE_CELLS = (
+    "cw-as-dyn-c2-p0:1:1:1000:2560:10000:9223372036854775807:1:1:4:1:0,"
+    "cw-as-dyn-c2-p1:1:1:1000:2560:10000:9223372036854775807:1:1:4:1:1,"
+    "cw-as-dyn-c2-p2:1:1:1000:2560:10000:9223372036854775807:1:1:4:1:2"
 )
 
 
@@ -1372,7 +1383,8 @@ def test_pbs_certify_mode_preserves_literal_performance_exec_and_exact_axes() ->
         "#PBS -N izanagi-t2187",
     ]
     assert "MODE=${IZANAGI_T2187_MODE:-performance}" in text
-    assert '"$CELLS_RAW" != tuned:1:1:1000:2560' in text
+    assert '"$CERT_TUNED_CELL"|"$CERT_DYNAMIC_CELL")' in text
+    assert '"$CERT_COHORT2_POLICY1_CELL"|"$CERT_COHORT2_POLICY2_CELL")' in text
     assert '"$THREADS_RAW" != 48' in text
     assert "--mode certify" in text
     assert "qsub -l elapstim_req=02:15:00" in text
@@ -1387,11 +1399,15 @@ def test_pbs_certify_mode_preserves_literal_performance_exec_and_exact_axes() ->
         '"$EXPECTED_VERIFIER_IDENTITY_SHA256"'
     ) in text
     assert '"${GROUP_RESULT_ARGS[@]}"' in text
-    performance_branch = text.split('if [[ "$MODE" == performance ]]; then', 1)[1].split(
-        "fi", 1
-    )[0]
+    performance_branch = text.split(
+        'if [[ "$MODE" == performance ]]; then', 1
+    )[1].split('OUT="$OUT_DIR/certify-', 1)[0]
     assert "--mode" not in performance_branch
-    assert "--extime" not in performance_branch
+    assert '--extime "$EXTIME"' in performance_branch
+    assert (
+        '--backoff-trace-terminal-us "$CCBENCH_BACKOFF_TRACE_TERMINAL_US"'
+        in performance_branch
+    )
 
 
 def test_five_field_cells_preserve_legacy_cell_and_genome_bytes() -> None:
@@ -1547,6 +1563,21 @@ def test_genome_for_policy_cell_supplies_real_build_define() -> None:
         assert probe.genome_for(
             inert_cell, step_policy_seed=custom_seed
         ).flags["BACKOFF_STEP_POLICY_SEED"] == probe.STOCK_STEP_POLICY_SEED
+
+
+def test_terminal_define_is_present_only_for_cohort2_trace_builds() -> None:
+    cohort1 = probe.COUNTERFACTUAL_TRACE_CELLS[0]
+    cohort2 = probe.COUNTERFACTUAL_COHORT2_TRACE_CELLS[0]
+    cohort1_genome = probe.genome_for(cohort1, backoff_trace=True)
+    cohort2_genome = probe.genome_for(
+        cohort2,
+        backoff_trace=True,
+        backoff_trace_terminal_us=5_000_000,
+    )
+    assert "BACKOFF_TRACE_TERMINAL_US" not in cohort1_genome.flags
+    assert cohort2_genome.flags["BACKOFF_TRACE_TERMINAL_US"] == 5_000_000
+    with pytest.raises(ValueError, match="requires backoff trace mode"):
+        probe.genome_for(cohort2, backoff_trace_terminal_us=5_000_000)
 
 
 @pytest.mark.parametrize(
@@ -1790,9 +1821,15 @@ def test_public_certification_accepts_each_exact_cell_and_rejects_widening(
     tmp_path: Path,
 ) -> None:
     parser = probe._argument_parser()
-    for exact in (CERT_CELL, DYNAMIC_CERT_CELL):
+    for exact, extime in (
+        (CERT_CELL, "3"),
+        (DYNAMIC_CERT_CELL, "3"),
+        (COHORT2_POLICY1_CERT_CELL, "6"),
+        (COHORT2_POLICY2_CERT_CELL, "6"),
+    ):
         argv = _certify_argv(tmp_path)
         argv[argv.index(CERT_CELL)] = exact
+        argv[argv.index("3")] = extime
         cell, workload, threads = probe._certification_contract(
             parser.parse_args(argv)
         )
@@ -1804,12 +1841,59 @@ def test_public_certification_accepts_each_exact_cell_and_rejects_widening(
         f"{CERT_CELL},{DYNAMIC_CERT_CELL}",
         "cw:1:1:1000:2560:10000:10240:0:100:100:0",
         "cw-as-dyn:1:1:1000:2560:10001:10240:1:1:4:1",
+        (
+            "cw-as-dyn-c2-p1:1:1:1000:2560:10000:"
+            "9223372036854775806:1:1:4:1:1"
+        ),
     ):
         argv = _certify_argv(tmp_path)
         argv[argv.index(CERT_CELL)] = invalid
         with pytest.raises(probe.CertificationReject) as caught:
             probe._certification_contract(parser.parse_args(argv))
         assert caught.value.reason == "certification-cell-mismatch"
+
+
+def test_cohort2_certification_is_exact_and_policy2_uses_default_seed(
+    tmp_path: Path,
+) -> None:
+    parser = probe._argument_parser()
+    for exact, expected_cell in (
+        (COHORT2_POLICY1_CERT_CELL, probe.CERT_COHORT2_POLICY1_CELL),
+        (COHORT2_POLICY2_CERT_CELL, probe.CERT_COHORT2_POLICY2_CELL),
+    ):
+        argv = _certify_argv(tmp_path)
+        argv[argv.index(CERT_CELL)] = exact
+        argv[argv.index("3")] = "6"
+        cell, workload, threads = probe._certification_contract(
+            parser.parse_args(argv)
+        )
+        assert (cell, workload, threads) == (expected_cell, "balanced", 48)
+        assert probe.CERT_EXTIME_BY_CELL[cell] == 6
+        assert probe._certification_prereg_sha256(cell) == (
+            "8b4127f4be895da0d25da88b0837f679ecf06d43ab656b16d2944146b9f7a9e9"
+        )
+
+    policy2_genome = probe.genome_for(probe.CERT_COHORT2_POLICY2_CELL)
+    assert policy2_genome.flags["BACKOFF_STEP_POLICY"] == 2
+    assert policy2_genome.flags["BACKOFF_STEP_POLICY_SEED"] == (
+        probe.STOCK_STEP_POLICY_SEED
+    )
+
+    wrong_extime = _certify_argv(tmp_path)
+    wrong_extime[wrong_extime.index(CERT_CELL)] = COHORT2_POLICY1_CERT_CELL
+    with pytest.raises(probe.CertificationReject) as caught:
+        probe._certification_contract(parser.parse_args(wrong_extime))
+    assert caught.value.reason == "certification-workload-shape-mismatch"
+
+    near_miss = _certify_argv(tmp_path)
+    near_miss[near_miss.index(CERT_CELL)] = (
+        "cw-as-dyn-c2-p1:1:1:1000:2560:10000:"
+        "9223372036854775806:1:1:4:1:1"
+    )
+    near_miss[near_miss.index("3")] = "6"
+    with pytest.raises(probe.CertificationReject) as caught:
+        probe._certification_contract(parser.parse_args(near_miss))
+    assert caught.value.reason == "certification-cell-mismatch"
 
 
 def test_trace_parser_requires_exact_sequence_summary_and_computes_direction() -> None:
@@ -1931,6 +2015,139 @@ def test_parse_backoff_trace_accepts_v1_and_exact_v2() -> None:
             probe._parse_backoff_trace(candidate)
 
 
+def test_parse_backoff_trace_accepts_exact_v3_terminal_contract_only() -> None:
+    normal = (
+        "IZANAGI_BACKOFF_TRACE v=3 seq=0 tsc=100 window_us=10 "
+        "window_commits=10000 trigger=1 backoff_before=100 backoff_after=101 "
+        "gradient_sign=1 step_us=1 ceiling_us=1000 ceiling_changed=0 "
+        "parity_branch=-1 recommended_delta_sign=1 assigned_invert=0 "
+        "inversion_realized=0 both_actions_feasible=1 terminal_flush=0"
+    )
+    terminal = (
+        "IZANAGI_BACKOFF_TRACE v=3 seq=1 tsc=200 window_us=11 "
+        "window_commits=10000 trigger=3 backoff_before=101 backoff_after=101 "
+        "gradient_sign=0 step_us=1 ceiling_us=1000 ceiling_changed=0 "
+        "parity_branch=-1 recommended_delta_sign=0 assigned_invert=-1 "
+        "inversion_realized=0 both_actions_feasible=0 terminal_flush=1"
+    )
+    summary = (
+        "IZANAGI_BACKOFF_TRACE_SUMMARY v=3 updates=1 retained=1 "
+        "dropped=0 flushes=1"
+    )
+    stdout = "\n".join((normal, terminal, summary)) + "\n"
+
+    events, parsed_summary, directional = probe._parse_backoff_trace(stdout)
+    assert [event["terminal_flush"] for event in events] == [0, 1]
+    assert events[-1]["trigger"] == "terminal"
+    assert events[-1]["assigned_invert"] == -1
+    assert parsed_summary == {
+        "updates": 1,
+        "retained": 1,
+        "dropped": 0,
+        "flushes": 1,
+    }
+    assert directional["scored"] == 1
+
+    malformed = (
+        # v2 and earlier cannot carry the terminal field.
+        stdout.replace("v=3", "v=2"),
+        # v3 records and summaries require their new fields.
+        stdout.replace(" terminal_flush=0", "", 1),
+        stdout.replace(" flushes=1", ""),
+        stdout.replace("assigned_invert=-1", "assigned_invert=0"),
+        stdout.replace("recommended_delta_sign=0", "recommended_delta_sign=1"),
+        stdout.replace("updates=1", "updates=2"),
+        stdout.replace("retained=1", "retained=2"),
+        stdout.replace("flushes=1", "flushes=2"),
+    )
+    for candidate in malformed:
+        with pytest.raises(ValueError):
+            probe._parse_backoff_trace(candidate)
+
+
+def test_parse_backoff_trace_accepts_v3_without_terminal_and_pins_summary() -> None:
+    normal = (
+        "IZANAGI_BACKOFF_TRACE v=3 seq=0 tsc=100 window_us=10 "
+        "window_commits=10000 trigger=1 backoff_before=100 backoff_after=101 "
+        "gradient_sign=1 step_us=1 ceiling_us=1000 ceiling_changed=0 "
+        "parity_branch=-1 recommended_delta_sign=1 assigned_invert=0 "
+        "inversion_realized=0 both_actions_feasible=1 terminal_flush=0"
+    )
+    summary = (
+        "IZANAGI_BACKOFF_TRACE_SUMMARY v=3 updates=1 retained=1 "
+        "dropped=0 flushes=0"
+    )
+    stdout = f"{normal}\n{summary}\n"
+
+    events, parsed_summary, directional = probe._parse_backoff_trace(stdout)
+    assert len(events) == 1
+    assert events[0]["terminal_flush"] == 0
+    assert events[0]["trigger"] == "count"
+    assert parsed_summary == {
+        "updates": 1,
+        "retained": 1,
+        "dropped": 0,
+        "flushes": 0,
+    }
+    assert directional["scored"] == 0
+
+    for _field, old, new in (
+        ("updates", "updates=1", "updates=2"),
+        ("retained", "retained=1", "retained=0"),
+        ("dropped", "dropped=0", "dropped=1"),
+        ("flushes", "flushes=0", "flushes=1"),
+    ):
+        with pytest.raises(
+            ValueError,
+            match="summary/count or dropped contract failed",
+        ):
+            probe._parse_backoff_trace(stdout.replace(old, new))
+
+
+def test_parse_backoff_trace_rejects_two_or_nonfinal_v3_terminals_at_position_gate(
+) -> None:
+    terminal_0 = (
+        "IZANAGI_BACKOFF_TRACE v=3 seq=0 tsc=100 window_us=11 "
+        "window_commits=10000 trigger=3 backoff_before=101 backoff_after=101 "
+        "gradient_sign=0 step_us=1 ceiling_us=1000 ceiling_changed=0 "
+        "parity_branch=-1 recommended_delta_sign=0 assigned_invert=-1 "
+        "inversion_realized=0 both_actions_feasible=0 terminal_flush=1"
+    )
+    terminal_1 = terminal_0.replace("seq=0", "seq=1").replace(
+        "tsc=100", "tsc=200"
+    )
+    normal_1 = (
+        "IZANAGI_BACKOFF_TRACE v=3 seq=1 tsc=200 window_us=10 "
+        "window_commits=10000 trigger=1 backoff_before=100 backoff_after=101 "
+        "gradient_sign=1 step_us=1 ceiling_us=1000 ceiling_changed=0 "
+        "parity_branch=-1 recommended_delta_sign=1 assigned_invert=0 "
+        "inversion_realized=0 both_actions_feasible=1 terminal_flush=0"
+    )
+    two_terminals = "\n".join(
+        (
+            terminal_0,
+            terminal_1,
+            "IZANAGI_BACKOFF_TRACE_SUMMARY v=3 updates=0 retained=0 "
+            "dropped=0 flushes=2",
+        )
+    )
+    nonfinal_terminal = "\n".join(
+        (
+            terminal_0,
+            normal_1,
+            "IZANAGI_BACKOFF_TRACE_SUMMARY v=3 updates=1 retained=1 "
+            "dropped=0 flushes=1",
+        )
+    )
+
+    for candidate in (two_terminals, nonfinal_terminal):
+        with pytest.raises(
+            ValueError,
+            match="permits zero terminals or one final terminal",
+        ):
+            probe._parse_backoff_trace(candidate)
+
+
 def test_directional_success_v2_is_stratified_by_current_assignment() -> None:
     events = [
         {
@@ -2020,6 +2237,9 @@ def test_counterfactual_stack_artifacts_use_schema_v3() -> None:
     )
     assert probe.SCHEMA_VERSION == "izanagi-cicada-adaptive-3const-probe/v3"
     assert probe.TRACE_SCHEMA_VERSION == "izanagi-dynamic-backoff-trace/v3"
+    assert probe.COHORT2_TRACE_SCHEMA_VERSION == (
+        "izanagi-dynamic-backoff-trace/v4"
+    )
     assert probe.CERTIFICATION_SCHEMA_VERSION == (
         "izanagi-cicada-adaptive-3const-certification/v3"
     )
@@ -2055,10 +2275,28 @@ def test_counterfactual_stack_artifacts_use_schema_v3() -> None:
         ),
     }
     assert set(probe.CERT_CLAIMS) == set(probe.CERT_CELLS)
+    assert probe.CERT_CELLS == (
+        probe.CERT_TUNED_CELL,
+        probe.CERT_DYNAMIC_CELL,
+        probe.CERT_COHORT2_POLICY1_CELL,
+        probe.CERT_COHORT2_POLICY2_CELL,
+    )
+    assert probe.CERT_EXTIME_BY_CELL == {
+        probe.CERT_TUNED_CELL: 3,
+        probe.CERT_DYNAMIC_CELL: 3,
+        probe.CERT_COHORT2_POLICY1_CELL: 6,
+        probe.CERT_COHORT2_POLICY2_CELL: 6,
+    }
     assert probe.CERT_CLAIMS[probe.CERT_TUNED_CELL] == probe.ALLOWED_GROUP_CLAIM
     assert "cw-as-dyn" in probe.CERT_CLAIMS[probe.CERT_DYNAMIC_CELL]
     assert "機構の各枝の被覆は認証しない" in probe.CERT_CLAIMS[
         probe.CERT_DYNAMIC_CELL
+    ]
+    assert "step policy 1" in probe.CERT_CLAIMS[
+        probe.CERT_COHORT2_POLICY1_CELL
+    ]
+    assert "default compile seed 11400714819323198485" in probe.CERT_CLAIMS[
+        probe.CERT_COHORT2_POLICY2_CELL
     ]
     assert probe._cell_identity(probe.CERT_DYNAMIC_CELL) == {
         "cell": "cw-as-dyn",
@@ -2211,6 +2449,7 @@ def test_counterfactual_artifacts_record_exact_preregistration_sha_only_on_exact
         "rep_index": 0,
         "reps_per_job": 1,
         "extime": 3,
+        "backoff_trace_terminal_us": 0,
     }
     assert probe._artifact_contract_metadata(**exact) == {
         "schema_version": probe.TRACE_SCHEMA_VERSION,
@@ -2237,6 +2476,7 @@ def test_counterfactual_artifacts_record_exact_preregistration_sha_only_on_exact
         ("rep_index", 1),
         ("reps_per_job", 2),
         ("extime", 4),
+        ("backoff_trace_terminal_us", 1),
     ):
         changed = {**exact, field: drift}
         assert "counterfactual_preregistration" not in (
@@ -2265,6 +2505,62 @@ def test_counterfactual_artifacts_record_exact_preregistration_sha_only_on_exact
     )
     assert journal_row["counterfactual_preregistration"] == expected
     assert journal_row["step_policy_seed"] == 7
+
+
+def test_cohort2_trace_metadata_uses_independent_exact_v4_predicate() -> None:
+    cohort1 = probe._artifact_contract_metadata(
+        backoff_trace=True,
+        cells_text=probe.COUNTERFACTUAL_TRACE_CELLS_TEXT,
+        workloads_text="write-heavy,balanced,read-heavy",
+        threads_text="24,48",
+        rep_index=0,
+        reps_per_job=1,
+        extime=3,
+    )
+    cohort1_expected = hashlib.sha256(
+        probe.COUNTERFACTUAL_PREREGISTRATION.read_bytes()
+    ).hexdigest()
+    assert cohort1 == {
+        "schema_version": probe.TRACE_SCHEMA_VERSION,
+        "not_certified": probe.DIAGNOSTIC_NOT_CERTIFIED,
+        "counterfactual_preregistration": cohort1_expected,
+    }
+
+    exact = {
+        "backoff_trace": True,
+        "cells_text": probe.COUNTERFACTUAL_COHORT2_TRACE_CELLS_TEXT,
+        "workloads_text": "write-heavy,balanced,read-heavy",
+        "threads_text": "24,48",
+        "rep_index": 0,
+        "reps_per_job": 1,
+        "extime": 6,
+        "backoff_trace_terminal_us": 5_000_000,
+    }
+    cohort2_expected = hashlib.sha256(
+        probe.COUNTERFACTUAL_COHORT2_PREREGISTRATION.read_bytes()
+    ).hexdigest()
+    assert probe._artifact_contract_metadata(**exact) == {
+        "schema_version": probe.COHORT2_TRACE_SCHEMA_VERSION,
+        "not_certified": probe.DIAGNOSTIC_NOT_CERTIFIED,
+        "counterfactual_preregistration": cohort2_expected,
+    }
+    assert cohort2_expected == (
+        "8b4127f4be895da0d25da88b0837f679ecf06d43ab656b16d2944146b9f7a9e9"
+    )
+    for field, drift in (
+        ("backoff_trace", False),
+        ("cells_text", probe.COUNTERFACTUAL_COHORT2_TRACE_CELLS_TEXT[:-1] + "1"),
+        ("workloads_text", "balanced"),
+        ("threads_text", "48"),
+        ("rep_index", 1),
+        ("reps_per_job", 2),
+        ("extime", 5),
+        ("backoff_trace_terminal_us", 0),
+    ):
+        changed = {**exact, field: drift}
+        metadata = probe._artifact_contract_metadata(**changed)
+        assert "counterfactual_preregistration" not in metadata
+        assert metadata["schema_version"] != probe.COHORT2_TRACE_SCHEMA_VERSION
 
 
 def test_step_policy_seed_accepts_uint64_endpoints_and_default_calls() -> None:
@@ -2314,12 +2610,14 @@ def test_pbs_dynamic_output_and_plus_transport_are_fail_closed() -> None:
         "dynamic-backoff/"
     ) in text
     assert 'CELLS=${CELLS_RAW//+/,}' in text
-    assert '"$CELLS_RAW" != tuned:1:1:1000:2560' in text
-    assert '"$CELLS_RAW" != "$CERT_DYNAMIC_CELL"' in text
+    assert '"$CERT_TUNED_CELL"|"$CERT_DYNAMIC_CELL")' in text
+    assert '"$CERT_COHORT2_POLICY1_CELL"|"$CERT_COHORT2_POLICY2_CELL")' in text
     assert '"${BACKOFF_TRACE_ARGS[@]}"' in text
     assert 'export IZANAGI_T2187_REPO_HEAD="$REPO_HEAD"' in text
     assert '--repo-head "$REPO_HEAD"' in text
     assert "STEP_POLICY_SEED=${IZANAGI_T2187_STEP_POLICY_SEED:-}" in text
+    assert "EXTIME=${IZANAGI_T2187_EXTIME:-3}" in text
+    assert "IZANAGI_T2187_EXTIME must be an ASCII positive integer" in text
     assert '! "$STEP_POLICY_SEED" =~ ^[0-9]+$' in text
     assert "IZANAGI_T2187_STEP_POLICY_SEED is required for policy 2" in text
     assert text.count("--step-policy-seed") == 1
@@ -2330,7 +2628,13 @@ def test_pbs_dynamic_output_and_plus_transport_are_fail_closed() -> None:
         'OUT="$OUT_DIR/certify-', 1
     )[1]
     assert '"${STEP_POLICY_SEED_ARGS[@]}"' in performance_branch
+    assert '--extime "$EXTIME"' in performance_branch
+    assert (
+        '--backoff-trace-terminal-us "$CCBENCH_BACKOFF_TRACE_TERMINAL_US"'
+        in performance_branch
+    )
     assert "--step-policy-seed" not in certification_branch
+    assert '--extime "$EXTIME"' in certification_branch
 
 
 def test_execution_identity_fields_have_exact_types_and_file_hashes(
@@ -2405,14 +2709,13 @@ def test_dynamic_certification_rejects_each_foreign_namespace(
     try:
         probe.DYNAMIC_CERTIFY_PREFIX = certify_root
         probe.DYNAMIC_PERFORMANCE_PREFIX = performance_root
-        with pytest.raises(probe.CertificationReject) as caught:
-            probe._validate_dynamic_certification_namespaces(
-                args, probe.CERT_DYNAMIC_CELL
-            )
+        for cell in probe.DYNAMIC_CERT_CELLS:
+            with pytest.raises(probe.CertificationReject) as caught:
+                probe._validate_dynamic_certification_namespaces(args, cell)
+            assert caught.value.reason == "dynamic-certification-namespace-invalid"
     finally:
         probe.DYNAMIC_CERTIFY_PREFIX = old_certify
         probe.DYNAMIC_PERFORMANCE_PREFIX = old_performance
-    assert caught.value.reason == "dynamic-certification-namespace-invalid"
 
 
 def test_dynamic_performance_artifact_rejects_certify_identity_drift(
@@ -2433,6 +2736,7 @@ def test_dynamic_performance_artifact_rejects_certify_identity_drift(
         "not_certified": probe.NOT_CERTIFIED,
         "repo_head": repo_head,
         "prereg_sha256": prereg_sha256,
+        "extime_s": 3,
         "patch_stack_sha256": patch_identity["patch_stack_sha256"],
         "ccbench_head": probe.PIN_FULL,
         **execution_identity,
@@ -2449,11 +2753,70 @@ def test_dynamic_performance_artifact_rejects_certify_identity_drift(
         "expected_prereg_sha256": prereg_sha256,
         "expected_patch_stack_sha256": patch_identity["patch_stack_sha256"],
         "required_cell": probe.CERT_DYNAMIC_CELL,
+        "expected_extime": 3,
     }
     probe._performance_artifact_identity(
         performance, write_and_digest(), **expected
     )
     document["repo_head"] = "c" * 40
+    with pytest.raises(probe.CertificationReject) as caught:
+        probe._performance_artifact_identity(
+            performance, write_and_digest(), **expected
+        )
+    assert caught.value.reason == "performance-artifact-identity-mismatch"
+    document["repo_head"] = repo_head
+    document["extime_s"] = 4
+    with pytest.raises(probe.CertificationReject) as caught:
+        probe._performance_artifact_identity(
+            performance, write_and_digest(), **expected
+        )
+    assert caught.value.reason == "performance-artifact-identity-mismatch"
+
+
+def test_cohort2_performance_binding_requires_extime_and_default_seed(
+    tmp_path: Path,
+) -> None:
+    patch_identity = probe._patch_stack_identity()
+    repo_head = "a" * 40
+    prereg_sha256 = probe._prereg_sha256()
+    cell = probe.CERT_COHORT2_POLICY2_CELL
+    row = {
+        **probe._cell_identity(cell),
+        "genome": probe.genome_for(cell).canonical(),
+        "step_policy_seed": probe.STOCK_STEP_POLICY_SEED,
+    }
+    document = {
+        "schema_version": probe.SCHEMA_VERSION,
+        "kind": "performance-only-probe",
+        "not_certified": probe.NOT_CERTIFIED,
+        "repo_head": repo_head,
+        "prereg_sha256": prereg_sha256,
+        "extime_s": 6,
+        "patch_stack_sha256": patch_identity["patch_stack_sha256"],
+        "ccbench_head": probe.PIN_FULL,
+        "driver_sha256": hashlib.sha256(DRIVER.read_bytes()).hexdigest(),
+        "pbs_sha256": hashlib.sha256(PBS.read_bytes()).hexdigest(),
+        "driver_argv": [str(DRIVER), "--mode", "performance"],
+        "repo_status_clean": True,
+        "cells": [row],
+    }
+    performance = tmp_path / "cohort2-performance.json"
+
+    def write_and_digest() -> str:
+        performance.write_text(json.dumps(document) + "\n", encoding="utf-8")
+        return hashlib.sha256(performance.read_bytes()).hexdigest()
+
+    expected = {
+        "expected_repo_head": repo_head,
+        "expected_prereg_sha256": prereg_sha256,
+        "expected_patch_stack_sha256": patch_identity["patch_stack_sha256"],
+        "required_cell": cell,
+        "expected_extime": 6,
+    }
+    probe._performance_artifact_identity(
+        performance, write_and_digest(), **expected
+    )
+    row["step_policy_seed"] -= 1
     with pytest.raises(probe.CertificationReject) as caught:
         probe._performance_artifact_identity(
             performance, write_and_digest(), **expected
@@ -2521,12 +2884,18 @@ def test_backoff_trace_mode_requires_exact_diagnostic_axes(tmp_path: Path) -> No
             )
 
 
-def test_backoff_trace_contract_accepts_only_two_exact_cell_literals(
+def test_backoff_trace_contract_accepts_only_three_exact_cell_literals(
     tmp_path: Path,
 ) -> None:
     parser = probe._argument_parser()
 
-    def inputs(cells_text: str, threads_text: str = "24,48"):
+    def inputs(
+        cells_text: str,
+        threads_text: str = "24,48",
+        *,
+        extime: int = 3,
+        terminal_us: int = 0,
+    ):
         args = parser.parse_args(
             [
                 "--backoff-trace",
@@ -2539,7 +2908,9 @@ def test_backoff_trace_contract_accepts_only_two_exact_cell_literals(
                 "--reps-per-job",
                 "1",
                 "--extime",
-                "3",
+                str(extime),
+                "--backoff-trace-terminal-us",
+                str(terminal_us),
                 "--out",
                 str(tmp_path / "unused.json"),
             ]
@@ -2551,8 +2922,14 @@ def test_backoff_trace_contract_accepts_only_two_exact_cell_literals(
             probe._parse_threads(args.threads),
         )
 
-    for exact in (TRACE_CELLS, COUNTERFACTUAL_TRACE_CELLS):
-        probe._validate_backoff_trace_contract(*inputs(exact))
+    for exact, extime, terminal_us in (
+        (TRACE_CELLS, 3, 0),
+        (COUNTERFACTUAL_TRACE_CELLS, 3, 0),
+        (COUNTERFACTUAL_COHORT2_TRACE_CELLS, 6, 5_000_000),
+    ):
+        probe._validate_backoff_trace_contract(
+            *inputs(exact, extime=extime, terminal_us=terminal_us)
+        )
 
     counterfactual_items = COUNTERFACTUAL_TRACE_CELLS.split(",")
     negative_inputs = (
@@ -2560,6 +2937,12 @@ def test_backoff_trace_contract_accepts_only_two_exact_cell_literals(
         inputs(",".join((counterfactual_items[0], counterfactual_items[2]))),
         inputs(TRACE_CELLS + "," + COUNTERFACTUAL_TRACE_CELLS),
         inputs(COUNTERFACTUAL_TRACE_CELLS, "24"),
+        inputs(COUNTERFACTUAL_COHORT2_TRACE_CELLS, extime=3),
+        inputs(
+            COUNTERFACTUAL_COHORT2_TRACE_CELLS,
+            extime=6,
+            terminal_us=4_999_999,
+        ),
         (
             inputs(TRACE_CELLS)[0],
             probe.COUNTERFACTUAL_TRACE_CELLS,
@@ -2572,13 +2955,11 @@ def test_backoff_trace_contract_accepts_only_two_exact_cell_literals(
             probe._validate_backoff_trace_contract(*values)
 
     pbs_text = PBS.read_text(encoding="utf-8")
-    exact_gate = """\
-  if [[ "$CELLS_RAW" != "$TRACE_CELLS_RAW" &&
-        "$CELLS_RAW" != "$COUNTERFACTUAL_TRACE_CELLS_RAW" ]] ||
-     [[ "$WORKLOADS_RAW" != write-heavy+balanced+read-heavy ||
-        "$THREADS_RAW" != 24+48 ]]; then
-"""
-    assert pbs_text.count(exact_gate) == 1
+    assert '"$TRACE_CELLS_RAW"|"$COUNTERFACTUAL_TRACE_CELLS_RAW")' in pbs_text
+    assert '"$COUNTERFACTUAL_COHORT2_TRACE_CELLS_RAW")' in pbs_text
+    assert "TRACE_EXTIME=3" in pbs_text
+    assert "TRACE_EXTIME=6" in pbs_text
+    assert "CCBENCH_BACKOFF_TRACE_TERMINAL_US=5000000" in pbs_text
 
 
 def test_two_layer_trace_literals_are_byte_identical() -> None:
@@ -2595,9 +2976,16 @@ def test_two_layer_trace_literals_are_byte_identical() -> None:
     assert probe.COUNTERFACTUAL_TRACE_CELLS_TEXT.replace(",", "+") == raw(
         "COUNTERFACTUAL_TRACE_CELLS_RAW"
     )
+    assert probe.COUNTERFACTUAL_COHORT2_TRACE_CELLS_TEXT.replace(",", "+") == raw(
+        "COUNTERFACTUAL_COHORT2_TRACE_CELLS_RAW"
+    )
     assert re.findall(
-        r"^([A-Z_]*TRACE_CELLS_RAW)=", pbs_text, re.MULTILINE
-    ) == ["TRACE_CELLS_RAW", "COUNTERFACTUAL_TRACE_CELLS_RAW"]
+        r"^([A-Z0-9_]*TRACE_CELLS_RAW)=", pbs_text, re.MULTILINE
+    ) == [
+        "TRACE_CELLS_RAW",
+        "COUNTERFACTUAL_TRACE_CELLS_RAW",
+        "COUNTERFACTUAL_COHORT2_TRACE_CELLS_RAW",
+    ]
 
 
 def test_pbs_marks_eleven_and_twelve_fields_extended(tmp_path: Path) -> None:
@@ -2891,13 +3279,17 @@ def test_policy_performance_pbs_literals_match_independent_contract_literals() -
     assert pbs_permutations == EXPECTED_PERMUTATIONS
     assert pbs_seeds == tuple(EXPECTED_SEEDS_BY_SLOT.values())
     pbs_text = PBS.read_text(encoding="utf-8")
-    assert "IZANAGI_T2187_EXTIME" not in pbs_text
+    assert "EXTIME=${IZANAGI_T2187_EXTIME:-3}" in pbs_text
     assert "IZANAGI_T2187_REPS_PER_JOB" not in pbs_text
     performance_branch = pbs_text.split(
         'if [[ "$MODE" == performance ]]; then', 1
     )[1].split('OUT="$OUT_DIR/certify-', 1)[0]
-    assert "--extime" not in performance_branch
+    assert '--extime "$EXTIME"' in performance_branch
     assert "--reps-per-job" not in performance_branch
+    policy_gate = pbs_text.split(
+        "# T2417_POLICY_PERFORMANCE_GATE_BEGIN\n", 1
+    )[1].split("# T2417_POLICY_PERFORMANCE_GATE_END", 1)[0]
+    assert '"$EXTIME" != 3' in policy_gate
     assert (
         "POLICY_PERFORMANCE_OUT_PREFIX=/work/1/SFC/tanab/"
         "izanagi-job-evidence/dynamic-backoff/perf/t2417-policy/"
@@ -3589,6 +3981,7 @@ def _run_extracted_pbs_policy_gate(
         "CELLS_RAW": EXPECTED_PERMUTATIONS[0].replace(",", "+"),
         "WORKLOADS_RAW": EXPECTED_POLICY_WORKLOADS.replace(",", "+"),
         "THREADS_RAW": EXPECTED_POLICY_THREADS.replace(",", "+"),
+        "EXTIME": "3",
         "REP_INDEX": "0",
         "STAGE": "1",
         "STEP_POLICY_SEED": str(EXPECTED_SEEDS_BY_SLOT[0]),
@@ -3625,6 +4018,7 @@ def test_extracted_pbs_policy_gate_accepts_all_18_blocks(tmp_path: Path) -> None
         {"REP_INDEX": "18"},
         {"WORKLOADS_RAW": "balanced+write-heavy+read-heavy"},
         {"THREADS_RAW": "6+12+18+24+30+36+42"},
+        {"EXTIME": "4"},
         {"STAGE": "2"},
         {"STEP_POLICY_SEED": ""},
         {"STEP_POLICY_SEED": str(EXPECTED_SEEDS_BY_SLOT[0] + 1)},
@@ -3635,6 +4029,7 @@ def test_extracted_pbs_policy_gate_accepts_all_18_blocks(tmp_path: Path) -> None
         "rep-18",
         "workloads-axis",
         "threads-axis",
+        "extime",
         "stage",
         "seed-missing",
         "seed-mismatch",

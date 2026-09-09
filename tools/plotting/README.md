@@ -188,15 +188,29 @@ python3 tools/plotting/plot_t2187_adaptive_consts.py threads OUT_PREFIX \
 
 `plot_dynamic_backoff.py` は、拡張 cell 書式の probe (`t2187_adaptive_const_probe.py`、結果 schema は
 `izanagi-cicada-adaptive-3const-probe/v2` (A+B) または
-`izanagi-cicada-adaptive-3const-probe/v3` (A+B+C)) が出す性能 JSON 7 file
-(1 file = 1 ノード = 1 block) と、`--backoff-trace` の診断 JSON 1 file
+`izanagi-cicada-adaptive-3const-probe/v3` (A+B+C)) が出す性能 JSON 6 または 7 file
+(1 file = 1 ノード = 1 block、相異なる `rep_index`) と、`--backoff-trace` の診断 JSON 1 file
 (`izanagi-dynamic-backoff-trace/v2` (A+B) または
-`izanagi-dynamic-backoff-trace/v3` (A+B+C)) から 3 図を描く。
+`izanagi-dynamic-backoff-trace/v3` / `v4` (A+B+C)) から 3 図を描く。
 事前登録は `docs/dynamic-backoff-preregistration.md`。
 
 ```bash
 python3 tools/plotting/plot_dynamic_backoff.py OUT_PREFIX --trace-json DIAG.json PERF_REP0.json ... PERF_REP6.json
 ```
+
+診断入力は schema ごとに閉じた契約を持つ。v2 は legacy の 11-field 3 cell、v3 は legacy または
+cohort 1 の 12-field policy 3 cell で、どちらも観測長は 3 秒、3 workload x 2 thread の exact
+18 row である。v4 は cohort 2 の 12-field policy 3 cell、観測長 6 秒、同じ exact 18 row を要求する。
+v4 の通常 event は count-closed であり、`terminal_flush=1` の terminal event は 0 件、または末尾に
+1 件だけを受理する。0 件なら summary は `updates=retained=len(trace_events)`、`dropped=0`、
+`flushes=0`、1 件なら `updates=retained=通常 event 数`、`dropped=0`、`flushes=1` でなければならない。
+全性能入力と診断入力では、repo / CCBench / driver / PBS / ordered patch stack を含む common identity と
+観測長が逐語一致しなければならない。
+
+cohort 2 の図を実際に出力するには、診断 JSON とは別に、観測長 6 秒かつ同一 identity の
+trace-disabled performance JSON が 6 または 7 本必要である。本 wave はこの performance 計測を
+行っていないため、cohort 2 診断成果物だけでは公開 CLI を起動できず、図も出力できない。
+この制約を迂回する診断-only CLI mode は提供しない。
 
 - `OUT_PREFIX-thread-axis.*` — スレッド軸 7 系列 (none / stock / tuned / tuned-u10240 / cw / cw-as / cw-as-dyn)、
   上段 throughput / 下段 abort 率、t 分布 95% CI。基準線は D1506 の `none` と `tuned`。`stock` は陽性対照。

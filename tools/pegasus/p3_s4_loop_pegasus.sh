@@ -51,6 +51,51 @@ export https_proxy="http://10.120.96.1:8080"
 export PYTHONNOUSERSITE=1
 export PYTHONDONTWRITEBYTECODE=1
 
+k2_env_names=(
+  IZANAGI_S4_KNOWLEDGE_MANIFEST
+  IZANAGI_S4_CODER_ROLE
+  IZANAGI_S4_KNOWLEDGE_CLASSIFICATION
+  IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM
+)
+k2_required_env_names=(
+  IZANAGI_S4_KNOWLEDGE_MANIFEST
+  IZANAGI_S4_CODER_ROLE
+)
+k2_requested=false
+for name in "${k2_env_names[@]}"; do
+  if [[ -v $name ]]; then
+    k2_requested=true
+    break
+  fi
+done
+
+k2_argv=()
+if [[ "$k2_requested" == true ]]; then
+  for name in "${k2_required_env_names[@]}"; do
+    [[ -n "${!name:-}" ]] || refuse "missing K2 environment: $name"
+  done
+  k2_argv=(
+    --knowledge-manifest "$IZANAGI_S4_KNOWLEDGE_MANIFEST"
+    --coder-role "$IZANAGI_S4_CODER_ROLE"
+  )
+  if [[ -v IZANAGI_S4_KNOWLEDGE_CLASSIFICATION ]]; then
+    [[ -n "$IZANAGI_S4_KNOWLEDGE_CLASSIFICATION" ]] \
+      || refuse "empty K2 environment: IZANAGI_S4_KNOWLEDGE_CLASSIFICATION"
+    k2_argv+=(
+      --knowledge-classification "$IZANAGI_S4_KNOWLEDGE_CLASSIFICATION"
+    )
+  fi
+  if [[ -v IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM ]]; then
+    [[ -n "$IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM" ]] \
+      || refuse "empty K2 environment: IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM"
+    k2_argv+=(
+      --knowledge-de-novo-claim "$IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM"
+    )
+  fi
+  [[ -n "${IZANAGI_S4_PROPOSAL_PATH:-}" ]] \
+    || refuse "K2 environment requires IZANAGI_S4_PROPOSAL_PATH"
+fi
+
 if [[ ! -d "$IZANAGI_S4_REPO_ROOT" || -L "$IZANAGI_S4_REPO_ROOT" ]]; then
   refuse "repository root is unavailable"
 fi
@@ -537,6 +582,7 @@ if [[ -n "${IZANAGI_S4_PROPOSAL_PATH:-}" ]]; then
     --allow-coder-derived-build \
     --isolate-worktree \
     --fetchcontent-prebuild-receipt "$prebuild_receipt" \
+    "${k2_argv[@]}" \
     --run-iteration "$IZANAGI_S4_PROPOSAL_PATH"
 else
   "$PY" -B -m orchestrator.campaign.p3_s4_loop \

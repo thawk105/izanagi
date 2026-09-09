@@ -338,9 +338,19 @@ python3 tools/pegasus/fetch_third_party.py verify-deps  # policy の gflags/glog
   `{masstree_head, config_sha256}` の 2 key receipt を共有 measurement pipeline
   (`run_campaign` → `pipeline.evaluate` → `buildcache.build_v2`) へ通す。configure には
   `-DFETCHCONTENT_BASE_DIR=` と `-DFETCHCONTENT_SOURCE_DIR_*` が入る (T-2356、D1524 / D1689)
+- K2 走行では `IZANAGI_S4_KNOWLEDGE_MANIFEST` と `IZANAGI_S4_CODER_ROLE` を all-or-none の
+  非空対とし、`IZANAGI_S4_PROPOSAL_PATH` も必須とする。どちらか一方だけ、設定済み空値、または
+  proposal path 欠落は repository path 解決と `trap` より前に rc=2 で拒否し、
+  `compute-result.json` を作らない
+- `IZANAGI_S4_KNOWLEDGE_CLASSIFICATION` と `IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM` は任意で、
+  設定時だけ非空を要求して転送する。shell は role・classification・de novo の値域を複製せず、
+  driver の CLI・parser・K2 consumer を最終判定とする
 - `p3_s4_loop` を `--allow-coder-derived-build --isolate-worktree
   --fetchcontent-prebuild-receipt <EVIDENCE_ROOT>/masstree-prebuild-receipt.json` で起動する。
-  `IZANAGI_S4_PROPOSAL_PATH` があれば `--run-iteration`、無ければ fixture `--value`
+  `IZANAGI_S4_PROPOSAL_PATH` があれば `--run-iteration`、無ければ fixture `--value`。K2 の
+  `--knowledge-manifest` / `--coder-role` と、設定された場合だけの
+  `--knowledge-classification` / `--knowledge-de-novo-claim` は proposal 分岐だけへ渡す。
+  K2 env 未設定時は proposal-only と fixture の既存 argv を変えない
 
 投入は login node から次の形で行う。`REPO_ROOT` は固定 SHA の専用 checkout (primary worktree や
 `.claude/worktrees/` 配下は不可)、`THIRDPARTY_SOURCE_ROOT` は §6 の `hydrate` 出力 JSON の
@@ -354,12 +364,19 @@ EXPECTED_HEAD=$(git -C "$REPO_ROOT" rev-parse HEAD)
 THIRDPARTY_SOURCE_ROOT=/absolute/path/from-hydrate-source_root
 EVIDENCE_ROOT=/absolute/path/outside-all-repositories
 ATTEMPT=unique-attempt-id
+PROPOSAL_PATH=/absolute/path/to/proposal.json
+KNOWLEDGE_MANIFEST=/absolute/path/to/knowledge-manifest.json
+CODER_ROLE=coder-v4-autonomous-k2
+KNOWLEDGE_CLASSIFICATION=reproduction_or_selection
+KNOWLEDGE_DE_NOVO_CLAIM=false
 mkdir -m 0700 "$EVIDENCE_ROOT/$ATTEMPT"
-qsub -v IZANAGI_S4_REPO_ROOT="$REPO_ROOT",IZANAGI_S4_EXPECTED_HEAD="$EXPECTED_HEAD",IZANAGI_S4_EVIDENCE_ROOT="$EVIDENCE_ROOT/$ATTEMPT",IZANAGI_S4_THIRDPARTY_SOURCE_ROOT="$THIRDPARTY_SOURCE_ROOT" -o "$EVIDENCE_ROOT/$ATTEMPT/job.stdout" -e "$EVIDENCE_ROOT/$ATTEMPT/job.stderr" tools/pegasus/p3_s4_loop_pegasus.sh
+qsub -v IZANAGI_S4_REPO_ROOT="$REPO_ROOT",IZANAGI_S4_EXPECTED_HEAD="$EXPECTED_HEAD",IZANAGI_S4_EVIDENCE_ROOT="$EVIDENCE_ROOT/$ATTEMPT",IZANAGI_S4_THIRDPARTY_SOURCE_ROOT="$THIRDPARTY_SOURCE_ROOT",IZANAGI_S4_PROPOSAL_PATH="$PROPOSAL_PATH",IZANAGI_S4_KNOWLEDGE_MANIFEST="$KNOWLEDGE_MANIFEST",IZANAGI_S4_CODER_ROLE="$CODER_ROLE",IZANAGI_S4_KNOWLEDGE_CLASSIFICATION="$KNOWLEDGE_CLASSIFICATION",IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM="$KNOWLEDGE_DE_NOVO_CLAIM" -o "$EVIDENCE_ROOT/$ATTEMPT/job.stdout" -e "$EVIDENCE_ROOT/$ATTEMPT/job.stderr" tools/pegasus/p3_s4_loop_pegasus.sh
 ```
 
-実 proposal を渡すときだけ `-v` の値へ `IZANAGI_S4_PROPOSAL_PATH=/absolute/path/to/proposal.json` を
-足す。fixture 経路は `IZANAGI_S4_FIXTURE_VALUE` 無指定時に 20 を使う。
+上の fence は任意の宣言 2 値も明示した K2 正例である。driver の既定を使う場合は
+`IZANAGI_S4_KNOWLEDGE_CLASSIFICATION` と `IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM` を `-v` から
+両方または個別に省ける。非 K2 proposal は proposal path だけを足し、fixture 経路は proposal path と
+K2 env をすべて省く。fixture は `IZANAGI_S4_FIXTURE_VALUE` 無指定時に 20 を使う。
 
 **同じ `REPO_ROOT` へ同じ fixture 値で 2 度目を投入すると、事前構築は消費されない。** campaign WAL に
 同じ variant の terminal record が既にあると `run_campaign` は build より前に skip するので、receipt を

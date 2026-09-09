@@ -48,6 +48,7 @@ from ..verifier.commit_receipt import (                          # noqa: E402
 )
 from ..verifier.parse import ParseError                           # noqa: E402
 from ..verifier.model import (                                   # noqa: E402
+    VerifyResult,
     capture_compiled_protocol_source_snapshot,
 )
 
@@ -308,6 +309,8 @@ class EvalResult:
     unstable: bool = False           # 規定ラウンドでも CV が収束しなかった (§3.6(2))
     verdict: str = ""
     notes: List[str] = field(default_factory=list)
+    build_attempt_id: str = ""
+    verify_result: Optional[VerifyResult] = None
 
 
 # ccbench 正常終了時の集計行 (common/result.cc displayAbortCounts、displayAllResult が
@@ -474,6 +477,7 @@ class _RepetitionExecutionOutcome:
     verify_payload: Optional[Dict[str, Any]] = None
     verification_capability: Optional[object] = None
     abort: Optional[_RepetitionAbortOutcome] = None
+    verify_result: Optional[VerifyResult] = None
 
 
 def _execute_verification_repetition(
@@ -663,6 +667,7 @@ def _execute_verification_repetition(
         verify_payload=verify_payload,
         verification_capability=verification_capability,
         abort=rejected,
+        verify_result=verify_result,
     )
 
 
@@ -849,22 +854,25 @@ def _remote_unavailable_outcome(
     stderr_tail = stderr[-2000:]
     if error:
         stderr_tail = (stderr_tail + ("\n" if stderr_tail else "") + error)[-2000:]
-    return _RepetitionExecutionOutcome(abort=_RepetitionAbortOutcome(
-        reason="verify-remote-unavailable",
-        message=(
-            f"remote verify result を確定できない "
-            f"(host={host}, rep={rep}) → reject"
-        ),
-        detail={
-            "remote": {
-                "host": host,
-                "rep": rep,
-                "rc": rc,
-                "stderr_tail": stderr_tail,
+    return _RepetitionExecutionOutcome(
+        abort=_RepetitionAbortOutcome(
+            reason="verify-remote-unavailable",
+            message=(
+                f"remote verify result を確定できない "
+                f"(host={host}, rep={rep}) → reject"
+            ),
+            detail={
+                "remote": {
+                    "host": host,
+                    "rep": rep,
+                    "rc": rc,
+                    "stderr_tail": stderr_tail,
+                },
             },
-        },
-        workload_tag="",
-    ))
+            workload_tag="",
+        ),
+        verify_result=None,
+    )
 
 
 def _admit_verify_fanout_result(
@@ -894,7 +902,8 @@ def _admit_verify_fanout_result(
             abort=_RepetitionAbortOutcome(
                 unavailable.abort.reason, unavailable.abort.message,
                 unavailable.abort.detail, tag,
-            )
+            ),
+            verify_result=None,
         )
     try:
         result = _read_exact_json(result_path)
@@ -993,6 +1002,7 @@ def _admit_verify_fanout_result(
                 abort=_RepetitionAbortOutcome(
                     outcome["reason"], outcome["message"], detail, tag,
                 ),
+                verify_result=None,
             )
         if outcome["kind"] != "success" or set(outcome) != {
                 "kind", "verify_payload", "remote_verification_receipt"}:
@@ -1021,6 +1031,7 @@ def _admit_verify_fanout_result(
         return _RepetitionExecutionOutcome(
             verify_payload=verify_payload,
             verification_capability=remote_evidence,
+            verify_result=None,
         )
     except Exception as exc:  # all malformed/missing remote evidence fails closed
         unavailable = _remote_unavailable_outcome(
@@ -1031,7 +1042,8 @@ def _admit_verify_fanout_result(
             abort=_RepetitionAbortOutcome(
                 unavailable.abort.reason, unavailable.abort.message,
                 unavailable.abort.detail, tag,
-            )
+            ),
+            verify_result=None,
         )
 
 
@@ -1723,6 +1735,7 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
         log(f"  [eval {v0}] abort: {reason} ({error})")
         result = EvalResult(
             genome=genome, variant=v0, certified=False, aborted=True,
+            build_attempt_id=build_attempt_id,
         )
         result.notes.append(f"pre-build evidence 確定不能 → reject ({error})")
         return result
@@ -1834,7 +1847,10 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
         except BuildAdmissionError as exc:
             return _prebuild_abort("admission-error", exc)
     v = variant_id(genome, src_tok)
-    res = EvalResult(genome=genome, variant=v, certified=False, aborted=False)
+    res = EvalResult(
+        genome=genome, variant=v, certified=False, aborted=False,
+        build_attempt_id=build_attempt_id,
+    )
     start_payload = {
         "genome": genome.canonical(),
         "src_token": src_tok,
@@ -1849,7 +1865,10 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
     emit(layout, v, STAGE_BUILD_START, env_tag, start_payload)
 
     def _abort(reason: str, note: str, extra: Optional[Dict] = None,
-              workload_tag: Optional[str] = None) -> EvalResult:
+              workload_tag: Optional[str] = None, *,
+              verify_result: Optional[VerifyResult] = None) -> EvalResult:
+        if verify_result is not None and type(verify_result) is not VerifyResult:
+            raise TypeError("verify_result must be an exact VerifyResult")
         payload = {
             "reason": reason,
             "build_attempt_id": build_attempt_id,
@@ -1861,6 +1880,8 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
             payload["workload"] = {"tag": workload_tag}
         emit(layout, v, STAGE_ABORT, env_tag, payload)
         res.aborted = True
+        if verify_result is not None:
+            res.verify_result = verify_result
         res.notes.append(note)
         log(f"  [eval {v}] abort: {reason}")
         return res
@@ -2053,6 +2074,7 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
             tag: str, outcome: _RepetitionExecutionOutcome,
     ) -> Optional[EvalResult]:
         """Preserve local verify_done, abort, and capability ordering."""
+        res.verify_result = None
         # Every repetition owns the visible verdict.  A remote pre-verifier
         # abort must not retain rep 0's successful verdict.
         res.verdict = ""
@@ -2071,6 +2093,7 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
             return _abort(
                 rejected.reason, rejected.message, rejected.detail,
                 workload_tag=rejected.workload_tag,
+                verify_result=outcome.verify_result,
             )
         if outcome.verification_capability is None:
             raise AssertionError("successful verification has no capability")

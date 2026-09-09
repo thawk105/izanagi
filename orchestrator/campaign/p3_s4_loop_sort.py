@@ -441,6 +441,8 @@ def load_proposal_file(
     *,
     b4_reflux_ablation: bool = False,
     b4_closed_critic_receipt_sha256: str | None = None,
+    b4_prerun_publication: str | os.PathLike[str] | None = None,
+    b4_attempt_id: str | None = None,
 ) -> Tuple[L.PlannerProposal, CoderProposalSort,
            AuditorVerdict, Optional[bool]]:
     """メインセッションが spawn した planner/coder/auditor の構造化出力を JSON から読む。
@@ -454,8 +456,9 @@ def load_proposal_file(
 
     `planner`/`coder`/`auditor` トップレベルキーは `d[...]` で読む (`.get` に頼らない —
     欠落は `KeyError` で fails-closed に落ちる、敵対レビュー 2026-07-10)。"""
-    with open(path, encoding="utf-8") as f:
-        d = json.load(f)
+    with open(path, "rb") as f:
+        proposal_bytes = f.read()
+    d = json.loads(proposal_bytes.decode("utf-8"))
     schema_document = d
     if b4_reflux_ablation:
         if "prior_critic_reverse" in d:
@@ -484,6 +487,24 @@ def load_proposal_file(
     assert_closed_proposal_schema(
         schema_document, require_auditor=True, require_coder_value=False,
     )
+    has_prerun_binding = (
+        b4_prerun_publication is not None or b4_attempt_id is not None
+    )
+    if b4_reflux_ablation and b4_closed_critic_receipt_sha256 is None:
+        L.require_b4_proposal_registry_binding(
+            b4_prerun_publication,
+            b4_attempt_id,
+            schema_document,
+            driver_kind="sort",
+        )
+    elif has_prerun_binding:
+        if b4_reflux_ablation:
+            raise L.B4ProtocolError(
+                "B-4 prerun proposal binding is bootstrap-only"
+            )
+        raise L.B4ProtocolError(
+            "B-4 prerun proposal binding requires B-4 bootstrap mode"
+        )
     p, c, a = d["planner"], d["coder"], d["auditor"]
     planner = L.PlannerProposal(
         axis=p["axis"], direction=p["direction"], magnitude=p["magnitude"],
@@ -659,6 +680,10 @@ def main(
                     help="exact B-4 protocol marker を campaign identity に焼く")
     ap.add_argument("--b4-closed-critic-receipt", type=Path, metavar="PATH",
                     help="B-4 continuation の certified terminal receipt")
+    ap.add_argument("--b4-prerun-publication", type=Path, metavar="ROOT",
+                    help="B-4 bootstrap の封印済み prerun publication root")
+    ap.add_argument("--b4-attempt-id", metavar="ATTEMPT_ID",
+                    help="B-4 bootstrap の scheduled attempt identity")
     ap.add_argument("--run-iteration", metavar="PROPOSAL.json",
                     help="段5 駆動: 実 planner/coder/auditor proposal (JSON) を受けて "
                          "checkpoint 継続で 1 iteration を回す (メインセッションが毎 iteration これを呼ぶ)")
@@ -683,6 +708,24 @@ def main(
     if a.b4_reflux_ablation and not a.run_iteration:
         raise L.B4ProtocolError(
             "B-4 protocol forbids the fixture run_one_iteration route"
+        )
+    has_prerun_binding = (
+        a.b4_prerun_publication is not None or a.b4_attempt_id is not None
+    )
+    if not a.b4_reflux_ablation and has_prerun_binding:
+        raise L.B4ProtocolError(
+            "B-4 prerun proposal binding requires B-4 bootstrap mode"
+        )
+    if a.b4_reflux_ablation and a.b4_closed_critic_receipt is not None:
+        if has_prerun_binding:
+            raise L.B4ProtocolError(
+                "B-4 prerun proposal binding is bootstrap-only"
+            )
+    elif a.b4_reflux_ablation and (
+        a.b4_prerun_publication is None or a.b4_attempt_id is None
+    ):
+        raise L.B4ProtocolError(
+            "B-4 bootstrap requires publication root and attempt id"
         )
 
     root = _repo_root()
@@ -739,6 +782,8 @@ def main(
             a.run_iteration,
             b4_reflux_ablation=a.b4_reflux_ablation,
             b4_closed_critic_receipt_sha256=proposal_receipt_sha256,
+            b4_prerun_publication=a.b4_prerun_publication,
+            b4_attempt_id=a.b4_attempt_id,
         )
         print(f"=== 段5 sort-strategy iteration (proposal={a.run_iteration}, "
               f"reflux={a.reflux}, build={not a.no_build}, prior_critic_reverse={prior_rev}, "

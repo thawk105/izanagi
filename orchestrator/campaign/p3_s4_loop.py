@@ -60,7 +60,7 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     __package__ = "orchestrator.campaign"
 
-from . import (backoff_hole_grammar, buildcache,                         # noqa: E402
+from . import (attempt_registry_core, backoff_hole_grammar, buildcache,  # noqa: E402
                campaign_lock as campaign_lock_codec, condition_meaning_gate,
                coder_effect_gate, env_contract, execution_guard, ident,
                site_policy, sort_swo_oracle, trigger_gate_binding, wal)
@@ -168,6 +168,21 @@ REVERSE_STREAK = 2                    # critic が逆方向を N 回推奨 + 改
 
 B4_PROPOSAL_RECEIPT_SHA256_KEY = "b4_closed_critic_receipt_sha256"
 
+# [T-2101] 段 4 裁定 §7 の逐語。凍結済み prerun receipt schema は変更しない。
+B4_PROPOSAL_BINDING_NON_GUARANTEES = (
+    "continuation の提案は内容束縛されない (裁定パッケージ 1)。",
+    "どの publication が権威かは強制されない (裁定パッケージ 2)。",
+    "manifest membership は検査しない (裁定パッケージ 3)。",
+    "束縛の成功は耐久証拠に残らない (S12)。",
+    "束縛されるのは実行される提案 (parse 結果の canonical 形) であって "
+    "file の raw bytes ではない。",
+    "照合の前に単独性検査 (`pgrep`)、Git pin 検査、launcher sidecar と "
+    "campaign directory 作成が起きる。",
+    "`1` と `1.0` は別の提案として扱う。実行 genome が同じでも hash は異なる。",
+)
+
+_B4_SHA256_RE = re.compile(r"[0-9a-f]{64}\Z")
+
 _MASSTREE_PREBUILD_RECEIPT_SCHEMA = "p3-s4-loop-masstree-prebuild/v1"
 _MASSTREE_PREBUILD_RECEIPT_KEYS = frozenset({
     "schema_version",
@@ -182,6 +197,12 @@ _MASSTREE_PREBUILD_RECEIPT_KEYS = frozenset({
     "pbs_jobid",
 })
 _FETCHCONTENT_SOURCE_NAMES = ("masstree", "mimalloc", "googletest")
+_CONDITION_GATE_OFFLINE_DEFINE_NAMES = frozenset({
+    "CMAKE_PREFIX_PATH",
+    "FETCHCONTENT_BASE_DIR",
+    *(f"FETCHCONTENT_SOURCE_DIR_{name.upper()}"
+      for name in _FETCHCONTENT_SOURCE_NAMES),
+})
 
 
 def _read_nonsymlink_regular_bytes(
@@ -321,13 +342,51 @@ def _load_masstree_prebuild_receipt(
     return base, *source_dirs, dependency_receipt
 
 
-def _require_condition_gate(source_root: str, genome: Genome) -> dict | None:
+def _condition_gate_offline_configure_args(
+        *, dependency_prefix: str, fetchcontent_base_dir: str,
+        masstree_source_dir: Optional[object],
+        mimalloc_source_dir: Optional[object],
+        googletest_source_dir: Optional[object],
+) -> tuple[str, ...]:
+    """Project the offline defines needed by the independent condition gate."""
+    source_dirs = buildcache._normalize_fetchcontent_source_dirs(
+        masstree_source_dir=masstree_source_dir,
+        mimalloc_source_dir=mimalloc_source_dir,
+        googletest_source_dir=googletest_source_dir,
+    )
+    if source_dirs and not fetchcontent_base_dir:
+        raise buildcache.BuildCacheError(
+            "FetchContent SOURCE_DIR は FETCHCONTENT_BASE_DIR と同時指定必須"
+        )
+    configure_args = (
+        *((f"-DCMAKE_PREFIX_PATH={dependency_prefix}",)
+          if dependency_prefix else ()),
+        *((f"-DFETCHCONTENT_BASE_DIR={fetchcontent_base_dir}",)
+          if fetchcontent_base_dir else ()),
+        *buildcache._fetchcontent_source_defines(source_dirs),
+    )
+    expected_count = 1 + len(_FETCHCONTENT_SOURCE_NAMES) \
+        + int(bool(dependency_prefix))
+    if len(configure_args) != expected_count:
+        raise RuntimeError(
+            "campaign build producer returned a non-exact condition gate "
+            "offline define set"
+        )
+    return configure_args
+
+
+def _require_condition_gate(
+        source_root: str, genome: Genome, *,
+        configure_args: Tuple[str, ...] = (),
+) -> dict | None:
     """Run the independent supply and meaning arms before any benchmark build."""
     value = genome.flags.get("BACKOFF_FIXED")
     if value is None:
         return None
     _cc, cxx = buildcache.compilers_for_current_site()
-    captured = condition_meaning_gate.capture_define_inputs(source_root)
+    captured = condition_meaning_gate.capture_define_inputs(
+        source_root, configure_args=configure_args,
+    )
     request = condition_meaning_gate.make_define_request(
         driver_id="orchestrator.campaign.p3_s4_loop",
         macro="BACKOFF_FIXED", requested_value=value, default_value=-1,
@@ -358,7 +417,94 @@ def _require_condition_gate(source_root: str, genome: Genome) -> dict | None:
 
 
 class B4ProtocolError(RuntimeError):
-    """An exact B-4 continuation contract was not satisfied."""
+    """An exact B-4 execution contract was not satisfied."""
+
+
+def canonical_b4_proposal_sha256(document: object) -> str:
+    """Derive the canonical identity of the proposal value that is executed."""
+    if type(document) is not dict:
+        raise B4ProtocolError("B-4 proposal canonical hash requires a JSON object")
+    canonical_document = dict(document)
+    canonical_document.pop(B4_PROPOSAL_RECEIPT_SHA256_KEY, None)
+    try:
+        canonical_bytes = attempt_registry_core.canonical_json_bytes(
+            canonical_document
+        )
+    except (
+        attempt_registry_core.AttemptRegistryCoreError,
+        TypeError,
+        ValueError,
+    ) as exc:
+        raise B4ProtocolError("B-4 proposal has no canonical JSON hash") from exc
+    return hashlib.sha256(canonical_bytes).hexdigest()
+
+
+def _require_b4_registry_attempt_hash(
+    scheduled_attempts: object,
+    attempt_id: object,
+    *,
+    driver_kind: object,
+) -> str:
+    """Select one exact registry row and return its independently sealed hash."""
+    if type(attempt_id) is not str or not attempt_id:
+        raise B4ProtocolError("B-4 bootstrap requires a non-empty attempt id")
+    if driver_kind not in {"base", "sort", "trigger"}:
+        raise B4ProtocolError("B-4 bootstrap driver kind is invalid")
+    try:
+        matches = tuple(
+            attempt
+            for attempt in scheduled_attempts
+            if attempt.attempt_id == attempt_id
+        )
+    except (AttributeError, TypeError) as exc:
+        raise B4ProtocolError("B-4 publication registry rows are invalid") from exc
+    if len(matches) != 1:
+        raise B4ProtocolError(
+            "B-4 attempt id must match exactly one publication registry row"
+        )
+    attempt = matches[0]
+    if attempt.driver != driver_kind:
+        raise B4ProtocolError(
+            "B-4 publication registry driver differs from the running driver"
+        )
+    expected = attempt.initial_proposal_sha256
+    if type(expected) is not str or _B4_SHA256_RE.fullmatch(expected) is None:
+        raise B4ProtocolError(
+            "B-4 publication registry initial proposal hash is not 64 lowercase hex"
+        )
+    return expected
+
+
+def require_b4_proposal_registry_binding(
+    publication_root: object,
+    attempt_id: object,
+    document: object,
+    *,
+    driver_kind: object,
+) -> None:
+    """Require a bootstrap proposal to equal its sealed registry preimage."""
+    if publication_root is None or publication_root == "":
+        raise B4ProtocolError("B-4 bootstrap requires a publication root")
+    if type(attempt_id) is not str or not attempt_id:
+        raise B4ProtocolError("B-4 bootstrap requires a non-empty attempt id")
+    from . import p3_b4_prerun_issuer
+
+    try:
+        publication = p3_b4_prerun_issuer.load_b4_prerun_publication(
+            os.fspath(publication_root)
+        )
+    except (TypeError, ValueError, OSError) as exc:
+        raise B4ProtocolError("B-4 prerun publication load failed") from exc
+    expected = _require_b4_registry_attempt_hash(
+        publication.registry.scheduled_attempts,
+        attempt_id,
+        driver_kind=driver_kind,
+    )
+    observed = canonical_b4_proposal_sha256(document)
+    if observed != expected:
+        raise B4ProtocolError(
+            "B-4 bootstrap proposal canonical hash differs from the publication registry"
+        )
 
 
 @dataclass(frozen=True)
@@ -1676,7 +1822,19 @@ def _run_one_iteration_resolved(
             project_whiteboard(state, planner, "rejected")
             log(f"  diff 検疫 reject: {res.subtype} — {res.reason}")
             return {"outcome": "rejected", "variant": v, "digest": res.digest}
-        condition_gate = _require_condition_gate(sub, genome)
+        if fetchcontent_dependency_receipt is None:
+            condition_gate = _require_condition_gate(sub, genome)
+        else:
+            condition_gate = _require_condition_gate(
+                sub, genome,
+                configure_args=_condition_gate_offline_configure_args(
+                    dependency_prefix=dependency_prefix,
+                    fetchcontent_base_dir=fetchcontent_base_dir,
+                    masstree_source_dir=masstree_source_dir,
+                    mimalloc_source_dir=mimalloc_source_dir,
+                    googletest_source_dir=googletest_source_dir,
+                ),
+            )
         # 検疫通過 → build×2 / verify / bench を run_campaign に委譲。coder 編集は
         # working-tree にあり source_digest.resolve が preprocess 後 digest で src_token を
         # 非 stock に上げる。genome の BACKOFF_FIXED と hole literal を coder.value で揃える。
@@ -2009,6 +2167,8 @@ def load_proposal_file(
     *,
     b4_reflux_ablation: bool = False,
     b4_closed_critic_receipt_sha256: str | None = None,
+    b4_prerun_publication: str | os.PathLike[str] | None = None,
+    b4_attempt_id: str | None = None,
     knowledge_input: Optional[Dict[str, Any]] = None,
     coder_role: str | None = None,
 ) -> Tuple[PlannerProposal, CoderProposal, Optional[bool]]:
@@ -2022,17 +2182,19 @@ def load_proposal_file(
     Model Y の入力射影点 — メインセッションはここに **abstract な proposal だけ** を書く
     (勝ち筋値・機序を harness へ運ぶ経路にしない)。value 値域は CoderProposal
     構築時、value↔literal 整合は run_one_iteration が機械強制する (D39 決定7)。"""
-    with open(path, encoding="utf-8") as f:
-        if (
-            knowledge_input is not None
-            and coder_role == "coder-v4-autonomous-k2"
-        ):
-            d = json.load(
-                f,
-                object_pairs_hook=knowledge_manifest._reject_duplicate_keys,
-            )
-        else:
-            d = json.load(f)
+    with open(path, "rb") as f:
+        proposal_bytes = f.read()
+    proposal_text = proposal_bytes.decode("utf-8")
+    if (
+        knowledge_input is not None
+        and coder_role == "coder-v4-autonomous-k2"
+    ):
+        d = json.loads(
+            proposal_text,
+            object_pairs_hook=knowledge_manifest._reject_duplicate_keys,
+        )
+    else:
+        d = json.loads(proposal_text)
     schema_document = d
     if b4_reflux_ablation:
         if "prior_critic_reverse" in d:
@@ -2074,6 +2236,24 @@ def load_proposal_file(
     else:
         assert_closed_proposal_schema(
             schema_document, require_auditor=False, require_coder_value=True,
+        )
+    has_prerun_binding = (
+        b4_prerun_publication is not None or b4_attempt_id is not None
+    )
+    if b4_reflux_ablation and b4_closed_critic_receipt_sha256 is None:
+        require_b4_proposal_registry_binding(
+            b4_prerun_publication,
+            b4_attempt_id,
+            schema_document,
+            driver_kind="base",
+        )
+    elif has_prerun_binding:
+        if b4_reflux_ablation:
+            raise B4ProtocolError(
+                "B-4 prerun proposal binding is bootstrap-only"
+            )
+        raise B4ProtocolError(
+            "B-4 prerun proposal binding requires B-4 bootstrap mode"
         )
     p, c = d["planner"], d["coder"]
     if k2_contract:
@@ -2291,6 +2471,10 @@ def main(
                     help="exact B-4 protocol marker を campaign identity に焼く")
     ap.add_argument("--b4-closed-critic-receipt", type=Path, metavar="PATH",
                     help="B-4 continuation の certified terminal receipt")
+    ap.add_argument("--b4-prerun-publication", type=Path, metavar="ROOT",
+                    help="B-4 bootstrap の封印済み prerun publication root")
+    ap.add_argument("--b4-attempt-id", metavar="ATTEMPT_ID",
+                    help="B-4 bootstrap の scheduled attempt identity")
     ap.add_argument("--run-iteration", metavar="PROPOSAL.json",
                     help="段 4b 駆動: 実 planner/coder proposal (JSON) を受けて checkpoint 継続で "
                          "1 iteration を回す (メインセッションが毎 iteration これを呼ぶ)")
@@ -2368,6 +2552,28 @@ def main(
     ):
         raise B4ProtocolError(
             "B-4 protocol forbids the fixture run_one_iteration route"
+        )
+    has_prerun_binding = (
+        a.b4_prerun_publication is not None or a.b4_attempt_id is not None
+    )
+    if not a.b4_reflux_ablation and has_prerun_binding:
+        raise B4ProtocolError(
+            "B-4 prerun proposal binding requires B-4 bootstrap mode"
+        )
+    if a.b4_reflux_ablation and a.b4_closed_critic_receipt is not None:
+        if has_prerun_binding:
+            raise B4ProtocolError(
+                "B-4 prerun proposal binding is bootstrap-only"
+            )
+    elif a.b4_reflux_ablation and a.run_iteration and (
+        a.b4_prerun_publication is None or a.b4_attempt_id is None
+    ):
+        raise B4ProtocolError(
+            "B-4 bootstrap requires publication root and attempt id"
+        )
+    elif a.b4_reflux_ablation and has_prerun_binding and not a.run_iteration:
+        raise B4ProtocolError(
+            "B-4 prerun proposal binding requires a bootstrap proposal"
         )
     resolved_knowledge = _resolve_knowledge_manifest_argument(
         a.knowledge_manifest,
@@ -2474,6 +2680,8 @@ def main(
             a.run_iteration,
             b4_reflux_ablation=a.b4_reflux_ablation,
             b4_closed_critic_receipt_sha256=proposal_receipt_sha256,
+            b4_prerun_publication=a.b4_prerun_publication,
+            b4_attempt_id=a.b4_attempt_id,
             knowledge_input=(
                 knowledge_input if a.coder_role is not None else None
             ),

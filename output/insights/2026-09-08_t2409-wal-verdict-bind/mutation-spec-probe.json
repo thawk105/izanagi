@@ -1,0 +1,186 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 200,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "        if not (\n            type(record.payload.get(\"anomalies\")) is int\n            and record.payload.get(\"anomalies\") == 0\n            and record.payload.get(\"certified\") is True\n            and record.payload.get(\"verdict\") == \"serializable\"\n        ):\n            raise PreflightError(\n                \"legacy-wal-verdict\",\n                f\"campaign {campaign_id} variant {record.variant} の WAL 判定が不正\",\n            )\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "            type(record.payload.get(\"anomalies\")) is int\n",
+          "new": "            isinstance(record.payload.get(\"anomalies\"), int)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "            and record.payload.get(\"anomalies\") == 0\n",
+          "new": "            and record.payload.get(\"anomalies\") >= 0\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "            and record.payload.get(\"certified\") is True\n",
+          "new": "            and record.payload.get(\"certified\") == True\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "            and record.payload.get(\"certified\") is True\n            and record.payload.get(\"verdict\") == \"serializable\"\n",
+          "new": "            and record.payload.get(\"verdict\") == \"serializable\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "            and record.payload.get(\"verdict\") == \"serializable\"\n",
+          "new": "            and bool(record.payload.get(\"verdict\"))\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "            type(record.payload.get(\"anomalies\")) is int\n            and record.payload.get(\"anomalies\") == 0\n            and record.payload.get(\"certified\") is True\n            and record.payload.get(\"verdict\") == \"serializable\"\n",
+          "new": "            type(record.payload.get(\"anomalies\")) is int\n            or record.payload.get(\"anomalies\") == 0\n            or record.payload.get(\"certified\") is True\n            or record.payload.get(\"verdict\") == \"serializable\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "        if not (\n            type(record.payload.get(\"anomalies\")) is int\n            and record.payload.get(\"anomalies\") == 0\n            and record.payload.get(\"certified\") is True\n            and record.payload.get(\"verdict\") == \"serializable\"\n        ):\n            raise PreflightError(\n                \"legacy-wal-verdict\",\n                f\"campaign {campaign_id} variant {record.variant} の WAL 判定が不正\",\n            )\n",
+          "new": ""
+        },
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "            unknown_value_counts[canonical_tag] = (tag, previous_count + 1)\n            continue\n",
+          "new": "            unknown_value_counts[canonical_tag] = (tag, previous_count + 1)\n            continue\n        if not (\n            type(record.payload.get(\"anomalies\")) is int\n            and record.payload.get(\"anomalies\") == 0\n            and record.payload.get(\"certified\") is True\n            and record.payload.get(\"verdict\") == \"serializable\"\n        ):\n            raise PreflightError(\n                \"legacy-wal-verdict\",\n                f\"campaign {campaign_id} variant {record.variant} の WAL 判定が不正\",\n            )\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "        if not (\n            type(record.payload.get(\"anomalies\")) is int\n            and record.payload.get(\"anomalies\") == 0\n            and record.payload.get(\"certified\") is True\n            and record.payload.get(\"verdict\") == \"serializable\"\n        ):\n            raise PreflightError(\n                \"legacy-wal-verdict\",\n                f\"campaign {campaign_id} variant {record.variant} の WAL 判定が不正\",\n            )\n",
+          "new": ""
+        },
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "            unmapped[record.variant] = int(unmapped.get(record.variant, 0)) + 1\n            continue\n",
+          "new": "            unmapped[record.variant] = int(unmapped.get(record.variant, 0)) + 1\n            continue\n        if not (\n            type(record.payload.get(\"anomalies\")) is int\n            and record.payload.get(\"anomalies\") == 0\n            and record.payload.get(\"certified\") is True\n            and record.payload.get(\"verdict\") == \"serializable\"\n        ):\n            raise PreflightError(\n                \"legacy-wal-verdict\",\n                f\"campaign {campaign_id} variant {record.variant} の WAL 判定が不正\",\n            )\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "            raise PreflightError(\n                \"legacy-wal-verdict\",\n                f\"campaign {campaign_id} variant {record.variant} の WAL 判定が不正\",\n            )\n",
+          "new": "            public[\"wal_read_error\"] = \"legacy-wal-verdict\"\n            continue\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M12",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "        verification_source, counts = _verification_source_disclosure(\n            layout,\n            workload=workload,\n            campaign_id=campaign_id,\n            indexed=indexed,\n        )\n",
+          "new": "        verification_source, counts = {\n            \"workload\": workload,\n            \"campaign_id\": campaign_id,\n            \"raw_verify_done_records\": 0,\n            \"verify_done_records_by_tag\": {\"legacy\": 0, \"performance\": 0},\n            \"unknown_verify_tags\": {},\n            \"unknown_verify_tag_values\": [],\n            \"unmapped_variants\": {},\n            \"wal_truncated_tail\": False,\n            \"wal_read_error\": None,\n            \"registered_tag_overruns\": [],\n        }, {}\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "        if record.stage != STAGE_VERIFY_DONE:\n            continue\n        public[\"raw_verify_done_records\"] = int(public[\"raw_verify_done_records\"]) + 1\n",
+          "new": "        public[\"raw_verify_done_records\"] = int(public[\"raw_verify_done_records\"]) + 1\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

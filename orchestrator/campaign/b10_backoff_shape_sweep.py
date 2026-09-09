@@ -44,6 +44,7 @@ from ..calibrator.stability import noise_floor  # noqa: E402
 from . import (  # noqa: E402
     buildcache,
     campaign_lock,
+    contract_loader_binding,
     env_contract,
     ident,
     p2_2,
@@ -87,6 +88,7 @@ from .pipeline import (  # noqa: E402
 PIN = pin.CURRENT_PIN
 SPACE_VERSION = "b10-backoff-shape/v3"
 TRIAL = "b10-backoff-shape-v3"
+LEGACY_REPORT_SPACE_VERSION = "b10-backoff-shape/v2"
 ENV_TAG = "pegasus"
 PATCH_REL = "patches/silo-backoff-fixed.patch"
 ANALYSIS_REL = "orchestrator/campaign/b10_backoff_shape_sweep.py"
@@ -119,6 +121,7 @@ LEGACY_WRITE_HEAVY_ANALYSIS_SHA256 = (
 LEGACY_WRITE_HEAVY_BINDING_SHA256 = (
     "f0f9b2a1941707b29120a93af90cec70cfeabbf2309481f29cb19e8d71924e76"
 )
+LEGACY_WRITE_HEAVY_LOCK_SHA256 = "0a32c22b8afedd6b5542d0ec1da6cba713e55d77fd83cc878d173e568ee91674"
 LEGACY_EXECUTION_HOST = "not-recorded-legacy-v2"
 # Each digest is sha256(_canonical_json(envelope["record"]).encode("utf-8"))
 # from the 45 official e3de15eb block-record files.
@@ -179,6 +182,7 @@ LEGACY_BALANCED_ANALYSIS_SHA256 = (
 LEGACY_BALANCED_BINDING_SHA256 = (
     "588aaa9cd5eb844eeef48251777bb1d682d3b4993bae0e1b9bac94d893d7ae8f"
 )
+LEGACY_BALANCED_LOCK_SHA256 = "087e46dfc825b4db6b1fba585e339f989ea94b8e68c14bbb9cb7088fa7ad86b9"
 # Exact canonical record digests from the completed balanced 143a3f74 series.
 LEGACY_BALANCED_RECORD_SHA256S = frozenset({
     "0163fc54f5bbc80d8505e598312d1419bbef23e5a58032137280f09a9257622d",
@@ -237,6 +241,7 @@ LEGACY_READ_HEAVY_ANALYSIS_SHA256 = (
 LEGACY_READ_HEAVY_BINDING_SHA256 = (
     "24d80d9a35122de1d6ecd8a7d0244c439434452e94418fa35d34a48169b9f483"
 )
+LEGACY_READ_HEAVY_LOCK_SHA256 = "5abdfe110ac418b9d98a541ce7bfc3b4aa8975a97fbd6e82b5570f76330180b7"
 # Exact canonical record digests from the completed read-heavy acf840c8 series.
 LEGACY_READ_HEAVY_RECORD_SHA256S = frozenset({
     "091b9706a73d79a5bb9278c54b35fcefa2c1459d653d36e2464de34b054165b3",
@@ -541,6 +546,50 @@ class CalibrationSelection:
         return dict(vars(self))
 
 
+@dataclass(frozen=True)
+class ReportAnalyzerIdentity:
+    source_commit: str
+    module_path: str
+    module_sha256: str
+
+    def as_dict(self) -> dict[str, str]:
+        return dict(vars(self))
+
+
+@dataclass(frozen=True)
+class HistoricalSeriesIdentity:
+    workload: str
+    campaign_id: str
+    preregistration_path: str
+    preregistration_binding: Mapping[str, str]
+    preregistration_spec: PreregistrationSpec
+    calibration: CalibrationSelection
+    space_version: str
+    ccbench_commit: str
+    search_tag: str
+    spec_content: str
+    trial: str
+    formula_sha256: str
+    patch_sha256: str
+    authority_commit: str
+
+
+@dataclass(frozen=True)
+class HistoricalReportIdentity:
+    series: tuple[HistoricalSeriesIdentity, ...]
+    preregistration_path: str
+    preregistration_spec: PreregistrationSpec
+    calibration: CalibrationSelection
+    space_version: str
+    ccbench_commit: str
+    formula_sha256: str
+    patch_sha256: str
+
+    @property
+    def spec(self) -> PreregistrationSpec:
+        return self.preregistration_spec
+
+
 def _repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
@@ -577,6 +626,33 @@ def _git(root: Path, *args: str, binary: bool = False) -> bytes | str:
             "git", f"git {' '.join(args)} が失敗した: {(stderr or '').strip()[-300:]}",
         )
     return result.stdout
+
+
+def _load_current_analysis_identity(root: Path) -> ReportAnalyzerIdentity:
+    """Bind the current report analyzer without reading live preregistration."""
+    head = str(_git(root, "rev-parse", "--verify", "HEAD^{commit}")).strip()
+    status = str(_git(root, "status", "--porcelain", "--untracked-files=all"))
+    if status:
+        raise PreflightError("dirty", "repository working tree が dirty")
+    analysis_path = root / ANALYSIS_REL
+    try:
+        analysis_bytes = analysis_path.read_bytes()
+        committed_analysis = _git(
+            root, "show", f"{head}:{ANALYSIS_REL}", binary=True,
+        )
+    except (OSError, PreflightError) as exc:
+        raise PreflightError(
+            "analysis-binding", "解析コードを current HEAD へ束縛できない",
+        ) from exc
+    if analysis_bytes != committed_analysis:
+        raise PreflightError(
+            "analysis-binding", "解析コード bytes が current HEAD blob と不一致",
+        )
+    return ReportAnalyzerIdentity(
+        source_commit=head,
+        module_path=ANALYSIS_REL,
+        module_sha256=_sha256_bytes(analysis_bytes),
+    )
 
 
 def _canonical_submission_root(root: Path) -> Path:
@@ -1499,6 +1575,142 @@ def parse_preregistration(raw: bytes) -> PreregistrationSpec:
     )
 
 
+def _preregistration_spec_from_historical_lock(
+    value: object,
+    *,
+    expected_spec_sha256: str,
+) -> PreregistrationSpec:
+    """Reconstruct the exact registered v4 spec embedded in a historical lock."""
+    document = _exact_object(
+        value,
+        {
+            "schema_version", "artifacts", "registration_rules", "grid",
+            "blocks", "workloads", "execution", "analysis",
+            "physical_residual", "external_floor_reference_widths",
+        },
+        "historical lock preregistration_spec",
+    )
+    if document["schema_version"] \
+            != "izanagi-b10-backoff-shape-preregistration/v4":
+        raise PreflightError(
+            "prereg-spec", "historical lock machine spec schema_version 不一致",
+        )
+    if _SHA256_RE.fullmatch(expected_spec_sha256 or "") is None:
+        raise PreflightError("prereg-spec", "historical spec SHA-256 が不正")
+    canonical = _canonical_json(document)
+    if _sha256_bytes(canonical.encode("utf-8")) != expected_spec_sha256:
+        raise PreflightError(
+            "prereg-spec", "historical lock machine spec digest が不一致",
+        )
+
+    # The fixed digest above authenticates every nested value.  Reconstruct all
+    # dataclass fields directly from v4 instead of widening the live v5 parser.
+    artifacts = document["artifacts"]
+    registration_rules = document["registration_rules"]
+    grid = document["grid"]
+    blocks = document["blocks"]
+    workload_rows = document["workloads"]
+    execution = document["execution"]
+    analysis = document["analysis"]
+    permutation = analysis["permutation"]
+    confidence = analysis["confidence_interval"]
+    missingness = analysis["missingness"]
+    exposure = analysis["exposure"]
+    residual = document["physical_residual"]
+    residual_provenance = residual["provenance"]
+    widths = document["external_floor_reference_widths"]
+    workload_flag_keys = (
+        "ycsb_zipf_skew", "ycsb_rratio", "ycsb_rmw", "ycsb_max_ope",
+    )
+    registration_rule_keys = (
+        "shape_eligibility_criterion", "shape_eligibility_evidence",
+        "shape_exclusion_granularity", "means_us_and_cell_partition",
+        "physical_residual_cell_policy", "throughput_decision_procedure",
+        "a2_material_role", "shape_rule_formulation_timing",
+    )
+    return PreregistrationSpec(
+        canonical_json=canonical,
+        spec_sha256=expected_spec_sha256,
+        patch_sha256=artifacts["patch_sha256"],
+        formula_sha256=artifacts["formula_sha256"],
+        registration_rules=tuple(
+            (key, registration_rules[key]) for key in registration_rule_keys
+        ),
+        means_us=tuple(grid["means_us"]),
+        shapes=tuple(
+            (row["name"], row["code"], row["support"])
+            for row in grid["shapes"]
+        ),
+        references=tuple(
+            (row["name"], row["back_off"], row["backoff_fixed"])
+            for row in grid["references"]
+        ),
+        block_ids=tuple(blocks["ids"]),
+        block_orders=tuple(
+            (block_id, tuple(blocks["run_order"][block_id]))
+            for block_id in blocks["ids"]
+        ),
+        workloads=tuple(
+            (
+                row["name"],
+                tuple((key, row[key]) for key in workload_flag_keys),
+            )
+            for row in workload_rows
+        ),
+        threads=execution["threads"],
+        extime_s=execution["extime_s"],
+        performance_reps=execution["performance_reps"],
+        correctness_reps=execution["correctness_reps"],
+        correctness_mode=execution["correctness_mode"],
+        alpha=float(analysis["alpha"]),
+        holm_families=tuple(
+            (row["workload"], row["shape"])
+            for row in analysis["holm_families"]
+        ),
+        permutation_method=permutation["method"],
+        permutation_sided=permutation["sided"],
+        permutation_statistic=permutation["statistic"],
+        permutation_enumeration=permutation["enumeration"],
+        pairs_per_family=permutation["pairs_per_family"],
+        ci_method=confidence["method"],
+        ci_confidence_level=float(confidence["confidence_level"]),
+        ci_degrees_of_freedom=confidence["degrees_of_freedom"],
+        ci_critical_value=float(confidence["critical_value"]),
+        missing_conditions=tuple(missingness["conditions"]),
+        missing_pair_action=missingness["pair_action"],
+        missing_family_action=missingness["family_action"],
+        indeterminate_pvalue=float(missingness["indeterminate_pvalue"]),
+        exposure_metric=exposure["metric"],
+        minimum_abort_calls=exposure["minimum_calls_per_cell"],
+        exposure_below_minimum_action=exposure["below_minimum_action"],
+        equivalence_margin_pct=float(analysis["equivalence_margin_pct"]),
+        decision_procedure=tuple(analysis["decision_procedure"]),
+        physical_residual_measurement=residual["measurement"],
+        maximum_absolute_deviation_pct_exclusive=float(
+            residual["maximum_absolute_deviation_pct_exclusive"],
+        ),
+        physical_residual_provenance=tuple(residual_provenance.items()),
+        physical_residual_values=tuple(
+            (
+                row["shape"], row["mean_us"],
+                float(row["realized_mean_cycles"]),
+                float(row["commanded_mean_cycles"]),
+                float(row["deviation_pct"]),
+            )
+            for row in residual["values"]
+        ),
+        reference_width_terminology=widths["terminology"],
+        reference_width_power_guarantee=widths["power_guarantee"],
+        reference_widths=tuple(
+            (
+                row["workload"], float(row["between_run_cv_pct"]),
+                float(row["reference_width_pct"]), row["source_environment"],
+            )
+            for row in widths["values"]
+        ),
+    )
+
+
 def validate_runtime_physical_residual(
     spec: PreregistrationSpec, clocks_per_us: int,
 ) -> float:
@@ -1565,16 +1777,14 @@ def load_preregistration(
         raise PreflightError("prereg-path", "事前登録文書は canonical path でなければならない")
     if _COMMIT_RE.fullmatch(prereg_commit or "") is None:
         raise PreflightError("prereg-commit", "prereg_commit は full lowercase commit ID が必要")
-    head = str(_git(root, "rev-parse", "--verify", "HEAD^{commit}")).strip()
+    analyzer = _load_current_analysis_identity(root)
+    head = analyzer.source_commit
     ancestor = subprocess.run(
         ["git", "-C", os.fspath(root), "merge-base", "--is-ancestor", prereg_commit, head],
         capture_output=True, env=source_digest._sanitized_git_env(),
     )
     if ancestor.returncode != 0:
         raise PreflightError("prereg-ancestor", "prereg_commit が HEAD の祖先でない")
-    status = str(_git(root, "status", "--porcelain", "--untracked-files=all"))
-    if status:
-        raise PreflightError("dirty", "repository working tree が dirty")
     raw = path.read_bytes()
     try:
         blob_raw = _git(root, "show", f"{prereg_commit}:{relative}", binary=True)
@@ -1595,23 +1805,14 @@ def load_preregistration(
     if patch_bytes != committed_patch:
         raise PreflightError("patch-sha", "current patch bytes が prereg_commit blob と不一致")
     validate_patch_bytes(patch_bytes, spec.patch_sha256)
-    analysis_path = root / ANALYSIS_REL
-    try:
-        analysis_bytes = analysis_path.read_bytes()
-        committed_analysis = _git(root, "show", f"{head}:{ANALYSIS_REL}", binary=True)
-    except (OSError, PreflightError) as exc:
-        raise PreflightError("analysis-binding", "解析コードを current HEAD へ束縛できない") from exc
-    if analysis_bytes != committed_analysis:
-        raise PreflightError("analysis-binding", "解析コード bytes が current HEAD blob と不一致")
-    analysis_code_sha256 = _sha256_bytes(analysis_bytes)
     binding = PreregistrationBinding(
         prereg_commit=prereg_commit,
         prereg_blob_sha=blob_sha,
         spec_sha256=spec.spec_sha256,
         patch_sha256=spec.patch_sha256,
         formula_sha256=spec.formula_sha256,
-        analysis_commit=head,
-        analysis_code_sha256=analysis_code_sha256,
+        analysis_commit=analyzer.source_commit,
+        analysis_code_sha256=analyzer.module_sha256,
     )
     return Preregistration(binding=binding, path=relative, spec=spec)
 
@@ -1664,6 +1865,14 @@ def load_calibration(
         lower_bound_selected=bool(lower_bound),
         cache_floor_warning=cache_warning,
     ), loaded.verified
+
+
+def _formal_spec_content(workload_tag: str) -> str:
+    return (
+        "B-10 registered equal-target-mean backoff-shape comparison; "
+        "15 genomes, three independent paired blocks, no screening; "
+        f"workload={workload_tag}"
+    )
 
 
 def config_for(
@@ -1739,11 +1948,7 @@ def config_for(
     cfg = CampaignConfig(
         spec_slug=f"b10-backoff-shape-silo-{workload_tag}",
         search_tag=search_tag,
-        spec_content=(
-            "B-10 registered equal-target-mean backoff-shape comparison; "
-            "15 genomes, three independent paired blocks, no screening; "
-            f"workload={workload_tag}"
-        ),
+        spec_content=_formal_spec_content(workload_tag),
         ccbench_commit=PIN,
         search_config=search_config,
         trial=(
@@ -2668,11 +2873,11 @@ def _validate_prior_block_records(
 
 
 def _expected_block_cells(
-    prereg: Preregistration,
+    spec: PreregistrationSpec,
 ) -> set[tuple[str, str]]:
     return {
         (block_id, point)
-        for block_id, order in prereg.spec.block_orders
+        for block_id, order in spec.block_orders
         for point in order
     }
 
@@ -2710,10 +2915,10 @@ def _require_exact_trial_cell(
 def _require_exact_workload_cells(
     indexed: Mapping[tuple[str, str], Mapping[str, object]],
     *,
-    prereg: Preregistration,
+    spec: PreregistrationSpec,
     workload: str,
 ) -> None:
-    expected = _expected_block_cells(prereg)
+    expected = _expected_block_cells(spec)
     if len(indexed) != len(expected) or set(indexed) != expected:
         raise PreflightError(
             "report-completeness",
@@ -2723,12 +2928,12 @@ def _require_exact_workload_cells(
 
 def _require_exact_report_cells(
     records: Sequence[Mapping[str, object]],
-    prereg: Preregistration,
+    spec: PreregistrationSpec,
 ) -> None:
     expected = {
         (workload, block_id, point)
-        for workload in prereg.spec.workload_map
-        for block_id, order in prereg.spec.block_orders
+        for workload in spec.workload_map
+        for block_id, order in spec.block_orders
         for point in order
     }
     observed = [
@@ -2860,7 +3065,7 @@ def _write_trial_report_create_only(
     return report_path
 
 
-def _legacy_write_heavy_binding(_prereg: Preregistration) -> dict[str, str]:
+def _legacy_write_heavy_binding() -> dict[str, str]:
     return {
         "prereg_commit": "77b33e37d2d63b1f83d10652792c3c93eba9fe8f",
         "prereg_blob_sha": "ea910de32df83c1bb320cbe62344dc5fb3b94684",
@@ -2898,32 +3103,130 @@ def _legacy_record_content_digest(row: Mapping[str, object]) -> str:
 
 def _assert_report_lock_binding(
     layout: CampaignLayout,
+    *,
+    workload: str,
+    campaign_id: str,
     expected_binding: Mapping[str, object],
-) -> None:
+    expected_lock_sha256: str,
+) -> HistoricalSeriesIdentity:
+    expected_campaign_id = {
+        "write-heavy": LEGACY_WRITE_HEAVY_CAMPAIGN_ID,
+        "balanced": LEGACY_BALANCED_CAMPAIGN_ID,
+        "read-heavy": LEGACY_READ_HEAVY_CAMPAIGN_ID,
+    }.get(workload)
+    if campaign_id != expected_campaign_id:
+        raise PreflightError(
+            "resume-binding", "report 入力 campaign.lock の campaign ID が不一致",
+        )
     if not os.path.lexists(layout.lock_file):
         raise PreflightError("resume-binding", "report 入力 campaign.lock が無い")
-    raw = wal.read_lock(layout)
-    if raw is None:
-        raise PreflightError("resume-binding", "report 入力 campaign.lock を読めない")
-    stored = _decode_lock_search_config(raw).get("preregistration_binding")
-    if stored != dict(expected_binding):
+    try:
+        raw = Path(layout.lock_file).read_bytes()
+    except OSError as exc:
+        raise PreflightError("resume-binding", "report 入力 campaign.lock を読めない") from exc
+    if type(expected_lock_sha256) is not str \
+            or _sha256_bytes(raw) != expected_lock_sha256:
+        raise PreflightError("resume-binding", "report 入力 campaign.lock の content digest が不一致")
+    try:
+        decoded = campaign_lock.decode_historical_campaign_lock_bytes(raw)
+    except campaign_lock.CampaignLockCodecError as exc:
+        raise PreflightError("resume-binding", "report 入力 campaign.lock の歴史 schema が不正") from exc
+    authority = decoded.authority
+    if not decoded.is_v2 or authority is None \
+            or authority.recorded_contract_loader_relative_paths \
+            != campaign_lock.PRE_T733_CONTRACT_LOADER_RELATIVE_PATHS:
+        raise PreflightError(
+            "resume-binding", "report 入力 campaign.lock は pre-T733 v2 が必要",
+        )
+    try:
+        contract_loader_binding.verify_committed_contract_loader_blobs(
+            authority.contract_loader_commit,
+            authority.contract_loader_blob_sha256s,
+            authority.recorded_contract_loader_relative_paths,
+        )
+    except contract_loader_binding.ContractLoaderBindingError as exc:
+        raise PreflightError(
+            "resume-binding", "report 入力 campaign.lock の記録 blob が不一致",
+        ) from exc
+
+    identity = decoded.identity
+    search_config = identity.get("search_config")
+    if type(search_config) is not dict:
+        raise PreflightError(
+            "resume-binding", "report 入力 campaign.lock search_config が不正",
+        )
+    stored_binding = search_config.get("preregistration_binding")
+    if type(stored_binding) is not dict \
+            or stored_binding != dict(expected_binding):
         raise PreflightError(
             "resume-binding", "report 入力 campaign.lock の事前登録束縛が不一致",
         )
+    expected_spec_sha256 = expected_binding.get("spec_sha256")
+    if type(expected_spec_sha256) is not str:
+        raise PreflightError("resume-binding", "歴史 binding の spec digest が不正")
+    spec = _preregistration_spec_from_historical_lock(
+        search_config.get("preregistration_spec"),
+        expected_spec_sha256=expected_spec_sha256,
+    )
+    if spec.patch_sha256 != expected_binding.get("patch_sha256") \
+            or spec.formula_sha256 != expected_binding.get("formula_sha256"):
+        raise PreflightError(
+            "resume-binding", "report 入力 campaign.lock の spec/binding が不一致",
+        )
+    calibration_value = _exact_object(
+        search_config.get("calibration"),
+        set(CalibrationSelection.__dataclass_fields__),
+        "historical lock calibration",
+    )
+    try:
+        calibration = CalibrationSelection(**calibration_value)
+    except TypeError as exc:
+        raise PreflightError(
+            "resume-binding", "report 入力 campaign.lock の calibration が不正",
+        ) from exc
+
+    space_version = search_config.get("space_version")
+    expected_trial = f"{LEGACY_REPORT_SPACE_VERSION.replace('/', '-')}-{expected_spec_sha256[:16]}"
+    if space_version != LEGACY_REPORT_SPACE_VERSION \
+            or identity.get("search_tag") != "formal" \
+            or identity.get("ccbench_commit") != PIN \
+            or identity.get("trial") != expected_trial \
+            or identity.get("spec_content") != _formal_spec_content(workload) \
+            or search_config.get("workload") != workload \
+            or search_config.get("preregistration_path") != PREREG_REL:
+        raise PreflightError(
+            "resume-binding", "report 入力 campaign.lock の測定 identity が不一致",
+        )
+    return HistoricalSeriesIdentity(
+        workload=workload,
+        campaign_id=campaign_id,
+        preregistration_path=PREREG_REL,
+        preregistration_binding=dict(stored_binding),
+        preregistration_spec=spec,
+        calibration=calibration,
+        space_version=space_version,
+        ccbench_commit=identity["ccbench_commit"],
+        search_tag=identity["search_tag"],
+        spec_content=identity["spec_content"],
+        trial=identity["trial"],
+        formula_sha256=spec.formula_sha256,
+        patch_sha256=spec.patch_sha256,
+        authority_commit=authority.contract_loader_commit,
+    )
 
 
 def _validate_legacy_write_heavy_records(
     records: Sequence[Mapping[str, object]],
     *,
     campaign_id: str,
-    prereg: Preregistration,
+    spec: PreregistrationSpec,
     expected_record_digests: Collection[str] = LEGACY_WRITE_HEAVY_RECORD_SHA256S,
 ) -> dict[tuple[str, str], Mapping[str, object]]:
     """Admit only the finite official e3de15eb record set for reporting."""
     if campaign_id != LEGACY_WRITE_HEAVY_CAMPAIGN_ID:
         raise PreflightError("legacy-record", "歴史 block record の campaign ID が不一致")
-    expected_binding = _legacy_write_heavy_binding(prereg)
-    expected_order = prereg.spec.block_order_map
+    expected_binding = _legacy_write_heavy_binding()
+    expected_order = spec.block_order_map
     indexed: dict[tuple[str, str], Mapping[str, object]] = {}
     content_digests: list[str] = []
     for row in records:
@@ -2993,12 +3296,12 @@ def _validate_legacy_write_heavy_records(
         content_digests.append(digest)
     _require_legacy_record_digests(content_digests, expected_record_digests)
     _require_exact_workload_cells(
-        indexed, prereg=prereg, workload="write-heavy",
+        indexed, spec=spec, workload="write-heavy",
     )
     return indexed
 
 
-def _legacy_balanced_binding(_prereg: Preregistration) -> dict[str, str]:
+def _legacy_balanced_binding() -> dict[str, str]:
     return {
         "prereg_commit": "77b33e37d2d63b1f83d10652792c3c93eba9fe8f",
         "prereg_blob_sha": "ea910de32df83c1bb320cbe62344dc5fb3b94684",
@@ -3014,18 +3317,18 @@ def _validate_legacy_balanced_records(
     records: Sequence[Mapping[str, object]],
     *,
     campaign_id: str,
-    prereg: Preregistration,
+    spec: PreregistrationSpec,
     expected_record_digests: Collection[str] = LEGACY_BALANCED_RECORD_SHA256S,
 ) -> dict[tuple[str, str], Mapping[str, object]]:
     """Admit only the finite completed balanced 143a3f74 record set."""
     if campaign_id != LEGACY_BALANCED_CAMPAIGN_ID:
         raise PreflightError("legacy-record", "balanced 歴史 campaign ID が不一致")
-    if len(records) != len(_expected_block_cells(prereg)):
+    if len(records) != len(_expected_block_cells(spec)):
         raise PreflightError(
             "report-completeness", "balanced 歴史 record が exact 45 セルでない",
         )
-    expected_binding = _legacy_balanced_binding(prereg)
-    expected_order = prereg.spec.block_order_map
+    expected_binding = _legacy_balanced_binding()
+    expected_order = spec.block_order_map
     indexed: dict[tuple[str, str], Mapping[str, object]] = {}
     content_digests: list[str] = []
     for row in records:
@@ -3096,12 +3399,12 @@ def _validate_legacy_balanced_records(
         content_digests.append(digest)
     _require_legacy_record_digests(content_digests, expected_record_digests)
     _require_exact_workload_cells(
-        indexed, prereg=prereg, workload="balanced",
+        indexed, spec=spec, workload="balanced",
     )
     return indexed
 
 
-def _legacy_read_heavy_binding(_prereg: Preregistration) -> dict[str, str]:
+def _legacy_read_heavy_binding() -> dict[str, str]:
     return {
         "prereg_commit": "77b33e37d2d63b1f83d10652792c3c93eba9fe8f",
         "prereg_blob_sha": "ea910de32df83c1bb320cbe62344dc5fb3b94684",
@@ -3117,18 +3420,18 @@ def _validate_legacy_read_heavy_records(
     records: Sequence[Mapping[str, object]],
     *,
     campaign_id: str,
-    prereg: Preregistration,
+    spec: PreregistrationSpec,
     expected_record_digests: Collection[str] = LEGACY_READ_HEAVY_RECORD_SHA256S,
 ) -> dict[tuple[str, str], Mapping[str, object]]:
     """Admit only the finite completed read-heavy acf840c8 record set."""
     if campaign_id != LEGACY_READ_HEAVY_CAMPAIGN_ID:
         raise PreflightError("legacy-record", "read-heavy 歴史 campaign ID が不一致")
-    if len(records) != len(_expected_block_cells(prereg)):
+    if len(records) != len(_expected_block_cells(spec)):
         raise PreflightError(
             "report-completeness", "read-heavy 歴史 record が exact 45 セルでない",
         )
-    expected_binding = _legacy_read_heavy_binding(prereg)
-    expected_order = prereg.spec.block_order_map
+    expected_binding = _legacy_read_heavy_binding()
+    expected_order = spec.block_order_map
     indexed: dict[tuple[str, str], Mapping[str, object]] = {}
     content_digests: list[str] = []
     for row in records:
@@ -3201,9 +3504,56 @@ def _validate_legacy_read_heavy_records(
         content_digests.append(digest)
     _require_legacy_record_digests(content_digests, expected_record_digests)
     _require_exact_workload_cells(
-        indexed, prereg=prereg, workload="read-heavy",
+        indexed, spec=spec, workload="read-heavy",
     )
     return indexed
+
+
+def _historical_report_identity(
+    series: Sequence[HistoricalSeriesIdentity],
+) -> HistoricalReportIdentity:
+    expected_workloads = tuple(WORKLOADS)
+    if tuple(item.workload for item in series) != expected_workloads:
+        raise PreflightError(
+            "report-completeness", "歴史 report identity が exact 3 系列でない",
+        )
+    first = series[0]
+    for item in series[1:]:
+        # Each spec already passed the fixed digest gate.  This equality is a
+        # diagnostic cross-series consistency check, not an extra mutation gate.
+        if item.preregistration_spec.canonical_json \
+                != first.preregistration_spec.canonical_json \
+                or item.calibration.as_dict() != first.calibration.as_dict() \
+                or item.space_version != first.space_version \
+                or item.ccbench_commit != first.ccbench_commit \
+                or item.formula_sha256 != first.formula_sha256 \
+                or item.patch_sha256 != first.patch_sha256:
+            raise PreflightError(
+                "resume-binding", "歴史 report identity の系列間共通値が不一致",
+            )
+    return HistoricalReportIdentity(
+        series=tuple(series),
+        preregistration_path=first.preregistration_path,
+        preregistration_spec=first.preregistration_spec,
+        calibration=first.calibration,
+        space_version=first.space_version,
+        ccbench_commit=first.ccbench_commit,
+        formula_sha256=first.formula_sha256,
+        patch_sha256=first.patch_sha256,
+    )
+
+
+def _require_report_prereg_commit(prereg_commit: str) -> str:
+    commits = {
+        _legacy_write_heavy_binding()["prereg_commit"],
+        _legacy_balanced_binding()["prereg_commit"],
+        _legacy_read_heavy_binding()["prereg_commit"],
+    }
+    if len(commits) != 1 or prereg_commit not in commits:
+        raise PreflightError(
+            "prereg-commit", "report は 3 系列共通の歴史 prereg commit が必要",
+        )
+    return prereg_commit
 
 
 def _certification_attempts(
@@ -3406,6 +3756,16 @@ def _verification_source_disclosure(
         if record.stage != STAGE_VERIFY_DONE:
             continue
         public["raw_verify_done_records"] = int(public["raw_verify_done_records"]) + 1
+        if not (
+            type(record.payload.get("anomalies")) is int
+            and record.payload.get("anomalies") == 0
+            and record.payload.get("certified") is True
+            and record.payload.get("verdict") == "serializable"
+        ):
+            raise PreflightError(
+                "legacy-wal-verdict",
+                f"campaign {campaign_id} variant {record.variant} の WAL 判定が不正",
+            )
         workload_payload = record.payload.get("workload")
         tag = workload_payload.get("tag") if type(workload_payload) is dict else None
         if type(tag) is not str or tag not in ("legacy", "performance"):
@@ -3441,7 +3801,7 @@ def _verification_source_disclosure(
 def _verification_completeness(
     sources: Sequence[Mapping[str, object]],
     counts_by_workload: Mapping[str, Mapping[tuple[str, str], int]],
-    prereg: Preregistration,
+    prereg: HistoricalReportIdentity,
 ) -> dict[str, object]:
     limits = {"legacy": 1, "performance": 5}
     missing_slots: list[dict[str, object]] = []
@@ -3518,20 +3878,21 @@ def _verification_completeness(
 def _collect_report_inputs(
     resolved_output: str,
     *,
-    prereg: Preregistration,
-    calibration: CalibrationSelection,
-    context: BuildRunContext,
-    contract: env_contract.ExecutionEnvironmentContract,
     layout_for_campaign: Callable[[str], CampaignLayout],
-) -> tuple[list[dict[str, object]], dict[str, object], dict[str, object]]:
+) -> tuple[
+    list[dict[str, object]], HistoricalReportIdentity,
+    dict[str, object], dict[str, object],
+]:
     all_records: list[dict[str, object]] = []
+    series_identities: list[HistoricalSeriesIdentity] = []
     performance_sources: list[dict[str, object]] = []
     verification_sources: list[dict[str, object]] = []
     counts_by_workload: dict[str, Mapping[tuple[str, str], int]] = {}
-    for workload in prereg.spec.workload_map:
+    for workload in WORKLOADS:
         if workload == "write-heavy":
             campaign_id = LEGACY_WRITE_HEAVY_CAMPAIGN_ID
-            expected_binding = _legacy_write_heavy_binding(prereg)
+            expected_binding = _legacy_write_heavy_binding()
+            expected_lock_sha256 = LEGACY_WRITE_HEAVY_LOCK_SHA256
             measured_with = {
                 "analysis_commit": LEGACY_WRITE_HEAVY_ANALYSIS_COMMIT,
                 "analysis_code_sha256": LEGACY_WRITE_HEAVY_ANALYSIS_SHA256,
@@ -3539,7 +3900,8 @@ def _collect_report_inputs(
             }
         elif workload == "balanced":
             campaign_id = LEGACY_BALANCED_CAMPAIGN_ID
-            expected_binding = _legacy_balanced_binding(prereg)
+            expected_binding = _legacy_balanced_binding()
+            expected_lock_sha256 = LEGACY_BALANCED_LOCK_SHA256
             measured_with = {
                 "analysis_commit": LEGACY_BALANCED_ANALYSIS_COMMIT,
                 "analysis_code_sha256": LEGACY_BALANCED_ANALYSIS_SHA256,
@@ -3547,7 +3909,8 @@ def _collect_report_inputs(
             }
         elif workload == "read-heavy":
             campaign_id = LEGACY_READ_HEAVY_CAMPAIGN_ID
-            expected_binding = _legacy_read_heavy_binding(prereg)
+            expected_binding = _legacy_read_heavy_binding()
+            expected_lock_sha256 = LEGACY_READ_HEAVY_LOCK_SHA256
             measured_with = {
                 "analysis_commit": LEGACY_READ_HEAVY_ANALYSIS_COMMIT,
                 "analysis_code_sha256": LEGACY_READ_HEAVY_ANALYSIS_SHA256,
@@ -3556,29 +3919,35 @@ def _collect_report_inputs(
         else:
             raise PreflightError("report-completeness", "未知 workload の report 入力")
         layout = layout_for_campaign(campaign_id)
+        series_identity = _assert_report_lock_binding(
+            layout,
+            workload=workload,
+            campaign_id=campaign_id,
+            expected_binding=expected_binding, expected_lock_sha256=expected_lock_sha256,
+        )
+        series_identities.append(series_identity)
         block_root = Path(layout.runs_dir) / "b10-backoff-shape-blocks"
         records = _read_block_records(block_root)
         if workload == "write-heavy":
             indexed = _validate_legacy_write_heavy_records(
                 records,
                 campaign_id=campaign_id,
-                prereg=prereg,
+                spec=series_identity.preregistration_spec,
             )
         elif workload == "balanced":
             indexed = _validate_legacy_balanced_records(
                 records,
                 campaign_id=campaign_id,
-                prereg=prereg,
+                spec=series_identity.preregistration_spec,
             )
         elif workload == "read-heavy":
             indexed = _validate_legacy_read_heavy_records(
                 records,
                 campaign_id=campaign_id,
-                prereg=prereg,
+                spec=series_identity.preregistration_spec,
             )
         else:  # pragma: no cover - closed above; keeps dispatch visibly exact
             raise AssertionError("unreachable workload dispatch")
-        _assert_report_lock_binding(layout, expected_binding)
         selected = [dict(row) for row in indexed.values()]
         all_records.extend(selected)
         performance_sources.append({
@@ -3596,26 +3965,32 @@ def _collect_report_inputs(
         verification_sources.append(verification_source)
         counts_by_workload[workload] = counts
 
-    _require_exact_report_cells(all_records, prereg)
+    report_identity = _historical_report_identity(series_identities)
+    _require_exact_report_cells(
+        all_records, report_identity.preregistration_spec,
+    )
     performance_completeness = _performance_cell_completeness(
         performance_sources,
         observed_cells=len(all_records),
-        prereg=prereg,
+        spec=report_identity.preregistration_spec,
     )
     verification_completeness = _verification_completeness(
-        verification_sources, counts_by_workload, prereg,
+        verification_sources, counts_by_workload, report_identity,
     )
-    return all_records, performance_completeness, verification_completeness
+    return (
+        all_records, report_identity,
+        performance_completeness, verification_completeness,
+    )
 
 
 def _performance_cell_completeness(
     sources: Sequence[Mapping[str, object]],
     *,
     observed_cells: int,
-    prereg: Preregistration,
+    spec: PreregistrationSpec,
 ) -> dict[str, object]:
     return {
-        "expected_cells": len(prereg.spec.workload_map) * len(_expected_block_cells(prereg)),
+        "expected_cells": len(spec.workload_map) * len(_expected_block_cells(spec)),
         "observed_cells": observed_cells,
         "logical_key": ["workload", "block_id", "point"],
         "source_campaigns": list(sources),
@@ -3627,52 +4002,66 @@ def _performance_cell_completeness(
 def _write_reports(
     report_root: Path,
     *,
-    prereg: Preregistration,
-    calibration: CalibrationSelection,
+    identity: HistoricalReportIdentity,
+    analyzer: ReportAnalyzerIdentity,
     records: Sequence[Mapping[str, object]],
-    applied_evidence: Mapping[str, object],
     submission: SubmissionIdentity,
     performance_cell_completeness: Mapping[str, object],
     verification_slot_completeness: Mapping[str, object],
 ) -> tuple[Path, Path]:
-    verdict = judge(records, prereg.spec)
+    spec = identity.preregistration_spec
+    calibration = identity.calibration
+    verdict = judge(records, spec)
     provenance = {
-        "schema_version": "b10-backoff-shape-provenance/v2",
+        "schema_version": "b10-backoff-shape-provenance/v3",
         "official_certification": False,
-        "space_version": SPACE_VERSION,
-        "pin": PIN,
-        "preregistration": {
-            "path": prereg.path,
-            **prereg.binding.as_dict(),
-            "minimum_abort_calls": prereg.minimum_abort_calls,
-            "physical_residual_measurement": prereg.spec.physical_residual_measurement,
-            "maximum_absolute_deviation_pct_exclusive": (
-                prereg.maximum_absolute_deviation_pct_exclusive
-            ),
-            "physical_residual_values": [
-                {
-                    "shape": shape,
-                    "mean_us": mean_us,
-                    "realized_mean_cycles": realized,
-                    "commanded_mean_cycles": commanded,
-                    "deviation_pct": deviation,
-                }
-                for shape, mean_us, realized, commanded, deviation
-                in prereg.spec.physical_residual_values
-            ],
-            "equivalence_margin_pct": prereg.equivalence_margin_pct,
-            "spec": prereg.spec.as_dict(),
+        "measurement_identity": {
+            "space_version": identity.space_version,
+            "pin": identity.ccbench_commit,
+            "formula_sha256": identity.formula_sha256,
+            "patch_sha256": identity.patch_sha256,
+            "preregistration": {
+                "path": identity.preregistration_path,
+                "spec_sha256": spec.spec_sha256,
+                "minimum_abort_calls": spec.minimum_abort_calls,
+                "physical_residual_measurement": (
+                    spec.physical_residual_measurement
+                ),
+                "maximum_absolute_deviation_pct_exclusive": (
+                    spec.maximum_absolute_deviation_pct_exclusive
+                ),
+                "physical_residual_values": [
+                    {
+                        "shape": shape,
+                        "mean_us": mean_us,
+                        "realized_mean_cycles": realized,
+                        "commanded_mean_cycles": commanded,
+                        "deviation_pct": deviation,
+                    }
+                    for shape, mean_us, realized, commanded, deviation
+                    in spec.physical_residual_values
+                ],
+                "equivalence_margin_pct": spec.equivalence_margin_pct,
+                "spec": spec.as_dict(),
+                "series_bindings": {
+                    item.workload: {
+                        "campaign_id": item.campaign_id,
+                        "binding": dict(item.preregistration_binding),
+                        "contract_loader_commit": item.authority_commit,
+                    }
+                    for item in identity.series
+                },
+            },
+            "calibration": calibration.as_dict(),
         },
+        "report_analyzer": analyzer.as_dict(),
         "submission": dict(vars(submission)),
-        "calibration": calibration.as_dict(),
-        "formula": EXPECTED_HOLE_LINE,
-        "formula_sha256": FORMULA_SHA256,
         "block_run_order": {
-            block: list(order) for block, order in prereg.spec.block_orders
+            block: list(order) for block, order in spec.block_orders
         },
         "external_floor_reference_widths": {
-            "terminology": prereg.spec.reference_width_terminology,
-            "power_guarantee": prereg.spec.reference_width_power_guarantee,
+            "terminology": spec.reference_width_terminology,
+            "power_guarantee": spec.reference_width_power_guarantee,
             "values": [
                 {
                     "workload": workload,
@@ -3680,10 +4069,9 @@ def _write_reports(
                     "reference_width_pct": width,
                     "source_environment": source,
                 }
-                for workload, cv, width, source in prereg.spec.reference_widths
+                for workload, cv, width, source in spec.reference_widths
             ],
         },
-        "applied_tree": dict(applied_evidence),
         "performance_cell_completeness": dict(performance_cell_completeness),
         "verification_slot_completeness": dict(verification_slot_completeness),
         "records": list(records),
@@ -3698,19 +4086,29 @@ def _write_reports(
     lines = [
         "# B-10 backoff shape report", "",
         "- official certification: `false`",
-        f"- preregistration binding: `{prereg.binding.binding_sha256}`",
-        f"- preregistration spec SHA-256: `{prereg.spec.spec_sha256}`",
-        f"- analysis code: `{prereg.binding.analysis_commit}` / `{prereg.binding.analysis_code_sha256}`",
+        f"- measurement space: `{identity.space_version}`",
+        f"- measurement formula SHA-256: `{identity.formula_sha256}`",
+        f"- measurement patch SHA-256: `{identity.patch_sha256}`",
+        f"- preregistration spec SHA-256: `{spec.spec_sha256}`",
+        f"- report analyzer: `{analyzer.source_commit}` / `{analyzer.module_sha256}`",
         f"- submission request: `{submission.request_id}` (`{submission.receipt_sha256}`)",
         f"- records: `{calibration.records}` (calibration artifact)",
-        f"- exposure minimum: `{prereg.minimum_abort_calls}` abort/backoff calls per cell", "",
+        f"- exposure minimum: `{spec.minimum_abort_calls}` abort/backoff calls per cell",
+    ]
+    for item in identity.series:
+        lines.append(
+            f"- {item.workload} measurement binding: "
+            f"`{item.preregistration_binding['binding_sha256']}`"
+        )
+    lines.extend([
+        "",
         "## Performance cell completeness", "",
         f"- expected / observed: `{performance_cell_completeness['expected_cells']}` / "
         f"`{performance_cell_completeness['observed_cells']}`",
         "- the exact 135-cell gate does not prove that all three workload jobs terminated",
         "- job termination is guaranteed by submission sequencing after all three workload jobs terminate; "
         "there is no mechanical termination gate",
-    ]
+    ])
     for source in performance_cell_completeness["source_campaigns"]:
         lines.append(
             f"- {source['workload']}: `{source['campaign_id']}` "
@@ -3754,7 +4152,7 @@ def _write_reports(
         backoff_calls = row.get("backoff_call_count")
         exposed = (
             type(backoff_calls) is int
-            and backoff_calls >= prereg.minimum_abort_calls
+            and backoff_calls >= spec.minimum_abort_calls
         )
         lines.append(
             "| {workload} | {host} | {block_id} | {point} | {shape} | {mean} | {tps} | {cv} | "
@@ -3790,7 +4188,7 @@ def _write_reports(
             f"status={cell['status']}, equivalence={cell['equivalence_relation']}"
         )
     lines.extend(["", "## External-floor-derived reference widths", ""])
-    for workload, cv, width, source in prereg.spec.reference_widths:
+    for workload, cv, width, source in spec.reference_widths:
         lines.append(
             f"- {workload}: reference width={width:.4g}% (between-run CV={cv:.4g}%, "
             f"source={source}); this is not a power guarantee."
@@ -3931,8 +4329,63 @@ def run_formal(
             prereg_commit=prereg_commit,
             submission_receipt=submission_receipt,
         ), None, True
-    _require_binary_path_policy()
     root = _repo_root()
+
+    def formal_runtime():
+        pipeline._require_measurement_site("B10 formal campaign")
+        _site, contract, authorization = p2_2.resolve_site_runtime()
+        if contract.env_tag != ENV_TAG or contract.attestation_mode != "required":
+            raise PreflightError(
+                "site", "B10 formal run は registered Pegasus compute contract 専用",
+            )
+        resolved_output, durable_policy = _prepare_official_output(
+            contract.env_tag,
+        )
+        return contract, authorization, resolved_output, durable_policy
+
+    if phase == "report":
+        _require_report_prereg_commit(prereg_commit)
+        submission = load_submission_identity(
+            root, submission_receipt,
+            prereg_commit=prereg_commit, phase=phase, workload=workload,
+        )
+        analyzer = _load_current_analysis_identity(root)
+        resolved_output = resolve_campaign_output_root("official")
+
+        def report_layout(campaign_id: str) -> CampaignLayout:
+            return campaign_layout(campaign_id, resolved_output)
+
+        (
+            records, report_identity,
+            performance_completeness, verification_completeness,
+        ) = _collect_report_inputs(
+            resolved_output,
+            layout_for_campaign=report_layout,
+        )
+        spec = report_identity.preregistration_spec
+        calibration = report_identity.calibration
+        if calibration.env_tag != ENV_TAG \
+                or calibration.threads != spec.threads:
+            raise PreflightError(
+                "calibration", "歴史 calibration と locked spec が不一致",
+            )
+        validate_runtime_physical_residual(spec, calibration.clocks_per_us)
+        report_root = (
+            root / "output" / "env" / ENV_TAG / "b10-backoff-shape"
+            / spec.spec_sha256[:16] / "reports" / "final"
+        )
+        json_path, markdown_path = _write_reports(
+            report_root,
+            identity=report_identity,
+            analyzer=analyzer,
+            records=records,
+            submission=submission,
+            performance_cell_completeness=performance_completeness,
+            verification_slot_completeness=verification_completeness,
+        )
+        return json_path, markdown_path, True
+
+    _require_binary_path_policy()
     prereg = load_preregistration(root, prereg_commit)
     submission = load_submission_identity(
         root, submission_receipt,
@@ -3942,11 +4395,7 @@ def run_formal(
     patch_bytes = patch_path.read_bytes()
     validate_patch_bytes(patch_bytes, prereg.binding.patch_sha256)
 
-    pipeline._require_measurement_site("B10 formal campaign")
-    _site, contract, authorization = p2_2.resolve_site_runtime()
-    if contract.env_tag != ENV_TAG or contract.attestation_mode != "required":
-        raise PreflightError("site", "B10 formal run は registered Pegasus compute contract 専用")
-    resolved_output, durable_policy = _prepare_official_output(contract.env_tag)
+    contract, authorization, resolved_output, durable_policy = formal_runtime()
     calibration, _verified_calibration = load_calibration(contract, prereg.spec)
     validate_runtime_physical_residual(prereg.spec, calibration.clocks_per_us)
     p2_2._assert_single_tenant()
@@ -3966,36 +4415,6 @@ def run_formal(
             context = build_run_context(
                 generator_id=GeneratorId.BACKOFF_SWEEP,
             )
-
-            if phase == "report":
-                def report_layout(campaign_id: str) -> CampaignLayout:
-                    return campaign_layout(campaign_id, resolved_output)
-
-                records, performance_completeness, verification_completeness = (
-                    _collect_report_inputs(
-                        resolved_output,
-                        prereg=prereg,
-                        calibration=calibration,
-                        context=context,
-                        contract=contract,
-                        layout_for_campaign=report_layout,
-                    )
-                )
-                report_root = (
-                    root / "output" / "env" / ENV_TAG / "b10-backoff-shape"
-                    / prereg.binding.binding_sha256[:16] / "reports" / "final"
-                )
-                json_path, markdown_path = _write_reports(
-                    report_root,
-                    prereg=prereg,
-                    calibration=calibration,
-                    records=records,
-                    applied_evidence=applied_evidence,
-                    submission=submission,
-                    performance_cell_completeness=performance_completeness,
-                    verification_slot_completeness=verification_completeness,
-                )
-                return json_path, markdown_path, True
 
             if phase == "build":
                 for cache_workload in WORKLOADS:
@@ -4231,7 +4650,7 @@ def run_formal(
                 )
                 return trial_report, None, execution_complete
             _require_exact_workload_cells(
-                current_indexed, prereg=prereg, workload=workload,
+                current_indexed, spec=prereg.spec, workload=workload,
             )
             execution_complete = all(
                 row.get("correctness_certified") is True

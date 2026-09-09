@@ -10,17 +10,22 @@ from pathlib import Path
 import pytest
 
 from orchestrator.campaign import reflux_origin_ledger as ledger
+from orchestrator.campaign import reflux_origin_binding as origin_binding
 from orchestrator.campaign import reflux_result_evidence as evidence
+from orchestrator.campaign import env_attestation, env_contract, execution_guard
+from orchestrator.campaign import trigger_gate_binding
 from orchestrator.campaign import wal
 from orchestrator.campaign.layout import CampaignLayout
 from orchestrator.campaign.model import (
     STAGE_ABORT,
+    STAGE_BUILD_DONE,
     STAGE_BUILD_START,
     STAGE_COMMIT,
     STAGE_VERIFY_DONE,
 )
 from orchestrator.tests.reflux_origin_fixture_builder import (
     build_execution_provenance,
+    build_launch_admission_inputs,
     build_ordered_wal_projection,
     build_result_evidence_record,
 )
@@ -34,6 +39,7 @@ _OUTER_SALTED_COMMITMENT_GOLDEN = "b9e20f457bec0bb2ed7e866c7bd175cee9fba8779a96f
 _WRONG_DOMAIN_PREFIXED_RAW_GOLDEN = "610867ca65d585909812e468368f931a76fdf0a7faca488a0a294554ed97735f"
 _SALT = "0123456789abcdef0123456789abcdef"
 _FIXTURE_ROOT = Path(__file__).with_name("fixtures")
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 _BUILD_ATTEMPT_ID = "producer-build-attempt-0000"
 _ORDERED_VERIFIERS = ("legacy", "s2")
 
@@ -226,6 +232,203 @@ def _rewrite_provenance(root: Path, record: dict, provenance: dict) -> None:
     path = root / record["evidence"]["execution_provenance_ref"]["path"]
     path.write_bytes(raw)
     record["evidence"]["execution_provenance_ref"]["sha256"] = _sha(raw)
+
+
+def _issued_origin_capability(
+    contract_sha256: str,
+) -> origin_binding.OriginBindingCapability:
+    raw = build_launch_admission_inputs(
+        environment_contract_sha256=contract_sha256,
+    )
+    seal = object()
+    capability = origin_binding.OriginBindingCapability(
+        authority_blob_sha256=raw["authority_blob_sha256"],
+        source_closure_sha256=raw["source_closure_sha256"],
+        origin_id=raw["origin_id"],
+        cell_key=raw["cell_key"],
+        authority_workload=origin_binding.AuthorityWorkload(
+            **raw["authority_workload"]
+        ),
+        axis_semantics_sha256=raw["axis_semantics_sha256"],
+        verifier_policy_sha256=raw["verifier_policy_sha256"],
+        environment_contract_sha256=raw["environment_contract_sha256"],
+        campaign_id=raw["campaign_id"],
+        trial_workload=raw["trial_workload"],
+        measurement_head=raw["measurement_head"],
+        store_scope=raw["store_scope"],
+        enforcement_arm="fixture-enforced",
+        arm_binding_digest_sha256="d" * 64,
+        _seal=seal,
+    )
+    origin_binding._ISSUED_CAPABILITY_FIELDS[seal] = (
+        origin_binding._capability_fields(capability)
+    )
+    return capability
+
+
+def _producer_context(
+    evidence_root: Path,
+    *,
+    contract: env_contract.ExecutionEnvironmentContract | None = None,
+    verified_calibration: object | None = None,
+) -> evidence.ResultEvidenceIssuanceContext:
+    contract = contract or env_contract.authorize("linux-baremetal").contract
+    fixture_record = build_result_evidence_record(
+        origin_binding__environment_contract_sha256=contract.contract_sha256,
+    )
+    capability = _issued_origin_capability(contract.contract_sha256)
+    assert fixture_record["origin_binding"] == {
+        "authority_blob_sha256": capability.authority_blob_sha256,
+        "source_closure_sha256": capability.source_closure_sha256,
+        "origin_id": capability.origin_id,
+        "cell_key": capability.cell_key,
+        "workload": capability.trial_workload,
+        "axis_semantics_sha256": capability.axis_semantics_sha256,
+        "verifier_policy_sha256": capability.verifier_policy_sha256,
+        "environment_contract_sha256": capability.environment_contract_sha256,
+    }
+    member = fixture_record["ledger_member"]
+    return evidence.ResultEvidenceIssuanceContext(
+        origin_capability=capability,
+        evidence_root=evidence_root,
+        batch_id=member["batch_id"],
+        query_ordinal=member["query_ordinal"],
+        iteration_index=member["iteration_index"],
+        replicate_ordinal=member["replicate_ordinal"],
+        p6_plan=fixture_record["p6_plan"],
+        trial_binding=fixture_record["trial_binding"],
+        origin_binding=fixture_record["origin_binding"],
+        ordered_verifiers=_ORDERED_VERIFIERS,
+        expected_record_path=evidence.result_evidence_relative_path(
+            fixture_record
+        ).as_posix(),
+        env_tag=contract.env_tag,
+        attestation_mode=contract.attestation_mode,
+        verified_calibration=verified_calibration,
+    )
+
+
+def _producer_layout(evidence_root: Path) -> CampaignLayout:
+    return CampaignLayout(
+        root=os.fspath(evidence_root / "campaigns" / "fixture-physical-run")
+    ).ensure()
+
+
+def _producer_binding() -> trigger_gate_binding.TriggerGateBinding:
+    mask = 7
+    return trigger_gate_binding.TriggerGateBinding(
+        mask=mask,
+        predicate_sha256=trigger_gate_binding.expected_predicate_sha256(mask),
+        nonce="a" * 64,
+        source=None,
+    )
+
+
+def _log_producer_attempt(
+    layout: CampaignLayout,
+    *,
+    build_attempt_id: str,
+    result: VerifyResult,
+    first_ts: int,
+) -> None:
+    binding = _producer_binding()
+    wal.log(
+        layout,
+        "fixture-v",
+        trigger_gate_binding.WAL_RECORD_STAGE,
+        "fixture-env",
+        {
+            "build_attempt_id": build_attempt_id,
+            wal.TRIGGER_BINDING_PAYLOAD_KEY: trigger_gate_binding.to_record(binding),
+        },
+        ts=first_ts,
+    )
+    for offset, stage in enumerate(
+        (STAGE_BUILD_START, STAGE_BUILD_DONE, STAGE_VERIFY_DONE), start=1
+    ):
+        wal.log(
+            layout,
+            "fixture-v",
+            stage,
+            "fixture-env",
+            {"build_attempt_id": build_attempt_id},
+            ts=first_ts + offset,
+        )
+    terminal = _abort_terminal(result)
+    terminal["payload"]["build_attempt_id"] = build_attempt_id
+    wal.log(
+        layout,
+        terminal["variant"],
+        terminal["stage"],
+        terminal["env_tag"],
+        terminal["payload"],
+        ts=first_ts + 4,
+    )
+
+
+def _execution_receipt() -> dict:
+    contract = env_contract.authorize("linux-baremetal").contract
+    return execution_guard.build_receipt(contract)
+
+
+def _required_execution_inputs() -> tuple[
+    env_contract.ExecutionEnvironmentContract,
+    env_attestation.VerifiedCalibration,
+    dict,
+]:
+    contract = env_contract.GENERATIONS["pegasus"][0].contract
+    verified = env_attestation.load_verified_calibration(contract, _REPO_ROOT)
+    expected = env_attestation.profile_to_dict(verified.attestation_profile)
+    clock_samples = expected["effective_clock"]["samples_mhz"]
+    median_clock = sorted(clock_samples)[len(clock_samples) // 2]
+    expected["effective_clock"]["samples_mhz"] = [
+        median_clock for _sample in clock_samples
+    ]
+    del expected["effective_clock"]["tolerance_pct"]
+    observed = env_attestation.normalize_observed_profile(expected)
+    receipt = execution_guard.attest_and_build_receipt(
+        contract,
+        verified,
+        probe_fn=lambda: observed,
+        now_fn=lambda: "2026-09-09T00:00:00Z",
+    )
+    return contract, verified, receipt
+
+
+def _issue_producer_record(
+    *,
+    layout: CampaignLayout,
+    context: evidence.ResultEvidenceIssuanceContext,
+    build_attempt_id: str,
+    verify_result: object | None,
+    execution_receipt: object | None,
+    environment_contract: env_contract.ExecutionEnvironmentContract | None = None,
+) -> Path:
+    capability = context.origin_capability
+    assert type(capability) is origin_binding.OriginBindingCapability
+    contract = (
+        environment_contract
+        if environment_contract is not None
+        else env_contract.authorize("linux-baremetal").contract
+    )
+    return evidence.issue_campaign_result_evidence(
+        layout=layout,
+        context=context,
+        build_attempt_id=build_attempt_id,
+        verify_result=verify_result,
+        campaign_run_identity="fixture-run-00000000",
+        campaign_id=capability.campaign_id,
+        environment_contract=contract,
+        execution_receipt=execution_receipt,
+    )
+
+
+def _file_snapshot(root: Path) -> dict[str, bytes]:
+    return {
+        path.relative_to(root).as_posix(): path.read_bytes()
+        for path in root.rglob("*")
+        if path.is_file()
+    }
 
 
 def test_exact_nine_key_schema_and_nested_cardinalities():
@@ -915,3 +1118,482 @@ def test_formal_consumer_contract_issuer_writes_nine_keys_create_only(
     assert parsed == assembled
     with pytest.raises(evidence.ResultEvidenceError):
         evidence.issue_result_evidence_record(evidence_root=root, record=assembled)
+
+
+def test_campaign_producer_issues_real_wal_projection_and_resolves_interval(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "evidence"
+    root.mkdir()
+    layout = _producer_layout(root)
+    context = _producer_context(root)
+    result = _verify_fixture(tmp_path, "r9_dense_cycle4")
+    attempt = "producer-attempt-one"
+    _log_producer_attempt(
+        layout, build_attempt_id=attempt, result=result, first_ts=10
+    )
+    frames = wal.ordered_attempt_frames(layout, attempt)
+    terminal_prefix = Path(layout.wal_file).read_bytes()[:frames[-1].byte_end]
+
+    record_path = _issue_producer_record(
+        layout=layout,
+        context=context,
+        build_attempt_id=attempt,
+        verify_result=result,
+        execution_receipt=_execution_receipt(),
+    )
+    record = evidence.parse_result_evidence_bytes(record_path.read_bytes())
+    resolved = evidence.resolve_result_evidence(record, evidence_root=root)
+
+    assert record_path.relative_to(root).as_posix() == context.expected_record_path
+    assert resolved.ordered_wal.byte_start == frames[0].byte_start == 0
+    assert resolved.ordered_wal.byte_end == frames[-1].byte_end
+    assert (
+        resolved.ordered_wal.source_wal_ref.raw_bytes[
+            resolved.ordered_wal.byte_start:resolved.ordered_wal.byte_end
+        ]
+        == b"".join(frame.raw_bytes for frame in frames)
+    )
+    assert resolved.ordered_wal.source_wal_ref.raw_bytes == terminal_prefix
+    assert [item["stage"] for item in resolved.ordered_wal.records] == [
+        trigger_gate_binding.WAL_RECORD_STAGE,
+        STAGE_BUILD_START,
+        STAGE_BUILD_DONE,
+        STAGE_VERIFY_DONE,
+        STAGE_ABORT,
+    ]
+    assert set(resolved.execution_provenance) == {
+        "schema_version",
+        "build_attempt_id",
+        "campaign_id",
+        "workload",
+        "contract_sha256",
+        "trigger_binding",
+        "execution_receipt_sha256",
+        "campaign_run_identity",
+    }
+    content_prefix = Path("reports/reflux-result-evidence-content/v1")
+    physical_root = Path(layout.root)
+    assert resolved.ordered_wal.projection_ref.normalized_path.relative_to(
+        physical_root
+    ).parent == content_prefix / "ordered-wal"
+    assert resolved.ordered_wal.source_wal_ref.normalized_path.relative_to(
+        physical_root
+    ).parent == content_prefix / "source-wal"
+    assert resolved.execution_provenance_ref.normalized_path.relative_to(
+        physical_root
+    ).parent == content_prefix / "execution-provenance"
+
+
+def test_campaign_producer_preserves_nonzero_offset_for_second_attempt(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "evidence"
+    root.mkdir()
+    layout = _producer_layout(root)
+    context = _producer_context(root)
+    result = _verify_fixture(tmp_path, "r9_dense_cycle4")
+    _log_producer_attempt(
+        layout,
+        build_attempt_id="producer-attempt-previous",
+        result=result,
+        first_ts=10,
+    )
+    attempt = "producer-attempt-second"
+    _log_producer_attempt(
+        layout, build_attempt_id=attempt, result=result, first_ts=20
+    )
+    frames = wal.ordered_attempt_frames(layout, attempt)
+    assert frames[0].byte_start > 0
+
+    record_path = _issue_producer_record(
+        layout=layout,
+        context=context,
+        build_attempt_id=attempt,
+        verify_result=result,
+        execution_receipt=_execution_receipt(),
+    )
+    record = evidence.parse_result_evidence_bytes(record_path.read_bytes())
+    resolved = evidence.resolve_result_evidence(record, evidence_root=root)
+    assert resolved.ordered_wal.byte_start == frames[0].byte_start > 0
+    assert resolved.ordered_wal.byte_end == frames[-1].byte_end
+    assert (
+        resolved.ordered_wal.source_wal_ref.raw_bytes[
+            frames[0].byte_start:frames[-1].byte_end
+        ]
+        == b"".join(frame.raw_bytes for frame in frames)
+    )
+
+
+def test_campaign_producer_refuses_absent_execution_receipt_before_writes(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "evidence"
+    root.mkdir()
+    layout = _producer_layout(root)
+    context = _producer_context(root)
+    result = _verify_fixture(tmp_path, "r9_dense_cycle4")
+    attempt = "producer-attempt-no-receipt"
+    _log_producer_attempt(
+        layout, build_attempt_id=attempt, result=result, first_ts=10
+    )
+    before = _file_snapshot(root)
+
+    with pytest.raises(evidence.ResultEvidenceIssuanceRefused):
+        _issue_producer_record(
+            layout=layout,
+            context=context,
+            build_attempt_id=attempt,
+            verify_result=result,
+            execution_receipt=None,
+        )
+    assert _file_snapshot(root) == before
+
+
+def test_campaign_producer_refuses_required_contract_v1_receipt_before_writes(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "evidence"
+    root.mkdir()
+    layout = _producer_layout(root)
+    contract, verified, _valid_v2_receipt = _required_execution_inputs()
+    context = _producer_context(
+        root,
+        contract=contract,
+        verified_calibration=verified,
+    )
+    result = _verify_fixture(tmp_path, "r9_dense_cycle4")
+    attempt = "producer-attempt-required-v1-receipt"
+    _log_producer_attempt(
+        layout, build_attempt_id=attempt, result=result, first_ts=10
+    )
+    before = _file_snapshot(root)
+
+    with pytest.raises(
+        evidence.ResultEvidenceIssuanceRefused,
+        match="execution receipt is absent or does not match",
+    ):
+        _issue_producer_record(
+            layout=layout,
+            context=context,
+            build_attempt_id=attempt,
+            verify_result=result,
+            execution_receipt=execution_guard.build_receipt(contract),
+            environment_contract=contract,
+        )
+    assert _file_snapshot(root) == before
+
+
+def test_campaign_producer_refuses_contract_not_bound_by_capability_before_writes(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "evidence"
+    root.mkdir()
+    layout = _producer_layout(root)
+    contract = env_contract.authorize("linux-baremetal").contract
+    context = _producer_context(root, contract=contract)
+    mismatched_contract = replace(
+        contract, clocks_per_us=contract.clocks_per_us + 1
+    )
+    result = _verify_fixture(tmp_path, "r9_dense_cycle4")
+    attempt = "producer-attempt-contract-mismatch"
+    _log_producer_attempt(
+        layout, build_attempt_id=attempt, result=result, first_ts=10
+    )
+    before = _file_snapshot(root)
+
+    with pytest.raises(
+        evidence.ResultEvidenceIssuanceRefused,
+        match="environment contract differs from the origin capability",
+    ):
+        _issue_producer_record(
+            layout=layout,
+            context=context,
+            build_attempt_id=attempt,
+            verify_result=result,
+            execution_receipt=execution_guard.build_receipt(
+                mismatched_contract
+            ),
+            environment_contract=mismatched_contract,
+        )
+    assert _file_snapshot(root) == before
+
+
+def test_campaign_producer_refuses_required_contract_without_verified_calibration(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "evidence"
+    root.mkdir()
+    layout = _producer_layout(root)
+    contract, _verified, valid_v2_receipt = _required_execution_inputs()
+    context = _producer_context(root, contract=contract)
+    result = _verify_fixture(tmp_path, "r9_dense_cycle4")
+    attempt = "producer-attempt-required-without-calibration"
+    _log_producer_attempt(
+        layout, build_attempt_id=attempt, result=result, first_ts=10
+    )
+    before = _file_snapshot(root)
+
+    with pytest.raises(
+        evidence.ResultEvidenceIssuanceRefused,
+        match="required environment contract lacks verified calibration",
+    ):
+        _issue_producer_record(
+            layout=layout,
+            context=context,
+            build_attempt_id=attempt,
+            verify_result=result,
+            execution_receipt=valid_v2_receipt,
+            environment_contract=contract,
+        )
+    assert _file_snapshot(root) == before
+
+
+@pytest.mark.parametrize(
+    "mismatch",
+    ("schema", "env_tag", "attestation_mode"),
+)
+def test_campaign_producer_refuses_unauthenticated_receipt_before_writes(
+    tmp_path: Path,
+    mismatch: str,
+) -> None:
+    root = tmp_path / "evidence"
+    root.mkdir()
+    layout = _producer_layout(root)
+    context = _producer_context(root)
+    result = _verify_fixture(tmp_path, "r9_dense_cycle4")
+    attempt = f"producer-attempt-invalid-receipt-{mismatch}"
+    _log_producer_attempt(
+        layout, build_attempt_id=attempt, result=result, first_ts=10
+    )
+    receipt = _execution_receipt()
+    checked_context = context
+    if mismatch == "schema":
+        receipt["schema"] = "fixture-execution-receipt/v1"
+    elif mismatch == "env_tag":
+        receipt["env_tag"] = "different-env"
+    else:
+        checked_context = replace(context, attestation_mode="required")
+    before = _file_snapshot(root)
+
+    with pytest.raises(evidence.ResultEvidenceIssuanceRefused):
+        _issue_producer_record(
+            layout=layout,
+            context=checked_context,
+            build_attempt_id=attempt,
+            verify_result=result,
+            execution_receipt=receipt,
+        )
+    assert _file_snapshot(root) == before
+
+
+def test_campaign_producer_refuses_interleaved_attempt_before_writes(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "evidence"
+    root.mkdir()
+    layout = _producer_layout(root)
+    context = _producer_context(root)
+    result = _verify_fixture(tmp_path, "r9_dense_cycle4")
+    attempt = "producer-attempt-interleaved"
+    binding = _producer_binding()
+    wal.log(
+        layout,
+        "fixture-v",
+        trigger_gate_binding.WAL_RECORD_STAGE,
+        "fixture-env",
+        {
+            "build_attempt_id": attempt,
+            wal.TRIGGER_BINDING_PAYLOAD_KEY: trigger_gate_binding.to_record(binding),
+        },
+        ts=10,
+    )
+    wal.log(
+        layout,
+        "fixture-v",
+        STAGE_BUILD_START,
+        "fixture-env",
+        {"build_attempt_id": attempt},
+        ts=11,
+    )
+    wal.log(
+        layout,
+        "other-v",
+        STAGE_BUILD_START,
+        "fixture-env",
+        {"build_attempt_id": "producer-attempt-other"},
+        ts=12,
+    )
+    for timestamp, stage in (
+        (13, STAGE_BUILD_DONE),
+        (14, STAGE_VERIFY_DONE),
+    ):
+        wal.log(
+            layout,
+            "fixture-v",
+            stage,
+            "fixture-env",
+            {"build_attempt_id": attempt},
+            ts=timestamp,
+        )
+    terminal = _abort_terminal(result)
+    terminal["payload"]["build_attempt_id"] = attempt
+    wal.log(
+        layout,
+        terminal["variant"],
+        terminal["stage"],
+        terminal["env_tag"],
+        terminal["payload"],
+        ts=15,
+    )
+    before = _file_snapshot(root)
+
+    with pytest.raises(evidence.ResultEvidenceIssuanceRefused):
+        _issue_producer_record(
+            layout=layout,
+            context=context,
+            build_attempt_id=attempt,
+            verify_result=result,
+            execution_receipt=_execution_receipt(),
+        )
+    assert _file_snapshot(root) == before
+
+
+def test_campaign_producer_refuses_nonexact_verify_result_before_writes(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "evidence"
+    root.mkdir()
+    layout = _producer_layout(root)
+    context = _producer_context(root)
+    result = _verify_fixture(tmp_path, "r9_dense_cycle4")
+    attempt = "producer-attempt-untyped"
+    _log_producer_attempt(
+        layout, build_attempt_id=attempt, result=result, first_ts=10
+    )
+    before = _file_snapshot(root)
+
+    with pytest.raises(evidence.ResultEvidenceIssuanceRefused):
+        _issue_producer_record(
+            layout=layout,
+            context=context,
+            build_attempt_id=attempt,
+            verify_result=_verify_snapshot(result),
+            execution_receipt=_execution_receipt(),
+        )
+    assert _file_snapshot(root) == before
+
+
+def test_campaign_producer_refuses_wrong_expected_record_path_before_writes(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "evidence"
+    root.mkdir()
+    layout = _producer_layout(root)
+    context = _producer_context(root)
+    wrong_context = replace(
+        context,
+        expected_record_path="reports/reflux-result-evidence/v1/wrong.json",
+    )
+    result = _verify_fixture(tmp_path, "r9_dense_cycle4")
+    attempt = "producer-attempt-wrong-record-path"
+    _log_producer_attempt(
+        layout, build_attempt_id=attempt, result=result, first_ts=10
+    )
+    before = _file_snapshot(root)
+
+    with pytest.raises(
+        evidence.ResultEvidenceError,
+        match="record path differs from the issuance context",
+    ):
+        _issue_producer_record(
+            layout=layout,
+            context=wrong_context,
+            build_attempt_id=attempt,
+            verify_result=result,
+            execution_receipt=_execution_receipt(),
+        )
+    assert _file_snapshot(root) == before
+
+
+def test_campaign_producer_treats_create_only_collision_as_failure(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "evidence"
+    root.mkdir()
+    layout = _producer_layout(root)
+    context = _producer_context(root)
+    result = _verify_fixture(tmp_path, "r9_dense_cycle4")
+    attempt = "producer-attempt-collision"
+    _log_producer_attempt(
+        layout, build_attempt_id=attempt, result=result, first_ts=10
+    )
+    receipt = _execution_receipt()
+    _issue_producer_record(
+        layout=layout,
+        context=context,
+        build_attempt_id=attempt,
+        verify_result=result,
+        execution_receipt=receipt,
+    )
+
+    with pytest.raises(evidence.ResultEvidenceError) as caught:
+        _issue_producer_record(
+            layout=layout,
+            context=context,
+            build_attempt_id=attempt,
+            verify_result=result,
+            execution_receipt=receipt,
+        )
+    causes = []
+    current = caught.value
+    while current is not None:
+        causes.append(current)
+        current = current.__cause__
+    assert any(type(item) is FileExistsError for item in causes)
+
+
+def test_campaign_producer_snapshot_survives_append_while_live_ref_breaks(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "evidence"
+    root.mkdir()
+    layout = _producer_layout(root)
+    context = _producer_context(root)
+    result = _verify_fixture(tmp_path, "r9_dense_cycle4")
+    attempt = "producer-attempt-before-append"
+    _log_producer_attempt(
+        layout, build_attempt_id=attempt, result=result, first_ts=10
+    )
+    wal_before_append = Path(layout.wal_file).read_bytes()
+    record_path = _issue_producer_record(
+        layout=layout,
+        context=context,
+        build_attempt_id=attempt,
+        verify_result=result,
+        execution_receipt=_execution_receipt(),
+    )
+    record = evidence.parse_result_evidence_bytes(record_path.read_bytes())
+
+    wal.log(
+        layout,
+        "later-v",
+        STAGE_BUILD_START,
+        "fixture-env",
+        {"build_attempt_id": "producer-attempt-later"},
+        ts=100,
+    )
+    live_wal_ref = {
+        "path": Path(layout.wal_file).relative_to(root).as_posix(),
+        "sha256": _sha(wal_before_append),
+    }
+    with pytest.raises(evidence.ResultEvidenceError):
+        evidence.resolve_content_addressed_ref(
+            evidence_root=root, reference=live_wal_ref
+        )
+
+    resolved = evidence.resolve_result_evidence(record, evidence_root=root)
+    assert resolved.ordered_wal.source_wal_ref.raw_bytes == wal_before_append
+    assert resolved.ordered_wal.source_wal_ref.normalized_path != Path(
+        layout.wal_file
+    )

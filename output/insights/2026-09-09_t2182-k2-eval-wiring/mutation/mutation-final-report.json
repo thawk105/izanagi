@@ -1,0 +1,450 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2182-k2-eval-wiring/output/pegasus-dispatch/61693e9df9bc8fb3618ed41273e27616/izdw-61693e9df9.o986380",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2182-k2-eval-wiring/output/pegasus-dispatch/61693e9df9bc8fb3618ed41273e27616/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2182-k2-eval-wiring\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [6 items]\n\n......                                                                   [100%]\n============================== 6 passed in 5.36s ===============================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "bdad3f5e87a121e71bbfba3ecc7f011fc8d542b14153893cfbfbcda0051ffa20"
+    },
+    "artifact_error": null,
+    "collection_sha256": "abd8c69a62d0c6d2f87ebe9b531e2f0c61f811905dbdaff07580a14c5783c3db",
+    "duration_s": 27.526,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "9ddf7d3b86685711dc08b3a8ae8a33a7b7b5f8ae2221db51b00ea22e2d3dacbc",
+    "repo_head": "d78a1324eb55bc66f9a1a4d7b1014e75986f5aa1",
+    "runner_sha256": "001beccb7d6b2eb1f2f889cbfbb7efe5d7db835aac3aa3c7ffca351094998233",
+    "spec_sha256": "44beb98f45ee6a8557fc35b6bfd463c0df0c9fc74f33bc08a595bfbb8feb7404",
+    "status": "PASSED",
+    "test_output_sha256": "bdad3f5e87a121e71bbfba3ecc7f011fc8d542b14153893cfbfbcda0051ffa20",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "8ffe33dbb5d1a2ace628ffd4e8c8df3d90370b8eb313203720e0fc3e22f2891f"
+  },
+  "date": "2026-09-08T17:54:35.028839+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2182-k2-eval-wiring/output/pegasus-dispatch/9967b9091c2c3118aaf8970b501ddb02/izdw-9967b9091c.o986385",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2182-k2-eval-wiring/output/pegasus-dispatch/9967b9091c2c3118aaf8970b501ddb02/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2182-k2-eval-wiring\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [6 items]\n\n...FF.                                                                   [100%]\n=================================== FAILURES ===================================\n____ test_prebuild_offline_tokens_reach_real_condition_gate_configure_argv _____\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_prebuild_offline_tokens_r0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14ce93198e20>\n\n    def test_prebuild_offline_tokens_reach_real_condition_gate_configure_argv(\n        tmp_path, monkeypatch,\n    ):\n        from orchestrator.campaign import buildcache\n    \n        dependency_prefix = str((tmp_path / \"dependency-prefix\").resolve())\n        actual_argv, source_root, prebuild_options = (\n            _observe_iteration_condition_gate_configure_argv(\n                tmp_path,\n                monkeypatch,\n                dependency_prefix=dependency_prefix,\n                with_prebuild=True,\n            )\n        )\n        genome = Genome(\"silo\", {\n            **L._BASE, \"BACK_OFF\": 1, \"BACKOFF_FIXED\": 20,\n        })\n        toolchain = {\n            role: {\"realpath\": f\"/test/{role}\"}\n            for role in (\"cc\", \"cxx\", \"cmake\")\n        }\n        campaign_argv, _build_argv = buildcache._v2_commands(\n            genome, False, str(source_root), str(tmp_path / \"campaign-build\"),\n            toolchain, jobs=1,\n            dependency_prefix=dependency_prefix,\n            fetchcontent_base_dir=prebuild_options[\"fetchcontent_base_dir\"],\n            masstree_source_dir=prebuild_options[\"masstree_source_dir\"],\n            mimalloc_source_dir=prebuild_options[\"mimalloc_source_dir\"],\n            googletest_source_dir=prebuild_options[\"googletest_source_dir\"],\n        )\n        condition_tokens = _offline_configure_tokens(actual_argv)\n>       assert condition_tokens == _offline_configure_tokens(campaign_argv)\nE       AssertionError: assert ('-DCMAKE_PRE..._r0/prebuild') == ('-DCMAKE_PRE...ogletest-src')\nE         \nE         Right contains 3 more items, first extra item: '-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_prebuild_offline_tokens_r0/prebuild/masstree-src'\nE         Use -v to get more diff\n\norchestrator/tests/test_p3_s4_loop.py:7884: AssertionError\n_ test_prebuild_offline_tokens_without_dependency_prefix_match_production_shape _\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_prebuild_offline_tokens_w0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14a6a9645390>\n\n    def test_prebuild_offline_tokens_without_dependency_prefix_match_production_shape(\n        tmp_path, monkeypatch,\n    ):\n        from orchestrator.campaign import buildcache\n    \n        actual_argv, source_root, prebuild_options = (\n            _observe_iteration_condition_gate_configure_argv(\n                tmp_path,\n                monkeypatch,\n                dependency_prefix=\"\",\n                with_prebuild=True,\n            )\n        )\n        genome = Genome(\"silo\", {\n            **L._BASE, \"BACK_OFF\": 1, \"BACKOFF_FIXED\": 20,\n        })\n        toolchain = {\n            role: {\"realpath\": f\"/test/{role}\"}\n            for role in (\"cc\", \"cxx\", \"cmake\")\n        }\n        campaign_argv, _build_argv = buildcache._v2_commands(\n            genome, False, str(source_root), str(tmp_path / \"campaign-build\"),\n            toolchain, jobs=1,\n            fetchcontent_base_dir=prebuild_options[\"fetchcontent_base_dir\"],\n            masstree_source_dir=prebuild_options[\"masstree_source_dir\"],\n            mimalloc_source_dir=prebuild_options[\"mimalloc_source_dir\"],\n            googletest_source_dir=prebuild_options[\"googletest_source_dir\"],\n        )\n        condition_tokens = _offline_configure_tokens(actual_argv)\n>       assert condition_tokens == _offline_configure_tokens(campaign_argv)\nE       AssertionError: assert ('-DFETCHCONT...w0/prebuild',) == ('-DFETCHCONT...ogletest-src')\nE         \nE         Right contains 3 more items, first extra item: '-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_prebuild_offline_tokens_w0/prebuild/masstree-src'\nE         Use -v to get more diff\n\norchestrator/tests/test_p3_s4_loop.py:7921: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_s4_loop.py::test_prebuild_offline_tokens_reach_real_condition_gate_configure_argv\nFAILED orchestrator/tests/test_p3_s4_loop.py::test_prebuild_offline_tokens_without_dependency_prefix_match_production_shape\n========================= 2 failed, 4 passed in 5.38s ==========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop.py::test_prebuild_offline_tokens_reach_real_condition_gate_configure_argv\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=2045 retained_bytes=2045 omitted_bytes=0 rendered_excerpt_bytes=2132 sha256=626fbbe3b48a47dab8d7db0dc734e3eb2f7e3533860dc287d3c5b03b3cbcd43e\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_prebuild_offline_tokens_r0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14ce93198e20>\n> \n>     def test_prebuild_offline_tokens_reach_real_condition_gate_configure_argv(\n>         tmp_path, monkeypatch,\n>     ):\n>         from orchestrator.campaign import buildcache\n>     \n>         dependency_prefix = str((tmp_path / \"dependency-prefix\").resolve())\n>         actual_argv, source_root, prebuild_options = (\n>             _observe_iteration_condition_gate_configure_argv(\n>                 tmp_path,\n>                 monkeypatch,\n>                 dependency_prefix=dependency_prefix,\n>                 with_prebuild=True,\n>             )\n>         )\n>         genome = Genome(\"silo\", {\n>             **L._BASE, \"BACK_OFF\": 1, \"BACKOFF_FIXED\": 20,\n>         })\n>         toolchain = {\n>             role: {\"realpath\": f\"/test/{role}\"}\n>             for role in (\"cc\", \"cxx\", \"cmake\")\n>         }\n>         campaign_argv, _build_argv = buildcache._v2_commands(\n>             genome, False, str(source_root), str(tmp_path / \"campaign-build\"),\n>             toolchain, jobs=1,\n>             dependency_prefix=dependency_prefix,\n>             fetchcontent_base_dir=prebuild_options[\"fetchcontent_base_dir\"],\n>             masstree_source_dir=prebuild_options[\"masstree_source_dir\"],\n>             mimalloc_source_dir=prebuild_options[\"mimalloc_source_dir\"],\n>             googletest_source_dir=prebuild_options[\"googletest_source_dir\"],\n>         )\n>         condition_tokens = _offline_configure_tokens(actual_argv)\n> >       assert condition_tokens == _offline_configure_tokens(campaign_argv)\n> E       AssertionError: assert ('-DCMAKE_PRE..._r0/prebuild') == ('-DCMAKE_PRE...ogletest-src')\n> E         \n> E         Right contains 3 more items, first extra item: '-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_prebuild_offline_tokens_r0/prebuild/masstree-src'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_p3_s4_loop.py:7884: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop.py::test_prebuild_offline_tokens_without_dependency_prefix_match_production_shape\" nodeid_bytes=116 nodeid_omitted_bytes=0 source_bytes=1913 retained_bytes=1913 omitted_bytes=0 rendered_excerpt_bytes=1996 sha256=213b0719080e493c039ee3c4369f83a80aa96ea8b773f9a1609da1ee8c50b5f5\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_prebuild_offline_tokens_w0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14a6a9645390>\n> \n>     def test_prebuild_offline_tokens_without_dependency_prefix_match_production_shape(\n>         tmp_path, monkeypatch,\n>     ):\n>         from orchestrator.campaign import buildcache\n>     \n>         actual_argv, source_root, prebuild_options = (\n>             _observe_iteration_condition_gate_configure_argv(\n>                 tmp_path,\n>                 monkeypatch,\n>                 dependency_prefix=\"\",\n>                 with_prebuild=True,\n>             )\n>         )\n>         genome = Genome(\"silo\", {\n>             **L._BASE, \"BACK_OFF\": 1, \"BACKOFF_FIXED\": 20,\n>         })\n>         toolchain = {\n>             role: {\"realpath\": f\"/test/{role}\"}\n>             for role in (\"cc\", \"cxx\", \"cmake\")\n>         }\n>         campaign_argv, _build_argv = buildcache._v2_commands(\n>             genome, False, str(source_root), str(tmp_path / \"campaign-build\"),\n>             toolchain, jobs=1,\n>             fetchcontent_base_dir=prebuild_options[\"fetchcontent_base_dir\"],\n>             masstree_source_dir=prebuild_options[\"masstree_source_dir\"],\n>             mimalloc_source_dir=prebuild_options[\"mimalloc_source_dir\"],\n>             googletest_source_dir=prebuild_options[\"googletest_source_dir\"],\n>         )\n>         condition_tokens = _offline_configure_tokens(actual_argv)\n> >       assert condition_tokens == _offline_configure_tokens(campaign_argv)\n> E       AssertionError: assert ('-DFETCHCONT...w0/prebuild',) == ('-DFETCHCONT...ogletest-src')\n> E         \n> E         Right contains 3 more items, first extra item: '-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_prebuild_offline_tokens_w0/prebuild/masstree-src'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_p3_s4_loop.py:7921: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=3958 retained_bytes=3958 omitted_bytes=0 budget_bytes=49152 rendered_bytes=5321 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "847141086666ba0711ff956e8a5b59b28ef084249747ca79b35364075297136c"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "abd8c69a62d0c6d2f87ebe9b531e2f0c61f811905dbdaff07580a14c5783c3db",
+      "duration_s": 27.214,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_prebuild_offline_tokens_reach_real_condition_gate_configure_argv",
+        "orchestrator/tests/test_p3_s4_loop.py::test_prebuild_offline_tokens_without_dependency_prefix_match_production_shape"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_prebuild_offline_tokens_reach_real_condition_gate_configure_argv",
+        "orchestrator/tests/test_p3_s4_loop.py::test_prebuild_offline_tokens_without_dependency_prefix_match_production_shape"
+      ],
+      "hang_risk": false,
+      "id": "m01-condition-gate-args-dropped",
+      "injection_diff_sha256": "afa5652c8787982a9d58234daa6f1c2be1afbedeec46016a41a6674b16ae48b6",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "9be4b40ae5bc808be214a6b4e4a9bffd6aee26c9a8deb6b55c057aa3896f2f14",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "new": "    )",
+          "old": "        *buildcache._fetchcontent_source_defines(source_dirs),\n    )"
+        },
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "new": "    expected_count = len(configure_args)",
+          "old": "    expected_count = 1 + len(_FETCHCONTENT_SOURCE_NAMES) \\\n        + int(bool(dependency_prefix))"
+        }
+      ],
+      "repo_head": "d78a1324eb55bc66f9a1a4d7b1014e75986f5aa1",
+      "runner_sha256": "001beccb7d6b2eb1f2f889cbfbb7efe5d7db835aac3aa3c7ffca351094998233",
+      "spec_sha256": "44beb98f45ee6a8557fc35b6bfd463c0df0c9fc74f33bc08a595bfbb8feb7404",
+      "status": "KILLED",
+      "test_output_sha256": "847141086666ba0711ff956e8a5b59b28ef084249747ca79b35364075297136c",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "8ffe33dbb5d1a2ace628ffd4e8c8df3d90370b8eb313203720e0fc3e22f2891f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2182-k2-eval-wiring/output/pegasus-dispatch/784e1f6c34e795bc4554820c51e4a029/izdw-784e1f6c34.o986390",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2182-k2-eval-wiring/output/pegasus-dispatch/784e1f6c34e795bc4554820c51e4a029/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2182-k2-eval-wiring\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [6 items]\n\n....F.                                                                   [100%]\n=================================== FAILURES ===================================\n____ test_without_prebuild_real_condition_gate_configure_args_remain_empty _____\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_without_prebuild_real_con0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x150c14e493c0>\n\n    def test_without_prebuild_real_condition_gate_configure_args_remain_empty(\n        tmp_path, monkeypatch,\n    ):\n        dependency_prefix = str((tmp_path / \"dependency-prefix\").resolve())\n        actual_argv, _source_root, prebuild_options = (\n>           _observe_iteration_condition_gate_configure_argv(\n                tmp_path,\n                monkeypatch,\n                dependency_prefix=dependency_prefix,\n                with_prebuild=False,\n            )\n        )\n\norchestrator/tests/test_p3_s4_loop.py:7934: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_p3_s4_loop.py:7829: in _observe_iteration_condition_gate_configure_argv\n    L._run_one_iteration_resolved(\norchestrator/campaign/p3_s4_loop.py:1728: in _run_one_iteration_resolved\n    configure_args=_condition_gate_offline_configure_args(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ndependency_prefix = '/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_without_prebuild_real_con0/dependency-prefix'\nfetchcontent_base_dir = '', masstree_source_dir = None\nmimalloc_source_dir = None, googletest_source_dir = None\n\n    def _condition_gate_offline_configure_args(\n            *, dependency_prefix: str, fetchcontent_base_dir: str,\n            masstree_source_dir: Optional[object],\n            mimalloc_source_dir: Optional[object],\n            googletest_source_dir: Optional[object],\n    ) -> tuple[str, ...]:\n        \"\"\"Project the offline defines needed by the independent condition gate.\"\"\"\n        source_dirs = buildcache._normalize_fetchcontent_source_dirs(\n            masstree_source_dir=masstree_source_dir,\n            mimalloc_source_dir=mimalloc_source_dir,\n            googletest_source_dir=googletest_source_dir,\n        )\n        if source_dirs and not fetchcontent_base_dir:\n            raise buildcache.BuildCacheError(\n                \"FetchContent SOURCE_DIR は FETCHCONTENT_BASE_DIR と同時指定必須\"\n            )\n        configure_args = (\n            *((f\"-DCMAKE_PREFIX_PATH={dependency_prefix}\",)\n              if dependency_prefix else ()),\n            *((f\"-DFETCHCONTENT_BASE_DIR={fetchcontent_base_dir}\",)\n              if fetchcontent_base_dir else ()),\n            *buildcache._fetchcontent_source_defines(source_dirs),\n        )\n        expected_count = 1 + len(_FETCHCONTENT_SOURCE_NAMES) \\\n            + int(bool(dependency_prefix))\n        if len(configure_args) != expected_count:\n>           raise RuntimeError(\n                \"campaign build producer returned a non-exact condition gate \"\n                \"offline define set\"\n            )\nE           RuntimeError: campaign build producer returned a non-exact condition gate offline define set\n\norchestrator/campaign/p3_s4_loop.py:356: RuntimeError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_s4_loop.py::test_without_prebuild_real_condition_gate_configure_args_remain_empty\n========================= 1 failed, 5 passed in 5.37s ==========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop.py::test_without_prebuild_real_condition_gate_configure_args_remain_empty\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=3024 retained_bytes=3024 omitted_bytes=0 rendered_excerpt_bytes=3178 sha256=f962f20f1b5aebff4f677b8e74cc546408a3992fa528501efc7affa929ceee79\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_without_prebuild_real_con0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x150c14e493c0>\n> \n>     def test_without_prebuild_real_condition_gate_configure_args_remain_empty(\n>         tmp_path, monkeypatch,\n>     ):\n>         dependency_prefix = str((tmp_path / \"dependency-prefix\").resolve())\n>         actual_argv, _source_root, prebuild_options = (\n> >           _observe_iteration_condition_gate_configure_argv(\n>                 tmp_path,\n>                 monkeypatch,\n>                 dependency_prefix=dependency_prefix,\n>                 with_prebuild=False,\n>             )\n>         )\n> \n> orchestrator/tests/test_p3_s4_loop.py:7934: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_p3_s4_loop.py:7829: in _observe_iteration_condition_gate_configure_argv\n>     L._run_one_iteration_resolved(\n> orchestrator/campaign/p3_s4_loop.py:1728: in _run_one_iteration_resolved\n>     configure_args=_condition_gate_offline_configure_args(\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> dependency_prefix = '/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_without_prebuild_real_con0/dependency-prefix'\n> fetchcontent_base_dir = '', masstree_source_dir = None\n> mimalloc_source_dir = None, googletest_source_dir = None\n> \n>     def _condition_gate_offline_configure_args(\n>             *, dependency_prefix: str, fetchcontent_base_dir: str,\n>             masstree_source_dir: Optional[object],\n>             mimalloc_source_dir: Optional[object],\n>             googletest_source_dir: Optional[object],\n>     ) -> tuple[str, ...]:\n>         \"\"\"Project the offline defines needed by the independent condition gate.\"\"\"\n>         source_dirs = buildcache._normalize_fetchcontent_source_dirs(\n>             masstree_source_dir=masstree_source_dir,\n>             mimalloc_source_dir=mimalloc_source_dir,\n>             googletest_source_dir=googletest_source_dir,\n>         )\n>         if source_dirs and not fetchcontent_base_dir:\n>             raise buildcache.BuildCacheError(\n>                 \"FetchContent SOURCE_DIR \\u306f FETCHCONTENT_BASE_DIR \\u3068\\u540c\\u6642\\u6307\\u5b9a\\u5fc5\\u9808\"\n>             )\n>         configure_args = (\n>             *((f\"-DCMAKE_PREFIX_PATH={dependency_prefix}\",)\n>               if dependency_prefix else ()),\n>             *((f\"-DFETCHCONTENT_BASE_DIR={fetchcontent_base_dir}\",)\n>               if fetchcontent_base_dir else ()),\n>             *buildcache._fetchcontent_source_defines(source_dirs),\n>         )\n>         expected_count = 1 + len(_FETCHCONTENT_SOURCE_NAMES) \\x5c\n>             + int(bool(dependency_prefix))\n>         if len(configure_args) != expected_count:\n> >           raise RuntimeError(\n>                 \"campaign build producer returned a non-exact condition gate \"\n>                 \"offline define set\"\n>             )\n> E           RuntimeError: campaign build producer returned a non-exact condition gate offline define set\n> \n> orchestrator/campaign/p3_s4_loop.py:356: RuntimeError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=3024 retained_bytes=3024 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3914 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "1807b1c101a5d0310211d7067d45bfef465ba78d9bcd48eb47e4b91d5522a007"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "abd8c69a62d0c6d2f87ebe9b531e2f0c61f811905dbdaff07580a14c5783c3db",
+      "duration_s": 27.105,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_without_prebuild_real_condition_gate_configure_args_remain_empty"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_without_prebuild_real_condition_gate_configure_args_remain_empty"
+      ],
+      "hang_risk": false,
+      "id": "m02-condition-gate-args-unconditional",
+      "injection_diff_sha256": "4832a6df6306ef258959b1523a9a4717a23b087eada188c69e47a44826bee05f",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "bd973de8636ee293ff812b76c21561770295035528fe31e7ba6d1e0e61be2fad",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "new": "        if False:\n            condition_gate = _require_condition_gate(sub, genome)\n        else:\n            condition_gate = _require_condition_gate(",
+          "old": "        if fetchcontent_dependency_receipt is None:\n            condition_gate = _require_condition_gate(sub, genome)\n        else:\n            condition_gate = _require_condition_gate("
+        }
+      ],
+      "repo_head": "d78a1324eb55bc66f9a1a4d7b1014e75986f5aa1",
+      "runner_sha256": "001beccb7d6b2eb1f2f889cbfbb7efe5d7db835aac3aa3c7ffca351094998233",
+      "spec_sha256": "44beb98f45ee6a8557fc35b6bfd463c0df0c9fc74f33bc08a595bfbb8feb7404",
+      "status": "KILLED",
+      "test_output_sha256": "1807b1c101a5d0310211d7067d45bfef465ba78d9bcd48eb47e4b91d5522a007",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "8ffe33dbb5d1a2ace628ffd4e8c8df3d90370b8eb313203720e0fc3e22f2891f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2182-k2-eval-wiring/output/pegasus-dispatch/da2acf715722d5ccdc0dc3f0b27ebd33/izdw-da2acf7157.o986392",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2182-k2-eval-wiring/output/pegasus-dispatch/da2acf715722d5ccdc0dc3f0b27ebd33/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2182-k2-eval-wiring\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [6 items]\n\n....F.                                                                   [100%]\n=================================== FAILURES ===================================\n_________ test_set_empty_manifest_alone_is_refused_by_actual_job_body __________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_set_empty_manifest_alone_0')\n\n    def test_set_empty_manifest_alone_is_refused_by_actual_job_body(\n        tmp_path: Path,\n    ) -> None:\n        completed, evidence_root, sentinel_markers = _run_actual_job_to_k2_preflight(\n            tmp_path,\n            {\n                \"IZANAGI_S4_KNOWLEDGE_MANIFEST\": \"\",\n                \"IZANAGI_S4_PROPOSAL_PATH\": \"/absolute/proposal.json\",\n            },\n        )\n>       assert not any(marker.exists() for marker in sentinel_markers)\nE       assert not True\nE        +  where True = any(<generator object test_set_empty_manifest_alone_is_refused_by_actual_job_body.<locals>.<genexpr> at 0x1456ec051000>)\n\norchestrator/tests/test_p3_s4_loop_job_contract.py:1099: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_s4_loop_job_contract.py::test_set_empty_manifest_alone_is_refused_by_actual_job_body\n========================= 1 failed, 5 passed in 5.43s ==========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop_job_contract.py::test_set_empty_manifest_alone_is_refused_by_actual_job_body\" nodeid_bytes=111 nodeid_omitted_bytes=0 source_bytes=836 retained_bytes=836 omitted_bytes=0 rendered_excerpt_bytes=875 sha256=05acaffba915c60483a4b6628173d73213042af6c43933bf4c8cda980fcf9347\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_set_empty_manifest_alone_0')\n> \n>     def test_set_empty_manifest_alone_is_refused_by_actual_job_body(\n>         tmp_path: Path,\n>     ) -> None:\n>         completed, evidence_root, sentinel_markers = _run_actual_job_to_k2_preflight(\n>             tmp_path,\n>             {\n>                 \"IZANAGI_S4_KNOWLEDGE_MANIFEST\": \"\",\n>                 \"IZANAGI_S4_PROPOSAL_PATH\": \"/absolute/proposal.json\",\n>             },\n>         )\n> >       assert not any(marker.exists() for marker in sentinel_markers)\n> E       assert not True\n> E        +  where True = any(<generator object test_set_empty_manifest_alone_is_refused_by_actual_job_body.<locals>.<genexpr> at 0x1456ec051000>)\n> \n> orchestrator/tests/test_p3_s4_loop_job_contract.py:1099: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=836 retained_bytes=836 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1609 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "0019d06edc7908a026ac8fe6eb7a56c8a878dedfea3a8ef2953d94f0f21e86c7"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "abd8c69a62d0c6d2f87ebe9b531e2f0c61f811905dbdaff07580a14c5783c3db",
+      "duration_s": 283.03,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_set_empty_manifest_alone_is_refused_by_actual_job_body"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_set_empty_manifest_alone_is_refused_by_actual_job_body"
+      ],
+      "hang_risk": false,
+      "id": "m04-k2-request-detection-weakened",
+      "injection_diff_sha256": "4193139f31ac9cf5668426299330fd665209aa3056f176b58fe8b8288a85b4c6",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "819b9649c429d1cf69aa7ba8534f4c91e1dd17d4070340a90a4d6335ea7bce94",
+      "replacements": [
+        {
+          "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+          "new": "  if [[ -n \"${!name:-}\" ]]; then\n    k2_requested=true",
+          "old": "  if [[ -v $name ]]; then\n    k2_requested=true"
+        }
+      ],
+      "repo_head": "d78a1324eb55bc66f9a1a4d7b1014e75986f5aa1",
+      "runner_sha256": "001beccb7d6b2eb1f2f889cbfbb7efe5d7db835aac3aa3c7ffca351094998233",
+      "spec_sha256": "44beb98f45ee6a8557fc35b6bfd463c0df0c9fc74f33bc08a595bfbb8feb7404",
+      "status": "KILLED",
+      "test_output_sha256": "0019d06edc7908a026ac8fe6eb7a56c8a878dedfea3a8ef2953d94f0f21e86c7",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "8ffe33dbb5d1a2ace628ffd4e8c8df3d90370b8eb313203720e0fc3e22f2891f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2182-k2-eval-wiring/output/pegasus-dispatch/5f48bd960c7695d496be26f3efa3e477/izdw-5f48bd960c.o986408",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2182-k2-eval-wiring/output/pegasus-dispatch/5f48bd960c7695d496be26f3efa3e477/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2182-k2-eval-wiring\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [6 items]\n\n....F.                                                                   [100%]\n=================================== FAILURES ===================================\n_____ test_complete_k2_pair_without_proposal_is_refused_by_actual_job_body _____\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_complete_k2_pair_without_0')\n\n    def test_complete_k2_pair_without_proposal_is_refused_by_actual_job_body(\n        tmp_path: Path,\n    ) -> None:\n        completed, evidence_root, sentinel_markers = _run_actual_job_to_k2_preflight(\n            tmp_path,\n            {\n                \"IZANAGI_S4_KNOWLEDGE_MANIFEST\": \"/absolute/knowledge.json\",\n                \"IZANAGI_S4_CODER_ROLE\": \"coder-v4-autonomous-k2\",\n            },\n        )\n>       assert not any(marker.exists() for marker in sentinel_markers)\nE       assert not True\nE        +  where True = any(<generator object test_complete_k2_pair_without_proposal_is_refused_by_actual_job_body.<locals>.<genexpr> at 0x1526c7205000>)\n\norchestrator/tests/test_p3_s4_loop_job_contract.py:1118: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_s4_loop_job_contract.py::test_complete_k2_pair_without_proposal_is_refused_by_actual_job_body\n========================= 1 failed, 5 passed in 5.35s ==========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop_job_contract.py::test_complete_k2_pair_without_proposal_is_refused_by_actual_job_body\" nodeid_bytes=120 nodeid_omitted_bytes=0 source_bytes=874 retained_bytes=874 omitted_bytes=0 rendered_excerpt_bytes=913 sha256=a4e7ec3b90299fabf38feb195c5537d68a5fa8b74c6e01a97e0be28a4938c0ea\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_complete_k2_pair_without_0')\n> \n>     def test_complete_k2_pair_without_proposal_is_refused_by_actual_job_body(\n>         tmp_path: Path,\n>     ) -> None:\n>         completed, evidence_root, sentinel_markers = _run_actual_job_to_k2_preflight(\n>             tmp_path,\n>             {\n>                 \"IZANAGI_S4_KNOWLEDGE_MANIFEST\": \"/absolute/knowledge.json\",\n>                 \"IZANAGI_S4_CODER_ROLE\": \"coder-v4-autonomous-k2\",\n>             },\n>         )\n> >       assert not any(marker.exists() for marker in sentinel_markers)\n> E       assert not True\n> E        +  where True = any(<generator object test_complete_k2_pair_without_proposal_is_refused_by_actual_job_body.<locals>.<genexpr> at 0x1526c7205000>)\n> \n> orchestrator/tests/test_p3_s4_loop_job_contract.py:1118: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=874 retained_bytes=874 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1656 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "0bb9140cd559cbd0fca7a9f4ba70cceb26baddfcd921721300658849c0e1c3c8"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "abd8c69a62d0c6d2f87ebe9b531e2f0c61f811905dbdaff07580a14c5783c3db",
+      "duration_s": 32.134,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_complete_k2_pair_without_proposal_is_refused_by_actual_job_body"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_complete_k2_pair_without_proposal_is_refused_by_actual_job_body"
+      ],
+      "hang_risk": false,
+      "id": "m05-proposal-path-requirement-removed",
+      "injection_diff_sha256": "0b15dc9878fec35e9c7b6b31e1d8ed3704ad192183771d3dc3d78c6d84def0e5",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "95ff5fdecdbdcef51b07f7c2caa8533cc160cb3272bb375cbc1485da8adbdde1",
+      "replacements": [
+        {
+          "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+          "new": "  true",
+          "old": "  [[ -n \"${IZANAGI_S4_PROPOSAL_PATH:-}\" ]] \\\n    || refuse \"K2 environment requires IZANAGI_S4_PROPOSAL_PATH\""
+        }
+      ],
+      "repo_head": "d78a1324eb55bc66f9a1a4d7b1014e75986f5aa1",
+      "runner_sha256": "001beccb7d6b2eb1f2f889cbfbb7efe5d7db835aac3aa3c7ffca351094998233",
+      "spec_sha256": "44beb98f45ee6a8557fc35b6bfd463c0df0c9fc74f33bc08a595bfbb8feb7404",
+      "status": "KILLED",
+      "test_output_sha256": "0bb9140cd559cbd0fca7a9f4ba70cceb26baddfcd921721300658849c0e1c3c8",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "8ffe33dbb5d1a2ace628ffd4e8c8df3d90370b8eb313203720e0fc3e22f2891f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2182-k2-eval-wiring/output/pegasus-dispatch/b47e180da48faf1c1e240a050faad0c5/izdw-b47e180da4.o986411",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2182-k2-eval-wiring/output/pegasus-dispatch/b47e180da48faf1c1e240a050faad0c5/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2182-k2-eval-wiring\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [6 items]\n\n.....F                                                                   [100%]\n=================================== FAILURES ===================================\n_________ test_complete_k2_environment_reaches_actual_job_driver_argv __________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_complete_k2_environment_r0')\n\n    def test_complete_k2_environment_reaches_actual_job_driver_argv(\n        tmp_path: Path,\n    ) -> None:\n        knowledge_manifest = \"/absolute/knowledge manifest.json\"\n        proposal = \"/absolute/proposal.json\"\n        argv = _run_actual_job_body_through_driver(\n            tmp_path,\n            {\n                \"IZANAGI_S4_KNOWLEDGE_MANIFEST\": knowledge_manifest,\n                \"IZANAGI_S4_CODER_ROLE\": \"coder-v4-autonomous-k2\",\n                \"IZANAGI_S4_KNOWLEDGE_CLASSIFICATION\": \"reproduction_or_selection\",\n                \"IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM\": \"false\",\n                \"IZANAGI_S4_PROPOSAL_PATH\": proposal,\n            },\n        )\n>       assert argv == [\n            \"-B\", \"-m\", \"orchestrator.campaign.p3_s4_loop\",\n            \"--allow-coder-derived-build\",\n            \"--isolate-worktree\",\n            \"--fetchcontent-prebuild-receipt\",\n            str(tmp_path / \"evidence/masstree-prebuild-receipt.json\"),\n            \"--knowledge-manifest\", knowledge_manifest,\n            \"--coder-role\", \"coder-v4-autonomous-k2\",\n            \"--knowledge-classification\", \"reproduction_or_selection\",\n            \"--knowledge-de-novo-claim\", \"false\",\n            \"--run-iteration\", proposal,\n        ]\nE       AssertionError: assert ['-B', '-m', ...receipt', ...] == ['-B', '-m', ...receipt', ...]\nE         \nE         At index 7 diff: '--run-iteration' != '--knowledge-manifest'\nE         Right contains 8 more items, first extra item: '--coder-role'\nE         Use -v to get more diff\n\norchestrator/tests/test_p3_s4_loop_job_contract.py:1327: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_s4_loop_job_contract.py::test_complete_k2_environment_reaches_actual_job_driver_argv\n========================= 1 failed, 5 passed in 5.42s ==========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop_job_contract.py::test_complete_k2_environment_reaches_actual_job_driver_argv\" nodeid_bytes=111 nodeid_omitted_bytes=0 source_bytes=1730 retained_bytes=1730 omitted_bytes=0 rendered_excerpt_bytes=1807 sha256=78b5fee2f6cdd4f117267c945360b22953ec291597cc5929dc93762ff97dc7ae\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_complete_k2_environment_r0')\n> \n>     def test_complete_k2_environment_reaches_actual_job_driver_argv(\n>         tmp_path: Path,\n>     ) -> None:\n>         knowledge_manifest = \"/absolute/knowledge manifest.json\"\n>         proposal = \"/absolute/proposal.json\"\n>         argv = _run_actual_job_body_through_driver(\n>             tmp_path,\n>             {\n>                 \"IZANAGI_S4_KNOWLEDGE_MANIFEST\": knowledge_manifest,\n>                 \"IZANAGI_S4_CODER_ROLE\": \"coder-v4-autonomous-k2\",\n>                 \"IZANAGI_S4_KNOWLEDGE_CLASSIFICATION\": \"reproduction_or_selection\",\n>                 \"IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM\": \"false\",\n>                 \"IZANAGI_S4_PROPOSAL_PATH\": proposal,\n>             },\n>         )\n> >       assert argv == [\n>             \"-B\", \"-m\", \"orchestrator.campaign.p3_s4_loop\",\n>             \"--allow-coder-derived-build\",\n>             \"--isolate-worktree\",\n>             \"--fetchcontent-prebuild-receipt\",\n>             str(tmp_path / \"evidence/masstree-prebuild-receipt.json\"),\n>             \"--knowledge-manifest\", knowledge_manifest,\n>             \"--coder-role\", \"coder-v4-autonomous-k2\",\n>             \"--knowledge-classification\", \"reproduction_or_selection\",\n>             \"--knowledge-de-novo-claim\", \"false\",\n>             \"--run-iteration\", proposal,\n>         ]\n> E       AssertionError: assert ['-B', '-m', ...receipt', ...] == ['-B', '-m', ...receipt', ...]\n> E         \n> E         At index 7 diff: '--run-iteration' != '--knowledge-manifest'\n> E         Right contains 8 more items, first extra item: '--coder-role'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_p3_s4_loop_job_contract.py:1327: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1730 retained_bytes=1730 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2546 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "718b2249c855dcc4e826b9de5e2ef889a048dd5e0367c9b0e41568d923fc8d34"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "abd8c69a62d0c6d2f87ebe9b531e2f0c61f811905dbdaff07580a14c5783c3db",
+      "duration_s": 27.117,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_complete_k2_environment_reaches_actual_job_driver_argv"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_complete_k2_environment_reaches_actual_job_driver_argv"
+      ],
+      "hang_risk": false,
+      "id": "m06-k2-argv-not-forwarded",
+      "injection_diff_sha256": "908dc5de800a68b7fe3c1b985081b7c83f0e871ca1299d225b87b767f3cd2d01",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e96916b011315c80d767d48e64e5fa2f97486a607ad9f93f68666228d3cab400",
+      "replacements": [
+        {
+          "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+          "new": "    --fetchcontent-prebuild-receipt \"$prebuild_receipt\" \\\n    --run-iteration \"$IZANAGI_S4_PROPOSAL_PATH\"",
+          "old": "    --fetchcontent-prebuild-receipt \"$prebuild_receipt\" \\\n    \"${k2_argv[@]}\" \\\n    --run-iteration \"$IZANAGI_S4_PROPOSAL_PATH\""
+        }
+      ],
+      "repo_head": "d78a1324eb55bc66f9a1a4d7b1014e75986f5aa1",
+      "runner_sha256": "001beccb7d6b2eb1f2f889cbfbb7efe5d7db835aac3aa3c7ffca351094998233",
+      "spec_sha256": "44beb98f45ee6a8557fc35b6bfd463c0df0c9fc74f33bc08a595bfbb8feb7404",
+      "status": "KILLED",
+      "test_output_sha256": "718b2249c855dcc4e826b9de5e2ef889a048dd5e0367c9b0e41568d923fc8d34",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "8ffe33dbb5d1a2ace628ffd4e8c8df3d90370b8eb313203720e0fc3e22f2891f"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2182-k2-eval-wiring/output/pegasus-dispatch/5f221c3b273d72e7ddfe0b60b88c963e/izdw-5f221c3b27.o986378",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2182-k2-eval-wiring/output/pegasus-dispatch/5f221c3b273d72e7ddfe0b60b88c963e/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_p3_s4_loop.py::test_prebuild_offline_tokens_reach_real_condition_gate_configure_argv\norchestrator/tests/test_p3_s4_loop.py::test_prebuild_offline_tokens_without_dependency_prefix_match_production_shape\norchestrator/tests/test_p3_s4_loop.py::test_without_prebuild_real_condition_gate_configure_args_remain_empty\norchestrator/tests/test_p3_s4_loop_job_contract.py::test_set_empty_manifest_alone_is_refused_by_actual_job_body\norchestrator/tests/test_p3_s4_loop_job_contract.py::test_complete_k2_pair_without_proposal_is_refused_by_actual_job_body\norchestrator/tests/test_p3_s4_loop_job_contract.py::test_complete_k2_environment_reaches_actual_job_driver_argv\n\n6 tests collected in 1.31s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "1083a36ec065c560c91a0de4ea73b142e1ba86b377e529f903a3078b9e136315"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_prebuild_offline_tokens_reach_real_condition_gate_configure_argv",
+        "orchestrator/tests/test_p3_s4_loop.py::test_prebuild_offline_tokens_without_dependency_prefix_match_production_shape",
+        "orchestrator/tests/test_p3_s4_loop.py::test_without_prebuild_real_condition_gate_configure_args_remain_empty",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_set_empty_manifest_alone_is_refused_by_actual_job_body",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_complete_k2_pair_without_proposal_is_refused_by_actual_job_body",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_complete_k2_environment_reaches_actual_job_driver_argv"
+      ],
+      "duration_s": 27.112,
+      "rc": 0,
+      "repo_head": "d78a1324eb55bc66f9a1a4d7b1014e75986f5aa1",
+      "runner_sha256": "001beccb7d6b2eb1f2f889cbfbb7efe5d7db835aac3aa3c7ffca351094998233",
+      "spec_sha256": "44beb98f45ee6a8557fc35b6bfd463c0df0c9fc74f33bc08a595bfbb8feb7404",
+      "status": "PASSED",
+      "tool_sha256": "8ffe33dbb5d1a2ace628ffd4e8c8df3d90370b8eb313203720e0fc3e22f2891f"
+    },
+    "hang_timeout_seconds": 480.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "m01-condition-gate-args-dropped": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_s4_loop.py::test_prebuild_offline_tokens_reach_real_condition_gate_configure_argv",
+          "orchestrator/tests/test_p3_s4_loop.py::test_prebuild_offline_tokens_without_dependency_prefix_match_production_shape"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "afa5652c8787982a9d58234daa6f1c2be1afbedeec46016a41a6674b16ae48b6",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_s4_loop.py",
+            "new": "    )",
+            "old": "        *buildcache._fetchcontent_source_defines(source_dirs),\n    )"
+          },
+          {
+            "file": "orchestrator/campaign/p3_s4_loop.py",
+            "new": "    expected_count = len(configure_args)",
+            "old": "    expected_count = 1 + len(_FETCHCONTENT_SOURCE_NAMES) \\\n        + int(bool(dependency_prefix))"
+          }
+        ]
+      },
+      "m02-condition-gate-args-unconditional": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_s4_loop.py::test_without_prebuild_real_condition_gate_configure_args_remain_empty"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "4832a6df6306ef258959b1523a9a4717a23b087eada188c69e47a44826bee05f",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_s4_loop.py",
+            "new": "        if False:\n            condition_gate = _require_condition_gate(sub, genome)\n        else:\n            condition_gate = _require_condition_gate(",
+            "old": "        if fetchcontent_dependency_receipt is None:\n            condition_gate = _require_condition_gate(sub, genome)\n        else:\n            condition_gate = _require_condition_gate("
+          }
+        ]
+      },
+      "m04-k2-request-detection-weakened": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_set_empty_manifest_alone_is_refused_by_actual_job_body"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "4193139f31ac9cf5668426299330fd665209aa3056f176b58fe8b8288a85b4c6",
+        "replacements": [
+          {
+            "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+            "new": "  if [[ -n \"${!name:-}\" ]]; then\n    k2_requested=true",
+            "old": "  if [[ -v $name ]]; then\n    k2_requested=true"
+          }
+        ]
+      },
+      "m05-proposal-path-requirement-removed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_complete_k2_pair_without_proposal_is_refused_by_actual_job_body"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "0b15dc9878fec35e9c7b6b31e1d8ed3704ad192183771d3dc3d78c6d84def0e5",
+        "replacements": [
+          {
+            "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+            "new": "  true",
+            "old": "  [[ -n \"${IZANAGI_S4_PROPOSAL_PATH:-}\" ]] \\\n    || refuse \"K2 environment requires IZANAGI_S4_PROPOSAL_PATH\""
+          }
+        ]
+      },
+      "m06-k2-argv-not-forwarded": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_complete_k2_environment_reaches_actual_job_driver_argv"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "908dc5de800a68b7fe3c1b985081b7c83f0e871ca1299d225b87b767f3cd2d01",
+        "replacements": [
+          {
+            "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+            "new": "    --fetchcontent-prebuild-receipt \"$prebuild_receipt\" \\\n    --run-iteration \"$IZANAGI_S4_PROPOSAL_PATH\"",
+            "old": "    --fetchcontent-prebuild-receipt \"$prebuild_receipt\" \\\n    \"${k2_argv[@]}\" \\\n    --run-iteration \"$IZANAGI_S4_PROPOSAL_PATH\""
+          }
+        ]
+      }
+    },
+    "registration_sha256": "9ddf7d3b86685711dc08b3a8ae8a33a7b7b5f8ae2221db51b00ea22e2d3dacbc",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-rf",
+      "orchestrator/tests/test_p3_s4_loop.py::test_prebuild_offline_tokens_reach_real_condition_gate_configure_argv",
+      "orchestrator/tests/test_p3_s4_loop.py::test_prebuild_offline_tokens_without_dependency_prefix_match_production_shape",
+      "orchestrator/tests/test_p3_s4_loop.py::test_without_prebuild_real_condition_gate_configure_args_remain_empty",
+      "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_set_empty_manifest_alone_is_refused_by_actual_job_body",
+      "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_complete_k2_pair_without_proposal_is_refused_by_actual_job_body",
+      "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_complete_k2_environment_reaches_actual_job_driver_argv",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 480.0
+  },
+  "repo_head": "d78a1324eb55bc66f9a1a4d7b1014e75986f5aa1",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-rf",
+      "orchestrator/tests/test_p3_s4_loop.py::test_prebuild_offline_tokens_reach_real_condition_gate_configure_argv",
+      "orchestrator/tests/test_p3_s4_loop.py::test_prebuild_offline_tokens_without_dependency_prefix_match_production_shape",
+      "orchestrator/tests/test_p3_s4_loop.py::test_without_prebuild_real_condition_gate_configure_args_remain_empty",
+      "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_set_empty_manifest_alone_is_refused_by_actual_job_body",
+      "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_complete_k2_pair_without_proposal_is_refused_by_actual_job_body",
+      "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_complete_k2_environment_reaches_actual_job_driver_argv",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2182-k2-eval-wiring/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2182-k2-eval-wiring/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "2facdbee51839d26eb4b9e734a648928406987fc",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "001beccb7d6b2eb1f2f889cbfbb7efe5d7db835aac3aa3c7ffca351094998233",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "44beb98f45ee6a8557fc35b6bfd463c0df0c9fc74f33bc08a595bfbb8feb7404",
+  "summary": {
+    "KILLED": 5,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 5,
+    "matching": 5,
+    "recorded": 5,
+    "registered": 5
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2182-k2-eval-wiring/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "8ffe33dbb5d1a2ace628ffd4e8c8df3d90370b8eb313203720e0fc3e22f2891f",
+  "updated_at": "2026-09-08T18:02:15.042622+00:00"
+}

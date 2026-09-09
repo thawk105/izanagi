@@ -58,6 +58,7 @@ PERFORMANCE_SCHEMA = "izanagi-cicada-adaptive-3const-probe/v2"
 DIAGNOSTIC_SCHEMA = "izanagi-dynamic-backoff-trace/v2"
 COUNTERFACTUAL_PERFORMANCE_SCHEMA = "izanagi-cicada-adaptive-3const-probe/v3"
 COUNTERFACTUAL_DIAGNOSTIC_SCHEMA = "izanagi-dynamic-backoff-trace/v3"
+COHORT2_DIAGNOSTIC_SCHEMA = "izanagi-dynamic-backoff-trace/v4"
 PROVENANCE_SCHEMA = "izanagi-dynamic-backoff-figure-provenance/v1"
 PERFORMANCE_KIND = "performance-only-probe"
 DIAGNOSTIC_KIND = "diagnostic-backoff-trace"
@@ -73,7 +74,23 @@ TRACE_THREADS = (24, 48)
 CELLS = (
     "none", "stock", "tuned", "tuned-u10240", "cw", "cw-as", "cw-as-dyn",
 )
-TRACE_CELLS = ("cw", "cw-as", "cw-as-dyn")
+LEGACY_TRACE_CELLS = ("cw", "cw-as", "cw-as-dyn")
+COHORT1_TRACE_CELLS = ("cw-as-dyn-p0", "cw-as-dyn-p1", "cw-as-dyn-p2")
+COHORT2_TRACE_CELLS = (
+    "cw-as-dyn-c2-p0", "cw-as-dyn-c2-p1", "cw-as-dyn-c2-p2",
+)
+# Compatibility alias for callers that consume the original diagnostic grid.
+TRACE_CELLS = LEGACY_TRACE_CELLS
+COHORT1_CELL_LITERALS = (
+    "cw-as-dyn-p0:1:1:1000:2560:10000:10240:1:1:4:1:0",
+    "cw-as-dyn-p1:1:1:1000:2560:10000:10240:1:1:4:1:1",
+    "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+)
+COHORT2_CELL_LITERALS = (
+    "cw-as-dyn-c2-p0:1:1:1000:2560:10000:9223372036854775807:1:1:4:1:0",
+    "cw-as-dyn-c2-p1:1:1:1000:2560:10000:9223372036854775807:1:1:4:1:1",
+    "cw-as-dyn-c2-p2:1:1:1000:2560:10000:9223372036854775807:1:1:4:1:2",
+)
 
 # (back_off, step_us, ceiling_us, update_us, count_window, count_cap_us,
 #  step_adapt, step_min_us, step_max_us, dyn_ceiling, is_stock_control)
@@ -85,6 +102,18 @@ CELL_CONFIGS: dict[str, tuple[float | int | bool, ...]] = {
     "cw": (1, 1, 1000, 2560, 10000, 10240, 0, 100, 100, 0, False),
     "cw-as": (1, 1, 1000, 2560, 10000, 10240, 1, 1, 4, 0, False),
     "cw-as-dyn": (1, 1, 1000, 2560, 10000, 10240, 1, 1, 4, 1, False),
+    "cw-as-dyn-p0": (1, 1, 1000, 2560, 10000, 10240, 1, 1, 4, 1, False),
+    "cw-as-dyn-p1": (1, 1, 1000, 2560, 10000, 10240, 1, 1, 4, 1, False),
+    "cw-as-dyn-p2": (1, 1, 1000, 2560, 10000, 10240, 1, 1, 4, 1, False),
+    "cw-as-dyn-c2-p0": (
+        1, 1, 1000, 2560, 10000, 9223372036854775807, 1, 1, 4, 1, False,
+    ),
+    "cw-as-dyn-c2-p1": (
+        1, 1, 1000, 2560, 10000, 9223372036854775807, 1, 1, 4, 1, False,
+    ),
+    "cw-as-dyn-c2-p2": (
+        1, 1, 1000, 2560, 10000, 9223372036854775807, 1, 1, 4, 1, False,
+    ),
 }
 CONFIG_FIELDS = (
     "back_off", "step_us", "ceiling_us", "update_us", "count_window",
@@ -94,6 +123,11 @@ CONFIG_FIELDS = (
 CELL_FORMAT_FIELDS = {
     "none": 5, "stock": 5, "tuned": 5, "tuned-u10240": 5,
     "cw": 11, "cw-as": 11, "cw-as-dyn": 11,
+    **{cell: 12 for cell in (*COHORT1_TRACE_CELLS, *COHORT2_TRACE_CELLS)},
+}
+STEP_POLICY_BY_CELL = {
+    **{cell: index for index, cell in enumerate(COHORT1_TRACE_CELLS)},
+    **{cell: index for index, cell in enumerate(COHORT2_TRACE_CELLS)},
 }
 
 # The ordering is the preregistered H1--H7 ordering.
@@ -216,7 +250,12 @@ def _validate_patch_stack(document: Mapping[str, Any], label: str) -> list[dict[
     return parsed
 
 
-def _common_identity(document: Mapping[str, Any], label: str) -> dict[str, Any]:
+def _common_identity(
+    document: Mapping[str, Any],
+    label: str,
+    *,
+    expected_extime_s: int = 3,
+) -> dict[str, Any]:
     raw_counterfactual_sha256 = document.get("counterfactual_patch_sha256")
     counterfactual_sha256 = (
         None
@@ -253,8 +292,8 @@ def _common_identity(document: Mapping[str, Any], label: str) -> dict[str, Any]:
     }
     if identity["records"] != 1_000_000:
         _fail(f"{label}.records must be exactly 1000000")
-    if not _same_number(identity["extime_s"], 3):
-        _fail(f"{label}.extime_s must be exactly 3")
+    if not _same_number(identity["extime_s"], expected_extime_s):
+        _fail(f"{label}.extime_s must be exactly {expected_extime_s}")
     if identity["ccbench_commit"] != CCBENCH_COMMIT:
         _fail(f"{label}.ccbench_commit differs from the preregistered pin")
     if identity["ccbench_head"] != CCBENCH_HEAD:
@@ -332,6 +371,9 @@ def _validate_cell_configuration(row: Mapping[str, Any], cell: str, label: str) 
         if field == "is_stock_control":
             if type(observed) is not bool or observed is not wanted:
                 _fail(f"{label}.{field} does not match preregistered cell {cell}")
+        elif field == "count_cap_us" and cell in COHORT2_TRACE_CELLS:
+            if type(observed) is not int or observed != wanted:
+                _fail(f"{label}.{field} does not match preregistered cell {cell}")
         elif not _same_number(observed, wanted):
             _fail(f"{label}.{field} does not match preregistered cell {cell}")
     format_fields = _integer(
@@ -339,10 +381,19 @@ def _validate_cell_configuration(row: Mapping[str, Any], cell: str, label: str) 
     )
     if format_fields != CELL_FORMAT_FIELDS[cell]:
         _fail(f"{label}.cell_format_fields does not match preregistered cell {cell}")
-    return {
+    policy = STEP_POLICY_BY_CELL.get(cell)
+    if policy is None:
+        if "step_policy" in row:
+            _fail(f"{label}.step_policy must be absent for an 11-field cell")
+    elif _integer(row.get("step_policy"), f"{label}.step_policy") != policy:
+        _fail(f"{label}.step_policy does not match preregistered cell {cell}")
+    result = {
         **{field: value for field, value in zip(CONFIG_FIELDS, expected, strict=True)},
         "cell_format_fields": format_fields,
     }
+    if policy is not None:
+        result["step_policy"] = policy
+    return result
 
 
 def _parse_performance_cell(
@@ -388,7 +439,9 @@ def _parse_performance_cell(
     }
 
 
-def _parse_performance(path: Path) -> dict[str, Any]:
+def _parse_performance(
+    path: Path, *, expected_extime_s: int = 3,
+) -> dict[str, Any]:
     sha_before = _sha256(path)
     document = _strict_json(path)
     schema_version = document.get("schema_version")
@@ -410,7 +463,9 @@ def _parse_performance(path: Path) -> dict[str, Any]:
     expected_order = list(CELLS[rep_index:] + CELLS[:rep_index])
     if order != expected_order:
         _fail(f"{path}.cell_order must be the preregistered rotation {expected_order!r}")
-    identity = _common_identity(document, str(path))
+    identity = _common_identity(
+        document, str(path), expected_extime_s=expected_extime_s
+    )
     expected_schema = (
         PERFORMANCE_SCHEMA
         if identity["patch_stack_version"] == "A+B"
@@ -456,7 +511,14 @@ def _parse_performance(path: Path) -> dict[str, Any]:
     }
 
 
-def _parse_event(raw: object, label: str, expected_seq: int) -> dict[str, Any]:
+def _parse_event(
+    raw: object,
+    label: str,
+    expected_seq: int,
+    *,
+    policy_fields: bool = False,
+    terminal_contract: bool = False,
+) -> dict[str, Any]:
     event = _require_dict(raw, label)
     seq = _integer(event.get("seq"), f"{label}.seq")
     if seq != expected_seq:
@@ -465,7 +527,19 @@ def _parse_event(raw: object, label: str, expected_seq: int) -> dict[str, Any]:
     window_us = _integer(event.get("window_us"), f"{label}.window_us", minimum=1)
     window_commits = _integer(event.get("window_commits"), f"{label}.window_commits")
     trigger = _string(event.get("trigger"), f"{label}.trigger")
-    if trigger not in ("time", "count", "cap"):
+    terminal_flush = None
+    if terminal_contract:
+        terminal_flush = _integer(
+            event.get("terminal_flush"), f"{label}.terminal_flush"
+        )
+        if terminal_flush not in (0, 1):
+            _fail(f"{label}.terminal_flush must be 0 or 1")
+        expected_trigger = "terminal" if terminal_flush else "count"
+        if trigger != expected_trigger:
+            _fail(f"{label}.trigger must be {expected_trigger}")
+    elif "terminal_flush" in event:
+        _fail(f"{label}.terminal_flush is only valid in trace schema v4")
+    elif trigger not in ("time", "count", "cap"):
         _fail(f"{label}.trigger must be time, count, or cap")
     gradient = _integer(event.get("gradient_sign"), f"{label}.gradient_sign", minimum=-1)
     if gradient not in (-1, 0, 1):
@@ -476,7 +550,7 @@ def _parse_event(raw: object, label: str, expected_seq: int) -> dict[str, Any]:
         _fail(f"{label}.ceiling_changed must be 0 or 1")
     if parity_branch not in ("none", "decrement", "increment"):
         _fail(f"{label}.parity_branch must be none, decrement, or increment")
-    return {
+    parsed = {
         "seq": seq,
         "tsc": tsc,
         "window_us": window_us,
@@ -496,6 +570,47 @@ def _parse_event(raw: object, label: str, expected_seq: int) -> dict[str, Any]:
         "ceiling_changed": ceiling_changed,
         "parity_branch": parity_branch,
     }
+    if policy_fields:
+        assigned = _integer(
+            event.get("assigned_invert"),
+            f"{label}.assigned_invert",
+            minimum=-1 if terminal_contract else 0,
+        )
+        recommended = _integer(
+            event.get("recommended_delta_sign"),
+            f"{label}.recommended_delta_sign",
+            minimum=-1,
+        )
+        realized = _integer(
+            event.get("inversion_realized"),
+            f"{label}.inversion_realized",
+        )
+        feasible = _integer(
+            event.get("both_actions_feasible"),
+            f"{label}.both_actions_feasible",
+        )
+        if terminal_flush == 1:
+            if (assigned, recommended, realized, feasible) != (-1, 0, 0, 0):
+                _fail(f"{label} terminal policy sentinels do not match schema v4")
+        else:
+            if assigned not in (0, 1):
+                _fail(f"{label}.assigned_invert must be 0 or 1")
+            if recommended not in (-1, 0, 1):
+                _fail(f"{label}.recommended_delta_sign must be -1, 0, or 1")
+            if realized not in (0, 1) or feasible not in (0, 1):
+                _fail(
+                    f"{label}.inversion_realized and both_actions_feasible "
+                    "must be 0 or 1"
+                )
+        parsed.update(
+            assigned_invert=assigned,
+            recommended_delta_sign=recommended,
+            inversion_realized=realized,
+            both_actions_feasible=feasible,
+        )
+    if terminal_contract:
+        parsed["terminal_flush"] = terminal_flush
+    return parsed
 
 
 def _directional_success(
@@ -521,13 +636,69 @@ def _directional_success(
     return scored, successes, successes / scored if scored else None
 
 
-def _parse_trace_run(raw: object, path: Path, index: int) -> tuple[tuple[str, str, int], dict[str, Any]]:
+def _diagnostic_contract(
+    document: Mapping[str, Any], path: Path,
+) -> dict[str, Any]:
+    schema = document.get("schema_version")
+    raw_runs = _require_list(document.get("trace_runs"), f"{path}.trace_runs")
+    observed_cells = {
+        row.get("cell")
+        for row in raw_runs
+        if type(row) is dict
+    }
+    if schema == DIAGNOSTIC_SCHEMA:
+        cells = LEGACY_TRACE_CELLS
+        name = "legacy"
+    elif schema == COUNTERFACTUAL_DIAGNOSTIC_SCHEMA:
+        if observed_cells == set(COHORT1_TRACE_CELLS):
+            cells = COHORT1_TRACE_CELLS
+            name = "cohort1"
+        elif observed_cells == set(LEGACY_TRACE_CELLS):
+            cells = LEGACY_TRACE_CELLS
+            name = "legacy-counterfactual"
+        else:
+            _fail(f"{path}.trace_runs do not select an exact schema v3 grid")
+    elif schema == COHORT2_DIAGNOSTIC_SCHEMA:
+        cells = COHORT2_TRACE_CELLS
+        name = "cohort2"
+    else:
+        _fail(f"{path}.schema_version is not a supported diagnostic schema")
+
+    policy_fields = cells != LEGACY_TRACE_CELLS
+    terminal_contract = schema == COHORT2_DIAGNOSTIC_SCHEMA
+    if policy_fields:
+        literals = (
+            COHORT2_CELL_LITERALS if terminal_contract else COHORT1_CELL_LITERALS
+        )
+        if document.get("cell_order") != list(cells):
+            _fail(f"{path}.cell_order does not match the exact {name} grid")
+        if document.get("grid_spec") != ",".join(literals):
+            _fail(f"{path}.grid_spec does not match the exact {name} literals")
+    elif "cell_order" in document and document.get("cell_order") != list(cells):
+        _fail(f"{path}.cell_order does not match the exact legacy grid")
+    return {
+        "name": name,
+        "schema": schema,
+        "cells": cells,
+        "expected_extime_s": 6 if terminal_contract else 3,
+        "policy_fields": policy_fields,
+        "terminal_contract": terminal_contract,
+    }
+
+
+def _parse_trace_run(
+    raw: object,
+    path: Path,
+    index: int,
+    contract: Mapping[str, Any],
+) -> tuple[tuple[str, str, int], dict[str, Any]]:
     label = f"{path}.trace_runs[{index}]"
     row = _require_dict(raw, label)
     cell = _string(row.get("cell"), f"{label}.cell")
     workload = _string(row.get("workload"), f"{label}.workload")
     threads = _integer(row.get("threads"), f"{label}.threads", minimum=1)
-    if cell not in TRACE_CELLS or workload not in WORKLOADS or threads not in TRACE_THREADS:
+    trace_cells = contract["cells"]
+    if cell not in trace_cells or workload not in WORKLOADS or threads not in TRACE_THREADS:
         _fail(f"{label} is outside the exact 3 x 3 x 2 diagnostic grid")
     configuration = _validate_cell_configuration(row, cell, label)
     genome = _string(row.get("genome"), f"{label}.genome")
@@ -553,7 +724,13 @@ def _parse_trace_run(raw: object, path: Path, index: int) -> tuple[tuple[str, st
     if not raw_events:
         _fail(f"{label}.trace_events must not be empty")
     events = [
-        _parse_event(event, f"{label}.trace_events[{i}]", i)
+        _parse_event(
+            event,
+            f"{label}.trace_events[{i}]",
+            i,
+            policy_fields=contract["policy_fields"],
+            terminal_contract=contract["terminal_contract"],
+        )
         for i, event in enumerate(raw_events)
     ]
     if any(right["tsc"] < left["tsc"] for left, right in zip(events, events[1:])):
@@ -562,7 +739,46 @@ def _parse_trace_run(raw: object, path: Path, index: int) -> tuple[tuple[str, st
     updates = _integer(summary.get("updates"), f"{label}.trace_summary.updates")
     retained = _integer(summary.get("retained"), f"{label}.trace_summary.retained")
     dropped = _integer(summary.get("dropped"), f"{label}.trace_summary.dropped")
-    if updates != retained + dropped or retained != len(events) or dropped != 0:
+    flushes = None
+    if contract["terminal_contract"]:
+        if set(summary) != {"updates", "retained", "dropped", "flushes"}:
+            _fail(f"{label}.trace_summary must contain the exact schema v4 keys")
+        flushes = _integer(summary.get("flushes"), f"{label}.trace_summary.flushes")
+        terminal_indices = [
+            event_index
+            for event_index, event in enumerate(events)
+            if event["terminal_flush"] == 1
+        ]
+        if len(terminal_indices) > 1 or (
+            terminal_indices and terminal_indices[0] != len(events) - 1
+        ):
+            _fail(
+                f"{label} must contain zero or exactly one terminal event at the end"
+            )
+        normal_events = events[:-1] if terminal_indices else events
+        if any(
+            event["trigger"] != "count"
+            or event["window_commits"] < configuration["count_window"]
+            for event in normal_events
+        ):
+            _fail(f"{label} normal events must be count-closed")
+        if (
+            terminal_indices
+            and events[-1]["window_commits"] < configuration["count_window"]
+        ):
+            _fail(f"{label} terminal event must be count-closed")
+        expected_flushes = len(terminal_indices)
+        if (
+            flushes != expected_flushes
+            or updates != len(normal_events)
+            or retained != updates
+            or dropped != 0
+            or len(events) != updates + flushes
+        ):
+            _fail(f"{label}.trace_summary violates the schema v4 count contract")
+    elif set(summary) != {"updates", "retained", "dropped"}:
+        _fail(f"{label}.trace_summary must contain the exact pre-v4 keys")
+    elif updates != retained + dropped or retained != len(events) or dropped != 0:
         _fail(f"{label}.trace_summary must report all events retained and none dropped")
     directional = _require_dict(row.get("directional_success"), f"{label}.directional_success")
     scored = _integer(directional.get("scored"), f"{label}.directional_success.scored")
@@ -591,6 +807,7 @@ def _parse_trace_run(raw: object, path: Path, index: int) -> tuple[tuple[str, st
         "trace_events": events,
         "trace_summary": {
             "updates": updates, "retained": retained, "dropped": dropped,
+            **({"flushes": flushes} if flushes is not None else {}),
         },
         "directional_success": {
             "scored": scored, "successes": successes, "rate": rate,
@@ -604,7 +821,9 @@ def _parse_diagnostic(path: Path) -> dict[str, Any]:
     document = _strict_json(path)
     schema_version = document.get("schema_version")
     if schema_version not in (
-        DIAGNOSTIC_SCHEMA, COUNTERFACTUAL_DIAGNOSTIC_SCHEMA,
+        DIAGNOSTIC_SCHEMA,
+        COUNTERFACTUAL_DIAGNOSTIC_SCHEMA,
+        COHORT2_DIAGNOSTIC_SCHEMA,
     ):
         _fail(
             "schema_version must exactly identify a supported A+B or A+B+C "
@@ -619,30 +838,36 @@ def _parse_diagnostic(path: Path) -> dict[str, Any]:
         _fail(f"{path}.rep_index must be exactly 0 for the diagnostic job")
     hostname = _string(document.get("hostname"), f"{path}.hostname")
     pbs_jobid = _string(document.get("pbs_jobid"), f"{path}.pbs_jobid")
-    identity = _common_identity(document, str(path))
-    expected_schema = (
-        DIAGNOSTIC_SCHEMA
-        if identity["patch_stack_version"] == "A+B"
-        else COUNTERFACTUAL_DIAGNOSTIC_SCHEMA
+    contract = _diagnostic_contract(document, path)
+    identity = _common_identity(
+        document,
+        str(path),
+        expected_extime_s=contract["expected_extime_s"],
     )
-    if schema_version != expected_schema:
+    supported_schemas = (
+        {DIAGNOSTIC_SCHEMA}
+        if identity["patch_stack_version"] == "A+B"
+        else {COUNTERFACTUAL_DIAGNOSTIC_SCHEMA, COHORT2_DIAGNOSTIC_SCHEMA}
+    )
+    if schema_version not in supported_schemas:
         _fail(
             f"{path}.schema_version does not match "
             f"{identity['patch_stack_version']}"
         )
     execution = _execution_provenance(document, str(path))
     raw_runs = _require_list(document.get("trace_runs"), f"{path}.trace_runs")
-    if len(raw_runs) != len(TRACE_CELLS) * len(WORKLOADS) * len(TRACE_THREADS):
+    trace_cells = contract["cells"]
+    if len(raw_runs) != len(trace_cells) * len(WORKLOADS) * len(TRACE_THREADS):
         _fail(f"{path}.trace_runs must contain exactly 18 runs")
     runs: dict[tuple[str, str, int], dict[str, Any]] = {}
     for index, raw in enumerate(raw_runs):
-        key, value = _parse_trace_run(raw, path, index)
+        key, value = _parse_trace_run(raw, path, index, contract)
         if key in runs:
             _fail(f"duplicate diagnostic coordinate in {path}: {key!r}")
         runs[key] = value
     expected = {
         (cell, workload, threads)
-        for cell in TRACE_CELLS for workload in WORKLOADS for threads in TRACE_THREADS
+        for cell in trace_cells for workload in WORKLOADS for threads in TRACE_THREADS
     }
     if set(runs) != expected:
         _fail("diagnostic grid is incomplete")
@@ -658,6 +883,9 @@ def _parse_diagnostic(path: Path) -> dict[str, Any]:
         "rep_index": rep_index,
         "identity": identity,
         "execution": execution,
+        "contract": contract["name"],
+        "cell_order": list(trace_cells),
+        "expected_extime_s": contract["expected_extime_s"],
         "runs": runs,
     }
 
@@ -1023,7 +1251,13 @@ def load_inputs(
     all_paths = [*resolved_performance, resolved_trace]
     if len(set(all_paths)) != len(all_paths):
         _fail("all input paths must be distinct")
-    performance = [_parse_performance(path) for path in resolved_performance]
+    diagnostic = _parse_diagnostic(resolved_trace)
+    performance = [
+        _parse_performance(
+            path, expected_extime_s=diagnostic["expected_extime_s"]
+        )
+        for path in resolved_performance
+    ]
     performance.sort(key=lambda row: row["rep_index"])
     rep_indices = [row["rep_index"] for row in performance]
     if len(set(rep_indices)) != len(rep_indices):
@@ -1037,7 +1271,6 @@ def load_inputs(
     hostname_duplicates = sorted(
         hostname for hostname, count in hostname_counts.items() if count > 1
     )
-    diagnostic = _parse_diagnostic(resolved_trace)
     identities = [row["identity"] for row in performance] + [diagnostic["identity"]]
     if any(identity != identities[0] for identity in identities[1:]):
         _fail("common identity fields must be identical across all inputs")
@@ -1282,9 +1515,10 @@ def _decimate(events: Sequence[Mapping[str, Any]], clocks_per_us: float) -> dict
 
 def _diagnostic_values(data: Mapping[str, Any]) -> list[dict[str, Any]]:
     clocks = data["identity"]["clocks_per_us"]
+    trace_cells = data["diagnostic"]["cell_order"]
     rows = []
     for workload in WORKLOADS:
-        for cell in TRACE_CELLS:
+        for cell in trace_cells:
             for threads in TRACE_THREADS:
                 run = data["diagnostic"]["runs"][(cell, workload, threads)]
                 rows.append({
@@ -1304,16 +1538,27 @@ def make_diagnostic_figure(data: Mapping[str, Any]):
     fig, axes = plt.subplots(2, 3, figsize=(13.2, 8.1), squeeze=False)
     fig.subplots_adjust(left=0.080, right=0.985, top=0.79, bottom=0.115,
                         wspace=0.27, hspace=0.40)
-    colors = {"cw": "#2ca02c", "cw-as": "#9467bd", "cw-as-dyn": "#d62728"}
+    colors = {
+        "cw": "#2ca02c",
+        "cw-as": "#9467bd",
+        "cw-as-dyn": "#d62728",
+        "cw-as-dyn-p0": "#2ca02c",
+        "cw-as-dyn-p1": "#9467bd",
+        "cw-as-dyn-p2": "#d62728",
+        "cw-as-dyn-c2-p0": "#2ca02c",
+        "cw-as-dyn-c2-p1": "#9467bd",
+        "cw-as-dyn-c2-p2": "#d62728",
+    }
     line_styles = {24: "--", 48: "-"}
     markers = {24: "o", 48: "^"}
     handles = []
     values = _diagnostic_values(data)
+    trace_cells = data["diagnostic"]["cell_order"]
     by_key = {(row["cell"], row["workload"], row["threads"]): row for row in values}
     for column, workload in enumerate(WORKLOADS):
         top = axes[0, column]
         bottom = axes[1, column]
-        for cell in TRACE_CELLS:
+        for cell in trace_cells:
             for threads in TRACE_THREADS:
                 row = by_key[(cell, workload, threads)]
                 trajectory = row["trajectory"]
@@ -1332,10 +1577,10 @@ def make_diagnostic_figure(data: Mapping[str, Any]):
                     else 100.0 * by_key[(cell, workload, threads)]
                     ["directional_success"]["rate"]
                 )
-                for cell in TRACE_CELLS
+                for cell in trace_cells
             ]
             bottom.plot(
-                range(len(TRACE_CELLS)), rates, color="#444444",
+                range(len(trace_cells)), rates, color="#444444",
                 linestyle="none", marker=markers[threads], markersize=5.0,
                 label=f"threads {threads}",
             )
@@ -1343,7 +1588,7 @@ def make_diagnostic_figure(data: Mapping[str, Any]):
         top.set_xlabel("elapsed time (s)")
         top.set_ylabel("Backoff_ (us)")
         top.margins(x=0.02, y=0.10)
-        bottom.set_xticks(range(len(TRACE_CELLS)), TRACE_CELLS)
+        bottom.set_xticks(range(len(trace_cells)), trace_cells)
         bottom.set_ylabel("directional success (%)")
         bottom.set_ylim(-4.0, 104.0)
         bottom.set_xlabel("diagnostic arm")

@@ -9,7 +9,7 @@ compatibility wrappers for the F707/F718 contracts.
 The two arms may share an immutable pair of configured owner-TU commands, but
 never share a verdict, evidence record, or reason code.
 
-Claim boundary: the supply domain contains the 37 patch-derived defines.  The
+Claim boundary: the supply domain contains the 38 patch-derived defines.  The
 legacy runtime-meaning witness remains exclusive to ``BACKOFF_FIXED``.  Nine
 registered macros plus three mocc controls additionally have a bounded
 compile-time witness (12 total): it
@@ -119,6 +119,11 @@ _DEFINE_SPECS = {
     "BACKOFF_TRACE": DefineSpec(
         ROUTE_CMAKE_CACHE, _SILO_OWNER, "ycsb_silo.exe",
         "patches/cicada-adaptive-dynamic.patch",
+        inert_values=("0",),
+    ),
+    "BACKOFF_TRACE_TERMINAL_US": DefineSpec(
+        ROUTE_CMAKE_CACHE, _SILO_OWNER, "ycsb_silo.exe",
+        "patches/cicada-adaptive-counterfactual.patch",
         inert_values=("0",),
     ),
     "BACKOFF_STEP_POLICY": DefineSpec(
