@@ -11,6 +11,7 @@ import base64
 import binascii
 import copy
 import csv
+import fcntl
 import hashlib
 import http.client
 import importlib
@@ -22,6 +23,7 @@ import subprocess
 import struct
 import sys
 import tempfile
+import time
 import xml.etree.ElementTree as ET
 from collections import Counter
 from dataclasses import dataclass
@@ -71,7 +73,7 @@ CATALOG_VERSION = "axis3-search-catalog/v1"
 CHECKPOINT_VERSION = "axis3-search-checkpoint/v1"
 PAGE_EVIDENCE_VERSION = "axis3-search-page-evidence/v1"
 REGISTRATION_SEAL_VERSION = "axis3-search-registration-seal/v1"
-PREFLIGHT_REPORT_VERSION = "axis3-search-preflight-report/v1"
+PREFLIGHT_REPORT_VERSION = "axis3-search-preflight-report/v2"
 BUNDLE_VERSION = "axis3-search-bundle/v1"
 
 PREFLIGHT_REPORT_SCHEMA: Mapping[str, Any] = {
@@ -84,6 +86,7 @@ PREFLIGHT_REPORT_SCHEMA: Mapping[str, Any] = {
         "catalog_sha256",
         "rows",
         "preflight_evidence",
+        "pacing_observations",
         "preflight_evidence_sha256",
         "wire_attempt_count",
         "first_external_request_at",
@@ -105,6 +108,44 @@ PREFLIGHT_REPORT_SCHEMA: Mapping[str, Any] = {
         "catalog_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
         "rows": {"type": "array", "minItems": 2122, "maxItems": 2122},
         "preflight_evidence": {"type": "array", "minItems": 1},
+        "pacing_observations": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": [
+                    "attempt_number",
+                    "stream_id",
+                    "index",
+                    "host",
+                    "request_intent_at",
+                    "minimum_interval_seconds",
+                    "observed_interval_seconds",
+                ],
+                "properties": {
+                    "attempt_number": {"type": "integer", "minimum": 1},
+                    "stream_id": {"type": "string", "minLength": 1},
+                    "index": {"enum": ["arxiv", "openalex", "dblp"]},
+                    "host": {
+                        "enum": [
+                            "export.arxiv.org",
+                            "api.openalex.org",
+                            "dblp.org",
+                        ]
+                    },
+                    "request_intent_at": {
+                        "type": "string",
+                        "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
+                    },
+                    "minimum_interval_seconds": {
+                        "type": "number",
+                        "enum": [1.0, 3.0, 45.0],
+                    },
+                    "observed_interval_seconds": {"type": ["number", "null"]},
+                },
+            },
+        },
         "preflight_evidence_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
         "wire_attempt_count": {
             "type": "integer",
@@ -224,6 +265,25 @@ _FLAG_OPTIONS = {"--live"}
 ARXIV_ENDPOINT = "https://export.arxiv.org/api/query"
 OPENALEX_ENDPOINT = "https://api.openalex.org/works"
 DBLP_ENDPOINT = "https://dblp.org/search/publ/api"
+
+HOST_MINIMUM_INTERVAL_SECONDS: Mapping[str, float] = {
+    "export.arxiv.org": 3.0,
+    "api.openalex.org": 1.0,
+    "dblp.org": 45.0,
+}
+INDEX_HOSTS: Mapping[str, str] = {
+    "arxiv": "export.arxiv.org",
+    "openalex": "api.openalex.org",
+    "dblp": "dblp.org",
+}
+MAX_PREFLIGHT_ATTEMPTS_PER_STREAM = 3
+PREFLIGHT_RETRY_BACKOFF_SECONDS: Mapping[str, tuple[float, ...]] = {
+    "arxiv": (3.0, 6.0, 12.0),
+    "openalex": (3.0, 6.0, 12.0),
+    "dblp": (15.0, 30.0, 60.0),
+}
+DBLP_FAILURE_COOLDOWN_SECONDS = 2700.0
+_HOST_LIMITER_STATE_VERSION = "axis3-search-host-limiter-state/v1"
 
 ARXIV_FIELD_LOCATORS = (
     "/{http://www.w3.org/2005/Atom}feed/"
@@ -3106,9 +3166,9 @@ def _verify_head_closure(paths: Sequence[Path], repo_root: Path) -> None:
 
 
 _STDLIB_RUNTIME_MODULES = (
-    "base64", "copy", "csv", "hashlib", "http.client", "importlib",
+    "base64", "copy", "csv", "fcntl", "hashlib", "http.client", "importlib",
     "importlib.metadata", "json", "os", "re", "subprocess", "struct", "tempfile",
-    "xml.etree.ElementTree", "collections", "dataclasses", "datetime", "functools",
+    "time", "xml.etree.ElementTree", "collections", "dataclasses", "datetime", "functools",
     "pathlib", "typing", "urllib.parse",
 )
 _SITE_RUNTIME_DISTRIBUTIONS = (
@@ -3814,21 +3874,30 @@ def _derive_finalize_eligibility(
         <= TERMINAL_HTTP_STATUS_MAX
     ):
         raise ContractError("finalize_eligibility", "tail HTTP statusが不正")
-    if (
-        tail_status in RETRYABLE_HTTP_STATUSES
+    tail_stream_id = ledger[-1].get("stream_id") if ledger else None
+    tail_stream_attempts = 0
+    for entry in reversed(ledger):
+        if entry.get("stream_id") != tail_stream_id:
+            break
+        tail_stream_attempts += 1
+    retry_available = (
+        kind == "preflight"
+        and tail_status in RETRYABLE_HTTP_STATUSES
+        and tail_stream_attempts < MAX_PREFLIGHT_ATTEMPTS_PER_STREAM
         and wire_attempt_count < MAX_WIRE_ATTEMPTS
-    ):
+    )
+    if retry_available:
         return {
             "finalize_eligible": False,
             "reason": f"retryable_http_{tail_status}",
-            "retry_stream_id": ledger[-1].get("stream_id"),
+            "retry_stream_id": tail_stream_id,
             **policy,
         }
     return {
         "finalize_eligible": True,
         "reason": (
-            "wire_attempt_limit_exhausted"
-            if tail_status in RETRYABLE_HTTP_STATUSES
+            "retry_limit_exhausted"
+            if kind == "preflight" and tail_status in RETRYABLE_HTTP_STATUSES
             else "terminal_tail"
         ),
         **policy,
@@ -5503,6 +5572,221 @@ class BundleWriter:
         return _read_bundle_manifest(self.root)[2]
 
 
+class HostLimiter:
+    """Serialize one minimum-interval schedule per registered host."""
+
+    def __init__(
+        self,
+        *,
+        clock: Callable[[], datetime],
+        sleeper: Callable[[float], None],
+        state_path: Path | None = None,
+    ) -> None:
+        self._clock = clock
+        self._sleeper = sleeper
+        self._state_path = Path(state_path) if state_path is not None else None
+        self._last_issued: dict[str, datetime] = {}
+        self._active: tuple[str, datetime | None, int | None, dict[str, Any] | None] | None = None
+
+    def _now(self) -> datetime:
+        value = self._clock()
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ContractError(
+                "host_limiter_time", "host limiter時刻はtimezone付きが必要"
+            )
+        return value.astimezone(timezone.utc)
+
+    @staticmethod
+    def _decode_state(raw: bytes) -> dict[str, Any]:
+        if not raw:
+            return {
+                "schema_version": _HOST_LIMITER_STATE_VERSION,
+                "hosts": {},
+            }
+        try:
+            value = json.loads(raw.decode("utf-8"))
+        except (UnicodeError, json.JSONDecodeError) as exc:
+            raise ContractError(
+                "host_limiter_state", "host limiter stateを読めない"
+            ) from exc
+        if (
+            not isinstance(value, dict)
+            or set(value) != {"schema_version", "hosts"}
+            or value.get("schema_version") != _HOST_LIMITER_STATE_VERSION
+            or not isinstance(value.get("hosts"), dict)
+        ):
+            raise ContractError(
+                "host_limiter_state", "host limiter state schemaが不正"
+            )
+        for host, host_state in value["hosts"].items():
+            if (
+                host not in HOST_MINIMUM_INTERVAL_SECONDS
+                or not isinstance(host_state, dict)
+                or set(host_state) != {"last_issued_at"}
+            ):
+                raise ContractError(
+                    "host_limiter_state", "host limiter host stateが不正"
+                )
+            _parse_time(str(host_state["last_issued_at"]))
+        return value
+
+    def _open_locked_state(self) -> tuple[int, dict[str, Any]]:
+        assert self._state_path is not None
+        self._state_path.parent.mkdir(parents=True, exist_ok=True)
+        flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_CLOEXEC", 0)
+        if hasattr(os, "O_NOFOLLOW"):
+            flags |= os.O_NOFOLLOW
+        descriptor: int | None = None
+        try:
+            descriptor = os.open(self._state_path, flags, 0o600)
+            os.fchmod(descriptor, 0o600)
+            fcntl.flock(descriptor, fcntl.LOCK_EX)
+            os.lseek(descriptor, 0, os.SEEK_SET)
+            chunks: list[bytes] = []
+            while True:
+                chunk = os.read(descriptor, 1024 * 1024)
+                if not chunk:
+                    break
+                chunks.append(chunk)
+            state = self._decode_state(b"".join(chunks))
+            return descriptor, state
+        except ContractError:
+            if descriptor is not None:
+                self._unlock(descriptor)
+            raise
+        except OSError as exc:
+            if descriptor is not None:
+                os.close(descriptor)
+            raise ContractError(
+                "host_limiter_state", "host limiter stateをlockできない"
+            ) from exc
+
+    @staticmethod
+    def _unlock(descriptor: int) -> None:
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_UN)
+        finally:
+            os.close(descriptor)
+
+    def acquire(self, host: str, minimum_interval_seconds: float) -> float:
+        """Wait before WAL intent creation and retain the host lock until send."""
+
+        if self._active is not None:
+            raise ContractError("host_limiter_state", "host limiter leaseが既に存在する")
+        if HOST_MINIMUM_INTERVAL_SECONDS.get(host) != minimum_interval_seconds:
+            raise ContractError("host_limiter_host", "host最小間隔が固定値と不一致")
+        descriptor: int | None = None
+        state: dict[str, Any] | None = None
+        if self._state_path is None:
+            previous = self._last_issued.get(host)
+        else:
+            descriptor, state = self._open_locked_state()
+            host_state = state["hosts"].get(host)
+            previous = (
+                _parse_time(str(host_state["last_issued_at"]))
+                if isinstance(host_state, Mapping)
+                else None
+            )
+        self._active = (host, previous, descriptor, state)
+        try:
+            wait_seconds = 0.0
+            if previous is not None:
+                wait_seconds = max(
+                    0.0,
+                    (previous + timedelta(seconds=minimum_interval_seconds) - self._now()).total_seconds(),
+                )
+                if wait_seconds:
+                    self._sleeper(wait_seconds)
+            return wait_seconds
+        except BaseException:
+            self.release()
+            raise
+
+    def issue(self, host: str) -> tuple[datetime, float | None]:
+        """Take the real issue timestamp immediately before transport.send."""
+
+        if self._active is None or self._active[0] != host:
+            raise ContractError("host_limiter_state", "host limiter leaseが無い")
+        previous = self._active[1]
+        issued_at = self._now()
+        observed = (
+            None
+            if previous is None
+            else (issued_at - previous).total_seconds()
+        )
+        return issued_at, observed
+
+    def finish_issue(self, host: str, issued_at: datetime) -> None:
+        """Persist the already-observed issue time after the send call returns."""
+
+        if self._active is None or self._active[0] != host:
+            raise ContractError("host_limiter_state", "host limiter leaseが無い")
+        _active_host, _previous, descriptor, state = self._active
+        try:
+            if descriptor is None:
+                self._last_issued[host] = issued_at
+                return
+            assert state is not None
+            state["hosts"][host] = {
+                "last_issued_at": issued_at.isoformat(timespec="microseconds").replace(
+                    "+00:00", "Z"
+                )
+            }
+            payload = _canonical_json(state)
+            os.lseek(descriptor, 0, os.SEEK_SET)
+            os.ftruncate(descriptor, 0)
+            view = memoryview(payload)
+            while view:
+                written = os.write(descriptor, view)
+                view = view[written:]
+            os.fsync(descriptor)
+        except OSError as exc:
+            raise ContractError(
+                "host_limiter_state", "host limiter stateを永続化できない"
+            ) from exc
+        finally:
+            self._active = None
+            if descriptor is not None:
+                self._unlock(descriptor)
+
+    def release(self) -> None:
+        """Release an unissued lease without changing pacing state."""
+
+        if self._active is None:
+            return
+        descriptor = self._active[2]
+        self._active = None
+        if descriptor is not None:
+            self._unlock(descriptor)
+
+
+def _request_pacing(request: Mapping[str, Any]) -> tuple[str, float]:
+    index = request.get("index")
+    url = request.get("url")
+    host = urlsplit(url).hostname if isinstance(url, str) else None
+    if (
+        not isinstance(index, str)
+        or host != INDEX_HOSTS.get(index)
+        or host not in HOST_MINIMUM_INTERVAL_SECONDS
+    ):
+        raise ContractError(
+            "host_limiter_host", "request indexと固定pacing hostが不一致"
+        )
+    return host, HOST_MINIMUM_INTERVAL_SECONDS[host]
+
+
+def _host_limiter(
+    writer: BundleWriter | None,
+    clock: Callable[[], datetime],
+    sleeper: Callable[[float], None],
+) -> HostLimiter:
+    return HostLimiter(
+        clock=clock,
+        sleeper=sleeper,
+        state_path=(writer.root / "state" / "host-limiter.json" if writer else None),
+    )
+
+
 @dataclass
 class WireBudget:
     attempts: int = 0
@@ -5514,16 +5798,23 @@ class WireBudget:
             return None
         return self.first_external_request_at + RUN_DEADLINE
 
-    def consume(self, now: datetime) -> None:
+    def check(self, now: datetime) -> None:
+        """Validate the next attempt without changing either budget field."""
+
         if now.tzinfo is None or now.utcoffset() is None:
             raise ContractError("wire_budget_time", "wire attempt時刻はtimezone付きが必要")
         now = now.astimezone(timezone.utc)
-        if self.first_external_request_at is None:
-            self.first_external_request_at = now
-        if now > self.first_external_request_at + RUN_DEADLINE:
+        first = self.first_external_request_at or now
+        if now > first + RUN_DEADLINE:
             raise ContractError("deadline_exceeded", "最初の外部requestから30日を超過")
         if self.attempts >= MAX_WIRE_ATTEMPTS:
             raise ContractError("wire_budget_exceeded", "wire attempt上限200000を超過")
+
+    def consume(self, now: datetime) -> None:
+        self.check(now)
+        now = now.astimezone(timezone.utc)
+        if self.first_external_request_at is None:
+            self.first_external_request_at = now
         self.attempts += 1
 
 
@@ -5554,33 +5845,86 @@ def _send_with_raw_commit(
     budget: WireBudget,
     clock: Callable[[], datetime],
     *,
+    limiter: HostLimiter,
     writer: BundleWriter | None,
     pass_number: int,
     page_number: int,
+    pacing_observations: list[dict[str, Any]] | None = None,
 ) -> TransportResponse:
     """Persist intent before send and raw bytes immediately after return."""
 
-    if writer is not None:
-        writer.begin_attempt(
-            request=request,
-            pass_number=pass_number,
-            page_number=page_number,
-            expected_wire_attempt_count=budget.attempts + 1,
-            intent_at=clock(),
-        )
-    receipt: _SendReceipt | None = None
-    if type(transport) is LiveSearchSession:
-        if writer is None:
-            raise ContractError(
-                "production_writer_receipt",
-                "production sendにはlive session所有writerが必要",
+    host, minimum_interval_seconds = _request_pacing(request)
+    limiter.acquire(host, minimum_interval_seconds)
+    attempt_at = clock()
+    try:
+        budget.check(attempt_at)
+        if writer is not None:
+            writer.begin_attempt(
+                request=request,
+                pass_number=pass_number,
+                page_number=page_number,
+                expected_wire_attempt_count=budget.attempts + 1,
+                intent_at=attempt_at,
             )
-        budget.consume(clock())
-        response, receipt = transport._send_with_receipt(
-            copy.deepcopy(dict(request)), len(writer.ledger) + 1
+        budget.consume(attempt_at)
+    except BaseException:
+        limiter.release()
+        raise
+
+    outgoing = copy.deepcopy(dict(request))
+    live_send = type(transport) is LiveSearchSession
+    if live_send and writer is None:
+        limiter.release()
+        raise ContractError(
+            "production_writer_receipt",
+            "production sendにはlive session所有writerが必要",
         )
-    else:
-        response = _send(transport, request, budget, clock)
+    live_ordinal = len(writer.ledger) + 1 if live_send and writer is not None else None
+    receipt: _SendReceipt | None = None
+    try:
+        issued_at, observed_interval_seconds = limiter.issue(host)
+        try:
+            if live_send:
+                assert writer is not None and live_ordinal is not None
+                response_value, receipt = transport._send_with_receipt(
+                    outgoing, live_ordinal
+                )
+            else:
+                response_value = transport.send(outgoing)
+        finally:
+            limiter.finish_issue(host, issued_at)
+    except BaseException:
+        limiter.release()
+        if writer is not None:
+            writer.materialize_pending_attempt()
+        raise
+    if pacing_observations is not None:
+        pacing_observations.append(
+            {
+                "attempt_number": budget.attempts,
+                "stream_id": request["stream_id"],
+                "index": request["index"],
+                "host": host,
+                "request_intent_at": _format_time(attempt_at),
+                "minimum_interval_seconds": minimum_interval_seconds,
+                "observed_interval_seconds": observed_interval_seconds,
+            }
+        )
+    try:
+        if isinstance(response_value, TransportResponse):
+            response = response_value
+        else:
+            if not isinstance(response_value, Mapping):
+                raise ContractError(
+                    "transport_response", "transport responseの型が不正"
+                )
+            response = TransportResponse.from_mapping(
+                response_value, strict_transport_boundary=True
+            )
+    except BaseException:
+        if writer is not None:
+            writer.materialize_pending_attempt()
+        raise
     received_at = clock()
     if received_at.tzinfo is None or received_at.utcoffset() is None:
         raise ContractError(
@@ -5836,6 +6180,40 @@ def _evidence_digest(evidence: Mapping[str, Any]) -> str:
     return _sha256(_canonical_json(evidence))
 
 
+def _pacing_observations_from_intents(
+    intents: Sequence[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    """Reconstruct non-gating scheduling observations from second-granularity WAL."""
+
+    previous_by_host: dict[str, datetime] = {}
+    observations: list[dict[str, Any]] = []
+    for attempt_number, intent in enumerate(intents, 1):
+        request = intent.get("request")
+        if not isinstance(request, Mapping):
+            raise ContractError("bundle_resume", "WAL intent requestが無い")
+        host, minimum_interval_seconds = _request_pacing(request)
+        intent_at = str(intent.get("intent_at"))
+        observed_at = _parse_time(intent_at)
+        previous = previous_by_host.get(host)
+        observations.append(
+            {
+                "attempt_number": attempt_number,
+                "stream_id": request["stream_id"],
+                "index": request["index"],
+                "host": host,
+                "request_intent_at": intent_at,
+                "minimum_interval_seconds": minimum_interval_seconds,
+                "observed_interval_seconds": (
+                    None
+                    if previous is None
+                    else (observed_at - previous).total_seconds()
+                ),
+            }
+        )
+        previous_by_host[host] = observed_at
+    return observations
+
+
 def _preflight_row_base(row: Mapping[str, Any]) -> dict[str, Any]:
     return {
         "stream_id": row["stream_id"],
@@ -5884,35 +6262,23 @@ def _finalize_preflight_report(
 def _validate_preflight_wal_attempt_sequence(
     catalog: Mapping[str, Any], evidences: Sequence[Mapping[str, Any]]
 ) -> dict[str, Any]:
-    """Require the registered initial plan prefix and only its legal retries."""
+    """Require the registered plan prefix and at most three inline attempts."""
 
     rows_by_id = {row["stream_id"]: row for row in catalog["rows"]}
-    availability_id = "AX3A1-L-ID-01@openalex"
     planned_ids = _preflight_planned_stream_ids(catalog)
     history: list[Mapping[str, Any]] = []
     initial_offset = 0
+    current_stream_id: str | None = None
+    current_stream_attempts = 0
 
     def retry_stream_id() -> str | None:
-        last_failure = next(
-            (
-                evidence
-                for evidence in reversed(history)
-                if evidence.get("status") != 200
-            ),
-            None,
-        )
-        if last_failure is None:
+        if (
+            not history
+            or history[-1].get("status") not in RETRYABLE_HTTP_STATUSES
+            or current_stream_attempts >= MAX_PREFLIGHT_ATTEMPTS_PER_STREAM
+        ):
             return None
-        stream_id = last_failure.get("stream_id")
-        latest_for_stream = next(
-            (
-                evidence
-                for evidence in reversed(history)
-                if evidence.get("stream_id") == stream_id
-            ),
-            None,
-        )
-        return str(stream_id) if latest_for_stream is last_failure else None
+        return current_stream_id
 
     for evidence in evidences:
         stream_id = evidence.get("stream_id")
@@ -5920,34 +6286,27 @@ def _validate_preflight_wal_attempt_sequence(
             raise ContractError(
                 "bundle_preflight_sequence", "WAL attempt streamがcatalogに無い"
             )
-        if initial_offset < len(planned_ids):
-            # A finalized first-availability 429 may be retried before the
-            # remainder of the initial plan.  It is the only legal non-prefix
-            # attempt before all initially registered rows have been visited.
+        if stream_id == current_stream_id:
             if (
-                initial_offset == 1
-                and len(history) == 1
-                and history[0].get("stream_id") == availability_id
-                and history[0].get("status") == 429
-                and stream_id == availability_id
+                not history
+                or history[-1].get("status") not in RETRYABLE_HTTP_STATUSES
+                or current_stream_attempts >= MAX_PREFLIGHT_ATTEMPTS_PER_STREAM
             ):
-                history.append(evidence)
-                continue
-            expected = planned_ids[initial_offset]
-            if stream_id != expected:
                 raise ContractError(
                     "bundle_preflight_sequence",
-                    "WAL attemptが登録preflight planの完了prefixでない",
+                    "同一preflight streamのattempt上限またはretry順が不正",
                 )
-            initial_offset += 1
+            current_stream_attempts += 1
             history.append(evidence)
             continue
-        expected_retry = retry_stream_id()
-        if expected_retry is None or stream_id != expected_retry:
+        if initial_offset >= len(planned_ids) or stream_id != planned_ids[initial_offset]:
             raise ContractError(
                 "bundle_preflight_sequence",
-                "WAL suffixが最新未成功responseのretryでない",
+                "WAL attemptが登録preflight planの完了prefixでない",
             )
+        initial_offset += 1
+        current_stream_id = str(stream_id)
+        current_stream_attempts = 1
         history.append(evidence)
 
     next_initial = (
@@ -5959,7 +6318,8 @@ def _validate_preflight_wal_attempt_sequence(
         "planned_stream_ids": planned_ids,
         "initial_plan_complete": initial_offset == len(planned_ids),
         "next_initial_stream_id": next_initial,
-        "retry_stream_id": retry_stream_id() if next_initial is None else None,
+        "retry_stream_id": retry_stream_id(),
+        "current_stream_attempts": current_stream_attempts,
     }
 
 
@@ -6084,6 +6444,7 @@ def _derive_preflight_report_from_wal(
         "catalog_sha256": seal["catalog_sha256"],
         "rows": [report_rows[row["stream_id"]] for row in catalog["rows"]],
         "preflight_evidence": copy.deepcopy(list(evidences)),
+        "pacing_observations": _pacing_observations_from_intents(intents),
         "wire_attempt_count": len(evidences),
         "first_external_request_at": _format_time(first),
         "deadline_at": _format_time(first + RUN_DEADLINE),
@@ -6158,6 +6519,7 @@ def run_preflight(
     commit: str,
     transport: Any,
     clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
+    sleeper: Callable[[float], None] = time.sleep,
     checkpoint_path: Path | None = None,
     bundle_dir: Path | None = None,
     repo_root: Path = REPO_ROOT,
@@ -6203,33 +6565,96 @@ def run_preflight(
         else None
     )
     budget = WireBudget()
+    limiter = _host_limiter(writer, clock, sleeper)
+    pacing_observations: list[dict[str, Any]] = []
     rows_by_id = {row["stream_id"]: row for row in catalog["rows"]}
     availability_id = "AX3A1-L-ID-01@openalex"
     availability_row = rows_by_id[availability_id]
-    availability_request = materialize_request(availability_row)
-    availability_response = _send_with_raw_commit(
-        transport,
-        availability_request,
-        budget,
-        clock,
-        writer=writer,
-        pass_number=0,
-        page_number=0,
-    )
-    try:
-        availability_evidence, availability_probe = _validate_and_classify_response(
-            row=availability_row,
-            request=availability_request,
-            response=availability_response,
+    preflight_evidence: list[dict[str, Any]] = []
+
+    def attempt_row(
+        row: Mapping[str, Any], *, initial_availability: bool = False
+    ) -> tuple[TransportResponse, dict[str, Any], dict[str, Any], Mapping[str, Any] | None]:
+        request = materialize_request(row)
+        response = _send_with_raw_commit(
+            transport,
+            request,
+            budget,
+            clock,
+            limiter=limiter,
+            writer=writer,
             pass_number=0,
             page_number=0,
-            classify_preflight=True,
+            pacing_observations=pacing_observations,
         )
-    except ContractError:
+        try:
+            evidence, probe = _validate_and_classify_response(
+                row=row,
+                request=request,
+                response=response,
+                pass_number=0,
+                page_number=0,
+                classify_preflight=True,
+            )
+        except ContractError:
+            if writer is not None:
+                writer.materialize_pending_attempt()
+            raise
+        assert probe is not None
+        preflight_evidence.append(evidence)
+        checkpoint: Mapping[str, Any] | None = None
+        if initial_availability and response.status == 429 and budget.attempts == 1:
+            checkpoint = _quota_checkpoint(
+                row=row,
+                request=request,
+                response=response,
+                seal=seal,
+                budget=budget,
+                now=clock(),
+            )
+        elif response.status != 200:
+            checkpoint = _response_checkpoint(
+                row=row,
+                request=request,
+                response=response,
+                seal=seal,
+                budget=budget,
+                now=clock(),
+                run_id="axis3-live-preflight",
+                pass_number=1,
+                page_number=0,
+                next_request=None,
+            )
         if writer is not None:
-            writer.materialize_pending_attempt()
-        raise
-    preflight_evidence = [availability_evidence]
+            checkpoint = writer.commit_response(
+                evidence=evidence,
+                entity_body=response.entity_body,
+                checkpoint=checkpoint,
+            )
+        return response, evidence, probe, checkpoint
+
+    def finish_retries(
+        row: Mapping[str, Any],
+        response: TransportResponse,
+        evidence: dict[str, Any],
+        probe: dict[str, Any],
+    ) -> tuple[TransportResponse, dict[str, Any], dict[str, Any]]:
+        attempts_for_row = 1
+        while (
+            response.status in RETRYABLE_HTTP_STATUSES
+            and attempts_for_row < MAX_PREFLIGHT_ATTEMPTS_PER_STREAM
+        ):
+            sleeper(PREFLIGHT_RETRY_BACKOFF_SECONDS[str(row["index"])][attempts_for_row - 1])
+            response, evidence, probe, _checkpoint = attempt_row(row)
+            attempts_for_row += 1
+        return response, evidence, probe
+
+    (
+        availability_response,
+        availability_evidence,
+        availability_probe,
+        availability_checkpoint,
+    ) = attempt_row(availability_row, initial_availability=True)
 
     report_rows: dict[str, dict[str, Any]] = {}
     if availability_response.status == 429:
@@ -6257,24 +6682,9 @@ def run_preflight(
             attempt_number=1,
             evidence_sha256=_evidence_digest(availability_evidence),
         )
-        now = clock()
-        checkpoint = _quota_checkpoint(
-            row=availability_row,
-            request=availability_request,
-            response=availability_response,
-            seal=seal,
-            budget=budget,
-            now=now,
-        )
+        checkpoint = availability_checkpoint
+        assert checkpoint is not None
         validate_checkpoint(checkpoint)
-        if writer is not None:
-            checkpoint = dict(
-                writer.commit_response(
-                    evidence=availability_evidence,
-                    entity_body=availability_response.entity_body,
-                    checkpoint=checkpoint,
-                )
-            )
         if checkpoint_path is not None:
             write_checkpoint_atomic(checkpoint_path, checkpoint)
         report = {
@@ -6283,6 +6693,7 @@ def run_preflight(
             "catalog_sha256": seal["catalog_sha256"],
             "rows": [report_rows[row["stream_id"]] for row in catalog["rows"]],
             "preflight_evidence": preflight_evidence,
+            "pacing_observations": pacing_observations,
             "wire_attempt_count": budget.attempts,
             "first_external_request_at": _format_time(budget.first_external_request_at),
             "deadline_at": _format_time(budget.deadline_at),
@@ -6300,39 +6711,23 @@ def run_preflight(
             writer._write_state_pointer()
         return finished
 
-    if writer is not None:
-        availability_checkpoint = (
-            _response_checkpoint(
-                row=availability_row,
-                request=availability_request,
-                response=availability_response,
-                seal=seal,
-                budget=budget,
-                now=clock(),
-                run_id="axis3-live-preflight",
-                pass_number=1,
-                page_number=0,
-                next_request=None,
-            )
-            if availability_response.status != 200
-            else None
-        )
-        writer.commit_response(
-            evidence=availability_evidence,
-            entity_body=availability_response.entity_body,
-            checkpoint=availability_checkpoint,
-        )
+    availability_response, availability_latest_evidence, availability_probe = finish_retries(
+        availability_row,
+        availability_response,
+        availability_evidence,
+        availability_probe,
+    )
     assert availability_probe is not None
     report_rows[availability_id] = {
         **_preflight_row_base(availability_row),
         **availability_probe,
         "entity_body_sha256": _sha256(availability_response.entity_body),
         "attempted": True,
-        "attempt_number": 1,
-        "evidence_sha256": _evidence_digest(availability_evidence),
+        "attempt_number": budget.attempts,
+        "evidence_sha256": _evidence_digest(availability_latest_evidence),
         "preflight_response_reusable_for_run": False,
     }
-    for row in catalog["rows"]:
+    for row_offset, row in enumerate(catalog["rows"]):
         stream_id = row["stream_id"]
         if stream_id == availability_id:
             continue
@@ -6347,52 +6742,8 @@ def run_preflight(
                 "preflight_response_reusable_for_run": False,
             }
             continue
-        request = materialize_request(row)
-        response = _send_with_raw_commit(
-            transport,
-            request,
-            budget,
-            clock,
-            writer=writer,
-            pass_number=0,
-            page_number=0,
-        )
-        try:
-            evidence, probe = _validate_and_classify_response(
-                row=row,
-                request=request,
-                response=response,
-                pass_number=0,
-                page_number=0,
-                classify_preflight=True,
-            )
-        except ContractError:
-            if writer is not None:
-                writer.materialize_pending_attempt()
-            raise
-        preflight_evidence.append(evidence)
-        if writer is not None:
-            exceptional_checkpoint = (
-                _response_checkpoint(
-                    row=row,
-                    request=request,
-                    response=response,
-                    seal=seal,
-                    budget=budget,
-                    now=clock(),
-                    run_id="axis3-live-preflight",
-                    pass_number=1,
-                    page_number=0,
-                    next_request=None,
-                )
-                if response.status != 200
-                else None
-            )
-            writer.commit_response(
-                evidence=evidence,
-                entity_body=response.entity_body,
-                checkpoint=exceptional_checkpoint,
-            )
+        response, evidence, probe, _checkpoint = attempt_row(row)
+        response, evidence, probe = finish_retries(row, response, evidence, probe)
         assert probe is not None
         report_rows[stream_id] = {
             **_preflight_row_base(row),
@@ -6403,12 +6754,22 @@ def run_preflight(
             "evidence_sha256": _evidence_digest(evidence),
             "preflight_response_reusable_for_run": False,
         }
+        if (
+            row["index"] == "dblp"
+            and response.status in RETRYABLE_HTTP_STATUSES
+            and any(
+                later["request_factory"]["state"] == "complete"
+                for later in catalog["rows"][row_offset + 1 :]
+            )
+        ):
+            sleeper(DBLP_FAILURE_COOLDOWN_SECONDS)
     report = {
         "schema_version": PREFLIGHT_REPORT_VERSION,
         "registration_seal_sha256": seal["seal_sha256"],
         "catalog_sha256": seal["catalog_sha256"],
         "rows": [report_rows[row["stream_id"]] for row in catalog["rows"]],
         "preflight_evidence": preflight_evidence,
+        "pacing_observations": pacing_observations,
         "wire_attempt_count": budget.attempts,
         "first_external_request_at": _format_time(budget.first_external_request_at),
         "deadline_at": _format_time(budget.deadline_at),
@@ -6486,6 +6847,36 @@ def validate_preflight_report(
     assert isinstance(evidence_values, list)
     if len(evidence_values) != attempts:
         raise ContractError("preflight_wire_attempts", "全wire attemptにevidenceが1件必要")
+    pacing_values = report.get("pacing_observations")
+    assert isinstance(pacing_values, list)
+    if len(pacing_values) != attempts:
+        raise ContractError(
+            "preflight_pacing", "全wire attemptにpacing observationが1件必要"
+        )
+    for attempt_number, (observation, evidence) in enumerate(
+        zip(pacing_values, evidence_values), 1
+    ):
+        if not isinstance(observation, Mapping) or not isinstance(evidence, Mapping):
+            raise ContractError(
+                "preflight_pacing", "pacing observationとevidenceはobjectが必要"
+            )
+        request = evidence.get("request")
+        if not isinstance(request, Mapping):
+            raise ContractError("preflight_evidence", "evidence requestが無い")
+        host, minimum_interval_seconds = _request_pacing(request)
+        if (
+            observation.get("attempt_number") != attempt_number
+            or observation.get("stream_id") != evidence.get("stream_id")
+            or observation.get("index") != request.get("index")
+            or observation.get("host") != host
+            or observation.get("minimum_interval_seconds")
+            != minimum_interval_seconds
+        ):
+            raise ContractError(
+                "preflight_pacing", "pacing observation順がevidenceと不一致"
+            )
+        _parse_time(str(observation.get("request_intent_at")))
+    _validate_preflight_wal_attempt_sequence(catalog, evidence_values)
     evidence_by_stream: dict[str, list[tuple[int, Mapping[str, Any]]]] = {}
     for attempt_number, evidence in enumerate(evidence_values, 1):
         if not isinstance(evidence, Mapping):
@@ -6704,6 +7095,7 @@ def _run_stream(
     budget: WireBudget,
     clock: Callable[[], datetime],
     *,
+    limiter: HostLimiter,
     writer: BundleWriter | None = None,
     seal: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
@@ -6723,6 +7115,7 @@ def _run_stream(
             request,
             budget,
             clock,
+            limiter=limiter,
             writer=writer,
             pass_number=1,
             page_number=page_number,
@@ -6849,6 +7242,7 @@ def run_ready(
     commit: str,
     transport: Any,
     clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
+    sleeper: Callable[[float], None] = time.sleep,
     preflight_bundle_dir: Path | None = None,
     bundle_dir: Path | None = None,
     repo_root: Path = REPO_ROOT,
@@ -6907,6 +7301,7 @@ def run_ready(
         attempts=int(preflight_report["wire_attempt_count"]),
         first_external_request_at=first,
     )
+    limiter = _host_limiter(writer, clock, sleeper)
     statuses = {row["stream_id"]: row["status"] for row in preflight_report["rows"]}
     ready_rows = _ordered_ready_rows(catalog, statuses)
     results = []
@@ -6917,6 +7312,7 @@ def run_ready(
             transport,
             budget,
             clock,
+            limiter=limiter,
             writer=writer,
             seal=seal,
         )
@@ -8119,6 +8515,8 @@ def _resume_preflight_from_wal(
     seal: Mapping[str, Any],
     transport: Any,
     clock: Callable[[], datetime],
+    sleeper: Callable[[float], None],
+    limiter: HostLimiter,
     phase_argv: Mapping[str, Any],
 ) -> Mapping[str, Any]:
     journal = manifest.get("journal")
@@ -8183,7 +8581,11 @@ def _resume_preflight_from_wal(
             }
     elif lifecycle != "in_progress":
         raise ContractError("bundle_lifecycle", "preflight resume lifecycleが不正")
-    elif evidences and evidences[-1].get("status") in RETRYABLE_HTTP_STATUSES:
+    elif (
+        evidences
+        and evidences[-1].get("status") in RETRYABLE_HTTP_STATUSES
+        and sequence_plan["retry_stream_id"] is not None
+    ):
         retry_row = rows_by_id[str(evidences[-1]["stream_id"])]
 
     writer = _open_bundle_writer(
@@ -8211,6 +8613,7 @@ def _resume_preflight_from_wal(
             request,
             budget,
             clock,
+            limiter=limiter,
             writer=writer,
             pass_number=0,
             page_number=0,
@@ -8264,27 +8667,68 @@ def _resume_preflight_from_wal(
 
     first_response: TransportResponse | None = None
     resumed_row: Mapping[str, Any] | None = retry_row
+
+    def send_retry_sequence(
+        row: Mapping[str, Any], attempts_so_far: int
+    ) -> tuple[TransportResponse, int]:
+        nonlocal first_response, resumed_row
+        response: TransportResponse | None = None
+        while attempts_so_far < MAX_PREFLIGHT_ATTEMPTS_PER_STREAM:
+            if attempts_so_far:
+                sleeper(
+                    PREFLIGHT_RETRY_BACKOFF_SECONDS[str(row["index"])][
+                        attempts_so_far - 1
+                    ]
+                )
+            response = send_and_commit(row)
+            attempts_so_far += 1
+            if first_response is None:
+                first_response = response
+                resumed_row = row
+            if response.status not in RETRYABLE_HTTP_STATUSES:
+                break
+            if (
+                len(writer.ledger) == 1
+                and row["stream_id"] == availability_id
+                and response.status == 429
+            ):
+                break
+        assert response is not None
+        return response, attempts_so_far
+
     if retry_row is not None:
-        first_response = send_and_commit(retry_row)
+        retry_count = int(sequence_plan["current_stream_attempts"])
+        retry_response, retry_count = send_retry_sequence(retry_row, retry_count)
         attempted_ids.add(str(retry_row["stream_id"]))
-    retry_still_pending = (
-        first_response is not None
-        and first_response.status in RETRYABLE_HTTP_STATUSES
-    )
-    for planned in ([] if retry_still_pending else planned_rows):
+        if (
+            retry_row["index"] == "dblp"
+            and retry_response.status in RETRYABLE_HTTP_STATUSES
+            and retry_count >= MAX_PREFLIGHT_ATTEMPTS_PER_STREAM
+        ):
+            sleeper(DBLP_FAILURE_COOLDOWN_SECONDS)
+    for planned in planned_rows:
         if planned["stream_id"] in attempted_ids:
             continue
-        response = send_and_commit(planned)
+        response, attempts_for_row = send_retry_sequence(planned, 0)
         attempted_ids.add(str(planned["stream_id"]))
-        if resumed_row is None:
-            resumed_row = planned
-            first_response = response
         if (
             len(writer.ledger) == 1
             and planned["stream_id"] == availability_id
             and response.status == 429
         ):
             break
+        if (
+            planned["index"] == "dblp"
+            and response.status in RETRYABLE_HTTP_STATUSES
+            and attempts_for_row >= MAX_PREFLIGHT_ATTEMPTS_PER_STREAM
+        ):
+            remaining_ids = set(sequence_plan["planned_stream_ids"])
+            if any(
+                candidate["stream_id"] in remaining_ids
+                and candidate["stream_id"] not in attempted_ids
+                for candidate in planned_rows
+            ):
+                sleeper(DBLP_FAILURE_COOLDOWN_SECONDS)
 
     replayed = _replay_preflight_wal(root, writer._journal_descriptor(sealed=False))
     eligibility = _derive_finalize_eligibility(
@@ -8398,6 +8842,7 @@ def _resume_final_request_sequence(
     transport: Any,
     budget: WireBudget,
     clock: Callable[[], datetime],
+    limiter: HostLimiter,
     writer: BundleWriter,
     seal: Mapping[str, Any],
     successful_requests: set[
@@ -8423,6 +8868,7 @@ def _resume_final_request_sequence(
             request,
             budget,
             clock,
+            limiter=limiter,
             writer=writer,
             pass_number=resume_pass_number,
             page_number=page_number,
@@ -8516,6 +8962,7 @@ def resume_bundle(
     commit: str,
     transport: Any,
     clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
+    sleeper: Callable[[float], None] = time.sleep,
     preflight_bundle_dir: Path | None = None,
     effective_argv: Sequence[str] | None = None,
 ) -> Mapping[str, Any]:
@@ -8578,6 +9025,11 @@ def resume_bundle(
             "checkpoint": None,
             **phase_argv,
         }
+    limiter = HostLimiter(
+        clock=clock,
+        sleeper=sleeper,
+        state_path=root / "state" / "host-limiter.json",
+    )
     if manifest.get("kind") == "preflight":
         return _resume_preflight_from_wal(
             root=root,
@@ -8586,6 +9038,8 @@ def resume_bundle(
             seal=seal,
             transport=transport,
             clock=clock,
+            sleeper=sleeper,
+            limiter=limiter,
             phase_argv=phase_argv,
         )
     if manifest.get("lifecycle") == "finalized":
@@ -8679,6 +9133,7 @@ def resume_bundle(
             transport=transport,
             budget=budget,
             clock=clock,
+            limiter=limiter,
             writer=writer,
             seal=seal,
             successful_requests=(
@@ -8741,6 +9196,7 @@ def resume_bundle(
                 transport,
                 budget,
                 clock,
+                limiter=limiter,
                 writer=writer,
                 seal=seal,
             )

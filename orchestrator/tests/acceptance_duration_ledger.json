@@ -1,5 +1,11 @@
 {
   "duration_seconds_by_nodeid": {
+    "orchestrator/tests/test_related_work_search.py::test_host_pacing_uses_actual_pre_send_time_and_persists_across_limiters": 0.42,
+    "orchestrator/tests/test_related_work_search.py::test_preflight_report_observed_interval_is_nonblocking_n3": 2.6,
+    "orchestrator/tests/test_related_work_search.py::test_preflight_retries_retryable_dblp_three_attempts_then_cools_down": 5.4,
+    "orchestrator/tests/test_related_work_search.py::test_preflight_wal_accepts_three_inline_attempts_and_rejects_fourth": 0.003,
+    "orchestrator/tests/test_related_work_search.py::test_transport_exception_materializes_pending_attempt_before_reraise": 1.7,
+    "orchestrator/tests/test_related_work_search.py::test_wire_budget_rejection_precedes_attempt_intent": 0.061,
     "orchestrator/tests/test_a5_second_boot_job_contract.py::test_a5_cleanup_failure_records_remaining_paths_and_preserves_exit_precedence": 0.12,
     "orchestrator/tests/test_a5_second_boot_job_contract.py::test_a5_job_exit_cleanup_preserves_missing_sibling_worktree_registration": 0.13,
     "orchestrator/tests/test_p3_s4_loop.py::test_prebuild_offline_tokens_reach_real_condition_gate_configure_argv": 0.01,
@@ -22158,7 +22164,7 @@
     "orchestrator/tests/test_t1998_stock_inline_pair.py::test_unstable_arm_is_inconclusive[target]": 0.0,
     "orchestrator/tests/test_t1998_stock_inline_pair.py::test_verify_environment_tag_drift_is_rejected": 0.0
   },
-  "nodeid_count": 22157,
+  "nodeid_count": 22163,
   "schema_version": 1,
   "unit": "seconds"
 }
