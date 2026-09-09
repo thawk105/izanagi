@@ -87,7 +87,8 @@ _CONDITION_GATE_DEFAULTS = {
 
 def _require_backoff_condition_gate(
         source_root: str, *, stock_root: Optional[str], driver_id: str,
-        macro_values: Mapping[str, Sequence[int]], cxx: str,
+        macro_values: Mapping[str, Sequence[int]],
+        backoff_fixed_physical_us: Mapping[int, int], cxx: str,
         cmake: str = "cmake", use_class: str = "raw-measurement",
         configure_args: Sequence[str] = (),
 ) -> _BackoffConditionGateRun:
@@ -104,16 +105,60 @@ def _require_backoff_condition_gate(
             "backoff driver has no reviewed default for macros: "
             f"{sorted(unknown_defaults)!r}"
         )
-    captured = condition_meaning_gate.capture_define_inputs(
-        source_root, stock_root=stock_root, configure_args=configure_args,
-    )
-    requests = []
+    reviewed_values: dict[str, tuple[int, ...]] = {}
     for macro, values in macro_values.items():
         if type(values) not in {tuple, list} or not values:
             raise RuntimeError(f"condition gate values are missing for {macro}")
         if any(type(value) is not int for value in values):
-            raise RuntimeError(f"condition gate values must be exact integers for {macro}")
-        for value in dict.fromkeys(values):
+            raise RuntimeError(
+                f"condition gate values must be exact integers for {macro}"
+            )
+        reviewed_values[macro] = tuple(dict.fromkeys(values))
+
+    if not isinstance(backoff_fixed_physical_us, Mapping):
+        raise RuntimeError("BACKOFF_FIXED physical intent must be a mapping")
+    physical_rows = tuple(backoff_fixed_physical_us.items())
+    if any(type(raw) is not int for raw, _physical in physical_rows):
+        raise RuntimeError("BACKOFF_FIXED physical intent keys must be exact integers")
+    requested_nonnegative = {
+        value
+        for value in reviewed_values.get("BACKOFF_FIXED", ())
+        if value >= 0
+    }
+    supplied_nonnegative = {raw for raw, _physical in physical_rows}
+    if supplied_nonnegative != requested_nonnegative:
+        raise RuntimeError(
+            "BACKOFF_FIXED physical intent key mismatch: "
+            f"missing={sorted(requested_nonnegative - supplied_nonnegative)!r}, "
+            f"extra={sorted(supplied_nonnegative - requested_nonnegative)!r}"
+        )
+    if any(
+            type(physical) is not int or physical < 0
+            for _raw, physical in physical_rows
+    ):
+        raise RuntimeError(
+            "BACKOFF_FIXED physical intent values must be non-negative exact integers"
+        )
+
+    fixed_declarations = {}
+    for raw, physical in physical_rows:
+        try:
+            bits = condition_meaning_gate.canonical_float64_bits(float(physical))
+        except (OverflowError, ValueError) as exc:
+            raise RuntimeError(
+                "BACKOFF_FIXED physical intent is not finite binary64"
+            ) from exc
+        fixed_declarations[raw] = condition_meaning_gate.MeaningWitnessDeclaration(
+            "BACKOFF_FIXED",
+            (condition_meaning_gate.MeaningCase(raw, (bits, bits)),),
+        )
+
+    captured = condition_meaning_gate.capture_define_inputs(
+        source_root, stock_root=stock_root, configure_args=configure_args,
+    )
+    requests = []
+    for macro, values in reviewed_values.items():
+        for value in values:
             stock_comparison = macro == "BACKOFF_FIXED" and value == -1
             requests.append(condition_meaning_gate.make_define_request(
                 driver_id=driver_id,
@@ -147,6 +192,8 @@ def _require_backoff_condition_gate(
                 )
                 if request.macro == "BACKOFF_FIXED"
                 and request.requested_value == -1
+                else fixed_declarations.get(request.requested_value)
+                if request.macro == "BACKOFF_FIXED"
                 else None
             ),
             cxx=cxx,
@@ -383,6 +430,14 @@ def run_workload(tag: str, workload: dict, log=print, *,
                         "BACKOFF_FIXED": tuple(
                             genome.flags["BACKOFF_FIXED"] for genome in gs
                         ),
+                    },
+                    backoff_fixed_physical_us={
+                        amount: amount
+                        for amount in SWEEP_US
+                        if any(
+                            genome.flags["BACKOFF_FIXED"] == amount
+                            for genome in gs
+                        )
                     },
                     cxx=resolved_cxx,
                     use_class="raw-measurement",

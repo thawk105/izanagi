@@ -78,6 +78,11 @@ def _conditioned_backoff_patch(points: list[Genome], *, cxx: str):
                         point.flags["BACKOFF_FIXED"] for point in points
                     ),
                 },
+                backoff_fixed_physical_us={
+                    point.flags["BACKOFF_FIXED"]: point.flags["BACKOFF_FIXED"]
+                    for point in points
+                    if point.flags["BACKOFF_FIXED"] >= 0
+                },
                 cxx=cxx,
                 use_class="raw-measurement",
             )
