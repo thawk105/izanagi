@@ -1,0 +1,120 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 90,
+ "timeout_seconds": 1800,
+ "hang_timeout_seconds": 1800,
+ "mutations": [
+  {
+   "id": "m1-p2-seed-table-open",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+     "old": "                or self.step_policy_seed not in CERT_POLICY2_STEP_POLICY_SEEDS\n",
+     "new": "                or False\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m2-tuned-thread-widened",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+     "old": "    CERT_TUNED_CELL: (48,),\n",
+     "new": "    CERT_TUNED_CELL: (24, 48),\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m3-claim-accepts-unvalidated-axes",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+     "old": "        raise TypeError(\"claim construction requires CertificationAxes\")\n",
+     "new": "        pass\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m4-target-anomalies-not-required-empty",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+     "old": "        or result.get(\"anomalies\") != []\n",
+     "new": "        or False\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m5-pbs-certify-drops-seed-forward",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/probes/t2187_adaptive_const_probe.pbs",
+     "old": "  --mode certify \\\n  \"${STEP_POLICY_SEED_ARGS[@]}\" \\\n",
+     "new": "  --mode certify \\\n  \\\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m6-perf-binding-uses-default-seed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+     "old": "            expected_seed = expected_axes.step_policy_seed\n",
+     "new": "            expected_seed = STOCK_STEP_POLICY_SEED\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m7-group-axes-allow-mixed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+     "old": "    if len(axes) != 1:\n",
+     "new": "    if len(axes) < 1:\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m8-perf-binding-drops-thread-row",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+     "old": "            or not any(\n                type(row.get(\"threads\")) is int\n                and row[\"threads\"] == expected_axes.threads\n                for row in matching_rows\n            )\n",
+     "new": "            or False\n            or False\n            or False\n            or False\n            or False\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}
