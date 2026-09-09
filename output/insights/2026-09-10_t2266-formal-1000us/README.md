@@ -178,8 +178,37 @@ symlink は 1 つも足していない。よって `DW-S04` により変異 matr
   **docs 編集後**のいずれも **rc=0** (「違反なし」)。
 - 段 6 の敵対レビュー 2 本は `tools/check_codex_output.py` が**両方 rc=0**。
   内容と採否は §7。
-- **受入全走は本節を書いた時点で未実施である。** land 対象の tip に対して
-  `tools/dev_wave_wait.py acceptance` で走らせ、結果は本節へ追記する。
+**受入全走 (1 回目) は赤 1 件で返った。本 wave に帰属しない。**
+
+- `child_rc = 1`、`22303 passed / 68 skipped / 1 failed`、claim した main は `dd43fcb70`。
+  待ち手は `stage=acceptance-command rc=70` で止まり、受領証は発行されていない。
+- 赤は `orchestrator/tests/test_dev_waves_worker.py::test_stdout_stderr_combined_cap_minus_exact_plus_one_boundaries`
+  の 1 件だけ。**本 wave の差分はこの test へ到達しない** — 変えたのは docs と測定記録だけで、
+  test が測る `tools/dev_waves/worker.py` の byte 上限には触れていない。
+  この test は子 process に 4096 byte 前後を stdout / stderr へ書かせ、
+  `termination_grace_s=0.05` (50 ミリ秒) の猶予で打ち切って byte 数を突き合わせるもので、
+  login node の負荷に感応する形をしている。
+- `DW-O18` に従い**単独再走**した。`python3 tools/run_tests.py <当該 nodeid>` は **rc=0**、
+  `1 passed in 4.08s` (Pegasus request `988969`)。**非再現である。**
+- `docs/failures.md` にも `orchestrator/tests/flaky_test_holds.py` にも同 test の登録は無い。
+  **再赤でも決定的赤でもないので、本 wave は hold を登録していない** (`DW-O18` の登録条件は
+  「再赤 / 決定的赤」であり、非再現の 1 回はこれに当たらない)。
+
+**受入全走 (2 回目) は緑。**
+
+- `verdict = child-green`、`child_rc = 0`、`22307 passed / 68 skipped`、
+  `red_nodeids = []`、`flake_nodeids = []`。
+- tested main `66beffb6dc1ca1d5b713583239200fdb45144360`、
+  tested tip `9fdfe73938c7a724c425e3844a8afe20d894669c`。
+- 受領証は repo 外の job dir の `acceptance-receipt-2.json`
+  (`dev-wave-acceptance-receipt/v5`)。走行前後の fingerprint は一致
+  (`diff_bytes = 0`、`status_bytes = 0`)。
+
+**本節を書いた commit は 2 回目の tested tip より後にある。** そのため land 対象の最終 tip に対して
+**3 回目の受入**を走らせ、その受領証を repo 外の job dir の `acceptance-receipt-3.json` へ残す。
+land が使う tested main / tested tip はそちらの値である (`DW-O12`)。
+**3 回目の値を本節へ書くと同じ理由でまた次の commit が要るので、値は repo 外の受領証に置く。**
+ここで止めないと回帰が終わらない。
 
 ## 7. 敵対レビューが見つけたもの
 
@@ -216,6 +245,14 @@ v1 と v2 の campaign identity は衝突しない。`output/insights/` 配下�
 「B-10 の未了をどう数えるか」であり、測定そのものはこの見落としに影響されない。
 それでも、初稿はその食い違いの上に「残り 3 項目」と書いていた。**段 3 を省いた分の穴を、
 段 6 の 2 レンズが両方とも独立に埋めた。**
+
+**この near miss は F597 の再発として台帳へ送った** (段 8)。既存の 2026-09-01 例は
+「段 3 を省いたため誤った判断がそのまま報告として出た」型で、本件は
+**「測り方に択一が無い」ことを「主張に択一が無い」ことと取り違えた**型である。
+再発検知として「段 1 で読んだ一次資料が『裁定へ返した』と書いている項目を列挙し、
+そのいずれかが成果物の主張の土台になるなら軽量版にしない」を書いた。
+**`DW-C00` 自体は変えていない** — 軽量版の適用境界は裁定境界であり、
+`docs/skill-self-improvement.md` が裁定パッケージ側へ回す対象だからである。
 
 ## 8. 再現条件
 
