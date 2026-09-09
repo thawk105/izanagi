@@ -1,0 +1,547 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2503-pbs-binding/output/pegasus-dispatch/8c36f09d9f531ebfc93a84f72372f23c/izdw-8c36f09d9f.o988664",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2503-pbs-binding/output/pegasus-dispatch/8c36f09d9f531ebfc93a84f72372f23c/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 55%]\n.........................................................                [100%]\n129 passed in 4.55s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "5204180194cf278b45925d327eff654287cc4acc43ef1c2a8d0860be7df9a84c"
+    },
+    "artifact_error": null,
+    "collection_sha256": "950d53f944180d5d92604c8bc09110705a82c8e9c43c97b74dc74d3c7f9d9b01",
+    "duration_s": 27.0,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "a161a7b08e3304ef384756f4f52a2f5b33979b50e70e1e9c81d1d906381b6853",
+    "repo_head": "f07761100b19fe251107dec1b09f20db6f0529d1",
+    "runner_sha256": "b87f74143295ca4852cf0ec749bf50cc8a282921f749587d22b073478eeed8f8",
+    "spec_sha256": "ad13eb09657fd31d542273fc3d340b149fb1708e7519d56d88c554c6285eb851",
+    "status": "PASSED",
+    "test_output_sha256": "5204180194cf278b45925d327eff654287cc4acc43ef1c2a8d0860be7df9a84c",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "b232ef36fa46883a994c25d0216db0940ffb47f64864a0411ed7b4adaaf005d1"
+  },
+  "date": "2026-09-09T15:15:41.933329+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2503-pbs-binding/output/pegasus-dispatch/f5e7ff2d2f1446977835b9a3c4c706a6/izdw-f5e7ff2d2f.o988666",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2503-pbs-binding/output/pegasus-dispatch/f5e7ff2d2f1446977835b9a3c4c706a6/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 55%]\n.............................................FF..........                [100%]\n=================================== FAILURES ===================================\n_ test_execution_binding_rejects_runtime_spool_matching_python_instead_of_pbs __\n[gw36] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw36/test_execution_binding_rejects0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1489d62e7190>\n\n    def test_execution_binding_rejects_runtime_spool_matching_python_instead_of_pbs(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        repo_root, repo_py, _repo_pbs, runtime_pbs = (\n            _prepare_execution_binding_repo(tmp_path, monkeypatch)\n        )\n        runtime_pbs.write_bytes(repo_py.read_bytes())\n>       with pytest.raises(\n            ValueError,\n            match=\"^runtime PBS bytes differ from worktree PBS bytes$\",\n        ):\nE       Failed: DID NOT RAISE ValueError\n\norchestrator/tests/test_t316_sandbox_probe.py:1553: Failed\n______________ test_execution_binding_binds_runtime_spool_to_pbs _______________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_execution_binding_binds_r0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x147bf958dff0>\n\n    def test_execution_binding_binds_runtime_spool_to_pbs(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        repo_root, _repo_py, repo_pbs, _runtime_pbs = (\n            _prepare_execution_binding_repo(tmp_path, monkeypatch)\n        )\n>       binding = probe._execution_binding(repo_root)\n\norchestrator/tests/test_t316_sandbox_probe.py:1533: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nrepo_root = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_execution_binding_binds_r0/repo')\n\n    def _execution_binding(repo_root: Path) -> dict[str, Any]:\n        job_id = os.environ.get(\"PBS_JOBID\", \"\")\n        expected_commit = os.environ.get(\"IZANAGI_T316_EXPECTED_COMMIT\", \"\")\n        expected_root_raw = os.environ.get(\"IZANAGI_T316_EXPECTED_WORKTREE_ROOT\", \"\")\n        nodefile_raw = os.environ.get(\"PBS_NODEFILE\", \"\")\n        runtime_pbs_raw = os.environ.get(\"IZANAGI_T316_RUNTIME_PBS\", \"\")\n        if not _JOB_ID_RE.fullmatch(job_id):\n            raise ValueError(\"PBS_JOBID is missing or malformed\")\n        if re.fullmatch(r\"[0-9a-f]{40}\", expected_commit) is None:\n            raise ValueError(\"expected commit is missing or malformed\")\n        expected_root = Path(expected_root_raw).resolve(strict=True)\n        if expected_root != repo_root:\n            raise ValueError(\"expected worktree root mismatch\")\n        hostname = socket.gethostname()\n        short_hostname = hostname.split(\".\", 1)[0]\n        if re.fullmatch(r\"pegasus[0-9]+\", short_hostname):\n            raise ValueError(\"login-node execution is forbidden\")\n        nodefile = Path(nodefile_raw).resolve(strict=True)\n        if not nodefile.is_file():\n            raise ValueError(\"PBS_NODEFILE is not a file\")\n        node_entries = [line.strip() for line in nodefile.read_text(encoding=\"utf-8\").splitlines() if line.strip()]\n        node_shorts = {entry.split(\".\", 1)[0] for entry in node_entries}\n        if not node_entries or short_hostname not in node_shorts:\n            raise ValueError(\"execution host is absent from PBS_NODEFILE\")\n        head_record = _run_command(\n            [\"git\", \"--no-replace-objects\", \"-C\", str(repo_root), \"rev-parse\", \"HEAD\"],\n            timeout_s=10,\n        )\n        observed_head = head_record.get(\"stdout\", {}).get(\"tail\", \"\").strip()\n        if head_record.get(\"rc\") != 0 or observed_head != expected_commit:\n            raise ValueError(\"expected commit mismatch\")\n        dirty = _run_command(\n            [\"git\", \"--no-replace-objects\", \"-C\", str(repo_root), \"status\", \"--porcelain\",\n             \"--untracked-files=all\", \"--\", *_BOUND_RELATIVE_PATHS], timeout_s=15,\n        )\n        if dirty.get(\"rc\") != 0 or dirty.get(\"stdout\", {}).get(\"tail\", \"\").strip():\n            raise ValueError(\"bound probe paths are dirty\")\n        runtime_pbs = Path(runtime_pbs_raw).resolve(strict=True)\n        repo_pbs = repo_root / _BOUND_RELATIVE_PATHS[1]\n        if _sha256_file(runtime_pbs) != _sha256_file(repo_pbs):\n>           raise ValueError(\"runtime PBS bytes differ from worktree PBS bytes\")\nE           ValueError: runtime PBS bytes differ from worktree PBS bytes\n\ntools/pegasus/probes/t316_sandbox_backend_probe.py:2340: ValueError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t316_sandbox_probe.py::test_execution_binding_rejects_runtime_spool_matching_python_instead_of_pbs\nFAILED orchestrator/tests/test_t316_sandbox_probe.py::test_execution_binding_binds_runtime_spool_to_pbs\n2 failed, 127 passed in 4.56s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t316_sandbox_probe.py::test_execution_binding_binds_runtime_spool_to_pbs\" nodeid_bytes=96 nodeid_omitted_bytes=0 source_bytes=3444 retained_bytes=3444 omitted_bytes=0 rendered_excerpt_bytes=3571 sha256=1fcb4586e43af596f4aaa0627d50dd21a7659d61324a7476172ce4239fb54a4a\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_execution_binding_binds_r0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x147bf958dff0>\n> \n>     def test_execution_binding_binds_runtime_spool_to_pbs(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         repo_root, _repo_py, repo_pbs, _runtime_pbs = (\n>             _prepare_execution_binding_repo(tmp_path, monkeypatch)\n>         )\n> >       binding = probe._execution_binding(repo_root)\n> \n> orchestrator/tests/test_t316_sandbox_probe.py:1533: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> repo_root = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_execution_binding_binds_r0/repo')\n> \n>     def _execution_binding(repo_root: Path) -> dict[str, Any]:\n>         job_id = os.environ.get(\"PBS_JOBID\", \"\")\n>         expected_commit = os.environ.get(\"IZANAGI_T316_EXPECTED_COMMIT\", \"\")\n>         expected_root_raw = os.environ.get(\"IZANAGI_T316_EXPECTED_WORKTREE_ROOT\", \"\")\n>         nodefile_raw = os.environ.get(\"PBS_NODEFILE\", \"\")\n>         runtime_pbs_raw = os.environ.get(\"IZANAGI_T316_RUNTIME_PBS\", \"\")\n>         if not _JOB_ID_RE.fullmatch(job_id):\n>             raise ValueError(\"PBS_JOBID is missing or malformed\")\n>         if re.fullmatch(r\"[0-9a-f]{40}\", expected_commit) is None:\n>             raise ValueError(\"expected commit is missing or malformed\")\n>         expected_root = Path(expected_root_raw).resolve(strict=True)\n>         if expected_root != repo_root:\n>             raise ValueError(\"expected worktree root mismatch\")\n>         hostname = socket.gethostname()\n>         short_hostname = hostname.split(\".\", 1)[0]\n>         if re.fullmatch(r\"pegasus[0-9]+\", short_hostname):\n>             raise ValueError(\"login-node execution is forbidden\")\n>         nodefile = Path(nodefile_raw).resolve(strict=True)\n>         if not nodefile.is_file():\n>             raise ValueError(\"PBS_NODEFILE is not a file\")\n>         node_entries = [line.strip() for line in nodefile.read_text(encoding=\"utf-8\").splitlines() if line.strip()]\n>         node_shorts = {entry.split(\".\", 1)[0] for entry in node_entries}\n>         if not node_entries or short_hostname not in node_shorts:\n>             raise ValueError(\"execution host is absent from PBS_NODEFILE\")\n>         head_record = _run_command(\n>             [\"git\", \"--no-replace-objects\", \"-C\", str(repo_root), \"rev-parse\", \"HEAD\"],\n>             timeout_s=10,\n>         )\n>         observed_head = head_record.get(\"stdout\", {}).get(\"tail\", \"\").strip()\n>         if head_record.get(\"rc\") != 0 or observed_head != expected_commit:\n>             raise ValueError(\"expected commit mismatch\")\n>         dirty = _run_command(\n>             [\"git\", \"--no-replace-objects\", \"-C\", str(repo_root), \"status\", \"--porcelain\",\n>              \"--untracked-files=all\", \"--\", *_BOUND_RELATIVE_PATHS], timeout_s=15,\n>         )\n>         if dirty.get(\"rc\") != 0 or dirty.get(\"stdout\", {}).get(\"tail\", \"\").strip():\n>             raise ValueError(\"bound probe paths are dirty\")\n>         runtime_pbs = Path(runtime_pbs_raw).resolve(strict=True)\n>         repo_pbs = repo_root / _BOUND_RELATIVE_PATHS[1]\n>         if _sha256_file(runtime_pbs) != _sha256_file(repo_pbs):\n> >           raise ValueError(\"runtime PBS bytes differ from worktree PBS bytes\")\n> E           ValueError: runtime PBS bytes differ from worktree PBS bytes\n> \n> tools/pegasus/probes/t316_sandbox_backend_probe.py:2340: ValueError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_t316_sandbox_probe.py::test_execution_binding_rejects_runtime_spool_matching_python_instead_of_pbs\" nodeid_bytes=122 nodeid_omitted_bytes=0 source_bytes=805 retained_bytes=805 omitted_bytes=0 rendered_excerpt_bytes=846 sha256=3f075fae88f5f8f39de37d1e5c57be7ec7d4f92437854eef086803d74f009a5f\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw36] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw36/test_execution_binding_rejects0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1489d62e7190>\n> \n>     def test_execution_binding_rejects_runtime_spool_matching_python_instead_of_pbs(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         repo_root, repo_py, _repo_pbs, runtime_pbs = (\n>             _prepare_execution_binding_repo(tmp_path, monkeypatch)\n>         )\n>         runtime_pbs.write_bytes(repo_py.read_bytes())\n> >       with pytest.raises(\n>             ValueError,\n>             match=\"^runtime PBS bytes differ from worktree PBS bytes$\",\n>         ):\n> E       Failed: DID NOT RAISE ValueError\n> \n> orchestrator/tests/test_t316_sandbox_probe.py:1553: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=4249 retained_bytes=4249 omitted_bytes=0 budget_bytes=49152 rendered_bytes=5600 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "3d6597517274bc0f231794cc47c5c8ce02fd8bda5bf7c16fb580d94257686aaa"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "950d53f944180d5d92604c8bc09110705a82c8e9c43c97b74dc74d3c7f9d9b01",
+      "duration_s": 134.458,
+      "expected_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_execution_binding_binds_runtime_spool_to_pbs",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_execution_binding_rejects_runtime_spool_matching_python_instead_of_pbs"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_execution_binding_rejects_runtime_spool_matching_python_instead_of_pbs",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_execution_binding_binds_runtime_spool_to_pbs"
+      ],
+      "hang_risk": false,
+      "id": "m01-reintroduce-index-1-python-target",
+      "injection_diff_sha256": "82a66b5aaf400aac9895bb35edc06ca9823aca1317f7958eaa7ebb6e0831b14f",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "b8d4472dffd64afc26e4f778dde182715207ea49ed76ba99ab296d1b9af713ee",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+          "new": "    repo_pbs = repo_root / _BOUND_RELATIVE_PATHS[1]\n",
+          "old": "    repo_pbs = repo_root / _RUNTIME_PBS_RELATIVE_PATH\n"
+        }
+      ],
+      "repo_head": "f07761100b19fe251107dec1b09f20db6f0529d1",
+      "runner_sha256": "b87f74143295ca4852cf0ec749bf50cc8a282921f749587d22b073478eeed8f8",
+      "spec_sha256": "ad13eb09657fd31d542273fc3d340b149fb1708e7519d56d88c554c6285eb851",
+      "status": "KILLED",
+      "test_output_sha256": "3d6597517274bc0f231794cc47c5c8ce02fd8bda5bf7c16fb580d94257686aaa",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "b232ef36fa46883a994c25d0216db0940ffb47f64864a0411ed7b4adaaf005d1"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2503-pbs-binding/output/pegasus-dispatch/cd41ea20ac728846298a79b5456f6dc3/izdw-cd41ea20ac.o988673",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2503-pbs-binding/output/pegasus-dispatch/cd41ea20ac728846298a79b5456f6dc3/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 55%]\n..............................................F..........                [100%]\n=================================== FAILURES ===================================\n______________ test_execution_binding_binds_runtime_spool_to_pbs _______________\n[gw30] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw30/test_execution_binding_binds_r0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x152efa29f220>\n\n    def test_execution_binding_binds_runtime_spool_to_pbs(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        repo_root, _repo_py, repo_pbs, _runtime_pbs = (\n            _prepare_execution_binding_repo(tmp_path, monkeypatch)\n        )\n>       binding = probe._execution_binding(repo_root)\n\norchestrator/tests/test_t316_sandbox_probe.py:1533: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nrepo_root = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw30/test_execution_binding_binds_r0/repo')\n\n    def _execution_binding(repo_root: Path) -> dict[str, Any]:\n        job_id = os.environ.get(\"PBS_JOBID\", \"\")\n        expected_commit = os.environ.get(\"IZANAGI_T316_EXPECTED_COMMIT\", \"\")\n        expected_root_raw = os.environ.get(\"IZANAGI_T316_EXPECTED_WORKTREE_ROOT\", \"\")\n        nodefile_raw = os.environ.get(\"PBS_NODEFILE\", \"\")\n        runtime_pbs_raw = os.environ.get(\"IZANAGI_T316_RUNTIME_PBS\", \"\")\n        if not _JOB_ID_RE.fullmatch(job_id):\n            raise ValueError(\"PBS_JOBID is missing or malformed\")\n        if re.fullmatch(r\"[0-9a-f]{40}\", expected_commit) is None:\n            raise ValueError(\"expected commit is missing or malformed\")\n        expected_root = Path(expected_root_raw).resolve(strict=True)\n        if expected_root != repo_root:\n            raise ValueError(\"expected worktree root mismatch\")\n        hostname = socket.gethostname()\n        short_hostname = hostname.split(\".\", 1)[0]\n        if re.fullmatch(r\"pegasus[0-9]+\", short_hostname):\n            raise ValueError(\"login-node execution is forbidden\")\n        nodefile = Path(nodefile_raw).resolve(strict=True)\n        if not nodefile.is_file():\n            raise ValueError(\"PBS_NODEFILE is not a file\")\n        node_entries = [line.strip() for line in nodefile.read_text(encoding=\"utf-8\").splitlines() if line.strip()]\n        node_shorts = {entry.split(\".\", 1)[0] for entry in node_entries}\n        if not node_entries or short_hostname not in node_shorts:\n            raise ValueError(\"execution host is absent from PBS_NODEFILE\")\n        head_record = _run_command(\n            [\"git\", \"--no-replace-objects\", \"-C\", str(repo_root), \"rev-parse\", \"HEAD\"],\n            timeout_s=10,\n        )\n        observed_head = head_record.get(\"stdout\", {}).get(\"tail\", \"\").strip()\n        if head_record.get(\"rc\") != 0 or observed_head != expected_commit:\n            raise ValueError(\"expected commit mismatch\")\n        dirty = _run_command(\n            [\"git\", \"--no-replace-objects\", \"-C\", str(repo_root), \"status\", \"--porcelain\",\n             \"--untracked-files=all\", \"--\", *_BOUND_RELATIVE_PATHS], timeout_s=15,\n        )\n        if dirty.get(\"rc\") != 0 or dirty.get(\"stdout\", {}).get(\"tail\", \"\").strip():\n            raise ValueError(\"bound probe paths are dirty\")\n        runtime_pbs = Path(runtime_pbs_raw).resolve(strict=True)\n        repo_pbs = repo_root / _BOUND_RELATIVE_PATHS[0]\n        if _sha256_file(runtime_pbs) != _sha256_file(repo_pbs):\n>           raise ValueError(\"runtime PBS bytes differ from worktree PBS bytes\")\nE           ValueError: runtime PBS bytes differ from worktree PBS bytes\n\ntools/pegasus/probes/t316_sandbox_backend_probe.py:2340: ValueError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t316_sandbox_probe.py::test_execution_binding_binds_runtime_spool_to_pbs\n1 failed, 128 passed in 4.59s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t316_sandbox_probe.py::test_execution_binding_binds_runtime_spool_to_pbs\" nodeid_bytes=96 nodeid_omitted_bytes=0 source_bytes=3447 retained_bytes=3447 omitted_bytes=0 rendered_excerpt_bytes=3574 sha256=8bd50dcda3e40494cf65eddf904b24300e0b0569e865143cfbacd31c398c0642\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw30] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw30/test_execution_binding_binds_r0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x152efa29f220>\n> \n>     def test_execution_binding_binds_runtime_spool_to_pbs(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         repo_root, _repo_py, repo_pbs, _runtime_pbs = (\n>             _prepare_execution_binding_repo(tmp_path, monkeypatch)\n>         )\n> >       binding = probe._execution_binding(repo_root)\n> \n> orchestrator/tests/test_t316_sandbox_probe.py:1533: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> repo_root = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw30/test_execution_binding_binds_r0/repo')\n> \n>     def _execution_binding(repo_root: Path) -> dict[str, Any]:\n>         job_id = os.environ.get(\"PBS_JOBID\", \"\")\n>         expected_commit = os.environ.get(\"IZANAGI_T316_EXPECTED_COMMIT\", \"\")\n>         expected_root_raw = os.environ.get(\"IZANAGI_T316_EXPECTED_WORKTREE_ROOT\", \"\")\n>         nodefile_raw = os.environ.get(\"PBS_NODEFILE\", \"\")\n>         runtime_pbs_raw = os.environ.get(\"IZANAGI_T316_RUNTIME_PBS\", \"\")\n>         if not _JOB_ID_RE.fullmatch(job_id):\n>             raise ValueError(\"PBS_JOBID is missing or malformed\")\n>         if re.fullmatch(r\"[0-9a-f]{40}\", expected_commit) is None:\n>             raise ValueError(\"expected commit is missing or malformed\")\n>         expected_root = Path(expected_root_raw).resolve(strict=True)\n>         if expected_root != repo_root:\n>             raise ValueError(\"expected worktree root mismatch\")\n>         hostname = socket.gethostname()\n>         short_hostname = hostname.split(\".\", 1)[0]\n>         if re.fullmatch(r\"pegasus[0-9]+\", short_hostname):\n>             raise ValueError(\"login-node execution is forbidden\")\n>         nodefile = Path(nodefile_raw).resolve(strict=True)\n>         if not nodefile.is_file():\n>             raise ValueError(\"PBS_NODEFILE is not a file\")\n>         node_entries = [line.strip() for line in nodefile.read_text(encoding=\"utf-8\").splitlines() if line.strip()]\n>         node_shorts = {entry.split(\".\", 1)[0] for entry in node_entries}\n>         if not node_entries or short_hostname not in node_shorts:\n>             raise ValueError(\"execution host is absent from PBS_NODEFILE\")\n>         head_record = _run_command(\n>             [\"git\", \"--no-replace-objects\", \"-C\", str(repo_root), \"rev-parse\", \"HEAD\"],\n>             timeout_s=10,\n>         )\n>         observed_head = head_record.get(\"stdout\", {}).get(\"tail\", \"\").strip()\n>         if head_record.get(\"rc\") != 0 or observed_head != expected_commit:\n>             raise ValueError(\"expected commit mismatch\")\n>         dirty = _run_command(\n>             [\"git\", \"--no-replace-objects\", \"-C\", str(repo_root), \"status\", \"--porcelain\",\n>              \"--untracked-files=all\", \"--\", *_BOUND_RELATIVE_PATHS], timeout_s=15,\n>         )\n>         if dirty.get(\"rc\") != 0 or dirty.get(\"stdout\", {}).get(\"tail\", \"\").strip():\n>             raise ValueError(\"bound probe paths are dirty\")\n>         runtime_pbs = Path(runtime_pbs_raw).resolve(strict=True)\n>         repo_pbs = repo_root / _BOUND_RELATIVE_PATHS[0]\n>         if _sha256_file(runtime_pbs) != _sha256_file(repo_pbs):\n> >           raise ValueError(\"runtime PBS bytes differ from worktree PBS bytes\")\n> E           ValueError: runtime PBS bytes differ from worktree PBS bytes\n> \n> tools/pegasus/probes/t316_sandbox_backend_probe.py:2340: ValueError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=3447 retained_bytes=3447 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4297 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "a09950b871336827edcc77e22ff4afb9df187a59e01d48bedd63606e1e4f586f"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "950d53f944180d5d92604c8bc09110705a82c8e9c43c97b74dc74d3c7f9d9b01",
+      "duration_s": 27.163,
+      "expected_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_execution_binding_binds_runtime_spool_to_pbs"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_execution_binding_binds_runtime_spool_to_pbs"
+      ],
+      "hang_risk": false,
+      "id": "m02-point-binding-at-condition-gate",
+      "injection_diff_sha256": "a1f250545556c4ecaa1641fb461fc1df8e56d385e08efa5d0fae952b83a89ed6",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "9a7241066d651554ce0e0e34150bd015db2dc279556e9afe489448ee2dd03a7a",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+          "new": "    repo_pbs = repo_root / _BOUND_RELATIVE_PATHS[0]\n",
+          "old": "    repo_pbs = repo_root / _RUNTIME_PBS_RELATIVE_PATH\n"
+        }
+      ],
+      "repo_head": "f07761100b19fe251107dec1b09f20db6f0529d1",
+      "runner_sha256": "b87f74143295ca4852cf0ec749bf50cc8a282921f749587d22b073478eeed8f8",
+      "spec_sha256": "ad13eb09657fd31d542273fc3d340b149fb1708e7519d56d88c554c6285eb851",
+      "status": "KILLED",
+      "test_output_sha256": "a09950b871336827edcc77e22ff4afb9df187a59e01d48bedd63606e1e4f586f",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "b232ef36fa46883a994c25d0216db0940ffb47f64864a0411ed7b4adaaf005d1"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2503-pbs-binding/output/pegasus-dispatch/3eb240c353b61af69846a40ddaec709c/izdw-3eb240c353.o988674",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2503-pbs-binding/output/pegasus-dispatch/3eb240c353b61af69846a40ddaec709c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 55%]\n..............................................F..........                [100%]\n=================================== FAILURES ===================================\n_ test_execution_binding_rejects_runtime_spool_matching_python_instead_of_pbs __\n[gw11] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_execution_binding_rejects0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14c6170387c0>\n\n    def test_execution_binding_rejects_runtime_spool_matching_python_instead_of_pbs(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        repo_root, repo_py, _repo_pbs, runtime_pbs = (\n            _prepare_execution_binding_repo(tmp_path, monkeypatch)\n        )\n        runtime_pbs.write_bytes(repo_py.read_bytes())\n>       with pytest.raises(\n            ValueError,\n            match=\"^runtime PBS bytes differ from worktree PBS bytes$\",\n        ):\nE       Failed: DID NOT RAISE ValueError\n\norchestrator/tests/test_t316_sandbox_probe.py:1553: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t316_sandbox_probe.py::test_execution_binding_rejects_runtime_spool_matching_python_instead_of_pbs\n1 failed, 128 passed in 4.60s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t316_sandbox_probe.py::test_execution_binding_rejects_runtime_spool_matching_python_instead_of_pbs\" nodeid_bytes=122 nodeid_omitted_bytes=0 source_bytes=805 retained_bytes=805 omitted_bytes=0 rendered_excerpt_bytes=846 sha256=1e644e80f664a8b4a262a46ba10021aaeae489bbdb5726ace424551ed3e96e79\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw11] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_execution_binding_rejects0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14c6170387c0>\n> \n>     def test_execution_binding_rejects_runtime_spool_matching_python_instead_of_pbs(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         repo_root, repo_py, _repo_pbs, runtime_pbs = (\n>             _prepare_execution_binding_repo(tmp_path, monkeypatch)\n>         )\n>         runtime_pbs.write_bytes(repo_py.read_bytes())\n> >       with pytest.raises(\n>             ValueError,\n>             match=\"^runtime PBS bytes differ from worktree PBS bytes$\",\n>         ):\n> E       Failed: DID NOT RAISE ValueError\n> \n> orchestrator/tests/test_t316_sandbox_probe.py:1553: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=805 retained_bytes=805 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1591 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "ce2abd3b93205e2ace40e1e7a77471e2af5ea2a1db82af4e7ea3eea914aa340f"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "950d53f944180d5d92604c8bc09110705a82c8e9c43c97b74dc74d3c7f9d9b01",
+      "duration_s": 27.202,
+      "expected_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_execution_binding_rejects_runtime_spool_matching_python_instead_of_pbs"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_execution_binding_rejects_runtime_spool_matching_python_instead_of_pbs"
+      ],
+      "hang_risk": false,
+      "id": "m03-remove-the-comparison",
+      "injection_diff_sha256": "52f25bf07309a62691bd2530c2baa65f1ba62b615d60fbc9b0c9bea604b94a4e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "2edf85af29fb097e7d5fa93fced6dbfa4aa344f9ba283677dcf110696f39b2c5",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+          "new": "    if False:\n",
+          "old": "    if _sha256_file(runtime_pbs) != _sha256_file(repo_pbs):\n"
+        }
+      ],
+      "repo_head": "f07761100b19fe251107dec1b09f20db6f0529d1",
+      "runner_sha256": "b87f74143295ca4852cf0ec749bf50cc8a282921f749587d22b073478eeed8f8",
+      "spec_sha256": "ad13eb09657fd31d542273fc3d340b149fb1708e7519d56d88c554c6285eb851",
+      "status": "KILLED",
+      "test_output_sha256": "ce2abd3b93205e2ace40e1e7a77471e2af5ea2a1db82af4e7ea3eea914aa340f",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "b232ef36fa46883a994c25d0216db0940ffb47f64864a0411ed7b4adaaf005d1"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2503-pbs-binding/output/pegasus-dispatch/7034a005b4409a1e406431fcc0d37ec4/izdw-7034a005b4.o988677",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2503-pbs-binding/output/pegasus-dispatch/7034a005b4409a1e406431fcc0d37ec4/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 55%]\n..............................................F..........                [100%]\n=================================== FAILURES ===================================\n_ test_execution_binding_rejects_runtime_spool_matching_python_instead_of_pbs __\n[gw9] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_execution_binding_rejects0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1476edee4610>\n\n    def test_execution_binding_rejects_runtime_spool_matching_python_instead_of_pbs(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        repo_root, repo_py, _repo_pbs, runtime_pbs = (\n            _prepare_execution_binding_repo(tmp_path, monkeypatch)\n        )\n        runtime_pbs.write_bytes(repo_py.read_bytes())\n>       with pytest.raises(\n            ValueError,\n            match=\"^runtime PBS bytes differ from worktree PBS bytes$\",\n        ):\nE       AssertionError: \nE       - runtime PBS mismatch\nE       + runtime PBS bytes differ from worktree PBS bytes\n\norchestrator/tests/test_t316_sandbox_probe.py:1553: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t316_sandbox_probe.py::test_execution_binding_rejects_runtime_spool_matching_python_instead_of_pbs\n1 failed, 128 passed in 4.56s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t316_sandbox_probe.py::test_execution_binding_rejects_runtime_spool_matching_python_instead_of_pbs\" nodeid_bytes=122 nodeid_omitted_bytes=0 source_bytes=885 retained_bytes=885 omitted_bytes=0 rendered_excerpt_bytes=930 sha256=233226b08ff1bb8e3fe1df59c1f59c6f7166222e4d38deec7b9ee5d42eb383e4\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw9] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_execution_binding_rejects0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1476edee4610>\n> \n>     def test_execution_binding_rejects_runtime_spool_matching_python_instead_of_pbs(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         repo_root, repo_py, _repo_pbs, runtime_pbs = (\n>             _prepare_execution_binding_repo(tmp_path, monkeypatch)\n>         )\n>         runtime_pbs.write_bytes(repo_py.read_bytes())\n> >       with pytest.raises(\n>             ValueError,\n>             match=\"^runtime PBS bytes differ from worktree PBS bytes$\",\n>         ):\n> E       AssertionError: \n> E       - runtime PBS mismatch\n> E       + runtime PBS bytes differ from worktree PBS bytes\n> \n> orchestrator/tests/test_t316_sandbox_probe.py:1553: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=885 retained_bytes=885 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1675 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "cfa4117e75aae5c643c95939bd6abed8af44c0a90e304b928ee99b5d3975bd1f"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "950d53f944180d5d92604c8bc09110705a82c8e9c43c97b74dc74d3c7f9d9b01",
+      "duration_s": 27.196,
+      "expected_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_execution_binding_rejects_runtime_spool_matching_python_instead_of_pbs"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_execution_binding_rejects_runtime_spool_matching_python_instead_of_pbs"
+      ],
+      "hang_risk": false,
+      "id": "m04-change-rejection-message",
+      "injection_diff_sha256": "52189d4113b0df07ab0b86750a15225d0cd448197b7e2499c78eb082a69162e6",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "b552fdf29131f19de356259b24b51b33ec027373134705442ce56f5e60e6781d",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+          "new": "        raise ValueError(\"runtime PBS mismatch\")\n",
+          "old": "        raise ValueError(\"runtime PBS bytes differ from worktree PBS bytes\")\n"
+        }
+      ],
+      "repo_head": "f07761100b19fe251107dec1b09f20db6f0529d1",
+      "runner_sha256": "b87f74143295ca4852cf0ec749bf50cc8a282921f749587d22b073478eeed8f8",
+      "spec_sha256": "ad13eb09657fd31d542273fc3d340b149fb1708e7519d56d88c554c6285eb851",
+      "status": "KILLED",
+      "test_output_sha256": "cfa4117e75aae5c643c95939bd6abed8af44c0a90e304b928ee99b5d3975bd1f",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "b232ef36fa46883a994c25d0216db0940ffb47f64864a0411ed7b4adaaf005d1"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2503-pbs-binding/output/pegasus-dispatch/bcf71c1ad718a532d2c5216f993dbcbc/izdw-bcf71c1ad7.o988679",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2503-pbs-binding/output/pegasus-dispatch/bcf71c1ad718a532d2c5216f993dbcbc/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 55%]\n.........................................................                [100%]\n129 passed in 4.58s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "e2dcb59aa74f2eccacf19799986d0d476b8261b7284e1f7e50633c3940a59f0f"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "950d53f944180d5d92604c8bc09110705a82c8e9c43c97b74dc74d3c7f9d9b01",
+      "duration_s": 26.979,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "m05-record-repo-pbs-hash-as-spool-hash",
+      "injection_diff_sha256": "4d970f6aad59cf2d7259bb89c75ad413959ac765acc122e641f6e33ef52e0ecf",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "304727f510499ea9778cac79f8ba7ccf2aae580a3e42b38c5b9d8117a02de4e8",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+          "new": "    runtime_hashes[\"runtime_pbs_spool\"] = _sha256_file(repo_pbs)\n",
+          "old": "    runtime_hashes[\"runtime_pbs_spool\"] = _sha256_file(runtime_pbs)\n"
+        }
+      ],
+      "repo_head": "f07761100b19fe251107dec1b09f20db6f0529d1",
+      "runner_sha256": "b87f74143295ca4852cf0ec749bf50cc8a282921f749587d22b073478eeed8f8",
+      "spec_sha256": "ad13eb09657fd31d542273fc3d340b149fb1708e7519d56d88c554c6285eb851",
+      "status": "SURVIVED",
+      "test_output_sha256": "e2dcb59aa74f2eccacf19799986d0d476b8261b7284e1f7e50633c3940a59f0f",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "b232ef36fa46883a994c25d0216db0940ffb47f64864a0411ed7b4adaaf005d1"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2503-pbs-binding/output/pegasus-dispatch/7abcfbf046c1f9f03e1210cde201c806/izdw-7abcfbf046.o988650",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2503-pbs-binding/output/pegasus-dispatch/7abcfbf046c1f9f03e1210cde201c806/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_t316_sandbox_probe.py::test_condition_gate_dominates_ccbench_configure\norchestrator/tests/test_t316_sandbox_probe.py::test_category_oracles_are_independent_literals\norchestrator/tests/test_t316_sandbox_probe.py::test_containment_mechanism_table_matches_independent_literals\norchestrator/tests/test_t316_sandbox_probe.py::test_write_enoent_is_contained_by_absence_only_with_strict_controls[S3-write_home-write_home]\norchestrator/tests/test_t316_sandbox_probe.py::test_write_enoent_is_contained_by_absence_only_with_strict_controls[S5-runtime_file_write-file_write]\norchestrator/tests/test_t316_sandbox_probe.py::test_write_enoent_is_contained_by_absence_only_with_strict_controls[S5-build_file_write-file_write]\norchestrator/tests/test_t316_sandbox_probe.py::test_write_enoent_with_failed_positive_control_is_not_containment\norchestrator/tests/test_t316_sandbox_probe.py::test_write_enoent_with_inside_side_effect_remains_no_go\norchestrator/tests/test_t316_sandbox_probe.py::test_write_enoent_with_different_positive_target_is_inconclusive\norchestrator/tests/test_t316_sandbox_probe.py::test_active_write_denial_keeps_contained_reason_code\norchestrator/tests/test_t316_sandbox_probe.py::test_outside_denial_reports_node_capability_unavailable\norchestrator/tests/test_t316_sandbox_probe.py::test_s3_failed_positive_control_is_inconclusive[network_dns]\norchestrator/tests/test_t316_sandbox_probe.py::test_s3_failed_positive_control_is_inconclusive[network_direct_ip]\norchestrator/tests/test_t316_sandbox_probe.py::test_s3_failed_positive_control_is_inconclusive[network_proxy]\norchestrator/tests/test_t316_sandbox_probe.py::test_s3_failed_positive_control_is_inconclusive[credential_home]\norchestrator/tests/test_t316_sandbox_probe.py::test_s3_failed_positive_control_is_inconclusive[credential_ssh_agent]\norchestrator/tests/test_t316_sandbox_probe.py::test_s3_failed_positive_control_is_inconclusive[credential_ssh_dir]\norchestrator/tests/test_t316_sandbox_probe.py::test_s3_failed_positive_control_is_inconclusive[credential_codex_dir]\norchestrator/tests/test_t316_sandbox_probe.py::test_s3_failed_positive_control_is_inconclusive[write_home]\norchestrator/tests/test_t316_sandbox_probe.py::test_s3_failed_positive_control_is_inconclusive[write_repo]\norchestrator/tests/test_t316_sandbox_probe.py::test_s3_failed_positive_control_is_inconclusive[write_tmp]\norchestrator/tests/test_t316_sandbox_probe.py::test_s3_failed_positive_control_is_inconclusive[source_read_only]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_containment_failure_is_not_go[system_command-runtime]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_containment_failure_is_not_go[system_command-build]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_containment_failure_is_not_go[network-runtime]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_containment_failure_is_not_go[network-build]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_containment_failure_is_not_go[file_write-runtime]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_containment_failure_is_not_go[file_write-build]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_containment_failure_is_not_go[infinite_loop-runtime]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_containment_failure_is_not_go[infinite_loop-build]\norchestrator/tests/test_t316_sandbox_probe.py::test_boolean_inside_blocked_cannot_replace_structured_sentinel[missing]\norchestrator/tests/test_t316_sandbox_probe.py::test_boolean_inside_blocked_cannot_replace_structured_sentinel[invalid]\norchestrator/tests/test_t316_sandbox_probe.py::test_boolean_inside_blocked_cannot_replace_structured_sentinel[error]\norchestrator/tests/test_t316_sandbox_probe.py::test_boolean_inside_blocked_cannot_replace_structured_sentinel[not-executed]\norchestrator/tests/test_t316_sandbox_probe.py::test_eexist_is_not_a_containment_denial\norchestrator/tests/test_t316_sandbox_probe.py::test_denial_errno_is_scoped_to_its_category[network_dns-EAI_AGAIN-denied]\norchestrator/tests/test_t316_sandbox_probe.py::test_denial_errno_is_scoped_to_its_category[network_direct_ip-EAI_AGAIN-invalid]\norchestrator/tests/test_t316_sandbox_probe.py::test_denial_errno_is_scoped_to_its_category[network_direct_ip-ETIMEDOUT-invalid]\norchestrator/tests/test_t316_sandbox_probe.py::test_denial_errno_is_scoped_to_its_category[write_repo-EROFS-denied]\norchestrator/tests/test_t316_sandbox_probe.py::test_denial_errno_is_scoped_to_its_category[write_repo-ENOENT-invalid]\norchestrator/tests/test_t316_sandbox_probe.py::test_denial_errno_is_scoped_to_its_category[credential_home-ENOENT-denied]\norchestrator/tests/test_t316_sandbox_probe.py::test_unknown_or_error_sentinel_is_never_denied[ERROR]\norchestrator/tests/test_t316_sandbox_probe.py::test_unknown_or_error_sentinel_is_never_denied[ENOSYS]\norchestrator/tests/test_t316_sandbox_probe.py::test_payload_sentinel_and_process_exit_are_independent[record0-timed-out]\norchestrator/tests/test_t316_sandbox_probe.py::test_payload_sentinel_and_process_exit_are_independent[record1-unexpected-exit]\norchestrator/tests/test_t316_sandbox_probe.py::test_connection_refused_is_reachability_evidence_and_no_go\norchestrator/tests/test_t316_sandbox_probe.py::test_paired_command_rejects_denied_after_abnormal_exit[-9-True-timed-out]\norchestrator/tests/test_t316_sandbox_probe.py::test_paired_command_rejects_denied_after_abnormal_exit[9-False-unexpected-exit]\norchestrator/tests/test_t316_sandbox_probe.py::test_runner_seam_distinguishes_bwrap_setup_failure_from_payload_denial\norchestrator/tests/test_t316_sandbox_probe.py::test_poll_pid_identity_reports_a_live_same_process\norchestrator/tests/test_t316_sandbox_probe.py::test_actual_descendant_observer_preserves_inside_survival_no_go\norchestrator/tests/test_t316_sandbox_probe.py::test_actual_binary_descendant_observer_preserves_inside_survival_no_go\norchestrator/tests/test_t316_sandbox_probe.py::test_identity_unresolved_cleanup_uses_owned_token_fallback\norchestrator/tests/test_t316_sandbox_probe.py::test_actual_write_observer_cannot_hide_inside_side_effect[S3-write_repo]\norchestrator/tests/test_t316_sandbox_probe.py::test_actual_write_observer_cannot_hide_inside_side_effect[S5-file_write]\norchestrator/tests/test_t316_sandbox_probe.py::test_actual_write_observer_uses_one_target_for_absence_control\norchestrator/tests/test_t316_sandbox_probe.py::test_system_observer_distinguishes_shell_absence_command_failure_and_side_effect[T316_SENTINEL|system_command|DENIED|ENOENT\\n-False-go]\norchestrator/tests/test_t316_sandbox_probe.py::test_system_observer_distinguishes_shell_absence_command_failure_and_side_effect[T316_SENTINEL|system_command|ERROR|COMMAND_EXIT_1\\n-False-no-go]\norchestrator/tests/test_t316_sandbox_probe.py::test_system_observer_distinguishes_shell_absence_command_failure_and_side_effect[T316_SENTINEL|system_command|ERROR|SIDE_EFFECT_WITH_FAILURE\\n-True-no-go]\norchestrator/tests/test_t316_sandbox_probe.py::test_cleanup_failure_makes_performance_inconclusive\norchestrator/tests/test_t316_sandbox_probe.py::test_process_tenancy_keeps_excluded_system_and_own_observations\norchestrator/tests/test_t316_sandbox_probe.py::test_system_daemons_do_not_count_as_co_tenants\norchestrator/tests/test_t316_sandbox_probe.py::test_other_non_system_user_process_prevents_exclusivity\norchestrator/tests/test_t316_sandbox_probe.py::test_load_average_threshold_still_prevents_exclusivity\norchestrator/tests/test_t316_sandbox_probe.py::test_merge_priority_is_fail_closed[statuses0-no-go]\norchestrator/tests/test_t316_sandbox_probe.py::test_merge_priority_is_fail_closed[statuses1-blocked]\norchestrator/tests/test_t316_sandbox_probe.py::test_merge_priority_is_fail_closed[statuses2-inconclusive]\norchestrator/tests/test_t316_sandbox_probe.py::test_overall_priority_is_fail_closed[replacement0-no-go]\norchestrator/tests/test_t316_sandbox_probe.py::test_overall_priority_is_fail_closed[replacement1-blocked]\norchestrator/tests/test_t316_sandbox_probe.py::test_overall_priority_is_fail_closed[replacement2-inconclusive]\norchestrator/tests/test_t316_sandbox_probe.py::test_stage_judges_reject_injected_bad_observations[verdict_s4-bad0-no-go]\norchestrator/tests/test_t316_sandbox_probe.py::test_stage_judges_reject_injected_bad_observations[verdict_s4-bad1-inconclusive]\norchestrator/tests/test_t316_sandbox_probe.py::test_stage_judges_reject_injected_bad_observations[verdict_s6-bad2-inconclusive]\norchestrator/tests/test_t316_sandbox_probe.py::test_stage_judges_reject_injected_bad_observations[verdict_s6-bad3-no-go]\norchestrator/tests/test_t316_sandbox_probe.py::test_stage_judges_reject_injected_bad_observations[verdict_s7-bad4-inconclusive]\norchestrator/tests/test_t316_sandbox_probe.py::test_stage_judges_reject_injected_bad_observations[verdict_s7-bad5-no-go]\norchestrator/tests/test_t316_sandbox_probe.py::test_s6_injected_success_without_condition_records_is_not_go\norchestrator/tests/test_t316_sandbox_probe.py::test_s6_unissued_condition_records_cannot_replace_live_family\norchestrator/tests/test_t316_sandbox_probe.py::test_s6_receipt_summary_must_match_live_condition_conclusions\norchestrator/tests/test_t316_sandbox_probe.py::test_s6_accepts_each_exact_inert_condition_gate_pair[identity]\norchestrator/tests/test_t316_sandbox_probe.py::test_s6_accepts_each_exact_inert_condition_gate_pair[root-location-only]\norchestrator/tests/test_t316_sandbox_probe.py::test_s6_rejects_crossed_inert_condition_gate_pair[identical_reason__root_location_comparison]\norchestrator/tests/test_t316_sandbox_probe.py::test_s6_rejects_crossed_inert_condition_gate_pair[root_location_reason__identity_comparison]\norchestrator/tests/test_t316_sandbox_probe.py::test_s6_rejects_requested_default_preprocess_difference\norchestrator/tests/test_t316_sandbox_probe.py::test_s6_rejects_legacy_stock_identity_vocabulary\norchestrator/tests/test_t316_sandbox_probe.py::test_injected_observer_flows_through_judge_and_overall[S1-replacement0-no-go]\norchestrator/tests/test_t316_sandbox_probe.py::test_injected_observer_flows_through_judge_and_overall[S2-replacement1-no-go]\norchestrator/tests/test_t316_sandbox_probe.py::test_injected_observer_flows_through_judge_and_overall[S3-replacement2-no-go]\norchestrator/tests/test_t316_sandbox_probe.py::test_injected_observer_flows_through_judge_and_overall[S4-replacement3-no-go]\norchestrator/tests/test_t316_sandbox_probe.py::test_injected_observer_flows_through_judge_and_overall[S5-replacement4-no-go]\norchestrator/tests/test_t316_sandbox_probe.py::test_injected_observer_flows_through_judge_and_overall[S6-replacement5-inconclusive]\norchestrator/tests/test_t316_sandbox_probe.py::test_injected_observer_flows_through_judge_and_overall[S7-replacement6-inconclusive]\norchestrator/tests/test_t316_sandbox_probe.py::test_s5_build_system_side_effect_keeps_overall_no_go_with_write_absence\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s3_category_failure_reaches_stage_and_overall[network_dns]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s3_category_failure_reaches_stage_and_overall[network_direct_ip]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s3_category_failure_reaches_stage_and_overall[network_proxy]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s3_category_failure_reaches_stage_and_overall[credential_home]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s3_category_failure_reaches_stage_and_overall[credential_ssh_agent]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s3_category_failure_reaches_stage_and_overall[credential_ssh_dir]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s3_category_failure_reaches_stage_and_overall[credential_codex_dir]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s3_category_failure_reaches_stage_and_overall[write_home]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s3_category_failure_reaches_stage_and_overall[write_repo]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s3_category_failure_reaches_stage_and_overall[write_tmp]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s3_category_failure_reaches_stage_and_overall[source_read_only]\norchestrator/tests/test_t316_sandbox_probe.py::test_s3_scratch_positive_control_failure_reaches_stage_and_overall\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_category_failure_reaches_stage_and_overall[system_command-runtime]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_category_failure_reaches_stage_and_overall[system_command-build]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_category_failure_reaches_stage_and_overall[network-runtime]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_category_failure_reaches_stage_and_overall[network-build]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_category_failure_reaches_stage_and_overall[file_write-runtime]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_category_failure_reaches_stage_and_overall[file_write-build]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_category_failure_reaches_stage_and_overall[infinite_loop-runtime]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_category_failure_reaches_stage_and_overall[infinite_loop-build]\norchestrator/tests/test_t316_sandbox_probe.py::test_receipt_publish_is_atomic_create_only_and_completed\norchestrator/tests/test_t316_sandbox_probe.py::test_publish_failure_never_leaves_canonical_partial_json\norchestrator/tests/test_t316_sandbox_probe.py::test_completed_marker_publish_is_atomic_and_create_only\norchestrator/tests/test_t316_sandbox_probe.py::test_completed_marker_short_write_never_publishes_marker\norchestrator/tests/test_t316_sandbox_probe.py::test_publish_preflight_einval_stops_before_measurement\norchestrator/tests/test_t316_sandbox_probe.py::test_r3_1_coverage_does_not_overclaim\norchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_when_all_containment_stages_go\norchestrator/tests/test_t316_sandbox_probe.py::test_performance_discharge_when_s7_go\norchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_requires_each_containment_stage_go[S1]\norchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_requires_each_containment_stage_go[S2]\norchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_requires_each_containment_stage_go[S3]\norchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_requires_each_containment_stage_go[S4]\norchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_requires_each_containment_stage_go[S5]\norchestrator/tests/test_t316_sandbox_probe.py::test_performance_discharge_requires_s7_go\norchestrator/tests/test_t316_sandbox_probe.py::test_execution_binding_binds_runtime_spool_to_pbs\norchestrator/tests/test_t316_sandbox_probe.py::test_execution_binding_rejects_runtime_spool_matching_python_instead_of_pbs\n\n129 tests collected in 0.67s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "f9102d5cdcca43f9a1fa5778bfe7bee4133da85bd3e3a49c5802657ae3797d65"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_condition_gate_dominates_ccbench_configure",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_category_oracles_are_independent_literals",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_containment_mechanism_table_matches_independent_literals",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_write_enoent_is_contained_by_absence_only_with_strict_controls[S3-write_home-write_home]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_write_enoent_is_contained_by_absence_only_with_strict_controls[S5-runtime_file_write-file_write]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_write_enoent_is_contained_by_absence_only_with_strict_controls[S5-build_file_write-file_write]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_write_enoent_with_failed_positive_control_is_not_containment",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_write_enoent_with_inside_side_effect_remains_no_go",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_write_enoent_with_different_positive_target_is_inconclusive",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_active_write_denial_keeps_contained_reason_code",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_outside_denial_reports_node_capability_unavailable",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s3_failed_positive_control_is_inconclusive[network_dns]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s3_failed_positive_control_is_inconclusive[network_direct_ip]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s3_failed_positive_control_is_inconclusive[network_proxy]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s3_failed_positive_control_is_inconclusive[credential_home]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s3_failed_positive_control_is_inconclusive[credential_ssh_agent]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s3_failed_positive_control_is_inconclusive[credential_ssh_dir]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s3_failed_positive_control_is_inconclusive[credential_codex_dir]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s3_failed_positive_control_is_inconclusive[write_home]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s3_failed_positive_control_is_inconclusive[write_repo]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s3_failed_positive_control_is_inconclusive[write_tmp]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s3_failed_positive_control_is_inconclusive[source_read_only]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_containment_failure_is_not_go[system_command-runtime]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_containment_failure_is_not_go[system_command-build]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_containment_failure_is_not_go[network-runtime]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_containment_failure_is_not_go[network-build]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_containment_failure_is_not_go[file_write-runtime]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_containment_failure_is_not_go[file_write-build]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_containment_failure_is_not_go[infinite_loop-runtime]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_containment_failure_is_not_go[infinite_loop-build]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_boolean_inside_blocked_cannot_replace_structured_sentinel[missing]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_boolean_inside_blocked_cannot_replace_structured_sentinel[invalid]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_boolean_inside_blocked_cannot_replace_structured_sentinel[error]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_boolean_inside_blocked_cannot_replace_structured_sentinel[not-executed]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_eexist_is_not_a_containment_denial",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_denial_errno_is_scoped_to_its_category[network_dns-EAI_AGAIN-denied]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_denial_errno_is_scoped_to_its_category[network_direct_ip-EAI_AGAIN-invalid]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_denial_errno_is_scoped_to_its_category[network_direct_ip-ETIMEDOUT-invalid]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_denial_errno_is_scoped_to_its_category[write_repo-EROFS-denied]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_denial_errno_is_scoped_to_its_category[write_repo-ENOENT-invalid]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_denial_errno_is_scoped_to_its_category[credential_home-ENOENT-denied]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_unknown_or_error_sentinel_is_never_denied[ERROR]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_unknown_or_error_sentinel_is_never_denied[ENOSYS]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_payload_sentinel_and_process_exit_are_independent[record0-timed-out]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_payload_sentinel_and_process_exit_are_independent[record1-unexpected-exit]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_connection_refused_is_reachability_evidence_and_no_go",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_paired_command_rejects_denied_after_abnormal_exit[-9-True-timed-out]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_paired_command_rejects_denied_after_abnormal_exit[9-False-unexpected-exit]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_runner_seam_distinguishes_bwrap_setup_failure_from_payload_denial",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_poll_pid_identity_reports_a_live_same_process",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_actual_descendant_observer_preserves_inside_survival_no_go",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_actual_binary_descendant_observer_preserves_inside_survival_no_go",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_identity_unresolved_cleanup_uses_owned_token_fallback",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_actual_write_observer_cannot_hide_inside_side_effect[S3-write_repo]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_actual_write_observer_cannot_hide_inside_side_effect[S5-file_write]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_actual_write_observer_uses_one_target_for_absence_control",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_system_observer_distinguishes_shell_absence_command_failure_and_side_effect[T316_SENTINEL|system_command|DENIED|ENOENT/n-False-go]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_system_observer_distinguishes_shell_absence_command_failure_and_side_effect[T316_SENTINEL|system_command|ERROR|COMMAND_EXIT_1/n-False-no-go]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_system_observer_distinguishes_shell_absence_command_failure_and_side_effect[T316_SENTINEL|system_command|ERROR|SIDE_EFFECT_WITH_FAILURE/n-True-no-go]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_cleanup_failure_makes_performance_inconclusive",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_process_tenancy_keeps_excluded_system_and_own_observations",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_system_daemons_do_not_count_as_co_tenants",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_other_non_system_user_process_prevents_exclusivity",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_load_average_threshold_still_prevents_exclusivity",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_merge_priority_is_fail_closed[statuses0-no-go]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_merge_priority_is_fail_closed[statuses1-blocked]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_merge_priority_is_fail_closed[statuses2-inconclusive]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_overall_priority_is_fail_closed[replacement0-no-go]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_overall_priority_is_fail_closed[replacement1-blocked]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_overall_priority_is_fail_closed[replacement2-inconclusive]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_stage_judges_reject_injected_bad_observations[verdict_s4-bad0-no-go]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_stage_judges_reject_injected_bad_observations[verdict_s4-bad1-inconclusive]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_stage_judges_reject_injected_bad_observations[verdict_s6-bad2-inconclusive]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_stage_judges_reject_injected_bad_observations[verdict_s6-bad3-no-go]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_stage_judges_reject_injected_bad_observations[verdict_s7-bad4-inconclusive]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_stage_judges_reject_injected_bad_observations[verdict_s7-bad5-no-go]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_injected_success_without_condition_records_is_not_go",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_unissued_condition_records_cannot_replace_live_family",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_receipt_summary_must_match_live_condition_conclusions",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_accepts_each_exact_inert_condition_gate_pair[identity]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_accepts_each_exact_inert_condition_gate_pair[root-location-only]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_rejects_crossed_inert_condition_gate_pair[identical_reason__root_location_comparison]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_rejects_crossed_inert_condition_gate_pair[root_location_reason__identity_comparison]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_rejects_requested_default_preprocess_difference",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_rejects_legacy_stock_identity_vocabulary",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_injected_observer_flows_through_judge_and_overall[S1-replacement0-no-go]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_injected_observer_flows_through_judge_and_overall[S2-replacement1-no-go]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_injected_observer_flows_through_judge_and_overall[S3-replacement2-no-go]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_injected_observer_flows_through_judge_and_overall[S4-replacement3-no-go]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_injected_observer_flows_through_judge_and_overall[S5-replacement4-no-go]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_injected_observer_flows_through_judge_and_overall[S6-replacement5-inconclusive]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_injected_observer_flows_through_judge_and_overall[S7-replacement6-inconclusive]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s5_build_system_side_effect_keeps_overall_no_go_with_write_absence",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s3_category_failure_reaches_stage_and_overall[network_dns]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s3_category_failure_reaches_stage_and_overall[network_direct_ip]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s3_category_failure_reaches_stage_and_overall[network_proxy]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s3_category_failure_reaches_stage_and_overall[credential_home]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s3_category_failure_reaches_stage_and_overall[credential_ssh_agent]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s3_category_failure_reaches_stage_and_overall[credential_ssh_dir]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s3_category_failure_reaches_stage_and_overall[credential_codex_dir]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s3_category_failure_reaches_stage_and_overall[write_home]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s3_category_failure_reaches_stage_and_overall[write_repo]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s3_category_failure_reaches_stage_and_overall[write_tmp]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s3_category_failure_reaches_stage_and_overall[source_read_only]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s3_scratch_positive_control_failure_reaches_stage_and_overall",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_category_failure_reaches_stage_and_overall[system_command-runtime]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_category_failure_reaches_stage_and_overall[system_command-build]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_category_failure_reaches_stage_and_overall[network-runtime]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_category_failure_reaches_stage_and_overall[network-build]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_category_failure_reaches_stage_and_overall[file_write-runtime]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_category_failure_reaches_stage_and_overall[file_write-build]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_category_failure_reaches_stage_and_overall[infinite_loop-runtime]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_category_failure_reaches_stage_and_overall[infinite_loop-build]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_receipt_publish_is_atomic_create_only_and_completed",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_publish_failure_never_leaves_canonical_partial_json",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_completed_marker_publish_is_atomic_and_create_only",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_completed_marker_short_write_never_publishes_marker",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_publish_preflight_einval_stops_before_measurement",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_r3_1_coverage_does_not_overclaim",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_when_all_containment_stages_go",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_performance_discharge_when_s7_go",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_requires_each_containment_stage_go[S1]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_requires_each_containment_stage_go[S2]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_requires_each_containment_stage_go[S3]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_requires_each_containment_stage_go[S4]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_requires_each_containment_stage_go[S5]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_performance_discharge_requires_s7_go",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_execution_binding_binds_runtime_spool_to_pbs",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_execution_binding_rejects_runtime_spool_matching_python_instead_of_pbs"
+      ],
+      "duration_s": 1204.114,
+      "rc": 0,
+      "repo_head": "f07761100b19fe251107dec1b09f20db6f0529d1",
+      "runner_sha256": "b87f74143295ca4852cf0ec749bf50cc8a282921f749587d22b073478eeed8f8",
+      "spec_sha256": "ad13eb09657fd31d542273fc3d340b149fb1708e7519d56d88c554c6285eb851",
+      "status": "PASSED",
+      "tool_sha256": "b232ef36fa46883a994c25d0216db0940ffb47f64864a0411ed7b4adaaf005d1"
+    },
+    "hang_timeout_seconds": 1500.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "m01-reintroduce-index-1-python-target": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t316_sandbox_probe.py::test_execution_binding_binds_runtime_spool_to_pbs",
+          "orchestrator/tests/test_t316_sandbox_probe.py::test_execution_binding_rejects_runtime_spool_matching_python_instead_of_pbs"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "82a66b5aaf400aac9895bb35edc06ca9823aca1317f7958eaa7ebb6e0831b14f",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+            "new": "    repo_pbs = repo_root / _BOUND_RELATIVE_PATHS[1]\n",
+            "old": "    repo_pbs = repo_root / _RUNTIME_PBS_RELATIVE_PATH\n"
+          }
+        ]
+      },
+      "m02-point-binding-at-condition-gate": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t316_sandbox_probe.py::test_execution_binding_binds_runtime_spool_to_pbs"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a1f250545556c4ecaa1641fb461fc1df8e56d385e08efa5d0fae952b83a89ed6",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+            "new": "    repo_pbs = repo_root / _BOUND_RELATIVE_PATHS[0]\n",
+            "old": "    repo_pbs = repo_root / _RUNTIME_PBS_RELATIVE_PATH\n"
+          }
+        ]
+      },
+      "m03-remove-the-comparison": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t316_sandbox_probe.py::test_execution_binding_rejects_runtime_spool_matching_python_instead_of_pbs"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "52f25bf07309a62691bd2530c2baa65f1ba62b615d60fbc9b0c9bea604b94a4e",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+            "new": "    if False:\n",
+            "old": "    if _sha256_file(runtime_pbs) != _sha256_file(repo_pbs):\n"
+          }
+        ]
+      },
+      "m04-change-rejection-message": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t316_sandbox_probe.py::test_execution_binding_rejects_runtime_spool_matching_python_instead_of_pbs"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "52189d4113b0df07ab0b86750a15225d0cd448197b7e2499c78eb082a69162e6",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+            "new": "        raise ValueError(\"runtime PBS mismatch\")\n",
+            "old": "        raise ValueError(\"runtime PBS bytes differ from worktree PBS bytes\")\n"
+          }
+        ]
+      },
+      "m05-record-repo-pbs-hash-as-spool-hash": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "4d970f6aad59cf2d7259bb89c75ad413959ac765acc122e641f6e33ef52e0ecf",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+            "new": "    runtime_hashes[\"runtime_pbs_spool\"] = _sha256_file(repo_pbs)\n",
+            "old": "    runtime_hashes[\"runtime_pbs_spool\"] = _sha256_file(runtime_pbs)\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "a161a7b08e3304ef384756f4f52a2f5b33979b50e70e1e9c81d1d906381b6853",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_t316_sandbox_probe.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 1800.0
+  },
+  "repo_head": "f07761100b19fe251107dec1b09f20db6f0529d1",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_t316_sandbox_probe.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2503-pbs-binding/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2503-pbs-binding/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "930e06d4928b5be6132bc87e729434ca44630cba",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "b87f74143295ca4852cf0ec749bf50cc8a282921f749587d22b073478eeed8f8",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "ad13eb09657fd31d542273fc3d340b149fb1708e7519d56d88c554c6285eb851",
+  "summary": {
+    "KILLED": 4,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 5,
+    "matching": 5,
+    "recorded": 5,
+    "registered": 5
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2503-pbs-binding/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "b232ef36fa46883a994c25d0216db0940ffb47f64864a0411ed7b4adaaf005d1",
+  "updated_at": "2026-09-09T15:20:35.080500+00:00"
+}
