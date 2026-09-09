@@ -1,0 +1,13 @@
+# shared admission root snapshot (走行後)
+2026-09-09T22:15:19+09:00
+claims: 36
+consumed: 228
+receipts: 0
+measurement-generation-claims: 36
+measurement-generation-consumed: 288
+floor-attempt-registries: 1
+manifests: 0
+transactions: 0
+refreeze-disqualifications: 0
+ledger.jsonl lines: 72
+attempt-ledger.jsonl lines: 516
