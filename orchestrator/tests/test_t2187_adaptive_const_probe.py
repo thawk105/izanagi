@@ -18,6 +18,10 @@ from types import SimpleNamespace
 
 import pytest
 
+from orchestrator.campaign.backoff_counterfactual_cohort2_analysis import (
+    PREREGISTERED_SEEDS,
+)
+
 ROOT = Path(__file__).resolve().parents[2]
 DRIVER = ROOT / "tools" / "pegasus" / "probes" / "t2187_adaptive_const_probe.py"
 PBS = ROOT / "tools" / "pegasus" / "probes" / "t2187_adaptive_const_probe.pbs"
@@ -98,6 +102,9 @@ def _certify_argv(
     workload: str = "balanced",
     slot: int = 0,
     attempt_id: str = "attempt-test",
+    cells: str = CERT_CELL,
+    threads: int = 48,
+    step_policy_seed: int | None = None,
 ):
     performance = tmp_path / "performance.json"
     if not performance.exists():
@@ -138,17 +145,21 @@ def _certify_argv(
         "--repo-clean",
         "1",
         "--cells",
-        CERT_CELL,
+        cells,
         "--workloads",
         workload,
         "--threads",
-        "48",
+        str(threads),
         "--rep-index",
         str(slot),
         "--reps-per-job",
         "1",
         "--extime",
-        "3",
+        (
+            "6"
+            if cells in {COHORT2_POLICY1_CERT_CELL, COHORT2_POLICY2_CERT_CELL}
+            else "3"
+        ),
         "--prologue-elapsed-s",
         "2.5",
         "--prologue-cpu-s",
@@ -166,6 +177,8 @@ def _certify_argv(
         "--expected-verifier-identity-sha256",
         hashlib.sha256(expected_identity.read_bytes()).hexdigest(),
     ]
+    if step_policy_seed is not None:
+        argv.extend(("--step-policy-seed", str(step_policy_seed)))
     for path in result_paths:
         argv.extend(("--group-result-path", str(path)))
     argv.extend(
@@ -676,7 +689,11 @@ def test_public_certification_rejects_non_silo_genome_before_verification(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     _install_certification_runtime(monkeypatch, tmp_path)
-    monkeypatch.setattr(probe, "genome_for", lambda _cell: probe.Genome("si", {}))
+    monkeypatch.setattr(
+        probe,
+        "genome_for",
+        lambda _cell, **_kwargs: probe.Genome("si", {}),
+    )
     argv = _certify_argv(tmp_path)
     assert probe.main(argv) == 1
     document = json.loads(Path(argv[-1]).read_text(encoding="utf-8"))
@@ -756,6 +773,35 @@ def test_real_serial_fixture_with_positive_stdout_abort_satisfies_abort_gate() -
     assert result["certified"] is True
     assert result["stats"]["abort_reasons"] == {}
     assert document["certified_serializable"] == 1
+
+
+def test_target_validation_rejects_nonempty_anomalies_from_real_serial_fixture(
+) -> None:
+    invocation = probe._run_verifier(
+        G6_SERIAL_TRACE, 200, 30.0, probe.CERT_PROTOCOL, CCBENCH
+    )
+    identity = probe._verifier_identity()
+    invocation["json"]["results"][0]["anomalies"] = [
+        {"phenomenon": "G2", "edges": []}
+    ]
+    trace_result = SimpleNamespace(
+        returncode=0,
+        trace_c_lines=200,
+        commit_count_witness=200,
+        batch_commit_count_witness=0,
+        abort_counts=7,
+    )
+    with pytest.raises(probe.CertificationReject) as caught:
+        probe._validate_target(
+            invocation,
+            G6_SERIAL_TRACE,
+            trace_result,
+            identity,
+            identity,
+            probe.CERT_PROTOCOL,
+            CCBENCH,
+        )
+    assert caught.value.reason == "target-verdict"
 
 
 def test_positive_control_real_fixture_accepts_wr_without_v_ver() -> None:
@@ -962,10 +1008,16 @@ def test_group_receipt_requires_exact_24_terminal_request_set(
     ]
     real_genome_for = probe.genome_for
 
-    def synthetic_group_genome(cell, *, backoff_trace=False):
+    def synthetic_group_genome(
+        cell, *, backoff_trace=False, step_policy_seed=None
+    ):
         if cell == probe.CERT_TUNED_CELL and backoff_trace is False:
             return SimpleNamespace(canonical=lambda: "synthetic-canonical-genome")
-        return real_genome_for(cell, backoff_trace=backoff_trace)
+        return real_genome_for(
+            cell,
+            backoff_trace=backoff_trace,
+            step_policy_seed=step_policy_seed,
+        )
 
     monkeypatch.setattr(probe, "genome_for", synthetic_group_genome)
     result_files = []
@@ -979,7 +1031,7 @@ def test_group_receipt_requires_exact_24_terminal_request_set(
             document["workload_flags"] = {
                 **probe.WORKLOADS[workload],
                 "ycsb_tuple_num": str(probe.CERT_RECORDS),
-                "thread_num": str(probe.CERT_THREADS[0]),
+                "thread_num": str(document["threads"]),
                 "extime": str(probe.CERT_EXTIME),
             }
             document["independent_run_slot"] = slot
@@ -995,7 +1047,7 @@ def test_group_receipt_requires_exact_24_terminal_request_set(
             )
             document["genome"] = "synthetic-canonical-genome"
             document["binary_sha256"] = hashlib.sha256(
-                f"synthetic-binary-{workload}-{slot}".encode("ascii")
+                b"synthetic-shared-binary"
             ).hexdigest()
             document["trace_directory"] = str(trace_dir.resolve())
             document["target_verifier"]["argv"][3] = str(trace_dir.resolve())
@@ -1038,7 +1090,6 @@ def test_group_receipt_requires_exact_24_terminal_request_set(
     assert receipt["expected_requests"] == receipt["terminal_requests"] == 24
     assert len(receipt["results"]) == 24
     assert receipt["claim"] == probe.ALLOWED_GROUP_CLAIM
-    assert len({row["binary_sha256"] for row in receipt["results"]}) == 24
     assert len(
         {
             row["source_evidence"]["source_bytes_sha256"]
@@ -1177,6 +1228,40 @@ def test_group_receipt_requires_exact_24_terminal_request_set(
         else:
             expected_reason = "group-build-identity-mismatch"
         assert caught.value.reason == expected_reason, mutation
+
+    write_documents(valid_documents)
+
+    failed_group = tmp_path / "failed-group.json"
+    candidates = copy.deepcopy(valid_documents)
+    candidates[0]["allowed_group_claim"] += " drift"
+    write_documents(candidates)
+    assert probe._try_finalize_group(
+        result_files,
+        failed_group,
+        performance,
+        performance_sha256,
+        attempt_id,
+        identity,
+        identity_file_sha256,
+    ) is False
+    failure_path = tmp_path / f"group-failure-{attempt_id}.json"
+    failure = json.loads(failure_path.read_text(encoding="utf-8"))
+    assert set(failure) == {"reason", "detail", "attempt_id", "failed_utc"}
+    assert failure["reason"] == "group-workload-contract-mismatch"
+    assert failure["attempt_id"] == attempt_id
+    assert isinstance(failure["detail"], str) and failure["detail"]
+    assert isinstance(failure["failed_utc"], str) and failure["failed_utc"]
+    original_failure = failure_path.read_bytes()
+    assert probe._try_finalize_group(
+        result_files,
+        failed_group,
+        performance,
+        performance_sha256,
+        attempt_id,
+        identity,
+        identity_file_sha256,
+    ) is False
+    assert failure_path.read_bytes() == original_failure
 
     write_documents(valid_documents)
 
@@ -1323,8 +1408,9 @@ def test_pbs_certify_mode_preserves_literal_performance_exec_and_exact_axes() ->
     ]
     assert "MODE=${IZANAGI_T2187_MODE:-performance}" in text
     assert '"$CERT_TUNED_CELL"|"$CERT_DYNAMIC_CELL")' in text
-    assert '"$CERT_COHORT2_POLICY1_CELL"|"$CERT_COHORT2_POLICY2_CELL")' in text
-    assert '"$THREADS_RAW" != 48' in text
+    assert '"$CERT_COHORT2_POLICY1_CELL")' in text
+    assert '"$CERT_COHORT2_POLICY2_CELL")' in text
+    assert '[[ "$THREADS_RAW" == 24 || "$THREADS_RAW" == 48 ]]' in text
     assert "--mode certify" in text
     assert "qsub -l elapstim_req=02:15:00" in text
     assert "IZANAGI_T2187_OUTER_WALLTIME_S=8100" in text
@@ -1521,8 +1607,26 @@ def test_terminal_define_is_present_only_for_cohort2_trace_builds() -> None:
 
 @pytest.mark.parametrize(
     "text",
-    ("-1", "0x1", "+1", "1_0", "18446744073709551616", "１２"),
-    ids=("negative", "hex", "plus", "underscore", "overflow", "non-ascii"),
+    (
+        "-1",
+        "0x1",
+        "+1",
+        "1_0",
+        "00",
+        "014481721328008317845",
+        "18446744073709551616",
+        "１２",
+    ),
+    ids=(
+        "negative",
+        "hex",
+        "plus",
+        "underscore",
+        "leading-zero",
+        "allowed-leading-zero",
+        "overflow",
+        "non-ascii",
+    ),
 )
 def test_step_policy_seed_rejects_non_decimal_or_out_of_uint64(text: str) -> None:
     parser = probe._argument_parser()
@@ -1760,21 +1864,28 @@ def test_public_certification_accepts_each_exact_cell_and_rejects_widening(
     tmp_path: Path,
 ) -> None:
     parser = probe._argument_parser()
-    for exact, extime in (
-        (CERT_CELL, "3"),
-        (DYNAMIC_CERT_CELL, "3"),
-        (COHORT2_POLICY1_CERT_CELL, "6"),
-        (COHORT2_POLICY2_CERT_CELL, "6"),
+    for exact, threads, seed in (
+        (CERT_CELL, 48, None),
+        (DYNAMIC_CERT_CELL, 48, None),
+        (COHORT2_POLICY1_CERT_CELL, 24, None),
+        (
+            COHORT2_POLICY2_CERT_CELL,
+            24,
+            probe.CERT_PREREGISTERED_STEP_POLICY_SEEDS[0],
+        ),
     ):
-        argv = _certify_argv(tmp_path)
-        argv[argv.index(CERT_CELL)] = exact
-        argv[argv.index("3")] = extime
-        cell, workload, threads = probe._certification_contract(
+        argv = _certify_argv(
+            tmp_path,
+            cells=exact,
+            threads=threads,
+            step_policy_seed=seed,
+        )
+        axes, workload = probe._certification_contract(
             parser.parse_args(argv)
         )
-        assert cell in probe.CERT_CELLS
+        assert axes.cell in probe.CERT_CELLS
         assert workload == "balanced"
-        assert threads == 48
+        assert axes.threads == threads
 
     for invalid in (
         f"{CERT_CELL},{DYNAMIC_CERT_CELL}",
@@ -1792,23 +1903,501 @@ def test_public_certification_accepts_each_exact_cell_and_rejects_widening(
         assert caught.value.reason == "certification-cell-mismatch"
 
 
+def test_probe_seed_table_matches_cohort2_preregistered_seeds() -> None:
+    assert len(probe.CERT_PREREGISTERED_STEP_POLICY_SEEDS) == 12
+    assert set(probe.CERT_PREREGISTERED_STEP_POLICY_SEEDS) == PREREGISTERED_SEEDS
+    assert probe.STOCK_STEP_POLICY_SEED not in PREREGISTERED_SEEDS
+    assert probe.CERT_POLICY2_STEP_POLICY_SEEDS == (
+        PREREGISTERED_SEEDS | {probe.STOCK_STEP_POLICY_SEED}
+    )
+
+
+def test_certification_contract_accepts_only_cell_closed_thread_seed_axes(
+    tmp_path: Path,
+) -> None:
+    parser = probe._argument_parser()
+    for seed in probe.CERT_POLICY2_STEP_POLICY_SEEDS:
+        for threads in (24, 48):
+            axes, workload = probe._certification_contract(
+                parser.parse_args(
+                    _certify_argv(
+                        tmp_path,
+                        cells=COHORT2_POLICY2_CERT_CELL,
+                        threads=threads,
+                        step_policy_seed=seed,
+                    )
+                )
+            )
+            assert axes == probe.CertificationAxes(
+                probe.CERT_COHORT2_POLICY2_CELL, threads, seed
+            )
+            assert workload == "balanced"
+
+    for threads in (24, 48):
+        axes, _workload = probe._certification_contract(
+            parser.parse_args(
+                _certify_argv(
+                    tmp_path,
+                    cells=COHORT2_POLICY1_CERT_CELL,
+                    threads=threads,
+                )
+            )
+        )
+        assert axes == probe.CertificationAxes(
+            probe.CERT_COHORT2_POLICY1_CELL,
+            threads,
+            probe.STOCK_STEP_POLICY_SEED,
+        )
+
+    for cells in (CERT_CELL, DYNAMIC_CERT_CELL):
+        args = parser.parse_args(
+            _certify_argv(tmp_path, cells=cells, threads=24)
+        )
+        with pytest.raises(probe.CertificationReject) as caught:
+            probe._certification_contract(args)
+        assert caught.value.reason == "certification-workload-shape-mismatch"
+
+
+def test_certification_contract_rejects_seed_and_thread_near_misses(
+    tmp_path: Path,
+) -> None:
+    parser = probe._argument_parser()
+    invalid_seed = next(
+        seed
+        for seed in range(2**64)
+        if seed not in probe.CERT_POLICY2_STEP_POLICY_SEEDS
+    )
+    cases = (
+        (
+            _certify_argv(
+                tmp_path,
+                cells=COHORT2_POLICY2_CERT_CELL,
+                step_policy_seed=invalid_seed,
+            ),
+            "certification-step-policy-seed-mismatch",
+        ),
+        (
+            _certify_argv(tmp_path, cells=COHORT2_POLICY2_CERT_CELL),
+            "certification-step-policy-seed-missing",
+        ),
+        (
+            _certify_argv(tmp_path, cells=CERT_CELL, threads=24),
+            "certification-workload-shape-mismatch",
+        ),
+    )
+    for argv, reason in cases:
+        with pytest.raises(probe.CertificationReject) as caught:
+            probe._certification_contract(parser.parse_args(argv))
+        assert caught.value.reason == reason
+
+    seed = probe.CERT_PREREGISTERED_STEP_POLICY_SEEDS[0]
+    for raw_threads in ("23", "25", "47", "24,48", "024", "24 "):
+        argv = _certify_argv(
+            tmp_path,
+            cells=COHORT2_POLICY2_CERT_CELL,
+            step_policy_seed=seed,
+        )
+        argv[argv.index("--threads") + 1] = raw_threads
+        with pytest.raises(probe.CertificationReject) as caught:
+            probe._certification_contract(parser.parse_args(argv))
+        assert caught.value.reason == "certification-workload-shape-mismatch"
+    argv = _certify_argv(
+        tmp_path,
+        cells=COHORT2_POLICY2_CERT_CELL,
+        step_policy_seed=seed,
+    )
+    argv[argv.index("--threads") + 1] = "49"
+    with pytest.raises(ValueError, match="outside 1..48"):
+        probe._certification_contract(parser.parse_args(argv))
+
+    p0 = (
+        "cw-as-dyn-c2-p0:1:1:1000:2560:10000:"
+        "9223372036854775807:1:1:4:1:0"
+    )
+    for cells in (CERT_CELL, DYNAMIC_CERT_CELL, COHORT2_POLICY1_CERT_CELL, p0):
+        argv = _certify_argv(tmp_path, cells=cells, step_policy_seed=seed)
+        with pytest.raises(probe.CertificationReject) as caught:
+            probe._certification_contract(parser.parse_args(argv))
+        assert caught.value.reason == "step-policy-seed-certification-conflict"
+
+
+@pytest.mark.parametrize(
+    ("option", "value"),
+    (
+        ("--threads", "48"),
+        (
+            "--step-policy-seed",
+            str(probe.CERT_PREREGISTERED_STEP_POLICY_SEEDS[0]),
+        ),
+    ),
+    ids=("threads", "step-policy-seed"),
+)
+def test_certification_axis_options_reject_duplicates(
+    tmp_path: Path, option: str, value: str
+) -> None:
+    argv = _certify_argv(
+        tmp_path,
+        cells=COHORT2_POLICY2_CERT_CELL,
+        step_policy_seed=probe.CERT_PREREGISTERED_STEP_POLICY_SEEDS[0],
+    )
+    argv.extend((option, value))
+    with pytest.raises(SystemExit) as caught:
+        probe._argument_parser().parse_args(argv)
+    assert caught.value.code == 2
+
+
+def test_certification_raw_thread_literal_rejects_before_thread_parser(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    args = probe._argument_parser().parse_args(
+        _certify_argv(
+            tmp_path,
+            cells=COHORT2_POLICY2_CERT_CELL,
+            step_policy_seed=probe.CERT_PREREGISTERED_STEP_POLICY_SEEDS[0],
+        )
+    )
+    args.threads = "24,48"
+
+    def unexpected_parse(_text: str) -> tuple[int, ...]:
+        raise AssertionError("raw thread rejection must precede parsing")
+
+    monkeypatch.setattr(probe, "_parse_threads", unexpected_parse)
+    with pytest.raises(probe.CertificationReject) as caught:
+        probe._certification_contract(args)
+    assert caught.value.reason == "certification-workload-shape-mismatch"
+
+
+def test_policy2_certification_missing_seed_rejects_before_build(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(probe.CertificationReject) as caught:
+        probe.main(
+            _certify_argv(tmp_path, cells=COHORT2_POLICY2_CERT_CELL)
+        )
+    assert caught.value.reason == "certification-step-policy-seed-missing"
+
+
+def test_certification_claim_requires_validated_axes_and_binds_actual_identity() -> None:
+    seed = probe.CERT_PREREGISTERED_STEP_POLICY_SEEDS[0]
+    axes24 = probe.CertificationAxes(
+        probe.CERT_COHORT2_POLICY2_CELL, 24, seed
+    )
+    axes48 = probe.CertificationAxes(
+        probe.CERT_COHORT2_POLICY2_CELL, 48, seed
+    )
+    claim24 = probe._certification_claim(axes24)
+    claim48 = probe._certification_claim(axes48)
+    assert claim24 != claim48
+    assert "threads=24" in claim24 and f"compile seed {seed}" in claim24
+    assert "BACKOFF_TRACE=0" in claim24
+    assert "BACKOFF_TRACE_TERMINAL_US の terminal define なし" in claim24
+    with pytest.raises(TypeError, match="CertificationAxes"):
+        probe._certification_claim(  # type: ignore[arg-type]
+            {"cell": probe.CERT_COHORT2_POLICY2_CELL, "threads": 24}
+        )
+    with pytest.raises(ValueError, match="cell closed table"):
+        probe.CertificationAxes(probe.CERT_TUNED_CELL, 24, None)
+
+
+def test_published_claim_compatibility_is_exact_for_the_four_old_literals() -> None:
+    published_axes = (
+        probe.CertificationAxes(probe.CERT_TUNED_CELL, 48, None),
+        probe.CertificationAxes(probe.CERT_DYNAMIC_CELL, 48, None),
+        probe.CertificationAxes(
+            probe.CERT_COHORT2_POLICY1_CELL,
+            48,
+            probe.STOCK_STEP_POLICY_SEED,
+        ),
+        probe.CertificationAxes(
+            probe.CERT_COHORT2_POLICY2_CELL,
+            48,
+            probe.STOCK_STEP_POLICY_SEED,
+        ),
+    )
+    for axes in published_axes:
+        assert probe._certification_claim(axes) == probe.CERT_CLAIMS[axes.cell]
+    generated_axes = (
+        probe.CertificationAxes(
+            probe.CERT_COHORT2_POLICY1_CELL,
+            24,
+            probe.STOCK_STEP_POLICY_SEED,
+        ),
+        probe.CertificationAxes(
+            probe.CERT_COHORT2_POLICY2_CELL,
+            24,
+            probe.STOCK_STEP_POLICY_SEED,
+        ),
+        *(
+            probe.CertificationAxes(
+                probe.CERT_COHORT2_POLICY2_CELL, threads, seed
+            )
+            for seed in probe.CERT_PREREGISTERED_STEP_POLICY_SEEDS
+            for threads in (24, 48)
+        ),
+    )
+    for axes in generated_axes:
+        claim = probe._certification_claim(axes)
+        assert claim not in probe.CERT_CLAIMS.values()
+        assert f"threads={axes.threads}" in claim
+        assert "BACKOFF_TRACE=0" in claim
+        assert "BACKOFF_TRACE_TERMINAL_US の terminal define なし" in claim
+
+
+def test_published_cohort2_receipts_reaccept_exact_old_claim_identities(
+    tmp_path: Path,
+) -> None:
+    performance = tmp_path / "performance.json"
+    performance.write_text(
+        json.dumps(
+            {
+                "schema_version": probe.SCHEMA_VERSION,
+                "kind": "performance-only-probe",
+                "not_certified": probe.NOT_CERTIFIED,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    performance_sha256 = hashlib.sha256(performance.read_bytes()).hexdigest()
+    performance_identity = {
+        "path": str(performance.resolve(strict=True)),
+        "sha256": performance_sha256,
+    }
+    verifier_identity = {
+        "repository_commit": "a" * 40,
+        "module_sha256": {"orchestrator/verify.py": "b" * 64},
+    }
+    verifier_file_sha256 = "c" * 64
+    patch_identity = probe._patch_stack_identity()
+    execution_identity = {
+        "driver_sha256": "d" * 64,
+        "pbs_sha256": "e" * 64,
+        "driver_argv": ["t2187_adaptive_const_probe.py", "--mode", "certify"],
+        "repo_status_clean": True,
+    }
+    source_evidence = {
+        "ccbench_commit": probe.CURRENT_PIN,
+        "genome_sha256": "f" * 64,
+        "src_token": "published-source",
+        "source_bytes_sha256": "1" * 64,
+    }
+
+    for attempt_id, cell in (
+        ("c2-p1-a1", probe.CERT_COHORT2_POLICY1_CELL),
+        ("c2-p2-a1", probe.CERT_COHORT2_POLICY2_CELL),
+    ):
+        axes = probe.CertificationAxes(
+            cell, 48, probe.STOCK_STEP_POLICY_SEED
+        )
+        genome = probe.genome_for(
+            cell, step_policy_seed=axes.step_policy_seed
+        ).canonical()
+        prereg_sha256 = probe._certification_prereg_sha256(cell)
+        results = []
+        result_files = []
+        for workload in probe.CERT_WORKLOADS:
+            for slot in probe.CERT_SLOTS:
+                path = tmp_path / f"{attempt_id}-{workload}-{slot}.json"
+                path.write_text("{}\n", encoding="utf-8")
+                result_files.append(path)
+                results.append(
+                    {
+                        "path": str(path.resolve(strict=True)),
+                        "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                        **probe._cell_identity(cell),
+                        "cell_order": [cell.label],
+                        "claim": probe._certification_claim(axes),
+                        "backoff_trace": False,
+                        "records": probe.CERT_RECORDS,
+                        "threads": 48,
+                        "extime_s": 6,
+                        "workload": workload,
+                        "workload_flags": {
+                            **probe.WORKLOADS[workload],
+                            "ycsb_tuple_num": str(probe.CERT_RECORDS),
+                            "thread_num": "48",
+                            "extime": "6",
+                        },
+                        "step_policy_seed": probe.STOCK_STEP_POLICY_SEED,
+                        "repo_head": "2" * 40,
+                        "prereg_sha256": prereg_sha256,
+                        "ccbench_commit": probe.PIN_FULL,
+                        "ccbench_head": probe.PIN_FULL,
+                        **execution_identity,
+                        "genome": genome,
+                        "source_evidence": source_evidence,
+                        "proof_surface": {
+                            "protocol": probe.CERT_PROTOCOL,
+                            "source_snapshot_identity": source_evidence,
+                        },
+                        **patch_identity,
+                        "binary_sha256": "3" * 64,
+                        "build_cache_key": "published-build_t1",
+                    }
+                )
+        receipt = {
+            "schema_version": probe.GROUP_RECEIPT_SCHEMA_VERSION,
+            "complete": True,
+            "certified_requests": 24,
+            "attempt_id": attempt_id,
+            "verifier_identity": verifier_identity,
+            "expected_verifier_identity_file_sha256": verifier_file_sha256,
+            "performance_artifact": performance_identity,
+            **probe._cell_identity(cell),
+            "cell_order": [cell.label],
+            "claim": probe._certification_claim(axes),
+            "backoff_trace": False,
+            "records": probe.CERT_RECORDS,
+            "threads": 48,
+            "extime_s": 6,
+            "step_policy_seed": probe.STOCK_STEP_POLICY_SEED,
+            "hostname": "published-host",
+            "prereg_sha256": prereg_sha256,
+            "repo_head": "2" * 40,
+            **patch_identity,
+            "ccbench_commit": probe.PIN_FULL,
+            "ccbench_head": probe.PIN_FULL,
+            "genome": genome,
+            "source_evidence": source_evidence,
+            "proof_surface": {
+                "protocol": probe.CERT_PROTOCOL,
+                "source_snapshot_identity": source_evidence,
+            },
+            **execution_identity,
+            "results": results,
+        }
+        group_out = tmp_path / f"{attempt_id}-group.json"
+        group_out.write_text(json.dumps(receipt) + "\n", encoding="utf-8")
+        probe._validate_published_group(
+            group_out,
+            result_files,
+            performance,
+            performance_sha256,
+            attempt_id,
+            verifier_identity,
+            verifier_file_sha256,
+        )
+        wrong_claim_receipt = copy.deepcopy(receipt)
+        wrong_claim_receipt["claim"] += " drift"
+        for row in wrong_claim_receipt["results"]:
+            row["claim"] = wrong_claim_receipt["claim"]
+        group_out.write_text(
+            json.dumps(wrong_claim_receipt) + "\n", encoding="utf-8"
+        )
+        with pytest.raises(probe.CertificationReject) as caught:
+            probe._validate_published_group(
+                group_out,
+                result_files,
+                performance,
+                performance_sha256,
+                attempt_id,
+                verifier_identity,
+                verifier_file_sha256,
+            )
+        assert caught.value.reason == "group-receipt-collision"
+
+        mixed_receipt = copy.deepcopy(receipt)
+        if cell == probe.CERT_COHORT2_POLICY1_CELL:
+            mixed_receipt["results"][0]["threads"] = 24
+            mixed_receipt["results"][0]["workload_flags"]["thread_num"] = "24"
+        else:
+            mixed_receipt["results"][0]["step_policy_seed"] = (
+                probe.CERT_PREREGISTERED_STEP_POLICY_SEEDS[0]
+            )
+        group_out.write_text(
+            json.dumps(mixed_receipt) + "\n", encoding="utf-8"
+        )
+        with pytest.raises(probe.CertificationReject) as caught:
+            probe._validate_published_group(
+                group_out,
+                result_files,
+                performance,
+                performance_sha256,
+                attempt_id,
+                verifier_identity,
+                verifier_file_sha256,
+            )
+        assert caught.value.reason == "group-receipt-collision"
+        if cell == probe.CERT_COHORT2_POLICY2_CELL:
+            invalid_seed = next(
+                value
+                for value in range(2**64)
+                if value not in probe.CERT_POLICY2_STEP_POLICY_SEEDS
+            )
+            receipt["step_policy_seed"] = invalid_seed
+            for row in receipt["results"]:
+                row["step_policy_seed"] = invalid_seed
+            group_out.write_text(
+                json.dumps(receipt) + "\n", encoding="utf-8"
+            )
+            with pytest.raises(probe.CertificationReject) as caught:
+                probe._validate_published_group(
+                    group_out,
+                    result_files,
+                    performance,
+                    performance_sha256,
+                    attempt_id,
+                    verifier_identity,
+                    verifier_file_sha256,
+                )
+            assert caught.value.reason == "group-receipt-collision"
+
+
+def test_group_axes_reject_mixed_policy2_seed_or_thread() -> None:
+    seed_a, seed_b = probe.CERT_PREREGISTERED_STEP_POLICY_SEEDS[:2]
+
+    def row(threads: int, seed: int) -> dict:
+        return {
+            **probe._cell_identity(probe.CERT_COHORT2_POLICY2_CELL),
+            "threads": threads,
+            "step_policy_seed": seed,
+        }
+
+    for rows in (
+        [row(48, seed_a), row(48, seed_b)],
+        [row(24, seed_a), row(48, seed_a)],
+    ):
+        with pytest.raises(probe.CertificationReject) as caught:
+            probe._group_certification_axes(rows)
+        assert caught.value.reason == "group-cell-identity-mismatch"
+
+
 def test_cohort2_certification_is_exact_and_policy2_uses_default_seed(
     tmp_path: Path,
 ) -> None:
     parser = probe._argument_parser()
-    for exact, expected_cell in (
-        (COHORT2_POLICY1_CERT_CELL, probe.CERT_COHORT2_POLICY1_CELL),
-        (COHORT2_POLICY2_CERT_CELL, probe.CERT_COHORT2_POLICY2_CELL),
+    for exact, expected_cell, request_seed in (
+        (
+            COHORT2_POLICY1_CERT_CELL,
+            probe.CERT_COHORT2_POLICY1_CELL,
+            None,
+        ),
+        (
+            COHORT2_POLICY2_CERT_CELL,
+            probe.CERT_COHORT2_POLICY2_CELL,
+            probe.CERT_PREREGISTERED_STEP_POLICY_SEEDS[0],
+        ),
     ):
-        argv = _certify_argv(tmp_path)
-        argv[argv.index(CERT_CELL)] = exact
-        argv[argv.index("3")] = "6"
-        cell, workload, threads = probe._certification_contract(
+        argv = _certify_argv(
+            tmp_path,
+            cells=exact,
+            step_policy_seed=request_seed,
+        )
+        axes, workload = probe._certification_contract(
             parser.parse_args(argv)
         )
-        assert (cell, workload, threads) == (expected_cell, "balanced", 48)
-        assert probe.CERT_EXTIME_BY_CELL[cell] == 6
-        assert probe._certification_prereg_sha256(cell) == (
+        assert (axes.cell, workload, axes.threads) == (
+            expected_cell,
+            "balanced",
+            48,
+        )
+        assert axes.step_policy_seed == (
+            request_seed
+            if request_seed is not None
+            else probe.STOCK_STEP_POLICY_SEED
+        )
+        assert probe.CERT_EXTIME_BY_CELL[axes.cell] == 6
+        assert probe._certification_prereg_sha256(axes.cell) == (
             "8b4127f4be895da0d25da88b0837f679ecf06d43ab656b16d2944146b9f7a9e9"
         )
 
@@ -2550,7 +3139,8 @@ def test_pbs_dynamic_output_and_plus_transport_are_fail_closed() -> None:
     ) in text
     assert 'CELLS=${CELLS_RAW//+/,}' in text
     assert '"$CERT_TUNED_CELL"|"$CERT_DYNAMIC_CELL")' in text
-    assert '"$CERT_COHORT2_POLICY1_CELL"|"$CERT_COHORT2_POLICY2_CELL")' in text
+    assert '"$CERT_COHORT2_POLICY1_CELL")' in text
+    assert '"$CERT_COHORT2_POLICY2_CELL")' in text
     assert '"${BACKOFF_TRACE_ARGS[@]}"' in text
     assert 'export IZANAGI_T2187_REPO_HEAD="$REPO_HEAD"' in text
     assert '--repo-head "$REPO_HEAD"' in text
@@ -2567,13 +3157,37 @@ def test_pbs_dynamic_output_and_plus_transport_are_fail_closed() -> None:
         'OUT="$OUT_DIR/certify-', 1
     )[1]
     assert '"${STEP_POLICY_SEED_ARGS[@]}"' in performance_branch
+    assert '"${STEP_POLICY_SEED_ARGS[@]}"' in certification_branch
     assert '--extime "$EXTIME"' in performance_branch
     assert (
         '--backoff-trace-terminal-us "$CCBENCH_BACKOFF_TRACE_TERMINAL_US"'
         in performance_branch
     )
-    assert "--step-policy-seed" not in certification_branch
     assert '--extime "$EXTIME"' in certification_branch
+
+
+def test_pbs_certification_seed_and_thread_closed_tables_are_exact() -> None:
+    text = PBS.read_text(encoding="utf-8")
+    seed_block = text.split("cert_policy2_seed_allowed() {", 1)[1].split(
+        "}\n", 1
+    )[0]
+    assert {int(value) for value in re.findall(r"\b[0-9]{15,20}\b", seed_block)} == (
+        set(probe.CERT_POLICY2_STEP_POLICY_SEEDS)
+    )
+    assert "certify policy 2 requires an explicit step policy seed" in text
+    assert "certify policy 2 seed is outside the exact closed table" in text
+    assert (
+        '[[ "$THREADS_RAW" == 24 || "$THREADS_RAW" == 48 ]] && '
+        "CERT_THREAD_OK=1"
+    ) in text
+    assert '[[ "$THREADS_RAW" == 48 ]] && CERT_THREAD_OK=1' in text
+    seed_args_position = text.index("STEP_POLICY_SEED_ARGS=()")
+    performance_branch_position = text.index(
+        'if [[ "$MODE" == performance ]]; then'
+    )
+    assert seed_args_position < performance_branch_position
+    certification_exec = text.split('OUT="$OUT_DIR/certify-', 1)[1]
+    assert '"${STEP_POLICY_SEED_ARGS[@]}"' in certification_exec
 
 
 def test_execution_identity_fields_have_exact_types_and_file_hashes(
@@ -2679,7 +3293,9 @@ def test_dynamic_performance_artifact_rejects_certify_identity_drift(
         "patch_stack_sha256": patch_identity["patch_stack_sha256"],
         "ccbench_head": probe.PIN_FULL,
         **execution_identity,
-        "cells": [{**probe._cell_identity(probe.CERT_DYNAMIC_CELL)}],
+        "cells": [
+            {**probe._cell_identity(probe.CERT_DYNAMIC_CELL), "threads": 48}
+        ],
     }
     performance = tmp_path / "performance.json"
 
@@ -2693,6 +3309,9 @@ def test_dynamic_performance_artifact_rejects_certify_identity_drift(
         "expected_patch_stack_sha256": patch_identity["patch_stack_sha256"],
         "required_cell": probe.CERT_DYNAMIC_CELL,
         "expected_extime": 3,
+        "expected_axes": probe.CertificationAxes(
+            probe.CERT_DYNAMIC_CELL, 48, None
+        ),
     }
     probe._performance_artifact_identity(
         performance, write_and_digest(), **expected
@@ -2719,10 +3338,14 @@ def test_cohort2_performance_binding_requires_extime_and_default_seed(
     repo_head = "a" * 40
     prereg_sha256 = probe._prereg_sha256()
     cell = probe.CERT_COHORT2_POLICY2_CELL
+    actual_seed = probe.CERT_PREREGISTERED_STEP_POLICY_SEEDS[0]
     row = {
         **probe._cell_identity(cell),
-        "genome": probe.genome_for(cell).canonical(),
-        "step_policy_seed": probe.STOCK_STEP_POLICY_SEED,
+        "genome": probe.genome_for(
+            cell, step_policy_seed=actual_seed
+        ).canonical(),
+        "step_policy_seed": actual_seed,
+        "threads": 48,
     }
     document = {
         "schema_version": probe.SCHEMA_VERSION,
@@ -2751,11 +3374,19 @@ def test_cohort2_performance_binding_requires_extime_and_default_seed(
         "expected_patch_stack_sha256": patch_identity["patch_stack_sha256"],
         "required_cell": cell,
         "expected_extime": 6,
+        "expected_axes": probe.CertificationAxes(cell, 48, actual_seed),
     }
     probe._performance_artifact_identity(
         performance, write_and_digest(), **expected
     )
-    row["step_policy_seed"] -= 1
+    row["step_policy_seed"] = probe.STOCK_STEP_POLICY_SEED
+    with pytest.raises(probe.CertificationReject) as caught:
+        probe._performance_artifact_identity(
+            performance, write_and_digest(), **expected
+        )
+    assert caught.value.reason == "performance-artifact-identity-mismatch"
+    row["step_policy_seed"] = actual_seed
+    row["threads"] = 24
     with pytest.raises(probe.CertificationReject) as caught:
         probe._performance_artifact_identity(
             performance, write_and_digest(), **expected
