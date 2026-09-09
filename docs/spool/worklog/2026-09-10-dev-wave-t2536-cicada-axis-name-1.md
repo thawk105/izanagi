@@ -54,6 +54,19 @@ title: [T-2536] genome 軸名を CCBench 実体の CMake cache 変数へ合わ�
   段 8 が commit を作る wave では不足である。本 wave は記録 commit 直後に受入を投げ、その後
   段 8 の commit を積んだため、受入をやり直すことになった。こちらは機械代替が無く、
   land の rc=23 まで発覚しない。`DW-O12` を「`DW-S07` と段 8 の commit 完了後」へ直した (+3 bytes)。
+- **セッション異常 3: 受入全走が 2 巡・計 14 attempt になった。** 1 巡目は attempt 1 が
+  `stage=postcheck` の競走 (claim 後に main がさらに進む) で子が起動せず、attempt 2 が緑。
+  段 8 の commit を積んだ後の 2 巡目は attempt 8〜12 が赤、attempt 13 が緑になった。
+- **赤は本 wave に帰属しない。** 全件 `orchestrator/tests/test_t1259_qsub_env_delivery_probe.py` の
+  setup error で、同 file は本 wave の変更 module (`model.py` / `calibrator/cli.py` /
+  `screening_driver.py`) を 1 箇所も参照しない。error 数が attempt ごとに 3 件と 13 件で違い
+  決定的でない。同 file は live な qstat / qsub を叩く probe であり、走行中の queue は
+  他 wave の job で混んでいた。最終 attempt は同じ wave 内容で 22325 passed / 68 skipped の緑である。
+- **本 wave の手順の失敗:** 親の再試行 loop が rc=70 を一律に再投入可能として扱い、
+  `stage=postcheck` (子が起動していない) と `stage=acceptance-command` (子が赤を返した) を
+  区別しなかった。後者は `DW-O26` / `DW-O18` が要求する attempt ごとの帰属判定を親が行うべき赤で、
+  loop は判定を挟まず 5 回投げ直している。判定は事後に行い根拠を本エントリへ残したが、
+  順序が逆になった。新しい規則は要らない — 既存の `DW-O18` を守れば足りる。
 - **変異は probe → 本走の 2 段で回した。** probe は全件 SURVIVED で登録して観測 node を集め、
   本走 spec はその実測から機械生成した。本走は 5/5 KILLED、期待 node 完全一致、baseline PASSED。
   runner argv は `orchestrator/tests/test_pegasus_calibration_workload.py` 1 本に限った —
@@ -94,6 +107,11 @@ title: [T-2536] genome 軸名を CCBench 実体の CMake cache 変数へ合わ�
   許すかを裁定する。現行はこれを要求している — 認定 launcher が silo へ patch 供給の
   `-DCCBENCH_BACKOFF_FIXED=-1` を渡し、`orchestrator/tests/test_calibrator_certify.py` が
   `mocc|BACKOFF_FIXED=-1,...` を期待する。閉じるなら受理集合を狭める設計判断になる。
+- {{T:t1259-qsub-probe-scheduler-flakiness}} **P3・新規**: `test_t1259_qsub_env_delivery_probe.py` が
+  queue 混雑時の受入全走で setup error を出す。本 wave の 5 attempt で 3 件と 13 件の非決定的な
+  error を観測し、同じ wave 内容の別 attempt は緑だった。同 file は live な qstat / qsub を叩く。
+  `orchestrator/tests/flaky_test_holds.py` は既存 F を証拠に要求するが該当 F が無いので登録せず、
+  原因の確定と対応 (probe の隔離か hold 登録か) を所有者の裁定へ送る。
 - {{T:compile-command-supply-proof}} **P3・新規**: cache 名の契約ではなく、emitted compile command で
   値がコンパイラへ届くことを証明する層を持つかを裁定する。先例は
   `orchestrator/campaign/condition_meaning_gate.py` が silo の 1 マクロについて行っているもので、
