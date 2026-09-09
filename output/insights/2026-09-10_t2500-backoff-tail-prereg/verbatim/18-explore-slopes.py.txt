@@ -1,0 +1,43 @@
+import math
+
+REPS = {
+    "write-heavy": {
+        2000: [0.0292, 0.0296, 0.0292, 0.0293, 0.0292],
+        4000: [0.0199, 0.0198, 0.0199, 0.0198, 0.0198],
+        9999: [0.0114, 0.0114, 0.0114, 0.0115, 0.0114],
+    },
+    "balanced": {
+        2000: [0.0404, 0.0402, 0.0404, 0.0404, 0.0402],
+        4000: [0.0269, 0.0267, 0.0270, 0.0267, 0.0268],
+        9999: [0.0145, 0.0147, 0.0145, 0.0145, 0.0145],
+    },
+    "read-heavy": {
+        2000: [0.0170, 0.0170, 0.0170, 0.0170, 0.0169],
+        4000: [0.0120, 0.0119, 0.0119, 0.0119, 0.0119],
+        9999: [0.0073, 0.0074, 0.0074, 0.0074, 0.0074],
+    },
+}
+
+
+def mean(xs):
+    return sum(xs) / len(xs)
+
+
+def sd(xs):
+    m = mean(xs)
+    return math.sqrt(sum((x - m) ** 2 for x in xs) / (len(xs) - 1))
+
+
+lo, hi = 1.0, 0.0
+for wl, pts in REPS.items():
+    ks = sorted(pts)
+    for a, b in zip(ks, ks[1:]):
+        ma, mb = mean(pts[a]), mean(pts[b])
+        h = math.log(b / a)
+        q = math.log(mb / ma) / h
+        red = 1.0 - 2.0 ** q
+        lo, hi = min(lo, red), max(hi, red)
+        print(f"{wl:12s} {a:5d}->{b:5d}  qhat={q:+.6f}  reduction_per_doubling={red*100:.2f}%")
+    cvs = [sd(pts[k]) / mean(pts[k]) for k in ks]
+    print(f"{wl:12s} abort cv: " + ", ".join(f"{c:.8f}" for c in cvs))
+print(f"\npoint-estimate reduction per doubling range: {lo*100:.1f}% .. {hi*100:.1f}%")
