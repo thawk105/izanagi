@@ -595,6 +595,30 @@ def _extend_t2145_role_source_baseline(
 _extend_t2145_role_source_baseline(_PRE_WAVE_ORIGINLESS_BASELINE)
 
 
+def _extend_t2249_role_source_baseline(
+    baseline: dict[str, list[list[object]]],
+) -> None:
+    """Follow the reviewed T-2249 planner source pin in live originless output."""
+    old = "0893644a9eae73a18fcf822c582f6007e8795f314fc1c97a3db7a6d8d439cb0e"
+    new = "3a3d35fafbaaeac5b63c8f36a1cd4542fba4e7cef2793c71cc59fc40884c8374"
+    journal_rows = baseline["journals/*/*/provenance/role_file_sha256"]
+    replaced = 0
+    for row in journal_rows:
+        if row[0] == old:
+            row[0] = new
+            replaced += 1
+    assert replaced == 6
+    report_rows = baseline[
+        "reports/*/cells/*/generations/*/roles/planner/"
+        "provenance/role_file_sha256"
+    ]
+    assert report_rows == [[old, 6]]
+    report_rows[0][0] = new
+
+
+_extend_t2249_role_source_baseline(_PRE_WAVE_ORIGINLESS_BASELINE)
+
+
 def _assert_same_structure(left: object, right: object, path=()) -> None:
     if type(left) is dict or type(right) is dict:
         assert type(left) is type(right) is dict, path

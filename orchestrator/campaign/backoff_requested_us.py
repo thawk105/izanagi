@@ -118,6 +118,7 @@ def _require_fixed_condition_gate_before_measurement(
         stock_root=stock_root,
         driver_id="orchestrator/campaign/backoff_requested_us.py",
         macro_values={"BACKOFF_FIXED": (genome.flags["BACKOFF_FIXED"],)},
+        backoff_fixed_physical_us={},
         cxx=cxx,
         use_class="raw-measurement",
     )
@@ -134,6 +135,7 @@ def _require_requested_us_condition_gate_before_measurement(
         stock_root=None,
         driver_id="orchestrator/campaign/backoff_requested_us.py",
         macro_values={DIAGNOSTIC_FLAG: (genome.flags[DIAGNOSTIC_FLAG],)},
+        backoff_fixed_physical_us={},
         cxx=cxx,
         use_class="raw-measurement",
     )

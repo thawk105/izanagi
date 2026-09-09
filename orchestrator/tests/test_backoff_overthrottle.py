@@ -71,6 +71,12 @@ def test_condition_gate_uses_backoff_flags_from_imported_genomes(monkeypatch):
             for reference in references
         ),
     }
+    assert captured["backoff_fixed_physical_us"] == {
+        M._aa_genome(reference).flags["BACKOFF_FIXED"]:
+            M._point_backoff_us(reference)
+        for reference in references
+        if M._aa_genome(reference).flags["BACKOFF_FIXED"] >= 0
+    }
 
 
 def test_static_1000_generator_to_diagnostic_report_uses_physical_label():
