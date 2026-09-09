@@ -64,7 +64,16 @@ def issue_proposal_binding_fixture(
     driver_kind: str,
     document: dict[str, object] | None = None,
     label: str = "binding",
+    attempt_count: int = EXPECTED_BLOCK_COUNT,
+    bound_attempt_index: int = 0,
 ) -> ProposalBindingFixture:
+    if type(attempt_count) is not int or attempt_count <= 0:
+        raise ValueError("attempt_count must be a positive integer")
+    if (
+        type(bound_attempt_index) is not int
+        or not 0 <= bound_attempt_index < attempt_count
+    ):
+        raise ValueError("bound_attempt_index must identify an issued attempt")
     parent.mkdir(parents=True, exist_ok=True)
     bound_document = proposal_document(driver_kind) if document is None else document
     expected_hash = canonical_proposal_sha256(bound_document)
@@ -82,7 +91,7 @@ def issue_proposal_binding_fixture(
             calibrated_workload_member=True,
             initial_proposal_sha256=(
                 expected_hash
-                if index == 0
+                if index == bound_attempt_index
                 else hashlib.sha256(
                     f"{label}-proposal-{index}".encode("ascii")
                 ).hexdigest()
@@ -98,7 +107,7 @@ def issue_proposal_binding_fixture(
             reference_is_unique=True,
             arm_digest_received=False,
         )
-        for index in range(EXPECTED_BLOCK_COUNT)
+        for index in range(attempt_count)
     )
     result_root = parent / f"{label}-results"
     result_root.mkdir()
@@ -116,6 +125,6 @@ def issue_proposal_binding_fixture(
     )
     return ProposalBindingFixture(
         publication=publication,
-        attempt_id=attempts[0].attempt_id,
+        attempt_id=attempts[bound_attempt_index].attempt_id,
         document=bound_document,
     )
