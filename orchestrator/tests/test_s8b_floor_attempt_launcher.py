@@ -2259,5 +2259,416 @@ def test_certified_api_rejects_a_caller_callable_post_probe_without_effects(
     assert effects == []
 
 
+def test_probe_floor_attempt_preconditions_runs_owned_probe_once_and_seals_only_competing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls = 0
+
+    def counted_probe() -> dict[str, object]:
+        nonlocal calls
+        calls += 1
+        return _probe(competing=True)
+
+    monkeypatch.setattr(launcher, "_owned_post_probe", counted_probe)
+    pre_probe = launcher.probe_floor_attempt_preconditions(
+        post_probe=launcher.floor_post_probe_capability(),
+    )
+
+    assert calls == 1
+    assert type(pre_probe) is launcher.FloorAttemptPreProbe
+    assert pre_probe.competing is True
+    assert not hasattr(pre_probe, "probe_before")
+    assert not hasattr(pre_probe, "raw_probe")
+    assert not hasattr(pre_probe, "post_probe")
+    assert not hasattr(pre_probe, "capability")
+
+
+def test_probe_floor_attempt_preconditions_rejects_unissued_capability_without_probe(
+) -> None:
+    effects: list[str] = []
+    with pytest.raises(
+        launcher.FloorAttemptLauncherError,
+        match="launcher-issued fixed capability",
+    ):
+        launcher.probe_floor_attempt_preconditions(
+            post_probe=lambda: effects.append("probe"),  # type: ignore[arg-type]
+        )
+    assert effects == []
+
+
+def test_launch_probed_floor_attempt_rejects_reused_pre_probe_before_effects(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    events: list[str] = []
+    registry = _RecorderRegistry(events)
+    monkeypatch.setattr(
+        launcher, "_owned_post_probe", lambda: _probe(competing=True),
+    )
+    monkeypatch.setattr(
+        launcher,
+        "_PRODUCTION_DEPENDENCIES",
+        launcher._LauncherDependencies(
+            registry=registry,
+            capture_measure_point=lambda *_args, **_kwargs: pytest.fail(
+                "competing pre-probe must not capture"
+            ),
+        ),
+    )
+    pre_probe = launcher.probe_floor_attempt_preconditions(
+        post_probe=launcher.floor_post_probe_capability(),
+    )
+    launcher.launch_probed_floor_attempt(
+        _reservation(),
+        _genesis(),
+        _measurement(),
+        pre_probe=pre_probe,
+        classified_at=lambda: "2026-08-26T00:00:01+00:00",
+        terminal_builder=_terminal,
+    )
+    effects_after_first_launch = list(events)
+
+    with pytest.raises(
+        launcher.FloorAttemptLauncherError,
+        match="one-shot and was already used",
+    ):
+        launcher.launch_probed_floor_attempt(
+            _reservation(),
+            _genesis(),
+            _measurement(),
+            pre_probe=pre_probe,
+            classified_at=lambda: "2026-08-26T00:00:01+00:00",
+            terminal_builder=_terminal,
+        )
+    assert events == effects_after_first_launch
+
+
+@pytest.mark.parametrize(
+    "unissued_pre_probe",
+    (
+        pytest.param(launcher.FloorAttemptPreProbe(), id="caller-constructed"),
+        pytest.param(
+            type(
+                "FloorAttemptPreProbe",
+                (),
+                {"competing": False},
+            )(),
+            id="spoofed-type",
+        ),
+    ),
+)
+def test_launch_probed_floor_attempt_rejects_unissued_or_spoofed_pre_probe(
+    monkeypatch: pytest.MonkeyPatch,
+    unissued_pre_probe: object,
+) -> None:
+    monkeypatch.setattr(
+        launcher,
+        "_PRODUCTION_DEPENDENCIES",
+        launcher._LauncherDependencies(
+            registry=pytest.fail,
+            capture_measure_point=pytest.fail,
+        ),
+    )
+    with pytest.raises(
+        launcher.FloorAttemptLauncherError,
+        match="launcher-issued sealed pre-probe",
+    ):
+        launcher.launch_probed_floor_attempt(
+            _reservation(),
+            _genesis(),
+            _measurement(),
+            pre_probe=unissued_pre_probe,  # type: ignore[arg-type]
+            classified_at=lambda: "2026-08-26T00:00:01+00:00",
+            terminal_builder=_terminal,
+        )
+
+
+def test_launch_probed_floor_attempt_rejects_a_different_capability_origin(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def first_owned_probe() -> dict[str, object]:
+        return _probe()
+
+    def replacement_owned_probe() -> dict[str, object]:
+        return _probe()
+
+    monkeypatch.setattr(launcher, "_owned_post_probe", first_owned_probe)
+    pre_probe = launcher.probe_floor_attempt_preconditions(
+        post_probe=launcher.floor_post_probe_capability(),
+    )
+    monkeypatch.setattr(launcher, "_owned_post_probe", replacement_owned_probe)
+    monkeypatch.setattr(
+        launcher,
+        "_PRODUCTION_DEPENDENCIES",
+        launcher._LauncherDependencies(
+            registry=pytest.fail,
+            capture_measure_point=pytest.fail,
+        ),
+    )
+
+    with pytest.raises(
+        launcher.FloorAttemptLauncherError,
+        match="launcher-issued fixed capability",
+    ):
+        launcher.launch_probed_floor_attempt(
+            _reservation(),
+            _genesis(),
+            _measurement(),
+            pre_probe=pre_probe,
+            classified_at=lambda: "2026-08-26T00:00:01+00:00",
+            terminal_builder=_terminal,
+        )
+
+
+def test_launch_probed_floor_attempt_does_not_repeat_pre_probe(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls = 0
+
+    def counted_probe() -> dict[str, object]:
+        nonlocal calls
+        calls += 1
+        return _probe()
+
+    events: list[str] = []
+    registry = _RecorderRegistry(events)
+    token = _Token(events)
+    monkeypatch.setattr(launcher, "_owned_post_probe", counted_probe)
+    monkeypatch.setattr(
+        launcher,
+        "_PRODUCTION_DEPENDENCIES",
+        launcher._LauncherDependencies(
+            registry=registry,
+            capture_measure_point=_capture_token(token, record=True),
+        ),
+    )
+    pre_probe = launcher.probe_floor_attempt_preconditions(
+        post_probe=launcher.floor_post_probe_capability(),
+    )
+    assert calls == 1
+
+    result = launcher.launch_probed_floor_attempt(
+        _reservation(),
+        _genesis(),
+        _measurement(),
+        pre_probe=pre_probe,
+        classified_at=lambda: "2026-08-26T00:00:01+00:00",
+        terminal_builder=_terminal,
+    )
+
+    assert calls == 2
+    assert result.opened.probe_before == _probe()
+    assert result.opened.probe_after == _probe()
+    assert events.count("capture") == 1
+
+
+def test_launch_probed_clean_matches_existing_terminal_and_classification(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    existing_root = tmp_path / "existing"
+    probed_root = tmp_path / "probed"
+    existing_root.mkdir()
+    probed_root.mkdir()
+    existing_case = _real_v2_launch_case(existing_root)
+    probed_case = _real_v2_launch_case(probed_root)
+    (
+        existing_reservation,
+        existing_measurement,
+        existing_genesis,
+        existing_token,
+    ) = existing_case
+    (
+        probed_reservation,
+        probed_measurement,
+        probed_genesis,
+        probed_token,
+    ) = probed_case
+    monotonic_values = iter((10.0, 12.0, 10.0, 12.0))
+    monkeypatch.setattr(launcher.time, "monotonic", lambda: next(monotonic_values))
+    monkeypatch.setattr(launcher, "_owned_post_probe", _probe)
+
+    monkeypatch.setattr(
+        launcher,
+        "_PRODUCTION_DEPENDENCIES",
+        launcher._LauncherDependencies(
+            s8b_attempt_registry, _capture_token(existing_token),
+        ),
+    )
+    existing = launcher.launch_floor_attempt(
+        existing_reservation,
+        existing_genesis,
+        existing_measurement,
+        post_probe=launcher.floor_post_probe_capability(),
+        classified_at=lambda: "2026-08-26T00:00:01+00:00",
+        terminal_builder=lambda opened: _v2_terminal_from_opened(
+            existing_reservation, opened, session_cv_max="0.10",
+        ),
+    )
+
+    monkeypatch.setattr(
+        launcher,
+        "_PRODUCTION_DEPENDENCIES",
+        launcher._LauncherDependencies(
+            s8b_attempt_registry, _capture_token(probed_token),
+        ),
+    )
+    pre_probe = launcher.probe_floor_attempt_preconditions(
+        post_probe=launcher.floor_post_probe_capability(),
+    )
+    probed = launcher.launch_probed_floor_attempt(
+        probed_reservation,
+        probed_genesis,
+        probed_measurement,
+        pre_probe=pre_probe,
+        classified_at=lambda: "2026-08-26T00:00:01+00:00",
+        terminal_builder=lambda opened: _v2_terminal_from_opened(
+            probed_reservation, opened, session_cv_max="0.10",
+        ),
+    )
+
+    assert probed.terminal == existing.terminal
+    assert replace(probed.opened, measurement=None) == replace(
+        existing.opened, measurement=None,
+    )
+    existing_rows = s8b_attempt_registry.read_attempt_registry(
+        existing_reservation.repo_root,
+        profile=existing_reservation.profile,
+        binding=existing_reservation.binding,
+    )
+    probed_rows = s8b_attempt_registry.read_attempt_registry(
+        probed_reservation.repo_root,
+        profile=probed_reservation.profile,
+        binding=probed_reservation.binding,
+    )
+    assert probed_rows == existing_rows
+    assert probed_rows[-1]["terminal_status"] == "observed"
+    assert probed_rows[-1]["terminal_evidence_sha256"]
+
+
+def test_launch_probed_competing_skips_capture_and_matches_existing_terminal(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    existing_root = tmp_path / "existing"
+    probed_root = tmp_path / "probed"
+    existing_root.mkdir()
+    probed_root.mkdir()
+    (
+        existing_reservation,
+        existing_measurement,
+        existing_genesis,
+        _existing_token,
+    ) = _real_v2_launch_case(existing_root)
+    (
+        probed_reservation,
+        probed_measurement,
+        probed_genesis,
+        _probed_token,
+    ) = _real_v2_launch_case(probed_root)
+    monotonic_values = iter((10.0, 12.0, 10.0, 12.0))
+    monkeypatch.setattr(launcher.time, "monotonic", lambda: next(monotonic_values))
+    monkeypatch.setattr(
+        launcher, "_owned_post_probe", lambda: _probe(competing=True),
+    )
+
+    monkeypatch.setattr(
+        launcher,
+        "_PRODUCTION_DEPENDENCIES",
+        launcher._LauncherDependencies(
+            s8b_attempt_registry,
+            lambda *_args, **_kwargs: pytest.fail(
+                "competing pre-probe must not capture"
+            ),
+        ),
+    )
+    existing = launcher.launch_floor_attempt(
+        existing_reservation,
+        existing_genesis,
+        existing_measurement,
+        post_probe=launcher.floor_post_probe_capability(),
+        classified_at=lambda: "2026-08-26T00:00:01+00:00",
+        terminal_builder=lambda opened: _v2_terminal_from_opened(
+            existing_reservation, opened, session_cv_max="0.10",
+        ),
+    )
+
+    monkeypatch.setattr(
+        launcher,
+        "_PRODUCTION_DEPENDENCIES",
+        launcher._LauncherDependencies(
+            s8b_attempt_registry,
+            lambda *_args, **_kwargs: pytest.fail(
+                "competing pre-probe must not capture"
+            ),
+        ),
+    )
+    pre_probe = launcher.probe_floor_attempt_preconditions(
+        post_probe=launcher.floor_post_probe_capability(),
+    )
+    probed = launcher.launch_probed_floor_attempt(
+        probed_reservation,
+        probed_genesis,
+        probed_measurement,
+        pre_probe=pre_probe,
+        classified_at=lambda: "2026-08-26T00:00:01+00:00",
+        terminal_builder=lambda opened: _v2_terminal_from_opened(
+            probed_reservation, opened, session_cv_max="0.10",
+        ),
+    )
+
+    assert probed.terminal == existing.terminal
+    assert replace(probed.opened, measurement=None) == replace(
+        existing.opened, measurement=None,
+    )
+    assert probed.opened.measurement is None
+    assert probed.opened.probe_before["competing"] is True
+    assert probed.opened.probe_after is None
+    existing_rows = s8b_attempt_registry.read_attempt_registry(
+        existing_reservation.repo_root,
+        profile=existing_reservation.profile,
+        binding=existing_reservation.binding,
+    )
+    probed_rows = s8b_attempt_registry.read_attempt_registry(
+        probed_reservation.repo_root,
+        profile=probed_reservation.profile,
+        binding=probed_reservation.binding,
+    )
+    assert probed_rows == existing_rows
+    assert probed_rows[-1]["terminal_status"] == "retryable-failure"
+    assert probed_rows[-1]["failure_reason"] == "competing_process"
+    assert probed_rows[-1]["measurement_retry_reason"] == (
+        "measurement_environment_conflict"
+    )
+
+
+def test_probed_certified_wrapper_fixes_sealed_adapter_and_public_signatures(
+) -> None:
+    probe_parameters = inspect.signature(
+        launcher.probe_floor_attempt_preconditions
+    ).parameters
+    assert tuple(probe_parameters) == ("post_probe",)
+    assert probe_parameters["post_probe"].kind is inspect.Parameter.KEYWORD_ONLY
+
+    launch_parameters = inspect.signature(
+        launcher.launch_probed_floor_attempt
+    ).parameters
+    assert tuple(launch_parameters) == (
+        "reservation",
+        "registry_genesis",
+        "measurement",
+        "pre_probe",
+        "classified_at",
+        "terminal_builder",
+    )
+    assert launch_parameters["pre_probe"].kind is inspect.Parameter.KEYWORD_ONLY
+    assert "registry" not in launch_parameters
+    assert "sealed_terminal_recorder" not in launch_parameters
+    source = inspect.getsource(launcher.launch_probed_floor_attempt)
+    assert (
+        "sealed_terminal_recorder="
+        "attempt_registry.record_sealed_attempt_terminal"
+    ) in source
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main(["-q", str(Path(__file__).resolve())]))

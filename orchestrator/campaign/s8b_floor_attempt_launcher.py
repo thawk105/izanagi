@@ -17,8 +17,10 @@ import os
 from pathlib import Path
 import stat
 import subprocess
+import threading
 import time
 from typing import Any
+import weakref
 
 from orchestrator.calibrator.perf_preflight import use_perf_from_receipt
 from orchestrator.calibrator import runner as calibrator_runner
@@ -133,6 +135,42 @@ class FloorPostProbeCapability:
         repr=False, compare=False
     )
     _seal: object = field(repr=False, compare=False)
+
+
+class FloorAttemptPreProbe:
+    """One-shot launcher-issued result of the fixed pre-measurement probe.
+
+    Only the competition bit is public.  The raw probe result, issuing probe
+    capability, and consumption state remain in launcher-private storage.
+    """
+
+    __slots__ = ("__competing", "__weakref__")
+
+    @property
+    def competing(self) -> bool:
+        return self.__competing
+
+
+class _FloorAttemptPreProbeState:
+    __slots__ = ("owner", "probe_before", "post_probe", "used")
+
+    def __init__(
+        self,
+        owner: FloorAttemptPreProbe,
+        *,
+        probe_before: dict[str, object],
+        post_probe: FloorPostProbeCapability,
+    ) -> None:
+        self.owner = weakref.ref(owner)
+        self.probe_before = probe_before
+        self.post_probe = post_probe
+        self.used = False
+
+
+_PRE_PROBE_STATES: weakref.WeakKeyDictionary[
+    FloorAttemptPreProbe, _FloorAttemptPreProbeState
+] = weakref.WeakKeyDictionary()
+_PRE_PROBE_STATES_LOCK = threading.Lock()
 
 
 @dataclass(frozen=True, slots=True)
@@ -373,6 +411,55 @@ def _assert_owned_post_probe_capability(value: object) -> None:
         raise FloorAttemptLauncherError(
             "post_probe must be a launcher-issued fixed capability"
         )
+
+
+def probe_floor_attempt_preconditions(
+    *, post_probe: FloorPostProbeCapability,
+) -> FloorAttemptPreProbe:
+    """Run and seal exactly one launcher-owned pre-measurement probe."""
+    _assert_owned_post_probe_capability(post_probe)
+    probe_before = _post_probe(post_probe._probe())
+    pre_probe = FloorAttemptPreProbe()
+    object.__setattr__(
+        pre_probe,
+        "_FloorAttemptPreProbe__competing",
+        probe_before["competing"],
+    )
+    state = _FloorAttemptPreProbeState(
+        pre_probe,
+        probe_before=probe_before,
+        post_probe=post_probe,
+    )
+    with _PRE_PROBE_STATES_LOCK:
+        _PRE_PROBE_STATES[pre_probe] = state
+    return pre_probe
+
+
+def _claim_floor_attempt_pre_probe(
+    value: object,
+) -> tuple[dict[str, object], FloorPostProbeCapability]:
+    if type(value) is not FloorAttemptPreProbe:
+        raise FloorAttemptLauncherError(
+            "pre_probe must be a launcher-issued sealed pre-probe"
+        )
+    with _PRE_PROBE_STATES_LOCK:
+        state = _PRE_PROBE_STATES.get(value)
+        if state is None or state.owner() is not value:
+            raise FloorAttemptLauncherError(
+                "pre_probe must be a launcher-issued sealed pre-probe"
+            )
+        if state.used:
+            raise FloorAttemptLauncherError(
+                "pre_probe is one-shot and was already used"
+            )
+        _assert_owned_post_probe_capability(state.post_probe)
+        probe_before = _post_probe(state.probe_before)
+        if value.competing is not probe_before["competing"]:
+            raise FloorAttemptLauncherError(
+                "pre_probe differs from its launcher-issued seal"
+            )
+        state.used = True
+        return probe_before, state.post_probe
 
 
 def _post_probe_for_test(
@@ -954,6 +1041,7 @@ def _launch_floor_attempt(
         [object, SealedTerminalEvidenceDraft], None
     ] | None,
     launcher_origin_capability: object | None,
+    pre_probe_result: Mapping[str, object] | None = None,
 ) -> FloorAttemptLaunchResult:
     """Reserve, probe, capture, classify, open, observe, and terminalize.
 
@@ -994,7 +1082,11 @@ def _launch_floor_attempt(
         if policy.is_v2 else ""
     )
     capture_keyword_arguments = dict(policy.capture_keyword_arguments)
-    probe_before = post_probe_reader(post_probe_capability)
+    probe_before = (
+        post_probe_reader(post_probe_capability)
+        if pre_probe_result is None
+        else _post_probe(pre_probe_result)
+    )
     probe_after: Mapping[str, object] | None = None
     captured: object | None = None
     failure: Mapping[str, object] | None = None
@@ -1212,6 +1304,36 @@ def launch_floor_attempt(
         dependencies=_PRODUCTION_DEPENDENCIES,
         sealed_terminal_recorder=attempt_registry.record_sealed_attempt_terminal,
         launcher_origin_capability=launcher_origin_capability,
+    )
+
+
+def launch_probed_floor_attempt(
+    reservation: FloorAttemptReservation,
+    registry_genesis: FloorAttemptRegistryGenesis,
+    measurement: FloorMeasurementCapture,
+    *,
+    pre_probe: FloorAttemptPreProbe,
+    classified_at: Callable[[], str],
+    terminal_builder: Callable[[OpenedFloorAttempt], FloorAttemptTerminal],
+) -> FloorAttemptLaunchResult:
+    """Certified launcher using one previously sealed fixed pre-probe."""
+    probe_before, post_probe = _claim_floor_attempt_pre_probe(pre_probe)
+    launcher_origin_capability = (
+        attempt_registry._new_launcher_origin_capability()
+    )
+    return _launch_floor_attempt(
+        reservation,
+        registry_genesis,
+        measurement,
+        post_probe_capability=post_probe,
+        post_probe_reader=_post_probe_from_capability,
+        classification_authority=_CLASSIFICATION_AUTHORITY,
+        classified_at=classified_at,
+        terminal_builder=terminal_builder,
+        dependencies=_PRODUCTION_DEPENDENCIES,
+        sealed_terminal_recorder=attempt_registry.record_sealed_attempt_terminal,
+        launcher_origin_capability=launcher_origin_capability,
+        pre_probe_result=probe_before,
     )
 
 
