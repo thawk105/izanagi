@@ -2083,6 +2083,8 @@
   fixture を消費しない group 所属 node は、集合を分離しない限り登録できない。今回は負例を
   共有 fixture の consumer へ変える形で両集合を一致させて閉じた (受入 21598 collected /
   21530 passed / 赤 0)。
+
+- **再発: 2026-09-10** — 事前登録の束縛のために consumer へ `subprocess.run` を 2 箇所足したが、親の焦点走の集合を「変更した 2 file + 直接の path/basename pin 2 file」から組んだため、repo 全体を AST 走査する `test_ccbench_spawn_sites.py` の reviewed inventory を落とした。2026-08-28 の再発と同じ機構である。今回は最終受入まで行かず段 6 の敵対レビュー B が静的に指摘し、親が当該 file を単独走して 2 failed を現物で確認してから fix へ回したため、費用は焦点走 1 回 + fix 子 1 本に収まった。**新しい process 起動 site を足す wave では、親の焦点走の集合に `test_ccbench_spawn_sites.py` を必ず入れる。** module 名の grep では出ない層である。
 ### F43. codex 子が exit 0 のまま最終メッセージへ推敲断片だけを残し、レビュー本文が失われた [手順漏れ]
 - 事象: [T-147] の敵対レビュー B (2026-07-28) が 168k tokens・exec 31 回の実検証を行いながら、
   `-o` の最終メッセージに出力書式の推敲メモ断片 194 bytes だけを残して exit 0 で終了した。
@@ -11002,6 +11004,13 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `311 passed, 1 skipped in 15.82s` の `<job>.o<id>` が残ったので再走は不要だった。
   親は手動 qdel をしていない。**`rc=16` を見た時点で走行を失敗と決めず、request ID を `qstat` で
   引き、終端後に提出 dir の成果物を読む。** 既存恒久対応に修正すべき新事実はない。
+
+- **再発: 2026-09-10** — 親が `tools/check_ai_provenance.py` の全史監査へ 300 秒の timeout を掛けた。
+  同監査は計算ノードへ dispatch するため 300 秒では足りず、打ち切りで request 988752.nqsv が
+  孤児化して orphan hold が武装した。次の監査は `rc=16` / `orphan-hold` で起動を拒否された。
+  hold は `output/pegasus-dispatch/orphan-hold.json` と `orphan-holds/<request>.json` の
+  **2 箇所**にあり、`qstat` の行頭照合で対象が一覧から消えたことを確認したうえで両方を消して復旧した。
+  以後この監査には打ち切らない長さの timeout を掛ける。
 ### F334. 正本 runbook が「無い」と実測記録した kernel field を、後発の gate が必須条件にした — 機構全体が一度も動かないまま land した [恒真ゲート] [テスト代表性]
 
 - 事象: `tools/mutation_fanout.py` の admission は、measurement log の
@@ -15249,6 +15258,19 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `test_certify_calibrator_resolves_and_shims_versioned_interpreter`、
   `test_certify_calibrator_interpreter_resolution_fails_closed`。
 
+
+- **再発: 2026-09-10** — 同じ job script へ新しい python3 呼出しを足す実装が、再び裸の
+  `python3` を使った。今回の呼び先は pristine source verifier で、その import 経路には
+  `orchestrator/holdout_observation.py` の `@dataclass(..., slots=True)` と
+  `orchestrator/campaign/attempt_registry_core.py` の `typing.TypeAlias` があり、いずれも 3.10 以降
+  でしか動かない。計算ノードの既定 `python3` は 3.9 に解決されるため、この呼出しは configure へ
+  到達する前に必ず失敗する構成だった。**計算ノードへ投入する前に段 6 の敵対レビューが静的に検出し、
+  同 file が既に持っていた版数 smoke check と同型の解決を verifier 用に置いて閉じた。**
+  実害は出ていないが、同じ file の同じ型が 2 度目である。恒久対応は
+  `orchestrator/tests/test_pegasus_calibration_workload.py` の
+  `test_certify_third_party_verifier_uses_version_checked_interpreter` と
+  `test_certify_third_party_verifier_interpreter_resolution_fails_closed` で、
+  前者は裸 `python3` への差し戻しを変異走行で KILLED として実測している。
 ### F501. python3.10 interpreter修正がperf選定PATHの優先順位を壊す回帰を生んだ [手順漏れ]
 
 - 事象: 上記F500の修正を適用した直後、rr80再投入
@@ -17399,6 +17421,22 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   実害は brief 1 通で止まり、段 4 で scope を [T-2105] への handoff へ訂正した。
   本件は `DW-C00` の敵対検証子を省かない規定が 2 度目に機能した事例であり、
   同規定を正しさ防壁に触る wave へ緩めてはならないことを重ねて示す。
+
+- **再発: 2026-09-10** — 既存の 2026-09-01 例は「段 3 を省いたため親の誤った readiness 判断が
+  そのままユーザー報告として出た」型だったのに対し、本件は **親が「設計択一」を「どう測るか」
+  だけで評価し、「何を主張するか」の前提を見なかった**型である。[T-2266] の測定 wave で、
+  親は段 4 で「driver に部分測定の口は無く campaign identity も分離済みなので設計択一は
+  割れていない」と実測で裏を取り、`DW-C00` の軽量版として段 2・3 を起動しなかった。実測は
+  正しかったが、成果物の主張は別の前提に乗っていた — **B-10 の未了項目を何項目と数えるかは、
+  D1724 (adaptive の 3 定数を B-10 の内側に数える) と D1637 (2 本目の論文へ分ける) の
+  食い違いが未裁定のままである。** その未裁定は、親が段 1 で読んだ一次資料
+  (`output/insights/2026-09-09_t2266-b10-mechanism/README.md` §5-4) が「scope 外として裁定へ返す」と
+  明示していたのに、親はそれを引かずに「残りは 3 項目」と初稿へ書いた。
+  段 6 の敵対レビュー 2 レンズが**両方とも独立に**この 1 点へ収束して指摘し、実装・land には
+  至らずに直った。**「測り方に択一が無い」ことは「主張に択一が無い」ことを含意しない。**
+  再発検知は F597 の既存欄に加えて次を行う — 段 1 で読んだ一次資料が「裁定へ返した」「未裁定」と
+  書いている項目を列挙し、そのいずれかが成果物の主張の土台になるなら軽量版にしない。
+  列挙できないなら一次資料を読み切っていない。
 ### F598. 変異 harness の起動条件で 5 回連続ではじかれた [手順漏れ]
 
 - 事象: `tools/mutation_harness.py` の起動が 5 回連続で rc=2 停止した。停止理由は
@@ -19469,6 +19507,15 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   両方とも正しく発火した。**この失敗は防壁が働いた記録であり、防壁の破れではない。**
   記録する理由は、親が同じ待機時間の使い方を繰り返さないためである。
 
+
+- **再発: 2026-09-10** — 抵触した作業は段 7 の記録そのものだった。変異本走を投入した直後、
+  待機時間で insight 一次資料 (`output/insights/<date>_<task>/` の逐語と変異 spec) を配置し、
+  harness が untracked 16 件を検出して `rc=2` で中止した。insight を repo 外へ退避して
+  走らせ直し `rc=0` で完走した。**入口の「待機中は独立な解析・検証・合成・文書を進める」は、
+  段 7 の記録作業に適用すると `DW-M05` と必ず衝突する** — 記録の成果物は repo 内 path を
+  持つからである。F688 の恒久対応「変異投入の直前に、待機中に行う作業を repo 外への
+  書き込みだけと宣言してから投入する」は正しく、守らなかったのが原因である。
+  変異走行中に進めてよい記録作業は、job directory 側の handoff と、repo 外に置く下書きだけ。
 ### F689. 親の node 抽出の取りこぼしを SURVIVED と読み違えた [恒真ゲート]
 
 - 事象: 変異の期待赤 node を確定するための予備測定で、`MUT-T1901-BOOL-AS-NUMBER` が
@@ -24240,3 +24287,20 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (`git grep -ln "full-file-sha256"` が `*.py` / `*.json` / `docs/*` で 0 件、凍結 hash と insight dir 名の
   全文検索 hit は archive worklog・decisions・当の insight 自身・別 insight の逐語だけ、対象 3 test file の
   64 桁 hex literal も 0 件) と、段 3 の 2 レンズが独立に同じ結論へ達したことで捕まえた。
+
+### F936. 投入した job の走行中に親が repo を書き、job 自身の source 再照合で止めた [手順漏れ]
+
+- 事象: 認定較正 job (request 989232.nqsv) を投入した直後、親が待ち時間を使って
+  `docs/spool/` へ台帳 fragment を 2 本書いた。job は冒頭で source 面の clean を再照合するため、
+  `source_identity` / `working tree became dirty before job start` で rc=2 終了した。
+  計算ノードの割当てを 1 回無駄にした。
+- 根本原因: 親が「投入したら待つだけ」と考え、job が **投入時点ではなく起動時点**の作業ツリーを
+  見ることを勘定に入れなかった。job の clean 検査は `output/` を除外するので、
+  走行中に書いてよいのは `output/` 配下だけである。
+- 恒久対応: 防壁は既に在って正しく発火した — `tools/pegasus/certify_calibration.sh` の
+  `source_identity` 検査は `git status --porcelain --untracked-files=all -- . ':(exclude)output'` で
+  fail-closed に止める。足りなかったのは親の作法なので、**source identity を再照合する job の
+  投入中は `output/` 以外を書かない**を運用の既定にする。同型は変異走行にもあり、
+  そちらは「変異中は親の編集と worktree へ書きうる子の起動を止める」として既に成文化されている。
+- 再発検知: job が `failure.json` に `stage=source_identity` を書く。
+  無駄になった割当ては scheduler の Elapse (今回 7 秒) と `failure.json` の対で識別できる。

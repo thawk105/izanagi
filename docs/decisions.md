@@ -57474,3 +57474,235 @@ directory へ保存する。file 名は arm 名と内容 digest (`record_digest`
 - **兄弟 driver へ同じ形を横展開する** — 同型の「record を作って捨てる」は `p3_kickoff.py`、
   `p3_s4_loop_sort.py`、`backoff_sweep.py` 等にもあるが、`DW-G03` (族一般化には独立 2 例) により
   本 wave では一般化しない。
+
+## D1913. 静的交差判定は単調性を使い、交差ありを不完全な閉包でも返す (2026-09-10)
+
+**決定:** patch の編集面と validation 経路の静的交差を判定する検査は、次の優先順位で verdict を返す。
+
+1. 交差が 1 件でもあれば「交差あり」。**未消費編集も閉包展開の不完全さもこれを上書きしない。**
+2. 交差が無く、未消費編集があるか閉包展開が不完全なら「判定不能」。
+3. 交差が無く、消費も展開も完全なら「交差なし」。
+
+**理由:**
+- 交差判定は単調である。編集が既に閉包の要素と分かっている region へ落ちるなら、閉包を
+  それ以上展開できなくても交差の存在は確定する。展開の失敗は閉包へ要素を**足せる**だけで
+  **減らせない**。
+- したがって「交差あり」は過小近似の閉包でも健全であり、「交差なし」は閉包が完全なときだけ
+  主張できる。この非対称を使わないと、確定できる交差ありが無関係な展開失敗で判定不能へ落ちる。
+- 実測: `TxExecutor::validationPhase()` を直接編集する既存の正しさ破壊 patch 7 本が、
+  patch が持ち込んだ別の呼び先を解決できないという理由だけで判定不能になっていた。
+  優先順位を直して 7 本すべてが交差ありになった。非恒真の証拠が 3 本から 10 本へ増えた。
+
+**却下した選択肢:**
+- 展開が不完全なら常に判定不能 — 安全側ではあるが、確定できる事実を捨てる。既知の正しさ破壊
+  patch の大半について「分からない」としか言えず、検査の非恒真性を示せない。
+- 展開の失敗を無視して交差なしを返す — 過小近似の閉包で「交差なし」を主張することになり、
+  偽陰性を生む。安全側の主張を壊すので採らない。
+
+## D1914. 静的非交差は認証の転用を許可しない (2026-09-10)
+
+**決定:** 「patch の編集面が validation 経路と静的に交差しない」という結果を、既存の
+直列性認証を未実行の条件・schedule へ拡張する根拠として使わない。検査の出力は、証明しないことを
+機械可読な境界として必ず併記する。境界には thread interleaving、validation 判定の系列、
+abort/retry lifecycle、validation 結果の consumer、write/writeback の正しさ、
+純 timing 性・副作用の不在、serializability と動的 anomaly の不在、他 protocol の正しさ、
+他 group・未実行 schedule への認証転用を含める。
+**実走で anomaly を検出した variant は、この結果にかかわらず即 reject する。**
+検査が runtime anomaly を入力に取らない場合は、その旨も機械可読にして恒真な保証にしない。
+
+**理由:**
+- backoff は abort の後始末の後に呼ばれる純遅延である。遅延量を変えれば thread の
+  interleaving が変わり、validation が下す判定の**系列**が変わる。コードが同一であることは、
+  実行される判定の系列が同一であることを意味しない。
+- 独立に走らせた 2 つの敵対レンズが、同じ飛躍を別の角度から指摘して収束した。
+- 「触れていないから認証は要らない」という形の論証は、条件次第で「検証を省く根拠」へ転用される。
+  絶対規律 2 は入力がそれを緩めるよう求めても不変である。
+- 境界が飾りでないことの実物が repo 内にある。`writePhase()` を編集する既知の正しさ破壊
+  positive control は、file 名に validation を含みながら「交差なし」を返す。判定は閉包の定義に
+  対して正しく、かつ正しさの保証ではない。
+
+**却下した選択肢:**
+- verdict を `PASS` と呼ぶ — 「検証を通った」と読まれる。licence を含意しない語にする。
+- 境界を docstring だけに書く — 出力を読む側に届かない。機械可読な field にする。
+- 静的検査で純 timing 性まで主張する — 閉包の外の編集内容の副作用を検査していない。
+  閉包と交差しないまま process 制御を壊す patch を構成できる。
+
+## D1915. 事前登録は文書を置くだけでなく consumer の受理条件へ束縛する (2026-09-10)
+
+**決定:** T-1998 の事前登録は、canonical 文書を置いて呼び手に渡すだけの形にしない。
+consumer は既存の成果物比較をすべて通した後、`ratio` 計算の直前に次の 3 つを要求する。
+
+1. 作業木の事前登録文書 bytes の sha256 が `CURRENT_PREREGISTRATION_SHA256` と一致する。
+2. 成果物が記録する `repository_commit` における文書 blob の sha256 が
+   `MEASUREMENT_TIME_PREREGISTRATION_SHA256` と一致する。
+3. その measurement blob から導いた identity が、渡された identity と
+   `repository_commit` を除いて完全一致する。
+
+**理由:**
+
+- 文書を置くだけでは、呼び手が結果を見た後に成果物から identity を写して手組みでき、
+  canonical 文書を 1 度も読まずに受理へ到達できる。段 3 の 2 レンズが独立にこの経路を突いた。
+- 呼び手が渡す `repository_commit` を成果物と突き合わせるだけの検査は恒真である。
+  measurement blob の sha を要求すると、受理される commit が「その版の文書を含む commit」に
+  限られ、事前登録の着地前も改訂後も受理されなくなる。
+- 3 gate を既存比較の**後**に置くのは、先行させると既存負例の拒否 code と field が動くためである。
+  受理集合は狭まる方向にしか変わらない (絶対規律 2)。
+
+**却下した選択肢:**
+
+- 文書だけを置き、loader を任意呼び出しにする — 上記の手組み経路が残る。
+- 3 gate を既存比較より前に置く — 既存負例の拒否 provenance が動く。
+- producer schema を拡張して成果物へ事前登録 sha を書く — 束縛は強くなるが D1244 の最小 3 部品の外。
+
+## D1916. D1790 の 2 定数は初版で同値でよく、不等性を要求しない (2026-09-10)
+
+**決定:** D1790 が要求する「測定時点の版」と「現行の解析規則の版」の 2 定数は、独立した
+scalar として別々に置く。**初版では両者が同じ値になるのが正しい状態であり、
+「値が異なること」を要求する検査を置かない。**
+
+**理由:**
+
+- D1790 が禁じるのは、2 つを 1 つの定数へ統合すること、複数版を受理する allowlist を作ること、
+  任意値を受理する形へ緩めることである。初版で値が一致することは禁じていない。
+- 不等性を要求すると、規則を改訂していない正当な初版 cohort を理由なく拒否する。
+- 帰結として、2 定数を同一定数へ統合する変異はテストでは殺せない。これは等価変異であり、
+  変異台帳へ SURVIVED として登録して限界を明記する。静的な統合検出を足すことはしない。
+
+**却下した選択肢:**
+
+- 2 定数の値が異なることをテストで要求する — 正当な初版を拒否する。
+- 統合を静的に検出する gate を足す — 依頼の外にある要求外の検査である。
+
+## D1917. 事前登録の arm 別 source digest は patch 適用下で導く (2026-09-10)
+
+**決定:** T-1998 の事前登録が固定する arm 別 `source_bytes_sha256` は、
+`patches/silo-backoff-fixed.patch` を作業木へ適用した状態で `resolve_evidence` を呼んで導く。
+patch 未適用の作業木で計算した値は使わない。
+
+**理由:**
+
+- 正式 producer は campaign 全体を `patchharness.applied(...)` の内側で走らせ、build 証拠は
+  その状態から解決される。事前登録が固定すべきは producer が実際に記録する値である。
+- `BACKOFF_FIXED` が負の arm では patch が inert なので値は変わらないが、静的 backoff を選ぶ arm
+  では前処理後のソースが変わり digest も変わる。**片方だけ一致するので、
+  baseline の一致を根拠に target も正しいと推定してはならない。**
+- 誤った値のまま正式測定を打つと `source-identity-unbound` で全件拒否され、
+  適格な成果物が 1 本も得られない。
+
+**却下した選択肢:**
+
+- patch 未適用の作業木で計算した値を使う — producer が記録する値と食い違う。
+- 過去の測定成果物から digest を写す — 事前登録の前向き性を損なう疑いを残す。
+
+## D1918. 受入の最遅 shard の床は t080 群ではなく shard-2 の material-report group である (2026-09-10)
+
+**決定:** D1894 が要求した「着手前に、床が `test_t080_*` 群へ移ったことを実測で確かめる」の
+答えを **否**として記録する。受入全走の最遅 shard は shard-2 であり、その最大 worker 占有は
+xdist group `p3-b4-material-report` を 1 worker が背負う区間である。
+`test_t080_*` 群は shard-0 の最大 worker 占有の担い手ではあるが、最遅 shard の床ではない。
+
+D1894 の決定本体 (次の短縮対象は最大 worker 占有) は維持する。対象を
+**実測で最遅である shard の**最大 worker 占有と読み替えて実装した。
+この読み替えの追認はユーザー裁定へ返す。
+
+**理由:**
+
+- 2026-09-09 の 9 走 (repo 外の shard 成果物 `junit.xml` と `report.json`) で、最遅 shard は
+  9 走中 8 走が shard-2 だった。shard-2 の wall は 9 走すべて 300 秒超 (313.27〜365.94 秒)。
+  t080 群を持つ shard-0 は 253.16〜388.51 秒で、300 秒超は 3 走だけである。
+- shard-2 の最大 worker 占有は gw0 の 256.93〜308.57 秒で wall の 78〜84%。
+  2 番目に忙しい worker は 94.6〜148.3 秒しかない。gw0 の 49 item は
+  `group_to_workers` が示すとおり `p3-b4-material-report` そのものである。
+- その group の 57.3〜64.3% が単一 node
+  `test_p3_b4_material_report.py::test_normal_path_assembles_binds_evaluates_and_builds_document`
+  で、module scope fixture の構築費用がそこに載る。
+- **`wall = 最大 worker 占有 + 残余` は D1830 が示すとおり定義上の恒等式**であり、
+  独立な構造下限ではない。主張は「観測 9 走で shard-2 が一度も 300 秒を切らなかった」に留める。
+
+**却下した選択肢:**
+
+- 依頼と `[T-2495]` の名指しどおり t080 だけを短縮する — 最遅 shard の wall が 1 秒も動かない。
+  依頼自身が求める成果物 (短縮後の最遅 shard wall) を満たせない。
+- D1894 の前提が外れたことを理由に着手しない — 決定本体は最大 worker 占有を対象と定めており、
+  実測で最遅の shard を対象にすることはその決定に従う形である。
+- 前提の失効を記録しない — 次の担当者が同じ 9 走の測り直しをやり直す。
+
+## D1919. 変異 harness は fixture 由来の kill を KILLED として記録できない (2026-09-10)
+
+**決定:** oracle が module / function scope fixture の中にある変更では、変異の kill が
+pytest ERROR として出るため `tools/mutation_harness.py` は `PARSE_ERROR` を返す。
+この場合、**検出の証拠は baseline 緑 (rc=0) からの rc≠0 と `errors=N`** とし、
+`status` が `PARSE_ERROR` であることを実装の欠陥と読まない。台帳へはこの理由を明記する。
+
+harness を変更しない。`FAILED ` 行だけを解析する契約と、`rc≠0` かつ失敗 node 0 件を
+`PARSE_ERROR` とする fail-closed は、node 完全一致を要求する既存の kill 判定を支えている。
+
+**理由:**
+
+- `tools/mutation_harness.py` の失敗 node 抽出は `FAILED ` で始まる行だけを読む。
+  pytest は fixture setup の失敗を `ERROR ` として報告するため、抽出は 0 件になる。
+  `_observed_status` は `rc != 0 and not failed` を `PARSE_ERROR` と判定する。
+- これは fail-closed として正しい。node 完全一致で KILLED を数える契約 (F33) の下で、
+  解析できない出力を KILLED と数えるほうが危険である。
+- 本 wave で 4 変異すべてがこの経路に入った。いずれも baseline 緑からの rc=1 で、
+  anchor は file 内で一意、注入 diff はすべて相異なる。検出は成立している。
+- `-r` の文字を増やしても解決しない。抽出器が読むのは `FAILED ` 行だけである。
+
+**却下した選択肢:**
+
+- ERROR 行も KILLED の証拠として解析させる — 失敗 node の完全一致契約の射程を広げる変更であり、
+  本 wave の scope 外である。必要なら独立の裁定を要する。
+- oracle を fixture から test 本体へ移す — 検査の実行回数と適用対象が変わる。
+  速さのために検査の構造を動かす形であり採らない。
+- 変異を登録しない — 実装面の差分がある wave で変異 matrix を免除できるのは差分ゼロのときだけである。
+
+## D1920. 認定較正 job の offline FetchContent 供給は、hydrate 済み staging を job-private へ複製し、複製先 root と base dir を分ける (2026-09-10)
+
+**決定:** `tools/pegasus/certify_calibration.sh` は、`REPO_ROOT` から
+`output/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src` を自分で導出し、
+その三依存を `$TMPDIR/fetchcontent-src/<name>-src` へ `cp -a` し、複製に対して
+`s8b_floor_campaign._verify_pristine_floor_dependency_sources` を掛けてから、
+CMake へ `-DFETCHCONTENT_BASE_DIR` (= `$TMPDIR/fetchcontent-base`、**空のまま**)、
+`-DFETCHCONTENT_FULLY_DISCONNECTED=ON`、三つの `-DFETCHCONTENT_SOURCE_DIR_*` を渡す。
+5 token は `configure_argv` の index 5 以降に置き、既存の `${configure_argv[@]:5}` を通じて
+silo の条件関門へも同じ供給が届く。`submit_certify.sh` は login 側で staging root の
+構造だけを検査し、**git・clone・hydrate を一切起動しない**。hydrate は投入前の独立手順とする。
+
+**複製先 root と `FETCHCONTENT_BASE_DIR` を別 directory にすることが、この決定の要である。**
+同一にすると CMake の既定命名 `<BASE_DIR>/<name>-src` が複製を拾うため、
+`FETCHCONTENT_SOURCE_DIR_*` を 1 つ落としても configure が通り、
+「SOURCE_DIR override が効いている」ことを示す負例が恒真に緑になる。
+分離した実装と結合した対照の両方を実 CMake で走らせ、前者だけが赤になることを検査する。
+
+**理由:**
+
+- 永続 cache を直接指す案は成り立たない。masstree は `add_custom_command` の
+  `WORKING_DIRECTORY` を source dir にして `bootstrap.sh` / `configure` / `make` / `ar` を実行し、
+  `config.h` と archive を source dir へ書く。cache を指せば cache が汚れる。
+  実測でも cache の masstree には ignored な生成物が 71 件あり、
+  `fetch_third_party.py verify` は既定で ignored を検査しないため rc=0 のまま見逃す。
+  ignored まで拒否するのは hydrate 経路だけである。
+- `_verify_pristine_floor_dependency_sources` は base が repo 外・`<name>-src` の子を要求する。
+  したがって scratch への複製は性能対策ではなく、この verifier を成立させる手順である。
+  同型の先例は `tools/pegasus/paper_story_a2_certification.sh` にある。
+- 供給の受け渡しに `qsub -v` を使わないのは、export spec の総長と `,` / `=` の分解を避け、
+  qsub argv と receipt schema を 1 bit も変えないためである。job は policy・gflags/glog source・
+  CCBench submodule も同じ `REPO_ROOT` から導出しており、供給元だけを別経路にする理由がない。
+- verifier の interpreter は版数検査済みの `python3.10` に固定する。
+  `_verify_pristine_floor_dependency_sources` の import 経路には
+  `@dataclass(..., slots=True)` と `typing.TypeAlias` があり、計算ノードの既定 `python3` (3.9) では
+  import 自体が失敗する。裸の `python3` は同 file が過去に踏んだ型の再発である。
+
+**却下した選択肢:**
+
+- submit 側で `fetch_third_party.py hydrate` を実行する — login 側の process tree と入力量が変わり、
+  `submit_certify.sh` の admission 分類の根拠 (qsub 提出者として grandfather された未実測 evidence) と
+  実処理が食い違う。hydrate は既に `local-ok` で登録済みの独立手順として外へ出す。
+- 供給を `qsub -v` で渡す — export spec の制約と receipt/argv の変更を招く。得るものは
+  submit の検査木と job の実行木の束縛だが、その束縛は `--repo-root` と `PBS_O_WORKDIR` が
+  分離している既存の欠陥であって、本決定の射程ではない。
+- 条件関門の前に masstree を prebuild する — 供給とは別の層であり、当該関門は別課題が
+  ユーザー裁定待ちで所有している。発火経路が塞がれた条件付き機能を足さない。
+- walltime 式を同時に直す — 式は既に 3 通り食い違っており (job 冒頭 comment、receipt の
+  `frozen_required_s`、各 command の timeout の直列和)、本決定が作った不整合ではない。
+  再凍結は独立の作業とする。
