@@ -1,0 +1,140 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 600,
+  "timeout_seconds": 2400,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "M4-C",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_agents.py::test_any_native_discovery_toml_is_rejected",
+        "orchestrator/tests/test_codex_agents.py::test_consumer_required_field_drift_is_detected_from_source_ast",
+        "orchestrator/tests/test_codex_agents.py::test_current_sources_render_byte_exact_and_native_is_empty",
+        "orchestrator/tests/test_codex_agents.py::test_project_config_native_role_is_rejected_and_globals_are_allowed"
+      ],
+      "replacements": [
+        {
+          "file": ".codex/role-adapters/coder-v4-autonomous.json",
+          "old": "\"path\": \".claude/agents/coder-v4-autonomous.md\",\n    \"sha256\": \"ba6c9c116fadf0d21a3e55acf1fdcaf83c412c869fcbfdf59dfad842cbfcf806\"",
+          "new": "\"path\": \".claude/agents/coder-v4-autonomous.md\",\n    \"sha256\": \"4073ac4223eaca9c353685f116a4dfb53db5b3412011373b717c44e3b25ec10d\""
+        }
+      ]
+    },
+    {
+      "id": "M4-P",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_agents.py::test_any_native_discovery_toml_is_rejected",
+        "orchestrator/tests/test_codex_agents.py::test_consumer_required_field_drift_is_detected_from_source_ast",
+        "orchestrator/tests/test_codex_agents.py::test_current_sources_render_byte_exact_and_native_is_empty",
+        "orchestrator/tests/test_codex_agents.py::test_project_config_native_role_is_rejected_and_globals_are_allowed"
+      ],
+      "replacements": [
+        {
+          "file": ".codex/role-adapters/planner-v4.json",
+          "old": "\"path\": \".claude/agents/planner-v4.md\",\n    \"sha256\": \"3a3d35fafbaaeac5b63c8f36a1cd4542fba4e7cef2793c71cc59fc40884c8374\"",
+          "new": "\"path\": \".claude/agents/planner-v4.md\",\n    \"sha256\": \"0893644a9eae73a18fcf822c582f6007e8795f314fc1c97a3db7a6d8d439cb0e\""
+        }
+      ]
+    },
+    {
+      "id": "M5-C",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_agents.py::test_any_native_discovery_toml_is_rejected",
+        "orchestrator/tests/test_codex_agents.py::test_consumer_required_field_drift_is_detected_from_source_ast",
+        "orchestrator/tests/test_codex_agents.py::test_current_sources_render_byte_exact_and_native_is_empty",
+        "orchestrator/tests/test_codex_agents.py::test_project_config_native_role_is_rejected_and_globals_are_allowed"
+      ],
+      "replacements": [
+        {
+          "file": ".codex/role-adapters/coder-v4-autonomous.json",
+          "old": "\"semantic_digest\": \"4e8cd61cf2ae1ea8bc63cee16a67e1697dad2e3a93323f935a97d4e724500150\"",
+          "new": "\"semantic_digest\": \"564287c890c1e29bf2b0e85f118ad5021b8154121eef224d35ccf63cdc0057c7\""
+        }
+      ]
+    },
+    {
+      "id": "M5-P",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_agents.py::test_any_native_discovery_toml_is_rejected",
+        "orchestrator/tests/test_codex_agents.py::test_consumer_required_field_drift_is_detected_from_source_ast",
+        "orchestrator/tests/test_codex_agents.py::test_current_sources_render_byte_exact_and_native_is_empty",
+        "orchestrator/tests/test_codex_agents.py::test_project_config_native_role_is_rejected_and_globals_are_allowed"
+      ],
+      "replacements": [
+        {
+          "file": ".codex/role-adapters/planner-v4.json",
+          "old": "\"semantic_digest\": \"6a995668fe9eaadf83764fb1e5467e3e1ff5901f151214a327d2305d83dbcd22\"",
+          "new": "\"semantic_digest\": \"ac06f0f644b3e4b0964d39bd2aaa9f116e3e116343b0a33050ddabb3d44bbe1f\""
+        }
+      ]
+    },
+    {
+      "id": "M2-C",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_agents.py::test_any_native_discovery_toml_is_rejected",
+        "orchestrator/tests/test_codex_agents.py::test_consumer_required_field_drift_is_detected_from_source_ast",
+        "orchestrator/tests/test_codex_agents.py::test_current_sources_render_byte_exact_and_native_is_empty",
+        "orchestrator/tests/test_codex_agents.py::test_project_config_native_role_is_rejected_and_globals_are_allowed",
+        "orchestrator/tests/test_codex_agents.py::test_source_body_is_embedded_exactly_once_before_product_override"
+      ],
+      "replacements": [
+        {
+          "file": ".codex/role-adapters/coder-v4-autonomous.json",
+          "old": "{ \\\"iteration\\\": 1, \\\"result\\\": \\\"fail\\\", \\\"delta_pct\\\": null }",
+          "new": "{ \\\"iteration\\\": 1, \\\"result\\\": \\\"fail\\\", \\\"delta_pct\\\": -1.2 }"
+        }
+      ]
+    },
+    {
+      "id": "M2-P",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_agents.py::test_any_native_discovery_toml_is_rejected",
+        "orchestrator/tests/test_codex_agents.py::test_consumer_required_field_drift_is_detected_from_source_ast",
+        "orchestrator/tests/test_codex_agents.py::test_current_sources_render_byte_exact_and_native_is_empty",
+        "orchestrator/tests/test_codex_agents.py::test_project_config_native_role_is_rejected_and_globals_are_allowed",
+        "orchestrator/tests/test_codex_agents.py::test_source_body_is_embedded_exactly_once_before_product_override"
+      ],
+      "replacements": [
+        {
+          "file": ".codex/role-adapters/planner-v4.json",
+          "old": "\\\"last_delta_pct\\\": null",
+          "new": "\\\"last_delta_pct\\\": -1.2"
+        }
+      ]
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_reflux_originless_compatibility.py",
+          "old": "_extend_t2249_role_source_baseline(_PRE_WAVE_ORIGINLESS_BASELINE)\n",
+          "new": ""
+        }
+      ]
+    }
+  ]
+}

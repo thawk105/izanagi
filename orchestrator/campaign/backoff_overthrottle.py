@@ -73,6 +73,11 @@ def _require_condition_gate_before_measurement(
                 point.flags["BACKOFF_FIXED"] for point in diagnostic_points
             ),
         },
+        backoff_fixed_physical_us={
+            point.flags["BACKOFF_FIXED"]: _point_backoff_us(point)
+            for point in diagnostic_points
+            if point.flags["BACKOFF_FIXED"] >= 0
+        },
         cxx=cxx,
         use_class="raw-measurement",
     )

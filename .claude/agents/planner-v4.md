@@ -32,7 +32,7 @@ effort: high
   "current_perf": {
     "throughput_ops_sec": 88124.1,
     "abort_rate_pct": 7.9,
-    "last_delta_pct": -1.2
+    "last_delta_pct": null
   },
   "leading_indicators": {
     "cache_miss_rate_pct": 12.4,
