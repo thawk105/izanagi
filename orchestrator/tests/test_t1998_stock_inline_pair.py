@@ -134,9 +134,9 @@ def _source_sha(canonical: str, ordinal: int) -> str:
     return f"{ordinal + 10:064x}"
 
 
-def _git_bytes(*args: str) -> bytes:
+def _git_bytes(*args: str, repo_root: Path = _REPO_ROOT) -> bytes:
     return subprocess.run(
-        ["git", "-C", str(_REPO_ROOT), *args],
+        ["git", "-C", str(repo_root), *args],
         check=True,
         capture_output=True,
     ).stdout
@@ -145,10 +145,15 @@ def _git_bytes(*args: str) -> bytes:
 @lru_cache(maxsize=None)
 def _contract_loader_binding(
     repository_commit: str,
+    repo_root: Path = _REPO_ROOT,
 ) -> contract_loader_binding.ContractLoaderBinding:
     blob_sha256s = {
         relative: hashlib.sha256(
-            _git_bytes("show", f"{repository_commit}:{relative}")
+            _git_bytes(
+                "show",
+                f"{repository_commit}:{relative}",
+                repo_root=repo_root,
+            )
         ).hexdigest()
         for relative in contract_loader_binding.CONTRACT_LOADER_RELATIVE_PATHS
     }
@@ -208,6 +213,7 @@ def _write_producer(
     verify_env_mismatch_arm: str | None = None,
     orphan_record: str | None = None,
     repository_commit: str = _REPOSITORY_COMMIT,
+    repository_root: Path = _REPO_ROOT,
 ) -> _Fixture:
     root = tmp_path / "producer"
     campaigns = root / "campaigns"
@@ -229,7 +235,7 @@ def _write_producer(
     lock_text = build_v2_campaign_lock(
         _canonical_json(lock_identity),
         authorization=authorization,
-        binding=_contract_loader_binding(repository_commit),
+        binding=_contract_loader_binding(repository_commit, repository_root),
     )
     decoded = campaign_lock.decode_campaign_lock(lock_text)
     assert decoded.authority is not None
@@ -501,14 +507,33 @@ def _refresh_result_wal_sha(fixture: _Fixture) -> None:
     _write_json(result_path, result)
 
 
-def _preregistration_repo_with_blob_drift(tmp_path: Path) -> tuple[Path, str]:
+def _temporary_preregistration_repo(
+    tmp_path: Path,
+    *,
+    committed_drift: bool = False,
+    worktree_drift: bool = False,
+) -> tuple[Path, str]:
     repo = tmp_path / "prereg-repo"
     document = repo / T.T1998_PREREGISTRATION_PATH
-    document.parent.mkdir(parents=True)
     subprocess.run(["git", "init", str(repo)], check=True, capture_output=True)
-    document.write_bytes(b"committed bytes differ from the current document\n")
+    canonical_document = (
+        _REPO_ROOT / T.T1998_PREREGISTRATION_PATH
+    ).read_bytes()
+    drifted_document = canonical_document + b"\n"
+    document.parent.mkdir(parents=True)
+    document.write_bytes(
+        drifted_document if committed_drift else canonical_document
+    )
+    for relative in contract_loader_binding.CONTRACT_LOADER_RELATIVE_PATHS:
+        destination = repo / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes((_REPO_ROOT / relative).read_bytes())
     subprocess.run(
-        ["git", "-C", str(repo), "add", T.T1998_PREREGISTRATION_PATH],
+        [
+            "git", "-C", str(repo), "add", "--",
+            T.T1998_PREREGISTRATION_PATH,
+            *contract_loader_binding.CONTRACT_LOADER_RELATIVE_PATHS,
+        ],
         check=True,
         capture_output=True,
     )
@@ -529,9 +554,13 @@ def _preregistration_repo_with_blob_drift(tmp_path: Path) -> tuple[Path, str]:
         text=True,
     ).stdout.strip()
     document.write_bytes(
-        (_REPO_ROOT / T.T1998_PREREGISTRATION_PATH).read_bytes()
+        drifted_document if worktree_drift else canonical_document
     )
     return repo, commit
+
+
+def _preregistration_repo_with_blob_drift(tmp_path: Path) -> tuple[Path, str]:
+    return _temporary_preregistration_repo(tmp_path, committed_drift=True)
 
 
 def test_real_admission_and_receipts_accept_only_the_fixed_pair(tmp_path: Path) -> None:
@@ -683,6 +712,76 @@ def test_document_identity_mismatch_is_rejected_after_artifact_checks(
     }
 
 
+def test_current_preregistration_sha_mismatch_is_rejected(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The current-document SHA gate alone rejects worktree byte drift."""
+    repo, repository_commit = _temporary_preregistration_repo(
+        tmp_path,
+        worktree_drift=True,
+    )
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+    fixture = _write_producer(
+        tmp_path,
+        repository_commit=repository_commit,
+        repository_root=repo,
+    )
+
+    with pytest.raises(T.T1998PairRejected) as excinfo:
+        T.consume_balanced_stock_inline_pair(
+            fixture.root,
+            preregistered=fixture.preregistered,
+            repo_root=repo,
+        )
+    assert excinfo.value.as_dict() == {
+        "code": "current-preregistration-sha-mismatch",
+        "field": "preregistration.current.sha256",
+        "expected": T.CURRENT_PREREGISTRATION_SHA256,
+        "actual": hashlib.sha256(
+            (repo / T.T1998_PREREGISTRATION_PATH).read_bytes()
+        ).hexdigest(),
+        "arm": "unknown",
+    }
+
+
+def test_measurement_preregistration_sha_mismatch_is_rejected(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The measurement SHA gate alone rejects a present, changed blob."""
+    repo, repository_commit = _temporary_preregistration_repo(
+        tmp_path,
+        committed_drift=True,
+    )
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+    fixture = _write_producer(
+        tmp_path,
+        repository_commit=repository_commit,
+        repository_root=repo,
+    )
+
+    with pytest.raises(T.T1998PairRejected) as excinfo:
+        T.consume_balanced_stock_inline_pair(
+            fixture.root,
+            preregistered=fixture.preregistered,
+            repo_root=repo,
+        )
+    assert excinfo.value.as_dict() == {
+        "code": "measurement-preregistration-sha-mismatch",
+        "field": "preregistration.measurement.sha256",
+        "expected": T.MEASUREMENT_TIME_PREREGISTRATION_SHA256,
+        "actual": hashlib.sha256(
+            _git_bytes(
+                "show",
+                f"{repository_commit}:{T.T1998_PREREGISTRATION_PATH}",
+                repo_root=repo,
+            )
+        ).hexdigest(),
+        "arm": "unknown",
+    }
+
+
 def test_measurement_commit_without_preregistration_blob_is_rejected(
     tmp_path: Path,
 ) -> None:
@@ -697,6 +796,20 @@ def test_measurement_commit_without_preregistration_blob_is_rejected(
     assert excinfo.value.code == "measurement-preregistration-sha-mismatch"
     assert excinfo.value.field == "preregistration.measurement.sha256"
     assert excinfo.value.arm == "unknown"
+
+
+def test_parse_preregistration_rejects_duplicate_key() -> None:
+    """The strict parser alone rejects a duplicate machine-spec key."""
+    raw = (_REPO_ROOT / T.T1998_PREREGISTRATION_PATH).read_bytes()
+    matching_lines = [
+        line for line in raw.splitlines(keepends=True)
+        if b'"ccbench_gitlink_commit"' in line
+    ]
+    assert len(matching_lines) == 1
+    key_line = matching_lines[0]
+
+    with pytest.raises(ValueError, match="duplicate JSON key"):
+        T._parse_preregistration(raw.replace(key_line, key_line * 2, 1))
 
 
 def test_load_preregistration_rejects_worktree_blob_mismatch(

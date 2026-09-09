@@ -344,15 +344,37 @@ def _read_preregistration_bytes(repo_root: Path) -> bytes:
         raise ValueError("preregistration document is unreadable") from exc
 
 
+def _read_only_git_env() -> dict[str, str]:
+    """Return an environment which cannot redirect read-only Git probes."""
+    env = os.environ.copy()
+    for name in (
+        "GIT_DIR",
+        "GIT_INDEX_FILE",
+        "GIT_WORK_TREE",
+        "GIT_COMMON_DIR",
+        "GIT_OBJECT_DIRECTORY",
+        "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+        "GIT_CEILING_DIRECTORIES",
+    ):
+        env.pop(name, None)
+    env["GIT_OPTIONAL_LOCKS"] = "0"
+    return env
+
+
 def _preregistration_blob(repo_root: Path, repository_commit: str) -> bytes:
     try:
         completed = subprocess.run(
             [
-                "git", "-C", os.fspath(repo_root), "show",
+                "git",
+                "--no-replace-objects",
+                "-C",
+                os.fspath(repo_root),
+                "show",
                 f"{repository_commit}:{T1998_PREREGISTRATION_PATH}",
             ],
             check=False,
             capture_output=True,
+            env=_read_only_git_env(),
         )
     except OSError as exc:
         raise ValueError("cannot run git show for preregistration blob") from exc
@@ -372,11 +394,12 @@ def load_preregistration(
     try:
         ancestor = subprocess.run(
             [
-                "git", "-C", os.fspath(root), "merge-base", "--is-ancestor",
-                prereg_commit, "HEAD",
+                "git", "--no-replace-objects", "-C", os.fspath(root),
+                "merge-base", "--is-ancestor", prereg_commit, "HEAD",
             ],
             check=False,
             capture_output=True,
+            env=_read_only_git_env(),
         )
     except OSError as exc:
         raise ValueError("cannot check prereg_commit ancestry") from exc
@@ -919,6 +942,7 @@ def consume_balanced_stock_inline_pair(
     producer_root: str | Path,
     *,
     preregistered: T1998PreregisteredIdentity,
+    repo_root: str | Path | None = None,
 ) -> T1998StockInlineDecision:
     """Consume the exact pre-registered balanced no-backoff/fixed-5 pair."""
     if type(preregistered) is not T1998PreregisteredIdentity:
@@ -1269,9 +1293,15 @@ def consume_balanced_stock_inline_pair(
         code="toolchain-identity-mismatch", field="result.toolchain",
     )
 
-    repo_root = Path(__file__).resolve().parents[2]
+    preregistration_repo_root = (
+        Path(__file__).resolve().parents[2]
+        if repo_root is None
+        else Path(repo_root).resolve()
+    )
     try:
-        current_preregistration = _read_preregistration_bytes(repo_root)
+        current_preregistration = _read_preregistration_bytes(
+            preregistration_repo_root
+        )
     except ValueError as exc:
         _reject(
             "current-preregistration-sha-mismatch",
@@ -1292,8 +1322,32 @@ def consume_balanced_stock_inline_pair(
     )
 
     try:
+        measurement_preregistration = _preregistration_blob(
+            preregistration_repo_root,
+            common.repository_commit,
+        )
+    except ValueError as exc:
+        _reject(
+            "measurement-preregistration-sha-mismatch",
+            "preregistration.measurement.sha256",
+            MEASUREMENT_TIME_PREREGISTRATION_SHA256,
+            str(exc),
+            "unknown",
+        )
+    measurement_preregistration_sha256 = hashlib.sha256(
+        measurement_preregistration
+    ).hexdigest()
+    _require_equal(
+        measurement_preregistration_sha256,
+        MEASUREMENT_TIME_PREREGISTRATION_SHA256,
+        code="measurement-preregistration-sha-mismatch",
+        field="preregistration.measurement.sha256",
+        arm="unknown",
+    )
+
+    try:
         documented = _identity_from_preregistration(
-            current_preregistration,
+            measurement_preregistration,
             common.repository_commit,
         )
     except (TypeError, ValueError) as exc:
@@ -1355,30 +1409,6 @@ def consume_balanced_stock_inline_pair(
             field=field,
             arm=arm,
         )
-
-    try:
-        measurement_preregistration = _preregistration_blob(
-            repo_root,
-            common.repository_commit,
-        )
-    except ValueError as exc:
-        _reject(
-            "measurement-preregistration-sha-mismatch",
-            "preregistration.measurement.sha256",
-            MEASUREMENT_TIME_PREREGISTRATION_SHA256,
-            str(exc),
-            "unknown",
-        )
-    measurement_preregistration_sha256 = hashlib.sha256(
-        measurement_preregistration
-    ).hexdigest()
-    _require_equal(
-        measurement_preregistration_sha256,
-        MEASUREMENT_TIME_PREREGISTRATION_SHA256,
-        code="measurement-preregistration-sha-mismatch",
-        field="preregistration.measurement.sha256",
-        arm="unknown",
-    )
 
     ratio = target.median_tps / baseline.median_tps
     improvement = (ratio - 1.0) * 100.0
