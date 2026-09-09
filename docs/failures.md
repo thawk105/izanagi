@@ -1756,6 +1756,20 @@
   provenance 違反が local main へ入った (`c12e25078`)。F37 の初出は `&&` の右辺、今回は
   `set -e` 下の逐次実行で、**どちらも「パイプの rc は最後のコマンドのもの」という同じ取り違え**である。
   出力を短くする `| tail` を検査コマンドに付けた時点で guard は恒真になる。
+
+- **再発: 2026-09-09** — [T-2486] wave の親が wave worktree を
+  `timeout 300 git worktree add ... | tail -20; echo "rc=$?"` で作り、表示された `rc=0` は
+  `tail` のものだった。実際は `timeout` の SIGTERM で checkout が殺され (rc=143)、
+  **worktree directory ごと消えて branch だけが残っていた**。
+  **検査ではなく状態変更コマンドで、しかも「消滅」が「成功」に見えた点がこれまでの再発と違う。**
+  直後の `git worktree list` に対象が無いことで検出し、timeout 無しの detach で作り直した
+  (負荷 53 のログインノードでは 22,955 file の checkout が 5 分を超える)。
+  実害は約 6 分の空転だけで、偽緑の記録には至っていない。
+  **恒久対応を `DW-O20` へ 1 行統合しようとしたが、byte 予算で入らなかった** — 同節が
+  1066 bytes となり単節予算 1000 bytes を 66 bytes 超えた。安全義務を削って詰めることはせず、
+  実体は memory `enterworktree-fails-on-symlinked-cwd` に置いた
+  (timeout を掛けない・rc を pipe へ通さない・timeout 無しの detach と `tail --pid` で待つ)。
+  上限の引き上げは求めていない。
 ### F38. 記録後検査の値を埋める amend で、worklog 内の記録 commit hash が dangling になった [ドリフト] [手順漏れ]
 
 - 事象: `DW-S07` の F34 恒久対応 (記録 commit の後に再走) と F36 恒久対応 (実測前に欄を作らない) を
