@@ -259,45 +259,7 @@ queue 待ち 900 + grace 300 = **ちょうど 1200** で余裕が無い。**D612
 すると必ず外側 watchdog が先に切る** (attempt 4 で実測)。1000/150 まで下げても queue 飽和では
 届かない (attempt 5)。上書きは queue 待ちを伸ばせるが、この段では 1200 秒の天井を越えられない。
 
-## 11. 次 wave の出発点 — 単位 D2 (consumers/fixtures)
-
-**この branch を land できるようにする唯一の残り単位が D2 である。** D1341 と D1703 (どちらも
-ユーザー裁定) により、branch は D2 が揃うまで land しない。branch は 2026-09-02 以降 4 単位
-(C1b / C2 / C3a / C3b) を載せたまま未 land で、main との乖離が開き続けている。**D2 を閉じることが
-遅滞を解く唯一の正規経路である。**
-
-### 変更面の実アンカー (2026-09-10 に親が実測)
-
-| アンカー | 現状 |
-|---|---|
-| `orchestrator/campaign/s8b_holdout_freeze.py:1437` | `frozenset(result) != expected_result_keys` で v4 の key 集合を exact 要求 |
-| 同 `:1439` | `result.get("schema") != s8b_floor_contract.RESULT_SCHEMA` (= v4) |
-| `orchestrator/campaign/s8b_ratified_freeze.py:2399` | `_validate_result_top_level_keys()` が v4 の top-level key を exact 要求 |
-| 同 `:2404` | `document["schema"] != _floor_contract.RESULT_SCHEMA` (= v4) |
-| `orchestrator/campaign/s8b_floor_contract.py:36` | `RESULT_SCHEMA = LEGACY_RESULT_SCHEMA`。producer は `s8b_floor_campaign.py:6816` で `attempt_registry is not None` のとき v5 を出す条件分岐 |
-
-### 不変条件 (D2 の brief がそのまま引き継ぐべきもの)
-
-- **受理集合を単に広げない。** D1194 の要求は「新規成果物へ前向きに束縛を掛ける」であって
-  「v5 も通す」ではない。**consumer は prefix proof 7 key
-  (`schema` / `registry_schema` / `freeze_sha256` / `protocol_sha256` / `schedule_sha256` /
-  `row_count` / `chain_head_sha256`) を実際に検証して初めて受理する**形にする。
-  検証せず schema だけ広げると、D1194 が却下した「謳うだけで発火しない保証」になる。
-- `s8b_floor_contract.py:30-31` の comment 「現 producer は v4 のまま」は C3a 後に陳腐化している。
-  D2 で現況へ直す。
-- 凍結 23 件の bytes を変えない。`FORMULA_ID` 据え置き。
-
-### D2 が終わったら
-
-1. branch 全体を land する (D1341 の同時 land 条件が初めて満たされる)。
-2. 着地待ちの裁定 **10 件**を再提示する — C3a の 5 件
-   (`2026-09-09_t1851-unit-c3a-wiring/ruling-package.md`) と C3b の 5 件 (本 dir の
-   `ruling-package.md`)。D1703 により単位が揃うまで個別裁定しない扱いだったものである。
-3. 本 insight の裁定 1 (allowlist の束縛先) が解ければ、単位 C3c として official 床値を再走し、
-   **契約 9 節が要求する attempt registry 側 gate の実値域**を初めて供給できる。
-   本 run は claim / marker / registry を 1 件も作っていないので凍結世代は焼けていない。
-
-## 12. 収録物
+## 11. 収録物
 
 - `s1-brief.md` — 段 1 brief ((P1) 4 件が段 3 の攻撃対象)
 - `s4-adjudication.md` — 段 4 裁定 (所見 25 件の real/refuted と plan v2)
