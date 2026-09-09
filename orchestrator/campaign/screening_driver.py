@@ -25,7 +25,7 @@ from .env_contract import AuthorizedContract, ExecutionEnvironmentContract
 from .genome import protocol_from_floor_genome
 from .layout import CampaignLayout, campaign_layout, env_scope_dir
 from .model import (STAGE_ABORT, STAGE_BENCH_DONE, STAGE_COMMIT,
-                    CampaignConfig, Genome)
+                    CampaignConfig, Genome, cmake_cache_variable_for_axis)
 from .pipeline import (AdmissionCapabilityResolver, EvalResult, PerfConfig, S2_TAG,
                        SEARCH_CONFIG_VERIFY_KEY,
                        ScreeningConfig, VERIFY_LEGACY_PLUS_S2, evaluate,
@@ -140,7 +140,10 @@ def _require_requests_match_genome_build_arguments(
         ))
         for macro, value in required:
             if request.route == condition_meaning_gate.ROUTE_CMAKE_CACHE:
-                present = f"-DCCBENCH_{macro}={value}" in configure_args
+                cache_variable = cmake_cache_variable_for_axis(
+                    genome.protocol, macro,
+                )
+                present = f"-D{cache_variable}={value}" in configure_args
             elif request.route == condition_meaning_gate.ROUTE_CMAKE_CXX_FLAGS:
                 define = f"-D{macro}={value}"
                 present = any(
@@ -159,7 +162,8 @@ def _require_requests_match_genome_build_arguments(
 def _condition_gate_base_configure_args(genome: Genome) -> tuple[str, ...]:
     """Keep real non-domain build inputs; each request supplies its own domain arm."""
     domain_arguments = {
-        f"-DCCBENCH_{macro}={genome.flags[macro]}"
+        f"-D{cmake_cache_variable_for_axis(genome.protocol, macro)}="
+        f"{genome.flags[macro]}"
         for macro in set(genome.flags) & set(condition_meaning_gate.DEFINE_SPECS)
     }
     return tuple(

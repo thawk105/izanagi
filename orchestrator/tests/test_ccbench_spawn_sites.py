@@ -264,6 +264,16 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     ("campaign/t080_freeze_migration.py", "<module>._git_rc"): 1,
     ("campaign/t152_write_intent_coverage.py", "<module>._run_process"): 1,
     ("campaign/t152_write_intent_coverage.py", "<module>._verify"): 1,
+    # Fixed Git argv with a sanitized environment only reads the T-1998
+    # preregistration blob or checks its ancestry; neither executes CCBench.
+    (
+        "campaign/t1998_stock_inline_pair.py",
+        "<module>._preregistration_blob",
+    ): 1,
+    (
+        "campaign/t1998_stock_inline_pair.py",
+        "<module>.load_preregistration",
+    ): 1,
     ("campaign/t810_validator.py", "<module>._git"): 1,
     ("campaign/trial_registry.py", "<module>._git"): 1,
     # Read-only `git rev-parse HEAD` checks the worker checkout against its
@@ -919,7 +929,7 @@ _DEFERRED_GATE_MEMBERS = (
         ),
         "buildcache",
         "<module>._certify_main._build_trace_binary",
-        3432,
+        3714,
     ),
     _DeferredGateMember(
         "tools/pegasus/probes/t2187_adaptive_const_probe.py",
@@ -931,7 +941,7 @@ _DEFERRED_GATE_MEMBERS = (
         ),
         "buildcache",
         "<module>.main",
-        3806,
+        4086,
     ),
 )
 
@@ -2671,11 +2681,11 @@ def test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink():
         (
             "tools/pegasus/probes/t2187_adaptive_const_probe.py",
             "wave dynamic-backoff-mechanism", "buildcache",
-            "<module>._certify_main._build_trace_binary", 3432,
+            "<module>._certify_main._build_trace_binary", 3714,
         ),
         (
             "tools/pegasus/probes/t2187_adaptive_const_probe.py",
-            "wave dynamic-backoff-mechanism", "buildcache", "<module>.main", 3806,
+            "wave dynamic-backoff-mechanism", "buildcache", "<module>.main", 4086,
         ),
     }
     assert all(item.reason for item in _DEFERRED_GATE_MEMBERS)

@@ -1,0 +1,41 @@
+{
+  "arms": {
+    "baseline@g++": {
+      "canonical_genome": "silo|BACKOFF_FIXED=-1,BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+      "genome_sha256": "84319b1127a6362c01c21e34ad09f982acaa7dfd75ac464d9822602d1eba20c2",
+      "ok": true,
+      "source_bytes_sha256": "2d691b45afd02a7979b1872eeb0a5c5c58223550892331b31641599aa239a2c6",
+      "src_token": "stock",
+      "tracked_clean": true
+    },
+    "baseline@g++-13": {
+      "error": "source_digest: マクロ定義状態の照会を起動できない (g++-13: [Errno 2] No such file or directory: 'g++-13') — 文脈ガードを確定できないため fails-closed で停止 (D23)",
+      "error_type": "RuntimeError",
+      "ok": false,
+      "tb_tail": [
+        "  File \"/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2533-t1998-prereg-digest/orchestrator/campaign/source_digest.py\", line 1715, in _dump_macros",
+        "    raise RuntimeError(",
+        "RuntimeError: source_digest: マクロ定義状態の照会を起動できない (g++-13: [Errno 2] No such file or directory: 'g++-13') — 文脈ガードを確定できないため fails-closed で停止 (D23)"
+      ]
+    },
+    "target@g++": {
+      "canonical_genome": "silo|BACKOFF_FIXED=5,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+      "genome_sha256": "7deff2b013e46cedfdb192b0e356b2912cc0eb745b00f7a041c759ec244fc8ea",
+      "ok": true,
+      "source_bytes_sha256": "6454d9f34b04fdb148bc3324c5b07786d933dcc1ab0f7267aa0b91d414f70a84",
+      "src_token": "stock",
+      "tracked_clean": true
+    },
+    "target@g++-13": {
+      "error": "source_digest: マクロ定義状態の照会を起動できない (g++-13: [Errno 2] No such file or directory: 'g++-13') — 文脈ガードを確定できないため fails-closed で停止 (D23)",
+      "error_type": "RuntimeError",
+      "ok": false,
+      "tb_tail": [
+        "  File \"/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2533-t1998-prereg-digest/orchestrator/campaign/source_digest.py\", line 1715, in _dump_macros",
+        "    raise RuntimeError(",
+        "RuntimeError: source_digest: マクロ定義状態の照会を起動できない (g++-13: [Errno 2] No such file or directory: 'g++-13') — 文脈ガードを確定できないため fails-closed で停止 (D23)"
+      ]
+    }
+  },
+  "pin": "511c953"
+}

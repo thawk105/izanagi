@@ -1,0 +1,453 @@
+{
+  "ccbench": {
+    "head": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+    "source": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2224-probe/external/ccbench",
+    "status_porcelain": "",
+    "working_tree_clean": true
+  },
+  "deps_prefix": "/work/1/SFC/tanab/izanagi-a2-deps",
+  "fully_producible_protocols": [],
+  "host_name": "bnode122",
+  "launcher": {
+    "binary_expression": "$BUILD_DIR/cc/$CALIBRATION_PROTOCOL/${build_argv[4]}",
+    "parse_passed": true,
+    "parse_rules": [
+      "whitelist is the exact conjunction of CALIBRATION_PROTOCOL != literals in its submit_binding guard",
+      "define entries are one literal ccbench_define_argv array per whitelisted case label",
+      "each define is exactly -DCCBENCH_<UPPER_AXIS>=<signed decimal integer>",
+      "configure_argv must consume ccbench_define_argv exactly once",
+      "build entries are one build_argv array with exactly one safe ycsb_<protocol>.exe target",
+      "BINARY is evaluated only with BUILD_DIR, CALIBRATION_PROTOCOL, and build_argv[index] expansions",
+      "the whitelist, define case, and build case protocol sets must be identical"
+    ],
+    "path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2224-probe/tools/pegasus/certify_calibration.sh",
+    "sha256": "5b39b1c9ed57b74672d92332d87edcb607faef2b60227c899a80e6974547e9a5",
+    "source_lines": {
+      "binary_expression": [
+        602,
+        602
+      ],
+      "build_case": [
+        589,
+        599
+      ],
+      "configure_argv": [
+        576,
+        581
+      ],
+      "define_case": [
+        546,
+        575
+      ],
+      "whitelist_guard": [
+        163,
+        169
+      ]
+    },
+    "whitelist": [
+      "silo",
+      "mocc",
+      "tictoc"
+    ]
+  },
+  "probe_completed": true,
+  "probe_completed_at": "2026-09-09T01:46:53+00:00",
+  "probe_completed_epoch": 1788918413,
+  "probe_duration_s": 4.309352,
+  "probe_started_at": "2026-09-09T01:46:49+00:00",
+  "probe_started_epoch": 1788918409,
+  "protocols": {
+    "mocc": {
+      "all_stages_passed": false,
+      "axis_reach": {
+        "attempted": true,
+        "checks": [],
+        "duplicate_actual_defines": [],
+        "exception": {
+          "message": "[Errno 2] No such file or directory: '/work/1/SFC/tanab/t2224-probe-out/mocc/build/cc/mocc/CMakeFiles/ycsb_mocc.exe.dir/flags.make'",
+          "type": "FileNotFoundError"
+        },
+        "flags_make": "/work/1/SFC/tanab/t2224-probe-out/mocc/build/cc/mocc/CMakeFiles/ycsb_mocc.exe.dir/flags.make",
+        "mismatched": [],
+        "missing": [],
+        "passed": false,
+        "requested": {
+          "BACK_OFF": "1",
+          "KEY_SORT": "0",
+          "TEMPERATURE_RESET_OPT": "1",
+          "TRACE": "0"
+        }
+      },
+      "binary_expression": "$BUILD_DIR/cc/$CALIBRATION_PROTOCOL/${build_argv[4]}",
+      "build": {
+        "attempted": false,
+        "passed": false,
+        "skip_reason": "configure command did not return rc=0"
+      },
+      "build_argv_template": [
+        "$CMAKE_PATH",
+        "--build",
+        "$BUILD_DIR",
+        "--target",
+        "ycsb_mocc.exe",
+        "-j",
+        "48"
+      ],
+      "build_target": "ycsb_mocc.exe",
+      "configure": {
+        "argv": [
+          "/usr/bin/cmake",
+          "-S",
+          "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2224-probe/external/ccbench",
+          "-B",
+          "/work/1/SFC/tanab/t2224-probe-out/mocc/build",
+          "-DCMAKE_BUILD_TYPE=Release",
+          "-DENABLE_SANITIZER=OFF",
+          "-DCCBENCH_TRACE=0",
+          "-DCCBENCH_BACK_OFF=1",
+          "-DCCBENCH_KEY_SORT=0",
+          "-DCCBENCH_TEMPERATURE_RESET_OPT=1",
+          "-DCMAKE_PREFIX_PATH=/work/1/SFC/tanab/izanagi-a2-deps",
+          "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+          "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11"
+        ],
+        "attempted": true,
+        "duration_s": 0.8043,
+        "passed": false,
+        "rc": 1,
+        "stderr": "[ 11%] Creating directories for 'masstree-populate'\n[ 22%] Performing download step (git clone) for 'masstree-populate'\nCloning into 'masstree-src'...\nfatal: unable to access 'https://github.com/thawk105/masstree-beta.git/': Could not resolve host: github.com\nCloning into 'masstree-src'...\nfatal: unable to access 'https://github.com/thawk105/masstree-beta.git/': Could not resolve host: github.com\nCloning into 'masstree-src'...\nfatal: unable to access 'https://github.com/thawk105/masstree-beta.git/': Could not resolve host: github.com\n-- Had to git clone more than once:\n          3 times.\nCMake Error at masstree-subbuild/masstree-populate-prefix/tmp/masstree-populate-gitclone.cmake:31 (message):\n  Failed to clone repository: 'https://github.com/thawk105/masstree-beta.git'\n\n\ngmake[2]: *** [CMakeFiles/masstree-populate.dir/build.make:102: masstree-populate-prefix/src/masstree-populate-stamp/masstree-populate-download] Error 1\ngmake[1]: *** [CMakeFiles/Makefile2:83: CMakeFiles/masstree-populate.dir/all] Error 2\ngmake: *** [Makefile:91: all] Error 2\n\nCMake Error at /usr/share/cmake-3.22/Modules/FetchContent.cmake:1087 (message):\n  Build step for masstree failed: 2\nCall Stack (most recent call first):\n  /usr/share/cmake-3.22/Modules/FetchContent.cmake:1216:EVAL:2 (__FetchContent_directPopulate)\n  /usr/share/cmake-3.22/Modules/FetchContent.cmake:1216 (cmake_language)\n  cmake/ThirdParty.cmake:54 (FetchContent_Populate)\n  CMakeLists.txt:43 (include)\n\n\n",
+        "stdout": "-- The CXX compiler identification is GNU 11.4.0\n-- Detecting CXX compiler ABI info\n-- Detecting CXX compiler ABI info - done\n-- Check for working CXX compiler: /usr/bin/x86_64-linux-gnu-g++-11 - skipped\n-- Detecting CXX compile features\n-- Detecting CXX compile features - done\n-- Looking for C++ include pthread.h\n-- Looking for C++ include pthread.h - found\n-- Performing Test CMAKE_HAVE_LIBC_PTHREAD\n-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success\n-- Found Threads: TRUE  \n-- Found gflags: /work/1/SFC/tanab/izanagi-a2-deps/lib/libgflags.a  \n-- Found glog: /work/1/SFC/tanab/izanagi-a2-deps/lib/libglog.a  \n-- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.74.0/BoostConfig.cmake (found version \"1.74.0\") found components: filesystem \n-- Configuring incomplete, errors occurred!\nSee also \"/work/1/SFC/tanab/t2224-probe-out/mocc/build/CMakeFiles/CMakeOutput.log\".\n",
+        "timeout_s": 900,
+        "unused_variable_parse_error": null,
+        "unused_variable_warning": false,
+        "unused_variables": []
+      },
+      "derived_binary_path": "/work/1/SFC/tanab/t2224-probe-out/mocc/build/cc/mocc/ycsb_mocc.exe",
+      "first_red": "configure",
+      "genome_derivation": {
+        "attempted": false,
+        "passed": false,
+        "skip_reason": "measured binary sha256 is unavailable"
+      },
+      "highest_attempted": "axis_reach",
+      "reached": "none",
+      "requested_define_argv": [
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_KEY_SORT=0",
+        "-DCCBENCH_TEMPERATURE_RESET_OPT=1"
+      ],
+      "requested_defines": {
+        "BACK_OFF": "1",
+        "KEY_SORT": "0",
+        "TEMPERATURE_RESET_OPT": "1",
+        "TRACE": "0"
+      },
+      "trace_separation": {
+        "attempted": false,
+        "passed": false,
+        "skip_reason": "derived binary is not executable"
+      }
+    },
+    "silo": {
+      "all_stages_passed": false,
+      "axis_reach": {
+        "attempted": true,
+        "checks": [],
+        "duplicate_actual_defines": [],
+        "exception": {
+          "message": "[Errno 2] No such file or directory: '/work/1/SFC/tanab/t2224-probe-out/silo/build/cc/silo/CMakeFiles/ycsb_silo.exe.dir/flags.make'",
+          "type": "FileNotFoundError"
+        },
+        "flags_make": "/work/1/SFC/tanab/t2224-probe-out/silo/build/cc/silo/CMakeFiles/ycsb_silo.exe.dir/flags.make",
+        "mismatched": [],
+        "missing": [],
+        "passed": false,
+        "requested": {
+          "BACKOFF_FIXED": "-1",
+          "BACK_OFF": "0",
+          "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+          "NO_WAIT_OF_TICTOC": "0",
+          "TRACE": "0",
+          "WAL": "0"
+        }
+      },
+      "binary_expression": "$BUILD_DIR/cc/$CALIBRATION_PROTOCOL/${build_argv[4]}",
+      "build": {
+        "attempted": false,
+        "passed": false,
+        "skip_reason": "configure command did not return rc=0"
+      },
+      "build_argv_template": [
+        "$CMAKE_PATH",
+        "--build",
+        "$BUILD_DIR",
+        "--target",
+        "ycsb_silo.exe",
+        "-j",
+        "48"
+      ],
+      "build_target": "ycsb_silo.exe",
+      "configure": {
+        "argv": [
+          "/usr/bin/cmake",
+          "-S",
+          "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2224-probe/external/ccbench",
+          "-B",
+          "/work/1/SFC/tanab/t2224-probe-out/silo/build",
+          "-DCMAKE_BUILD_TYPE=Release",
+          "-DENABLE_SANITIZER=OFF",
+          "-DCCBENCH_TRACE=0",
+          "-DCCBENCH_BACK_OFF=0",
+          "-DCCBENCH_BACKOFF_FIXED=-1",
+          "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+          "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+          "-DCCBENCH_WAL=0",
+          "-DCMAKE_PREFIX_PATH=/work/1/SFC/tanab/izanagi-a2-deps",
+          "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+          "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11"
+        ],
+        "attempted": true,
+        "duration_s": 0.884325,
+        "passed": false,
+        "rc": 1,
+        "stderr": "[ 11%] Creating directories for 'masstree-populate'\n[ 22%] Performing download step (git clone) for 'masstree-populate'\nCloning into 'masstree-src'...\nfatal: unable to access 'https://github.com/thawk105/masstree-beta.git/': Could not resolve host: github.com\nCloning into 'masstree-src'...\nfatal: unable to access 'https://github.com/thawk105/masstree-beta.git/': Could not resolve host: github.com\nCloning into 'masstree-src'...\nfatal: unable to access 'https://github.com/thawk105/masstree-beta.git/': Could not resolve host: github.com\n-- Had to git clone more than once:\n          3 times.\nCMake Error at masstree-subbuild/masstree-populate-prefix/tmp/masstree-populate-gitclone.cmake:31 (message):\n  Failed to clone repository: 'https://github.com/thawk105/masstree-beta.git'\n\n\ngmake[2]: *** [CMakeFiles/masstree-populate.dir/build.make:102: masstree-populate-prefix/src/masstree-populate-stamp/masstree-populate-download] Error 1\ngmake[1]: *** [CMakeFiles/Makefile2:83: CMakeFiles/masstree-populate.dir/all] Error 2\ngmake: *** [Makefile:91: all] Error 2\n\nCMake Error at /usr/share/cmake-3.22/Modules/FetchContent.cmake:1087 (message):\n  Build step for masstree failed: 2\nCall Stack (most recent call first):\n  /usr/share/cmake-3.22/Modules/FetchContent.cmake:1216:EVAL:2 (__FetchContent_directPopulate)\n  /usr/share/cmake-3.22/Modules/FetchContent.cmake:1216 (cmake_language)\n  cmake/ThirdParty.cmake:54 (FetchContent_Populate)\n  CMakeLists.txt:43 (include)\n\n\n",
+        "stdout": "-- The CXX compiler identification is GNU 11.4.0\n-- Detecting CXX compiler ABI info\n-- Detecting CXX compiler ABI info - done\n-- Check for working CXX compiler: /usr/bin/x86_64-linux-gnu-g++-11 - skipped\n-- Detecting CXX compile features\n-- Detecting CXX compile features - done\n-- Looking for C++ include pthread.h\n-- Looking for C++ include pthread.h - found\n-- Performing Test CMAKE_HAVE_LIBC_PTHREAD\n-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success\n-- Found Threads: TRUE  \n-- Found gflags: /work/1/SFC/tanab/izanagi-a2-deps/lib/libgflags.a  \n-- Found glog: /work/1/SFC/tanab/izanagi-a2-deps/lib/libglog.a  \n-- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.74.0/BoostConfig.cmake (found version \"1.74.0\") found components: filesystem \n-- Configuring incomplete, errors occurred!\nSee also \"/work/1/SFC/tanab/t2224-probe-out/silo/build/CMakeFiles/CMakeOutput.log\".\n",
+        "timeout_s": 900,
+        "unused_variable_parse_error": null,
+        "unused_variable_warning": false,
+        "unused_variables": []
+      },
+      "derived_binary_path": "/work/1/SFC/tanab/t2224-probe-out/silo/build/cc/silo/ycsb_silo.exe",
+      "first_red": "configure",
+      "genome_derivation": {
+        "attempted": false,
+        "passed": false,
+        "skip_reason": "measured binary sha256 is unavailable"
+      },
+      "highest_attempted": "axis_reach",
+      "reached": "none",
+      "requested_define_argv": [
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_BACK_OFF=0",
+        "-DCCBENCH_BACKOFF_FIXED=-1",
+        "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+        "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+        "-DCCBENCH_WAL=0"
+      ],
+      "requested_defines": {
+        "BACKOFF_FIXED": "-1",
+        "BACK_OFF": "0",
+        "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+        "NO_WAIT_OF_TICTOC": "0",
+        "TRACE": "0",
+        "WAL": "0"
+      },
+      "trace_separation": {
+        "attempted": false,
+        "passed": false,
+        "skip_reason": "derived binary is not executable"
+      }
+    },
+    "tictoc": {
+      "all_stages_passed": false,
+      "axis_reach": {
+        "attempted": true,
+        "checks": [],
+        "duplicate_actual_defines": [],
+        "exception": {
+          "message": "[Errno 2] No such file or directory: '/work/1/SFC/tanab/t2224-probe-out/tictoc/build/cc/tictoc/CMakeFiles/ycsb_tictoc.exe.dir/flags.make'",
+          "type": "FileNotFoundError"
+        },
+        "flags_make": "/work/1/SFC/tanab/t2224-probe-out/tictoc/build/cc/tictoc/CMakeFiles/ycsb_tictoc.exe.dir/flags.make",
+        "mismatched": [],
+        "missing": [],
+        "passed": false,
+        "requested": {
+          "BACK_OFF": "1",
+          "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+          "NO_WAIT_OF_TICTOC": "0",
+          "PREEMPTIVE_ABORTS": "1",
+          "TIMESTAMP_HISTORY": "1",
+          "TRACE": "0"
+        }
+      },
+      "binary_expression": "$BUILD_DIR/cc/$CALIBRATION_PROTOCOL/${build_argv[4]}",
+      "build": {
+        "attempted": false,
+        "passed": false,
+        "skip_reason": "configure command did not return rc=0"
+      },
+      "build_argv_template": [
+        "$CMAKE_PATH",
+        "--build",
+        "$BUILD_DIR",
+        "--target",
+        "ycsb_tictoc.exe",
+        "-j",
+        "48"
+      ],
+      "build_target": "ycsb_tictoc.exe",
+      "configure": {
+        "argv": [
+          "/usr/bin/cmake",
+          "-S",
+          "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2224-probe/external/ccbench",
+          "-B",
+          "/work/1/SFC/tanab/t2224-probe-out/tictoc/build",
+          "-DCMAKE_BUILD_TYPE=Release",
+          "-DENABLE_SANITIZER=OFF",
+          "-DCCBENCH_TRACE=0",
+          "-DCCBENCH_BACK_OFF=1",
+          "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+          "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+          "-DCCBENCH_PREEMPTIVE_ABORTS=1",
+          "-DCCBENCH_TIMESTAMP_HISTORY=1",
+          "-DCMAKE_PREFIX_PATH=/work/1/SFC/tanab/izanagi-a2-deps",
+          "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+          "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11"
+        ],
+        "attempted": true,
+        "duration_s": 1.276861,
+        "passed": false,
+        "rc": 1,
+        "stderr": "[ 11%] Creating directories for 'masstree-populate'\n[ 22%] Performing download step (git clone) for 'masstree-populate'\nCloning into 'masstree-src'...\nfatal: unable to access 'https://github.com/thawk105/masstree-beta.git/': Could not resolve host: github.com\nCloning into 'masstree-src'...\nfatal: unable to access 'https://github.com/thawk105/masstree-beta.git/': Could not resolve host: github.com\nCloning into 'masstree-src'...\nfatal: unable to access 'https://github.com/thawk105/masstree-beta.git/': Could not resolve host: github.com\n-- Had to git clone more than once:\n          3 times.\nCMake Error at masstree-subbuild/masstree-populate-prefix/tmp/masstree-populate-gitclone.cmake:31 (message):\n  Failed to clone repository: 'https://github.com/thawk105/masstree-beta.git'\n\n\ngmake[2]: *** [CMakeFiles/masstree-populate.dir/build.make:102: masstree-populate-prefix/src/masstree-populate-stamp/masstree-populate-download] Error 1\ngmake[1]: *** [CMakeFiles/Makefile2:83: CMakeFiles/masstree-populate.dir/all] Error 2\ngmake: *** [Makefile:91: all] Error 2\n\nCMake Error at /usr/share/cmake-3.22/Modules/FetchContent.cmake:1087 (message):\n  Build step for masstree failed: 2\nCall Stack (most recent call first):\n  /usr/share/cmake-3.22/Modules/FetchContent.cmake:1216:EVAL:2 (__FetchContent_directPopulate)\n  /usr/share/cmake-3.22/Modules/FetchContent.cmake:1216 (cmake_language)\n  cmake/ThirdParty.cmake:54 (FetchContent_Populate)\n  CMakeLists.txt:43 (include)\n\n\n",
+        "stdout": "-- The CXX compiler identification is GNU 11.4.0\n-- Detecting CXX compiler ABI info\n-- Detecting CXX compiler ABI info - done\n-- Check for working CXX compiler: /usr/bin/x86_64-linux-gnu-g++-11 - skipped\n-- Detecting CXX compile features\n-- Detecting CXX compile features - done\n-- Looking for C++ include pthread.h\n-- Looking for C++ include pthread.h - found\n-- Performing Test CMAKE_HAVE_LIBC_PTHREAD\n-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success\n-- Found Threads: TRUE  \n-- Found gflags: /work/1/SFC/tanab/izanagi-a2-deps/lib/libgflags.a  \n-- Found glog: /work/1/SFC/tanab/izanagi-a2-deps/lib/libglog.a  \n-- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.74.0/BoostConfig.cmake (found version \"1.74.0\") found components: filesystem \n-- Configuring incomplete, errors occurred!\nSee also \"/work/1/SFC/tanab/t2224-probe-out/tictoc/build/CMakeFiles/CMakeOutput.log\".\n",
+        "timeout_s": 900,
+        "unused_variable_parse_error": null,
+        "unused_variable_warning": false,
+        "unused_variables": []
+      },
+      "derived_binary_path": "/work/1/SFC/tanab/t2224-probe-out/tictoc/build/cc/tictoc/ycsb_tictoc.exe",
+      "first_red": "configure",
+      "genome_derivation": {
+        "attempted": false,
+        "passed": false,
+        "skip_reason": "measured binary sha256 is unavailable"
+      },
+      "highest_attempted": "axis_reach",
+      "reached": "none",
+      "requested_define_argv": [
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+        "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+        "-DCCBENCH_PREEMPTIVE_ABORTS=1",
+        "-DCCBENCH_TIMESTAMP_HISTORY=1"
+      ],
+      "requested_defines": {
+        "BACK_OFF": "1",
+        "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+        "NO_WAIT_OF_TICTOC": "0",
+        "PREEMPTIVE_ABORTS": "1",
+        "TIMESTAMP_HISTORY": "1",
+        "TRACE": "0"
+      },
+      "trace_separation": {
+        "attempted": false,
+        "passed": false,
+        "skip_reason": "derived binary is not executable"
+      }
+    }
+  },
+  "reached_semantics": "last stage in the configure-to-genome order whose entire prefix is green; later stages are still attempted when their concrete prerequisites exist",
+  "repo_root": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2224-probe",
+  "runtime_observations": {
+    "assigned_host_observation": {
+      "argv": null,
+      "assigned_host": "unavailable",
+      "rc": null,
+      "reason": "PBS_JOBID or qstat is unavailable",
+      "stderr": ""
+    },
+    "cmake": "/usr/bin/cmake",
+    "cmake_version": "cmake version 3.22.1\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake).",
+    "compiler_version": "gcc (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0\nCopyright (C) 2021 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+    "cpu_model_raw": "Intel(R) Xeon(R) Platinum 8468",
+    "expected_cores": 48,
+    "expected_cpu_model": "Intel Xeon Platinum 8468",
+    "gcc": "/usr/bin/x86_64-linux-gnu-gcc-11",
+    "gxx": "/usr/bin/x86_64-linux-gnu-g++-11",
+    "host": "bnode122",
+    "known_values_passed": true,
+    "module_list": [],
+    "module_list_observation": {
+      "argv": [
+        "/usr/bin/modulecmd",
+        "bash",
+        "-t",
+        "list"
+      ],
+      "duration_s": 0.011233,
+      "parsed_module_list": [],
+      "rc": 0,
+      "stderr": "No Modulefiles Currently Loaded.\n",
+      "stdout": "",
+      "timeout_s": 30
+    },
+    "pbs_jobid_present": false,
+    "topology": {
+      "affinity_cpus": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47
+      ],
+      "cpuset_size": 48,
+      "ht_off": true,
+      "physical_visible": 48
+    }
+  },
+  "schema_version": "t2224-producible-protocols-probe/v1",
+  "stage_green_protocols": {
+    "axis_reach": [],
+    "build": [],
+    "configure": [],
+    "genome_derivation": [],
+    "trace_separation": []
+  }
+}

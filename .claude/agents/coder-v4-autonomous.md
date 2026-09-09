@@ -44,7 +44,7 @@ effort: high
     "justification": "..."
   },
   "whiteboard": [
-    { "iteration": 1, "result": "fail", "delta_pct": -1.2 }
+    { "iteration": 1, "result": "fail", "delta_pct": null }
   ]
 }
 ```

@@ -1556,6 +1556,28 @@ def _require_same_cmake(
         )
 
 
+_PROCESS_ARGV_DETAIL_LIMIT_BYTES = 500
+_PROCESS_ARGV_DETAIL_UNAVAILABLE = "<argv detail unavailable>"
+
+
+def _bounded_process_argv_detail(argv: Sequence[str]) -> str:
+    try:
+        rendered = shlex.join(argv)
+        encoded = rendered.encode("utf-8", errors="backslashreplace")
+        if len(encoded) <= _PROCESS_ARGV_DETAIL_LIMIT_BYTES:
+            return rendered
+        marker = (
+            "...<argv truncated; "
+            f"limit={_PROCESS_ARGV_DETAIL_LIMIT_BYTES} bytes; "
+            f"original={len(encoded)} bytes; "
+            f"sha256={_sha256(encoded)}>"
+        ).encode("ascii")
+        prefix = encoded[:_PROCESS_ARGV_DETAIL_LIMIT_BYTES - len(marker)]
+        return (prefix + marker).decode("utf-8", errors="ignore")
+    except Exception:
+        return _PROCESS_ARGV_DETAIL_UNAVAILABLE
+
+
 def _run_process(
     argv: Sequence[str],
     *,
@@ -1570,20 +1592,33 @@ def _run_process(
     }
     if cwd is not None:
         run_kwargs["cwd"] = os.fspath(cwd)
+    run_argv = list(argv)
     try:
-        completed = subprocess.run(list(argv), **run_kwargs)
+        completed = subprocess.run(run_argv, **run_kwargs)
     except subprocess.TimeoutExpired as exc:
-        raise ConditionMeaningGateError(timeout_reason, "process exceeded 120 seconds") from exc
+        detail = (
+            "process exceeded 120 seconds; "
+            f"argv={_bounded_process_argv_detail(run_argv)}"
+        )
+        raise ConditionMeaningGateError(timeout_reason, detail) from exc
     except (OSError, subprocess.SubprocessError) as exc:
-        raise ConditionMeaningGateError(failure_reason, "process could not be executed") from exc
+        detail = (
+            "process could not be executed; "
+            f"argv={_bounded_process_argv_detail(run_argv)}"
+        )
+        raise ConditionMeaningGateError(failure_reason, detail) from exc
     if completed.returncode != 0:
         raise ConditionMeaningGateError(
             failure_reason,
-            f"process returned rc={completed.returncode}; stderr={completed.stderr[-500:]!r}",
+            f"process returned rc={completed.returncode}; "
+            f"stderr={completed.stderr[-500:]!r}; "
+            f"argv={_bounded_process_argv_detail(run_argv)}",
         )
     if completed.stderr:
         raise ConditionMeaningGateError(
-            failure_reason, f"successful process wrote stderr={completed.stderr[-500:]!r}",
+            failure_reason,
+            f"successful process wrote stderr={completed.stderr[-500:]!r}; "
+            f"argv={_bounded_process_argv_detail(run_argv)}",
         )
     return completed
 

@@ -90,7 +90,7 @@ worklog には裁定予定を写さず、実際に実行した手順を書く。
 受理集合を変える指示を子へ出す直前に、この wave で凍結済みの事前登録・判定式を再読する。
 凍結は自分が直前に書いたものでも拘束する。
 DW-S06-C の受入投入記述は段6内の中間走行 (変異検証目的) を指す。land 対象 tip への最終受入投入は
-DW-S07 の記録 commit 完了後に行う——取り違えると記録 commit が tested tip から漏れ land が rc=23
+DW-S07 と段 8 の commit 完了後に行う——取り違えると記録 commit が tested tip から漏れ land が rc=23
 になる。測定値は測った checkout を併記する（F41）。dispatch した走の所要は job の Elapse か
 runner 自身の報告時間を正とし、親側の外側 wall を所要として記録しない（queue 待ちを含む）。
 

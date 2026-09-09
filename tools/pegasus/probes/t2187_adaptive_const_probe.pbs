@@ -26,6 +26,17 @@ CERT_DYNAMIC_CELL='cw-as-dyn:1:1:1000:2560:10000:10240:1:1:4:1'
 CERT_COHORT2_POLICY1_CELL='cw-as-dyn-c2-p1:1:1:1000:2560:10000:9223372036854775807:1:1:4:1:1'
 CERT_COHORT2_POLICY2_CELL='cw-as-dyn-c2-p2:1:1:1000:2560:10000:9223372036854775807:1:1:4:1:2'
 
+cert_policy2_seed_allowed() {
+  case "$1" in
+    14481721328008317845|7453732891837486670|766609016836229506|14479507243158715447|3736279228254271919|6574519577559702715|15525319108568766040|13039315294558381935|16889140200793892447|15536816158447092057|13171317188614694465|3421410286381859835|11400714819323198485)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
 if [[ -z "${PBS_JOBID:-}" || -z "${PBS_O_WORKDIR:-}" ]]; then
   echo "PBS_JOBID and PBS_O_WORKDIR are required" >&2
   exit 2
@@ -116,10 +127,6 @@ if [[ "$MODE" == certify && "$BACKOFF_TRACE" == 1 ]]; then
   echo "certify mode cannot be combined with backoff trace mode" >&2
   exit 2
 fi
-if [[ "$MODE" == certify && -n "$STEP_POLICY_SEED" ]]; then
-  echo "certify mode cannot be combined with step policy seed" >&2
-  exit 2
-fi
 if [[ -z "$CELLS_RAW" || "$CELLS_RAW" == *","* || "$CELLS_RAW" == *";"* || "$CELLS_RAW" == *$'\n'* ]]; then
   echo "IZANAGI_T2187_CELLS must be a nonempty plus-separated cell list" >&2
   exit 2
@@ -191,12 +198,27 @@ if [[ "$BACKOFF_TRACE" == 1 ]]; then
   fi
 fi
 if [[ "$MODE" == certify ]]; then
+  if [[ -n "$STEP_POLICY_SEED" && "$CELLS_RAW" != "$CERT_COHORT2_POLICY2_CELL" ]]; then
+    echo "certify mode cannot be combined with step policy seed for this cell" >&2
+    exit 2
+  fi
   case "$CELLS_RAW" in
     "$CERT_TUNED_CELL"|"$CERT_DYNAMIC_CELL")
       CERT_CELL_EXTIME=3
       ;;
-    "$CERT_COHORT2_POLICY1_CELL"|"$CERT_COHORT2_POLICY2_CELL")
+    "$CERT_COHORT2_POLICY1_CELL")
       CERT_CELL_EXTIME=6
+      ;;
+    "$CERT_COHORT2_POLICY2_CELL")
+      CERT_CELL_EXTIME=6
+      if [[ -z "$STEP_POLICY_SEED" ]]; then
+        echo "certify policy 2 requires an explicit step policy seed" >&2
+        exit 2
+      fi
+      if ! cert_policy2_seed_allowed "$STEP_POLICY_SEED"; then
+        echo "certify policy 2 seed is outside the exact closed table" >&2
+        exit 2
+      fi
       ;;
     *)
       echo "certify mode requires exactly one of the four registered cells" >&2
@@ -207,8 +229,15 @@ if [[ "$MODE" == certify ]]; then
     echo "certify mode requires exactly one fixed workload" >&2
     exit 2
   fi
-  if [[ "$THREADS_RAW" != 48 || "$EXTIME" != "$CERT_CELL_EXTIME" || ! "$REP_INDEX" =~ ^[0-7]$ ]]; then
-    echo "certify mode requires threads=48, cell-specific extime, and rep index 0..7" >&2
+  if [[ "$CELLS_RAW" == "$CERT_TUNED_CELL" || "$CELLS_RAW" == "$CERT_DYNAMIC_CELL" ]]; then
+    CERT_THREAD_OK=0
+    [[ "$THREADS_RAW" == 48 ]] && CERT_THREAD_OK=1
+  else
+    CERT_THREAD_OK=0
+    [[ "$THREADS_RAW" == 24 || "$THREADS_RAW" == 48 ]] && CERT_THREAD_OK=1
+  fi
+  if [[ "$CERT_THREAD_OK" != 1 || "$EXTIME" != "$CERT_CELL_EXTIME" || ! "$REP_INDEX" =~ ^[0-7]$ ]]; then
+    echo "certify mode requires a cell-allowed singleton thread, cell-specific extime, and rep index 0..7" >&2
     exit 2
   fi
   if [[ -z "$GROUP_RECEIPT_OUT" || -z "$GROUP_RESULT_PATHS_RAW" || -z "$ATTEMPT_ID" || -z "$PERFORMANCE_ARTIFACT" || -z "$EXPECTED_VERIFIER_IDENTITY" ]]; then
@@ -427,16 +456,17 @@ if [[ "$MODE" == certify ]]; then
   done
 fi
 
+STEP_POLICY_SEED_ARGS=()
+if [[ -n "$STEP_POLICY_SEED" ]]; then
+  STEP_POLICY_SEED_ARGS=(--step-policy-seed "$STEP_POLICY_SEED")
+fi
+
 cd "$REPO_ROOT"
 if [[ "$MODE" == performance ]]; then
 OUT="$OUT_DIR/stage${STAGE}-rep${REP_INDEX}-${PBS_JOBID//:/_}.json"
 BACKOFF_TRACE_ARGS=()
 if [[ "$BACKOFF_TRACE" == 1 ]]; then
   BACKOFF_TRACE_ARGS=(--backoff-trace)
-fi
-STEP_POLICY_SEED_ARGS=()
-if [[ -n "$STEP_POLICY_SEED" ]]; then
-  STEP_POLICY_SEED_ARGS=(--step-policy-seed "$STEP_POLICY_SEED")
 fi
 exec "$PY" -B -u "$DRIVER" \
   "${BACKOFF_TRACE_ARGS[@]}" \
@@ -458,6 +488,7 @@ fi
 OUT="$OUT_DIR/certify-${WORKLOADS}-slot${REP_INDEX}-${ATTEMPT_ID}.json"
 exec "$PY" -B -u "$DRIVER" \
   --mode certify \
+  "${STEP_POLICY_SEED_ARGS[@]}" \
   --repo-head "$REPO_HEAD" \
   --repo-clean 1 \
   --cells "$CELLS" \

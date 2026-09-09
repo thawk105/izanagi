@@ -1,0 +1,111 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://izanagi.invalid/schemas/axis_b5_search_registration_seal.schema.json",
+  "title": "Izanagi Axis B5 provisional leaf executor registration seal",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "document_type",
+    "registration_commit",
+    "catalog_sha256",
+    "seal_scope",
+    "files"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "izanagi-axis-b5-registration-seal/v1"
+    },
+    "document_type": {
+      "const": "registration_seal"
+    },
+    "registration_commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "catalog_sha256": {
+      "const": "7eb8385e35bd24edac8a227a72ba5bc6b568ca8bc7cac2c8250af8b4ea4c346f"
+    },
+    "seal_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "provisional",
+        "includes",
+        "excludes",
+        "renewal_trigger"
+      ],
+      "properties": {
+        "kind": {
+          "const": "leaf-executor-provisional"
+        },
+        "provisional": {
+          "const": true
+        },
+        "includes": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "registration-preflight",
+              "anchor-lookup-preflight",
+              "leaf-response-evaluator"
+            ]
+          },
+          "minItems": 3,
+          "maxItems": 3,
+          "uniqueItems": true
+        },
+        "excludes": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "checkpoint",
+              "resume",
+              "axis-aggregate",
+              "control-firing",
+              "supplemental-anchor-stream-execution"
+            ]
+          },
+          "minItems": 5,
+          "maxItems": 5,
+          "uniqueItems": true
+        },
+        "renewal_trigger": {
+          "const": "runner-bytes-change-for-checkpoint-or-resume"
+        }
+      }
+    },
+    "files": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "git_blob", "mode", "bytes", "sha256"],
+        "properties": {
+          "path": {
+            "type": "string",
+            "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+          },
+          "git_blob": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{40}$"
+          },
+          "mode": {
+            "enum": ["100644", "100755", "120000"]
+          },
+          "bytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      }
+    }
+  }
+}

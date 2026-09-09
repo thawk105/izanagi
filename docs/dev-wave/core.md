@@ -21,7 +21,7 @@ review 子を省ける。実装面があれば段 5 の Codex 実装子と fix �
 `DW-O01/O08/O17/O20`より優先。
 - `--lane`はconsult、`--reasoning`はplan/consultで必須。他段指定/必須段無指定はrc=2。
 - 待ち手はpid file実在後に張る。先行は子の生存中も即戻る。
-- 隔離worktreeのdetachはrunner/launcherの`.sh`へ外出し。定型はguard拒否。
+- 隔離worktreeのdetachは`.sh`2枚(launcher/detach)へ。直に叩くとguard拒否。
 - 複数起点は全隣接区間の異なる正値で判別。
 - 変異harnessはbaseline緑必須。既存赤は根拠を台帳へ書き`--deselect`。
 - 全新規worktreeを`python3 tools/dev_wave_submodule_init.py --worktree <ABSOLUTE>`で再帰初期化する。

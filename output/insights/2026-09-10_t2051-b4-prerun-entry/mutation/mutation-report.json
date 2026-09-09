@@ -1,0 +1,459 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2051-b4-prerun-entry/output/pegasus-dispatch/d0aae457a4a6fb9675c9cc8bcff35a27/izdw-d0aae457a4.o988757",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2051-b4-prerun-entry/output/pegasus-dispatch/d0aae457a4a6fb9675c9cc8bcff35a27/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n..........................                                               [100%]\n26 passed in 5.77s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "84a28e821c2c53960a30aae3e1ead3e4fa743401445a4ae16fd3d5d4c19dca83"
+    },
+    "artifact_error": null,
+    "collection_sha256": "09126ec80820e93b7e41a82d24732ec5cbbdf56aacdde2a4859018d84b4a4906",
+    "duration_s": 47.587,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "6a6da5a87c4d6c35ea39cdec68e20406a7e9cd7db701aeae38025edd11d95d5f",
+    "repo_head": "67e835a0341bb3a2aaf3c58ca92aff1c973c529c",
+    "runner_sha256": "91feced44b2586ef39b1efbf3c7bc9bb8002f1be7b7851c260f55d76b2abdaec",
+    "spec_sha256": "bc72b80bad96c34e2b1262d7e4e5aabfbf412a0405013a17245b85667de3fb77",
+    "status": "PASSED",
+    "test_output_sha256": "84a28e821c2c53960a30aae3e1ead3e4fa743401445a4ae16fd3d5d4c19dca83",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "c2d0ceae26be520999ff7091d06ae62dd74aa58c711e801d17876f12cc415e44"
+  },
+  "date": "2026-09-09T15:45:34.940106+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2051-b4-prerun-entry/output/pegasus-dispatch/1a434a12562116811b49ab8eed27157b/izdw-1a434a1256.o988763",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2051-b4-prerun-entry/output/pegasus-dispatch/1a434a12562116811b49ab8eed27157b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n......................FFF.                                               [100%]\n=================================== FAILURES ===================================\n_______ test_registry_attempt_outside_analysis_manifest_rejects[trigger] _______\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\ndriver_kind = 'trigger'\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_registry_attempt_outside_0')\n\n    @pytest.mark.parametrize(\"driver_kind\", tuple(_DRIVERS))\n    def test_registry_attempt_outside_analysis_manifest_rejects(\n        driver_kind: str,\n        tmp_path: Path,\n    ) -> None:\n        _module, loader = _DRIVERS[driver_kind]\n        document = proposal_document(driver_kind)\n        binding = issue_proposal_binding_fixture(\n            tmp_path / \"fixture\",\n            driver_kind=driver_kind,\n            document=document,\n            attempt_count=202,\n            bound_attempt_index=201,\n        )\n        publication = binding.publication\n        registry_only = publication.registry.scheduled_attempts[201]\n        assert len(publication.registry.scheduled_attempts) == 202\n        assert registry_only.attempt_id == binding.attempt_id\n        assert registry_only.driver == driver_kind\n        assert registry_only.initial_proposal_sha256 == (\n            L.canonical_b4_proposal_sha256(document)\n        )\n        assert registry_only.attempt_id not in {\n            row.attempt_id for row in publication.manifest.rows\n        }\n        proposal_path = tmp_path / \"proposal.json\"\n        _write_document(proposal_path, document)\n    \n>       with pytest.raises(L.B4ProtocolError, match=\"analysis manifest.*membership\"):\nE       Failed: DID NOT RAISE B4ProtocolError\n\norchestrator/tests/test_p3_b4_proposal_binding.py:121: Failed\n________ test_registry_attempt_outside_analysis_manifest_rejects[base] _________\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\ndriver_kind = 'base'\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_registry_attempt_outside_0')\n\n    @pytest.mark.parametrize(\"driver_kind\", tuple(_DRIVERS))\n    def test_registry_attempt_outside_analysis_manifest_rejects(\n        driver_kind: str,\n        tmp_path: Path,\n    ) -> None:\n        _module, loader = _DRIVERS[driver_kind]\n        document = proposal_document(driver_kind)\n        binding = issue_proposal_binding_fixture(\n            tmp_path / \"fixture\",\n            driver_kind=driver_kind,\n            document=document,\n            attempt_count=202,\n            bound_attempt_index=201,\n        )\n        publication = binding.publication\n        registry_only = publication.registry.scheduled_attempts[201]\n        assert len(publication.registry.scheduled_attempts) == 202\n        assert registry_only.attempt_id == binding.attempt_id\n        assert registry_only.driver == driver_kind\n        assert registry_only.initial_proposal_sha256 == (\n            L.canonical_b4_proposal_sha256(document)\n        )\n        assert registry_only.attempt_id not in {\n            row.attempt_id for row in publication.manifest.rows\n        }\n        proposal_path = tmp_path / \"proposal.json\"\n        _write_document(proposal_path, document)\n    \n>       with pytest.raises(L.B4ProtocolError, match=\"analysis manifest.*membership\"):\nE       Failed: DID NOT RAISE B4ProtocolError\n\norchestrator/tests/test_p3_b4_proposal_binding.py:121: Failed\n________ test_registry_attempt_outside_analysis_manifest_rejects[sort] _________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\ndriver_kind = 'sort'\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_registry_attempt_outside_0')\n\n    @pytest.mark.parametrize(\"driver_kind\", tuple(_DRIVERS))\n    def test_registry_attempt_outside_analysis_manifest_rejects(\n        driver_kind: str,\n        tmp_path: Path,\n    ) -> None:\n        _module, loader = _DRIVERS[driver_kind]\n        document = proposal_document(driver_kind)\n        binding = issue_proposal_binding_fixture(\n            tmp_path / \"fixture\",\n            driver_kind=driver_kind,\n            document=document,\n            attempt_count=202,\n            bound_attempt_index=201,\n        )\n        publication = binding.publication\n        registry_only = publication.registry.scheduled_attempts[201]\n        assert len(publication.registry.scheduled_attempts) == 202\n        assert registry_only.attempt_id == binding.attempt_id\n        assert registry_only.driver == driver_kind\n        assert registry_only.initial_proposal_sha256 == (\n            L.canonical_b4_proposal_sha256(document)\n        )\n        assert registry_only.attempt_id not in {\n            row.attempt_id for row in publication.manifest.rows\n        }\n        proposal_path = tmp_path / \"proposal.json\"\n        _write_document(proposal_path, document)\n    \n>       with pytest.raises(L.B4ProtocolError, match=\"analysis manifest.*membership\"):\nE       Failed: DID NOT RAISE B4ProtocolError\n\norchestrator/tests/test_p3_b4_proposal_binding.py:121: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[trigger]\nFAILED orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[base]\nFAILED orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[sort]\n3 failed, 23 passed in 5.79s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[trigger]\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=1521 retained_bytes=1521 omitted_bytes=0 rendered_excerpt_bytes=1596 sha256=d07d6de5e0486b9f813b38fac4a4c792041f1d78d4a66e6761014983f76e7745\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw6] linux -- Python 3.10.12 /bin/python3.10\n> \n> driver_kind = 'trigger'\n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_registry_attempt_outside_0')\n> \n>     @pytest.mark.parametrize(\"driver_kind\", tuple(_DRIVERS))\n>     def test_registry_attempt_outside_analysis_manifest_rejects(\n>         driver_kind: str,\n>         tmp_path: Path,\n>     ) -> None:\n>         _module, loader = _DRIVERS[driver_kind]\n>         document = proposal_document(driver_kind)\n>         binding = issue_proposal_binding_fixture(\n>             tmp_path / \"fixture\",\n>             driver_kind=driver_kind,\n>             document=document,\n>             attempt_count=202,\n>             bound_attempt_index=201,\n>         )\n>         publication = binding.publication\n>         registry_only = publication.registry.scheduled_attempts[201]\n>         assert len(publication.registry.scheduled_attempts) == 202\n>         assert registry_only.attempt_id == binding.attempt_id\n>         assert registry_only.driver == driver_kind\n>         assert registry_only.initial_proposal_sha256 == (\n>             L.canonical_b4_proposal_sha256(document)\n>         )\n>         assert registry_only.attempt_id not in {\n>             row.attempt_id for row in publication.manifest.rows\n>         }\n>         proposal_path = tmp_path / \"proposal.json\"\n>         _write_document(proposal_path, document)\n>     \n> >       with pytest.raises(L.B4ProtocolError, match=\"analysis manifest.*membership\"):\n> E       Failed: DID NOT RAISE B4ProtocolError\n> \n> orchestrator/tests/test_p3_b4_proposal_binding.py:121: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[base]\" nodeid_bytes=112 nodeid_omitted_bytes=0 source_bytes=1518 retained_bytes=1518 omitted_bytes=0 rendered_excerpt_bytes=1593 sha256=b7d1e6a69b42156b2c03c79fcf32f45706b8ed5209208f5ed69cf80b112b6962\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n> driver_kind = 'base'\n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_registry_attempt_outside_0')\n> \n>     @pytest.mark.parametrize(\"driver_kind\", tuple(_DRIVERS))\n>     def test_registry_attempt_outside_analysis_manifest_rejects(\n>         driver_kind: str,\n>         tmp_path: Path,\n>     ) -> None:\n>         _module, loader = _DRIVERS[driver_kind]\n>         document = proposal_document(driver_kind)\n>         binding = issue_proposal_binding_fixture(\n>             tmp_path / \"fixture\",\n>             driver_kind=driver_kind,\n>             document=document,\n>             attempt_count=202,\n>             bound_attempt_index=201,\n>         )\n>         publication = binding.publication\n>         registry_only = publication.registry.scheduled_attempts[201]\n>         assert len(publication.registry.scheduled_attempts) == 202\n>         assert registry_only.attempt_id == binding.attempt_id\n>         assert registry_only.driver == driver_kind\n>         assert registry_only.initial_proposal_sha256 == (\n>             L.canonical_b4_proposal_sha256(document)\n>         )\n>         assert registry_only.attempt_id not in {\n>             row.attempt_id for row in publication.manifest.rows\n>         }\n>         proposal_path = tmp_path / \"proposal.json\"\n>         _write_document(proposal_path, document)\n>     \n> >       with pytest.raises(L.B4ProtocolError, match=\"analysis manifest.*membership\"):\n> E       Failed: DID NOT RAISE B4ProtocolError\n> \n> orchestrator/tests/test_p3_b4_proposal_binding.py:121: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[sort]\" nodeid_bytes=112 nodeid_omitted_bytes=0 source_bytes=1518 retained_bytes=1518 omitted_bytes=0 rendered_excerpt_bytes=1593 sha256=c6f74001fa38b8af2918c16f98694c04262ce5fad3e34e66242e558b9dd8dc8a\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n> driver_kind = 'sort'\n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_registry_attempt_outside_0')\n> \n>     @pytest.mark.parametrize(\"driver_kind\", tuple(_DRIVERS))\n>     def test_registry_attempt_outside_analysis_manifest_rejects(\n>         driver_kind: str,\n>         tmp_path: Path,\n>     ) -> None:\n>         _module, loader = _DRIVERS[driver_kind]\n>         document = proposal_document(driver_kind)\n>         binding = issue_proposal_binding_fixture(\n>             tmp_path / \"fixture\",\n>             driver_kind=driver_kind,\n>             document=document,\n>             attempt_count=202,\n>             bound_attempt_index=201,\n>         )\n>         publication = binding.publication\n>         registry_only = publication.registry.scheduled_attempts[201]\n>         assert len(publication.registry.scheduled_attempts) == 202\n>         assert registry_only.attempt_id == binding.attempt_id\n>         assert registry_only.driver == driver_kind\n>         assert registry_only.initial_proposal_sha256 == (\n>             L.canonical_b4_proposal_sha256(document)\n>         )\n>         assert registry_only.attempt_id not in {\n>             row.attempt_id for row in publication.manifest.rows\n>         }\n>         proposal_path = tmp_path / \"proposal.json\"\n>         _write_document(proposal_path, document)\n>     \n> >       with pytest.raises(L.B4ProtocolError, match=\"analysis manifest.*membership\"):\n> E       Failed: DID NOT RAISE B4ProtocolError\n> \n> orchestrator/tests/test_p3_b4_proposal_binding.py:121: Failed\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=4557 retained_bytes=4557 omitted_bytes=0 budget_bytes=49152 rendered_bytes=6431 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "8c8f588cca2be3d0d4074b088f9cd33b837f824c696d94079a0a6e064aa5eed9"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "09126ec80820e93b7e41a82d24732ec5cbbdf56aacdde2a4859018d84b4a4906",
+      "duration_s": 26.996,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[base]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[sort]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[trigger]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[trigger]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[base]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[sort]"
+      ],
+      "hang_risk": false,
+      "id": "m1-membership-requirement-removed",
+      "injection_diff_sha256": "8e7f5fbd443e5c6f6e92a062606cf73b9fe3f55ab21b38834a97c20fa05231e2",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "fccc1bc1d94f7fd8ea5d2ecf3f920a3c79fd5ac39ec4af0f582a3caaa8cac2b8",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "new": "",
+          "old": "    manifest_matches = tuple(\n        row for row in publication.manifest.rows\n        if row.attempt_id == attempt_id\n    )\n    if len(manifest_matches) != 1:\n        raise B4ProtocolError(\n            \"B-4 attempt id must match exactly one analysis manifest row \"\n            \"for membership\"\n        )\n"
+        }
+      ],
+      "repo_head": "67e835a0341bb3a2aaf3c58ca92aff1c973c529c",
+      "runner_sha256": "91feced44b2586ef39b1efbf3c7bc9bb8002f1be7b7851c260f55d76b2abdaec",
+      "spec_sha256": "bc72b80bad96c34e2b1262d7e4e5aabfbf412a0405013a17245b85667de3fb77",
+      "status": "KILLED",
+      "test_output_sha256": "8c8f588cca2be3d0d4074b088f9cd33b837f824c696d94079a0a6e064aa5eed9",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c2d0ceae26be520999ff7091d06ae62dd74aa58c711e801d17876f12cc415e44"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2051-b4-prerun-entry/output/pegasus-dispatch/bbdd73cd129631bb40fc3358f1d3f870/izdw-bbdd73cd12.o988765",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2051-b4-prerun-entry/output/pegasus-dispatch/bbdd73cd129631bb40fc3358f1d3f870/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n......................FFF.                                               [100%]\n=================================== FAILURES ===================================\n________ test_registry_attempt_outside_analysis_manifest_rejects[sort] _________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\ndriver_kind = 'sort'\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_registry_attempt_outside_0')\n\n    @pytest.mark.parametrize(\"driver_kind\", tuple(_DRIVERS))\n    def test_registry_attempt_outside_analysis_manifest_rejects(\n        driver_kind: str,\n        tmp_path: Path,\n    ) -> None:\n        _module, loader = _DRIVERS[driver_kind]\n        document = proposal_document(driver_kind)\n        binding = issue_proposal_binding_fixture(\n            tmp_path / \"fixture\",\n            driver_kind=driver_kind,\n            document=document,\n            attempt_count=202,\n            bound_attempt_index=201,\n        )\n        publication = binding.publication\n        registry_only = publication.registry.scheduled_attempts[201]\n        assert len(publication.registry.scheduled_attempts) == 202\n        assert registry_only.attempt_id == binding.attempt_id\n        assert registry_only.driver == driver_kind\n        assert registry_only.initial_proposal_sha256 == (\n            L.canonical_b4_proposal_sha256(document)\n        )\n        assert registry_only.attempt_id not in {\n            row.attempt_id for row in publication.manifest.rows\n        }\n        proposal_path = tmp_path / \"proposal.json\"\n        _write_document(proposal_path, document)\n    \n>       with pytest.raises(L.B4ProtocolError, match=\"analysis manifest.*membership\"):\nE       Failed: DID NOT RAISE B4ProtocolError\n\norchestrator/tests/test_p3_b4_proposal_binding.py:121: Failed\n________ test_registry_attempt_outside_analysis_manifest_rejects[base] _________\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\ndriver_kind = 'base'\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_registry_attempt_outside_0')\n\n    @pytest.mark.parametrize(\"driver_kind\", tuple(_DRIVERS))\n    def test_registry_attempt_outside_analysis_manifest_rejects(\n        driver_kind: str,\n        tmp_path: Path,\n    ) -> None:\n        _module, loader = _DRIVERS[driver_kind]\n        document = proposal_document(driver_kind)\n        binding = issue_proposal_binding_fixture(\n            tmp_path / \"fixture\",\n            driver_kind=driver_kind,\n            document=document,\n            attempt_count=202,\n            bound_attempt_index=201,\n        )\n        publication = binding.publication\n        registry_only = publication.registry.scheduled_attempts[201]\n        assert len(publication.registry.scheduled_attempts) == 202\n        assert registry_only.attempt_id == binding.attempt_id\n        assert registry_only.driver == driver_kind\n        assert registry_only.initial_proposal_sha256 == (\n            L.canonical_b4_proposal_sha256(document)\n        )\n        assert registry_only.attempt_id not in {\n            row.attempt_id for row in publication.manifest.rows\n        }\n        proposal_path = tmp_path / \"proposal.json\"\n        _write_document(proposal_path, document)\n    \n>       with pytest.raises(L.B4ProtocolError, match=\"analysis manifest.*membership\"):\nE       Failed: DID NOT RAISE B4ProtocolError\n\norchestrator/tests/test_p3_b4_proposal_binding.py:121: Failed\n_______ test_registry_attempt_outside_analysis_manifest_rejects[trigger] _______\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\ndriver_kind = 'trigger'\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_registry_attempt_outside_0')\n\n    @pytest.mark.parametrize(\"driver_kind\", tuple(_DRIVERS))\n    def test_registry_attempt_outside_analysis_manifest_rejects(\n        driver_kind: str,\n        tmp_path: Path,\n    ) -> None:\n        _module, loader = _DRIVERS[driver_kind]\n        document = proposal_document(driver_kind)\n        binding = issue_proposal_binding_fixture(\n            tmp_path / \"fixture\",\n            driver_kind=driver_kind,\n            document=document,\n            attempt_count=202,\n            bound_attempt_index=201,\n        )\n        publication = binding.publication\n        registry_only = publication.registry.scheduled_attempts[201]\n        assert len(publication.registry.scheduled_attempts) == 202\n        assert registry_only.attempt_id == binding.attempt_id\n        assert registry_only.driver == driver_kind\n        assert registry_only.initial_proposal_sha256 == (\n            L.canonical_b4_proposal_sha256(document)\n        )\n        assert registry_only.attempt_id not in {\n            row.attempt_id for row in publication.manifest.rows\n        }\n        proposal_path = tmp_path / \"proposal.json\"\n        _write_document(proposal_path, document)\n    \n>       with pytest.raises(L.B4ProtocolError, match=\"analysis manifest.*membership\"):\nE       Failed: DID NOT RAISE B4ProtocolError\n\norchestrator/tests/test_p3_b4_proposal_binding.py:121: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[sort]\nFAILED orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[base]\nFAILED orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[trigger]\n3 failed, 23 passed in 5.77s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[trigger]\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=1521 retained_bytes=1521 omitted_bytes=0 rendered_excerpt_bytes=1596 sha256=d07d6de5e0486b9f813b38fac4a4c792041f1d78d4a66e6761014983f76e7745\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw6] linux -- Python 3.10.12 /bin/python3.10\n> \n> driver_kind = 'trigger'\n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_registry_attempt_outside_0')\n> \n>     @pytest.mark.parametrize(\"driver_kind\", tuple(_DRIVERS))\n>     def test_registry_attempt_outside_analysis_manifest_rejects(\n>         driver_kind: str,\n>         tmp_path: Path,\n>     ) -> None:\n>         _module, loader = _DRIVERS[driver_kind]\n>         document = proposal_document(driver_kind)\n>         binding = issue_proposal_binding_fixture(\n>             tmp_path / \"fixture\",\n>             driver_kind=driver_kind,\n>             document=document,\n>             attempt_count=202,\n>             bound_attempt_index=201,\n>         )\n>         publication = binding.publication\n>         registry_only = publication.registry.scheduled_attempts[201]\n>         assert len(publication.registry.scheduled_attempts) == 202\n>         assert registry_only.attempt_id == binding.attempt_id\n>         assert registry_only.driver == driver_kind\n>         assert registry_only.initial_proposal_sha256 == (\n>             L.canonical_b4_proposal_sha256(document)\n>         )\n>         assert registry_only.attempt_id not in {\n>             row.attempt_id for row in publication.manifest.rows\n>         }\n>         proposal_path = tmp_path / \"proposal.json\"\n>         _write_document(proposal_path, document)\n>     \n> >       with pytest.raises(L.B4ProtocolError, match=\"analysis manifest.*membership\"):\n> E       Failed: DID NOT RAISE B4ProtocolError\n> \n> orchestrator/tests/test_p3_b4_proposal_binding.py:121: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[base]\" nodeid_bytes=112 nodeid_omitted_bytes=0 source_bytes=1518 retained_bytes=1518 omitted_bytes=0 rendered_excerpt_bytes=1593 sha256=b7d1e6a69b42156b2c03c79fcf32f45706b8ed5209208f5ed69cf80b112b6962\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n> driver_kind = 'base'\n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_registry_attempt_outside_0')\n> \n>     @pytest.mark.parametrize(\"driver_kind\", tuple(_DRIVERS))\n>     def test_registry_attempt_outside_analysis_manifest_rejects(\n>         driver_kind: str,\n>         tmp_path: Path,\n>     ) -> None:\n>         _module, loader = _DRIVERS[driver_kind]\n>         document = proposal_document(driver_kind)\n>         binding = issue_proposal_binding_fixture(\n>             tmp_path / \"fixture\",\n>             driver_kind=driver_kind,\n>             document=document,\n>             attempt_count=202,\n>             bound_attempt_index=201,\n>         )\n>         publication = binding.publication\n>         registry_only = publication.registry.scheduled_attempts[201]\n>         assert len(publication.registry.scheduled_attempts) == 202\n>         assert registry_only.attempt_id == binding.attempt_id\n>         assert registry_only.driver == driver_kind\n>         assert registry_only.initial_proposal_sha256 == (\n>             L.canonical_b4_proposal_sha256(document)\n>         )\n>         assert registry_only.attempt_id not in {\n>             row.attempt_id for row in publication.manifest.rows\n>         }\n>         proposal_path = tmp_path / \"proposal.json\"\n>         _write_document(proposal_path, document)\n>     \n> >       with pytest.raises(L.B4ProtocolError, match=\"analysis manifest.*membership\"):\n> E       Failed: DID NOT RAISE B4ProtocolError\n> \n> orchestrator/tests/test_p3_b4_proposal_binding.py:121: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[sort]\" nodeid_bytes=112 nodeid_omitted_bytes=0 source_bytes=1518 retained_bytes=1518 omitted_bytes=0 rendered_excerpt_bytes=1593 sha256=c6f74001fa38b8af2918c16f98694c04262ce5fad3e34e66242e558b9dd8dc8a\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n> driver_kind = 'sort'\n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_registry_attempt_outside_0')\n> \n>     @pytest.mark.parametrize(\"driver_kind\", tuple(_DRIVERS))\n>     def test_registry_attempt_outside_analysis_manifest_rejects(\n>         driver_kind: str,\n>         tmp_path: Path,\n>     ) -> None:\n>         _module, loader = _DRIVERS[driver_kind]\n>         document = proposal_document(driver_kind)\n>         binding = issue_proposal_binding_fixture(\n>             tmp_path / \"fixture\",\n>             driver_kind=driver_kind,\n>             document=document,\n>             attempt_count=202,\n>             bound_attempt_index=201,\n>         )\n>         publication = binding.publication\n>         registry_only = publication.registry.scheduled_attempts[201]\n>         assert len(publication.registry.scheduled_attempts) == 202\n>         assert registry_only.attempt_id == binding.attempt_id\n>         assert registry_only.driver == driver_kind\n>         assert registry_only.initial_proposal_sha256 == (\n>             L.canonical_b4_proposal_sha256(document)\n>         )\n>         assert registry_only.attempt_id not in {\n>             row.attempt_id for row in publication.manifest.rows\n>         }\n>         proposal_path = tmp_path / \"proposal.json\"\n>         _write_document(proposal_path, document)\n>     \n> >       with pytest.raises(L.B4ProtocolError, match=\"analysis manifest.*membership\"):\n> E       Failed: DID NOT RAISE B4ProtocolError\n> \n> orchestrator/tests/test_p3_b4_proposal_binding.py:121: Failed\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=4557 retained_bytes=4557 omitted_bytes=0 budget_bytes=49152 rendered_bytes=6431 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "5af33d50df6388320d4ab720626e74a3e4849f60d988a271432699adee111168"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "09126ec80820e93b7e41a82d24732ec5cbbdf56aacdde2a4859018d84b4a4906",
+      "duration_s": 26.95,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[base]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[sort]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[trigger]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[sort]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[base]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[trigger]"
+      ],
+      "hang_risk": false,
+      "id": "m2-membership-scanned-over-registry-vacuous",
+      "injection_diff_sha256": "32459c2a586d0555dcd144333b974df675b2a49d3142bcdc7e722fa139fb3898",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "dad7dc8db8585f71905649e92da10b3905a295920eb78038f24ab519d53b9610",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "new": "        row for row in publication.registry.scheduled_attempts\n",
+          "old": "        row for row in publication.manifest.rows\n"
+        }
+      ],
+      "repo_head": "67e835a0341bb3a2aaf3c58ca92aff1c973c529c",
+      "runner_sha256": "91feced44b2586ef39b1efbf3c7bc9bb8002f1be7b7851c260f55d76b2abdaec",
+      "spec_sha256": "bc72b80bad96c34e2b1262d7e4e5aabfbf412a0405013a17245b85667de3fb77",
+      "status": "KILLED",
+      "test_output_sha256": "5af33d50df6388320d4ab720626e74a3e4849f60d988a271432699adee111168",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c2d0ceae26be520999ff7091d06ae62dd74aa58c711e801d17876f12cc415e44"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2051-b4-prerun-entry/output/pegasus-dispatch/a194d2dbc9b00f7ea61d565b323d7e4c/izdw-a194d2dbc9.o988766",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2051-b4-prerun-entry/output/pegasus-dispatch/a194d2dbc9b00f7ea61d565b323d7e4c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n......................FFF.                                               [100%]\n=================================== FAILURES ===================================\n________ test_registry_attempt_outside_analysis_manifest_rejects[base] _________\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\ndriver_kind = 'base'\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_registry_attempt_outside_0')\n\n    @pytest.mark.parametrize(\"driver_kind\", tuple(_DRIVERS))\n    def test_registry_attempt_outside_analysis_manifest_rejects(\n        driver_kind: str,\n        tmp_path: Path,\n    ) -> None:\n        _module, loader = _DRIVERS[driver_kind]\n        document = proposal_document(driver_kind)\n        binding = issue_proposal_binding_fixture(\n            tmp_path / \"fixture\",\n            driver_kind=driver_kind,\n            document=document,\n            attempt_count=202,\n            bound_attempt_index=201,\n        )\n        publication = binding.publication\n        registry_only = publication.registry.scheduled_attempts[201]\n        assert len(publication.registry.scheduled_attempts) == 202\n        assert registry_only.attempt_id == binding.attempt_id\n        assert registry_only.driver == driver_kind\n        assert registry_only.initial_proposal_sha256 == (\n            L.canonical_b4_proposal_sha256(document)\n        )\n        assert registry_only.attempt_id not in {\n            row.attempt_id for row in publication.manifest.rows\n        }\n        proposal_path = tmp_path / \"proposal.json\"\n        _write_document(proposal_path, document)\n    \n>       with pytest.raises(L.B4ProtocolError, match=\"analysis manifest.*membership\"):\nE       Failed: DID NOT RAISE B4ProtocolError\n\norchestrator/tests/test_p3_b4_proposal_binding.py:121: Failed\n________ test_registry_attempt_outside_analysis_manifest_rejects[sort] _________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\ndriver_kind = 'sort'\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_registry_attempt_outside_0')\n\n    @pytest.mark.parametrize(\"driver_kind\", tuple(_DRIVERS))\n    def test_registry_attempt_outside_analysis_manifest_rejects(\n        driver_kind: str,\n        tmp_path: Path,\n    ) -> None:\n        _module, loader = _DRIVERS[driver_kind]\n        document = proposal_document(driver_kind)\n        binding = issue_proposal_binding_fixture(\n            tmp_path / \"fixture\",\n            driver_kind=driver_kind,\n            document=document,\n            attempt_count=202,\n            bound_attempt_index=201,\n        )\n        publication = binding.publication\n        registry_only = publication.registry.scheduled_attempts[201]\n        assert len(publication.registry.scheduled_attempts) == 202\n        assert registry_only.attempt_id == binding.attempt_id\n        assert registry_only.driver == driver_kind\n        assert registry_only.initial_proposal_sha256 == (\n            L.canonical_b4_proposal_sha256(document)\n        )\n        assert registry_only.attempt_id not in {\n            row.attempt_id for row in publication.manifest.rows\n        }\n        proposal_path = tmp_path / \"proposal.json\"\n        _write_document(proposal_path, document)\n    \n>       with pytest.raises(L.B4ProtocolError, match=\"analysis manifest.*membership\"):\nE       Failed: DID NOT RAISE B4ProtocolError\n\norchestrator/tests/test_p3_b4_proposal_binding.py:121: Failed\n_______ test_registry_attempt_outside_analysis_manifest_rejects[trigger] _______\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\ndriver_kind = 'trigger'\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_registry_attempt_outside_0')\n\n    @pytest.mark.parametrize(\"driver_kind\", tuple(_DRIVERS))\n    def test_registry_attempt_outside_analysis_manifest_rejects(\n        driver_kind: str,\n        tmp_path: Path,\n    ) -> None:\n        _module, loader = _DRIVERS[driver_kind]\n        document = proposal_document(driver_kind)\n        binding = issue_proposal_binding_fixture(\n            tmp_path / \"fixture\",\n            driver_kind=driver_kind,\n            document=document,\n            attempt_count=202,\n            bound_attempt_index=201,\n        )\n        publication = binding.publication\n        registry_only = publication.registry.scheduled_attempts[201]\n        assert len(publication.registry.scheduled_attempts) == 202\n        assert registry_only.attempt_id == binding.attempt_id\n        assert registry_only.driver == driver_kind\n        assert registry_only.initial_proposal_sha256 == (\n            L.canonical_b4_proposal_sha256(document)\n        )\n        assert registry_only.attempt_id not in {\n            row.attempt_id for row in publication.manifest.rows\n        }\n        proposal_path = tmp_path / \"proposal.json\"\n        _write_document(proposal_path, document)\n    \n>       with pytest.raises(L.B4ProtocolError, match=\"analysis manifest.*membership\"):\nE       Failed: DID NOT RAISE B4ProtocolError\n\norchestrator/tests/test_p3_b4_proposal_binding.py:121: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[base]\nFAILED orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[sort]\nFAILED orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[trigger]\n3 failed, 23 passed in 5.81s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[trigger]\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=1521 retained_bytes=1521 omitted_bytes=0 rendered_excerpt_bytes=1596 sha256=d07d6de5e0486b9f813b38fac4a4c792041f1d78d4a66e6761014983f76e7745\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw6] linux -- Python 3.10.12 /bin/python3.10\n> \n> driver_kind = 'trigger'\n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_registry_attempt_outside_0')\n> \n>     @pytest.mark.parametrize(\"driver_kind\", tuple(_DRIVERS))\n>     def test_registry_attempt_outside_analysis_manifest_rejects(\n>         driver_kind: str,\n>         tmp_path: Path,\n>     ) -> None:\n>         _module, loader = _DRIVERS[driver_kind]\n>         document = proposal_document(driver_kind)\n>         binding = issue_proposal_binding_fixture(\n>             tmp_path / \"fixture\",\n>             driver_kind=driver_kind,\n>             document=document,\n>             attempt_count=202,\n>             bound_attempt_index=201,\n>         )\n>         publication = binding.publication\n>         registry_only = publication.registry.scheduled_attempts[201]\n>         assert len(publication.registry.scheduled_attempts) == 202\n>         assert registry_only.attempt_id == binding.attempt_id\n>         assert registry_only.driver == driver_kind\n>         assert registry_only.initial_proposal_sha256 == (\n>             L.canonical_b4_proposal_sha256(document)\n>         )\n>         assert registry_only.attempt_id not in {\n>             row.attempt_id for row in publication.manifest.rows\n>         }\n>         proposal_path = tmp_path / \"proposal.json\"\n>         _write_document(proposal_path, document)\n>     \n> >       with pytest.raises(L.B4ProtocolError, match=\"analysis manifest.*membership\"):\n> E       Failed: DID NOT RAISE B4ProtocolError\n> \n> orchestrator/tests/test_p3_b4_proposal_binding.py:121: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[base]\" nodeid_bytes=112 nodeid_omitted_bytes=0 source_bytes=1518 retained_bytes=1518 omitted_bytes=0 rendered_excerpt_bytes=1593 sha256=b7d1e6a69b42156b2c03c79fcf32f45706b8ed5209208f5ed69cf80b112b6962\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n> driver_kind = 'base'\n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_registry_attempt_outside_0')\n> \n>     @pytest.mark.parametrize(\"driver_kind\", tuple(_DRIVERS))\n>     def test_registry_attempt_outside_analysis_manifest_rejects(\n>         driver_kind: str,\n>         tmp_path: Path,\n>     ) -> None:\n>         _module, loader = _DRIVERS[driver_kind]\n>         document = proposal_document(driver_kind)\n>         binding = issue_proposal_binding_fixture(\n>             tmp_path / \"fixture\",\n>             driver_kind=driver_kind,\n>             document=document,\n>             attempt_count=202,\n>             bound_attempt_index=201,\n>         )\n>         publication = binding.publication\n>         registry_only = publication.registry.scheduled_attempts[201]\n>         assert len(publication.registry.scheduled_attempts) == 202\n>         assert registry_only.attempt_id == binding.attempt_id\n>         assert registry_only.driver == driver_kind\n>         assert registry_only.initial_proposal_sha256 == (\n>             L.canonical_b4_proposal_sha256(document)\n>         )\n>         assert registry_only.attempt_id not in {\n>             row.attempt_id for row in publication.manifest.rows\n>         }\n>         proposal_path = tmp_path / \"proposal.json\"\n>         _write_document(proposal_path, document)\n>     \n> >       with pytest.raises(L.B4ProtocolError, match=\"analysis manifest.*membership\"):\n> E       Failed: DID NOT RAISE B4ProtocolError\n> \n> orchestrator/tests/test_p3_b4_proposal_binding.py:121: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[sort]\" nodeid_bytes=112 nodeid_omitted_bytes=0 source_bytes=1518 retained_bytes=1518 omitted_bytes=0 rendered_excerpt_bytes=1593 sha256=c6f74001fa38b8af2918c16f98694c04262ce5fad3e34e66242e558b9dd8dc8a\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n> driver_kind = 'sort'\n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_registry_attempt_outside_0')\n> \n>     @pytest.mark.parametrize(\"driver_kind\", tuple(_DRIVERS))\n>     def test_registry_attempt_outside_analysis_manifest_rejects(\n>         driver_kind: str,\n>         tmp_path: Path,\n>     ) -> None:\n>         _module, loader = _DRIVERS[driver_kind]\n>         document = proposal_document(driver_kind)\n>         binding = issue_proposal_binding_fixture(\n>             tmp_path / \"fixture\",\n>             driver_kind=driver_kind,\n>             document=document,\n>             attempt_count=202,\n>             bound_attempt_index=201,\n>         )\n>         publication = binding.publication\n>         registry_only = publication.registry.scheduled_attempts[201]\n>         assert len(publication.registry.scheduled_attempts) == 202\n>         assert registry_only.attempt_id == binding.attempt_id\n>         assert registry_only.driver == driver_kind\n>         assert registry_only.initial_proposal_sha256 == (\n>             L.canonical_b4_proposal_sha256(document)\n>         )\n>         assert registry_only.attempt_id not in {\n>             row.attempt_id for row in publication.manifest.rows\n>         }\n>         proposal_path = tmp_path / \"proposal.json\"\n>         _write_document(proposal_path, document)\n>     \n> >       with pytest.raises(L.B4ProtocolError, match=\"analysis manifest.*membership\"):\n> E       Failed: DID NOT RAISE B4ProtocolError\n> \n> orchestrator/tests/test_p3_b4_proposal_binding.py:121: Failed\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=4557 retained_bytes=4557 omitted_bytes=0 budget_bytes=49152 rendered_bytes=6431 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "f92b1a38d21c8b4746ebecc7da8541ce1704bd7df6dcace3d67c61acede8b9ae"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "09126ec80820e93b7e41a82d24732ec5cbbdf56aacdde2a4859018d84b4a4906",
+      "duration_s": 26.942,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[base]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[sort]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[trigger]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[base]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[sort]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[trigger]"
+      ],
+      "hang_risk": false,
+      "id": "m3-membership-count-requirement-loosened",
+      "injection_diff_sha256": "e3970727a92c7bcc6a4b5d9939dd68005e4c420ddb651cef900dfbfea42f3f8a",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "ff109776dc5e5ddcbcc433dee54c51004a494455208a0712c3eeda2924800b1f",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "new": "    if len(manifest_matches) < 0:\n",
+          "old": "    if len(manifest_matches) != 1:\n"
+        }
+      ],
+      "repo_head": "67e835a0341bb3a2aaf3c58ca92aff1c973c529c",
+      "runner_sha256": "91feced44b2586ef39b1efbf3c7bc9bb8002f1be7b7851c260f55d76b2abdaec",
+      "spec_sha256": "bc72b80bad96c34e2b1262d7e4e5aabfbf412a0405013a17245b85667de3fb77",
+      "status": "KILLED",
+      "test_output_sha256": "f92b1a38d21c8b4746ebecc7da8541ce1704bd7df6dcace3d67c61acede8b9ae",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c2d0ceae26be520999ff7091d06ae62dd74aa58c711e801d17876f12cc415e44"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2051-b4-prerun-entry/output/pegasus-dispatch/23e6e88b7ecf98aaef99de0c8081ff05/izdw-23e6e88b7e.o988769",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2051-b4-prerun-entry/output/pegasus-dispatch/23e6e88b7ecf98aaef99de0c8081ff05/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........F.................                                               [100%]\n=================================== FAILURES ===================================\n_______________ test_non_guarantees_are_the_verbatim_ruling_set ________________\n[gw25] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_non_guarantees_are_the_verbatim_ruling_set() -> None:\n>       assert L.B4_PROPOSAL_BINDING_NON_GUARANTEES == (\n            \"continuation の提案は内容束縛されない (裁定パッケージ 1)。\",\n            \"どの publication が権威かは強制されない (裁定パッケージ 2)。\",\n            \"bootstrap 束縛は読み込んだ publication の manifest 外 attempt を拒否するが、\"\n            \"その manifest の権威性は保証しない (D1880)。\",\n            \"束縛の成功は耐久証拠に残らない (S12)。\",\n            \"束縛されるのは実行される提案 (parse 結果の canonical 形) であって file の raw bytes ではない。\",\n            \"照合の前に単独性検査 (`pgrep`)、Git pin 検査、launcher sidecar と campaign directory 作成が起きる。\",\n            \"`1` と `1.0` は別の提案として扱う。実行 genome が同じでも hash は異なる。\",\n        )\nE       AssertionError: assert ('continuatio...作成が起きる。', ...) == ('continuatio...作成が起きる。', ...)\nE         \nE         At index 2 diff: 'manifest membership は検査しない (裁定パッケージ 3)。' != 'bootstrap 束縛は読み込んだ publication の manifest 外 attempt を拒否するが、その manifest の権威性は保証しない (D1880)。'\nE         Use -v to get more diff\n\norchestrator/tests/test_p3_b4_proposal_binding.py:557: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_proposal_binding.py::test_non_guarantees_are_the_verbatim_ruling_set\n1 failed, 25 passed in 6.03s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_proposal_binding.py::test_non_guarantees_are_the_verbatim_ruling_set\" nodeid_bytes=98 nodeid_omitted_bytes=0 source_bytes=1504 retained_bytes=1504 omitted_bytes=0 rendered_excerpt_bytes=2200 sha256=d3498f40143d2d397ab0fdac1e251986b84cf8030a58ed968d1046fdd113f8fc\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw25] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_non_guarantees_are_the_verbatim_ruling_set() -> None:\n> >       assert L.B4_PROPOSAL_BINDING_NON_GUARANTEES == (\n>             \"continuation \\u306e\\u63d0\\u6848\\u306f\\u5185\\u5bb9\\u675f\\u7e1b\\u3055\\u308c\\u306a\\u3044 (\\u88c1\\u5b9a\\u30d1\\u30c3\\u30b1\\u30fc\\u30b8 1)\\u3002\",\n>             \"\\u3069\\u306e publication \\u304c\\u6a29\\u5a01\\u304b\\u306f\\u5f37\\u5236\\u3055\\u308c\\u306a\\u3044 (\\u88c1\\u5b9a\\u30d1\\u30c3\\u30b1\\u30fc\\u30b8 2)\\u3002\",\n>             \"bootstrap \\u675f\\u7e1b\\u306f\\u8aad\\u307f\\u8fbc\\u3093\\u3060 publication \\u306e manifest \\u5916 attempt \\u3092\\u62d2\\u5426\\u3059\\u308b\\u304c\\u3001\"\n>             \"\\u305d\\u306e manifest \\u306e\\u6a29\\u5a01\\u6027\\u306f\\u4fdd\\u8a3c\\u3057\\u306a\\u3044 (D1880)\\u3002\",\n>             \"\\u675f\\u7e1b\\u306e\\u6210\\u529f\\u306f\\u8010\\u4e45\\u8a3c\\u62e0\\u306b\\u6b8b\\u3089\\u306a\\u3044 (S12)\\u3002\",\n>             \"\\u675f\\u7e1b\\u3055\\u308c\\u308b\\u306e\\u306f\\u5b9f\\u884c\\u3055\\u308c\\u308b\\u63d0\\u6848 (parse \\u7d50\\u679c\\u306e canonical \\u5f62) \\u3067\\u3042\\u3063\\u3066 file \\u306e raw bytes \\u3067\\u306f\\u306a\\u3044\\u3002\",\n>             \"\\u7167\\u5408\\u306e\\u524d\\u306b\\u5358\\u72ec\\u6027\\u691c\\u67fb (`pgrep`)\\u3001Git pin \\u691c\\u67fb\\u3001launcher sidecar \\u3068 campaign directory \\u4f5c\\u6210\\u304c\\u8d77\\u304d\\u308b\\u3002\",\n>             \"`1` \\u3068 `1.0` \\u306f\\u5225\\u306e\\u63d0\\u6848\\u3068\\u3057\\u3066\\u6271\\u3046\\u3002\\u5b9f\\u884c genome \\u304c\\u540c\\u3058\\u3067\\u3082 hash \\u306f\\u7570\\u306a\\u308b\\u3002\",\n>         )\n> E       AssertionError: assert ('continuatio...\\u4f5c\\u6210\\u304c\\u8d77\\u304d\\u308b\\u3002', ...) == ('continuatio...\\u4f5c\\u6210\\u304c\\u8d77\\u304d\\u308b\\u3002', ...)\n> E         \n> E         At index 2 diff: 'manifest membership \\u306f\\u691c\\u67fb\\u3057\\u306a\\u3044 (\\u88c1\\u5b9a\\u30d1\\u30c3\\u30b1\\u30fc\\u30b8 3)\\u3002' != 'bootstrap \\u675f\\u7e1b\\u306f\\u8aad\\u307f\\u8fbc\\u3093\\u3060 publication \\u306e manifest \\u5916 attempt \\u3092\\u62d2\\u5426\\u3059\\u308b\\u304c\\u3001\\u305d\\u306e manifest \\u306e\\u6a29\\u5a01\\u6027\\u306f\\u4fdd\\u8a3c\\u3057\\u306a\\u3044 (D1880)\\u3002'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_p3_b4_proposal_binding.py:557: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1504 retained_bytes=1504 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2925 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "4391e6587deafc0949eb0cb1a2f5ac43e11622fd53a37a975f89f62cfa06736e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "09126ec80820e93b7e41a82d24732ec5cbbdf56aacdde2a4859018d84b4a4906",
+      "duration_s": 27.152,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_non_guarantees_are_the_verbatim_ruling_set"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_non_guarantees_are_the_verbatim_ruling_set"
+      ],
+      "hang_risk": false,
+      "id": "m4-non-guarantee-reverted-to-stale-text",
+      "injection_diff_sha256": "f9f103fb49deac874fc9daa535c73e103edff1e241cb1834895f02b6c3e5ad94",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "4a3ad04e89646e92c37087a8ae26ad6cea0fdc0dd503efde18e736dea8c290a8",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "new": "    \"manifest membership は検査しない (裁定パッケージ 3)。\",\n",
+          "old": "    \"bootstrap 束縛は読み込んだ publication の manifest 外 attempt を拒否するが、\"\n    \"その manifest の権威性は保証しない (D1880)。\",\n"
+        }
+      ],
+      "repo_head": "67e835a0341bb3a2aaf3c58ca92aff1c973c529c",
+      "runner_sha256": "91feced44b2586ef39b1efbf3c7bc9bb8002f1be7b7851c260f55d76b2abdaec",
+      "spec_sha256": "bc72b80bad96c34e2b1262d7e4e5aabfbf412a0405013a17245b85667de3fb77",
+      "status": "KILLED",
+      "test_output_sha256": "4391e6587deafc0949eb0cb1a2f5ac43e11622fd53a37a975f89f62cfa06736e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c2d0ceae26be520999ff7091d06ae62dd74aa58c711e801d17876f12cc415e44"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2051-b4-prerun-entry/output/pegasus-dispatch/d1eecdd8bfb46bce10d2e864c5fed947/izdw-d1eecdd8bf.o988771",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2051-b4-prerun-entry/output/pegasus-dispatch/d1eecdd8bfb46bce10d2e864c5fed947/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..........................                                               [100%]\n26 passed in 6.03s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "e813d07a3afb69d52fc20d9f41a92d4a9e847a6a4b984ee8b8d6068b2b54def5"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "09126ec80820e93b7e41a82d24732ec5cbbdf56aacdde2a4859018d84b4a4906",
+      "duration_s": 27.006,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "m5-membership-checked-after-hash-equivalent",
+      "injection_diff_sha256": "8311a5c60cd43929dd847cbdd8801f7fa033700646ddb3725690ccd3dc8de915",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "41ae4f5c9942340574112cf57e2bbe236a89c45394608e1e1fee6e554310cd3f",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "new": "    expected = _require_b4_registry_attempt_hash(\n        publication.registry.scheduled_attempts,\n        attempt_id,\n        driver_kind=driver_kind,\n    )\n    manifest_matches = tuple(\n        row for row in publication.manifest.rows\n        if row.attempt_id == attempt_id\n    )\n    if len(manifest_matches) != 1:\n        raise B4ProtocolError(\n            \"B-4 attempt id must match exactly one analysis manifest row \"\n            \"for membership\"\n        )\n",
+          "old": "    manifest_matches = tuple(\n        row for row in publication.manifest.rows\n        if row.attempt_id == attempt_id\n    )\n    if len(manifest_matches) != 1:\n        raise B4ProtocolError(\n            \"B-4 attempt id must match exactly one analysis manifest row \"\n            \"for membership\"\n        )\n    expected = _require_b4_registry_attempt_hash(\n        publication.registry.scheduled_attempts,\n        attempt_id,\n        driver_kind=driver_kind,\n    )\n"
+        }
+      ],
+      "repo_head": "67e835a0341bb3a2aaf3c58ca92aff1c973c529c",
+      "runner_sha256": "91feced44b2586ef39b1efbf3c7bc9bb8002f1be7b7851c260f55d76b2abdaec",
+      "spec_sha256": "bc72b80bad96c34e2b1262d7e4e5aabfbf412a0405013a17245b85667de3fb77",
+      "status": "SURVIVED",
+      "test_output_sha256": "e813d07a3afb69d52fc20d9f41a92d4a9e847a6a4b984ee8b8d6068b2b54def5",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c2d0ceae26be520999ff7091d06ae62dd74aa58c711e801d17876f12cc415e44"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2051-b4-prerun-entry/output/pegasus-dispatch/48768ddafe44ffb01d7d315b0dc858c9/izdw-48768ddafe.o988738",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2051-b4-prerun-entry/output/pegasus-dispatch/48768ddafe44ffb01d7d315b0dc858c9/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_p3_b4_proposal_binding.py::test_canonical_identity_distinguishes_int_float_and_excludes_receipt\norchestrator/tests/test_p3_b4_proposal_binding.py::test_matching_bootstrap_accepts_reordered_spaced_unicode_spelling[base]\norchestrator/tests/test_p3_b4_proposal_binding.py::test_matching_bootstrap_accepts_reordered_spaced_unicode_spelling[sort]\norchestrator/tests/test_p3_b4_proposal_binding.py::test_matching_bootstrap_accepts_reordered_spaced_unicode_spelling[trigger]\norchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[base]\norchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[sort]\norchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[trigger]\norchestrator/tests/test_p3_b4_proposal_binding.py::test_same_publication_and_attempt_reject_schema_valid_proposal_mutation[base]\norchestrator/tests/test_p3_b4_proposal_binding.py::test_same_publication_and_attempt_reject_schema_valid_proposal_mutation[sort]\norchestrator/tests/test_p3_b4_proposal_binding.py::test_same_publication_and_attempt_reject_schema_valid_proposal_mutation[trigger]\norchestrator/tests/test_p3_b4_proposal_binding.py::test_receipt_and_closed_schema_gates_precede_registry_binding[base]\norchestrator/tests/test_p3_b4_proposal_binding.py::test_receipt_and_closed_schema_gates_precede_registry_binding[sort]\norchestrator/tests/test_p3_b4_proposal_binding.py::test_receipt_and_closed_schema_gates_precede_registry_binding[trigger]\norchestrator/tests/test_p3_b4_proposal_binding.py::test_bootstrap_binding_missing_halves_empty_values_and_load_failure_reject\norchestrator/tests/test_p3_b4_proposal_binding.py::test_unknown_duplicate_invalid_hash_and_driver_mismatch_reject\norchestrator/tests/test_p3_b4_proposal_binding.py::test_continuation_and_non_b4_reject_bootstrap_binding_arguments[base]\norchestrator/tests/test_p3_b4_proposal_binding.py::test_continuation_and_non_b4_reject_bootstrap_binding_arguments[sort]\norchestrator/tests/test_p3_b4_proposal_binding.py::test_continuation_and_non_b4_reject_bootstrap_binding_arguments[trigger]\norchestrator/tests/test_p3_b4_proposal_binding.py::test_mismatch_is_single_read_and_precedes_all_campaign_effects[base]\norchestrator/tests/test_p3_b4_proposal_binding.py::test_mismatch_is_single_read_and_precedes_all_campaign_effects[sort]\norchestrator/tests/test_p3_b4_proposal_binding.py::test_mismatch_is_single_read_and_precedes_all_campaign_effects[trigger]\norchestrator/tests/test_p3_b4_proposal_binding.py::test_driver_main_requires_binding_and_rejects_it_outside_bootstrap[base]\norchestrator/tests/test_p3_b4_proposal_binding.py::test_driver_main_requires_binding_and_rejects_it_outside_bootstrap[sort]\norchestrator/tests/test_p3_b4_proposal_binding.py::test_driver_main_requires_binding_and_rejects_it_outside_bootstrap[trigger]\norchestrator/tests/test_p3_b4_proposal_binding.py::test_launcher_cli_requires_bootstrap_binding_and_rejects_continuation_binding\norchestrator/tests/test_p3_b4_proposal_binding.py::test_non_guarantees_are_the_verbatim_ruling_set\n\n26 tests collected in 0.89s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "d4384df6b52c2291d08c9f3b9df32d5f74635e36e4cd425354873b7e93e79744"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_canonical_identity_distinguishes_int_float_and_excludes_receipt",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_matching_bootstrap_accepts_reordered_spaced_unicode_spelling[base]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_matching_bootstrap_accepts_reordered_spaced_unicode_spelling[sort]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_matching_bootstrap_accepts_reordered_spaced_unicode_spelling[trigger]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[base]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[sort]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[trigger]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_same_publication_and_attempt_reject_schema_valid_proposal_mutation[base]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_same_publication_and_attempt_reject_schema_valid_proposal_mutation[sort]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_same_publication_and_attempt_reject_schema_valid_proposal_mutation[trigger]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_receipt_and_closed_schema_gates_precede_registry_binding[base]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_receipt_and_closed_schema_gates_precede_registry_binding[sort]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_receipt_and_closed_schema_gates_precede_registry_binding[trigger]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_bootstrap_binding_missing_halves_empty_values_and_load_failure_reject",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_unknown_duplicate_invalid_hash_and_driver_mismatch_reject",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_continuation_and_non_b4_reject_bootstrap_binding_arguments[base]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_continuation_and_non_b4_reject_bootstrap_binding_arguments[sort]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_continuation_and_non_b4_reject_bootstrap_binding_arguments[trigger]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_mismatch_is_single_read_and_precedes_all_campaign_effects[base]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_mismatch_is_single_read_and_precedes_all_campaign_effects[sort]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_mismatch_is_single_read_and_precedes_all_campaign_effects[trigger]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_driver_main_requires_binding_and_rejects_it_outside_bootstrap[base]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_driver_main_requires_binding_and_rejects_it_outside_bootstrap[sort]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_driver_main_requires_binding_and_rejects_it_outside_bootstrap[trigger]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_launcher_cli_requires_bootstrap_binding_and_rejects_continuation_binding",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_non_guarantees_are_the_verbatim_ruling_set"
+      ],
+      "duration_s": 231.535,
+      "rc": 0,
+      "repo_head": "67e835a0341bb3a2aaf3c58ca92aff1c973c529c",
+      "runner_sha256": "91feced44b2586ef39b1efbf3c7bc9bb8002f1be7b7851c260f55d76b2abdaec",
+      "spec_sha256": "bc72b80bad96c34e2b1262d7e4e5aabfbf412a0405013a17245b85667de3fb77",
+      "status": "PASSED",
+      "tool_sha256": "c2d0ceae26be520999ff7091d06ae62dd74aa58c711e801d17876f12cc415e44"
+    },
+    "hang_timeout_seconds": 3000.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "m1-membership-requirement-removed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[base]",
+          "orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[sort]",
+          "orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[trigger]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "8e7f5fbd443e5c6f6e92a062606cf73b9fe3f55ab21b38834a97c20fa05231e2",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_s4_loop.py",
+            "new": "",
+            "old": "    manifest_matches = tuple(\n        row for row in publication.manifest.rows\n        if row.attempt_id == attempt_id\n    )\n    if len(manifest_matches) != 1:\n        raise B4ProtocolError(\n            \"B-4 attempt id must match exactly one analysis manifest row \"\n            \"for membership\"\n        )\n"
+          }
+        ]
+      },
+      "m2-membership-scanned-over-registry-vacuous": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[base]",
+          "orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[sort]",
+          "orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[trigger]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "32459c2a586d0555dcd144333b974df675b2a49d3142bcdc7e722fa139fb3898",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_s4_loop.py",
+            "new": "        row for row in publication.registry.scheduled_attempts\n",
+            "old": "        row for row in publication.manifest.rows\n"
+          }
+        ]
+      },
+      "m3-membership-count-requirement-loosened": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[base]",
+          "orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[sort]",
+          "orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[trigger]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "e3970727a92c7bcc6a4b5d9939dd68005e4c420ddb651cef900dfbfea42f3f8a",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_s4_loop.py",
+            "new": "    if len(manifest_matches) < 0:\n",
+            "old": "    if len(manifest_matches) != 1:\n"
+          }
+        ]
+      },
+      "m4-non-guarantee-reverted-to-stale-text": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_proposal_binding.py::test_non_guarantees_are_the_verbatim_ruling_set"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f9f103fb49deac874fc9daa535c73e103edff1e241cb1834895f02b6c3e5ad94",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_s4_loop.py",
+            "new": "    \"manifest membership は検査しない (裁定パッケージ 3)。\",\n",
+            "old": "    \"bootstrap 束縛は読み込んだ publication の manifest 外 attempt を拒否するが、\"\n    \"その manifest の権威性は保証しない (D1880)。\",\n"
+          }
+        ]
+      },
+      "m5-membership-checked-after-hash-equivalent": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "8311a5c60cd43929dd847cbdd8801f7fa033700646ddb3725690ccd3dc8de915",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_s4_loop.py",
+            "new": "    expected = _require_b4_registry_attempt_hash(\n        publication.registry.scheduled_attempts,\n        attempt_id,\n        driver_kind=driver_kind,\n    )\n    manifest_matches = tuple(\n        row for row in publication.manifest.rows\n        if row.attempt_id == attempt_id\n    )\n    if len(manifest_matches) != 1:\n        raise B4ProtocolError(\n            \"B-4 attempt id must match exactly one analysis manifest row \"\n            \"for membership\"\n        )\n",
+            "old": "    manifest_matches = tuple(\n        row for row in publication.manifest.rows\n        if row.attempt_id == attempt_id\n    )\n    if len(manifest_matches) != 1:\n        raise B4ProtocolError(\n            \"B-4 attempt id must match exactly one analysis manifest row \"\n            \"for membership\"\n        )\n    expected = _require_b4_registry_attempt_hash(\n        publication.registry.scheduled_attempts,\n        attempt_id,\n        driver_kind=driver_kind,\n    )\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "6a6da5a87c4d6c35ea39cdec68e20406a7e9cd7db701aeae38025edd11d95d5f",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "-q",
+      "-rf",
+      "--force-dispatch",
+      "orchestrator/tests/test_p3_b4_proposal_binding.py",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 4500.0
+  },
+  "repo_head": "67e835a0341bb3a2aaf3c58ca92aff1c973c529c",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "-q",
+      "-rf",
+      "--force-dispatch",
+      "orchestrator/tests/test_p3_b4_proposal_binding.py",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2051-b4-prerun-entry/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2051-b4-prerun-entry/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "10623cca32774ea2046b7e217c6e48308ac74a99",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "91feced44b2586ef39b1efbf3c7bc9bb8002f1be7b7851c260f55d76b2abdaec",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "bc72b80bad96c34e2b1262d7e4e5aabfbf412a0405013a17245b85667de3fb77",
+  "summary": {
+    "KILLED": 4,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 5,
+    "matching": 5,
+    "recorded": 5,
+    "registered": 5
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2051-b4-prerun-entry/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "c2d0ceae26be520999ff7091d06ae62dd74aa58c711e801d17876f12cc415e44",
+  "updated_at": "2026-09-09T15:49:12.643373+00:00"
+}

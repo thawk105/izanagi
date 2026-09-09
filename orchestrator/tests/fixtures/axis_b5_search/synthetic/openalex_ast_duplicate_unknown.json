@@ -1,0 +1,19 @@
+{
+  "meta": {
+    "count": 0,
+    "per_page": 200,
+    "next_cursor": null,
+    "x_query": {
+      "oql": "registered raw query text",
+      "oqo": {
+        "join": "and",
+        "join": "or",
+        "future_node": {
+          "typed_value": 7,
+          "flags": [true, null, {"mode": "future"}]
+        }
+      }
+    }
+  },
+  "results": []
+}

@@ -40,7 +40,10 @@ from .sweep import MAX_RECORDS_DEFAULT, calibrate
 from .tsc import TscMeasurement, measure_tsc
 from orchestrator.campaign import env_attestation as _env_attestation
 from orchestrator.campaign.genome import SPACES, space_for
-from orchestrator.campaign.model import Genome
+from orchestrator.campaign.model import (
+    Genome,
+    genome_axis_from_cmake_cache_variable,
+)
 from orchestrator.campaign.execution_guard import (
     effective_clock_comparison_diagnostics,
     effective_clock_comparison_passes,
@@ -436,7 +439,16 @@ def _canonical_genome_from_receipt(receipt: dict, binary: str) -> str:
             raise CertificationError(
                 "receipt-genome-invalid", f"malformed CCBENCH define: {token!r}",
             )
-        flag, encoded = match.groups()
+        cache_name, encoded = match.groups()
+        cache_variable = f"CCBENCH_{cache_name}"
+        try:
+            flag = genome_axis_from_cmake_cache_variable(
+                protocol, cache_variable,
+            )
+        except ValueError as exc:
+            raise CertificationError(
+                "receipt-genome-invalid", str(exc),
+            ) from exc
         if flag in flags:
             raise CertificationError(
                 "receipt-genome-invalid", f"duplicate CCBENCH define: {flag}",
