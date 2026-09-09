@@ -641,7 +641,7 @@ DEV_WAVE_DW_C01_SECTION_LITERAL = """## DW-C01 — 実測で是正した作法
 - 隔離worktreeのdetachはrunner/launcherの`.sh`へ外出し。定型はguard拒否。
 - 複数起点は全隣接区間の異なる正値で判別。
 - 変異harnessはbaseline緑必須。既存赤は根拠を台帳へ書き`--deselect`。
-- submoduleは`python3 tools/dev_wave_submodule_init.py --worktree <ABSOLUTE_WORKTREE>`で再帰初期化する。
+- 全新規worktreeを`python3 tools/dev_wave_submodule_init.py --worktree <ABSOLUTE>`で再帰初期化する。
 - 呼出し規約変更取込は、両親の変更行が非競合でも全呼出しを数える。
 - 段6fixも受理・拒否の含意を2文に分け、通る正例を添える。
 - merge/`add`/commitは親、子は競合解決だけ。
