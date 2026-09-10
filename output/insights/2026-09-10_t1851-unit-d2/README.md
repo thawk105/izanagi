@@ -65,6 +65,19 @@ D676に従い受入親へTERM、残computeをqdelして終了した。成功受�
 著者確認でテスト開始前停止したため、D95 authorで合成して再投入する。
 所要台帳更新とmain landは、この記録時点では未完了である。
 
+## 全走で判明した既存fixtureの履歴依存
+
+2 shard/8 workerの受入5では片側が11524 passed/6 skippedとなったが、残る片側が99%で長時間化した。
+Python stackを取得すると test_t1998_stock_inline_pair の事前登録blob欠損負例が、HEAD全史の各commitに
+対してloader63blobを読み、「現在と同じloaderで事前登録文書が無い祖先」を探していた。
+40分を超えても終端せず、D676の復旧として受入を終了した。成功受入とは数えない。
+
+Codex authorが同fileの既存一時Git fixtureにcommitted_missing分岐を加え、loader bytesは同じ、
+測定commitにだけpreregistration blob無し、current worktree文書は正規bytesという負例へ置換した。
+公開consumerと拒否code/field/armは不変、production・gate・期待値・テスト集合・timeoutは変更していない。
+独立焦点レビューで追加must-fixなし、親の同file全走は991557.nqsvで39 passed、7.37秒。
+追加差分は受入を現に塞いだこのfixture1fileだけである。
+
 ## 統合時の文書整理
 
 C3bの保全fragmentと後続rulingsが同じT-1851の次手を更新する衝突を解消した。
