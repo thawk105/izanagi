@@ -18,6 +18,10 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 
 ## 現行チェックポイント (2026-07-25 更新)
 
+- [x] [T-2518] 実装差分ゼロの既存経路 precheck を記録 (2026-09-11、D1936項17)。
+  依存供給と A+B+C／clean stock の CLI 比較をつなぐ既存入口を確認できず、実測は未実施。
+  inert の緑／赤は未判定。記録 = `output/insights/2026-09-11/t2518-inert-precheck/README.md`。
+
 - [x] [T-2514] A-1条件関門の拒否時detail保存を実装 (2026-09-10、D1936項4・D1912)。
   生成済み全arm recordとadmissionをworkload別raw_rootへ保存し、受理集合・元の拒否・成功経路を維持する。
   記録 = `output/insights/2026-09-10_t2514-a1-detail/README.md`。
