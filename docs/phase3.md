@@ -282,6 +282,11 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
 
 ## 後続段 (各々 ablation 点を残して投入)
 
+- [x] 本体論文の日本語結果・考察草稿（2026-09-10の新規ユーザー執筆依頼）を
+  `output/insights/2026-09-10/paper-results-ja/results-discussion.md` に作成。
+  取得済みの性能標本・別走行の正しさ・非LLM対照・反例還流の未取得効果を本文と3表で分離した。
+  文書成果の完了であり、未landの実験や新規CC合成、Phase 3全体の完了を意味しない。
+
 - [x] 本体論文の日本語方法節草稿（2026-09-10 の新規ユーザー執筆依頼）を
   `output/insights/2026-09-10_paper-methods-ja/methods.md` と同 `implementation.md` に作成。
   生成・検証・反例還流・独立測定・選択を対応づけ、実装と評価契約を区別した文書成果であり、
