@@ -52,6 +52,7 @@ REPLACE_REFS=$(timeout --foreground --signal=TERM --kill-after=5 5s \
 [[ -z $REPLACE_REFS ]] || exit 3
 
 BOUND_PATHS=(
+  orchestrator/campaign/condition_meaning_gate.py
   tools/pegasus/probes/t316_sandbox_backend_probe.py
   tools/pegasus/probes/t316_sandbox_backend_probe.pbs
   tools/pegasus/policies/t316_sandbox_backend_v1.json
