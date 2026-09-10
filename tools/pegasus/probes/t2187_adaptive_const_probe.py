@@ -85,6 +85,9 @@ PREREGISTRATION = ROOT / "docs" / "dynamic-backoff-preregistration.md"
 COUNTERFACTUAL_PREREGISTRATION = (
     ROOT / "docs" / "backoff-counterfactual-preregistration.md"
 )
+BACKOFF_POLICY_PERFORMANCE_PREREGISTRATION = (
+    ROOT / "docs" / "backoff-policy-performance-preregistration.md"
+)
 COUNTERFACTUAL_COHORT2_PREREGISTRATION = (
     ROOT / "docs" / "backoff-counterfactual-cohort2-preregistration.md"
 )
@@ -94,6 +97,7 @@ DYNAMIC_OUT_PREFIX = Path(
 )
 DYNAMIC_CERTIFY_PREFIX = DYNAMIC_OUT_PREFIX / "certify"
 DYNAMIC_PERFORMANCE_PREFIX = DYNAMIC_OUT_PREFIX / "perf"
+DYNAMIC_POLICY_PERFORMANCE_PREFIX = DYNAMIC_PERFORMANCE_PREFIX / "t2417-policy"
 
 CONTRACT = env_contract.lookup("pegasus")
 ENV_TAG = CONTRACT.env_tag
@@ -503,6 +507,49 @@ COUNTERFACTUAL_TRACE_CELLS_TEXT = (
     "cw-as-dyn-p1:1:1:1000:2560:10000:10240:1:1:4:1:1,"
     "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2"
 )
+POLICY_PERFORMANCE_PERMUTATIONS_TEXT = (
+    "cw-as-dyn-p0:1:1:1000:2560:10000:10240:1:1:4:1:0,"
+    "cw-as-dyn-p1:1:1:1000:2560:10000:10240:1:1:4:1:1,"
+    "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+    "cw-as-dyn-p0:1:1:1000:2560:10000:10240:1:1:4:1:0,"
+    "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2,"
+    "cw-as-dyn-p1:1:1:1000:2560:10000:10240:1:1:4:1:1",
+    "cw-as-dyn-p1:1:1:1000:2560:10000:10240:1:1:4:1:1,"
+    "cw-as-dyn-p0:1:1:1000:2560:10000:10240:1:1:4:1:0,"
+    "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2",
+    "cw-as-dyn-p1:1:1:1000:2560:10000:10240:1:1:4:1:1,"
+    "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2,"
+    "cw-as-dyn-p0:1:1:1000:2560:10000:10240:1:1:4:1:0",
+    "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2,"
+    "cw-as-dyn-p0:1:1:1000:2560:10000:10240:1:1:4:1:0,"
+    "cw-as-dyn-p1:1:1:1000:2560:10000:10240:1:1:4:1:1",
+    "cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2,"
+    "cw-as-dyn-p1:1:1:1000:2560:10000:10240:1:1:4:1:1,"
+    "cw-as-dyn-p0:1:1:1000:2560:10000:10240:1:1:4:1:0",
+)
+POLICY_PERFORMANCE_WORKLOADS = ("write-heavy", "balanced", "read-heavy")
+POLICY_PERFORMANCE_THREADS = (6, 12, 18, 24, 30, 36, 42, 48)
+POLICY_PERFORMANCE_SEEDS = (
+    7170359757993337886,
+    17989269546948137795,
+    3716960512023197351,
+    2309627334396074330,
+    17927187949116432153,
+    3065832495472073934,
+    4312234405970990967,
+    427285116805996036,
+    3640648522570663905,
+    6418011988295890983,
+    8628608498907907249,
+    3020250207517407008,
+    2373385927424670485,
+    12508141252750115867,
+    5818589253263944573,
+    13760661656174455019,
+    16587099826641119208,
+    13478069633953621058,
+)
+POLICY_PERFORMANCE_CONTRACT = "backoff-policy-arm-perf/v1"
 COUNTERFACTUAL_COHORT2_TRACE_CELLS_TEXT = (
     "cw-as-dyn-c2-p0:1:1:1000:2560:10000:9223372036854775807:1:1:4:1:0,"
     "cw-as-dyn-c2-p1:1:1:1000:2560:10000:9223372036854775807:1:1:4:1:1,"
@@ -688,6 +735,10 @@ def parse_cells(text: str) -> tuple[Cell, ...]:
 
 _parse_cells = parse_cells
 COUNTERFACTUAL_TRACE_CELLS = parse_cells(COUNTERFACTUAL_TRACE_CELLS_TEXT)
+POLICY_PERFORMANCE_PERMUTATIONS = tuple(
+    parse_cells(text) for text in POLICY_PERFORMANCE_PERMUTATIONS_TEXT
+)
+POLICY_PERFORMANCE_CELL_SET = frozenset(POLICY_PERFORMANCE_PERMUTATIONS[0])
 COUNTERFACTUAL_COHORT2_TRACE_CELLS = parse_cells(
     COUNTERFACTUAL_COHORT2_TRACE_CELLS_TEXT
 )
@@ -1177,6 +1228,17 @@ def _counterfactual_prereg_sha256() -> str:
     return hashlib.sha256(COUNTERFACTUAL_PREREGISTRATION.read_bytes()).hexdigest()
 
 
+def _backoff_policy_performance_prereg_sha256() -> str:
+    if not BACKOFF_POLICY_PERFORMANCE_PREREGISTRATION.is_file():
+        raise FileNotFoundError(
+            "backoff policy performance preregistration is missing: "
+            f"{BACKOFF_POLICY_PERFORMANCE_PREREGISTRATION}"
+        )
+    return hashlib.sha256(
+        BACKOFF_POLICY_PERFORMANCE_PREREGISTRATION.read_bytes()
+    ).hexdigest()
+
+
 def _counterfactual_cohort2_prereg_sha256() -> str:
     if not COUNTERFACTUAL_COHORT2_PREREGISTRATION.is_file():
         raise FileNotFoundError(
@@ -1209,6 +1271,23 @@ def _validate_dynamic_output_path(out: Path) -> None:
         raise ValueError(
             f"dynamic output must be below {str(DYNAMIC_OUT_PREFIX)!r}"
         ) from exc
+
+
+def _validate_backoff_policy_performance_output_path(out: Path) -> None:
+    candidate = out.resolve(strict=False)
+    prefix = DYNAMIC_POLICY_PERFORMANCE_PREFIX.resolve(strict=False)
+    try:
+        relative = candidate.relative_to(prefix)
+    except ValueError as exc:
+        raise ValueError(
+            "policy-performance-output-prefix-violation: output must resolve "
+            f"below {str(DYNAMIC_POLICY_PERFORMANCE_PREFIX)!r}"
+        ) from exc
+    if not relative.parts:
+        raise ValueError(
+            "policy-performance-output-prefix-violation: output must be a true "
+            f"child of {str(DYNAMIC_POLICY_PERFORMANCE_PREFIX)!r}"
+        )
 
 
 def _require_child_path(path: Path, root: Path, *, binding: str) -> None:
@@ -1563,7 +1642,7 @@ def _capturing_subprocess_runner(chunks: list[str]):
 def _append_journal(out: Path, row: dict) -> None:
     journal = Path(str(out) + ".journal.jsonl")
     journal.parent.mkdir(parents=True, exist_ok=True)
-    encoded = json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n"
+    encoded = json.dumps(row, ensure_ascii=False, sort_keys=True, allow_nan=False) + "\n"
     with journal.open("a", encoding="utf-8") as stream:
         stream.write(encoded)
         stream.flush()
@@ -2214,7 +2293,7 @@ def _trace_manifest(trace_dir: Path) -> dict:
 def _write_json_create_only(path: Path, payload: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("x", encoding="utf-8") as stream:
-        json.dump(payload, stream, indent=2, ensure_ascii=False)
+        json.dump(payload, stream, indent=2, ensure_ascii=False, allow_nan=False)
         stream.write("\n")
 
 
@@ -2241,6 +2320,22 @@ def _performance_artifact_identity(
         raise CertificationReject(
             "performance-artifact-invalid", "performance artifact is not JSON"
         ) from exc
+    registered_cohort2_identity = required_cell in {
+        CERT_COHORT2_POLICY1_CELL,
+        CERT_COHORT2_POLICY2_CELL,
+    }
+    if type(document) is dict and (
+        "performance_contract" in document
+        or (
+            _contains_step_policy_cell(document)
+            and not registered_cohort2_identity
+        )
+    ):
+        raise CertificationReject(
+            "performance-artifact-contract-rejected",
+            "policy performance artifacts cannot satisfy certification performance "
+            "artifact requirements",
+        )
     if (
         type(document) is not dict
         or document.get("schema_version")
@@ -3423,6 +3518,73 @@ def _validate_backoff_trace_contract(
         )
 
 
+def _is_backoff_policy_performance_cell_set(cells: tuple[Cell, ...]) -> bool:
+    return len(cells) == 3 and frozenset(cells) == POLICY_PERFORMANCE_CELL_SET
+
+
+def _matches_backoff_policy_performance_contract(
+    *,
+    mode: str,
+    backoff_trace: bool,
+    cells_text: str,
+    cells: tuple[Cell, ...],
+    workloads_text: str,
+    workloads: tuple[str, ...],
+    threads_text: str,
+    threads: tuple[int, ...],
+    rep_index: int,
+    reps_per_job: int,
+    extime: int,
+    stage: int,
+    step_policy_seed: int | None,
+) -> bool:
+    if type(rep_index) is not int or not 0 <= rep_index <= 17:
+        return False
+    rotation_index = rep_index % 6
+    return (
+        mode == "performance"
+        and backoff_trace is False
+        and cells_text == POLICY_PERFORMANCE_PERMUTATIONS_TEXT[rotation_index]
+        and cells == POLICY_PERFORMANCE_PERMUTATIONS[rotation_index]
+        and workloads_text == "write-heavy,balanced,read-heavy"
+        and workloads == POLICY_PERFORMANCE_WORKLOADS
+        and threads_text == "6,12,18,24,30,36,42,48"
+        and threads == POLICY_PERFORMANCE_THREADS
+        and extime == 3
+        and reps_per_job == 1
+        and stage == 1
+        and step_policy_seed == POLICY_PERFORMANCE_SEEDS[rep_index]
+    )
+
+
+def _validate_backoff_policy_performance_contract(
+    args: argparse.Namespace,
+    cells: tuple[Cell, ...],
+    workloads: tuple[str, ...],
+    threads: tuple[int, ...],
+) -> None:
+    if not _matches_backoff_policy_performance_contract(
+        mode=args.mode,
+        backoff_trace=args.backoff_trace,
+        cells_text=args.cells,
+        cells=cells,
+        workloads_text=args.workloads,
+        workloads=workloads,
+        threads_text=args.threads,
+        threads=threads,
+        rep_index=args.rep_index,
+        reps_per_job=args.reps_per_job,
+        extime=args.extime,
+        stage=args.stage,
+        step_policy_seed=args.step_policy_seed,
+    ):
+        raise ValueError(
+            "policy-performance-contract-violation: requires exact trace-disabled "
+            "performance mode, 18-block permutation/seed assignment, workloads, "
+            "threads, extime 3, reps 1, and stage 1"
+        )
+
+
 def _artifact_contract_metadata(
     *,
     backoff_trace: bool,
@@ -3432,6 +3594,12 @@ def _artifact_contract_metadata(
     rep_index: int,
     reps_per_job: int,
     extime: int,
+    step_policy_seed: int | None = None,
+    stage: int = 1,
+    mode: str = "performance",
+    cells: tuple[Cell, ...] | None = None,
+    workloads: tuple[str, ...] | None = None,
+    threads: tuple[int, ...] | None = None,
     backoff_trace_terminal_us: int = 0,
 ) -> dict:
     metadata = {
@@ -3453,6 +3621,34 @@ def _artifact_contract_metadata(
     ):
         metadata["counterfactual_preregistration"] = (
             _counterfactual_prereg_sha256()
+        )
+    if (
+        cells is not None
+        and workloads is not None
+        and threads is not None
+        and _matches_backoff_policy_performance_contract(
+            mode=mode,
+            backoff_trace=backoff_trace,
+            cells_text=cells_text,
+            cells=cells,
+            workloads_text=workloads_text,
+            workloads=workloads,
+            threads_text=threads_text,
+            threads=threads,
+            rep_index=rep_index,
+            reps_per_job=reps_per_job,
+            extime=extime,
+            stage=stage,
+            step_policy_seed=step_policy_seed,
+        )
+    ):
+        metadata.update(
+            backoff_policy_performance_prereg_sha256=(
+                _backoff_policy_performance_prereg_sha256()
+            ),
+            performance_contract=POLICY_PERFORMANCE_CONTRACT,
+            headline_eligible=False,
+            correctness_status="uncertified",
         )
     if (
         backoff_trace is True
@@ -3943,6 +4139,11 @@ def _certify_main(args: argparse.Namespace) -> int:
 def main(argv: list[str] | None = None) -> int:
     args = _argument_parser().parse_args(argv)
     cells = parse_cells(args.cells)
+    is_policy_performance_request = (
+        args.mode == "performance"
+        and args.backoff_trace is False
+        and _is_backoff_policy_performance_cell_set(cells)
+    )
     if args.mode == "certify":
         if args.backoff_trace:
             raise CertificationReject(
@@ -3956,13 +4157,18 @@ def main(argv: list[str] | None = None) -> int:
     workloads = _parse_workloads(args.workloads)
     threads_axis = _parse_threads(args.threads)
     out = Path(args.out)
+    if is_policy_performance_request:
+        _validate_backoff_policy_performance_contract(
+            args, cells, workloads, threads_axis
+        )
+        _validate_backoff_policy_performance_output_path(out)
     _validate_output_path(out)
     if args.backoff_trace:
         _validate_backoff_trace_contract(
             args, cells, workloads, threads_axis
         )
         _validate_dynamic_output_path(out)
-    else:
+    elif not is_policy_performance_request:
         _validate_grid_contract(cells)
         if any(cell.extended for cell in cells):
             _validate_dynamic_output_path(out)
@@ -3998,23 +4204,34 @@ def main(argv: list[str] | None = None) -> int:
     cache_root = Path(os.environ["TMPDIR"]) / "build-variants"
     cache_root.mkdir(mode=0o700)
 
+    contract_metadata = _artifact_contract_metadata(
+        backoff_trace=args.backoff_trace,
+        cells_text=args.cells,
+        cells=cells,
+        workloads_text=args.workloads,
+        workloads=workloads,
+        threads_text=args.threads,
+        threads=threads_axis,
+        rep_index=args.rep_index,
+        reps_per_job=args.reps_per_job,
+        extime=args.extime,
+        step_policy_seed=args.step_policy_seed,
+        stage=args.stage,
+        mode=args.mode,
+        backoff_trace_terminal_us=args.backoff_trace_terminal_us,
+    )
     payload = {
-        **_artifact_contract_metadata(
-            backoff_trace=args.backoff_trace,
-            cells_text=args.cells,
-            workloads_text=args.workloads,
-            threads_text=args.threads,
-            rep_index=args.rep_index,
-            reps_per_job=args.reps_per_job,
-            extime=args.extime,
-            backoff_trace_terminal_us=args.backoff_trace_terminal_us,
-        ),
+        **contract_metadata,
         "kind": (
             "diagnostic-backoff-trace"
             if args.backoff_trace
             else "performance-only-probe"
         ),
-        "headline_eligible": False if args.backoff_trace else True,
+        "headline_eligible": (
+            False
+            if args.backoff_trace or any(cell.has_step_policy for cell in cells)
+            else True
+        ),
         "throughput_scope": (
             "diagnostic_only" if args.backoff_trace else "performance"
         ),
@@ -4095,13 +4312,45 @@ def main(argv: list[str] | None = None) -> int:
                     cache_root=str(cache_root),
                     ccbench_dir=work_root,
                 )
+                build_cache_key = buildcache.cache_key(
+                    genome,
+                    CURRENT_PIN,
+                    False,
+                    src_token=evidence.src_token,
+                    cc=cc,
+                    cxx=cxx,
+                    admission=admission,
+                )
+                if not build_cache_key.endswith("_t0"):
+                    raise RuntimeError(
+                        "performance build cache identity is not trace-disabled"
+                    )
                 symbol_count, string_count = _trace_binary_counts(build.binary)
                 _validate_trace_binary_counts(
                     symbol_count, string_count,
                     backoff_trace=args.backoff_trace,
                 )
+                if getattr(build, "trace", None) is not False:
+                    raise RuntimeError(
+                        "performance binary lacks trace-disabled build identity"
+                    )
+                source_evidence = {
+                    "ccbench_commit": evidence.ccbench_commit,
+                    "genome_sha256": evidence.genome_sha256,
+                    "src_token": evidence.src_token,
+                    "source_bytes_sha256": evidence.source_bytes_sha256,
+                }
                 built.append(
-                    (cell, genome, build, symbol_count, string_count)
+                    (
+                        cell,
+                        genome,
+                        build,
+                        symbol_count,
+                        string_count,
+                        build_cache_key,
+                        admission.receipt_sha256,
+                        source_evidence,
+                    )
                 )
                 print(
                     f"[build] {cell.label} sha={build.bin_sha256[:16]} "
@@ -4110,9 +4359,20 @@ def main(argv: list[str] | None = None) -> int:
                     flush=True,
                 )
 
+            if any(cell.has_step_policy for cell in cells):
+                payload["correctness_status"] = "uncertified"
             binary_shas = {
                 cell.label: build.bin_sha256
-                for cell, _genome, build, _symbols, _strings in built
+                for (
+                    cell,
+                    _genome,
+                    build,
+                    _symbols,
+                    _strings,
+                    _cache_key,
+                    _admission_sha256,
+                    _source_evidence,
+                ) in built
             }
             if len(set(binary_shas.values())) != len(binary_shas):
                 raise RuntimeError(
@@ -4123,7 +4383,16 @@ def main(argv: list[str] | None = None) -> int:
             for workload_id in workloads:
                 workload = WORKLOADS[workload_id]
                 for threads in threads_axis:
-                    for cell, genome, build, symbol_count, string_count in built:
+                    for (
+                        cell,
+                        genome,
+                        build,
+                        symbol_count,
+                        string_count,
+                        build_cache_key,
+                        admission_sha256,
+                        source_evidence,
+                    ) in built:
                         measure_started = time.monotonic()
                         stdout_chunks: list[str] = []
                         point = measure_point(
@@ -4144,9 +4413,8 @@ def main(argv: list[str] | None = None) -> int:
                                 else subprocess.run
                             ),
                         )
-                        throughputs = list(point.throughputs)
-                        median_tps = (
-                            statistics.median(throughputs) if throughputs else None
+                        throughputs, median_tps, missing_reason = (
+                            _performance_measurement_summary(point.throughputs)
                         )
                         row = {
                             **_cell_identity(cell),
@@ -4171,6 +4439,10 @@ def main(argv: list[str] | None = None) -> int:
                             "is_stock_control": cell.is_stock_control,
                             "genome": genome.canonical(),
                             "binary_sha256": build.bin_sha256,
+                            "build_trace_enabled": False,
+                            "build_cache_key": build_cache_key,
+                            "build_admission_receipt_sha256": admission_sha256,
+                            "source_evidence": dict(source_evidence),
                             "backoff_trace_symbol_count": symbol_count,
                             "backoff_trace_string_count": string_count,
                             "backoff_trace": args.backoff_trace,
@@ -4181,6 +4453,8 @@ def main(argv: list[str] | None = None) -> int:
                             "run_cmd": point.run_cmd,
                             "measured_utc": datetime.now(timezone.utc).isoformat(),
                         }
+                        if missing_reason is not None:
+                            row["missing_reason"] = missing_reason
                         if args.backoff_trace:
                             events, summary, directional = _parse_backoff_trace(
                                 "".join(stdout_chunks),
@@ -4221,7 +4495,7 @@ def main(argv: list[str] | None = None) -> int:
 
     out.parent.mkdir(parents=True, exist_ok=True)
     with out.open("x", encoding="utf-8") as stream:
-        json.dump(payload, stream, indent=2, ensure_ascii=False)
+        json.dump(payload, stream, indent=2, ensure_ascii=False, allow_nan=False)
         stream.write("\n")
     print(
         f"[done] {out} wall={wall_seconds:.1f}s cpu={cpu_seconds:.1f}s "
@@ -4229,6 +4503,33 @@ def main(argv: list[str] | None = None) -> int:
         flush=True,
     )
     return 0
+
+
+def _contains_step_policy_cell(document: dict) -> bool:
+    cells = document.get("cells")
+    return type(cells) is list and any(
+        type(row) is dict
+        and (row.get("cell_format_fields") == 12 or "step_policy" in row)
+        for row in cells
+    )
+
+
+def _performance_measurement_summary(
+    values: object,
+) -> tuple[list[int | float], float | None, str | None]:
+    import math
+
+    throughputs = list(values)
+    if not throughputs:
+        return [], None, "no-throughput-samples"
+    if any(
+        type(value) not in {int, float} or not math.isfinite(value)
+        for value in throughputs
+    ):
+        return [], None, "nonfinite-throughput"
+    if any(value <= 0 for value in throughputs):
+        return throughputs, None, "nonpositive-throughput"
+    return throughputs, statistics.median(throughputs), None
 
 
 if __name__ == "__main__":

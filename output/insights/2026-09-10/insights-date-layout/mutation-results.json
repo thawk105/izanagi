@@ -1,0 +1,304 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": null,
+      "receipt_path": null,
+      "runner_mode": "local",
+      "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n...                                                                      [100%]\n3 passed in 5.13s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "15af77c35afa00425e98ebe3e50ca6bce62d285c3a05b0d75339f73ae9cc94d0"
+    },
+    "artifact_error": null,
+    "collection_sha256": "2382e420501108cdc38e0d9c02f3fd80291cb72fb62711811b9b7ae028e5c8b1",
+    "duration_s": 5.721,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "afe0b04159147b68419f36090861f4c1586f2e04acdb74d953429fe327f85652",
+    "repo_head": "7d1194601d768b8c9013c32735b99fb923a4f4ab",
+    "runner_sha256": "5cf992dae9434276f38af775d167e72554b19185201f377eadca93ee6797250b",
+    "spec_sha256": "5bd7c02639d6c2e1e6e720f8928a06cd2d5b5d9e78cdc59d68508cb3329940b0",
+    "status": "PASSED",
+    "test_output_sha256": "15af77c35afa00425e98ebe3e50ca6bce62d285c3a05b0d75339f73ae9cc94d0",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "ac91d7d94f807fb8deeae96cdc847b6a5c87411923e34368e46260a1c235bbed"
+  },
+  "date": "2026-09-10T12:55:16.006903+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n.F.                                                                      [100%]\n=================================== FAILURES ===================================\n__ test_placeholder_guard_date_layout_preserves_old_targets_and_shallow_scope __\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_placeholder_guard_date_layout_preserves_old_targets_and_shallow_scope():\n        root = _build_min_repo()\n        try:\n            module = _load_fixture_checker(root)\n            old, _, _, _ = module._literal_placeholder_targets([])\n            _write(root, \"output/insights/2026-09-10/report.md\", \"# complete report\\n\")\n            _write(root, \"output/insights/2026-09-10/topic/verbatim.md\", \"<反映>\\n\")\n            module = _load_fixture_checker(root)\n            findings = []\n            new, _, _, complete = module._literal_placeholder_targets(findings)\n            assert complete and not findings, findings\n>           assert set(old) < set(new)\nE           AssertionError: assert {PosixPath('/t...verbatim.md')} < {PosixPath('/t...verbatim.md')}\nE             \nE             Both sets are equal\n\norchestrator/tests/test_check_docs.py:5154: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_check_docs.py::test_placeholder_guard_date_layout_preserves_old_targets_and_shallow_scope\n1 failed, 2 passed in 5.18s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_check_docs.py::test_placeholder_guard_date_layout_preserves_old_targets_and_shallow_scope\" nodeid_bytes=113 nodeid_omitted_bytes=0 source_bytes=928 retained_bytes=928 omitted_bytes=0 rendered_excerpt_bytes=979 sha256=2d9754245a172a7407e9c69c375540c0528a8a40932577dd8cb52a417b46b2e5\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_placeholder_guard_date_layout_preserves_old_targets_and_shallow_scope():\n>         root = _build_min_repo()\n>         try:\n>             module = _load_fixture_checker(root)\n>             old, _, _, _ = module._literal_placeholder_targets([])\n>             _write(root, \"output/insights/2026-09-10/report.md\", \"# complete report\\x5cn\")\n>             _write(root, \"output/insights/2026-09-10/topic/verbatim.md\", \"<\\u53cd\\u6620>\\x5cn\")\n>             module = _load_fixture_checker(root)\n>             findings = []\n>             new, _, _, complete = module._literal_placeholder_targets(findings)\n>             assert complete and not findings, findings\n> >           assert set(old) < set(new)\n> E           AssertionError: assert {PosixPath('/t...verbatim.md')} < {PosixPath('/t...verbatim.md')}\n> E             \n> E             Both sets are equal\n> \n> orchestrator/tests/test_check_docs.py:5154: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=928 retained_bytes=928 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1715 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "4f1f2cfc2adeae1097ba3d0422f2bed19e648a18fca939feb13d14c433154299"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "2382e420501108cdc38e0d9c02f3fd80291cb72fb62711811b9b7ae028e5c8b1",
+      "duration_s": 5.795,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_placeholder_guard_date_layout_preserves_old_targets_and_shallow_scope"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_placeholder_guard_date_layout_preserves_old_targets_and_shallow_scope"
+      ],
+      "hang_risk": false,
+      "id": "M1-drop-date-markdown-enumeration",
+      "injection_diff_sha256": "f7a597f77022a2c08e8f2d1c43465676dcf3b7a4e37ce0f02d82686e2cfe8d54",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "fef8f711c2212a5a1c8a99d83f889f32295b973c44b69387c67318645b7ca5e2",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "new": "for date_dir in []:",
+          "old": "for date_dir in date_dirs:"
+        }
+      ],
+      "repo_head": "7d1194601d768b8c9013c32735b99fb923a4f4ab",
+      "runner_sha256": "5cf992dae9434276f38af775d167e72554b19185201f377eadca93ee6797250b",
+      "spec_sha256": "5bd7c02639d6c2e1e6e720f8928a06cd2d5b5d9e78cdc59d68508cb3329940b0",
+      "status": "KILLED",
+      "test_output_sha256": "4f1f2cfc2adeae1097ba3d0422f2bed19e648a18fca939feb13d14c433154299",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ac91d7d94f807fb8deeae96cdc847b6a5c87411923e34368e46260a1c235bbed"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\nF..                                                                      [100%]\n=================================== FAILURES ===================================\n____________ test_destination_collision_preflights_before_any_move _____________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-10/popen-gw1/test_destination_collision_pre0')\n\n    def test_destination_collision_preflights_before_any_move(tmp_path):\n        put(tmp_path, layout.PREFIX + \"2026-08-01_a/report.md\")\n        put(tmp_path, layout.PREFIX + \"2026-08-02_b/report.md\")\n        base = seal(tmp_path)\n        plan = layout.build_plan(tmp_path, base)\n        # Empty directories are not inventory leaves: this isolates the destination\n        # guard from the independent untracked-file guard (registered M2).\n        target = tmp_path / layout.PREFIX / \"2026-08-02/b\"\n        target.mkdir(parents=True)\n        with pytest.raises(ValueError, match=\"destination collision\"):\n            layout.apply_plan(tmp_path, plan)\n        assert target.is_dir() and not list(target.iterdir())\n>       assert (tmp_path / layout.PREFIX / \"2026-08-01_a/report.md\").read_bytes() == b\"research\\n\"\n\norchestrator/tests/test_insights_date_layout.py:67: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n/usr/lib/python3.10/pathlib.py:1126: in read_bytes\n    with self.open(mode='rb') as f:\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = PosixPath('/tmp/pytest-of-tanab/pytest-10/popen-gw1/test_destination_collision_pre0/output/insights/2026-08-01_a/report.md')\nmode = 'rb', buffering = -1, encoding = None, errors = None, newline = None\n\n    def open(self, mode='r', buffering=-1, encoding=None,\n             errors=None, newline=None):\n        \"\"\"\n        Open the file pointed by this path and return a file object, as\n        the built-in open() function does.\n        \"\"\"\n        if \"b\" not in mode:\n            encoding = io.text_encoding(encoding)\n>       return self._accessor.open(self, mode, buffering, encoding, errors,\n                                   newline)\nE       FileNotFoundError: [Errno 2] No such file or directory: '/tmp/pytest-of-tanab/pytest-10/popen-gw1/test_destination_collision_pre0/output/insights/2026-08-01_a/report.md'\n\n/usr/lib/python3.10/pathlib.py:1119: FileNotFoundError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_insights_date_layout.py::test_destination_collision_preflights_before_any_move\n1 failed, 2 passed in 4.98s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_insights_date_layout.py::test_destination_collision_preflights_before_any_move\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=2138 retained_bytes=2138 omitted_bytes=0 rendered_excerpt_bytes=2222 sha256=e801532b2422bd37701919826b9d01c0856d88df6d5b7504cde5e7ee88281d67\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-10/popen-gw1/test_destination_collision_pre0')\n> \n>     def test_destination_collision_preflights_before_any_move(tmp_path):\n>         put(tmp_path, layout.PREFIX + \"2026-08-01_a/report.md\")\n>         put(tmp_path, layout.PREFIX + \"2026-08-02_b/report.md\")\n>         base = seal(tmp_path)\n>         plan = layout.build_plan(tmp_path, base)\n>         # Empty directories are not inventory leaves: this isolates the destination\n>         # guard from the independent untracked-file guard (registered M2).\n>         target = tmp_path / layout.PREFIX / \"2026-08-02/b\"\n>         target.mkdir(parents=True)\n>         with pytest.raises(ValueError, match=\"destination collision\"):\n>             layout.apply_plan(tmp_path, plan)\n>         assert target.is_dir() and not list(target.iterdir())\n> >       assert (tmp_path / layout.PREFIX / \"2026-08-01_a/report.md\").read_bytes() == b\"research\\x5cn\"\n> \n> orchestrator/tests/test_insights_date_layout.py:67: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> /usr/lib/python3.10/pathlib.py:1126: in read_bytes\n>     with self.open(mode='rb') as f:\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> self = PosixPath('/tmp/pytest-of-tanab/pytest-10/popen-gw1/test_destination_collision_pre0/output/insights/2026-08-01_a/report.md')\n> mode = 'rb', buffering = -1, encoding = None, errors = None, newline = None\n> \n>     def open(self, mode='r', buffering=-1, encoding=None,\n>              errors=None, newline=None):\n>         \"\"\"\n>         Open the file pointed by this path and return a file object, as\n>         the built-in open() function does.\n>         \"\"\"\n>         if \"b\" not in mode:\n>             encoding = io.text_encoding(encoding)\n> >       return self._accessor.open(self, mode, buffering, encoding, errors,\n>                                    newline)\n> E       FileNotFoundError: [Errno 2] No such file or directory: '/tmp/pytest-of-tanab/pytest-10/popen-gw1/test_destination_collision_pre0/output/insights/2026-08-01_a/report.md'\n> \n> /usr/lib/python3.10/pathlib.py:1119: FileNotFoundError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2138 retained_bytes=2138 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2952 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "2b75b21c8a7b558b66400ff15b1758f5e846ba62f623f9c08a6782f2e459f4f5"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "2382e420501108cdc38e0d9c02f3fd80291cb72fb62711811b9b7ae028e5c8b1",
+      "duration_s": 5.593,
+      "expected_nodes": [
+        "orchestrator/tests/test_insights_date_layout.py::test_destination_collision_preflights_before_any_move"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_insights_date_layout.py::test_destination_collision_preflights_before_any_move"
+      ],
+      "hang_risk": false,
+      "id": "M2-drop-preflight-collision-rejection",
+      "injection_diff_sha256": "0fcd929292efaaa89053d448ceb43f726d9404acaf86d1747901f145dbf5deca",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "6de78417fb36e6238c393955c1a394ff6a57795068bd13718a926d66c99f7e2f",
+      "replacements": [
+        {
+          "file": "tools/insights_date_layout.py",
+          "new": "if False:",
+          "old": "if os.path.lexists(path):"
+        }
+      ],
+      "repo_head": "7d1194601d768b8c9013c32735b99fb923a4f4ab",
+      "runner_sha256": "5cf992dae9434276f38af775d167e72554b19185201f377eadca93ee6797250b",
+      "spec_sha256": "5bd7c02639d6c2e1e6e720f8928a06cd2d5b5d9e78cdc59d68508cb3329940b0",
+      "status": "KILLED",
+      "test_output_sha256": "2b75b21c8a7b558b66400ff15b1758f5e846ba62f623f9c08a6782f2e459f4f5",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ac91d7d94f807fb8deeae96cdc847b6a5c87411923e34368e46260a1c235bbed"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n..F                                                                      [100%]\n=================================== FAILURES ===================================\n__________ test_raw_pages_cover_all_git_leaves_including_partial_page __________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-11/popen-gw2/test_raw_pages_cover_all_git_l0')\n\n    def test_raw_pages_cover_all_git_leaves_including_partial_page(tmp_path):\n        expected = set()\n        for group, count in ((\"mitigation\", 1422), (\"split-warning\", 1424)):\n            for number in range(count):\n                rel = layout.PREFIX + layout.RAW_TOP + f\"/{group}/raw/{number:04}.json\"\n                put(tmp_path, rel, b\"{}\\n\")\n                expected.add(rel)\n        plan = layout.build_plan(tmp_path, seal(tmp_path))\n        assert set(plan[\"files\"]) == expected\n        layout.apply_plan(tmp_path, plan)\n        index_path = tmp_path / layout.PREFIX / \"README.md\"\n        reachable = {layout.local_target(layout.PREFIX + \"README.md\", p)\n                     for p in layout.link_targets(index_path.read_text())}\n        pages = sorted((tmp_path / layout.GUIDE).glob(\"raw-*.md\"))\n>       assert len(pages) == 6\nE       AssertionError: assert 4 == 6\nE        +  where 4 = len([PosixPath('/tmp/pytest-of-tanab/pytest-11/popen-gw2/test_raw_pages_cover_all_git_l0/output/insights/layout-index/raw-...th('/tmp/pytest-of-tanab/pytest-11/popen-gw2/test_raw_pages_cover_all_git_l0/output/insights/layout-index/raw-2-2.md')])\n\norchestrator/tests/test_insights_date_layout.py:131: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_insights_date_layout.py::test_raw_pages_cover_all_git_leaves_including_partial_page\n1 failed, 2 passed in 4.96s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_insights_date_layout.py::test_raw_pages_cover_all_git_leaves_including_partial_page\" nodeid_bytes=107 nodeid_omitted_bytes=0 source_bytes=1358 retained_bytes=1358 omitted_bytes=0 rendered_excerpt_bytes=1408 sha256=5e62066eb39f28bf1f8f8ba5fb497fc3ca62864fac5aa897922a979f9dd3233f\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-11/popen-gw2/test_raw_pages_cover_all_git_l0')\n> \n>     def test_raw_pages_cover_all_git_leaves_including_partial_page(tmp_path):\n>         expected = set()\n>         for group, count in ((\"mitigation\", 1422), (\"split-warning\", 1424)):\n>             for number in range(count):\n>                 rel = layout.PREFIX + layout.RAW_TOP + f\"/{group}/raw/{number:04}.json\"\n>                 put(tmp_path, rel, b\"{}\\x5cn\")\n>                 expected.add(rel)\n>         plan = layout.build_plan(tmp_path, seal(tmp_path))\n>         assert set(plan[\"files\"]) == expected\n>         layout.apply_plan(tmp_path, plan)\n>         index_path = tmp_path / layout.PREFIX / \"README.md\"\n>         reachable = {layout.local_target(layout.PREFIX + \"README.md\", p)\n>                      for p in layout.link_targets(index_path.read_text())}\n>         pages = sorted((tmp_path / layout.GUIDE).glob(\"raw-*.md\"))\n> >       assert len(pages) == 6\n> E       AssertionError: assert 4 == 6\n> E        +  where 4 = len([PosixPath('/tmp/pytest-of-tanab/pytest-11/popen-gw2/test_raw_pages_cover_all_git_l0/output/insights/layout-index/raw-...th('/tmp/pytest-of-tanab/pytest-11/popen-gw2/test_raw_pages_cover_all_git_l0/output/insights/layout-index/raw-2-2.md')])\n> \n> orchestrator/tests/test_insights_date_layout.py:131: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1358 retained_bytes=1358 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2143 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "8dbe9ef5a6b45c3b16fe1b2946ceabdb65329de3543ff00ecf97a66b07382be7"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "2382e420501108cdc38e0d9c02f3fd80291cb72fb62711811b9b7ae028e5c8b1",
+      "duration_s": 5.558,
+      "expected_nodes": [
+        "orchestrator/tests/test_insights_date_layout.py::test_raw_pages_cover_all_git_leaves_including_partial_page"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_insights_date_layout.py::test_raw_pages_cover_all_git_leaves_including_partial_page"
+      ],
+      "hang_risk": false,
+      "id": "M3-drop-last-partial-index-page",
+      "injection_diff_sha256": "23e24eba75b09dcabc230ed831bc7a5b7d6080ae2a2c83557e17fc53d65b25e8",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "a392a5c2ad05296f16b92c7417a5a0e19baacb2cdf178a82a2aa386bdbe7f0a1",
+      "replacements": [
+        {
+          "file": "tools/insights_date_layout.py",
+          "new": "range(0, len(leaves) // 500 * 500, 500)",
+          "old": "range(0, len(leaves), 500)"
+        }
+      ],
+      "repo_head": "7d1194601d768b8c9013c32735b99fb923a4f4ab",
+      "runner_sha256": "5cf992dae9434276f38af775d167e72554b19185201f377eadca93ee6797250b",
+      "spec_sha256": "5bd7c02639d6c2e1e6e720f8928a06cd2d5b5d9e78cdc59d68508cb3329940b0",
+      "status": "KILLED",
+      "test_output_sha256": "8dbe9ef5a6b45c3b16fe1b2946ceabdb65329de3543ff00ecf97a66b07382be7",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ac91d7d94f807fb8deeae96cdc847b6a5c87411923e34368e46260a1c235bbed"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\norchestrator/tests/test_check_docs.py::test_placeholder_guard_date_layout_preserves_old_targets_and_shallow_scope\norchestrator/tests/test_insights_date_layout.py::test_destination_collision_preflights_before_any_move\norchestrator/tests/test_insights_date_layout.py::test_raw_pages_cover_all_git_leaves_including_partial_page\n\n3 tests collected in 0.39s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "9fbf45269141c18723d0e1e4f0a2749fd0edddd6b790203d971bcb1f3d3c5701"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_placeholder_guard_date_layout_preserves_old_targets_and_shallow_scope",
+        "orchestrator/tests/test_insights_date_layout.py::test_destination_collision_preflights_before_any_move",
+        "orchestrator/tests/test_insights_date_layout.py::test_raw_pages_cover_all_git_leaves_including_partial_page"
+      ],
+      "duration_s": 0.949,
+      "rc": 0,
+      "repo_head": "7d1194601d768b8c9013c32735b99fb923a4f4ab",
+      "runner_sha256": "5cf992dae9434276f38af775d167e72554b19185201f377eadca93ee6797250b",
+      "spec_sha256": "5bd7c02639d6c2e1e6e720f8928a06cd2d5b5d9e78cdc59d68508cb3329940b0",
+      "status": "PASSED",
+      "tool_sha256": "ac91d7d94f807fb8deeae96cdc847b6a5c87411923e34368e46260a1c235bbed"
+    },
+    "hang_timeout_seconds": 60.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1-drop-date-markdown-enumeration": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_check_docs.py::test_placeholder_guard_date_layout_preserves_old_targets_and_shallow_scope"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f7a597f77022a2c08e8f2d1c43465676dcf3b7a4e37ce0f02d82686e2cfe8d54",
+        "replacements": [
+          {
+            "file": "tools/check_docs.py",
+            "new": "for date_dir in []:",
+            "old": "for date_dir in date_dirs:"
+          }
+        ]
+      },
+      "M2-drop-preflight-collision-rejection": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_insights_date_layout.py::test_destination_collision_preflights_before_any_move"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "0fcd929292efaaa89053d448ceb43f726d9404acaf86d1747901f145dbf5deca",
+        "replacements": [
+          {
+            "file": "tools/insights_date_layout.py",
+            "new": "if False:",
+            "old": "if os.path.lexists(path):"
+          }
+        ]
+      },
+      "M3-drop-last-partial-index-page": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_insights_date_layout.py::test_raw_pages_cover_all_git_leaves_including_partial_page"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "23e24eba75b09dcabc230ed831bc7a5b7d6080ae2a2c83557e17fc53d65b25e8",
+        "replacements": [
+          {
+            "file": "tools/insights_date_layout.py",
+            "new": "range(0, len(leaves) // 500 * 500, 500)",
+            "old": "range(0, len(leaves), 500)"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "afe0b04159147b68419f36090861f4c1586f2e04acdb74d953429fe327f85652",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "local",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "/bin/python3.10",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_check_docs.py::test_placeholder_guard_date_layout_preserves_old_targets_and_shallow_scope",
+      "orchestrator/tests/test_insights_date_layout.py::test_destination_collision_preflights_before_any_move",
+      "orchestrator/tests/test_insights_date_layout.py::test_raw_pages_cover_all_git_leaves_including_partial_page",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 600.0
+  },
+  "repo_head": "7d1194601d768b8c9013c32735b99fb923a4f4ab",
+  "runner_identity": {
+    "command": [
+      "/bin/python3.10",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_check_docs.py::test_placeholder_guard_date_layout_preserves_old_targets_and_shallow_scope",
+      "orchestrator/tests/test_insights_date_layout.py::test_destination_collision_preflights_before_any_move",
+      "orchestrator/tests/test_insights_date_layout.py::test_raw_pages_cover_all_git_leaves_including_partial_page",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": null,
+    "dispatch_entrypoint_sha256": null,
+    "dispatch_head_blob_sha256": null,
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-insights-date-layout/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "d6bca2b84e73c7775a0dd5e6a76899cfe4ee62863d7c8f88513811d1fda23f49",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "6a38c6c1d8605a3563d78cec58d70c56f679ef86",
+    "runner_mode": "local"
+  },
+  "runner_sha256": "5cf992dae9434276f38af775d167e72554b19185201f377eadca93ee6797250b",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "5bd7c02639d6c2e1e6e720f8928a06cd2d5b5d9e78cdc59d68508cb3329940b0",
+  "summary": {
+    "KILLED": 3,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 3,
+    "matching": 3,
+    "recorded": 3,
+    "registered": 3
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-insights-date-layout/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "ac91d7d94f807fb8deeae96cdc847b6a5c87411923e34368e46260a1c235bbed",
+  "updated_at": "2026-09-10T12:55:59.601794+00:00"
+}

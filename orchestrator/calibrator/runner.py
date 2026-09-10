@@ -940,6 +940,7 @@ def capture_measure_point(
                 {
                     "rep_index": index,
                     "returncode": None,
+                    "execution_failure": False,
                     "counter_status": "unknown",
                     "missing_perf_events": (
                         list(PERF_EVENTS) if use_perf else []
@@ -957,6 +958,8 @@ def capture_measure_point(
             try:
                 metrics, counters, wall = captured.open()
             except (RuntimeError, subprocess.TimeoutExpired) as exc:
+                if rep_observations is not None:
+                    rep_observations[index]["execution_failure"] = True
                 if require_all_reps:
                     raise RuntimeError(
                         f"rep{index}/{reps} fatal at records={records} "
@@ -970,6 +973,7 @@ def capture_measure_point(
             except Exception as exc:
                 if rep_observations is None:
                     raise
+                rep_observations[index]["execution_failure"] = True
                 if require_all_reps:
                     raise RuntimeError(
                         f"rep{index}/{reps} fatal at records={records} "
@@ -995,6 +999,9 @@ def capture_measure_point(
                             and len(local_returncodes) == 1
                             and type(local_returncodes[0]) is int else None
                         ),
+                        "execution_failure": rep_observations[index][
+                            "execution_failure"
+                        ],
                         "counter_status": status,
                         "missing_perf_events": missing,
                         "perf_raw": dict(perf_raw),
@@ -1106,6 +1113,7 @@ def measure_point(binary: str, records: int, threads: int,
             {
                 "rep_index": index,
                 "returncode": None,
+                "execution_failure": False,
                 "counter_status": "unknown",
                 "missing_perf_events": (
                     list(PERF_EVENTS) if use_perf else []
@@ -1161,6 +1169,8 @@ def measure_point(binary: str, records: int, threads: int,
                 binary, base_flags, **run_kwargs,
             )
         except (RuntimeError, subprocess.TimeoutExpired) as exc:
+            if rep_observations is not None:
+                rep_observations[index]["execution_failure"] = True
             if require_all_reps:
                 raise RuntimeError(
                     f"rep{index}/{reps} fatal at records={records} "
@@ -1175,6 +1185,7 @@ def measure_point(binary: str, records: int, threads: int,
         except Exception as exc:
             if rep_observations is None:
                 raise
+            rep_observations[index]["execution_failure"] = True
             if require_all_reps:
                 raise RuntimeError(
                     f"rep{index}/{reps} fatal at records={records} "
@@ -1208,6 +1219,9 @@ def measure_point(binary: str, records: int, threads: int,
                         and len(local_returncodes) == 1
                         and type(local_returncodes[0]) is int else None
                     ),
+                    "execution_failure": rep_observations[index][
+                        "execution_failure"
+                    ],
                     "counter_status": status,
                     "missing_perf_events": missing,
                     "perf_raw": dict(perf_raw),

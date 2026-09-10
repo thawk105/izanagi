@@ -48,9 +48,36 @@ from s8b_floor_evidence_fixture import (  # noqa: E402
     build_floor_admission_evidence,
     fake_sort_swo_pass_attempt,
 )
+import s8b_v2_freeze_fixture as V2FIX  # noqa: E402
 from test_schema_v2 import _valid_document as _valid_calibration_v2_document  # noqa: E402
 
 _REAL_V1 = Path(_ROOT) / "output" / "s8b-freeze" / "holdout_freeze.json"
+
+_ATTEMPT_REGISTRY_PROOF_KEYS = (
+    "schema", "registry_schema", "freeze_sha256", "protocol_sha256",
+    "schedule_sha256", "row_count", "chain_head_sha256",
+)
+
+
+def _mutate_attempt_registry_proof(proof: dict, mutation: str) -> None:
+    if mutation == "extra-key":
+        proof["unexpected"] = True
+        return
+    operation, field = mutation.split(":", 1)
+    if operation == "missing":
+        proof.pop(field)
+        return
+    if operation != "invalid":
+        raise AssertionError(f"unknown proof mutation: {mutation}")
+    if field == "schema":
+        proof[field] = "s8b-attempt-registry-prefix-proof/unknown"
+    elif field == "registry_schema":
+        proof[field] = "s8b-attempt-registry/v999"
+    elif field == "row_count":
+        proof[field] += 1
+    else:
+        value = proof[field]
+        proof[field] = ("0" if value[0] != "0" else "1") + value[1:]
 
 
 def _perf_receipt(*, available: bool) -> dict:
@@ -529,6 +556,7 @@ class _EmitterScalePoint:
         self.rep_observations = [
             {
                 "rep_index": index, "returncode": 0,
+                "execution_failure": False,
                 "counter_status": "complete" if use_perf else "not_required",
                 "missing_perf_events": [],
                 "perf_raw": {
@@ -968,7 +996,8 @@ def build_production_emitter_g1(
         journal_manifest_before_g=False, executable_role=None,
         cert_at_generation=False, generation_strings_escaped=False, now=_FIXED_NOW,
         selector_valid_cell=False, selector_extra_files=(),
-        selector_payload_hit=False, perf_available=True):
+        selector_payload_hit=False, perf_available=True,
+        result_schema=FC.LEGACY_RESULT_SCHEMA, mutate_attempt_registry=None):
     """決定的観測下の production-emitter bytes で base→C→G→A→X を構築する。
 
     build/measure/provenance は固定 seam であり、実 build・実測の代表 bytes ではない。
@@ -976,6 +1005,12 @@ def build_production_emitter_g1(
     emitter on-disk bytes と再直列化 bytes の byte-identity を検証するのは cert のみ。
     manifest/journal/result は parse 後の content 級 fixture として扱う。
     """
+    if result_schema not in {
+        FC.LEGACY_RESULT_SCHEMA, FC.RESULT_SCHEMA_V5,
+    }:
+        raise ValueError(f"unknown result_schema: {result_schema}")
+    if mutate_attempt_registry is not None and result_schema != FC.RESULT_SCHEMA_V5:
+        raise ValueError("attempt registry mutation requires result v5")
     root = tmp_path / "repo"
     v1, ccbench_pin, base, design_raw, generator_raw = _prepare_emitter_base(
         root, selector_valid_cell=selector_valid_cell,
@@ -1066,18 +1101,30 @@ def build_production_emitter_g1(
     cert_raw = _json_bytes(state["cert"])
     manifest_raw = _json_bytes(state["manifest"])
     journal_raw = _jsonl_bytes(state["journal"])
-    admission_root = root / ".git/izanagi/s8b-holdout-admission-v1"
-    if admission_root.exists():
-        shutil.rmtree(admission_root)
-    evidence = build_floor_admission_evidence(
-        admission_root, protocol=state["protocol"], freeze=v1,
-        freeze_sha256=M.V1_FREEZE_SHA256,
-        manifest_sha256=_sha(manifest_raw), campaign_run_id=run_dir.name,
-        run_relpath=run_dir.relative_to(out_root).as_posix(), mode="official",
-        cells=admission_cells, schedule=admission_schedule,
-        sessions=admission_sessions,
-    )
-    state["result"]["holdout_admission"] = evidence.expected_receipt
+    registry_fixture = None
+    if result_schema == FC.LEGACY_RESULT_SCHEMA:
+        admission_root = root / ".git/izanagi/s8b-holdout-admission-v1"
+        if admission_root.exists():
+            shutil.rmtree(admission_root)
+        evidence = build_floor_admission_evidence(
+            admission_root, protocol=state["protocol"], freeze=v1,
+            freeze_sha256=M.V1_FREEZE_SHA256,
+            manifest_sha256=_sha(manifest_raw), campaign_run_id=run_dir.name,
+            run_relpath=run_dir.relative_to(out_root).as_posix(), mode="official",
+            cells=admission_cells, schedule=admission_schedule,
+            sessions=admission_sessions,
+        )
+        state["result"]["holdout_admission"] = evidence.expected_receipt
+    else:
+        registry_fixture = V2FIX.attach_v5_attempt_registry(
+            root=root, freeze=v1, protocol=state["protocol"],
+            cells=admission_cells, schedule=admission_schedule,
+            result=state["result"], manifest_raw=manifest_raw,
+            run_dir=run_dir.relative_to(root).as_posix(),
+            journal_records=state["journal"],
+        )
+        if mutate_attempt_registry is not None:
+            mutate_attempt_registry(state["result"]["attempt_registry"])
     result_record_raw = _json_bytes(state["result"])
     result_raw = result_record_raw + state.get("post_hash_result_suffix", b"")
     _write(root, paths["protocol"], protocol_raw)
@@ -1179,6 +1226,8 @@ def build_production_emitter_g1(
         "pointer_raw": pointer_raw, "result_md_hit": result_md_hit,
         "g_paths": tuple(sorted(g_paths)), "a_paths": (approval_path,),
     }
+    if registry_fixture is not None:
+        topology.update(registry_fixture)
     bound_mode_paths = [paths[key] for key in
                         ("protocol", "cert", "journal", "manifest", "result",
                          "closure80", "closure20")]
@@ -1465,6 +1514,8 @@ def test_happy_path_resolves_and_loads(tmp_path):
     with pytest.raises(TypeError):
         freeze.holdouts["rr80"]["candidate_id"] = "H2"  # type: ignore[index]
     assert topology["result"]["eligible_for_refreeze"] is True
+    assert topology["result"]["schema"] == FC.LEGACY_RESULT_SCHEMA
+    assert "attempt_registry" not in topology["result"]
     assert set(topology["manifest"]) == set(M._MANIFEST_KEYS)
     assert set(topology["result"]) == set(FC.result_keys_for_mode("official"))
     assert "perf_preflight" not in topology["manifest"]
@@ -1478,6 +1529,103 @@ def test_happy_path_resolves_and_loads(tmp_path):
             binaries=topology["manifest"]["binaries"], contract=contract,
             expected_use_perf=True,
         )
+    assert isinstance(M.launch_validate(freeze, root), M.LaunchValidatedFreeze)
+
+
+def test_launch_accepts_live_v5_registry_prefix_with_later_append(tmp_path):
+    root, freeze, topology = load_emitter_g1(
+        tmp_path, result_schema=FC.RESULT_SCHEMA_V5,
+    )
+
+    validated = M.launch_validate(freeze, root)
+
+    proof = topology["result"]["attempt_registry"]
+    assert isinstance(validated, M.LaunchValidatedFreeze)
+    assert topology["result"]["schema"] == FC.RESULT_SCHEMA_V5
+    assert frozenset(proof) == frozenset(_ATTEMPT_REGISTRY_PROOF_KEYS)
+    assert proof["row_count"] >= 3
+    assert topology["live_row_count"] > proof["row_count"]
+    live_lines = topology["registry_path"].read_bytes().splitlines()
+    assert len(live_lines) == topology["live_row_count"]
+    pinned_row = json.loads(live_lines[proof["row_count"] - 1])
+    assert pinned_row["event_sha256"] == proof["chain_head_sha256"]
+
+
+@pytest.mark.parametrize("schema", [[], {}], ids=["list", "object"])
+def test_launch_rejects_unhashable_result_schema_with_controlled_error(
+        tmp_path, schema):
+    def mutate(state):
+        state["result"]["schema"] = schema
+
+    root, freeze, _topology = load_emitter_g1(tmp_path, mutate=mutate)
+
+    with pytest.raises(M.RatifiedFreezeError) as error:
+        M.launch_validate(freeze, root)
+    assert error.value.reason == "floor-artifact-invalid"
+
+    document = {
+        key: None for key in FC.result_keys_for_mode("official")
+    }
+    document["schema"] = schema
+    with pytest.raises(M.RatifiedFreezeError) as local_error:
+        M._validate_result(
+            document, protocol={}, cells=[], binaries={}, journal={},
+            contract=EC.lookup("linux-baremetal"),
+        )
+    assert local_error.value.reason == "floor-artifact-invalid"
+    assert local_error.value.cause == "result-schema"
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        *(f"missing:{field}" for field in _ATTEMPT_REGISTRY_PROOF_KEYS),
+        "extra-key",
+        *(f"invalid:{field}" for field in _ATTEMPT_REGISTRY_PROOF_KEYS),
+    ],
+)
+def test_launch_rejects_invalid_v5_registry_proof(tmp_path, mutation):
+    root, freeze, _topology = load_emitter_g1(
+        tmp_path, result_schema=FC.RESULT_SCHEMA_V5,
+        mutate_attempt_registry=lambda proof: (
+            _mutate_attempt_registry_proof(proof, mutation)
+        ),
+    )
+
+    with pytest.raises(M.RatifiedFreezeError):
+        M.launch_validate(freeze, root)
+
+
+@pytest.mark.parametrize(
+    ("ledger_mutation", "expected_cause"),
+    (
+        ("missing", "attempt-registry-read-unavailable"),
+        ("tampered", "attempt-registry-replay-invalid"),
+        ("shortened", "attempt-registry-prefix-too-short"),
+    ),
+)
+def test_launch_rejects_invalid_live_v5_registry(
+        tmp_path, ledger_mutation, expected_cause):
+    root, freeze, topology = load_emitter_g1(
+        tmp_path, result_schema=FC.RESULT_SCHEMA_V5,
+    )
+    registry_path = topology["registry_path"]
+    lines = registry_path.read_bytes().splitlines()
+    if ledger_mutation == "missing":
+        registry_path.unlink()
+    elif ledger_mutation == "tampered":
+        row = json.loads(lines[1])
+        digest = row["event_sha256"]
+        row["event_sha256"] = ("0" if digest[0] != "0" else "1") + digest[1:]
+        registry_path.write_bytes(b"\n".join((
+            lines[0], V2FIX.canonical_bytes(row), *lines[2:],
+        )) + b"\n")
+    else:
+        registry_path.write_bytes(lines[0] + b"\n")
+
+    with pytest.raises(M.RatifiedFreezeError) as error:
+        M.launch_validate(freeze, root)
+    assert error.value.cause == expected_cause
 
 
 def test_loader_rejects_floor_source_projection_mismatch(tmp_path):
@@ -1619,6 +1767,7 @@ def test_degraded_result_observation_is_exactly_bound_to_manifest():
     }
     result["perf_preflight"] = receipt
     result["perf_observation"] = json.loads(json.dumps(observation))
+    assert result["schema"] is None
     M._validate_result_top_level_keys(
         result, expected_use_perf=False,
         expected_perf_preflight=receipt,

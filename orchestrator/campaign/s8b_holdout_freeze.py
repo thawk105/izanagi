@@ -1424,19 +1424,29 @@ def _validate_floor_inputs(
     except LaunchCertError as exc:
         raise FreezeError(f"floor result path が official result でない: {exc}") from exc
     result_perf_preflight = result.get("perf_preflight")
+    result_schema = result.get("schema")
+    result_key_schema = (
+        s8b_floor_contract.RESULT_SCHEMA_V5
+        if result_schema == s8b_floor_contract.RESULT_SCHEMA_V5
+        else s8b_floor_contract.LEGACY_RESULT_SCHEMA
+    )
     try:
         expected_use_perf = _perf_preflight.use_perf_from_receipt(
             result_perf_preflight
         )
         expected_result_keys = s8b_floor_contract.result_keys_for_mode(
-            "official", perf_preflight=result_perf_preflight,
+            "official", schema=result_key_schema,
+            perf_preflight=result_perf_preflight,
         )
     except (_perf_preflight.PerfPreflightError,
             s8b_floor_contract.FloorContractError) as exc:
         raise FreezeError(f"floor result の perf evidence が不正: {exc}") from exc
     if frozenset(result) != expected_result_keys:
         raise FreezeError("floor result の key 集合が不一致")
-    if result.get("schema") != s8b_floor_contract.RESULT_SCHEMA:
+    if (
+        result_schema != s8b_floor_contract.LEGACY_RESULT_SCHEMA
+        and result_schema != s8b_floor_contract.RESULT_SCHEMA_V5
+    ):
         raise FreezeError(
             f"floor result.schema が {s8b_floor_contract.RESULT_SCHEMA} でない"
         )

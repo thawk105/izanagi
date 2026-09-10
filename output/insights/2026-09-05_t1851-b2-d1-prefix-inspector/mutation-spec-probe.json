@@ -1,0 +1,246 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 150,
+  "timeout_seconds": 14400,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/attempt_registry_core.py",
+          "old": "    if actual_keys != ATTEMPT_REGISTRY_PREFIX_PROOF_KEYS:\n",
+          "new": "    if False and actual_keys != ATTEMPT_REGISTRY_PREFIX_PROOF_KEYS:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/attempt_registry_core.py",
+          "old": "    freeze_sha256 = _digest(\n        value.get(\"freeze_sha256\"), label=\"prefix proof.freeze_sha256\",\n    )\n",
+          "new": "    freeze_sha256 = value.get(\"freeze_sha256\")\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/attempt_registry_core.py",
+          "old": "    if type(row_count) is not int or row_count < 1:\n",
+          "new": "    if type(row_count) is not int or row_count < 0:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/attempt_registry_core.py",
+          "old": "    if chain_head_sha256 == _ZERO_SHA256:\n        _fail(\n",
+          "new": "    if False and chain_head_sha256 == _ZERO_SHA256:\n        _fail(\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "        return core.load_attempt_registry(\n            payload,\n            profile=generation_profile,\n            expected_binding=expected_binding,\n        )\n",
+          "new": "        _lenient_lines: list[bytes] = []\n        for _line in payload.split(b\"\\n\"):\n            if not _line:\n                continue\n            try:\n                json.loads(_line)\n            except ValueError:\n                break\n            _lenient_lines.append(_line)\n        return core.load_attempt_registry(\n            b\"\\n\".join(_lenient_lines) + b\"\\n\",\n            profile=generation_profile,\n            expected_binding=expected_binding,\n        )\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "        return core.load_attempt_registry(\n            payload,\n            profile=generation_profile,\n            expected_binding=expected_binding,\n        )\n",
+          "new": "        _decoded = [\n            json.loads(_line) for _line in payload.split(b\"\\n\") if _line\n        ]\n        return tuple(_decoded)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "    if rows[row_count - 1][\"event_sha256\"] != chain_head_sha256:\n",
+          "new": "    if False and rows[row_count - 1][\"event_sha256\"] != chain_head_sha256:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "    if rows[row_count - 1][\"event_sha256\"] != chain_head_sha256:\n",
+          "new": "    if rows[-1][\"event_sha256\"] != chain_head_sha256:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "        genesis.get(\"schema_version\")\n        != profile8b.S8B_V2_ATTEMPT_REGISTRY_SCHEMA_VERSION\n    ):\n",
+          "new": "        genesis.get(\"schema_version\")\n        not in (profile8b.S8B_ATTEMPT_REGISTRY_SCHEMA_VERSION, profile8b.S8B_V2_ATTEMPT_REGISTRY_SCHEMA_VERSION)\n    ):\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_contract.py",
+          "old": "_RESULT_V5_KEYS = _RESULT_V4_KEYS | {\"attempt_registry\"}\n",
+          "new": "_RESULT_V5_KEYS = _RESULT_V4_KEYS\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M12",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_stats.py",
+          "old": "        if reported_attempt_registry != independent_attempt_registry:\n",
+          "new": "        if False and reported_attempt_registry != independent_attempt_registry:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M13",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_stats.py",
+          "old": "        isinstance(artifact, Mapping)\n        and artifact.get(\"schema\") == _floor_contract.RESULT_SCHEMA_V5\n    ):\n",
+          "new": "        isinstance(artifact, Mapping)\n    ):\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M14",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_stats.py",
+          "old": "        expected_binding = _attempt_profile.S8BAttemptBinding(\n            freeze_sha256=freeze_sha256,\n            protocol_sha256=_floor_contract.canonical_protocol_sha256(protocol),\n            schedule_sha256=hashlib.sha256(\n                _attempt_registry_core.canonical_json_bytes(list(schedule))\n            ).hexdigest(),\n        )\n",
+          "new": "        expected_binding = _attempt_profile.S8BAttemptBinding(\n            freeze_sha256=reported_attempt_registry[\"freeze_sha256\"],\n            protocol_sha256=reported_attempt_registry[\"protocol_sha256\"],\n            schedule_sha256=reported_attempt_registry[\"schedule_sha256\"],\n        )\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M15",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_contract.py",
+          "old": "_RESULT_V4_KEYS = frozenset({\n    \"schema\", \"formula\",",
+          "new": "_RESULT_V4_KEYS = frozenset({\n    \"attempt_registry\", \"schema\", \"formula\","
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M16",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_stats.py",
+          "old": "        if (\n            reported_attempt_registry[\"freeze_sha256\"]\n            != artifact[\"freeze_sha256\"]\n        ):\n",
+          "new": "        if (\n            False\n        ):\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M17",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/attempt_registry_core.py",
+          "old": "    if registry_schema != ATTEMPT_REGISTRY_PREFIX_REGISTRY_SCHEMA:\n",
+          "new": "    if not isinstance(registry_schema, str) or not registry_schema:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M18",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "        root = admission.shared_admission_root(Path(repo_root))\n",
+          "new": "        root = admission.provision_shared_admission_root(Path(repo_root))\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

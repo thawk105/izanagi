@@ -1,0 +1,200 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 260,
+  "timeout_seconds": 3000,
+  "hang_timeout_seconds": 3600,
+  "mutations": [
+    {
+      "id": "M1-capture-surface-does-not-mark-execution-failure",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/runner.py",
+          "old": "            except (RuntimeError, subprocess.TimeoutExpired) as exc:\n                if rep_observations is not None:\n                    rep_observations[index][\"execution_failure\"] = True\n                if require_all_reps:\n",
+          "new": "            except (RuntimeError, subprocess.TimeoutExpired) as exc:\n                if require_all_reps:\n"
+        },
+        {
+          "file": "orchestrator/calibrator/runner.py",
+          "old": "            except Exception as exc:\n                if rep_observations is None:\n                    raise\n                rep_observations[index][\"execution_failure\"] = True\n",
+          "new": "            except Exception as exc:\n                if rep_observations is None:\n                    raise\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-direct-surface-does-not-mark-execution-failure",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/runner.py",
+          "old": "        except (RuntimeError, subprocess.TimeoutExpired) as exc:\n            if rep_observations is not None:\n                rep_observations[index][\"execution_failure\"] = True\n            if require_all_reps:\n",
+          "new": "        except (RuntimeError, subprocess.TimeoutExpired) as exc:\n            if require_all_reps:\n"
+        },
+        {
+          "file": "orchestrator/calibrator/runner.py",
+          "old": "        except Exception as exc:\n            if rep_observations is None:\n                raise\n            rep_observations[index][\"execution_failure\"] = True\n",
+          "new": "        except Exception as exc:\n            if rep_observations is None:\n                raise\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-campaign-reverts-exec-count-to-notes-regex",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "    exec_failures = sum(\n        observation.get(\"execution_failure\") is True\n        for observation in observations\n    )\n",
+          "new": "    exec_failures = 0\n    for _mutation_note in (getattr(scale_point, \"notes\", None) or []):\n        _mutation_match = re.search(r\"(\\d+)/\\d+ reps failed to execute\", str(_mutation_note))\n        if _mutation_match:\n            exec_failures = int(_mutation_match.group(1))\n            break\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-campaign-collapses-exec-into-integrity",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "    exec_failures = sum(\n        observation.get(\"execution_failure\") is True\n        for observation in observations\n    )\n",
+          "new": "    exec_failures = failures\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5a-padding-fabricates-false",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "                # Carrier が無ければ runner の例外捕捉有無も観測不能。False で補わない。\n                \"execution_failure\": None,\n",
+          "new": "                \"execution_failure\": False,\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5b-padding-drops-the-key",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "                # Carrier が無ければ runner の例外捕捉有無も観測不能。False で補わない。\n                \"execution_failure\": None,\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-campaign-complete-drops-execution-failure",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "            and derived_status in {\"complete\", \"not_required\"}\n            and observation.get(\"execution_failure\") is False\n        )\n",
+          "new": "            and derived_status in {\"complete\", \"not_required\"}\n        )\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-stats-key-set-reverts-to-six",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_stats.py",
+          "old": "    \"perf_raw\", \"throughput\", \"execution_failure\",\n})\n",
+          "new": "    \"perf_raw\", \"throughput\",\n})\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8-stats-accepts-non-bool-execution-failure",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_stats.py",
+          "old": "        if type(execution_failure) is not bool:\n            errors.append(\n                f\"{ctx}: execution_failure が exact bool でない: \"\n                f\"{execution_failure!r}\"\n            )\n            bad = True\n        elif execution_failure:\n            exec_failures += 1\n",
+          "new": "        if execution_failure:\n            exec_failures += 1\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9-stats-drops-top-level-exec-equality",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_stats.py",
+          "old": "            if r.exec_failures != derived_exec_failures:\n                errors.append(\n                    f\"{ctx}: exec_failures 齟齬 \"\n                    f\"(申告 {r.exec_failures} != 再導出 {derived_exec_failures})\"\n                )\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10-stats-complete-drops-execution-failure",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_stats.py",
+          "old": "            and derived_status in {\"complete\", \"not_required\"}\n            and execution_failure is False\n        )\n",
+          "new": "            and derived_status in {\"complete\", \"not_required\"}\n        )\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11-terminal-reverts-to-the-recombining-sum",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_terminal_evidence.py",
+          "old": "        if exec_failures > rep_integrity_failures:\n            _fail('execution-failure repetitions exceed integrity failures')\n        other_integrity_failures = rep_integrity_failures - exec_failures\n        classified_repetitions = (\n            len(throughputs)\n            + nonfinite_count\n            + exec_failures\n            + other_integrity_failures\n        )\n        if classified_repetitions != reps_expected:\n            _fail(\n                'finite/nonfinite/execution-failure/other-integrity '\n                'repetition sum differs from reps_expected'\n            )\n",
+          "new": "        if len(throughputs) + nonfinite_count + exec_failures != reps_expected:\n            _fail('finite/nonfinite/exec repetition sum differs from reps_expected')\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M12-stats-accepts-execution-failure-with-throughput",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_stats.py",
+          "old": "        if execution_failure is True and throughput is not None:\n            errors.append(\n                f\"{ctx}: execution_failure=True なのに throughput が非 null\"\n            )\n            bad = True\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

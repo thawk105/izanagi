@@ -147,7 +147,7 @@ izanagi プロジェクト専用。提案件数 = `$1` (未指定なら 2 件)�
     `git log main..<branch>` が空 = 実際には完全着地していた。**ID grep が空でも即「未着地」と
     断定せず、対象 file/関数名そのものを grep するか `main..<branch>` の差分有無で裏取りする**)。
   - **「実走可能」「次 wave で実機投入」と書かれた実験項は、成果物の実在で裏取りする** — carry の
-    状態語は実走が終わっても更新されないことがある。`output/insights/` を新しい順に列挙し、
+    実走後も状態語が古い例がある。`output/insights/` の日付配下と旧直下を新しい順に列挙し、
     その実験の attempt 記録・receipt が既に在るかを見る (2026-08-29 実測: [T-1647] の carry は
     「実走可能。次 wave で実機投入する」のままだったが、A-2 4-cell は 2026-08-28 に完走し
     `output/insights/2026-08-28_t2022-a2-certification-run/` に outer status `reject` まで

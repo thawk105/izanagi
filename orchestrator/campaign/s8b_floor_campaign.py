@@ -90,10 +90,10 @@ ROOT = _REPO_ROOT
 from ..calibrator.runner import (  # noqa: E402
     CompetingBenchProbeError,
     classify_competing_probe,
-    measure_point,
+    measure_point, measure_point as _DEFAULT_MEASURE_POINT,
 )
 from ..calibrator import perf_preflight as _perf_preflight  # noqa: E402
-from . import buildcache, patchharness, s8b_floor_stats, source_digest  # noqa: E402
+from . import buildcache, patchharness, s8b_floor_attempt_launcher, s8b_floor_stats, source_digest  # noqa: E402
 from . import s8b_expected_materialization as _expected_materialization  # noqa: E402
 from . import sort_swo_dependency_material as _sort_swo_dependency_material  # noqa: E402
 from . import silo_ladder_rung1 as _silo_ladder  # noqa: E402
@@ -1876,20 +1876,6 @@ def _validate_execution_receipt(
 # ScalePoint → session 射影 (s8b_floor_stats の有効性契約に従う)                #
 # --------------------------------------------------------------------------- #
 
-_EXEC_FAIL_RE = re.compile(r"(\d+)/\d+ reps failed to execute")
-
-
-def _count_exec_failures(notes) -> int:
-    """ScalePoint.notes から実行失敗した rep 数を数える (measure_point の集約 note を読む)。"""
-    for note in notes or []:
-        if not isinstance(note, str):
-            continue
-        match = _EXEC_FAIL_RE.search(note)
-        if match:
-            return int(match.group(1))
-    return 0
-
-
 def _project_scalepoint(scale_point, *, reps: int, expected_use_perf: bool) -> dict:
     """rep 証跡から完備な rep の tps だけを統計入力へ射影する。"""
     source_throughputs = list(getattr(scale_point, "throughputs", None) or [])
@@ -1901,6 +1887,8 @@ def _project_scalepoint(scale_point, *, reps: int, expected_use_perf: bool) -> d
             {
                 "rep_index": index,
                 "returncode": None,
+                # Carrier が無ければ runner の例外捕捉有無も観測不能。False で補わない。
+                "execution_failure": None,
                 "counter_status": "incomplete" if expected_use_perf else "not_required",
                 "missing_perf_events": (
                     list(s8b_floor_stats.PERF_EVENTS) if expected_use_perf else []
@@ -1946,7 +1934,7 @@ def _project_scalepoint(scale_point, *, reps: int, expected_use_perf: bool) -> d
         complete = (
             set(observation) == {
                 "rep_index", "returncode", "counter_status", "missing_perf_events",
-                "perf_raw", "throughput",
+                "perf_raw", "throughput", "execution_failure",
             }
             and type(observation.get("rep_index")) is int
             and observation["rep_index"] == expected_index
@@ -1956,13 +1944,17 @@ def _project_scalepoint(scale_point, *, reps: int, expected_use_perf: bool) -> d
             and observation.get("missing_perf_events") == missing
             and raw_complete
             and derived_status in {"complete", "not_required"}
+            and observation.get("execution_failure") is False
         )
         if complete:
             if observation.get("throughput") is not None:
                 throughputs.append(observation["throughput"])
         else:
             failures += 1
-    exec_failures = _count_exec_failures(getattr(scale_point, "notes", None))
+    exec_failures = sum(
+        observation.get("execution_failure") is True
+        for observation in observations
+    )
     return {
         "throughputs": throughputs,
         "exec_failures": exec_failures,
@@ -6039,7 +6031,7 @@ class _Runner:
                  reservation_check=None, write_capability=None,
                  perf_preflight=None, mode="official",
                  holdout_assert_fn=None, external_checkpoint_binding=None,
-                 cut6_replay_query_fn=None, retry_trigger_query_fn=None):
+                 cut6_replay_query_fn=None, retry_trigger_query_fn=None, certified_attempt_context=None):
         self.protocol = protocol
         self.contract = contract
         self.cells = cells
@@ -6091,7 +6083,7 @@ class _Runner:
         self.allowed_reasons = set(protocol["allowed_excluded_reasons"])
         self.records = (_read_journal(journal_path) if records is None
                         else [dict(record) for record in records])
-        self._retry_authorization_cache = {}
+        self._retry_authorization_cache, self.certified_attempt_context = {}, certified_attempt_context
 
     # --- journal I/O ----------------------------------------------------- #
 
@@ -6222,7 +6214,7 @@ class _Runner:
 
     def _run_session(self, *, seq: int, round_no: int, cell_id: str, kind: str,
                      retry_ordinal: Optional[int], trigger: Optional[str],
-                     _cut6_authorization_already_recorded: bool = False) -> dict:
+                     _cut6_authorization_already_recorded: bool = False, _cut6_existing_consumption_marker: bool = False) -> dict:
         self._recheck_reservation_before_measurement()
         attempt_id = _attempt_id(cell_id, kind, seq, retry_ordinal)
         # authorization record: retry 枠はこの fsync 時点で消費される (crash しても再発行しない)。
@@ -6247,7 +6239,7 @@ class _Runner:
                 f"binary receipt 不一致: cell={cell_id} 記録={recorded_bin_sha} "
                 f"実測直前={measured_bin_sha} (計測 bytes 差し替えの疑い)"
             )
-
+        if self.certified_attempt_context is not None: return _run_certified_floor_session(self, seq=seq, round_no=round_no, cell_id=cell_id, kind=kind, retry_ordinal=retry_ordinal, attempt_id=attempt_id, trigger=trigger, start_mono=start_mono, cut6_existing_consumption_marker=_cut6_existing_consumption_marker)
         # pre-probe: rc>1/OSError/parse 不能 → CampaignAbort。競合列挙 → competing_process。
         probe_before = strict_probe(self.probe_fn)
         if probe_before["competing"]:
@@ -6440,7 +6432,7 @@ class _Runner:
             cell_id=cell_id, kind=str(start["kind"]),
             retry_ordinal=start.get("retry_ordinal"),
             trigger=start.get("trigger"),
-            _cut6_authorization_already_recorded=True,
+            _cut6_authorization_already_recorded=True, _cut6_existing_consumption_marker=True,
         )
         return True
 
@@ -6544,7 +6536,7 @@ class _Runner:
             self._emit({
                 "event": "resume-start", **host, **process,
             })
-
+        self._certified_run_start_record = self.records[-1]
         started = self._started_seqs()
         completed_rounds = self._completed_rounds()
         started_rounds = {r["round"] for r in self.records
@@ -6713,7 +6705,7 @@ def _verify_result_with_live_admission(
 def assemble_result(*, protocol, mode, protocol_sha256, freeze_sha256,
                     manifest_sha256, cells, binaries, records,
                     holdout_admission,
-                    perf_preflight=None) -> dict:
+                    perf_preflight=None, attempt_registry=None) -> dict:
     """journal の生 session から floor artifact (result) を組み立てる (formula v2)。
 
     cell_stats / holdout_floors は ``s8b_floor_stats`` (formula v2) が正本。artifact の
@@ -6821,7 +6813,7 @@ def assemble_result(*, protocol, mode, protocol_sha256, freeze_sha256,
     ]
 
     result = {
-        "schema": RESULT_SCHEMA,
+        "schema": _floor_contract.RESULT_SCHEMA_V5 if attempt_registry is not None else RESULT_SCHEMA,
         "formula": protocol["formula"],
         "mode": mode,
         # Assembly 単体は authority を持たない。core 入口で raw seam と freshness から導いた
@@ -6858,7 +6850,7 @@ def assemble_result(*, protocol, mode, protocol_sha256, freeze_sha256,
         "wall_ledger": wall_ledger,
         "excluded": excluded,
         "attempts": attempts,
-    }
+        **({"attempt_registry": dict(attempt_registry)} if attempt_registry is not None else {}), }
     if normalized_perf is not None:
         result["perf_preflight"] = normalized_perf
         if mode != "pilot" and not use_perf:
@@ -7394,7 +7386,7 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         cells=cells, master_seed=protocol["master_seed"],
         n_sessions=protocol["n_sessions"],
     )
-    protocol_sha256 = _canonical_sha256(protocol)
+    protocol_sha256, attempt_registry_plan = _protocol_sha256_and_attempt_registry_plan(protocol=protocol, cells=cells, schedule=schedule, freeze_sha256=freeze_sha256, production=measure_fn is None and measure_point is _DEFAULT_MEASURE_POINT)
     out_root = Path(out_root)
     started_at = now_fn() if resume_dir is None else None
     campaign_run_id = (
@@ -7819,7 +7811,7 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
             freeze_sha256=freeze_sha256, manifest_sha256=manifest_sha256,
             cells=cells, binaries=artifact_built, records=resume_records,
             holdout_admission=holdout_admission,
-            perf_preflight=perf_preflight_receipt,
+            perf_preflight=perf_preflight_receipt, attempt_registry=_capture_floor_attempt_registry_prefix(holdout_repo_root, attempt_registry_plan) if attempt_registry_plan is not None else None,
         )
         apply_refreeze_eligibility()
         problems = _verify_result_with_live_admission(
@@ -7932,7 +7924,7 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         reservation_check=reservation_check,
         external_checkpoint_binding=external_checkpoint_binding,
         write_capability=run_write_capability,
-        perf_preflight=perf_preflight_receipt, mode=mode,
+        perf_preflight=perf_preflight_receipt, mode=mode, certified_attempt_context=_certified_attempt_context(repo_root=holdout_repo_root, campaign_run_id=campaign_run_id, run_relpath=run_relpath, plan=attempt_registry_plan),
     )
 
     try:
@@ -7972,7 +7964,7 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         freeze_sha256=freeze_sha256, manifest_sha256=manifest_sha256,
         cells=cells, binaries=artifact_built, records=runner.records,
         holdout_admission=holdout_admission,
-        perf_preflight=perf_preflight_receipt,
+        perf_preflight=perf_preflight_receipt, attempt_registry=_capture_floor_attempt_registry_prefix(holdout_repo_root, attempt_registry_plan) if attempt_registry_plan is not None else None,
     )
     apply_refreeze_eligibility()
 
@@ -8373,7 +8365,7 @@ def _verify_resume_journal(records: list[dict], *, run_dir: Path, mode: str,
             reps_expected = r.get("reps_expected")
             if type(reps_expected) is not int or reps_expected < 2:
                 raise FloorCampaignError("resume: reps_expected が exact int でない")
-            evidence_errors, derived_failures, qualified = \
+            evidence_errors, derived_failures, derived_exec_failures, qualified = \
                 s8b_floor_stats._derive_rep_integrity(
                     r["rep_observations"], reps=reps_expected,
                     expected_use_perf=expected_use_perf,
@@ -8385,6 +8377,8 @@ def _verify_resume_journal(records: list[dict], *, run_dir: Path, mode: str,
             if (type(r["rep_integrity_failures"]) is not int
                     or r["rep_integrity_failures"] != derived_failures):
                 raise FloorCampaignError("resume: rep_integrity_failures が再導出値と不一致")
+            if r["exec_failures"] != derived_exec_failures:
+                raise FloorCampaignError("resume: exec_failures が再導出値と不一致")
             if tuple(r.get("throughputs", ())) != qualified:
                 raise FloorCampaignError("resume: qualified throughputs が rep 証跡と不一致")
         expected_class = (
@@ -8657,6 +8651,347 @@ def main(argv=None) -> int:
         "status": outcome["status"], "run_dir": outcome["run_dir"],
     }, ensure_ascii=False))
     return 0
+
+
+_FloorAttemptRegistryPlan = s8b_floor_attempt_launcher.FloorAttemptRegistryPlan
+
+
+@dataclass(frozen=True, slots=True)
+class _CertifiedFloorAttemptContext:
+    repo_root: Path
+    campaign_run_id: str
+    run_relpath: str
+    registry_plan: _FloorAttemptRegistryPlan
+
+
+def _protocol_sha256_and_attempt_registry_plan(
+        *, protocol: Mapping[str, object], cells: Sequence[Mapping[str, object]],
+        schedule: Sequence[Mapping[str, object]], freeze_sha256: str,
+        production: bool) -> tuple[str, Optional[_FloorAttemptRegistryPlan]]:
+    protocol_sha256 = _canonical_sha256(protocol)
+    return protocol_sha256, (
+        _build_floor_attempt_registry_plan(
+            protocol=protocol, cells=cells, schedule=schedule,
+            freeze_sha256=freeze_sha256, protocol_sha256=protocol_sha256,
+        ) if production else None
+    )
+
+
+def _certified_attempt_context(
+        *, repo_root: Path, campaign_run_id: str, run_relpath: str,
+        plan: Optional[_FloorAttemptRegistryPlan]) -> Optional[_CertifiedFloorAttemptContext]:
+    if plan is None:
+        return None
+    return _CertifiedFloorAttemptContext(
+        repo_root=Path(repo_root), campaign_run_id=campaign_run_id,
+        run_relpath=run_relpath, registry_plan=plan,
+    )
+
+
+def _build_floor_attempt_registry_plan(
+        *, protocol: Mapping[str, object], cells: Sequence[Mapping[str, object]],
+        schedule: Sequence[Mapping[str, object]], freeze_sha256: str,
+        protocol_sha256: str) -> _FloorAttemptRegistryPlan:
+    """Freeze the exact planned and retry slot closure for one campaign."""
+    try:
+        return s8b_floor_attempt_launcher.prepare_floor_attempt_registry_plan(
+            protocol=protocol, cells=cells, schedule=schedule,
+            freeze_sha256=freeze_sha256, protocol_sha256=protocol_sha256,
+        )
+    except s8b_floor_attempt_launcher.FloorAttemptLauncherError as exc:
+        raise FloorCampaignError(str(exc)) from exc
+
+
+def _capture_floor_attempt_registry_prefix(
+        repo_root: Path, plan: _FloorAttemptRegistryPlan) -> dict[str, object]:
+    if type(plan) is not _FloorAttemptRegistryPlan:
+        raise FloorCampaignError("attempt registry plan is unavailable")
+    return s8b_floor_attempt_launcher.capture_floor_attempt_registry_prefix(
+        Path(repo_root), plan,
+    )
+
+
+def _floor_measurement_capture(
+        *, cell: Mapping[str, object], binary: str,
+        contract: _env_contract.ExecutionEnvironmentContract,
+        protocol: Mapping[str, object], expected_use_perf: bool,
+        observation_admission: object,
+) -> s8b_floor_attempt_launcher.FloorMeasurementCapture:
+    return s8b_floor_attempt_launcher.FloorMeasurementCapture(
+        binary=binary,
+        records=int(cell["records"]),
+        threads=int(cell["threads"]),
+        clocks_per_us=contract.clocks_per_us,
+        keyword_arguments={
+            "extime": protocol["extime_s"],
+            "reps": protocol["reps"],
+            "workload": dict(cell["workload"]),
+            "numactl": tuple(contract.numactl),
+            "use_perf": expected_use_perf,
+            "holdout_observation_admission": observation_admission,
+        },
+    )
+
+
+def _floor_terminal_builder(
+        *, runner: _Runner, seq: int, round_no: int,
+        cell: Mapping[str, object], kind: str,
+        retry_ordinal: Optional[int], attempt_id: str,
+        trigger: Optional[str], binary: str,
+) -> Callable[[s8b_floor_attempt_launcher.OpenedFloorAttempt],
+              s8b_floor_attempt_launcher.FloorAttemptTerminal]:
+    def build(
+        opened: s8b_floor_attempt_launcher.OpenedFloorAttempt,
+    ) -> s8b_floor_attempt_launcher.FloorAttemptTerminal:
+        scale_point = opened.measurement
+        if scale_point is None:
+            throughputs = []
+            exec_failures = runner.reps
+            rep_observations = []
+            rep_integrity_failures = None
+            run_cmd = None
+            failure = opened.failure or {}
+            notes = [
+                f"measure 失敗: {failure.get('exception_type', 'RuntimeError')}: "
+                f"{str(failure.get('message', 'measurement unavailable'))[:200]}"
+            ]
+        else:
+            projection = _project_scalepoint(
+                scale_point, reps=runner.reps,
+                expected_use_perf=opened.expected_use_perf,
+            )
+            throughputs = projection["throughputs"]
+            exec_failures = projection["exec_failures"]
+            rep_observations = projection["rep_observations"]
+            rep_integrity_failures = projection["rep_integrity_failures"]
+            run_cmd = _project_measure_run_cmd(
+                getattr(scale_point, "run_cmd", None),
+                runtime_binary=binary,
+                portable_binary=runner.artifact_binaries[str(cell["cell_id"])]["binary"],
+                workload=cell["workload"], records=int(cell["records"]),
+                threads=int(cell["threads"]), protocol=runner.protocol,
+                contract=runner.contract, perf_preflight=runner.perf_preflight,
+                mode=runner.mode,
+            )
+            notes = list(getattr(scale_point, "notes", []) or [])
+        assessment = None
+        if scale_point is not None:
+            try:
+                assessment = s8b_floor_stats.assess_session(
+                    throughputs, reps=runner.reps,
+                    session_cv_max=runner.session_cv_max,
+                )
+            except s8b_floor_stats.FloorStatsError as exc:
+                raise CampaignAbort(
+                    f"assess_session 内部不変条件破れ: {exc}"
+                ) from exc
+        session_cv = None if assessment is None else assessment.cv
+        assessed_median = None if assessment is None else assessment.median
+        derived_reason = None if assessment is None else assessment.required_reason
+        post_competing = (
+            opened.probe_after is not None
+            and opened.probe_after["competing"] is True
+        )
+        if opened.probe_before["competing"] is True or post_competing:
+            excluded_reason: Optional[str] = _REASON_COMPETING
+        elif opened.failure is not None:
+            excluded_reason = _REASON_LAUNCH
+        elif exec_failures >= runner.reps:
+            excluded_reason = _REASON_LAUNCH
+        elif exec_failures > 0 and derived_reason is None:
+            excluded_reason = _REASON_LAUNCH
+        elif (
+            rep_integrity_failures is not None
+            and rep_integrity_failures > 0
+            and derived_reason == _REASON_PARTIAL
+        ):
+            excluded_reason = _REASON_PARTIAL
+        else:
+            excluded_reason = derived_reason
+        reason = (
+            runner._check_reason(excluded_reason)
+            if excluded_reason is not None else None
+        )
+        median = (
+            assessed_median if reason is None and exec_failures == 0 else None
+        )
+        valid = median is not None
+        exclusion_class = (
+            reason if reason in {_REASON_COMPETING, _REASON_LAUNCH}
+            else s8b_floor_stats.REP_INTEGRITY_EXCLUSION_CLASS
+            if rep_integrity_failures is not None and rep_integrity_failures > 0
+            else reason
+        )
+        record = {
+            "event": "session", "kind": kind, "seq": seq, "round": round_no,
+            "retry_ordinal": retry_ordinal, "attempt_id": attempt_id,
+            "trigger": trigger, "cell_id": cell["cell_id"],
+            "holdout_id": cell["holdout_id"],
+            "configuration_id": cell["configuration_id"],
+            "records": cell["records"], "threads": cell["threads"],
+            "workload": cell["workload"], "throughputs": list(throughputs),
+            "reps_expected": runner.reps, "exec_failures": exec_failures,
+            "excluded_reason": reason, "retry": kind == "retry",
+            "rep_observations": [dict(item) for item in rep_observations],
+            "rep_integrity_failures": rep_integrity_failures,
+            "session_median": median, "valid": valid, "session_cv": session_cv,
+            "exclusion_class": exclusion_class, "duration_s": opened.duration_s,
+            "run_cmd": run_cmd, "notes": notes,
+            "probe_before": dict(opened.probe_before),
+            "probe_after": (
+                None if opened.probe_after is None else dict(opened.probe_after)
+            ),
+            "binary_sha256_at_measure": opened.binary_sha256_at_measure,
+        }
+        raw = s8b_floor_attempt_launcher.serialize_floor_session_record(record)
+        observation_sha256 = (
+            s8b_floor_attempt_launcher.canonical_floor_payload_sha256(
+                record["rep_observations"]
+            )
+            if valid else None
+        )
+        return s8b_floor_attempt_launcher.FloorAttemptTerminal(
+            raw_output_bytes=raw,
+            terminal_status="observed" if valid else "retryable-failure",
+            report_sha256=hashlib.sha256(raw).hexdigest(),
+            observation_sha256=observation_sha256,
+            primary_value=float(median) if valid else None,
+            finished_at=opened.finished_at,
+            campaign_record=record,
+        )
+
+    return build
+
+
+def _run_certified_floor_session(
+        runner: _Runner, *, seq: int, round_no: int, cell_id: str, kind: str,
+        retry_ordinal: Optional[int], attempt_id: str, trigger: Optional[str],
+        start_mono: float, cut6_existing_consumption_marker: bool) -> dict:
+    """Run phase 1, preserve the unconsumed competing branch, then launch."""
+
+    context = runner.certified_attempt_context
+    if type(context) is not _CertifiedFloorAttemptContext:
+        raise CampaignAbort("certified attempt context is invalid")
+    try:
+        pre_probe = s8b_floor_attempt_launcher.probe_floor_attempt_preconditions(
+            post_probe=s8b_floor_attempt_launcher.floor_post_probe_capability(),
+        )
+    except s8b_floor_attempt_launcher.FloorAttemptLauncherError as exc:
+        raise CampaignAbort(f"certified floor pre-probe refused: {exc}") from exc
+    cell = runner.cell_by_id[cell_id]
+    if pre_probe.competing:
+        if cut6_existing_consumption_marker:
+            raise CampaignAbort(
+                "cut6_replay_pre_probe_competing_existing_marker"
+            )
+        probe_before = s8b_floor_attempt_launcher.read_floor_attempt_pre_probe(
+            pre_probe
+        )
+        return runner._finish_session(
+            seq=seq, round_no=round_no, cell_id=cell_id, kind=kind,
+            retry_ordinal=retry_ordinal, attempt_id=attempt_id, trigger=trigger,
+            throughputs=[], exec_failures=0,
+            excluded_reason=_REASON_COMPETING, rep_observations=[],
+            rep_integrity_failures=None, assessed_median=None, session_cv=None,
+            duration_s=runner._elapsed(start_mono),
+            probe_before=dict(probe_before),
+            probe_after=None, run_cmd=None,
+            notes=["preflight probe 競合で計測をスキップ"],
+            binary_sha256_at_measure=runner.binaries[cell_id]["binary_sha256"],
+        )
+    admission = runner.holdout_admissions[cell_id]
+    measurement_ordinal = 0 if kind == "planned" else retry_ordinal
+    if type(measurement_ordinal) is not int or measurement_ordinal < 0:
+        raise CampaignAbort("certified floor measurement ordinal is invalid")
+    slot_key = (cell_id, round_no, measurement_ordinal)
+    try:
+        s8b_floor_attempt_launcher.require_floor_attempt_registry_slot(
+            context.registry_plan, slot_key,
+        )
+    except s8b_floor_attempt_launcher.FloorAttemptLauncherError as exc:
+        raise CampaignAbort(str(exc)) from exc
+    try:
+        runner.holdout_assert_fn(
+            admission, cell=_admission_cell(cell), protocol=runner.protocol,
+            freeze_sha256=runner.freeze_sha256,
+            protocol_sha256=runner.protocol_sha256,
+            manifest_sha256=runner.manifest_sha256,
+        )
+        observation = _holdout_admission.consume_attempt_ticket(
+            admission, attempt_id=attempt_id,
+        )
+        marker = _holdout_admission.validate_floor_attempt_consumption_marker(
+            admission, attempt_id=attempt_id,
+        )
+    except _holdout_admission.HoldoutAdmissionError as exc:
+        raise CampaignAbort(
+            f"holdout attempt admission refused: cell={cell_id}: {exc}"
+        ) from exc
+    run_start = getattr(runner, "_certified_run_start_record", None)
+    if not isinstance(run_start, Mapping):
+        raise CampaignAbort("certified floor run-start record is unavailable")
+    process_identity = {
+        key: run_start.get(key) for key in ("pid", "starttime", "execution_uuid")
+    }
+    reservation_request = s8b_floor_attempt_launcher.floor_attempt_reservation(
+        context.registry_plan,
+        slot_key=slot_key,
+        repo_root=context.repo_root,
+        protocol=runner.protocol,
+        mode=runner.mode,
+        perf_preflight_receipt=runner.perf_preflight,
+        consumption_marker=marker,
+        run_start_receipt_sha256=(
+            s8b_floor_attempt_launcher.canonical_floor_payload_sha256(
+                dict(run_start)
+            )
+        ),
+        process_identity=process_identity,
+        started_at=str(run_start.get("utc")),
+        admission_claim_digest=admission.measurement_generation_claim_digest,
+        attempt_id=attempt_id,
+        campaign_run_id=context.campaign_run_id,
+        manifest_sha256=runner.manifest_sha256,
+        run_relpath=context.run_relpath,
+        cell_id=cell_id,
+        records=int(cell["records"]),
+        threads=int(cell["threads"]),
+        workload=dict(cell["workload"]),
+    )
+    measurement = _floor_measurement_capture(
+        cell=cell, binary=runner.binaries[cell_id]["binary"],
+        contract=runner.contract, protocol=runner.protocol,
+        expected_use_perf=runner.use_perf,
+        observation_admission=observation,
+    )
+    terminal_builder = _floor_terminal_builder(
+        runner=runner, seq=seq, round_no=round_no, cell=cell, kind=kind,
+        retry_ordinal=(None if kind == "planned" else measurement_ordinal),
+        attempt_id=attempt_id, trigger=trigger,
+        binary=runner.binaries[cell_id]["binary"],
+    )
+    try:
+        launched = s8b_floor_attempt_launcher.launch_probed_floor_attempt(
+            reservation_request,
+            s8b_floor_attempt_launcher.floor_attempt_registry_genesis(
+                context.registry_plan
+            ),
+            measurement,
+            pre_probe=pre_probe,
+            classified_at=lambda: runner.now_fn().isoformat(),
+            terminal_builder=terminal_builder,
+        )
+    except (
+        s8b_floor_attempt_launcher.FloorAttemptLauncherError,
+        s8b_floor_attempt_launcher.FloorAttemptRegistryError,
+        _holdout_admission.HoldoutAdmissionError,
+    ) as exc:
+        raise CampaignAbort(f"certified floor attempt refused: {exc}") from exc
+    record = launched.terminal.campaign_record
+    if type(record) is not dict:
+        raise CampaignAbort("certified launcher terminal campaign record is not exact dict")
+    runner._emit(record)
+    return record
 
 
 if __name__ == "__main__":

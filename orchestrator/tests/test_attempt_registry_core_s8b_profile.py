@@ -157,6 +157,8 @@ def _terminal(
     report_sha256: str | None = None,
     observation_sha256: str | None = None,
     primary_value: object = None,
+    measurement_retry_reason: str | None = None,
+    terminal_evidence_sha256: str | None = None,
 ) -> core.RegistryRows:
     return core.record_attempt_terminal(
         rows,
@@ -170,6 +172,8 @@ def _terminal(
         observation_sha256=observation_sha256,
         primary_value=primary_value,
         failure_reason=failure_reason,
+        measurement_retry_reason=measurement_retry_reason,
+        terminal_evidence_sha256=terminal_evidence_sha256,
         finished_at="2026-08-23T00:00:02+00:00",
     )
 
@@ -2063,6 +2067,640 @@ def test_facade_rebinding_guard_rejects_c03_blind_synthetic_source() -> None:
         "top-level facade rebinding is forbidden: "
         "create_attempt_registry_genesis"
     )
+
+
+@pytest.mark.parametrize("invalid_count", [True, -1, 1.5])
+def test_seeded_budget_replay_rejects_invalid_counts_and_accepts_exact_limit(
+    invalid_count: object,
+) -> None:
+    profile = _profile(budget=10)
+    slot = _slot(0, 0)
+    rows = _reserve(_genesis(profile, [slot]), profile=profile, slot=slot)
+    payload = _registry_bytes(rows)
+    budget_key = (slot.freeze_holdout_key, slot.configuration_id)
+
+    _assert_core_rejection(
+        "[attempt-slot-order] initial started budget count is invalid",
+        lambda: core.load_attempt_registry_with_budget_counts(
+            payload,
+            profile=profile,
+            expected_binding=_BINDING,
+            initial_started_budget_counts={budget_key: invalid_count},
+        ),
+    )
+
+    seed = {budget_key: 9}
+    replayed, counts = core.load_attempt_registry_with_budget_counts(
+        payload,
+        profile=profile,
+        expected_binding=_BINDING,
+        initial_started_budget_counts=seed,
+    )
+    assert replayed == rows
+    assert counts == {budget_key: 10}
+    assert seed == {budget_key: 9}
+
+
+def test_seeded_budget_replay_rejects_eleventh_start_and_old_apis_are_unchanged(
+) -> None:
+    profile = _profile(budget=10)
+    slot = _slot(0, 0)
+    rows = _reserve(_genesis(profile, [slot]), profile=profile, slot=slot)
+    payload = _registry_bytes(rows)
+    budget_key = (slot.freeze_holdout_key, slot.configuration_id)
+
+    _assert_core_rejection(
+        "[attempt-slot-order] attempt consumption exceeds the profile budget",
+        lambda: core.load_attempt_registry_with_budget_counts(
+            payload,
+            profile=profile,
+            initial_started_budget_counts={budget_key: 10},
+        ),
+    )
+    assert core.assert_registry_rows(rows, profile=profile) == rows
+    assert core.load_attempt_registry(payload, profile=profile) == rows
+    assert "initial_started_budget_counts" not in inspect.signature(
+        core.assert_registry_rows
+    ).parameters
+    assert "initial_started_budget_counts" not in inspect.signature(
+        core.load_attempt_registry
+    ).parameters
+
+    _assert_core_rejection(
+        "[attempt-slot-order] initial started budget counts are not a mapping",
+        lambda: core.load_attempt_registry_with_budget_counts(
+            payload,
+            profile=profile,
+            initial_started_budget_counts=[],  # type: ignore[arg-type]
+        ),
+    )
+    empty_replay, empty_counts = core.load_attempt_registry_with_budget_counts(
+        _registry_bytes(_genesis(profile, [slot])),
+        profile=profile,
+        initial_started_budget_counts={},
+    )
+    assert empty_replay[0]["event"] == "freeze"
+    assert empty_counts == {}
+
+
+@pytest.mark.parametrize(
+    ("field", "invalid"),
+    [("measurement_ordinal", True), ("attempt_ordinal", -1)],
+)
+def test_v2_slot_codec_rejects_invalid_ordinals_and_accepts_five_axis_identity(
+    field: str,
+    invalid: object,
+) -> None:
+    value = {
+        "freeze_holdout_key": "holdout-a",
+        "configuration_id": "configuration-a",
+        "repetition": 2,
+        "measurement_ordinal": 3,
+        "attempt_ordinal": 4,
+        "schedule_row_sha256": _SCHEDULE,
+    }
+    rejected = {**value, field: invalid}
+    _assert_core_rejection(
+        f"[attempt-registry-schema] v2 slot.{field} is not a nonnegative integer",
+        lambda: s8b.S8B_V2_SLOT_CODEC.parse(rejected, label="v2 slot"),
+    )
+
+    slot = s8b.S8B_V2_SLOT_CODEC.parse(value, label="v2 slot")
+    assert s8b.S8B_V2_SLOT_CODEC.to_json(slot) == value
+    assert s8b.S8B_V2_SLOT_CODEC.slot_id(slot) == (
+        "holdout-a", "configuration-a", 2, 3, 4,
+    )
+    assert s8b.S8B_V2_SLOT_CODEC.series_key(slot) == (
+        "holdout-a", "configuration-a", 2, 3,
+    )
+
+
+def test_v2_profile_is_additive_empty_retryable_and_budgeted_by_cell() -> None:
+    with pytest.raises(
+        core.AttemptRegistryCoreError,
+        match=(
+            r"^\[attempt-registry-profile\] "
+            r"8b cell consumption budget is invalid$"
+        ),
+    ):
+        s8b.make_s8b_v2_domain_profile(
+            max_consumptions_per_budget_key=-1,
+            recovery_authority_id=_RECOVERY_AUTHORITY,
+            recovery_authority_policy_sha256=_POLICY,
+        )
+    profile = s8b.make_s8b_v2_domain_profile(
+        max_consumptions_per_budget_key=10,
+        recovery_authority_id=_RECOVERY_AUTHORITY,
+        recovery_authority_policy_sha256=_POLICY,
+    )
+    slot = s8b.S8BV2AttemptSlot(
+        freeze_holdout_key="holdout-a",
+        configuration_id="configuration-a",
+        repetition=2,
+        measurement_ordinal=3,
+        attempt_ordinal=4,
+        schedule_row_sha256=_SCHEDULE,
+    )
+    assert profile.schema is s8b.S8B_V2_SCHEMA_PROFILE
+    assert profile.schema.current == "s8b-floor-attempt-registry/v2"
+    assert profile.layout is s8b.S8B_V2_REGISTRY_LAYOUT
+    assert profile.layout.registry_path.as_posix() == (
+        "floor-attempt-registries/{freeze_sha256}/"
+        "{protocol_sha256}/registry.jsonl"
+    )
+    expected_reasons = frozenset({
+        "measurement_environment_conflict",
+        "measurement_execution_unavailable",
+        "measurement_sample_incomplete",
+        "measurement_dispersion_exceeded",
+    })
+    assert profile.retryable_reasons == expected_reasons
+    assert s8b.S8B_V2_RETRYABLE_FAILURE_REASONS == expected_reasons
+    assert profile.retryable_reason_field == "measurement_retry_reason"
+    assert profile.transition_policy.budget_key is not None
+    assert profile.transition_policy.budget_key(slot) == (
+        "holdout-a", "configuration-a",
+    )
+    event_keys = profile.schema.event_keys[profile.schema.current]
+    assert all("measurement_ordinal" in keys for keys in event_keys.values())
+    v1_event_keys = s8b.S8B_SCHEMA_PROFILE.event_keys[
+        s8b.S8B_ATTEMPT_REGISTRY_SCHEMA_VERSION
+    ]
+    assert event_keys["terminal"] - v1_event_keys["terminal"] == {
+        "measurement_ordinal",
+        "measurement_retry_reason",
+        "terminal_evidence_sha256",
+    }
+    assert all(
+        event_keys[event] - v1_event_keys[event] == {"measurement_ordinal"}
+        for event in event_keys if event != "terminal"
+    )
+    assert s8b.S8B_ATTEMPT_REGISTRY_SCHEMA_VERSION == (
+        "s8b-floor-attempt-registry/v1"
+    )
+    assert s8b.S8B_RETRYABLE_FAILURE_REASONS == frozenset()
+
+
+def test_profile_extension_fields_are_keyword_only_and_preserve_legacy_defaults(
+) -> None:
+    domain_field = next(
+        field for field in fields(core.DomainProfile)
+        if field.name == "terminal_row_validator"
+    )
+    reason_field = next(
+        field for field in fields(core.DomainProfile)
+        if field.name == "retryable_reason_field"
+    )
+    transition_field = next(
+        field for field in fields(core.TransitionPolicy)
+        if field.name == "retryable_terminal_opens_next_attempt"
+    )
+    assert domain_field.kw_only is True
+    assert domain_field.default is None
+    assert reason_field.kw_only is True
+    assert reason_field.default == "failure_reason"
+    assert transition_field.kw_only is True
+    assert transition_field.default is True
+    legacy = _profile()
+    assert legacy.terminal_row_validator is None
+    assert legacy.retryable_reason_field == "failure_reason"
+    assert legacy.transition_policy.retryable_terminal_opens_next_attempt is True
+    assert R._S8C_ATTEMPT_PROFILE.terminal_row_validator is None
+    assert (
+        R._S8C_ATTEMPT_PROFILE.transition_policy
+        .retryable_terminal_opens_next_attempt
+        is True
+    )
+    v2 = s8b.make_s8b_v2_domain_profile(
+        max_consumptions_per_budget_key=10,
+        recovery_authority_id=_RECOVERY_AUTHORITY,
+        recovery_authority_policy_sha256=_POLICY,
+    )
+    assert v2.terminal_row_validator is not None
+    assert v2.transition_policy.retryable_terminal_opens_next_attempt is False
+
+
+def test_v2_terminal_failure_null_matrix_reads_measurement_reason_directly(
+) -> None:
+    """D1522/S1: name the lower branch hidden by the sealed E1 surface."""
+
+    row = {
+        "terminal_status": "terminal-failure",
+        "raw_output_sha256": _RAW,
+        "classification_receipt_sha256": _REPORT,
+        "report_sha256": None,
+        "observation_sha256": None,
+        "primary_value": None,
+        "failure_reason": "classification-echo",
+        "measurement_retry_reason": "non-retryable-measurement-failure",
+    }
+    core._assert_null_matrix(
+        row,
+        retryable_reasons=s8b.S8B_V2_RETRYABLE_FAILURE_REASONS,
+        retryable_reason_field="measurement_retry_reason",
+        label="direct v2 terminal-failure",
+    )
+    mutated = {
+        **row,
+        "measurement_retry_reason": "measurement_execution_unavailable",
+    }
+    with pytest.raises(
+        core.AttemptRegistryCoreError,
+        match=r"^\[attempt-null-matrix\].*terminal-failure null matrix differs$",
+    ):
+        core._assert_null_matrix(
+            mutated,
+            retryable_reasons=s8b.S8B_V2_RETRYABLE_FAILURE_REASONS,
+            retryable_reason_field="measurement_retry_reason",
+            label="direct v2 terminal-failure",
+        )
+
+
+def test_v2_not_consumed_null_matrix_has_direct_positive_and_negative_pair(
+) -> None:
+    """D1522: E1 cannot produce this branch, so exercise it below E1."""
+
+    accepted = {
+        "terminal_status": "not-consumed",
+        "raw_output_sha256": _RAW,
+        "classification_receipt_sha256": _REPORT,
+        "report_sha256": None,
+        "observation_sha256": None,
+        "primary_value": None,
+        "failure_reason": None,
+        "measurement_retry_reason": None,
+    }
+    core._assert_null_matrix(
+        accepted,
+        retryable_reasons=s8b.S8B_V2_RETRYABLE_FAILURE_REASONS,
+        retryable_reason_field="measurement_retry_reason",
+        label="direct v2 not-consumed",
+    )
+    with pytest.raises(
+        core.AttemptRegistryCoreError,
+        match=r"^\[attempt-null-matrix\].*not-consumed null matrix differs$",
+    ):
+        core._assert_null_matrix(
+            {
+                **accepted,
+                "measurement_retry_reason": "measurement_sample_incomplete",
+            },
+            retryable_reasons=s8b.S8B_V2_RETRYABLE_FAILURE_REASONS,
+            retryable_reason_field="measurement_retry_reason",
+            label="direct v2 not-consumed",
+        )
+
+
+def test_v1_terminal_rejects_non_null_v2_only_fields_without_emitting_them(
+) -> None:
+    profile = _profile()
+    slot = _slot(0, 0)
+    rows = _classify(
+        _reserve(_genesis(profile, [slot]), profile=profile, slot=slot),
+        profile=profile,
+        slot=slot,
+        reason="legacy-failure",
+    )
+    for field_name, value in (
+        ("measurement_retry_reason", "measurement_execution_unavailable"),
+        ("terminal_evidence_sha256", "e" * 64),
+    ):
+        arguments = {
+            "measurement_retry_reason": None,
+            "terminal_evidence_sha256": None,
+        }
+        arguments[field_name] = value
+        with pytest.raises(
+            core.AttemptRegistryCoreError,
+            match=rf"^\[attempt-terminal\] {field_name} is not accepted",
+        ):
+            core.record_attempt_terminal(
+                rows,
+                profile=profile,
+                freeze_id=_FREEZE,
+                slot_id=profile.slot_codec.slot_id(slot),
+                binding=_BINDING,
+                terminal_status="terminal-failure",
+                raw_output_sha256=_RAW,
+                report_sha256=None,
+                observation_sha256=None,
+                primary_value=None,
+                failure_reason="legacy-failure",
+                finished_at="2026-08-23T00:00:02+00:00",
+                **arguments,
+            )
+
+
+def test_terminal_validator_direct_replay_and_producer_mapping_keep_v1_positive(
+) -> None:
+    v2 = s8b.make_s8b_v2_domain_profile(
+        max_consumptions_per_budget_key=10,
+        recovery_authority_id=_RECOVERY_AUTHORITY,
+        recovery_authority_policy_sha256=_POLICY,
+    )
+    identity = {
+        "freeze_holdout_key": "holdout-a",
+        "configuration_id": "configuration-a",
+        "repetition": 0,
+        "measurement_ordinal": 0,
+        "attempt_ordinal": 0,
+    }
+    v2_slot = s8b.S8BV2AttemptSlot(
+        **identity,
+        schedule_row_sha256=hashlib.sha256(
+            core.canonical_json_bytes(identity)
+        ).hexdigest(),
+    )
+    rows = _reserve(_genesis(v2, [v2_slot]), profile=v2, slot=v2_slot)
+    rows = _classify(rows, profile=v2, slot=v2_slot, reason="sealed-later")
+    unsealed = replace(v2, terminal_row_validator=None)
+    historical = _terminal(
+        rows,
+        profile=unsealed,
+        slot=v2_slot,
+        status="terminal-failure",
+        failure_reason="sealed-later",
+        measurement_retry_reason="sealed-later",
+        terminal_evidence_sha256="e" * 64,
+    )
+    assert v2.terminal_row_validator is not None
+    with pytest.raises(
+        core.AttemptRegistryCoreError,
+        match=(
+            r"^\[s8b-v2-terminal\] v2 terminal requires "
+            r"the sealed evidence API$"
+        ),
+    ):
+        v2.terminal_row_validator(historical[-1])
+    with pytest.raises(
+        core.AttemptRegistryCoreError,
+        match=(
+            r"^\[s8b-v2-terminal\] v2 terminal requires "
+            r"the sealed evidence API$"
+        ),
+    ):
+        core.load_attempt_registry(_registry_bytes(historical), profile=v2)
+
+    legacy = _profile()
+    legacy_slot = _slot(0, 0)
+    legacy_rows = _classify(
+        _reserve(
+            _genesis(legacy, [legacy_slot]),
+            profile=legacy,
+            slot=legacy_slot,
+        ),
+        profile=legacy,
+        slot=legacy_slot,
+        reason="legacy-failure",
+    )
+    accepted = _terminal(
+        legacy_rows,
+        profile=legacy,
+        slot=legacy_slot,
+        status="terminal-failure",
+        failure_reason="legacy-failure",
+    )
+    assert accepted[-1]["terminal_status"] == "terminal-failure"
+
+    ordered_calls: list[Mapping[str, Any]] = []
+    tracking = replace(
+        legacy, terminal_row_validator=ordered_calls.append,
+    )
+    _assert_core_rejection(
+        "[attempt-classification] terminal failure reason differs from classification",
+        lambda: _terminal(
+            legacy_rows,
+            profile=tracking,
+            slot=legacy_slot,
+            status="terminal-failure",
+            failure_reason="different-failure",
+        ),
+    )
+    assert ordered_calls == []
+    _assert_core_rejection(
+        "[attempt-null-matrix] attempt registry line 5 "
+        "retryable-failure null matrix differs",
+        lambda: _terminal(
+            legacy_rows,
+            profile=tracking,
+            slot=legacy_slot,
+            status="retryable-failure",
+            failure_reason="legacy-failure",
+            report_sha256=_REPORT,
+        ),
+    )
+    assert ordered_calls == []
+    tracked = _terminal(
+        legacy_rows,
+        profile=tracking,
+        slot=legacy_slot,
+        status="terminal-failure",
+        failure_reason="legacy-failure",
+    )
+    assert ordered_calls == [tracked[-1]]
+
+    calls: list[Mapping[str, Any]] = []
+
+    def reject(row: Mapping[str, Any]) -> None:
+        calls.append(row)
+        raise core.AttemptRegistryCoreError(
+            "[test-terminal-validator] rejected by lower validator"
+        )
+
+    rejecting = replace(legacy, terminal_row_validator=reject)
+    with pytest.raises(
+        core.AttemptRegistryCoreError,
+        match=(
+            r"^\[test-terminal-validator\] rejected by lower validator$"
+        ),
+    ):
+        _terminal(
+            legacy_rows,
+            profile=rejecting,
+            slot=legacy_slot,
+            status="terminal-failure",
+            failure_reason="legacy-failure",
+        )
+    assert len(calls) == 1
+    assert calls[0]["event"] == "terminal"
+
+
+def test_retryable_terminal_policy_can_close_the_next_attempt_without_changing_v1(
+) -> None:
+    legacy = _profile()
+    retryable = replace(
+        legacy,
+        retryable_reasons=frozenset({"retryable-test"}),
+        transition_policy=replace(
+            legacy.transition_policy,
+            retryable_terminal_opens_next_attempt=False,
+        ),
+    )
+    first = _slot(0, 0)
+    second = _slot(0, 1)
+    rows = _classify(
+        _reserve(
+            _genesis(retryable, [first, second]),
+            profile=retryable,
+            slot=first,
+        ),
+        profile=retryable,
+        slot=first,
+        reason="retryable-test",
+    )
+    rows = _terminal(
+        rows,
+        profile=retryable,
+        slot=first,
+        status="retryable-failure",
+        failure_reason="retryable-test",
+        report_sha256=_REPORT,
+    )
+    _assert_core_rejection(
+        "[attempt-slot-order] a retryable terminal cannot authorize the next attempt",
+        lambda: _reserve(rows, profile=retryable, slot=second),
+    )
+    legacy_open = replace(
+        retryable,
+        transition_policy=replace(
+            retryable.transition_policy,
+            retryable_terminal_opens_next_attempt=True,
+        ),
+    )
+    accepted = _reserve(rows, profile=legacy_open, slot=second)
+    assert accepted[-2]["event"] == "start"
+    assert accepted[-2]["attempt_ordinal"] == 1
+
+
+def test_serialize_session_line_uses_spaced_sorted_utf8_json_and_newline() -> None:
+    with pytest.raises(ValueError, match="Out of range float values"):
+        s8b.serialize_session_line({"value": float("nan")})
+    assert s8b.serialize_session_line({"z": "雪", "a": 1}) == (
+        b'{"a": 1, "z": "\xe9\x9b\xaa"}\n'
+    )
+
+
+def _attempt_registry_prefix_proof() -> dict[str, object]:
+    return {
+        "schema": core.ATTEMPT_REGISTRY_PREFIX_PROOF_SCHEMA,
+        "registry_schema": core.ATTEMPT_REGISTRY_PREFIX_REGISTRY_SCHEMA,
+        "freeze_sha256": _FREEZE,
+        "protocol_sha256": _PROTOCOL,
+        "schedule_sha256": _SCHEDULE,
+        "row_count": 3,
+        "chain_head_sha256": _REPORT,
+    }
+
+
+def _assert_prefix_proof_rejection(value: object, message: str) -> None:
+    with pytest.raises(core.AttemptRegistryCoreError, match=message):
+        core.validate_attempt_registry_prefix_proof(value)
+
+
+def test_attempt_registry_prefix_proof_accepts_exact_v2_shape() -> None:
+    source = _attempt_registry_prefix_proof()
+    validated = core.validate_attempt_registry_prefix_proof(source)
+    assert type(validated) is dict
+    assert validated == source
+    assert validated is not source
+    assert tuple(validated) == (
+        "schema",
+        "registry_schema",
+        "freeze_sha256",
+        "protocol_sha256",
+        "schedule_sha256",
+        "row_count",
+        "chain_head_sha256",
+    )
+    assert frozenset(validated) == core.ATTEMPT_REGISTRY_PREFIX_PROOF_KEYS
+
+
+def test_attempt_registry_prefix_proof_rejects_missing_key() -> None:
+    proof = _attempt_registry_prefix_proof()
+    del proof["schedule_sha256"]
+    _assert_prefix_proof_rejection(proof, "key set differs")
+
+
+def test_attempt_registry_prefix_proof_rejects_extra_key() -> None:
+    proof = _attempt_registry_prefix_proof()
+    proof["extra"] = "closed"
+    _assert_prefix_proof_rejection(proof, "key set differs")
+
+
+@pytest.mark.parametrize(
+    ("field", "invalid"),
+    (
+        ("schema", None),
+        ("registry_schema", None),
+        ("freeze_sha256", 1),
+        ("protocol_sha256", 1),
+        ("schedule_sha256", 1),
+        ("row_count", "3"),
+        ("chain_head_sha256", 1),
+    ),
+    ids=(
+        "literal-schema-none",
+        "literal-registry-schema-none",
+        "digest-freeze-sha256-int",
+        "digest-protocol-sha256-int",
+        "digest-schedule-sha256-int",
+        "row-count-str",
+        "digest-chain-head-sha256-int",
+    ),
+)
+def test_attempt_registry_prefix_proof_rejects_each_field_type(
+    field: str, invalid: object,
+) -> None:
+    proof = _attempt_registry_prefix_proof()
+    proof[field] = invalid
+    _assert_prefix_proof_rejection(proof, "prefix proof|SHA-256")
+
+
+def test_attempt_registry_prefix_proof_rejects_zero_row_count() -> None:
+    proof = _attempt_registry_prefix_proof()
+    proof["row_count"] = 0
+    _assert_prefix_proof_rejection(proof, "positive integer")
+
+
+def test_attempt_registry_prefix_proof_rejects_bool_row_count() -> None:
+    proof = _attempt_registry_prefix_proof()
+    proof["row_count"] = True
+    _assert_prefix_proof_rejection(proof, "positive integer")
+
+
+@pytest.mark.parametrize(
+    "field",
+    (
+        "freeze_sha256",
+        "protocol_sha256",
+        "schedule_sha256",
+        "chain_head_sha256",
+    ),
+)
+def test_attempt_registry_prefix_proof_rejects_invalid_digest(
+    field: str,
+) -> None:
+    proof = _attempt_registry_prefix_proof()
+    proof[field] = "A" * 64
+    _assert_prefix_proof_rejection(proof, "SHA-256 digest")
+
+
+def test_attempt_registry_prefix_proof_rejects_zero_head() -> None:
+    proof = _attempt_registry_prefix_proof()
+    proof["chain_head_sha256"] = "0" * 64
+    _assert_prefix_proof_rejection(proof, "chain head is zero")
+
+
+def test_attempt_registry_prefix_proof_rejects_wrong_proof_schema() -> None:
+    proof = _attempt_registry_prefix_proof()
+    proof["schema"] = "s8b-floor-attempt-registry-proof/v2"
+    _assert_prefix_proof_rejection(proof, "proof schema is unsupported")
+
+
+def test_attempt_registry_prefix_proof_rejects_wrong_registry_schema() -> None:
+    proof = _attempt_registry_prefix_proof()
+    proof["registry_schema"] = "s8b-floor-attempt-registry/v1"
+    _assert_prefix_proof_rejection(proof, "registry_schema is unsupported")
 
 
 if __name__ == "__main__":

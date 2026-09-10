@@ -26,12 +26,19 @@ from ..calibrator import perf_preflight as _perf_preflight
 from . import s8b_experiment_numbers as _experiment_numbers
 
 
-# protocol は凍結 v2、admission receipt を必須化した result/manifest は v4/v3。
+# protocol は凍結 v2、admission receipt を必須化した manifest は v3。
+# registry 有効時の producer は result v5、互換用の既定 alias は v4 のまま。
 # freeze schema は v1 freeze を読むため据置。
 PROTOCOL_SCHEMA = "s8b-floor-protocol/v2"
 FREEZE_SCHEMA = "8b-holdout-freeze/v1"
 SCHEDULE_ALGORITHM = "round-permutation/v2"
-RESULT_SCHEMA = "s8b-floor-result/v4"
+LEGACY_RESULT_SCHEMA = "s8b-floor-result/v4"
+RESULT_SCHEMA = LEGACY_RESULT_SCHEMA
+RESULT_SCHEMA_V5 = "s8b-floor-result/v5"
+READABLE_RESULT_SCHEMAS = frozenset({
+    LEGACY_RESULT_SCHEMA,
+    RESULT_SCHEMA_V5,
+})
 MANIFEST_SCHEMA = "s8b-floor-manifest/v3"
 JOURNAL_SCHEMA = "s8b-floor-journal/v3"
 FORMULA_ID = "s8b-floor-stats/v2"
@@ -78,13 +85,19 @@ _MANIFEST_CELL_KEYS = frozenset({
     "cell_id", "holdout_id", "configuration_id", "records", "threads", "workload",
 })
 _SCHEDULE_KEYS = frozenset({"seq", "round", "cell_id"})
-_RESULT_KEYS = frozenset({
+_RESULT_V4_KEYS = frozenset({
     "schema", "formula", "mode", "eligible_for_refreeze", "env_tag", "ccbench_pin",
     "protocol_sha256", "freeze_sha256", "manifest_sha256", "stock_configuration",
     "wired_min_rel_floor", "reps", "n_sessions", "scale_adequacy_rel_tolerance",
     "holdouts", "configurations", "binaries", "config", "sessions", "cells", "floors",
     "wall_ledger", "excluded", "attempts", "holdout_admission",
 })
+_RESULT_KEYS = _RESULT_V4_KEYS
+_RESULT_V5_KEYS = _RESULT_V4_KEYS | {"attempt_registry"}
+_RESULT_KEYS_BY_SCHEMA = {
+    LEGACY_RESULT_SCHEMA: _RESULT_V4_KEYS,
+    RESULT_SCHEMA_V5: _RESULT_V5_KEYS,
+}
 _HEX64 = frozenset("0123456789abcdef")
 
 # 承認済み標本設計の凍結値。共有 validator が別実験への変質を開始前に拒否する。
@@ -155,14 +168,22 @@ def manifest_perf_validation_context(
 
 
 def result_keys_for_mode(
-        mode: object, *, perf_preflight: object | None = None) -> frozenset[str]:
-    """result v4 の mode 条件付き top-level exact key 集合を返す。"""
+        mode: object, *, schema: object = LEGACY_RESULT_SCHEMA,
+        perf_preflight: object | None = None) -> frozenset[str]:
+    """result schema / mode 条件付き top-level exact key 集合を返す。"""
+
+    if schema == LEGACY_RESULT_SCHEMA:
+        base_keys = _RESULT_KEYS_BY_SCHEMA[LEGACY_RESULT_SCHEMA]
+    elif schema == RESULT_SCHEMA_V5:
+        base_keys = _RESULT_KEYS_BY_SCHEMA[RESULT_SCHEMA_V5]
+    else:
+        raise FloorContractError("result.schema が readable schema でない")
 
     if mode == "pilot":
         # Legacy pilot result は receipt の値によらず perf_preflight を必須とする。
-        return _RESULT_KEYS | {"perf_preflight"}
+        return base_keys | {"perf_preflight"}
     if mode == "official":
-        return _RESULT_KEYS | _official_perf_evidence_keys(perf_preflight)
+        return base_keys | _official_perf_evidence_keys(perf_preflight)
     raise FloorContractError("result.mode が exact {'pilot','official'} でない")
 
 

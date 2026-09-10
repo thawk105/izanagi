@@ -1,0 +1,191 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 10800,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/attempt_registry_core.py",
+          "old": "    started_budget_counts = _validated_budget_counts(\n        initial_started_budget_counts\n    )\n",
+          "new": "    started_budget_counts = _validated_budget_counts(None)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/attempt_registry_core.py",
+          "old": "        if type(count) is not int or count < 0:\n",
+          "new": "        if False:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_profile.py",
+          "old": "        json.dumps(\n            record,\n            ensure_ascii=False,\n            sort_keys=True,\n            allow_nan=False,\n        )\n",
+          "new": "        json.dumps(\n            record,\n            ensure_ascii=False,\n            separators=(\",\", \":\"),\n            sort_keys=True,\n            allow_nan=False,\n        )\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_profile.py",
+          "old": "        )\n        + \"\\n\"\n    ).encode(\"utf-8\")\n",
+          "new": "        )\n    ).encode(\"utf-8\")\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "        if sibling.is_symlink() or not stat.S_ISDIR(sibling_stat.st_mode):\n",
+          "new": "        if False:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "        if sibling.is_symlink() or not stat.S_ISDIR(sibling_stat.st_mode):\n",
+          "new": "        if False:\n"
+        },
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "def _read_regular_bytes(path: Path, *, missing_ok: bool = False) -> bytes | None:\n    admission._assert_no_symlink_components(path.parent)\n",
+          "new": "def _read_regular_bytes(path: Path, *, missing_ok: bool = False) -> bytes | None:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "        try:\n            registry.lstat()\n        except FileNotFoundError:\n            _fail(\n                \"s8b-attempt-registry-storage\",\n                \"generation directory is unsafe or incomplete\",\n            )\n",
+          "new": "        try:\n            registry.lstat()\n        except FileNotFoundError:\n            continue\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8a",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "    if genesis.get(\"recovery_policy_sha256\") != expected_recovery_digest:\n",
+          "new": "    if False:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8b",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "    if genesis.get(\"recovery_policy_sha256\") != expected_recovery_digest:\n",
+          "new": "    if False:\n"
+        },
+        {
+          "file": "orchestrator/campaign/attempt_registry_core.py",
+          "old": "        if recovery_policy_sha256 != _recovery_policy_sha256(profile):\n",
+          "new": "        if False:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "    if tuple(path.parts[-len(relative.parts):]) != relative.parts:\n",
+          "new": "    if False:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "    _run_prelock_snapshot_hook(path)\n    with admission._locked(root) as lock:\n",
+          "new": "    with admission._locked(root) as lock:\n"
+        },
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "    # the live-lock guard arrives with the marker-owned call path in A2'.\n    other_counts = _load_other_generation_budget_counts_locked(\n",
+          "new": "    # the live-lock guard arrives with the marker-owned call path in A2'.\n    _run_prelock_snapshot_hook(path)\n    other_counts = _load_other_generation_budget_counts_locked(\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/attempt_registry_core.py",
+          "old": "    keys = (profile.slot_codec.exact_keys & expected) - {\n        \"schedule_row_sha256\",\n    }\n",
+          "new": "    keys = (profile.slot_codec.exact_keys & expected) - {\n        \"schedule_row_sha256\",\n        \"measurement_ordinal\",\n    }\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

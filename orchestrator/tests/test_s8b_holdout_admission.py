@@ -1998,6 +1998,584 @@ def _write_verified_recovery_registry(
     return path
 
 
+def _consumed_marker_capability_case(
+    tmp_path: Path, *, issue_capability: bool = True, retry_ordinal: int = 0,
+) -> dict:
+    root, _protocol, cell, admitted, attempt_id, _manifest = _issued_cell(
+        tmp_path,
+    )
+    if retry_ordinal:
+        assert retry_ordinal == 1
+        state = admission._cell_state(admitted)  # noqa: SLF001
+        planned_start = json.loads(
+            (state.run_dir / "journal.jsonl").read_text(encoding="utf-8")
+        )
+        retry_id = f"{cell['cell_id']}::retry{retry_ordinal}"
+        _append_journal_rows(
+            admitted,
+            {
+                "event": "session", "seq": planned_start["seq"],
+                "round": planned_start["round"], "kind": "planned",
+                "cell_id": cell["cell_id"], "attempt_id": attempt_id,
+                "valid": False, "probe_before": {"competing": False},
+            },
+            {
+                "event": "session-start", "seq": len(state.schedule),
+                "round": planned_start["round"], "kind": "retry",
+                "retry_ordinal": retry_ordinal, "cell_id": cell["cell_id"],
+                "attempt_id": retry_id, "trigger": attempt_id,
+            },
+        )
+        attempt_id = retry_id
+    admission.consume_attempt_ticket(admitted, attempt_id=attempt_id)
+    state = admission._cell_state(admitted)  # noqa: SLF001
+    marker = _floor_expected_marker(admitted, attempt_id)
+    marker_path = admission._floor_canonical_marker_path(  # noqa: SLF001
+        state.root, marker,
+    )
+    start = next(
+        row for row in admission._read_run_journal(  # noqa: SLF001
+            state.run_dir / "journal.jsonl"
+        )
+        if row.get("event") == "session-start"
+        and row.get("attempt_id") == attempt_id
+    )
+    use_kwargs = {
+        "root": state.root,
+        "measurement_generation_claim_digest": marker[
+            "measurement_generation_claim_digest"
+        ],
+        "attempt_id": marker["attempt_id"],
+        "campaign_run_id": marker["campaign_run_id"],
+        "manifest_sha256": marker["manifest_sha256"],
+        "run_relpath": marker["run_relpath"],
+        "cell_id": marker["cell_id"],
+        "freeze_holdout_key": marker["freeze_holdout_key"],
+        "configuration_id": marker["configuration_id"],
+        "repetition": start["round"] - 1,
+        "attempt_ordinal": (
+            start["retry_ordinal"] if start["kind"] == "retry" else 0
+        ),
+    }
+    capability = (
+        admission.validate_floor_attempt_consumption_marker(
+            admitted, attempt_id=attempt_id,
+        )
+        if issue_capability else None
+    )
+    return {
+        "repo_root": root,
+        "admitted": admitted,
+        "attempt_id": attempt_id,
+        "state": state,
+        "marker": marker,
+        "marker_path": marker_path,
+        "claim_path": admission._measurement_generation_claim_path(  # noqa: SLF001
+            state.root, marker["measurement_generation_claim_digest"],
+        ),
+        "ledger_path": state.root / "ledger.jsonl",
+        "capability": capability,
+        "use_kwargs": use_kwargs,
+    }
+
+
+def _use_consumption_capability(
+    case: dict, *, capability=None, use_kwargs=None, action,
+):
+    capability = case["capability"] if capability is None else capability
+    use_kwargs = case["use_kwargs"] if use_kwargs is None else use_kwargs
+    with admission._locked(case["state"].root) as lock:  # noqa: SLF001
+        return capability.use(lock=lock, **use_kwargs, action=action)
+
+
+def _rewrite_canonical_document(path: Path, document: Mapping[str, object]) -> None:
+    path.write_bytes(_canonical(document) + b"\n")
+
+
+def _rewrite_capability_main_rows(case: dict, mutate) -> None:
+    rows = admission._read_ledger(case["ledger_path"])  # noqa: SLF001
+    claim_digest = case["marker"]["measurement_generation_claim_digest"]
+    selected = [
+        index for index, row in enumerate(rows)
+        if row.get("measurement_generation_claim_digest") == claim_digest
+    ]
+    assert len(selected) == 1
+    mutate(rows, selected[0])
+    case["ledger_path"].write_bytes(
+        b"".join(admission._canonical_line(row) for row in rows)  # noqa: SLF001
+    )
+
+
+def test_cell_admission_projects_current_claim_digest_without_default(tmp_path):
+    _root, _protocol, _cell, admitted, _attempt_id, _manifest = _issued_cell(
+        tmp_path,
+    )
+    state = admission._cell_state(admitted)  # noqa: SLF001
+    parameter = inspect.signature(admission.CellHoldoutAdmission).parameters[
+        "measurement_generation_claim_digest"
+    ]
+
+    assert parameter.default is inspect.Parameter.empty
+    assert admitted.measurement_generation_claim_digest == (
+        state.measurement_generation_claim_digest
+    )
+    with pytest.raises(AttributeError):
+        admitted.measurement_generation_claim_digest = None
+
+
+def test_inspector_reconstruction_projects_current_digest_and_legacy_none(
+    tmp_path, monkeypatch,
+):
+    (tmp_path / "current").mkdir()
+    root, protocol, _cell, admitted, _attempt_id, manifest = _issued_cell(
+        tmp_path / "current",
+    )
+    issued_type = admission.CellHoldoutAdmission
+    current_calls = []
+
+    def current_spy(**kwargs):
+        current_calls.append(dict(kwargs))
+        return issued_type(**kwargs)
+
+    with mock.patch.object(
+        admission, "CellHoldoutAdmission", side_effect=current_spy,
+    ):
+        admission.inspect_floor_holdout_admission_evidence(
+            **_issued_inspection_kwargs(root, protocol, admitted, manifest)
+        )
+    assert current_calls
+    assert all(
+        call["measurement_generation_claim_digest"] is not None
+        for call in current_calls
+    )
+
+    evidence, legacy_kwargs = _inspection_case(
+        tmp_path / "legacy", competing=True,
+    )
+    _patch_inspection_root(monkeypatch, evidence.root)
+    legacy_calls = []
+
+    def legacy_spy(**kwargs):
+        legacy_calls.append(dict(kwargs))
+        return issued_type(**kwargs)
+
+    with mock.patch.object(
+        admission, "CellHoldoutAdmission", side_effect=legacy_spy,
+    ):
+        admission.inspect_floor_holdout_admission_evidence(**legacy_kwargs)
+    assert legacy_calls
+    assert all(
+        call["measurement_generation_claim_digest"] is None
+        for call in legacy_calls
+    )
+
+
+def test_floor_marker_capability_accepts_exact_current_marker_under_lock(tmp_path):
+    case = _consumed_marker_capability_case(tmp_path)
+    capability = case["capability"]
+    assert type(capability) is admission.FloorAttemptConsumptionMarker
+    assert "FloorAttemptConsumptionMarker" in admission.__all__
+    assert "validate_floor_attempt_consumption_marker" in admission.__all__
+    assert "current-generation" in (
+        inspect.getdoc(admission.validate_floor_attempt_consumption_marker) or ""
+    )
+
+    def action(active_lock):
+        assert type(active_lock) is admission._AdmissionRootLock  # noqa: SLF001
+        probe = subprocess.run(
+            ["flock", "-n", str(case["state"].root / "ledger.lock"), "true"],
+            check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+        assert probe.returncode == 1
+        return "used"
+
+    assert _use_consumption_capability(case, action=action) == "used"
+    identity = capability._identity  # noqa: SLF001
+    claim = admission._read_canonical_document(case["claim_path"])  # noqa: SLF001
+    main = admission._measurement_generation_main_ledger_row(  # noqa: SLF001
+        case["state"].root,
+        claim_digest=case["marker"]["measurement_generation_claim_digest"],
+    )
+    assert identity.marker_document_sha256 == hashlib.sha256(
+        _canonical(case["marker"])
+    ).hexdigest()
+    assert identity.claim_document_sha256 == hashlib.sha256(
+        _canonical(claim)
+    ).hexdigest()
+    assert identity.main_ledger_row_sha256 == hashlib.sha256(
+        _canonical(main)
+    ).hexdigest()
+
+
+def test_floor_marker_capability_accepts_cut6_marker_without_attempt_row(
+    tmp_path, monkeypatch,
+):
+    root, _protocol, _cell, admitted, attempt_id, _manifest = _issued_cell(tmp_path)
+    _crash_floor_after_marker(monkeypatch, admitted, attempt_id)
+
+    capability = admission.validate_floor_attempt_consumption_marker(
+        admitted, attempt_id=attempt_id,
+    )
+    state = admission._cell_state(admitted)  # noqa: SLF001
+    marker = _floor_expected_marker(admitted, attempt_id)
+    start = next(
+        row for row in admission._read_run_journal(  # noqa: SLF001
+            state.run_dir / "journal.jsonl"
+        )
+        if row.get("event") == "session-start"
+        and row.get("attempt_id") == attempt_id
+    )
+    use_kwargs = {
+        "root": state.root,
+        "measurement_generation_claim_digest": marker[
+            "measurement_generation_claim_digest"
+        ],
+        "attempt_id": attempt_id,
+        "campaign_run_id": marker["campaign_run_id"],
+        "manifest_sha256": marker["manifest_sha256"],
+        "run_relpath": marker["run_relpath"],
+        "cell_id": marker["cell_id"],
+        "freeze_holdout_key": marker["freeze_holdout_key"],
+        "configuration_id": marker["configuration_id"],
+        "repetition": start["round"] - 1,
+        "attempt_ordinal": 0,
+    }
+
+    assert type(capability) is admission.FloorAttemptConsumptionMarker
+    assert not (
+        admission.shared_admission_root(root) / "attempt-ledger.jsonl"
+    ).exists()
+    with admission._locked(state.root) as lock:  # noqa: SLF001
+        assert capability.use(
+            lock=lock, **use_kwargs, action=lambda active_lock: active_lock,
+        ) is lock
+
+
+def test_floor_marker_capability_accepts_nonzero_retry_ordinal_on_use(tmp_path):
+    case = _consumed_marker_capability_case(tmp_path, retry_ordinal=1)
+
+    assert case["use_kwargs"]["attempt_ordinal"] == 1
+    assert _use_consumption_capability(
+        case, action=lambda _lock: "retry-used",
+    ) == "retry-used"
+
+
+def test_floor_marker_capability_rejects_wrong_nonzero_retry_ordinal_on_use(
+    tmp_path,
+):
+    case = _consumed_marker_capability_case(tmp_path, retry_ordinal=1)
+    use_kwargs = dict(case["use_kwargs"])
+    use_kwargs["attempt_ordinal"] = 0
+    actions = []
+
+    with pytest.raises(admission.HoldoutAdmissionError, match="identity differs"):
+        _use_consumption_capability(
+            case, use_kwargs=use_kwargs,
+            action=lambda _lock: actions.append("used"),
+        )
+    assert actions == []
+
+
+def test_floor_marker_capability_rejects_unissued_cell_token(tmp_path):
+    case = _consumed_marker_capability_case(tmp_path, issue_capability=False)
+    admitted = case["admitted"]
+    forged = object.__new__(type(admitted))
+
+    with pytest.raises(admission.HoldoutAdmissionError, match="was not issued"):
+        admission.validate_floor_attempt_consumption_marker(
+            forged, attempt_id=case["attempt_id"],
+        )
+
+
+def test_floor_marker_capability_rejects_absent_marker(tmp_path):
+    _root, _protocol, _cell, admitted, attempt_id, _manifest = _issued_cell(tmp_path)
+
+    with pytest.raises(admission.HoldoutAdmissionError, match="cannot read"):
+        admission.validate_floor_attempt_consumption_marker(
+            admitted, attempt_id=attempt_id,
+        )
+
+
+@pytest.mark.parametrize(
+    "tamper",
+    ["extra-key", "missing-key", "schema", "event", "role"],
+    ids=["extra-key", "missing-key", "schema", "event", "role"],
+)
+def test_floor_marker_capability_rejects_marker_shape_contract(tmp_path, tamper):
+    case = _consumed_marker_capability_case(tmp_path, issue_capability=False)
+    marker = dict(case["marker"])
+    if tamper == "extra-key":
+        marker["extra"] = "forbidden"
+    elif tamper == "missing-key":
+        del marker["manifest_sha256"]
+    elif tamper == "schema":
+        marker["schema_version"] = "s8b-invalid/v1"
+    elif tamper == "event":
+        marker["event"] = "admit"
+    else:
+        marker["observation_role"] = "oracle_driver"
+    _rewrite_canonical_document(case["marker_path"], marker)
+
+    with pytest.raises(admission.HoldoutAdmissionError):
+        admission.validate_floor_attempt_consumption_marker(
+            case["admitted"], attempt_id=case["attempt_id"],
+        )
+
+
+@pytest.mark.parametrize(
+    "tamper",
+    ["symlink", "non-regular", "multiple-lines", "noncanonical-json"],
+    ids=["symlink", "non-regular", "multiple-lines", "noncanonical-json"],
+)
+def test_floor_marker_capability_uses_canonical_marker_reader(tmp_path, tamper):
+    case = _consumed_marker_capability_case(tmp_path, issue_capability=False)
+    marker_path = case["marker_path"]
+    original = marker_path.read_bytes()
+    if tamper == "symlink":
+        target = marker_path.with_name("marker-target.json")
+        target.write_bytes(original)
+        marker_path.unlink()
+        marker_path.symlink_to(target.name)
+    elif tamper == "non-regular":
+        marker_path.unlink()
+        marker_path.mkdir()
+    elif tamper == "multiple-lines":
+        marker_path.write_bytes(original + original)
+    else:
+        marker_path.write_text(
+            json.dumps(case["marker"], sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+
+    with pytest.raises(admission.HoldoutAdmissionError):
+        admission.validate_floor_attempt_consumption_marker(
+            case["admitted"], attempt_id=case["attempt_id"],
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "replacement"),
+    [
+        ("attempt_id", "other-attempt"),
+        ("campaign_run_id", "other-campaign"),
+        ("manifest_sha256", "0" * 64),
+        ("run_relpath", "env/other/run"),
+        ("cell_id", "other::cell"),
+        ("freeze_holdout_key", "other-holdout"),
+        ("configuration_id", "other-configuration"),
+    ],
+    ids=[
+        "attempt", "campaign", "manifest", "run", "cell", "holdout",
+        "configuration",
+    ],
+)
+def test_floor_marker_capability_rejects_marker_identity_tamper(
+    tmp_path, field, replacement,
+):
+    case = _consumed_marker_capability_case(tmp_path, issue_capability=False)
+    marker = dict(case["marker"])
+    marker[field] = replacement
+    _rewrite_canonical_document(case["marker_path"], marker)
+
+    with pytest.raises(admission.HoldoutAdmissionError):
+        admission.validate_floor_attempt_consumption_marker(
+            case["admitted"], attempt_id=case["attempt_id"],
+        )
+
+
+def test_floor_marker_capability_rejects_claim_tamper(tmp_path):
+    case = _consumed_marker_capability_case(tmp_path, issue_capability=False)
+    claim = admission._read_canonical_document(case["claim_path"])  # noqa: SLF001
+    claim["entry_kind"] = "forged"
+    _rewrite_canonical_document(case["claim_path"], claim)
+
+    with pytest.raises(admission.HoldoutAdmissionError):
+        admission.validate_floor_attempt_consumption_marker(
+            case["admitted"], attempt_id=case["attempt_id"],
+        )
+
+
+def test_floor_marker_capability_rejects_generation_identity_tamper(tmp_path):
+    case = _consumed_marker_capability_case(tmp_path, issue_capability=False)
+    claim = admission._read_canonical_document(case["claim_path"])  # noqa: SLF001
+    claim["measurement_generation_id"] = "f" * 64
+    _rewrite_canonical_document(case["claim_path"], claim)
+
+    with pytest.raises(
+        admission.HoldoutAdmissionError, match="generation identity digest",
+    ):
+        admission.validate_floor_attempt_consumption_marker(
+            case["admitted"], attempt_id=case["attempt_id"],
+        )
+
+
+@pytest.mark.parametrize(
+    "tamper", ["missing", "duplicate", "mismatch"],
+    ids=["missing", "duplicate", "mismatch"],
+)
+def test_floor_marker_capability_requires_exactly_one_matching_main_row(
+    tmp_path, tamper,
+):
+    case = _consumed_marker_capability_case(tmp_path, issue_capability=False)
+
+    def mutate(rows, selected):
+        if tamper == "missing":
+            del rows[selected]
+        elif tamper == "duplicate":
+            rows.append(dict(rows[selected]))
+        else:
+            rows[selected]["manifest_sha256"] = "0" * 64
+
+    _rewrite_capability_main_rows(case, mutate)
+    with pytest.raises(admission.HoldoutAdmissionError):
+        admission.validate_floor_attempt_consumption_marker(
+            case["admitted"], attempt_id=case["attempt_id"],
+        )
+
+
+def test_floor_marker_capability_rejects_different_repetition_on_use(tmp_path):
+    case = _consumed_marker_capability_case(tmp_path)
+    use_kwargs = dict(case["use_kwargs"])
+    use_kwargs["repetition"] += 1
+
+    with pytest.raises(admission.HoldoutAdmissionError, match="identity differs"):
+        _use_consumption_capability(
+            case, use_kwargs=use_kwargs,
+            action=lambda _lock: pytest.fail("transplanted repetition used"),
+        )
+
+
+def test_floor_marker_capability_rejects_different_attempt_ordinal_on_use(tmp_path):
+    case = _consumed_marker_capability_case(tmp_path)
+    use_kwargs = dict(case["use_kwargs"])
+    use_kwargs["attempt_ordinal"] += 1
+
+    with pytest.raises(admission.HoldoutAdmissionError, match="identity differs"):
+        _use_consumption_capability(
+            case, use_kwargs=use_kwargs,
+            action=lambda _lock: pytest.fail("transplanted ordinal used"),
+        )
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "root", "measurement_generation_claim_digest", "attempt_id",
+        "campaign_run_id", "cell_id",
+    ],
+    ids=["root", "claim-digest", "attempt", "campaign", "cell"],
+)
+def test_floor_marker_capability_rejects_identity_axis_transplant_on_use(
+    tmp_path, field,
+):
+    case = _consumed_marker_capability_case(tmp_path)
+    use_kwargs = dict(case["use_kwargs"])
+    replacements = {
+        "root": case["state"].root.parent / "other-admission-root",
+        "measurement_generation_claim_digest": "f" * 64,
+        "attempt_id": "other-attempt",
+        "campaign_run_id": "other-campaign",
+        "cell_id": "other::cell",
+    }
+    use_kwargs[field] = replacements[field]
+    actions = []
+
+    with pytest.raises(admission.HoldoutAdmissionError, match="identity differs"):
+        _use_consumption_capability(
+            case, use_kwargs=use_kwargs,
+            action=lambda _lock: actions.append("used"),
+        )
+    assert actions == []
+
+
+def test_floor_marker_capability_requires_live_caller_held_lock(tmp_path):
+    case = _consumed_marker_capability_case(tmp_path)
+    forged_lock = admission._AdmissionRootLock()  # noqa: SLF001
+
+    with pytest.raises(admission.HoldoutAdmissionError, match="live admission root"):
+        case["capability"].use(
+            lock=forged_lock, **case["use_kwargs"],
+            action=lambda _lock: pytest.fail("unlocked capability used"),
+        )
+
+    with admission._locked(case["state"].root) as expired_lock:  # noqa: SLF001
+        pass
+    with pytest.raises(admission.HoldoutAdmissionError, match="live admission root"):
+        case["capability"].use(
+            lock=expired_lock, **case["use_kwargs"],
+            action=lambda _lock: pytest.fail("expired lock used"),
+        )
+
+
+@pytest.mark.parametrize(
+    "tamper", ["marker-missing", "marker-extra", "claim", "main-ledger"],
+    ids=["marker-missing", "marker-extra", "claim", "main-ledger"],
+)
+def test_floor_marker_capability_revalidates_durable_evidence_on_use(
+    tmp_path, tamper,
+):
+    case = _consumed_marker_capability_case(tmp_path)
+    if tamper == "marker-missing":
+        case["marker_path"].unlink()
+    elif tamper == "marker-extra":
+        marker = dict(case["marker"])
+        marker["extra"] = "forbidden"
+        _rewrite_canonical_document(case["marker_path"], marker)
+    elif tamper == "claim":
+        claim = admission._read_canonical_document(  # noqa: SLF001
+            case["claim_path"]
+        )
+        claim["entry_kind"] = "forged"
+        _rewrite_canonical_document(case["claim_path"], claim)
+    else:
+        def mismatch(rows, selected):
+            rows[selected]["manifest_sha256"] = "0" * 64
+
+        _rewrite_capability_main_rows(case, mismatch)
+
+    actions = []
+    with pytest.raises(admission.HoldoutAdmissionError):
+        _use_consumption_capability(
+            case, action=lambda _lock: actions.append("used"),
+        )
+    assert actions == []
+
+
+def test_floor_marker_capability_rejects_allowed_entry_kind_tamper_on_use(
+    tmp_path,
+):
+    case = _consumed_marker_capability_case(tmp_path)
+    claim = admission._read_canonical_document(case["claim_path"])  # noqa: SLF001
+    assert claim["entry_kind"] == "fresh"
+    claim["entry_kind"] = "resume"
+    _rewrite_canonical_document(case["claim_path"], claim)
+    actions = []
+
+    with pytest.raises(admission.HoldoutAdmissionError, match="durable identity"):
+        _use_consumption_capability(
+            case, action=lambda _lock: actions.append("used"),
+        )
+    assert actions == []
+
+
+@pytest.mark.parametrize("forgery", ["constructor", "subclass"])
+def test_floor_marker_capability_rejects_forged_capability(tmp_path, forgery):
+    case = _consumed_marker_capability_case(tmp_path)
+    if forgery == "constructor":
+        forged = admission.FloorAttemptConsumptionMarker()
+    else:
+        class ForgedMarker(admission.FloorAttemptConsumptionMarker):
+            pass
+
+        forged = ForgedMarker()
+
+    with pytest.raises(admission.HoldoutAdmissionError, match="was not issued"):
+        _use_consumption_capability(
+            case, capability=forged,
+            action=lambda _lock: pytest.fail("forgery used"),
+        )
+
+
 def test_attempt_ticket_is_durably_single_use(tmp_path):
     root, protocol, _cell, admitted, attempt_id, _manifest_sha256 = _issued_cell(tmp_path)
     token = admission.consume_attempt_ticket(admitted, attempt_id=attempt_id)

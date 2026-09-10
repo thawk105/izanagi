@@ -1,0 +1,246 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 2400,
+  "hang_timeout_seconds": 2400,
+  "mutations": [
+    {
+      "id": "M01",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "    rotation_index = rep_index % 6",
+          "new": "    rotation_index = rep_index % 3"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M02",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "    7170359757993337886,\n    17989269546948137795,",
+          "new": "    7170359757993337887,\n    17989269546948137795,"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M03",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "        and stage == 1\n",
+          "new": "        and stage >= 1\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M04",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "            if args.backoff_trace or any(cell.has_step_policy for cell in cells)\n",
+          "new": "            if args.backoff_trace\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M05",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "            if any(cell.has_step_policy for cell in cells):\n                payload[\"correctness_status\"] = \"uncertified\"\n",
+          "new": "            if False:\n                payload[\"correctness_status\"] = \"uncertified\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M06",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "                            \"build_trace_enabled\": False,\n                            \"build_cache_key\": build_cache_key,",
+          "new": "                            \"build_cache_key\": build_cache_key,"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M07",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "                        if missing_reason is not None:\n                            row[\"missing_reason\"] = missing_reason\n",
+          "new": "                        if False:\n                            row[\"missing_reason\"] = missing_reason\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M08",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_policy_performance_analysis.py",
+          "old": "T95_DF17 = 2.1098156",
+          "new": "T95_DF17 = 2.2009852"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M09",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_policy_performance_analysis.py",
+          "old": "EQUIVALENCE_MARGIN_LOG = 0.02955880224154443",
+          "new": "EQUIVALENCE_MARGIN_LOG = 0.030459207484708574"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_policy_performance_analysis.py",
+          "old": "        \"records\": 1_000_000,",
+          "new": "        \"records\": 2_000_000,"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_policy_performance_analysis.py",
+          "old": "        point[\"ci95\"][\"upper_log\"] < -margin\n        or point[\"ci95\"][\"lower_log\"] > margin",
+          "new": "        point[\"ci95\"][\"upper_log\"] <= -margin\n        or point[\"ci95\"][\"lower_log\"] >= margin"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M12",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_policy_performance_analysis.py",
+          "old": "        \"build_trace_enabled\": False,",
+          "new": "        \"build_trace_enabled\": None,"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M13",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_policy_performance_analysis.py",
+          "old": "BLOCK_COUNT = 18",
+          "new": "BLOCK_COUNT = 12"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M14",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_t2417_backoff_policy_performance.sh",
+          "old": "for rep in {0..17}; do",
+          "new": "for rep in {0..16}; do"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M15",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "POLICY_PERFORMANCE_CONTRACT = \"backoff-policy-arm-perf/v1\"",
+          "new": "POLICY_PERFORMANCE_CONTRACT = \"backoff-policy-arm-perf/v2\""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M16",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_policy_performance_analysis.py",
+          "old": "        \"analysis_status\": \"incomplete-analysis\" if incomplete else \"complete\",\n        \"headline_eligible\": False,",
+          "new": "        \"analysis_status\": \"incomplete-analysis\" if incomplete else \"complete\",\n        \"headline_eligible\": True,"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M17",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_policy_performance_analysis.py",
+          "old": "        \"correctness_status\": \"uncertified\",\n        \"reason_codes\": [\"incomplete-analysis\"] if incomplete else [],",
+          "new": "        \"correctness_status\": \"certified\",\n        \"reason_codes\": [\"incomplete-analysis\"] if incomplete else [],"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

@@ -2353,12 +2353,18 @@ def _validate_result_top_level_keys(
         document: object, *, expected_use_perf: bool = True,
         expected_perf_preflight: object | None = None,
         expected_perf_observation: object | None = None) -> None:
-    """ratified 固有の cause を保って result v4 exact keys を検査する。"""
+    """ratified 固有の cause を保って result の exact keys を検査する。"""
     receipt = document.get("perf_preflight") if isinstance(document, Mapping) else None
+    schema = document.get("schema") if isinstance(document, Mapping) else None
+    key_schema = (
+        _floor_contract.RESULT_SCHEMA_V5
+        if schema == _floor_contract.RESULT_SCHEMA_V5
+        else _floor_contract.LEGACY_RESULT_SCHEMA
+    )
     try:
         derived_use_perf = _perf_preflight.use_perf_from_receipt(receipt)
         expected_keys = _floor_contract.result_keys_for_mode(
-            "official", perf_preflight=receipt,
+            "official", schema=key_schema, perf_preflight=receipt,
         )
     except (_perf_preflight.PerfPreflightError,
             _floor_contract.FloorContractError) as exc:
@@ -2401,7 +2407,11 @@ def _validate_result(
         expected_perf_preflight=expected_perf_preflight,
         expected_perf_observation=expected_perf_observation,
     )
-    if document["schema"] != _floor_contract.RESULT_SCHEMA:
+    result_schema = document.get("schema")
+    if (
+        result_schema != _floor_contract.LEGACY_RESULT_SCHEMA
+        and result_schema != _floor_contract.RESULT_SCHEMA_V5
+    ):
         raise RatifiedFreezeError(
             "floor-artifact-invalid",
             f"result.schema が {_floor_contract.RESULT_SCHEMA} でない",

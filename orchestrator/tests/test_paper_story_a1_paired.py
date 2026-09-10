@@ -4179,3 +4179,301 @@ def _run() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(_run())
+
+
+@pytest.fixture
+def a1_detail_gate(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """Supply terminal records; compiler correctness belongs to the gate suite."""
+    gate = paired.condition_meaning_gate
+    repo = tmp_path / "repo"
+    (repo / "external" / "ccbench").mkdir(parents=True)
+    root = tmp_path / "raw"
+    root.mkdir()
+    records = []
+    for arm in ("supply-effectuation", "runtime-meaning"):
+        for index, value in enumerate((5, -1)):
+            digest = hashlib.sha256(f"{arm}:{value}".encode("ascii")).hexdigest()
+            records.append(gate.ConditionArmRecord(
+                record_id=f"condition-gate/{arm}/{digest}",
+                record_digest=digest, arm=arm,
+                terminal_status="green" if arm == "runtime-meaning" and index else "red",
+                reason_code="established" if arm == "runtime-meaning" and index else "preprocess-failed",
+                driver_id="orchestrator.campaign.paper_story_a1_paired:v3-balanced",
+                macro="BACKOFF_FIXED", request_digest=digest,
+                evidence={"detail": f"{arm} value={value}: command stderr", "value": value},
+            ))
+    admission = gate.ConditionFamilyAdmission(
+        admission_id="condition-gate/admission/fixture",
+        admission_digest=hashlib.sha256(b"a1-detail-admission").hexdigest(),
+        use_class="paper", admitted=False,
+        record_ids=tuple(record.record_id for record in records),
+        unestablished_meaning_macros=("BACKOFF_FIXED",),
+    )
+    state = SimpleNamespace(records=records, admission=admission, root=root)
+
+    @contextmanager
+    def checkout(*_args, **_kwargs):
+        yield os.fspath(repo / "external" / "ccbench")
+
+    monkeypatch.setattr(paired.patchharness, "checkout", checkout)
+    monkeypatch.setattr(gate, "capture_define_inputs", lambda *_a, **_k: object())
+    monkeypatch.setattr(
+        gate, "evaluate_define_supply_effectuation",
+        lambda _captured, *, request, **_kw: state.records[(5, -1).index(request.requested_value)],
+    )
+    monkeypatch.setattr(
+        gate, "evaluate_define_runtime_meaning",
+        lambda _captured, *, request, **_kw: state.records[2 + (5, -1).index(request.requested_value)],
+    )
+
+    def admit(supply, meaning, *, use_class):
+        assert use_class == "paper"
+        assert supply + meaning == state.records
+        assert len(supply) == len(meaning) == 2
+        return state.admission
+
+    monkeypatch.setattr(gate, "require_condition_gate_family", admit)
+    policy = paired.load_policy(paired.V3_PILOT_STUDY_ID)[0]
+
+    def invoke(**kwargs):
+        paired._require_v3_backoff_fixed_condition_gate(
+            repo_root=repo, policy=policy, workload="balanced", cxx="g++", **kwargs,
+        )
+
+    state.invoke = invoke
+    state.rejection = (
+        "v3 BACKOFF_FIXED condition gate rejected measurement: "
+        "supply-effectuation:preprocess-failed,supply-effectuation:preprocess-failed,"
+        "runtime-meaning:preprocess-failed"
+    )
+    return state
+
+
+def _a1_detail_expected(state):
+    expected = {
+        f"condition-gate-{record.arm}-{record.record_digest}.json":
+        record.canonical_json().encode("ascii")
+        for record in state.records
+    }
+    expected[f"condition-gate-admission-{state.admission.admission_digest}.json"] = (
+        state.admission.canonical_json().encode("ascii")
+    )
+    return expected
+
+
+def test_a1_detail_all_records_atomic_and_idempotent(a1_detail_gate, monkeypatch):
+    state = a1_detail_gate
+    expected = _a1_detail_expected(state)
+    events, temporary_names = [], []
+    real_fsync, real_replace = os.fsync, os.replace
+
+    def fsync(fd):
+        import stat
+        events.append("directory" if stat.S_ISDIR(os.fstat(fd).st_mode) else "file")
+        return real_fsync(fd)
+
+    def publish(source, destination):
+        assert source.parent == destination.parent == state.root
+        assert source.name.startswith(f".{destination.name}.tmp-")
+        assert source.read_bytes() == expected[destination.name]
+        temporary_names.append(source.name)
+        events.append("replace")
+        return real_replace(source, destination)
+
+    monkeypatch.setattr(os, "fsync", fsync)
+    monkeypatch.setattr(os, "replace", publish)
+    for _ in range(2):
+        with pytest.raises(paired.PaperStoryError) as caught:
+            state.invoke(evidence_root=state.root)
+        assert str(caught.value) == state.rejection
+        assert {p.name: p.read_bytes() for p in state.root.iterdir()} == expected
+    assert len(expected) == 5
+    assert events == ["file", "replace", "directory"] * 10
+    assert len(set(temporary_names)) == 10
+    for record in state.records:
+        payload = json.loads(expected[f"condition-gate-{record.arm}-{record.record_digest}.json"])
+        assert payload["evidence"]["detail"] == record.evidence["detail"]
+    # A different detail/digest adds evidence without removing the earlier file.
+    digest = hashlib.sha256(b"a1-detail-retry").hexdigest()
+    state.records[0] = replace(
+        state.records[0], record_digest=digest,
+        record_id=f"condition-gate/supply-effectuation/{digest}",
+        evidence={"detail": "retry command stderr", "value": 5},
+    )
+    state.admission = replace(
+        state.admission,
+        admission_digest=hashlib.sha256(b"a1-detail-retry-admission").hexdigest(),
+        record_ids=tuple(record.record_id for record in state.records),
+    )
+    expected.update(_a1_detail_expected(state))
+    with pytest.raises(paired.PaperStoryError) as caught:
+        state.invoke(evidence_root=state.root)
+    assert str(caught.value) == state.rejection
+    assert len(expected) == 7
+    assert {p.name: p.read_bytes() for p in state.root.iterdir()} == expected
+
+
+@pytest.mark.parametrize("failure", ("serialize", "write", "replace", "file-fsync", "directory-fsync"))
+def test_a1_detail_save_exception_preserves_rejection(a1_detail_gate, monkeypatch, failure):
+    state = a1_detail_gate
+    expected = _a1_detail_expected(state)
+    first_name = next(iter(expected))
+
+    class SaveFailure(ValueError):
+        def __str__(self):
+            raise AssertionError("exception text must not be inspected")
+
+    real_open, real_replace, real_fsync = Path.open, os.replace, os.fsync
+    triggered = False
+
+    def fail_once():
+        nonlocal triggered
+        if not triggered:
+            triggered = True
+            raise SaveFailure()
+
+    if failure == "serialize":
+        original = type(state.records[0]).canonical_json
+
+        def serialize(record):
+            if record is state.records[0]:
+                fail_once()
+            return original(record)
+
+        monkeypatch.setattr(type(state.records[0]), "canonical_json", serialize)
+    elif failure == "write":
+        @contextmanager
+        def partial_open(path, mode="r", *args, **kwargs):
+            with real_open(path, mode, *args, **kwargs) as output:
+                if mode == "xb" and not triggered:
+                    def write(data):
+                        output.write(data[:7])
+                        output.flush()
+                        fail_once()
+                    yield SimpleNamespace(write=write, flush=output.flush, fileno=output.fileno)
+                else:
+                    yield output
+
+        monkeypatch.setattr(Path, "open", partial_open)
+    elif failure == "replace":
+        def publish(source, destination):
+            fail_once()
+            return real_replace(source, destination)
+
+        monkeypatch.setattr(os, "replace", publish)
+    else:
+        def fsync(fd):
+            import stat
+            is_directory = stat.S_ISDIR(os.fstat(fd).st_mode)
+            if is_directory == (failure == "directory-fsync"):
+                fail_once()
+            return real_fsync(fd)
+
+        monkeypatch.setattr(os, "fsync", fsync)
+    with pytest.raises(paired.PaperStoryError) as caught:
+        state.invoke(evidence_root=state.root)
+    assert triggered
+    assert str(caught.value) == state.rejection + "; evidence_write_failures=supply[0]:SaveFailure"
+    if failure != "directory-fsync":
+        del expected[first_name]
+    assert {p.name: p.read_bytes() for p in state.root.iterdir()} == expected
+
+
+@pytest.mark.parametrize("target", ("arm-digest", "admission-digest", "admission-serialize", "path"))
+def test_a1_detail_preparation_exception_is_local(a1_detail_gate, monkeypatch, target):
+    state = a1_detail_gate
+    expected = _a1_detail_expected(state)
+    label = "admission" if target.startswith("admission") else "supply[0]"
+    name = list(expected)[-1 if label == "admission" else 0]
+    root = state.root
+    if target == "path":
+        class FailingPath(type(root)):
+            calls = 0
+
+            def __truediv__(self, other):
+                type(self).calls += 1
+                if type(self).calls == 1:
+                    raise ValueError("path")
+                return super().__truediv__(other)
+
+        root = FailingPath(root)
+    else:
+        obj = state.admission if label == "admission" else state.records[0]
+        attribute = "canonical_json" if target.endswith("serialize") else (
+            "admission_digest" if label == "admission" else "record_digest"
+        )
+        original = getattr(type(obj), attribute)
+
+        def fail_get(instance):
+            if instance is obj:
+                raise ValueError("preparation")
+            return original.__get__(instance, type(instance))
+
+        monkeypatch.setattr(type(obj), attribute, property(fail_get))
+    with pytest.raises(paired.PaperStoryError) as caught:
+        state.invoke(evidence_root=root)
+    assert str(caught.value) == state.rejection + f"; evidence_write_failures={label}:ValueError"
+    del expected[name]
+    assert {p.name: p.read_bytes() for p in state.root.iterdir()} == expected
+
+
+def test_a1_detail_success_and_omitted_root_have_no_side_effects(a1_detail_gate, monkeypatch):
+    state = a1_detail_gate
+
+    def forbidden(*_args, **_kwargs):
+        raise AssertionError("successful or rootless gate must not serialize or persist")
+
+    monkeypatch.setattr(paired, "_persist_v3_condition_gate_record", forbidden)
+    monkeypatch.setattr(type(state.records[0]), "canonical_json", forbidden)
+    monkeypatch.setattr(type(state.admission), "canonical_json", forbidden)
+    with pytest.raises(paired.PaperStoryError) as caught:
+        state.invoke()
+    assert str(caught.value) == state.rejection
+    state.admission = replace(state.admission, admitted=True)
+    assert state.invoke(evidence_root=state.root / "not-created") is None
+    assert list(state.root.iterdir()) == []
+
+
+def test_a1_detail_fallback_and_could_not_run_unchanged(a1_detail_gate, monkeypatch):
+    state = a1_detail_gate
+    state.records[:] = [replace(record, terminal_status="green") for record in state.records]
+    with pytest.raises(paired.PaperStoryError) as caught:
+        state.invoke(evidence_root=state.root)
+    assert str(caught.value) == (
+        "v3 BACKOFF_FIXED condition gate rejected measurement: admission-not-granted"
+    )
+    assert len(list(state.root.iterdir())) == 5
+
+    def unavailable(*_args, **_kwargs):
+        raise OSError("fixture capture failure")
+
+    monkeypatch.setattr(paired.condition_meaning_gate, "capture_define_inputs", unavailable)
+    with pytest.raises(paired.PaperStoryError) as caught:
+        state.invoke(evidence_root=state.root / "not-created")
+    assert str(caught.value) == "v3 BACKOFF_FIXED condition gate could not run: fixture capture failure"
+    assert isinstance(caught.value.__cause__, OSError)
+    assert not (state.root / "not-created").exists()
+
+
+def test_a1_detail_base_exception_propagates(a1_detail_gate, monkeypatch):
+    state = a1_detail_gate
+
+    def interrupted(_fd):
+        raise KeyboardInterrupt()
+
+    monkeypatch.setattr(os, "fsync", interrupted)
+    with pytest.raises(KeyboardInterrupt):
+        state.invoke(evidence_root=state.root)
+    assert list(state.root.iterdir()) == []
+
+
+def test_a1_detail_production_passes_raw_root():
+    import inspect
+    tree = ast.parse(inspect.getsource(paired._run_measurement_v3))
+    calls = [node for node in ast.walk(tree) if isinstance(node, ast.Call)
+             and isinstance(node.func, ast.Name)
+             and node.func.id == "_require_v3_backoff_fixed_condition_gate"]
+    assert len(calls) == 1
+    roots = [kw.value for kw in calls[0].keywords if kw.arg == "evidence_root"]
+    assert len(roots) == 1
+    assert ast.dump(roots[0]) == ast.dump(ast.parse('Path(roots["raw_root"])', mode="eval").body)

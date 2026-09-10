@@ -1,0 +1,1488 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2417-policy-arm-perf/output/pegasus-dispatch/36b2a2ae387bba8c859fa4d41ce89b81/izdw-36b2a2ae38.o982912",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2417-policy-arm-perf/output/pegasus-dispatch/36b2a2ae387bba8c859fa4d41ce89b81/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout_sha256": "712e200db032445abba2a921f901f6330c6f3fe22edb160fdf442acdab5815ea"
+    },
+    "artifact_error": null,
+    "collection_sha256": "3e2765af4de3788848176a48cc8c26777101eecf09eb5971f14c8abc4729e814",
+    "duration_s": 73.573,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "0c54fbc50052a7005c7796543bcb1a46bd89095ac2d12c61ed2e1f754e35e223",
+    "repo_head": "e68ab3e89f2915e7316f57373c78f9cb813fefa3",
+    "runner_sha256": "dee0c85ea2c09a42f9406c0e69a8a870ba18054631a0eb63c481a5db97a5b1d3",
+    "spec_sha256": "405846366b72eb3b77ce1026a966cd49e7e24818600fe86b03669e614f58a0eb",
+    "status": "PASSED",
+    "test_output_sha256": "712e200db032445abba2a921f901f6330c6f3fe22edb160fdf442acdab5815ea",
+    "timed_out": false,
+    "tool_sha256": "a5515c9542d18ae81e250fa704d1a8435167d41d77d4c16f7d87bea9f2abea5d"
+  },
+  "date": "2026-09-07T22:31:35.114470+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2417-policy-arm-perf/output/pegasus-dispatch/df778c99d872548536b59aa7046a20a5/izdw-df778c99d8.o982915",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2417-policy-arm-perf/output/pegasus-dispatch/df778c99d872548536b59aa7046a20a5/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout_sha256": "5b738b5bcab3b1978c6ff26bac50caac49c92d7a6d3d3fcfe7ce1ede08c83c13"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "3e2765af4de3788848176a48cc8c26777101eecf09eb5971f14c8abc4729e814",
+      "duration_s": 68.919,
+      "expected_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_contract_accepts_all_18_blocks_and_rep_modulo_six",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_dispatch_keeps_policy_grid_and_trace_validators_disjoint",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_output_is_final_and_analysis_compatible",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_reasoned_missing_is_local_in_analysis"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_dispatch_keeps_policy_grid_and_trace_validators_disjoint",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_contract_accepts_all_18_blocks_and_rep_modulo_six",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_output_is_final_and_analysis_compatible",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_reasoned_missing_is_local_in_analysis"
+      ],
+      "hang_risk": false,
+      "id": "M01",
+      "injection_diff_sha256": "91edac453cc5678b001f609800f6c414bf5ecfe8c6dec75108c087640215f25d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "075965b4f7904ecbb7160a3acf7db20c8c51bee3c3083bfaafdccd651049f6cc",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "new": "    rotation_index = rep_index % 3",
+          "old": "    rotation_index = rep_index % 6"
+        }
+      ],
+      "repo_head": "e68ab3e89f2915e7316f57373c78f9cb813fefa3",
+      "runner_sha256": "dee0c85ea2c09a42f9406c0e69a8a870ba18054631a0eb63c481a5db97a5b1d3",
+      "spec_sha256": "405846366b72eb3b77ce1026a966cd49e7e24818600fe86b03669e614f58a0eb",
+      "status": "KILLED",
+      "test_output_sha256": "5b738b5bcab3b1978c6ff26bac50caac49c92d7a6d3d3fcfe7ce1ede08c83c13",
+      "timed_out": false,
+      "tool_sha256": "a5515c9542d18ae81e250fa704d1a8435167d41d77d4c16f7d87bea9f2abea5d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2417-policy-arm-perf/output/pegasus-dispatch/50d97dc12f57c73f619bee400d0f65ed/izdw-50d97dc12f.o982917",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2417-policy-arm-perf/output/pegasus-dispatch/50d97dc12f57c73f619bee400d0f65ed/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout_sha256": "e2cb5a33181c5df0f1fbebded52b8b2633550fd0b0c5e55c23b30d7d8b076f39"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "3e2765af4de3788848176a48cc8c26777101eecf09eb5971f14c8abc4729e814",
+      "duration_s": 79.503,
+      "expected_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_contract_accepts_all_18_blocks_and_rep_modulo_six",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_contract_rejects_each_exact_condition_for_stable_reason[seed-mismatch]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_driver_and_pbs_literals_are_byte_identical",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_driver_literals_match_independent_contract_literals",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_performance_rejects_output_outside_dedicated_prefix",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_performance_wrong_seed_uses_contract_reason",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_output_is_final_and_analysis_compatible",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_reasoned_missing_is_local_in_analysis"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_output_is_final_and_analysis_compatible",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_reasoned_missing_is_local_in_analysis",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_driver_and_pbs_literals_are_byte_identical",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_performance_rejects_output_outside_dedicated_prefix",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_driver_literals_match_independent_contract_literals",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_contract_rejects_each_exact_condition_for_stable_reason[seed-mismatch]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_contract_accepts_all_18_blocks_and_rep_modulo_six",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_performance_wrong_seed_uses_contract_reason"
+      ],
+      "hang_risk": false,
+      "id": "M02",
+      "injection_diff_sha256": "28966652a0f1a7c369a6d4353c4a1b251c8a7ced34cf81ec988b63fbfd7575fc",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "fc1d3cf10d5ccc04f6ca5a684d95065ec484236714e3b7d22e5609e94819f17d",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "new": "    7170359757993337887,\n    17989269546948137795,",
+          "old": "    7170359757993337886,\n    17989269546948137795,"
+        }
+      ],
+      "repo_head": "e68ab3e89f2915e7316f57373c78f9cb813fefa3",
+      "runner_sha256": "dee0c85ea2c09a42f9406c0e69a8a870ba18054631a0eb63c481a5db97a5b1d3",
+      "spec_sha256": "405846366b72eb3b77ce1026a966cd49e7e24818600fe86b03669e614f58a0eb",
+      "status": "KILLED",
+      "test_output_sha256": "e2cb5a33181c5df0f1fbebded52b8b2633550fd0b0c5e55c23b30d7d8b076f39",
+      "timed_out": false,
+      "tool_sha256": "a5515c9542d18ae81e250fa704d1a8435167d41d77d4c16f7d87bea9f2abea5d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2417-policy-arm-perf/output/pegasus-dispatch/0acd80bde508994ae97061d3d2ce1dae/izdw-0acd80bde5.o982921",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2417-policy-arm-perf/output/pegasus-dispatch/0acd80bde508994ae97061d3d2ce1dae/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout_sha256": "e3c64dcff73b1002ba9974d078eb056cbbaaca4365ce991cd491dd47b960e093"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "3e2765af4de3788848176a48cc8c26777101eecf09eb5971f14c8abc4729e814",
+      "duration_s": 79.948,
+      "expected_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_contract_rejects_each_exact_condition_for_stable_reason[stage]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_fields_are_top_level_only_and_require_every_condition"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_fields_are_top_level_only_and_require_every_condition",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_contract_rejects_each_exact_condition_for_stable_reason[stage]"
+      ],
+      "hang_risk": false,
+      "id": "M03",
+      "injection_diff_sha256": "d6f699a8641d4797053452f22214ae2faa38b2b3dbb748a1c63a7b0e6e12cd79",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "aa508184cd510e98af869218250670a2d5194909358db70436049df2b818d91b",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "new": "        and stage >= 1\n",
+          "old": "        and stage == 1\n"
+        }
+      ],
+      "repo_head": "e68ab3e89f2915e7316f57373c78f9cb813fefa3",
+      "runner_sha256": "dee0c85ea2c09a42f9406c0e69a8a870ba18054631a0eb63c481a5db97a5b1d3",
+      "spec_sha256": "405846366b72eb3b77ce1026a966cd49e7e24818600fe86b03669e614f58a0eb",
+      "status": "KILLED",
+      "test_output_sha256": "e3c64dcff73b1002ba9974d078eb056cbbaaca4365ce991cd491dd47b960e093",
+      "timed_out": false,
+      "tool_sha256": "a5515c9542d18ae81e250fa704d1a8435167d41d77d4c16f7d87bea9f2abea5d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2417-policy-arm-perf/output/pegasus-dispatch/dbdc619ec15d96d67f47bbc26edfe53d/izdw-dbdc619ec1.o982925",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2417-policy-arm-perf/output/pegasus-dispatch/dbdc619ec15d96d67f47bbc26edfe53d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout_sha256": "ca01c6133418f37e7fe4b9a913754b4853399061514fa2ac9fa482edd24a6ba0"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "3e2765af4de3788848176a48cc8c26777101eecf09eb5971f14c8abc4729e814",
+      "duration_s": 69.394,
+      "expected_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_generic_policy_grid_is_accepted_but_uncertified",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_output_is_final_and_analysis_compatible",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_reasoned_missing_is_local_in_analysis"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_generic_policy_grid_is_accepted_but_uncertified",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_output_is_final_and_analysis_compatible",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_reasoned_missing_is_local_in_analysis"
+      ],
+      "hang_risk": false,
+      "id": "M04",
+      "injection_diff_sha256": "c9fb1b83446a39164bb2c3bca4eb3344ee22e53dbefc8e05c72c0fd99037a5ef",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "71b64475f3ea01f1ccc6d153f22bec066272cec6b17384ecfaf813bf0dca3a9b",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "new": "            if args.backoff_trace\n",
+          "old": "            if args.backoff_trace or any(cell.has_step_policy for cell in cells)\n"
+        }
+      ],
+      "repo_head": "e68ab3e89f2915e7316f57373c78f9cb813fefa3",
+      "runner_sha256": "dee0c85ea2c09a42f9406c0e69a8a870ba18054631a0eb63c481a5db97a5b1d3",
+      "spec_sha256": "405846366b72eb3b77ce1026a966cd49e7e24818600fe86b03669e614f58a0eb",
+      "status": "KILLED",
+      "test_output_sha256": "ca01c6133418f37e7fe4b9a913754b4853399061514fa2ac9fa482edd24a6ba0",
+      "timed_out": false,
+      "tool_sha256": "a5515c9542d18ae81e250fa704d1a8435167d41d77d4c16f7d87bea9f2abea5d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2417-policy-arm-perf/output/pegasus-dispatch/1a4141f812e45c3381e534d8b24921de/izdw-1a4141f812.o982927",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2417-policy-arm-perf/output/pegasus-dispatch/1a4141f812e45c3381e534d8b24921de/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout_sha256": "924bd326f17b26bc44a86ddad5b2288f3a70d3170561c7587872a2c7b0d84364"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "3e2765af4de3788848176a48cc8c26777101eecf09eb5971f14c8abc4729e814",
+      "duration_s": 68.848,
+      "expected_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_generic_policy_grid_is_accepted_but_uncertified"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_generic_policy_grid_is_accepted_but_uncertified"
+      ],
+      "hang_risk": false,
+      "id": "M05",
+      "injection_diff_sha256": "f55c7b5c9d1817a4c043c56440002b4dd56caa78a206d90635ce25ff9cc922e6",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "3b494fa8c5a05123e7f5e4c14ef2b344f92e955245090358a7ab1bb7541be6d6",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "new": "            if False:\n                payload[\"correctness_status\"] = \"uncertified\"\n",
+          "old": "            if any(cell.has_step_policy for cell in cells):\n                payload[\"correctness_status\"] = \"uncertified\"\n"
+        }
+      ],
+      "repo_head": "e68ab3e89f2915e7316f57373c78f9cb813fefa3",
+      "runner_sha256": "dee0c85ea2c09a42f9406c0e69a8a870ba18054631a0eb63c481a5db97a5b1d3",
+      "spec_sha256": "405846366b72eb3b77ce1026a966cd49e7e24818600fe86b03669e614f58a0eb",
+      "status": "KILLED",
+      "test_output_sha256": "924bd326f17b26bc44a86ddad5b2288f3a70d3170561c7587872a2c7b0d84364",
+      "timed_out": false,
+      "tool_sha256": "a5515c9542d18ae81e250fa704d1a8435167d41d77d4c16f7d87bea9f2abea5d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2417-policy-arm-perf/output/pegasus-dispatch/ae708fcefcd6314a17a103a94dcc6d9c/izdw-ae708fcefc.o982929",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2417-policy-arm-perf/output/pegasus-dispatch/ae708fcefcd6314a17a103a94dcc6d9c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout_sha256": "344b0e670678c827efdcb4729a85db14cc71274a72d549ebb9c8669cf7d479a4"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "3e2765af4de3788848176a48cc8c26777101eecf09eb5971f14c8abc4729e814",
+      "duration_s": 79.258,
+      "expected_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_output_is_final_and_analysis_compatible",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_reasoned_missing_is_local_in_analysis"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_output_is_final_and_analysis_compatible",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_reasoned_missing_is_local_in_analysis"
+      ],
+      "hang_risk": false,
+      "id": "M06",
+      "injection_diff_sha256": "ec586d8fe137dd5f1741e189908595ba2add754e87a189ace04b2a6458fa3363",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "70d0ff04afca1043879dea02b9b24a1a48b1d6a4dcad11b07697195a8e5ec0a4",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "new": "                            \"build_cache_key\": build_cache_key,",
+          "old": "                            \"build_trace_enabled\": False,\n                            \"build_cache_key\": build_cache_key,"
+        }
+      ],
+      "repo_head": "e68ab3e89f2915e7316f57373c78f9cb813fefa3",
+      "runner_sha256": "dee0c85ea2c09a42f9406c0e69a8a870ba18054631a0eb63c481a5db97a5b1d3",
+      "spec_sha256": "405846366b72eb3b77ce1026a966cd49e7e24818600fe86b03669e614f58a0eb",
+      "status": "KILLED",
+      "test_output_sha256": "344b0e670678c827efdcb4729a85db14cc71274a72d549ebb9c8669cf7d479a4",
+      "timed_out": false,
+      "tool_sha256": "a5515c9542d18ae81e250fa704d1a8435167d41d77d4c16f7d87bea9f2abea5d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2417-policy-arm-perf/output/pegasus-dispatch/84e73b1823b1fee104aa07d36756e536/izdw-84e73b1823.o982933",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2417-policy-arm-perf/output/pegasus-dispatch/84e73b1823b1fee104aa07d36756e536/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout_sha256": "a99b1a4d14bafe9cfd293a1a1cd847c1cb918ee44ba69ad74d54b9b204aaec1d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "3e2765af4de3788848176a48cc8c26777101eecf09eb5971f14c8abc4729e814",
+      "duration_s": 90.26,
+      "expected_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_reasoned_missing_is_local_in_analysis"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_reasoned_missing_is_local_in_analysis"
+      ],
+      "hang_risk": false,
+      "id": "M07",
+      "injection_diff_sha256": "e00462d8dad2e4627b45ae4c5dec739a4fa1a6f36e1d477fb0d982c8390dbfdc",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "cef485a6659c0bcf3d671fca9dbdf815825817d24c0ba7fb325fa523aef5ead3",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "new": "                        if False:\n                            row[\"missing_reason\"] = missing_reason\n",
+          "old": "                        if missing_reason is not None:\n                            row[\"missing_reason\"] = missing_reason\n"
+        }
+      ],
+      "repo_head": "e68ab3e89f2915e7316f57373c78f9cb813fefa3",
+      "runner_sha256": "dee0c85ea2c09a42f9406c0e69a8a870ba18054631a0eb63c481a5db97a5b1d3",
+      "spec_sha256": "405846366b72eb3b77ce1026a966cd49e7e24818600fe86b03669e614f58a0eb",
+      "status": "KILLED",
+      "test_output_sha256": "a99b1a4d14bafe9cfd293a1a1cd847c1cb918ee44ba69ad74d54b9b204aaec1d",
+      "timed_out": false,
+      "tool_sha256": "a5515c9542d18ae81e250fa704d1a8435167d41d77d4c16f7d87bea9f2abea5d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2417-policy-arm-perf/output/pegasus-dispatch/81a910fa4fcb0e24d84d9fbfde75c91a/izdw-81a910fa4f.o982940",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2417-policy-arm-perf/output/pegasus-dispatch/81a910fa4fcb0e24d84d9fbfde75c91a/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout_sha256": "f12c84107583ef603da7ad1aa2bcbcd5011e05f34bf597069cd54817b02f437b"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "3e2765af4de3788848176a48cc8c26777101eecf09eb5971f14c8abc4729e814",
+      "duration_s": 69.51,
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_contract_literals_are_independently_pinned",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_equivalence_behavior_depends_on_frozen_95_percent_critical_and_margin",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_public_analysis_uses_equal_block_log_ratios_and_frozen_ci"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_equivalence_behavior_depends_on_frozen_95_percent_critical_and_margin",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_public_analysis_uses_equal_block_log_ratios_and_frozen_ci",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_contract_literals_are_independently_pinned"
+      ],
+      "hang_risk": false,
+      "id": "M08",
+      "injection_diff_sha256": "22f67f5ac359038a7d6e0a907ee8c3f0bc407c7806ef66f4521273b51934978c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "456d399d8a1ca8395af6e488060069aff79f2c4f42dd48d5b684cd4a6da80aef",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_policy_performance_analysis.py",
+          "new": "T95_DF17 = 2.2009852",
+          "old": "T95_DF17 = 2.1098156"
+        }
+      ],
+      "repo_head": "e68ab3e89f2915e7316f57373c78f9cb813fefa3",
+      "runner_sha256": "dee0c85ea2c09a42f9406c0e69a8a870ba18054631a0eb63c481a5db97a5b1d3",
+      "spec_sha256": "405846366b72eb3b77ce1026a966cd49e7e24818600fe86b03669e614f58a0eb",
+      "status": "KILLED",
+      "test_output_sha256": "f12c84107583ef603da7ad1aa2bcbcd5011e05f34bf597069cd54817b02f437b",
+      "timed_out": false,
+      "tool_sha256": "a5515c9542d18ae81e250fa704d1a8435167d41d77d4c16f7d87bea9f2abea5d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2417-policy-arm-perf/output/pegasus-dispatch/b52dba709ddc1609dd48e2d9f89adcd2/izdw-b52dba709d.o982942",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2417-policy-arm-perf/output/pegasus-dispatch/b52dba709ddc1609dd48e2d9f89adcd2/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout_sha256": "1253d97356fe2bb38041218e63e8085909fbd5fdc23907142aa62218e7f03edb"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "3e2765af4de3788848176a48cc8c26777101eecf09eb5971f14c8abc4729e814",
+      "duration_s": 79.546,
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_contract_literals_are_independently_pinned",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_decision_vocabulary_and_strict_boundaries[-0.01-0.02955880224154443-non_inferior]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_decision_vocabulary_and_strict_boundaries[-0.02955880224154443-0.0-inconclusive]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_contract_literals_are_independently_pinned",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_decision_vocabulary_and_strict_boundaries[-0.01-0.02955880224154443-non_inferior]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_decision_vocabulary_and_strict_boundaries[-0.02955880224154443-0.0-inconclusive]"
+      ],
+      "hang_risk": false,
+      "id": "M09",
+      "injection_diff_sha256": "0bb1d08256c6e31996aa5ac3554ae15c556a19ae245f07a734454cefb0b909b2",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "73b2bb49550f4f2e780434c60d9be3a1abefed3eb20dee66c42737716b230ef6",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_policy_performance_analysis.py",
+          "new": "EQUIVALENCE_MARGIN_LOG = 0.030459207484708574",
+          "old": "EQUIVALENCE_MARGIN_LOG = 0.02955880224154443"
+        }
+      ],
+      "repo_head": "e68ab3e89f2915e7316f57373c78f9cb813fefa3",
+      "runner_sha256": "dee0c85ea2c09a42f9406c0e69a8a870ba18054631a0eb63c481a5db97a5b1d3",
+      "spec_sha256": "405846366b72eb3b77ce1026a966cd49e7e24818600fe86b03669e614f58a0eb",
+      "status": "KILLED",
+      "test_output_sha256": "1253d97356fe2bb38041218e63e8085909fbd5fdc23907142aa62218e7f03edb",
+      "timed_out": false,
+      "tool_sha256": "a5515c9542d18ae81e250fa704d1a8435167d41d77d4c16f7d87bea9f2abea5d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2417-policy-arm-perf/output/pegasus-dispatch/5bc77521a1c8e9ad0c72da2639e0f763/izdw-5bc77521a1.o982946",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2417-policy-arm-perf/output/pegasus-dispatch/5bc77521a1c8e9ad0c72da2639e0f763/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout_sha256": "212c386dbaebf87babfe5d283a6286a3beec128dad937fd7c5b2b52155c59e8c"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "3e2765af4de3788848176a48cc8c26777101eecf09eb5971f14c8abc4729e814",
+      "duration_s": 80.78,
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_absent_block_is_pointwise_incomplete_and_lists_rep_index",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_duplicate_rep_index_and_resolved_path_are_rejected",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_equivalence_behavior_depends_on_frozen_95_percent_critical_and_margin",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_hypotheses_return_preregistered_three_way_decisions",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[-1.0]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[0.0]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[None]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[inf]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[nan]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_one_reasoned_missing_coordinate_is_local_not_artifact_invalid",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_public_analysis_uses_equal_block_log_ratios_and_frozen_ci",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_output_is_final_and_analysis_compatible",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_reasoned_missing_is_local_in_analysis"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_duplicate_rep_index_and_resolved_path_are_rejected",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[None]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[inf]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_hypotheses_return_preregistered_three_way_decisions",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[0.0]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[nan]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_equivalence_behavior_depends_on_frozen_95_percent_critical_and_margin",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[-1.0]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_absent_block_is_pointwise_incomplete_and_lists_rep_index",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_one_reasoned_missing_coordinate_is_local_not_artifact_invalid",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_public_analysis_uses_equal_block_log_ratios_and_frozen_ci",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_output_is_final_and_analysis_compatible",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_reasoned_missing_is_local_in_analysis"
+      ],
+      "hang_risk": false,
+      "id": "M10",
+      "injection_diff_sha256": "7943f8efc062f53c89af4136854650b5d8ea407a5755b3ce29b2d77199c73236",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "33888a0bfb11161bc676ba5453c80bf01dc51d44b42d8b811b4efc479554b206",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_policy_performance_analysis.py",
+          "new": "        \"records\": 2_000_000,",
+          "old": "        \"records\": 1_000_000,"
+        }
+      ],
+      "repo_head": "e68ab3e89f2915e7316f57373c78f9cb813fefa3",
+      "runner_sha256": "dee0c85ea2c09a42f9406c0e69a8a870ba18054631a0eb63c481a5db97a5b1d3",
+      "spec_sha256": "405846366b72eb3b77ce1026a966cd49e7e24818600fe86b03669e614f58a0eb",
+      "status": "KILLED",
+      "test_output_sha256": "212c386dbaebf87babfe5d283a6286a3beec128dad937fd7c5b2b52155c59e8c",
+      "timed_out": false,
+      "tool_sha256": "a5515c9542d18ae81e250fa704d1a8435167d41d77d4c16f7d87bea9f2abea5d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2417-policy-arm-perf/output/pegasus-dispatch/65f16ed1580fd87fbe03a92e6fe5a04e/izdw-65f16ed158.o982949",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2417-policy-arm-perf/output/pegasus-dispatch/65f16ed1580fd87fbe03a92e6fe5a04e/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout_sha256": "d26289461f32f9251fb1604c8ec85c33e89b9c85a3d8f6d7b3db32f025e4d2ca"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "3e2765af4de3788848176a48cc8c26777101eecf09eb5971f14c8abc4729e814",
+      "duration_s": 79.936,
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_h3_aggregate_boundary_contact_is_inconclusive_not_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_h3_aggregate_boundary_contact_is_inconclusive_not_rejected"
+      ],
+      "hang_risk": false,
+      "id": "M11",
+      "injection_diff_sha256": "ebf656772cb0dc90e043af2c99b8758f176ca16922ece2f606cc5fd9606f0d16",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "43610a7443419d60e5a168f5df561a6709b9d23c115542c0e7f20fae0d53378d",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_policy_performance_analysis.py",
+          "new": "        point[\"ci95\"][\"upper_log\"] <= -margin\n        or point[\"ci95\"][\"lower_log\"] >= margin",
+          "old": "        point[\"ci95\"][\"upper_log\"] < -margin\n        or point[\"ci95\"][\"lower_log\"] > margin"
+        }
+      ],
+      "repo_head": "e68ab3e89f2915e7316f57373c78f9cb813fefa3",
+      "runner_sha256": "dee0c85ea2c09a42f9406c0e69a8a870ba18054631a0eb63c481a5db97a5b1d3",
+      "spec_sha256": "405846366b72eb3b77ce1026a966cd49e7e24818600fe86b03669e614f58a0eb",
+      "status": "KILLED",
+      "test_output_sha256": "d26289461f32f9251fb1604c8ec85c33e89b9c85a3d8f6d7b3db32f025e4d2ca",
+      "timed_out": false,
+      "tool_sha256": "a5515c9542d18ae81e250fa704d1a8435167d41d77d4c16f7d87bea9f2abea5d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2417-policy-arm-perf/output/pegasus-dispatch/385a751e5fdef6a61fae7cc4142bd8c3/izdw-385a751e5f.o982952",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2417-policy-arm-perf/output/pegasus-dispatch/385a751e5fdef6a61fae7cc4142bd8c3/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout_sha256": "b1fa2590a8821942ce69806c4bbc977be837b4ab3068e2e1a1c182c8fb34bd63"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "3e2765af4de3788848176a48cc8c26777101eecf09eb5971f14c8abc4729e814",
+      "duration_s": 79.491,
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_absent_block_is_pointwise_incomplete_and_lists_rep_index",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_duplicate_rep_index_and_resolved_path_are_rejected",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_equivalence_behavior_depends_on_frozen_95_percent_critical_and_margin",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_hypotheses_return_preregistered_three_way_decisions",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[-1.0]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[0.0]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[None]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[inf]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[nan]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_one_reasoned_missing_coordinate_is_local_not_artifact_invalid",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_public_analysis_uses_equal_block_log_ratios_and_frozen_ci",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_output_is_final_and_analysis_compatible",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_reasoned_missing_is_local_in_analysis"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_duplicate_rep_index_and_resolved_path_are_rejected",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_public_analysis_uses_equal_block_log_ratios_and_frozen_ci",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_hypotheses_return_preregistered_three_way_decisions",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[None]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_equivalence_behavior_depends_on_frozen_95_percent_critical_and_margin",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_absent_block_is_pointwise_incomplete_and_lists_rep_index",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_one_reasoned_missing_coordinate_is_local_not_artifact_invalid",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[nan]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[-1.0]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[inf]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[0.0]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_output_is_final_and_analysis_compatible",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_reasoned_missing_is_local_in_analysis"
+      ],
+      "hang_risk": false,
+      "id": "M12",
+      "injection_diff_sha256": "d53bf8621271e4a49750a05f2c32c301fa3538e69f3edd6327f21146a448ad3e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "2deb39c6f05f5f5d9f37adbfe86652f1e406865e7364557ade41edb486acd21c",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_policy_performance_analysis.py",
+          "new": "        \"build_trace_enabled\": None,",
+          "old": "        \"build_trace_enabled\": False,"
+        }
+      ],
+      "repo_head": "e68ab3e89f2915e7316f57373c78f9cb813fefa3",
+      "runner_sha256": "dee0c85ea2c09a42f9406c0e69a8a870ba18054631a0eb63c481a5db97a5b1d3",
+      "spec_sha256": "405846366b72eb3b77ce1026a966cd49e7e24818600fe86b03669e614f58a0eb",
+      "status": "KILLED",
+      "test_output_sha256": "b1fa2590a8821942ce69806c4bbc977be837b4ab3068e2e1a1c182c8fb34bd63",
+      "timed_out": false,
+      "tool_sha256": "a5515c9542d18ae81e250fa704d1a8435167d41d77d4c16f7d87bea9f2abea5d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2417-policy-arm-perf/output/pegasus-dispatch/d79ef0bfddfa2363f2175d8aaa24bdf8/izdw-d79ef0bfdd.o982956",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2417-policy-arm-perf/output/pegasus-dispatch/d79ef0bfddfa2363f2175d8aaa24bdf8/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout_sha256": "57482d74b9f8a9527679752040fd156d7a07aceeafdfee6ff83432291997d4e3"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "3e2765af4de3788848176a48cc8c26777101eecf09eb5971f14c8abc4729e814",
+      "duration_s": 74.641,
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_absent_block_is_pointwise_incomplete_and_lists_rep_index",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_block_identity_mismatches_fail_closed[ccbench-pin]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_block_identity_mismatches_fail_closed[compiler]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_block_identity_mismatches_fail_closed[driver-sha]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_block_identity_mismatches_fail_closed[p0-binary]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_block_identity_mismatches_fail_closed[patch-stack]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_block_identity_mismatches_fail_closed[pbs-sha]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_block_identity_mismatches_fail_closed[repo-head]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_contract_literals_are_independently_pinned",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_duplicate_rep_index_and_resolved_path_are_rejected",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_equivalence_behavior_depends_on_frozen_95_percent_critical_and_margin",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_hypotheses_return_preregistered_three_way_decisions",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_input_type_contract_and_empty_explicit_input",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[-1.0]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[0.0]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[None]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[inf]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[nan]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_one_reasoned_missing_coordinate_is_local_not_artifact_invalid",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_preregistration_bytes_are_bound_to_frozen_sha256",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_public_analysis_uses_equal_block_log_ratios_and_frozen_ci",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[arm-literal]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[axis]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[binary-within-arm]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[build-allowlist]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[build-trace-enabled]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[coordinate]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[extime]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[kind]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[not-certified]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[order-rep]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[preregistration-sha]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[records]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[rep-18]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[reps-per-job]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[row-seed]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[row-throughput-scope]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[schema]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[seed]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[source-bytes]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[stage]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[throughput-scope]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[trace-row]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[trace-symbol]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[workload-axis]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[workload-flags]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_output_is_final_and_analysis_compatible",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_reasoned_missing_is_local_in_analysis"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_duplicate_rep_index_and_resolved_path_are_rejected",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_public_analysis_uses_equal_block_log_ratios_and_frozen_ci",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_block_identity_mismatches_fail_closed[pbs-sha]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_block_identity_mismatches_fail_closed[repo-head]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_block_identity_mismatches_fail_closed[driver-sha]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_equivalence_behavior_depends_on_frozen_95_percent_critical_and_margin",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_hypotheses_return_preregistered_three_way_decisions",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_absent_block_is_pointwise_incomplete_and_lists_rep_index",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[-1.0]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[nan]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[inf]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_one_reasoned_missing_coordinate_is_local_not_artifact_invalid",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[0.0]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[None]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_input_type_contract_and_empty_explicit_input",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[row-seed]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[trace-symbol]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[axis]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_contract_literals_are_independently_pinned",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[workload-axis]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_preregistration_bytes_are_bound_to_frozen_sha256",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[workload-flags]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[seed]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[stage]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_output_is_final_and_analysis_compatible",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_reasoned_missing_is_local_in_analysis",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[schema]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[order-rep]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[binary-within-arm]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[extime]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[build-allowlist]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[preregistration-sha]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[row-throughput-scope]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[build-trace-enabled]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[rep-18]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[records]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_block_identity_mismatches_fail_closed[compiler]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[reps-per-job]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[source-bytes]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[trace-row]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_block_identity_mismatches_fail_closed[p0-binary]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[not-certified]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[throughput-scope]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[coordinate]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[kind]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[arm-literal]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_block_identity_mismatches_fail_closed[patch-stack]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_block_identity_mismatches_fail_closed[ccbench-pin]"
+      ],
+      "hang_risk": false,
+      "id": "M13",
+      "injection_diff_sha256": "41b9e15e5f26a732847773d23e231caf69c25ffb301d1b73859b8c692c83c955",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "cf0558d8c8cbbaa64e4a7d2bea5350be50c7d73e43b6849d8ee1eecb20159278",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_policy_performance_analysis.py",
+          "new": "BLOCK_COUNT = 12",
+          "old": "BLOCK_COUNT = 18"
+        }
+      ],
+      "repo_head": "e68ab3e89f2915e7316f57373c78f9cb813fefa3",
+      "runner_sha256": "dee0c85ea2c09a42f9406c0e69a8a870ba18054631a0eb63c481a5db97a5b1d3",
+      "spec_sha256": "405846366b72eb3b77ce1026a966cd49e7e24818600fe86b03669e614f58a0eb",
+      "status": "KILLED",
+      "test_output_sha256": "57482d74b9f8a9527679752040fd156d7a07aceeafdfee6ff83432291997d4e3",
+      "timed_out": false,
+      "tool_sha256": "a5515c9542d18ae81e250fa704d1a8435167d41d77d4c16f7d87bea9f2abea5d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2417-policy-arm-perf/output/pegasus-dispatch/d1adb054e8de696893ae77bab2c2e0ae/izdw-d1adb054e8.o982959",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2417-policy-arm-perf/output/pegasus-dispatch/d1adb054e8de696893ae77bab2c2e0ae/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout_sha256": "a0ffa1c01d97c320a13f5f5d886860a33546d8c353147f7c282aab5840e4fc6d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "3e2765af4de3788848176a48cc8c26777101eecf09eb5971f14c8abc4729e814",
+      "duration_s": 69.277,
+      "expected_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_submit_t2417_uses_one_checkout_and_exact_18_block_ledger"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_submit_t2417_uses_one_checkout_and_exact_18_block_ledger"
+      ],
+      "hang_risk": false,
+      "id": "M14",
+      "injection_diff_sha256": "fc57af35e66bf34ea854433656e30494f7e7eddf026903f084660ee51c6bd0ff",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "2e7bed35bb7e0a8e5c83b4ad7863a3d8f6b2231ff98fd93f458e7865d11caaa4",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_t2417_backoff_policy_performance.sh",
+          "new": "for rep in {0..16}; do",
+          "old": "for rep in {0..17}; do"
+        }
+      ],
+      "repo_head": "e68ab3e89f2915e7316f57373c78f9cb813fefa3",
+      "runner_sha256": "dee0c85ea2c09a42f9406c0e69a8a870ba18054631a0eb63c481a5db97a5b1d3",
+      "spec_sha256": "405846366b72eb3b77ce1026a966cd49e7e24818600fe86b03669e614f58a0eb",
+      "status": "KILLED",
+      "test_output_sha256": "a0ffa1c01d97c320a13f5f5d886860a33546d8c353147f7c282aab5840e4fc6d",
+      "timed_out": false,
+      "tool_sha256": "a5515c9542d18ae81e250fa704d1a8435167d41d77d4c16f7d87bea9f2abea5d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2417-policy-arm-perf/output/pegasus-dispatch/424b5f2f307b07be151ece87b32c18b8/izdw-424b5f2f30.o982961",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2417-policy-arm-perf/output/pegasus-dispatch/424b5f2f307b07be151ece87b32c18b8/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout_sha256": "06cf4b52c0266414b9043f02e6495381ee087a427b812b86bc187c7c7b566c60"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "3e2765af4de3788848176a48cc8c26777101eecf09eb5971f14c8abc4729e814",
+      "duration_s": 79.237,
+      "expected_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_fields_are_top_level_only_and_require_every_condition",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_output_is_final_and_analysis_compatible",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_reasoned_missing_is_local_in_analysis"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_fields_are_top_level_only_and_require_every_condition",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_output_is_final_and_analysis_compatible",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_reasoned_missing_is_local_in_analysis"
+      ],
+      "hang_risk": false,
+      "id": "M15",
+      "injection_diff_sha256": "3a0370b8731baabd873fa43df4bae6b5c53586c91e34f2d57517cef2e80de770",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "1666ce92bc0bd6ef9e6bc3d4f10e312515cce4610ea30ae548bcd230fc6d6de7",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "new": "POLICY_PERFORMANCE_CONTRACT = \"backoff-policy-arm-perf/v2\"",
+          "old": "POLICY_PERFORMANCE_CONTRACT = \"backoff-policy-arm-perf/v1\""
+        }
+      ],
+      "repo_head": "e68ab3e89f2915e7316f57373c78f9cb813fefa3",
+      "runner_sha256": "dee0c85ea2c09a42f9406c0e69a8a870ba18054631a0eb63c481a5db97a5b1d3",
+      "spec_sha256": "405846366b72eb3b77ce1026a966cd49e7e24818600fe86b03669e614f58a0eb",
+      "status": "KILLED",
+      "test_output_sha256": "06cf4b52c0266414b9043f02e6495381ee087a427b812b86bc187c7c7b566c60",
+      "timed_out": false,
+      "tool_sha256": "a5515c9542d18ae81e250fa704d1a8435167d41d77d4c16f7d87bea9f2abea5d"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2417-policy-arm-perf/output/pegasus-dispatch/75f485279e4217a8e9bba03cae466101/izdw-75f485279e.o982910",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2417-policy-arm-perf/output/pegasus-dispatch/75f485279e4217a8e9bba03cae466101/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout_sha256": "8ac2d7ab5d7669216efdcd378660515c16d44fe2c599a23362d0e864b541b15b"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_cells_parser_accepts_three_cells_and_normalizes_milliunits",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_cells_parser_rejects_nonpositive_constants[zero-step]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_cells_parser_rejects_nonpositive_constants[negative-step]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_cells_parser_rejects_nonpositive_constants[zero-ceiling]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_cells_parser_rejects_nonpositive_constants[negative-ceiling]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_cells_parser_rejects_nonpositive_constants[zero-update]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_cells_parser_rejects_nonpositive_constants[negative-update]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_cells_parser_rejects_malformed_or_lossy_grids[duplicate-label]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_cells_parser_rejects_malformed_or_lossy_grids[missing-field]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_cells_parser_rejects_malformed_or_lossy_grids[empty]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_cells_parser_rejects_malformed_or_lossy_grids[rounding-loss]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_is_stock_control_requires_exact_three_constants_and_backoff",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_existing_out_is_rejected_before_site_or_measurement",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_patch_applies_to_exact_pin_and_has_three_fail_closed_macros",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_pbs_restores_plus_lists_and_is_compute_only",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_pbs_rejects_legacy_semicolon_list_delimiter",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_contract_runs_full_real_verifier_path_and_saves_create_only",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_trace_build_budget_is_a_hard_deadline",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_run_and_verify_phase_measurements_keep_distinct_meanings",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_nonexercising_target_for_one_reason[M17-none]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_nonexercising_target_for_one_reason[M17-zero]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_nonexercising_target_for_one_reason[M17-negative]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_nonexercising_target_for_one_reason[M17-non-int]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_nonexercising_target_for_one_reason[M2-edges]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_substituted_target_trace_only",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_target_exit_three_only",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_lenient_argv_only",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_unbound_proof_surface_argv_for_one_reason[missing---protocol-positive]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_unbound_proof_surface_argv_for_one_reason[missing---protocol-target]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_unbound_proof_surface_argv_for_one_reason[missing---ccbench-root-positive]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_unbound_proof_surface_argv_for_one_reason[missing---ccbench-root-target]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_unbound_proof_surface_argv_for_one_reason[mismatch---protocol-positive]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_unbound_proof_surface_argv_for_one_reason[mismatch---protocol-target]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_unbound_proof_surface_argv_for_one_reason[mismatch---ccbench-root-positive]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_unbound_proof_surface_argv_for_one_reason[mismatch---ccbench-root-target]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_non_silo_genome_before_verification",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_verifier_identity_drift_only",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_post_verifier_identity_drift_only",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_real_serial_fixture_with_positive_stdout_abort_satisfies_abort_gate",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_positive_control_real_fixture_accepts_wr_without_v_ver",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_default_mode_and_lazy_import_surface_remain_performance",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_default_path_never_dispatches_to_certify",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_performance_rejection_path_loads_without_pipeline",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_exact_axes_reject_widening[cell]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_exact_axes_reject_widening[workload-set]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_exact_axes_reject_widening[threads]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_exact_axes_reject_widening[extime]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_exact_axes_reject_widening[slot]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_certification_budget_includes_pbs_prologue",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_trace_disabled_cache_identity",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_performance_artifact_requires_preregistered_sha",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_verifier_identity_manifest_requires_preregistered_sha",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_group_receipt_requires_exact_24_terminal_request_set",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_group_receipt_rejects_status_only_certification_json",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_creates_group_only_after_all_24_requests",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_pbs_certify_mode_preserves_literal_performance_exec_and_exact_axes",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_five_field_cells_preserve_legacy_cell_and_genome_bytes",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_parse_cells_accepts_legacy_dynamic_and_policy_forms",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_parse_cells_rejects_invalid_step_policy[negative]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_parse_cells_rejects_invalid_step_policy[too-large]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_parse_cells_rejects_invalid_step_policy[empty]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_parse_cells_rejects_invalid_step_policy[thirteen-fields]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_eleven_and_explicit_policy_zero_have_distinct_identity",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_grid_distinguishes_policy_builds",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_cell_document_round_trip_requires_policy_key_presence_to_match_format",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_genome_for_policy_cell_supplies_real_build_define",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_step_policy_seed_rejects_non_decimal_or_out_of_uint64[negative]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_step_policy_seed_rejects_non_decimal_or_out_of_uint64[hex]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_step_policy_seed_rejects_non_decimal_or_out_of_uint64[plus]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_step_policy_seed_rejects_non_decimal_or_out_of_uint64[underscore]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_step_policy_seed_rejects_non_decimal_or_out_of_uint64[overflow]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_step_policy_seed_rejects_non_decimal_or_out_of_uint64[non-ascii]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_two_requires_seed_before_build_dispatch",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_extended_cells_parse_all_dynamic_fields",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_extended_cells_reject_invalid_shape_and_inert_or_impossible_combinations[six-fields]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_extended_cells_reject_invalid_shape_and_inert_or_impossible_combinations[M7-k-zero-cap-nonzero]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_extended_cells_reject_invalid_shape_and_inert_or_impossible_combinations[negative-window]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_extended_cells_reject_invalid_shape_and_inert_or_impossible_combinations[step-toggle]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_extended_cells_reject_invalid_shape_and_inert_or_impossible_combinations[lossy-step-bound]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_extended_cells_reject_invalid_shape_and_inert_or_impossible_combinations[reversed-bounds]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_extended_cells_reject_invalid_shape_and_inert_or_impossible_combinations[initial-step-outside-bounds]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_extended_cells_reject_invalid_shape_and_inert_or_impossible_combinations[dynamic-floor-impossible]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_extended_cells_reject_invalid_shape_and_inert_or_impossible_combinations[dynamic-toggle]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_grid_contract_uses_all_dynamic_configuration_fields",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_expected_patch_a_sha256_is_checked_before_patch_b",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_patch_stack_identity_is_exact_ordered_a_b_c",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_patch_b_defaults_are_stock_equivalent_and_trace_uses_numeric_if",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_trace_binary_counts_match_small_fixture_binaries_and_fail_closed",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_accepts_each_exact_cell_and_rejects_widening",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_trace_parser_requires_exact_sequence_summary_and_computes_direction",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_parse_backoff_trace_accepts_v1_and_exact_v2",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_directional_success_v2_is_stratified_by_current_assignment",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_trace_parser_rejects_summary_without_any_event",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_directional_success_does_not_score_zero_action",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_stack_artifacts_use_schema_v3",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_legacy_v2_performance_artifact_remains_readable",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_v2_certification_and_group_artifacts_are_explicitly_unsupported",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_artifacts_record_exact_preregistration_sha_only_on_exact_axes",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_step_policy_seed_accepts_uint64_endpoints_and_default_calls",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_step_policy_seed_before_dispatch",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_perf_and_diagnostic_binary_trace_counts_fail_closed",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_pbs_dynamic_output_and_plus_transport_are_fail_closed",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_execution_identity_fields_have_exact_types_and_file_hashes",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_driver_repo_clean_attestation_is_rechecked",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_pbs_rechecks_repo_clean_and_passes_identity_and_prologue_args",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_driver_rejects_dynamic_output_outside_dedicated_namespace",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_dynamic_certification_rejects_each_foreign_namespace[receipt]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_dynamic_certification_rejects_each_foreign_namespace[result-path]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_dynamic_certification_rejects_each_foreign_namespace[performance-artifact]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_dynamic_performance_artifact_rejects_certify_identity_drift",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_point_journal_is_append_only_jsonl",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_backoff_trace_and_certification_modes_are_disjoint",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_backoff_trace_mode_requires_exact_diagnostic_axes",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_backoff_trace_contract_accepts_only_two_exact_cell_literals",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_two_layer_trace_literals_are_byte_identical",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_pbs_marks_eleven_and_twelve_fields_extended",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_driver_literals_match_independent_contract_literals",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_pbs_literals_match_independent_contract_literals",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_driver_and_pbs_literals_are_byte_identical",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_preregistration_path_bytes_and_reader_are_independent",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_contract_accepts_all_18_blocks_and_rep_modulo_six",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_selector_uses_parsed_exact_three_cell_set",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_contract_rejects_each_exact_condition_for_stable_reason[nonassigned-permutation]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_contract_rejects_each_exact_condition_for_stable_reason[order-rep-mismatch]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_contract_rejects_each_exact_condition_for_stable_reason[rep-18]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_contract_rejects_each_exact_condition_for_stable_reason[workloads-axis]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_contract_rejects_each_exact_condition_for_stable_reason[threads-axis]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_contract_rejects_each_exact_condition_for_stable_reason[extime]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_contract_rejects_each_exact_condition_for_stable_reason[reps-per-job]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_contract_rejects_each_exact_condition_for_stable_reason[stage]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_contract_rejects_each_exact_condition_for_stable_reason[seed-missing]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_contract_rejects_each_exact_condition_for_stable_reason[seed-mismatch]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_contract_rejects_each_exact_condition_for_stable_reason[mode]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_contract_rejects_each_exact_condition_for_stable_reason[trace-enabled-helper]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_exact_three_cells_still_fail_legacy_grid_contract",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_dispatch_keeps_policy_grid_and_trace_validators_disjoint",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_output_requires_resolved_true_child",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_performance_rejects_output_outside_dedicated_prefix",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_performance_missing_seed_uses_contract_reason",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_performance_wrong_seed_uses_contract_reason",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_output_is_final_and_analysis_compatible",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_reasoned_missing_is_local_in_analysis",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_generic_policy_grid_is_accepted_but_uncertified",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_fields_are_top_level_only_and_require_every_condition",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_artifact_is_rejected_by_existing_certification_identity",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_artifact_is_rejected_by_both_group_public_paths",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_extracted_pbs_policy_gate_accepts_all_18_blocks",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_extracted_pbs_policy_gate_rejects_each_drift_before_build[nonassigned-permutation]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_extracted_pbs_policy_gate_rejects_each_drift_before_build[rep-18]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_extracted_pbs_policy_gate_rejects_each_drift_before_build[workloads-axis]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_extracted_pbs_policy_gate_rejects_each_drift_before_build[threads-axis]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_extracted_pbs_policy_gate_rejects_each_drift_before_build[stage]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_extracted_pbs_policy_gate_rejects_each_drift_before_build[seed-missing]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_extracted_pbs_policy_gate_rejects_each_drift_before_build[seed-mismatch]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_extracted_pbs_policy_gate_rejects_each_drift_before_build[output-prefix]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_pbs_rejects_submission_head_drift_before_dependency_build",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_submit_t2417_uses_one_checkout_and_exact_18_block_ledger",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_submit_t2417_records_partial_jobs_prints_qdel_and_rejects_attempt_reuse",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_backoff_trace_mode_rejects_nonzero_rep_index_only",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_contract_literals_are_independently_pinned",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_public_analysis_uses_equal_block_log_ratios_and_frozen_ci",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_equivalence_behavior_depends_on_frozen_95_percent_critical_and_margin",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_decision_vocabulary_and_strict_boundaries[0.04-0.05-practical_superiority]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_decision_vocabulary_and_strict_boundaries[-0.02-0.04-non_inferior]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_decision_vocabulary_and_strict_boundaries[-0.01-0.01-equivalent]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_decision_vocabulary_and_strict_boundaries[-0.05--0.04-practical_degradation]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_decision_vocabulary_and_strict_boundaries[-0.04-0.01-inconclusive]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_decision_vocabulary_and_strict_boundaries[0.02955880224154443-0.04-non_inferior]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_decision_vocabulary_and_strict_boundaries[-0.02955880224154443-0.0-inconclusive]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_decision_vocabulary_and_strict_boundaries[-0.04--0.02955880224154443-inconclusive]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_decision_vocabulary_and_strict_boundaries[-0.01-0.02955880224154443-non_inferior]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_hypotheses_return_preregistered_three_way_decisions",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_h3_aggregate_boundary_contact_is_inconclusive_not_rejected",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_one_reasoned_missing_coordinate_is_local_not_artifact_invalid",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_absent_block_is_pointwise_incomplete_and_lists_rep_index",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[schema]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[order-rep]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[seed]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[row-seed]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[rep-18]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[axis]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[workload-axis]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[records]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[extime]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[reps-per-job]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[stage]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[kind]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[not-certified]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[throughput-scope]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[row-throughput-scope]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[workload-flags]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[preregistration-sha]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[trace-row]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[trace-symbol]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[arm-literal]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[build-trace-enabled]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[build-allowlist]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[source-bytes]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[binary-within-arm]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[coordinate]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_duplicate_rep_index_and_resolved_path_are_rejected",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_block_identity_mismatches_fail_closed[repo-head]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_block_identity_mismatches_fail_closed[driver-sha]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_block_identity_mismatches_fail_closed[pbs-sha]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_block_identity_mismatches_fail_closed[ccbench-pin]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_block_identity_mismatches_fail_closed[patch-stack]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_block_identity_mismatches_fail_closed[compiler]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_block_identity_mismatches_fail_closed[p0-binary]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[None]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[0.0]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[-1.0]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[inf]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[nan]",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_preregistration_bytes_are_bound_to_frozen_sha256",
+        "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_input_type_contract_and_empty_explicit_input"
+      ],
+      "duration_s": 22.094,
+      "rc": 0,
+      "repo_head": "e68ab3e89f2915e7316f57373c78f9cb813fefa3",
+      "runner_sha256": "dee0c85ea2c09a42f9406c0e69a8a870ba18054631a0eb63c481a5db97a5b1d3",
+      "spec_sha256": "405846366b72eb3b77ce1026a966cd49e7e24818600fe86b03669e614f58a0eb",
+      "status": "PASSED",
+      "tool_sha256": "a5515c9542d18ae81e250fa704d1a8435167d41d77d4c16f7d87bea9f2abea5d"
+    },
+    "hang_timeout_seconds": 2400.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M01": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_contract_accepts_all_18_blocks_and_rep_modulo_six",
+          "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_dispatch_keeps_policy_grid_and_trace_validators_disjoint",
+          "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_output_is_final_and_analysis_compatible",
+          "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_reasoned_missing_is_local_in_analysis"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "91edac453cc5678b001f609800f6c414bf5ecfe8c6dec75108c087640215f25d",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+            "new": "    rotation_index = rep_index % 3",
+            "old": "    rotation_index = rep_index % 6"
+          }
+        ]
+      },
+      "M02": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_contract_accepts_all_18_blocks_and_rep_modulo_six",
+          "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_contract_rejects_each_exact_condition_for_stable_reason[seed-mismatch]",
+          "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_driver_and_pbs_literals_are_byte_identical",
+          "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_driver_literals_match_independent_contract_literals",
+          "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_performance_rejects_output_outside_dedicated_prefix",
+          "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_performance_wrong_seed_uses_contract_reason",
+          "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_output_is_final_and_analysis_compatible",
+          "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_reasoned_missing_is_local_in_analysis"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "28966652a0f1a7c369a6d4353c4a1b251c8a7ced34cf81ec988b63fbfd7575fc",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+            "new": "    7170359757993337887,\n    17989269546948137795,",
+            "old": "    7170359757993337886,\n    17989269546948137795,"
+          }
+        ]
+      },
+      "M03": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_contract_rejects_each_exact_condition_for_stable_reason[stage]",
+          "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_fields_are_top_level_only_and_require_every_condition"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d6f699a8641d4797053452f22214ae2faa38b2b3dbb748a1c63a7b0e6e12cd79",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+            "new": "        and stage >= 1\n",
+            "old": "        and stage == 1\n"
+          }
+        ]
+      },
+      "M04": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_generic_policy_grid_is_accepted_but_uncertified",
+          "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_output_is_final_and_analysis_compatible",
+          "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_reasoned_missing_is_local_in_analysis"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "c9fb1b83446a39164bb2c3bca4eb3344ee22e53dbefc8e05c72c0fd99037a5ef",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+            "new": "            if args.backoff_trace\n",
+            "old": "            if args.backoff_trace or any(cell.has_step_policy for cell in cells)\n"
+          }
+        ]
+      },
+      "M05": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_generic_policy_grid_is_accepted_but_uncertified"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f55c7b5c9d1817a4c043c56440002b4dd56caa78a206d90635ce25ff9cc922e6",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+            "new": "            if False:\n                payload[\"correctness_status\"] = \"uncertified\"\n",
+            "old": "            if any(cell.has_step_policy for cell in cells):\n                payload[\"correctness_status\"] = \"uncertified\"\n"
+          }
+        ]
+      },
+      "M06": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_output_is_final_and_analysis_compatible",
+          "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_reasoned_missing_is_local_in_analysis"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ec586d8fe137dd5f1741e189908595ba2add754e87a189ace04b2a6458fa3363",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+            "new": "                            \"build_cache_key\": build_cache_key,",
+            "old": "                            \"build_trace_enabled\": False,\n                            \"build_cache_key\": build_cache_key,"
+          }
+        ]
+      },
+      "M07": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_reasoned_missing_is_local_in_analysis"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "e00462d8dad2e4627b45ae4c5dec739a4fa1a6f36e1d477fb0d982c8390dbfdc",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+            "new": "                        if False:\n                            row[\"missing_reason\"] = missing_reason\n",
+            "old": "                        if missing_reason is not None:\n                            row[\"missing_reason\"] = missing_reason\n"
+          }
+        ]
+      },
+      "M08": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_contract_literals_are_independently_pinned",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_equivalence_behavior_depends_on_frozen_95_percent_critical_and_margin",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_public_analysis_uses_equal_block_log_ratios_and_frozen_ci"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "22f67f5ac359038a7d6e0a907ee8c3f0bc407c7806ef66f4521273b51934978c",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/backoff_policy_performance_analysis.py",
+            "new": "T95_DF17 = 2.2009852",
+            "old": "T95_DF17 = 2.1098156"
+          }
+        ]
+      },
+      "M09": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_contract_literals_are_independently_pinned",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_decision_vocabulary_and_strict_boundaries[-0.01-0.02955880224154443-non_inferior]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_decision_vocabulary_and_strict_boundaries[-0.02955880224154443-0.0-inconclusive]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "0bb1d08256c6e31996aa5ac3554ae15c556a19ae245f07a734454cefb0b909b2",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/backoff_policy_performance_analysis.py",
+            "new": "EQUIVALENCE_MARGIN_LOG = 0.030459207484708574",
+            "old": "EQUIVALENCE_MARGIN_LOG = 0.02955880224154443"
+          }
+        ]
+      },
+      "M10": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_absent_block_is_pointwise_incomplete_and_lists_rep_index",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_duplicate_rep_index_and_resolved_path_are_rejected",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_equivalence_behavior_depends_on_frozen_95_percent_critical_and_margin",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_hypotheses_return_preregistered_three_way_decisions",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[-1.0]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[0.0]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[None]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[inf]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[nan]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_one_reasoned_missing_coordinate_is_local_not_artifact_invalid",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_public_analysis_uses_equal_block_log_ratios_and_frozen_ci",
+          "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_output_is_final_and_analysis_compatible",
+          "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_reasoned_missing_is_local_in_analysis"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "7943f8efc062f53c89af4136854650b5d8ea407a5755b3ce29b2d77199c73236",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/backoff_policy_performance_analysis.py",
+            "new": "        \"records\": 2_000_000,",
+            "old": "        \"records\": 1_000_000,"
+          }
+        ]
+      },
+      "M11": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_h3_aggregate_boundary_contact_is_inconclusive_not_rejected"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ebf656772cb0dc90e043af2c99b8758f176ca16922ece2f606cc5fd9606f0d16",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/backoff_policy_performance_analysis.py",
+            "new": "        point[\"ci95\"][\"upper_log\"] <= -margin\n        or point[\"ci95\"][\"lower_log\"] >= margin",
+            "old": "        point[\"ci95\"][\"upper_log\"] < -margin\n        or point[\"ci95\"][\"lower_log\"] > margin"
+          }
+        ]
+      },
+      "M12": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_absent_block_is_pointwise_incomplete_and_lists_rep_index",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_duplicate_rep_index_and_resolved_path_are_rejected",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_equivalence_behavior_depends_on_frozen_95_percent_critical_and_margin",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_hypotheses_return_preregistered_three_way_decisions",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[-1.0]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[0.0]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[None]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[inf]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[nan]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_one_reasoned_missing_coordinate_is_local_not_artifact_invalid",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_public_analysis_uses_equal_block_log_ratios_and_frozen_ci",
+          "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_output_is_final_and_analysis_compatible",
+          "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_reasoned_missing_is_local_in_analysis"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d53bf8621271e4a49750a05f2c32c301fa3538e69f3edd6327f21146a448ad3e",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/backoff_policy_performance_analysis.py",
+            "new": "        \"build_trace_enabled\": None,",
+            "old": "        \"build_trace_enabled\": False,"
+          }
+        ]
+      },
+      "M13": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_absent_block_is_pointwise_incomplete_and_lists_rep_index",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_block_identity_mismatches_fail_closed[ccbench-pin]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_block_identity_mismatches_fail_closed[compiler]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_block_identity_mismatches_fail_closed[driver-sha]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_block_identity_mismatches_fail_closed[p0-binary]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_block_identity_mismatches_fail_closed[patch-stack]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_block_identity_mismatches_fail_closed[pbs-sha]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_block_identity_mismatches_fail_closed[repo-head]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_contract_literals_are_independently_pinned",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_duplicate_rep_index_and_resolved_path_are_rejected",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_equivalence_behavior_depends_on_frozen_95_percent_critical_and_margin",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_hypotheses_return_preregistered_three_way_decisions",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_input_type_contract_and_empty_explicit_input",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[-1.0]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[0.0]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[None]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[inf]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_missing_nonpositive_and_nonfinite_tps_require_recorded_reason[nan]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_one_reasoned_missing_coordinate_is_local_not_artifact_invalid",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_preregistration_bytes_are_bound_to_frozen_sha256",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_public_analysis_uses_equal_block_log_ratios_and_frozen_ci",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[arm-literal]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[axis]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[binary-within-arm]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[build-allowlist]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[build-trace-enabled]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[coordinate]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[extime]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[kind]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[not-certified]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[order-rep]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[preregistration-sha]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[records]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[rep-18]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[reps-per-job]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[row-seed]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[row-throughput-scope]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[schema]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[seed]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[source-bytes]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[stage]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[throughput-scope]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[trace-row]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[trace-symbol]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[workload-axis]",
+          "orchestrator/tests/test_backoff_policy_performance_analysis.py::test_structural_contract_violations_are_artifact_invalid[workload-flags]",
+          "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_output_is_final_and_analysis_compatible",
+          "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_reasoned_missing_is_local_in_analysis"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "41b9e15e5f26a732847773d23e231caf69c25ffb301d1b73859b8c692c83c955",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/backoff_policy_performance_analysis.py",
+            "new": "BLOCK_COUNT = 12",
+            "old": "BLOCK_COUNT = 18"
+          }
+        ]
+      },
+      "M14": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_submit_t2417_uses_one_checkout_and_exact_18_block_ledger"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "fc57af35e66bf34ea854433656e30494f7e7eddf026903f084660ee51c6bd0ff",
+        "replacements": [
+          {
+            "file": "tools/pegasus/submit_t2417_backoff_policy_performance.sh",
+            "new": "for rep in {0..16}; do",
+            "old": "for rep in {0..17}; do"
+          }
+        ]
+      },
+      "M15": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_policy_performance_fields_are_top_level_only_and_require_every_condition",
+          "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_output_is_final_and_analysis_compatible",
+          "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_policy_producer_reasoned_missing_is_local_in_analysis"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "3a0370b8731baabd873fa43df4bae6b5c53586c91e34f2d57517cef2e80de770",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+            "new": "POLICY_PERFORMANCE_CONTRACT = \"backoff-policy-arm-perf/v2\"",
+            "old": "POLICY_PERFORMANCE_CONTRACT = \"backoff-policy-arm-perf/v1\""
+          }
+        ]
+      }
+    },
+    "registration_sha256": "0c54fbc50052a7005c7796543bcb1a46bd89095ac2d12c61ed2e1f754e35e223",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_t2187_adaptive_const_probe.py",
+      "orchestrator/tests/test_backoff_policy_performance_analysis.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 2400.0
+  },
+  "repo_head": "e68ab3e89f2915e7316f57373c78f9cb813fefa3",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_t2187_adaptive_const_probe.py",
+      "orchestrator/tests/test_backoff_policy_performance_analysis.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2417-policy-arm-perf/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2417-policy-arm-perf/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "2f08c6b23aac2fcd955e40bae29aa331ea75b828",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "dee0c85ea2c09a42f9406c0e69a8a870ba18054631a0eb63c481a5db97a5b1d3",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "405846366b72eb3b77ce1026a966cd49e7e24818600fe86b03669e614f58a0eb",
+  "summary": {
+    "KILLED": 15,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 15,
+    "matching": 15,
+    "recorded": 15,
+    "registered": 15
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2417-policy-arm-perf/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "a5515c9542d18ae81e250fa704d1a8435167d41d77d4c16f7d87bea9f2abea5d",
+  "updated_at": "2026-09-07T22:56:50.754548+00:00"
+}

@@ -26,7 +26,7 @@ import secrets
 import stat
 import subprocess
 import threading
-from typing import Any, Literal
+from typing import Any, Callable, Literal, TypeVar
 
 from ..holdout_observation import (
     HoldoutObservationAdmission,
@@ -46,6 +46,7 @@ from . import s8b_scheduler_accounting as _scheduler_accounting
 
 __all__ = (
     "CellHoldoutAdmission",
+    "FloorAttemptConsumptionMarker",
     "FloorHoldoutEvidenceInspection",
     "FloorHoldoutEvidenceError",
     "FloorHoldoutReservation",
@@ -79,6 +80,7 @@ __all__ = (
     "reserve_n_pilot_holdout_observations",
     "reserve_floor_holdout_observations",
     "shared_admission_root",
+    "validate_floor_attempt_consumption_marker",
 )
 
 _FREEZE_REL = "output/s8b-freeze/holdout_freeze.json"
@@ -256,6 +258,114 @@ class CellHoldoutAdmission:
     trial_workload_name: str
     configuration_id: str
     cell_id: str
+    measurement_generation_claim_digest: str | None
+
+
+_FloorConsumptionResultT = TypeVar("_FloorConsumptionResultT")
+
+
+@dataclass(frozen=True, slots=True)
+class _FloorAttemptConsumptionIdentity:
+    admission: CellHoldoutAdmission
+    root: Path
+    measurement_generation_claim_digest: str
+    attempt_id: str
+    campaign_run_id: str
+    manifest_sha256: str
+    run_relpath: str
+    cell_id: str
+    freeze_holdout_key: str
+    configuration_id: str
+    repetition: int
+    attempt_ordinal: int
+    marker_document_sha256: str
+    claim_document_sha256: str
+    main_ledger_row_sha256: str
+
+
+_ADMISSION_ROOT_LOCK_SEAL = object()
+
+
+class _AdmissionRootLock:
+    """Opaque live handle for one ``_locked`` admission-root interval."""
+
+    __slots__ = ("_active", "_fd", "_root", "_seal")
+
+    def __init__(self) -> None:
+        # ``_locked`` fills every slot only after the kernel lock is held.
+        # Ordinary construction therefore produces an unusable handle.
+        pass
+
+    def __setattr__(self, _name: str, _value: object) -> None:
+        raise AttributeError("admission root lock handle is immutable")
+
+
+class FloorAttemptConsumptionMarker:
+    """Opaque current-generation marker capability.
+
+    Historical v1 admissions are intentionally unsupported: their inspector
+    tokens are not registered in the process-local issuer state.  A normally
+    constructed instance is unissued and cannot authorize an action.
+    """
+
+    __slots__ = ("_identity", "_seal")
+
+    def __init__(self) -> None:
+        # Issuance uses object.__setattr__ only after complete durable
+        # validation.  Keeping the normal constructor empty makes ordinary
+        # construction a testable, fail-closed forgery rather than an issuer.
+        pass
+
+    def __setattr__(self, _name: str, _value: object) -> None:
+        raise AttributeError("floor attempt consumption marker is immutable")
+
+    def use(
+        self,
+        *,
+        lock: _AdmissionRootLock,
+        root: Path,
+        measurement_generation_claim_digest: str,
+        attempt_id: str,
+        campaign_run_id: str,
+        manifest_sha256: str,
+        run_relpath: str,
+        cell_id: str,
+        freeze_holdout_key: str,
+        configuration_id: str,
+        repetition: int,
+        attempt_ordinal: int,
+        action: Callable[[_AdmissionRootLock], _FloorConsumptionResultT],
+    ) -> _FloorConsumptionResultT:
+        """Revalidate and act inside the caller's live admission-root lock.
+
+        ``lock`` must be the handle yielded by ``_locked(root)`` for the whole
+        call.  The same handle is passed to ``action`` so lock-aware consumers
+        can update under that interval without reacquiring the non-reentrant
+        file lock.
+
+        This interval does not close the journal TOCTOU window: journal writers
+        do not take the admission-root lock, so they may append a duplicate
+        ``session-start`` after revalidation or while ``action`` is running.
+        """
+
+        return _use_floor_attempt_consumption_marker(
+            self,
+            lock=lock,
+            root=root,
+            measurement_generation_claim_digest=(
+                measurement_generation_claim_digest
+            ),
+            attempt_id=attempt_id,
+            campaign_run_id=campaign_run_id,
+            manifest_sha256=manifest_sha256,
+            run_relpath=run_relpath,
+            cell_id=cell_id,
+            freeze_holdout_key=freeze_holdout_key,
+            configuration_id=configuration_id,
+            repetition=repetition,
+            attempt_ordinal=attempt_ordinal,
+            action=action,
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -600,7 +710,15 @@ def _locked(root: Path):
         if not stat.S_ISREG(mode):
             raise HoldoutAdmissionError("admission lock fd is not regular")
         fcntl.flock(fd, fcntl.LOCK_EX)
-        yield
+        lock = _AdmissionRootLock()
+        object.__setattr__(lock, "_root", root)
+        object.__setattr__(lock, "_fd", fd)
+        object.__setattr__(lock, "_seal", _ADMISSION_ROOT_LOCK_SEAL)
+        object.__setattr__(lock, "_active", True)
+        try:
+            yield lock
+        finally:
+            object.__setattr__(lock, "_active", False)
     finally:
         try:
             fcntl.flock(fd, fcntl.LOCK_UN)
@@ -1798,6 +1916,9 @@ def finalize_floor_holdout_admissions(
             trial_workload_name=row["trial_workload_name"],
             configuration_id=row["configuration_id"],
             cell_id=row["cell_id"],
+            measurement_generation_claim_digest=row[
+                "measurement_generation_claim_digest"
+            ],
         )
         cell_state = _CellState(
             token=token, root=state.root, row=row,
@@ -4758,17 +4879,9 @@ def _canonical_measurement_generation_floor_attempt_ledger_row(
             "floor measurement generation claim attempt coverage is invalid"
         )
 
-    matching_main = [
-        row for row in _read_ledger(root / _LEDGER_NAME)
-        if row.get("schema_version") == _MEASUREMENT_GENERATION_LEDGER_SCHEMA
-        and row.get("observation_role") == OBSERVATION_ROLE_FLOOR_CAMPAIGN
-        and row.get("measurement_generation_claim_digest") == claim_digest
-    ]
-    if len(matching_main) != 1:
-        raise HoldoutAdmissionError(
-            "floor measurement generation claim requires one ledger row"
-        )
-    main = matching_main[0]
+    main = _measurement_generation_main_ledger_row(
+        root, claim_digest=claim_digest,
+    )
     if set(main) != set(_MEASUREMENT_GENERATION_LEDGER_KEYS):
         raise HoldoutAdmissionError(
             "floor measurement generation ledger row shape is invalid"
@@ -4822,6 +4935,296 @@ def _canonical_measurement_generation_floor_attempt_ledger_row(
             "floor measurement generation marker differs from claim and ledger"
         )
     return expected
+
+
+def _measurement_generation_main_ledger_row(
+    root: Path, *, claim_digest: str,
+) -> dict[str, Any]:
+    """Return the unique current main-ledger row for one claim digest."""
+
+    matching_main = [
+        row for row in _read_ledger(root / _LEDGER_NAME)
+        if row.get("schema_version") == _MEASUREMENT_GENERATION_LEDGER_SCHEMA
+        and row.get("observation_role") == OBSERVATION_ROLE_FLOOR_CAMPAIGN
+        and row.get("measurement_generation_claim_digest") == claim_digest
+    ]
+    if len(matching_main) != 1:
+        raise HoldoutAdmissionError(
+            "floor measurement generation claim requires one ledger row"
+        )
+    return matching_main[0]
+
+
+_FLOOR_ATTEMPT_CONSUMPTION_MARKER_SEAL = object()
+
+
+def _floor_attempt_slot_identity_locked(
+    state: _CellState, *, attempt_id: str,
+) -> tuple[str, str, int, int]:
+    """Rederive the registry's four-axis slot from durable authorization."""
+
+    records = _assert_attempt_authorized_by_journal(
+        state, attempt_id=attempt_id,
+    )
+    starts = [
+        row for row in records
+        if row.get("event") == "session-start"
+        and row.get("attempt_id") == attempt_id
+    ]
+    if len(starts) != 1:
+        raise HoldoutAdmissionError(
+            "attempt consumption marker lacks one session-start"
+        )
+    start = starts[0]
+    round_no = start.get("round")
+    if type(round_no) is not int or round_no <= 0:
+        raise HoldoutAdmissionError(
+            "attempt consumption marker repetition is invalid"
+        )
+    if start.get("kind") == "planned":
+        attempt_ordinal = 0
+    elif start.get("kind") == "retry":
+        attempt_ordinal = start.get("retry_ordinal")
+        if type(attempt_ordinal) is not int or attempt_ordinal <= 0:
+            raise HoldoutAdmissionError(
+                "attempt consumption marker ordinal is invalid"
+            )
+    else:  # pragma: no cover - the shared authorization validator rejects it
+        raise HoldoutAdmissionError(
+            "attempt consumption marker authorization kind is invalid"
+        )
+    return (
+        _require_text(state.row.get("freeze_holdout_key"), "freeze_holdout_key"),
+        _require_text(state.row.get("configuration_id"), "configuration_id"),
+        round_no - 1,
+        attempt_ordinal,
+    )
+
+
+def _current_floor_attempt_consumption_identity_locked(
+    lock: _AdmissionRootLock, state: _CellState, *, attempt_id: str,
+) -> _FloorAttemptConsumptionIdentity:
+    """Rederive current marker, claim, main row, and slot with a live handle."""
+
+    _assert_active_admission_root_lock(lock, root=state.root)
+
+    token_claim_digest = state.token.measurement_generation_claim_digest
+    if (
+        state.measurement_generation_digest is None
+        or state.measurement_generation_claim_digest is None
+        or token_claim_digest is None
+    ):
+        raise HoldoutAdmissionError(
+            "floor attempt consumption capability is current-generation only"
+        )
+    if token_claim_digest != state.measurement_generation_claim_digest:
+        raise HoldoutAdmissionError(
+            "cell admission measurement generation claim differs from issuer state"
+        )
+    if attempt_id not in state.attempt_ids:
+        raise HoldoutAdmissionError("attempt_id is not in the frozen ticket set")
+
+    expected_marker = _floor_attempt_document_for_state(
+        state, attempt_id=attempt_id,
+    )
+    if expected_marker.get("schema_version") != _MEASUREMENT_GENERATION_ATTEMPT_SCHEMA:
+        raise HoldoutAdmissionError(
+            "floor attempt consumption capability is current-generation only"
+        )
+    marker_path = _floor_canonical_marker_path(state.root, expected_marker)
+    disk_marker = _read_canonical_document(marker_path)
+
+    claim = _read_canonical_document(
+        _measurement_generation_claim_path(
+            state.root, state.measurement_generation_claim_digest,
+        )
+    )
+    derived_claim_digest = _measurement_generation_claim_identity(claim)
+    if derived_claim_digest != state.measurement_generation_claim_digest:
+        raise HoldoutAdmissionError(
+            "floor attempt consumption claim differs from issuer state"
+        )
+
+    # This existing single source proves the claim projection, exactly one
+    # matching main-ledger row, and the complete marker document.  The disk
+    # marker never selects those authorities: the state-derived expected
+    # document does.
+    canonical_marker = _canonical_floor_attempt_ledger_row(
+        root=state.root, marker=expected_marker,
+    )
+    if disk_marker != canonical_marker:
+        raise HoldoutAdmissionError(
+            "floor attempt consumption marker differs from durable authority"
+        )
+    main = _measurement_generation_main_ledger_row(
+        state.root, claim_digest=derived_claim_digest,
+    )
+    slot = _floor_attempt_slot_identity_locked(state, attempt_id=attempt_id)
+    return _FloorAttemptConsumptionIdentity(
+        admission=state.token,
+        root=state.root,
+        measurement_generation_claim_digest=derived_claim_digest,
+        attempt_id=str(canonical_marker["attempt_id"]),
+        campaign_run_id=str(canonical_marker["campaign_run_id"]),
+        manifest_sha256=str(canonical_marker["manifest_sha256"]),
+        run_relpath=str(canonical_marker["run_relpath"]),
+        cell_id=str(canonical_marker["cell_id"]),
+        freeze_holdout_key=slot[0],
+        configuration_id=slot[1],
+        repetition=slot[2],
+        attempt_ordinal=slot[3],
+        marker_document_sha256=_sha256(disk_marker),
+        claim_document_sha256=_sha256(claim),
+        main_ledger_row_sha256=_sha256(main),
+    )
+
+
+def validate_floor_attempt_consumption_marker(
+    admission: CellHoldoutAdmission, *, attempt_id: str,
+) -> FloorAttemptConsumptionMarker:
+    """Validate and issue an opaque current-generation marker capability.
+
+    Legacy v1 inspector tokens are deliberately unsupported because they are
+    not registered in the process-local cell issuer state.  Durable evidence
+    is revalidated again by :meth:`FloorAttemptConsumptionMarker.use`.
+    """
+
+    state = _cell_state(admission)
+    attempt_id = _require_text(attempt_id, "attempt_id")
+    with _locked(state.root) as lock:
+        identity = _current_floor_attempt_consumption_identity_locked(
+            lock, state, attempt_id=attempt_id,
+        )
+        capability = FloorAttemptConsumptionMarker()
+        object.__setattr__(capability, "_identity", identity)
+        object.__setattr__(
+            capability, "_seal", _FLOOR_ATTEMPT_CONSUMPTION_MARKER_SEAL,
+        )
+        return capability
+
+
+def _canonical_consumption_use_root(root: Path) -> Path:
+    try:
+        return Path(os.path.abspath(os.fspath(root)))
+    except TypeError as exc:
+        raise HoldoutAdmissionError(
+            "floor attempt consumption root is invalid"
+        ) from exc
+
+
+def _assert_active_admission_root_lock(
+    lock: _AdmissionRootLock, *, root: Path,
+) -> None:
+    if (
+        type(lock) is not _AdmissionRootLock
+        or getattr(lock, "_seal", None) is not _ADMISSION_ROOT_LOCK_SEAL
+        or getattr(lock, "_active", False) is not True
+        or getattr(lock, "_root", None) != root
+        or type(getattr(lock, "_fd", None)) is not int
+    ):
+        raise HoldoutAdmissionError(
+            "floor attempt consumption requires the live admission root lock"
+        )
+    try:
+        mode = os.fstat(lock._fd).st_mode
+    except OSError as exc:
+        raise HoldoutAdmissionError(
+            "floor attempt consumption admission root lock is no longer live"
+        ) from exc
+    if not stat.S_ISREG(mode):
+        raise HoldoutAdmissionError(
+            "floor attempt consumption admission root lock fd is not regular"
+        )
+
+
+def _use_floor_attempt_consumption_marker(
+    capability: FloorAttemptConsumptionMarker,
+    *,
+    lock: _AdmissionRootLock,
+    root: Path,
+    measurement_generation_claim_digest: str,
+    attempt_id: str,
+    campaign_run_id: str,
+    manifest_sha256: str,
+    run_relpath: str,
+    cell_id: str,
+    freeze_holdout_key: str,
+    configuration_id: str,
+    repetition: int,
+    attempt_ordinal: int,
+    action: Callable[[_AdmissionRootLock], _FloorConsumptionResultT],
+) -> _FloorConsumptionResultT:
+    """Use one capability inside a mechanically proved caller-held lock."""
+
+    if (
+        type(capability) is not FloorAttemptConsumptionMarker
+        or getattr(capability, "_seal", None)
+        is not _FLOOR_ATTEMPT_CONSUMPTION_MARKER_SEAL
+    ):
+        raise HoldoutAdmissionError(
+            "floor attempt consumption marker capability was not issued"
+        )
+    identity = getattr(capability, "_identity", None)
+    if type(identity) is not _FloorAttemptConsumptionIdentity:
+        raise HoldoutAdmissionError(
+            "floor attempt consumption marker capability was not issued"
+        )
+    _assert_active_admission_root_lock(lock, root=identity.root)
+    if not callable(action):
+        raise HoldoutAdmissionError(
+            "floor attempt consumption marker action is not callable"
+        )
+    if type(repetition) is not int or repetition < 0:
+        raise HoldoutAdmissionError(
+            "floor attempt consumption marker repetition is invalid"
+        )
+    if type(attempt_ordinal) is not int or attempt_ordinal < 0:
+        raise HoldoutAdmissionError(
+            "floor attempt consumption marker ordinal is invalid"
+        )
+    supplied_identity = (
+        _canonical_consumption_use_root(root),
+        _require_sha256(
+            measurement_generation_claim_digest,
+            "measurement_generation_claim_digest",
+        ),
+        _require_text(attempt_id, "attempt_id"),
+        _require_text(campaign_run_id, "campaign_run_id"),
+        _require_sha256(manifest_sha256, "manifest_sha256"),
+        _portable_run_relpath(run_relpath),
+        _require_text(cell_id, "cell_id"),
+        _require_text(freeze_holdout_key, "freeze_holdout_key"),
+        _require_text(configuration_id, "configuration_id"),
+        repetition,
+        attempt_ordinal,
+    )
+    expected_identity = (
+        identity.root,
+        identity.measurement_generation_claim_digest,
+        identity.attempt_id,
+        identity.campaign_run_id,
+        identity.manifest_sha256,
+        identity.run_relpath,
+        identity.cell_id,
+        identity.freeze_holdout_key,
+        identity.configuration_id,
+        identity.repetition,
+        identity.attempt_ordinal,
+    )
+    if supplied_identity != expected_identity:
+        raise HoldoutAdmissionError(
+            "floor attempt consumption marker capability identity differs"
+        )
+
+    state = _cell_state(identity.admission)
+    current = _current_floor_attempt_consumption_identity_locked(
+        lock, state, attempt_id=identity.attempt_id,
+    )
+    if current != identity:
+        raise HoldoutAdmissionError(
+            "floor attempt consumption marker durable identity changed"
+        )
+    return action(lock)
 
 
 def _floor_attempt_recovery_candidate_locked(
@@ -6232,6 +6635,10 @@ def inspect_floor_holdout_admission_evidence(
                 trial_workload_name=str(row["trial_workload_name"]),
                 configuration_id=str(row["configuration_id"]),
                 cell_id=cell_id,
+                measurement_generation_claim_digest=(
+                    claim_identities[cell_id]
+                    if current_measurement_generation else None
+                ),
             )
             inspection_states[cell_id] = _CellState(
                 token=token, root=root, row=row,

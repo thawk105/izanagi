@@ -7,22 +7,21 @@
 
 `tools/dev_wave_codex.py --stage <stage> [--lane <lane>] -o <出力>.md` で起動（他の引数は `--help`）。model は全段、effort は段 5 / 6 が docs 権威から導出。caller 指定は不可。
 背景jobは`nohup setsid bash -c '<cmd>; echo $? > <log>.done' </dev/null`でdetach。
-prompt非空と`--dry-run`のargvを先に検査（段別flag違反はrc=2即死）。既存`.done`を消去・再利用せず再投入を止める。
+prompt非空・参照path実在・`--dry-run`のargvを先に検査（段別flag違反はrc=2即死）。既存`.done`を消去・再利用せず再投入を止める。
 待機は `tools/dev_wave_wait.py producer` を使い、`--pid-file` は producer script 自身が `echo $$` で書く。
 wait側`--receipt-file`はworker launcher receiptと別pathにする（同pathは証拠を上書き）。
 完了は`.done`とexit codeだけで判定し、grepも通知も待ち手rcも判定にしない。成果物は最終メッセージから読む（F23/F24）。
 採用は`tools/check_codex_output.py` rc=0（promptに`## 総括`必須、F43）。
 `<model>`: 全段 `gpt-6-astra` (段 3 の 2 本も同じ)。
 `--artifact-root`は先に作る。出力は`<root>/<wave>/`だけ、不在はrc=2。
-`--max-*`は非権威で増量可。重い巡はcall/tokenを見積もる。中断子は未完了と記し次の子に監査させる。
+`--max-*`は非権威で増量可。重い巡はcall/tokenを見積もる。未受理は未完了と記し次の子に監査させる。
 
 ## DW-O02 — job artifact
 
-prompt・log・patch は wave 専用 subdirectory に置き、job tmp 直下や過去 wave と共有せず、
-確保できなければ止める。親 brief と前段の子成果物も同 dir へ置き、全文複製せず絶対パスで読ませる。prompt に読めなければ即停止と書き、context 無しの子出力を結果と数えない。
-必読資料と既裁定は逐語を job dir へ出す。repo 内 path は worktree の遅れで fail-closed。**prompt の repo path は投入先 worktree のもの**にする（親側だと子は書けず空の
-成功で戻る、F819）。
-出力へ結合文字 U+0300〜U+036F を使わせない。
+prompt・log・patch・親brief・前段の子成果物はwave専用dirへ置き、job tmp直下や過去waveと共有しない。
+確保不能なら停止。全文複製せず絶対パスで読ませ、promptに「読めなければ即停止」と書く。context欠落の出力は採用しない。
+必読資料と既裁定は逐語を job dir へ出す。repo 内 path は worktree の遅れで fail-closed。**prompt の repo path は投入先 worktree のもの**にする（親側だと子は書けず空成功、F819）。
+出力・読取ログはNFC。U+0300〜U+036F禁止。非NFC資料はASCII escape表示、原文保持。
 prompt 先頭は AGENTS.md の単独段例外と同形式。
 
 ## DW-O03 — 防護パスを含む file
@@ -34,6 +33,7 @@ prompt に限らず brief、裁定、runner script、spec も同じ。`python3 -
 `eval`・`xargs` の同居は分類不能として拒否されるので、読取りは cat / grep / jq を直に使う。
 Bash 側は部分文字列で判定するため防護 path の兄弟 directory も掛かる。Write/Edit 側は
 subtree 判定で掛からない。射程が違うので Bash の拒否を Write の可否と読み替えない。
+隔離 session では repo 外の絶対 path も同型に掛かる。job dir への作成・追記も Write/Edit を使う。
 
 ## DW-O04 — 防護パスを含む commit message
 
@@ -55,6 +55,8 @@ submodule の index lock を作れない sandbox 由来の偽赤と連鎖赤を�
 
 最初に `git submodule update --init` を行う。
 未初期化による skip や手前の赤を破損なしと報告してはならない。
+`DW-C01` の初期化 tool は一過性に失敗しうる。同じ引数で 1 度だけ再実行し、なお赤なら止める。
+最初の失敗を「この worktree では初期化できない」と一般化して brief へ書かない。
 
 ## DW-O09 — 凍結 bytes の pin 閉包
 
@@ -181,9 +183,9 @@ lock 再取得後に全検査をやり直し、`tip_sha` / `checker_blob_sha` / 
 ## DW-O26 — 焦点走の consumer test 拡張
 
 `DW-O18` の焦点走対象 file 集合は、変更した test file だけでなく、変更した production file を
-参照する consumer test も含める。名前の推測でなく参照関係で引く（例: 変更した production module 名で
-`orchestrator/tests/` を grep する）。この拡張を欠く焦点走は、静的レビューが見落とした破れを
-初回実測でも取り逃す（F242）。
+参照する consumer test も含める。名前の推測でなく参照関係で引く。private symbol の変更は
+公開 API の consumer 表に出ない。symbol 名で production 全体を grep する。この拡張を欠く
+焦点走は、静的レビューが見落とした破れを初回実測でも取り逃す（F242）。
 同一 worktree からの dispatch は全種を直列にする。並行投入は orphan hold で rc=16 になる。
 変更した test file は受入全走前に単独走で確認する（全走緑は file 単独緑を含意しない）。新規
 test file を足す走は file 集合列挙のメタテストも焦点走に含める。並行 wave が自分の編集 file を

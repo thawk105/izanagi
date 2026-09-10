@@ -12,7 +12,7 @@ import hashlib
 import json
 import re
 from collections.abc import Callable, Hashable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import PurePosixPath
 from types import MappingProxyType as _MappingProxyType
 from typing import Any, Generic, Protocol, TypeAlias, TypeVar, runtime_checkable
@@ -22,12 +22,28 @@ SlotT = TypeVar("SlotT")
 BindingT = TypeVar("BindingT")
 RegistryRow: TypeAlias = dict[str, Any]
 RegistryRows: TypeAlias = tuple[RegistryRow, ...]
+BudgetCounts: TypeAlias = dict[Hashable, int]
 SeriesKey: TypeAlias = tuple[Hashable, ...]
 
 _SHA256_RE = re.compile(r"[0-9a-f]{64}")
 _ZERO_SHA256 = "0" * 64
 _CHAIN_KEYS = frozenset({
     "event_index", "previous_event_sha256", "event_sha256",
+})
+ATTEMPT_REGISTRY_PREFIX_PROOF_SCHEMA = (
+    "s8b-floor-attempt-registry-proof/v1"
+)
+ATTEMPT_REGISTRY_PREFIX_REGISTRY_SCHEMA = (
+    "s8b-floor-attempt-registry/v2"
+)
+ATTEMPT_REGISTRY_PREFIX_PROOF_KEYS = frozenset({
+    "schema",
+    "registry_schema",
+    "freeze_sha256",
+    "protocol_sha256",
+    "schedule_sha256",
+    "row_count",
+    "chain_head_sha256",
 })
 _DEFAULT_PROCESS_IDENTITY_KEYS = frozenset({
     "pid", "starttime", "execution_uuid",
@@ -173,6 +189,9 @@ class TransitionPolicy(Generic[SlotT]):
     require_terminal_reason_equals_classification: bool
     budget_key: Callable[[SlotT], Hashable] | None
     max_consumptions_per_budget_key: int | None
+    retryable_terminal_opens_next_attempt: bool = field(
+        default=True, kw_only=True,
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -192,6 +211,12 @@ class DomainProfile(Generic[SlotT, BindingT]):
     freeze_id_from_genesis: Callable[[Mapping[str, Any]], str] | None = None
     binding_conflict_message: str = "attempt rows do not share one binding"
     binding_mismatch: Callable[[BindingT, BindingT], str | None] | None = None
+    terminal_row_validator: Callable[[Mapping[str, Any]], None] | None = field(
+        default=None, kw_only=True,
+    )
+    retryable_reason_field: str = field(
+        default="failure_reason", kw_only=True,
+    )
 
 
 def canonical_json_bytes(value: Any) -> bytes:
@@ -257,6 +282,72 @@ def previous_event_sha256(rows: Sequence[Mapping[str, Any]]) -> str:
             if isinstance(value, str):
                 return value
     return _ZERO_SHA256
+
+
+def validate_attempt_registry_prefix_proof(
+    value: object,
+) -> dict[str, object]:
+    """Validate and normalize one exact v2 attempt-registry prefix proof."""
+
+    if not isinstance(value, Mapping):
+        _fail(
+            "attempt-registry-prefix-proof",
+            "attempt registry prefix proof is not a mapping",
+        )
+    actual_keys = frozenset(value)
+    if actual_keys != ATTEMPT_REGISTRY_PREFIX_PROOF_KEYS:
+        missing = sorted(ATTEMPT_REGISTRY_PREFIX_PROOF_KEYS - actual_keys)
+        unknown = sorted(actual_keys - ATTEMPT_REGISTRY_PREFIX_PROOF_KEYS)
+        _fail(
+            "attempt-registry-prefix-proof",
+            "attempt registry prefix proof key set differs: "
+            f"missing={missing}, unknown={unknown}",
+        )
+    schema = value.get("schema")
+    if schema != ATTEMPT_REGISTRY_PREFIX_PROOF_SCHEMA:
+        _fail(
+            "attempt-registry-prefix-proof",
+            "attempt registry prefix proof schema is unsupported",
+        )
+    registry_schema = value.get("registry_schema")
+    if registry_schema != ATTEMPT_REGISTRY_PREFIX_REGISTRY_SCHEMA:
+        _fail(
+            "attempt-registry-prefix-proof",
+            "attempt registry prefix proof registry_schema is unsupported",
+        )
+    freeze_sha256 = _digest(
+        value.get("freeze_sha256"), label="prefix proof.freeze_sha256",
+    )
+    protocol_sha256 = _digest(
+        value.get("protocol_sha256"), label="prefix proof.protocol_sha256",
+    )
+    schedule_sha256 = _digest(
+        value.get("schedule_sha256"), label="prefix proof.schedule_sha256",
+    )
+    row_count = value.get("row_count")
+    if type(row_count) is not int or row_count < 1:
+        _fail(
+            "attempt-registry-prefix-proof",
+            "attempt registry prefix proof row_count is not a positive integer",
+        )
+    chain_head_sha256 = _digest(
+        value.get("chain_head_sha256"),
+        label="prefix proof.chain_head_sha256",
+    )
+    if chain_head_sha256 == _ZERO_SHA256:
+        _fail(
+            "attempt-registry-prefix-proof",
+            "attempt registry prefix proof chain head is zero",
+        )
+    return {
+        "schema": schema,
+        "registry_schema": registry_schema,
+        "freeze_sha256": freeze_sha256,
+        "protocol_sha256": protocol_sha256,
+        "schedule_sha256": schedule_sha256,
+        "row_count": row_count,
+        "chain_head_sha256": chain_head_sha256,
+    }
 
 
 def capability_digest(
@@ -931,6 +1022,18 @@ def _parse_row(
         echo = value.get("pre_observation_failure_reason_echo")
         if echo is not None:
             _text(echo, label=f"{label}.pre_observation_failure_reason_echo")
+    if "terminal_evidence_sha256" in expected:
+        _digest(
+            value.get("terminal_evidence_sha256"),
+            label=f"{label}.terminal_evidence_sha256",
+        )
+    if "measurement_retry_reason" in expected:
+        measurement_reason = value.get("measurement_retry_reason")
+        if measurement_reason is not None:
+            _text(
+                measurement_reason,
+                label=f"{label}.measurement_retry_reason",
+            )
     status = value.get("terminal_status")
     if status not in profile.statuses:
         _fail(
@@ -960,7 +1063,8 @@ def _parse_row(
 
 
 def _assert_null_matrix(
-    row: Mapping[str, Any], *, retryable_reasons: frozenset[str], label: str,
+    row: Mapping[str, Any], *, retryable_reasons: frozenset[str],
+    retryable_reason_field: str = "failure_reason", label: str,
 ) -> None:
     status = row["terminal_status"]
     raw_output = row.get("raw_output_sha256")
@@ -976,10 +1080,11 @@ def _assert_null_matrix(
             or row.get("observation_sha256") is None
             or row.get("primary_value") is None
             or row.get("failure_reason") is not None
+            or row.get(retryable_reason_field) is not None
         ):
             _fail("attempt-null-matrix", f"{label} observed null matrix differs")
     elif status == "retryable-failure":
-        reason = row.get("failure_reason")
+        reason = row.get(retryable_reason_field)
         if (
             row.get("report_sha256") is None
             or row.get("observation_sha256") is not None
@@ -992,7 +1097,7 @@ def _assert_null_matrix(
                 f"{label} retryable-failure null matrix differs",
             )
     elif status == "terminal-failure":
-        reason = row.get("failure_reason")
+        reason = row.get(retryable_reason_field)
         if (
             row.get("observation_sha256") is not None
             or row.get("primary_value") is not None
@@ -1008,16 +1113,42 @@ def _assert_null_matrix(
         or row.get("observation_sha256") is not None
         or row.get("primary_value") is not None
         or row.get("failure_reason") is not None
+        or row.get(retryable_reason_field) is not None
     ):
         _fail("attempt-null-matrix", f"{label} not-consumed null matrix differs")
 
 
-def assert_registry_rows(
+def _validated_budget_counts(
+    initial_started_budget_counts: Mapping[Hashable, int] | None,
+) -> BudgetCounts:
+    if initial_started_budget_counts is None:
+        return {}
+    if not isinstance(initial_started_budget_counts, Mapping):
+        _fail(
+            "attempt-slot-order",
+            "initial started budget counts are not a mapping",
+        )
+    counts: BudgetCounts = {}
+    for budget_key, count in initial_started_budget_counts.items():
+        if type(count) is not int or count < 0:
+            _fail(
+                "attempt-slot-order",
+                "initial started budget count is invalid",
+            )
+        counts[budget_key] = count
+    return counts
+
+
+def _assert_registry_rows_with_budget_counts(
     rows: Sequence[Mapping[str, Any]], *,
     profile: DomainProfile[SlotT, BindingT],
     expected_binding: BindingT | None = None,
-) -> RegistryRows:
+    initial_started_budget_counts: Mapping[Hashable, int] | None = None,
+) -> tuple[RegistryRows, BudgetCounts]:
     """Replay one genesis/lifecycle sequence under ``profile``."""
+    started_budget_counts = _validated_budget_counts(
+        initial_started_budget_counts
+    )
     if not rows or rows[0].get("event") != "freeze":
         _fail(
             "attempt-registry-genesis",
@@ -1045,7 +1176,6 @@ def assert_registry_rows(
         profile.binding_codec.identity(expected_binding)
         if expected_binding is not None else None
     )
-    started_budget_counts: dict[Hashable, int] = {}
     freeze_id = _genesis_freeze_id(genesis, profile=profile, required=False)
 
     def assert_expected_binding(parsed_binding: BindingT) -> None:
@@ -1130,6 +1260,11 @@ def assert_registry_rows(
                         _fail(
                             "attempt-slot-order",
                             "a slot after a non-retryable outcome cannot be consumed",
+                        )
+                    if not policy.retryable_terminal_opens_next_attempt:
+                        _fail(
+                            "attempt-slot-order",
+                            "a retryable terminal cannot authorize the next attempt",
                         )
                     if (
                         policy.forbid_retry_after_observation
@@ -1314,8 +1449,11 @@ def assert_registry_rows(
             _assert_null_matrix(
                 row,
                 retryable_reasons=frozenset(genesis["retryable_failure_reasons"]),
+                retryable_reason_field=profile.retryable_reason_field,
                 label=f"attempt registry line {line_number}",
             )
+            if profile.terminal_row_validator is not None:
+                profile.terminal_row_validator(row)
             terminals[slot_id] = row
         elif event == "recovery":
             if slot_id not in starts:
@@ -1359,7 +1497,19 @@ def assert_registry_rows(
                 f"attempt registry line {line_number}.event has no core "
                 "semantic handler",
             )
-    return tuple(dict(row) for row in rows)
+    return tuple(dict(row) for row in rows), started_budget_counts
+
+
+def assert_registry_rows(
+    rows: Sequence[Mapping[str, Any]], *,
+    profile: DomainProfile[SlotT, BindingT],
+    expected_binding: BindingT | None = None,
+) -> RegistryRows:
+    """Replay one genesis/lifecycle sequence under ``profile``."""
+    validated, _counts = _assert_registry_rows_with_budget_counts(
+        rows, profile=profile, expected_binding=expected_binding,
+    )
+    return validated
 
 
 def _reject_constant(value: str) -> None:
@@ -1389,10 +1539,11 @@ def _decode_json(data: bytes, *, label: str) -> Any:
         _fail("json", f"{label} is not strict UTF-8 JSON: {exc}")
 
 
-def _load_registry_bytes(
+def _load_registry_bytes_with_budget_counts(
     data: bytes, *, profile: DomainProfile[SlotT, BindingT], label: str,
     expected_binding: BindingT | None = None,
-) -> RegistryRows:
+    initial_started_budget_counts: Mapping[Hashable, int] | None = None,
+) -> tuple[RegistryRows, BudgetCounts]:
     if not data or not data.endswith(b"\n"):
         _fail(
             "attempt-registry-framing",
@@ -1412,9 +1563,21 @@ def _load_registry_bytes(
                 f"{label} line {lineno} is not canonical JSON",
             )
         rows.append(dict(value))
-    return assert_registry_rows(
+    return _assert_registry_rows_with_budget_counts(
         rows, profile=profile, expected_binding=expected_binding,
+        initial_started_budget_counts=initial_started_budget_counts,
     )
+
+
+def _load_registry_bytes(
+    data: bytes, *, profile: DomainProfile[SlotT, BindingT], label: str,
+    expected_binding: BindingT | None = None,
+) -> RegistryRows:
+    rows, _counts = _load_registry_bytes_with_budget_counts(
+        data, profile=profile, label=label,
+        expected_binding=expected_binding,
+    )
+    return rows
 
 
 def load_attempt_registry(
@@ -1425,6 +1588,19 @@ def load_attempt_registry(
     return _load_registry_bytes(
         data, profile=profile, label="attempt registry",
         expected_binding=expected_binding,
+    )
+
+
+def load_attempt_registry_with_budget_counts(
+    data: bytes, *, profile: DomainProfile[SlotT, BindingT],
+    expected_binding: BindingT | None = None,
+    initial_started_budget_counts: Mapping[Hashable, int] | None = None,
+) -> tuple[RegistryRows, BudgetCounts]:
+    """Parse and replay JSONL, seeded by prior generation budget counts."""
+    return _load_registry_bytes_with_budget_counts(
+        data, profile=profile, label="attempt registry",
+        expected_binding=expected_binding,
+        initial_started_budget_counts=initial_started_budget_counts,
     )
 
 
@@ -1847,6 +2023,8 @@ def record_attempt_terminal(
     raw_output_sha256: str, report_sha256: str | None,
     observation_sha256: str | None, primary_value: Any, finished_at: str,
     failure_reason: str | None = None,
+    measurement_retry_reason: str | None = None,
+    terminal_evidence_sha256: str | None = None,
 ) -> RegistryRows:
     """Return rows with one terminal event authorized by the profile."""
     checked = assert_registry_rows(rows, profile=profile, expected_binding=binding)
@@ -1871,6 +2049,12 @@ def record_attempt_terminal(
     _text(finished_at, label="finished_at")
     if failure_reason is not None:
         _text(failure_reason, label="failure_reason")
+    if measurement_retry_reason is not None:
+        _text(measurement_retry_reason, label="measurement_retry_reason")
+    if terminal_evidence_sha256 is not None:
+        _digest(
+            terminal_evidence_sha256, label="terminal_evidence_sha256",
+        )
     starts = [
         row for row in checked
         if row.get("event") == "start"
@@ -1911,6 +2095,23 @@ def record_attempt_terminal(
         "process_identity": dict(start["process_identity"]),
     }
     terminal_keys = profile.schema.event_keys[profile.schema.current]["terminal"]
+    optional_terminal_fields = {
+        "measurement_retry_reason": measurement_retry_reason,
+        "terminal_evidence_sha256": terminal_evidence_sha256,
+    }
+    for field_name, field_value in optional_terminal_fields.items():
+        if field_name in terminal_keys:
+            if field_name == "terminal_evidence_sha256" and field_value is None:
+                _fail(
+                    "attempt-terminal",
+                    "terminal_evidence_sha256 is required by the profile",
+                )
+            row_fields[field_name] = field_value
+        elif field_value is not None:
+            _fail(
+                "attempt-terminal",
+                f"{field_name} is not accepted by the profile",
+            )
     if "pre_observation_failure_reason_echo" in terminal_keys:
         row_fields.update({
             "pre_observation_failure_reason_echo": _classification_reason(classification),
