@@ -17,6 +17,7 @@ import json
 import math
 import os
 import re
+import secrets
 import shutil
 import shlex
 import socket
@@ -6701,12 +6702,42 @@ def consume_non_certifying_observation(
     )
 
 
+def _persist_v3_condition_gate_record(
+    output_path: Path, canonical_bytes: bytes,
+) -> None:
+    """Publish one complete record using the D1912 durability sequence."""
+    temporary_path: Path | None = None
+    try:
+        temporary_path = output_path.parent / (
+            f".{output_path.name}.tmp-{os.getpid()}-{secrets.token_hex(16)}"
+        )
+        with temporary_path.open("xb") as output:
+            output.write(canonical_bytes)
+            output.flush()
+            os.fsync(output.fileno())
+        os.replace(temporary_path, output_path)
+        descriptor = os.open(
+            output_path.parent, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0),
+        )
+        try:
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+    finally:
+        if temporary_path is not None:
+            try:
+                temporary_path.unlink(missing_ok=True)
+            except Exception:
+                pass
+
+
 def _require_v3_backoff_fixed_condition_gate(
     *,
     repo_root: Path,
     policy: Mapping[str, object],
     workload: str,
     cxx: str,
+    evidence_root: Path | None = None,
 ) -> None:
     """Require live supply and meaning records for every v3 fixed-backoff arm."""
     values = tuple(dict.fromkeys(
@@ -6776,10 +6807,37 @@ def _require_v3_backoff_fixed_condition_gate(
             for record in (*supply_records, *meaning_records)
             if record.terminal_status != "green"
         )
-        raise PaperStoryError(
+        rejection = (
             "v3 BACKOFF_FIXED condition gate rejected measurement: "
             f"{rejected or 'admission-not-granted'}"
         )
+        if evidence_root is not None:
+            failures = []
+            for label, records in (
+                ("supply", supply_records), ("meaning", meaning_records),
+            ):
+                for index, record in enumerate(records):
+                    try:
+                        output_path = evidence_root / (
+                            f"condition-gate-{record.arm}-{record.record_digest}.json"
+                        )
+                        _persist_v3_condition_gate_record(
+                            output_path, record.canonical_json().encode("ascii"),
+                        )
+                    except Exception as exc:
+                        failures.append(f"{label}[{index}]:{type(exc).__name__}")
+            try:
+                output_path = evidence_root / (
+                    f"condition-gate-admission-{admission.admission_digest}.json"
+                )
+                _persist_v3_condition_gate_record(
+                    output_path, admission.canonical_json().encode("ascii"),
+                )
+            except Exception as exc:
+                failures.append(f"admission:{type(exc).__name__}")
+            if failures:
+                rejection += "; evidence_write_failures=" + ",".join(failures)
+        raise PaperStoryError(rejection)
 
 
 def _run_measurement_v3(
@@ -6937,6 +6995,7 @@ def _run_measurement_v3(
         policy=policy,
         workload=workload,
         cxx=resolved_cxx,
+        evidence_root=Path(roots["raw_root"]),
     )
     original_balanced_executor = campaign_loop._run_balanced_schedule
 
