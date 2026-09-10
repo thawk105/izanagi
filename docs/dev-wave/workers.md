@@ -1,15 +1,15 @@
 # dev-wave worker 契約
 
-codex plan、敵対相談、実装、レビュー・fix worker の正本。入口が指定する leaf 節を worker 起動前に読む。
+plan、敵対相談、実装、レビュー・fix worker の正本。入口が指定する leaf 節を worker 起動前に読む。
 
 ## DW-S02 — 段 2 プラン起草
 
-brief と関連コードの所在を渡し、codex `reasoning=xhigh`、`sandbox=read-only` で
+brief と関連コードの所在を渡し、codex `reasoning=medium`、`sandbox=read-only` で
 file:line 粒度の plan を起草させる。
 
 ## DW-S03 — 段 3 敵対相談
 
-codex `reasoning=xhigh`、`sandbox=read-only` で異なるレンズへ並列起動し、プランを守らせず検査させる。
+codex `reasoning=medium`、`sandbox=read-only` で異なるレンズへ並列起動し、プランを守らせず検査させる。
 正しさ境界と整合・実効性を分け、親 brief 自身も検査対象だと明記する。brief の file:line、前提、
 所有範囲、変異の帰属不成立、**親自身の実測値とその一般化**を探させる。
 gate・検査を新設する wave では成果物が実際に効く全層が scope に入るかを必ずレンズに入れ、
@@ -21,7 +21,7 @@ scope 外の層を実装したふりにせず裁定パッケージ候補とし�
 （`git add -A`→`git diff --cached --output=<f> -- <所有パス>`→`git apply`。隔離 session は `git -C` 不可）だけ展開し並列投入。
 投入先 root へ cd せず直前に `tools/check_wave_startup.py --repo <abs> --mode midflight`。rc 非 0 で停止。
 乖離量は非関門。fail-open の INFO でなく gate 実測値の NOTE が非 0 なら anchor を読み直す。
-codex は `reasoning=xhigh`、`sandbox=workspace-write` とする。
+codex は `reasoning=medium`、`sandbox=workspace-write` とする。
 
 ## DW-S05-B — 段 5 権限と赤
 
@@ -45,7 +45,7 @@ xfail 化せず、既存テストの期待値も変えない。赤の内訳を�
 
 ## DW-S06-A — 段 6 敵対レビュー
 
-実装 wave は異なるレンズの敵対レビューを `reasoning=xhigh` で必ず 2 本並列で行う。
+実装 wave は異なるレンズの敵対レビューを `reasoning=medium` で必ず 2 本並列で行う。
 実装面に Codex `role=author` のないハンクがあればレビューで代替せず停止する。
 所見ゼロの扱いは `DW-M02`。
 
@@ -63,6 +63,6 @@ fix の prompt に**既存テストの期待値を変更しない**を明記す�
 
 ## DW-S06-C — 段 6 統合後の再検証
 
-並列 fix の統合後、焦点再レビューは全体へ `reasoning=xhigh` で 1 本でよい。
+並列 fix の統合後、焦点再レビューは全体へ `reasoning=medium` で 1 本でよい。
 親が変異 matrix と受入を再走する。
 成立した条件の operations と `DW-G05` を適用し、成果物影響を書けない所見を must-fix にしない。

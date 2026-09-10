@@ -54,5 +54,6 @@ dispatcher の段 1〜9 を順に実行し、自己再帰や次 wave の開始�
 push と remote branch 操作は人間に残す。
 
 段 9 は dispatcher が指定する共通 land 契約だけに従い、Codex 固有の取り込み手順を重ねない。
-成功しなければ main HEAD、停止理由、次タスク、再開用の `$dev-wave <対象>` を報告して終了する。
-次 wave と race 後の再開は必ず新しい Codex context で始める。
+再試行・停止の区別も `DW-O23` に従い、再試行可能な競合で終了・再起動要求をしない。
+正式な停止時だけ main HEAD、停止理由、次タスク、再開用の `$dev-wave <対象>` を報告する。
+次 wave は必ず新しい Codex context で始める。

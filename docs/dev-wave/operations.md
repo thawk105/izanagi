@@ -12,7 +12,7 @@ prompt非空と`--dry-run`のargvを先に検査（段別flag違反はrc=2即死
 wait側`--receipt-file`はworker launcher receiptと別pathにする（同pathは証拠を上書き）。
 完了は`.done`とexit codeだけで判定し、grepも通知も待ち手rcも判定にしない。成果物は最終メッセージから読む（F23/F24）。
 採用は`tools/check_codex_output.py` rc=0（promptに`## 総括`必須、F43）。
-`<model>`: 全段 `gpt-5.6-sol` (段 3 の 2 本も同じ)。
+`<model>`: 全段 `gpt-6-astra` (段 3 の 2 本も同じ)。
 `--artifact-root`は先に作る。出力は`<root>/<wave>/`だけ、不在はrc=2。
 `--max-*`は非権威で増量可。重い巡はcall/tokenを見積もる。中断子は未完了と記し次の子に監査させる。
 
@@ -165,14 +165,14 @@ HEAD差は`--ff-only`で揃える（F48）。新規worktreeは未初期化submod
 
 `tools/dev_wave_land.py`へmain/waveの絶対path、tested main/tip、着地tip、監査commit列を渡す。
 監査列の範囲は`<tested main>..<tested tip>`で固定。着地tipで数え直すとrc=23。
-協調wave lock内で再照合し、着地tipへのff-onlyだけ行う。ff-only成功後は**同じlockを保持したまま**
-`docs/spool/`のfragmentをfoldし、T/D/Fの採番・canonical3台帳追記・worklogローテーションを
-一度だけ行う。foldが赤なら`landed`を返さない。0件foldはno-op。
+協調wave lock内で再照合して着地tipへff-onlyし、**同じlock内**で`docs/spool/`をfoldする。
+T/D/F採番・canonical3台帳追記・worklogローテーションは一度だけ。fold赤は`landed`を返さず、0件はno-op。
 tracked/index/submodule dirtとincoming衝突untrackedを拒否し、
 docs/handoff直下とGit adminに双方向束縛したClaude/Codex worktreeは書式不問で非接触。
 
-成功は`landed`/`already-landed`だけ。postcondition failureは停止。stale/busyは停止せず既存branchのまま
-新main監査、固定SHAのwave-side merge、条件再評価をやり直しlandedまで再試行する。
+成功は`landed`/`already-landed`だけ。postcondition failureは停止。stale/busyは終了せず、
+他sessionの処理中dirtyは非接触で終端を待つ。新main監査、固定SHAのwave-side merge、
+条件再評価を既存branchで行いlandedまで再試行する。
 他session所有物、rebase、force、remote、pushで解消しない。
 ## DW-O25 — ff-only land の全史 provenance 関門
 

@@ -119,6 +119,7 @@ CC 合成 campaign の実行ループではない。
 
 ## 終端
 
-段 8 の自動修正も専用 commit・予算・関連検査後だけ監査済み集合へ含める。段 9 の条件不足や
-race loser は rebase、force、他 session 所有物の変更で迂回せず、main HEAD、停止理由、
-次タスク、fresh context の再開コマンドを報告する。
+段8の自動修正も専用commit・予算・関連検査後だけ監査対象。
+段9は `DW-O23` に従い、競合時は再試行する。
+rebase・force・他session所有物の改変で迂回せず、停止時だけmain HEAD・理由・次タスク・
+fresh contextの再開コマンドを報告。
