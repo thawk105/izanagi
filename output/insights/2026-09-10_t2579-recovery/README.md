@@ -54,6 +54,16 @@ check_codex_agentsとcheck_docsはrc0。原ログは `focused-logs/`。
 M3は登録漏れによる独立golden不一致を狙う。M2は親の既存harnessによる一時変異で、
 恒久production変更ではない。実測前のKILLEDや正式受入成功は記録していない。
 
+固定anchor `e28a62d26f69cc8c48c6cbbc6427c8bc11a71aa6` で既存harnessを実走した。
+collection991432、baseline991433はrc0。M1=991435、M2=991440、M3=991442は
+各1 failed / 2 passedで、すべて期待した1nodeと一致しKILLED（3/3）だった。
+R1 evidenceの拒否、detached負例evidenceの受理、r1登録欠落だけのgolden不一致を
+失敗本文で確認した。終了rc0、git diff無差分・porcelain空で復元確認。
+原stdoutとSHA・単一anchor・失敗nodeは `mutation-report.json`、
+各投入は `mutation-attempts.json` にある。正式受入はこの記録時点では未実施。
+
+anchorのprovenance全史監査は9444件、新規違反なし、rc0（既知56件は別枠）。
+
 ## 逐語の可逆正規化
 
 git diff --checkが拒否した行末ASCII space 2字だけを除去した。可視文字・行数は不変。

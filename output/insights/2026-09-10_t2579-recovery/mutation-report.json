@@ -1,0 +1,318 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2579-recovery/output/pegasus-dispatch/139f3a5eb108575caebe23e4f3b33f39/izdw-139f3a5eb1.o991433",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2579-recovery/output/pegasus-dispatch/139f3a5eb108575caebe23e4f3b33f39/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n...                                                                      [100%]\n3 passed in 50.42s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "7920d72bd5567c574b1b23eeb72a03b9a3579caddf51b434d45ca4722bf98529"
+    },
+    "artifact_error": null,
+    "collection_sha256": "a1c0d2ac62ffe578e28e01b21dc82fb34a6c6ef7749d108a3e523c128a2a956a",
+    "duration_s": 75.301,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "26ee2547b1252d7d89e7df7e57dc9fe8cd3fa196e6ae7017838939c2e29125dc",
+    "repo_head": "e28a62d26f69cc8c48c6cbbc6427c8bc11a71aa6",
+    "runner_sha256": "9fa5e8377f9d8a36dee1fdff779cfa0579525c5e8a9f3c9c5bfc3c4f3f9c8776",
+    "spec_sha256": "bd162328ff981efbcf84c7c2cde2b2af246b33c774c2e41cacde239a3fcb6fb9",
+    "status": "PASSED",
+    "test_output_sha256": "7920d72bd5567c574b1b23eeb72a03b9a3579caddf51b434d45ca4722bf98529",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "23c7358b15f8d2cdd139a30b1103efc72c43ceb8b235ace1ea3a825cbe363534"
+  },
+  "date": "2026-09-10T11:49:51.333833+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2579-recovery/output/pegasus-dispatch/30c4aa4e4b6ad331a7a846dce78af85d/izdw-30c4aa4e4b.o991435",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2579-recovery/output/pegasus-dispatch/30c4aa4e4b6ad331a7a846dce78af85d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.F.                                                                      [100%]\n=================================== FAILURES ===================================\n________ test_r1_binds_all_three_explicit_values_and_skips_real_driver _________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_r1_binds_all_three_explic0')\n\n    def test_r1_binds_all_three_explicit_values_and_skips_real_driver(\n        tmp_path: Path,\n    ) -> None:\n>       result = _observe(tmp_path, \"R1\", ambient_sentinel=True)\n\norchestrator/tests/test_t1259_qsub_env_delivery_probe.py:234: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_r1_binds_all_three_explic0')\nrequest_id = 'R1', ambient_sentinel = True, ambient_approval = False\n\n    def _observe(\n        tmp_path: Path,\n        request_id: str,\n        *,\n        ambient_sentinel: bool = False,\n        ambient_approval: bool = False,\n    ) -> dict[str, object]:\n        evidence = tmp_path / \"evidence\"\n        scratch = tmp_path / \"scratch\"\n        evidence.mkdir()\n        scratch.mkdir()\n        environment = _job_environment(\n            evidence,\n            request_id,\n            ambient_sentinel=ambient_sentinel,\n            ambient_approval=ambient_approval,\n        )\n        result, result_evidence = probe.observe(\n            repo_root=REPO_ROOT,\n            scratch_dir=scratch,\n            pbs_job_id=\"0:12345.nqsv\",\n            executing_pbs_sha256=EXECUTING_PBS_SHA256,\n            environ=environment,\n            python_executable=sys.executable,\n        )\n>       assert result_evidence == evidence\nE       AssertionError: assert None == PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_r1_binds_all_three_explic0/evidence')\n\norchestrator/tests/test_t1259_qsub_env_delivery_probe.py:219: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t1259_qsub_env_delivery_probe.py::test_r1_binds_all_three_explicit_values_and_skips_real_driver\n1 failed, 2 passed in 50.71s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t1259_qsub_env_delivery_probe.py::test_r1_binds_all_three_explicit_values_and_skips_real_driver\" nodeid_bytes=119 nodeid_omitted_bytes=0 source_bytes=1687 retained_bytes=1687 omitted_bytes=0 rendered_excerpt_bytes=1776 sha256=98c56093477a272971a58943c14a92c916c390febc3d85fccf20a1e046add070\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_r1_binds_all_three_explic0')\n> \n>     def test_r1_binds_all_three_explicit_values_and_skips_real_driver(\n>         tmp_path: Path,\n>     ) -> None:\n> >       result = _observe(tmp_path, \"R1\", ambient_sentinel=True)\n> \n> orchestrator/tests/test_t1259_qsub_env_delivery_probe.py:234: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_r1_binds_all_three_explic0')\n> request_id = 'R1', ambient_sentinel = True, ambient_approval = False\n> \n>     def _observe(\n>         tmp_path: Path,\n>         request_id: str,\n>         *,\n>         ambient_sentinel: bool = False,\n>         ambient_approval: bool = False,\n>     ) -> dict[str, object]:\n>         evidence = tmp_path / \"evidence\"\n>         scratch = tmp_path / \"scratch\"\n>         evidence.mkdir()\n>         scratch.mkdir()\n>         environment = _job_environment(\n>             evidence,\n>             request_id,\n>             ambient_sentinel=ambient_sentinel,\n>             ambient_approval=ambient_approval,\n>         )\n>         result, result_evidence = probe.observe(\n>             repo_root=REPO_ROOT,\n>             scratch_dir=scratch,\n>             pbs_job_id=\"0:12345.nqsv\",\n>             executing_pbs_sha256=EXECUTING_PBS_SHA256,\n>             environ=environment,\n>             python_executable=sys.executable,\n>         )\n> >       assert result_evidence == evidence\n> E       AssertionError: assert None == PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_r1_binds_all_three_explic0/evidence')\n> \n> orchestrator/tests/test_t1259_qsub_env_delivery_probe.py:219: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1687 retained_bytes=1687 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2523 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "9f015c079bbd006a856614f67e28dc9fbfd5a570e1567cf312fb90d8efce2e59"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "a1c0d2ac62ffe578e28e01b21dc82fb34a6c6ef7749d108a3e523c128a2a956a",
+      "duration_s": 267.456,
+      "expected_nodes": [
+        "orchestrator/tests/test_t1259_qsub_env_delivery_probe.py::test_r1_binds_all_three_explicit_values_and_skips_real_driver"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t1259_qsub_env_delivery_probe.py::test_r1_binds_all_three_explicit_values_and_skips_real_driver"
+      ],
+      "hang_risk": false,
+      "id": "M1-positive-detached",
+      "injection_diff_sha256": "4c2a7ed68b20c7a27e3fa5a9920f9560bfd342f3c7c19e33ca96a623226d7bb4",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "713b8efe81160ed9b5cc3255e9417abf6ecdd3982ecdb6ce2eb8691dfc9da84a",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_t1259_qsub_env_delivery_probe.py",
+          "new": "    snapshot[\"detached\"] = False\n    snapshot[\"tracked_status\"] = \"\"\n    snapshot[\"untracked_paths\"] = []",
+          "old": "    snapshot[\"detached\"] = True\n    snapshot[\"tracked_status\"] = \"\"\n    snapshot[\"untracked_paths\"] = []"
+        }
+      ],
+      "repo_head": "e28a62d26f69cc8c48c6cbbc6427c8bc11a71aa6",
+      "runner_sha256": "9fa5e8377f9d8a36dee1fdff779cfa0579525c5e8a9f3c9c5bfc3c4f3f9c8776",
+      "spec_sha256": "bd162328ff981efbcf84c7c2cde2b2af246b33c774c2e41cacde239a3fcb6fb9",
+      "status": "KILLED",
+      "test_output_sha256": "9f015c079bbd006a856614f67e28dc9fbfd5a570e1567cf312fb90d8efce2e59",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "23c7358b15f8d2cdd139a30b1103efc72c43ceb8b235ace1ea3a825cbe363534"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2579-recovery/output/pegasus-dispatch/731accaad62ccc79cc4257959901f5a2/izdw-731accaad6.o991440",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2579-recovery/output/pegasus-dispatch/731accaad62ccc79cc4257959901f5a2/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.F.                                                                      [100%]\n=================================== FAILURES ===================================\n_ test_job_start_requires_manifest_head_detached_and_clean_repository[detached-False] _\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_job_start_requires_manife0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14bc956d1f90>\nsnapshot_field = 'detached', bad_value = False\n\n    @pytest.mark.parametrize(\n        (\"snapshot_field\", \"bad_value\"),\n        [\n            (\"head\", \"0\" * 40),\n            (\"detached\", False),\n            (\"tracked_status\", \" M orchestrator/campaign/s8b_floor_campaign.py\\n\"),\n            (\"untracked_paths\", [\"unexpected\"]),\n        ],\n    )\n    def test_job_start_requires_manifest_head_detached_and_clean_repository(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        snapshot_field: str,\n        bad_value: object,\n    ) -> None:\n        evidence = tmp_path / \"evidence\"\n        scratch = tmp_path / \"scratch\"\n        evidence.mkdir()\n        scratch.mkdir()\n        environment = _job_environment(evidence, \"R1\")\n        snapshot = probe._repo_snapshot(REPO_ROOT)\n        snapshot[snapshot_field] = bad_value\n        monkeypatch.setattr(\n            probe, \"_repo_snapshot\", lambda _root: copy.deepcopy(snapshot)\n        )\n    \n        result, accepted_evidence = probe.observe(\n            repo_root=REPO_ROOT,\n            scratch_dir=scratch,\n            pbs_job_id=\"12345.nqsv\",\n            executing_pbs_sha256=EXECUTING_PBS_SHA256,\n            environ=environment,\n        )\n    \n>       assert accepted_evidence is None\nE       AssertionError: assert PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_job_start_requires_manife0/evidence') is None\n\norchestrator/tests/test_t1259_qsub_env_delivery_probe.py:645: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t1259_qsub_env_delivery_probe.py::test_job_start_requires_manifest_head_detached_and_clean_repository[detached-False]\n1 failed, 2 passed in 50.15s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t1259_qsub_env_delivery_probe.py::test_job_start_requires_manifest_head_detached_and_clean_repository[detached-False]\" nodeid_bytes=141 nodeid_omitted_bytes=0 source_bytes=1680 retained_bytes=1680 omitted_bytes=0 rendered_excerpt_bytes=1772 sha256=dff4e704de3c06a25b4638cf6c242feba67871f8730c58813c2a7876c7af2cc8\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_job_start_requires_manife0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14bc956d1f90>\n> snapshot_field = 'detached', bad_value = False\n> \n>     @pytest.mark.parametrize(\n>         (\"snapshot_field\", \"bad_value\"),\n>         [\n>             (\"head\", \"0\" * 40),\n>             (\"detached\", False),\n>             (\"tracked_status\", \" M orchestrator/campaign/s8b_floor_campaign.py\\x5cn\"),\n>             (\"untracked_paths\", [\"unexpected\"]),\n>         ],\n>     )\n>     def test_job_start_requires_manifest_head_detached_and_clean_repository(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>         snapshot_field: str,\n>         bad_value: object,\n>     ) -> None:\n>         evidence = tmp_path / \"evidence\"\n>         scratch = tmp_path / \"scratch\"\n>         evidence.mkdir()\n>         scratch.mkdir()\n>         environment = _job_environment(evidence, \"R1\")\n>         snapshot = probe._repo_snapshot(REPO_ROOT)\n>         snapshot[snapshot_field] = bad_value\n>         monkeypatch.setattr(\n>             probe, \"_repo_snapshot\", lambda _root: copy.deepcopy(snapshot)\n>         )\n>     \n>         result, accepted_evidence = probe.observe(\n>             repo_root=REPO_ROOT,\n>             scratch_dir=scratch,\n>             pbs_job_id=\"12345.nqsv\",\n>             executing_pbs_sha256=EXECUTING_PBS_SHA256,\n>             environ=environment,\n>         )\n>     \n> >       assert accepted_evidence is None\n> E       AssertionError: assert PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_job_start_requires_manife0/evidence') is None\n> \n> orchestrator/tests/test_t1259_qsub_env_delivery_probe.py:645: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1680 retained_bytes=1680 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2541 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "9ea117f19a7171b42faef1055821879b82daefd86f98db9aa1e86c1320e8c639"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "a1c0d2ac62ffe578e28e01b21dc82fb34a6c6ef7749d108a3e523c128a2a956a",
+      "duration_s": 73.359,
+      "expected_nodes": [
+        "orchestrator/tests/test_t1259_qsub_env_delivery_probe.py::test_job_start_requires_manifest_head_detached_and_clean_repository[detached-False]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t1259_qsub_env_delivery_probe.py::test_job_start_requires_manifest_head_detached_and_clean_repository[detached-False]"
+      ],
+      "hang_risk": false,
+      "id": "M2-detached-rejection-bypassed",
+      "injection_diff_sha256": "de67a8e95aacde111e6ce216feb95ca11aee7ee2dbfca6c05caf497d87623037",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "5a36b1d44ee9fd79463df5200d9f301c5a60cb5f405810876ae1e660fb6430b5",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t1259_qsub_env_delivery_probe.py",
+          "new": "    if False:\n        raise ProbeError(\"job repository HEAD is not detached\")",
+          "old": "    if repo_snapshot[\"detached\"] is not True:\n        raise ProbeError(\"job repository HEAD is not detached\")"
+        }
+      ],
+      "repo_head": "e28a62d26f69cc8c48c6cbbc6427c8bc11a71aa6",
+      "runner_sha256": "9fa5e8377f9d8a36dee1fdff779cfa0579525c5e8a9f3c9c5bfc3c4f3f9c8776",
+      "spec_sha256": "bd162328ff981efbcf84c7c2cde2b2af246b33c774c2e41cacde239a3fcb6fb9",
+      "status": "KILLED",
+      "test_output_sha256": "9ea117f19a7171b42faef1055821879b82daefd86f98db9aa1e86c1320e8c639",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "23c7358b15f8d2cdd139a30b1103efc72c43ceb8b235ace1ea3a825cbe363534"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2579-recovery/output/pegasus-dispatch/10b741912af95ed5fa1df8b4a6234d01/izdw-10b741912a.o991442",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2579-recovery/output/pegasus-dispatch/10b741912af95ed5fa1df8b4a6234d01/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..F                                                                      [100%]\n=================================== FAILURES ===================================\n_______ test_real_repo_group_collection_exactly_matches_canonical_nodes ________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_real_repo_group_collection_exactly_matches_canonical_nodes():\n        \"\"\"全 group marker と real-repo node 集合を独立 golden で監査する。\"\"\"\n        _require_pytest()\n        report = _collect_xdist_group_report(HERE, cwd=ROOT)\n        _assert_xdist_group_contract(report, _XDIST_GROUP_NAMES_GOLDEN)\n    \n        suite_conftest = _load_suite_conftest()\n        golden = set(_REAL_REPO_CLASSIFIED_NODES_GOLDEN)\n        golden_access = _real_repo_access_golden()\n        resource_golden = set(golden_access)\n        configured_access = {\n            node_id: (access.parent, access.ccbench)\n            for node_id, access in suite_conftest.REAL_REPO_ACCESS_BY_NODE.items()\n        }\n>       assert configured_access == golden_access, (\n            \"conftest.REAL_REPO_ACCESS_BY_NODE が独立 golden と不一致: \"\n            f\"missing={sorted(resource_golden - set(configured_access))} \"\n            f\"extra={sorted(set(configured_access) - resource_golden)}\"\n        )\nE       AssertionError: conftest.REAL_REPO_ACCESS_BY_NODE が独立 golden と不一致: missing=['test_t1259_qsub_env_delivery_probe.py::test_r1_binds_all_three_explicit_values_and_skips_real_driver'] extra=[]\nE       assert {'test_s1_9pa...', None), ...} == {'test_t1259_...', None), ...}\nE         \nE         Omitting 126 identical items, use -vv to show\nE         Right contains 1 more item:\nE         {'test_t1259_qsub_env_delivery_probe.py::test_r1_binds_all_three_explicit_values_and_skips_real_driver': ('read',\nE                                                                                                                   None)}\nE         Use -v to get more diff\n\norchestrator/tests/test_real_repo_serialization.py:1581: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes\n1 failed, 2 passed in 49.70s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=1794 retained_bytes=1794 omitted_bytes=0 rendered_excerpt_bytes=1938 sha256=283618344b53fbbabed9cb53e13eed9c94e7f35d422c619beccba0c6b6dbf5df\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_real_repo_group_collection_exactly_matches_canonical_nodes():\n>         \"\"\"\\u5168 group marker \\u3068 real-repo node \\u96c6\\u5408\\u3092\\u72ec\\u7acb golden \\u3067\\u76e3\\u67fb\\u3059\\u308b\\u3002\"\"\"\n>         _require_pytest()\n>         report = _collect_xdist_group_report(HERE, cwd=ROOT)\n>         _assert_xdist_group_contract(report, _XDIST_GROUP_NAMES_GOLDEN)\n>     \n>         suite_conftest = _load_suite_conftest()\n>         golden = set(_REAL_REPO_CLASSIFIED_NODES_GOLDEN)\n>         golden_access = _real_repo_access_golden()\n>         resource_golden = set(golden_access)\n>         configured_access = {\n>             node_id: (access.parent, access.ccbench)\n>             for node_id, access in suite_conftest.REAL_REPO_ACCESS_BY_NODE.items()\n>         }\n> >       assert configured_access == golden_access, (\n>             \"conftest.REAL_REPO_ACCESS_BY_NODE \\u304c\\u72ec\\u7acb golden \\u3068\\u4e0d\\u4e00\\u81f4: \"\n>             f\"missing={sorted(resource_golden - set(configured_access))} \"\n>             f\"extra={sorted(set(configured_access) - resource_golden)}\"\n>         )\n> E       AssertionError: conftest.REAL_REPO_ACCESS_BY_NODE \\u304c\\u72ec\\u7acb golden \\u3068\\u4e0d\\u4e00\\u81f4: missing=['test_t1259_qsub_env_delivery_probe.py::test_r1_binds_all_three_explicit_values_and_skips_real_driver'] extra=[]\n> E       assert {'test_s1_9pa...', None), ...} == {'test_t1259_...', None), ...}\n> E         \n> E         Omitting 126 identical items, use -vv to show\n> E         Right contains 1 more item:\n> E         {'test_t1259_qsub_env_delivery_probe.py::test_r1_binds_all_three_explicit_values_and_skips_real_driver': ('read',\n> E                                                                                                                   None)}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_real_repo_serialization.py:1581: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1794 retained_bytes=1794 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2681 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "79a348cf004d5ce6ddf3ccb639fb727f90b7e0daf302fca07c8d0e389771c7ef"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "a1c0d2ac62ffe578e28e01b21dc82fb34a6c6ef7749d108a3e523c128a2a956a",
+      "duration_s": 73.641,
+      "expected_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes"
+      ],
+      "hang_risk": false,
+      "id": "M3-registration-omitted",
+      "injection_diff_sha256": "9c52c9b00ee8eb9e4880e7a108c114df54a93bba7e52c72bc3f38f1104563d60",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "0af08a411eaa77d17d3aad57cf9ac1d60836749af729d4a6fe0d5af5676ed4a8",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "new": "    # T1259 probe test は module fixture で親 working tree の HEAD、tracked status、\n    # untracked paths、source digest を一度取得し、全 consumer がその template を読む。\n",
+          "old": "    # T1259 probe test は module fixture で親 working tree の HEAD、tracked status、\n    # untracked paths、source digest を一度取得し、全 consumer がその template を読む。\n    \"test_t1259_qsub_env_delivery_probe.py::test_r1_binds_all_three_explicit_values_and_skips_real_driver\",\n"
+        },
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "new": "_REAL_REPO_PARENT_ONLY_NODES = frozenset({\n    \"test_s8b_protocol_builder.py::test_build_and_write_leave_repo_tree_unchanged\",\n",
+          "old": "_REAL_REPO_PARENT_ONLY_NODES = frozenset({\n    \"test_s8b_protocol_builder.py::test_build_and_write_leave_repo_tree_unchanged\",\n    \"test_t1259_qsub_env_delivery_probe.py::test_r1_binds_all_three_explicit_values_and_skips_real_driver\",\n"
+        }
+      ],
+      "repo_head": "e28a62d26f69cc8c48c6cbbc6427c8bc11a71aa6",
+      "runner_sha256": "9fa5e8377f9d8a36dee1fdff779cfa0579525c5e8a9f3c9c5bfc3c4f3f9c8776",
+      "spec_sha256": "bd162328ff981efbcf84c7c2cde2b2af246b33c774c2e41cacde239a3fcb6fb9",
+      "status": "KILLED",
+      "test_output_sha256": "79a348cf004d5ce6ddf3ccb639fb727f90b7e0daf302fca07c8d0e389771c7ef",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "23c7358b15f8d2cdd139a30b1103efc72c43ceb8b235ace1ea3a825cbe363534"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2579-recovery/output/pegasus-dispatch/7de4dd8c58d58eddb97868c14a8f630c/izdw-7de4dd8c58.o991432",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2579-recovery/output/pegasus-dispatch/7de4dd8c58d58eddb97868c14a8f630c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_t1259_qsub_env_delivery_probe.py::test_r1_binds_all_three_explicit_values_and_skips_real_driver\norchestrator/tests/test_t1259_qsub_env_delivery_probe.py::test_job_start_requires_manifest_head_detached_and_clean_repository[detached-False]\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes\n\n3 tests collected in 0.60s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "dbddfc5af37ea9f8a6464503b3b5605f1bceeec0041f354c3b386b785bed6cfa"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_t1259_qsub_env_delivery_probe.py::test_r1_binds_all_three_explicit_values_and_skips_real_driver",
+        "orchestrator/tests/test_t1259_qsub_env_delivery_probe.py::test_job_start_requires_manifest_head_detached_and_clean_repository[detached-False]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes"
+      ],
+      "duration_s": 22.006,
+      "rc": 0,
+      "repo_head": "e28a62d26f69cc8c48c6cbbc6427c8bc11a71aa6",
+      "runner_sha256": "9fa5e8377f9d8a36dee1fdff779cfa0579525c5e8a9f3c9c5bfc3c4f3f9c8776",
+      "spec_sha256": "bd162328ff981efbcf84c7c2cde2b2af246b33c774c2e41cacde239a3fcb6fb9",
+      "status": "PASSED",
+      "tool_sha256": "23c7358b15f8d2cdd139a30b1103efc72c43ceb8b235ace1ea3a825cbe363534"
+    },
+    "hang_timeout_seconds": 120.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1-positive-detached": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t1259_qsub_env_delivery_probe.py::test_r1_binds_all_three_explicit_values_and_skips_real_driver"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "4c2a7ed68b20c7a27e3fa5a9920f9560bfd342f3c7c19e33ca96a623226d7bb4",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_t1259_qsub_env_delivery_probe.py",
+            "new": "    snapshot[\"detached\"] = False\n    snapshot[\"tracked_status\"] = \"\"\n    snapshot[\"untracked_paths\"] = []",
+            "old": "    snapshot[\"detached\"] = True\n    snapshot[\"tracked_status\"] = \"\"\n    snapshot[\"untracked_paths\"] = []"
+          }
+        ]
+      },
+      "M2-detached-rejection-bypassed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t1259_qsub_env_delivery_probe.py::test_job_start_requires_manifest_head_detached_and_clean_repository[detached-False]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "de67a8e95aacde111e6ce216feb95ca11aee7ee2dbfca6c05caf497d87623037",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t1259_qsub_env_delivery_probe.py",
+            "new": "    if False:\n        raise ProbeError(\"job repository HEAD is not detached\")",
+            "old": "    if repo_snapshot[\"detached\"] is not True:\n        raise ProbeError(\"job repository HEAD is not detached\")"
+          }
+        ]
+      },
+      "M3-registration-omitted": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "9c52c9b00ee8eb9e4880e7a108c114df54a93bba7e52c72bc3f38f1104563d60",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/conftest.py",
+            "new": "    # T1259 probe test は module fixture で親 working tree の HEAD、tracked status、\n    # untracked paths、source digest を一度取得し、全 consumer がその template を読む。\n",
+            "old": "    # T1259 probe test は module fixture で親 working tree の HEAD、tracked status、\n    # untracked paths、source digest を一度取得し、全 consumer がその template を読む。\n    \"test_t1259_qsub_env_delivery_probe.py::test_r1_binds_all_three_explicit_values_and_skips_real_driver\",\n"
+          },
+          {
+            "file": "orchestrator/tests/conftest.py",
+            "new": "_REAL_REPO_PARENT_ONLY_NODES = frozenset({\n    \"test_s8b_protocol_builder.py::test_build_and_write_leave_repo_tree_unchanged\",\n",
+            "old": "_REAL_REPO_PARENT_ONLY_NODES = frozenset({\n    \"test_s8b_protocol_builder.py::test_build_and_write_leave_repo_tree_unchanged\",\n    \"test_t1259_qsub_env_delivery_probe.py::test_r1_binds_all_three_explicit_values_and_skips_real_driver\",\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "26ee2547b1252d7d89e7df7e57dc9fe8cd3fa196e6ae7017838939c2e29125dc",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_t1259_qsub_env_delivery_probe.py::test_r1_binds_all_three_explicit_values_and_skips_real_driver",
+      "orchestrator/tests/test_t1259_qsub_env_delivery_probe.py::test_job_start_requires_manifest_head_detached_and_clean_repository[detached-False]",
+      "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 1800.0
+  },
+  "repo_head": "e28a62d26f69cc8c48c6cbbc6427c8bc11a71aa6",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_t1259_qsub_env_delivery_probe.py::test_r1_binds_all_three_explicit_values_and_skips_real_driver",
+      "orchestrator/tests/test_t1259_qsub_env_delivery_probe.py::test_job_start_requires_manifest_head_detached_and_clean_repository[detached-False]",
+      "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2579-recovery/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2579-recovery/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "1f6f668e3fdabecaa9693f57fa106ab007ebac58",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "9fa5e8377f9d8a36dee1fdff779cfa0579525c5e8a9f3c9c5bfc3c4f3f9c8776",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "bd162328ff981efbcf84c7c2cde2b2af246b33c774c2e41cacde239a3fcb6fb9",
+  "summary": {
+    "KILLED": 3,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 3,
+    "matching": 3,
+    "recorded": 3,
+    "registered": 3
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2579-recovery/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "23c7358b15f8d2cdd139a30b1103efc72c43ceb8b235ace1ea3a825cbe363534",
+  "updated_at": "2026-09-10T11:59:32.285586+00:00"
+}
