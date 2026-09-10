@@ -1,0 +1,25 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 10,
+  "timeout_seconds": 4200,
+  "hang_timeout_seconds": 30,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.pbs",
+          "old": "  orchestrator/campaign/condition_meaning_gate.py\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_execution_binding_shell_dirty_gate[condition-unstaged]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_execution_binding_shell_dirty_gate[condition-staged]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

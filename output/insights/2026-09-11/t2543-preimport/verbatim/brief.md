@@ -1,0 +1,18 @@
+# 段1 brief — T-2543
+- 研究前進: t316 receipt が束縛を記録する5 pathのうち条件関門だけが検査前に実行可能な既知欠落を、shell配列への1件追加で閉じる（D1936項30、archive T-2543）。
+- scope: tools/pegasus/probes/t316_sandbox_backend_probe.pbs:54 の BOUND_PATHS。
+- 確定裁定: orchestrator/campaign/condition_meaning_gate.py を同配列に追加する。汎用import閉包、新しいgate/防護機構は作らない。
+- 対応テスト: orchestrator/tests/test_t316_sandbox_probe.py の既存実行束縛契約領域（_prepare_execution_binding_repo、test_execution_binding_*）。
+- 必要参照: docs/phase3.md の完了記録、専用insight、worklog fragment。過去archiveの事実は書き換えない。
+- 現物: shellは4path、Python _BOUND_RELATIVE_PATHSは5path。probe.py:36のimportは_execution_bindingより前。
+- 既存動作: shellは配列をdirty検査とblob照合の両方へ渡し、それらの後にprobeを起動する。
+- 拒否: 条件関門pathがdirtyなら既存exit 3でprobe import前に停止する。
+- 正例: 条件関門と既存4pathがcleanで他条件を満たす入力は同じ先へ進める。
+- 不変条件: 規律2、他4pathの検査、Python側束縛、runtime PBS照合、receipt schema/認証範囲を維持。
+- (P1) 親provisional裁定・攻撃対象: production差分1行、既存test module内の局所拡張だけで十分。テストの独立oracleとdirty拒否順序を確認する。
+- 子分割: read-only plan1本、consult2レンズ、author1本、review2レンズ。コード/testを親が書かない。
+- 規模上限案: production1行追加、既存test module内100行以内、別テストfile/汎用harnessなし。
+- 検査環境: Pegasus02、関連検査と受入はtools/run_tests.py、変異は既存harness/dispatchを使う。性能測定は要求しない。
+- 凍結bytes変更なし、既存receipt再ラベルなし。PBS分類の現行参照に固定source hashは見つからない。
+- 所有: main handoff/registered worktree/worker process/外部handoffにt316系の同対象所有を確認せず。専用worktreeをlockする。
+- 完了判定: 限定差分、独立review、正負例・変異・関連検査・受入・docs/provenance、共通land。改善候補だけhandoffへ記録、改善実装/次wave/pushなし。
