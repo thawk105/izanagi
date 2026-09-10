@@ -1,0 +1,186 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 10800,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "old": "        claim_document_sha256=_sha256(claim),\n",
+          "new": "        claim_document_sha256=\"\",\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_accepts_exact_current_marker_under_lock",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_allowed_entry_kind_tamper_on_use"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "old": "        main_ledger_row_sha256=_sha256(main),\n",
+          "new": "        main_ledger_row_sha256=\"\",\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_accepts_exact_current_marker_under_lock"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "old": "        marker_document_sha256=_sha256(disk_marker),\n",
+          "new": "        marker_document_sha256=\"\",\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_accepts_exact_current_marker_under_lock"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "old": "    if expected_marker.get(\"schema_version\") != _MEASUREMENT_GENERATION_ATTEMPT_SCHEMA:\n        raise HoldoutAdmissionError(\n            \"floor attempt consumption capability is current-generation only\"\n        )\n",
+          "new": "    if False:\n        raise HoldoutAdmissionError(\n            \"floor attempt consumption capability is current-generation only\"\n        )\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "old": "    if disk_marker != canonical_marker:\n        raise HoldoutAdmissionError(\n            \"floor attempt consumption marker differs from durable authority\"\n        )\n",
+          "new": "    if False:\n        raise HoldoutAdmissionError(\n            \"floor attempt consumption marker differs from durable authority\"\n        )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[attempt]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[campaign]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[cell]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[configuration]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[holdout]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[manifest]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[run]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_shape_contract[event]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_shape_contract[extra-key]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_shape_contract[missing-key]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_shape_contract[role]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_shape_contract[schema]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "old": "    if derived_claim_digest != state.measurement_generation_claim_digest:\n        raise HoldoutAdmissionError(\n            \"floor attempt consumption claim differs from issuer state\"\n        )\n",
+          "new": "    if False:\n        raise HoldoutAdmissionError(\n            \"floor attempt consumption claim differs from issuer state\"\n        )\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "old": "    if current != identity:\n        raise HoldoutAdmissionError(\n            \"floor attempt consumption marker durable identity changed\"\n        )\n",
+          "new": "    if False:\n        raise HoldoutAdmissionError(\n            \"floor attempt consumption marker durable identity changed\"\n        )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_allowed_entry_kind_tamper_on_use"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "old": "    if supplied_identity != expected_identity:\n        raise HoldoutAdmissionError(\n            \"floor attempt consumption marker capability identity differs\"\n        )\n",
+          "new": "    if False:\n        raise HoldoutAdmissionError(\n            \"floor attempt consumption marker capability identity differs\"\n        )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_different_attempt_ordinal_on_use",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_different_repetition_on_use",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_identity_axis_transplant_on_use[attempt]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_identity_axis_transplant_on_use[campaign]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_identity_axis_transplant_on_use[cell]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_identity_axis_transplant_on_use[claim-digest]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_identity_axis_transplant_on_use[root]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_wrong_nonzero_retry_ordinal_on_use"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "old": "    _assert_active_admission_root_lock(lock, root=identity.root)\n",
+          "new": "    pass\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "old": "    _assert_active_admission_root_lock(lock, root=state.root)\n",
+          "new": "    pass\n"
+        },
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "old": "    _assert_active_admission_root_lock(lock, root=identity.root)\n",
+          "new": "    pass\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_requires_live_caller_held_lock"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

@@ -33,9 +33,9 @@ review 子を省ける。実装面があれば段 5 の Codex 実装子と fix �
 
 ## DW-STOP — fail-closed 停止条件
 
-指定 reference が不在・読めない、指定節が一意でない、期限までに読了していない、検査が赤、
-権限・scope・所有が不整合、承認済み裁定の前提を覆す未見の新事実がある、またはユーザー裁定待ちなら
-該当段へ進まず停止する。
+参照契約違反・検査赤・権限/scope/所有違反は次段を止め、調査・修正・再検証する。
+直せる赤で終了しない。承認前提を覆す新事実・裁定/権限待ち・
+許可範囲で復旧不能な場合だけ正式停止。
 停止条件をテスト弱体化、権限拡大、rebase、force、未監査差分の取り込みで迂回しない。
 
 ## DW-S01 — 段 1 brief
@@ -102,18 +102,17 @@ gate の禁止は署名で書き、通る正例を 1 つ添える。
 
 ## DW-S07 — 段 7 記録
 
-親が worklog、insights の逐語・変異台帳、decisions の設計判断を一括記録する。
+親が worklog、insights の逐語・変異台帳、decisions の設計判断を一括記録する。配置は`output/README.md` に従う。
 **worklog / decisions / failures の 3 台帳は直接編集せず、`docs/spool/README.md` の形式に従う
 fragment として書く**（insights は従来どおり直接書く）。fragment は wave branch へ commit するだけとし、
 canonical への追記・採番・ローテーションは段 9 の land が lock 内で一度だけ行う。
 **wave 側で fold してはならない。**
 凍結前に全 gate の検出語（三軸語・placeholder）を機械走査し、hit は原文 hash 付きの可逆 defang +
-erratum とする（D88）。逐語末尾空白の `git diff --check` 抵触時も、原文hash・byte 数・
+erratum とする（D88）。走査器は `python3 -m orchestrator.campaign.s8b_holdout_freeze search`（rc≠0 で hit）。逐語末尾空白の `git diff --check` 抵触時も、原文hash・byte 数・
 復元法を記録した可逆最小正規化だけを許す（可視文字不変）。
 docs commit 後に repo scan invariant と影響テストを再走して閉じる（F34）。受入・検査は実測前に
 欄を作らず未実施はそう書く。値なし前方参照と placeholder を禁じ、再走値は amend する。
-hash 自己参照は禁止（F36）。AI provenance、worklog、push の境界は `CLAUDE.md` と
-`docs/ai-provenance.md` を正本とする。
+hash 自己参照は禁止（F36）。
 
 ## DW-S08 — 段 8 自己改善
 

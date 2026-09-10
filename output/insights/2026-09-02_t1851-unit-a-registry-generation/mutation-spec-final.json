@@ -1,0 +1,249 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 14400,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/attempt_registry_core.py",
+          "old": "    started_budget_counts = _validated_budget_counts(\n        initial_started_budget_counts\n    )\n",
+          "new": "    _validated_budget_counts(initial_started_budget_counts)\n    started_budget_counts: BudgetCounts = {}\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_seeded_budget_replay_rejects_eleventh_start_and_old_apis_are_unchanged",
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_seeded_budget_replay_rejects_invalid_counts_and_accepts_exact_limit[-1]",
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_seeded_budget_replay_rejects_invalid_counts_and_accepts_exact_limit[1.5]",
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_seeded_budget_replay_rejects_invalid_counts_and_accepts_exact_limit[True]",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_cross_generation_budget_accepts_tenth_and_rejects_eleventh_before_staging",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_unchecked_generation_symlink_would_double_count_one_registry_budget"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/attempt_registry_core.py",
+          "old": "        if type(count) is not int or count < 0:\n",
+          "new": "        if False:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_seeded_budget_replay_rejects_invalid_counts_and_accepts_exact_limit[-1]",
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_seeded_budget_replay_rejects_invalid_counts_and_accepts_exact_limit[1.5]",
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_seeded_budget_replay_rejects_invalid_counts_and_accepts_exact_limit[True]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_profile.py",
+          "old": "        json.dumps(\n            record,\n            ensure_ascii=False,\n            sort_keys=True,\n            allow_nan=False,\n        )\n",
+          "new": "        json.dumps(\n            record,\n            ensure_ascii=False,\n            separators=(\",\", \":\"),\n            sort_keys=True,\n            allow_nan=False,\n        )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_serialize_session_line_uses_spaced_sorted_utf8_json_and_newline"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_profile.py",
+          "old": "        )\n        + \"\\n\"\n    ).encode(\"utf-8\")\n",
+          "new": "        )\n    ).encode(\"utf-8\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_serialize_session_line_uses_spaced_sorted_utf8_json_and_newline"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5a",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "        if sibling.is_symlink() or not stat.S_ISDIR(sibling_stat.st_mode):\n",
+          "new": "        if not stat.S_ISDIR(sibling_stat.st_mode):\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5b",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "        if sibling.is_symlink() or not stat.S_ISDIR(sibling_stat.st_mode):\n",
+          "new": "        if sibling.is_symlink():\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_generation_enumerator_rejects_unsafe_hex_authority_and_accepts_real_one[non-directory]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "        if sibling.is_symlink() or not stat.S_ISDIR(sibling_stat.st_mode):\n",
+          "new": "        if False:\n"
+        },
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "def _read_regular_bytes(path: Path, *, missing_ok: bool = False) -> bytes | None:\n    admission._assert_no_symlink_components(path.parent)\n",
+          "new": "def _read_regular_bytes(path: Path, *, missing_ok: bool = False) -> bytes | None:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_complete_generation_directory_symlink_is_rejected_but_real_directory_mutates",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_generation_enumerator_rejects_unsafe_hex_authority_and_accepts_real_one[non-directory]",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_unchecked_generation_symlink_would_double_count_one_registry_budget"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "        try:\n            registry.lstat()\n        except FileNotFoundError:\n            _fail(\n                \"s8b-attempt-registry-storage\",\n                \"generation directory is unsafe or incomplete\",\n            )\n",
+          "new": "        try:\n            registry.lstat()\n        except FileNotFoundError:\n            continue\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_generation_enumerator_rejects_unsafe_hex_authority_and_accepts_real_one[missing-registry]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8a",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "    if genesis.get(\"recovery_policy_sha256\") != expected_recovery_digest:\n",
+          "new": "    if False:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_generation_resolver_rejects_stale_recovery_policy_and_accepts_current"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8b",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "    if genesis.get(\"recovery_policy_sha256\") != expected_recovery_digest:\n",
+          "new": "    if False:\n"
+        },
+        {
+          "file": "orchestrator/campaign/attempt_registry_core.py",
+          "old": "        if recovery_policy_sha256 != _recovery_policy_sha256(profile):\n",
+          "new": "        if False:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_genesis_rejects_recovery_history_under_a_different_policy_profile[authority_id-different-recovery-authority]",
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_genesis_rejects_recovery_history_under_a_different_policy_profile[authority_policy_sha256-eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee]",
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_genesis_rejects_recovery_history_under_a_different_policy_profile[failure_reasons-replacement5]",
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_genesis_rejects_recovery_history_under_a_different_policy_profile[receipt_event-different-scheduler-event]",
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_genesis_rejects_recovery_history_under_a_different_policy_profile[receipt_schema_version-scheduler-accounting-receipt/v2]",
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_genesis_rejects_recovery_history_under_a_different_policy_profile[receipt_source-different-accounting-source]",
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_genesis_rejects_recovery_history_when_enable_flag_changes",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_generation_resolver_rejects_stale_recovery_policy_and_accepts_current"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "    if tuple(path.parts[-len(relative.parts):]) != relative.parts:\n",
+          "new": "    if False:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_generation_resolver_rejects_protocol_path_mismatch_and_accepts_match"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "    _run_prelock_snapshot_hook(path)\n    with admission._locked(root) as lock:\n",
+          "new": "    with admission._locked(root) as lock:\n"
+        },
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "    # the live-lock guard arrives with the marker-owned call path in A2'.\n    other_counts = _load_other_generation_budget_counts_locked(\n",
+          "new": "    # the live-lock guard arrives with the marker-owned call path in A2'.\n    _run_prelock_snapshot_hook(path)\n    other_counts = _load_other_generation_budget_counts_locked(\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_locked_update_seam_does_not_reacquire_lock_or_run_prelock_hook",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_root_lock_serializes_two_updates_after_same_old_snapshot_barrier"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/attempt_registry_core.py",
+          "old": "    keys = (profile.slot_codec.exact_keys & expected) - {\n        \"schedule_row_sha256\",\n    }\n",
+          "new": "    keys = (profile.slot_codec.exact_keys & expected) - {\n        \"schedule_row_sha256\",\n        \"measurement_ordinal\",\n    }\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_complete_generation_directory_symlink_is_rejected_but_real_directory_mutates",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_cross_generation_budget_accepts_tenth_and_rejects_eleventh_before_staging",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_unchecked_generation_symlink_would_double_count_one_registry_budget",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_v2_profile_is_rejected_by_public_mutation_but_slot_lookup_is_five_axis"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

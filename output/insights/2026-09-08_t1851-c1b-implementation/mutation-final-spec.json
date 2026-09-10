@@ -1,0 +1,128 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 140,
+  "timeout_seconds": 2400,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "F4a-slot-identity-drops-holdout-id",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "    slot_identity = {\n        \"holdout_id\": slot.freeze_holdout_key,\n        \"configuration_id\": slot.configuration_id,\n        \"retry_ordinal\": slot.attempt_ordinal,\n    }\n",
+          "new": "    slot_identity = {\n        \"configuration_id\": slot.configuration_id,\n        \"retry_ordinal\": slot.attempt_ordinal,\n    }\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_durable_replay_rejects_campaign_identity_transplant[holdout_id-transplanted-holdout]",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_sealed_issuer_rejects_structural_reservation_identity_transplant[holdout_id-transplanted-holdout]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "F4b-slot-identity-drops-configuration-id",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "        \"configuration_id\": slot.configuration_id,\n        \"retry_ordinal\": slot.attempt_ordinal,\n    }\n",
+          "new": "        \"retry_ordinal\": slot.attempt_ordinal,\n    }\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_durable_replay_rejects_campaign_identity_transplant[configuration_id-transplanted-configuration]",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_sealed_issuer_rejects_structural_reservation_identity_transplant[configuration_id-transplanted-configuration]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "F4c-slot-identity-drops-retry-ordinal",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "        \"retry_ordinal\": slot.attempt_ordinal,\n    }\n    for field_name, expected_value in slot_identity.items():\n",
+          "new": "    }\n    for field_name, expected_value in slot_identity.items():\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_durable_replay_rejects_campaign_identity_transplant[retry_ordinal-9]",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_sealed_issuer_rejects_structural_reservation_identity_transplant[retry_ordinal-9]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "F5-capture-failure-allows-nonzero-launch-count",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_terminal_evidence.py",
+          "old": "        if failure['stage'] == 'capture' and launch_failures_count != 0:\n            _fail('capture failure has nonzero launch_failures_count')\n",
+          "new": "        if False and failure['stage'] == 'capture' and launch_failures_count != 0:\n            _fail('capture failure has nonzero launch_failures_count')\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_durable_replay_rejects_capture_failure_with_nonzero_launch_count",
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_capture_failure_requires_zero_launch_failure_count_pair"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "F6-v2-exception-name-drops-oserror-normalization",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+          "old": "        elif isinstance(failure, OSError):\n            exception_type = \"OSError\"\n        elif isinstance(failure, RuntimeError):\n",
+          "new": "        elif isinstance(failure, RuntimeError):\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_v2_capture_subclasses_reach_a_sealed_draft[failure0-OSError]",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_v2_capture_subclasses_reach_a_sealed_draft[failure1-OSError]",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_v2_exception_names_normalize_to_captured_base_categories[failure0-FileNotFoundError-OSError]",
+        "orchestrator/tests/test_s8b_floor_attempt_launcher.py::test_v2_exception_names_normalize_to_captured_base_categories[failure1-PermissionError-OSError]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "F8-replay-skips-external-evidence-recheck",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "        _validated_external_evidence_bytes(\n            external_data,\n            expected_digest=external_evidence_sha256,\n            evidence=supplied,\n        )\n        result[digest] = supplied\n",
+          "new": "        _unused_external = (\n            external_data,\n            external_evidence_sha256,\n            supplied,\n        )\n        result[digest] = supplied\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_sealed_v2_replay_rederives_external_component_digests"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "F9-rep-integrity-runs-after-canonical-roundtrip",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_terminal_evidence.py",
+          "old": "    ) = s8b_floor_stats._derive_rep_integrity(\n        source_observations,\n        reps=source_reps_expected,\n",
+          "new": "    ) = s8b_floor_stats._derive_rep_integrity(\n        _canonical_copy(source_observations, label='mutated rep integrity'),\n        reps=source_reps_expected,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_rep_source_exact_integer_types_are_checked_before_canonical_copy[rep_index-0]",
+        "orchestrator/tests/test_s8b_terminal_evidence.py::test_rep_source_exact_integer_types_are_checked_before_canonical_copy[returncode-ReturnCode.ZERO]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

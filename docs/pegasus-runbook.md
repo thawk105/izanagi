@@ -563,6 +563,7 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 | `tools/pegasus/submit_silo_ladder_rung1.sh` | `local-ok` | `legacy-admitted (未実測)` |
 | `tools/pegasus/submit_t126_qualification.sh` | `unknown` | `unmeasured; preflight input surfaces remain` |
 | `tools/pegasus/submit_t1998_balanced_stock_inline.sh` | `local-ok` | `static login-side submitter classification` |
+| `tools/pegasus/submit_t2417_backoff_policy_performance.sh` | `local-ok` | `static login-side submitter classification` |
 | `tools/pegasus/t126_qualification.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/t141_region_profile.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/t810_budget.py` | `unknown` | `unmeasured; unbounded input surfaces remain` |
@@ -578,43 +579,26 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
   裁定へ返した)。class の正しさ、資源の実測、hook が `.claude/settings.json` に実配線されて
   いること、`python3 -c` や cwd 経路など parser が実行体として認識しない綴りは、いずれも
   この検査の範囲外である。
-- **分類の測定はユーザー端末の手番である (2026-08-05 ユーザー裁定)。** 上の
-  `systemd-run --user --scope` 手順は計算ノードでは動かない (2026-08-05 実測: PBS ジョブに
-  user systemd session が無く `$DBUS_SESSION_BUS_ADDRESS` / `$XDG_RUNTIME_DIR` が未設定。
-  ジョブ自身の cgroup は `nqs-jsv.service` 配下で他テナントと混ざる)。一方 hook は
-  `tools/pegasus/` 配下の未登録実行体をログインノードで拒否する。**したがって「登録には実測が要る / 実測には登録が要る」という
-  循環がある** (F123)。裁定はこの循環を当面そのまま追認したものであり、**ログインノード上の
-  ユーザー端末 (hook の管轄外) が現行唯一の正規な測定面である。** 手番は次のとおり。
-  - **AI セッション・子エージェント・自動化は分類の実測を自分で行わない。** hook の拒否を
-    迂回して得た値は、綴りを問わず分類の根拠にしない (迂回自体が禁止である)。hook が未配線または
-    解析できない実行面を測定の抜け道に使うことも同じく禁止で、本節が下で列挙する「機械強制なし」の
-    面を抜け道の目録として読んではならない。
-  - 実測が無い実行体は `unknown` に倒して**止める**。止めた事実と、必要な測定を、上の
-    「記録すること」の全項目 (commit / argv / 入力の総 bytes と件数 / `memory.max` / 観測ピーク /
-    繰り返し数 / 測定日) を満たす依頼としてユーザーへ返す。本節の記録欄と実測表へ入れてよいのは、
-    ユーザーが端末で実行して返した値だけである。
-  - **測定専用の bounded surface を設ける案は [T-481] の族再設計に同梱して決める** (未実装)。
-    **計算ノードで動く測定手順へ本節を改訂する案は採らない** — 上の実測がその前提を否定しており、
-    再提案には新しい実測が要る。
-  - この手番が確定した帰結として、**hook 面で `systemd-run` 経由の綴りを塞いでも正規の測定面は
-    失われない** ([T-518] (d) の閉じ方の入力。閉じるかどうかは [T-481] の族再設計で決める)。
-  - **2026-08-13 の委任と、そこで採られた非 canonical 測定 (前例にしない)。** ユーザーが実行場所分類の
-    **選択**を AI へ明示委任し (「あなたが適切なところを選んでください」)、その下で
-    `tools/claude_session_ledger.py` が計算ノードで測られた。計算ノードには per-job cgroup も cgroup
-    delegation も無く (`/proc/self/cgroup` が `0::/system.slice/nqs-jsv.service` の 1 行だけであることを
-    2 ノードで確認)、非 root では専有 scope を作れないため、採られたのは共有 service cgroup の
-    `memory.current` を busy sampling する delta 方式である。同居 job の充当変動が混入し、
-    実際に 1 走が負 delta になって無効化された。**この値は `local-ok` の根拠にならず、class は
-    `unknown` のまま**で、非 certifying であることを evidence 文字列自身に書いている。
-    **この測定は本節と D233 決定 4 の手番規定が禁じる形で得られたものである。** 本節はその禁止を
-    緩めない — 方式を問わず、AI セッション・子エージェント・自動化は分類の実測を自分で行わない。
-    委任の下で既に得られた当該 raw を evidence として残すかどうかを含め、**委任の射程は未裁定**であり、
-    裁定パッケージ (`output/insights/2026-08-13_exec-loc-and-usage-fixes/s4-rulings-package.md` の R-3)
-    でユーザー裁定を待つ。**この 1 件を「共有 cgroup 方式なら AI が測ってよい」という前例に
-    してはならない。** 本節を計算ノードで動く測定手順へ改訂する案も、依然として採らない。
-  - **非 canonical 測定は evidence 記録可・class の根拠にしない (2026-08-13 /rulings 第 9 回 #5、
-    択 (b)。[T-1031])。** 上の委任下の測定のような非 canonical な結果は、台帳へ evidence として
-    残してよいが、`local-ok` など class を軽い側へ倒す根拠にはしない。
+- **分類の実測は AI が担当する (2026-09-10 ユーザー裁定、rulings 項2 / T-2267)。**
+  D1677、D1936 項49、D233 決定4のユーザー端末専任を、この対象について解除した。
+  既存の上限付き実行経路と本節の専用 scope 計測を優先し、対象・入力・実行条件の確認、
+  実測、記録を AI が行う。担当変更のために同じ実行をユーザーへ返さない。
+  - 実効資源上限と全子孫を含む charged memory の計測を保つ。実測が無い実行体は
+    `unknown` のままとし、委任を `local-ok` の根拠にしない。
+    本節の「記録すること」の全項目を満たした AI の実測も、記録欄と実測表へ入れてよい。
+  - **hook の拒否を迂回しない。** 未配線・解析できない面や別の綴りを抜け道にしない。
+    計測対象自身が未登録の場合は、既存の認可された上限付き実行経路を確認してから実行する。
+    実行可能な経路が無ければ、その不足を AI の実装課題として特定する。
+    新しい承認儀式や汎用測定基盤の新設を担当変更の前提にしない。
+  - 上の `systemd-run --user --scope` 手順は計算ノードでは動かなかった
+    (2026-08-05 実測: user systemd session がなく、ジョブの cgroup は他テナントと共有)。
+    この制約を担当変更だけで解消済みとはしない。性能測定は引き続き計算ノードで行う。
+  - **過去の非 canonical 測定は前例にしない。** 2026-08-13 の委任下で
+    `tools/claude_session_ledger.py` を計算ノードの共有 service cgroup の差分で測った値には
+    同居 job の charge が混入し、1走は負 delta となった。この値は `local-ok` の根拠にならず、
+    `unknown` を維持する。D1677 が当時の委任を1件限りとした記録も遡及変更しない。
+    非 canonical な結果は evidence として保存できるが、class を軽い側へ倒す根拠にはしない
+    (2026-08-13 /rulings 第9回 #5、T-1031)。
 - **投げ先。** ログインノードから**自動**で計算ノードへ dispatch されるのは下表の exact task だけ
   である (D103 決定 2 が経路を定め、D842 / D895 が現行 enum を定める)。表に無い重い処理は
   自動化されていないので、`qsub` / `qlogin` で自分で計算ノードを確保して走らせる。

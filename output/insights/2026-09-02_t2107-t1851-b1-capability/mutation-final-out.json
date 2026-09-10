@@ -1,0 +1,952 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2107-t1851-b1/output/pegasus-dispatch/2ce2f8fd72c6176b3669d8a6959517c3/izdw-2ce2f8fd72.o967977",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2107-t1851-b1/output/pegasus-dispatch/2ce2f8fd72c6176b3669d8a6959517c3/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 41%]\n........................................................................ [ 82%]\n...............................                                          [100%]\n175 passed in 5.06s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "4e5455a016a105afcd26407663d80f40d246b411a9673e2938f0e51c4a5170eb"
+    },
+    "artifact_error": null,
+    "collection_sha256": "eb90a0ab1d6711e476a77930c105cfc3bcb89120755a9a053a7db5d92543d8c9",
+    "duration_s": 27.096,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "a0c51a6df360849abca0d21d04fa76992c7b68667ce6cce7d5fa3314b5731453",
+    "repo_head": "cb1f56b8ee054463a0f37e4c95d0730113dfb421",
+    "runner_sha256": "580cbf69a095f3ae1bc4b500fd4d84e1f5d74be5f996fe4939fb5bac6cc56d8d",
+    "spec_sha256": "b2d7809965cd9456bde27eab6e6bb6f8e0a817ea112bafc172c0e108817f180c",
+    "status": "PASSED",
+    "test_output_sha256": "4e5455a016a105afcd26407663d80f40d246b411a9673e2938f0e51c4a5170eb",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "01f6bb3384769c6beadcbe6ff93417c3edcfeaa6bc8fecb513f75ef7c41ae819"
+  },
+  "date": "2026-09-02T06:51:36.302880+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2107-t1851-b1/output/pegasus-dispatch/e3a64f87ac96a87b5fc46517242fedfb/izdw-e3a64f87ac.o967984",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2107-t1851-b1/output/pegasus-dispatch/e3a64f87ac96a87b5fc46517242fedfb/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 41%]\n...............................................................F........ [ 82%]\n.............................F.                                          [100%]\n=================================== FAILURES ===================================\n_____ test_floor_marker_capability_accepts_exact_current_marker_under_lock _____\n[gw27] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw27/test_floor_marker_capability_a0')\n\n    def test_floor_marker_capability_accepts_exact_current_marker_under_lock(tmp_path):\n        case = _consumed_marker_capability_case(tmp_path)\n        capability = case[\"capability\"]\n        assert type(capability) is admission.FloorAttemptConsumptionMarker\n        assert \"FloorAttemptConsumptionMarker\" in admission.__all__\n        assert \"validate_floor_attempt_consumption_marker\" in admission.__all__\n        assert \"current-generation\" in (\n            inspect.getdoc(admission.validate_floor_attempt_consumption_marker) or \"\"\n        )\n    \n        def action(active_lock):\n            assert type(active_lock) is admission._AdmissionRootLock  # noqa: SLF001\n            probe = subprocess.run(\n                [\"flock\", \"-n\", str(case[\"state\"].root / \"ledger.lock\"), \"true\"],\n                check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE,\n            )\n            assert probe.returncode == 1\n            return \"used\"\n    \n        assert _use_consumption_capability(case, action=action) == \"used\"\n        identity = capability._identity  # noqa: SLF001\n        claim = admission._read_canonical_document(case[\"claim_path\"])  # noqa: SLF001\n        main = admission._measurement_generation_main_ledger_row(  # noqa: SLF001\n            case[\"state\"].root,\n            claim_digest=case[\"marker\"][\"measurement_generation_claim_digest\"],\n        )\n        assert identity.marker_document_sha256 == hashlib.sha256(\n            _canonical(case[\"marker\"])\n        ).hexdigest()\n>       assert identity.claim_document_sha256 == hashlib.sha256(\n            _canonical(claim)\n        ).hexdigest()\nE       AssertionError: assert '' == 'f3566e32e06e...379f73ad07afb'\nE         \nE         - f3566e32e06e3f62f4a5029e5dbb6ec585b6153ea8816482721379f73ad07afb\n\norchestrator/tests/test_s8b_holdout_admission.py:2202: AssertionError\n____ test_floor_marker_capability_rejects_allowed_entry_kind_tamper_on_use _____\n[gw24] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw24/test_floor_marker_capability_r0')\n\n    def test_floor_marker_capability_rejects_allowed_entry_kind_tamper_on_use(\n        tmp_path,\n    ):\n        case = _consumed_marker_capability_case(tmp_path)\n        claim = admission._read_canonical_document(case[\"claim_path\"])  # noqa: SLF001\n        assert claim[\"entry_kind\"] == \"fresh\"\n        claim[\"entry_kind\"] = \"resume\"\n        _rewrite_canonical_document(case[\"claim_path\"], claim)\n        actions = []\n    \n>       with pytest.raises(admission.HoldoutAdmissionError, match=\"durable identity\"):\nE       Failed: DID NOT RAISE HoldoutAdmissionError\n\norchestrator/tests/test_s8b_holdout_admission.py:2554: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_accepts_exact_current_marker_under_lock\nFAILED orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_allowed_entry_kind_tamper_on_use\n2 failed, 173 passed in 5.11s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_accepts_exact_current_marker_under_lock\" nodeid_bytes=118 nodeid_omitted_bytes=0 source_bytes=1987 retained_bytes=1987 omitted_bytes=0 rendered_excerpt_bytes=2070 sha256=76d9da05e473b08462446964c03abb8e37bf5f5d39821fd2fee3a01ee72a6814\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw27] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw27/test_floor_marker_capability_a0')\n> \n>     def test_floor_marker_capability_accepts_exact_current_marker_under_lock(tmp_path):\n>         case = _consumed_marker_capability_case(tmp_path)\n>         capability = case[\"capability\"]\n>         assert type(capability) is admission.FloorAttemptConsumptionMarker\n>         assert \"FloorAttemptConsumptionMarker\" in admission.__all__\n>         assert \"validate_floor_attempt_consumption_marker\" in admission.__all__\n>         assert \"current-generation\" in (\n>             inspect.getdoc(admission.validate_floor_attempt_consumption_marker) or \"\"\n>         )\n>     \n>         def action(active_lock):\n>             assert type(active_lock) is admission._AdmissionRootLock  # noqa: SLF001\n>             probe = subprocess.run(\n>                 [\"flock\", \"-n\", str(case[\"state\"].root / \"ledger.lock\"), \"true\"],\n>                 check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE,\n>             )\n>             assert probe.returncode == 1\n>             return \"used\"\n>     \n>         assert _use_consumption_capability(case, action=action) == \"used\"\n>         identity = capability._identity  # noqa: SLF001\n>         claim = admission._read_canonical_document(case[\"claim_path\"])  # noqa: SLF001\n>         main = admission._measurement_generation_main_ledger_row(  # noqa: SLF001\n>             case[\"state\"].root,\n>             claim_digest=case[\"marker\"][\"measurement_generation_claim_digest\"],\n>         )\n>         assert identity.marker_document_sha256 == hashlib.sha256(\n>             _canonical(case[\"marker\"])\n>         ).hexdigest()\n> >       assert identity.claim_document_sha256 == hashlib.sha256(\n>             _canonical(claim)\n>         ).hexdigest()\n> E       AssertionError: assert '' == 'f3566e32e06e...379f73ad07afb'\n> E         \n> E         - f3566e32e06e3f62f4a5029e5dbb6ec585b6153ea8816482721379f73ad07afb\n> \n> orchestrator/tests/test_s8b_holdout_admission.py:2202: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_allowed_entry_kind_tamper_on_use\" nodeid_bytes=119 nodeid_omitted_bytes=0 source_bytes=770 retained_bytes=770 omitted_bytes=0 rendered_excerpt_bytes=807 sha256=86fd0c4fb4f06e6905a07638d200cab98370bdf40d3859c8cb9d994b7dd080cc\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw24] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw24/test_floor_marker_capability_r0')\n> \n>     def test_floor_marker_capability_rejects_allowed_entry_kind_tamper_on_use(\n>         tmp_path,\n>     ):\n>         case = _consumed_marker_capability_case(tmp_path)\n>         claim = admission._read_canonical_document(case[\"claim_path\"])  # noqa: SLF001\n>         assert claim[\"entry_kind\"] == \"fresh\"\n>         claim[\"entry_kind\"] = \"resume\"\n>         _rewrite_canonical_document(case[\"claim_path\"], claim)\n>         actions = []\n>     \n> >       with pytest.raises(admission.HoldoutAdmissionError, match=\"durable identity\"):\n> E       Failed: DID NOT RAISE HoldoutAdmissionError\n> \n> orchestrator/tests/test_s8b_holdout_admission.py:2554: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2757 retained_bytes=2757 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4080 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "77cc0c6744e4caecd43950187fcf1cd8c75ed519e2f640bd58b33e77ffbaee4a"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eb90a0ab1d6711e476a77930c105cfc3bcb89120755a9a053a7db5d92543d8c9",
+      "duration_s": 27.06,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_accepts_exact_current_marker_under_lock",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_allowed_entry_kind_tamper_on_use"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_accepts_exact_current_marker_under_lock",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_allowed_entry_kind_tamper_on_use"
+      ],
+      "hang_risk": false,
+      "id": "M1",
+      "injection_diff_sha256": "f6e84e199ca118b79cc13423691675af54cadbe1667fea94f35d8f0b8ca7f2f9",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "0254aa31ce93e220649e4ab4dd79513cb4c3bf2a90ed9dbfcf2d958d852260b3",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "new": "        claim_document_sha256=\"\",\n",
+          "old": "        claim_document_sha256=_sha256(claim),\n"
+        }
+      ],
+      "repo_head": "cb1f56b8ee054463a0f37e4c95d0730113dfb421",
+      "runner_sha256": "580cbf69a095f3ae1bc4b500fd4d84e1f5d74be5f996fe4939fb5bac6cc56d8d",
+      "spec_sha256": "b2d7809965cd9456bde27eab6e6bb6f8e0a817ea112bafc172c0e108817f180c",
+      "status": "KILLED",
+      "test_output_sha256": "77cc0c6744e4caecd43950187fcf1cd8c75ed519e2f640bd58b33e77ffbaee4a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "01f6bb3384769c6beadcbe6ff93417c3edcfeaa6bc8fecb513f75ef7c41ae819"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2107-t1851-b1/output/pegasus-dispatch/8240558e42dd070b0c56de7dea236641/izdw-8240558e42.o967985",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2107-t1851-b1/output/pegasus-dispatch/8240558e42dd070b0c56de7dea236641/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 41%]\n........................................................................ [ 82%]\n............................F..                                          [100%]\n=================================== FAILURES ===================================\n_____ test_floor_marker_capability_accepts_exact_current_marker_under_lock _____\n[gw36] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw36/test_floor_marker_capability_a0')\n\n    def test_floor_marker_capability_accepts_exact_current_marker_under_lock(tmp_path):\n        case = _consumed_marker_capability_case(tmp_path)\n        capability = case[\"capability\"]\n        assert type(capability) is admission.FloorAttemptConsumptionMarker\n        assert \"FloorAttemptConsumptionMarker\" in admission.__all__\n        assert \"validate_floor_attempt_consumption_marker\" in admission.__all__\n        assert \"current-generation\" in (\n            inspect.getdoc(admission.validate_floor_attempt_consumption_marker) or \"\"\n        )\n    \n        def action(active_lock):\n            assert type(active_lock) is admission._AdmissionRootLock  # noqa: SLF001\n            probe = subprocess.run(\n                [\"flock\", \"-n\", str(case[\"state\"].root / \"ledger.lock\"), \"true\"],\n                check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE,\n            )\n            assert probe.returncode == 1\n            return \"used\"\n    \n        assert _use_consumption_capability(case, action=action) == \"used\"\n        identity = capability._identity  # noqa: SLF001\n        claim = admission._read_canonical_document(case[\"claim_path\"])  # noqa: SLF001\n        main = admission._measurement_generation_main_ledger_row(  # noqa: SLF001\n            case[\"state\"].root,\n            claim_digest=case[\"marker\"][\"measurement_generation_claim_digest\"],\n        )\n        assert identity.marker_document_sha256 == hashlib.sha256(\n            _canonical(case[\"marker\"])\n        ).hexdigest()\n        assert identity.claim_document_sha256 == hashlib.sha256(\n            _canonical(claim)\n        ).hexdigest()\n>       assert identity.main_ledger_row_sha256 == hashlib.sha256(\n            _canonical(main)\n        ).hexdigest()\nE       AssertionError: assert '' == '3e2eaa1c6457...f41377a276813'\nE         \nE         - 3e2eaa1c64577410b774606bb79ecf8f902f8459adf526240ebf41377a276813\n\norchestrator/tests/test_s8b_holdout_admission.py:2205: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_accepts_exact_current_marker_under_lock\n1 failed, 174 passed in 5.11s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_accepts_exact_current_marker_under_lock\" nodeid_bytes=118 nodeid_omitted_bytes=0 source_bytes=2104 retained_bytes=2104 omitted_bytes=0 rendered_excerpt_bytes=2193 sha256=e2cad2e115bfebda009bd03abfaaacd43a7a48c78993fdd04bad061c02ad60e5\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw36] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw36/test_floor_marker_capability_a0')\n> \n>     def test_floor_marker_capability_accepts_exact_current_marker_under_lock(tmp_path):\n>         case = _consumed_marker_capability_case(tmp_path)\n>         capability = case[\"capability\"]\n>         assert type(capability) is admission.FloorAttemptConsumptionMarker\n>         assert \"FloorAttemptConsumptionMarker\" in admission.__all__\n>         assert \"validate_floor_attempt_consumption_marker\" in admission.__all__\n>         assert \"current-generation\" in (\n>             inspect.getdoc(admission.validate_floor_attempt_consumption_marker) or \"\"\n>         )\n>     \n>         def action(active_lock):\n>             assert type(active_lock) is admission._AdmissionRootLock  # noqa: SLF001\n>             probe = subprocess.run(\n>                 [\"flock\", \"-n\", str(case[\"state\"].root / \"ledger.lock\"), \"true\"],\n>                 check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE,\n>             )\n>             assert probe.returncode == 1\n>             return \"used\"\n>     \n>         assert _use_consumption_capability(case, action=action) == \"used\"\n>         identity = capability._identity  # noqa: SLF001\n>         claim = admission._read_canonical_document(case[\"claim_path\"])  # noqa: SLF001\n>         main = admission._measurement_generation_main_ledger_row(  # noqa: SLF001\n>             case[\"state\"].root,\n>             claim_digest=case[\"marker\"][\"measurement_generation_claim_digest\"],\n>         )\n>         assert identity.marker_document_sha256 == hashlib.sha256(\n>             _canonical(case[\"marker\"])\n>         ).hexdigest()\n>         assert identity.claim_document_sha256 == hashlib.sha256(\n>             _canonical(claim)\n>         ).hexdigest()\n> >       assert identity.main_ledger_row_sha256 == hashlib.sha256(\n>             _canonical(main)\n>         ).hexdigest()\n> E       AssertionError: assert '' == '3e2eaa1c6457...f41377a276813'\n> E         \n> E         - 3e2eaa1c64577410b774606bb79ecf8f902f8459adf526240ebf41377a276813\n> \n> orchestrator/tests/test_s8b_holdout_admission.py:2205: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2104 retained_bytes=2104 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2939 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "c126006aeee38012bce7c816f8ab05295b4bef52271f05f7076a887063110733"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eb90a0ab1d6711e476a77930c105cfc3bcb89120755a9a053a7db5d92543d8c9",
+      "duration_s": 32.134,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_accepts_exact_current_marker_under_lock"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_accepts_exact_current_marker_under_lock"
+      ],
+      "hang_risk": false,
+      "id": "M2",
+      "injection_diff_sha256": "799952ec1995ed428d55833af7b899ef116f358ad6ac7d672736e1d7ec8b033a",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "1bbbaf3581c66f4a911d115263ea169e8245f75cd39091467240b6dcdfa8a3a7",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "new": "        main_ledger_row_sha256=\"\",\n",
+          "old": "        main_ledger_row_sha256=_sha256(main),\n"
+        }
+      ],
+      "repo_head": "cb1f56b8ee054463a0f37e4c95d0730113dfb421",
+      "runner_sha256": "580cbf69a095f3ae1bc4b500fd4d84e1f5d74be5f996fe4939fb5bac6cc56d8d",
+      "spec_sha256": "b2d7809965cd9456bde27eab6e6bb6f8e0a817ea112bafc172c0e108817f180c",
+      "status": "KILLED",
+      "test_output_sha256": "c126006aeee38012bce7c816f8ab05295b4bef52271f05f7076a887063110733",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "01f6bb3384769c6beadcbe6ff93417c3edcfeaa6bc8fecb513f75ef7c41ae819"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2107-t1851-b1/output/pegasus-dispatch/b18d6088b0a1f8734d852b7606879ef5/izdw-b18d6088b0.o967986",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2107-t1851-b1/output/pegasus-dispatch/b18d6088b0a1f8734d852b7606879ef5/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 41%]\n........................................................................ [ 82%]\n.............................F.                                          [100%]\n=================================== FAILURES ===================================\n_____ test_floor_marker_capability_accepts_exact_current_marker_under_lock _____\n[gw27] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw27/test_floor_marker_capability_a0')\n\n    def test_floor_marker_capability_accepts_exact_current_marker_under_lock(tmp_path):\n        case = _consumed_marker_capability_case(tmp_path)\n        capability = case[\"capability\"]\n        assert type(capability) is admission.FloorAttemptConsumptionMarker\n        assert \"FloorAttemptConsumptionMarker\" in admission.__all__\n        assert \"validate_floor_attempt_consumption_marker\" in admission.__all__\n        assert \"current-generation\" in (\n            inspect.getdoc(admission.validate_floor_attempt_consumption_marker) or \"\"\n        )\n    \n        def action(active_lock):\n            assert type(active_lock) is admission._AdmissionRootLock  # noqa: SLF001\n            probe = subprocess.run(\n                [\"flock\", \"-n\", str(case[\"state\"].root / \"ledger.lock\"), \"true\"],\n                check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE,\n            )\n            assert probe.returncode == 1\n            return \"used\"\n    \n        assert _use_consumption_capability(case, action=action) == \"used\"\n        identity = capability._identity  # noqa: SLF001\n        claim = admission._read_canonical_document(case[\"claim_path\"])  # noqa: SLF001\n        main = admission._measurement_generation_main_ledger_row(  # noqa: SLF001\n            case[\"state\"].root,\n            claim_digest=case[\"marker\"][\"measurement_generation_claim_digest\"],\n        )\n>       assert identity.marker_document_sha256 == hashlib.sha256(\n            _canonical(case[\"marker\"])\n        ).hexdigest()\nE       AssertionError: assert '' == '18ca40491c52...13e65a3e84690'\nE         \nE         - 18ca40491c5282d24a142258af693fcf2789628a663bb73ff4813e65a3e84690\n\norchestrator/tests/test_s8b_holdout_admission.py:2199: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_accepts_exact_current_marker_under_lock\n1 failed, 174 passed in 5.14s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_accepts_exact_current_marker_under_lock\" nodeid_bytes=118 nodeid_omitted_bytes=0 source_bytes=1870 retained_bytes=1870 omitted_bytes=0 rendered_excerpt_bytes=1947 sha256=65eff3d457d66c50cad613a7cd814caa08759e07e3b9aa034a8b144c120d9797\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw27] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw27/test_floor_marker_capability_a0')\n> \n>     def test_floor_marker_capability_accepts_exact_current_marker_under_lock(tmp_path):\n>         case = _consumed_marker_capability_case(tmp_path)\n>         capability = case[\"capability\"]\n>         assert type(capability) is admission.FloorAttemptConsumptionMarker\n>         assert \"FloorAttemptConsumptionMarker\" in admission.__all__\n>         assert \"validate_floor_attempt_consumption_marker\" in admission.__all__\n>         assert \"current-generation\" in (\n>             inspect.getdoc(admission.validate_floor_attempt_consumption_marker) or \"\"\n>         )\n>     \n>         def action(active_lock):\n>             assert type(active_lock) is admission._AdmissionRootLock  # noqa: SLF001\n>             probe = subprocess.run(\n>                 [\"flock\", \"-n\", str(case[\"state\"].root / \"ledger.lock\"), \"true\"],\n>                 check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE,\n>             )\n>             assert probe.returncode == 1\n>             return \"used\"\n>     \n>         assert _use_consumption_capability(case, action=action) == \"used\"\n>         identity = capability._identity  # noqa: SLF001\n>         claim = admission._read_canonical_document(case[\"claim_path\"])  # noqa: SLF001\n>         main = admission._measurement_generation_main_ledger_row(  # noqa: SLF001\n>             case[\"state\"].root,\n>             claim_digest=case[\"marker\"][\"measurement_generation_claim_digest\"],\n>         )\n> >       assert identity.marker_document_sha256 == hashlib.sha256(\n>             _canonical(case[\"marker\"])\n>         ).hexdigest()\n> E       AssertionError: assert '' == '18ca40491c52...13e65a3e84690'\n> E         \n> E         - 18ca40491c5282d24a142258af693fcf2789628a663bb73ff4813e65a3e84690\n> \n> orchestrator/tests/test_s8b_holdout_admission.py:2199: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1870 retained_bytes=1870 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2693 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "2fb7113767d32bbbc9ab1d08b1ebc99f135645ac6698b70a59043139087d6d96"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eb90a0ab1d6711e476a77930c105cfc3bcb89120755a9a053a7db5d92543d8c9",
+      "duration_s": 32.166,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_accepts_exact_current_marker_under_lock"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_accepts_exact_current_marker_under_lock"
+      ],
+      "hang_risk": false,
+      "id": "M3",
+      "injection_diff_sha256": "e38793926002b911cd8c9efd8cec02b6e57bd60655942121d2c9372977845eae",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "856d72697abba1a6bf387caea07e0ad00b36b39cc42cf563e45d09a3c2bd33ef",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "new": "        marker_document_sha256=\"\",\n",
+          "old": "        marker_document_sha256=_sha256(disk_marker),\n"
+        }
+      ],
+      "repo_head": "cb1f56b8ee054463a0f37e4c95d0730113dfb421",
+      "runner_sha256": "580cbf69a095f3ae1bc4b500fd4d84e1f5d74be5f996fe4939fb5bac6cc56d8d",
+      "spec_sha256": "b2d7809965cd9456bde27eab6e6bb6f8e0a817ea112bafc172c0e108817f180c",
+      "status": "KILLED",
+      "test_output_sha256": "2fb7113767d32bbbc9ab1d08b1ebc99f135645ac6698b70a59043139087d6d96",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "01f6bb3384769c6beadcbe6ff93417c3edcfeaa6bc8fecb513f75ef7c41ae819"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2107-t1851-b1/output/pegasus-dispatch/fae5f3edbbf13a73c35075d2b5b5b5fc/izdw-fae5f3edbb.o967988",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2107-t1851-b1/output/pegasus-dispatch/fae5f3edbbf13a73c35075d2b5b5b5fc/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 41%]\n........................................................................ [ 82%]\n...............................                                          [100%]\n175 passed in 5.05s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "ca1169bf08e363f5272c344f567d9cfdb72e866bca1b35d54e4091ede400c2ee"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eb90a0ab1d6711e476a77930c105cfc3bcb89120755a9a053a7db5d92543d8c9",
+      "duration_s": 32.234,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "M4",
+      "injection_diff_sha256": "b0d18195e7f2356e36d0d3d166505392d0398964b0726a87202f2de2130b8dba",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "c0e06d3b91ee99506429e542cc390dca30b7d01f6c3d3dc8284adae60e68a262",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "new": "    if False:\n        raise HoldoutAdmissionError(\n            \"floor attempt consumption capability is current-generation only\"\n        )\n",
+          "old": "    if expected_marker.get(\"schema_version\") != _MEASUREMENT_GENERATION_ATTEMPT_SCHEMA:\n        raise HoldoutAdmissionError(\n            \"floor attempt consumption capability is current-generation only\"\n        )\n"
+        }
+      ],
+      "repo_head": "cb1f56b8ee054463a0f37e4c95d0730113dfb421",
+      "runner_sha256": "580cbf69a095f3ae1bc4b500fd4d84e1f5d74be5f996fe4939fb5bac6cc56d8d",
+      "spec_sha256": "b2d7809965cd9456bde27eab6e6bb6f8e0a817ea112bafc172c0e108817f180c",
+      "status": "SURVIVED",
+      "test_output_sha256": "ca1169bf08e363f5272c344f567d9cfdb72e866bca1b35d54e4091ede400c2ee",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "01f6bb3384769c6beadcbe6ff93417c3edcfeaa6bc8fecb513f75ef7c41ae819"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2107-t1851-b1/output/pegasus-dispatch/ab90a29e8afbfcfca9550aa3abac154b/izdw-ab90a29e8a.o967989",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2107-t1851-b1/output/pegasus-dispatch/ab90a29e8afbfcfca9550aa3abac154b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 41%]\n........................................................................ [ 82%]\n........F.FFFFF.....F.FF..FFF..                                          [100%]\n=================================== FAILURES ===================================\n______ test_floor_marker_capability_rejects_marker_identity_tamper[cell] _______\n[gw24] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw24/test_floor_marker_capability_r0')\nfield = 'cell_id', replacement = 'other::cell'\n\n    @pytest.mark.parametrize(\n        (\"field\", \"replacement\"),\n        [\n            (\"attempt_id\", \"other-attempt\"),\n            (\"campaign_run_id\", \"other-campaign\"),\n            (\"manifest_sha256\", \"0\" * 64),\n            (\"run_relpath\", \"env/other/run\"),\n            (\"cell_id\", \"other::cell\"),\n            (\"freeze_holdout_key\", \"other-holdout\"),\n            (\"configuration_id\", \"other-configuration\"),\n        ],\n        ids=[\n            \"attempt\", \"campaign\", \"manifest\", \"run\", \"cell\", \"holdout\",\n            \"configuration\",\n        ],\n    )\n    def test_floor_marker_capability_rejects_marker_identity_tamper(\n        tmp_path, field, replacement,\n    ):\n        case = _consumed_marker_capability_case(tmp_path, issue_capability=False)\n        marker = dict(case[\"marker\"])\n        marker[field] = replacement\n        _rewrite_canonical_document(case[\"marker_path\"], marker)\n    \n>       with pytest.raises(admission.HoldoutAdmissionError):\nE       Failed: DID NOT RAISE HoldoutAdmissionError\n\norchestrator/tests/test_s8b_holdout_admission.py:2380: Failed\n______ test_floor_marker_capability_rejects_marker_shape_contract[event] _______\n[gw15] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw15/test_floor_marker_capability_r0')\ntamper = 'event'\n\n    @pytest.mark.parametrize(\n        \"tamper\",\n        [\"extra-key\", \"missing-key\", \"schema\", \"event\", \"role\"],\n        ids=[\"extra-key\", \"missing-key\", \"schema\", \"event\", \"role\"],\n    )\n    def test_floor_marker_capability_rejects_marker_shape_contract(tmp_path, tamper):\n        case = _consumed_marker_capability_case(tmp_path, issue_capability=False)\n        marker = dict(case[\"marker\"])\n        if tamper == \"extra-key\":\n            marker[\"extra\"] = \"forbidden\"\n        elif tamper == \"missing-key\":\n            del marker[\"manifest_sha256\"]\n        elif tamper == \"schema\":\n            marker[\"schema_version\"] = \"s8b-invalid/v1\"\n        elif tamper == \"event\":\n            marker[\"event\"] = \"admit\"\n        else:\n            marker[\"observation_role\"] = \"oracle_driver\"\n        _rewrite_canonical_document(case[\"marker_path\"], marker)\n    \n>       with pytest.raises(admission.HoldoutAdmissionError):\nE       Failed: DID NOT RAISE HoldoutAdmissionError\n\norchestrator/tests/test_s8b_holdout_admission.py:2319: Failed\n___ test_floor_marker_capability_rejects_marker_shape_contract[missing-key] ____\n[gw28] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw28/test_floor_marker_capability_r0')\ntamper = 'missing-key'\n\n    @pytest.mark.parametrize(\n        \"tamper\",\n        [\"extra-key\", \"missing-key\", \"schema\", \"event\", \"role\"],\n        ids=[\"extra-key\", \"missing-key\", \"schema\", \"event\", \"role\"],\n    )\n    def test_floor_marker_capability_rejects_marker_shape_contract(tmp_path, tamper):\n        case = _consumed_marker_capability_case(tmp_path, issue_capability=False)\n        marker = dict(case[\"marker\"])\n        if tamper == \"extra-key\":\n            marker[\"extra\"] = \"forbidden\"\n        elif tamper == \"missing-key\":\n            del marker[\"manifest_sha256\"]\n        elif tamper == \"schema\":\n            marker[\"schema_version\"] = \"s8b-invalid/v1\"\n        elif tamper == \"event\":\n            marker[\"event\"] = \"admit\"\n        else:\n            marker[\"observation_role\"] = \"oracle_driver\"\n        _rewrite_canonical_document(case[\"marker_path\"], marker)\n    \n>       with pytest.raises(admission.HoldoutAdmissionError):\nE       Failed: DID NOT RAISE HoldoutAdmissionError\n\norchestrator/tests/test_s8b_holdout_admission.py:2319: Failed\n____ test_floor_marker_capability_rejects_marker_identity_tamper[manifest] _____\n[gw16] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw16/test_floor_marker_capability_r0')\nfield = 'manifest_sha256'\nreplacement = '0000000000000000000000000000000000000000000000000000000000000000'\n\n    @pytest.mark.parametrize(\n        (\"field\", \"replacement\"),\n        [\n            (\"attempt_id\", \"other-attempt\"),\n            (\"campaign_run_id\", \"other-campaign\"),\n            (\"manifest_sha256\", \"0\" * 64),\n            (\"run_relpath\", \"env/other/run\"),\n            (\"cell_id\", \"other::cell\"),\n            (\"freeze_holdout_key\", \"other-holdout\"),\n            (\"configuration_id\", \"other-configuration\"),\n        ],\n        ids=[\n            \"attempt\", \"campaign\", \"manifest\", \"run\", \"cell\", \"holdout\",\n            \"configuration\",\n        ],\n    )\n    def test_floor_marker_capability_rejects_marker_identity_tamper(\n        tmp_path, field, replacement,\n    ):\n        case = _consumed_marker_capability_case(tmp_path, issue_capability=False)\n        marker = dict(case[\"marker\"])\n        marker[field] = replacement\n        _rewrite_canonical_document(case[\"marker_path\"], marker)\n    \n>       with pytest.raises(admission.HoldoutAdmissionError):\nE       Failed: DID NOT RAISE HoldoutAdmissionError\n\norchestrator/tests/test_s8b_holdout_admission.py:2380: Failed\n______ test_floor_marker_capability_rejects_marker_shape_contract[schema] ______\n[gw30] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw30/test_floor_marker_capability_r0')\ntamper = 'schema'\n\n    @pytest.mark.parametrize(\n        \"tamper\",\n        [\"extra-key\", \"missing-key\", \"schema\", \"event\", \"role\"],\n        ids=[\"extra-key\", \"missing-key\", \"schema\", \"event\", \"role\"],\n    )\n    def test_floor_marker_capability_rejects_marker_shape_contract(tmp_path, tamper):\n        case = _consumed_marker_capability_case(tmp_path, issue_capability=False)\n        marker = dict(case[\"marker\"])\n        if tamper == \"extra-key\":\n            marker[\"extra\"] = \"forbidden\"\n        elif tamper == \"missing-key\":\n            del marker[\"manifest_sha256\"]\n        elif tamper == \"schema\":\n            marker[\"schema_version\"] = \"s8b-invalid/v1\"\n        elif tamper == \"event\":\n            marker[\"event\"] = \"admit\"\n        else:\n            marker[\"observation_role\"] = \"oracle_driver\"\n        _rewrite_canonical_document(case[\"marker_path\"], marker)\n    \n>       with pytest.raises(admission.HoldoutAdmissionError):\nE       Failed: DID NOT RAISE HoldoutAdmissionError\n\norchestrator/tests/test_s8b_holdout_admission.py:2319: Failed\n_______ test_floor_marker_capability_rejects_marker_identity_tamper[run] _______\n[gw26] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw26/test_floor_marker_capability_r0')\nfield = 'run_relpath', replacement = 'env/other/run'\n\n    @pytest.mark.parametrize(\n        (\"field\", \"replacement\"),\n        [\n            (\"attempt_id\", \"other-attempt\"),\n            (\"campaign_run_id\", \"other-campaign\"),\n            (\"manifest_sha256\", \"0\" * 64),\n            (\"run_relpath\", \"env/other/run\"),\n            (\"cell_id\", \"other::cell\"),\n            (\"freeze_holdout_key\", \"other-holdout\"),\n            (\"configuration_id\", \"other-configuration\"),\n        ],\n        ids=[\n            \"attempt\", \"campaign\", \"manifest\", \"run\", \"cell\", \"holdout\",\n            \"configuration\",\n        ],\n    )\n    def test_floor_marker_capability_rejects_marker_identity_tamper(\n        tmp_path, field, replacement,\n    ):\n        case = _consumed_marker_capability_case(tmp_path, issue_capability=False)\n        marker = dict(case[\"marker\"])\n        marker[field] = replacement\n        _rewrite_canonical_document(case[\"marker_path\"], marker)\n    \n>       with pytest.raises(admission.HoldoutAdmissionError):\nE       Failed: DID NOT RAISE HoldoutAdmissionError\n\norchestrator/tests/test_s8b_holdout_admission.py:2380: Failed\n_____ test_floor_marker_capability_rejects_marker_identity_tamper[holdout] _____\n[gw38] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw38/test_floor_marker_capability_r0')\nfield = 'freeze_holdout_key', replacement = 'other-holdout'\n\n    @pytest.mark.parametrize(\n        (\"field\", \"replacement\"),\n        [\n            (\"attempt_id\", \"other-attempt\"),\n            (\"campaign_run_id\", \"other-campaign\"),\n            (\"manifest_sha256\", \"0\" * 64),\n            (\"run_relpath\", \"env/other/run\"),\n            (\"cell_id\", \"other::cell\"),\n            (\"freeze_holdout_key\", \"other-holdout\"),\n            (\"configuration_id\", \"other-configuration\"),\n        ],\n        ids=[\n            \"attempt\", \"campaign\", \"manifest\", \"run\", \"cell\", \"holdout\",\n            \"configuration\",\n        ],\n    )\n    def test_floor_marker_capability_rejects_marker_identity_tamper(\n        tmp_path, field, replacement,\n    ):\n        case = _consumed_marker_capability_case(tmp_path, issue_capability=False)\n        marker = dict(case[\"marker\"])\n        marker[field] = replacement\n        _rewrite_canonical_document(case[\"marker_path\"], marker)\n    \n>       with pytest.raises(admission.HoldoutAdmissionError):\nE       Failed: DID NOT RAISE HoldoutAdmissionError\n\norchestrator/tests/test_s8b_holdout_admission.py:2380: Failed\n____ test_floor_marker_capability_rejects_marker_identity_tamper[campaign] _____\n[gw41] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw41/test_floor_marker_capability_r0')\nfield = 'campaign_run_id', replacement = 'other-campaign'\n\n    @pytest.mark.parametrize(\n        (\"field\", \"replacement\"),\n        [\n            (\"attempt_id\", \"other-attempt\"),\n            (\"campaign_run_id\", \"other-campaign\"),\n            (\"manifest_sha256\", \"0\" * 64),\n            (\"run_relpath\", \"env/other/run\"),\n            (\"cell_id\", \"other::cell\"),\n            (\"freeze_holdout_key\", \"other-holdout\"),\n            (\"configuration_id\", \"other-configuration\"),\n        ],\n        ids=[\n            \"attempt\", \"campaign\", \"manifest\", \"run\", \"cell\", \"holdout\",\n            \"configuration\",\n        ],\n    )\n    def test_floor_marker_capability_rejects_marker_identity_tamper(\n        tmp_path, field, replacement,\n    ):\n        case = _consumed_marker_capability_case(tmp_path, issue_capability=False)\n        marker = dict(case[\"marker\"])\n        marker[field] = replacement\n        _rewrite_canonical_document(case[\"marker_path\"], marker)\n    \n>       with pytest.raises(admission.HoldoutAdmissionError):\nE       Failed: DID NOT RAISE HoldoutAdmissionError\n\norchestrator/tests/test_s8b_holdout_admission.py:2380: Failed\n____ test_floor_marker_capability_rejects_marker_shape_contract[extra-key] _____\n[gw46] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw46/test_floor_marker_capability_r0')\ntamper = 'extra-key'\n\n    @pytest.mark.parametrize(\n        \"tamper\",\n        [\"extra-key\", \"missing-key\", \"schema\", \"event\", \"role\"],\n        ids=[\"extra-key\", \"missing-key\", \"schema\", \"event\", \"role\"],\n    )\n    def test_floor_marker_capability_rejects_marker_shape_contract(tmp_path, tamper):\n        case = _consumed_marker_capability_case(tmp_path, issue_capability=False)\n        marker = dict(case[\"marker\"])\n        if tamper == \"extra-key\":\n            marker[\"extra\"] = \"forbidden\"\n        elif tamper == \"missing-key\":\n            del marker[\"manifest_sha256\"]\n        elif tamper == \"schema\":\n            marker[\"schema_version\"] = \"s8b-invalid/v1\"\n        elif tamper == \"event\":\n            marker[\"event\"] = \"admit\"\n        else:\n            marker[\"observation_role\"] = \"oracle_driver\"\n        _rewrite_canonical_document(case[\"marker_path\"], marker)\n    \n>       with pytest.raises(admission.HoldoutAdmissionError):\nE       Failed: DID NOT RAISE HoldoutAdmissionError\n\norchestrator/tests/test_s8b_holdout_admission.py:2319: Failed\n_____ test_floor_marker_capability_rejects_marker_identity_tamper[attempt] _____\n[gw47] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw47/test_floor_marker_capability_r0')\nfield = 'attempt_id', replacement = 'other-attempt'\n\n    @pytest.mark.parametrize(\n        (\"field\", \"replacement\"),\n        [\n            (\"attempt_id\", \"other-attempt\"),\n            (\"campaign_run_id\", \"other-campaign\"),\n            (\"manifest_sha256\", \"0\" * 64),\n            (\"run_relpath\", \"env/other/run\"),\n            (\"cell_id\", \"other::cell\"),\n            (\"freeze_holdout_key\", \"other-holdout\"),\n            (\"configuration_id\", \"other-configuration\"),\n        ],\n        ids=[\n            \"attempt\", \"campaign\", \"manifest\", \"run\", \"cell\", \"holdout\",\n            \"configuration\",\n        ],\n    )\n    def test_floor_marker_capability_rejects_marker_identity_tamper(\n        tmp_path, field, replacement,\n    ):\n        case = _consumed_marker_capability_case(tmp_path, issue_capability=False)\n        marker = dict(case[\"marker\"])\n        marker[field] = replacement\n        _rewrite_canonical_document(case[\"marker_path\"], marker)\n    \n>       with pytest.raises(admission.HoldoutAdmissionError):\nE       Failed: DID NOT RAISE HoldoutAdmissionError\n\norchestrator/tests/test_s8b_holdout_admission.py:2380: Failed\n__ test_floor_marker_capability_rejects_marker_identity_tamper[configuration] __\n[gw25] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw25/test_floor_marker_capability_r0')\nfield = 'configuration_id', replacement = 'other-configuration'\n\n    @pytest.mark.parametrize(\n        (\"field\", \"replacement\"),\n        [\n            (\"attempt_id\", \"other-attempt\"),\n            (\"campaign_run_id\", \"other-campaign\"),\n            (\"manifest_sha256\", \"0\" * 64),\n            (\"run_relpath\", \"env/other/run\"),\n            (\"cell_id\", \"other::cell\"),\n            (\"freeze_holdout_key\", \"other-holdout\"),\n            (\"configuration_id\", \"other-configuration\"),\n        ],\n        ids=[\n            \"attempt\", \"campaign\", \"manifest\", \"run\", \"cell\", \"holdout\",\n            \"configuration\",\n        ],\n    )\n    def test_floor_marker_capability_rejects_marker_identity_tamper(\n        tmp_path, field, replacement,\n    ):\n        case = _consumed_marker_capability_case(tmp_path, issue_capability=False)\n        marker = dict(case[\"marker\"])\n        marker[field] = replacement\n        _rewrite_canonical_document(case[\"marker_path\"], marker)\n    \n>       with pytest.raises(admission.HoldoutAdmissionError):\nE       Failed: DID NOT RAISE HoldoutAdmissionError\n\norchestrator/tests/test_s8b_holdout_admission.py:2380: Failed\n_______ test_floor_marker_capability_rejects_marker_shape_contract[role] _______\n[gw39] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw39/test_floor_marker_capability_r0')\ntamper = 'role'\n\n    @pytest.mark.parametrize(\n        \"tamper\",\n        [\"extra-key\", \"missing-key\", \"schema\", \"event\", \"role\"],\n        ids=[\"extra-key\", \"missing-key\", \"schema\", \"event\", \"role\"],\n    )\n    def test_floor_marker_capability_rejects_marker_shape_contract(tmp_path, tamper):\n        case = _consumed_marker_capability_case(tmp_path, issue_capability=False)\n        marker = dict(case[\"marker\"])\n        if tamper == \"extra-key\":\n            marker[\"extra\"] = \"forbidden\"\n        elif tamper == \"missing-key\":\n            del marker[\"manifest_sha256\"]\n        elif tamper == \"schema\":\n            marker[\"schema_version\"] = \"s8b-invalid/v1\"\n        elif tamper == \"event\":\n            marker[\"event\"] = \"admit\"\n        else:\n            marker[\"observation_role\"] = \"oracle_driver\"\n        _rewrite_canonical_document(case[\"marker_path\"], marker)\n    \n>       with pytest.raises(admission.HoldoutAdmissionError):\nE       Failed: DID NOT RAISE HoldoutAdmissionError\n\norchestrator/tests/test_s8b_holdout_admission.py:2319: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[cell]\nFAILED orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_shape_contract[event]\nFAILED orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_shape_contract[missing-key]\nFAILED orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[manifest]\nFAILED orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_shape_contract[schema]\nFAILED orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[run]\nFAILED orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[holdout]\nFAILED orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[campaign]\nFAILED orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_shape_contract[extra-key]\nFAILED orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[attempt]\nFAILED orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[configuration]\nFAILED orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_shape_contract[role]\n12 failed, 163 passed in 5.17s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[manifest]\" nodeid_bytes=119 nodeid_omitted_bytes=0 source_bytes=1321 retained_bytes=1321 omitted_bytes=0 rendered_excerpt_bytes=1390 sha256=27033f3e8fcaddfe6e19e71326cb9f750d020dcb76e4f4ddc506b554dfb07fe8\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw16] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw16/test_floor_marker_capability_r0')\n> field = 'manifest_sha256'\n> replacement = '0000000000000000000000000000000000000000000000000000000000000000'\n> \n>     @pytest.mark.parametrize(\n>         (\"field\", \"replacement\"),\n>         [\n>             (\"attempt_id\", \"other-attempt\"),\n>             (\"campaign_run_id\", \"other-campaign\"),\n>             (\"manifest_sha256\", \"0\" * 64),\n>             (\"run_relpath\", \"env/other/run\"),\n>             (\"cell_id\", \"other::cell\"),\n>             (\"freeze_holdout_key\", \"other-holdout\"),\n>             (\"configuration_id\", \"other-configuration\"),\n>         ],\n>         ids=[\n>             \"attempt\", \"campaign\", \"manifest\", \"run\", \"cell\", \"holdout\",\n>             \"configuration\",\n>         ],\n>     )\n>     def test_floor_marker_capability_rejects_marker_identity_tamper(\n>         tmp_path, field, replacement,\n>     ):\n>         case = _consumed_marker_capability_case(tmp_path, issue_capability=False)\n>         marker = dict(case[\"marker\"])\n>         marker[field] = replacement\n>         _rewrite_canonical_document(case[\"marker_path\"], marker)\n>     \n> >       with pytest.raises(admission.HoldoutAdmissionError):\n> E       Failed: DID NOT RAISE HoldoutAdmissionError\n> \n> orchestrator/tests/test_s8b_holdout_admission.py:2380: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[configuration]\" nodeid_bytes=124 nodeid_omitted_bytes=0 source_bytes=1278 retained_bytes=1278 omitted_bytes=0 rendered_excerpt_bytes=1345 sha256=dcd550611cd03a6262fc14bc78fdd4b5d924d94a8b4431feaf1ab741c7e99e9f\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw25] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw25/test_floor_marker_capability_r0')\n> field = 'configuration_id', replacement = 'other-configuration'\n> \n>     @pytest.mark.parametrize(\n>         (\"field\", \"replacement\"),\n>         [\n>             (\"attempt_id\", \"other-attempt\"),\n>             (\"campaign_run_id\", \"other-campaign\"),\n>             (\"manifest_sha256\", \"0\" * 64),\n>             (\"run_relpath\", \"env/other/run\"),\n>             (\"cell_id\", \"other::cell\"),\n>             (\"freeze_holdout_key\", \"other-holdout\"),\n>             (\"configuration_id\", \"other-configuration\"),\n>         ],\n>         ids=[\n>             \"attempt\", \"campaign\", \"manifest\", \"run\", \"cell\", \"holdout\",\n>             \"configuration\",\n>         ],\n>     )\n>     def test_floor_marker_capability_rejects_marker_identity_tamper(\n>         tmp_path, field, replacement,\n>     ):\n>         case = _consumed_marker_capability_case(tmp_path, issue_capability=False)\n>         marker = dict(case[\"marker\"])\n>         marker[field] = replacement\n>         _rewrite_canonical_document(case[\"marker_path\"], marker)\n>     \n> >       with pytest.raises(admission.HoldoutAdmissionError):\n> E       Failed: DID NOT RAISE HoldoutAdmissionError\n> \n> orchestrator/tests/test_s8b_holdout_admission.py:2380: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[holdout]\" nodeid_bytes=118 nodeid_omitted_bytes=0 source_bytes=1274 retained_bytes=1274 omitted_bytes=0 rendered_excerpt_bytes=1341 sha256=d89d98d92971fab940157c9550dc3bfa01ab46585fd86d5d9e550cb58f603678\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw38] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw38/test_floor_marker_capability_r0')\n> field = 'freeze_holdout_key', replacement = 'other-holdout'\n> \n>     @pytest.mark.parametrize(\n>         (\"field\", \"replacement\"),\n>         [\n>             (\"attempt_id\", \"other-attempt\"),\n>             (\"campaign_run_id\", \"other-campaign\"),\n>             (\"manifest_sha256\", \"0\" * 64),\n>             (\"run_relpath\", \"env/other/run\"),\n>             (\"cell_id\", \"other::cell\"),\n>             (\"freeze_holdout_key\", \"other-holdout\"),\n>             (\"configuration_id\", \"other-configuration\"),\n>         ],\n>         ids=[\n>             \"attempt\", \"campaign\", \"manifest\", \"run\", \"cell\", \"holdout\",\n>             \"configuration\",\n>         ],\n>     )\n>     def test_floor_marker_capability_rejects_marker_identity_tamper(\n>         tmp_path, field, replacement,\n>     ):\n>         case = _consumed_marker_capability_case(tmp_path, issue_capability=False)\n>         marker = dict(case[\"marker\"])\n>         marker[field] = replacement\n>         _rewrite_canonical_document(case[\"marker_path\"], marker)\n>     \n> >       with pytest.raises(admission.HoldoutAdmissionError):\n> E       Failed: DID NOT RAISE HoldoutAdmissionError\n> \n> orchestrator/tests/test_s8b_holdout_admission.py:2380: Failed\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[campaign]\" nodeid_bytes=119 nodeid_omitted_bytes=0 source_bytes=1272 retained_bytes=1272 omitted_bytes=0 rendered_excerpt_bytes=1339 sha256=eef0e8de514c2d6bb193034f2c947f72ea8ed80901403d2c6e6ff44a84a80e45\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw41] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw41/test_floor_marker_capability_r0')\n> field = 'campaign_run_id', replacement = 'other-campaign'\n> \n>     @pytest.mark.parametrize(\n>         (\"field\", \"replacement\"),\n>         [\n>             (\"attempt_id\", \"other-attempt\"),\n>             (\"campaign_run_id\", \"other-campaign\"),\n>             (\"manifest_sha256\", \"0\" * 64),\n>             (\"run_relpath\", \"env/other/run\"),\n>             (\"cell_id\", \"other::cell\"),\n>             (\"freeze_holdout_key\", \"other-holdout\"),\n>             (\"configuration_id\", \"other-configuration\"),\n>         ],\n>         ids=[\n>             \"attempt\", \"campaign\", \"manifest\", \"run\", \"cell\", \"holdout\",\n>             \"configuration\",\n>         ],\n>     )\n>     def test_floor_marker_capability_rejects_marker_identity_tamper(\n>         tmp_path, field, replacement,\n>     ):\n>         case = _consumed_marker_capability_case(tmp_path, issue_capability=False)\n>         marker = dict(case[\"marker\"])\n>         marker[field] = replacement\n>         _rewrite_canonical_document(case[\"marker_path\"], marker)\n>     \n> >       with pytest.raises(admission.HoldoutAdmissionError):\n> E       Failed: DID NOT RAISE HoldoutAdmissionError\n> \n> orchestrator/tests/test_s8b_holdout_admission.py:2380: Failed\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[run]\" nodeid_bytes=114 nodeid_omitted_bytes=0 source_bytes=1267 retained_bytes=1267 omitted_bytes=0 rendered_excerpt_bytes=1334 sha256=ca7f5a54023eac73f28dd945d428497a203f57aa61f761e5d470afa0aab5f5d0\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw26] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw26/test_floor_marker_capability_r0')\n> field = 'run_relpath', replacement = 'env/other/run'\n> \n>     @pytest.mark.parametrize(\n>         (\"field\", \"replacement\"),\n>         [\n>             (\"attempt_id\", \"other-attempt\"),\n>             (\"campaign_run_id\", \"other-campaign\"),\n>             (\"manifest_sha256\", \"0\" * 64),\n>             (\"run_relpath\", \"env/other/run\"),\n>             (\"cell_id\", \"other::cell\"),\n>             (\"freeze_holdout_key\", \"other-holdout\"),\n>             (\"configuration_id\", \"other-configuration\"),\n>         ],\n>         ids=[\n>             \"attempt\", \"campaign\", \"manifest\", \"run\", \"cell\", \"holdout\",\n>             \"configuration\",\n>         ],\n>     )\n>     def test_floor_marker_capability_rejects_marker_identity_tamper(\n>         tmp_path, field, replacement,\n>     ):\n>         case = _consumed_marker_capability_case(tmp_path, issue_capability=False)\n>         marker = dict(case[\"marker\"])\n>         marker[field] = replacement\n>         _rewrite_canonical_document(case[\"marker_path\"], marker)\n>     \n> >       with pytest.raises(admission.HoldoutAdmissionError):\n> E       Failed: DID NOT RAISE HoldoutAdmissionError\n> \n> orchestrator/tests/test_s8b_holdout_admission.py:2380: Failed\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE rank=6 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[attempt]\" nodeid_bytes=118 nodeid_omitted_bytes=0 source_bytes=1266 retained_bytes=1266 omitted_bytes=0 rendered_excerpt_bytes=1333 sha256=cb9147b4b5c8a359b7a2df1d2f08b00f21dedc7ec290282ae14d0d13fc371d54\n--- IZANAGI FAILURE EXCERPT rank=6 BEGIN ---\n> [gw47] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw47/test_floor_marker_capability_r0')\n> field = 'attempt_id', replacement = 'other-attempt'\n> \n>     @pytest.mark.parametrize(\n>         (\"field\", \"replacement\"),\n>         [\n>             (\"attempt_id\", \"other-attempt\"),\n>             (\"campaign_run_id\", \"other-campaign\"),\n>             (\"manifest_sha256\", \"0\" * 64),\n>             (\"run_relpath\", \"env/other/run\"),\n>             (\"cell_id\", \"other::cell\"),\n>             (\"freeze_holdout_key\", \"other-holdout\"),\n>             (\"configuration_id\", \"other-configuration\"),\n>         ],\n>         ids=[\n>             \"attempt\", \"campaign\", \"manifest\", \"run\", \"cell\", \"holdout\",\n>             \"configuration\",\n>         ],\n>     )\n>     def test_floor_marker_capability_rejects_marker_identity_tamper(\n>         tmp_path, field, replacement,\n>     ):\n>         case = _consumed_marker_capability_case(tmp_path, issue_capability=False)\n>         marker = dict(case[\"marker\"])\n>         marker[field] = replacement\n>         _rewrite_canonical_document(case[\"marker_path\"], marker)\n>     \n> >       with pytest.raises(admission.HoldoutAdmissionError):\n> E       Failed: DID NOT RAISE HoldoutAdmissionError\n> \n> orchestrator/tests/test_s8b_holdout_admission.py:2380: Failed\n--- IZANAGI FAILURE EXCERPT rank=6 END ---\nIZANAGI_FAILURE rank=7 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[cell]\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=1261 retained_bytes=1261 omitted_bytes=0 rendered_excerpt_bytes=1328 sha256=21d05bb1ea725c8b1239c1af0145971574f370282c021b9b4edb87e6d0e46d8f\n--- IZANAGI FAILURE EXCERPT rank=7 BEGIN ---\n> [gw24] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw24/test_floor_marker_capability_r0')\n> field = 'cell_id', replacement = 'other::cell'\n> \n>     @pytest.mark.parametrize(\n>         (\"field\", \"replacement\"),\n>         [\n>             (\"attempt_id\", \"other-attempt\"),\n>             (\"campaign_run_id\", \"other-campaign\"),\n>             (\"manifest_sha256\", \"0\" * 64),\n>             (\"run_relpath\", \"env/other/run\"),\n>             (\"cell_id\", \"other::cell\"),\n>             (\"freeze_holdout_key\", \"other-holdout\"),\n>             (\"configuration_id\", \"other-configuration\"),\n>         ],\n>         ids=[\n>             \"attempt\", \"campaign\", \"manifest\", \"run\", \"cell\", \"holdout\",\n>             \"configuration\",\n>         ],\n>     )\n>     def test_floor_marker_capability_rejects_marker_identity_tamper(\n>         tmp_path, field, replacement,\n>     ):\n>         case = _consumed_marker_capability_case(tmp_path, issue_capability=False)\n>         marker = dict(case[\"marker\"])\n>         marker[field] = replacement\n>         _rewrite_canonical_document(case[\"marker_path\"], marker)\n>     \n> >       with pytest.raises(admission.HoldoutAdmissionError):\n> E       Failed: DID NOT RAISE HoldoutAdmissionError\n> \n> orchestrator/tests/test_s8b_holdout_admission.py:2380: Failed\n--- IZANAGI FAILURE EXCERPT rank=7 END ---\nIZANAGI_FAILURE rank=8 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_shape_contract[missing-key]\" nodeid_bytes=121 nodeid_omitted_bytes=0 source_bytes=1194 retained_bytes=1194 omitted_bytes=0 rendered_excerpt_bytes=1253 sha256=e51e3f0c4d76df096e7071a77a079189cbc1dd39692731dff8ecadb0081f1702\n--- IZANAGI FAILURE EXCERPT rank=8 BEGIN ---\n> [gw28] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw28/test_floor_marker_capability_r0')\n> tamper = 'missing-key'\n> \n>     @pytest.mark.parametrize(\n>         \"tamper\",\n>         [\"extra-key\", \"missing-key\", \"schema\", \"event\", \"role\"],\n>         ids=[\"extra-key\", \"missing-key\", \"schema\", \"event\", \"role\"],\n>     )\n>     def test_floor_marker_capability_rejects_marker_shape_contract(tmp_path, tamper):\n>         case = _consumed_marker_capability_case(tmp_path, issue_capability=False)\n>         marker = dict(case[\"marker\"])\n>         if tamper == \"extra-key\":\n>             marker[\"extra\"] = \"forbidden\"\n>         elif tamper == \"missing-key\":\n>             del marker[\"manifest_sha256\"]\n>         elif tamper == \"schema\":\n>             marker[\"schema_version\"] = \"s8b-invalid/v1\"\n>         elif tamper == \"event\":\n>             marker[\"event\"] = \"admit\"\n>         else:\n>             marker[\"observation_role\"] = \"oracle_driver\"\n>         _rewrite_canonical_document(case[\"marker_path\"], marker)\n>     \n> >       with pytest.raises(admission.HoldoutAdmissionError):\n> E       Failed: DID NOT RAISE HoldoutAdmissionError\n> \n> orchestrator/tests/test_s8b_holdout_admission.py:2319: Failed\n--- IZANAGI FAILURE EXCERPT rank=8 END ---\nIZANAGI_FAILURE rank=9 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_shape_contract[extra-key]\" nodeid_bytes=119 nodeid_omitted_bytes=0 source_bytes=1192 retained_bytes=1192 omitted_bytes=0 rendered_excerpt_bytes=1251 sha256=9e9748cdba35251ad90e7f38d16e48867038ee94add11f110f07809e2ae5f64c\n--- IZANAGI FAILURE EXCERPT rank=9 BEGIN ---\n> [gw46] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw46/test_floor_marker_capability_r0')\n> tamper = 'extra-key'\n> \n>     @pytest.mark.parametrize(\n>         \"tamper\",\n>         [\"extra-key\", \"missing-key\", \"schema\", \"event\", \"role\"],\n>         ids=[\"extra-key\", \"missing-key\", \"schema\", \"event\", \"role\"],\n>     )\n>     def test_floor_marker_capability_rejects_marker_shape_contract(tmp_path, tamper):\n>         case = _consumed_marker_capability_case(tmp_path, issue_capability=False)\n>         marker = dict(case[\"marker\"])\n>         if tamper == \"extra-key\":\n>             marker[\"extra\"] = \"forbidden\"\n>         elif tamper == \"missing-key\":\n>             del marker[\"manifest_sha256\"]\n>         elif tamper == \"schema\":\n>             marker[\"schema_version\"] = \"s8b-invalid/v1\"\n>         elif tamper == \"event\":\n>             marker[\"event\"] = \"admit\"\n>         else:\n>             marker[\"observation_role\"] = \"oracle_driver\"\n>         _rewrite_canonical_document(case[\"marker_path\"], marker)\n>     \n> >       with pytest.raises(admission.HoldoutAdmissionError):\n> E       Failed: DID NOT RAISE HoldoutAdmissionError\n> \n> orchestrator/tests/test_s8b_holdout_admission.py:2319: Failed\n--- IZANAGI FAILURE EXCERPT rank=9 END ---\nIZANAGI_FAILURE rank=10 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_shape_contract[schema]\" nodeid_bytes=116 nodeid_omitted_bytes=0 source_bytes=1189 retained_bytes=1189 omitted_bytes=0 rendered_excerpt_bytes=1248 sha256=51a421ee61d90dd08c703153b5004b838a7074402f2dd4b39885301eb59ae042\n--- IZANAGI FAILURE EXCERPT rank=10 BEGIN ---\n> [gw30] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw30/test_floor_marker_capability_r0')\n> tamper = 'schema'\n> \n>     @pytest.mark.parametrize(\n>         \"tamper\",\n>         [\"extra-key\", \"missing-key\", \"schema\", \"event\", \"role\"],\n>         ids=[\"extra-key\", \"missing-key\", \"schema\", \"event\", \"role\"],\n>     )\n>     def test_floor_marker_capability_rejects_marker_shape_contract(tmp_path, tamper):\n>         case = _consumed_marker_capability_case(tmp_path, issue_capability=False)\n>         marker = dict(case[\"marker\"])\n>         if tamper == \"extra-key\":\n>             marker[\"extra\"] = \"forbidden\"\n>         elif tamper == \"missing-key\":\n>             del marker[\"manifest_sha256\"]\n>         elif tamper == \"schema\":\n>             marker[\"schema_version\"] = \"s8b-invalid/v1\"\n>         elif tamper == \"event\":\n>             marker[\"event\"] = \"admit\"\n>         else:\n>             marker[\"observation_role\"] = \"oracle_driver\"\n>         _rewrite_canonical_document(case[\"marker_path\"], marker)\n>     \n> >       with pytest.raises(admission.HoldoutAdmissionError):\n> E       Failed: DID NOT RAISE HoldoutAdmissionError\n> \n> orchestrator/tests/test_s8b_holdout_admission.py:2319: Failed\n--- IZANAGI FAILURE EXCERPT rank=10 END ---\nIZANAGI_FAILURE rank=11 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_shape_contract[event]\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=1188 retained_bytes=1188 omitted_bytes=0 rendered_excerpt_bytes=1247 sha256=af5d48f0f699c044d9e5bb2dcd2ee41684a608dcc0b3d500d850cb745e22711e\n--- IZANAGI FAILURE EXCERPT rank=11 BEGIN ---\n> [gw15] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw15/test_floor_marker_capability_r0')\n> tamper = 'event'\n> \n>     @pytest.mark.parametrize(\n>         \"tamper\",\n>         [\"extra-key\", \"missing-key\", \"schema\", \"event\", \"role\"],\n>         ids=[\"extra-key\", \"missing-key\", \"schema\", \"event\", \"role\"],\n>     )\n>     def test_floor_marker_capability_rejects_marker_shape_contract(tmp_path, tamper):\n>         case = _consumed_marker_capability_case(tmp_path, issue_capability=False)\n>         marker = dict(case[\"marker\"])\n>         if tamper == \"extra-key\":\n>             marker[\"extra\"] = \"forbidden\"\n>         elif tamper == \"missing-key\":\n>             del marker[\"manifest_sha256\"]\n>         elif tamper == \"schema\":\n>             marker[\"schema_version\"] = \"s8b-invalid/v1\"\n>         elif tamper == \"event\":\n>             marker[\"event\"] = \"admit\"\n>         else:\n>             marker[\"observation_role\"] = \"oracle_driver\"\n>         _rewrite_canonical_document(case[\"marker_path\"], marker)\n>     \n> >       with pytest.raises(admission.HoldoutAdmissionError):\n> E       Failed: DID NOT RAISE HoldoutAdmissionError\n> \n> orchestrator/tests/test_s8b_holdout_admission.py:2319: Failed\n--- IZANAGI FAILURE EXCERPT rank=11 END ---\nIZANAGI_FAILURE rank=12 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_shape_contract[role]\" nodeid_bytes=114 nodeid_omitted_bytes=0 source_bytes=1187 retained_bytes=1187 omitted_bytes=0 rendered_excerpt_bytes=1246 sha256=5c4e36df390f5c75f2c2d45c74239915ef6706b93235ae1bd9d4fec784b11f8b\n--- IZANAGI FAILURE EXCERPT rank=12 BEGIN ---\n> [gw39] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw39/test_floor_marker_capability_r0')\n> tamper = 'role'\n> \n>     @pytest.mark.parametrize(\n>         \"tamper\",\n>         [\"extra-key\", \"missing-key\", \"schema\", \"event\", \"role\"],\n>         ids=[\"extra-key\", \"missing-key\", \"schema\", \"event\", \"role\"],\n>     )\n>     def test_floor_marker_capability_rejects_marker_shape_contract(tmp_path, tamper):\n>         case = _consumed_marker_capability_case(tmp_path, issue_capability=False)\n>         marker = dict(case[\"marker\"])\n>         if tamper == \"extra-key\":\n>             marker[\"extra\"] = \"forbidden\"\n>         elif tamper == \"missing-key\":\n>             del marker[\"manifest_sha256\"]\n>         elif tamper == \"schema\":\n>             marker[\"schema_version\"] = \"s8b-invalid/v1\"\n>         elif tamper == \"event\":\n>             marker[\"event\"] = \"admit\"\n>         else:\n>             marker[\"observation_role\"] = \"oracle_driver\"\n>         _rewrite_canonical_document(case[\"marker_path\"], marker)\n>     \n> >       with pytest.raises(admission.HoldoutAdmissionError):\n> E       Failed: DID NOT RAISE HoldoutAdmissionError\n> \n> orchestrator/tests/test_s8b_holdout_admission.py:2319: Failed\n--- IZANAGI FAILURE EXCERPT rank=12 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=12 failed=12 errors=0 selected=12 omitted_failures=0 source_bytes=14889 retained_bytes=14889 omitted_bytes=0 budget_bytes=49152 rendered_bytes=21461 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "8a976b839c339c95af0eca4c7994f88aca8ba41fc699ce64645b238548bb993d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eb90a0ab1d6711e476a77930c105cfc3bcb89120755a9a053a7db5d92543d8c9",
+      "duration_s": 37.337,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[attempt]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[campaign]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[cell]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[configuration]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[holdout]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[manifest]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[run]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_shape_contract[event]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_shape_contract[extra-key]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_shape_contract[missing-key]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_shape_contract[role]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_shape_contract[schema]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[cell]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_shape_contract[event]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_shape_contract[missing-key]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[manifest]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_shape_contract[schema]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[run]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[holdout]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[campaign]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_shape_contract[extra-key]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[attempt]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[configuration]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_shape_contract[role]"
+      ],
+      "hang_risk": false,
+      "id": "M5",
+      "injection_diff_sha256": "462b1a20a9efa19fc25ee7f54f2ced7d4a24dc52bc9b19dea631c84f94750428",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "cbb6d7adbf4fb51b13a99f8a4067decf818fe08e27a823df72ed6f62f943a29f",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "new": "    if False:\n        raise HoldoutAdmissionError(\n            \"floor attempt consumption marker differs from durable authority\"\n        )\n",
+          "old": "    if disk_marker != canonical_marker:\n        raise HoldoutAdmissionError(\n            \"floor attempt consumption marker differs from durable authority\"\n        )\n"
+        }
+      ],
+      "repo_head": "cb1f56b8ee054463a0f37e4c95d0730113dfb421",
+      "runner_sha256": "580cbf69a095f3ae1bc4b500fd4d84e1f5d74be5f996fe4939fb5bac6cc56d8d",
+      "spec_sha256": "b2d7809965cd9456bde27eab6e6bb6f8e0a817ea112bafc172c0e108817f180c",
+      "status": "KILLED",
+      "test_output_sha256": "8a976b839c339c95af0eca4c7994f88aca8ba41fc699ce64645b238548bb993d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "01f6bb3384769c6beadcbe6ff93417c3edcfeaa6bc8fecb513f75ef7c41ae819"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2107-t1851-b1/output/pegasus-dispatch/82c59dfbf60a022c3958c7a5df0872d4/izdw-82c59dfbf6.o967990",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2107-t1851-b1/output/pegasus-dispatch/82c59dfbf60a022c3958c7a5df0872d4/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 41%]\n........................................................................ [ 82%]\n...............................                                          [100%]\n175 passed in 5.15s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "c9197225f34dcfb2f951933b5db0fbb2f2bf9f7802eae4f65651368084aba582"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eb90a0ab1d6711e476a77930c105cfc3bcb89120755a9a053a7db5d92543d8c9",
+      "duration_s": 32.097,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "M6",
+      "injection_diff_sha256": "07c2665bb3b25c7862edec77186401ffc181a9ca2036e9ee6bbc8cfd5ff18c30",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "732529b1a99b1a1e6d384e654b336128dc2d26bd68114a04541db82048efdfb4",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "new": "    if False:\n        raise HoldoutAdmissionError(\n            \"floor attempt consumption claim differs from issuer state\"\n        )\n",
+          "old": "    if derived_claim_digest != state.measurement_generation_claim_digest:\n        raise HoldoutAdmissionError(\n            \"floor attempt consumption claim differs from issuer state\"\n        )\n"
+        }
+      ],
+      "repo_head": "cb1f56b8ee054463a0f37e4c95d0730113dfb421",
+      "runner_sha256": "580cbf69a095f3ae1bc4b500fd4d84e1f5d74be5f996fe4939fb5bac6cc56d8d",
+      "spec_sha256": "b2d7809965cd9456bde27eab6e6bb6f8e0a817ea112bafc172c0e108817f180c",
+      "status": "SURVIVED",
+      "test_output_sha256": "c9197225f34dcfb2f951933b5db0fbb2f2bf9f7802eae4f65651368084aba582",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "01f6bb3384769c6beadcbe6ff93417c3edcfeaa6bc8fecb513f75ef7c41ae819"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2107-t1851-b1/output/pegasus-dispatch/f9736b97d2096b67a8eeed05d82a2601/izdw-f9736b97d2.o967992",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2107-t1851-b1/output/pegasus-dispatch/f9736b97d2096b67a8eeed05d82a2601/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 41%]\n........................................................................ [ 82%]\n.............................F.                                          [100%]\n=================================== FAILURES ===================================\n____ test_floor_marker_capability_rejects_allowed_entry_kind_tamper_on_use _____\n[gw46] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw46/test_floor_marker_capability_r1')\n\n    def test_floor_marker_capability_rejects_allowed_entry_kind_tamper_on_use(\n        tmp_path,\n    ):\n        case = _consumed_marker_capability_case(tmp_path)\n        claim = admission._read_canonical_document(case[\"claim_path\"])  # noqa: SLF001\n        assert claim[\"entry_kind\"] == \"fresh\"\n        claim[\"entry_kind\"] = \"resume\"\n        _rewrite_canonical_document(case[\"claim_path\"], claim)\n        actions = []\n    \n>       with pytest.raises(admission.HoldoutAdmissionError, match=\"durable identity\"):\nE       Failed: DID NOT RAISE HoldoutAdmissionError\n\norchestrator/tests/test_s8b_holdout_admission.py:2554: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_allowed_entry_kind_tamper_on_use\n1 failed, 174 passed in 5.11s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_allowed_entry_kind_tamper_on_use\" nodeid_bytes=119 nodeid_omitted_bytes=0 source_bytes=770 retained_bytes=770 omitted_bytes=0 rendered_excerpt_bytes=807 sha256=76a1e396d2d74d528988fe01f142cc5cec003d35f3ba01720d17586b7a52da8c\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw46] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw46/test_floor_marker_capability_r1')\n> \n>     def test_floor_marker_capability_rejects_allowed_entry_kind_tamper_on_use(\n>         tmp_path,\n>     ):\n>         case = _consumed_marker_capability_case(tmp_path)\n>         claim = admission._read_canonical_document(case[\"claim_path\"])  # noqa: SLF001\n>         assert claim[\"entry_kind\"] == \"fresh\"\n>         claim[\"entry_kind\"] = \"resume\"\n>         _rewrite_canonical_document(case[\"claim_path\"], claim)\n>         actions = []\n>     \n> >       with pytest.raises(admission.HoldoutAdmissionError, match=\"durable identity\"):\n> E       Failed: DID NOT RAISE HoldoutAdmissionError\n> \n> orchestrator/tests/test_s8b_holdout_admission.py:2554: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=770 retained_bytes=770 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1549 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "881e3702762c9203ca6093ce9c6930aa95c0cbbe6efc5f13d177be4b08f0939e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eb90a0ab1d6711e476a77930c105cfc3bcb89120755a9a053a7db5d92543d8c9",
+      "duration_s": 32.203,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_allowed_entry_kind_tamper_on_use"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_allowed_entry_kind_tamper_on_use"
+      ],
+      "hang_risk": false,
+      "id": "M7",
+      "injection_diff_sha256": "4b5a87acea98d58673bab512586d07179cc3854c2c668c08c2d0a7195dab2caf",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "a04f94d467a58b6f5f4769198968f46b24a9780d481ac57cfa6a2a168022a0c6",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "new": "    if False:\n        raise HoldoutAdmissionError(\n            \"floor attempt consumption marker durable identity changed\"\n        )\n",
+          "old": "    if current != identity:\n        raise HoldoutAdmissionError(\n            \"floor attempt consumption marker durable identity changed\"\n        )\n"
+        }
+      ],
+      "repo_head": "cb1f56b8ee054463a0f37e4c95d0730113dfb421",
+      "runner_sha256": "580cbf69a095f3ae1bc4b500fd4d84e1f5d74be5f996fe4939fb5bac6cc56d8d",
+      "spec_sha256": "b2d7809965cd9456bde27eab6e6bb6f8e0a817ea112bafc172c0e108817f180c",
+      "status": "KILLED",
+      "test_output_sha256": "881e3702762c9203ca6093ce9c6930aa95c0cbbe6efc5f13d177be4b08f0939e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "01f6bb3384769c6beadcbe6ff93417c3edcfeaa6bc8fecb513f75ef7c41ae819"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2107-t1851-b1/output/pegasus-dispatch/708e708afba872baef3561b8a5170a72/izdw-708e708afb.o967993",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2107-t1851-b1/output/pegasus-dispatch/708e708afba872baef3561b8a5170a72/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 41%]\n........................................................................ [ 82%]\n..............F.F..F.F.F.F.F.F.                                          [100%]\n=================================== FAILURES ===================================\n__ test_floor_marker_capability_rejects_identity_axis_transplant_on_use[root] __\n[gw44] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw44/test_floor_marker_capability_r0')\nfield = 'root'\n\n    @pytest.mark.parametrize(\n        \"field\",\n        [\n            \"root\", \"measurement_generation_claim_digest\", \"attempt_id\",\n            \"campaign_run_id\", \"cell_id\",\n        ],\n        ids=[\"root\", \"claim-digest\", \"attempt\", \"campaign\", \"cell\"],\n    )\n    def test_floor_marker_capability_rejects_identity_axis_transplant_on_use(\n        tmp_path, field,\n    ):\n        case = _consumed_marker_capability_case(tmp_path)\n        use_kwargs = dict(case[\"use_kwargs\"])\n        replacements = {\n            \"root\": case[\"state\"].root.parent / \"other-admission-root\",\n            \"measurement_generation_claim_digest\": \"f\" * 64,\n            \"attempt_id\": \"other-attempt\",\n            \"campaign_run_id\": \"other-campaign\",\n            \"cell_id\": \"other::cell\",\n        }\n        use_kwargs[field] = replacements[field]\n        actions = []\n    \n>       with pytest.raises(admission.HoldoutAdmissionError, match=\"identity differs\"):\nE       Failed: DID NOT RAISE HoldoutAdmissionError\n\norchestrator/tests/test_s8b_holdout_admission.py:2483: Failed\n___ test_floor_marker_capability_rejects_wrong_nonzero_retry_ordinal_on_use ____\n[gw31] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_floor_marker_capability_r0')\n\n    def test_floor_marker_capability_rejects_wrong_nonzero_retry_ordinal_on_use(\n        tmp_path,\n    ):\n        case = _consumed_marker_capability_case(tmp_path, retry_ordinal=1)\n        use_kwargs = dict(case[\"use_kwargs\"])\n        use_kwargs[\"attempt_ordinal\"] = 0\n        actions = []\n    \n>       with pytest.raises(admission.HoldoutAdmissionError, match=\"identity differs\"):\nE       Failed: DID NOT RAISE HoldoutAdmissionError\n\norchestrator/tests/test_s8b_holdout_admission.py:2271: Failed\n_ test_floor_marker_capability_rejects_identity_axis_transplant_on_use[claim-digest] _\n[gw35] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw35/test_floor_marker_capability_r0')\nfield = 'measurement_generation_claim_digest'\n\n    @pytest.mark.parametrize(\n        \"field\",\n        [\n            \"root\", \"measurement_generation_claim_digest\", \"attempt_id\",\n            \"campaign_run_id\", \"cell_id\",\n        ],\n        ids=[\"root\", \"claim-digest\", \"attempt\", \"campaign\", \"cell\"],\n    )\n    def test_floor_marker_capability_rejects_identity_axis_transplant_on_use(\n        tmp_path, field,\n    ):\n        case = _consumed_marker_capability_case(tmp_path)\n        use_kwargs = dict(case[\"use_kwargs\"])\n        replacements = {\n            \"root\": case[\"state\"].root.parent / \"other-admission-root\",\n            \"measurement_generation_claim_digest\": \"f\" * 64,\n            \"attempt_id\": \"other-attempt\",\n            \"campaign_run_id\": \"other-campaign\",\n            \"cell_id\": \"other::cell\",\n        }\n        use_kwargs[field] = replacements[field]\n        actions = []\n    \n>       with pytest.raises(admission.HoldoutAdmissionError, match=\"identity differs\"):\nE       Failed: DID NOT RAISE HoldoutAdmissionError\n\norchestrator/tests/test_s8b_holdout_admission.py:2483: Failed\n_ test_floor_marker_capability_rejects_identity_axis_transplant_on_use[attempt] _\n[gw32] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_floor_marker_capability_r0')\nfield = 'attempt_id'\n\n    @pytest.mark.parametrize(\n        \"field\",\n        [\n            \"root\", \"measurement_generation_claim_digest\", \"attempt_id\",\n            \"campaign_run_id\", \"cell_id\",\n        ],\n        ids=[\"root\", \"claim-digest\", \"attempt\", \"campaign\", \"cell\"],\n    )\n    def test_floor_marker_capability_rejects_identity_axis_transplant_on_use(\n        tmp_path, field,\n    ):\n        case = _consumed_marker_capability_case(tmp_path)\n        use_kwargs = dict(case[\"use_kwargs\"])\n        replacements = {\n            \"root\": case[\"state\"].root.parent / \"other-admission-root\",\n            \"measurement_generation_claim_digest\": \"f\" * 64,\n            \"attempt_id\": \"other-attempt\",\n            \"campaign_run_id\": \"other-campaign\",\n            \"cell_id\": \"other::cell\",\n        }\n        use_kwargs[field] = replacements[field]\n        actions = []\n    \n>       with pytest.raises(admission.HoldoutAdmissionError, match=\"identity differs\"):\nE       Failed: DID NOT RAISE HoldoutAdmissionError\n\norchestrator/tests/test_s8b_holdout_admission.py:2483: Failed\n_ test_floor_marker_capability_rejects_identity_axis_transplant_on_use[campaign] _\n[gw14] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw14/test_floor_marker_capability_r0')\nfield = 'campaign_run_id'\n\n    @pytest.mark.parametrize(\n        \"field\",\n        [\n            \"root\", \"measurement_generation_claim_digest\", \"attempt_id\",\n            \"campaign_run_id\", \"cell_id\",\n        ],\n        ids=[\"root\", \"claim-digest\", \"attempt\", \"campaign\", \"cell\"],\n    )\n    def test_floor_marker_capability_rejects_identity_axis_transplant_on_use(\n        tmp_path, field,\n    ):\n        case = _consumed_marker_capability_case(tmp_path)\n        use_kwargs = dict(case[\"use_kwargs\"])\n        replacements = {\n            \"root\": case[\"state\"].root.parent / \"other-admission-root\",\n            \"measurement_generation_claim_digest\": \"f\" * 64,\n            \"attempt_id\": \"other-attempt\",\n            \"campaign_run_id\": \"other-campaign\",\n            \"cell_id\": \"other::cell\",\n        }\n        use_kwargs[field] = replacements[field]\n        actions = []\n    \n>       with pytest.raises(admission.HoldoutAdmissionError, match=\"identity differs\"):\nE       Failed: DID NOT RAISE HoldoutAdmissionError\n\norchestrator/tests/test_s8b_holdout_admission.py:2483: Failed\n__ test_floor_marker_capability_rejects_identity_axis_transplant_on_use[cell] __\n[gw40] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw40/test_floor_marker_capability_r0')\nfield = 'cell_id'\n\n    @pytest.mark.parametrize(\n        \"field\",\n        [\n            \"root\", \"measurement_generation_claim_digest\", \"attempt_id\",\n            \"campaign_run_id\", \"cell_id\",\n        ],\n        ids=[\"root\", \"claim-digest\", \"attempt\", \"campaign\", \"cell\"],\n    )\n    def test_floor_marker_capability_rejects_identity_axis_transplant_on_use(\n        tmp_path, field,\n    ):\n        case = _consumed_marker_capability_case(tmp_path)\n        use_kwargs = dict(case[\"use_kwargs\"])\n        replacements = {\n            \"root\": case[\"state\"].root.parent / \"other-admission-root\",\n            \"measurement_generation_claim_digest\": \"f\" * 64,\n            \"attempt_id\": \"other-attempt\",\n            \"campaign_run_id\": \"other-campaign\",\n            \"cell_id\": \"other::cell\",\n        }\n        use_kwargs[field] = replacements[field]\n        actions = []\n    \n>       with pytest.raises(admission.HoldoutAdmissionError, match=\"identity differs\"):\nE       Failed: DID NOT RAISE HoldoutAdmissionError\n\norchestrator/tests/test_s8b_holdout_admission.py:2483: Failed\n____ test_floor_marker_capability_rejects_different_attempt_ordinal_on_use _____\n[gw23] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw23/test_floor_marker_capability_r0')\n\n    def test_floor_marker_capability_rejects_different_attempt_ordinal_on_use(tmp_path):\n        case = _consumed_marker_capability_case(tmp_path)\n        use_kwargs = dict(case[\"use_kwargs\"])\n        use_kwargs[\"attempt_ordinal\"] += 1\n    \n        with pytest.raises(admission.HoldoutAdmissionError, match=\"identity differs\"):\n>           _use_consumption_capability(\n                case, use_kwargs=use_kwargs,\n                action=lambda _lock: pytest.fail(\"transplanted ordinal used\"),\n            )\n\norchestrator/tests/test_s8b_holdout_admission.py:2454: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_s8b_holdout_admission.py:2088: in _use_consumption_capability\n    return capability.use(lock=lock, **use_kwargs, action=action)\norchestrator/campaign/s8b_holdout_admission.py:351: in use\n    return _use_floor_attempt_consumption_marker(\norchestrator/campaign/s8b_holdout_admission.py:5227: in _use_floor_attempt_consumption_marker\n    return action(lock)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\n_lock = <orchestrator.campaign.s8b_holdout_admission._AdmissionRootLock object at 0x14815ce21800>\n\n>       action=lambda _lock: pytest.fail(\"transplanted ordinal used\"),\n    )\nE   Failed: transplanted ordinal used\n\norchestrator/tests/test_s8b_holdout_admission.py:2456: Failed\n_______ test_floor_marker_capability_rejects_different_repetition_on_use _______\n[gw21] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw21/test_floor_marker_capability_r0')\n\n    def test_floor_marker_capability_rejects_different_repetition_on_use(tmp_path):\n        case = _consumed_marker_capability_case(tmp_path)\n        use_kwargs = dict(case[\"use_kwargs\"])\n        use_kwargs[\"repetition\"] += 1\n    \n        with pytest.raises(admission.HoldoutAdmissionError, match=\"identity differs\"):\n>           _use_consumption_capability(\n                case, use_kwargs=use_kwargs,\n                action=lambda _lock: pytest.fail(\"transplanted repetition used\"),\n            )\n\norchestrator/tests/test_s8b_holdout_admission.py:2442: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_s8b_holdout_admission.py:2088: in _use_consumption_capability\n    return capability.use(lock=lock, **use_kwargs, action=action)\norchestrator/campaign/s8b_holdout_admission.py:351: in use\n    return _use_floor_attempt_consumption_marker(\norchestrator/campaign/s8b_holdout_admission.py:5227: in _use_floor_attempt_consumption_marker\n    return action(lock)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\n_lock = <orchestrator.campaign.s8b_holdout_admission._AdmissionRootLock object at 0x1544c6d4aa80>\n\n>       action=lambda _lock: pytest.fail(\"transplanted repetition used\"),\n    )\nE   Failed: transplanted repetition used\n\norchestrator/tests/test_s8b_holdout_admission.py:2444: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_identity_axis_transplant_on_use[root]\nFAILED orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_wrong_nonzero_retry_ordinal_on_use\nFAILED orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_identity_axis_transplant_on_use[claim-digest]\nFAILED orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_identity_axis_transplant_on_use[attempt]\nFAILED orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_identity_axis_transplant_on_use[campaign]\nFAILED orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_identity_axis_transplant_on_use[cell]\nFAILED orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_different_attempt_ordinal_on_use\nFAILED orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_different_repetition_on_use\n8 failed, 167 passed in 5.09s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_different_attempt_ordinal_on_use\" nodeid_bytes=119 nodeid_omitted_bytes=0 source_bytes=1528 retained_bytes=1528 omitted_bytes=0 rendered_excerpt_bytes=1593 sha256=eb5319ae9f40f2d34f3db2d28f592b80d42fd04ebf27d3c030d6228f69acd054\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw23] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw23/test_floor_marker_capability_r0')\n> \n>     def test_floor_marker_capability_rejects_different_attempt_ordinal_on_use(tmp_path):\n>         case = _consumed_marker_capability_case(tmp_path)\n>         use_kwargs = dict(case[\"use_kwargs\"])\n>         use_kwargs[\"attempt_ordinal\"] += 1\n>     \n>         with pytest.raises(admission.HoldoutAdmissionError, match=\"identity differs\"):\n> >           _use_consumption_capability(\n>                 case, use_kwargs=use_kwargs,\n>                 action=lambda _lock: pytest.fail(\"transplanted ordinal used\"),\n>             )\n> \n> orchestrator/tests/test_s8b_holdout_admission.py:2454: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_s8b_holdout_admission.py:2088: in _use_consumption_capability\n>     return capability.use(lock=lock, **use_kwargs, action=action)\n> orchestrator/campaign/s8b_holdout_admission.py:351: in use\n>     return _use_floor_attempt_consumption_marker(\n> orchestrator/campaign/s8b_holdout_admission.py:5227: in _use_floor_attempt_consumption_marker\n>     return action(lock)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> _lock = <orchestrator.campaign.s8b_holdout_admission._AdmissionRootLock object at 0x14815ce21800>\n> \n> >       action=lambda _lock: pytest.fail(\"transplanted ordinal used\"),\n>     )\n> E   Failed: transplanted ordinal used\n> \n> orchestrator/tests/test_s8b_holdout_admission.py:2456: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_different_repetition_on_use\" nodeid_bytes=114 nodeid_omitted_bytes=0 source_bytes=1527 retained_bytes=1527 omitted_bytes=0 rendered_excerpt_bytes=1592 sha256=8477e2ad5b966200d9665dcad17e24116fb597d60d5c90010e3c2f8592bf48e4\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw21] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw21/test_floor_marker_capability_r0')\n> \n>     def test_floor_marker_capability_rejects_different_repetition_on_use(tmp_path):\n>         case = _consumed_marker_capability_case(tmp_path)\n>         use_kwargs = dict(case[\"use_kwargs\"])\n>         use_kwargs[\"repetition\"] += 1\n>     \n>         with pytest.raises(admission.HoldoutAdmissionError, match=\"identity differs\"):\n> >           _use_consumption_capability(\n>                 case, use_kwargs=use_kwargs,\n>                 action=lambda _lock: pytest.fail(\"transplanted repetition used\"),\n>             )\n> \n> orchestrator/tests/test_s8b_holdout_admission.py:2442: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_s8b_holdout_admission.py:2088: in _use_consumption_capability\n>     return capability.use(lock=lock, **use_kwargs, action=action)\n> orchestrator/campaign/s8b_holdout_admission.py:351: in use\n>     return _use_floor_attempt_consumption_marker(\n> orchestrator/campaign/s8b_holdout_admission.py:5227: in _use_floor_attempt_consumption_marker\n>     return action(lock)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> _lock = <orchestrator.campaign.s8b_holdout_admission._AdmissionRootLock object at 0x1544c6d4aa80>\n> \n> >       action=lambda _lock: pytest.fail(\"transplanted repetition used\"),\n>     )\n> E   Failed: transplanted repetition used\n> \n> orchestrator/tests/test_s8b_holdout_admission.py:2444: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_identity_axis_transplant_on_use[claim-digest]\" nodeid_bytes=132 nodeid_omitted_bytes=0 source_bytes=1237 retained_bytes=1237 omitted_bytes=0 rendered_excerpt_bytes=1302 sha256=2c7dd5ceea6164ac75b35ff42af047a2346661a1970ff927b4c64024683baf22\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw35] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw35/test_floor_marker_capability_r0')\n> field = 'measurement_generation_claim_digest'\n> \n>     @pytest.mark.parametrize(\n>         \"field\",\n>         [\n>             \"root\", \"measurement_generation_claim_digest\", \"attempt_id\",\n>             \"campaign_run_id\", \"cell_id\",\n>         ],\n>         ids=[\"root\", \"claim-digest\", \"attempt\", \"campaign\", \"cell\"],\n>     )\n>     def test_floor_marker_capability_rejects_identity_axis_transplant_on_use(\n>         tmp_path, field,\n>     ):\n>         case = _consumed_marker_capability_case(tmp_path)\n>         use_kwargs = dict(case[\"use_kwargs\"])\n>         replacements = {\n>             \"root\": case[\"state\"].root.parent / \"other-admission-root\",\n>             \"measurement_generation_claim_digest\": \"f\" * 64,\n>             \"attempt_id\": \"other-attempt\",\n>             \"campaign_run_id\": \"other-campaign\",\n>             \"cell_id\": \"other::cell\",\n>         }\n>         use_kwargs[field] = replacements[field]\n>         actions = []\n>     \n> >       with pytest.raises(admission.HoldoutAdmissionError, match=\"identity differs\"):\n> E       Failed: DID NOT RAISE HoldoutAdmissionError\n> \n> orchestrator/tests/test_s8b_holdout_admission.py:2483: Failed\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_identity_axis_transplant_on_use[campaign]\" nodeid_bytes=128 nodeid_omitted_bytes=0 source_bytes=1217 retained_bytes=1217 omitted_bytes=0 rendered_excerpt_bytes=1282 sha256=a5634ca29a67ad451ee3c3465f22ffc9a3ca406677c6d7fc9437cd77a2b5448f\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw14] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw14/test_floor_marker_capability_r0')\n> field = 'campaign_run_id'\n> \n>     @pytest.mark.parametrize(\n>         \"field\",\n>         [\n>             \"root\", \"measurement_generation_claim_digest\", \"attempt_id\",\n>             \"campaign_run_id\", \"cell_id\",\n>         ],\n>         ids=[\"root\", \"claim-digest\", \"attempt\", \"campaign\", \"cell\"],\n>     )\n>     def test_floor_marker_capability_rejects_identity_axis_transplant_on_use(\n>         tmp_path, field,\n>     ):\n>         case = _consumed_marker_capability_case(tmp_path)\n>         use_kwargs = dict(case[\"use_kwargs\"])\n>         replacements = {\n>             \"root\": case[\"state\"].root.parent / \"other-admission-root\",\n>             \"measurement_generation_claim_digest\": \"f\" * 64,\n>             \"attempt_id\": \"other-attempt\",\n>             \"campaign_run_id\": \"other-campaign\",\n>             \"cell_id\": \"other::cell\",\n>         }\n>         use_kwargs[field] = replacements[field]\n>         actions = []\n>     \n> >       with pytest.raises(admission.HoldoutAdmissionError, match=\"identity differs\"):\n> E       Failed: DID NOT RAISE HoldoutAdmissionError\n> \n> orchestrator/tests/test_s8b_holdout_admission.py:2483: Failed\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_identity_axis_transplant_on_use[attempt]\" nodeid_bytes=127 nodeid_omitted_bytes=0 source_bytes=1212 retained_bytes=1212 omitted_bytes=0 rendered_excerpt_bytes=1277 sha256=640d9dad747712c26ff0b7e8f35627df40b5d93774aac5decebbb69f88a3b062\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw32] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_floor_marker_capability_r0')\n> field = 'attempt_id'\n> \n>     @pytest.mark.parametrize(\n>         \"field\",\n>         [\n>             \"root\", \"measurement_generation_claim_digest\", \"attempt_id\",\n>             \"campaign_run_id\", \"cell_id\",\n>         ],\n>         ids=[\"root\", \"claim-digest\", \"attempt\", \"campaign\", \"cell\"],\n>     )\n>     def test_floor_marker_capability_rejects_identity_axis_transplant_on_use(\n>         tmp_path, field,\n>     ):\n>         case = _consumed_marker_capability_case(tmp_path)\n>         use_kwargs = dict(case[\"use_kwargs\"])\n>         replacements = {\n>             \"root\": case[\"state\"].root.parent / \"other-admission-root\",\n>             \"measurement_generation_claim_digest\": \"f\" * 64,\n>             \"attempt_id\": \"other-attempt\",\n>             \"campaign_run_id\": \"other-campaign\",\n>             \"cell_id\": \"other::cell\",\n>         }\n>         use_kwargs[field] = replacements[field]\n>         actions = []\n>     \n> >       with pytest.raises(admission.HoldoutAdmissionError, match=\"identity differs\"):\n> E       Failed: DID NOT RAISE HoldoutAdmissionError\n> \n> orchestrator/tests/test_s8b_holdout_admission.py:2483: Failed\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE rank=6 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_identity_axis_transplant_on_use[cell]\" nodeid_bytes=124 nodeid_omitted_bytes=0 source_bytes=1209 retained_bytes=1209 omitted_bytes=0 rendered_excerpt_bytes=1274 sha256=b0b8b3b102f2385e4d3285d3fb3e3df16e4e8fb097f179961e46f51d932fa96f\n--- IZANAGI FAILURE EXCERPT rank=6 BEGIN ---\n> [gw40] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw40/test_floor_marker_capability_r0')\n> field = 'cell_id'\n> \n>     @pytest.mark.parametrize(\n>         \"field\",\n>         [\n>             \"root\", \"measurement_generation_claim_digest\", \"attempt_id\",\n>             \"campaign_run_id\", \"cell_id\",\n>         ],\n>         ids=[\"root\", \"claim-digest\", \"attempt\", \"campaign\", \"cell\"],\n>     )\n>     def test_floor_marker_capability_rejects_identity_axis_transplant_on_use(\n>         tmp_path, field,\n>     ):\n>         case = _consumed_marker_capability_case(tmp_path)\n>         use_kwargs = dict(case[\"use_kwargs\"])\n>         replacements = {\n>             \"root\": case[\"state\"].root.parent / \"other-admission-root\",\n>             \"measurement_generation_claim_digest\": \"f\" * 64,\n>             \"attempt_id\": \"other-attempt\",\n>             \"campaign_run_id\": \"other-campaign\",\n>             \"cell_id\": \"other::cell\",\n>         }\n>         use_kwargs[field] = replacements[field]\n>         actions = []\n>     \n> >       with pytest.raises(admission.HoldoutAdmissionError, match=\"identity differs\"):\n> E       Failed: DID NOT RAISE HoldoutAdmissionError\n> \n> orchestrator/tests/test_s8b_holdout_admission.py:2483: Failed\n--- IZANAGI FAILURE EXCERPT rank=6 END ---\nIZANAGI_FAILURE rank=7 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_identity_axis_transplant_on_use[root]\" nodeid_bytes=124 nodeid_omitted_bytes=0 source_bytes=1206 retained_bytes=1206 omitted_bytes=0 rendered_excerpt_bytes=1271 sha256=3371f01fcf361b8dd1083d6a64ecd43cfcb64522c599d79c73d9634801f16f39\n--- IZANAGI FAILURE EXCERPT rank=7 BEGIN ---\n> [gw44] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw44/test_floor_marker_capability_r0')\n> field = 'root'\n> \n>     @pytest.mark.parametrize(\n>         \"field\",\n>         [\n>             \"root\", \"measurement_generation_claim_digest\", \"attempt_id\",\n>             \"campaign_run_id\", \"cell_id\",\n>         ],\n>         ids=[\"root\", \"claim-digest\", \"attempt\", \"campaign\", \"cell\"],\n>     )\n>     def test_floor_marker_capability_rejects_identity_axis_transplant_on_use(\n>         tmp_path, field,\n>     ):\n>         case = _consumed_marker_capability_case(tmp_path)\n>         use_kwargs = dict(case[\"use_kwargs\"])\n>         replacements = {\n>             \"root\": case[\"state\"].root.parent / \"other-admission-root\",\n>             \"measurement_generation_claim_digest\": \"f\" * 64,\n>             \"attempt_id\": \"other-attempt\",\n>             \"campaign_run_id\": \"other-campaign\",\n>             \"cell_id\": \"other::cell\",\n>         }\n>         use_kwargs[field] = replacements[field]\n>         actions = []\n>     \n> >       with pytest.raises(admission.HoldoutAdmissionError, match=\"identity differs\"):\n> E       Failed: DID NOT RAISE HoldoutAdmissionError\n> \n> orchestrator/tests/test_s8b_holdout_admission.py:2483: Failed\n--- IZANAGI FAILURE EXCERPT rank=7 END ---\nIZANAGI_FAILURE rank=8 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_wrong_nonzero_retry_ordinal_on_use\" nodeid_bytes=121 nodeid_omitted_bytes=0 source_bytes=642 retained_bytes=642 omitted_bytes=0 rendered_excerpt_bytes=675 sha256=ce82b2a48c11f2df1c9412ac4e196d6835857cc08ec4b9648605db3bb069498f\n--- IZANAGI FAILURE EXCERPT rank=8 BEGIN ---\n> [gw31] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_floor_marker_capability_r0')\n> \n>     def test_floor_marker_capability_rejects_wrong_nonzero_retry_ordinal_on_use(\n>         tmp_path,\n>     ):\n>         case = _consumed_marker_capability_case(tmp_path, retry_ordinal=1)\n>         use_kwargs = dict(case[\"use_kwargs\"])\n>         use_kwargs[\"attempt_ordinal\"] = 0\n>         actions = []\n>     \n> >       with pytest.raises(admission.HoldoutAdmissionError, match=\"identity differs\"):\n> E       Failed: DID NOT RAISE HoldoutAdmissionError\n> \n> orchestrator/tests/test_s8b_holdout_admission.py:2271: Failed\n--- IZANAGI FAILURE EXCERPT rank=8 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=8 failed=8 errors=0 selected=8 omitted_failures=0 source_bytes=9778 retained_bytes=9778 omitted_bytes=0 budget_bytes=49152 rendered_bytes=14268 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "b4a716fc4fc0f03a4be6f10caaa9218e36736288c8c9dbf3d3344e28e443cd1a"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eb90a0ab1d6711e476a77930c105cfc3bcb89120755a9a053a7db5d92543d8c9",
+      "duration_s": 27.371,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_different_attempt_ordinal_on_use",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_different_repetition_on_use",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_identity_axis_transplant_on_use[attempt]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_identity_axis_transplant_on_use[campaign]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_identity_axis_transplant_on_use[cell]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_identity_axis_transplant_on_use[claim-digest]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_identity_axis_transplant_on_use[root]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_wrong_nonzero_retry_ordinal_on_use"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_identity_axis_transplant_on_use[root]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_wrong_nonzero_retry_ordinal_on_use",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_identity_axis_transplant_on_use[claim-digest]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_identity_axis_transplant_on_use[attempt]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_identity_axis_transplant_on_use[campaign]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_identity_axis_transplant_on_use[cell]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_different_attempt_ordinal_on_use",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_different_repetition_on_use"
+      ],
+      "hang_risk": false,
+      "id": "M8",
+      "injection_diff_sha256": "0c3ea4c2beefb845badcdff6a63e0ba0be4b0b2da98aa1e90ebd80c8a31886d2",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "9258012fc93b6378632067fa18d32da71603e9981fc2ea2cb56077f243c6fda8",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "new": "    if False:\n        raise HoldoutAdmissionError(\n            \"floor attempt consumption marker capability identity differs\"\n        )\n",
+          "old": "    if supplied_identity != expected_identity:\n        raise HoldoutAdmissionError(\n            \"floor attempt consumption marker capability identity differs\"\n        )\n"
+        }
+      ],
+      "repo_head": "cb1f56b8ee054463a0f37e4c95d0730113dfb421",
+      "runner_sha256": "580cbf69a095f3ae1bc4b500fd4d84e1f5d74be5f996fe4939fb5bac6cc56d8d",
+      "spec_sha256": "b2d7809965cd9456bde27eab6e6bb6f8e0a817ea112bafc172c0e108817f180c",
+      "status": "KILLED",
+      "test_output_sha256": "b4a716fc4fc0f03a4be6f10caaa9218e36736288c8c9dbf3d3344e28e443cd1a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "01f6bb3384769c6beadcbe6ff93417c3edcfeaa6bc8fecb513f75ef7c41ae819"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2107-t1851-b1/output/pegasus-dispatch/bd5e138b5816af7eb371aa766455654c/izdw-bd5e138b58.o967994",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2107-t1851-b1/output/pegasus-dispatch/bd5e138b5816af7eb371aa766455654c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 41%]\n........................................................................ [ 82%]\n...............................                                          [100%]\n175 passed in 5.04s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "dc143f2a4eb6235cdfa7941e8ba14e391994568bc12a2da628b53875da64be99"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eb90a0ab1d6711e476a77930c105cfc3bcb89120755a9a053a7db5d92543d8c9",
+      "duration_s": 32.233,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "M9",
+      "injection_diff_sha256": "1c62f50ad6b7bd2b4ee2a040ff7348aea123b54805d06b580d267593f42ce7b7",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "5c46b4593177a5beb130c7d5a8177f8cf3e99e7cde28fee4eae8f79df287e49e",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "new": "    pass\n",
+          "old": "    _assert_active_admission_root_lock(lock, root=identity.root)\n"
+        }
+      ],
+      "repo_head": "cb1f56b8ee054463a0f37e4c95d0730113dfb421",
+      "runner_sha256": "580cbf69a095f3ae1bc4b500fd4d84e1f5d74be5f996fe4939fb5bac6cc56d8d",
+      "spec_sha256": "b2d7809965cd9456bde27eab6e6bb6f8e0a817ea112bafc172c0e108817f180c",
+      "status": "SURVIVED",
+      "test_output_sha256": "dc143f2a4eb6235cdfa7941e8ba14e391994568bc12a2da628b53875da64be99",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "01f6bb3384769c6beadcbe6ff93417c3edcfeaa6bc8fecb513f75ef7c41ae819"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2107-t1851-b1/output/pegasus-dispatch/c966fa8f6e19d5bc6ead9c481d5ff499/izdw-c966fa8f6e.o967998",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2107-t1851-b1/output/pegasus-dispatch/c966fa8f6e19d5bc6ead9c481d5ff499/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 41%]\n........................................................................ [ 82%]\n..............................F                                          [100%]\n=================================== FAILURES ===================================\n_________ test_floor_marker_capability_requires_live_caller_held_lock __________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_floor_marker_capability_r0')\n\n    def test_floor_marker_capability_requires_live_caller_held_lock(tmp_path):\n        case = _consumed_marker_capability_case(tmp_path)\n        forged_lock = admission._AdmissionRootLock()  # noqa: SLF001\n    \n        with pytest.raises(admission.HoldoutAdmissionError, match=\"live admission root\"):\n>           case[\"capability\"].use(\n                lock=forged_lock, **case[\"use_kwargs\"],\n                action=lambda _lock: pytest.fail(\"unlocked capability used\"),\n            )\n\norchestrator/tests/test_s8b_holdout_admission.py:2496: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/s8b_holdout_admission.py:351: in use\n    return _use_floor_attempt_consumption_marker(\norchestrator/campaign/s8b_holdout_admission.py:5227: in _use_floor_attempt_consumption_marker\n    return action(lock)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\n_lock = <orchestrator.campaign.s8b_holdout_admission._AdmissionRootLock object at 0x150826a3f740>\n\n>       action=lambda _lock: pytest.fail(\"unlocked capability used\"),\n    )\nE   Failed: unlocked capability used\n\norchestrator/tests/test_s8b_holdout_admission.py:2498: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_requires_live_caller_held_lock\n1 failed, 174 passed in 5.07s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_requires_live_caller_held_lock\" nodeid_bytes=109 nodeid_omitted_bytes=0 source_bytes=1350 retained_bytes=1350 omitted_bytes=0 rendered_excerpt_bytes=1409 sha256=ae5dc807062ab4cfe8b543081cc3cb3e96617f5512a009add2a0e2d93f4f0cea\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_floor_marker_capability_r0')\n> \n>     def test_floor_marker_capability_requires_live_caller_held_lock(tmp_path):\n>         case = _consumed_marker_capability_case(tmp_path)\n>         forged_lock = admission._AdmissionRootLock()  # noqa: SLF001\n>     \n>         with pytest.raises(admission.HoldoutAdmissionError, match=\"live admission root\"):\n> >           case[\"capability\"].use(\n>                 lock=forged_lock, **case[\"use_kwargs\"],\n>                 action=lambda _lock: pytest.fail(\"unlocked capability used\"),\n>             )\n> \n> orchestrator/tests/test_s8b_holdout_admission.py:2496: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/s8b_holdout_admission.py:351: in use\n>     return _use_floor_attempt_consumption_marker(\n> orchestrator/campaign/s8b_holdout_admission.py:5227: in _use_floor_attempt_consumption_marker\n>     return action(lock)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> _lock = <orchestrator.campaign.s8b_holdout_admission._AdmissionRootLock object at 0x150826a3f740>\n> \n> >       action=lambda _lock: pytest.fail(\"unlocked capability used\"),\n>     )\n> E   Failed: unlocked capability used\n> \n> orchestrator/tests/test_s8b_holdout_admission.py:2498: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1350 retained_bytes=1350 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2146 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "8c5a20a41c27aa9e8412117afff41ee739a7587819d5438de558a33984210a55"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eb90a0ab1d6711e476a77930c105cfc3bcb89120755a9a053a7db5d92543d8c9",
+      "duration_s": 37.274,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_requires_live_caller_held_lock"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_requires_live_caller_held_lock"
+      ],
+      "hang_risk": false,
+      "id": "M10",
+      "injection_diff_sha256": "74f6205c6a14c765ece7793cb3ae887a076cffdf254d1ea0b1432b8ae33e5fb4",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "400f9aec4faaa08dace83420e25e10458da690af63067a80e96a3db71611055e",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "new": "    pass\n",
+          "old": "    _assert_active_admission_root_lock(lock, root=state.root)\n"
+        },
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "new": "    pass\n",
+          "old": "    _assert_active_admission_root_lock(lock, root=identity.root)\n"
+        }
+      ],
+      "repo_head": "cb1f56b8ee054463a0f37e4c95d0730113dfb421",
+      "runner_sha256": "580cbf69a095f3ae1bc4b500fd4d84e1f5d74be5f996fe4939fb5bac6cc56d8d",
+      "spec_sha256": "b2d7809965cd9456bde27eab6e6bb6f8e0a817ea112bafc172c0e108817f180c",
+      "status": "KILLED",
+      "test_output_sha256": "8c5a20a41c27aa9e8412117afff41ee739a7587819d5438de558a33984210a55",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "01f6bb3384769c6beadcbe6ff93417c3edcfeaa6bc8fecb513f75ef7c41ae819"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2107-t1851-b1/output/pegasus-dispatch/272a1afbe797d524f27ef5be23579a77/izdw-272a1afbe7.o967976",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2107-t1851-b1/output/pegasus-dispatch/272a1afbe797d524f27ef5be23579a77/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_s8b_holdout_admission.py::test_all_neutral_projection_sites_use_complete_signature_conditions\norchestrator/tests/test_s8b_holdout_admission.py::test_shared_root_is_identical_across_two_worktrees_and_provisions_parents\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_parallel_reservations_use_distinct_measurement_generations\norchestrator/tests/test_s8b_holdout_admission.py::test_admission_rows_use_effect_key_and_issue_frozen_attempt_count\norchestrator/tests/test_s8b_holdout_admission.py::test_observation_role_is_closed_and_separates_two_authorized_producers\norchestrator/tests/test_s8b_holdout_admission.py::test_reservation_rejects_invalid_seam_list_before_shared_ledger_write[seams0-unknown names]\norchestrator/tests/test_s8b_holdout_admission.py::test_reservation_rejects_invalid_seam_list_before_shared_ledger_write[seams1-duplicates]\norchestrator/tests/test_s8b_holdout_admission.py::test_reservation_rejects_invalid_seam_list_before_shared_ledger_write[seams2-canonical order]\norchestrator/tests/test_s8b_holdout_admission.py::test_oracle_and_n_pilot_producers_use_measurement_generation_schema\norchestrator/tests/test_s8b_holdout_admission.py::test_non_floor_measurement_generation_rejects_inexact_schema[extra-key-claim]\norchestrator/tests/test_s8b_holdout_admission.py::test_non_floor_measurement_generation_rejects_inexact_schema[extra-key-ledger]\norchestrator/tests/test_s8b_holdout_admission.py::test_non_floor_measurement_generation_rejects_inexact_schema[missing-key-claim]\norchestrator/tests/test_s8b_holdout_admission.py::test_non_floor_measurement_generation_rejects_inexact_schema[missing-key-ledger]\norchestrator/tests/test_s8b_holdout_admission.py::test_non_floor_measurement_generation_rejects_identity_mismatch[id-mismatch-claim]\norchestrator/tests/test_s8b_holdout_admission.py::test_non_floor_measurement_generation_rejects_identity_mismatch[id-mismatch-ledger]\norchestrator/tests/test_s8b_holdout_admission.py::test_non_floor_measurement_generation_rejects_identity_mismatch[digest-mismatch-claim]\norchestrator/tests/test_s8b_holdout_admission.py::test_non_floor_measurement_generation_rejects_identity_mismatch[digest-mismatch-ledger]\norchestrator/tests/test_s8b_holdout_admission.py::test_r33_measurement_generation_requires_transaction_identity\norchestrator/tests/test_s8b_holdout_admission.py::test_n_pilot_approval_argument_is_inert\norchestrator/tests/test_s8b_holdout_admission.py::test_n_pilot_ledger_and_attempt_allowance_are_durable_and_protocol_bound\norchestrator/tests/test_s8b_holdout_admission.py::test_legacy_n_pilot_repeated_reservation_is_admitted\norchestrator/tests/test_s8b_holdout_admission.py::test_legacy_n_pilot_same_logical_attempt_consumes_in_two_generations\norchestrator/tests/test_s8b_holdout_admission.py::test_r33_reserve_returns_authoritative_receipt_and_opaque_manifest\norchestrator/tests/test_s8b_holdout_admission.py::test_r33_repeated_reservation_uses_new_generation\norchestrator/tests/test_s8b_holdout_admission.py::test_r33_same_logical_attempt_consumes_in_two_generations\norchestrator/tests/test_s8b_holdout_admission.py::test_r33_reserve_separates_raw_freeze_digest_from_canonical_freeze_digest\norchestrator/tests/test_s8b_holdout_admission.py::test_r33_consume_reloads_receipt_without_process_local_state\norchestrator/tests/test_s8b_holdout_admission.py::test_r33_attempt_ticket_is_durably_single_use\norchestrator/tests/test_s8b_holdout_admission.py::test_r33_consume_resolves_public_manifest_to_authoritative_receipt\norchestrator/tests/test_s8b_holdout_admission.py::test_r33_precommit_failure_has_no_visible_claim_and_can_be_aborted\norchestrator/tests/test_s8b_holdout_admission.py::test_r33_commit_recovery_allows_foreign_append_and_is_idempotent\norchestrator/tests/test_s8b_holdout_admission.py::test_r33_commit_recovery_rejects_exact_duplicate_ledger_identity\norchestrator/tests/test_s8b_holdout_admission.py::test_r33_consume_marker_recovery_rebuilds_missing_attempt_row\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_reservation_signature_has_no_approval_argument\norchestrator/tests/test_s8b_holdout_admission.py::test_effect_key_is_stable_across_measurement_generations\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_fresh_rereservation_appends_generation_rows\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_rereservation_ignores_legacy_cell_claims\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_rereservation_ignores_legacy_cell_and_attempt_bytes_end_to_end\norchestrator/tests/test_s8b_holdout_admission.py::test_resume_api_has_no_caller_journal_or_manifest_self_report\norchestrator/tests/test_s8b_holdout_admission.py::test_resume_requires_same_manifest_and_rejects_issued_ledger_without_journal\norchestrator/tests/test_s8b_holdout_admission.py::test_resume_ledger_run_identity_check_is_independent_of_generation_derivation\norchestrator/tests/test_s8b_holdout_admission.py::test_resume_claim_transition_table_is_run_wide_and_marker_guarded[zero-claims]\norchestrator/tests/test_s8b_holdout_admission.py::test_resume_claim_transition_table_is_run_wide_and_marker_guarded[one-claim]\norchestrator/tests/test_s8b_holdout_admission.py::test_resume_claim_transition_table_is_run_wide_and_marker_guarded[all-claims]\norchestrator/tests/test_s8b_holdout_admission.py::test_resume_preserves_existing_v1_claims_immutably\norchestrator/tests/test_s8b_holdout_admission.py::test_resume_backfills_partial_v1_claim_set_without_schema_upgrade\norchestrator/tests/test_s8b_holdout_admission.py::test_resume_reservation_reuses_measurement_generation\norchestrator/tests/test_s8b_holdout_admission.py::test_same_campaign_run_reuses_generation_identity_and_fresh_reclaim_fails\norchestrator/tests/test_s8b_holdout_admission.py::test_measurement_generation_identity_is_deterministic_and_role_scoped\norchestrator/tests/test_s8b_holdout_admission.py::test_resume_rejects_actual_terminal_journal\norchestrator/tests/test_s8b_holdout_admission.py::test_resolver_record_path_and_bytes_are_the_protocol_authority\norchestrator/tests/test_s8b_holdout_admission.py::test_authority_keeps_resolver_commit_when_head_moves_after_resolution\norchestrator/tests/test_s8b_holdout_admission.py::test_resolved_record_bytes_mismatch_is_rejected_before_any_cell_claim\norchestrator/tests/test_s8b_holdout_admission.py::test_resolved_record_sha256_mismatch_is_rejected_before_any_cell_claim\norchestrator/tests/test_s8b_holdout_admission.py::test_resolver_exception_is_rejected_before_any_cell_claim\norchestrator/tests/test_s8b_holdout_admission.py::test_resolver_invalid_record_type_is_rejected_before_any_cell_claim\norchestrator/tests/test_s8b_holdout_admission.py::test_resolver_record_without_fixed_commit_is_rejected_before_any_cell_claim\norchestrator/tests/test_s8b_holdout_admission.py::test_supplied_protocol_mismatch_remains_rejected_before_any_cell_claim\norchestrator/tests/test_s8b_holdout_admission.py::test_committed_versioned_protocol_admits_with_dirty_legacy_worktree\norchestrator/tests/test_s8b_holdout_admission.py::test_worktree_byte_drift_is_rejected_before_any_cell_claim[floor_protocol.json]\norchestrator/tests/test_s8b_holdout_admission.py::test_worktree_byte_drift_is_rejected_before_any_cell_claim[holdout_freeze.json]\norchestrator/tests/test_s8b_holdout_admission.py::test_cell_admission_projects_current_claim_digest_without_default\norchestrator/tests/test_s8b_holdout_admission.py::test_inspector_reconstruction_projects_current_digest_and_legacy_none\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_accepts_exact_current_marker_under_lock\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_accepts_cut6_marker_without_attempt_row\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_accepts_nonzero_retry_ordinal_on_use\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_wrong_nonzero_retry_ordinal_on_use\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_unissued_cell_token\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_absent_marker\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_shape_contract[extra-key]\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_shape_contract[missing-key]\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_shape_contract[schema]\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_shape_contract[event]\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_shape_contract[role]\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_uses_canonical_marker_reader[symlink]\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_uses_canonical_marker_reader[non-regular]\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_uses_canonical_marker_reader[multiple-lines]\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_uses_canonical_marker_reader[noncanonical-json]\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[attempt]\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[campaign]\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[manifest]\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[run]\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[cell]\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[holdout]\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[configuration]\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_claim_tamper\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_generation_identity_tamper\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_requires_exactly_one_matching_main_row[missing]\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_requires_exactly_one_matching_main_row[duplicate]\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_requires_exactly_one_matching_main_row[mismatch]\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_different_repetition_on_use\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_different_attempt_ordinal_on_use\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_identity_axis_transplant_on_use[root]\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_identity_axis_transplant_on_use[claim-digest]\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_identity_axis_transplant_on_use[attempt]\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_identity_axis_transplant_on_use[campaign]\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_identity_axis_transplant_on_use[cell]\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_requires_live_caller_held_lock\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_revalidates_durable_evidence_on_use[marker-missing]\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_revalidates_durable_evidence_on_use[marker-extra]\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_revalidates_durable_evidence_on_use[claim]\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_revalidates_durable_evidence_on_use[main-ledger]\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_allowed_entry_kind_tamper_on_use\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_forged_capability[constructor]\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_forged_capability[subclass]\norchestrator/tests/test_s8b_holdout_admission.py::test_attempt_ticket_is_durably_single_use\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_attempt_single_use_is_scoped_to_measurement_generation\norchestrator/tests/test_s8b_holdout_admission.py::test_cut6_rebuilds_attempt_row_and_reissues_same_attempt_under_lock\norchestrator/tests/test_s8b_holdout_admission.py::test_cut6_replay_query_rejects_start_before_consumed_marker\norchestrator/tests/test_s8b_holdout_admission.py::test_floor_recovery_query_signatures_expose_only_admission_verdict_inputs\norchestrator/tests/test_s8b_holdout_admission.py::test_cut6_m_plus_a_plus_rejects_before_any_new_marker_write\norchestrator/tests/test_s8b_holdout_admission.py::test_cut6_marker_absence_does_not_invent_requested_attempt_row\norchestrator/tests/test_s8b_holdout_admission.py::test_cut6_orphan_attempt_row_without_marker_is_rejected\norchestrator/tests/test_s8b_holdout_admission.py::test_cut6_recovery_requires_exact_marker_rederived_from_claim[extra-key]\norchestrator/tests/test_s8b_holdout_admission.py::test_cut6_recovery_requires_exact_marker_rederived_from_claim[claim-mismatch]\norchestrator/tests/test_s8b_holdout_admission.py::test_cut6_completed_session_forbids_reissue_of_same_attempt\norchestrator/tests/test_s8b_holdout_admission.py::test_ticket_consumption_precedes_crashing_measure_callback_m5\norchestrator/tests/test_s8b_holdout_admission.py::test_retry_ticket_without_failed_planned_trigger_is_rejected\norchestrator/tests/test_s8b_holdout_admission.py::test_existing_failed_planned_session_retry_still_passes\norchestrator/tests/test_s8b_holdout_admission.py::test_legacy_retry_rejects_extra_completion_for_same_trigger\norchestrator/tests/test_s8b_holdout_admission.py::test_malformed_registry_does_not_disable_existing_failed_session_retry\norchestrator/tests/test_s8b_holdout_admission.py::test_verified_registry_recovery_authorizes_exactly_one_retry_ordinal\norchestrator/tests/test_s8b_holdout_admission.py::test_registry_recovery_of_retry_attempt_selects_that_attempt_as_trigger\norchestrator/tests/test_s8b_holdout_admission.py::test_registry_recovery_authority_is_empty_and_fail_closed\norchestrator/tests/test_s8b_holdout_admission.py::test_scheduler_accounting_authority_policy_literal_is_independently_asserted\norchestrator/tests/test_s8b_holdout_admission.py::test_registry_recovery_requires_standalone_receipt\norchestrator/tests/test_s8b_holdout_admission.py::test_registry_recovery_requires_identical_standalone_receipt_bytes\norchestrator/tests/test_s8b_holdout_admission.py::test_registry_recovery_counts_corrupt_extra_candidate_before_replay\norchestrator/tests/test_s8b_holdout_admission.py::test_verified_registry_recovery_rejects_non_next_or_multiple_retry_ordinals[ordinals0]\norchestrator/tests/test_s8b_holdout_admission.py::test_verified_registry_recovery_rejects_non_next_or_multiple_retry_ordinals[ordinals1]\norchestrator/tests/test_s8b_holdout_admission.py::test_verified_registry_recovery_rejects_nonlatest_retry_start\norchestrator/tests/test_s8b_holdout_admission.py::test_registry_recovery_rejects_two_starts_when_target_is_first\norchestrator/tests/test_s8b_holdout_admission.py::test_inspection_rejects_registry_recovery_nonprefix_or_reused_trigger[ordinals0]\norchestrator/tests/test_s8b_holdout_admission.py::test_inspection_rejects_registry_recovery_nonprefix_or_reused_trigger[ordinals1]\norchestrator/tests/test_s8b_holdout_admission.py::test_registry_recovery_without_consumed_trigger_marker_is_rejected\norchestrator/tests/test_s8b_holdout_admission.py::test_unverified_registry_recovery_row_is_rejected\norchestrator/tests/test_s8b_holdout_admission.py::test_failed_session_and_registry_recovery_evidence_are_mutually_exclusive\norchestrator/tests/test_s8b_holdout_admission.py::test_registry_recovery_from_other_round_cannot_open_retry\norchestrator/tests/test_s8b_holdout_admission.py::test_retry_ordinal_above_frozen_attempt_set_is_rejected\norchestrator/tests/test_s8b_holdout_admission.py::test_cell_coordinates_are_evidence_checks_not_extra_key_fields\norchestrator/tests/test_s8b_holdout_admission.py::test_canonical_authority_to_run_once_proof_chain_e2e\norchestrator/tests/test_s8b_holdout_admission.py::test_inspector_public_contract_and_guarantee_boundary\norchestrator/tests/test_s8b_holdout_admission.py::test_inspection_positive_official_fresh_v2_derives_true\norchestrator/tests/test_s8b_holdout_admission.py::test_inspection_positive_legacy_v1_remains_readable_and_conservative\norchestrator/tests/test_s8b_holdout_admission.py::test_inspection_positive_legacy_v1_pilot_keeps_receipt_and_is_conservative\norchestrator/tests/test_s8b_holdout_admission.py::test_inspection_rejects_noncanonical_or_unknown_v2_seams[unknown]\norchestrator/tests/test_s8b_holdout_admission.py::test_inspection_rejects_noncanonical_or_unknown_v2_seams[duplicate]\norchestrator/tests/test_s8b_holdout_admission.py::test_inspection_rejects_noncanonical_or_unknown_v2_seams[noncanonical-order]\norchestrator/tests/test_s8b_holdout_admission.py::test_inspection_v2_nondefault_seam_is_valid_but_disqualifying\norchestrator/tests/test_s8b_holdout_admission.py::test_inspection_resume_marker_is_exact_and_disqualifying\norchestrator/tests/test_s8b_holdout_admission.py::test_official_fresh_v2_marker_alone_disqualifies_and_live_mismatch_is_exact\norchestrator/tests/test_s8b_holdout_admission.py::test_inspection_reports_unknown_schema_only_for_well_formed_claim\norchestrator/tests/test_s8b_holdout_admission.py::test_inspection_maps_malformed_claim_bytes_to_file_mismatch\norchestrator/tests/test_s8b_holdout_admission.py::test_inspection_rejects_resume_marker_identity_change\norchestrator/tests/test_s8b_holdout_admission.py::test_inspection_rejects_duplicate_resume_marker\norchestrator/tests/test_s8b_holdout_admission.py::test_inspection_rejects_cell_to_cell_v2_basis_mismatch\norchestrator/tests/test_s8b_holdout_admission.py::test_inspection_rejects_missing_root\norchestrator/tests/test_s8b_holdout_admission.py::test_inspection_rejects_empty_claims_directory\norchestrator/tests/test_s8b_holdout_admission.py::test_inspection_rejects_missing_main_ledger\norchestrator/tests/test_s8b_holdout_admission.py::test_inspection_rejects_zero_byte_main_ledger\norchestrator/tests/test_s8b_holdout_admission.py::test_inspection_rejects_foreign_campaign_rows_only\norchestrator/tests/test_s8b_holdout_admission.py::test_inspection_rejects_empty_cells\norchestrator/tests/test_s8b_holdout_admission.py::test_inspection_rejects_zero_attempt_ledger_when_consumption_expected\norchestrator/tests/test_s8b_holdout_admission.py::test_inspection_accepts_zero_attempt_rows_only_for_all_preprobe_competing\norchestrator/tests/test_s8b_holdout_admission.py::test_inspection_resume_accepts_prior_run_crashed_consumption_exact_coverage\norchestrator/tests/test_s8b_holdout_admission.py::test_inspection_resume_rejects_extra_attempt_ledger_row\norchestrator/tests/test_s8b_holdout_admission.py::test_inspection_resume_rejects_missing_attempt_ledger_row\norchestrator/tests/test_s8b_holdout_admission.py::test_inspection_rejects_planned_attempt_id_transplanted_from_another_seq\norchestrator/tests/test_s8b_holdout_admission.py::test_inspection_rejects_retry_attempt_id_transplanted_from_another_ordinal\norchestrator/tests/test_s8b_holdout_admission.py::test_inspection_rejects_duplicate_cell_retry_ordinal_with_markers\norchestrator/tests/test_s8b_holdout_admission.py::test_inspection_digest_ignores_other_campaign_rows\norchestrator/tests/test_s8b_holdout_admission.py::test_inspection_digest_is_portable_but_measurement_head_stays_exact\norchestrator/tests/test_s8b_holdout_admission.py::test_inspection_accepts_synchronized_non_authoritative_measurement_head_change\norchestrator/tests/test_s8b_holdout_admission.py::test_inspection_rejects_one_sided_measurement_head_change\norchestrator/tests/test_s8b_holdout_admission.py::test_inspection_rejects_tampered_claim_file_as_mismatch\n\n175 tests collected in 0.90s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "6689869e974b614d7454eb9c923016c9d2dd8a2eacad53086417f2b128f42535"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_all_neutral_projection_sites_use_complete_signature_conditions",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_shared_root_is_identical_across_two_worktrees_and_provisions_parents",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_parallel_reservations_use_distinct_measurement_generations",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_admission_rows_use_effect_key_and_issue_frozen_attempt_count",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_observation_role_is_closed_and_separates_two_authorized_producers",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_reservation_rejects_invalid_seam_list_before_shared_ledger_write[seams0-unknown names]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_reservation_rejects_invalid_seam_list_before_shared_ledger_write[seams1-duplicates]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_reservation_rejects_invalid_seam_list_before_shared_ledger_write[seams2-canonical order]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_oracle_and_n_pilot_producers_use_measurement_generation_schema",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_non_floor_measurement_generation_rejects_inexact_schema[extra-key-claim]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_non_floor_measurement_generation_rejects_inexact_schema[extra-key-ledger]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_non_floor_measurement_generation_rejects_inexact_schema[missing-key-claim]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_non_floor_measurement_generation_rejects_inexact_schema[missing-key-ledger]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_non_floor_measurement_generation_rejects_identity_mismatch[id-mismatch-claim]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_non_floor_measurement_generation_rejects_identity_mismatch[id-mismatch-ledger]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_non_floor_measurement_generation_rejects_identity_mismatch[digest-mismatch-claim]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_non_floor_measurement_generation_rejects_identity_mismatch[digest-mismatch-ledger]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_r33_measurement_generation_requires_transaction_identity",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_n_pilot_approval_argument_is_inert",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_n_pilot_ledger_and_attempt_allowance_are_durable_and_protocol_bound",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_legacy_n_pilot_repeated_reservation_is_admitted",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_legacy_n_pilot_same_logical_attempt_consumes_in_two_generations",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_r33_reserve_returns_authoritative_receipt_and_opaque_manifest",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_r33_repeated_reservation_uses_new_generation",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_r33_same_logical_attempt_consumes_in_two_generations",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_r33_reserve_separates_raw_freeze_digest_from_canonical_freeze_digest",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_r33_consume_reloads_receipt_without_process_local_state",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_r33_attempt_ticket_is_durably_single_use",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_r33_consume_resolves_public_manifest_to_authoritative_receipt",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_r33_precommit_failure_has_no_visible_claim_and_can_be_aborted",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_r33_commit_recovery_allows_foreign_append_and_is_idempotent",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_r33_commit_recovery_rejects_exact_duplicate_ledger_identity",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_r33_consume_marker_recovery_rebuilds_missing_attempt_row",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_reservation_signature_has_no_approval_argument",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_effect_key_is_stable_across_measurement_generations",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_fresh_rereservation_appends_generation_rows",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_rereservation_ignores_legacy_cell_claims",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_rereservation_ignores_legacy_cell_and_attempt_bytes_end_to_end",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_resume_api_has_no_caller_journal_or_manifest_self_report",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_resume_requires_same_manifest_and_rejects_issued_ledger_without_journal",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_resume_ledger_run_identity_check_is_independent_of_generation_derivation",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_resume_claim_transition_table_is_run_wide_and_marker_guarded[zero-claims]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_resume_claim_transition_table_is_run_wide_and_marker_guarded[one-claim]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_resume_claim_transition_table_is_run_wide_and_marker_guarded[all-claims]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_resume_preserves_existing_v1_claims_immutably",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_resume_backfills_partial_v1_claim_set_without_schema_upgrade",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_resume_reservation_reuses_measurement_generation",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_same_campaign_run_reuses_generation_identity_and_fresh_reclaim_fails",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_measurement_generation_identity_is_deterministic_and_role_scoped",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_resume_rejects_actual_terminal_journal",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_resolver_record_path_and_bytes_are_the_protocol_authority",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_authority_keeps_resolver_commit_when_head_moves_after_resolution",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_resolved_record_bytes_mismatch_is_rejected_before_any_cell_claim",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_resolved_record_sha256_mismatch_is_rejected_before_any_cell_claim",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_resolver_exception_is_rejected_before_any_cell_claim",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_resolver_invalid_record_type_is_rejected_before_any_cell_claim",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_resolver_record_without_fixed_commit_is_rejected_before_any_cell_claim",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_supplied_protocol_mismatch_remains_rejected_before_any_cell_claim",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_committed_versioned_protocol_admits_with_dirty_legacy_worktree",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_worktree_byte_drift_is_rejected_before_any_cell_claim[floor_protocol.json]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_worktree_byte_drift_is_rejected_before_any_cell_claim[holdout_freeze.json]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_cell_admission_projects_current_claim_digest_without_default",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_inspector_reconstruction_projects_current_digest_and_legacy_none",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_accepts_exact_current_marker_under_lock",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_accepts_cut6_marker_without_attempt_row",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_accepts_nonzero_retry_ordinal_on_use",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_wrong_nonzero_retry_ordinal_on_use",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_unissued_cell_token",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_absent_marker",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_shape_contract[extra-key]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_shape_contract[missing-key]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_shape_contract[schema]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_shape_contract[event]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_shape_contract[role]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_uses_canonical_marker_reader[symlink]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_uses_canonical_marker_reader[non-regular]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_uses_canonical_marker_reader[multiple-lines]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_uses_canonical_marker_reader[noncanonical-json]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[attempt]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[campaign]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[manifest]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[run]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[cell]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[holdout]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[configuration]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_claim_tamper",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_generation_identity_tamper",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_requires_exactly_one_matching_main_row[missing]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_requires_exactly_one_matching_main_row[duplicate]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_requires_exactly_one_matching_main_row[mismatch]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_different_repetition_on_use",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_different_attempt_ordinal_on_use",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_identity_axis_transplant_on_use[root]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_identity_axis_transplant_on_use[claim-digest]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_identity_axis_transplant_on_use[attempt]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_identity_axis_transplant_on_use[campaign]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_identity_axis_transplant_on_use[cell]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_requires_live_caller_held_lock",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_revalidates_durable_evidence_on_use[marker-missing]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_revalidates_durable_evidence_on_use[marker-extra]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_revalidates_durable_evidence_on_use[claim]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_revalidates_durable_evidence_on_use[main-ledger]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_allowed_entry_kind_tamper_on_use",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_forged_capability[constructor]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_forged_capability[subclass]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_attempt_ticket_is_durably_single_use",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_attempt_single_use_is_scoped_to_measurement_generation",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_cut6_rebuilds_attempt_row_and_reissues_same_attempt_under_lock",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_cut6_replay_query_rejects_start_before_consumed_marker",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_recovery_query_signatures_expose_only_admission_verdict_inputs",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_cut6_m_plus_a_plus_rejects_before_any_new_marker_write",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_cut6_marker_absence_does_not_invent_requested_attempt_row",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_cut6_orphan_attempt_row_without_marker_is_rejected",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_cut6_recovery_requires_exact_marker_rederived_from_claim[extra-key]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_cut6_recovery_requires_exact_marker_rederived_from_claim[claim-mismatch]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_cut6_completed_session_forbids_reissue_of_same_attempt",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_ticket_consumption_precedes_crashing_measure_callback_m5",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_retry_ticket_without_failed_planned_trigger_is_rejected",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_existing_failed_planned_session_retry_still_passes",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_legacy_retry_rejects_extra_completion_for_same_trigger",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_malformed_registry_does_not_disable_existing_failed_session_retry",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_verified_registry_recovery_authorizes_exactly_one_retry_ordinal",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_registry_recovery_of_retry_attempt_selects_that_attempt_as_trigger",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_registry_recovery_authority_is_empty_and_fail_closed",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_scheduler_accounting_authority_policy_literal_is_independently_asserted",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_registry_recovery_requires_standalone_receipt",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_registry_recovery_requires_identical_standalone_receipt_bytes",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_registry_recovery_counts_corrupt_extra_candidate_before_replay",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_verified_registry_recovery_rejects_non_next_or_multiple_retry_ordinals[ordinals0]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_verified_registry_recovery_rejects_non_next_or_multiple_retry_ordinals[ordinals1]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_verified_registry_recovery_rejects_nonlatest_retry_start",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_registry_recovery_rejects_two_starts_when_target_is_first",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_inspection_rejects_registry_recovery_nonprefix_or_reused_trigger[ordinals0]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_inspection_rejects_registry_recovery_nonprefix_or_reused_trigger[ordinals1]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_registry_recovery_without_consumed_trigger_marker_is_rejected",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_unverified_registry_recovery_row_is_rejected",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_failed_session_and_registry_recovery_evidence_are_mutually_exclusive",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_registry_recovery_from_other_round_cannot_open_retry",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_retry_ordinal_above_frozen_attempt_set_is_rejected",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_cell_coordinates_are_evidence_checks_not_extra_key_fields",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_canonical_authority_to_run_once_proof_chain_e2e",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_inspector_public_contract_and_guarantee_boundary",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_inspection_positive_official_fresh_v2_derives_true",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_inspection_positive_legacy_v1_remains_readable_and_conservative",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_inspection_positive_legacy_v1_pilot_keeps_receipt_and_is_conservative",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_inspection_rejects_noncanonical_or_unknown_v2_seams[unknown]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_inspection_rejects_noncanonical_or_unknown_v2_seams[duplicate]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_inspection_rejects_noncanonical_or_unknown_v2_seams[noncanonical-order]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_inspection_v2_nondefault_seam_is_valid_but_disqualifying",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_inspection_resume_marker_is_exact_and_disqualifying",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_official_fresh_v2_marker_alone_disqualifies_and_live_mismatch_is_exact",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_inspection_reports_unknown_schema_only_for_well_formed_claim",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_inspection_maps_malformed_claim_bytes_to_file_mismatch",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_inspection_rejects_resume_marker_identity_change",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_inspection_rejects_duplicate_resume_marker",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_inspection_rejects_cell_to_cell_v2_basis_mismatch",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_inspection_rejects_missing_root",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_inspection_rejects_empty_claims_directory",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_inspection_rejects_missing_main_ledger",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_inspection_rejects_zero_byte_main_ledger",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_inspection_rejects_foreign_campaign_rows_only",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_inspection_rejects_empty_cells",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_inspection_rejects_zero_attempt_ledger_when_consumption_expected",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_inspection_accepts_zero_attempt_rows_only_for_all_preprobe_competing",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_inspection_resume_accepts_prior_run_crashed_consumption_exact_coverage",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_inspection_resume_rejects_extra_attempt_ledger_row",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_inspection_resume_rejects_missing_attempt_ledger_row",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_inspection_rejects_planned_attempt_id_transplanted_from_another_seq",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_inspection_rejects_retry_attempt_id_transplanted_from_another_ordinal",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_inspection_rejects_duplicate_cell_retry_ordinal_with_markers",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_inspection_digest_ignores_other_campaign_rows",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_inspection_digest_is_portable_but_measurement_head_stays_exact",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_inspection_accepts_synchronized_non_authoritative_measurement_head_change",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_inspection_rejects_one_sided_measurement_head_change",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_inspection_rejects_tampered_claim_file_as_mismatch"
+      ],
+      "duration_s": 32.168,
+      "rc": 0,
+      "repo_head": "cb1f56b8ee054463a0f37e4c95d0730113dfb421",
+      "runner_sha256": "580cbf69a095f3ae1bc4b500fd4d84e1f5d74be5f996fe4939fb5bac6cc56d8d",
+      "spec_sha256": "b2d7809965cd9456bde27eab6e6bb6f8e0a817ea112bafc172c0e108817f180c",
+      "status": "PASSED",
+      "tool_sha256": "01f6bb3384769c6beadcbe6ff93417c3edcfeaa6bc8fecb513f75ef7c41ae819"
+    },
+    "hang_timeout_seconds": 600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_accepts_exact_current_marker_under_lock",
+          "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_allowed_entry_kind_tamper_on_use"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f6e84e199ca118b79cc13423691675af54cadbe1667fea94f35d8f0b8ca7f2f9",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8b_holdout_admission.py",
+            "new": "        claim_document_sha256=\"\",\n",
+            "old": "        claim_document_sha256=_sha256(claim),\n"
+          }
+        ]
+      },
+      "M10": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_requires_live_caller_held_lock"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "74f6205c6a14c765ece7793cb3ae887a076cffdf254d1ea0b1432b8ae33e5fb4",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8b_holdout_admission.py",
+            "new": "    pass\n",
+            "old": "    _assert_active_admission_root_lock(lock, root=state.root)\n"
+          },
+          {
+            "file": "orchestrator/campaign/s8b_holdout_admission.py",
+            "new": "    pass\n",
+            "old": "    _assert_active_admission_root_lock(lock, root=identity.root)\n"
+          }
+        ]
+      },
+      "M2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_accepts_exact_current_marker_under_lock"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "799952ec1995ed428d55833af7b899ef116f358ad6ac7d672736e1d7ec8b033a",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8b_holdout_admission.py",
+            "new": "        main_ledger_row_sha256=\"\",\n",
+            "old": "        main_ledger_row_sha256=_sha256(main),\n"
+          }
+        ]
+      },
+      "M3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_accepts_exact_current_marker_under_lock"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "e38793926002b911cd8c9efd8cec02b6e57bd60655942121d2c9372977845eae",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8b_holdout_admission.py",
+            "new": "        marker_document_sha256=\"\",\n",
+            "old": "        marker_document_sha256=_sha256(disk_marker),\n"
+          }
+        ]
+      },
+      "M4": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "b0d18195e7f2356e36d0d3d166505392d0398964b0726a87202f2de2130b8dba",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8b_holdout_admission.py",
+            "new": "    if False:\n        raise HoldoutAdmissionError(\n            \"floor attempt consumption capability is current-generation only\"\n        )\n",
+            "old": "    if expected_marker.get(\"schema_version\") != _MEASUREMENT_GENERATION_ATTEMPT_SCHEMA:\n        raise HoldoutAdmissionError(\n            \"floor attempt consumption capability is current-generation only\"\n        )\n"
+          }
+        ]
+      },
+      "M5": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[attempt]",
+          "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[campaign]",
+          "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[cell]",
+          "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[configuration]",
+          "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[holdout]",
+          "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[manifest]",
+          "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_identity_tamper[run]",
+          "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_shape_contract[event]",
+          "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_shape_contract[extra-key]",
+          "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_shape_contract[missing-key]",
+          "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_shape_contract[role]",
+          "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_marker_shape_contract[schema]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "462b1a20a9efa19fc25ee7f54f2ced7d4a24dc52bc9b19dea631c84f94750428",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8b_holdout_admission.py",
+            "new": "    if False:\n        raise HoldoutAdmissionError(\n            \"floor attempt consumption marker differs from durable authority\"\n        )\n",
+            "old": "    if disk_marker != canonical_marker:\n        raise HoldoutAdmissionError(\n            \"floor attempt consumption marker differs from durable authority\"\n        )\n"
+          }
+        ]
+      },
+      "M6": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "07c2665bb3b25c7862edec77186401ffc181a9ca2036e9ee6bbc8cfd5ff18c30",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8b_holdout_admission.py",
+            "new": "    if False:\n        raise HoldoutAdmissionError(\n            \"floor attempt consumption claim differs from issuer state\"\n        )\n",
+            "old": "    if derived_claim_digest != state.measurement_generation_claim_digest:\n        raise HoldoutAdmissionError(\n            \"floor attempt consumption claim differs from issuer state\"\n        )\n"
+          }
+        ]
+      },
+      "M7": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_allowed_entry_kind_tamper_on_use"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "4b5a87acea98d58673bab512586d07179cc3854c2c668c08c2d0a7195dab2caf",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8b_holdout_admission.py",
+            "new": "    if False:\n        raise HoldoutAdmissionError(\n            \"floor attempt consumption marker durable identity changed\"\n        )\n",
+            "old": "    if current != identity:\n        raise HoldoutAdmissionError(\n            \"floor attempt consumption marker durable identity changed\"\n        )\n"
+          }
+        ]
+      },
+      "M8": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_different_attempt_ordinal_on_use",
+          "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_different_repetition_on_use",
+          "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_identity_axis_transplant_on_use[attempt]",
+          "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_identity_axis_transplant_on_use[campaign]",
+          "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_identity_axis_transplant_on_use[cell]",
+          "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_identity_axis_transplant_on_use[claim-digest]",
+          "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_identity_axis_transplant_on_use[root]",
+          "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_wrong_nonzero_retry_ordinal_on_use"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "0c3ea4c2beefb845badcdff6a63e0ba0be4b0b2da98aa1e90ebd80c8a31886d2",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8b_holdout_admission.py",
+            "new": "    if False:\n        raise HoldoutAdmissionError(\n            \"floor attempt consumption marker capability identity differs\"\n        )\n",
+            "old": "    if supplied_identity != expected_identity:\n        raise HoldoutAdmissionError(\n            \"floor attempt consumption marker capability identity differs\"\n        )\n"
+          }
+        ]
+      },
+      "M9": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "1c62f50ad6b7bd2b4ee2a040ff7348aea123b54805d06b580d267593f42ce7b7",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8b_holdout_admission.py",
+            "new": "    pass\n",
+            "old": "    _assert_active_admission_root_lock(lock, root=identity.root)\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "a0c51a6df360849abca0d21d04fa76992c7b68667ce6cce7d5fa3314b5731453",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_s8b_holdout_admission.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 10800.0
+  },
+  "repo_head": "cb1f56b8ee054463a0f37e4c95d0730113dfb421",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_s8b_holdout_admission.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2107-t1851-b1/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2107-t1851-b1/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "4fc1bb13b5abbe07c35934516ff27d91ec59f985",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "580cbf69a095f3ae1bc4b500fd4d84e1f5d74be5f996fe4939fb5bac6cc56d8d",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "b2d7809965cd9456bde27eab6e6bb6f8e0a817ea112bafc172c0e108817f180c",
+  "summary": {
+    "KILLED": 7,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 3,
+    "TIMEOUT": 0,
+    "completed": 10,
+    "matching": 10,
+    "recorded": 10,
+    "registered": 10
+  },
+  "tool_identity": {
+    "head_blob_sha256": null,
+    "path": "/work/1/SFC/tanab/izanagi/tools/mutation_harness.py",
+    "repo_path": null,
+    "sha256": "900a6500b112faec9702a147242427d6cc2ebcad1029149a689ff5999d5f5ab9"
+  },
+  "tool_sha256": "01f6bb3384769c6beadcbe6ff93417c3edcfeaa6bc8fecb513f75ef7c41ae819",
+  "updated_at": "2026-09-02T06:58:00.816311+00:00"
+}

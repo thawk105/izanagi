@@ -1,0 +1,112 @@
+baseline PASSED 0 27.047
+summary: {'KILLED': 0, 'MISMATCH': 17, 'PARSE_ERROR': 0, 'SURVIVED': 0, 'TIMEOUT': 0, 'completed': 17, 'matching': 0, 'recorded': 17, 'registered': 17}
+M1: status=MISMATCH rc=1 timed_out=False nodes=2 dur=32.205
+     test_attempt_registry_core_s8b_profile.py::test_attempt_registry_prefix_proof_rejects_extra_key
+     test_attempt_registry_core_s8b_profile.py::test_attempt_registry_prefix_proof_rejects_missing_key
+M2: status=MISMATCH rc=1 timed_out=False nodes=2 dur=32.153
+     test_attempt_registry_core_s8b_profile.py::test_attempt_registry_prefix_proof_rejects_each_field_type[digest-freeze-sha256-int]
+     test_attempt_registry_core_s8b_profile.py::test_attempt_registry_prefix_proof_rejects_invalid_digest[freeze_sha256]
+M3: status=MISMATCH rc=1 timed_out=False nodes=1 dur=32.222
+     test_attempt_registry_core_s8b_profile.py::test_attempt_registry_prefix_proof_rejects_zero_row_count
+M4: status=MISMATCH rc=1 timed_out=False nodes=2 dur=32.38
+     test_attempt_registry_core_s8b_profile.py::test_attempt_registry_prefix_proof_rejects_zero_head
+     test_s8b_floor_stats.py::test_pure_verifier_accepts_v5_with_independent_prefix_proof
+M5: status=MISMATCH rc=1 timed_out=False nodes=1 dur=32.198
+     test_s8b_attempt_registry.py::test_attempt_registry_prefix_rejects_malformed_tail_after_n
+M6: status=MISMATCH rc=1 timed_out=False nodes=3 dur=129.558
+     test_s8b_attempt_registry.py::test_attempt_registry_prefix_unrecomputed_prefix_tamper_reaches_chain_gate
+     test_s8b_attempt_registry.py::test_attempt_registry_prefix_rejects_broken_chain_after_n
+     test_s8b_attempt_registry.py::test_attempt_registry_prefix_rejects_malformed_tail_after_n
+M8: status=MISMATCH rc=1 timed_out=False nodes=2 dur=32.383
+     test_s8b_attempt_registry.py::test_attempt_registry_prefix_rejects_reported_head_tamper
+     test_s8b_floor_stats.py::test_live_v5_real_registry_rejects_reported_other_generation
+M9: status=MISMATCH rc=1 timed_out=False nodes=1 dur=69.109
+     test_s8b_attempt_registry.py::test_attempt_registry_prefix_inspection_accepts_valid_later_append
+M10: status=MISMATCH rc=1 timed_out=False nodes=1 dur=32.653
+     test_s8b_attempt_registry.py::test_attempt_registry_prefix_rejects_synthetic_v1_at_generation_path
+M11: status=MISMATCH rc=1 timed_out=False nodes=13 dur=32.116
+     test_s8b_floor_stats.py::test_pure_verifier_accepts_v5_with_independent_prefix_proof
+     test_s8b_floor_stats.py::test_pure_verifier_rejects_v5_without_expected_attempt_registry
+     test_s8b_floor_stats.py::test_v5_rejects_proof_binding_mismatch[freeze]
+     test_s8b_floor_stats.py::test_v5_rejects_artifact_header_freeze_tamper
+     test_s8b_floor_stats.py::test_live_v5_absent_proof_validator_seam_is_reachable
+     test_s8b_floor_stats.py::test_v5_rejects_proof_binding_mismatch[schedule]
+     test_s8b_floor_stats.py::test_live_v5_calls_inspector_and_compares_reported_to_independent_proof
+     test_s8b_floor_stats.py::test_v5_rejects_artifact_header_protocol_tamper
+     test_s8b_floor_stats.py::test_v5_rejects_proof_binding_mismatch[protocol]
+     test_s8b_floor_stats.py::test_v5_rejects_reported_prefix_head_tamper
+     test_s8b_floor_contract.py::test_result_v4_key_contract_is_mode_conditional_and_exact
+     test_s8b_floor_stats.py::test_v5_rejects_missing_attempt_registry_proof
+     test_s8b_floor_stats.py::test_live_v5_real_registry_rejects_reported_other_generation
+M12: status=MISMATCH rc=1 timed_out=False nodes=3 dur=32.118
+     test_s8b_floor_stats.py::test_v5_rejects_reported_prefix_head_tamper
+     test_s8b_floor_stats.py::test_v5_rejects_proof_binding_mismatch[schedule]
+     test_s8b_floor_stats.py::test_live_v5_calls_inspector_and_compares_reported_to_independent_proof
+M13: status=MISMATCH rc=1 timed_out=False nodes=2 dur=32.056
+     test_s8b_floor_stats.py::test_live_v4_does_not_call_attempt_registry_inspector
+     test_s8b_floor_stats.py::test_live_verifier_rejects_result_v4_unexpected_top_level_key
+M14: status=MISMATCH rc=1 timed_out=False nodes=2 dur=32.168
+     test_s8b_floor_stats.py::test_live_v5_calls_inspector_and_compares_reported_to_independent_proof
+     test_s8b_floor_stats.py::test_live_v5_real_registry_rejects_reported_other_generation
+M15: status=MISMATCH rc=1 timed_out=False nodes=52 dur=32.178
+     test_s8b_floor_stats.py::test_official_degraded_keeps_all_five_internal_consistency_conditions
+     test_s8b_floor_stats.py::test_official_perf_present_keeps_legacy_exact_shape
+     test_s8b_floor_stats.py::test_verify_rejects_counter_status_missing_contradiction
+     test_s8b_floor_stats.py::test_verify_rejects_false_rep_integrity_exclusion
+     test_s8b_floor_stats.py::test_verify_rejects_bool_in_rep_observation[rep_index-False]
+     test_s8b_floor_stats.py::test_verify_rejects_empty_binaries_without_expected_binaries
+     test_s8b_floor_stats.py::test_verify_rejects_negative_perf_counter
+     test_s8b_floor_stats.py::test_verify_rejects_bool_in_rep_observation[returncode-False]
+     test_s8b_floor_stats.py::test_verify_rejects_duplicate_binary_for_existing_pair_without_expected_binaries
+     test_s8b_floor_stats.py::test_verify_rejects_exempt_session_exclusion_class_tamper[competing]
+     test_s8b_floor_stats.py::test_live_verifier_rejects_result_v4_unexpected_top_level_key
+     test_s8b_floor_stats.py::test_verify_detects_false_exclusion
+     test_s8b_floor_stats.py::test_verify_rejects_integrity_violation_with_valid_claim
+     test_s8b_floor_stats.py::test_verify_rejects_reps_selfreport_downgrade
+     test_s8b_floor_stats.py::test_verify_detects_cell_stat_tamper
+     test_s8b_floor_stats.py::test_verify_rejects_extra_key_in_floors_entry
+     test_s8b_floor_stats.py::test_verify_rejects_normalizable_session_scalar_types[failures-string]
+     test_s8b_floor_stats.py::test_verify_rejects_perf_required_not_required_claim
+     test_s8b_floor_stats.py::test_verify_detects_diagnostics_machine_anomaly_tamper
+     test_s8b_floor_stats.py::test_verify_rejects_unknown_or_missing_rep_evidence[unknown]
+     test_s8b_floor_stats.py::test_verify_rejects_unknown_reason
+     test_s8b_floor_stats.py::test_verify_detects_tampered_floor_pair
+     test_s8b_floor_stats.py::test_verify_rejects_binary_cell_id_bound_to_different_pair_without_expected_binaries
+     test_s8b_floor_stats.py::test_verify_detects_reason_swap_to_partial
+     test_s8b_floor_stats.py::test_verify_detects_anomaly_hiding
+     test_s8b_floor_stats.py::test_pure_verifier_rejects_v4_attempt_registry_as_extra_key
+     test_s8b_floor_stats.py::test_verify_rejects_unknown_or_missing_rep_evidence[missing_observation]
+     test_s8b_floor_stats.py::test_verify_rejects_completed_measure_disguised_as_unmeasured_exemption
+     test_s8b_floor_stats.py::test_verify_rejects_exempt_session_exclusion_class_tamper[launch]
+     test_s8b_floor_stats.py::test_verify_rejects_unknown_binary_cell_id_without_expected_binaries
+     test_s8b_floor_stats.py::test_pure_verifier_rejects_v4_expected_attempt_registry
+     test_s8b_floor_stats.py::test_verify_detects_diagnostics_cells_tamper_and_injected_key
+     test_s8b_floor_stats.py::test_verify_accepts_consistent_artifact
+     test_s8b_floor_stats.py::test_degraded_floor_stats_require_consumed_throughput_claim
+     test_s8b_floor_stats.py::test_verify_rejects_normalizable_session_scalar_types[retry-float]
+     test_s8b_floor_stats.py::test_verify_rejects_missing_expected_protocol_key
+     test_s8b_floor_stats.py::test_verify_rejects_threshold_selfreport_mismatch
+     test_s8b_floor_stats.py::test_verify_rejects_missing_holdout_cell
+     test_s8b_floor_stats.py::test_pilot_degraded_preserves_legacy_shape_without_perf_observation
+     test_s8b_floor_stats.py::test_verify_rejects_empty_artifact
+     test_s8b_floor_stats.py::test_live_v4_does_not_call_attempt_registry_inspector
+     test_s8b_floor_stats.py::test_degraded_floor_stats_bind_raw_counters_from_same_result
+     test_s8b_floor_stats.py::test_verify_rejects_expected_holdout_without_exactly_one_sort_best
+     test_s8b_floor_stats.py::test_verify_rejects_normalizable_session_scalar_types[reps-float]
+     test_s8b_floor_stats.py::test_pure_verifier_rejects_admission_different_from_external_expected
+     test_s8b_floor_stats.py::test_verify_rejects_normalizable_session_scalar_types[seq-string]
+     test_s8b_floor_stats.py::test_pure_verifier_rejects_legacy_result_schema
+     test_s8b_floor_contract.py::test_result_v4_key_contract_is_mode_conditional_and_exact
+     test_s8b_floor_stats.py::test_verify_rejects_ghost_holdout_floor
+     test_s8b_floor_stats.py::test_degraded_floor_stats_bind_run_cmd_from_same_result
+     test_s8b_floor_stats.py::test_verify_accepts_zero_perf_counters
+     test_s8b_floor_stats.py::test_official_degraded_requires_and_consumes_perf_observation
+M16: status=MISMATCH rc=1 timed_out=False nodes=2 dur=37.374
+     test_s8b_floor_stats.py::test_v5_rejects_artifact_header_freeze_tamper
+     test_s8b_floor_stats.py::test_v5_rejects_proof_binding_mismatch[freeze]
+M17: status=MISMATCH rc=1 timed_out=False nodes=1 dur=32.435
+     test_attempt_registry_core_s8b_profile.py::test_attempt_registry_prefix_proof_rejects_wrong_registry_schema
+M18: status=MISMATCH rc=1 timed_out=False nodes=3 dur=32.239
+     test_s8b_attempt_registry.py::test_attempt_registry_prefix_rejects_unavailable_root_without_provisioning[root]
+     test_s8b_attempt_registry.py::test_attempt_registry_prefix_rejects_unavailable_root_without_provisioning[lock]
+     test_s8b_attempt_registry.py::test_attempt_registry_prefix_inspection_is_read_only_by_construction

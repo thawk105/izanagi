@@ -178,9 +178,9 @@ lock 再取得後に全検査をやり直し、`tip_sha` / `checker_blob_sha` / 
 _SYNTHETIC_DW_O26_SECTION = """## DW-O26 — 焦点走の consumer test 拡張
 
 `DW-O18` の焦点走対象 file 集合は、変更した test file だけでなく、変更した production file を
-参照する consumer test も含める。名前の推測でなく参照関係で引く（例: 変更した production module 名で
-`orchestrator/tests/` を grep する）。この拡張を欠く焦点走は、静的レビューが見落とした破れを
-初回実測でも取り逃す（F242）。
+参照する consumer test も含める。名前の推測でなく参照関係で引く。private symbol の変更は
+公開 API の consumer 表に出ない。symbol 名で production 全体を grep する。この拡張を欠く
+焦点走は、静的レビューが見落とした破れを初回実測でも取り逃す（F242）。
 同一 worktree からの dispatch は全種を直列にする。並行投入は orphan hold で rc=16 になる。
 変更した test file は受入全走前に単独走で確認する（全走緑は file 単独緑を含意しない）。新規
 test file を足す走は file 集合列挙のメタテストも焦点走に含める。並行 wave が自分の編集 file を
@@ -5140,6 +5140,46 @@ def test_placeholder_guard_each_literal_independently_fires():
             shutil.rmtree(root, ignore_errors=True)
 
 
+def test_placeholder_guard_date_layout_preserves_old_targets_and_shallow_scope():
+    root = _build_min_repo()
+    try:
+        module = _load_fixture_checker(root)
+        old, _, _, _ = module._literal_placeholder_targets([])
+        _write(root, "output/insights/2026-09-10/report.md", "# complete report\n")
+        _write(root, "output/insights/2026-09-10/topic/verbatim.md", "<反映>\n")
+        module = _load_fixture_checker(root)
+        findings = []
+        new, _, _, complete = module._literal_placeholder_targets(findings)
+        assert complete and not findings, findings
+        assert set(old) < set(new)
+        assert {str(p.relative_to(module.REPO)) for p in set(new) - set(old)} == {
+            "output/insights/2026-09-10/report.md"
+        }
+        assert _placeholder_findings(root) == []
+        _write(root, "output/insights/2026-09-10/report.md", "<反映>\n")
+        _assert_placeholder_violation(root, "2026-09-10/report.md", "未許可のリテラル placeholder")
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_placeholder_guard_date_directory_rejects_symlink_and_non_directory():
+    for kind in ("symlink", "file", "unreadable"):
+        root = _build_min_repo()
+        try:
+            path = os.path.join(root, "output/insights/2026-09-10")
+            if kind == "symlink":
+                os.symlink("missing", path)
+            elif kind == "unreadable":
+                os.mkdir(path, 0o000)
+            else:
+                _write(root, "output/insights/2026-09-10", "file\n")
+            _assert_placeholder_violation(root, "日付 directory の列挙失敗")
+        finally:
+            if kind == "unreadable":
+                os.chmod(path, 0o700)
+            shutil.rmtree(root, ignore_errors=True)
+
+
 def test_placeholder_guard_main_propagates_finding_to_rc():
     root = _build_min_repo()
     try:
@@ -9385,7 +9425,7 @@ def test_normative_exact_section_contract_is_handwritten_and_complete():
     )
     assert len(_SYNTHETIC_DW_O18_SECTION.encode("utf-8")) == 997
     assert len(_SYNTHETIC_DW_O25_SECTION.encode("utf-8")) == 648
-    assert len(_SYNTHETIC_DW_O26_SECTION.encode("utf-8")) == 946
+    assert len(_SYNTHETIC_DW_O26_SECTION.encode("utf-8")) == 979
     assert len(_SYNTHETIC_DW_O28_SECTION.encode("utf-8")) == 983
     assert len(_SYNTHETIC_DW_C01_SECTION.encode("utf-8")) == 994
     assert len("- Web検索は必要な段だけ明示して使う。\n".encode("utf-8")) == 54

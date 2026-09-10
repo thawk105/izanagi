@@ -163,35 +163,6 @@ def _contract_loader_binding(
     )
 
 
-def _commit_without_preregistration() -> str:
-    current_binding = _contract_loader_binding(_REPOSITORY_COMMIT)
-    commits = _git_bytes("rev-list", "HEAD").decode("ascii").splitlines()
-    for commit in commits:
-        contains_document = subprocess.run(
-            [
-                "git", "-C", str(_REPO_ROOT), "cat-file", "-e",
-                f"{commit}:{T.T1998_PREREGISTRATION_PATH}",
-            ],
-            check=False,
-            capture_output=True,
-        )
-        if contains_document.returncode == 0:
-            continue
-        try:
-            candidate_binding = _contract_loader_binding(commit)
-        except subprocess.CalledProcessError:
-            continue
-        if (
-            candidate_binding.contract_loader_blob_sha256s
-            == current_binding.contract_loader_blob_sha256s
-        ):
-            return commit
-    raise AssertionError(
-        "no ancestor without the T-1998 preregistration and with current "
-        "contract-loader bytes"
-    )
-
-
 def _write_producer(
     tmp_path: Path,
     *,
@@ -511,6 +482,7 @@ def _temporary_preregistration_repo(
     tmp_path: Path,
     *,
     committed_drift: bool = False,
+    committed_missing: bool = False,
     worktree_drift: bool = False,
 ) -> tuple[Path, str]:
     repo = tmp_path / "prereg-repo"
@@ -521,9 +493,10 @@ def _temporary_preregistration_repo(
     ).read_bytes()
     drifted_document = canonical_document + b"\n"
     document.parent.mkdir(parents=True)
-    document.write_bytes(
-        drifted_document if committed_drift else canonical_document
-    )
+    if not committed_missing:
+        document.write_bytes(
+            drifted_document if committed_drift else canonical_document
+        )
     for relative in contract_loader_binding.CONTRACT_LOADER_RELATIVE_PATHS:
         destination = repo / relative
         destination.parent.mkdir(parents=True, exist_ok=True)
@@ -531,7 +504,7 @@ def _temporary_preregistration_repo(
     subprocess.run(
         [
             "git", "-C", str(repo), "add", "--",
-            T.T1998_PREREGISTRATION_PATH,
+            *([] if committed_missing else [T.T1998_PREREGISTRATION_PATH]),
             *contract_loader_binding.CONTRACT_LOADER_RELATIVE_PATHS,
         ],
         check=True,
@@ -784,15 +757,26 @@ def test_measurement_preregistration_sha_mismatch_is_rejected(
 
 def test_measurement_commit_without_preregistration_blob_is_rejected(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The measurement-time document pin alone rejects this historical commit."""
+    """The measurement-time document pin alone rejects a missing commit blob."""
+    repo, repository_commit = _temporary_preregistration_repo(
+        tmp_path,
+        committed_missing=True,
+    )
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
     fixture = _write_producer(
         tmp_path,
-        repository_commit=_commit_without_preregistration(),
+        repository_commit=repository_commit,
+        repository_root=repo,
     )
 
     with pytest.raises(T.T1998PairRejected) as excinfo:
-        _consume(fixture)
+        T.consume_balanced_stock_inline_pair(
+            fixture.root,
+            preregistered=fixture.preregistered,
+            repo_root=repo,
+        )
     assert excinfo.value.code == "measurement-preregistration-sha-mismatch"
     assert excinfo.value.field == "preregistration.measurement.sha256"
     assert excinfo.value.arm == "unknown"

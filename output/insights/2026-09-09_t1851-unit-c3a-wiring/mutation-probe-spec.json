@@ -1,0 +1,190 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 900,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 7200,
+  "mutations": [
+    {
+      "id": "M1-campaign-does-not-dispatch-to-certified-launcher",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "        if self.certified_attempt_context is not None: return _run_certified_floor_session(",
+          "new": "        if False and self.certified_attempt_context is not None: return _run_certified_floor_session("
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-registry-plan-maps-round-to-one-based-repetition",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+          "old": "                repetition=round_no - 1,",
+          "new": "                repetition=round_no,"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-campaign-skips-consumption-marker-validation",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "        marker = _holdout_admission.validate_floor_attempt_consumption_marker(\n            admission, attempt_id=attempt_id,\n        )",
+          "new": "        marker = {\"attempt_id\": attempt_id}"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-journal-emits-a-modified-copy-of-the-launcher-terminal",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "    runner._emit(record)\n    return record",
+          "new": "    runner._emit(dict(record, duration_s=0.0))\n    return record"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9-production-result-schema-falls-back-to-v4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "        \"schema\": _floor_contract.RESULT_SCHEMA_V5 if attempt_registry is not None else RESULT_SCHEMA,",
+          "new": "        \"schema\": RESULT_SCHEMA,"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10-captured-prefix-drops-the-last-row",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+          "old": "    owned = _require_floor_attempt_registry_plan(plan)\n    return attempt_registry.capture_attempt_registry_prefix(\n        Path(repo_root), expected_binding=owned._binding\n    )",
+          "new": "    owned = _require_floor_attempt_registry_plan(plan)\n    captured = attempt_registry.capture_attempt_registry_prefix(\n        Path(repo_root), expected_binding=owned._binding\n    )\n    count = captured.get(\"row_count\") if isinstance(captured, dict) else None\n    if isinstance(count, int) and count > 1:\n        captured = dict(captured, row_count=count - 1)\n    return captured"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11-terminal-identity-binds-recovery-ordinal",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_terminal_evidence.py",
+          "old": "    measurement_ordinal = _nonnegative_int(\n        slot_id[3], label='reservation.slot_id[3]')",
+          "new": "    measurement_ordinal = _nonnegative_int(\n        slot_id[4], label='reservation.slot_id[4]')"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M16-terminal-leaf-rejects-planned-none-retry-ordinal",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_terminal_evidence.py",
+          "old": "    retry_ordinal = record['retry_ordinal']\n    if retry_ordinal is not None:\n        _nonnegative_int(\n            retry_ordinal, label='campaign_record.retry_ordinal')",
+          "new": "    retry_ordinal = record['retry_ordinal']\n    _nonnegative_int(\n        retry_ordinal, label='campaign_record.retry_ordinal')"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M17-durable-replay-binds-recovery-ordinal",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "    expected_retry_ordinal = (\n        None if slot.measurement_ordinal == 0 else slot.measurement_ordinal\n    )",
+          "new": "    expected_retry_ordinal = (\n        None if slot.attempt_ordinal == 0 else slot.attempt_ordinal\n    )"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M18-competing-pre-probe-still-consumes-marker-and-launches",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "    if pre_probe.competing:\n        if cut6_existing_consumption_marker:",
+          "new": "    if False and pre_probe.competing:\n        if cut6_existing_consumption_marker:"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M19-competing-branch-records-a-synthetic-probe-payload",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "        probe_before = s8b_floor_attempt_launcher.read_floor_attempt_pre_probe(\n            pre_probe\n        )",
+          "new": "        probe_before = {\"rc\": 0, \"stdout\": \"\", \"stderr\": \"\", \"competing\": True}"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M20-cut6-replay-writes-a-competing-completion-under-an-existing-marker",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "        if cut6_existing_consumption_marker:\n            raise CampaignAbort(\n                \"cut6_replay_pre_probe_competing_existing_marker\"\n            )",
+          "new": "        if False and cut6_existing_consumption_marker:\n            raise CampaignAbort(\n                \"cut6_replay_pre_probe_competing_existing_marker\"\n            )"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M21-campaign-reaches-the-registry-through-a-launcher-module-attribute",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "    if type(plan) is not _FloorAttemptRegistryPlan:\n        raise FloorCampaignError(\"attempt registry plan is unavailable\")\n    return s8b_floor_attempt_launcher.capture_floor_attempt_registry_prefix(",
+          "new": "    _adapter = s8b_floor_attempt_launcher.attempt_registry\n    if type(plan) is not _FloorAttemptRegistryPlan:\n        raise FloorCampaignError(\"attempt registry plan is unavailable\")\n    return s8b_floor_attempt_launcher.capture_floor_attempt_registry_prefix("
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

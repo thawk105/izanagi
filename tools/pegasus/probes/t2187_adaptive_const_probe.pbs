@@ -17,8 +17,40 @@ DEFAULT_OUT_DIR=/work/1/SFC/tanab/izanagi-job-evidence/t2187-adaptive-3const/res
 DYNAMIC_OUT_PREFIX=/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/
 DYNAMIC_CERTIFY_PREFIX=/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/certify/
 DYNAMIC_PERFORMANCE_PREFIX=/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/perf/
+POLICY_PERFORMANCE_OUT_PREFIX=/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/perf/t2417-policy/
 TRACE_CELLS_RAW='cw:1:1:1000:2560:10000:10240:0:100:100:0+cw-as:1:1:1000:2560:10000:10240:1:1:4:0+cw-as-dyn:1:1:1000:2560:10000:10240:1:1:4:1'
 COUNTERFACTUAL_TRACE_CELLS_RAW='cw-as-dyn-p0:1:1:1000:2560:10000:10240:1:1:4:1:0+cw-as-dyn-p1:1:1:1000:2560:10000:10240:1:1:4:1:1+cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2'
+POLICY_P0_RAW='cw-as-dyn-p0:1:1:1000:2560:10000:10240:1:1:4:1:0'
+POLICY_P1_RAW='cw-as-dyn-p1:1:1:1000:2560:10000:10240:1:1:4:1:1'
+POLICY_P2_RAW='cw-as-dyn-p2:1:1:1000:2560:10000:10240:1:1:4:1:2'
+POLICY_PERFORMANCE_PERMUTATIONS_RAW=(
+  "$POLICY_P0_RAW+$POLICY_P1_RAW+$POLICY_P2_RAW"
+  "$POLICY_P0_RAW+$POLICY_P2_RAW+$POLICY_P1_RAW"
+  "$POLICY_P1_RAW+$POLICY_P0_RAW+$POLICY_P2_RAW"
+  "$POLICY_P1_RAW+$POLICY_P2_RAW+$POLICY_P0_RAW"
+  "$POLICY_P2_RAW+$POLICY_P0_RAW+$POLICY_P1_RAW"
+  "$POLICY_P2_RAW+$POLICY_P1_RAW+$POLICY_P0_RAW"
+)
+POLICY_PERFORMANCE_SEEDS=(
+  7170359757993337886
+  17989269546948137795
+  3716960512023197351
+  2309627334396074330
+  17927187949116432153
+  3065832495472073934
+  4312234405970990967
+  427285116805996036
+  3640648522570663905
+  6418011988295890983
+  8628608498907907249
+  3020250207517407008
+  2373385927424670485
+  12508141252750115867
+  5818589253263944573
+  13760661656174455019
+  16587099826641119208
+  13478069633953621058
+)
 COUNTERFACTUAL_COHORT2_TRACE_CELLS_RAW='cw-as-dyn-c2-p0:1:1:1000:2560:10000:9223372036854775807:1:1:4:1:0+cw-as-dyn-c2-p1:1:1:1000:2560:10000:9223372036854775807:1:1:4:1:1+cw-as-dyn-c2-p2:1:1:1000:2560:10000:9223372036854775807:1:1:4:1:2'
 NONMONOTONIC_TRACE_CELLS_RAW='nm-step0.5:1:0.5:1000:10:0:0:0:100:100:0+nm-step1:1:1:1000:10:0:0:0:100:100:0+nm-step1-u2560:1:1:1000:2560:0:0:0:100:100:0+nm-step2:1:2:1000:10:0:0:0:100:100:0+nm-step25:1:25:1000:10:0:0:0:100:100:0+nm-step100:1:100:1000:10:0:0:0:100:100:0'
 CERT_TUNED_CELL='tuned:1:1:1000:2560'
@@ -101,6 +133,7 @@ PERFORMANCE_ARTIFACT_SHA256=${IZANAGI_T2187_PERFORMANCE_ARTIFACT_SHA256:-}
 EXPECTED_VERIFIER_IDENTITY=${IZANAGI_T2187_EXPECTED_VERIFIER_IDENTITY:-}
 EXPECTED_VERIFIER_IDENTITY_SHA256=${IZANAGI_T2187_EXPECTED_VERIFIER_IDENTITY_SHA256:-}
 STEP_POLICY_SEED=${IZANAGI_T2187_STEP_POLICY_SEED:-}
+EXPECTED_REPO_HEAD=${IZANAGI_T2187_EXPECTED_REPO_HEAD:-}
 CCBENCH_BACKOFF_TRACE_TERMINAL_US=0
 
 require_canonical_child() {
@@ -151,9 +184,14 @@ if [[ ! "$STAGE" =~ ^[123]$ ]]; then
   echo "IZANAGI_T2187_STAGE must be 1, 2 or 3" >&2
   exit 2
 fi
+# T2417_POLICY_PERFORMANCE_GATE_BEGIN
 HAS_EXTENDED_CELL=0
 HAS_POLICY_TWO=0
+IS_POLICY_PERFORMANCE=0
 IFS='+' read -r -a CELL_ITEMS <<< "$CELLS_RAW"
+POLICY_P0_SEEN=0
+POLICY_P1_SEEN=0
+POLICY_P2_SEEN=0
 for raw_cell in "${CELL_ITEMS[@]}"; do
   colon_text=${raw_cell//[^:]/}
   if [[ ${#colon_text} -eq 10 || ${#colon_text} -eq 11 ]]; then
@@ -162,8 +200,19 @@ for raw_cell in "${CELL_ITEMS[@]}"; do
   if [[ ${#colon_text} -eq 11 && "$raw_cell" == *:2 ]]; then
     HAS_POLICY_TWO=1
   fi
+  case "$raw_cell" in
+    "$POLICY_P0_RAW") POLICY_P0_SEEN=1 ;;
+    "$POLICY_P1_RAW") POLICY_P1_SEEN=1 ;;
+    "$POLICY_P2_RAW") POLICY_P2_SEEN=1 ;;
+  esac
 done
-if [[ "$MODE" == performance && "$HAS_POLICY_TWO" == 1 && -z "$STEP_POLICY_SEED" ]]; then
+if [[ "$MODE" == performance && "$BACKOFF_TRACE" == 0 &&
+      ${#CELL_ITEMS[@]} -eq 3 && "$POLICY_P0_SEEN" == 1 &&
+      "$POLICY_P1_SEEN" == 1 && "$POLICY_P2_SEEN" == 1 ]]; then
+  IS_POLICY_PERFORMANCE=1
+fi
+if [[ "$MODE" == performance && "$HAS_POLICY_TWO" == 1 &&
+      "$IS_POLICY_PERFORMANCE" != 1 && -z "$STEP_POLICY_SEED" ]]; then
   echo "IZANAGI_T2187_STEP_POLICY_SEED is required for policy 2" >&2
   exit 2
 fi
@@ -197,6 +246,40 @@ if [[ "$BACKOFF_TRACE" == 1 ]]; then
     exit 2
   fi
 fi
+if [[ "$IS_POLICY_PERFORMANCE" == 1 ]]; then
+  if [[ ! "$REP_INDEX" =~ ^0*([0-9]|1[0-7])$ ]]; then
+    echo "policy-performance-contract-violation: rep index must be in 0..17" >&2
+    exit 2
+  fi
+  REP_VALUE=$((10#$REP_INDEX))
+  if (( REP_VALUE > 17 )) ||
+     [[ "$CELLS_RAW" != "${POLICY_PERFORMANCE_PERMUTATIONS_RAW[$((REP_VALUE % 6))]}" ||
+        "$WORKLOADS_RAW" != write-heavy+balanced+read-heavy ||
+        "$THREADS_RAW" != 6+12+18+24+30+36+42+48 ||
+        "$EXTIME" != 3 || "$STAGE" != 1 || -z "$STEP_POLICY_SEED" ||
+        "$STEP_POLICY_SEED" != "${POLICY_PERFORMANCE_SEEDS[$REP_VALUE]:-}" ]]; then
+    echo "policy-performance-contract-violation: exact block, permutation, seed, axes, and stage are required" >&2
+    exit 2
+  fi
+  POLICY_OUT_DIR=$(realpath -m -- "$OUT_DIR_RAW") || {
+    echo "policy-performance-output-prefix-violation: output path cannot be resolved" >&2
+    exit 2
+  }
+  if [[ "$OUT_DIR_RAW" != /* || "$POLICY_OUT_DIR" != "$POLICY_PERFORMANCE_OUT_PREFIX"* ]]; then
+    echo "policy-performance-output-prefix-violation: output must resolve below the dedicated prefix" >&2
+    exit 2
+  fi
+fi
+# T2417_POLICY_PERFORMANCE_GATE_END
+# T2417_EXPECTED_REPO_HEAD_GATE_BEGIN
+if [[ "$IS_POLICY_PERFORMANCE" == 1 ]]; then
+  if [[ ! "$EXPECTED_REPO_HEAD" =~ ^[0-9a-f]{40}$ ||
+        "$REPO_HEAD" != "$EXPECTED_REPO_HEAD" ]]; then
+    echo "policy-performance-repo-head-mismatch: execution HEAD does not match submission HEAD" >&2
+    exit 2
+  fi
+fi
+# T2417_EXPECTED_REPO_HEAD_GATE_END
 if [[ "$MODE" == certify ]]; then
   if [[ -n "$STEP_POLICY_SEED" && "$CELLS_RAW" != "$CERT_COHORT2_POLICY2_CELL" ]]; then
     echo "certify mode cannot be combined with step policy seed for this cell" >&2
@@ -463,7 +546,11 @@ fi
 
 cd "$REPO_ROOT"
 if [[ "$MODE" == performance ]]; then
-OUT="$OUT_DIR/stage${STAGE}-rep${REP_INDEX}-${PBS_JOBID//:/_}.json"
+if [[ "$IS_POLICY_PERFORMANCE" == 1 ]]; then
+  OUT="$OUT_DIR/policy-perf-rep${REP_INDEX}-${PBS_JOBID//:/_}.json"
+else
+  OUT="$OUT_DIR/stage${STAGE}-rep${REP_INDEX}-${PBS_JOBID//:/_}.json"
+fi
 BACKOFF_TRACE_ARGS=()
 if [[ "$BACKOFF_TRACE" == 1 ]]; then
   BACKOFF_TRACE_ARGS=(--backoff-trace)

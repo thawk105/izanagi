@@ -1,0 +1,415 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 300,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 5400,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "    factory: Callable[..., core.DomainProfile[Any, Any]]\n    if profile.schema is profile8b.S8B_SCHEMA_PROFILE:\n        factory = profile8b.make_s8b_domain_profile\n    elif profile.schema is profile8b.S8B_V2_SCHEMA_PROFILE:\n        factory = profile8b.make_s8b_v2_domain_profile\n    else:\n        _fail(\n            \"s8b-attempt-registry-profile\",\n            \"domain profile schema is not a frozen 8b schema\",\n        )\n",
+          "new": "    factory: Callable[..., core.DomainProfile[Any, Any]]\n    factory = profile8b.make_s8b_domain_profile\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_atomic_update_with_consumption_marker_hook_precedes_root_lock",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_generation_publish_direct_barriers_adapter_mapping_and_positive",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_generation_symlink_lower_layers_map_rejection_and_keep_positive",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_v2_marker_claim_v3_resume_and_legacy_terminal_fail_closed",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_v2_mutation_marker_binding_scope_is_exact",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_v2_profile_exact_gate_rejects_both_new_field_mutations",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_v2_profile_opens_generation_create_and_read",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_v2_reservation_rejects_claim_from_other_protocol_generation",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_v2_resume_rejects_recovery_ordinal_and_accepts_zero",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_v2_start_only_resume_fails_closed_and_classified_resume_stays_open"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "\n        or profile.terminal_row_validator is not expected.terminal_row_validator",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_adapter_rejects_every_mutable_frozen_profile_surface[terminal-row-validator-identity]",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_forged_v2_profile_is_rejected_but_slot_lookup_is_five_axis",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_v2_profile_exact_gate_rejects_both_new_field_mutations"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "\n        or type(transition.retryable_terminal_opens_next_attempt) is not bool\n        or transition.retryable_terminal_opens_next_attempt\n        is not expected_transition.retryable_terminal_opens_next_attempt",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_adapter_rejects_every_mutable_frozen_profile_surface[retryable-terminal-opens-next-attempt]",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_v2_profile_exact_gate_rejects_both_new_field_mutations"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4a",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "def _reject_legacy_v2_terminal(state: _AttemptState) -> None:\n    if state.profile.schema is profile8b.S8B_V2_SCHEMA_PROFILE:\n        _fail(\n            \"s8b-v2-terminal\",\n            \"v2 terminal requires the sealed evidence API\",\n        )\n",
+          "new": "def _reject_legacy_v2_terminal(state: _AttemptState) -> None:\n    return None\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4b",
+      "category": "both-layers",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "def _reject_legacy_v2_terminal(state: _AttemptState) -> None:\n    if state.profile.schema is profile8b.S8B_V2_SCHEMA_PROFILE:\n        _fail(\n            \"s8b-v2-terminal\",\n            \"v2 terminal requires the sealed evidence API\",\n        )\n",
+          "new": "def _reject_legacy_v2_terminal(state: _AttemptState) -> None:\n    return None\n"
+        },
+        {
+          "file": "orchestrator/campaign/attempt_registry_core.py",
+          "old": "            if profile.terminal_row_validator is not None:\n                profile.terminal_row_validator(row)\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_terminal_validator_direct_replay_and_producer_mapping_keep_v1_positive",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_v2_marker_claim_v3_resume_and_legacy_terminal_fail_closed"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "    _root, canonical = _entry_paths(\n        state.repo_root,\n        freeze_sha256=state.freeze_id,\n        protocol_sha256=_profile_protocol_sha256(\n            state.profile, state.binding,\n        ),\n        requested_registry_path=state.registry_path,\n    )\n",
+          "new": "    _root, canonical = _entry_paths(\n        state.repo_root,\n        freeze_sha256=state.freeze_id,\n        protocol_sha256=None,\n        requested_registry_path=state.registry_path,\n    )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_v2_marker_claim_v3_resume_and_legacy_terminal_fail_closed",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_v2_mutation_marker_binding_scope_is_exact",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_v2_resume_rejects_recovery_ordinal_and_accepts_zero",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_v2_start_only_resume_fails_closed_and_classified_resume_stays_open"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "        _fail(\n            \"s8b-attempt-registry-create-only\",\n            \"durable registry generation already exists\",\n        )\n",
+          "new": "        pass\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_generation_publish_direct_barriers_adapter_mapping_and_positive"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6b",
+      "category": "both-layers",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "        _fail(\n            \"s8b-attempt-registry-create-only\",\n            \"durable registry generation already exists\",\n        )\n",
+          "new": "        pass\n"
+        },
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "    prior = _read_regular_bytes(destination, missing_ok=True)\n    if prior is not None:\n        if allow_exact_retry and prior == payload:\n            return\n        _fail(\n            \"s8b-attempt-registry-create-only\",\n            f\"durable destination already exists: {destination.name}\",\n        )\n",
+          "new": "    prior = _read_regular_bytes(destination, missing_ok=True)\n    if prior is not None and allow_exact_retry and prior == payload:\n        return\n"
+        },
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "        except FileExistsError:\n            prior = _read_regular_bytes(destination)\n            if not allow_exact_retry or prior != payload:\n                _fail(\n                    \"s8b-attempt-registry-create-only\",\n                    f\"durable destination raced: {destination.name}\",\n                )\n",
+          "new": "        except FileExistsError:\n            pass\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_classification_publish_faults_pin_slot_claim_before_exact_retry",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_generation_publish_direct_barriers_adapter_mapping_and_positive",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_genesis_is_create_only_and_rejects_alternate_or_symlinked_paths"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7a",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "    _ensure_durable_directory(freeze_directory)\n    admission._assert_no_symlink_components(freeze_directory)\n",
+          "new": "    _ensure_durable_directory(freeze_directory)\n"
+        },
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "    admission._assert_no_symlink_components(generation)\n    _fsync_directory(generation)\n",
+          "new": "    _fsync_directory(generation)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7b",
+      "category": "both-layers",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "    _ensure_durable_directory(freeze_directory)\n    admission._assert_no_symlink_components(freeze_directory)\n",
+          "new": "    _ensure_durable_directory(freeze_directory)\n"
+        },
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "    admission._assert_no_symlink_components(generation)\n    _fsync_directory(generation)\n",
+          "new": "    _fsync_directory(generation)\n"
+        },
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "        if generation.is_symlink() or not stat.S_ISDIR(mode):\n            _fail(\n                \"s8b-attempt-registry-storage\",\n                \"generation directory is unsafe or incomplete\",\n            )\n",
+          "new": ""
+        },
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "def _read_regular_bytes(path: Path, *, missing_ok: bool = False) -> bytes | None:\n    admission._assert_no_symlink_components(path.parent)\n",
+          "new": "def _read_regular_bytes(path: Path, *, missing_ok: bool = False) -> bytes | None:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_generation_publish_direct_barriers_adapter_mapping_and_positive",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_generation_symlink_lower_layers_map_rejection_and_keep_positive"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "    return {\n        **profile8b.S8B_BINDING_CODEC.to_event_fields(binding),\n        **profile8b.S8B_V2_SLOT_CODEC.to_json(slot),\n    }\n",
+          "new": "    payload = {\n        **profile8b.S8B_BINDING_CODEC.to_event_fields(binding),\n        **profile8b.S8B_V2_SLOT_CODEC.to_json(slot),\n    }\n    payload.pop(\"measurement_ordinal\", None)\n    return payload\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_v2_marker_claim_v3_resume_and_legacy_terminal_fail_closed",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_v2_mutation_marker_binding_scope_is_exact",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_v2_resume_rejects_recovery_ordinal_and_accepts_zero",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_v2_start_only_resume_fails_closed_and_classified_resume_stays_open",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_v3_claim_address_separates_measurement_ordinals"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "        or claim.get(\"protocol_sha256\") != binding.protocol_sha256\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_v2_reservation_rejects_claim_from_other_protocol_generation"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9b",
+      "category": "both-layers",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "        or claim.get(\"protocol_sha256\") != binding.protocol_sha256\n",
+          "new": ""
+        },
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "    derived = admission._measurement_generation_claim_identity(claim)\n    if derived != address:\n        _fail(\n            \"s8b-attempt-registry-consume\",\n            \"v2 admission claim path differs from its payload\",\n        )\n",
+          "new": "    derived = admission._measurement_generation_claim_identity(claim)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_v2_reservation_rejects_claim_from_other_protocol_generation"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10a",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "    admission._assert_active_admission_root_lock(lock, root=root)\n    other_counts = _load_other_generation_budget_counts_locked(\n",
+          "new": "    other_counts = _load_other_generation_budget_counts_locked(\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_atomic_update_locked_direct_guard_maps_upstream_and_keeps_positive"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10b",
+      "category": "both-layers",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "    admission._assert_active_admission_root_lock(lock, root=root)\n    other_counts = _load_other_generation_budget_counts_locked(\n",
+          "new": "    other_counts = _load_other_generation_budget_counts_locked(\n"
+        },
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "old": "    _assert_active_admission_root_lock(lock, root=state.root)\n",
+          "new": ""
+        },
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "old": "    _assert_active_admission_root_lock(lock, root=identity.root)\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_atomic_update_locked_direct_guard_maps_upstream_and_keeps_positive",
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_v2_marker_claim_v3_resume_and_legacy_terminal_fail_closed"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "            if not classifications:\n                _fail(\n                    \"s8b-attempt-registry-resume\",\n                    \"v2 start-only resume is not marker-atomic\",\n                )\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_v2_start_only_resume_fails_closed_and_classified_resume_stays_open"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M12",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "    \"\"\"Update a v2 generation inside one marker-owned lock interval.\"\"\"\n\n    _run_prelock_snapshot_hook(path)\n    with admission._locked(root) as lock:\n",
+          "new": "    \"\"\"Update a v2 generation inside one marker-owned lock interval.\"\"\"\n\n    with admission._locked(root) as lock:\n        _run_prelock_snapshot_hook(path)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_atomic_update_with_consumption_marker_hook_precedes_root_lock"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M13",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "        if consumption_marker is None:\n            _fail(\n                \"s8b-attempt-registry-consume\",\n                \"v2 reservation requires a consumption marker\",\n            )\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M13b",
+      "category": "both-layers",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "        if consumption_marker is None:\n            _fail(\n                \"s8b-attempt-registry-consume\",\n                \"v2 reservation requires a consumption marker\",\n            )\n",
+          "new": ""
+        },
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "        if (\n            consumption_marker is None\n            or measurement_generation_claim_digest is None\n        ):\n            _fail(\n                \"s8b-attempt-registry-consume\",\n                \"v2 reservation requires a consumption marker\",\n            )\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_v2_marker_claim_v3_resume_and_legacy_terminal_fail_closed"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M14",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "            if slot.attempt_ordinal != 0:\n                _fail(\n                    \"s8b-attempt-registry-consume\",\n                    \"v2 resume recovery ordinal is not capability-backed\",\n                )\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_attempt_registry.py::test_v2_resume_rejects_recovery_ordinal_and_accepts_zero"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "EQ",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "    return {\n        **profile8b.S8B_BINDING_CODEC.to_event_fields(binding),\n        **profile8b.S8B_V2_SLOT_CODEC.to_json(slot),\n    }\n",
+          "new": "    payload = {\n        **profile8b.S8B_BINDING_CODEC.to_event_fields(binding),\n        **profile8b.S8B_V2_SLOT_CODEC.to_json(slot),\n    }\n    return payload\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

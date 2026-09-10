@@ -1445,6 +1445,20 @@ def _request(
     )
 
 
+def _complete_rep_observation(
+    rep_index: int, throughput: float
+) -> dict[str, object]:
+    return {
+        "rep_index": rep_index,
+        "returncode": 0,
+        "execution_failure": False,
+        "counter_status": "not_required",
+        "missing_perf_events": [],
+        "perf_raw": {event: None for event in F.runner.PERF_EVENTS},
+        "throughput": throughput,
+    }
+
+
 def test_mutation_12_production_adapter_passes_all_runner_arguments_and_sinks(
     tmp_path, monkeypatch
 ):
@@ -1456,8 +1470,8 @@ def test_mutation_12_production_adapter_passes_all_runner_arguments_and_sinks(
         kwargs["rep_returncodes"].extend([0, 0])
         kwargs["rep_observations"].extend(
             [
-                {"rep_index": 0, "returncode": 0, "throughput": 101.0},
-                {"rep_index": 1, "returncode": 0, "throughput": 103.0},
+                _complete_rep_observation(0, 101.0),
+                _complete_rep_observation(1, 103.0),
             ]
         )
         kwargs["rep_timestamps"].extend(
@@ -1668,7 +1682,7 @@ def _complete_scale_point(
 ) -> ScalePoint:
     kwargs["rep_returncodes"].extend(0 for _value in throughputs)
     kwargs["rep_observations"].extend(
-        {"rep_index": index, "returncode": 0, "throughput": value}
+        _complete_rep_observation(index, value)
         for index, value in enumerate(throughputs)
     )
     kwargs["rep_timestamps"].extend(
@@ -2330,8 +2344,8 @@ def _run_production(
         kwargs["rep_returncodes"].extend([0, 0])
         kwargs["rep_observations"].extend(
             [
-                {"rep_index": 0, "returncode": 0, "throughput": values[0]},
-                {"rep_index": 1, "returncode": 0, "throughput": values[1]},
+                _complete_rep_observation(0, values[0]),
+                _complete_rep_observation(1, values[1]),
             ]
         )
         kwargs["rep_timestamps"].extend(
@@ -2355,6 +2369,55 @@ def _run_production(
     assert result.status == "complete"
     assert calls == [measurement.measurement_id for _session, measurement in planned]
     return spec, plan
+
+
+def test_window_record_persists_exact_runner_observation_schema(
+    tmp_path, monkeypatch
+):
+    _spec, _plan = _run_production(
+        tmp_path,
+        monkeypatch,
+        _pair_measurement_values(
+            candidate_1=(120.0, 120.0),
+            reference_1=(100.0, 100.0),
+            candidate_2=(110.0, 110.0),
+            reference_2=(100.0, 100.0),
+        ),
+    )
+    records = _load_jsonl(tmp_path / "out/window-a.jsonl")
+    assert records[0]["schema"] == "floor-pair-window/v3"
+    observations = [
+        observation
+        for session in records[1:-1]
+        for measurement in session["measurements"]
+        for observation in measurement["rep_observations"]
+    ]
+    assert observations
+    expected_keys = {
+        "rep_index",
+        "returncode",
+        "counter_status",
+        "missing_perf_events",
+        "perf_raw",
+        "throughput",
+        "execution_failure",
+    }
+    for observation in observations:
+        assert set(observation) == expected_keys
+        assert type(observation["rep_index"]) is int
+        assert type(observation["returncode"]) is int
+        assert type(observation["counter_status"]) is str
+        assert type(observation["missing_perf_events"]) is list
+        assert type(observation["perf_raw"]) is dict
+        assert type(observation["throughput"]) is float
+        assert type(observation["execution_failure"]) is bool
+        assert observation["returncode"] == 0
+        assert observation["counter_status"] == "not_required"
+        assert observation["missing_perf_events"] == []
+        assert observation["perf_raw"] == {
+            event: None for event in F.runner.PERF_EVENTS
+        }
+        assert observation["execution_failure"] is False
 
 
 def _run_multi_pair_sample_production(

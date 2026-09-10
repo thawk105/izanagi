@@ -14,7 +14,9 @@ import json
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Mapping, Optional, Sequence
+
+from orchestrator.campaign import s8b_floor_contract as _floor_contract
 
 # manifest verifier のハードコード stock 名と一致させる (両者とも freeze 記録値に
 # stock_common が実在することを別途検査する)。
@@ -154,6 +156,7 @@ def _synthetic_floor_result(v1: dict, protocol: dict, *, root: Path) -> dict:
         observations = [
             {
                 "rep_index": index, "returncode": 0,
+                "execution_failure": False,
                 "counter_status": "complete", "missing_perf_events": [],
                 "perf_raw": {
                     "LLC-load-misses": 1, "LLC-loads": 2,
@@ -337,7 +340,7 @@ def _synthetic_floor_result(v1: dict, protocol: dict, *, root: Path) -> dict:
     protocol_sha256 = contract.canonical_protocol_sha256(protocol)
     configurations = sorted({cell["configuration_id"] for cell in cells})
     return {
-        "schema": contract.RESULT_SCHEMA,
+        "schema": contract.LEGACY_RESULT_SCHEMA,
         "formula": protocol["formula"],
         "mode": "official",
         "eligible_for_refreeze": True,
@@ -364,10 +367,190 @@ def _synthetic_floor_result(v1: dict, protocol: dict, *, root: Path) -> dict:
     }
 
 
-def candidate_repository(tmp_path: Path, module, *, manifest_kind: str = "v3") -> dict:
+def attach_v5_attempt_registry(
+        *, root: Path, freeze: Mapping[str, object],
+        protocol: Mapping[str, object], cells: Sequence[Mapping[str, object]],
+        schedule: Sequence[Mapping[str, object]], result: dict,
+        manifest_raw: bytes, run_dir: str,
+        journal_records: Sequence[Mapping[str, object]]) -> dict[str, object]:
+    """実 writer と issued marker で v5 の pinned-prefix fixture を作る。"""
+    from orchestrator.campaign import s8b_attempt_registry as registry
+    from orchestrator.campaign import s8b_floor_attempt_launcher as launcher
+    from orchestrator.campaign import s8b_floor_campaign as campaign
+    from orchestrator.campaign import s8b_floor_contract as contract
+    from orchestrator.campaign import s8b_holdout_admission as admission
+
+    repo_root = Path(root)
+    output_root = repo_root / "output"
+    relative_run_dir = run_dir.removeprefix("output/")
+    absolute_run_dir = output_root / relative_run_dir
+    campaign_run_id = absolute_run_dir.name
+    manifest_sha256 = hashlib.sha256(manifest_raw).hexdigest()
+    admission_root = repo_root / ".git/izanagi/s8b-holdout-admission-v1"
+    if admission_root.exists():
+        shutil.rmtree(admission_root)
+
+    _write(repo_root, f"{run_dir}/manifest.json", manifest_raw)
+    _write(repo_root, f"{run_dir}/journal.jsonl", b"")
+    admission_cells = [
+        {
+            "cell_id": cell["cell_id"],
+            "freeze_holdout_key": cell["holdout_id"],
+            "configuration_id": cell["configuration_id"],
+            "records": cell["records"],
+            "threads": cell["threads"],
+            "workload": dict(cell["workload"]),
+        }
+        for cell in cells
+    ]
+    reservation = admission.reserve_floor_holdout_observations(
+        repo_root=repo_root, protocol=protocol,
+        verified_freeze_document=freeze,
+        freeze_sha256=str(protocol["freeze"]["sha256"]),
+        cells=admission_cells, schedule=schedule,
+        campaign_run_id=campaign_run_id, out_root=output_root,
+        run_dir=absolute_run_dir, run_relpath=relative_run_dir,
+        mode="official", resume=False, nondefault_seams=[],
+    )
+    admissions = admission.finalize_floor_holdout_admissions(reservation)
+    starts = [
+        dict(record) for record in journal_records
+        if record.get("event") == "session-start"
+    ]
+    _write(repo_root, f"{run_dir}/journal.jsonl", b"".join(
+        canonical_bytes(record) + b"\n" for record in starts
+    ))
+
+    markers = {}
+    for session in result["sessions"]:
+        cell_admission = admissions[session["cell_id"]]
+        admission.consume_attempt_ticket(
+            cell_admission, attempt_id=session["attempt_id"],
+        )
+        markers[session["attempt_id"]] = (
+            admission.validate_floor_attempt_consumption_marker(
+                cell_admission, attempt_id=session["attempt_id"],
+            )
+        )
+
+    protocol_sha256 = contract.canonical_protocol_sha256(protocol)
+    plan = campaign._build_floor_attempt_registry_plan(  # noqa: SLF001
+        protocol=protocol, cells=cells, schedule=schedule,
+        freeze_sha256=str(protocol["freeze"]["sha256"]),
+        protocol_sha256=protocol_sha256,
+    )
+    genesis = launcher.floor_attempt_registry_genesis(plan)
+    cells_by_id = {str(cell["cell_id"]): cell for cell in cells}
+    schedule_by_seq = {int(row["seq"]): row for row in schedule}
+    requests = []
+    for index, session in enumerate(result["sessions"][:2]):
+        scheduled = schedule_by_seq[int(session["seq"])]
+        cell = cells_by_id[str(session["cell_id"])]
+        cell_admission = admissions[str(session["cell_id"])]
+        requests.append(launcher.floor_attempt_reservation(
+            plan,
+            slot_key=(str(session["cell_id"]), int(scheduled["round"]), 0),
+            repo_root=repo_root, protocol=protocol, mode="official",
+            perf_preflight_receipt=result.get("perf_preflight"),
+            consumption_marker=markers[session["attempt_id"]],
+            run_start_receipt_sha256=launcher.canonical_floor_payload_sha256({
+                "fixture": "v5-prefix", "index": index,
+            }),
+            process_identity={
+                "pid": index + 1,
+                "starttime": f"fixture-start-{index}",
+                "execution_uuid": f"fixture-execution-{index}",
+            },
+            started_at=f"2026-08-11T00:00:0{index}+00:00",
+            admission_claim_digest=str(
+                cell_admission.measurement_generation_claim_digest
+            ),
+            attempt_id=str(session["attempt_id"]),
+            campaign_run_id=campaign_run_id,
+            manifest_sha256=manifest_sha256,
+            run_relpath=relative_run_dir,
+            cell_id=str(session["cell_id"]),
+            records=int(cell["records"]), threads=int(cell["threads"]),
+            workload=dict(cell["workload"]),
+        ))
+    if len(requests) != 2 or requests[0].slot_id == requests[1].slot_id:
+        raise AssertionError("v5 fixture requires two distinct planned slots")
+
+    first = requests[0]
+    registry_path = registry.create_attempt_registry(
+        repo_root, profile=first.profile, slots=genesis.slots,
+        binding=first.binding,
+    )
+
+    def reserve(request) -> None:
+        registry.reserve_attempt_slot(
+            repo_root, profile=request.profile, binding=request.binding,
+            slot_id=request.slot_id,
+            run_start_receipt_sha256=request.run_start_receipt_sha256,
+            process_identity=request.process_identity,
+            started_at=request.started_at,
+            admission_claim_digest=request.admission_claim_digest,
+            attempt_id=request.attempt_id,
+            campaign_run_id=request.campaign_run_id,
+            manifest_sha256=request.manifest_sha256,
+            run_relpath=request.run_relpath, cell_id=request.cell_id,
+            deferred_output_reader=lambda: b"fixture-reserved-output",
+            launcher_origin_capability=(
+                registry._new_launcher_origin_capability()  # noqa: SLF001
+            ),
+            consumption_marker=request.consumption_marker,
+        )
+
+    reserve(first)
+    proof = campaign._capture_floor_attempt_registry_prefix(  # noqa: SLF001
+        repo_root, plan,
+    )
+    if int(proof["row_count"]) < 3:
+        raise AssertionError("v5 fixture prefix must include a reservation")
+    reserve(requests[1])
+
+    _write(repo_root, f"{run_dir}/journal.jsonl", b"".join(
+        canonical_bytes(record) + b"\n" for record in journal_records
+    ))
+    inspection = admission.inspect_floor_holdout_admission_evidence(
+        repo_root=repo_root, protocol=protocol,
+        verified_freeze_document=freeze,
+        freeze_sha256=str(protocol["freeze"]["sha256"]),
+        manifest_sha256=manifest_sha256,
+        campaign_run_id=campaign_run_id, run_relpath=relative_run_dir,
+        mode="official", cells=cells, schedule=schedule,
+        sessions=[
+            record for record in journal_records
+            if record.get("event") in {"session-start", "session"}
+        ],
+    )
+    if inspection.derived_eligible_for_refreeze is not True:
+        raise AssertionError("v5 fixture admission must remain refreeze-eligible")
+    result["schema"] = contract.RESULT_SCHEMA_V5
+    result["holdout_admission"] = dict(inspection)
+    result["attempt_registry"] = proof
+    live_rows = launcher.read_floor_attempt_registry(repo_root, plan)
+    return {
+        "proof": proof,
+        "registry_path": registry_path,
+        "live_row_count": len(live_rows),
+    }
+
+
+def candidate_repository(
+        tmp_path: Path, module, *, manifest_kind: str = "v3",
+        result_schema: str = _floor_contract.LEGACY_RESULT_SCHEMA,
+        mutate_attempt_registry: Optional[Callable[[dict], None]] = None) -> dict:
     """v2 producer 正例用の synthetic-only tmp git repository を作る。"""
     from orchestrator.campaign import env_contract
     from orchestrator.campaign import s8b_floor_contract as contract
+
+    if result_schema not in {
+        contract.LEGACY_RESULT_SCHEMA, contract.RESULT_SCHEMA_V5,
+    }:
+        raise ValueError(f"unknown result_schema: {result_schema}")
+    if mutate_attempt_registry is not None and result_schema != contract.RESULT_SCHEMA_V5:
+        raise ValueError("attempt registry mutation requires result v5")
 
     root = tmp_path / "candidate-repo"
     root.mkdir()
@@ -448,19 +631,6 @@ def candidate_repository(tmp_path: Path, module, *, manifest_kind: str = "v3") -
     manifest_raw = canonical_bytes(manifest)
     manifest_sha256 = hashlib.sha256(manifest_raw).hexdigest()
     result["manifest_sha256"] = manifest_sha256
-    from orchestrator.tests.s8b_floor_evidence_fixture import (
-        build_floor_admission_evidence,
-    )
-    evidence = build_floor_admission_evidence(
-        root / ".git/izanagi/s8b-holdout-admission-v1",
-        protocol=protocol, freeze=v1,
-        freeze_sha256=protocol["freeze"]["sha256"],
-        manifest_sha256=manifest_sha256,
-        campaign_run_id=f"20260811T000000Z-{protocol_sha256[:8]}",
-        run_relpath=run_dir.removeprefix("output/"), mode="official",
-        cells=cells, schedule=schedule, sessions=result["sessions"],
-    )
-    result["holdout_admission"] = evidence.expected_receipt
     journal_records = []
     schedule_by_seq = {row["seq"]: row for row in schedule}
     for session in result["sessions"]:
@@ -472,6 +642,31 @@ def candidate_repository(tmp_path: Path, module, *, manifest_kind: str = "v3") -
             "attempt_id": session["attempt_id"], "trigger": None,
         })
         journal_records.append(session)
+    registry_fixture = None
+    if result_schema == contract.LEGACY_RESULT_SCHEMA:
+        from orchestrator.tests.s8b_floor_evidence_fixture import (
+            build_floor_admission_evidence,
+        )
+        evidence = build_floor_admission_evidence(
+            root / ".git/izanagi/s8b-holdout-admission-v1",
+            protocol=protocol, freeze=v1,
+            freeze_sha256=protocol["freeze"]["sha256"],
+            manifest_sha256=manifest_sha256,
+            campaign_run_id=f"20260811T000000Z-{protocol_sha256[:8]}",
+            run_relpath=run_dir.removeprefix("output/"), mode="official",
+            cells=cells, schedule=schedule, sessions=result["sessions"],
+        )
+        result["holdout_admission"] = evidence.expected_receipt
+    else:
+        _git(root, "add", "-A")
+        _git(root, "commit", "-qm", "synthetic v5 authority")
+        registry_fixture = attach_v5_attempt_registry(
+            root=root, freeze=v1, protocol=protocol, cells=cells,
+            schedule=schedule, result=result, manifest_raw=manifest_raw,
+            run_dir=run_dir, journal_records=journal_records,
+        )
+        if mutate_attempt_registry is not None:
+            mutate_attempt_registry(result["attempt_registry"])
     _write(root, result_rel, canonical_bytes(result))
     _write(root, f"{run_dir}/manifest.json", manifest_raw)
     _write(root, f"{run_dir}/journal.jsonl", b"".join(
@@ -510,7 +705,7 @@ def candidate_repository(tmp_path: Path, module, *, manifest_kind: str = "v3") -
 
     _git(root, "add", "-A")
     _git(root, "commit", "-qm", "synthetic v2 candidate inputs")
-    return {
+    fixture = {
         "root": root,
         "head": _git(root, "rev-parse", "HEAD"),
         "result_rel": result_rel,
@@ -519,3 +714,6 @@ def candidate_repository(tmp_path: Path, module, *, manifest_kind: str = "v3") -
         "approval_sha256": hashlib.sha256(approval_raw).hexdigest(),
         "closure_paths": closure_paths,
     }
+    if registry_fixture is not None:
+        fixture.update(registry_fixture)
+    return fixture

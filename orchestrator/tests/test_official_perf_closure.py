@@ -60,6 +60,8 @@ _REVIEWED_PERF_FILES = frozenset({
     "orchestrator/campaign/pipeline.py",
     "orchestrator/campaign/profiler_directive.py",
     "orchestrator/campaign/s1_direct_comparison.py",
+    # Derives perf from the receipt and checks capture kwargs; capture_measure_point owns launch.
+    "orchestrator/campaign/s8b_floor_attempt_launcher.py",
     "orchestrator/campaign/s8b_floor_campaign.py",
     "orchestrator/campaign/s8b_floor_contract.py",
     "orchestrator/campaign/s8b_floor_stats.py",
@@ -181,6 +183,8 @@ _REVIEWED_PREDICATES = (
                "_project_probed_perf_preflight", "use_perf_from_receipt"),
     _Predicate("A", "orchestrator/campaign/s8b_floor_campaign.py",
                "_assert_perf_mode", "use_perf_from_receipt"),
+    _Predicate("A", "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+               "_checked_reservation_policy", "use_perf_from_receipt"),
     _Predicate("J", "orchestrator/campaign/s8b_floor_campaign.py",
                "assemble_manifest", "build_perf_observation"),
     _Predicate("A", "orchestrator/campaign/s8b_floor_campaign.py",
@@ -294,6 +298,17 @@ _REVIEWED_GUARDS = (
         "A", "orchestrator/campaign/s8b_floor_campaign.py", "_assert_perf_mode",
         ("use_perf",),
         ("mode != 'pilot' and receipt is not None and use_perf",),
+    ),
+    _GuardSpec(
+        "A", "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+        "_checked_reservation_policy", ("expected_use_perf", "capture_use_perf"),
+        (
+            "reservation.mode == 'official' and "
+            "reservation.perf_preflight_receipt is not None and "
+            "expected_use_perf",
+            "type(capture_use_perf) is not bool or "
+            "capture_use_perf is not expected_use_perf",
+        ),
     ),
     _GuardSpec(
         "B", "orchestrator/campaign/s8b_floor_contract.py",

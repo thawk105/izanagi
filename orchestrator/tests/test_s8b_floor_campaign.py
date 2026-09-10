@@ -35,6 +35,7 @@ import sys
 import textwrap
 import time
 from collections import Counter
+from collections.abc import Mapping
 from pathlib import Path
 from types import MappingProxyType, SimpleNamespace
 from unittest import mock
@@ -901,6 +902,7 @@ class _FakeScalePoint:
             rep_observations = [
                 {
                     "rep_index": index, "returncode": 0,
+                    "execution_failure": False,
                     "counter_status": status, "missing_perf_events": [],
                     "perf_raw": dict(perf_raw), "throughput": raw_values[index],
                 }
@@ -1624,6 +1626,66 @@ def test_resume_v3_rejects_session_without_rep_integrity_evidence(tmp_path):
             schedule=[{"seq": 0, "round": 1, "cell_id": "H::C"}],
             protocol_sha256="p", freeze_sha256="f", manifest_sha256="m",
             resume_state="M-running", expected_use_perf=True,
+            retry_slots_per_cell=2,
+        )
+
+
+def _resume_records_with_complete_rep_evidence():
+    point = _FakeScalePoint(
+        [1, 1, 1, 1, 1], [], "numactl bench", use_perf=False,
+    )
+    return [
+        {
+            "event": "campaign-start", "schema": s8b_floor_campaign.JOURNAL_SCHEMA,
+            "protocol_sha256": "p", "freeze_sha256": "f", "manifest_sha256": "m",
+        },
+        {
+            "event": "session-start", "seq": 0, "kind": "planned",
+            "cell_id": "H::C", "round": 1, "retry_ordinal": None,
+            "attempt_id": "H::C::seq0", "trigger": None,
+        },
+        {
+            "event": "session", "seq": 0, "kind": "planned",
+            "cell_id": "H::C", "holdout_id": "H", "configuration_id": "C",
+            "round": 1, "throughputs": [1, 1, 1, 1, 1], "reps_expected": 5,
+            "exec_failures": 0, "excluded_reason": None, "retry": False,
+            "rep_observations": copy.deepcopy(point.rep_observations),
+            "rep_integrity_failures": 0, "exclusion_class": None,
+            "run_cmd": "numactl bench", "session_median": 1,
+            "valid": True, "probe_before": {"competing": False},
+            "probe_after": {"competing": False},
+        },
+    ]
+
+
+def test_resume_rejects_exec_failure_count_mismatch(tmp_path):
+    records = _resume_records_with_complete_rep_evidence()
+    records[-1]["exec_failures"] = 1
+    with pytest.raises(
+        s8b_floor_campaign.FloorCampaignError,
+        match="exec_failures が再導出値と不一致",
+    ):
+        s8b_floor_campaign._verify_resume_journal(
+            records, run_dir=tmp_path, mode="pilot",
+            schedule=[{"seq": 0, "round": 1, "cell_id": "H::C"}],
+            protocol_sha256="p", freeze_sha256="f", manifest_sha256="m",
+            resume_state="M-running", expected_use_perf=False,
+            retry_slots_per_cell=2,
+        )
+
+
+def test_resume_rejects_old_six_key_rep_observation(tmp_path):
+    records = _resume_records_with_complete_rep_evidence()
+    records[-1]["rep_observations"][0].pop("execution_failure")
+    with pytest.raises(
+        s8b_floor_campaign.FloorCampaignError,
+        match="exact key 不一致",
+    ):
+        s8b_floor_campaign._verify_resume_journal(
+            records, run_dir=tmp_path, mode="pilot",
+            schedule=[{"seq": 0, "round": 1, "cell_id": "H::C"}],
+            protocol_sha256="p", freeze_sha256="f", manifest_sha256="m",
+            resume_state="M-running", expected_use_perf=False,
             retry_slots_per_cell=2,
         )
 
@@ -9367,9 +9429,174 @@ def test_no_perf_rep_integrity_requires_zero_rc_and_marks_counters_not_required(
     assert rejected["throughputs"] == [100, 100, 103, 103]
 
 
+def test_exec_and_integrity_failures_are_derived_as_distinct_counts():
+    """M3/M4: notes でなく flag を読み、nonzero rc を execution へ混ぜない。"""
+    notes_only = _FakeScalePoint(
+        [100, 101, 102, 103, 104], ["5/5 reps failed to execute"],
+        "numactl bench", use_perf=False,
+    )
+    notes_projection = s8b_floor_campaign._project_scalepoint(
+        notes_only, reps=5, expected_use_perf=False,
+    )
+    assert notes_projection["exec_failures"] == 0
+    assert notes_projection["rep_integrity_failures"] == 0
+
+    observations = copy.deepcopy(notes_only.rep_observations)
+    observations[2].update({
+        "returncode": None,
+        "execution_failure": True,
+        "throughput": None,
+    })
+    flag_only = _FakeScalePoint(
+        [100, 101, 103, 104], [], "numactl bench", use_perf=False,
+        rep_observations=observations,
+    )
+    flag_projection = s8b_floor_campaign._project_scalepoint(
+        flag_only, reps=5, expected_use_perf=False,
+    )
+    assert flag_projection["exec_failures"] == 1
+    assert flag_projection["rep_integrity_failures"] == 1
+    assert flag_projection["throughputs"] == [100, 101, 103, 104]
+
+    nonzero_observations = copy.deepcopy(notes_only.rep_observations)
+    nonzero_observations[2]["returncode"] = 7
+    nonzero = _FakeScalePoint(
+        [100, 101, 102, 103, 104], [], "numactl bench", use_perf=False,
+        rep_observations=nonzero_observations,
+    )
+    nonzero_projection = s8b_floor_campaign._project_scalepoint(
+        nonzero, reps=5, expected_use_perf=False,
+    )
+    assert nonzero_projection["exec_failures"] == 0
+    assert nonzero_projection["rep_integrity_failures"] == 1
+    assert nonzero_projection["throughputs"] == [100, 101, 103, 104]
+
+
+def test_execution_failure_true_alone_prevents_complete_rep_projection():
+    """M6: rc/perf が完備でも捕捉例外 rep は complete にしない。"""
+    perf_raw = {
+        event: index + 1
+        for index, event in enumerate(s8b_floor_stats.PERF_EVENTS)
+    }
+    observation = {
+        "rep_index": 0,
+        "returncode": 0,
+        "counter_status": "complete",
+        "missing_perf_events": [],
+        "perf_raw": perf_raw,
+        "throughput": None,
+        "execution_failure": True,
+    }
+    point = _FakeScalePoint(
+        [], [], "numactl perf -- bench", rep_observations=[observation], reps=1,
+    )
+
+    expected_keys = {
+        "rep_index", "returncode", "counter_status", "missing_perf_events",
+        "perf_raw", "throughput", "execution_failure",
+    }
+    missing = [
+        event for event in s8b_floor_stats.PERF_EVENTS
+        if type(perf_raw[event]) is not int or perf_raw[event] < 0
+    ]
+    derived_status = "complete" if not missing else "incomplete"
+    assert set(observation) == expected_keys
+    assert type(observation["rep_index"]) is int
+    assert observation["rep_index"] == 0
+    assert type(observation["returncode"]) is int
+    assert observation["returncode"] == 0
+    assert observation["counter_status"] == derived_status
+    assert observation["missing_perf_events"] == missing
+    assert isinstance(perf_raw, Mapping)
+    assert set(perf_raw) == set(s8b_floor_stats.PERF_EVENTS)
+    assert derived_status in {"complete", "not_required"}
+    assert observation["execution_failure"] is True
+    assert observation["throughput"] is None
+
+    projected = s8b_floor_campaign._project_scalepoint(
+        point, reps=1, expected_use_perf=True,
+    )
+    assert projected == {
+        "throughputs": [],
+        "exec_failures": 1,
+        "rep_observations": [observation],
+        "rep_integrity_failures": 1,
+    }
+
+    def project_without_execution_failure_guard(scale_point):
+        source_throughputs = list(scale_point.throughputs)
+        observations = [dict(row) for row in scale_point.rep_observations]
+        observed_tps = [
+            row["throughput"] for row in observations
+            if row["throughput"] is not None
+        ]
+        assert observed_tps == source_throughputs
+
+        failures = 0
+        qualified_throughputs = []
+        for expected_index, row in enumerate(observations):
+            row_perf_raw = row["perf_raw"]
+            raw_complete = (
+                isinstance(row_perf_raw, Mapping)
+                and set(row_perf_raw) == set(s8b_floor_stats.PERF_EVENTS)
+            )
+            row_missing = [
+                event for event in s8b_floor_stats.PERF_EVENTS
+                if type(row_perf_raw[event]) is not int or row_perf_raw[event] < 0
+            ]
+            row_status = "complete" if not row_missing else "incomplete"
+            complete = (
+                set(row) == expected_keys
+                and type(row["rep_index"]) is int
+                and row["rep_index"] == expected_index
+                and type(row["returncode"]) is int
+                and row["returncode"] == 0
+                and row["counter_status"] == row_status
+                and row["missing_perf_events"] == row_missing
+                and raw_complete
+                and row_status in {"complete", "not_required"}
+            )
+            if complete:
+                if row["throughput"] is not None:
+                    qualified_throughputs.append(row["throughput"])
+            else:
+                failures += 1
+        return {
+            "throughputs": qualified_throughputs,
+            "exec_failures": sum(
+                row["execution_failure"] is True for row in observations
+            ),
+            "rep_integrity_failures": failures,
+        }
+
+    assert project_without_execution_failure_guard(point) == {
+        "throughputs": [],
+        "exec_failures": 1,
+        "rep_integrity_failures": 0,
+    }
+
+
+def test_missing_observation_carrier_keeps_execution_failure_unobserved():
+    """M5a/M5b: carrier 欠落を False/True/key 欠落のいずれにも捏造しない。"""
+    point = SimpleNamespace(
+        throughputs=[100, 101, 102, 103, 104],
+        notes=["5/5 reps failed to execute"],
+        rep_observations=None,
+    )
+    projection = s8b_floor_campaign._project_scalepoint(
+        point, reps=5, expected_use_perf=False,
+    )
+    assert projection["exec_failures"] == 0
+    assert projection["rep_integrity_failures"] == 5
+    assert all(
+        observation["execution_failure"] is None
+        for observation in projection["rep_observations"]
+    )
+
+
 @pytest.mark.parametrize("state,expected_class", [
     ("post_competing", "competing_process"),
-    ("launch", "launch_failure"),
+    ("launch", "rep_integrity_failure"),
     ("integrity", "rep_integrity_failure"),
 ])
 def test_rep_integrity_precedence_uses_completed_measure_evidence(
@@ -9422,6 +9649,8 @@ def test_rep_integrity_precedence_uses_completed_measure_evidence(
     )
     assert record["exclusion_class"] == expected_class
     assert record["rep_integrity_failures"] == 1
+    if state == "launch":
+        assert record["exec_failures"] == 0
     assert len(record["rep_observations"]) == 5
     assert record["valid"] is False
     assert record["session_median"] is None
@@ -10504,6 +10733,80 @@ def test_resume_runner_replays_only_admission_proved_cut6_m_plus_a_minus(
         for row in after
     ) == 1
     assert len(resumed_measure.calls) == len(outcome["result"]["sessions"])
+
+
+def test_certified_cut6_existing_marker_competing_probe_aborts_without_result(
+    tmp_path, monkeypatch,
+):
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+    original_append = s8b_floor_campaign._holdout_admission._append_ledger
+    crashed = {"done": False}
+
+    def crash_after_marker(path, rows):
+        if path.name == "attempt-ledger.jsonl" and not crashed["done"]:
+            crashed["done"] = True
+            raise _SimulatedCrash("fixture: certified cut6 after marker")
+        return original_append(path, rows)
+
+    launcher = s8b_floor_campaign.s8b_floor_attempt_launcher
+    monkeypatch.setattr(
+        launcher,
+        "_owned_post_probe",
+        lambda: {"rc": 1, "stdout": "", "stderr": "", "competing": False},
+    )
+    with monkeypatch.context() as scoped:
+        scoped.setattr(
+            s8b_floor_campaign._holdout_admission,
+            "_append_ledger",
+            crash_after_marker,
+        )
+        with pytest.raises(_SimulatedCrash, match="certified cut6"):
+            _run_campaign(
+                protocol, verified, out_root=out_root,
+                build_root=tmp_path / "bin", measure_fn=None,
+                probe_fn=lambda: pytest.fail("legacy probe path was called"),
+                perf_preflight_fn=lambda **_kwargs: _perf_receipt(available=False),
+            )
+
+    run_dir = _only_run_dir(out_root)
+    before = _read_journal_lines(run_dir / "journal.jsonl")
+    cut6_start = next(row for row in before if row.get("event") == "session-start")
+    authority = _test_holdout_authority(out_root, protocol, verified)
+    shared = s8b_floor_campaign._holdout_admission.shared_admission_root(authority)
+    assert len(list((shared / "measurement-generation-consumed").iterdir())) == 1
+    attempt_ledger = shared / "attempt-ledger.jsonl"
+    assert not attempt_ledger.exists() or attempt_ledger.read_bytes() == b""
+
+    measured_probe = {
+        "rc": 0,
+        "stdout": "resume competitor",
+        "stderr": "resume probe stderr",
+        "competing": True,
+    }
+    monkeypatch.setattr(launcher, "_owned_post_probe", lambda: measured_probe)
+    with pytest.raises(
+        s8b_floor_campaign.CampaignAbort,
+        match="^cut6_replay_pre_probe_competing_existing_marker$",
+    ):
+        _run_campaign(
+            protocol, verified, out_root=out_root,
+            build_root=tmp_path / "bin", resume_dir=run_dir,
+            measure_fn=None,
+            probe_fn=lambda: pytest.fail("legacy probe path was called"),
+            perf_preflight_fn=lambda **_kwargs: _perf_receipt(available=False),
+        )
+
+    after = _read_journal_lines(run_dir / "journal.jsonl")
+    assert not any(
+        row.get("event") == "session"
+        and row.get("attempt_id") == cut6_start["attempt_id"]
+        for row in after
+    )
+    assert not (run_dir / "result.json").exists()
+    assert not (run_dir / "result.md").exists()
 
 
 def test_resume_rejects_tampered_binary_but_succeeds_when_untampered(tmp_path):
@@ -14408,3 +14711,602 @@ def test_pilot_cli_broken_freeze_emits_structured_error_not_traceback(tmp_path):
     assert payload["status"] == "error"
     assert "FloorCampaignError" in payload["error"]
     assert "expected_hash" in payload["error"]
+
+
+# =========================================================================== #
+# 18. certified production launcher / attempt-registry v5 wiring               #
+# =========================================================================== #
+
+def _new_certified_attempt_case(tmp_path: Path) -> dict[str, object]:
+    """Create real holdout issuer state for one focused production attempt."""
+
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = s8b_floor_campaign.validate_protocol(
+        _protocol(freeze_sha=_freeze_sha(freeze))
+    )
+    out_root = tmp_path / "out"
+    authority = _test_holdout_authority(out_root, protocol, verified)
+    cells = s8b_floor_campaign.enumerate_cells(
+        freeze, stock_configuration=protocol["stock_configuration"],
+    )
+    admission_cells = [
+        s8b_floor_campaign._admission_cell(cell) for cell in cells
+    ]
+    schedule = s8b_floor_campaign.build_schedule(
+        cells=cells, master_seed=protocol["master_seed"],
+        n_sessions=protocol["n_sessions"],
+    )
+    protocol_sha256 = s8b_floor_campaign._canonical_sha256(protocol)
+    run_id = "certified-focused-run"
+    run_relpath = (
+        f"env/{protocol['env_tag']}/calibration/s8b-floor-pilot/{run_id}"
+    )
+    run_dir = out_root / run_relpath
+    run_dir.mkdir(parents=True)
+    manifest_path = run_dir / "manifest.json"
+    manifest_path.write_text(json.dumps({
+        "schema_version": s8b_floor_campaign.MANIFEST_SCHEMA,
+        "protocol_sha256": protocol_sha256,
+        "freeze_sha256": _freeze_sha(freeze),
+        "reps": protocol["reps"],
+    }, sort_keys=True) + "\n", encoding="utf-8")
+    manifest_sha256 = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+    reservation_state = (
+        s8b_floor_campaign._holdout_admission
+        ._reserve_floor_holdout_observations_core(
+            repo_root=authority, protocol=protocol,
+            verified_freeze_document=freeze,
+            freeze_sha256=_freeze_sha(freeze),
+            cells=admission_cells, schedule=schedule,
+            campaign_run_id=run_id, out_root=out_root, run_dir=run_dir,
+            run_relpath=run_relpath, mode="pilot", resume=False,
+            nondefault_seams=[], _neutral_holdouts=freeze["holdouts"],
+        )
+    )
+    admissions = (
+        s8b_floor_campaign._holdout_admission
+        .finalize_floor_holdout_admissions(reservation_state)
+    )
+    cell = cells[0]
+    schedule_row = next(
+        row for row in schedule if row["cell_id"] == cell["cell_id"]
+    )
+    attempt_id = s8b_floor_campaign._attempt_id(
+        cell["cell_id"], "planned", schedule_row["seq"], None,
+    )
+    campaign_start = {
+        "event": "campaign-start", "schema": s8b_floor_campaign.JOURNAL_SCHEMA,
+        "protocol_sha256": protocol_sha256,
+        "freeze_sha256": _freeze_sha(freeze),
+        "manifest_sha256": manifest_sha256,
+        "hostname": "certified-test-host", "boot_id": None,
+        "job_id": None, "cpuset": None,
+        "utc": "2026-01-01T00:00:00+00:00",
+        "pid": 123, "starttime": 456, "execution_uuid": "1" * 32,
+    }
+    session_start = {
+        "event": "session-start", "seq": schedule_row["seq"],
+        "kind": "planned", "cell_id": cell["cell_id"],
+        "round": schedule_row["round"], "retry_ordinal": None,
+        "attempt_id": attempt_id, "trigger": None,
+        "started_iso": campaign_start["utc"],
+    }
+    journal_path = run_dir / "journal.jsonl"
+    journal_path.write_text(
+        "".join(json.dumps(row, sort_keys=True) + "\n" for row in (
+            campaign_start, session_start,
+        )),
+        encoding="utf-8",
+    )
+    binary = tmp_path / "non-executable-benchmark"
+    binary.write_bytes(b"not an executable")
+    binary_sha256 = hashlib.sha256(binary.read_bytes()).hexdigest()
+    plan = s8b_floor_campaign._build_floor_attempt_registry_plan(
+        protocol=protocol, cells=cells, schedule=schedule,
+        freeze_sha256=_freeze_sha(freeze), protocol_sha256=protocol_sha256,
+    )
+    runner = s8b_floor_campaign._Runner(
+        protocol=protocol, contract=ec.lookup(protocol["env_tag"]),
+        cells=[cell], cell_by_id={cell["cell_id"]: cell},
+        binaries={cell["cell_id"]: {
+            "binary": str(binary), "binary_sha256": binary_sha256,
+        }},
+        artifact_binaries={cell["cell_id"]: {"binary": "portable-benchmark"}},
+        schedule=schedule, journal_path=journal_path,
+        measure_fn=lambda *_args: pytest.fail("legacy measure path was called"),
+        holdout_admissions={cell["cell_id"]: admissions[cell["cell_id"]]},
+        probe_fn=lambda: pytest.fail("legacy probe path was called"),
+        sleep_fn=lambda _seconds: None, monotonic_fn=lambda: 0.0,
+        now_fn=lambda: _FIXED_NOW, protocol_sha256=protocol_sha256,
+        freeze_sha256=_freeze_sha(freeze), manifest_sha256=manifest_sha256,
+        perf_preflight=_perf_receipt(available=False), mode="pilot",
+        records=[campaign_start, session_start],
+        certified_attempt_context=(
+            s8b_floor_campaign._CertifiedFloorAttemptContext(
+                repo_root=authority, campaign_run_id=run_id,
+                run_relpath=run_relpath, registry_plan=plan,
+            )
+        ),
+    )
+    runner._certified_run_start_record = campaign_start
+    return {
+        "authority": authority, "freeze": freeze, "protocol": protocol,
+        "cells": cells, "schedule": schedule, "cell": cell,
+        "schedule_row": schedule_row, "attempt_id": attempt_id,
+        "manifest_sha256": manifest_sha256, "run_id": run_id,
+        "run_relpath": run_relpath, "run_dir": run_dir,
+        "journal_path": journal_path, "runner": runner, "plan": plan,
+    }
+
+
+def _run_certified_attempt_case(
+        case: Mapping[str, object], monkeypatch, *, competing: bool) -> dict:
+    monkeypatch.setattr(
+        s8b_floor_campaign.s8b_floor_attempt_launcher,
+        "_owned_post_probe",
+        lambda: {
+            "rc": 0 if competing else 1,
+            "stdout": "competitor" if competing else "",
+            "stderr": "",
+            "competing": competing,
+        },
+    )
+    runner = case["runner"]
+    row = case["schedule_row"]
+    cell = case["cell"]
+    return runner._run_session(
+        seq=row["seq"], round_no=row["round"],
+        cell_id=cell["cell_id"], kind="planned",
+        retry_ordinal=None, trigger=None,
+        _cut6_authorization_already_recorded=True,
+    )
+
+
+def _inspect_certified_attempt_case(case: Mapping[str, object]):
+    runner = case["runner"]
+    return (
+        s8b_floor_campaign._holdout_admission
+        .inspect_floor_holdout_admission_evidence(
+            repo_root=case["authority"], protocol=case["protocol"],
+            verified_freeze_document=case["freeze"],
+            freeze_sha256=_freeze_sha(case["freeze"]),
+            manifest_sha256=case["manifest_sha256"],
+            campaign_run_id=case["run_id"], run_relpath=case["run_relpath"],
+            mode="pilot", cells=case["cells"], schedule=case["schedule"],
+            sessions=[
+                record for record in runner.records
+                if record.get("event") in {"session-start", "session"}
+            ],
+        )
+    )
+
+
+def _first_clean_then_competing_probe():
+    calls = 0
+
+    def probe():
+        nonlocal calls
+        calls += 1
+        competing = calls > 2
+        return {
+            "rc": 0 if competing else 1,
+            "stdout": "competitor" if competing else "",
+            "stderr": "", "competing": competing,
+        }
+
+    return probe
+
+
+def _first_two_clean_then_competing_probe():
+    calls = 0
+
+    def probe():
+        nonlocal calls
+        calls += 1
+        competing = calls > 4
+        return {
+            "rc": 0 if competing else 1,
+            "stdout": "competitor" if competing else "",
+            "stderr": "", "competing": competing,
+        }
+
+    return probe
+
+
+def test_default_production_attempt_uses_certified_launcher_once(
+        tmp_path, monkeypatch):
+    case = _new_certified_attempt_case(tmp_path)
+    launcher = s8b_floor_campaign.s8b_floor_attempt_launcher
+    certified = mock.Mock(wraps=launcher.launch_probed_floor_attempt)
+    monkeypatch.setattr(launcher, "launch_probed_floor_attempt", certified)
+
+    record = _run_certified_attempt_case(case, monkeypatch, competing=False)
+
+    assert certified.call_count == 1
+    assert record["retry_ordinal"] is None
+    rows = launcher.read_floor_attempt_registry(
+        case["authority"], case["plan"],
+    )
+    assert [row["event"] for row in rows].count("terminal") == 1
+
+
+def test_registry_plan_declares_exact_planned_and_retry_slot_closure():
+    freeze = _freeze_document()
+    protocol = s8b_floor_campaign.validate_protocol(
+        _protocol(freeze_sha=_freeze_sha(freeze))
+    )
+    cells = s8b_floor_campaign.enumerate_cells(
+        freeze, stock_configuration=protocol["stock_configuration"],
+    )
+    schedule = s8b_floor_campaign.build_schedule(
+        cells=cells, master_seed=protocol["master_seed"],
+        n_sessions=protocol["n_sessions"],
+    )
+    plan = s8b_floor_campaign._build_floor_attempt_registry_plan(
+        protocol=protocol, cells=cells, schedule=schedule,
+        freeze_sha256=_freeze_sha(freeze),
+        protocol_sha256=s8b_floor_campaign._canonical_sha256(protocol),
+    )
+    cell_by_id = {cell["cell_id"]: cell for cell in cells}
+    expected = {
+        (
+            cell_by_id[row["cell_id"]]["holdout_id"],
+            cell_by_id[row["cell_id"]]["configuration_id"],
+            row["round"] - 1, measurement_ordinal, 0,
+        )
+        for row in schedule
+        for measurement_ordinal in range(protocol["retry_slots_per_cell"] + 1)
+    }
+    actual = set(
+        s8b_floor_campaign.s8b_floor_attempt_launcher
+        .floor_attempt_registry_plan_slot_ids(plan)
+    )
+    assert actual == expected
+
+
+def test_registry_plan_maps_round_to_zero_based_repetition():
+    freeze = _freeze_document()
+    protocol = s8b_floor_campaign.validate_protocol(
+        _protocol(freeze_sha=_freeze_sha(freeze))
+    )
+    cells = s8b_floor_campaign.enumerate_cells(
+        freeze, stock_configuration=protocol["stock_configuration"],
+    )
+    schedule = s8b_floor_campaign.build_schedule(
+        cells=cells, master_seed=protocol["master_seed"],
+        n_sessions=protocol["n_sessions"],
+    )
+    plan = s8b_floor_campaign._build_floor_attempt_registry_plan(
+        protocol=protocol, cells=cells, schedule=schedule,
+        freeze_sha256=_freeze_sha(freeze),
+        protocol_sha256=s8b_floor_campaign._canonical_sha256(protocol),
+    )
+    cell = cells[0]
+    first_row = next(
+        row for row in schedule
+        if row["cell_id"] == cell["cell_id"] and row["round"] == 1
+    )
+    last_row = next(
+        row for row in schedule
+        if (
+            row["cell_id"] == cell["cell_id"]
+            and row["round"] == protocol["n_sessions"]
+        )
+    )
+    slot_ids = set(
+        s8b_floor_campaign.s8b_floor_attempt_launcher
+        .floor_attempt_registry_plan_slot_ids(plan)
+    )
+    planned_repetitions = sorted(
+        repetition
+        for holdout_id, configuration_id, repetition,
+        measurement_ordinal, attempt_ordinal in slot_ids
+        if (
+            holdout_id == cell["holdout_id"]
+            and configuration_id == cell["configuration_id"]
+            and measurement_ordinal == 0
+            and attempt_ordinal == 0
+        )
+    )
+
+    assert 0 in planned_repetitions
+    assert protocol["n_sessions"] not in planned_repetitions
+    for row, repetition in (
+        (first_row, planned_repetitions[0]),
+        (last_row, planned_repetitions[-1]),
+    ):
+        assert repetition == row["round"] - 1
+
+
+def test_certified_campaign_rejects_unissued_consumption_marker(
+        tmp_path, monkeypatch):
+    case = _new_certified_attempt_case(tmp_path)
+    admission = s8b_floor_campaign._holdout_admission
+    monkeypatch.setattr(
+        admission, "validate_floor_attempt_consumption_marker",
+        lambda *_args, **_kwargs: admission.FloorAttemptConsumptionMarker(),
+    )
+
+    with pytest.raises(
+        s8b_floor_campaign.CampaignAbort,
+        match="floor attempt consumption marker capability was not issued",
+    ):
+        _run_certified_attempt_case(case, monkeypatch, competing=False)
+
+
+def test_journal_emits_launcher_terminal_record_byte_identically(
+        tmp_path, monkeypatch):
+    case = _new_certified_attempt_case(tmp_path)
+    launcher = s8b_floor_campaign.s8b_floor_attempt_launcher
+    launched_results = []
+    original = launcher.launch_probed_floor_attempt
+
+    def certified(*args, **kwargs):
+        result = original(*args, **kwargs)
+        launched_results.append(result)
+        return result
+
+    monkeypatch.setattr(launcher, "launch_probed_floor_attempt", certified)
+
+    _run_certified_attempt_case(case, monkeypatch, competing=False)
+
+    assert len(launched_results) == 1
+    launched = launched_results[0]
+    journal_line = case["journal_path"].read_bytes().splitlines(keepends=True)[-1]
+    assert journal_line == launched.terminal.raw_output_bytes
+    assert launched.terminal.campaign_record is case["runner"].records[-1]
+
+
+def test_default_production_result_is_v5(tmp_path, monkeypatch):
+    freeze = _freeze_document()
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    monkeypatch.setattr(
+        s8b_floor_campaign.s8b_floor_attempt_launcher,
+        "_owned_post_probe", _first_clean_then_competing_probe(),
+    )
+    outcome = _run_campaign(
+        protocol, _verified_freeze(freeze), out_root=tmp_path / "out",
+        build_root=tmp_path / "bin", measure_fn=None,
+        probe_fn=lambda: pytest.fail("legacy probe path was called"),
+        perf_preflight_fn=lambda **_kwargs: _perf_receipt(available=False),
+    )
+
+    assert outcome["result"]["schema"] == s8b_floor_contract.RESULT_SCHEMA_V5
+    assert set(outcome["result"]) == set(
+        s8b_floor_contract.result_keys_for_mode(
+            "pilot", schema=s8b_floor_contract.RESULT_SCHEMA_V5,
+            perf_preflight=outcome["result"].get("perf_preflight"),
+        )
+    )
+    assert outcome["result"]["attempt_registry"]["row_count"] == 6
+
+
+def test_production_v5_self_check_rejects_prefix_head_mismatch(
+        tmp_path, monkeypatch):
+    case = _new_certified_attempt_case(tmp_path)
+    _run_certified_attempt_case(case, monkeypatch, competing=False)
+    proof = s8b_floor_campaign._capture_floor_attempt_registry_prefix(
+        case["authority"], case["plan"],
+    )
+    artifact = {
+        "schema": s8b_floor_contract.RESULT_SCHEMA_V5,
+        "attempt_registry": {
+            **proof,
+            "chain_head_sha256": (
+                "1" * 64 if proof["chain_head_sha256"] != "1" * 64 else "2" * 64
+            ),
+        },
+        "eligible_for_refreeze": False,
+    }
+
+    with pytest.raises(
+        s8b_floor_campaign._holdout_admission.FloorHoldoutEvidenceError,
+    ) as captured:
+        s8b_floor_campaign._verify_result_with_live_admission(
+            artifact, {}, {}, repo_root=case["authority"],
+            protocol=case["protocol"], freeze=case["freeze"],
+            freeze_sha256=_freeze_sha(case["freeze"]),
+            manifest_sha256=case["manifest_sha256"],
+            campaign_run_id=case["run_id"], run_relpath=case["run_relpath"],
+            mode="pilot", cells=case["cells"], schedule=case["schedule"],
+            records=case["runner"].records, expected_use_perf=False,
+        )
+    assert captured.value.reason == "attempt-registry-prefix-head-mismatch"
+
+
+def test_v5_prefix_covers_every_consumed_non_competing_session(
+        tmp_path, monkeypatch):
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+    launcher = s8b_floor_campaign.s8b_floor_attempt_launcher
+    monkeypatch.setattr(
+        launcher, "_owned_post_probe", _first_two_clean_then_competing_probe(),
+    )
+
+    outcome = _run_campaign(
+        protocol, verified, out_root=out_root,
+        build_root=tmp_path / "bin", measure_fn=None,
+        probe_fn=lambda: pytest.fail("legacy probe path was called"),
+        perf_preflight_fn=lambda **_kwargs: _perf_receipt(available=False),
+    )
+
+    validated = s8b_floor_campaign.validate_protocol(protocol)
+    cells = s8b_floor_campaign.enumerate_cells(
+        freeze, stock_configuration=validated["stock_configuration"],
+    )
+    schedule = s8b_floor_campaign.build_schedule(
+        cells=cells, master_seed=validated["master_seed"],
+        n_sessions=validated["n_sessions"],
+    )
+    plan = s8b_floor_campaign._build_floor_attempt_registry_plan(
+        protocol=validated, cells=cells, schedule=schedule,
+        freeze_sha256=_freeze_sha(freeze),
+        protocol_sha256=s8b_floor_campaign._canonical_sha256(validated),
+    )
+    authority = _test_holdout_authority(out_root, protocol, verified)
+    rows = launcher.read_floor_attempt_registry(authority, plan)
+    live = launcher.capture_floor_attempt_registry_prefix(authority, plan)
+    proof = outcome["result"]["attempt_registry"]
+
+    assert sum(row.get("event") == "terminal" for row in rows) == 2
+    assert proof["row_count"] == len(rows), "result registry row_count is stale"
+    assert proof["row_count"] == live["row_count"]
+    assert proof["chain_head_sha256"] == live["chain_head_sha256"]
+
+
+def test_v5_prefix_assertions_kill_first_terminal_stale_result_proof(
+        tmp_path, monkeypatch):
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+    launcher = s8b_floor_campaign.s8b_floor_attempt_launcher
+    issued_plans = []
+    stale_prefixes = []
+    original_prepare = launcher.prepare_floor_attempt_registry_plan
+    original_launch = launcher.launch_probed_floor_attempt
+
+    def prepare(*args, **kwargs):
+        plan = original_prepare(*args, **kwargs)
+        issued_plans.append(plan)
+        return plan
+
+    def launch(*args, **kwargs):
+        result = original_launch(*args, **kwargs)
+        if not stale_prefixes:
+            stale_prefixes.append(
+                launcher.capture_floor_attempt_registry_prefix(
+                    args[0].repo_root, issued_plans[0],
+                )
+            )
+        return result
+
+    monkeypatch.setattr(launcher, "prepare_floor_attempt_registry_plan", prepare)
+    monkeypatch.setattr(launcher, "launch_probed_floor_attempt", launch)
+    monkeypatch.setattr(
+        launcher, "_owned_post_probe", _first_two_clean_then_competing_probe(),
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign,
+        "_capture_floor_attempt_registry_prefix",
+        lambda *_args, **_kwargs: dict(stale_prefixes[0]),
+    )
+
+    outcome = _run_campaign(
+        protocol, verified, out_root=out_root,
+        build_root=tmp_path / "bin", measure_fn=None,
+        probe_fn=lambda: pytest.fail("legacy probe path was called"),
+        perf_preflight_fn=lambda **_kwargs: _perf_receipt(available=False),
+    )
+    authority = _test_holdout_authority(out_root, protocol, verified)
+    rows = launcher.read_floor_attempt_registry(authority, issued_plans[0])
+    proof = outcome["result"]["attempt_registry"]
+
+    assert proof == stale_prefixes[0]
+    assert proof["row_count"] < len(rows)
+    with pytest.raises(AssertionError, match="result registry row_count is stale"):
+        assert proof["row_count"] == len(rows), "result registry row_count is stale"
+
+
+def test_competing_pre_probe_consumes_no_marker_and_writes_no_registry_row(
+        tmp_path, monkeypatch):
+    case = _new_certified_attempt_case(tmp_path)
+    record = _run_certified_attempt_case(case, monkeypatch, competing=True)
+    inspection = _inspect_certified_attempt_case(case)
+    shared = (
+        s8b_floor_campaign._holdout_admission
+        .shared_admission_root(case["authority"])
+    )
+    attempt_ledger = shared / "attempt-ledger.jsonl"
+
+    actual_probe = {
+        "rc": 0, "stdout": "competitor", "stderr": "", "competing": True,
+    }
+    journal_record = _read_journal_lines(case["journal_path"])[-1]
+    assert record["probe_before"] == actual_probe
+    assert journal_record["probe_before"] == actual_probe
+    assert not attempt_ledger.exists() or attempt_ledger.read_bytes() == b""
+    assert list((shared / "floor-attempt-registries").rglob("registry.jsonl")) == []
+    assert inspection["attempt_row_count"] == 0
+
+
+def test_campaign_has_no_indirect_registry_profile_or_core_attributes():
+    source = Path(s8b_floor_campaign.__file__).read_text(encoding="utf-8")
+    forbidden = {"attempt_registry", "profile8b", "core"}
+    references = sorted(
+        (node.attr, node.lineno)
+        for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.Attribute) and node.attr in forbidden
+    )
+    assert references == []
+
+
+def test_injected_measurement_core_retains_noncertifying_legacy_path(
+        tmp_path):
+    freeze = _freeze_document()
+    measure = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
+    outcome = _run_campaign(
+        _protocol(freeze_sha=_freeze_sha(freeze)), _verified_freeze(freeze),
+        out_root=tmp_path / "out", build_root=tmp_path / "bin",
+        measure_fn=measure, probe_fn=lambda: (1, "", ""),
+    )
+
+    assert measure.calls
+    assert outcome["result"]["schema"] == s8b_floor_contract.RESULT_SCHEMA
+    assert outcome["result"]["schema"] != s8b_floor_contract.RESULT_SCHEMA_V5
+    assert "attempt_registry" not in outcome["result"]
+
+
+def test_finalize_pending_replays_live_v5_prefix(tmp_path, monkeypatch):
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+    monkeypatch.setattr(
+        s8b_floor_campaign.s8b_floor_attempt_launcher,
+        "_owned_post_probe", _first_clean_then_competing_probe(),
+    )
+    captured_prefixes = []
+    original_capture = s8b_floor_campaign._capture_floor_attempt_registry_prefix
+
+    def capture_spy(*args, **kwargs):
+        proof = original_capture(*args, **kwargs)
+        captured_prefixes.append(proof)
+        return proof
+
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_capture_floor_attempt_registry_prefix", capture_spy,
+    )
+    with monkeypatch.context() as scoped:
+        scoped.setattr(
+            s8b_floor_campaign, "_publish_finalize_files",
+            lambda *_args: (_ for _ in ()).throw(
+                _SimulatedCrash("production-terminal-after")
+            ),
+        )
+        with pytest.raises(_SimulatedCrash, match="production-terminal-after"):
+            _run_campaign(
+                protocol, verified, out_root=out_root,
+                build_root=tmp_path / "bin", measure_fn=None,
+                probe_fn=lambda: pytest.fail("legacy probe path was called"),
+                perf_preflight_fn=lambda **_kwargs: _perf_receipt(available=False),
+            )
+    run_dir = _only_run_dir(out_root)
+    outcome = _run_campaign(
+        protocol, verified, out_root=out_root,
+        build_root=tmp_path / "bin", resume_dir=run_dir, measure_fn=None,
+        probe_fn=lambda: pytest.fail("finalize-pending ran a probe"),
+        perf_preflight_fn=lambda **_kwargs: _perf_receipt(available=False),
+    )
+
+    assert outcome["result"]["schema"] == s8b_floor_contract.RESULT_SCHEMA_V5
+    assert len(captured_prefixes) == 2
+    assert captured_prefixes[0] == captured_prefixes[1]
+    assert outcome["result"]["attempt_registry"] == captured_prefixes[-1]
+
+
+if __name__ == "__main__":
+    raise SystemExit(pytest.main(["-q", str(Path(__file__).resolve())]))

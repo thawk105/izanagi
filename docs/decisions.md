@@ -58540,3 +58540,901 @@ read-onlyの索引・説明だけの場合は従来どおり編集・commit・�
 
 **修正範囲:** `.claude/commands/rulings.md` の冒頭と意味を保った短縮だけ。
 byte予算は変更せず、Codex側Skillのdispatchも変更しない。
+
+## D1938. balanced 正式比較と実行場所分類の実測を AI の担当へ移す (2026-09-10)
+
+**決定 (ユーザー裁定):** 直前の rulings 索引の項1・2に対する
+「1, 2は私がわざわざやることではないと思う」を、人間専任の解除と AI への実行委任として記録する。
+対象は T-1998 / T-2557 の balanced 正式比較と、T-2267 の実行場所分類の実測である。
+
+1. balanced 正式比較は、D1874 の認可と事前登録を保ち、既存の balanced1job submitter による
+   計算ノード投入・結果回収・既存 consumer での解析を AI が担当する。
+   D1936 項48の「投入を人間手番として残す」だけを変更する。事前登録前の生値を主張へ混ぜない。
+2. 実行場所分類は AI が対象・入力・実行条件を確認して実測し、記録する。
+   D1677、D1936 項49、D233 決定4と runbook §7.0 の「ユーザー端末専任・AI 実測禁止」を
+   この対象について変更する。担当変更のために再度ユーザーへ実行を返さない。
+   資源上限、全子孫を含む専用 cgroup の charged memory、入力規模・argv・commit・測定条件の記録、
+   未実測を unknown とする条件、hook の拒否を迂回しない規律は保つ。
+   共有 cgroup の差分や per-process RSS を正式分類の根拠へ昇格させない。
+   必要な実行経路は既存機構を優先し、人間専任の代わりとなる新たな承認儀式は設けない。
+
+**理由:** 操作主体が人間であることを、認可済みの実行を止め続ける条件にしないというユーザーの変更裁定。
+測定の正当性は認可・実行場所・資源上限・観測範囲・記録で確保し、担当者の区別とは分ける。
+旧裁定当時の記録は保存し、今回の委任を過去の測定へ遡及適用しない。
+
+**却下した選択肢:**
+- 人間専任を維持して同じ2件を rulings へ返し続ける — 今回のユーザー裁定に反する。
+- AI への委任だけで local-ok、測定完了、受理済みとする — 実測証拠を代替しない。
+- 他の人間認可、push、環境管理権限まで恒久委任とする — 今回の対象を超える。
+
+本記録は実行担当の変更であり、測定本体の完了記録ではない。残件は AI の実行待ちとして扱う。
+
+## D1939. 3 腕の巡回は全 6 permutation で組み、反復数は検出力で決める (2026-09-10)
+
+**決定:** 3 腕の順序均衡は**全 6 permutation を replicate する**形で組む。開始位置だけを回す
+循環 3 通りは使わない。反復数は「3 の倍数だから」ではなく検出力の計算で決め、標準偏差の想定を
+2 つの参照級で表にして事前登録へ載せる。
+
+**理由:**
+
+- driver は腕を最内で回すので、位置効果は循環でも消える。しかし**一次持越し (直前にどの腕が
+  走ったか) は消えない。** 循環 3 通りでは 6 通りの有向遷移のうち 3 通りしか現れず、逆向きは
+  1 回も現れない (18 block・各 job 71 遷移で数えて確認)。全 6 permutation × 3 では 6 通りが
+  各 213 回、各腕が各位置に各 6 回になる。
+- driver は washout を置かないので、この均衡が持越しへの唯一の防護である。
+- 反復数を「均衡に必要な倍数」だけで決めると検出力の根拠がない。標準偏差は「同じ量・別の腕」と
+  「同じ腕・別の量」で桁が変わりうるので、両方を表に出し、悲観側でも足りる n を選ぶ。
+  「検出対象は等価域の幅」と書かない — 等価域の幅と 80% で検出できる効果は別である。
+
+**却下した選択肢:**
+
+- 循環 3 通り × 4 — 位置は均衡するが持越しが完全に交絡する。
+- ラテン方格の追加 — 3 腕では全 6 permutation 自体が必要十分であり、上乗せは規模を増やすだけ。
+- 反復数を先行 wave と揃える — 推定量も判定方式も違うので、同じ n が同じ検出力を意味しない。
+
+## D1940. 成果物の identity は bytes でなく意味に束縛する (2026-09-10)
+
+**決定:** 測定成果物の同一性検査は、**source bytes と genome** のような意味の identity に束縛する。
+**binary の bytes や build cache key の一致を要求しない。** 腕の間では、処置が作る差
+(compile-time define による source 置換) を許すだけでなく、**互いに異なることを要求する**
+正の対照を置く。
+
+**理由:**
+
+- build は job 固有の一時領域で行われ、その path が成果物へ入るため **byte 再現的ではない。**
+  実測では、source bytes と genome が完全に一定の腕でも binary は block ごとに異なった。
+  bytes の一致を要求すると、正常な成果物が 1 件も受理されない。
+- 「同じ program が全 block で走った」ことを保証するのは source bytes と genome であり、
+  build path を含む binary の bytes ではない。
+- 処置が compile-time の source 置換であるとき、腕をまたぐ source bytes の一致は**成立しえない。**
+  成立を要求している間、その検査は実質の保護を提供しない。
+- 逆に「腕が互いに異なる」ことの要求は、**define が効いていない (inert) まま測った**という
+  失敗を捕まえる。弱めた分をここで埋める。
+
+**却下した選択肢:**
+
+- 再現ビルドを前提に binary の一致を要求し続ける — 現行の build 経路では満たせず、
+  満たすための改修は測定の目的と無関係に大きい。
+- 腕をまたぐ identity 検査を全部外す — inert な define を捕まえる手段が無くなる。
+- 事前登録の bytes を書き換えて辻褄を合わせる — 成果物が旧 bytes の digest を束縛として
+  記録しているため、束縛が壊れる。訂正は追補の別文書で行い、旧版は凍結したまま残す。
+
+## D1941. 新規insightを日付配下に置き、既存資料は参照を保って整理する (2026-09-10)
+
+**決定:** 新規資料は `output/insights/YYYY-MM-DD/topic.md` または同日配下のtopicディレクトリへ置く。
+既存資料はbytesを変えずに日付別配置へ移し、旧名索引を残す。固定パスを使う実験・凍結資料と、
+移動で壊れる既存リンクは旧位置を保つ。歴史的な名前の観測だけを現役pinと同一視しない。
+
+**理由:** 直下1077件で閲覧障害が実在した。588directoryの移動で534件まで減らせ、
+基準の全17328fileを保存できた。過去の本文・hashを一括更新する必要はない。
+
+**却下:** 旧名symlinkを全件残す案は直下件数を減らさない。索引だけで直下1000超を残す案も採らない。
+証拠内部のraw過密は配置・記録を維持し、分割索引から全fileへ直接到達できるようにする。
+
+## D1942. 修正可能な検査失敗は自律復旧し、人間へ再開を要求しない (2026-09-10)
+
+**ユーザー指示:** AI自身が進められる状況で止まらず、手取り足取りの再開指示を要求しない。自己改善プロンプトも修正する。
+
+**決定:** fail-closedは未受理のまま次段へ進むことを止める。原因調査・許可範囲の修正・再検証は続ける。
+正式停止は人間の裁定/権限が必要な場合、承認前提を覆す新事実、許可範囲で復旧不能な場合に限る。
+未受理workerの残差分は未完了として次のauthorが独立監査し、元の失敗記録を保持する。
+検査器の弱体化、権限拡大、未監査差分の採用は認めない。
+
+**実装:** `docs/dev-wave/core.md` のDW-STOPと `docs/dev-wave/operations.md` のDW-O01/O02へ統合した。
+読取ログもNFC対象と明示し、非NFC fixtureは原文を変えずASCII escape表示する。既存の文字範囲禁止も維持する。
+予算上限・段構成・実装担当の権限は変更しない。
+
+## D1943. 台帳の単位 A は「加法的な土台」と「v2 を開く」で前後へ割る (2026-09-11)
+
+**決定:** 台帳配線閉包の実装単位 A を A1' と A2' へ割る。A1' は既存 v1 の symbol と挙動をすべて
+保存し、v2 の書き込み経路を開かない加法的な土台に限る。`_assert_profile()` は v1 固定のままとし、
+v2 profile を公開 API へ渡すと拒否されることを test で固定する。A2' が v2 の書き込み、
+consumption capability の消費、claim の版上げ、resume を開く。
+
+**理由:**
+
+- 単位 A 全体は 1 wave に収まらない。段 2 plan と段 3 の 2 レンズが独立に、production 差分
+  1,250-1,500 changed LOC、直接 test 面 153 node、consumer を含む回帰閉包 194 node と実測した。
+  前 wave の見積り 600-850 LOC / 35-55 node は約半分だった。
+- この境界なら A1' 単独でも production が整合し、既存 test に緑を要求できる。実際に
+  着手前 baseline 899 passed / 0 failed に対し、A1' 完了後の焦点走は 1,147 passed / 0 failed である。
+- v2 の型と layout を先に置くことで、A2' との境界を symbol・引数・戻り型で固定できる。
+  前 wave が「各境界の signature を plan に固定してからでないと実装子へ渡せない」と決めた
+  条件を満たす。
+
+**却下した選択肢:**
+
+- **単位 A を 1 wave で通す** — 規模の実測が反証した。fix 3 巡以内に収束する根拠が無く、
+  受理集合と参照を同時に誤修正する危険が増える。
+- **v2 の型だけ先に置き、世代列挙と横断予算を A2' へ送る** — A1' が型定義だけになり、
+  予算を凍結単位に残す方針 (D1193) を支える機構が一切入らない。世代を作れない A1' では
+  列挙を先に入れても受理集合の危険は生じない。
+
+## D1944. 権威を再構成できない台帳世代は fail-closed で拒否する (2026-09-11)
+
+**決定:** 台帳の世代列挙は、genesis から現行 scheduler 権威の recovery policy digest へ
+再構成できない世代を拒否する。freeze directory 直下の非 64 hex な sibling file は無視し、
+64 hex 名の symlink・非 directory・`registry.jsonl` を欠く世代・directory 名と genesis の
+protocol が食い違う世代は拒否する。
+
+**決定に伴う副作用を明記する。** 共有 admission root に実在する合成 2 段の残骸 (193 行) を
+持つ freeze では、同じ freeze に対する正規 1 段の書き込みも新たに止まる。これは安全側の
+狭まりであり、本番 freeze とは別で、既存 bytes は書き換えない。
+
+**理由:**
+
+- 残骸の genesis が申告する recovery policy digest は現行権威から導出される値と一致せず、
+  genesis は authority id も方針原文も持たない。したがって genesis を peek しただけでは
+  信頼できる profile を再構成できない。
+- 通せば、廃止済みの合成物が新しい production の信頼の根に昇格する。受理面を広げる判断であり
+  親だけでは選べない。
+- symlink を世代として受理すると、**同じ台帳が実体と alias の両方で予算計上される**。
+  変異検査で counterfactual を実測し、同じ 5 件の start が 10 件に膨らむことを固定した。
+
+**却下した選択肢:**
+
+- **recovery policy digest の比較を省いて残骸を通す** — 受理面を緩める。
+- **残骸と同居する catalog file を新しい信頼の根に採る** — 廃止済みの合成物を production
+  権威へ昇格させることになる。同 file を読む tracked な production consumer は 0 件である。
+- **残骸を削除して通す** — 共有 root の既存 bytes は書き換えないという前 wave の裁定に反する。
+
+## D1945. 新設 gate の変異は実装後に mask 層を現物で再確認する (2026-09-11)
+
+**決定:** 実装前に登録した変異のうち、**新設 gate を対象とするもの**は、実装後の最終 commit に
+対して mask 層の有無を現物で再確認する。先に拒否する層が見つかったら、単一理由になる位置へ
+再照準するか、片側 SURVIVED と両層同時 KILLED の対へ組み直して erratum として再登録する。
+初回登録は消さない。
+
+**理由:**
+
+- 既存の義務は「各変異は同じ入力を拒否する層が前後に無いことを**コードで確認する**」と
+  要求するが、事前登録は実装前に書く。新設 gate の実コードがまだ無い項目では、この確認が
+  原理的にできない。
+- 実測では 11 件中 4 件が外れた。うち 1 件は両層同時変異のつもりが**空振り**していた
+  (fixture のリンク先が空 directory だったため、両層を消しても別の判定が同じ文言で拒否した)。
+  空振りに気づかなければ「二層防御を実証した」と誤って記録することになる。
+- 文言だけが変わる赤を kill に数えない既存規律と組み合わせると、受理集合を動かさない変異は
+  診断シグナルの pin として別枠に置くべきだと分かる。本 wave では 13 件中 1 件がこれに当たった。
+
+**却下した選択肢:**
+
+- **事前登録をやめて実装後に登録する** — 実装を見てから測る対象を選べることになり、
+  性能量に到達してから理由を決める形と同じ問題を持つ。初回登録は残す。
+- **外れた変異を黙って差し替える** — 初回登録を消すと、何を測ろうとして外したかが失われる。
+
+## D1946. v2 台帳の terminal は封印証拠 API が実在するまで無条件に拒否する (2026-09-11)
+
+**決定:** 世代別台帳 (v2) の schema・path・claim・capability 消費を開く変更単位では、
+**v2 の terminal 行を core の replay validator と adapter の入口の二層で無条件に拒否する。**
+署名は `[s8b-v2-terminal] v2 terminal requires the sealed evidence API` とする。
+v1 の terminal は従来どおり通し、その正例対照を同じ検査に置く。
+封印証拠 API と生の事実からの再導出が入る変更単位で、この暫定拒否を差し替える。
+
+**理由:**
+
+- v2 の profile を受理側へ開くと、既存の legacy terminal 入口が呼び手の自己申告値で v2 の
+  terminal 行を書けるようになる。これは「起動層所有の生の事実から再導出し、自己申告 field は
+  比較にだけ使う」という承認済み裁定を、開いた瞬間に破る。
+- 暫定拒否は「謳うだけで発火しない保証」ではない。v2 に対して常に発火し、v1 に対しては
+  発火しない。受理集合を狭める向きであり、正例対照と負例の両方を持てる。
+- 二層にするのは、上流の入口だけを閉じると replay 経路 (履歴行の読み直し) が素通しになるためである。
+  下層は実体を名指しする直接検査で守る。
+
+**却下した選択肢:**
+
+- **v2 terminal を開いたまま封印 API を後続へ送る** — 自己申告値が台帳へ入る窓を作る。
+- **adapter の入口だけで拒否する** — replay 経路が素通しになる。片側変異が他層に mask されず
+  生存することで実測できる。
+- **v2 profile の受理自体を後続へ送る** — path 分岐と同じ変更単位でしか開けないため、
+  世代別台帳の残り全部が止まる。
+
+## D1947. 世代別台帳の capability 束縛は境界が定めた範囲に留め、束縛しない集合を成果物へ明記する (2026-09-11)
+
+**決定:** 世代別台帳の mutation のうち **capability marker に束縛するのは予約と観測だけ**とし、
+分類 claim・分類行・回復行は素の原子更新のままにする。**束縛される側とされない側の両方を
+exact に pin する検査を置き、束縛していない集合を成果物へ明記する。**
+分類・回復まで囲むかは裁定へ返す。
+
+**理由:**
+
+- 前段の裁定が固定した境界 signature は、marker 所有の原子更新と予約・再開の marker 引数だけを
+  名指しており、分類・回復の束縛を要求していない。要求外の防壁を足さない。
+- 現行の canonical 1 段台帳も分類・回復には marker を通していない。世代別台帳が既存より
+  広くなるわけではない。
+- ただし予約と観測だけを束縛した状態は、外から見ると「全 mutation が capability に束縛されて
+  いる」と読める。**部分的な閉包を閉包と読める形で残さない。** 束縛範囲を検査で固定し、
+  防いでいない範囲を明記すれば恒真な保証にはならない。
+
+**却下した選択肢:**
+
+- **分類・回復まで marker で囲む** — 境界が要求しておらず、要求外の受理面変更にあたる。
+- **束縛範囲を明記しない** — 材料レポートが「全 mutation が束縛されている」と誤読する。
+- **予約の束縛も外して既存と揃える** — 消費の記録という機構の目的自体が消える。
+
+## D1948. 封印証拠からの terminal 再導出 (E1) と台帳専用理由語彙 (E2) は、起動層の実際の呼び手を繋ぐ単位 C と同じ変更単位で実装する (2026-09-11)
+
+**決定:** 世代別台帳 (v2) の terminal 行を起動層所有の生の事実から再導出する機構 (E1) と、
+それと同じ commit でしか active にしないと定めた台帳専用理由語彙 4 語 (E2) は、**台帳層の単位 A では
+実装せず、起動層 (launcher) の実際の呼び手を v2 台帳へ繋ぐ変更単位 (単位 C) の中で実装する。**
+台帳層は A2α が置いた二層の無条件拒否 (署名 `[s8b-v2-terminal] v2 terminal requires the sealed
+evidence API`) と空の retryable 集合をそのまま引き継ぐ。
+単位 C の中で、生の事実を運ぶ形 (起動層が snapshot を封印して発行する evidence-bound handle、
+または sealed API への keyword-only 引数) を選ぶ。どちらを選んでも、status / reason / primary value を
+呼び手が引数として選べる形にしてはならず (D1113)、封印記録の自己申告 field は比較にだけ使う。
+呼び手を production で名指しできない `record_sealed_classified_failure_terminal()` は単位 C が
+非 observation の終了経路を新設しない限り作らない。
+本決定は、前段の裁定パッケージ 1 (境界 signature の補正可否) を、ユーザーの委任
+(「相談して決めてください」、2026-09-05) を受けて親が別系統モデル 1 本 (`gpt-5.6-sol`、read-only、
+`reasoning=xhigh`) へ諮ったうえで決めたものである。ユーザーは覆せる。
+
+**理由:**
+
+- 現物では封印 terminal API 2 本も再導出関数も未実装で、起動層は terminal builder の自己申告値を
+  そのまま `record_attempt_terminal()` へ渡している。生の事実 (post-probe、起動失敗、計測と
+  throughputs) はすべて起動層の `OpenedFloorAttempt` に揃う。運び手を台帳層だけで先に作っても、
+  検証対象の bytes・digest の結合・resume 時の再読込を起動層無しには定義できない。
+- 起動層はまだ v2 を起動できない。予約の slot は 4 軸型で v2 の 5 軸 slot と型が違い、予約は
+  consumption marker を持たないが v2 予約は marker を必須にする。E1 を台帳層で先行しても、
+  発火する production path が無い (D1114 の主旨)。D1530 は、未接続 interface の権威束縛を
+  本番の呼び手を繋ぐ変更と同じ単位で行うと定めており、本決定はその適用である。
+- keyword-only 引数案は、同じ呼び手が互いに整合する生の値と封印記録を同時に作れるため D1113 から
+  遠い。handle 案は D1113 に最も近いが、durable evidence の bytes、terminal 行との digest 結合、
+  crash 後の再読込規則が signature にも実装にも無く、台帳層だけで見積もると規模が 2 wave 連続で
+  下振れした前例に乗る。どちらも単位 C の所有面を先食いする。
+- 別系統モデルの相談は、前段の推奨 (handle 案を A2β で先行) を「根拠不足、現物と不整合」と判定し、
+  代案 b を推奨した。前段の推奨は「あるべき設計」の主張であり、現物の起動層で裏付けられていない。
+
+**却下した選択肢:**
+
+- **evidence-bound handle を第 9 の境界として単位 A (A2β) で先行実装する** — 起動層が v2 を
+  起動できず production caller が無い状態で権威束縛を建てることになり、D1530 に反する。
+  handle 自体は単位 C の中で採ってよい。
+- **sealed API へ生の値を keyword-only 引数で受ける** — 呼び手が値を選べる形になり D1113 に反する。
+- **E2 の 4 語だけ先に active にする** — 前段の裁定が E1 の validator と同じ commit でしか
+  active にしないと定めており、空集合は retryable terminal を全拒否する向きなので先行させる
+  利益が無い。
+
+## D1949. terminal 証拠の意味規則は今決め、起動層の sink は単位 C が持ち、B2 / D1 は terminal 依存部分を C の証拠契約の後に置く (2026-09-11)
+
+**決定:** 前段の裁定パッケージ 2 (分類 policy の権威の置き場) を次のとおり決める。
+
+1. `expected_use_perf` は **verified mode と perf-preflight receipt から機械導出する。** v2 台帳を
+   単一 mode に限定しない。呼び手の boolean 引数を権威にしない。
+2. probe の証拠は **`probe_before` と nullable `probe_after` の exact な組**とする。計測前 probe で
+   競合が出た session (`probe_after` が無い) も v2 台帳の対象に含める。
+3. `repetition_evidence` を到達可能にする起動層の sink (起動層が private list を作って capture へ
+   渡し、token open 後に snapshot する) は**単位 C の所有**とする。sink が入るまで、これを要求する
+   validator を active にしない (DW-O13)。呼び手からの `rep_observations` 指定は引き続き拒否する。
+
+併せて、**単位 C の brief は terminal 証拠の契約 (versioned な証拠文書の exact field 集合、
+mode / perf-preflight・probe 組・throughputs・実行失敗・rep evidence・封印記録 digest の canonical 化、
+terminal 行へ digest を足すか slot identity から決まる side artifact を replay で検査するか、
+crash 後にどの bytes を権威として読み直すか) を先に短く固定し、B2 / D1 のうち v2 terminal 行を
+exact に読む部分・durable な terminal 証拠との結合を検査する部分・4 語を正例として要求する検査は、
+その契約の後に置く。** B2 / D1 の非 terminal 部分は予定順で着手してよい。
+
+**理由:**
+
+- `expected_use_perf` は現物で mode と perf-preflight receipt から実行時に導出され、rep evidence の
+  完全性判定もその値で変わる。単独の pin は無い。単一 mode 化は既存の権威鎖を捨てる余計な
+  受理縮小である。
+- 計測前 probe の競合と計測後 probe は別経路で到達し、session schema も両 field を持つ。単一の
+  `probe_outcome` では区別できず、計測前 session を除外すると「全 attempt を台帳化する」被覆に
+  穴が開く。
+- `repetition_evidence` は起動層の許可引数に無く、内部 sink も無く、既存 test は明示指定を拒否する。
+  下層の capture は list が与えられた場合だけ rep evidence を載せるので、起動層が list を所有する
+  到達化経路は明確だが、それは起動層 (単位 C) の変更である。
+- 現行の v2 terminal key 集合には evidence digest が無く、replay validator は row しか受けない。
+  B2 / D1 が exact reader を先に固定すると、単位 C で row field を足す形は必ず手戻りになる。
+
+**却下した選択肢:**
+
+- **3 点とも単位 C の brief へ丸ごと送る** — 意味規則を決めずに B2 / D1 を進めると exact reader が
+  先に凍結され、C で手戻りになる。
+- **v2 台帳を単一 mode に限定する** — 既存の導出鎖を捨てる受理縮小で、利益が無い。
+- **計測前 probe の session を v2 台帳の対象外と明示する** — 被覆に穴を作る。
+
+## D1950. 世代別台帳の分類 claim と回復行は、単位 C が独立した resume / recovery 経路を持ち込むまで capability で囲まない (2026-09-11)
+
+**決定:** 前段の裁定パッケージ 3 を「**今は囲まない**」と決める。A2α の決定 (予約と観測だけを
+marker に束縛し、束縛される側とされない側を exact に pin して非束縛の集合を明記する) を維持する。
+単位 C が marker 束縛の予約から得た handle を迂回する resume / recovery の production 経路を
+持ち込む場合は、その変更単位で再裁定する。
+
+**理由:**
+
+- v2 の予約は marker 必須で、後続 API は exact 型・process-local seal・state fingerprint を持つ
+  issued handle を要求する。v1 は marker 無しの予約と素の更新を受理する。囲まなくても v2 が v1 より
+  広くなる形は現物に無い。
+- 囲むと受理集合は狭まるが、その狭まりが正式受理へ届く実経路 (分類・回復時の再検証不足を突く
+  production 経路) は示されていない。production caller 接続前に追加の権威束縛を置くより、
+  必要が生じた変更単位で決める方が D1530 と D1533 に整合する。
+- 囲む実装を v2 schema 分岐に限れば v1 は壊れないが、束縛範囲を exact に pin する既存 test は
+  必ず更新が要り、分岐せず全世代を marker 経路へ送ると marker が現世代専用のため v1 を全拒否する。
+
+**却下した選択肢:**
+
+- **分類 claim・分類行・回復行も marker で囲む** — 要求外の受理面変更で、実経路の欠陥が示されていない。
+- **束縛範囲の明記をやめる** — 部分的な閉包を閉包と読ませる。
+
+## D1951. v5 proof の prefix inspector は expected binding の世代 1 つだけを読み、検証時に freeze 全体の予算を再導出しない (2026-09-11)
+
+**決定 (親裁定。ユーザーが覆せるよう裁定パッケージにも併記する):** 成果物の v5 proof
+(`{row_count=N, chain_head_sha256}`、D1337) を検証する read-only prefix inspector は、外部引数から作った
+expected binding (freeze / protocol / schedule の 3 digest) が指す **exact な 2 段 path の世代 1 つだけ**を
+読み、その世代の全行を replay した後で先頭 N 行の head を照合する。freeze 配下の兄弟世代は列挙せず、
+他世代の予算 count も seed しない。検証時に freeze 全体の予算超過 (D1340 の横断 replay) を再導出する
+gate は置かない。inspector の docstring と成果物の記録に「他世代の予算超過は検査しない (writer の防壁)」を
+非保証として明記する (D1533 の形)。root は provisioning しない解決 (`shared_admission_root`) だけを使い、
+root / lock / 世代 file の不在は `unverifiable` で拒否する。
+
+**理由:**
+
+- D1337 が定める proof の identity は世代別台帳の先頭 N 行であり、予算は D1340 のとおり **writer が**
+  世代を横断して数える。検証側が同じ計算を繰り返す要求はどの確定裁定にも無く、要求外の gate を足さない
+  (DW-G05、規律 5)。既存の production reader (`read_attempt_registry`) も他世代を seed していない。
+- 兄弟世代の列挙は、検証対象の世代が正しくても無関係な世代の破損・未完成 directory で拒否を生み、
+  正当な後続 append で certified 成果物を参照不能にしないという D1337 の目的に反する (段 3 レンズ B)。
+- 既存の adapter 入口 (`_entry_paths`) は root を provisioning して lock inode を作るため、read-only
+  検査が共有 filesystem を変えてしまう (段 3 レンズ A / B が独立に指摘、親が現物で確認)。
+
+**却下した選択肢:**
+
+- 検証時に他世代を全 replay して freeze-wide の予算超過を拒否する — 確定裁定の要求外で、writer の
+  防壁と二重になる。必要性は未実測。裁定パッケージとしてユーザーへ返す。
+- 既存の世代列挙 helper を再利用する — 兄弟世代の破損で current prefix が拒否される。
+- 既存の adapter 入口で root を解決する — provisioning と fsync を伴い read-only にならない。
+
+## D1952. terminal 証拠の契約 v2 は exact 24 field と cross-field 不変条件、campaign と同順の再導出 6 枝、台帳専用の 4 語で固定する (2026-09-11)
+
+**決定 (単位 C の段 4 裁定。C1b が実体化、C2 が供給、D2 が再検証する):** v2 台帳の terminal 行に載せる
+証拠文書 `s8b-floor-terminal-evidence/v1` は、canonical JSON の LF 無し bytes とし、その sha256 を terminal 行の
+新 field `terminal_evidence_sha256` に載せ、`floor-attempt-registry-receipts/terminal-evidence/<digest>.json`
+へ create-only で公開する (registry staging の前)。field は exact 24 (`schema_version`、`attempt_binding`、
+`protocol`、`mode`、`perf_preflight_receipt`、`expected_use_perf`、`probe_before`、`probe_after`、`failure`、
+`launch_failures`、`throughputs`、`nonfinite_count`、`reps_expected`、`exec_failures`、`repetition_evidence`、
+`rep_integrity_failures`、`session_cv_max`、`raw_output_sha256`、`report_sha256`、`observation_sha256`、
+`finished_at`、`campaign_record`、`self_report`。`report_sha256` と `observation_sha256` は別々に数える) で、各 field の出所は
+reservation / opened measurement / 私有 sink / launcher 固定 probe / 機械導出のいずれかに固定し、呼び手が値を
+選べる field を置かない (D1113)。cross-field 不変条件 (`probe_after` null ⇔ `probe_before.competing` ⇔ 計測無し、
+opened ⇒ sink 長 = `reps_expected`、`failure` 非 null ⇒ `exec_failures == reps_expected`、
+`len(throughputs) + nonfinite_count + exec_failures == reps_expected`) を 1 つでも破れば `[s8b-terminal-evidence]`
+で拒否し、`observed` へ落とさない。再導出 (E1) は campaign `_run_session` と同じ順序の 6 枝 (競合 →
+capture / open 失敗または全 rep 起動失敗 → 部分起動失敗 → 非有限 / 部分出力 → 分散超過 → observed) とし、
+各枝は台帳専用の語 (E2 の 4 語 `measurement_environment_conflict` / `measurement_execution_unavailable` /
+`measurement_sample_incomplete` / `measurement_dispersion_exceeded`) と campaign の凍結語を別々に返す。
+辞書を持たず、`self_report` と `campaign_record.excluded_reason` が再導出の campaign 語と一致しなければ
+拒否する。状態語は理由あり = `retryable-failure`、理由なし = `observed` だけで、`terminal-failure` /
+`not-consumed` は再導出で出さない。crash 後の権威は台帳行 + receipts dir の bytes で、file から再導出した
+値が行と一致した場合だけ受理する。
+
+**理由:**
+
+- 段 3 のレンズ 2 本が独立に、証拠の attempt 束縛の欠落、mode / receipt / authority の呼び手選択、seal の
+  偽造可能性、policy の非網羅性を blocker とした。field の出所と cross-field 不変条件を契約として先に固定
+  しないと、C1b / C2 の実装がそれぞれ別の形で埋めることになる。
+- E1 の枝順を campaign と一致させるのは、同じ raw facts から campaign が出す凍結語と台帳が出す語を
+  食い違わせないためである。部分起動失敗を sample 側の語にする plan の案は、campaign が `launch_failure`
+  を出す事実と矛盾するので却下した。
+- `observed` へ落とす経路を 1 本でも残すと、正しさゲートの弱体化 (規律 2) が証拠の形で入り込む。
+
+**却下した選択肢:**
+
+- 証拠を terminal 行の中に inline で持つ — 行の key 集合 (v1 不変) を壊し、crash 後の再読込に別の権威が要る。
+- 再導出の辞書 (campaign 語 → E2 語の写像表) を持つ — 表の更新漏れが等値検査を恒真にする。枝ごとに両語を返す。
+- 非有限 throughput を runner (`benchparse._num`) 側で閉じる — C1 所有外で既存計測値域を変える。証拠側で
+  null + `nonfinite_count` に正規化する (裁定パッケージ 2)。
+
+## D1953. 起動層は封印証拠 API より先に raw facts 面 (副作用前の検査、v2 早期 gate、launcher 所有の分類 authority、二段 probe と私有 sink) を積み、検査済み引数の snapshot だけを capture へ渡す (2026-09-11)
+
+**決定 (単位 C の段 4 裁定):** 単位 C を C1a (launcher 面のみ、実装子 1 本) / C1b (証拠 module、封印 API、
+E1 / E2、core・profile・adapter) / C2 (campaign 配線、producer v5) に割り、C1a を先に unlanded checkpoint
+として積む。C1a の launcher は (1) genesis / reserve / subprocess のいずれよりも前に `mode` literal、
+`canonical_protocol_sha256(protocol) == binding.protocol_sha256`、`expected_use_perf = use_perf_from_receipt(receipt)`
+と capture kwargs の `use_perf` / `reps` の等値、callable の不在を検査し、(2) v2 profile または consumption marker
+非 None は副作用ゼロのまま `[s8b-launcher-v2-terminal]` で拒否し (通る正例 = v1 profile + marker None)、
+(3) 分類 authority を launcher 定数から導出して public API から `classification_authority` 引数を削除し、
+(4) 流れを reserve → probe_before → (競合なら skip | 私有 sink → capture → probe_after) → classify → open →
+open 後の sink snapshot → build → seal → observe → terminal とし、capture / open の例外は stage 付き `failure`
+に載せて post-probe を必ず走らせ、`failure` ありで `observed` を申告する terminal は seal 前に拒否する。
+検査済み kwargs は 1 段 snapshot (Mapping は独立 dict、sequence は tuple、他は identity) を保持し、`_capture`
+は元 Mapping を再読しない。
+
+**理由:**
+
+- C1 全体 (1,600〜2,300 LOC) を 1 wave の 2 本で積む plan は、レンズ 2 本が規模と到達可能性の両面で
+  棄却した。launcher 面だけなら raw facts の出所を固定した状態で C1b の契約 leaf を最初に置ける。
+- 検査 (protocol digest、receipt 由来の `use_perf`) を副作用の後に置くと、拒否される attempt が台帳に
+  予約と分類を残す。副作用前の検査と v2 早期 gate は、C1b が実在するまで v2 台帳へ半開きの経路を作らない。
+- 検査した Mapping を capture 時に再読すると、pre-probe の間に呼び手が値を書き換えられる (レビュー A-1 の
+  TOCTOU)。snapshot は 1 段に留め、capability 系 object の identity を保つ。
+
+**却下した選択肢:**
+
+- 分類 authority を呼び手が渡す形を残す — 呼び手が別 policy を名乗れる (D1113 違反)。
+- open 失敗を `observed` として通す — 計測無しの terminal が観測済みとして台帳に残る。
+- 深い copy — sealed capability の identity が失われ、admission 側の検証権限が働かない。
+
+## D1954. pre-probe 除外 attempt も admission ticket を消費し、非有限 throughput は証拠側で正規化し、evidence file だけが残る crash 状態は許容して非保証に明記する (2026-09-11)
+
+**決定 (親裁定。ユーザーが覆せるよう insight README の裁定パッケージにも併記する):** (1) pre-probe で
+競合により除外される attempt も admission ticket を消費する。v2 予約は marker (= ticket 消費後) を要求し、
+除外 attempt を台帳の対象に含めた fragment 9 の決定と整合させるには消費が先である。(2) 非有限 throughput は
+runner を触らず、証拠側で null に正規化して `nonfinite_count` に数える。(3) evidence file あり・terminal
+row なしは evidence-first 公開の予定された crash 状態として許容し、resume は create-only の exact retry で
+再公開する。成果物にはこれを非保証として明記する。(4) perf receipt の manifest 束縛は C2 (供給) と D2
+(再検証) に置き、C1 は形と機械導出だけを持つ。
+
+**理由:**
+
+- (1) の代案 (pre-probe 除外専用の非 consumption 予約権限を admission に新設) は受理集合と予算の意味を変える。
+- (2) の代案 (`benchparse._num` を `math.isfinite` で閉じる) は C1 所有外で既存計測値域を変える。
+- (3) の代案 (slot 宛 pending index で replay を recoverable failure として止める) は今必要な機構でない
+  (規律 5)。
+
+**却下した選択肢:**
+
+- 上記各項の代案。いずれも裁定パッケージとしてユーザーへ返し、覆されればその時点で実装する。
+
+## D1955. 受入で dispatch の待ち上限を上書きするかは lease の所有で決める — 保持中は上書きせず、別 session が保持している間は上書きしてよい (2026-09-11)
+
+**決定:** 受入全走の投入 script に D612 の opt-in 上書き
+(`IZANAGI_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE` / `IZANAGI_DISPATCH_OVERALL_GRACE_OVERRIDE`) を
+付けるかどうかを、lease の所有状態で分ける。
+
+- **自分が lease を取得した走行では上書きを付けない。** queue 待ちを 3,600 秒まで許すと、走行が
+  lease の TTL 2,400 秒を超え、子が緑でも `receipt-lease-check` で receipt を失う
+  (F951)。既定の 900 秒なら、混雑時は 15 分で
+  `queue-wait-timeout` の infra 失敗として戻り、lease を無駄に焼かない。
+- **別 session が lease を保持している間の受入では上書きを付けてよい。** DW-O27 (D662) の疑似 holder
+  経路 (`claim_context.unclaimed`) は receipt 発行時に lease を再確認しないため、走行が TTL より
+  長くても receipt が出る。混雑時はこちらが通る側になる。
+- 既定値 (queue-wait 900 / overall-grace 300 / walltime 3,600 / lease TTL 2,400) は変更しない。
+  D619 が明示的に見送った選択肢であり、本決定は運用側の使い分けだけを定める。
+
+**理由:**
+
+- D612 は「既定 walltime 自体が既に TTL を超えており、Q/G の調整だけでは構造的に TTL を超えない保証を
+  満たせない」と算術で示していた。D619 はそのリスクを記録に留めて既定値を変えない裁定をした。
+  2026-09-07 に初めて顕在化したのは、上書きを**受入に**付けたときだけであり、既定値の問題ではない。
+- 上書きの効用は「混雑で空振りする回数を減らす」ことだが、lease を保持している受入ではその効用が
+  receipt の喪失と引き換えになる。所有していない走行では引き換えが無い。
+- 走行中の lease 更新 (heartbeat) や fencing token の新設は D619 / D299 が裁定パッケージへ送付済みで、
+  ここで先取りしない (規律 5)。
+
+**却下した選択肢:**
+
+- 受入では常に上書きを付ける — lease 保持中の走行で receipt を失う。実測済み。
+- 受入では常に上書きを付けない — 別 session が lease を持つ混雑時に、通れるはずの走行を 900 秒で
+  捨てることになる。
+- lease TTL を延ばす・走行中に更新する — D619 が既定値変更を見送り、更新機構は裁定待ちである。
+
+## D1956. terminal 証拠の契約を v3 へ訂正する (親が確定させた分) (2026-09-11)
+
+**決定:** 前 wave の段 4 が固定した契約 v2 のうち、実測で誤りと確定した次を追記訂正する。
+規律 7 に従い、過去の判定を遡って無効化せず追記でのみ直す。
+
+- `campaign_record` の exact key は **30** とする。`_finish_session` の emit と、独立 trust root
+  `s8b_ratified_freeze._JOURNAL_KEYS["session"]` が集合等値であることを確認した。27 も 29 も誤り。
+- outer field の**計数は 23** とする。表の 1 行が 2 field を書いており、24 は計数誤りである。
+  ただし観測後に導出された理由を保持する field を足すかどうかは、下記の未裁定項目に従属させる。
+- 封印の発行を **2 段**にする。launcher 側の発行子は未完成の draft だけを返し、adapter が
+  exact な観測 handle から 3 digest を足して初めて validated な capability を発行する。
+  公開 signature を変えずに済み、test 用 launcher が fake fact から production の封印を
+  発行する経路も塞ぐ。
+- 証拠文書を **再導出面 (平文) と束縛面 (digest)** に分ける。平文へ載せるのは再導出 6 枝と
+  cross-field 不変条件が実際に読む値だけとし、三軸 literal を運びうる payload は canonical digest で
+  束縛する。最終 canonical bytes は既存の holdout-safe gate を必ず通す。
+  **trust boundary を広げる専用 bypass は作らない。**
+- 再導出 6 枝は **campaign の実 precedence を正本**にする。枝 2 を「失敗が非 null または
+  実行失敗数が期待数以上」、枝 3 を「実行失敗数が 0 と期待数の間、かつ統計側の必須理由が null」へ直す。
+- 非有限値の不変条件を `count(非 null) + 非有限数 + 実行失敗数 == 期待数` かつ
+  `非有限数 == count(null)` に直す。統計側へは有限値だけの列と元の期待数を渡す。
+- capability の権威を **immutable な canonical bytes** にする。文書と射影は毎回その bytes から
+  再生成し、発行台帳には bytes の digest と identity の指紋だけを保存する。
+  **台帳への登録済みであること自体を権威にしない。**
+- 契約が要求していない自発的拡張 (durable claim の新 schema、handle state への mode 追加、
+  core の全 load 面への引数伝播) は採らない。
+
+**理由:**
+- 契約 v2 を literal に実体化すると、v2 台帳の terminal 行が 1 行も書けないことを 3 者が独立に測った。
+  誤った契約のまま実装子を起動すれば、動かないと分かっているコードを数千行積むことになる。
+- 落とすのは再導出に使われない payload だけであり、launcher が観測前証拠に対して既に使っている
+  規律と同型である。新しい逃がし道を作らないので規律 2 を緩めない。
+
+**却下した選択肢:**
+- 三軸を含む文書を通すための専用の公開権限を新設する — trust boundary の拡張であり、
+  holdout の意味を弱める。
+- 走査器に当たらない符号化で三軸を運ぶ — gate の迂回であり規律 2 に反する。
+- 契約を守るために campaign 側の記録を削る — 計測の一次資料を痩せさせる。
+
+## D1957. 裁定で固定する契約には consumer 実測を添える (2026-09-11)
+
+**決定:** 段 4 の裁定が「契約」「exact な field 表」「再導出の枝」など、後続 wave が実体化する
+仕様を固定するときは、**その契約が束縛する consumer のそれぞれに対して、固定前に最小の実測 probe を
+1 本ずつ通す**。通せない consumer があれば、その項目は固定せず裁定パッケージへ回す。
+
+consumer とは、その契約が書いた値を実際に受け取って受理・拒否を決める層である。
+本件では台帳 core の検査順序、campaign の理由 precedence と算出、guarded writer の走査器が該当した。
+
+**理由:**
+- 契約 v2 は段 3 のレンズ所見を統合して書かれたが、束縛する consumer の**実挙動**に当てられて
+  いなかった。結果として 7 件の欠陥を抱えたまま「固定済み」として次 wave へ渡り、
+  次 wave の段 2 と段 3 の全予算がその発見に費やされた。
+- 「exact な表を書く」ことと「その表が実在の consumer を通る」ことは別の命題である。
+  前者だけを確かめて固定すると、誤りの発見が 1 wave 遅れる。
+
+**却下した選択肢:**
+- 契約の固定をやめて実装 wave で決める — 実装子が仕様を発明することになり、規律 3 に反する。
+- レンズを増やす — レンズは plan を攻撃するのであって、親の裁定文が consumer を通るかは
+  次 wave まで検査されない。probe は親の義務である。
+
+## D1958. 観測後に導出した測り直し理由は台帳の別 field に載せる (2026-09-11)
+
+**決定:** v2 台帳の terminal 行で、`failure_reason` は**観測前 classification の理由の逐語 echo**の
+ままとし、観測後に証拠から再導出した測り直し理由は **v2 専用の新しい field**へ載せる。
+`_assert_null_matrix` は照合先の field 名を profile から受け取る形にし、既定は現行の
+`failure_reason` に固定する。v2 profile だけが新 field を指す。
+
+台帳 core の既存の等値検査 (terminal の理由が観測前分類の理由と等しいこと) は**1 行も変えない**。
+v1 の event key 集合・受理集合・検査順序も変えない。
+
+**理由:**
+- 観測前の分類で決まる理由と、計測を開いた後にしか分からない理由は別の量である。同じ field へ
+  両方を載せようとしたために、台帳 core の等値検査と retryable 集合の検査が同時に満たせなくなり、
+  該当世代の terminal 行が 1 行も書けない状態になっていた。
+- 検討した代案は「検証済みの証拠があるときだけ既存の等値検査を飛ばす」ものだったが、これは
+  **既存の正しさ検査に条件付きの迂回路を新設する**形になる。別 field へ載せる形なら迂回路が
+  存在しないので、証拠を持たない呼び手はその経路に到達すらできない。規律 2 に対して厳密に強い。
+- 観測後の失敗では観測前の理由が null なので、既存の等値検査は null 同士で通る。観測前の失敗では
+  echo がそのまま入るので通る。現行の null matrix の要求 (観測済みは理由が null、
+  測り直しは報告 digest が非 null で観測 digest と主値が null) とも矛盾しないことを現物で確認した。
+
+**却下した選択肢:**
+- 検証済み証拠があるときだけ等値検査を飛ばす — 既存の正しさ検査へ迂回路を新設する。
+- 起動層の分類語彙を測り直し理由の語彙へ置き換える — 4 語のうち 2 語は計測を開いた後にしか
+  判明せず、分類は開く前に起きるため適用できない。
+- 該当世代の遷移方針から等値検査を外す — 証拠を持たない直接呼出しまで開いてしまう。
+
+## D1959. 実行失敗数と証跡不完備数は別の量である (2026-09-11)
+
+**決定:** 実行失敗数は「計測 runner が rep を開くときに捕捉した実行例外の数」、証跡不完備数は
+「戻り値・counter・schema・欠損を独立に検査した不完備の数」と定義し、**別の量**として契約へ
+追記訂正する。同じ rep で両方が立ってよい。「非 zero の戻り値をすべて実行失敗と数える」という
+前の契約の記述は誤りだった。
+
+**実装の割り当てを分ける。** 計測 runner の私有記録へ構造化した実行失敗を足し、campaign と
+証拠の検査器の双方がそこから数える形は、runner と campaign を変更するので**後続の単位が持つ**。
+証拠を作る単位では、実行失敗数を campaign の記録との**等値でのみ束縛**し、
+**「この値が各 rep の実行成否を証明する」とは主張しない。**
+
+**理由:**
+- 実測で、戻り値が非 zero の rep が 2 本あり自然文の注記が空の入力に対し、campaign は
+  実行失敗数 0・証跡不完備数 2 を返した。両者が同じ量でないことと、自然文が欠ければ
+  集約値を復元できないことが同時に示された。
+- 「契約を現行の自然文からの算出に合わせる」案は、証拠が「campaign が自然文から何件と数えたか」
+  しか証明しなくなる。自然文を信頼経路に残すことになり、規律 3 に照らして価値がない。
+- 一方で、証明できないことを証明できると書かないのも規律 3 である。構造化した記録が入るまでは
+  等値束縛だけを主張し、射程を明記する。
+
+**却下した選択肢:**
+- 契約を自然文からの算出に合わせる — 自然文の存在を証明するだけで、実行失敗の事実を証明しない。
+- 2 つの量を統合する — 実行例外と counter / schema の不完備という別の診断を失う。
+- 戻り値だけから実行失敗を数える — 戻り値が得られない例外や、戻り値が正常でも後段で失敗する場合を落とす。
+
+## D1960. 封印証拠の脅威境界を明文で限定する (2026-09-11)
+
+**決定:** 封印証拠が守る対象を次のとおり明文で限定する。
+
+**脅威に含める:** 外部ベンチマークと生成された variant が返す悪意ある bytes・戻り値・出力、
+通常の言語操作による発行済み capability の内容書き換え、誤った production 呼び手。
+
+**脅威から除外する:** 任意の同一 process module 改変、private な発行子の意図的な直接呼出し、
+reflection 操作、同一 OS ユーザーによる台帳と検査器の同時改変。
+
+**発行子を別 process へ隔離しない。** 代わりに (a) capability の唯一の実データを不変の
+canonical bytes にし文書と射影を毎回そこから再生成する、(b) adapter が再導出する、
+(c) **test 用の capability と production 用の capability を型で分離し、test 用の起動経路が
+production の封印を発行できない構造にする**、の 3 つで閉じる。
+
+**理由:**
+- 同一 OS ユーザー・同一 repository・同一の検査コードを使う限り、別 process にしても独立性は
+  増えず、プロセス間通信と crash 状態だけが増える。これは D387 が既に述べた限界と同型である。
+- 発行台帳への登録の有無を権威にしてはならないことが実測で示された。台帳への直接追加、
+  private な発行子の直接呼出し、直列化 hook 経由の発行が、いずれも受理される。
+- 守れないものを守ると書かないのが規律 7 と規律 3 の要請である。除外は攻撃者の能力で定義し、
+  曖昧な但し書きにしない。
+
+**却下した選択肢:**
+- 発行子だけを同じユーザーの別 process へ移す — 相手が module と file を書ける前提では境界にならない。
+- 任意の同一 process 改変まで守ると主張する — 発行子と検査器を同じ主体が書き換えられるため成立しない。
+- 外部ベンチマークや生成物の出力を信頼境界の内側とする — 規律 6 が定める未信頼入力そのものを除外してしまう。
+
+## D1961. 証拠の識別欄は権威の有無で 2 群に分け、権威の無い値は要約値で縛って正しさを主張しない (2026-09-11)
+
+**決定:** 試行証拠に載せる識別欄は、永続化された権威 (durable claim・凍結 schedule 行・slot) から
+**再導出して等値で縛れる群**と、そのどれにも根が無い群に分ける。後者は個別に平文へ載せず、
+まとめて 1 本の要約値で縛るだけにし、**その値が正しいとは証拠として主張しない。**
+判定 (再導出・相互整合) の入力に後者を使ってはならない。
+
+**理由:**
+
+- 呼び手が組み立てた構造体へ写した値を権威に据えると、D1113 (呼び手は証拠の値を選べない) を
+  満たさない。誤った production caller は脅威境界の**内側**にある。
+- 実際に測ると、床試行の永続 claim が持つのは cell 識別子・レコード数・スレッド数・作業負荷・
+  実行識別子・実行相対経路・種別だけで、通し番号・巡回番号・種別・契機・再試行回数には
+  権威が無い。これらは計測 campaign の帳簿上の値であり、証拠が参照できる凍結物のどれにも入らない。
+- 同じ射程の切り方を、実行失敗数については既に採っていた (「等値でだけ縛り、各回の実行成否は
+  証明しない」)。識別欄にも同じ切り方を適用するのが一貫する。**主張できないことを主張しない。**
+
+**却下した選択肢:**
+
+- 全識別欄を平文へ載せ、呼び手の構造体と全件等値で縛る — 権威の無い値を権威として扱うことになる。
+- 権威の無い識別欄を証拠から落とす — 事後の突合せができなくなる。要約値なら突合せは残る。
+- 権威を新設する (永続 claim へ帳簿欄を足す) — 計測層の schema 変更であり、この単位の所有面でない。
+
+## D1962. 再導出の「枝の順序」と「入力の値域」は別に固定し、値域は実際に呼ばれる層から取る (2026-09-11)
+
+**決定:** 証拠から状態と理由を再導出する規則を書くとき、**枝の評価順序**と**入力が取りうる値域**を
+別の条項として固定する。順序は下流の凍結された判定器に合わせてよいが、**値域は証拠を作る層
+(実際に例外を捕捉して終端行を作る層) から取る。** 両者の出所が違うときは、下流と同じ入力で
+同じ語が出るとは主張しない。
+
+**理由:**
+
+- 実測すると、床試行の起動層は `OSError` を含む 3 種の例外を捕捉して終端行を作るが、
+  計測 campaign は 2 種しか捕捉せず、`OSError` では session 行そのものが生まれない。
+  「campaign と同順だから受理集合も同じ」は成立しない。
+- 順序だけを合わせて値域を合わせたと書くと、下流に対応物が無い入力を受理していることが
+  記録に残らない。後段の照合で理由不明の不一致になる。
+- 値域を実際の捕捉集合の閉じた語彙として明記すれば、集合外の型名を拒否する条項が書ける。
+  これは受理集合を広げるのではなく、**明示して狭める**。
+
+**却下した選択肢:**
+
+- 起動層の捕捉集合を下流に合わせて狭める — 実際に起きる失敗を終端行にできなくなる。
+- 値域の差を書かずに順序だけ揃える — 主張できないことを主張することになる。
+
+## D1963. 未信頼の値を返す呼び手へ、権威の出所そのものを渡さない (2026-09-11)
+
+**決定:** 証拠を封印する経路では、権威として読む値の出所を**副作用より前に私有の正準 bytes へ
+固め**、未信頼の呼び手 (任意の値を返せる builder 等) には**その bytes から復元した別の木**を渡す。
+封印はその snapshot だけを読み、呼び手が保持しうる元のオブジェクトを読み直さない。
+同じ値を 2 度読む形 (gate が 1 回、封印が 1 回) を作らず、**両方が同一の snapshot を見る**。
+
+**理由:**
+- 呼び手は証拠の値を選べない (D1113) を、公開 signature の検査だけでは満たせない。呼び手が
+  可変オブジェクトへの参照を持ち続けられる限り、検査の後・封印の前に書き換えられる。
+- 実測した破れは 6 件あり、いずれもこの 1 つの型だった。最も重いものでは、分散の閾値を
+  検査後に緩めることで、分散超過の測定を観測成功として封印できた。**これは正しさゲートを
+  緩める操作そのものであり、規律 2 に抵触する。**
+- duck-typed な写像は `get()` と反復で別の値を返せる。gate と封印が別々に読む限り、
+  片方にだけ正しい値を見せる攻撃が成立する。同一 snapshot を共有すれば構造的に閉じる。
+- 検査の順序を守る規律 (先に検査してから使う) では足りない。**参照を渡した時点で負けている**
+  ので、渡す対象を複製へ変える。
+
+**却下した選択肢:**
+- 検査を封印の直前へ移す — 読み直しが残る限り、検査と封印の間の窓が縮むだけで消えない。
+- 呼び手へ read-only view だけを渡す — Python の view は元の可変オブジェクトを覆えるが、
+  入れ子の辞書までは凍らせられない。実際に入れ子側で破れた。
+- 呼び手の型を厳密に固定する — 正しい型のまま中身を書き換える攻撃を止められない。
+
+## D1964. 変異の帰属を示す fixture は、対象 gate を外したとき最後まで通るものにする (2026-09-11)
+
+**決定:** 変異が単一理由で殺せることを示すテストでは、**下流の代役が無条件に拒否する形を使わない**。
+対象 gate を外した改変で、偽の成果物が**最後まで到達して観測できる**代役 (受理して保存するだけの
+もの) を使う。到達を観測できない fixture で得た赤は kill に数えない。
+
+**理由:**
+- 無条件に送出する代役を使うと、対象 gate を外しても後段が必ず拒否するため、変異は赤くなるが
+  **その赤は対象 gate の証拠にならない**。冗長 gate による見かけの kill である。
+- 本 wave では事前登録した変異のうち 3 件がこの形だった。焦点再レビューが静的に指摘するまで、
+  実装子も親も「単一理由で殺せる」と申告していた。**赤くなったことと、狙った層が効いたことは別**
+  である。
+- 是正後の実測では、各変異の赤が対象機構専用の node だけに限定され、件数まで一致した。
+  独立した 3 つの検査はそれぞれ自分の場合だけを落とし、1 つの過剰決定 gate でないことも示せた。
+
+**却下した選択肢:**
+- 後段の代役を残したまま、期待する例外の型や文言で区別する — 実装が別の理由で同じ型を投げる形へ
+  退化しても緑のままになる。
+- 上流の正規経路だけで正例を作る — 上流がその状態を出さない枝では正例が存在せず、恒真な拒否に
+  なる。下層を直接呼ぶ検査 (D1522) と組で置く。
+
+## D1965. sealed terminal の本数式は rep を 4 分類へ互いに素に割り当て、実行失敗数を欠格 rep の代理に使わない (2026-09-11)
+
+**決定:** opened の相互整合検査は、sink の各 rep を
+「有限 throughput を持つ qualified」「非有限 throughput」「実行例外を捕捉」
+「上記以外の証跡不備」の 4 分類へ**互いに素に**割り当て、本数の和が `reps_expected` に
+一致することを要求する。あわせて `exec_failures <= rep_integrity_failures` を要求し、
+これが破れる入力を拒否する。
+
+**理由:**
+
+- 旧式 `len(throughputs) + nonfinite_count + exec_failures == reps_expected` は
+  `exec_failures` を**欠格 rep すべての代理**として使っていた。これは
+  「実行例外の数と証跡不備の数は別の量である」という確定裁定を、検査の側で再結合してしまう。
+- 実害が両方向にある。非 zero 戻り値だけの rep を持つ**正当な session が拒否され**、
+  逆に**偽の実行失敗申告なら通る**。後者は正しさ防壁に対する攻撃面そのものである。
+- 4 分類は互いに素なので、和の一致は「どの rep も 1 つの分類にちょうど収まる」ことを意味する。
+  代理を使わずに同じ完全性を得られる。
+- 変異 (本数式を旧式へ戻す) が単一理由で kill されることを実測して確かめた。
+
+**却下した選択肢:**
+
+- **旧式のまま `exec_failures` の意味を広げる** — 確定裁定が禁じた再結合を、
+  名前ではなく実質で行うことになる。
+- **非 execution の証跡不備を sealed terminal から締め出す** — 正当な session を
+  proof chain に載せられなくなり、台帳の被覆が下がる。
+
+## D1966. 診断 counter が厳しくなる訂正だけでは算出式の版を上げず、差分を characterization test で exact に固定する (2026-09-11)
+
+**決定 (親の推奨。ユーザー裁定へ返してある):** 床値統計の算出式のうち**診断 counter だけ**が
+厳しくなる方向へ変わり、**セルの有効性判定・session median・floor 合成・実行失敗数が
+いずれも不変**であることを test で示せた場合、`FORMULA_ID` は据え置く。
+代わりに、変わらない量と変わる量の**両方**を producer の全 outcome class の直積で
+exact に固定する characterization test を置く。
+
+**理由:**
+
+- 版を上げる目的は「同じ版で計算した値を取り違えない」ことである。**成果物へ出る値
+  (有効性・median・floor) が 1 つも変わらない**なら、取り違えは起きない。
+- 版を上げると凍結済みの protocol 文書の bytes が変わり、その digest を pin する
+  凍結台帳まで再発行が波及する。**値が 1 つも変わらない成果物のために凍結面を動かす**ことになる。
+- 黙った drift にはならない。差分を exact に固定した test が台帳の代わりに境界を保持し、
+  次に同じ場所が動けば必ず赤になる。
+- 該当の訂正は**受理集合が狭まる向き**でしかない。旧実装が rc=0 と counter 完備だけで
+  完備と数えていた rep を、実行失敗として数え直すものである。
+
+**却下した選択肢:**
+
+- **字義どおり版を上げる** — 凍結成果物の再発行を伴う。値が変わらないので、
+  版を上げても読み手が得る情報は増えない。
+- **差分を記録せず据え置く** — 説明と実装が食い違ったまま残る。
+  本決定は「据え置くなら差分を exact に固定する」を対にして初めて成立する。
+
+## D1967. marker の消費順序は launcher の封印 pre-probe 二段入口で閉じ、既存 production 入口は変えない (2026-09-11)
+
+**決定:** 床値 campaign を certified launcher へ配線するとき、`consumption_marker` を pre-probe より
+先に用意すると holdout inspector が必ず拒否する問題は、**launcher に封印 pre-probe の二段入口を
+新設して閉じる**。既存 production 入口 `launch_floor_attempt()` の署名も挙動も変えない。
+
+- `probe_floor_attempt_preconditions()` が launcher 私有の固定 probe を 1 回だけ実行し、
+  封印した一回限りの pre-probe を返す。読み取り公開は `competing` と実 raw の immutable copy のみ。
+- `launch_probed_floor_attempt()` がそれを `probe_before` として使い、内部で probe をやり直さない。
+- campaign は pre-probe が競合なら marker を消費せず launcher を呼ばない。
+
+**理由:**
+
+- inspector 側で「v2 の launcher 消費 competing marker」を許す案は**受理集合を広げ**、
+  D1660 の単調縮小方針に逆行する。別系統モデルの敵対レンズ 2 本のうち 1 本が real と判定した。
+- 既存入口を変える案は、既存 test 6 箇所と署名 pin・source pin・competing 正例の期待値を
+  変えることになる。実装子契約は既存期待値の変更を禁じており、変更の必要があれば止めて報告する規律である。
+- blocker の本体は「誰がいつ marker を消費するか」であり、launcher の内部順序ではない。
+  campaign 側の分岐で閉じられる。
+
+**却下した選択肢:**
+
+- inspector の competing 規則を緩める — 受理集合を広げる。正しさ防壁を弱める向き。
+- marker 無しの `not-consumed` registry terminal を新設する — 契約の E1 規定を改版する大変更。
+- 既存 `launch_floor_attempt()` の署名を `pre_probe` へ差し替える — 既存期待値 6 箇所の変更が要る。
+
+## D1968. campaign の retry ordinal は measurement 軸へ束縛し、受理集合の置換であると明記する (2026-09-11)
+
+**決定:** 試行 slot の 5 軸のうち **campaign の retry 軸は `measurement_ordinal`**、
+`attempt_ordinal` は series 内の recovery 軸である。terminal 証拠と durable replay の束縛を
+`retry_ordinal is None ⟺ measurement_ordinal == 0`、それ以外は等値、へ訂正する。
+契約本文は改変せず追記訂正 (erratum) で行う。
+
+**この訂正を「受理集合の緩和ではない」と書いてはならない。受理集合の置換である。**
+旧誤軸の受理形 (planned の `0`、retry の recovery 軸 `0`) を新たに拒否し、
+契約が要求する planned の `None` と retry の measurement ordinal を新たに受理する。
+
+**理由:**
+
+- production registry は v2 reserve の `attempt_ordinal != 0` を拒否する。したがって
+  旧束縛は retry 側で**恒真に 0 を強いる検査**として働き、campaign の retry 軸を 1 つも束縛していなかった。
+  planned の `None` も型検査で拒否され、**production では planned も retry も sealed terminal を
+  構築できなかった**。
+- 訂正後は束縛が実軸へ再照準され、retry の `1..N` が初めて実際に束縛される。
+  意図した軸への束縛強度は上がる。
+- 「緩和ではない」という無限定の表現は、planned の `None` と retry 正値を新規受理する事実を
+  記録から隠す。段 6 の敵対レビューがこれを real と判定し、表現を訂正した。
+
+**却下した選択肢:**
+
+- 契約の記述を維持して `attempt_ordinal` を campaign retry 軸へ転用する — registry の
+  recovery series 意味論と `attempt_ordinal != 0` 拒否を全面変更する。
+- nullable な専用軸を slot / claim へ新設する — schema・codec・genesis・receipt 全体へ波及する。
+- 本文を書き換える — 規律 7 に従い、凍結済み文書は追記訂正でのみ直す。
+
+## D1969. 分類権限が名乗る面は起動層の出力前方針であり、その値は機械導出できる (2026-09-11)
+
+**決定:** D1380 が新設を定めた分類権限の対象面は、**計測の起動層が出力前に成否を分類する方針**である。
+現物では launcher の `ClassificationAuthority` がその面にあたり、方針を実行する純関数の結果は
+post-probe 競合・起動失敗・理由なしの 3 つに閉じている。campaign が計測後に決める最終の除外理由は
+**別の面**であり、この権限には含めない。
+
+この面に限れば、権威文書の値は既存の module 定数と純関数の identity だけから機械導出できる。
+**人間が新しく決める値は無い。** D1380 が定めた分岐は「AI が閉じる」側で確定する。
+
+**理由:**
+
+- D1380 の逐語は「出力前に成否を分類する方針」である。campaign のラダーは出力後の面であり、
+  同じ語で指せない。両者を一つの権威へ混ぜると、caller が差し替えられる終端構築器や、
+  同じ権威 digest のまま結果が変わる入力の組が生まれる。
+- 実験設計の閾値と除外理由の語彙は、いずれも承認済み固定値としてコード内に凍結されている。
+  集約 module は自らを「値は発明しない、既に承認済みの pin と実測した trust root だけを集約する」
+  と規定している。**読むだけで足り、変える必要が無い。**
+- 既存の同型権威 (scheduler accounting) は、選択済みの module 定数を canonical 文書へ射影して
+  digest を取る形をとる。既に選ばれた値を射影する操作自体は機械導出であり、
+  人間の手番を新たに発生させない。
+
+**却下した選択肢:**
+
+- **campaign の最終除外理由まで一つの権威に含める** — 閾値と反復数の収録が必須になるうえ、
+  導出主体を campaign から起動層へ移すまで権威が成立しない。答えは条件付きになり、
+  D1380 が求めた着手前の分岐判定を閉じられない。
+- **閾値を人間所有の凍結 policy と読み、値をユーザーへ上げる** — 閾値は既にコード内の凍結定数で
+  あり、権威文書はそれを読むだけである。人間の手番を無駄に増やす。
+
+**単位を跨ぐ要件として記録する:** 権威文書を手で組み立てるだけでは、分類規則だけを変えたときに
+権威 digest が旧値のまま残り、旧方針を名乗って新規則で分類する状態を作れる。
+分類の実行と canonical bytes を**同一の宣言 object から生成する**こと。
+これは配線側の設計要件であり、上記の分岐の答えを変えない。
+
+## D1970. 消費 marker の検証権限は admission が持ち、呼び手が保持する lock 区間の中でだけ使える (2026-09-11)
+
+**決定:** 床値試行の消費 marker を検証する権限は admission 側に置き、opaque な capability として渡す。
+capability には次の 4 つを課す。
+
+1. **使用時に durable evidence を再導出する。** marker・claim・主台帳行の canonical bytes の
+   digest を発行時 identity に含め、使用時の再導出との完全一致を要求する。
+   これにより、値の妥当性検査を通る許可値どうしの書き換えも拒否する。
+2. **試行枠の identity 4 軸すべてへ束縛する。** 対象・構成の 2 軸だけでは同一対象の別枠へ移植できる。
+3. **現行世代専用とする。** 旧世代の token は発行者の process-local state へ登録されないため、
+   capability を発行できない。この制限を docstring に明記し、旧世代の受理経路を新設しない。
+4. **呼び手が保持する lock handle を必須にする。** capability の消費者は同じ admission root lock を
+   必要とするため、capability 側が lock を取り直すと自己 deadlock する。
+   handle を引数に取り、非 live な handle を機械的に拒否する。
+
+**理由:**
+
+- 検証する主体と検証される値を作る主体が同じでは、最適化圧力が正しさゲートを攻撃する状況で
+  producer の変異が導出を書き換えられる。検証を admission 側へ寄せるのはその分離である。
+- 発行時にだけ検査して使用時に identity のスカラー比較しか行わない形は、発行後の改竄を見逃す。
+  実測で、値の妥当性検査を通る許可値どうしの書き換えが再検証を素通りすることを確認した。
+- 消費者が取る lock と capability が取る lock は同じ file lock である。ロック handle を毎回
+  新しい記述子で取る実装では、同一 process でも待ち合わせる。docstring による要求では
+  保持していない呼び手を止められない。
+
+**却下した選択肢:**
+
+- **発行と使用を capability の内側の単一 lock 区間へ閉じる** — 発行と使用が別の層に分かれる
+  分割では成立しない。
+- **再検証の後に lock を手放してから消費者の動作を実行する** — durable evidence と動作の
+  同一 lock 区間を失う。
+- **lock 全体を再入可能へ変える** — 全呼び手の lock 意味を変え、この面より広い影響を持つ。
+
+**閉じていない窓を明記する:** 試行枠 4 軸のうち反復と序数の権威は journal だが、journal の書き手は
+admission root lock に参加しない。この TOCTOU 窓は既存の性質であり、本決定は閉じていない。
+docstring にそう書く。閉じるかどうかは配線側の別裁定とする。

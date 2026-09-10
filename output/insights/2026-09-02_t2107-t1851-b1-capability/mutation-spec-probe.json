@@ -1,0 +1,134 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 10800,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "old": "        claim_document_sha256=_sha256(claim),\n",
+          "new": "        claim_document_sha256=\"\",\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "old": "        main_ledger_row_sha256=_sha256(main),\n",
+          "new": "        main_ledger_row_sha256=\"\",\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "old": "        marker_document_sha256=_sha256(disk_marker),\n",
+          "new": "        marker_document_sha256=\"\",\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "old": "    if expected_marker.get(\"schema_version\") != _MEASUREMENT_GENERATION_ATTEMPT_SCHEMA:\n        raise HoldoutAdmissionError(\n            \"floor attempt consumption capability is current-generation only\"\n        )\n",
+          "new": "    if False:\n        raise HoldoutAdmissionError(\n            \"floor attempt consumption capability is current-generation only\"\n        )\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "old": "    if disk_marker != canonical_marker:\n        raise HoldoutAdmissionError(\n            \"floor attempt consumption marker differs from durable authority\"\n        )\n",
+          "new": "    if False:\n        raise HoldoutAdmissionError(\n            \"floor attempt consumption marker differs from durable authority\"\n        )\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "old": "    if derived_claim_digest != state.measurement_generation_claim_digest:\n        raise HoldoutAdmissionError(\n            \"floor attempt consumption claim differs from issuer state\"\n        )\n",
+          "new": "    if False:\n        raise HoldoutAdmissionError(\n            \"floor attempt consumption claim differs from issuer state\"\n        )\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "old": "    if current != identity:\n        raise HoldoutAdmissionError(\n            \"floor attempt consumption marker durable identity changed\"\n        )\n",
+          "new": "    if False:\n        raise HoldoutAdmissionError(\n            \"floor attempt consumption marker durable identity changed\"\n        )\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "old": "    if supplied_identity != expected_identity:\n        raise HoldoutAdmissionError(\n            \"floor attempt consumption marker capability identity differs\"\n        )\n",
+          "new": "    if False:\n        raise HoldoutAdmissionError(\n            \"floor attempt consumption marker capability identity differs\"\n        )\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "old": "    _assert_active_admission_root_lock(lock, root=identity.root)\n",
+          "new": "    pass\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
