@@ -162,3 +162,9 @@ review終了後の直列走は**211passed/146.63秒/rc0**。他モードの分�
 既存の子終了コードassertionで検出する。M1は終了コードの感度であって、競合の完全消失の証明ではない。
 このfixは受入を閉じるためのテストfixture修正であり、全走短縮のD104採用結果ではない。
 最初の診断が実装0だった事実と、再開時のこの局所fixを区別する。
+
+固定anchor `5171867a6`でM1を既存harnessから計算ノードへ投入し、baseline1passed、
+M1は期待node1件で**KILLED、1/1一致、MISMATCH/PARSE_ERROR/TIMEOUTなし、rc0**。
+[変異台帳](resume-fix/resume-mutation-ledger.json)と[attempt記録](resume-fix/resume-mutation-attempt.json)を保存した。
+注入後は元のcommit bytesへ復元され、git status空を確認した。file全体の緑は
+[直列ログ](resume-fix/focused-serial.log.gz)。最終受入はこの記録後のtipで行う。

@@ -19,6 +19,8 @@ title: [T-2273] 現行受入の最大占有と非重複tailを分け、局所コ
 - dev-wave 改善候補: なし。今回のRUN表記を実行開始と読んだ途中報告は親の誤読で、既存の完了証拠契約の欠落ではない。Started Request Timeと実artifactで訂正した。自己改善実装と次wave起動は行わない。
 - 受入初回は共有phase文書のowned-path-overlapで実走前拒否。所有検査を外さず固定mainを通常mergeした。次の実走は22473passed/68skipped/2error、t1259共通setupのgit ls-filesが30秒timeout。対象test/probe/conftestはmainとbyte同一で文書assertion前の赤だが、repo走査の間接費用の影響まで否定しない。同tipのfile単独再走は51passed/rc0（484.16秒）、DW-O18に従い編集・除外なしで受入を再走する。
 - その再受入は22464passed/68skipped/6failed/5error。t1259のtimeoutが再発し、親はscope外処置と解釈して停止した。2026-09-11のユーザー「main landまでよろしく」で停止を撤回し同waveを再開。mainにe28a62d26のt1259 snapshot修正が着地済みであることを確認し、固定main d85bbb211を通常mergeした。今回の独自実装・hold追加はなし。
+- 再開時の関連480件でlimit_stopのfakeがSIGTERM終了する1件を単独でも再現した。Codex authorがterm_successのカウント証拠公開をhandler準備後へ動かし、既存期待値/本番制限を維持した。初回mask案はSIGKILLで赤となり撤回、最終案の単独1passedとfile直列211passedで確認。並列file走の別mode3赤は証拠待ちで、分岐不変・直列再走で緑。F57の再発として記録する。
+- 独立review2本はGO/blocking0。anchor5171867a6でM1（子exit0→7）を計算ノードへ投入し、baseline緑、KILLED1/1一致・mismatch/timeout/parse0。復元後clean。このfixture修正はlandに必要な実在赤の処置で、D104の全走短縮採用とは区別する。今回の変更はtest_codex_worker_launch.pyだけでt1259/conftestへの独自変更なし。
 
 ## 次の一手差分
 
