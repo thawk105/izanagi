@@ -1,5 +1,15 @@
 # T-1851 D2 — v5 prefix proof の consumer 結線
 
+## 統合後の受入
+
+受入7は **23004 passed / 68 skipped / 0 failed / 0 error**、child-greenの受領証を発行した。
+tested mainはfc59befec53bb922c28ecbfe590f11527210b9e1、tested tipは
+f3067b5cef1d9f72f82d9d3ed3e3c96f8c74a76c。受領証はacceptance-7.jsonに保存した。
+履歴依存fixtureの修正と、並行main由来のt1259重複走査削減を含む統合木の結果である。
+同じテスト全集合を2 shard/各8 workerで実行した。この成功JUnitから既存producerの--add-onlyで
+所要台帳へ566件を追加し、22483件の既存entryをbyte exactに保持した。更新後は23049件、削除0件。
+既存の凍結関連除外140件は規則を変えず維持した。同入力の--checkはrc0。更新後の最終受入を経てlandする。
+
 ## 実装と範囲
 
 holdout と ratified の consumer が result v5 の exact key 集合を選び、既存の shared live verifier と
