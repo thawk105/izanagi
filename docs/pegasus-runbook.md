@@ -563,6 +563,7 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 | `tools/pegasus/submit_silo_ladder_rung1.sh` | `local-ok` | `legacy-admitted (未実測)` |
 | `tools/pegasus/submit_t126_qualification.sh` | `unknown` | `unmeasured; preflight input surfaces remain` |
 | `tools/pegasus/submit_t1998_balanced_stock_inline.sh` | `local-ok` | `static login-side submitter classification` |
+| `tools/pegasus/submit_t2417_backoff_policy_performance.sh` | `local-ok` | `static login-side submitter classification` |
 | `tools/pegasus/t126_qualification.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/t141_region_profile.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/t810_budget.py` | `unknown` | `unmeasured; unbounded input surfaces remain` |
