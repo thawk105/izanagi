@@ -318,6 +318,10 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
    iteration 5 は budget-walltime (3600s) 入口停止 (D39 決定 2 どおり)。**段 6 へ「未査証 (partial)」として
    inherit。** 実走手順 = `docs/phase3-s4b-runbook.md`。正本 = campaign `p3-s4-loop-s4-autonomous-0b53a387`
    の loop_state.json/whiteboard・`output/insights/2026-07-08_s4b-loopstate-audit.json`。
+   - [x] [T-2581/T-2548/T-2182] D1936項1・2の新規試行pinを完全SHAへ固定し、直接依存期待値を整合。
+     既存verifier v2でK2を1本再投入し、serializable・異常0・1 committedを取得した。
+     新campaignだけの判定で過去campaignは再ラベルしない。実測と検査は
+     `output/insights/2026-09-10_t2581-k2-pin/README.md`。
 5. **(完了 2026-07-09〜07-10) sort-strategy 軸の起動一式** — S2 verify 2 本立て pipeline 配線 (D36 決定 4、
    opt-in = `search_config["verify"]=="legacy+s2"`) / lock 経路 (cc/silo/transaction.cc) の編集面拡張
    (前提 gate = auditor live、同一コミット束ね) / git worktree 隔離 (opt-in) + C1 解消 (D40) / 起動の
