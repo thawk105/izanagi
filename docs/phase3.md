@@ -278,6 +278,10 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
 
 ## 後続段 (各々 ablation 点を残して投入)
 
+- [x] [T-2340] backoff 単独論文の日本語ストーリーを既着地正典全体から再導出し、
+  `docs/paper-story-backoff/2026-09-10.md` に追加した。機序の直接観測・動的化の結果・認証の限定を
+  反映した文書成果であり、旧版不変、新規測定・追加認証・本体論文との図表の二重新規利用はない。
+
 - [x] 本体論文の日本語方法節草稿（2026-09-10 の新規ユーザー執筆依頼）を
   `output/insights/2026-09-10_paper-methods-ja/methods.md` と同 `implementation.md` に作成。
   生成・検証・反例還流・独立測定・選択を対応づけ、実装と評価契約を区別した文書成果であり、
