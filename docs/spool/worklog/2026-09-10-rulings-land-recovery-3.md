@@ -23,6 +23,11 @@ title: rulings の main 直接commitで残した未fold記録を復旧し、共�
   `dev-wave-jobs/dev-wave-rulings-land-recovery/` に保存する。
 - 実装面の差分はゼロで、変異matrixは対象外。正式受入全走は省略しない。
   裁定に含まれる本番実装や性能測定へは本復旧の範囲を広げない。
+- 正式受入1は22463 passed / 68 skippedでchild-green。landの初回argvはmain cwdとlease環境
+  指定欠落でrc22になり、wave cwdと既定lease dirを明示して是正した (main変更なし)。
+  その後のlandはF672再発でrc31になった。他waveの登録pathのstrict解決がEINTRで中断した。
+  mainは32603d385のままで、leaseはtoolが解放した。pathの復旧を読取で確認し、
+  非再試行の同requestを繰り返さず、既存手順に従って新しい受入2を取得して再試行する。
 
 ## 次の一手差分
 

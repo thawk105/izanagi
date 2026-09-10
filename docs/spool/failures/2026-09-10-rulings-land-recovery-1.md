@@ -28,3 +28,14 @@ seq: 1
   自分の未fold fragmentの不在を実体で確認する。今回の復旧で同じ既存経路を実走する。
 - 既存型との区別: F747はcleanup権限を記録権限へ広げた事故、F907はcwd誤認と全stageの事故。
   今回の裁定記録は授権済みで対象pathも明示していたが、mainへの記録だけを終端にした点が異なる。
+
+## 再発
+
+### F672
+
+- **再発: 2026-09-10** — rulings-land-recoveryの正式受入1は22463 passed / 68 skipped、
+  child-greenだったが、landが別waveの登録path `.codex/worktrees/t1851-c2-s2` のstrict解決で
+  `[Errno 4] Interrupted system call` を返しrc31になった。main_before/main_afterはいずれも
+  `32603d3858289e3851227f8cad60d97e2e01f761`、release_safe=true、retryable_same_request=false。
+  直後の読取専用再確認では同pathのstrict解決と.git fileの存在を確認した。
+  既存F672の復旧に従い、新しい受入とrequestで再試行する。他waveの登録は触らない。
