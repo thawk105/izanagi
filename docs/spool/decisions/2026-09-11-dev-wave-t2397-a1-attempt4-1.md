@@ -38,3 +38,6 @@ seq: 1
 - 旧policyをメモリ内で書き換えて旧hashを名乗る、過去attemptを再ラベルする。
 - root inode防壁・readonly化・新WAL検査receipt・全実装closureの一律拡大。
   本体実装に必要な既存束縛と局所修正に限定し、仮想risk向けの一般化を足さない。
+
+**検査の解釈:** root転送をASTで検査する変異とT-2514の記録件数変異は、構造・診断の感度として
+別記し、実行時の受理集合を変えたkillと混同しない。実機probeとpilotの結果も区別する。

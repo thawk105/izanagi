@@ -71,7 +71,7 @@ if [[ "$V3_STUDY" -eq 1 ]]; then
   NON_CERTIFYING_SOURCE_RELATIVE_PATHS+=("orchestrator/calibrator/runner.py")
 fi
 
-if [[ "$EXPECTED_STUDY_ID" == "paper-story-a1-20260901-balanced5-pilot-v1" ]]; then
+if [[ "$POLICY_RELATIVE" == "orchestrator/campaign/paper_story_a1_paired.v3-pilot.json" ]]; then
   NON_CERTIFYING_SOURCE_RELATIVE_PATHS+=(
     "orchestrator/campaign/paper_story_a1_source.v1.json"
     "orchestrator/campaign/paper_story_a1_source.py"
@@ -447,7 +447,7 @@ source_paths = (
     "tools/pegasus/paper_story_a1_paired.sh",
     "orchestrator/calibrator/runner.py",
 )
-if study_id == "paper-story-a1-20260901-balanced5-pilot-v1":
+if policy_relative == "orchestrator/campaign/paper_story_a1_paired.v3-pilot.json":
     source_paths += (
         "orchestrator/campaign/paper_story_a1_source.v1.json",
         "orchestrator/campaign/paper_story_a1_source.py",
@@ -981,7 +981,7 @@ source_paths = [
 ]
 if v3_study:
     source_paths.append(os.environ["IZANAGI_A1_TERMINAL_RUNNER_RELATIVE"])
-if study_id == "paper-story-a1-20260901-balanced5-pilot-v1":
+if os.environ["IZANAGI_A1_TERMINAL_POLICY_RELATIVE"] == "orchestrator/campaign/paper_story_a1_paired.v3-pilot.json":
     source_paths.extend([
         "orchestrator/campaign/paper_story_a1_source.v1.json",
         "orchestrator/campaign/paper_story_a1_source.py",
@@ -1359,7 +1359,7 @@ fi
 DEPENDENCY_PREFIX="$GFLAGS_INSTALL_DIR;$GLOG_INSTALL_DIR"
 
 THIRD_PARTY_ARGS=()
-if [[ "$EXPECTED_STUDY_ID" == "paper-story-a1-20260901-balanced5-pilot-v1" ]]; then
+if [[ "$POLICY_RELATIVE" == "orchestrator/campaign/paper_story_a1_paired.v3-pilot.json" ]]; then
   THIRD_PARTY_SOURCE=${IZANAGI_A1_THIRD_PARTY_SOURCE_ROOT:?hydrated source root required}
   [[ "$THIRD_PARTY_SOURCE" = /* && ! -L "$THIRD_PARTY_SOURCE" ]] || refuse "unsafe third-party source root"
   THIRD_PARTY_ROOT="$DEPENDENCY_ROOT/fetchcontent"

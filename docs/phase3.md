@@ -21,6 +21,8 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 - [ ] [T-2397] A-1 pilot attempt-0004: T-2512/T-2513の依存供給と固定patch source配線を実装し、
   関連検査・実機確認を進めている。source契約の追補は
   output/insights/2026-09-11/t2397-a1-source-amendment/README.md。旧登録とT-2514のdetail保存を維持する。
+- [x] [T-2512] / [T-2513] 上記の依存供給と指定patch sourceを使う実装版を追加。
+  A-1 203件とcampaign 414件の関連テストが通過。pilot実機での閉鎖判定はT-2397で継続する。
 
 - [x] [T-2518] 実装差分ゼロの既存経路 precheck を記録 (2026-09-11、D1936項17)。
   依存供給と A+B+C／clean stock の CLI 比較をつなぐ既存入口を確認できず、実測は未実施。
