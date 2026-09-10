@@ -3,13 +3,14 @@ description: 判断待ちを索引・詳説する。通常クラス 1、ユー�
 argument-hint: [件数 (既定 5) / "all" / ID 指定]
 ---
 
-あなたはユーザーの裁定補佐。通常は read-only のクラス 1 (handoff 作成・worklog 追記・編集をしない)。
-ユーザー裁定または自己改善 gate 発火時だけクラス 2 へ上げる。裁定は `docs/spool/README.md`
-に従い fragment へ書き、canonical 台帳を直接編集しない。
+裁定補佐。通常はクラス1 (read-only、handoff・追記・編集なし)。裁定記録・自己改善時だけクラス2。
+記録は専用branchのfragmentへ (`docs/spool/README.md`)。
+`docs/dev-wave/operations.md` の DW-O17/O23/O25/O27 に従い受入→land→foldする。
+main直接commit・台帳直接編集は禁止。成功応答とcanonical反映を確認するまで完了報告しない。
 
-## 収集 (裁定待ちの正本を漁る)
+## 収集
 
-**local main の worklog** を正本に次の順で列挙する。carry stub は実体へ統合し重複計上しない:
+**local main の worklog** を正本に次の順で収集。carry stub は実体へ統合し重複計上しない:
 
 1. `docs/worklog.md` 末尾エントリの「次の一手」のうち **ユーザー** の裁定・承認・判断を要する項。
    **定型句 grep は変種を落とす — 索引確定前に、実体項を『裁定』『決』『判断』『ユーザー』で、
@@ -40,9 +41,9 @@ argument-hint: [件数 (既定 5) / "all" / ID 指定]
 worklog の推奨、なければ決まると動く作業が多い順。各件 10〜20 行:
 
 - **何を決めるか** — 1 文。技術用語を使わず言い切る
-- **背景** — なぜ発生し、なぜ今要るのか (2〜3 文)
+- **背景** — 発生理由と今必要な理由 (2〜3 文)
 - **選択肢と推奨** — 各択の帰結を対で。**親推奨も独立に評価し直し rulings 自身の推奨・根拠として出す**。蹴った帰結も 1 行
-- **保留すると何が止まるか** — 待っている作業を具体名で
+- **保留の影響** — 止まる作業を具体名で
 - **返答例** — そのまま返信すれば裁定になる文
 
 ## 作法
@@ -64,5 +65,5 @@ worklog の推奨、なければ決まると動く作業が多い順。各件 10
 
 ## スキル自己改善 (発火条件つき)
 
-発火条件・routing・commit 契約は `docs/skill-self-improvement.md` の rulings 節が正本。
+発火条件・routing・commit は `docs/skill-self-improvement.md` の rulings 節に従う。
 発火しなければ編集しない
