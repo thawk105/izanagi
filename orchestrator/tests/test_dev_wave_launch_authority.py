@@ -374,7 +374,7 @@ def test_derive_launch_uses_stage_specific_effort_sections(tmp_path: Path) -> No
 def test_all_stage_models_match_independent_docs_cross_check() -> None:
     section = _independent_docs_section(_ROOT / _OPERATIONS, "DW-O01")
     expected_models = re.findall(r"`(gpt-[A-Za-z0-9._-]+)`", section)
-    assert expected_models == ["gpt-5.6-sol"]
+    assert expected_models == ["gpt-6-astra"]
 
     snapshot = snapshot_authority(_ROOT)
     for stage, lane in _STAGE_LANES:

@@ -1,6 +1,6 @@
 # dev-wave worker 契約
 
-codex plan、敵対相談、実装、レビュー・fix worker の正本。入口が指定する leaf 節を worker 起動前に読む。
+plan、敵対相談、実装、レビュー・fix worker の正本。入口が指定する leaf 節を worker 起動前に読む。
 
 ## DW-S02 — 段 2 プラン起草
 
