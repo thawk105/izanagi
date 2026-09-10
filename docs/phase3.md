@@ -344,6 +344,10 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
    iteration 5 は budget-walltime (3600s) 入口停止 (D39 決定 2 どおり)。**段 6 へ「未査証 (partial)」として
    inherit。** 実走手順 = `docs/phase3-s4b-runbook.md`。正本 = campaign `p3-s4-loop-s4-autonomous-0b53a387`
    の loop_state.json/whiteboard・`output/insights/2026-07-08_s4b-loopstate-audit.json`。
+   - [x] 2026-09-10新規依頼の次実験precheckを実装差分ゼロで実施。
+     K2新提案1評価→critic→次提案までの最小run-cardと実行側の未充足事項を
+     `output/insights/2026-09-10_cc-next-precheck/run-card.md`へ記録。
+     現行backoff文法内のパラメータ探索であり、新CC構造の合成・新規実走の完了ではない。
    - [x] [T-2581/T-2548/T-2182] D1936項1・2の新規試行pinを完全SHAへ固定し、直接依存期待値を整合。
      既存verifier v2でK2を1本再投入し、serializable・異常0・1 committedを取得した。
      新campaignだけの判定で過去campaignは再ラベルしない。実測と検査は
