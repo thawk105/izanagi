@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import ctypes
+from contextlib import nullcontext
 import errno
 import hashlib
 import hmac
@@ -50,6 +51,7 @@ from . import (  # noqa: E402
     ident,
     p2_2,
     patchharness,
+    paper_story_a1_source as a1_source,
     pin,
     site_policy,
     trial_registry,
@@ -2189,6 +2191,8 @@ def _source_relative_paths(
         if is_v3 else
         SOURCE_RELATIVE_PATHS
     )
+    if _policy_study_id(policy) == V3_PILOT_STUDY_ID:
+        paths = (*paths, *a1_source.SOURCE_PATHS)
     policy_relative = _policy_relative_path(policy)
     return tuple(
         policy_relative if item == POLICY_RELATIVE_PATH else item
@@ -2531,6 +2535,7 @@ def _canonical_v3_qsub_contract(
     source_commit: str,
     attempt: Path,
     workload: str,
+    third_party_source_root: str | None = None,
 ) -> tuple[list[str], dict[str, object]]:
     roots = _v3_job_roots(attempt, workload)
     variables = {
@@ -2542,6 +2547,8 @@ def _canonical_v3_qsub_contract(
         "IZANAGI_A1_COMPLETION_RECEIPT": roots["completion_receipt"],
         "IZANAGI_SUBMISSION_NONCE": f"{attempt.name}.{workload}",
     }
+    if third_party_source_root is not None:
+        variables["IZANAGI_A1_THIRD_PARTY_SOURCE_ROOT"] = third_party_source_root
     variable_text = ",".join(f"{key}={value}" for key, value in variables.items())
     options = {
         "v": variable_text,
@@ -2564,7 +2571,23 @@ def _v3_group_intent(
     policy: Mapping[str, object],
     source_commit: str,
     attempt: Path,
+    third_party_source_root: str | None = None,
 ) -> dict[str, object]:
+    if third_party_source_root is None and _attempt_intent_path(attempt).is_file():
+        recorded = _read_json(_attempt_intent_path(attempt))
+        try:
+            third_party_source_root = recorded["jobs"][0]["qsub_options"]["variables"].get(
+                "IZANAGI_A1_THIRD_PARTY_SOURCE_ROOT")
+        except (KeyError, IndexError, TypeError, AttributeError) as exc:
+            raise PaperStoryError("group submission intent supply shape differs") from exc
+    if third_party_source_root is not None:
+        if (not _canonical_absolute_token(third_party_source_root)
+                or any(c in third_party_source_root for c in ",\n\r")):
+            raise PaperStoryError("third-party source root must be canonical absolute qsub data")
+    if _policy_study_id(policy) == V3_PILOT_STUDY_ID and attempt.name == "attempt-0004":
+        a1_source.load_contract(repo_root)
+        if third_party_source_root is None:
+            raise PaperStoryError("attempt-0004 requires hydrated third-party source root")
     jobs = []
     for ordinal, workload in enumerate(WORKLOAD_ORDER):
         argv, options = _canonical_v3_qsub_contract(
@@ -2573,6 +2596,7 @@ def _v3_group_intent(
             source_commit=source_commit,
             attempt=attempt,
             workload=workload,
+            third_party_source_root=third_party_source_root,
         )
         jobs.append({
             "workload": workload,
@@ -3133,6 +3157,7 @@ def _run_submit_v3(
     policy: Mapping[str, object],
     expected_head: str,
     attempt: Path,
+    third_party_source_root: str | None = None,
 ) -> int:
     study_id = _policy_study_id(policy)
     evidence = _v3_attempt_evidence_paths(attempt)
@@ -3163,6 +3188,7 @@ def _run_submit_v3(
         policy=policy,
         source_commit=expected_head,
         attempt=attempt,
+        third_party_source_root=third_party_source_root,
     )
     _exclusive_write(intent_path, intent)
     _fsync_directory(intent_path.parent)
@@ -3331,10 +3357,18 @@ def run_submit(args) -> int:
     base = _durable_measurement_base(policy)
     attempt = _validate_attempt_root(Path(args.attempt_root), base)
     base.mkdir(parents=True, exist_ok=True)
+    if _policy_study_id(policy) == V3_PILOT_STUDY_ID:
+        source_contract = a1_source.load_contract(repo_root)
+        if attempt.name != source_contract["attempt"]:
+            raise PaperStoryError("new pilot submission requires source amendment attempt-0004")
+        supplied = getattr(args, "third_party_source_root", None)
+        if supplied is None or not Path(supplied).is_dir():
+            raise PaperStoryError("hydrated third-party source root is unavailable")
     if _policy_schema(policy) == POLICY_SCHEMA_V3:
         return _run_submit_v3(
             repo_root=repo_root, policy=policy,
             expected_head=args.expected_head, attempt=attempt,
+            third_party_source_root=getattr(args, "third_party_source_root", None),
         )
     evidence = _attempt_evidence_paths(attempt)
     intent_path = _attempt_intent_path(attempt)
@@ -4774,6 +4808,8 @@ def _validate_source_binding_for_paths(
             or _FULL_SHA256.fullmatch(item["working_sha256"]) is None
         ):
             return False
+    if a1_source.CONTRACT_PATH in relative_paths and not a1_source.binding_matches(files):
+        return False
     return (
         type(binding.get("measurement_source_commit")) is str
         and _FULL_OID.fullmatch(binding["measurement_source_commit"]) is not None
@@ -4896,6 +4932,7 @@ def _trace0_commands_match(
     run_argv: Sequence[str] | None,
     use_perf: object,
     perf_bin_sha256: str,
+    *, amended_source_root: str | None = None,
 ) -> bool:
     expected_defines = {
         **{key: str(value) for key, value in arm_policy["flags"].items()},
@@ -4914,7 +4951,7 @@ def _trace0_commands_match(
         f"-DCCBENCH_{key}={expected_defines[key]}"
         for key in sorted(arm_policy["flags"])
     ] + ["-DCCBENCH_TRACE=0"]
-    if len(configure_argv) != 10 + len(define_tokens):
+    if len(configure_argv) != 10 + len(define_tokens) + (4 if amended_source_root is not None else 0):
         return False
     cmake_executable = configure_argv[0]
     source_token = configure_argv[2]
@@ -4932,6 +4969,23 @@ def _trace0_commands_match(
         if dependency_prefix_token.startswith(dependency_prefix_marker)
         else None
     )
+    fetchcontent_tokens = []
+    if amended_source_root is not None:
+        if source_token != amended_source_root:
+            return False
+        fetchcontent_tokens = list(configure_argv[10:14])
+        marker = "-DFETCHCONTENT_BASE_DIR="
+        if not fetchcontent_tokens[0].startswith(marker):
+            return False
+        base = fetchcontent_tokens[0][len(marker):]
+        if not _canonical_absolute_token(base):
+            return False
+        options = {"fetchcontent_base_dir": base, **{
+            f"{name}_source_dir": os.fspath(Path(base) / f"{name}-src")
+            for name in ("masstree", "mimalloc", "googletest")
+        }}
+        if fetchcontent_tokens != list(a1_source.configure_dependencies(options)):
+            return False
     expected_configure = [
         cmake_executable,
         "-S",
@@ -4943,6 +4997,7 @@ def _trace0_commands_match(
         f"-DCMAKE_C_COMPILER={c_compiler}",
         f"-DCMAKE_CXX_COMPILER={cxx_compiler}",
         dependency_prefix_token,
+        *fetchcontent_tokens,
         *define_tokens,
     ]
     if any((
@@ -5111,6 +5166,20 @@ def _validate_arm(
     ):
         errors.append("build-admission-binding-mismatch")
 
+    amended_source_root = None
+    if a1_source.CONTRACT_PATH in source_binding.get("files", {}):
+        admission = start.get("build_admission", {})
+        source = admission.get("source", {})
+        amended_source_root = source.get("source_root")
+        if (type(amended_source_root) is not str
+                or not _canonical_absolute_token(amended_source_root)
+                or source.get("ccbench_commit") != CANONICAL_CCBENCH_OID
+                or source.get("tracked_clean") is not False
+                or source.get("src_token") != start.get("src_token")
+                or source.get("genome_sha256") != _sha256_bytes(expected_genome.encode("utf-8"))):
+            errors.append("amended-source-admission-mismatch")
+            amended_source_root = "invalid"
+
     verify_tags = []
     for frame in verify_frames:
         payload = _frame_payload(frame)
@@ -5194,6 +5263,7 @@ def _validate_arm(
             run_argv,
             use_perf,
             perf_sha,
+            amended_source_root=amended_source_root,
         )
         or not _valid_physical_frame(build_frame)
         or not _valid_physical_frame(bench_frame)
@@ -6737,7 +6807,12 @@ def _require_v3_backoff_fixed_condition_gate(
     policy: Mapping[str, object],
     workload: str,
     cxx: str,
+    cc: str | None = None,
     evidence_root: Path | None = None,
+    source_root: Path | None = None,
+    stock_root: Path | None = None,
+    dependency_prefix: str = "",
+    dependency_options: dict | None = None,
 ) -> None:
     """Require live supply and meaning records for every v3 fixed-backoff arm."""
     values = tuple(dict.fromkeys(
@@ -6745,16 +6820,25 @@ def _require_v3_backoff_fixed_condition_gate(
         for genome in genomes(policy, workload)
     ))
     try:
-        source_root = (repo_root / "external" / "ccbench").resolve(strict=True)
-        with patchharness.checkout(
-            CANONICAL_CCBENCH_OID, base_dir=os.fspath(source_root),
-        ) as stock_root:
-            captured = condition_meaning_gate.capture_define_inputs(
-                source_root, stock_root=stock_root,
-            )
+        source_root = source_root or (repo_root / "external" / "ccbench").resolve(strict=True)
+        stock_context = (nullcontext(stock_root) if stock_root is not None else
+                         patchharness.checkout(CANONICAL_CCBENCH_OID, base_dir=os.fspath(source_root)))
+        with stock_context as stock_root:
             supply_records = []
             meaning_records = []
             for value in values:
+                genome = next(g for g in genomes(policy, workload) if g.flags["BACKOFF_FIXED"] == value)
+                configure_args = (
+                    "-DCMAKE_BUILD_TYPE=Release", "-DENABLE_SANITIZER=OFF",
+                    *([f"-DCMAKE_C_COMPILER={cc}"] if cc else []),
+                    *([f"-DCMAKE_PREFIX_PATH={dependency_prefix}"] if dependency_prefix else []),
+                    *(a1_source.configure_dependencies(dependency_options) if dependency_options else ()),
+                    *(f"-DCCBENCH_{key}={genome.flags[key]}" for key in sorted(genome.flags)
+                      if key != "BACKOFF_FIXED"), "-DCCBENCH_TRACE=0",
+                )
+                captured = condition_meaning_gate.capture_define_inputs(
+                    source_root, stock_root=stock_root, configure_args=configure_args,
+                )
                 request = condition_meaning_gate.make_define_request(
                     driver_id=(
                         "orchestrator.campaign.paper_story_a1_paired:"
@@ -6990,68 +7074,90 @@ def _run_measurement_v3(
     execution_options = _require_registered_execution_options(
         policy, workload, _campaign_execution_options(policy, workload),
     )
-    _require_v3_backoff_fixed_condition_gate(
-        repo_root=repo_root,
-        policy=policy,
-        workload=workload,
-        cxx=resolved_cxx,
-        evidence_root=Path(roots["raw_root"]),
-    )
-    original_balanced_executor = campaign_loop._run_balanced_schedule
-
-    def gated_balanced_executor(prepared_arms, schedule):
-        _v3_barrier_before_bench(
-            prepared_arms=prepared_arms,
-            workload=workload,
-            campaign_id=campaign_ids[ordinal],
+    contract_source = a1_source.load_contract(repo_root)
+    if study_id != contract_source["study_id"] or attempt.name != contract_source["attempt"]:
+        raise PaperStoryError("A1 source amendment requires pilot attempt-0004")
+    expected_hydrate = submission_intent["jobs"][ordinal]["qsub_options"]["variables"].get(
+        "IZANAGI_A1_THIRD_PARTY_SOURCE_ROOT")
+    if not expected_hydrate or os.environ.get("IZANAGI_A1_THIRD_PARTY_SOURCE_ROOT") != expected_hydrate:
+        raise PaperStoryError("third-party source origin differs from intent")
+    staged_root = Path(args.third_party_source_root).resolve(strict=True)
+    prefix_parent = _dependency_prefix_components(dependency_prefix)[0].parent
+    if staged_root != prefix_parent / "fetchcontent":
+        raise PaperStoryError("third-party staged root differs from dependency scratch")
+    with a1_source.materialized(repo_root) as (source_context, stock_root):
+        dependency_options = a1_source.prepare_dependencies(
+            root=staged_root, source=source_context.root,
+            repo_root=repo_root, dependency_prefix=dependency_prefix,
+            toolchain=toolchain_manifest,
+        )
+        _require_v3_backoff_fixed_condition_gate(
+            repo_root=repo_root,
             policy=policy,
-            source_commit=args.expected_head,
-            attempt=attempt,
-            submission=acquisition,
-            reservation=reservation,
-            timeout_s=max(
-                0.0, float(reservation["deadline_epoch"]) - time.time() - 60.0,
-            ),
+            workload=workload,
+            cxx=resolved_cxx, cc=resolved_cc,
+            evidence_root=Path(roots["raw_root"]),
+            source_root=source_context.root, stock_root=stock_root,
+            dependency_prefix=dependency_prefix, dependency_options=dependency_options,
         )
-        return original_balanced_executor(prepared_arms, schedule)
+        original_balanced_executor = campaign_loop._run_balanced_schedule
 
-    campaign_loop._run_balanced_schedule = gated_balanced_executor
-    try:
-        _assert_single_tenant()
-        summary = run_campaign(
-            cfg,
-            genomes(policy, workload),
-            perf,
-            contract.env_tag,
-            contract.clocks_per_us,
-            numactl=list(contract.numactl),
-            output_root=roots["output_root"],
-            cache_root=roots["cache_root"],
-            dependency_prefix=dependency_prefix,
-            authorization_contract=authorization,
-            env_contract=contract,
-            expected_toolchain_manifest=toolchain_manifest,
-            build_context=build_context,
-            declared_use_class=DECLARED_USE_CLASS,
-            capability_resolver=capability_resolver,
-            durable_root_policy=durable_policy,
-            **execution_options,
+        def gated_balanced_executor(prepared_arms, schedule):
+            _v3_barrier_before_bench(
+                prepared_arms=prepared_arms,
+                workload=workload,
+                campaign_id=campaign_ids[ordinal],
+                policy=policy,
+                source_commit=args.expected_head,
+                attempt=attempt,
+                submission=acquisition,
+                reservation=reservation,
+                timeout_s=max(
+                    0.0, float(reservation["deadline_epoch"]) - time.time() - 60.0,
+                ),
+            )
+            return original_balanced_executor(prepared_arms, schedule)
+
+        campaign_loop._run_balanced_schedule = gated_balanced_executor
+        try:
+            _assert_single_tenant()
+            summary = run_campaign(
+                cfg,
+                genomes(policy, workload),
+                perf,
+                contract.env_tag,
+                contract.clocks_per_us,
+                numactl=list(contract.numactl),
+                output_root=roots["output_root"],
+                cache_root=roots["cache_root"],
+                dependency_prefix=dependency_prefix,
+                ccbench_dir=os.fspath(source_context.root),
+                a1_source_context=source_context,
+                **dependency_options,
+                authorization_contract=authorization,
+                env_contract=contract,
+                expected_toolchain_manifest=toolchain_manifest,
+                build_context=build_context,
+                declared_use_class=DECLARED_USE_CLASS,
+                capability_resolver=capability_resolver,
+                durable_root_policy=durable_policy,
+                **execution_options,
+            )
+        finally:
+            campaign_loop._run_balanced_schedule = original_balanced_executor
+        collected = collect_workload(
+            policy,
+            workload_name=workload,
+            campaign_id=summary.campaign_id,
+            layout=CampaignLayout(summary.layout_root),
+            admission_policy=build_context.policy,
+            env_tag=contract.env_tag,
+            source_binding=source_binding,
+            summary=summary,
+            expected_campaign_preimage=campaign_preimage,
+            expected_layout_root=layout.root,
+            expected_schedule_receipt=summary.balanced_schedule_receipt,
         )
-    finally:
-        campaign_loop._run_balanced_schedule = original_balanced_executor
-    collected = collect_workload(
-        policy,
-        workload_name=workload,
-        campaign_id=summary.campaign_id,
-        layout=CampaignLayout(summary.layout_root),
-        admission_policy=build_context.policy,
-        env_tag=contract.env_tag,
-        source_binding=source_binding,
-        summary=summary,
-        expected_campaign_preimage=campaign_preimage,
-        expected_layout_root=layout.root,
-        expected_schedule_receipt=summary.balanced_schedule_receipt,
-    )
     if not _workload_has_terminal_result(collected):
         raise PaperStoryError("workload did not produce one terminal shard")
     shard = {
@@ -8753,6 +8859,7 @@ def _parser() -> argparse.ArgumentParser:
     submit.add_argument("--study-id", required=True)
     submit.add_argument("--expected-head", required=True)
     submit.add_argument("--attempt-root", required=True)
+    submit.add_argument("--third-party-source-root")
     measure = sub.add_parser("measure")
     measure.add_argument("--study-id", required=True)
     measure.add_argument("--expected-head", required=True)
@@ -8763,6 +8870,7 @@ def _parser() -> argparse.ArgumentParser:
     measure.add_argument("--cache-root", required=True)
     measure.add_argument("--result-root", required=True)
     measure.add_argument("--dependency-prefix", required=True)
+    measure.add_argument("--third-party-source-root")
     measure.add_argument("--workload", choices=WORKLOAD_ORDER)
     materialize = sub.add_parser("materialize")
     materialize.add_argument("--expected-head", required=True)

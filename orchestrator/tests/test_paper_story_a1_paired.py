@@ -4109,9 +4109,11 @@ def test_f4_v3_backoff_gate_calls_real_family_before_measurement_M11(
         events.append("checkout")
         yield os.fspath(stock)
 
-    def capture(source_root: Path, *, stock_root: str):
+    def capture(source_root: Path, *, stock_root: str, configure_args):
         assert source_root == source
         assert Path(stock_root) == stock
+        assert "-DCCBENCH_TRACE=0" in configure_args
+        assert not any(arg.startswith("-DCCBENCH_BACKOFF_FIXED=") for arg in configure_args)
         events.append("capture")
         return object()
 
@@ -4166,6 +4168,7 @@ def test_f4_v3_backoff_gate_calls_real_family_before_measurement_M11(
         "capture",
         ("supply-effectuation", "BACKOFF_FIXED", 5),
         ("runtime-meaning", "BACKOFF_FIXED", 5),
+        "capture",
         ("supply-effectuation", "BACKOFF_FIXED", -1),
         ("runtime-meaning", "BACKOFF_FIXED", -1),
         "admission",
@@ -4477,3 +4480,61 @@ def test_a1_detail_production_passes_raw_root():
     roots = [kw.value for kw in calls[0].keywords if kw.arg == "evidence_root"]
     assert len(roots) == 1
     assert ast.dump(roots[0]) == ast.dump(ast.parse('Path(roots["raw_root"])', mode="eval").body)
+
+
+@pytest.mark.parametrize("mutation", ("none", "root", "missing", "duplicate", "extra", "path"))
+def test_a1_amended_exact_configure_consumer_M5_M6(mutation):
+    """Use buildcache's actual grammar; mutate one root/token only."""
+    policy = _policy()
+    evidence = _arm(policy, "adaptive")
+    frames = evidence["attempts"][0]["frames"]
+    build = frames[1]["payload"]
+    bench = frames[3]["payload"]
+    arm = policy["arms"][0]
+    base = _TEST_BUILD_DIR.parent / "fetchcontent"
+    base.mkdir()
+    options = {"fetchcontent_base_dir": str(base)}
+    for name in ("masstree", "mimalloc", "googletest"):
+        source = base / f"{name}-src"
+        source.mkdir()
+        options[f"{name}_source_dir"] = str(source)
+    configure, build_argv = paired.buildcache._v2_commands(
+        paired.Genome(arm["protocol"], dict(arm["flags"])), False, "/source",
+        str(_TEST_BUILD_DIR / "adaptive"), build["toolchain"], jobs=48,
+        dependency_prefix=_dependency_prefix_fixture(), **options,
+    )
+    root = "/source"
+    if mutation == "root":
+        root = "/other-source"
+    elif mutation == "missing":
+        del configure[10]
+    elif mutation == "duplicate":
+        configure.insert(10, configure[10])
+    elif mutation == "extra":
+        configure.append("-DUNREGISTERED=1")
+    elif mutation == "path":
+        configure[11] += "-other"
+    assert paired._trace0_commands_match(
+        arm, policy, "write-heavy", configure, build_argv,
+        shlex.split(bench["run_cmd"]), False, build["perf_bin_sha256"],
+        amended_source_root=root,
+    ) is (mutation == "none")
+
+
+def test_a1_amendment_binding_rejects_single_changed_input_M8():
+    source = paired.a1_source
+    contract = source.load_contract(Path(paired.__file__).resolve().parents[2])
+    policy = _v3_pilot_policy()
+    paths = paired._source_relative_paths(policy, non_certifying=False)
+    files = {path: {"git_blob_oid": "b" * 40, "working_sha256": "c" * 64} for path in paths}
+    fixed = {source.CONTRACT_PATH: source.CONTRACT_SHA256,
+             contract["patch"]: contract["patch_sha256"],
+             contract["amendment"]: contract["amendment_sha256"]}
+    for path, digest in fixed.items():
+        files[path]["working_sha256"] = digest
+    binding = {**_source_binding(), "files": files}
+    assert paired._validate_source_binding(binding, policy)
+    for path in fixed:
+        changed = copy.deepcopy(binding)
+        changed["files"][path]["working_sha256"] = "0" * 64
+        assert not paired._validate_source_binding(changed, policy)

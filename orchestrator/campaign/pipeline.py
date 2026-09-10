@@ -1082,6 +1082,7 @@ class _CanonicalBuildSourceStateError(RuntimeError):
 def _require_canonical_build_source_state(
         ccbench_dir: str, canonical_pin: str, *, build_kind: str,
         subprocess_runner: Callable[..., object] = subprocess.run,
+        a1_source_context=None,
 ) -> None:
     """Require exact HEAD and tracked-clean CCBench immediately before a build."""
     if build_kind not in {"trace", "perf"}:
@@ -1091,6 +1092,15 @@ def _require_canonical_build_source_state(
         raise _CanonicalBuildSourceStateError(
             build_kind, "canonical CCBench pin must be 40 lowercase hex characters",
         )
+    if a1_source_context is not None:
+        from .paper_story_a1_source import SourceContext
+        try:
+            if type(a1_source_context) is not SourceContext:
+                raise RuntimeError("A1 source context type differs")
+            a1_source_context.validate(ccbench_dir, canonical_pin)
+        except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
+            raise _CanonicalBuildSourceStateError(build_kind, str(exc)) from exc
+        return
     checkout = ccbench_dir or buildcache._ccbench_dir()
 
     def _git(*args: str) -> str:
@@ -1548,6 +1558,7 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
              use_perf: bool = True,
              perf_preflight_receipt: Optional[dict] = None,
              canonical_build_pin: Optional[str] = None,
+             a1_source_context=None,
              verify_fanout_hosts: tuple[str, ...] = (),
              verify_fanout_launcher: Optional[Callable[..., object]] = None,
              ) -> EvalResult | _PreparedEvaluation:
@@ -1603,6 +1614,8 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
     帰属できる (決定4-3)。S2 相当 (t48 フルロード規模) は bench 並みの負荷ゆえ
     bench_lock + bench と同一の launch prefix 下で回す (決定4-4)。既定 legacy は
     軽量ゆえ従来どおり並列可 (lock.py の設計方針)。"""
+    if a1_source_context is not None and canonical_build_pin is None:
+        raise ValueError("A1 source context requires canonical build pin")
     fetchcontent_prebuild = _validate_fetchcontent_prebuild_inputs(
         env_contract=env_contract,
         fetchcontent_base_dir=fetchcontent_base_dir,
@@ -1942,6 +1955,7 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
             if canonical_build_pin is not None:
                 _require_canonical_build_source_state(
                     ccbench_dir, canonical_build_pin, build_kind=build_kind,
+                    a1_source_context=a1_source_context,
                 )
             if common is None:
                 build_options = {}
@@ -2569,10 +2583,13 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
              use_perf: bool = True,
              perf_preflight_receipt: Optional[dict] = None,
              canonical_build_pin: Optional[str] = None,
+             a1_source_context=None,
              verify_fanout_hosts: tuple[str, ...] = (),
              verify_fanout_launcher: Optional[Callable[..., object]] = None,
              ) -> EvalResult:
     """Preserve the historical evaluate API as prepare, bench, then commit."""
+    if a1_source_context is not None and canonical_build_pin is None:
+        raise ValueError("A1 source context requires canonical build pin")
     fetchcontent_prebuild = _validate_fetchcontent_prebuild_inputs(
         env_contract=env_contract,
         fetchcontent_base_dir=fetchcontent_base_dir,
@@ -2642,6 +2659,7 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
         use_perf=use_perf,
         perf_preflight_receipt=perf_preflight_receipt,
         canonical_build_pin=canonical_build_pin,
+        a1_source_context=a1_source_context,
         verify_fanout_hosts=verify_fanout_hosts,
         verify_fanout_launcher=verify_fanout_launcher,
         **fetchcontent_options,

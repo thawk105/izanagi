@@ -432,6 +432,8 @@ def test_non_certifying_source_closure_matches_shell_and_preserves_legacy_set() 
     assert script.count(
         'NON_CERTIFYING_SOURCE_RELATIVE_PATHS+=("orchestrator/calibrator/runner.py")'
     ) == 1
+    for relative in paired.a1_source.SOURCE_PATHS:
+        assert script.count(f'"{relative}"') == 3
     legacy = paired.load_policy()[0]
     pilot = paired.load_policy(paired.V3_PILOT_STUDY_ID)[0]
     assert paired._source_relative_paths(
@@ -442,7 +444,7 @@ def test_non_certifying_source_closure_matches_shell_and_preserves_legacy_set() 
     ) == tuple(
         paired.V3_PILOT_POLICY_RELATIVE_PATH
         if item == paired.POLICY_RELATIVE_PATH else item
-        for item in paired.V3_NON_CERTIFYING_SOURCE_RELATIVE_PATHS
+        for item in (*paired.V3_NON_CERTIFYING_SOURCE_RELATIVE_PATHS, *paired.a1_source.SOURCE_PATHS)
     )
 
 
@@ -483,6 +485,33 @@ def test_v3_ccbench_tracked_clean_gate_is_real_and_reason_is_layer_specific_M10(
     ccbench = repo / "external" / "ccbench"
     (ccbench / "untracked-generated-output").write_text("ignored\n", encoding="utf-8")
     paired._assert_ccbench_acceptance(repo, policy, boundary=boundary)
+    # M3: real fixed-patch acceptance, with only one reason changed per rejection.
+    from orchestrator.campaign import pipeline
+    with paired.a1_source.materialized(REPO_ROOT, base=ccbench) as (context, stock):
+        root = os.fspath(context.root)
+        for kind in ("trace", "perf"):
+            pipeline._require_canonical_build_source_state(
+                root, context.pin, build_kind=kind, a1_source_context=context,
+            )
+            with pytest.raises(pipeline._CanonicalBuildSourceStateError, match="not clean"):
+                pipeline._require_canonical_build_source_state(root, context.pin, build_kind=kind)
+            with pytest.raises(pipeline._CanonicalBuildSourceStateError, match="root or canonical pin"):
+                pipeline._require_canonical_build_source_state(
+                    os.fspath(stock), context.pin, build_kind=kind, a1_source_context=context,
+                )
+            extra = context.root / "unexpected-source"
+            extra.write_text("one undeclared file")
+            try:
+                with pytest.raises(pipeline._CanonicalBuildSourceStateError, match="tree-digest-mismatch"):
+                    pipeline._require_canonical_build_source_state(
+                        root, context.pin, build_kind=kind, a1_source_context=context,
+                    )
+            finally:
+                extra.unlink()
+            with pytest.raises(pipeline._CanonicalBuildSourceStateError, match="root or canonical pin"):
+                pipeline._require_canonical_build_source_state(
+                    root, "0" * 40, build_kind=kind, a1_source_context=context,
+                )
     tracked = subprocess.run(
         ["git", "-C", os.fspath(ccbench), "ls-files"],
         check=True,
@@ -2202,10 +2231,21 @@ def test_v3_measurement_runs_one_selected_campaign_but_registers_exact_triple() 
     assert isinstance(keyword_values["campaign_ids"], ast.Name)
     assert keyword_values["campaign_ids"].id == "campaign_ids"
     gate_wrapper = next(
-        node for node in producer.body
+        node for node in ast.walk(producer)
         if isinstance(node, ast.FunctionDef)
         and node.name == "gated_balanced_executor"
     )
+    materializer = next(node for node in ast.walk(producer) if isinstance(node, ast.With)
+                        and "a1_source.materialized" in ast.unparse(node.items[0].context_expr))
+    inner_calls = [node for node in ast.walk(materializer) if isinstance(node, ast.Call)]
+    by_name = {ast.unparse(node.func): node for node in inner_calls}
+    gate_args = {k.arg: ast.unparse(k.value) for k in by_name["_require_v3_backoff_fixed_condition_gate"].keywords}
+    campaign_args = {k.arg: ast.unparse(k.value) for k in by_name["run_campaign"].keywords if k.arg}
+    assert gate_args["source_root"] == "source_context.root"
+    assert gate_args["dependency_prefix"] == "dependency_prefix"
+    assert campaign_args["ccbench_dir"] == "os.fspath(source_context.root)"
+    assert campaign_args["a1_source_context"] == "source_context"
+    assert "collect_workload" in by_name
     assert isinstance(gate_wrapper.body[0], ast.Expr)
     assert isinstance(gate_wrapper.body[0].value, ast.Call)
     assert isinstance(gate_wrapper.body[0].value.func, ast.Name)
@@ -3156,7 +3196,14 @@ def _v3_submit_cli_fixture(
         source.write_text(f"fixture source: {active}\n", encoding="utf-8")
     base = (tmp_path / "v3-measurement").resolve()
     base.mkdir()
-    attempt = base / "attempt"
+    for relative in (*paired.a1_source.SOURCE_PATHS,
+                     paired.V3_PILOT_POLICY_RELATIVE_PATH,
+                     paired.V3_PILOT_PREREGISTRATION_RELATIVE_PATH):
+        target = repo / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes((REPO_ROOT / relative).read_bytes())
+    (repo / "hydrated").mkdir()
+    attempt = base / "attempt-0004"
     head = "a" * 40
     monkeypatch.setattr(paired, "_repo_root", lambda: repo)
     monkeypatch.setattr(
@@ -3350,6 +3397,7 @@ def test_v3_complete_publishes_canonical_group_receipt_through_link_boundary(
     monkeypatch.setattr(paired.os, "link", inspect_completion_publish)
     assert paired.run_complete(SimpleNamespace(
         study_id=paired.V3_PILOT_STUDY_ID,
+        third_party_source_root=os.fspath(paired._repo_root() / "hydrated"),
         expected_head=head,
         attempt_root=os.fspath(attempt),
     )) == 0
@@ -3376,6 +3424,7 @@ def test_v3_submit_fans_out_exact_workload_triple_and_publishes_group_receipt(
     monkeypatch.setattr(paired, "_observe_qstat_visibility", _v3_visibility)
     assert paired.run_submit(SimpleNamespace(
         study_id=paired.V3_PILOT_STUDY_ID,
+        third_party_source_root=os.fspath(paired._repo_root() / "hydrated"),
         expected_head=head,
         attempt_root=os.fspath(attempt),
     )) == 0
@@ -3434,6 +3483,7 @@ def test_v3_published_cleanup_failure_does_not_write_failure_receipt(
     with pytest.raises(paired._PublishedReceiptCleanupError) as raised:
         paired.run_submit(SimpleNamespace(
             study_id=paired.V3_PILOT_STUDY_ID,
+            third_party_source_root=os.fspath(paired._repo_root() / "hydrated"),
             expected_head=head,
             attempt_root=os.fspath(attempt),
         ))
@@ -3471,6 +3521,7 @@ def test_v3_submit_second_qsub_failure_stops_third_and_retry_before_qsub(
     monkeypatch.setattr(paired, "_observe_qstat_visibility", _v3_visibility)
     args = SimpleNamespace(
         study_id=paired.V3_PILOT_STUDY_ID,
+        third_party_source_root=os.fspath(paired._repo_root() / "hydrated"),
         expected_head=head,
         attempt_root=os.fspath(attempt),
     )
@@ -3504,6 +3555,7 @@ def test_v3_submit_rejects_normalized_request_alias_before_group_receipt(
     with pytest.raises(paired.PaperStoryError, match="normalized request IDs"):
         paired.run_submit(SimpleNamespace(
             study_id=paired.V3_PILOT_STUDY_ID,
+            third_party_source_root=os.fspath(paired._repo_root() / "hydrated"),
             expected_head=head,
             attempt_root=os.fspath(attempt),
         ))
@@ -3540,6 +3592,7 @@ def test_v3_submit_rejects_prior_same_study_bench_start_before_intent_M4(
     with pytest.raises(paired.PaperStoryError, match="group rerun is prohibited"):
         paired.run_submit(SimpleNamespace(
             study_id=paired.V3_PILOT_STUDY_ID,
+            third_party_source_root=os.fspath(paired._repo_root() / "hydrated"),
             expected_head=head,
             attempt_root=os.fspath(attempt),
         ))

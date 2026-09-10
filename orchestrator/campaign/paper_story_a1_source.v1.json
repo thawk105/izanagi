@@ -1,0 +1,14 @@
+{
+  "schema_version": "paper-story-a1-source/v1",
+  "study_id": "paper-story-a1-20260901-balanced5-pilot-v1",
+  "attempt": "attempt-0004",
+  "canonical_head": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+  "patch": "patches/silo-backoff-fixed.patch",
+  "patch_sha256": "a5e0710c3f76744755b58ec66024c277daba00e49ce3cbf3d6d263cd7228580a",
+  "policy": "orchestrator/campaign/paper_story_a1_paired.v3-pilot.json",
+  "policy_sha256": "ed1c942f9d4bc24ab1bc6106caea672262c8634d32b022eca75b125811f7b825",
+  "preregistration": "output/insights/2026-09-01_paper-story-a1-balanced5-pilot-preregistration/README.md",
+  "preregistration_sha256": "8f8d2ad338a7a3193aaee8433c1495cef06b9520425251dd8bef89584ca626fc",
+  "amendment": "output/insights/2026-09-11/t2397-a1-source-amendment/README.md",
+  "amendment_sha256": "391e9425c0dec2ef33910b2112e7b1c5e5b650d6b6444c8c92285d5568a879c4"
+}

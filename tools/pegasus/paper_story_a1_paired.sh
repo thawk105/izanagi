@@ -71,6 +71,15 @@ if [[ "$V3_STUDY" -eq 1 ]]; then
   NON_CERTIFYING_SOURCE_RELATIVE_PATHS+=("orchestrator/calibrator/runner.py")
 fi
 
+if [[ "$EXPECTED_STUDY_ID" == "paper-story-a1-20260901-balanced5-pilot-v1" ]]; then
+  NON_CERTIFYING_SOURCE_RELATIVE_PATHS+=(
+    "orchestrator/campaign/paper_story_a1_source.v1.json"
+    "orchestrator/campaign/paper_story_a1_source.py"
+    "patches/silo-backoff-fixed.patch"
+    "output/insights/2026-09-11/t2397-a1-source-amendment/README.md"
+  )
+fi
+
 [[ -n "${PBS_JOBID:-}" ]] || refuse "PBS_JOBID is required"
 [[ "$PBS_JOBID" =~ ^(0:)?[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || refuse "unsafe PBS_JOBID"
 [[ -n "${PBS_O_HOST:-}" ]] || refuse "PBS_O_HOST is required"
@@ -438,6 +447,13 @@ source_paths = (
     "tools/pegasus/paper_story_a1_paired.sh",
     "orchestrator/calibrator/runner.py",
 )
+if study_id == "paper-story-a1-20260901-balanced5-pilot-v1":
+    source_paths += (
+        "orchestrator/campaign/paper_story_a1_source.v1.json",
+        "orchestrator/campaign/paper_story_a1_source.py",
+        "patches/silo-backoff-fixed.patch",
+        "output/insights/2026-09-11/t2397-a1-source-amendment/README.md",
+    )
 files = {}
 for relative in source_paths:
     if not relative:
@@ -555,6 +571,11 @@ paired.validate_acquisition_receipt(
     policy=policy,
     workload=workload,
 )
+intent = paired._read_json(paired._attempt_intent_path(pathlib.Path(receipt["attempt_root"])))
+expected_source = intent["jobs"][paired.WORKLOAD_ORDER.index(workload)]["qsub_options"]["variables"].get(
+    "IZANAGI_A1_THIRD_PARTY_SOURCE_ROOT")
+if os.environ.get("IZANAGI_A1_THIRD_PARTY_SOURCE_ROOT") != expected_source:
+    raise SystemExit("third-party source root differs from submission intent")
 print(hashlib.sha256(raw).hexdigest())
 PY
   ) || {
@@ -960,6 +981,13 @@ source_paths = [
 ]
 if v3_study:
     source_paths.append(os.environ["IZANAGI_A1_TERMINAL_RUNNER_RELATIVE"])
+if study_id == "paper-story-a1-20260901-balanced5-pilot-v1":
+    source_paths.extend([
+        "orchestrator/campaign/paper_story_a1_source.v1.json",
+        "orchestrator/campaign/paper_story_a1_source.py",
+        "patches/silo-backoff-fixed.patch",
+        "output/insights/2026-09-11/t2397-a1-source-amendment/README.md",
+    ])
 source_paths = tuple(source_paths)
 driver_rc = int(driver_rc_raw)
 shell_rc = int(shell_rc_raw)
@@ -1330,6 +1358,19 @@ if [[ "$glog_rc" -ne 0 ]]; then
 fi
 DEPENDENCY_PREFIX="$GFLAGS_INSTALL_DIR;$GLOG_INSTALL_DIR"
 
+THIRD_PARTY_ARGS=()
+if [[ "$EXPECTED_STUDY_ID" == "paper-story-a1-20260901-balanced5-pilot-v1" ]]; then
+  THIRD_PARTY_SOURCE=${IZANAGI_A1_THIRD_PARTY_SOURCE_ROOT:?hydrated source root required}
+  [[ "$THIRD_PARTY_SOURCE" = /* && ! -L "$THIRD_PARTY_SOURCE" ]] || refuse "unsafe third-party source root"
+  THIRD_PARTY_ROOT="$DEPENDENCY_ROOT/fetchcontent"
+  mkdir -- "$THIRD_PARTY_ROOT"
+  for name in masstree mimalloc googletest; do
+    [[ -d "$THIRD_PARTY_SOURCE/$name" && ! -L "$THIRD_PARTY_SOURCE/$name" ]] || refuse "missing hydrated source"
+    cp -a "$THIRD_PARTY_SOURCE/$name" "$THIRD_PARTY_ROOT/$name-src"
+  done
+  THIRD_PARTY_ARGS=(--third-party-source-root "$THIRD_PARTY_ROOT")
+fi
+
 set +e
 "$PYTHON_BIN" "$REPO_ROOT/$DRIVER_RELATIVE" measure \
   --study-id "$EXPECTED_STUDY_ID" \
@@ -1341,6 +1382,7 @@ set +e
   --cache-root "$CACHE_ROOT" \
   --result-root "$RESULT_ROOT" \
   --dependency-prefix "$DEPENDENCY_PREFIX" \
+  "${THIRD_PARTY_ARGS[@]}" \
   "${MEASURE_WORKLOAD_ARGS[@]}"
 DRIVER_RC=$?
 set -e

@@ -368,6 +368,7 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                  durable_root_policy=None,
                  bench_max_rounds: int = 3,
                  balanced_schedule: Optional[BalancedScheduleConfig] = None,
+                 a1_source_context=None,
                  backoff_grammar_version: Optional[int] = None,
                  sort_oracle_contract_id: Optional[str] = None,
                  holdout_observation_admission: Optional[
@@ -387,6 +388,8 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
     identity へ束縛し、source ごとの capability resolver は evidence 解決後の pipeline へ渡す。
     `bench_max_rounds` は既定 3 の既存経路では従来の evaluate 呼出し形を維持し、明示的な
     非既定値だけを pipeline へ渡す。`balanced_schedule` は二 arm 専用 opt-in。"""
+    if a1_source_context is not None and balanced_schedule is None:
+        raise ValueError("A1 source context requires balanced schedule")
     _validate_result_evidence_context(
         result_evidence_context,
         genomes=genomes,
@@ -751,6 +754,8 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                     evaluate_options["holdout_observation_admission"] = (
                         holdout_observation_admission
                     )
+                if a1_source_context is not None:
+                    evaluate_options["a1_source_context"] = a1_source_context
                 if balanced_schedule is not None:
                     r = _prepare_evaluation(
                         g, layout, env_tag, cfg.ccbench_commit, perf,

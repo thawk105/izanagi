@@ -13904,6 +13904,22 @@ def test_balanced_schedule_quality_gate_signatures_reject_each_named_condition()
         assert run["receipt"] == {}
 
 
+def test_a1_build_source_contract_rejects_caller_chosen_digest():
+    """An arbitrary mapping cannot opt a dirty source out of the clean gate."""
+    sub, head, _git = _fake_ccbench_repo()
+    Path(sub, "include/backoff.hh").write_text("undeclared edit\n", encoding="utf-8")
+    for kind in ("trace", "perf"):
+        try:
+            pipeline._require_canonical_build_source_state(
+                sub, head, build_kind=kind,
+                a1_source_context={"root": sub, "expected": "a" * 64},
+            )
+        except pipeline._CanonicalBuildSourceStateError as exc:
+            assert "context type differs" in str(exc)
+        else:
+            raise AssertionError("caller-selected dirty source contract was accepted")
+
+
 def _run():
     fns = [v for k, v in sorted(globals().items())
            if k.startswith("test_") and callable(v)]
