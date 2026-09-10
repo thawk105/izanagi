@@ -161,6 +161,102 @@ def _cfg():
     return ident.bind_environment_contract(cfg, _CONTRACT)
 
 
+@pytest.mark.parametrize("with_stock", [False, True])
+@pytest.mark.parametrize("raw,physical", [(5, 5), (3000, 1000), (1000, 1000)])
+def test_evaluate_candidate_declared_backoff_reaches_real_gate(
+        tmp_path, monkeypatch, _certified_writer_authority,
+        with_stock, raw, physical):
+    """Real supply/meaning/admission; the performance sink is simulated."""
+    from contextlib import contextmanager
+    from orchestrator.campaign import backoff_sweep
+
+    authorization, contract = _certified_writer_authority
+    source = _CONDITION_FIXTURES / "supplied"
+    flags = {"BACKOFF_FIXED": raw}
+    if with_stock:
+        flags["BACKOFF_NOINLINE"] = 0
+    genome = Genome("silo", flags)
+    declaration = backoff_sweep._backoff_fixed_declarations(
+        (raw,), {raw: physical},
+    )[raw]
+    checkout_calls = []
+
+    @contextmanager
+    def checkout(commit, *, base_dir):
+        checkout_calls.append((commit, base_dir))
+        yield str(source / "stock")
+
+    monkeypatch.setattr(screening_driver.patchharness, "checkout", checkout)
+    monkeypatch.setattr(
+        screening_driver.buildcache, "compilers_for_current_site",
+        lambda: (_any_cxx(), _any_cxx()),
+    )
+    monkeypatch.setattr(
+        screening_driver.source_digest, "resolve_evidence",
+        lambda *_args, **_kwargs: _source_evidence(genome, root=str(source)),
+    )
+    runs = []
+    real_gate = screening_driver._require_condition_gate_before_evaluation
+
+    def observe_gate(*args, **kwargs):
+        run = real_gate(*args, **kwargs)
+        runs.append(run)
+        return run
+
+    monkeypatch.setattr(
+        screening_driver, "_require_condition_gate_before_evaluation", observe_gate,
+    )
+    evaluated = []
+
+    def performance_sink(candidate, *args, **kwargs):
+        assert "backoff_fixed_declaration" not in kwargs
+        evaluated.append(candidate)
+        return EvalResult(genome=candidate, variant="candidate",
+                          certified=True, aborted=False)
+
+    monkeypatch.setattr(screening_driver, "evaluate", performance_sink)
+    cfg = _cfg()
+    layout = campaign_layout(str(ident.campaign_id(cfg)), str(tmp_path)).ensure()
+
+    def call():
+        return screening_driver.evaluate_candidate(
+            cfg, layout, genome, PerfConfig(records=1, threads=1),
+            contract.env_tag, contract.clocks_per_us,
+            numactl=contract.numactl, authorization_contract=authorization,
+            build_context=_BUILD_CONTEXT, screening=None,
+            backoff_fixed_declaration=declaration, log=lambda _message: None,
+        )
+
+    if raw == 1000:
+        with pytest.raises(condition_meaning_gate.ConditionMeaningGateError,
+                           match="decoded-meaning-mismatch"):
+            call()
+        assert evaluated == []
+    else:
+        assert call() is not None
+        assert evaluated == [genome]
+        assert len(runs) == 1 and runs[0].admission.admitted
+        assert [(r.macro, r.terminal_status) for r in runs[0].meaning_records
+                if r.macro == "BACKOFF_FIXED"] == [("BACKOFF_FIXED", "green")]
+        assert all(r.terminal_status == "unestablished"
+                   for r in runs[0].meaning_records if r.macro != "BACKOFF_FIXED")
+    assert len(checkout_calls) == int(with_stock)
+
+
+def test_screening_undeclared_randomized_backoff_remains_unestablished():
+    from orchestrator.campaign import b10_backoff_shape_sweep
+
+    raw = b10_backoff_shape_sweep.encode("symmetric-modulo", 5)
+    run = screening_driver._run_condition_gate_for_genome(
+        str(_CONDITION_FIXTURES / "supplied"),
+        Genome("silo", {"BACKOFF_FIXED": raw}),
+        stock_root=None, cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    assert run.admission.admitted
+    assert [r.terminal_status for r in run.supply_records] == ["green"]
+    assert [r.terminal_status for r in run.meaning_records] == ["unestablished"]
+
+
 def _write_floor(root, *, floor=0.03, workload=WORKLOAD, protocol="silo",
                  filename="between_run_noise_fixture.json",
                  schema_version="between-run-noise-floor/v1"):

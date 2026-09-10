@@ -175,6 +175,9 @@ def _condition_gate_base_configure_args(genome: Genome) -> tuple[str, ...]:
 def _run_condition_gate_for_genome(
         source_root: str, genome: Genome, *, stock_root: Optional[str],
         cxx: str, cmake: str,
+        backoff_fixed_declaration: Optional[
+            condition_meaning_gate.MeaningWitnessDeclaration
+        ] = None,
         expected_toolchain_manifest: Optional[Mapping[str, object]] = None,
 ) -> Optional[_ScreeningConditionGateRun]:
     """Evaluate both arms for every domain macro supplied by this Genome.
@@ -222,7 +225,12 @@ def _run_condition_gate_for_genome(
         )
         meaning_records = tuple(
             condition_meaning_gate.evaluate_define_runtime_meaning(
-                captured, request=request, declaration=None, cxx=cxx,
+                captured, request=request,
+                declaration=(
+                    backoff_fixed_declaration
+                    if request.macro == "BACKOFF_FIXED" else None
+                ),
+                cxx=cxx,
             )
             for request in requests
         )
@@ -248,6 +256,9 @@ def _run_condition_gate_for_genome(
 def _require_condition_gate_before_evaluation(
         source_root: str, ccbench_commit: str, genome: Genome, *,
         cxx: str, cmake: str,
+        backoff_fixed_declaration: Optional[
+            condition_meaning_gate.MeaningWitnessDeclaration
+        ] = None,
         expected_toolchain_manifest: Optional[Mapping[str, object]] = None,
 ) -> Optional[_ScreeningConditionGateRun]:
     """Provide stock identity when needed, then close the pre-build gate."""
@@ -259,6 +270,7 @@ def _require_condition_gate_before_evaluation(
         return _run_condition_gate_for_genome(
             source_root, genome, stock_root=None, cxx=cxx, cmake=cmake,
             expected_toolchain_manifest=expected_toolchain_manifest,
+            backoff_fixed_declaration=backoff_fixed_declaration,
         )
     with patchharness.checkout(
             ccbench_commit, base_dir=source_root,
@@ -266,6 +278,7 @@ def _require_condition_gate_before_evaluation(
         return _run_condition_gate_for_genome(
             source_root, genome, stock_root=stock_root, cxx=cxx, cmake=cmake,
             expected_toolchain_manifest=expected_toolchain_manifest,
+            backoff_fixed_declaration=backoff_fixed_declaration,
         )
 
 
@@ -516,6 +529,9 @@ def evaluate_candidate(
         screening: Optional[ScreeningConfig],
         capability_resolver: Optional[AdmissionCapabilityResolver] = None,
         env_contract=None,
+        backoff_fixed_declaration: Optional[
+            condition_meaning_gate.MeaningWitnessDeclaration
+        ] = None,
         expected_toolchain_manifest: Optional[Mapping[str, object]] = None,
         declared_use_class: Optional[str] = None,
         numactl: Optional[Sequence[str]] = None, src_token: Optional[str] = None,
@@ -597,6 +613,7 @@ def evaluate_candidate(
         cxx=resolved_cxx,
         cmake=resolved_cmake,
         expected_toolchain_manifest=expected_toolchain_manifest,
+        backoff_fixed_declaration=backoff_fixed_declaration,
     )
     try:
         evaluate_kwargs = {

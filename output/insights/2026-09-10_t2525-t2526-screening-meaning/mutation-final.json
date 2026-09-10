@@ -1,0 +1,143 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 180,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1200,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_sweep.py::test_backoff_screened_caller_forwards_intent_to_real_gate[-1]",
+        "orchestrator/tests/test_backoff_sweep.py::test_backoff_screened_caller_forwards_intent_to_real_gate[5]",
+        "orchestrator/tests/test_screening_driver.py::test_evaluate_candidate_declared_backoff_reaches_real_gate[1000-1000-False]",
+        "orchestrator/tests/test_screening_driver.py::test_evaluate_candidate_declared_backoff_reaches_real_gate[1000-1000-True]",
+        "orchestrator/tests/test_screening_driver.py::test_evaluate_candidate_declared_backoff_reaches_real_gate[3000-1000-False]",
+        "orchestrator/tests/test_screening_driver.py::test_evaluate_candidate_declared_backoff_reaches_real_gate[3000-1000-True]",
+        "orchestrator/tests/test_screening_driver.py::test_evaluate_candidate_declared_backoff_reaches_real_gate[5-5-False]",
+        "orchestrator/tests/test_screening_driver.py::test_evaluate_candidate_declared_backoff_reaches_real_gate[5-5-True]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/screening_driver.py",
+          "old": "                    backoff_fixed_declaration\n                    if request.macro == \"BACKOFF_FIXED\" else None",
+          "new": "                    None\n                    if request.macro == \"BACKOFF_FIXED\" else None"
+        }
+      ]
+    },
+    {
+      "id": "M2",
+      "category": "positive",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_sweep.py::test_backoff_screened_caller_forwards_intent_to_real_gate[-1]",
+        "orchestrator/tests/test_backoff_sweep.py::test_backoff_screened_caller_forwards_intent_to_real_gate[5]",
+        "orchestrator/tests/test_backoff_sweep.py::test_real_family_helper_observes_raw_3000_as_intended_static_1000",
+        "orchestrator/tests/test_screening_driver.py::test_evaluate_candidate_declared_backoff_reaches_real_gate[3000-1000-False]",
+        "orchestrator/tests/test_screening_driver.py::test_evaluate_candidate_declared_backoff_reaches_real_gate[3000-1000-True]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_sweep.py",
+          "old": "canonical_float64_bits(float(physical))",
+          "new": "canonical_float64_bits(float(raw))"
+        }
+      ]
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_screening_driver.py::test_evaluate_candidate_declared_backoff_reaches_real_gate[1000-1000-False]",
+        "orchestrator/tests/test_screening_driver.py::test_evaluate_candidate_declared_backoff_reaches_real_gate[1000-1000-True]",
+        "orchestrator/tests/test_screening_driver.py::test_evaluate_candidate_declared_backoff_reaches_real_gate[3000-1000-False]",
+        "orchestrator/tests/test_screening_driver.py::test_evaluate_candidate_declared_backoff_reaches_real_gate[3000-1000-True]",
+        "orchestrator/tests/test_screening_driver.py::test_evaluate_candidate_declared_backoff_reaches_real_gate[5-5-False]",
+        "orchestrator/tests/test_screening_driver.py::test_evaluate_candidate_declared_backoff_reaches_real_gate[5-5-True]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/screening_driver.py",
+          "old": "        cmake=resolved_cmake,\n        expected_toolchain_manifest=expected_toolchain_manifest,\n        backoff_fixed_declaration=backoff_fixed_declaration,",
+          "new": "        cmake=resolved_cmake,\n        expected_toolchain_manifest=expected_toolchain_manifest,\n        backoff_fixed_declaration=None,"
+        }
+      ]
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_screening_driver.py::test_evaluate_candidate_declared_backoff_reaches_real_gate[1000-1000-True]",
+        "orchestrator/tests/test_screening_driver.py::test_evaluate_candidate_declared_backoff_reaches_real_gate[3000-1000-True]",
+        "orchestrator/tests/test_screening_driver.py::test_evaluate_candidate_declared_backoff_reaches_real_gate[5-5-True]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/screening_driver.py",
+          "old": "            source_root, genome, stock_root=stock_root, cxx=cxx, cmake=cmake,\n            expected_toolchain_manifest=expected_toolchain_manifest,\n            backoff_fixed_declaration=backoff_fixed_declaration,",
+          "new": "            source_root, genome, stock_root=stock_root, cxx=cxx, cmake=cmake,\n            expected_toolchain_manifest=expected_toolchain_manifest,\n            backoff_fixed_declaration=None,"
+        }
+      ]
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_sweep.py::test_backoff_screened_caller_forwards_intent_to_real_gate[-1]",
+        "orchestrator/tests/test_backoff_sweep.py::test_backoff_screened_caller_forwards_intent_to_real_gate[5]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_sweep.py",
+          "old": "                genome.flags[\"BACKOFF_FIXED\"],\n            ),",
+          "new": "                -1,\n            ),"
+        }
+      ]
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2418_exact_grid_identity_order_and_disclosure_are_literal_pinned",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2418_frozen_wal_view_flows_through_capture_loader_and_reports",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2418_run_path_uses_exact_five_genomes_and_shared_campaign_call",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2418_v2_discovery_does_not_select_v1"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "old": "spec_slug=f\"t2418-backoff-static-explore-v2-silo-{tag}\",",
+          "new": "spec_slug=f\"t2418-backoff-static-explore-v1-silo-{tag}\","
+        }
+      ]
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2418_exact_grid_identity_order_and_disclosure_are_literal_pinned",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2418_frozen_wal_view_flows_through_capture_loader_and_reports"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "old": "\"driver_declared_static_backoff_physical_us\"",
+          "new": "\"unestablished_for_positive_backoff_fixed_as_in_existing_sweep\""
+        }
+      ]
+    }
+  ]
+}
