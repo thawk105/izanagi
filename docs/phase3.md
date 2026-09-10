@@ -291,6 +291,11 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
   (2026-09-10 ユーザー裁定)。T-1998 / T-2557 / T-2267 の測定本体は AI 実行待ちで、
   担当変更は測定完了・認証範囲の拡大を意味しない。手順は `docs/pegasus-runbook.md` §7.0。
 
+- [x] T-2579: D1936項43の限定変更を回収。T1259の実repo snapshotをmodule fixtureへ移し、
+  各testへ独立copyを渡し、既存inventory・parent-only・goldenへ登録した。
+  production timeout・走査範囲・判定を維持。全worker合計1回や速度改善の主張ではない。
+  根拠は `output/insights/2026-09-10_t2579-recovery/README.md`。
+
 - [x] 本体論文の日本語方法節草稿（2026-09-10 の新規ユーザー執筆依頼）を
   `output/insights/2026-09-10_paper-methods-ja/methods.md` と同 `implementation.md` に作成。
   生成・検証・反例還流・独立測定・選択を対応づけ、実装と評価契約を区別した文書成果であり、
