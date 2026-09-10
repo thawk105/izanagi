@@ -254,14 +254,27 @@ def _calibrate_timeout_command(source: str) -> str:
 
 def _calibrate_interpreter_fragment() -> str:
     source = (TOOL_DIR / "certify_calibration.sh").read_text(encoding="utf-8")
-    start = source.index('CALIBRATE_PYTHON=""')
-    end = source.index("# CLI ", start)
-    return source[start:end]
+    selection_start = source.index('CALIBRATE_PYTHON=""')
+    selection_end = source.index("\n\nrun_condition_gate() {", selection_start)
+    selection = source[selection_start:selection_end]
+    shim_start = source.index(
+        'CALIBRATE_PATH="$TMPDIR/bin:$(dirname "$CALIBRATE_PYTHON"):$PATH"',
+        selection_end,
+    )
+    shim_end = source.index("\n", shim_start)
+    return selection + "\n" + source[shim_start:shim_end] + "\n"
 
 
 def test_certify_calibrator_resolves_and_shims_versioned_interpreter(tmp_path):
     source = (TOOL_DIR / "certify_calibration.sh").read_text(encoding="utf-8")
     fragment = _calibrate_interpreter_fragment()
+    for unrelated in (
+        "GFLAGS_SOURCE_PATH",
+        "GLOG_SOURCE_PATH",
+        "run_condition_gate",
+        "PERF_EVENTS",
+    ):
+        assert unrelated not in fragment
     assert source.index("python3.10 /usr/bin/python3.10 /bin/python3.10") < source.index(
         'CALIBRATE_PATH="$TMPDIR/bin:$(dirname "$CALIBRATE_PYTHON"):$PATH"'
     )
@@ -1134,7 +1147,7 @@ def _glog_stage_fragment() -> str:
 def _certify_toolchain_fragment() -> str:
     source = (TOOL_DIR / "certify_calibration.sh").read_text(encoding="utf-8")
     start = source.index("CC_PATH=$(command -v gcc)")
-    end = source.index("\n\nrun_condition_gate()", start)
+    end = source.index('\n\n# calibrator は Python 3.10 構文を使う。', start)
     return source[start:end]
 
 

@@ -1,0 +1,18 @@
+Traceback (most recent call last):
+  File "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/lib/python3.9/runpy.py", line 197, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/lib/python3.9/runpy.py", line 87, in _run_code
+    exec(code, run_globals)
+  File "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2515-calib-rr95-rr5/submit-tree-rr95/orchestrator/campaign/condition_meaning_gate.py", line 49, in <module>
+    from . import source_digest
+  File "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2515-calib-rr95-rr5/submit-tree-rr95/orchestrator/campaign/source_digest.py", line 71, in <module>
+    from ..verifier.model import (
+  File "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2515-calib-rr95-rr5/submit-tree-rr95/orchestrator/verifier/__init__.py", line 20, in <module>
+    from .core import (
+  File "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2515-calib-rr95-rr5/submit-tree-rr95/orchestrator/verifier/core.py", line 16, in <module>
+    from .dsg import DSG
+  File "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2515-calib-rr95-rr5/submit-tree-rr95/orchestrator/verifier/dsg.py", line 31, in <module>
+    from .parse import _CompactTrace, _txn_from_columns
+  File "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2515-calib-rr95-rr5/submit-tree-rr95/orchestrator/verifier/parse.py", line 71, in <module>
+    SortPermutationMultisetState = bool | Literal["NOT_EVALUATED"] | None
+TypeError: unsupported operand type(s) for |: 'type' and '_LiteralGenericAlias'
