@@ -379,6 +379,12 @@
       "primary_gate": "qsub submission; compute work stays in existing A-5 job body",
       "evidence": "static login-side submitter classification"
     },
+    "tools/pegasus/submit_t2417_backoff_policy_performance.sh": {
+      "class": "local-ok",
+      "reason": "login-side PBS T-2417 policy-arm performance submitter",
+      "primary_gate": "qsub submission; compute work stays in job body",
+      "evidence": "static login-side submitter classification"
+    },
     "tools/pegasus/t126_qualification.sh": {
       "class": "dispatch-required",
       "reason": "PBS T126 qualification job body",
