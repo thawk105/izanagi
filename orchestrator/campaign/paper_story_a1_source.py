@@ -5,7 +5,6 @@ import hashlib
 import json
 import os
 from pathlib import Path
-import subprocess
 
 from . import buildcache, patchharness, s8b_expected_materialization, s8b_floor_campaign
 
@@ -59,11 +58,10 @@ class SourceContext:
     def validate(self, root: str, pin: str) -> None:
         if self.root is None or Path(root).resolve(strict=True) != self.root or pin != self.pin:
             raise RuntimeError("A1 build source root or canonical pin differs")
-        head = subprocess.run(
-            ["git", "-C", root, "rev-parse", "--verify", "HEAD^{commit}"],
-            check=True, capture_output=True, text=True,
-        ).stdout.strip()
-        if head != self.pin:
+        head = patchharness._git(root, "rev-parse", "--verify", "HEAD^{commit}")
+        if head.returncode != 0:
+            raise RuntimeError("A1 build source HEAD query failed")
+        if head.stdout.strip() != self.pin:
             raise RuntimeError("A1 build source HEAD differs")
         s8b_expected_materialization.assert_expected_materialization(self.root, self.expected)
 
