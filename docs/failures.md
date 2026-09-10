@@ -3198,6 +3198,8 @@
   の**別 3 node**で赤になった。**赤の node が単独再走でも移動する**ことを示し、
   「再走すれば緑が取れる」という運用上の前提がこの負荷帯では成り立たないことの直接の証拠になる。
   恒久対応は既載のまま変えない。
+
+- **再発: 2026-09-11** — T-2273着地再開の関連走と単独走でtest_limit_stop_is_never_acceptedの子終了codeが-15対期待0。fakeのterm_successがtoken_countを公開した後にSIGTERM handlerを登録する順序を確認した。初回mask案は準備中に停止猶予を使い切り-9となり撤回。Codex authorが同modeだけoutput/terminal/handler準備後にcount evidenceを公開する局所修正を行い、期待値と本番制限は不変。単独1passed、file直列211passed。並列file走の他mode3件は証拠待ちで赤だが直列では緑であり、この修正でF57全体が解消したとは主張しない。実体はorchestrator/tests/test_codex_worker_launch.pyの_write_fake_codex、証拠はoutput/insights/2026-09-10/t2273-current-cost/README.md。M1の子exit7変異は既存assertで検出された。
 ### F58. 並行 wave が land 済みの「次の一手」ID を別内容へ再利用し、裁定待ち 2 件が正本から消えた [手順漏れ] [恒真ゲート]
 
 - **事象 (2026-07-31, `/rulings`):** worklog (72) が land した 2 つの ID を、並行して走っていた
@@ -9462,6 +9464,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   引かれない。変異走行の直前に読む節 (`DW-M05`) からは到達しない。
 
 - **再発: 2026-09-10** — T-2340 docs wave、tip1f7f21dc9の受入でtest_sigterm_ignoring_child_is_killedがcommunicateの10秒TimeoutExpiredになった。bnode047/gw36/request991511、receiptなし、loadavg54.95。本文・入口・phase差分からlauncher制御への変更はなく、同tipの単独再走991516は1passed/7.53秒、rc0。DW-O18で受入を再走し、期待値・制限値・除外は変えない。
+
+- **再発: 2026-09-10** — 同precheckの受入でtest_manifest_is_appended_while_correlated_session_is_runningの3秒内manifest不在とtest_sigterm_ignoring_child_is_killedの10秒TimeoutExpiredが発生。docsによるlauncher制御変更はなく、9月11日の同fileを含む焦点走991663.nqsvは262passed。恒久的な再発解消とは主張せず、既存DW-O18と今回のユーザーによる該当case限定hold認可に従って残る赤を扱う。
 ### F274. 単走の差を実装効果へ帰属させかけた [計測汚染]
 
 - 事象: fix 後の焦点走が 73.42 秒で、fix 前の単走 60.55 秒より遅かったため、親は
@@ -24633,6 +24637,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 恒久対応: docs/dev-wave/operations.mdのDW-O18へ従い、単独非再現を確認して受入を再走する。timeout拡大・fixtureのstub化・除外・汎用gateの新設は行わない。
 - 再発検知: setup tracebackのGit argvと30秒TimeoutExpiredを確認し、同tipの単独走と受入を区別して記録する。ログは専用handoffが指すacceptance-child-3とfocus-t1259.log。
 
+
+- **再発: 2026-09-10** — CC次実験precheckのdocs-only tip4d5b403b8で、T1259の実repo Git走査30秒timeoutが受入23setup errorと単独再走48setup errorになった。9月11日にmainのmodule snapshot化・実repo直列化を取り込み、tip76928e91eの2file焦点走991663.nqsvは262passed/20.57秒。判定本文・timeout・除外は変更しない。記録はoutput/insights/2026-09-11/cc-next-precheck-resume/README.md。
 ### F946. 修正可能な検査失敗で作業を終了し、ユーザーへ再開を要求した [手順漏れ] [誤前提]
 
 - 事象: insights整理のauthorが実行ログ検査で未受理になり、親は原因の切り分けや安全な再試行をせず正式停止した。
