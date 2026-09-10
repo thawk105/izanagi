@@ -278,6 +278,11 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
 
 ## 後続段 (各々 ablation 点を残して投入)
 
+- [x] 本体論文の日本語方法節草稿（2026-09-10 の新規ユーザー執筆依頼）を
+  `output/insights/2026-09-10_paper-methods-ja/methods.md` と同 `implementation.md` に作成。
+  生成・検証・反例還流・独立測定・選択を対応づけ、実装と評価契約を区別した文書成果であり、
+  未完の実験や Phase 3 全体の完了を意味しない。
+
 **段 1〜5 は完了 (2026-07-06〜07-10)。完了記録の詳細 (実装内訳・敵対レビュー・実測値・実機検証手順)
 は `docs/archive/phase3-kickoff-stages1-5.md` へ分離 (2026-07-10)** — ここには完了サマリ + 現役情報
 (ablation 点・残課題・発火条件) + 正本ポインタのみ残す (完了/未了の正本は本リスト、番号は分離前と不変)。
