@@ -368,6 +368,9 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
    成功条件にはしない。**S-1 が成立しても、適格率次元の発見再現性は未実証のまま**と併記する。
 
    **S-1 closure checklist (未チェックを上から実施):**
+   - [x] T-2527 (2026-09-11): D1936項22に従い、旧known-axesのsource識別子を歴史的出所として保持。
+     歴史閲覧と現行意味照合を分け、凍結入力・内容の束縛を維持。旧artifactと判定は不変。
+     検証記録 = `output/insights/2026-09-11/t2527-historical-source/README.md`。
    - [x] 独立再命名 canary の人間追認
    - [x] S-2/S-3 提案ラウンド、凍結集計、reason 監査、報告文言の確定
    - [x] サンプル設計 4 点の数値を事前登録へ追記し、独立レビューする (v2 承認 2026-07-15、
