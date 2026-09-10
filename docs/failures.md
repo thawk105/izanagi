@@ -19143,6 +19143,13 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 
 
 - **再発: 2026-09-07** — 同じ `registered worktree path cannot be resolved` が `[Errno 2] No such file or directory: '/scr'` で出た。path は a5 second boot の bench job 2 本 (979578/979579) が計算ノードのローカル scratch `/scr/<jobid>-a5-second-boot-<workload>/job-repo` に `git worktree add --detach` した登録で、login node からは job が走る間 (上限 7200 秒) ずっと解決できない (`git worktree list` は `prunable` と表示する)。job は EXIT trap で `worktree remove --force` + `prune` するので job 終了で消えるが、その間は repo 全体の land が `rc=31` / `retryable_same_request=false` で塞がる。一時エラーの種類が EINTR から「別ホストにしか存在しない path」へ広がっただけで、機序 (全登録 path の strict 解決 + OSError 一律非再試行) は同じ。本 wave は受入 (child-green、20834 passed) を捨てて job 終了後に取り直した。running 中の job の登録を login 側から prune してはいけない (job 側の git が壊れる)。
+
+- **再発: 2026-09-10** — rulings-land-recoveryの正式受入1は22463 passed / 68 skipped、
+  child-greenだったが、landが別waveの登録path `.codex/worktrees/t1851-c2-s2` のstrict解決で
+  `[Errno 4] Interrupted system call` を返しrc31になった。main_before/main_afterはいずれも
+  `32603d3858289e3851227f8cad60d97e2e01f761`、release_safe=true、retryable_same_request=false。
+  直後の読取専用再確認では同pathのstrict解決と.git fileの存在を確認した。
+  既存F672の復旧に従い、新しい受入とrequestで再試行する。他waveの登録は触らない。
 ### F673. brief が「守るべき性質」と「現に成立している性質」を混同し、存在しない不変条件を根拠に暫定裁定した [誤前提]
 
 - 事象: 親は段 1 brief の不変条件へ「受理の根拠は完全に読み切った、矛盾のない 1 枚の scan」と書き、
@@ -24422,3 +24429,24 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `ground_truth_independent: false` と依存関係の式を成果物へ literal で残す。
 - 再発検知: 「一致した」と書く前に、集約前の要素で不一致件数を数える。
   不一致が 0 でないのに合計が一致する例が作れるなら、その比較は同一性を測っていない。
+
+### F941. rulings が main への fragment commit だけで終わり、裁定を canonical へ届けなかった [手順漏れ] [誤前提]
+
+- 事象: 全50項のユーザー裁定を `32603d385` で local main へ直接commitし、68項の更新を持つ
+  worklog fragmentとdecisions fragmentを未foldのまま残して終了した。
+  ユーザーの「main landsいた？」に未landと回答した後も、その事実の報告だけで止まり、
+  「他のdev-waveが困るのでは？」と再指摘されて初めて復旧へ進んだ。
+- 根本原因: rulingsの入口が「fragmentへ記録しcanonicalを直接編集しない」までしか明記せず、
+  agentが記録形式の遵守を完了条件と取り違えた。既存の受入・land・foldを記録作業にも適用する
+  導線を読まず、通常のmain着地経路を直接commitで代用した。
+- 影響: canonicalの裁定と次の一手は古いまま、mainには未fold fragmentが存在した。
+  別waveがfoldするまで判断が正本へ届かず、同じID更新のbase不一致や混載を起こし得る状態だった。
+  別waveの受入失敗やデータ消失を実測したとは主張しない。
+- 恒久対応: `.claude/commands/rulings.md` の記録導線に、専用branch・main直接commit禁止と
+  `docs/dev-wave/operations.md` DW-O17/O23/O25/O27による受入→land→foldを明記した。
+  成功応答とcanonical反映の確認前に完了報告しない。Codex Skillは既に同commandを全文適用する。
+  新guard、checker機能、権限拡張は作らない。プロンプト規律であり機械的な再発不能保証ではない。
+- 再発検知: 最終報告前にlandの成功応答、FOLDED receipt、canonicalにある裁定と対象ID、
+  自分の未fold fragmentの不在を実体で確認する。今回の復旧で同じ既存経路を実走する。
+- 既存型との区別: F747はcleanup権限を記録権限へ広げた事故、F907はcwd誤認と全stageの事故。
+  今回の裁定記録は授権済みで対象pathも明示していたが、mainへの記録だけを終端にした点が異なる。
