@@ -2793,6 +2793,8 @@ mutation 8/8 を閉じたため、一括 downshift はせず、観測→制限�
 - [x] [T-2273] / [T-2559] **(診断完了 2026-09-10)** 最新shard占有と非重複tailを分解し、
   計算ノードで局所コピー費用を観測した。有効変更は未採用、300秒目標とprewarm Pは未達・未測定。
   `output/insights/2026-09-10/t2273-current-cost/README.md`。実装差分0、規律2は維持。
+  2026-09-11の着地再開では受入fixtureの実在競合だけをCodex authorが修正し、
+  上限停止の期待値を保った（term_successのhandler準備後にcount evidenceを公開）。
 
 - [T-2417] **(完了 2026-09-10) policy 腕の既存18 blockの性能解析** — 全6 permutationの
   記録値への登録式の適用を再確認した (H1 accepted / H2 rejected / H3 rejected)。compiler完全identityは

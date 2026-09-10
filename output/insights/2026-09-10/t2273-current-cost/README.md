@@ -145,3 +145,20 @@ git archive timeout、launcherの時間制限に掛かった。親は非帰属�
 mainには`e28a62d26`のmodule snapshot化とreader登録が着地済みで、各testは独立copyを受け取る。
 固定main `d85bbb211`を通常mergeし、今回の診断実装やholdを追加せず修正済みの受入を使う。
 資料配置は現行output/README.mdに合わせた。計測日時・source・raw bytesは元の記録を維持する。
+
+### 着地に必要だったfixture競合の修正
+
+取り込み後の関連480件は479passed/1failed。旧版`test_limit_stop_is_never_accepted`は単独でも
+子exitが-15となった。fakeの`term_success`がカウント証拠を公開してからSIGTERM handlerを
+登録するため、親が上限を検出してhandler登録前に停止させる競合があった。
+Codex authorの初回signal mask案は実走で-9となり不採用。最終案は`term_success`だけ
+output/terminal準備とhandler登録を先にし、token_countを最後に公開する。
+handlerのI/Oとterminal二重出力を除き、正常exit0だけを行う。11行追加・4行削除で、
+本番launcher・timeout・既存assertion・t1259/conftestは変更しない。
+
+修正後の単独は1passed/1.67秒。file全体の4worker走は他モード3件が証拠待ちで赤となったが、
+review終了後の直列走は**211passed/146.63秒/rc0**。他モードの分岐と期待値は不変である。
+独立review2本はblocking0/GO。事前登録M1はhandlerのexit0をexit7へ変え、
+既存の子終了コードassertionで検出する。M1は終了コードの感度であって、競合の完全消失の証明ではない。
+このfixは受入を閉じるためのテストfixture修正であり、全走短縮のD104採用結果ではない。
+最初の診断が実装0だった事実と、再開時のこの局所fixを区別する。
