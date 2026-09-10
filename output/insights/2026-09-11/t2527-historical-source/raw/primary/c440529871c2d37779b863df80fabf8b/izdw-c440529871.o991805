@@ -1,0 +1,82 @@
+bringing up nodes...
+bringing up nodes...
+
+..F....                                                                  [100%]
+=================================== FAILURES ===================================
+______________ test_historical_content_and_identifiers_are_bound _______________
+[gw1] linux -- Python 3.10.12 /bin/python3.10
+
+tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_historical_content_and_id0')
+
+    def test_historical_content_and_identifiers_are_bound(tmp_path):
+        doc = _current_frozen_document()
+        mutations = []
+        for field in ("what", "generator"):
+            changed = copy.deepcopy(doc)
+            if field == "what":
+                changed[field] = "TAMPERED"
+            else:
+                changed[field]["sha256"] = "0" * 64
+            mutations.append(changed)
+        seen = set()
+        for index, source in enumerate(M._iter_sources(doc)):
+            path = source["path"]
+            if path.endswith(".py") and path not in seen:
+                seen.add(path)
+                changed = copy.deepcopy(doc)
+                list(M._iter_sources(changed))[index]["sha256"] = "0" * 64
+                mutations.append(changed)
+        assert len(seen) == 6
+        assert len(mutations) == 8
+        path = tmp_path / "changed.json"
+        for changed in mutations:
+            path.write_text(json.dumps(changed, ensure_ascii=False, indent=2) + "\n")
+            for historical in (True, False):
+>               with pytest.raises(M.FreezeError, match="generator sha256 不一致"):
+E               Failed: DID NOT RAISE FreezeError
+
+orchestrator/tests/test_s1_known_axes_freeze.py:996: Failed
+----------------------------- Captured stderr call -----------------------------
+IZANAGI_FREEZE_HOLD {"check_id": "s1-known-axes.ccbench-submodule-head-pin", "decision": "freeze-verification-hold", "release_condition": "explicit-user-command-only", "ruling": "rulings-4th-batch-2026-08-12"}
+=========================== short test summary info ============================
+FAILED orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_content_and_identifiers_are_bound
+1 failed, 6 passed in 4.77s
+IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}
+=== IZANAGI FAILURE DIGEST v1 BEGIN ===
+IZANAGI_FAILURE rank=1 category=failed when=call nodeid="orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_content_and_identifiers_are_bound" nodeid_bytes=98 nodeid_omitted_bytes=0 source_bytes=1382 retained_bytes=1382 omitted_bytes=0 rendered_excerpt_bytes=1459 sha256=0422de111c28808336514e898c3398b2958f7f7b5603cc0b10598b1e804d70c1
+--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---
+> [gw1] linux -- Python 3.10.12 /bin/python3.10
+>
+> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_historical_content_and_id0')
+>
+>     def test_historical_content_and_identifiers_are_bound(tmp_path):
+>         doc = _current_frozen_document()
+>         mutations = []
+>         for field in ("what", "generator"):
+>             changed = copy.deepcopy(doc)
+>             if field == "what":
+>                 changed[field] = "TAMPERED"
+>             else:
+>                 changed[field]["sha256"] = "0" * 64
+>             mutations.append(changed)
+>         seen = set()
+>         for index, source in enumerate(M._iter_sources(doc)):
+>             path = source["path"]
+>             if path.endswith(".py") and path not in seen:
+>                 seen.add(path)
+>                 changed = copy.deepcopy(doc)
+>                 list(M._iter_sources(changed))[index]["sha256"] = "0" * 64
+>                 mutations.append(changed)
+>         assert len(seen) == 6
+>         assert len(mutations) == 8
+>         path = tmp_path / "changed.json"
+>         for changed in mutations:
+>             path.write_text(json.dumps(changed, ensure_ascii=False, indent=2) + "\x5cn")
+>             for historical in (True, False):
+> >               with pytest.raises(M.FreezeError, match="generator sha256 \u4e0d\u4e00\u81f4"):
+> E               Failed: DID NOT RAISE FreezeError
+>
+> orchestrator/tests/test_s1_known_axes_freeze.py:996: Failed
+--- IZANAGI FAILURE EXCERPT rank=1 END ---
+IZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1382 retained_bytes=1382 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2184 omitted_manifest_sha256=-
+=== IZANAGI FAILURE DIGEST v1 END ===

@@ -1,0 +1,60 @@
+bringing up nodes...
+bringing up nodes...
+
+...F...                                                                  [100%]
+=================================== FAILURES ===================================
+__________ test_historical_input_copy_sha_and_existence_remain_bound ___________
+[gw2] linux -- Python 3.10.12 /bin/python3.10
+
+tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_historical_input_copy_sha0')
+
+    def test_historical_input_copy_sha_and_existence_remain_bound(tmp_path):
+        doc = _current_frozen_document()
+        target = doc["entries"]["balanced"]["system_gate"]["sources"][0]["path"]
+        assert not target.endswith(".py")
+        copied = tmp_path / "input-copy"
+        shutil.copyfile(M.ROOT / target, copied)
+
+        def resolver(relative):
+            return copied if relative == target else M.ROOT / relative
+
+        M.verify_document(doc, historical=True, source_resolver=resolver)
+        copied.write_bytes(copied.read_bytes() + b" ")
+        for historical in (True, False):
+>           with pytest.raises(M.FreezeError) as error:
+E           Failed: DID NOT RAISE FreezeError
+
+orchestrator/tests/test_s1_known_axes_freeze.py:1024: Failed
+----------------------------- Captured stderr call -----------------------------
+IZANAGI_FREEZE_HOLD {"check_id": "s1-known-axes.ccbench-submodule-head-pin", "decision": "freeze-verification-hold", "release_condition": "explicit-user-command-only", "ruling": "rulings-4th-batch-2026-08-12"}
+=========================== short test summary info ============================
+FAILED orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_input_copy_sha_and_existence_remain_bound
+1 failed, 6 passed in 4.82s
+IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}
+=== IZANAGI FAILURE DIGEST v1 BEGIN ===
+IZANAGI_FAILURE rank=1 category=failed when=call nodeid="orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_input_copy_sha_and_existence_remain_bound" nodeid_bytes=106 nodeid_omitted_bytes=0 source_bytes=921 retained_bytes=921 omitted_bytes=0 rendered_excerpt_bytes=964 sha256=6b6b3e38b5a00decee8653bf4e7cb30d18aec88f5628342343ec35daa2019054
+--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---
+> [gw2] linux -- Python 3.10.12 /bin/python3.10
+>
+> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_historical_input_copy_sha0')
+>
+>     def test_historical_input_copy_sha_and_existence_remain_bound(tmp_path):
+>         doc = _current_frozen_document()
+>         target = doc["entries"]["balanced"]["system_gate"]["sources"][0]["path"]
+>         assert not target.endswith(".py")
+>         copied = tmp_path / "input-copy"
+>         shutil.copyfile(M.ROOT / target, copied)
+>
+>         def resolver(relative):
+>             return copied if relative == target else M.ROOT / relative
+>
+>         M.verify_document(doc, historical=True, source_resolver=resolver)
+>         copied.write_bytes(copied.read_bytes() + b" ")
+>         for historical in (True, False):
+> >           with pytest.raises(M.FreezeError) as error:
+> E           Failed: DID NOT RAISE FreezeError
+>
+> orchestrator/tests/test_s1_known_axes_freeze.py:1024: Failed
+--- IZANAGI FAILURE EXCERPT rank=1 END ---
+IZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=921 retained_bytes=921 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1693 omitted_manifest_sha256=-
+=== IZANAGI FAILURE DIGEST v1 END ===

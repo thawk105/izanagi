@@ -1,0 +1,76 @@
+bringing up nodes...
+bringing up nodes...
+
+......F                                                                  [100%]
+=================================== FAILURES ===================================
+______ test_historical_measurement_and_calibration_keep_current_semantics ______
+[gw5] linux -- Python 3.10.12 /bin/python3.10
+
+    def test_historical_measurement_and_calibration_keep_current_semantics():
+        from orchestrator.campaign import s1_measurement_freeze as measurement
+        from orchestrator.campaign import s1_verify_extime_calibration as calibration
+
+        doc = _current_frozen_document()
+        assert measurement._verify_known_axes(M.FREEZE_PATH, None) == doc
+        assert calibration.validated_target(doc)["name"] == "g_rl"
+        builder = M.build_document
+        calls = []
+
+        def changed_builder(**kwargs):
+            rebuilt = builder(**kwargs)
+            # Outside read-heavy so the later calibration target check cannot mask it.
+            rebuilt["entries"]["balanced"]["backoff_fixed_best"]["flags"]["BACK_OFF"] += 1
+            calls.append(rebuilt)
+            return rebuilt
+
+        with mock.patch.object(M, "build_document", side_effect=changed_builder):
+            M.verify_document(doc, historical=True)
+            with pytest.raises(measurement.FreezeError) as error:
+                measurement._verify_known_axes(M.FREEZE_PATH, None)
+            assert str(error.value) == (
+                "known_axes_freeze 照合失敗: freeze JSON の内容が現行 generator による機械再構成と不一致")
+>           with pytest.raises(M.FreezeError, match="機械再構成と不一致"):
+E           Failed: DID NOT RAISE FreezeError
+
+orchestrator/tests/test_s1_known_axes_freeze.py:1130: Failed
+----------------------------- Captured stderr call -----------------------------
+IZANAGI_FREEZE_HOLD {"check_id": "s1-known-axes.ccbench-submodule-head-pin", "decision": "freeze-verification-hold", "release_condition": "explicit-user-command-only", "ruling": "rulings-4th-batch-2026-08-12"}
+=========================== short test summary info ============================
+FAILED orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_measurement_and_calibration_keep_current_semantics
+1 failed, 6 passed in 4.70s
+IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}
+=== IZANAGI FAILURE DIGEST v1 BEGIN ===
+IZANAGI_FAILURE rank=1 category=failed when=call nodeid="orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_measurement_and_calibration_keep_current_semantics" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=1488 retained_bytes=1488 omitted_bytes=0 rendered_excerpt_bytes=1640 sha256=60a494126971267cfd9b4a8260ad0aca9d9639f96733ed17e94459b1ae936844
+--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---
+> [gw5] linux -- Python 3.10.12 /bin/python3.10
+>
+>     def test_historical_measurement_and_calibration_keep_current_semantics():
+>         from orchestrator.campaign import s1_measurement_freeze as measurement
+>         from orchestrator.campaign import s1_verify_extime_calibration as calibration
+>
+>         doc = _current_frozen_document()
+>         assert measurement._verify_known_axes(M.FREEZE_PATH, None) == doc
+>         assert calibration.validated_target(doc)["name"] == "g_rl"
+>         builder = M.build_document
+>         calls = []
+>
+>         def changed_builder(**kwargs):
+>             rebuilt = builder(**kwargs)
+>             # Outside read-heavy so the later calibration target check cannot mask it.
+>             rebuilt["entries"]["balanced"]["backoff_fixed_best"]["flags"]["BACK_OFF"] += 1
+>             calls.append(rebuilt)
+>             return rebuilt
+>
+>         with mock.patch.object(M, "build_document", side_effect=changed_builder):
+>             M.verify_document(doc, historical=True)
+>             with pytest.raises(measurement.FreezeError) as error:
+>                 measurement._verify_known_axes(M.FREEZE_PATH, None)
+>             assert str(error.value) == (
+>                 "known_axes_freeze \u7167\u5408\u5931\u6557: freeze JSON \u306e\u5185\u5bb9\u304c\u73fe\u884c generator \u306b\u3088\u308b\u6a5f\u68b0\u518d\u69cb\u6210\u3068\u4e0d\u4e00\u81f4")
+> >           with pytest.raises(M.FreezeError, match="\u6a5f\u68b0\u518d\u69cb\u6210\u3068\u4e0d\u4e00\u81f4"):
+> E           Failed: DID NOT RAISE FreezeError
+>
+> orchestrator/tests/test_s1_known_axes_freeze.py:1130: Failed
+--- IZANAGI FAILURE EXCERPT rank=1 END ---
+IZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1488 retained_bytes=1488 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2383 omitted_manifest_sha256=-
+=== IZANAGI FAILURE DIGEST v1 END ===

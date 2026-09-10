@@ -1,0 +1,139 @@
+{
+  "restoration": "If added_final_newline is true remove the final LF, then append each removed_trailing suffix to its 1-based line. UTF-8 encode and compare original_bytes/original_sha256.",
+  "files": [
+    {
+      "name": "plan.md",
+      "original_sha256": "752a94df17bd1b1ba3127fc8df348ba263e6fe3126f1fc8367b51a10d8cb224f",
+      "original_bytes": 13028,
+      "normalized_sha256": "4035e765a24d9d80eb4869e93e699d4499619dd9693b18bb4854fc5bee2b1681",
+      "removed_trailing": [],
+      "added_final_newline": true
+    },
+    {
+      "name": "consult-sol.md",
+      "original_sha256": "5acc5d51eae8e817c3b00e1704d391df689940252a048464758f222f48a9724e",
+      "original_bytes": 5314,
+      "normalized_sha256": "ba5c961e68b3c5c4202ad8c13a8da4f50bc83544ae8f103e3f4090e78a2aff7a",
+      "removed_trailing": [],
+      "added_final_newline": true
+    },
+    {
+      "name": "consult-luna.md",
+      "original_sha256": "059b7b83bca6a3077548e54991d62174166a8aa1a55850b963b5d7a702128ed6",
+      "original_bytes": 5654,
+      "normalized_sha256": "85676bb81d84bd85bc1050a83cacc1a2e5d4f1bdf6e4b7f1aa998ecc1ee004e9",
+      "removed_trailing": [
+        {
+          "line": 25,
+          "suffix": "  "
+        }
+      ],
+      "added_final_newline": true
+    },
+    {
+      "name": "author.md",
+      "original_sha256": "7ab506e466a85c8c5d11b6220c1e717fa4d819f59116ed3c87c1adea995cbc47",
+      "original_bytes": 4699,
+      "normalized_sha256": "b21177fd78a69f759b1cc380cf32370928701fee61542aeb2dccf711b6564b53",
+      "removed_trailing": [
+        {
+          "line": 32,
+          "suffix": "  "
+        },
+        {
+          "line": 33,
+          "suffix": "  "
+        }
+      ],
+      "added_final_newline": true
+    },
+    {
+      "name": "review-a.md",
+      "original_sha256": "c601078fcf5089a0b97a5e657aaec9b30a863ce3e42a17390425986c475e286b",
+      "original_bytes": 2911,
+      "normalized_sha256": "aa1a6bc1d00bc644defe86fc00d3cf45c2b3e4aa4bc91a272099e9d91af31140",
+      "removed_trailing": [],
+      "added_final_newline": true
+    },
+    {
+      "name": "review-b.md",
+      "original_sha256": "af92efff408c66c65fe89605a33c23bc1a1ed7e0fd4ecda3315e641fba66a71b",
+      "original_bytes": 2692,
+      "normalized_sha256": "d22c613f4c60f589d617c210cc2541a4c5945531f14fd47066528688ac8df0d5",
+      "removed_trailing": [],
+      "added_final_newline": true
+    },
+    {
+      "name": "fix.md",
+      "original_sha256": "5d3fe77af4452f3700efdee2961532da833e57bd93cf462543598ef120c3bcaf",
+      "original_bytes": 2442,
+      "normalized_sha256": "2d07ba84e3d58243e48d5c0044a71df0955ae6ce14cdf8208344374cfac46c21",
+      "removed_trailing": [],
+      "added_final_newline": true
+    },
+    {
+      "name": "consumer-test-fix.md",
+      "original_sha256": "33ee09f84a87b88331b89ed8851f39eaf732b85f326386df78f78d80616387e9",
+      "original_bytes": 1896,
+      "normalized_sha256": "d7ef035617bb7b6e868d4e3e5ca65ef8401db8086a732959b04f29bab0876a93",
+      "removed_trailing": [],
+      "added_final_newline": true
+    },
+    {
+      "name": "focus.md",
+      "original_sha256": "83ce68a8e89bd5fb350b27a5db98944cf99a7ae958286f5790a614634ca3ff93",
+      "original_bytes": 2856,
+      "normalized_sha256": "87ff50c16ee6ffbe7dc30739cf2bea336210779413780948f375344daa2c3bd5",
+      "removed_trailing": [],
+      "added_final_newline": true
+    },
+    {
+      "name": "brief.md",
+      "original_sha256": "7c945f7575eb4b66cdc9b28a24ba89f4fa14bda44a414e79a1bac04564bdc498",
+      "original_bytes": 2942,
+      "normalized_sha256": "7c945f7575eb4b66cdc9b28a24ba89f4fa14bda44a414e79a1bac04564bdc498",
+      "removed_trailing": [],
+      "added_final_newline": false
+    },
+    {
+      "name": "authority.md",
+      "original_sha256": "4f654033ac177e22c12dd5320e68081a27b9d6d6ad88c15db6d70934d75534c1",
+      "original_bytes": 3673,
+      "normalized_sha256": "4f654033ac177e22c12dd5320e68081a27b9d6d6ad88c15db6d70934d75534c1",
+      "removed_trailing": [],
+      "added_final_newline": false
+    },
+    {
+      "name": "decision-v2.md",
+      "original_sha256": "554a545dd993fca5135ab66e08d11eb607d2478824cbac23300469d554197bf4",
+      "original_bytes": 5088,
+      "normalized_sha256": "554a545dd993fca5135ab66e08d11eb607d2478824cbac23300469d554197bf4",
+      "removed_trailing": [],
+      "added_final_newline": false
+    },
+    {
+      "name": "fix-decision.md",
+      "original_sha256": "e90b45437fbecd54fdeb74c74784e43358caa8cfd2e3ba1bd1a54a63804cfaa0",
+      "original_bytes": 1951,
+      "normalized_sha256": "e90b45437fbecd54fdeb74c74784e43358caa8cfd2e3ba1bd1a54a63804cfaa0",
+      "removed_trailing": [],
+      "added_final_newline": false
+    },
+    {
+      "name": "consumer-test-decision.md",
+      "original_sha256": "38a718892e2fb7e51fbef299841bd46675453d312f2a012b257454bb96088d72",
+      "original_bytes": 2422,
+      "normalized_sha256": "38a718892e2fb7e51fbef299841bd46675453d312f2a012b257454bb96088d72",
+      "removed_trailing": [],
+      "added_final_newline": false
+    },
+    {
+      "name": "preflight-observation.md",
+      "original_sha256": "5b7f7930f982073bc086f779f96a82fe8ffae366935cff8f1b4d2836c02d2775",
+      "original_bytes": 1153,
+      "normalized_sha256": "5b7f7930f982073bc086f779f96a82fe8ffae366935cff8f1b4d2836c02d2775",
+      "removed_trailing": [],
+      "added_final_newline": false
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+# 段1 brief — T-2527
+- 研究前進: S-1の既存測定記録の検証閲覧をコード改訂だけで拒否する欠陥を直し、旧結果の利用可能性と現行意味互換性を分離する。
+- 正本: authority.mdのD1936項22、絶対規律7、archive T-2527。D95 author必須・規律2不変。
+- scope: s1_known_axes_freeze.verify_document/verifyと既存consumerに必要な限定変更、直接の回帰検査。
+- 成果物: 旧artifactがbytes不変で閲覧でき、内容改竄/凍結入力の不一致を拒否し、現行主張の意味互換性を維持する実装と検査記録。
+- no-touch: 旧freeze/campaign/WAL/判定、trust roots、freeze_verification_holdの既存裁定、goldenの独立値、他wave所有ファイル。
+- 追加gate/台帳/一般化/互換frameworkは要求の成立に不要なら作らない。次wave/push/改善実装なし。
+- 起動時重複: 登録済みClaude/Codex worktreeのmain...HEADおよびHEAD対dirty実ファイルで候補集合との重複0。T-2262/T-2341/T-1851 D2を含む。
+- 変更アンカー: orchestrator/campaign/s1_known_axes_freeze.py:864 verify_document、:943 verify、:735 build_document(出力bytes変更を目的にしない)。
+- consumerアンカー: s1_measurement_freeze.py:160 _verify_known_axes、s1_verify_extime_calibration.py:229 validated_target、s8b_oracle_driver.py:509 known-axes verification。
+- 他の参照: t080_freeze_migration.pyの旧artifact固定root/履歴検証、s8b_holdout_freeze.pyのknown_axes入力束縛は維持。consumer取り残しを調べる。
+- 実物: 旧known_axes SHA256 354f4b875a3c8106169252afc71cee1fd08df83b0f3024c72bda0a791e11f516。
+- 実物: 測定WAL/provenance/文書sourceはlive一致、code source6ファイルとgeneratorは乖離。現行generator比較が先に拒否する。初版の7件はgenerator込みと混同した親の誤記で訂正。
+- 既知: frozen_at_headはD71既知のdangling。e5dfa84c6のgenerator blobは記録SHAと一致。frozen_at_headを実在するsource closureと捏造しない。
+- (P1) 親のprovisional裁定・攻撃対象: 過去記録閲覧は歴史的内容の完全性と入力束縛で、現行利用は既存の構成/述語/flagsの意味照合で成立させる。方法はplanで最小化。
+- 比較の一律撤去は不可。generator/source識別子の改竄も許す単なる除外は不可。新規生成物の検証経路も確認する。
+- 受入: Pegasus02、tools/run_tests.py経由の関連検査、変異matrix、独立レビュー2本、全走、docs/agents/provenance検査。測定はしない。
+- 分割: plan1→相談2→親裁定→author1(変更面が小さく一枚岩)→レビュー2→必要fix→受入/記録/main land。
+- 旧artifactは再発行しない。現行generatorのソースが変わることで新規出力のgenerator識別子が変わるのは記録上当然だが、旧bytesを追随させない。

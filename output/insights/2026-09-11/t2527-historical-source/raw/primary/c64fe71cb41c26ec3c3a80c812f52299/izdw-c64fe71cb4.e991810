@@ -1,0 +1,16 @@
+警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+
+============================================================
+Request ID:             991810.nqsv
+Request Name:           izdw-c64fe71cb4
+Queue:                  gen_S@nqsv
+Number of Jobs:         1
+User Name:              tanab
+Group Name:             SFC
+Created Request Time:   Fri Sep 11 06:44:04 2026
+Started Request Time:   Fri Sep 11 06:44:11 2026
+Ended Request Time:     Fri Sep 11 06:44:17 2026
+Resources Information:
+  Elapse:               10S
+  Remaining Elapse:     3590S
+============================================================

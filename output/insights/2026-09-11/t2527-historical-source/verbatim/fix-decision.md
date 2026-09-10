@@ -1,0 +1,13 @@
+# R1局所fix裁定
+- review-a/bのR1をreal・scope内・採用とする。旧bytesと非コード凍結入力が同一でも、値を照合しない歴史コードの存在だけで閲覧を拒否している。
+- 修正はknown_historicalかつhistoricalの6種codeに限定し、resolver/is_file/hashより前で読み取り対象から外す。現行consumer/未知文書の入力検証は維持する。
+- 既知旧documentで使用しないgenerator hash読取りも、実際に比較する分岐へ移す。
+- 非コード入力のresolver・存在・hash拒否、現行意味照合、全既存golden/hold/期待値は不変。
+- 一枚岩: 同じverify_documentの分岐とその直接テストだけなので、既存author単位へfixを戻す。
+- 受理: 旧実物は歴史コードを解決できなくても、非コード凍結入力が正しければhistorical閲覧を許す。
+- 拒否: 非コード入力の改竄/不存在、新規文書の不整合、現行利用の意味不一致は引き続き拒否する。
+- 新規testを1件追加し、旧実物＋6種code pathだけ非存在resolverの公開API正例を確認。generator不要readも同じtestで、実sha関数のwrapを使い値を捏造せず未呼出しを確認してよい。
+- M7事前登録: code読取り除外の条件を無効化し、この正例だけが存在拒否で落ちることを確認する。M1はgenerator live比較の再導入のまま、新anchorを報告する。
+- M6oracleはdiagnostic sensitivityで、最終allowed反転のkillには数えない。検査を緩めてoracle全体を通す追加機構は作らない。
+- 親の初回単独ファイル実走は49passed/9skipped、計算ノード991726.nqsv(51.86s)。先行bounded localは予約capでOOMしrunnerが自動dispatchした。通過したのはdispatch後の走行。
+- 既存skippedの解除・追加なし。以後の親focusはforce-dispatchで場所を確定させる。

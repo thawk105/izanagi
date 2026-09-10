@@ -1,0 +1,199 @@
+bringing up nodes...
+bringing up nodes...
+
+.F                                                                       [100%]
+=================================== FAILURES ===================================
+_______ test_never_issued_generator_tamper_reaches_public_driver_gate_g7 _______
+[gw1] linux -- Python 3.10.12 /bin/python3.10
+
+tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_never_issued_generator_ta0')
+
+    def test_never_issued_generator_tamper_reaches_public_driver_gate_g7(tmp_path):
+        root, _receipt_path, _document = _t080_stub_free_e2e_repo(
+            tmp_path, issue_receipt=False,
+        )
+        freeze = json.loads((root / migration.HOLDOUT_REL).read_text(encoding="utf-8"))
+
+        def historical_bytes(relative: str, expected: str) -> bytes:
+            commits = _run_git(ROOT, "log", "--format=%H", "--", relative).splitlines()
+            for commit in commits:
+                completed = subprocess.run(
+                    ["git", "show", f"{commit}:{relative}"], cwd=ROOT,
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                    env=_sanitized_git_env(),
+                )
+                if (completed.returncode == 0
+                        and hashlib.sha256(completed.stdout).hexdigest() == expected):
+                    return completed.stdout
+            raise AssertionError(f"recorded bytes が Git 履歴にない: {relative} {expected}")
+
+        for field in ("design_source", "generator"):
+            record = freeze[field]
+            target = root / record["path"]
+            target.write_bytes(historical_bytes(record["path"], record["sha256"]))
+        known = json.loads((root / migration.KNOWN_AXES_REL).read_text(encoding="utf-8"))
+        # ROOT identifies live modules/reconstruction; root resolves copied inputs.
+        # Releasing the shared hold also checks the live ccbench pin, independently
+        # of the historical code-source differences accepted by D1936 item 22.
+        actual_pin = _run_git(ROOT / "external/ccbench", "rev-parse", "HEAD")
+        assert actual_pin != known["ccbench_pin"]
+        known_pin_refusal = (
+            "known-axes-freeze-verify: FreezeError: ccbench_pin 不一致: "
+            f"recorded={known['ccbench_pin']} actual={actual_pin}"
+        )
+        generator = root / freeze["generator"]["path"]
+        generator.write_bytes(generator.read_bytes() + b"# driver-gate-generator-tamper\n")
+        generator_refusal = (
+            "holdout-freeze-verify: FreezeError: generator sha256 不一致: "
+            f"recorded={freeze['generator']['sha256']} "
+            f"actual={hashlib.sha256(generator.read_bytes()).hexdigest()}"
+        )
+
+        verifier_sentinel = "t080-holdout-verifier-sentinel"
+        with mock.patch.object(
+                driver.s8b_holdout_freeze, "verify",
+                side_effect=driver.s8b_holdout_freeze.FreezeError(verifier_sentinel),
+                ) as sentinel_verify:
+            sentinel_decision = driver.gate_check(
+                freeze_path=root / migration.HOLDOUT_REL, root=root,
+            )
+        assert sentinel_verify.call_args_list == [
+            mock.call(root / migration.HOLDOUT_REL, root=root),
+        ]
+
+        holdout_verify = driver.s8b_holdout_freeze.verify
+        with mock.patch.object(
+                driver.s8b_holdout_freeze, "verify", wraps=holdout_verify,
+                ) as verify_witness:
+            decision = driver.gate_check(
+                freeze_path=root / migration.HOLDOUT_REL, root=root,
+            )
+            with mock.patch.object(
+                    driver.s8b_holdout_freeze._freeze_hold, "HELD", False):
+                released = driver.gate_check(
+                    freeze_path=root / migration.HOLDOUT_REL, root=root,
+                )
+
+        # Held positive control: live known-axes semantic reconstruction succeeds;
+        # only the existing floor/budget prerequisites refuse the public gate.
+        assert decision.allowed is False
+        _assert_exact_refusals(decision.refusals, {
+            _FLOOR_REFUSAL,
+            _BUDGET_REFUSAL,
+        })
+
+        assert released.allowed is False
+        # M8: disabling the holdout generator check must remove generator_refusal
+        # and fail this exact set, even though floor/budget still forbid execution.
+>       _assert_exact_refusals(released.refusals, {
+            known_pin_refusal,
+            generator_refusal,
+            _FLOOR_REFUSAL,
+            _BUDGET_REFUSAL,
+        })
+
+orchestrator/tests/test_s8b_oracle_driver.py:4452:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+actual = ['holdout-freeze-verify: FreezeError: frozen_at_head が現行 HEAD の commit ancestor でない: 2e20d441aaf7ae267e941ecda09e4b530...tual=511c9538e4e8efa54b45cda62e72389ed3b706ec', 'floor-null: freeze.floor が null', 'budget-null: freeze.budget が null']
+expected = {'budget-null: freeze.budget が null', 'floor-null: freeze.floor が null', 'holdout-freeze-verify: FreezeError: generato...r: ccbench_pin 不一致: recorded=d706650cdb31e442bef45b9b4216951d4fb40969 actual=511c9538e4e8efa54b45cda62e72389ed3b706ec'}
+
+    def _assert_exact_refusals(actual, expected: set[str]) -> None:
+        """refusal 集合の完全一致を要求する。
+
+        len も比較するため、同一 refusal の重複追加も検出する
+        (set 比較だけでは重複を落としてしまう)。
+        """
+        assert len(actual) == len(expected), actual
+>       assert set(actual) == expected, actual
+E       AssertionError: ['holdout-freeze-verify: FreezeError: frozen_at_head が現行 HEAD の commit ancestor でない: 2e20d441aaf7ae267e941ecda09e4b530...tual=511c9538e4e8efa54b45cda62e72389ed3b706ec', 'floor-null: freeze.floor が null', 'budget-null: freeze.budget が null']
+E       assert {'budget-null...389ed3b706ec'} == {'budget-null...389ed3b706ec'}
+E
+E         Extra items in the left set:
+E         'holdout-freeze-verify: FreezeError: frozen_at_head が現行 HEAD の commit ancestor でない: 2e20d441aaf7ae267e941ecda09e4b53050943cf'
+E         Extra items in the right set:
+E         'holdout-freeze-verify: FreezeError: generator sha256 不一致: recorded=1910fff38edf0e58f5bff221c29660a8f85dd0ed1b5c980234ec1af098584e5f actual=2ee02f455c1adfd45cad2641594d65f8f35ccfda89e225616f17caa0ca55a25b'
+E         Use -v to get more diff
+
+orchestrator/tests/test_s8b_oracle_driver.py:288: AssertionError
+----------------------------- Captured stderr call -----------------------------
+IZANAGI_FREEZE_HOLD {"check_id": "s1-known-axes.ccbench-submodule-head-pin", "decision": "freeze-verification-hold", "release_condition": "explicit-user-command-only", "ruling": "rulings-4th-batch-2026-08-12"}
+IZANAGI_FREEZE_HOLD {"check_id": "s8b-holdout.design_source-implementation-bytes", "decision": "freeze-verification-hold", "release_condition": "explicit-user-command-only", "ruling": "rulings-4th-batch-2026-08-12"}
+IZANAGI_FREEZE_HOLD {"check_id": "s8b-holdout.known_axes_freeze-implementation-bytes", "decision": "freeze-verification-hold", "release_condition": "explicit-user-command-only", "ruling": "rulings-4th-batch-2026-08-12"}
+IZANAGI_FREEZE_HOLD {"check_id": "s8b-holdout.generator-implementation-bytes", "decision": "freeze-verification-hold", "release_condition": "explicit-user-command-only", "ruling": "rulings-4th-batch-2026-08-12"}
+IZANAGI_FREEZE_HOLD {"check_id": "s8b-holdout.frozen-head-current-head", "decision": "freeze-verification-hold", "release_condition": "explicit-user-command-only", "ruling": "rulings-4th-batch-2026-08-12"}
+=========================== short test summary info ============================
+FAILED orchestrator/tests/test_s8b_oracle_driver.py::test_never_issued_generator_tamper_reaches_public_driver_gate_g7
+1 failed, 1 passed in 45.63s
+IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}
+=== IZANAGI FAILURE DIGEST v1 BEGIN ===
+IZANAGI_FAILURE rank=1 category=failed when=call nodeid="orchestrator/tests/test_s8b_oracle_driver.py::test_never_issued_generator_tamper_reaches_public_driver_gate_g7" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=6240 retained_bytes=3716 omitted_bytes=2524 rendered_excerpt_bytes=4096 sha256=900572eaa399dda481988ca7e7e166dc122430606758b42dba290767bc76764a
+--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---
+>             driver.s8b_holdout_freeze, "verify",
+>                 side_effect=driver.s8b_holdout_freeze.FreezeError(verifier_sentinel),
+>                 ) as sentinel_verify:
+>             sentinel_decision = driver.gate_check(
+>                 freeze_path=root / migration.HOLDOUT_REL, root=root,
+>             )
+>         assert sentinel_verify.call_args_list == [
+>             mock.call(root / migration.HOLDOUT_REL, root=root),
+>         ]
+>
+>         holdout_verify = driver.s8b_holdout_freeze.verify
+>         with mock.patch.object(
+>                 driver.s8b_holdout_freeze, "verify", wraps=holdout_verify,
+>                 ) as verify_witness:
+>             decision = driver.gate_check(
+>                 freeze_path=root / migration.HOLDOUT_REL, root=root,
+>             )
+>             with mock.patch.object(
+>                     driver.s8b_holdout_freeze._freeze_hold, "HELD", False):
+>                 released = driver.gate_check(
+>                     freeze_path=root / migration.HOLDOUT_REL, root=root,
+>                 )
+>
+>         # Held positive control: live known-axes semantic reconstruction succeeds;
+>         # only the existing floor/budget prerequisites refuse the public gate.
+>         assert decision.allowed is False
+>         _assert_exact_refusals(decision.refusals, {
+>             _FLOOR_REFUSAL,
+>             _BUDGET_REFUSAL,
+>         })
+>
+>         assert released.allowed is False
+>         # M8: disabling the holdout generator check must remove generator_refusal
+>         # and fail this exact set, even though floor/budget still forbid execution.
+> >       _assert_exact_refusals(released.refusals, {
+>             known_pin_refusal,
+>             generator_refusal,
+>             _FLOOR_REFUSAL,
+>             _BUDGET_REFUSAL,
+>         })
+>
+> orchestrator/tests/test_s8b_oracle_driver.py:4452:
+> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+>
+> actual = ['holdout-freeze-verify: FreezeError: frozen_at_head \u304c\u73fe\u884c HEAD \u306e commit ancestor \u3067\u306a\u3044: 2e20d441aaf7ae267e941ecda09e4b530...tual=511c9538e4e8efa54b45cda62e72389ed3b706ec', 'floor-null: freeze.floor \u304c null', 'budget-null: freeze.budget \u304c null']
+> expected = {'budget-null: freeze.budget \u304c null', 'floor-null: freeze.floor \u304c null', 'holdout-freeze-verify: FreezeError: generato...r: ccbench_pin \u4e0d\u4e00\u81f4: recorded=d706650cdb31e442bef45b9b4216951d4fb40969 actual=511c9538e4e8efa54b45cda62e72389ed3b706ec'}
+>
+>     def _assert_exact_refusals(actual, expected: set[str]) -> None:
+>         """refusal \u96c6\u5408\u306e\u5b8c\u5168\u4e00\u81f4\u3092\u8981\u6c42\u3059\u308b\u3002
+>
+>         len \u3082\u6bd4\u8f03\u3059\u308b\u305f\u3081\u3001\u540c\u4e00 refusal \u306e\u91cd\u8907\u8ffd\u52a0\u3082\u691c\u51fa\u3059\u308b
+>         (set \u6bd4\u8f03\u3060\u3051\u3067\u306f\u91cd\u8907\u3092\u843d\u3068\u3057\u3066\u3057\u307e\u3046)\u3002
+>         """
+>         assert len(actual) == len(expected), actual
+> >       assert set(actual) == expected, actual
+> E       AssertionError: ['holdout-freeze-verify: FreezeError: frozen_at_head \u304c\u73fe\u884c HEAD \u306e commit ancestor \u3067\u306a\u3044: 2e20d441aaf7ae267e941ecda09e4b530...tual=511c9538e4e8efa54b45cda62e72389ed3b706ec', 'floor-null: freeze.floor \u304c null', 'budget-null: freeze.budget \u304c null']
+> E       assert {'budget-null...389ed3b706ec'} == {'budget-null...389ed3b706ec'}
+> E
+> E         Extra items in the left set:
+> E         'holdout-freeze-verify: FreezeError: frozen_at_head \u304c\u73fe\u884c HEAD \u306e commit ancestor \u3067\u306a\u3044: 2e20d441aaf7ae267e941ecda09e4b53050943cf'
+> E         Extra items in the right set:
+> E         'holdout-freeze-verify: FreezeError: generator sha256 \u4e0d\u4e00\u81f4: recorded=1910fff38edf0e58f5bff221c29660a8f85dd0ed1b5c980234ec1af098584e5f actual=2ee02f455c1adfd45cad2641594d65f8f35ccfda89e225616f17caa0ca55a25b'
+> E         Use -v to get more diff
+>
+> orchestrator/tests/test_s8b_oracle_driver.py:288: AssertionError
+--- IZANAGI FAILURE EXCERPT rank=1 END ---
+IZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=6240 retained_bytes=3716 omitted_bytes=2524 budget_bytes=49152 rendered_bytes=4840 omitted_manifest_sha256=-
+=== IZANAGI FAILURE DIGEST v1 END ===

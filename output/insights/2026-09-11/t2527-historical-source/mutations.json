@@ -1,0 +1,143 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 180,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 120,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_known_axes_freeze.py",
+          "old": "    if not known_historical:\n        actual_generator = _sha256(ROOT / SCRIPT_REL)",
+          "new": "    if True:\n        actual_generator = _sha256(ROOT / SCRIPT_REL)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_real_artifact_is_readable",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_input_copy_sha_and_existence_remain_bound",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_current_use_rejects_single_flags_difference",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_current_use_preserves_source_key_comparison",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_measurement_and_calibration_keep_current_semantics",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_real_artifact_without_live_code_reads"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_known_axes_freeze.py",
+          "old": "known_historical = hashlib.sha256(raw).hexdigest() == KNOWN_AXES_RAW_SHA256",
+          "new": "known_historical = True"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_content_and_identifiers_are_bound"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_known_axes_freeze.py",
+          "old": "if actual != expected and not (known_historical and path_rel in _HISTORICAL_CODE_PATHS):",
+          "new": "if actual != expected and not known_historical:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_input_copy_sha_and_existence_remain_bound"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_known_axes_freeze.py",
+          "old": "if doc != expected_doc:",
+          "new": "if not known_historical and doc != expected_doc:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_current_use_rejects_single_flags_difference",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_current_use_preserves_source_key_comparison",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_measurement_and_calibration_keep_current_semantics"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_known_axes_freeze.py",
+          "old": "current[\"sha256\"] = recorded[\"sha256\"]",
+          "new": "current.clear(); current.update(recorded)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_current_use_preserves_source_key_comparison"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-measurement",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_measurement_freeze.py",
+          "old": "known_axes.verify_document(doc, source_resolver=source_resolver)",
+          "new": "known_axes.verify_document(doc, source_resolver=source_resolver, historical=True)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_measurement_and_calibration_keep_current_semantics"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-calibration",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_verify_extime_calibration.py",
+          "old": "verifier = verify_fn or s1_known_axes_freeze.verify_document",
+          "new": "verifier = verify_fn or (lambda doc: s1_known_axes_freeze.verify_document(doc, historical=True))"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_measurement_and_calibration_keep_current_semantics"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_known_axes_freeze.py",
+          "old": "if known_historical and historical and path_rel in _HISTORICAL_CODE_PATHS:",
+          "new": "if False:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_real_artifact_without_live_code_reads"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

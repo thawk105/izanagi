@@ -1,0 +1,242 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c60356bd4331519e29104afb8ac73051/izdw-c60356bd43.o991827",
+      "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c60356bd4331519e29104afb8ac73051/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n..                                                                       [100%]\n2 passed in 49.57s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "b660baa92f0f6946da529a562ac2fcd14268672a788098e17ee645134f5971f1"
+    },
+    "artifact_error": null,
+    "collection_sha256": "6284f78f915774b3fcb3bf3e9ab62d2427b9324271ec2669e0b150ef0992d1fa",
+    "duration_s": 72.947,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "ff772c618b708a08fd645add6987014093e4d4abe5cae31605d7d980b69bc3da",
+    "repo_head": "50a38ca37500ed555404cee3257a56e3f2881e57",
+    "runner_sha256": "47ba7500ce99f43b01cc455c63082ee54f763317b1b8d125ec924a204b64f235",
+    "spec_sha256": "06599108e5187233f8a2f70fc0ea2bc1d2f51f768b732656fd471fdd54d5dab3",
+    "status": "PASSED",
+    "test_output_sha256": "b660baa92f0f6946da529a562ac2fcd14268672a788098e17ee645134f5971f1",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "6ab8ac6f51796af7a7b3570199d7f705d463901a4e67f235c34825989e4e1049"
+  },
+  "date": "2026-09-10T22:04:22.562368+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/90e88248a23f0e45136b0540f960cfae/izdw-90e88248a2.o991831",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/90e88248a23f0e45136b0540f960cfae/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\nF.                                                                       [100%]\n=================================== FAILURES ===================================\n_________ test_historical_oracle_nonadapter_reaches_current_semantics __________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_historical_oracle_nonadapter_reaches_current_semantics():\n        from orchestrator.campaign import s8b_oracle_driver as oracle\n        from orchestrator.campaign import t080_freeze_migration as migration\n    \n        # The real old holdout still has unrelated refusals; this is a known-axes\n        # call-site control, not a successful oracle run or an unheld artifact.\n        loaded = oracle._load_verified_freeze(oracle.DEFAULT_FREEZE_PATH)\n        resolution = migration.ReceiptResolution(\n            state=\"absent\", refusals=(),\n            t080_freeze_migration_observation=None, validation_head=\"\")\n        kwargs = dict(\n            freeze_path=oracle.DEFAULT_FREEZE_PATH, root=M.ROOT,\n            t080_resolution=resolution, approved_spec=None,\n            manifest_verification_error=None, standalone_manifest_verification=True,\n            verified=loaded)\n        assert oracle._t080_adapter_refusals(\n            resolution=resolution, freeze=loaded.document, freeze_sha256=loaded.sha256,\n            freeze_path=oracle.DEFAULT_FREEZE_PATH, root=M.ROOT) is None\n        with mock.patch.object(M, \"verify\", wraps=M.verify) as verifier:\n            baseline = oracle._gate_check_core(**kwargs)\n        assert verifier.call_count == 1\n        assert not any(r.startswith(\"known-axes-freeze-verify:\") for r in baseline.refusals)\n        assert not baseline.allowed  # unrelated old holdout refusal is not hidden\n        builder = M.build_document\n        calls = []\n    \n        def changed_builder(**options):\n            rebuilt = builder(**options)\n            rebuilt[\"entries\"][\"balanced\"][\"backoff_fixed_best\"][\"flags\"][\"BACK_OFF\"] += 1\n            calls.append(rebuilt)\n            return rebuilt\n    \n        with mock.patch.object(M, \"build_document\", side_effect=changed_builder):\n            M.verify(historical=True)\n            changed = oracle._gate_check_core(**kwargs)\n        expected = (\n            \"known-axes-freeze-verify: FreezeError: \"\n            \"freeze JSON の内容が現行 generator による機械再構成と不一致\")\n>       assert [r for r in changed.refusals if r.startswith(\"known-axes-freeze-verify:\")] == [expected]\nE       AssertionError: assert [] == ['known-axes-...による機械再構成と不一致']\nE         \nE         Right contains one more item: 'known-axes-freeze-verify: FreezeError: freeze JSON の内容が現行 generator による機械再構成と不一致'\nE         Use -v to get more diff\n\norchestrator/tests/test_s1_known_axes_freeze.py:1173: AssertionError\n----------------------------- Captured stderr call -----------------------------\nIZANAGI_FREEZE_HOLD {\"check_id\": \"s8b-holdout.design_source-implementation-bytes\", \"decision\": \"freeze-verification-hold\", \"release_condition\": \"explicit-user-command-only\", \"ruling\": \"rulings-4th-batch-2026-08-12\"}\nIZANAGI_FREEZE_HOLD {\"check_id\": \"s8b-holdout.known_axes_freeze-implementation-bytes\", \"decision\": \"freeze-verification-hold\", \"release_condition\": \"explicit-user-command-only\", \"ruling\": \"rulings-4th-batch-2026-08-12\"}\nIZANAGI_FREEZE_HOLD {\"check_id\": \"s8b-holdout.generator-implementation-bytes\", \"decision\": \"freeze-verification-hold\", \"release_condition\": \"explicit-user-command-only\", \"ruling\": \"rulings-4th-batch-2026-08-12\"}\nIZANAGI_FREEZE_HOLD {\"check_id\": \"s8b-holdout.frozen-head-current-head\", \"decision\": \"freeze-verification-hold\", \"release_condition\": \"explicit-user-command-only\", \"ruling\": \"rulings-4th-batch-2026-08-12\"}\nIZANAGI_FREEZE_HOLD {\"check_id\": \"s1-known-axes.ccbench-submodule-head-pin\", \"decision\": \"freeze-verification-hold\", \"release_condition\": \"explicit-user-command-only\", \"ruling\": \"rulings-4th-batch-2026-08-12\"}\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_oracle_nonadapter_reaches_current_semantics\n1 failed, 1 passed in 44.87s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_oracle_nonadapter_reaches_current_semantics\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=2594 retained_bytes=2594 omitted_bytes=0 rendered_excerpt_bytes=2833 sha256=83bddae7f1acd0bdd3ca2972b5c18b91c6c5cd32d55f1c46a8fa6ae86f16babf\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_historical_oracle_nonadapter_reaches_current_semantics():\n>         from orchestrator.campaign import s8b_oracle_driver as oracle\n>         from orchestrator.campaign import t080_freeze_migration as migration\n>     \n>         # The real old holdout still has unrelated refusals; this is a known-axes\n>         # call-site control, not a successful oracle run or an unheld artifact.\n>         loaded = oracle._load_verified_freeze(oracle.DEFAULT_FREEZE_PATH)\n>         resolution = migration.ReceiptResolution(\n>             state=\"absent\", refusals=(),\n>             t080_freeze_migration_observation=None, validation_head=\"\")\n>         kwargs = dict(\n>             freeze_path=oracle.DEFAULT_FREEZE_PATH, root=M.ROOT,\n>             t080_resolution=resolution, approved_spec=None,\n>             manifest_verification_error=None, standalone_manifest_verification=True,\n>             verified=loaded)\n>         assert oracle._t080_adapter_refusals(\n>             resolution=resolution, freeze=loaded.document, freeze_sha256=loaded.sha256,\n>             freeze_path=oracle.DEFAULT_FREEZE_PATH, root=M.ROOT) is None\n>         with mock.patch.object(M, \"verify\", wraps=M.verify) as verifier:\n>             baseline = oracle._gate_check_core(**kwargs)\n>         assert verifier.call_count == 1\n>         assert not any(r.startswith(\"known-axes-freeze-verify:\") for r in baseline.refusals)\n>         assert not baseline.allowed  # unrelated old holdout refusal is not hidden\n>         builder = M.build_document\n>         calls = []\n>     \n>         def changed_builder(**options):\n>             rebuilt = builder(**options)\n>             rebuilt[\"entries\"][\"balanced\"][\"backoff_fixed_best\"][\"flags\"][\"BACK_OFF\"] += 1\n>             calls.append(rebuilt)\n>             return rebuilt\n>     \n>         with mock.patch.object(M, \"build_document\", side_effect=changed_builder):\n>             M.verify(historical=True)\n>             changed = oracle._gate_check_core(**kwargs)\n>         expected = (\n>             \"known-axes-freeze-verify: FreezeError: \"\n>             \"freeze JSON \\u306e\\u5185\\u5bb9\\u304c\\u73fe\\u884c generator \\u306b\\u3088\\u308b\\u6a5f\\u68b0\\u518d\\u69cb\\u6210\\u3068\\u4e0d\\u4e00\\u81f4\")\n> >       assert [r for r in changed.refusals if r.startswith(\"known-axes-freeze-verify:\")] == [expected]\n> E       AssertionError: assert [] == ['known-axes-...\\u306b\\u3088\\u308b\\u6a5f\\u68b0\\u518d\\u69cb\\u6210\\u3068\\u4e0d\\u4e00\\u81f4']\n> E         \n> E         Right contains one more item: 'known-axes-freeze-verify: FreezeError: freeze JSON \\u306e\\u5185\\u5bb9\\u304c\\u73fe\\u884c generator \\u306b\\u3088\\u308b\\u6a5f\\u68b0\\u518d\\u69cb\\u6210\\u3068\\u4e0d\\u4e00\\u81f4'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_s1_known_axes_freeze.py:1173: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2594 retained_bytes=2594 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3569 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "01feb3fa43d5edee46f9000507a1f469ab2e0379b14a712c6221a7468ce3cec5"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "6284f78f915774b3fcb3bf3e9ab62d2427b9324271ec2669e0b150ef0992d1fa",
+      "duration_s": 88.08,
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_oracle_nonadapter_reaches_current_semantics"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_oracle_nonadapter_reaches_current_semantics"
+      ],
+      "hang_risk": false,
+      "id": "M6-oracle-diagnostic",
+      "injection_diff_sha256": "474d45e9cf3c098572fcd4a6dc71baaf5f899a4bf278536f243bd446fe728e07",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "48cefd0a35c0d58005a0f49afe54ebe6664d6817c23c0caee779dde7f32c3362",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_driver.py",
+          "new": "            s1_known_axes_freeze.verify(\n                known_path, source_resolver=lambda relative: root / relative, historical=True,\n            )",
+          "old": "            s1_known_axes_freeze.verify(\n                known_path, source_resolver=lambda relative: root / relative,\n            )"
+        }
+      ],
+      "repo_head": "50a38ca37500ed555404cee3257a56e3f2881e57",
+      "runner_sha256": "47ba7500ce99f43b01cc455c63082ee54f763317b1b8d125ec924a204b64f235",
+      "spec_sha256": "06599108e5187233f8a2f70fc0ea2bc1d2f51f768b732656fd471fdd54d5dab3",
+      "status": "KILLED",
+      "test_output_sha256": "01feb3fa43d5edee46f9000507a1f469ab2e0379b14a712c6221a7468ce3cec5",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "6ab8ac6f51796af7a7b3570199d7f705d463901a4e67f235c34825989e4e1049"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/8dc827fa9a97ef59585afc76a68b0efb/izdw-8dc827fa9a.o991832",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/8dc827fa9a97ef59585afc76a68b0efb/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.F                                                                       [100%]\n=================================== FAILURES ===================================\n_______ test_never_issued_generator_tamper_reaches_public_driver_gate_g7 _______\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_never_issued_generator_ta0')\n\n    def test_never_issued_generator_tamper_reaches_public_driver_gate_g7(tmp_path):\n        root, _receipt_path, _document = _t080_stub_free_e2e_repo(\n            tmp_path, issue_receipt=False,\n        )\n        freeze = json.loads((root / migration.HOLDOUT_REL).read_text(encoding=\"utf-8\"))\n    \n        def historical_bytes(relative: str, expected: str) -> bytes:\n            commits = _run_git(ROOT, \"log\", \"--format=%H\", \"--\", relative).splitlines()\n            for commit in commits:\n                completed = subprocess.run(\n                    [\"git\", \"show\", f\"{commit}:{relative}\"], cwd=ROOT,\n                    stdout=subprocess.PIPE, stderr=subprocess.PIPE,\n                    env=_sanitized_git_env(),\n                )\n                if (completed.returncode == 0\n                        and hashlib.sha256(completed.stdout).hexdigest() == expected):\n                    return completed.stdout\n            raise AssertionError(f\"recorded bytes が Git 履歴にない: {relative} {expected}\")\n    \n        for field in (\"design_source\", \"generator\"):\n            record = freeze[field]\n            target = root / record[\"path\"]\n            target.write_bytes(historical_bytes(record[\"path\"], record[\"sha256\"]))\n        known = json.loads((root / migration.KNOWN_AXES_REL).read_text(encoding=\"utf-8\"))\n        # ROOT identifies live modules/reconstruction; root resolves copied inputs.\n        # Releasing the shared hold also checks the live ccbench pin, independently\n        # of the historical code-source differences accepted by D1936 item 22.\n        actual_pin = _run_git(ROOT / \"external/ccbench\", \"rev-parse\", \"HEAD\")\n        assert actual_pin != known[\"ccbench_pin\"]\n        known_pin_refusal = (\n            \"known-axes-freeze-verify: FreezeError: ccbench_pin 不一致: \"\n            f\"recorded={known['ccbench_pin']} actual={actual_pin}\"\n        )\n        generator = root / freeze[\"generator\"][\"path\"]\n        generator.write_bytes(generator.read_bytes() + b\"# driver-gate-generator-tamper\\n\")\n        generator_refusal = (\n            \"holdout-freeze-verify: FreezeError: generator sha256 不一致: \"\n            f\"recorded={freeze['generator']['sha256']} \"\n            f\"actual={hashlib.sha256(generator.read_bytes()).hexdigest()}\"\n        )\n    \n        verifier_sentinel = \"t080-holdout-verifier-sentinel\"\n        with mock.patch.object(\n                driver.s8b_holdout_freeze, \"verify\",\n                side_effect=driver.s8b_holdout_freeze.FreezeError(verifier_sentinel),\n                ) as sentinel_verify:\n            sentinel_decision = driver.gate_check(\n                freeze_path=root / migration.HOLDOUT_REL, root=root,\n            )\n        assert sentinel_verify.call_args_list == [\n            mock.call(root / migration.HOLDOUT_REL, root=root),\n        ]\n    \n        holdout_verify = driver.s8b_holdout_freeze.verify\n        with mock.patch.object(\n                driver.s8b_holdout_freeze, \"verify\", wraps=holdout_verify,\n                ) as verify_witness:\n            decision = driver.gate_check(\n                freeze_path=root / migration.HOLDOUT_REL, root=root,\n            )\n            with mock.patch.object(\n                    driver.s8b_holdout_freeze._freeze_hold, \"HELD\", False):\n                released = driver.gate_check(\n                    freeze_path=root / migration.HOLDOUT_REL, root=root,\n                )\n    \n        # Held positive control: live known-axes semantic reconstruction succeeds;\n        # only the existing floor/budget prerequisites refuse the public gate.\n        assert decision.allowed is False\n        _assert_exact_refusals(decision.refusals, {\n            _FLOOR_REFUSAL,\n            _BUDGET_REFUSAL,\n        })\n    \n        assert released.allowed is False\n        # M8: disabling the holdout generator check must remove generator_refusal\n        # and fail this exact set, even though floor/budget still forbid execution.\n>       _assert_exact_refusals(released.refusals, {\n            known_pin_refusal,\n            generator_refusal,\n            _FLOOR_REFUSAL,\n            _BUDGET_REFUSAL,\n        })\n\norchestrator/tests/test_s8b_oracle_driver.py:4452: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nactual = ['holdout-freeze-verify: FreezeError: frozen_at_head が現行 HEAD の commit ancestor でない: 2e20d441aaf7ae267e941ecda09e4b530...tual=511c9538e4e8efa54b45cda62e72389ed3b706ec', 'floor-null: freeze.floor が null', 'budget-null: freeze.budget が null']\nexpected = {'budget-null: freeze.budget が null', 'floor-null: freeze.floor が null', 'holdout-freeze-verify: FreezeError: generato...r: ccbench_pin 不一致: recorded=d706650cdb31e442bef45b9b4216951d4fb40969 actual=511c9538e4e8efa54b45cda62e72389ed3b706ec'}\n\n    def _assert_exact_refusals(actual, expected: set[str]) -> None:\n        \"\"\"refusal 集合の完全一致を要求する。\n    \n        len も比較するため、同一 refusal の重複追加も検出する\n        (set 比較だけでは重複を落としてしまう)。\n        \"\"\"\n        assert len(actual) == len(expected), actual\n>       assert set(actual) == expected, actual\nE       AssertionError: ['holdout-freeze-verify: FreezeError: frozen_at_head が現行 HEAD の commit ancestor でない: 2e20d441aaf7ae267e941ecda09e4b530...tual=511c9538e4e8efa54b45cda62e72389ed3b706ec', 'floor-null: freeze.floor が null', 'budget-null: freeze.budget が null']\nE       assert {'budget-null...389ed3b706ec'} == {'budget-null...389ed3b706ec'}\nE         \nE         Extra items in the left set:\nE         'holdout-freeze-verify: FreezeError: frozen_at_head が現行 HEAD の commit ancestor でない: 2e20d441aaf7ae267e941ecda09e4b53050943cf'\nE         Extra items in the right set:\nE         'holdout-freeze-verify: FreezeError: generator sha256 不一致: recorded=1910fff38edf0e58f5bff221c29660a8f85dd0ed1b5c980234ec1af098584e5f actual=2ee02f455c1adfd45cad2641594d65f8f35ccfda89e225616f17caa0ca55a25b'\nE         Use -v to get more diff\n\norchestrator/tests/test_s8b_oracle_driver.py:288: AssertionError\n----------------------------- Captured stderr call -----------------------------\nIZANAGI_FREEZE_HOLD {\"check_id\": \"s1-known-axes.ccbench-submodule-head-pin\", \"decision\": \"freeze-verification-hold\", \"release_condition\": \"explicit-user-command-only\", \"ruling\": \"rulings-4th-batch-2026-08-12\"}\nIZANAGI_FREEZE_HOLD {\"check_id\": \"s8b-holdout.design_source-implementation-bytes\", \"decision\": \"freeze-verification-hold\", \"release_condition\": \"explicit-user-command-only\", \"ruling\": \"rulings-4th-batch-2026-08-12\"}\nIZANAGI_FREEZE_HOLD {\"check_id\": \"s8b-holdout.known_axes_freeze-implementation-bytes\", \"decision\": \"freeze-verification-hold\", \"release_condition\": \"explicit-user-command-only\", \"ruling\": \"rulings-4th-batch-2026-08-12\"}\nIZANAGI_FREEZE_HOLD {\"check_id\": \"s8b-holdout.generator-implementation-bytes\", \"decision\": \"freeze-verification-hold\", \"release_condition\": \"explicit-user-command-only\", \"ruling\": \"rulings-4th-batch-2026-08-12\"}\nIZANAGI_FREEZE_HOLD {\"check_id\": \"s8b-holdout.frozen-head-current-head\", \"decision\": \"freeze-verification-hold\", \"release_condition\": \"explicit-user-command-only\", \"ruling\": \"rulings-4th-batch-2026-08-12\"}\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_oracle_driver.py::test_never_issued_generator_tamper_reaches_public_driver_gate_g7\n1 failed, 1 passed in 45.63s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_oracle_driver.py::test_never_issued_generator_tamper_reaches_public_driver_gate_g7\" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=6240 retained_bytes=3716 omitted_bytes=2524 rendered_excerpt_bytes=4096 sha256=900572eaa399dda481988ca7e7e166dc122430606758b42dba290767bc76764a\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n>             driver.s8b_holdout_freeze, \"verify\",\n>                 side_effect=driver.s8b_holdout_freeze.FreezeError(verifier_sentinel),\n>                 ) as sentinel_verify:\n>             sentinel_decision = driver.gate_check(\n>                 freeze_path=root / migration.HOLDOUT_REL, root=root,\n>             )\n>         assert sentinel_verify.call_args_list == [\n>             mock.call(root / migration.HOLDOUT_REL, root=root),\n>         ]\n>     \n>         holdout_verify = driver.s8b_holdout_freeze.verify\n>         with mock.patch.object(\n>                 driver.s8b_holdout_freeze, \"verify\", wraps=holdout_verify,\n>                 ) as verify_witness:\n>             decision = driver.gate_check(\n>                 freeze_path=root / migration.HOLDOUT_REL, root=root,\n>             )\n>             with mock.patch.object(\n>                     driver.s8b_holdout_freeze._freeze_hold, \"HELD\", False):\n>                 released = driver.gate_check(\n>                     freeze_path=root / migration.HOLDOUT_REL, root=root,\n>                 )\n>     \n>         # Held positive control: live known-axes semantic reconstruction succeeds;\n>         # only the existing floor/budget prerequisites refuse the public gate.\n>         assert decision.allowed is False\n>         _assert_exact_refusals(decision.refusals, {\n>             _FLOOR_REFUSAL,\n>             _BUDGET_REFUSAL,\n>         })\n>     \n>         assert released.allowed is False\n>         # M8: disabling the holdout generator check must remove generator_refusal\n>         # and fail this exact set, even though floor/budget still forbid execution.\n> >       _assert_exact_refusals(released.refusals, {\n>             known_pin_refusal,\n>             generator_refusal,\n>             _FLOOR_REFUSAL,\n>             _BUDGET_REFUSAL,\n>         })\n> \n> orchestrator/tests/test_s8b_oracle_driver.py:4452: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> actual = ['holdout-freeze-verify: FreezeError: frozen_at_head \\u304c\\u73fe\\u884c HEAD \\u306e commit ancestor \\u3067\\u306a\\u3044: 2e20d441aaf7ae267e941ecda09e4b530...tual=511c9538e4e8efa54b45cda62e72389ed3b706ec', 'floor-null: freeze.floor \\u304c null', 'budget-null: freeze.budget \\u304c null']\n> expected = {'budget-null: freeze.budget \\u304c null', 'floor-null: freeze.floor \\u304c null', 'holdout-freeze-verify: FreezeError: generato...r: ccbench_pin \\u4e0d\\u4e00\\u81f4: recorded=d706650cdb31e442bef45b9b4216951d4fb40969 actual=511c9538e4e8efa54b45cda62e72389ed3b706ec'}\n> \n>     def _assert_exact_refusals(actual, expected: set[str]) -> None:\n>         \"\"\"refusal \\u96c6\\u5408\\u306e\\u5b8c\\u5168\\u4e00\\u81f4\\u3092\\u8981\\u6c42\\u3059\\u308b\\u3002\n>     \n>         len \\u3082\\u6bd4\\u8f03\\u3059\\u308b\\u305f\\u3081\\u3001\\u540c\\u4e00 refusal \\u306e\\u91cd\\u8907\\u8ffd\\u52a0\\u3082\\u691c\\u51fa\\u3059\\u308b\n>         (set \\u6bd4\\u8f03\\u3060\\u3051\\u3067\\u306f\\u91cd\\u8907\\u3092\\u843d\\u3068\\u3057\\u3066\\u3057\\u307e\\u3046)\\u3002\n>         \"\"\"\n>         assert len(actual) == len(expected), actual\n> >       assert set(actual) == expected, actual\n> E       AssertionError: ['holdout-freeze-verify: FreezeError: frozen_at_head \\u304c\\u73fe\\u884c HEAD \\u306e commit ancestor \\u3067\\u306a\\u3044: 2e20d441aaf7ae267e941ecda09e4b530...tual=511c9538e4e8efa54b45cda62e72389ed3b706ec', 'floor-null: freeze.floor \\u304c null', 'budget-null: freeze.budget \\u304c null']\n> E       assert {'budget-null...389ed3b706ec'} == {'budget-null...389ed3b706ec'}\n> E         \n> E         Extra items in the left set:\n> E         'holdout-freeze-verify: FreezeError: frozen_at_head \\u304c\\u73fe\\u884c HEAD \\u306e commit ancestor \\u3067\\u306a\\u3044: 2e20d441aaf7ae267e941ecda09e4b53050943cf'\n> E         Extra items in the right set:\n> E         'holdout-freeze-verify: FreezeError: generator sha256 \\u4e0d\\u4e00\\u81f4: recorded=1910fff38edf0e58f5bff221c29660a8f85dd0ed1b5c980234ec1af098584e5f actual=2ee02f455c1adfd45cad2641594d65f8f35ccfda89e225616f17caa0ca55a25b'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_s8b_oracle_driver.py:288: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=6240 retained_bytes=3716 omitted_bytes=2524 budget_bytes=49152 rendered_bytes=4840 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "b3992d66bcb61556007f786ab31876ec42504d138530b3ffecbe3e6af4822ead"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "6284f78f915774b3fcb3bf3e9ab62d2427b9324271ec2669e0b150ef0992d1fa",
+      "duration_s": 88.229,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_never_issued_generator_tamper_reaches_public_driver_gate_g7"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_never_issued_generator_tamper_reaches_public_driver_gate_g7"
+      ],
+      "hang_risk": false,
+      "id": "M8-generator-diagnostic",
+      "injection_diff_sha256": "8c29bafca47e3d34edab5a591ebfcf25155f3fdb19c45e075bbcf3732af26d05",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "80ea6908f13becba05486598d10f84c68fa3480ad3888f5b2474e3a9776d7078",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_freeze.py",
+          "new": "        pass  # M8: generator input check removed",
+          "old": "        _verify_source(doc, \"generator\", root, SCRIPT_REL)"
+        }
+      ],
+      "repo_head": "50a38ca37500ed555404cee3257a56e3f2881e57",
+      "runner_sha256": "47ba7500ce99f43b01cc455c63082ee54f763317b1b8d125ec924a204b64f235",
+      "spec_sha256": "06599108e5187233f8a2f70fc0ea2bc1d2f51f768b732656fd471fdd54d5dab3",
+      "status": "KILLED",
+      "test_output_sha256": "b3992d66bcb61556007f786ab31876ec42504d138530b3ffecbe3e6af4822ead",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "6ab8ac6f51796af7a7b3570199d7f705d463901a4e67f235c34825989e4e1049"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/9e3d525af64bb0ce830f5d886b0ce982/izdw-9e3d525af6.o991823",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/9e3d525af64bb0ce830f5d886b0ce982/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_oracle_nonadapter_reaches_current_semantics\norchestrator/tests/test_s8b_oracle_driver.py::test_never_issued_generator_tamper_reaches_public_driver_gate_g7\n\n2 tests collected in 1.89s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "f22da5f9c5debe230969b1ff2f90c0db47f245d815e7eaaf087f86cffe1e5cc3"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_oracle_nonadapter_reaches_current_semantics",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_never_issued_generator_tamper_reaches_public_driver_gate_g7"
+      ],
+      "duration_s": 42.215,
+      "rc": 0,
+      "repo_head": "50a38ca37500ed555404cee3257a56e3f2881e57",
+      "runner_sha256": "47ba7500ce99f43b01cc455c63082ee54f763317b1b8d125ec924a204b64f235",
+      "spec_sha256": "06599108e5187233f8a2f70fc0ea2bc1d2f51f768b732656fd471fdd54d5dab3",
+      "status": "PASSED",
+      "tool_sha256": "6ab8ac6f51796af7a7b3570199d7f705d463901a4e67f235c34825989e4e1049"
+    },
+    "hang_timeout_seconds": 120.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M6-oracle-diagnostic": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_oracle_nonadapter_reaches_current_semantics"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "474d45e9cf3c098572fcd4a6dc71baaf5f899a4bf278536f243bd446fe728e07",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8b_oracle_driver.py",
+            "new": "            s1_known_axes_freeze.verify(\n                known_path, source_resolver=lambda relative: root / relative, historical=True,\n            )",
+            "old": "            s1_known_axes_freeze.verify(\n                known_path, source_resolver=lambda relative: root / relative,\n            )"
+          }
+        ]
+      },
+      "M8-generator-diagnostic": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_oracle_driver.py::test_never_issued_generator_tamper_reaches_public_driver_gate_g7"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "8c29bafca47e3d34edab5a591ebfcf25155f3fdb19c45e075bbcf3732af26d05",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8b_holdout_freeze.py",
+            "new": "        pass  # M8: generator input check removed",
+            "old": "        _verify_source(doc, \"generator\", root, SCRIPT_REL)"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "ff772c618b708a08fd645add6987014093e4d4abe5cae31605d7d980b69bc3da",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-q",
+      "-rf",
+      "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_oracle_nonadapter_reaches_current_semantics",
+      "orchestrator/tests/test_s8b_oracle_driver.py::test_never_issued_generator_tamper_reaches_public_driver_gate_g7",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 900.0
+  },
+  "repo_head": "50a38ca37500ed555404cee3257a56e3f2881e57",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-q",
+      "-rf",
+      "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_oracle_nonadapter_reaches_current_semantics",
+      "orchestrator/tests/test_s8b_oracle_driver.py::test_never_issued_generator_tamper_reaches_public_driver_gate_g7",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "c93a924ecbc48435180bbb21455e3ff9a33b5595",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "47ba7500ce99f43b01cc455c63082ee54f763317b1b8d125ec924a204b64f235",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "06599108e5187233f8a2f70fc0ea2bc1d2f51f768b732656fd471fdd54d5dab3",
+  "summary": {
+    "KILLED": 2,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 2,
+    "matching": 2,
+    "recorded": 2,
+    "registered": 2
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "6ab8ac6f51796af7a7b3570199d7f705d463901a4e67f235c34825989e4e1049",
+  "updated_at": "2026-09-10T22:08:47.929697+00:00"
+}

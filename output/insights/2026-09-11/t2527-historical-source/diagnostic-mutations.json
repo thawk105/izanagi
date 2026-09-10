@@ -1,0 +1,40 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 180,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 120,
+  "mutations": [
+    {
+      "id": "M6-oracle-diagnostic",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_driver.py",
+          "old": "            s1_known_axes_freeze.verify(\n                known_path, source_resolver=lambda relative: root / relative,\n            )",
+          "new": "            s1_known_axes_freeze.verify(\n                known_path, source_resolver=lambda relative: root / relative, historical=True,\n            )"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_oracle_nonadapter_reaches_current_semantics"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8-generator-diagnostic",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_freeze.py",
+          "old": "        _verify_source(doc, \"generator\", root, SCRIPT_REL)",
+          "new": "        pass  # M8: generator input check removed"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_never_issued_generator_tamper_reaches_public_driver_gate_g7"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

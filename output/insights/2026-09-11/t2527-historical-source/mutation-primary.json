@@ -1,0 +1,644 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/4b470c3c72b307d1fad1b50ec2403569/izdw-4b470c3c72.o991803",
+      "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/4b470c3c72b307d1fad1b50ec2403569/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n.......                                                                  [100%]\n7 passed in 4.79s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "b2887ad1f26f151bf07de2c234f8398da75add6cc5a10ee6ce3d062acab139cd"
+    },
+    "artifact_error": null,
+    "collection_sha256": "c1b77563618795d87eff7867661bfed8505a5e7715207d2e65b2b949d5c19131",
+    "duration_s": 27.477,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "e3e3a5405729aad6911c1fafbbfef9229a7cb82f45f29c30685f91f4974c6669",
+    "repo_head": "50a38ca37500ed555404cee3257a56e3f2881e57",
+    "runner_sha256": "4af753626c60ed2f1ef9716f8ec2d698bdaa052da890c2e5610ef987493831b1",
+    "spec_sha256": "7670c16ac0bfbd4e689691710c2dbd868d5c13106586e40f82f36989862797ad",
+    "status": "PASSED",
+    "test_output_sha256": "b2887ad1f26f151bf07de2c234f8398da75add6cc5a10ee6ce3d062acab139cd",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "6ab8ac6f51796af7a7b3570199d7f705d463901a4e67f235c34825989e4e1049"
+  },
+  "date": "2026-09-10T21:39:56.272937+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/11f00cfe2a731a88bbab604d5613a3ab/izdw-11f00cfe2a.o991804",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/11f00cfe2a731a88bbab604d5613a3ab/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.FFFFFF                                                                  [100%]\n=================================== FAILURES ===================================\n_________ test_historical_current_use_preserves_source_key_comparison __________\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_historical_current_use_preserves_source_key_comparison():\n        doc = _current_frozen_document()\n>       M.verify_document(doc)\n\norchestrator/tests/test_s1_known_axes_freeze.py:1088: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/s1_known_axes_freeze.py:879: in verify_document\n    return _verify_document(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ndoc = {'what': 'S-1 既知軸基準点 + 系側構成の凍結 (D52 §2.1 の実体化)', 'frozen_at_head': '2066ce6b47c6a5d43ca2c8ab3cc7728d32336be1', 'ccbenc.../campaign/s1_known_axes_freeze.py', 'sha256': '1d4d45a3de4926c6aae76906f7b4b72d3fead51e9cdf62ff03f80a0379c364e0'}, ...}\nhistorical = False\nraw = b'{\\n  \"what\": \"S-1 \\xe6\\x97\\xa2\\xe7\\x9f\\xa5\\xe8\\xbb\\xb8\\xe5\\x9f\\xba\\xe6\\xba\\x96\\xe7\\x82\\xb9 + \\xe7\\xb3\\xbb\\xe5\\x81\\xb...e5\\xae\\x9f\\xe6\\xb8\\xac\\xe3\\x81\\xaf\\xe5\\x8f\\x82\\xe8\\x80\\x83\\xe4\\xbd\\xb5\\xe8\\xa8\\x98 \\xe2\\x80\\x94 D52 \\xc2\\xa72.1)\"\\n}\\n'\nsource_resolver = None\n\n    def _verify_document(doc: Mapping, *, historical: bool, raw: bytes,\n                         source_resolver: Optional[Callable[[str], Path]] = None\n                        ) -> Tuple[Mapping[str, object], ...]:\n        held_checks: List[Mapping[str, object]] = []\n        # Reuse the existing root only to identify this historical document; this\n        # does not execute or release the held T-080 artifact check.\n        from .t080_freeze_migration import KNOWN_AXES_RAW_SHA256\n    \n        known_historical = hashlib.sha256(raw).hexdigest() == KNOWN_AXES_RAW_SHA256\n        if not (known_historical and historical):\n            _validate_schema(doc)\n        generator_doc = doc[\"generator\"]\n        if generator_doc[\"path\"] != SCRIPT_REL:\n            raise FreezeError(f\"generator.path 不一致: {generator_doc['path']}\")\n        if True:\n            actual_generator = _sha256(ROOT / SCRIPT_REL)\n            if generator_doc[\"sha256\"] != actual_generator:\n>               raise FreezeError(\n                    f\"generator sha256 不一致: recorded={generator_doc['sha256']} actual={actual_generator}\")\nE               orchestrator.campaign.s1_known_axes_freeze.FreezeError: generator sha256 不一致: recorded=1d4d45a3de4926c6aae76906f7b4b72d3fead51e9cdf62ff03f80a0379c364e0 actual=e84d7f373ff4013c17eecefbffb92074911bdbbf48163f1e815c0785edb6342e\n\norchestrator/campaign/s1_known_axes_freeze.py:900: FreezeError\n____________ test_historical_real_artifact_without_live_code_reads _____________\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_historical_real_artifact_0')\n\n    def test_historical_real_artifact_without_live_code_reads(tmp_path):\n        original = M.FREEZE_PATH.read_bytes()\n        doc = json.loads(original)\n        code_paths = {\n            \"orchestrator/campaign/axis_trigger_gating.py\",\n            \"orchestrator/campaign/s8a_trigger_sweep.py\",\n            \"orchestrator/campaign/genome.py\",\n            \"orchestrator/campaign/backoff_sweep.py\",\n            \"orchestrator/campaign/s6_sort_sweep.py\",\n            \"orchestrator/campaign/p3_s4_loop_sort.py\",\n        }\n        assert {s[\"path\"] for s in M._iter_sources(doc)\n                if s[\"path\"].endswith(\".py\")} == code_paths\n        missing = tmp_path / \"missing-code\"\n        assert not missing.exists()\n    \n        def resolver(relative):\n            return missing if relative in code_paths else M.ROOT / relative\n    \n        resolve = mock.Mock(wraps=resolver)\n        with mock.patch.object(M, \"_sha256\", wraps=M._sha256) as sha:\n            # Both public APIs must accept the unchanged historical artifact.\n>           result = M.verify(historical=True, source_resolver=resolve)\n\norchestrator/tests/test_s1_known_axes_freeze.py:942: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/s1_known_axes_freeze.py:993: in verify\n    held_checks = _verify_document(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ndoc = {'what': 'S-1 既知軸基準点 + 系側構成の凍結 (D52 §2.1 の実体化)', 'frozen_at_head': '2066ce6b47c6a5d43ca2c8ab3cc7728d32336be1', 'ccbenc.../campaign/s1_known_axes_freeze.py', 'sha256': '1d4d45a3de4926c6aae76906f7b4b72d3fead51e9cdf62ff03f80a0379c364e0'}, ...}\nhistorical = True\nraw = b'{\\n  \"what\": \"S-1 \\xe6\\x97\\xa2\\xe7\\x9f\\xa5\\xe8\\xbb\\xb8\\xe5\\x9f\\xba\\xe6\\xba\\x96\\xe7\\x82\\xb9 + \\xe7\\xb3\\xbb\\xe5\\x81\\xb...e5\\xae\\x9f\\xe6\\xb8\\xac\\xe3\\x81\\xaf\\xe5\\x8f\\x82\\xe8\\x80\\x83\\xe4\\xbd\\xb5\\xe8\\xa8\\x98 \\xe2\\x80\\x94 D52 \\xc2\\xa72.1)\"\\n}\\n'\nsource_resolver = <Mock id='23092988451936'>\n\n    def _verify_document(doc: Mapping, *, historical: bool, raw: bytes,\n                         source_resolver: Optional[Callable[[str], Path]] = None\n                        ) -> Tuple[Mapping[str, object], ...]:\n        held_checks: List[Mapping[str, object]] = []\n        # Reuse the existing root only to identify this historical document; this\n        # does not execute or release the held T-080 artifact check.\n        from .t080_freeze_migration import KNOWN_AXES_RAW_SHA256\n    \n        known_historical = hashlib.sha256(raw).hexdigest() == KNOWN_AXES_RAW_SHA256\n        if not (known_historical and historical):\n            _validate_schema(doc)\n        generator_doc = doc[\"generator\"]\n        if generator_doc[\"path\"] != SCRIPT_REL:\n            raise FreezeError(f\"generator.path 不一致: {generator_doc['path']}\")\n        if True:\n            actual_generator = _sha256(ROOT / SCRIPT_REL)\n            if generator_doc[\"sha256\"] != actual_generator:\n>               raise FreezeError(\n                    f\"generator sha256 不一致: recorded={generator_doc['sha256']} actual={actual_generator}\")\nE               orchestrator.campaign.s1_known_axes_freeze.FreezeError: generator sha256 不一致: recorded=1d4d45a3de4926c6aae76906f7b4b72d3fead51e9cdf62ff03f80a0379c364e0 actual=e84d7f373ff4013c17eecefbffb92074911bdbbf48163f1e815c0785edb6342e\n\norchestrator/campaign/s1_known_axes_freeze.py:900: FreezeError\n_________ test_historical_current_use_rejects_single_flags_difference __________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_historical_current_use_rejects_single_flags_difference():\n        doc = _current_frozen_document()\n>       M.verify_document(doc)\n\norchestrator/tests/test_s1_known_axes_freeze.py:1067: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/s1_known_axes_freeze.py:879: in verify_document\n    return _verify_document(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ndoc = {'what': 'S-1 既知軸基準点 + 系側構成の凍結 (D52 §2.1 の実体化)', 'frozen_at_head': '2066ce6b47c6a5d43ca2c8ab3cc7728d32336be1', 'ccbenc.../campaign/s1_known_axes_freeze.py', 'sha256': '1d4d45a3de4926c6aae76906f7b4b72d3fead51e9cdf62ff03f80a0379c364e0'}, ...}\nhistorical = False\nraw = b'{\\n  \"what\": \"S-1 \\xe6\\x97\\xa2\\xe7\\x9f\\xa5\\xe8\\xbb\\xb8\\xe5\\x9f\\xba\\xe6\\xba\\x96\\xe7\\x82\\xb9 + \\xe7\\xb3\\xbb\\xe5\\x81\\xb...e5\\xae\\x9f\\xe6\\xb8\\xac\\xe3\\x81\\xaf\\xe5\\x8f\\x82\\xe8\\x80\\x83\\xe4\\xbd\\xb5\\xe8\\xa8\\x98 \\xe2\\x80\\x94 D52 \\xc2\\xa72.1)\"\\n}\\n'\nsource_resolver = None\n\n    def _verify_document(doc: Mapping, *, historical: bool, raw: bytes,\n                         source_resolver: Optional[Callable[[str], Path]] = None\n                        ) -> Tuple[Mapping[str, object], ...]:\n        held_checks: List[Mapping[str, object]] = []\n        # Reuse the existing root only to identify this historical document; this\n        # does not execute or release the held T-080 artifact check.\n        from .t080_freeze_migration import KNOWN_AXES_RAW_SHA256\n    \n        known_historical = hashlib.sha256(raw).hexdigest() == KNOWN_AXES_RAW_SHA256\n        if not (known_historical and historical):\n            _validate_schema(doc)\n        generator_doc = doc[\"generator\"]\n        if generator_doc[\"path\"] != SCRIPT_REL:\n            raise FreezeError(f\"generator.path 不一致: {generator_doc['path']}\")\n        if True:\n            actual_generator = _sha256(ROOT / SCRIPT_REL)\n            if generator_doc[\"sha256\"] != actual_generator:\n>               raise FreezeError(\n                    f\"generator sha256 不一致: recorded={generator_doc['sha256']} actual={actual_generator}\")\nE               orchestrator.campaign.s1_known_axes_freeze.FreezeError: generator sha256 不一致: recorded=1d4d45a3de4926c6aae76906f7b4b72d3fead51e9cdf62ff03f80a0379c364e0 actual=e84d7f373ff4013c17eecefbffb92074911bdbbf48163f1e815c0785edb6342e\n\norchestrator/campaign/s1_known_axes_freeze.py:900: FreezeError\n__________________ test_historical_real_artifact_is_readable ___________________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_historical_real_artifact_is_readable():\n        original = M.FREEZE_PATH.read_bytes()\n        doc = json.loads(original)\n>       result = M.verify(historical=True)\n\norchestrator/tests/test_s1_known_axes_freeze.py:911: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/s1_known_axes_freeze.py:993: in verify\n    held_checks = _verify_document(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ndoc = {'what': 'S-1 既知軸基準点 + 系側構成の凍結 (D52 §2.1 の実体化)', 'frozen_at_head': '2066ce6b47c6a5d43ca2c8ab3cc7728d32336be1', 'ccbenc.../campaign/s1_known_axes_freeze.py', 'sha256': '1d4d45a3de4926c6aae76906f7b4b72d3fead51e9cdf62ff03f80a0379c364e0'}, ...}\nhistorical = True\nraw = b'{\\n  \"what\": \"S-1 \\xe6\\x97\\xa2\\xe7\\x9f\\xa5\\xe8\\xbb\\xb8\\xe5\\x9f\\xba\\xe6\\xba\\x96\\xe7\\x82\\xb9 + \\xe7\\xb3\\xbb\\xe5\\x81\\xb...e5\\xae\\x9f\\xe6\\xb8\\xac\\xe3\\x81\\xaf\\xe5\\x8f\\x82\\xe8\\x80\\x83\\xe4\\xbd\\xb5\\xe8\\xa8\\x98 \\xe2\\x80\\x94 D52 \\xc2\\xa72.1)\"\\n}\\n'\nsource_resolver = None\n\n    def _verify_document(doc: Mapping, *, historical: bool, raw: bytes,\n                         source_resolver: Optional[Callable[[str], Path]] = None\n                        ) -> Tuple[Mapping[str, object], ...]:\n        held_checks: List[Mapping[str, object]] = []\n        # Reuse the existing root only to identify this historical document; this\n        # does not execute or release the held T-080 artifact check.\n        from .t080_freeze_migration import KNOWN_AXES_RAW_SHA256\n    \n        known_historical = hashlib.sha256(raw).hexdigest() == KNOWN_AXES_RAW_SHA256\n        if not (known_historical and historical):\n            _validate_schema(doc)\n        generator_doc = doc[\"generator\"]\n        if generator_doc[\"path\"] != SCRIPT_REL:\n            raise FreezeError(f\"generator.path 不一致: {generator_doc['path']}\")\n        if True:\n            actual_generator = _sha256(ROOT / SCRIPT_REL)\n            if generator_doc[\"sha256\"] != actual_generator:\n>               raise FreezeError(\n                    f\"generator sha256 不一致: recorded={generator_doc['sha256']} actual={actual_generator}\")\nE               orchestrator.campaign.s1_known_axes_freeze.FreezeError: generator sha256 不一致: recorded=1d4d45a3de4926c6aae76906f7b4b72d3fead51e9cdf62ff03f80a0379c364e0 actual=e84d7f373ff4013c17eecefbffb92074911bdbbf48163f1e815c0785edb6342e\n\norchestrator/campaign/s1_known_axes_freeze.py:900: FreezeError\n__________ test_historical_input_copy_sha_and_existence_remain_bound ___________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_historical_input_copy_sha0')\n\n    def test_historical_input_copy_sha_and_existence_remain_bound(tmp_path):\n        doc = _current_frozen_document()\n        target = doc[\"entries\"][\"balanced\"][\"system_gate\"][\"sources\"][0][\"path\"]\n        assert not target.endswith(\".py\")\n        copied = tmp_path / \"input-copy\"\n        shutil.copyfile(M.ROOT / target, copied)\n    \n        def resolver(relative):\n            return copied if relative == target else M.ROOT / relative\n    \n>       M.verify_document(doc, historical=True, source_resolver=resolver)\n\norchestrator/tests/test_s1_known_axes_freeze.py:1021: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/s1_known_axes_freeze.py:879: in verify_document\n    return _verify_document(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ndoc = {'what': 'S-1 既知軸基準点 + 系側構成の凍結 (D52 §2.1 の実体化)', 'frozen_at_head': '2066ce6b47c6a5d43ca2c8ab3cc7728d32336be1', 'ccbenc.../campaign/s1_known_axes_freeze.py', 'sha256': '1d4d45a3de4926c6aae76906f7b4b72d3fead51e9cdf62ff03f80a0379c364e0'}, ...}\nhistorical = True\nraw = b'{\\n  \"what\": \"S-1 \\xe6\\x97\\xa2\\xe7\\x9f\\xa5\\xe8\\xbb\\xb8\\xe5\\x9f\\xba\\xe6\\xba\\x96\\xe7\\x82\\xb9 + \\xe7\\xb3\\xbb\\xe5\\x81\\xb...e5\\xae\\x9f\\xe6\\xb8\\xac\\xe3\\x81\\xaf\\xe5\\x8f\\x82\\xe8\\x80\\x83\\xe4\\xbd\\xb5\\xe8\\xa8\\x98 \\xe2\\x80\\x94 D52 \\xc2\\xa72.1)\"\\n}\\n'\nsource_resolver = <function test_historical_input_copy_sha_and_existence_remain_bound.<locals>.resolver at 0x147d9afc39a0>\n\n    def _verify_document(doc: Mapping, *, historical: bool, raw: bytes,\n                         source_resolver: Optional[Callable[[str], Path]] = None\n                        ) -> Tuple[Mapping[str, object], ...]:\n        held_checks: List[Mapping[str, object]] = []\n        # Reuse the existing root only to identify this historical document; this\n        # does not execute or release the held T-080 artifact check.\n        from .t080_freeze_migration import KNOWN_AXES_RAW_SHA256\n    \n        known_historical = hashlib.sha256(raw).hexdigest() == KNOWN_AXES_RAW_SHA256\n        if not (known_historical and historical):\n            _validate_schema(doc)\n        generator_doc = doc[\"generator\"]\n        if generator_doc[\"path\"] != SCRIPT_REL:\n            raise FreezeError(f\"generator.path 不一致: {generator_doc['path']}\")\n        if True:\n            actual_generator = _sha256(ROOT / SCRIPT_REL)\n            if generator_doc[\"sha256\"] != actual_generator:\n>               raise FreezeError(\n                    f\"generator sha256 不一致: recorded={generator_doc['sha256']} actual={actual_generator}\")\nE               orchestrator.campaign.s1_known_axes_freeze.FreezeError: generator sha256 不一致: recorded=1d4d45a3de4926c6aae76906f7b4b72d3fead51e9cdf62ff03f80a0379c364e0 actual=e84d7f373ff4013c17eecefbffb92074911bdbbf48163f1e815c0785edb6342e\n\norchestrator/campaign/s1_known_axes_freeze.py:900: FreezeError\n______ test_historical_measurement_and_calibration_keep_current_semantics ______\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\npath = PosixPath('/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/s1-freeze/known_axes_freeze.json')\nsource_resolver = None\n\n    def _verify_known_axes(path: Path,\n                           source_resolver: Optional[Callable[[str], Path]]) -> Dict:\n        doc = _load_json(path)\n        try:\n>           held_checks = known_axes.verify_document(doc, source_resolver=source_resolver)\n\norchestrator/campaign/s1_measurement_freeze.py:164: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/s1_known_axes_freeze.py:879: in verify_document\n    return _verify_document(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ndoc = {'what': 'S-1 既知軸基準点 + 系側構成の凍結 (D52 §2.1 の実体化)', 'frozen_at_head': '2066ce6b47c6a5d43ca2c8ab3cc7728d32336be1', 'ccbenc.../campaign/s1_known_axes_freeze.py', 'sha256': '1d4d45a3de4926c6aae76906f7b4b72d3fead51e9cdf62ff03f80a0379c364e0'}, ...}\nhistorical = False\nraw = b'{\\n  \"what\": \"S-1 \\xe6\\x97\\xa2\\xe7\\x9f\\xa5\\xe8\\xbb\\xb8\\xe5\\x9f\\xba\\xe6\\xba\\x96\\xe7\\x82\\xb9 + \\xe7\\xb3\\xbb\\xe5\\x81\\xb...e5\\xae\\x9f\\xe6\\xb8\\xac\\xe3\\x81\\xaf\\xe5\\x8f\\x82\\xe8\\x80\\x83\\xe4\\xbd\\xb5\\xe8\\xa8\\x98 \\xe2\\x80\\x94 D52 \\xc2\\xa72.1)\"\\n}\\n'\nsource_resolver = None\n\n    def _verify_document(doc: Mapping, *, historical: bool, raw: bytes,\n                         source_resolver: Optional[Callable[[str], Path]] = None\n                        ) -> Tuple[Mapping[str, object], ...]:\n        held_checks: List[Mapping[str, object]] = []\n        # Reuse the existing root only to identify this historical document; this\n        # does not execute or release the held T-080 artifact check.\n        from .t080_freeze_migration import KNOWN_AXES_RAW_SHA256\n    \n        known_historical = hashlib.sha256(raw).hexdigest() == KNOWN_AXES_RAW_SHA256\n        if not (known_historical and historical):\n            _validate_schema(doc)\n        generator_doc = doc[\"generator\"]\n        if generator_doc[\"path\"] != SCRIPT_REL:\n            raise FreezeError(f\"generator.path 不一致: {generator_doc['path']}\")\n        if True:\n            actual_generator = _sha256(ROOT / SCRIPT_REL)\n            if generator_doc[\"sha256\"] != actual_generator:\n>               raise FreezeError(\n                    f\"generator sha256 不一致: recorded={generator_doc['sha256']} actual={actual_generator}\")\nE               orchestrator.campaign.s1_known_axes_freeze.FreezeError: generator sha256 不一致: recorded=1d4d45a3de4926c6aae76906f7b4b72d3fead51e9cdf62ff03f80a0379c364e0 actual=e84d7f373ff4013c17eecefbffb92074911bdbbf48163f1e815c0785edb6342e\n\norchestrator/campaign/s1_known_axes_freeze.py:900: FreezeError\n\nThe above exception was the direct cause of the following exception:\n\n    def test_historical_measurement_and_calibration_keep_current_semantics():\n        from orchestrator.campaign import s1_measurement_freeze as measurement\n        from orchestrator.campaign import s1_verify_extime_calibration as calibration\n    \n        doc = _current_frozen_document()\n>       assert measurement._verify_known_axes(M.FREEZE_PATH, None) == doc\n\norchestrator/tests/test_s1_known_axes_freeze.py:1112: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\npath = PosixPath('/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/s1-freeze/known_axes_freeze.json')\nsource_resolver = None\n\n    def _verify_known_axes(path: Path,\n                           source_resolver: Optional[Callable[[str], Path]]) -> Dict:\n        doc = _load_json(path)\n        try:\n            held_checks = known_axes.verify_document(doc, source_resolver=source_resolver)\n        except known_axes.FreezeError as e:\n>           raise FreezeError(f\"known_axes_freeze 照合失敗: {e}\") from e\nE           orchestrator.campaign.s1_measurement_freeze.FreezeError: known_axes_freeze 照合失敗: generator sha256 不一致: recorded=1d4d45a3de4926c6aae76906f7b4b72d3fead51e9cdf62ff03f80a0379c364e0 actual=e84d7f373ff4013c17eecefbffb92074911bdbbf48163f1e815c0785edb6342e\n\norchestrator/campaign/s1_measurement_freeze.py:166: FreezeError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_current_use_preserves_source_key_comparison\nFAILED orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_real_artifact_without_live_code_reads\nFAILED orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_current_use_rejects_single_flags_difference\nFAILED orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_real_artifact_is_readable\nFAILED orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_input_copy_sha_and_existence_remain_bound\nFAILED orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_measurement_and_calibration_keep_current_semantics\n6 failed, 1 passed in 4.62s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_measurement_and_calibration_keep_current_semantics\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=4289 retained_bytes=3710 omitted_bytes=579 rendered_excerpt_bytes=4096 sha256=eabfaaeaff86c99adfcc859c75ef35f3c1b9d23d1ae130efdab6f7234b09b19c\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n>  _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/s1_known_axes_freeze.py:879: in verify_document\n>     return _verify_document(\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> doc = {'what': 'S-1 \\u65e2\\u77e5\\u8ef8\\u57fa\\u6e96\\u70b9 + \\u7cfb\\u5074\\u69cb\\u6210\\u306e\\u51cd\\u7d50 (D52 \\xa72.1 \\u306e\\u5b9f\\u4f53\\u5316)', 'frozen_at_head': '2066ce6b47c6a5d43ca2c8ab3cc7728d32336be1', 'ccbenc.../campaign/s1_known_axes_freeze.py', 'sha256': '1d4d45a3de4926c6aae76906f7b4b72d3fead51e9cdf62ff03f80a0379c364e0'}, ...}\n> historical = False\n> raw = b'{\\x5cn  \"what\": \"S-1 \\x5cxe6\\x5cx97\\x5cxa2\\x5cxe7\\x5cx9f\\x5cxa5\\x5cxe8\\x5cxbb\\x5cxb8\\x5cxe5\\x5cx9f\\x5cxba\\x5cxe6\\x5cxba\\x5cx96\\x5cxe7\\x5cx82\\x5cxb9 + \\x5cxe7\\x5cxb3\\x5cxbb\\x5cxe5\\x5cx81\\x5cxb...e5\\x5cxae\\x5cx9f\\x5cxe6\\x5cxb8\\x5cxac\\x5cxe3\\x5cx81\\x5cxaf\\x5cxe5\\x5cx8f\\x5cx82\\x5cxe8\\x5cx80\\x5cx83\\x5cxe4\\x5cxbd\\x5cxb5\\x5cxe8\\x5cxa8\\x5cx98 \\x5cxe2\\x5cx80\\x5cx94 D52 \\x5cxc2\\x5cxa72.1)\"\\x5cn}\\x5cn'\n> source_resolver = None\n> \n>     def _verify_document(doc: Mapping, *, historical: bool, raw: bytes,\n>                          source_resolver: Optional[Callable[[str], Path]] = None\n>                         ) -> Tuple[Mapping[str, object], ...]:\n>         held_checks: List[Mapping[str, object]] = []\n>         # Reuse the existing root only to identify this historical document; this\n>         # does not execute or release the held T-080 artifact check.\n>         from .t080_freeze_migration import KNOWN_AXES_RAW_SHA256\n>     \n>         known_historical = hashlib.sha256(raw).hexdigest() == KNOWN_AXES_RAW_SHA256\n>         if not (known_historical and historical):\n>             _validate_schema(doc)\n>         generator_doc = doc[\"generator\"]\n>         if generator_doc[\"path\"] != SCRIPT_REL:\n>             raise FreezeError(f\"generator.path \\u4e0d\\u4e00\\u81f4: {generator_doc['path']}\")\n>         if True:\n>             actual_generator = _sha256(ROOT / SCRIPT_REL)\n>             if generator_doc[\"sha256\"] != actual_generator:\n> >               raise FreezeError(\n>                     f\"generator sha256 \\u4e0d\\u4e00\\u81f4: recorded={generator_doc['sha256']} actual={actual_generator}\")\n> E               orchestrator.campaign.s1_known_axes_freeze.FreezeError: generator sha256 \\u4e0d\\u4e00\\u81f4: recorded=1d4d45a3de4926c6aae76906f7b4b72d3fead51e9cdf62ff03f80a0379c364e0 actual=e84d7f373ff4013c17eecefbffb92074911bdbbf48163f1e815c0785edb6342e\n> \n> orchestrator/campaign/s1_known_axes_freeze.py:900: FreezeError\n> \n> The above exception was the direct cause of the following exception:\n> \n>     def test_historical_measurement_and_calibration_keep_current_semantics():\n>         from orchestrator.campaign import s1_measurement_freeze as measurement\n>         from orchestrator.campaign import s1_verify_extime_calibration as calibration\n>     \n>         doc = _current_frozen_document()\n> >       assert measurement._verify_known_axes(M.FREEZE_PATH, None) == doc\n> \n> orchestrator/tests/test_s1_known_axes_freeze.py:1112: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> path = PosixPath('/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/s1-freeze/known_axes_freeze.json')\n> source_resolver = None\n> \n>     def _verify_known_axes(path: Path,\n>                            source_resolver: Optional[Callable[[str], Path]]) -> Dict:\n>         doc = _load_json(path)\n>         try:\n>             held_checks = known_axes.verify_document(doc, source_resolver=source_resolver)\n>         except known_axes.FreezeError as e:\n> >           raise FreezeError(f\"known_axes_freeze \\u7167\\u5408\\u5931\\u6557: {e}\") from e\n> E           orchestrator.campaign.s1_measurement_freeze.FreezeError: known_axes_freeze \\u7167\\u5408\\u5931\\u6557: generator sha256 \\u4e0d\\u4e00\\u81f4: recorded=1d4d45a3de4926c6aae76906f7b4b72d3fead51e9cdf62ff03f80a0379c364e0 actual=e84d7f373ff4013c17eecefbffb92074911bdbbf48163f1e815c0785edb6342e\n> \n> orchestrator/campaign/s1_measurement_freeze.py:166: FreezeError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_real_artifact_without_live_code_reads\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=3569 retained_bytes=3569 omitted_bytes=0 rendered_excerpt_bytes=3928 sha256=08e9b78e37cf4027b4ed583b320220418d4506c4d098e13494bda13afd17e06a\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw6] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_historical_real_artifact_0')\n> \n>     def test_historical_real_artifact_without_live_code_reads(tmp_path):\n>         original = M.FREEZE_PATH.read_bytes()\n>         doc = json.loads(original)\n>         code_paths = {\n>             \"orchestrator/campaign/axis_trigger_gating.py\",\n>             \"orchestrator/campaign/s8a_trigger_sweep.py\",\n>             \"orchestrator/campaign/genome.py\",\n>             \"orchestrator/campaign/backoff_sweep.py\",\n>             \"orchestrator/campaign/s6_sort_sweep.py\",\n>             \"orchestrator/campaign/p3_s4_loop_sort.py\",\n>         }\n>         assert {s[\"path\"] for s in M._iter_sources(doc)\n>                 if s[\"path\"].endswith(\".py\")} == code_paths\n>         missing = tmp_path / \"missing-code\"\n>         assert not missing.exists()\n>     \n>         def resolver(relative):\n>             return missing if relative in code_paths else M.ROOT / relative\n>     \n>         resolve = mock.Mock(wraps=resolver)\n>         with mock.patch.object(M, \"_sha256\", wraps=M._sha256) as sha:\n>             # Both public APIs must accept the unchanged historical artifact.\n> >           result = M.verify(historical=True, source_resolver=resolve)\n> \n> orchestrator/tests/test_s1_known_axes_freeze.py:942: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/s1_known_axes_freeze.py:993: in verify\n>     held_checks = _verify_document(\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> doc = {'what': 'S-1 \\u65e2\\u77e5\\u8ef8\\u57fa\\u6e96\\u70b9 + \\u7cfb\\u5074\\u69cb\\u6210\\u306e\\u51cd\\u7d50 (D52 \\xa72.1 \\u306e\\u5b9f\\u4f53\\u5316)', 'frozen_at_head': '2066ce6b47c6a5d43ca2c8ab3cc7728d32336be1', 'ccbenc.../campaign/s1_known_axes_freeze.py', 'sha256': '1d4d45a3de4926c6aae76906f7b4b72d3fead51e9cdf62ff03f80a0379c364e0'}, ...}\n> historical = True\n> raw = b'{\\x5cn  \"what\": \"S-1 \\x5cxe6\\x5cx97\\x5cxa2\\x5cxe7\\x5cx9f\\x5cxa5\\x5cxe8\\x5cxbb\\x5cxb8\\x5cxe5\\x5cx9f\\x5cxba\\x5cxe6\\x5cxba\\x5cx96\\x5cxe7\\x5cx82\\x5cxb9 + \\x5cxe7\\x5cxb3\\x5cxbb\\x5cxe5\\x5cx81\\x5cxb...e5\\x5cxae\\x5cx9f\\x5cxe6\\x5cxb8\\x5cxac\\x5cxe3\\x5cx81\\x5cxaf\\x5cxe5\\x5cx8f\\x5cx82\\x5cxe8\\x5cx80\\x5cx83\\x5cxe4\\x5cxbd\\x5cxb5\\x5cxe8\\x5cxa8\\x5cx98 \\x5cxe2\\x5cx80\\x5cx94 D52 \\x5cxc2\\x5cxa72.1)\"\\x5cn}\\x5cn'\n> source_resolver = <Mock id='23092988451936'>\n> \n>     def _verify_document(doc: Mapping, *, historical: bool, raw: bytes,\n>                          source_resolver: Optional[Callable[[str], Path]] = None\n>                         ) -> Tuple[Mapping[str, object], ...]:\n>         held_checks: List[Mapping[str, object]] = []\n>         # Reuse the existing root only to identify this historical document; this\n>         # does not execute or release the held T-080 artifact check.\n>         from .t080_freeze_migration import KNOWN_AXES_RAW_SHA256\n>     \n>         known_historical = hashlib.sha256(raw).hexdigest() == KNOWN_AXES_RAW_SHA256\n>         if not (known_historical and historical):\n>             _validate_schema(doc)\n>         generator_doc = doc[\"generator\"]\n>         if generator_doc[\"path\"] != SCRIPT_REL:\n>             raise FreezeError(f\"generator.path \\u4e0d\\u4e00\\u81f4: {generator_doc['path']}\")\n>         if True:\n>             actual_generator = _sha256(ROOT / SCRIPT_REL)\n>             if generator_doc[\"sha256\"] != actual_generator:\n> >               raise FreezeError(\n>                     f\"generator sha256 \\u4e0d\\u4e00\\u81f4: recorded={generator_doc['sha256']} actual={actual_generator}\")\n> E               orchestrator.campaign.s1_known_axes_freeze.FreezeError: generator sha256 \\u4e0d\\u4e00\\u81f4: recorded=1d4d45a3de4926c6aae76906f7b4b72d3fead51e9cdf62ff03f80a0379c364e0 actual=e84d7f373ff4013c17eecefbffb92074911bdbbf48163f1e815c0785edb6342e\n> \n> orchestrator/campaign/s1_known_axes_freeze.py:900: FreezeError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_input_copy_sha_and_existence_remain_bound\" nodeid_bytes=106 nodeid_omitted_bytes=0 source_bytes=3074 retained_bytes=3074 omitted_bytes=0 rendered_excerpt_bytes=3409 sha256=b5634792d2baf4b49e8734239f4e71d0d67492912582d22e094a10c816f77cfe\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_historical_input_copy_sha0')\n> \n>     def test_historical_input_copy_sha_and_existence_remain_bound(tmp_path):\n>         doc = _current_frozen_document()\n>         target = doc[\"entries\"][\"balanced\"][\"system_gate\"][\"sources\"][0][\"path\"]\n>         assert not target.endswith(\".py\")\n>         copied = tmp_path / \"input-copy\"\n>         shutil.copyfile(M.ROOT / target, copied)\n>     \n>         def resolver(relative):\n>             return copied if relative == target else M.ROOT / relative\n>     \n> >       M.verify_document(doc, historical=True, source_resolver=resolver)\n> \n> orchestrator/tests/test_s1_known_axes_freeze.py:1021: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/s1_known_axes_freeze.py:879: in verify_document\n>     return _verify_document(\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> doc = {'what': 'S-1 \\u65e2\\u77e5\\u8ef8\\u57fa\\u6e96\\u70b9 + \\u7cfb\\u5074\\u69cb\\u6210\\u306e\\u51cd\\u7d50 (D52 \\xa72.1 \\u306e\\u5b9f\\u4f53\\u5316)', 'frozen_at_head': '2066ce6b47c6a5d43ca2c8ab3cc7728d32336be1', 'ccbenc.../campaign/s1_known_axes_freeze.py', 'sha256': '1d4d45a3de4926c6aae76906f7b4b72d3fead51e9cdf62ff03f80a0379c364e0'}, ...}\n> historical = True\n> raw = b'{\\x5cn  \"what\": \"S-1 \\x5cxe6\\x5cx97\\x5cxa2\\x5cxe7\\x5cx9f\\x5cxa5\\x5cxe8\\x5cxbb\\x5cxb8\\x5cxe5\\x5cx9f\\x5cxba\\x5cxe6\\x5cxba\\x5cx96\\x5cxe7\\x5cx82\\x5cxb9 + \\x5cxe7\\x5cxb3\\x5cxbb\\x5cxe5\\x5cx81\\x5cxb...e5\\x5cxae\\x5cx9f\\x5cxe6\\x5cxb8\\x5cxac\\x5cxe3\\x5cx81\\x5cxaf\\x5cxe5\\x5cx8f\\x5cx82\\x5cxe8\\x5cx80\\x5cx83\\x5cxe4\\x5cxbd\\x5cxb5\\x5cxe8\\x5cxa8\\x5cx98 \\x5cxe2\\x5cx80\\x5cx94 D52 \\x5cxc2\\x5cxa72.1)\"\\x5cn}\\x5cn'\n> source_resolver = <function test_historical_input_copy_sha_and_existence_remain_bound.<locals>.resolver at 0x147d9afc39a0>\n> \n>     def _verify_document(doc: Mapping, *, historical: bool, raw: bytes,\n>                          source_resolver: Optional[Callable[[str], Path]] = None\n>                         ) -> Tuple[Mapping[str, object], ...]:\n>         held_checks: List[Mapping[str, object]] = []\n>         # Reuse the existing root only to identify this historical document; this\n>         # does not execute or release the held T-080 artifact check.\n>         from .t080_freeze_migration import KNOWN_AXES_RAW_SHA256\n>     \n>         known_historical = hashlib.sha256(raw).hexdigest() == KNOWN_AXES_RAW_SHA256\n>         if not (known_historical and historical):\n>             _validate_schema(doc)\n>         generator_doc = doc[\"generator\"]\n>         if generator_doc[\"path\"] != SCRIPT_REL:\n>             raise FreezeError(f\"generator.path \\u4e0d\\u4e00\\u81f4: {generator_doc['path']}\")\n>         if True:\n>             actual_generator = _sha256(ROOT / SCRIPT_REL)\n>             if generator_doc[\"sha256\"] != actual_generator:\n> >               raise FreezeError(\n>                     f\"generator sha256 \\u4e0d\\u4e00\\u81f4: recorded={generator_doc['sha256']} actual={actual_generator}\")\n> E               orchestrator.campaign.s1_known_axes_freeze.FreezeError: generator sha256 \\u4e0d\\u4e00\\u81f4: recorded=1d4d45a3de4926c6aae76906f7b4b72d3fead51e9cdf62ff03f80a0379c364e0 actual=e84d7f373ff4013c17eecefbffb92074911bdbbf48163f1e815c0785edb6342e\n> \n> orchestrator/campaign/s1_known_axes_freeze.py:900: FreezeError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_real_artifact_is_readable\" nodeid_bytes=90 nodeid_omitted_bytes=0 source_bytes=2533 retained_bytes=2533 omitted_bytes=0 rendered_excerpt_bytes=2850 sha256=d32630cd57c5f9d127eb0d1a1f0a97a3b6e1beaed4b7d89edb526cf9a5bc9a9c\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_historical_real_artifact_is_readable():\n>         original = M.FREEZE_PATH.read_bytes()\n>         doc = json.loads(original)\n> >       result = M.verify(historical=True)\n> \n> orchestrator/tests/test_s1_known_axes_freeze.py:911: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/s1_known_axes_freeze.py:993: in verify\n>     held_checks = _verify_document(\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> doc = {'what': 'S-1 \\u65e2\\u77e5\\u8ef8\\u57fa\\u6e96\\u70b9 + \\u7cfb\\u5074\\u69cb\\u6210\\u306e\\u51cd\\u7d50 (D52 \\xa72.1 \\u306e\\u5b9f\\u4f53\\u5316)', 'frozen_at_head': '2066ce6b47c6a5d43ca2c8ab3cc7728d32336be1', 'ccbenc.../campaign/s1_known_axes_freeze.py', 'sha256': '1d4d45a3de4926c6aae76906f7b4b72d3fead51e9cdf62ff03f80a0379c364e0'}, ...}\n> historical = True\n> raw = b'{\\x5cn  \"what\": \"S-1 \\x5cxe6\\x5cx97\\x5cxa2\\x5cxe7\\x5cx9f\\x5cxa5\\x5cxe8\\x5cxbb\\x5cxb8\\x5cxe5\\x5cx9f\\x5cxba\\x5cxe6\\x5cxba\\x5cx96\\x5cxe7\\x5cx82\\x5cxb9 + \\x5cxe7\\x5cxb3\\x5cxbb\\x5cxe5\\x5cx81\\x5cxb...e5\\x5cxae\\x5cx9f\\x5cxe6\\x5cxb8\\x5cxac\\x5cxe3\\x5cx81\\x5cxaf\\x5cxe5\\x5cx8f\\x5cx82\\x5cxe8\\x5cx80\\x5cx83\\x5cxe4\\x5cxbd\\x5cxb5\\x5cxe8\\x5cxa8\\x5cx98 \\x5cxe2\\x5cx80\\x5cx94 D52 \\x5cxc2\\x5cxa72.1)\"\\x5cn}\\x5cn'\n> source_resolver = None\n> \n>     def _verify_document(doc: Mapping, *, historical: bool, raw: bytes,\n>                          source_resolver: Optional[Callable[[str], Path]] = None\n>                         ) -> Tuple[Mapping[str, object], ...]:\n>         held_checks: List[Mapping[str, object]] = []\n>         # Reuse the existing root only to identify this historical document; this\n>         # does not execute or release the held T-080 artifact check.\n>         from .t080_freeze_migration import KNOWN_AXES_RAW_SHA256\n>     \n>         known_historical = hashlib.sha256(raw).hexdigest() == KNOWN_AXES_RAW_SHA256\n>         if not (known_historical and historical):\n>             _validate_schema(doc)\n>         generator_doc = doc[\"generator\"]\n>         if generator_doc[\"path\"] != SCRIPT_REL:\n>             raise FreezeError(f\"generator.path \\u4e0d\\u4e00\\u81f4: {generator_doc['path']}\")\n>         if True:\n>             actual_generator = _sha256(ROOT / SCRIPT_REL)\n>             if generator_doc[\"sha256\"] != actual_generator:\n> >               raise FreezeError(\n>                     f\"generator sha256 \\u4e0d\\u4e00\\u81f4: recorded={generator_doc['sha256']} actual={actual_generator}\")\n> E               orchestrator.campaign.s1_known_axes_freeze.FreezeError: generator sha256 \\u4e0d\\u4e00\\u81f4: recorded=1d4d45a3de4926c6aae76906f7b4b72d3fead51e9cdf62ff03f80a0379c364e0 actual=e84d7f373ff4013c17eecefbffb92074911bdbbf48163f1e815c0785edb6342e\n> \n> orchestrator/campaign/s1_known_axes_freeze.py:900: FreezeError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_current_use_preserves_source_key_comparison\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=2503 retained_bytes=2503 omitted_bytes=0 rendered_excerpt_bytes=2818 sha256=3a09471e69aa7fea74c97399f1ff54012181f0c1422e70f1184b5f80cbdcc7c7\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_historical_current_use_preserves_source_key_comparison():\n>         doc = _current_frozen_document()\n> >       M.verify_document(doc)\n> \n> orchestrator/tests/test_s1_known_axes_freeze.py:1088: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/s1_known_axes_freeze.py:879: in verify_document\n>     return _verify_document(\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> doc = {'what': 'S-1 \\u65e2\\u77e5\\u8ef8\\u57fa\\u6e96\\u70b9 + \\u7cfb\\u5074\\u69cb\\u6210\\u306e\\u51cd\\u7d50 (D52 \\xa72.1 \\u306e\\u5b9f\\u4f53\\u5316)', 'frozen_at_head': '2066ce6b47c6a5d43ca2c8ab3cc7728d32336be1', 'ccbenc.../campaign/s1_known_axes_freeze.py', 'sha256': '1d4d45a3de4926c6aae76906f7b4b72d3fead51e9cdf62ff03f80a0379c364e0'}, ...}\n> historical = False\n> raw = b'{\\x5cn  \"what\": \"S-1 \\x5cxe6\\x5cx97\\x5cxa2\\x5cxe7\\x5cx9f\\x5cxa5\\x5cxe8\\x5cxbb\\x5cxb8\\x5cxe5\\x5cx9f\\x5cxba\\x5cxe6\\x5cxba\\x5cx96\\x5cxe7\\x5cx82\\x5cxb9 + \\x5cxe7\\x5cxb3\\x5cxbb\\x5cxe5\\x5cx81\\x5cxb...e5\\x5cxae\\x5cx9f\\x5cxe6\\x5cxb8\\x5cxac\\x5cxe3\\x5cx81\\x5cxaf\\x5cxe5\\x5cx8f\\x5cx82\\x5cxe8\\x5cx80\\x5cx83\\x5cxe4\\x5cxbd\\x5cxb5\\x5cxe8\\x5cxa8\\x5cx98 \\x5cxe2\\x5cx80\\x5cx94 D52 \\x5cxc2\\x5cxa72.1)\"\\x5cn}\\x5cn'\n> source_resolver = None\n> \n>     def _verify_document(doc: Mapping, *, historical: bool, raw: bytes,\n>                          source_resolver: Optional[Callable[[str], Path]] = None\n>                         ) -> Tuple[Mapping[str, object], ...]:\n>         held_checks: List[Mapping[str, object]] = []\n>         # Reuse the existing root only to identify this historical document; this\n>         # does not execute or release the held T-080 artifact check.\n>         from .t080_freeze_migration import KNOWN_AXES_RAW_SHA256\n>     \n>         known_historical = hashlib.sha256(raw).hexdigest() == KNOWN_AXES_RAW_SHA256\n>         if not (known_historical and historical):\n>             _validate_schema(doc)\n>         generator_doc = doc[\"generator\"]\n>         if generator_doc[\"path\"] != SCRIPT_REL:\n>             raise FreezeError(f\"generator.path \\u4e0d\\u4e00\\u81f4: {generator_doc['path']}\")\n>         if True:\n>             actual_generator = _sha256(ROOT / SCRIPT_REL)\n>             if generator_doc[\"sha256\"] != actual_generator:\n> >               raise FreezeError(\n>                     f\"generator sha256 \\u4e0d\\u4e00\\u81f4: recorded={generator_doc['sha256']} actual={actual_generator}\")\n> E               orchestrator.campaign.s1_known_axes_freeze.FreezeError: generator sha256 \\u4e0d\\u4e00\\u81f4: recorded=1d4d45a3de4926c6aae76906f7b4b72d3fead51e9cdf62ff03f80a0379c364e0 actual=e84d7f373ff4013c17eecefbffb92074911bdbbf48163f1e815c0785edb6342e\n> \n> orchestrator/campaign/s1_known_axes_freeze.py:900: FreezeError\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE rank=6 category=failed when=call nodeid=\"orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_current_use_rejects_single_flags_difference\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=2503 retained_bytes=2503 omitted_bytes=0 rendered_excerpt_bytes=2818 sha256=6e6c4f57396c782201fdb4e925f6facb62b16bcc59af94702e4279e4a21d028f\n--- IZANAGI FAILURE EXCERPT rank=6 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_historical_current_use_rejects_single_flags_difference():\n>         doc = _current_frozen_document()\n> >       M.verify_document(doc)\n> \n> orchestrator/tests/test_s1_known_axes_freeze.py:1067: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/s1_known_axes_freeze.py:879: in verify_document\n>     return _verify_document(\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> doc = {'what': 'S-1 \\u65e2\\u77e5\\u8ef8\\u57fa\\u6e96\\u70b9 + \\u7cfb\\u5074\\u69cb\\u6210\\u306e\\u51cd\\u7d50 (D52 \\xa72.1 \\u306e\\u5b9f\\u4f53\\u5316)', 'frozen_at_head': '2066ce6b47c6a5d43ca2c8ab3cc7728d32336be1', 'ccbenc.../campaign/s1_known_axes_freeze.py', 'sha256': '1d4d45a3de4926c6aae76906f7b4b72d3fead51e9cdf62ff03f80a0379c364e0'}, ...}\n> historical = False\n> raw = b'{\\x5cn  \"what\": \"S-1 \\x5cxe6\\x5cx97\\x5cxa2\\x5cxe7\\x5cx9f\\x5cxa5\\x5cxe8\\x5cxbb\\x5cxb8\\x5cxe5\\x5cx9f\\x5cxba\\x5cxe6\\x5cxba\\x5cx96\\x5cxe7\\x5cx82\\x5cxb9 + \\x5cxe7\\x5cxb3\\x5cxbb\\x5cxe5\\x5cx81\\x5cxb...e5\\x5cxae\\x5cx9f\\x5cxe6\\x5cxb8\\x5cxac\\x5cxe3\\x5cx81\\x5cxaf\\x5cxe5\\x5cx8f\\x5cx82\\x5cxe8\\x5cx80\\x5cx83\\x5cxe4\\x5cxbd\\x5cxb5\\x5cxe8\\x5cxa8\\x5cx98 \\x5cxe2\\x5cx80\\x5cx94 D52 \\x5cxc2\\x5cxa72.1)\"\\x5cn}\\x5cn'\n> source_resolver = None\n> \n>     def _verify_document(doc: Mapping, *, historical: bool, raw: bytes,\n>                          source_resolver: Optional[Callable[[str], Path]] = None\n>                         ) -> Tuple[Mapping[str, object], ...]:\n>         held_checks: List[Mapping[str, object]] = []\n>         # Reuse the existing root only to identify this historical document; this\n>         # does not execute or release the held T-080 artifact check.\n>         from .t080_freeze_migration import KNOWN_AXES_RAW_SHA256\n>     \n>         known_historical = hashlib.sha256(raw).hexdigest() == KNOWN_AXES_RAW_SHA256\n>         if not (known_historical and historical):\n>             _validate_schema(doc)\n>         generator_doc = doc[\"generator\"]\n>         if generator_doc[\"path\"] != SCRIPT_REL:\n>             raise FreezeError(f\"generator.path \\u4e0d\\u4e00\\u81f4: {generator_doc['path']}\")\n>         if True:\n>             actual_generator = _sha256(ROOT / SCRIPT_REL)\n>             if generator_doc[\"sha256\"] != actual_generator:\n> >               raise FreezeError(\n>                     f\"generator sha256 \\u4e0d\\u4e00\\u81f4: recorded={generator_doc['sha256']} actual={actual_generator}\")\n> E               orchestrator.campaign.s1_known_axes_freeze.FreezeError: generator sha256 \\u4e0d\\u4e00\\u81f4: recorded=1d4d45a3de4926c6aae76906f7b4b72d3fead51e9cdf62ff03f80a0379c364e0 actual=e84d7f373ff4013c17eecefbffb92074911bdbbf48163f1e815c0785edb6342e\n> \n> orchestrator/campaign/s1_known_axes_freeze.py:900: FreezeError\n--- IZANAGI FAILURE EXCERPT rank=6 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=6 failed=6 errors=0 selected=6 omitted_failures=0 source_bytes=18471 retained_bytes=17892 omitted_bytes=579 budget_bytes=49152 rendered_bytes=22887 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "11f5639aba39b27784aa78a0530c1712c3df7fc8ed7c15be044199fc687aa040"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "c1b77563618795d87eff7867661bfed8505a5e7715207d2e65b2b949d5c19131",
+      "duration_s": 27.576,
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_real_artifact_is_readable",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_input_copy_sha_and_existence_remain_bound",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_current_use_rejects_single_flags_difference",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_current_use_preserves_source_key_comparison",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_measurement_and_calibration_keep_current_semantics",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_real_artifact_without_live_code_reads"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_current_use_preserves_source_key_comparison",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_real_artifact_without_live_code_reads",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_current_use_rejects_single_flags_difference",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_real_artifact_is_readable",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_input_copy_sha_and_existence_remain_bound",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_measurement_and_calibration_keep_current_semantics"
+      ],
+      "hang_risk": false,
+      "id": "M1",
+      "injection_diff_sha256": "7840032d45743af5bc429f8a4516e06b3b249deb41c33e177e79d4794282922d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "a453e8e8a8ee609de44a146b9471291dcf17b72ab25fa62d91535ca1943573f3",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_known_axes_freeze.py",
+          "new": "    if True:\n        actual_generator = _sha256(ROOT / SCRIPT_REL)",
+          "old": "    if not known_historical:\n        actual_generator = _sha256(ROOT / SCRIPT_REL)"
+        }
+      ],
+      "repo_head": "50a38ca37500ed555404cee3257a56e3f2881e57",
+      "runner_sha256": "4af753626c60ed2f1ef9716f8ec2d698bdaa052da890c2e5610ef987493831b1",
+      "spec_sha256": "7670c16ac0bfbd4e689691710c2dbd868d5c13106586e40f82f36989862797ad",
+      "status": "KILLED",
+      "test_output_sha256": "11f5639aba39b27784aa78a0530c1712c3df7fc8ed7c15be044199fc687aa040",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "6ab8ac6f51796af7a7b3570199d7f705d463901a4e67f235c34825989e4e1049"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c440529871c2d37779b863df80fabf8b/izdw-c440529871.o991805",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c440529871c2d37779b863df80fabf8b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..F....                                                                  [100%]\n=================================== FAILURES ===================================\n______________ test_historical_content_and_identifiers_are_bound _______________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_historical_content_and_id0')\n\n    def test_historical_content_and_identifiers_are_bound(tmp_path):\n        doc = _current_frozen_document()\n        mutations = []\n        for field in (\"what\", \"generator\"):\n            changed = copy.deepcopy(doc)\n            if field == \"what\":\n                changed[field] = \"TAMPERED\"\n            else:\n                changed[field][\"sha256\"] = \"0\" * 64\n            mutations.append(changed)\n        seen = set()\n        for index, source in enumerate(M._iter_sources(doc)):\n            path = source[\"path\"]\n            if path.endswith(\".py\") and path not in seen:\n                seen.add(path)\n                changed = copy.deepcopy(doc)\n                list(M._iter_sources(changed))[index][\"sha256\"] = \"0\" * 64\n                mutations.append(changed)\n        assert len(seen) == 6\n        assert len(mutations) == 8\n        path = tmp_path / \"changed.json\"\n        for changed in mutations:\n            path.write_text(json.dumps(changed, ensure_ascii=False, indent=2) + \"\\n\")\n            for historical in (True, False):\n>               with pytest.raises(M.FreezeError, match=\"generator sha256 不一致\"):\nE               Failed: DID NOT RAISE FreezeError\n\norchestrator/tests/test_s1_known_axes_freeze.py:996: Failed\n----------------------------- Captured stderr call -----------------------------\nIZANAGI_FREEZE_HOLD {\"check_id\": \"s1-known-axes.ccbench-submodule-head-pin\", \"decision\": \"freeze-verification-hold\", \"release_condition\": \"explicit-user-command-only\", \"ruling\": \"rulings-4th-batch-2026-08-12\"}\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_content_and_identifiers_are_bound\n1 failed, 6 passed in 4.77s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_content_and_identifiers_are_bound\" nodeid_bytes=98 nodeid_omitted_bytes=0 source_bytes=1382 retained_bytes=1382 omitted_bytes=0 rendered_excerpt_bytes=1459 sha256=0422de111c28808336514e898c3398b2958f7f7b5603cc0b10598b1e804d70c1\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_historical_content_and_id0')\n> \n>     def test_historical_content_and_identifiers_are_bound(tmp_path):\n>         doc = _current_frozen_document()\n>         mutations = []\n>         for field in (\"what\", \"generator\"):\n>             changed = copy.deepcopy(doc)\n>             if field == \"what\":\n>                 changed[field] = \"TAMPERED\"\n>             else:\n>                 changed[field][\"sha256\"] = \"0\" * 64\n>             mutations.append(changed)\n>         seen = set()\n>         for index, source in enumerate(M._iter_sources(doc)):\n>             path = source[\"path\"]\n>             if path.endswith(\".py\") and path not in seen:\n>                 seen.add(path)\n>                 changed = copy.deepcopy(doc)\n>                 list(M._iter_sources(changed))[index][\"sha256\"] = \"0\" * 64\n>                 mutations.append(changed)\n>         assert len(seen) == 6\n>         assert len(mutations) == 8\n>         path = tmp_path / \"changed.json\"\n>         for changed in mutations:\n>             path.write_text(json.dumps(changed, ensure_ascii=False, indent=2) + \"\\x5cn\")\n>             for historical in (True, False):\n> >               with pytest.raises(M.FreezeError, match=\"generator sha256 \\u4e0d\\u4e00\\u81f4\"):\n> E               Failed: DID NOT RAISE FreezeError\n> \n> orchestrator/tests/test_s1_known_axes_freeze.py:996: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1382 retained_bytes=1382 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2184 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "3164361bdd0e086ee3f5a7ab9725482097d23bf94f7ab2bb95d8f0d14db2f235"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "c1b77563618795d87eff7867661bfed8505a5e7715207d2e65b2b949d5c19131",
+      "duration_s": 27.525,
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_content_and_identifiers_are_bound"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_content_and_identifiers_are_bound"
+      ],
+      "hang_risk": false,
+      "id": "M2",
+      "injection_diff_sha256": "2a497db878eaacf4fb6134e21fc5334bd5cd4d8405072b83e353e40b65a1ed0f",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "dece689734bf7e8549a66c36c901ff87b45a0fb304f68a92e2b5ac3f442dbc19",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_known_axes_freeze.py",
+          "new": "known_historical = True",
+          "old": "known_historical = hashlib.sha256(raw).hexdigest() == KNOWN_AXES_RAW_SHA256"
+        }
+      ],
+      "repo_head": "50a38ca37500ed555404cee3257a56e3f2881e57",
+      "runner_sha256": "4af753626c60ed2f1ef9716f8ec2d698bdaa052da890c2e5610ef987493831b1",
+      "spec_sha256": "7670c16ac0bfbd4e689691710c2dbd868d5c13106586e40f82f36989862797ad",
+      "status": "KILLED",
+      "test_output_sha256": "3164361bdd0e086ee3f5a7ab9725482097d23bf94f7ab2bb95d8f0d14db2f235",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "6ab8ac6f51796af7a7b3570199d7f705d463901a4e67f235c34825989e4e1049"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/53eb226845acea20dc9e180916b5ae4b/izdw-53eb226845.o991806",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/53eb226845acea20dc9e180916b5ae4b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...F...                                                                  [100%]\n=================================== FAILURES ===================================\n__________ test_historical_input_copy_sha_and_existence_remain_bound ___________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_historical_input_copy_sha0')\n\n    def test_historical_input_copy_sha_and_existence_remain_bound(tmp_path):\n        doc = _current_frozen_document()\n        target = doc[\"entries\"][\"balanced\"][\"system_gate\"][\"sources\"][0][\"path\"]\n        assert not target.endswith(\".py\")\n        copied = tmp_path / \"input-copy\"\n        shutil.copyfile(M.ROOT / target, copied)\n    \n        def resolver(relative):\n            return copied if relative == target else M.ROOT / relative\n    \n        M.verify_document(doc, historical=True, source_resolver=resolver)\n        copied.write_bytes(copied.read_bytes() + b\" \")\n        for historical in (True, False):\n>           with pytest.raises(M.FreezeError) as error:\nE           Failed: DID NOT RAISE FreezeError\n\norchestrator/tests/test_s1_known_axes_freeze.py:1024: Failed\n----------------------------- Captured stderr call -----------------------------\nIZANAGI_FREEZE_HOLD {\"check_id\": \"s1-known-axes.ccbench-submodule-head-pin\", \"decision\": \"freeze-verification-hold\", \"release_condition\": \"explicit-user-command-only\", \"ruling\": \"rulings-4th-batch-2026-08-12\"}\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_input_copy_sha_and_existence_remain_bound\n1 failed, 6 passed in 4.82s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_input_copy_sha_and_existence_remain_bound\" nodeid_bytes=106 nodeid_omitted_bytes=0 source_bytes=921 retained_bytes=921 omitted_bytes=0 rendered_excerpt_bytes=964 sha256=6b6b3e38b5a00decee8653bf4e7cb30d18aec88f5628342343ec35daa2019054\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_historical_input_copy_sha0')\n> \n>     def test_historical_input_copy_sha_and_existence_remain_bound(tmp_path):\n>         doc = _current_frozen_document()\n>         target = doc[\"entries\"][\"balanced\"][\"system_gate\"][\"sources\"][0][\"path\"]\n>         assert not target.endswith(\".py\")\n>         copied = tmp_path / \"input-copy\"\n>         shutil.copyfile(M.ROOT / target, copied)\n>     \n>         def resolver(relative):\n>             return copied if relative == target else M.ROOT / relative\n>     \n>         M.verify_document(doc, historical=True, source_resolver=resolver)\n>         copied.write_bytes(copied.read_bytes() + b\" \")\n>         for historical in (True, False):\n> >           with pytest.raises(M.FreezeError) as error:\n> E           Failed: DID NOT RAISE FreezeError\n> \n> orchestrator/tests/test_s1_known_axes_freeze.py:1024: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=921 retained_bytes=921 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1693 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "b4ab10813684dd6bda1071c8daaeb6469d903205d25356436d7816bef8b2c480"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "c1b77563618795d87eff7867661bfed8505a5e7715207d2e65b2b949d5c19131",
+      "duration_s": 27.398,
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_input_copy_sha_and_existence_remain_bound"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_input_copy_sha_and_existence_remain_bound"
+      ],
+      "hang_risk": false,
+      "id": "M3",
+      "injection_diff_sha256": "0e79690b10f5bdc190c7324e0af6aaed8ce6bf78c85a33fc91fc7d4d2834728c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "372b588c7c27f99fd0cdc02f493fa8889b56ad4f3c88ecfd619ae90531c96c78",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_known_axes_freeze.py",
+          "new": "if actual != expected and not known_historical:",
+          "old": "if actual != expected and not (known_historical and path_rel in _HISTORICAL_CODE_PATHS):"
+        }
+      ],
+      "repo_head": "50a38ca37500ed555404cee3257a56e3f2881e57",
+      "runner_sha256": "4af753626c60ed2f1ef9716f8ec2d698bdaa052da890c2e5610ef987493831b1",
+      "spec_sha256": "7670c16ac0bfbd4e689691710c2dbd868d5c13106586e40f82f36989862797ad",
+      "status": "KILLED",
+      "test_output_sha256": "b4ab10813684dd6bda1071c8daaeb6469d903205d25356436d7816bef8b2c480",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "6ab8ac6f51796af7a7b3570199d7f705d463901a4e67f235c34825989e4e1049"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/0ba938b05219f2cdfebc1661f3c3e160/izdw-0ba938b052.o991808",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/0ba938b05219f2cdfebc1661f3c3e160/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n....FFF                                                                  [100%]\n=================================== FAILURES ===================================\n_________ test_historical_current_use_preserves_source_key_comparison __________\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_historical_current_use_preserves_source_key_comparison():\n        doc = _current_frozen_document()\n        M.verify_document(doc)\n        builder = M.build_document\n        calls = []\n    \n        def changed_builder(**kwargs):\n            rebuilt = builder(**kwargs)\n            source = next(s for s in M._iter_sources(rebuilt) if s[\"path\"].endswith(\".py\"))\n            source[\"key\"] += \" changed\"\n            calls.append(rebuilt)\n            return rebuilt\n    \n        with mock.patch.object(M, \"build_document\", side_effect=changed_builder):\n>           with pytest.raises(M.FreezeError, match=\"機械再構成と不一致\"):\nE           Failed: DID NOT RAISE FreezeError\n\norchestrator/tests/test_s1_known_axes_freeze.py:1100: Failed\n----------------------------- Captured stderr call -----------------------------\nIZANAGI_FREEZE_HOLD {\"check_id\": \"s1-known-axes.ccbench-submodule-head-pin\", \"decision\": \"freeze-verification-hold\", \"release_condition\": \"explicit-user-command-only\", \"ruling\": \"rulings-4th-batch-2026-08-12\"}\n_________ test_historical_current_use_rejects_single_flags_difference __________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_historical_current_use_rejects_single_flags_difference():\n        doc = _current_frozen_document()\n        M.verify_document(doc)\n        builder = M.build_document\n        calls = []\n    \n        def changed_builder(**kwargs):\n            rebuilt = builder(**kwargs)\n            rebuilt[\"entries\"][\"balanced\"][\"backoff_fixed_best\"][\"flags\"][\"BACK_OFF\"] += 1\n            calls.append(rebuilt)\n            return rebuilt\n    \n        # Real builder plus one injected mismatch, separate from old artifact viewing.\n        with mock.patch.object(M, \"build_document\", side_effect=changed_builder):\n            M.verify_document(doc, historical=True)\n            assert calls == []\n>           with pytest.raises(M.FreezeError, match=\"機械再構成と不一致\"):\nE           Failed: DID NOT RAISE FreezeError\n\norchestrator/tests/test_s1_known_axes_freeze.py:1081: Failed\n----------------------------- Captured stderr call -----------------------------\nIZANAGI_FREEZE_HOLD {\"check_id\": \"s1-known-axes.ccbench-submodule-head-pin\", \"decision\": \"freeze-verification-hold\", \"release_condition\": \"explicit-user-command-only\", \"ruling\": \"rulings-4th-batch-2026-08-12\"}\n______ test_historical_measurement_and_calibration_keep_current_semantics ______\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_historical_measurement_and_calibration_keep_current_semantics():\n        from orchestrator.campaign import s1_measurement_freeze as measurement\n        from orchestrator.campaign import s1_verify_extime_calibration as calibration\n    \n        doc = _current_frozen_document()\n        assert measurement._verify_known_axes(M.FREEZE_PATH, None) == doc\n        assert calibration.validated_target(doc)[\"name\"] == \"g_rl\"\n        builder = M.build_document\n        calls = []\n    \n        def changed_builder(**kwargs):\n            rebuilt = builder(**kwargs)\n            # Outside read-heavy so the later calibration target check cannot mask it.\n            rebuilt[\"entries\"][\"balanced\"][\"backoff_fixed_best\"][\"flags\"][\"BACK_OFF\"] += 1\n            calls.append(rebuilt)\n            return rebuilt\n    \n        with mock.patch.object(M, \"build_document\", side_effect=changed_builder):\n            M.verify_document(doc, historical=True)\n>           with pytest.raises(measurement.FreezeError) as error:\nE           Failed: DID NOT RAISE FreezeError\n\norchestrator/tests/test_s1_known_axes_freeze.py:1126: Failed\n----------------------------- Captured stderr call -----------------------------\nIZANAGI_FREEZE_HOLD {\"check_id\": \"s1-known-axes.ccbench-submodule-head-pin\", \"decision\": \"freeze-verification-hold\", \"release_condition\": \"explicit-user-command-only\", \"ruling\": \"rulings-4th-batch-2026-08-12\"}\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_current_use_preserves_source_key_comparison\nFAILED orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_current_use_rejects_single_flags_difference\nFAILED orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_measurement_and_calibration_keep_current_semantics\n3 failed, 4 passed in 4.72s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_measurement_and_calibration_keep_current_semantics\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=1166 retained_bytes=1166 omitted_bytes=0 rendered_excerpt_bytes=1217 sha256=58368b38f932253289cff9f332934ea5c9c3234f1806e97ed10339ea2cd2d8a9\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_historical_measurement_and_calibration_keep_current_semantics():\n>         from orchestrator.campaign import s1_measurement_freeze as measurement\n>         from orchestrator.campaign import s1_verify_extime_calibration as calibration\n>     \n>         doc = _current_frozen_document()\n>         assert measurement._verify_known_axes(M.FREEZE_PATH, None) == doc\n>         assert calibration.validated_target(doc)[\"name\"] == \"g_rl\"\n>         builder = M.build_document\n>         calls = []\n>     \n>         def changed_builder(**kwargs):\n>             rebuilt = builder(**kwargs)\n>             # Outside read-heavy so the later calibration target check cannot mask it.\n>             rebuilt[\"entries\"][\"balanced\"][\"backoff_fixed_best\"][\"flags\"][\"BACK_OFF\"] += 1\n>             calls.append(rebuilt)\n>             return rebuilt\n>     \n>         with mock.patch.object(M, \"build_document\", side_effect=changed_builder):\n>             M.verify_document(doc, historical=True)\n> >           with pytest.raises(measurement.FreezeError) as error:\n> E           Failed: DID NOT RAISE FreezeError\n> \n> orchestrator/tests/test_s1_known_axes_freeze.py:1126: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_current_use_rejects_single_flags_difference\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=928 retained_bytes=928 omitted_bytes=0 rendered_excerpt_bytes=1000 sha256=af1daffa76b5ca8fc501d2d2aada2800e8433ea28899a165dad14336e4357725\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_historical_current_use_rejects_single_flags_difference():\n>         doc = _current_frozen_document()\n>         M.verify_document(doc)\n>         builder = M.build_document\n>         calls = []\n>     \n>         def changed_builder(**kwargs):\n>             rebuilt = builder(**kwargs)\n>             rebuilt[\"entries\"][\"balanced\"][\"backoff_fixed_best\"][\"flags\"][\"BACK_OFF\"] += 1\n>             calls.append(rebuilt)\n>             return rebuilt\n>     \n>         # Real builder plus one injected mismatch, separate from old artifact viewing.\n>         with mock.patch.object(M, \"build_document\", side_effect=changed_builder):\n>             M.verify_document(doc, historical=True)\n>             assert calls == []\n> >           with pytest.raises(M.FreezeError, match=\"\\u6a5f\\u68b0\\u518d\\u69cb\\u6210\\u3068\\u4e0d\\u4e00\\u81f4\"):\n> E           Failed: DID NOT RAISE FreezeError\n> \n> orchestrator/tests/test_s1_known_axes_freeze.py:1081: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_current_use_preserves_source_key_comparison\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=799 retained_bytes=799 omitted_bytes=0 rendered_excerpt_bytes=867 sha256=6ca84814bdc99aa1a781d3a69a1c4a3a91c23c965900a80ffb23624cd0abd25d\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_historical_current_use_preserves_source_key_comparison():\n>         doc = _current_frozen_document()\n>         M.verify_document(doc)\n>         builder = M.build_document\n>         calls = []\n>     \n>         def changed_builder(**kwargs):\n>             rebuilt = builder(**kwargs)\n>             source = next(s for s in M._iter_sources(rebuilt) if s[\"path\"].endswith(\".py\"))\n>             source[\"key\"] += \" changed\"\n>             calls.append(rebuilt)\n>             return rebuilt\n>     \n>         with mock.patch.object(M, \"build_document\", side_effect=changed_builder):\n> >           with pytest.raises(M.FreezeError, match=\"\\u6a5f\\u68b0\\u518d\\u69cb\\u6210\\u3068\\u4e0d\\u4e00\\u81f4\"):\n> E           Failed: DID NOT RAISE FreezeError\n> \n> orchestrator/tests/test_s1_known_axes_freeze.py:1100: Failed\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=2893 retained_bytes=2893 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4720 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "cd69bef57e7d09e1c166390ec42e29c690aa9c22974c2947b46ac545cd920ce0"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "c1b77563618795d87eff7867661bfed8505a5e7715207d2e65b2b949d5c19131",
+      "duration_s": 27.231,
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_current_use_rejects_single_flags_difference",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_current_use_preserves_source_key_comparison",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_measurement_and_calibration_keep_current_semantics"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_current_use_preserves_source_key_comparison",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_current_use_rejects_single_flags_difference",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_measurement_and_calibration_keep_current_semantics"
+      ],
+      "hang_risk": false,
+      "id": "M4",
+      "injection_diff_sha256": "89e0237863ecd06b1722c6c70f25ac44f30e13cad5d29cfd67b2018b5670061b",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "90662a5a4c38e652f531eb73d6064a22ef77351b9733483741cf458b58f5f284",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_known_axes_freeze.py",
+          "new": "if not known_historical and doc != expected_doc:",
+          "old": "if doc != expected_doc:"
+        }
+      ],
+      "repo_head": "50a38ca37500ed555404cee3257a56e3f2881e57",
+      "runner_sha256": "4af753626c60ed2f1ef9716f8ec2d698bdaa052da890c2e5610ef987493831b1",
+      "spec_sha256": "7670c16ac0bfbd4e689691710c2dbd868d5c13106586e40f82f36989862797ad",
+      "status": "KILLED",
+      "test_output_sha256": "cd69bef57e7d09e1c166390ec42e29c690aa9c22974c2947b46ac545cd920ce0",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "6ab8ac6f51796af7a7b3570199d7f705d463901a4e67f235c34825989e4e1049"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/18541bccde98e7f44fe2f4bf6f36b359/izdw-18541bccde.o991809",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/18541bccde98e7f44fe2f4bf6f36b359/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....F.                                                                  [100%]\n=================================== FAILURES ===================================\n_________ test_historical_current_use_preserves_source_key_comparison __________\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_historical_current_use_preserves_source_key_comparison():\n        doc = _current_frozen_document()\n        M.verify_document(doc)\n        builder = M.build_document\n        calls = []\n    \n        def changed_builder(**kwargs):\n            rebuilt = builder(**kwargs)\n            source = next(s for s in M._iter_sources(rebuilt) if s[\"path\"].endswith(\".py\"))\n            source[\"key\"] += \" changed\"\n            calls.append(rebuilt)\n            return rebuilt\n    \n        with mock.patch.object(M, \"build_document\", side_effect=changed_builder):\n>           with pytest.raises(M.FreezeError, match=\"機械再構成と不一致\"):\nE           Failed: DID NOT RAISE FreezeError\n\norchestrator/tests/test_s1_known_axes_freeze.py:1100: Failed\n----------------------------- Captured stderr call -----------------------------\nIZANAGI_FREEZE_HOLD {\"check_id\": \"s1-known-axes.ccbench-submodule-head-pin\", \"decision\": \"freeze-verification-hold\", \"release_condition\": \"explicit-user-command-only\", \"ruling\": \"rulings-4th-batch-2026-08-12\"}\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_current_use_preserves_source_key_comparison\n1 failed, 6 passed in 4.72s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_current_use_preserves_source_key_comparison\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=799 retained_bytes=799 omitted_bytes=0 rendered_excerpt_bytes=867 sha256=6ca84814bdc99aa1a781d3a69a1c4a3a91c23c965900a80ffb23624cd0abd25d\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_historical_current_use_preserves_source_key_comparison():\n>         doc = _current_frozen_document()\n>         M.verify_document(doc)\n>         builder = M.build_document\n>         calls = []\n>     \n>         def changed_builder(**kwargs):\n>             rebuilt = builder(**kwargs)\n>             source = next(s for s in M._iter_sources(rebuilt) if s[\"path\"].endswith(\".py\"))\n>             source[\"key\"] += \" changed\"\n>             calls.append(rebuilt)\n>             return rebuilt\n>     \n>         with mock.patch.object(M, \"build_document\", side_effect=changed_builder):\n> >           with pytest.raises(M.FreezeError, match=\"\\u6a5f\\u68b0\\u518d\\u69cb\\u6210\\u3068\\u4e0d\\u4e00\\u81f4\"):\n> E           Failed: DID NOT RAISE FreezeError\n> \n> orchestrator/tests/test_s1_known_axes_freeze.py:1100: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=799 retained_bytes=799 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1598 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "f0263936f270e200651061827093f93422ba09e3baf188e66b588472d21d0dad"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "c1b77563618795d87eff7867661bfed8505a5e7715207d2e65b2b949d5c19131",
+      "duration_s": 32.146,
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_current_use_preserves_source_key_comparison"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_current_use_preserves_source_key_comparison"
+      ],
+      "hang_risk": false,
+      "id": "M5",
+      "injection_diff_sha256": "e8ba5eb3db21dd5c41f7848092e090a33b4dc360beeb71e1b2854b84799de5c8",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "665db53f20de755b3b714c5dbfe5784a367e25de67600ea6fce2e6d07cb2d6c7",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_known_axes_freeze.py",
+          "new": "current.clear(); current.update(recorded)",
+          "old": "current[\"sha256\"] = recorded[\"sha256\"]"
+        }
+      ],
+      "repo_head": "50a38ca37500ed555404cee3257a56e3f2881e57",
+      "runner_sha256": "4af753626c60ed2f1ef9716f8ec2d698bdaa052da890c2e5610ef987493831b1",
+      "spec_sha256": "7670c16ac0bfbd4e689691710c2dbd868d5c13106586e40f82f36989862797ad",
+      "status": "KILLED",
+      "test_output_sha256": "f0263936f270e200651061827093f93422ba09e3baf188e66b588472d21d0dad",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "6ab8ac6f51796af7a7b3570199d7f705d463901a4e67f235c34825989e4e1049"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c64fe71cb41c26ec3c3a80c812f52299/izdw-c64fe71cb4.o991810",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c64fe71cb41c26ec3c3a80c812f52299/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n......F                                                                  [100%]\n=================================== FAILURES ===================================\n______ test_historical_measurement_and_calibration_keep_current_semantics ______\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_historical_measurement_and_calibration_keep_current_semantics():\n        from orchestrator.campaign import s1_measurement_freeze as measurement\n        from orchestrator.campaign import s1_verify_extime_calibration as calibration\n    \n        doc = _current_frozen_document()\n        assert measurement._verify_known_axes(M.FREEZE_PATH, None) == doc\n        assert calibration.validated_target(doc)[\"name\"] == \"g_rl\"\n        builder = M.build_document\n        calls = []\n    \n        def changed_builder(**kwargs):\n            rebuilt = builder(**kwargs)\n            # Outside read-heavy so the later calibration target check cannot mask it.\n            rebuilt[\"entries\"][\"balanced\"][\"backoff_fixed_best\"][\"flags\"][\"BACK_OFF\"] += 1\n            calls.append(rebuilt)\n            return rebuilt\n    \n        with mock.patch.object(M, \"build_document\", side_effect=changed_builder):\n            M.verify_document(doc, historical=True)\n>           with pytest.raises(measurement.FreezeError) as error:\nE           Failed: DID NOT RAISE FreezeError\n\norchestrator/tests/test_s1_known_axes_freeze.py:1126: Failed\n----------------------------- Captured stderr call -----------------------------\nIZANAGI_FREEZE_HOLD {\"check_id\": \"s1-known-axes.ccbench-submodule-head-pin\", \"decision\": \"freeze-verification-hold\", \"release_condition\": \"explicit-user-command-only\", \"ruling\": \"rulings-4th-batch-2026-08-12\"}\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_measurement_and_calibration_keep_current_semantics\n1 failed, 6 passed in 4.65s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_measurement_and_calibration_keep_current_semantics\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=1166 retained_bytes=1166 omitted_bytes=0 rendered_excerpt_bytes=1217 sha256=58368b38f932253289cff9f332934ea5c9c3234f1806e97ed10339ea2cd2d8a9\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_historical_measurement_and_calibration_keep_current_semantics():\n>         from orchestrator.campaign import s1_measurement_freeze as measurement\n>         from orchestrator.campaign import s1_verify_extime_calibration as calibration\n>     \n>         doc = _current_frozen_document()\n>         assert measurement._verify_known_axes(M.FREEZE_PATH, None) == doc\n>         assert calibration.validated_target(doc)[\"name\"] == \"g_rl\"\n>         builder = M.build_document\n>         calls = []\n>     \n>         def changed_builder(**kwargs):\n>             rebuilt = builder(**kwargs)\n>             # Outside read-heavy so the later calibration target check cannot mask it.\n>             rebuilt[\"entries\"][\"balanced\"][\"backoff_fixed_best\"][\"flags\"][\"BACK_OFF\"] += 1\n>             calls.append(rebuilt)\n>             return rebuilt\n>     \n>         with mock.patch.object(M, \"build_document\", side_effect=changed_builder):\n>             M.verify_document(doc, historical=True)\n> >           with pytest.raises(measurement.FreezeError) as error:\n> E           Failed: DID NOT RAISE FreezeError\n> \n> orchestrator/tests/test_s1_known_axes_freeze.py:1126: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1166 retained_bytes=1166 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1960 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "d1d8474efca36f83c8d1a9d03f631b93a63954f1e6e2beaac123049a3ad58f17"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "c1b77563618795d87eff7867661bfed8505a5e7715207d2e65b2b949d5c19131",
+      "duration_s": 27.382,
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_measurement_and_calibration_keep_current_semantics"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_measurement_and_calibration_keep_current_semantics"
+      ],
+      "hang_risk": false,
+      "id": "M6-measurement",
+      "injection_diff_sha256": "810b5a0e27b366d76c5b9319718d00a2fec8fee030c22f1548c2319e4db167fa",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "7355cd66524716a3eb98e6d63e0df5298a5948389d1a9c9bc765ec93e6d07fb6",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_measurement_freeze.py",
+          "new": "known_axes.verify_document(doc, source_resolver=source_resolver, historical=True)",
+          "old": "known_axes.verify_document(doc, source_resolver=source_resolver)"
+        }
+      ],
+      "repo_head": "50a38ca37500ed555404cee3257a56e3f2881e57",
+      "runner_sha256": "4af753626c60ed2f1ef9716f8ec2d698bdaa052da890c2e5610ef987493831b1",
+      "spec_sha256": "7670c16ac0bfbd4e689691710c2dbd868d5c13106586e40f82f36989862797ad",
+      "status": "KILLED",
+      "test_output_sha256": "d1d8474efca36f83c8d1a9d03f631b93a63954f1e6e2beaac123049a3ad58f17",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "6ab8ac6f51796af7a7b3570199d7f705d463901a4e67f235c34825989e4e1049"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/974103372255a9672e69b0643bf844ad/izdw-9741033722.o991811",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/974103372255a9672e69b0643bf844ad/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n......F                                                                  [100%]\n=================================== FAILURES ===================================\n______ test_historical_measurement_and_calibration_keep_current_semantics ______\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_historical_measurement_and_calibration_keep_current_semantics():\n        from orchestrator.campaign import s1_measurement_freeze as measurement\n        from orchestrator.campaign import s1_verify_extime_calibration as calibration\n    \n        doc = _current_frozen_document()\n        assert measurement._verify_known_axes(M.FREEZE_PATH, None) == doc\n        assert calibration.validated_target(doc)[\"name\"] == \"g_rl\"\n        builder = M.build_document\n        calls = []\n    \n        def changed_builder(**kwargs):\n            rebuilt = builder(**kwargs)\n            # Outside read-heavy so the later calibration target check cannot mask it.\n            rebuilt[\"entries\"][\"balanced\"][\"backoff_fixed_best\"][\"flags\"][\"BACK_OFF\"] += 1\n            calls.append(rebuilt)\n            return rebuilt\n    \n        with mock.patch.object(M, \"build_document\", side_effect=changed_builder):\n            M.verify_document(doc, historical=True)\n            with pytest.raises(measurement.FreezeError) as error:\n                measurement._verify_known_axes(M.FREEZE_PATH, None)\n            assert str(error.value) == (\n                \"known_axes_freeze 照合失敗: freeze JSON の内容が現行 generator による機械再構成と不一致\")\n>           with pytest.raises(M.FreezeError, match=\"機械再構成と不一致\"):\nE           Failed: DID NOT RAISE FreezeError\n\norchestrator/tests/test_s1_known_axes_freeze.py:1130: Failed\n----------------------------- Captured stderr call -----------------------------\nIZANAGI_FREEZE_HOLD {\"check_id\": \"s1-known-axes.ccbench-submodule-head-pin\", \"decision\": \"freeze-verification-hold\", \"release_condition\": \"explicit-user-command-only\", \"ruling\": \"rulings-4th-batch-2026-08-12\"}\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_measurement_and_calibration_keep_current_semantics\n1 failed, 6 passed in 4.70s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_measurement_and_calibration_keep_current_semantics\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=1488 retained_bytes=1488 omitted_bytes=0 rendered_excerpt_bytes=1640 sha256=60a494126971267cfd9b4a8260ad0aca9d9639f96733ed17e94459b1ae936844\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_historical_measurement_and_calibration_keep_current_semantics():\n>         from orchestrator.campaign import s1_measurement_freeze as measurement\n>         from orchestrator.campaign import s1_verify_extime_calibration as calibration\n>     \n>         doc = _current_frozen_document()\n>         assert measurement._verify_known_axes(M.FREEZE_PATH, None) == doc\n>         assert calibration.validated_target(doc)[\"name\"] == \"g_rl\"\n>         builder = M.build_document\n>         calls = []\n>     \n>         def changed_builder(**kwargs):\n>             rebuilt = builder(**kwargs)\n>             # Outside read-heavy so the later calibration target check cannot mask it.\n>             rebuilt[\"entries\"][\"balanced\"][\"backoff_fixed_best\"][\"flags\"][\"BACK_OFF\"] += 1\n>             calls.append(rebuilt)\n>             return rebuilt\n>     \n>         with mock.patch.object(M, \"build_document\", side_effect=changed_builder):\n>             M.verify_document(doc, historical=True)\n>             with pytest.raises(measurement.FreezeError) as error:\n>                 measurement._verify_known_axes(M.FREEZE_PATH, None)\n>             assert str(error.value) == (\n>                 \"known_axes_freeze \\u7167\\u5408\\u5931\\u6557: freeze JSON \\u306e\\u5185\\u5bb9\\u304c\\u73fe\\u884c generator \\u306b\\u3088\\u308b\\u6a5f\\u68b0\\u518d\\u69cb\\u6210\\u3068\\u4e0d\\u4e00\\u81f4\")\n> >           with pytest.raises(M.FreezeError, match=\"\\u6a5f\\u68b0\\u518d\\u69cb\\u6210\\u3068\\u4e0d\\u4e00\\u81f4\"):\n> E           Failed: DID NOT RAISE FreezeError\n> \n> orchestrator/tests/test_s1_known_axes_freeze.py:1130: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1488 retained_bytes=1488 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2383 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "ea05ceadd160f486a9904376d0b1f116369594cacaf9c1b2613d24fedcfd475f"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "c1b77563618795d87eff7867661bfed8505a5e7715207d2e65b2b949d5c19131",
+      "duration_s": 27.355,
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_measurement_and_calibration_keep_current_semantics"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_measurement_and_calibration_keep_current_semantics"
+      ],
+      "hang_risk": false,
+      "id": "M6-calibration",
+      "injection_diff_sha256": "a71e47db225d5b2372d3d5e7cd96fde544be9ea7a5a4bc1daad3a37bda81cd4d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "6c26d134d7e80491eb5ac83ce89cf3955ec5b69ff23d356a56438e5320fcda10",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_verify_extime_calibration.py",
+          "new": "verifier = verify_fn or (lambda doc: s1_known_axes_freeze.verify_document(doc, historical=True))",
+          "old": "verifier = verify_fn or s1_known_axes_freeze.verify_document"
+        }
+      ],
+      "repo_head": "50a38ca37500ed555404cee3257a56e3f2881e57",
+      "runner_sha256": "4af753626c60ed2f1ef9716f8ec2d698bdaa052da890c2e5610ef987493831b1",
+      "spec_sha256": "7670c16ac0bfbd4e689691710c2dbd868d5c13106586e40f82f36989862797ad",
+      "status": "KILLED",
+      "test_output_sha256": "ea05ceadd160f486a9904376d0b1f116369594cacaf9c1b2613d24fedcfd475f",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "6ab8ac6f51796af7a7b3570199d7f705d463901a4e67f235c34825989e4e1049"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/7f1cc4b05fe2231835883f1bce40055b/izdw-7f1cc4b05f.o991812",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/7f1cc4b05fe2231835883f1bce40055b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...F...                                                                  [100%]\n=================================== FAILURES ===================================\n____________ test_historical_real_artifact_without_live_code_reads _____________\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_historical_real_artifact_0')\n\n    def test_historical_real_artifact_without_live_code_reads(tmp_path):\n        original = M.FREEZE_PATH.read_bytes()\n        doc = json.loads(original)\n        code_paths = {\n            \"orchestrator/campaign/axis_trigger_gating.py\",\n            \"orchestrator/campaign/s8a_trigger_sweep.py\",\n            \"orchestrator/campaign/genome.py\",\n            \"orchestrator/campaign/backoff_sweep.py\",\n            \"orchestrator/campaign/s6_sort_sweep.py\",\n            \"orchestrator/campaign/p3_s4_loop_sort.py\",\n        }\n        assert {s[\"path\"] for s in M._iter_sources(doc)\n                if s[\"path\"].endswith(\".py\")} == code_paths\n        missing = tmp_path / \"missing-code\"\n        assert not missing.exists()\n    \n        def resolver(relative):\n            return missing if relative in code_paths else M.ROOT / relative\n    \n        resolve = mock.Mock(wraps=resolver)\n        with mock.patch.object(M, \"_sha256\", wraps=M._sha256) as sha:\n            # Both public APIs must accept the unchanged historical artifact.\n>           result = M.verify(historical=True, source_resolver=resolve)\n\norchestrator/tests/test_s1_known_axes_freeze.py:942: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/s1_known_axes_freeze.py:993: in verify\n    held_checks = _verify_document(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ndoc = {'what': 'S-1 既知軸基準点 + 系側構成の凍結 (D52 §2.1 の実体化)', 'frozen_at_head': '2066ce6b47c6a5d43ca2c8ab3cc7728d32336be1', 'ccbenc.../campaign/s1_known_axes_freeze.py', 'sha256': '1d4d45a3de4926c6aae76906f7b4b72d3fead51e9cdf62ff03f80a0379c364e0'}, ...}\nhistorical = True\nraw = b'{\\n  \"what\": \"S-1 \\xe6\\x97\\xa2\\xe7\\x9f\\xa5\\xe8\\xbb\\xb8\\xe5\\x9f\\xba\\xe6\\xba\\x96\\xe7\\x82\\xb9 + \\xe7\\xb3\\xbb\\xe5\\x81\\xb...e5\\xae\\x9f\\xe6\\xb8\\xac\\xe3\\x81\\xaf\\xe5\\x8f\\x82\\xe8\\x80\\x83\\xe4\\xbd\\xb5\\xe8\\xa8\\x98 \\xe2\\x80\\x94 D52 \\xc2\\xa72.1)\"\\n}\\n'\nsource_resolver = <Mock id='22704828718464'>\n\n    def _verify_document(doc: Mapping, *, historical: bool, raw: bytes,\n                         source_resolver: Optional[Callable[[str], Path]] = None\n                        ) -> Tuple[Mapping[str, object], ...]:\n        held_checks: List[Mapping[str, object]] = []\n        # Reuse the existing root only to identify this historical document; this\n        # does not execute or release the held T-080 artifact check.\n        from .t080_freeze_migration import KNOWN_AXES_RAW_SHA256\n    \n        known_historical = hashlib.sha256(raw).hexdigest() == KNOWN_AXES_RAW_SHA256\n        if not (known_historical and historical):\n            _validate_schema(doc)\n        generator_doc = doc[\"generator\"]\n        if generator_doc[\"path\"] != SCRIPT_REL:\n            raise FreezeError(f\"generator.path 不一致: {generator_doc['path']}\")\n        if not known_historical:\n            actual_generator = _sha256(ROOT / SCRIPT_REL)\n            if generator_doc[\"sha256\"] != actual_generator:\n                raise FreezeError(\n                    f\"generator sha256 不一致: recorded={generator_doc['sha256']} actual={actual_generator}\")\n    \n        resolver = source_resolver or (lambda rel: ROOT / rel)\n        source_count = 0\n        for source in _iter_sources(doc):\n            path_rel, expected = source.get(\"path\"), source.get(\"sha256\")\n            if not isinstance(path_rel, str) or not isinstance(expected, str):\n                raise FreezeError(\"source path/sha256 が文字列でない\")\n            if False:\n                continue\n            path = resolver(path_rel)\n            if not path.is_file():\n>               raise FreezeError(f\"source が存在しない: {path_rel} -> {path}\")\nE               orchestrator.campaign.s1_known_axes_freeze.FreezeError: source が存在しない: orchestrator/campaign/axis_trigger_gating.py -> /tmp/pytest-of-tanab/pytest-0/popen-gw6/test_historical_real_artifact_0/missing-code\n\norchestrator/campaign/s1_known_axes_freeze.py:913: FreezeError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_real_artifact_without_live_code_reads\n1 failed, 6 passed in 4.72s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_real_artifact_without_live_code_reads\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=4143 retained_bytes=3685 omitted_bytes=458 rendered_excerpt_bytes=4096 sha256=eb5ce65cd4809faf42228d6ad7c22fcba5b66b63e738f2ae4f678b2f1ac1efb1\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> trator/campaign/genome.py\",\n>             \"orchestrator/campaign/backoff_sweep.py\",\n>             \"orchestrator/campaign/s6_sort_sweep.py\",\n>             \"orchestrator/campaign/p3_s4_loop_sort.py\",\n>         }\n>         assert {s[\"path\"] for s in M._iter_sources(doc)\n>                 if s[\"path\"].endswith(\".py\")} == code_paths\n>         missing = tmp_path / \"missing-code\"\n>         assert not missing.exists()\n>     \n>         def resolver(relative):\n>             return missing if relative in code_paths else M.ROOT / relative\n>     \n>         resolve = mock.Mock(wraps=resolver)\n>         with mock.patch.object(M, \"_sha256\", wraps=M._sha256) as sha:\n>             # Both public APIs must accept the unchanged historical artifact.\n> >           result = M.verify(historical=True, source_resolver=resolve)\n> \n> orchestrator/tests/test_s1_known_axes_freeze.py:942: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/s1_known_axes_freeze.py:993: in verify\n>     held_checks = _verify_document(\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> doc = {'what': 'S-1 \\u65e2\\u77e5\\u8ef8\\u57fa\\u6e96\\u70b9 + \\u7cfb\\u5074\\u69cb\\u6210\\u306e\\u51cd\\u7d50 (D52 \\xa72.1 \\u306e\\u5b9f\\u4f53\\u5316)', 'frozen_at_head': '2066ce6b47c6a5d43ca2c8ab3cc7728d32336be1', 'ccbenc.../campaign/s1_known_axes_freeze.py', 'sha256': '1d4d45a3de4926c6aae76906f7b4b72d3fead51e9cdf62ff03f80a0379c364e0'}, ...}\n> historical = True\n> raw = b'{\\x5cn  \"what\": \"S-1 \\x5cxe6\\x5cx97\\x5cxa2\\x5cxe7\\x5cx9f\\x5cxa5\\x5cxe8\\x5cxbb\\x5cxb8\\x5cxe5\\x5cx9f\\x5cxba\\x5cxe6\\x5cxba\\x5cx96\\x5cxe7\\x5cx82\\x5cxb9 + \\x5cxe7\\x5cxb3\\x5cxbb\\x5cxe5\\x5cx81\\x5cxb...e5\\x5cxae\\x5cx9f\\x5cxe6\\x5cxb8\\x5cxac\\x5cxe3\\x5cx81\\x5cxaf\\x5cxe5\\x5cx8f\\x5cx82\\x5cxe8\\x5cx80\\x5cx83\\x5cxe4\\x5cxbd\\x5cxb5\\x5cxe8\\x5cxa8\\x5cx98 \\x5cxe2\\x5cx80\\x5cx94 D52 \\x5cxc2\\x5cxa72.1)\"\\x5cn}\\x5cn'\n> source_resolver = <Mock id='22704828718464'>\n> \n>     def _verify_document(doc: Mapping, *, historical: bool, raw: bytes,\n>                          source_resolver: Optional[Callable[[str], Path]] = None\n>                         ) -> Tuple[Mapping[str, object], ...]:\n>         held_checks: List[Mapping[str, object]] = []\n>         # Reuse the existing root only to identify this historical document; this\n>         # does not execute or release the held T-080 artifact check.\n>         from .t080_freeze_migration import KNOWN_AXES_RAW_SHA256\n>     \n>         known_historical = hashlib.sha256(raw).hexdigest() == KNOWN_AXES_RAW_SHA256\n>         if not (known_historical and historical):\n>             _validate_schema(doc)\n>         generator_doc = doc[\"generator\"]\n>         if generator_doc[\"path\"] != SCRIPT_REL:\n>             raise FreezeError(f\"generator.path \\u4e0d\\u4e00\\u81f4: {generator_doc['path']}\")\n>         if not known_historical:\n>             actual_generator = _sha256(ROOT / SCRIPT_REL)\n>             if generator_doc[\"sha256\"] != actual_generator:\n>                 raise FreezeError(\n>                     f\"generator sha256 \\u4e0d\\u4e00\\u81f4: recorded={generator_doc['sha256']} actual={actual_generator}\")\n>     \n>         resolver = source_resolver or (lambda rel: ROOT / rel)\n>         source_count = 0\n>         for source in _iter_sources(doc):\n>             path_rel, expected = source.get(\"path\"), source.get(\"sha256\")\n>             if not isinstance(path_rel, str) or not isinstance(expected, str):\n>                 raise FreezeError(\"source path/sha256 \\u304c\\u6587\\u5b57\\u5217\\u3067\\u306a\\u3044\")\n>             if False:\n>                 continue\n>             path = resolver(path_rel)\n>             if not path.is_file():\n> >               raise FreezeError(f\"source \\u304c\\u5b58\\u5728\\u3057\\u306a\\u3044: {path_rel} -> {path}\")\n> E               orchestrator.campaign.s1_known_axes_freeze.FreezeError: source \\u304c\\u5b58\\u5728\\u3057\\u306a\\u3044: orchestrator/campaign/axis_trigger_gating.py -> /tmp/pytest-of-tanab/pytest-0/popen-gw6/test_historical_real_artifact_0/missing-code\n> \n> orchestrator/campaign/s1_known_axes_freeze.py:913: FreezeError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=4143 retained_bytes=3685 omitted_bytes=458 budget_bytes=49152 rendered_bytes=4830 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "39445c5b0b6285b5eb5af5fafa73867cb8a14b60608a5b34a3e9c9f2b8585b5d"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "c1b77563618795d87eff7867661bfed8505a5e7715207d2e65b2b949d5c19131",
+      "duration_s": 27.43,
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_real_artifact_without_live_code_reads"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_real_artifact_without_live_code_reads"
+      ],
+      "hang_risk": false,
+      "id": "M7",
+      "injection_diff_sha256": "0dc85083134cb5b630f77111c0abc6b5d68f19deb094cbe8a0806b088ca25d4c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "828bf3868bc809d37698a2bd307fbc43e5b3533b612cd6d4e759ea2d792d87be",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_known_axes_freeze.py",
+          "new": "if False:",
+          "old": "if known_historical and historical and path_rel in _HISTORICAL_CODE_PATHS:"
+        }
+      ],
+      "repo_head": "50a38ca37500ed555404cee3257a56e3f2881e57",
+      "runner_sha256": "4af753626c60ed2f1ef9716f8ec2d698bdaa052da890c2e5610ef987493831b1",
+      "spec_sha256": "7670c16ac0bfbd4e689691710c2dbd868d5c13106586e40f82f36989862797ad",
+      "status": "KILLED",
+      "test_output_sha256": "39445c5b0b6285b5eb5af5fafa73867cb8a14b60608a5b34a3e9c9f2b8585b5d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "6ab8ac6f51796af7a7b3570199d7f705d463901a4e67f235c34825989e4e1049"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/4ec3680d7b939a638c7022932bf3acfc/izdw-4ec3680d7b.o991802",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/4ec3680d7b939a638c7022932bf3acfc/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_real_artifact_is_readable\norchestrator/tests/test_s1_known_axes_freeze.py::test_historical_content_and_identifiers_are_bound\norchestrator/tests/test_s1_known_axes_freeze.py::test_historical_input_copy_sha_and_existence_remain_bound\norchestrator/tests/test_s1_known_axes_freeze.py::test_historical_current_use_rejects_single_flags_difference\norchestrator/tests/test_s1_known_axes_freeze.py::test_historical_current_use_preserves_source_key_comparison\norchestrator/tests/test_s1_known_axes_freeze.py::test_historical_measurement_and_calibration_keep_current_semantics\norchestrator/tests/test_s1_known_axes_freeze.py::test_historical_real_artifact_without_live_code_reads\n\n7 tests collected in 1.01s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "1f7573da9e4ed74a14cc7b677d5ef1ff293da7e1a07bfb558e3acda1f4bed28b"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_real_artifact_is_readable",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_content_and_identifiers_are_bound",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_input_copy_sha_and_existence_remain_bound",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_current_use_rejects_single_flags_difference",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_current_use_preserves_source_key_comparison",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_measurement_and_calibration_keep_current_semantics",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_real_artifact_without_live_code_reads"
+      ],
+      "duration_s": 21.824,
+      "rc": 0,
+      "repo_head": "50a38ca37500ed555404cee3257a56e3f2881e57",
+      "runner_sha256": "4af753626c60ed2f1ef9716f8ec2d698bdaa052da890c2e5610ef987493831b1",
+      "spec_sha256": "7670c16ac0bfbd4e689691710c2dbd868d5c13106586e40f82f36989862797ad",
+      "status": "PASSED",
+      "tool_sha256": "6ab8ac6f51796af7a7b3570199d7f705d463901a4e67f235c34825989e4e1049"
+    },
+    "hang_timeout_seconds": 120.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_real_artifact_is_readable",
+          "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_input_copy_sha_and_existence_remain_bound",
+          "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_current_use_rejects_single_flags_difference",
+          "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_current_use_preserves_source_key_comparison",
+          "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_measurement_and_calibration_keep_current_semantics",
+          "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_real_artifact_without_live_code_reads"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "7840032d45743af5bc429f8a4516e06b3b249deb41c33e177e79d4794282922d",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s1_known_axes_freeze.py",
+            "new": "    if True:\n        actual_generator = _sha256(ROOT / SCRIPT_REL)",
+            "old": "    if not known_historical:\n        actual_generator = _sha256(ROOT / SCRIPT_REL)"
+          }
+        ]
+      },
+      "M2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_content_and_identifiers_are_bound"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "2a497db878eaacf4fb6134e21fc5334bd5cd4d8405072b83e353e40b65a1ed0f",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s1_known_axes_freeze.py",
+            "new": "known_historical = True",
+            "old": "known_historical = hashlib.sha256(raw).hexdigest() == KNOWN_AXES_RAW_SHA256"
+          }
+        ]
+      },
+      "M3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_input_copy_sha_and_existence_remain_bound"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "0e79690b10f5bdc190c7324e0af6aaed8ce6bf78c85a33fc91fc7d4d2834728c",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s1_known_axes_freeze.py",
+            "new": "if actual != expected and not known_historical:",
+            "old": "if actual != expected and not (known_historical and path_rel in _HISTORICAL_CODE_PATHS):"
+          }
+        ]
+      },
+      "M4": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_current_use_rejects_single_flags_difference",
+          "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_current_use_preserves_source_key_comparison",
+          "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_measurement_and_calibration_keep_current_semantics"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "89e0237863ecd06b1722c6c70f25ac44f30e13cad5d29cfd67b2018b5670061b",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s1_known_axes_freeze.py",
+            "new": "if not known_historical and doc != expected_doc:",
+            "old": "if doc != expected_doc:"
+          }
+        ]
+      },
+      "M5": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_current_use_preserves_source_key_comparison"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "e8ba5eb3db21dd5c41f7848092e090a33b4dc360beeb71e1b2854b84799de5c8",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s1_known_axes_freeze.py",
+            "new": "current.clear(); current.update(recorded)",
+            "old": "current[\"sha256\"] = recorded[\"sha256\"]"
+          }
+        ]
+      },
+      "M6-calibration": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_measurement_and_calibration_keep_current_semantics"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a71e47db225d5b2372d3d5e7cd96fde544be9ea7a5a4bc1daad3a37bda81cd4d",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s1_verify_extime_calibration.py",
+            "new": "verifier = verify_fn or (lambda doc: s1_known_axes_freeze.verify_document(doc, historical=True))",
+            "old": "verifier = verify_fn or s1_known_axes_freeze.verify_document"
+          }
+        ]
+      },
+      "M6-measurement": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_measurement_and_calibration_keep_current_semantics"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "810b5a0e27b366d76c5b9319718d00a2fec8fee030c22f1548c2319e4db167fa",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s1_measurement_freeze.py",
+            "new": "known_axes.verify_document(doc, source_resolver=source_resolver, historical=True)",
+            "old": "known_axes.verify_document(doc, source_resolver=source_resolver)"
+          }
+        ]
+      },
+      "M7": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_real_artifact_without_live_code_reads"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "0dc85083134cb5b630f77111c0abc6b5d68f19deb094cbe8a0806b088ca25d4c",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s1_known_axes_freeze.py",
+            "new": "if False:",
+            "old": "if known_historical and historical and path_rel in _HISTORICAL_CODE_PATHS:"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "e3e3a5405729aad6911c1fafbbfef9229a7cb82f45f29c30685f91f4974c6669",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-q",
+      "-rf",
+      "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_real_artifact_is_readable",
+      "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_content_and_identifiers_are_bound",
+      "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_input_copy_sha_and_existence_remain_bound",
+      "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_current_use_rejects_single_flags_difference",
+      "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_current_use_preserves_source_key_comparison",
+      "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_measurement_and_calibration_keep_current_semantics",
+      "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_real_artifact_without_live_code_reads",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 900.0
+  },
+  "repo_head": "50a38ca37500ed555404cee3257a56e3f2881e57",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-q",
+      "-rf",
+      "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_real_artifact_is_readable",
+      "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_content_and_identifiers_are_bound",
+      "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_input_copy_sha_and_existence_remain_bound",
+      "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_current_use_rejects_single_flags_difference",
+      "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_current_use_preserves_source_key_comparison",
+      "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_measurement_and_calibration_keep_current_semantics",
+      "orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_real_artifact_without_live_code_reads",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "c93a924ecbc48435180bbb21455e3ff9a33b5595",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "4af753626c60ed2f1ef9716f8ec2d698bdaa052da890c2e5610ef987493831b1",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "7670c16ac0bfbd4e689691710c2dbd868d5c13106586e40f82f36989862797ad",
+  "summary": {
+    "KILLED": 8,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 8,
+    "matching": 8,
+    "recorded": 8,
+    "registered": 8
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "6ab8ac6f51796af7a7b3570199d7f705d463901a4e67f235c34825989e4e1049",
+  "updated_at": "2026-09-10T21:45:47.589951+00:00"
+}

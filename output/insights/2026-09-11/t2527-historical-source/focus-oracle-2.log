@@ -1,0 +1,47 @@
+警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+[Pegasus dispatch] job を gen_S へ投入します (izdw-0cfa0d37c6)
+Pegasus pending orphan hold を create-only で保存しました: /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2527-historical-source/output/pegasus-dispatch/orphan-holds/unknown-452e5d966f592b25071a2cbc.json
+[Pegasus dispatch] request ID 991740.nqsv を受理しました
+[Pegasus dispatch] request 991740.nqsv の状態: QUE
+[Pegasus dispatch] request 991740.nqsv の状態: RUN
+[Pegasus dispatch] request 991740.nqsv の状態: END
+[Pegasus dispatch] request 991740.nqsv の成果物収集を開始します
+Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2527-historical-source/output/pegasus-dispatch/orphan-holds/unknown-452e5d966f592b25071a2cbc.json
+[Pegasus dispatch] receipt を /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2527-historical-source/output/pegasus-dispatch/0cfa0d37c606b67056683c94d2aaaf44/receipt.json へ保存しました (child rc=0)
+[Pegasus dispatch] request 991740.nqsv child stdout begin
+| bringing up nodes...
+| bringing up nodes...
+|
+| ss...................................ssss............................... [ 53%]
+| ..............................................................           [100%]IZANAGI_GROWTH_HOLD_SUMMARY_V1 {"collected_hold_functions":5,"opted_in":false}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"commits","node_id":"test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated","reason":"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"commits","node_id":"test_s8b_oracle_driver.py::test_cli_subprocess_returns_rc_2_on_gate_refused","reason":"Runs the real repository freeze/history gate whose cost grows with commit history.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"commits","node_id":"test_s8b_oracle_driver.py::test_nonnull_floor_without_active_generation_is_refused","reason":"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"commits","node_id":"test_s8b_oracle_driver.py::test_real_freeze_gate_lists_floor_and_budget_null","reason":"Runs the real repository freeze/history gate whose cost grows with commit history.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"commits","node_id":"test_s8b_oracle_driver.py::test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing","reason":"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+|
+| 128 passed, 6 skipped in 152.01s (0:02:32)
+| IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}
+[Pegasus dispatch] request 991740.nqsv child stdout end
+[Pegasus dispatch] request 991740.nqsv child stderr begin
+| 警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+| IZANAGI_FREEZE_HOLD {"check_id": "t080.live-known-axes-artifact-bytes", "decision": "freeze-verification-hold", "release_condition": "explicit-user-command-only", "ruling": "rulings-4th-batch-2026-08-12"}
+| IZANAGI_FREEZE_HOLD {"check_id": "t080.live-holdout-artifact-bytes", "decision": "freeze-verification-hold", "release_condition": "explicit-user-command-only", "ruling": "rulings-4th-batch-2026-08-12"}
+| IZANAGI_FREEZE_HOLD {"check_id": "t080.live-known-axes-ccbench-current-pin", "decision": "freeze-verification-hold", "release_condition": "explicit-user-command-only", "ruling": "rulings-4th-batch-2026-08-12"}
+|
+| ============================================================
+| Request ID:             991740.nqsv
+| Request Name:           izdw-0cfa0d37c6
+| Queue:                  gen_S@nqsv
+| Number of Jobs:         1
+| User Name:              tanab
+| Group Name:             SFC
+| Created Request Time:   Fri Sep 11 03:48:08 2026
+| Started Request Time:   Fri Sep 11 03:48:15 2026
+| Ended Request Time:     Fri Sep 11 03:50:48 2026
+| Resources Information:
+|   Elapse:               158S
+|   Remaining Elapse:     3442S
+| ============================================================
+[Pegasus dispatch] request 991740.nqsv child stderr end
+IZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid

@@ -1,0 +1,194 @@
+{
+  "f49_compute_marker": {
+    "hostname": "bnode001",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/90e88248a23f0e45136b0540f960cfae/compute-visible.json",
+    "pbs_jobid": "0:991831.nqsv",
+    "present": true,
+    "valid": true
+  },
+  "f49_immediate": {
+    "qstat_succeeded": true,
+    "qstat_visible": true
+  },
+  "immediate_qstat": {
+    "returncode": 0,
+    "stderr": "",
+    "stdout": "Request ID: 991831.nqsv\n    Request Name = izdw-90e88248a2\n    User  Name = tanab\n    Group Name = SFC\n    User  ID   = 31609\n    Group ID   = 30410\n    Current State           = Staging\n    Previous State          = Queued\n    State Transition Time   = Fri Sep 11 07:05:48 2026\n    State Transition Reason = STAGEIN\n    Queue = gen_S@nqsv (Execution Queue)\n    Job Topology = Distribute Job\n    Request Priority  = 0\n    Request Loglevel  = 0\n    Rerunable    = No\n    Holdable     = Yes\n    Hold Type    = (none)\n    Migratable   = Yes\n    Suspend Type = (none)\n    Account Code = SFC\n    Stdout = pegasus02:/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/90e88248a23f0e45136b0540f960cfae/izdw-90e88248a2.o%s\n    Stderr = pegasus02:/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/90e88248a23f0e45136b0540f960cfae/izdw-90e88248a2.e%s\n    Reqlog = (none)\n    Shell = (none)\n    Mail Address = tanab@pegasus02\n    Mail Option  = (none)\n    Job Condition:\n        Job NO: 0 \"\"\n    Number of Jobs = 1\n    Created Request Time = Fri Sep 11 07:05:48 2026\n    Entered Queue Time   = Fri Sep 11 07:05:48 2026\n    Planned Start Time   = (none)\n    Execute Request Time = (none)\n    Started Request Time = (none)\n    Ended Request Time   = (none)\n    Requested Start Time = (none)\n    Deadline Time        = (none)\n    UMASK = 022\n    Reservation ID      = (none)\n    qattach command = Enable\n    Attach = No\n    Cluster Type Select = NONE\n    UserPP Script = (none)\n    Exclusive = (none)\n    HCA Number = (none)\n    Accept Sigterm = No\n    Enable Cloud Bursting = No\n  Custom Resources:\n    Share           = 1\n  Execution Hosts(JSVNO):\n    bnode001(1)\n  Resources Information:\n    Memory    = 0.000000B\n    CPU Time  = 0.000000S\n    Accumulated CPU Time = 0.000000S\n    Elapse    = 0S\n    Remaining Elapse = 3600S\n    Virtual Memory = 0.000000B\n  Logical Host Resources:\n    VE Node Number        = Max:         0 Warn:       --- \n    CPU Number            = Max:        48 Warn:       --- \n    GPU Number            = Max:         0 Warn:       --- \n    CPU Time              = Max: UNLIMITED Warn: UNLIMITED \n    Memory Size           = Max: UNLIMITED Warn: UNLIMITED \n    Virtual Memory Size   = Max: UNLIMITED Warn: UNLIMITED \n    VE CPU Time           = Max: UNLIMITED Warn: UNLIMITED \n    VE Memory Size        = Max: UNLIMITED Warn: UNLIMITED \n    Stdout Size           = Max: UNLIMITED Warn: UNLIMITED \n    Stderr Size           = Max: UNLIMITED Warn: UNLIMITED \n  VE Node Resources:\n    VE CPU Time           = Max: UNLIMITED Warn: UNLIMITED \n    VE Memory Size        = Max: UNLIMITED Warn: UNLIMITED \n  Resources Limits:\n    (Per-Req) Elapse Time Limit       = Max:     3600S Warn:     3600S \n    (Per-Job) CPU Time                = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Job) CPU Number              = Max:        48 Warn:       --- \n    (Per-Job) Memory Size             = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Job) Virtual Memory Size     = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Job) GPU Number              = Max:         0 Warn:       --- \n    (Per-Prc) CPU Time                = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Open File Number        = Max:    262144 Warn:       --- \n    (Per-Prc) Virtual Memory Size     = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Data Segment Size       = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Stack Segment Size      = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Core File Size          = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Permanent File Size     = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) VE CPU Time             = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) VE Memory Size          = Max: UNLIMITED Warn: UNLIMITED \n  Kernel Parameter:\n    Resource Sharing Group     = 0\n    Nice Value                 = 0\n  User Attributes:\n    (none)\n\n"
+  },
+  "immediate_qstat_attempts": [
+    {
+      "attempt": 1,
+      "classification": "success-request-visible",
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "Request ID: 991831.nqsv\n    Request Name = izdw-90e88248a2\n    User  Name = tanab\n    Group Name = SFC\n    User  ID   = 31609\n    Group ID   = 30410\n    Current State           = Staging\n    Previous State          = Queued\n    State Transition Time   = Fri Sep 11 07:05:48 2026\n    State Transition Reason = STAGEIN\n    Queue = gen_S@nqsv (Execution Queue)\n    Job Topology = Distribute Job\n    Request Priority  = 0\n    Request Loglevel  = 0\n    Rerunable    = No\n    Holdable     = Yes\n    Hold Type    = (none)\n    Migratable   = Yes\n    Suspend Type = (none)\n    Account Code = SFC\n    Stdout = pegasus02:/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/90e88248a23f0e45136b0540f960cfae/izdw-90e88248a2.o%s\n    Stderr = pegasus02:/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/90e88248a23f0e45136b0540f960cfae/izdw-90e88248a2.e%s\n    Reqlog = (none)\n    Shell = (none)\n    Mail Address = tanab@pegasus02\n    Mail Option  = (none)\n    Job Condition:\n        Job NO: 0 \"\"\n    Number of Jobs = 1\n    Created Request Time = Fri Sep 11 07:05:48 2026\n    Entered Queue Time   = Fri Sep 11 07:05:48 2026\n    Planned Start Time   = (none)\n    Execute Request Time = (none)\n    Started Request Time = (none)\n    Ended Request Time   = (none)\n    Requested Start Time = (none)\n    Deadline Time        = (none)\n    UMASK = 022\n    Reservation ID      = (none)\n    qattach command = Enable\n    Attach = No\n    Cluster Type Select = NONE\n    UserPP Script = (none)\n    Exclusive = (none)\n    HCA Number = (none)\n    Accept Sigterm = No\n    Enable Cloud Bursting = No\n  Custom Resources:\n    Share           = 1\n  Execution Hosts(JSVNO):\n    bnode001(1)\n  Resources Information:\n    Memory    = 0.000000B\n    CPU Time  = 0.000000S\n    Accumulated CPU Time = 0.000000S\n    Elapse    = 0S\n    Remaining Elapse = 3600S\n    Virtual Memory = 0.000000B\n  Logical Host Resources:\n    VE Node Number        = Max:         0 Warn:       --- \n    CPU Number            = Max:        48 Warn:       --- \n    GPU Number            = Max:         0 Warn:       --- \n    CPU Time              = Max: UNLIMITED Warn: UNLIMITED \n    Memory Size           = Max: UNLIMITED Warn: UNLIMITED \n    Virtual Memory Size   = Max: UNLIMITED Warn: UNLIMITED \n    VE CPU Time           = Max: UNLIMITED Warn: UNLIMITED \n    VE Memory Size        = Max: UNLIMITED Warn: UNLIMITED \n    Stdout Size           = Max: UNLIMITED Warn: UNLIMITED \n    Stderr Size           = Max: UNLIMITED Warn: UNLIMITED \n  VE Node Resources:\n    VE CPU Time           = Max: UNLIMITED Warn: UNLIMITED \n    VE Memory Size        = Max: UNLIMITED Warn: UNLIMITED \n  Resources Limits:\n    (Per-Req) Elapse Time Limit       = Max:     3600S Warn:     3600S \n    (Per-Job) CPU Time                = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Job) CPU Number              = Max:        48 Warn:       --- \n    (Per-Job) Memory Size             = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Job) Virtual Memory Size     = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Job) GPU Number              = Max:         0 Warn:       --- \n    (Per-Prc) CPU Time                = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Open File Number        = Max:    262144 Warn:       --- \n    (Per-Prc) Virtual Memory Size     = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Data Segment Size       = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Stack Segment Size      = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Core File Size          = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Permanent File Size     = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) VE CPU Time             = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) VE Memory Size          = Max: UNLIMITED Warn: UNLIMITED \n  Kernel Parameter:\n    Resource Sharing Group     = 0\n    Nice Value                 = 0\n  User Attributes:\n    (none)\n\n"
+    }
+  ],
+  "normalized_request_id": "991831.nqsv",
+  "outcome": {
+    "accounting_verified": true,
+    "kind": "child",
+    "rc": 1
+  },
+  "preflight": {
+    "qstat_Q": {
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "[EXECUTION QUEUE] Batch Server Host: nqsv\n=========================================\nQueueName       SCH JSVs ENA STS  PRI  TOT ARR WAI QUE PRR RUN POR EXT HLD HOL SUS MIG STG\n--------------- --- ---- ------- ---- ----------------------------------------------------\ngen_L             1  149 ENA ACT   30    0   0   0   0   0   0   0   0   0   0   0   0   0 \ngen_M             1  149 ENA ACT   30    0   0   0   0   0   0   0   0   0   0   0   0   0 \ngen_S             1  149 ENA ACT   30   48   0   0  14   5  27   0   0   2   0   0   0   0 \n--------------- --- ---- ------- ---- ----------------------------------------------------\n <TOTAL>                                48   0   0  14   5  27   0   0   2   0   0   0   0\n--------------- --- ---- ------- ---- ----------------------------------------------------\n\n[INTERACTIVE QUEUE] Batch Server Host: nqsv\n===========================================\nQueueName       SCH JSVs ENA STS  PRI  TOT ARR WAI QUE PRR RUN POR EXT HLD SUS\n--------------- --- ---- ------- ---- ----------------------------------------\ndebug             1  149 ENA ACT   60    0   0   0   0   0   0   0   0   0   0 \ninteractive       1  149 ENA ACT   20    0   0   0   0   0   0   0   0   0   0 \n--------------- --- ---- ------- ---- ----------------------------------------\n <TOTAL>                                 0   0   0   0   0   0   0   0   0   0\n--------------- --- ---- ------- ---- ----------------------------------------\n\nRouting Queue does not exist on nqsv.\n\n[NETWORK QUEUE] Batch Server Host: nqsv\n=======================================\nQueueName       StagingMachine       ENA STS PRI RLM  TOT WAI QUE RUN\n--------------- -------------------- --------------- ----------------\nDefaultNetQue    (any)               ENA ACT   0   4    0   0   0   0 \n--------------- -------------------- --------------- ----------------\n <TOTAL>                                        1000    0   0   0   0\n--------------- -------------------- --------------- ----------------\n\n"
+    }
+  },
+  "qdel": {
+    "attempted": false
+  },
+  "qsub": {
+    "returncode": 0,
+    "stderr": "",
+    "stdout": "Request 991831.nqsv submitted to queue: gen_S.\n"
+  },
+  "queue_wait_observed": true,
+  "queue_wait_s": 5.198335037915967,
+  "request": {
+    "args": [
+      "-q",
+      "-rf",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_oracle_nonadapter_reaches_current_semantics",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/orchestrator/tests/test_s8b_oracle_driver.py::test_never_issued_generator_tamper_reaches_public_driver_gate_g7",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "job_name": "izdw-90e88248a2",
+    "nodes": 1,
+    "project": "SFC",
+    "queue": "gen_S",
+    "sha256": "487feaf67f9cc45cf2b0989f8e4b045aef09b98127c5687146b24bc2cb1283ce",
+    "task": "tests",
+    "walltime": "01:00:00"
+  },
+  "request_id": "991831.nqsv",
+  "result": {
+    "child_rc": 1,
+    "error": null,
+    "hostname": "bnode001",
+    "interpreter": "/usr/bin/python3.10",
+    "pbs_jobid": "0:991831.nqsv",
+    "request_sha256": "487feaf67f9cc45cf2b0989f8e4b045aef09b98127c5687146b24bc2cb1283ce",
+    "schema_version": "pegasus-dispatch-result/v1",
+    "stage": "child"
+  },
+  "scheduler_logs": {
+    "accounting_present": true,
+    "stderr": {
+      "omitted_bytes": 0,
+      "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/90e88248a23f0e45136b0540f960cfae/izdw-90e88248a2.e991831",
+      "size": 654,
+      "tail": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\n\n============================================================\nRequest ID:             991831.nqsv\nRequest Name:           izdw-90e88248a2\nQueue:                  gen_S@nqsv\nNumber of Jobs:         1\nUser Name:              tanab\nGroup Name:             SFC\nCreated Request Time:   Fri Sep 11 07:05:48 2026\nStarted Request Time:   Fri Sep 11 07:06:14 2026\nEnded Request Time:     Fri Sep 11 07:07:00 2026\nResources Information:\n  Elapse:               50S\n  Remaining Elapse:     3550S\n============================================================\n"
+    },
+    "stdout": {
+      "omitted_bytes": 0,
+      "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/90e88248a23f0e45136b0540f960cfae/izdw-90e88248a2.o991831",
+      "size": 7887,
+      "tail": "bringing up nodes...\nbringing up nodes...\n\nF.                                                                       [100%]\n=================================== FAILURES ===================================\n_________ test_historical_oracle_nonadapter_reaches_current_semantics __________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_historical_oracle_nonadapter_reaches_current_semantics():\n        from orchestrator.campaign import s8b_oracle_driver as oracle\n        from orchestrator.campaign import t080_freeze_migration as migration\n    \n        # The real old holdout still has unrelated refusals; this is a known-axes\n        # call-site control, not a successful oracle run or an unheld artifact.\n        loaded = oracle._load_verified_freeze(oracle.DEFAULT_FREEZE_PATH)\n        resolution = migration.ReceiptResolution(\n            state=\"absent\", refusals=(),\n            t080_freeze_migration_observation=None, validation_head=\"\")\n        kwargs = dict(\n            freeze_path=oracle.DEFAULT_FREEZE_PATH, root=M.ROOT,\n            t080_resolution=resolution, approved_spec=None,\n            manifest_verification_error=None, standalone_manifest_verification=True,\n            verified=loaded)\n        assert oracle._t080_adapter_refusals(\n            resolution=resolution, freeze=loaded.document, freeze_sha256=loaded.sha256,\n            freeze_path=oracle.DEFAULT_FREEZE_PATH, root=M.ROOT) is None\n        with mock.patch.object(M, \"verify\", wraps=M.verify) as verifier:\n            baseline = oracle._gate_check_core(**kwargs)\n        assert verifier.call_count == 1\n        assert not any(r.startswith(\"known-axes-freeze-verify:\") for r in baseline.refusals)\n        assert not baseline.allowed  # unrelated old holdout refusal is not hidden\n        builder = M.build_document\n        calls = []\n    \n        def changed_builder(**options):\n            rebuilt = builder(**options)\n            rebuilt[\"entries\"][\"balanced\"][\"backoff_fixed_best\"][\"flags\"][\"BACK_OFF\"] += 1\n            calls.append(rebuilt)\n            return rebuilt\n    \n        with mock.patch.object(M, \"build_document\", side_effect=changed_builder):\n            M.verify(historical=True)\n            changed = oracle._gate_check_core(**kwargs)\n        expected = (\n            \"known-axes-freeze-verify: FreezeError: \"\n            \"freeze JSON の内容が現行 generator による機械再構成と不一致\")\n>       assert [r for r in changed.refusals if r.startswith(\"known-axes-freeze-verify:\")] == [expected]\nE       AssertionError: assert [] == ['known-axes-...による機械再構成と不一致']\nE         \nE         Right contains one more item: 'known-axes-freeze-verify: FreezeError: freeze JSON の内容が現行 generator による機械再構成と不一致'\nE         Use -v to get more diff\n\norchestrator/tests/test_s1_known_axes_freeze.py:1173: AssertionError\n----------------------------- Captured stderr call -----------------------------\nIZANAGI_FREEZE_HOLD {\"check_id\": \"s8b-holdout.design_source-implementation-bytes\", \"decision\": \"freeze-verification-hold\", \"release_condition\": \"explicit-user-command-only\", \"ruling\": \"rulings-4th-batch-2026-08-12\"}\nIZANAGI_FREEZE_HOLD {\"check_id\": \"s8b-holdout.known_axes_freeze-implementation-bytes\", \"decision\": \"freeze-verification-hold\", \"release_condition\": \"explicit-user-command-only\", \"ruling\": \"rulings-4th-batch-2026-08-12\"}\nIZANAGI_FREEZE_HOLD {\"check_id\": \"s8b-holdout.generator-implementation-bytes\", \"decision\": \"freeze-verification-hold\", \"release_condition\": \"explicit-user-command-only\", \"ruling\": \"rulings-4th-batch-2026-08-12\"}\nIZANAGI_FREEZE_HOLD {\"check_id\": \"s8b-holdout.frozen-head-current-head\", \"decision\": \"freeze-verification-hold\", \"release_condition\": \"explicit-user-command-only\", \"ruling\": \"rulings-4th-batch-2026-08-12\"}\nIZANAGI_FREEZE_HOLD {\"check_id\": \"s1-known-axes.ccbench-submodule-head-pin\", \"decision\": \"freeze-verification-hold\", \"release_condition\": \"explicit-user-command-only\", \"ruling\": \"rulings-4th-batch-2026-08-12\"}\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_oracle_nonadapter_reaches_current_semantics\n1 failed, 1 passed in 44.87s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_oracle_nonadapter_reaches_current_semantics\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=2594 retained_bytes=2594 omitted_bytes=0 rendered_excerpt_bytes=2833 sha256=83bddae7f1acd0bdd3ca2972b5c18b91c6c5cd32d55f1c46a8fa6ae86f16babf\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_historical_oracle_nonadapter_reaches_current_semantics():\n>         from orchestrator.campaign import s8b_oracle_driver as oracle\n>         from orchestrator.campaign import t080_freeze_migration as migration\n>     \n>         # The real old holdout still has unrelated refusals; this is a known-axes\n>         # call-site control, not a successful oracle run or an unheld artifact.\n>         loaded = oracle._load_verified_freeze(oracle.DEFAULT_FREEZE_PATH)\n>         resolution = migration.ReceiptResolution(\n>             state=\"absent\", refusals=(),\n>             t080_freeze_migration_observation=None, validation_head=\"\")\n>         kwargs = dict(\n>             freeze_path=oracle.DEFAULT_FREEZE_PATH, root=M.ROOT,\n>             t080_resolution=resolution, approved_spec=None,\n>             manifest_verification_error=None, standalone_manifest_verification=True,\n>             verified=loaded)\n>         assert oracle._t080_adapter_refusals(\n>             resolution=resolution, freeze=loaded.document, freeze_sha256=loaded.sha256,\n>             freeze_path=oracle.DEFAULT_FREEZE_PATH, root=M.ROOT) is None\n>         with mock.patch.object(M, \"verify\", wraps=M.verify) as verifier:\n>             baseline = oracle._gate_check_core(**kwargs)\n>         assert verifier.call_count == 1\n>         assert not any(r.startswith(\"known-axes-freeze-verify:\") for r in baseline.refusals)\n>         assert not baseline.allowed  # unrelated old holdout refusal is not hidden\n>         builder = M.build_document\n>         calls = []\n>     \n>         def changed_builder(**options):\n>             rebuilt = builder(**options)\n>             rebuilt[\"entries\"][\"balanced\"][\"backoff_fixed_best\"][\"flags\"][\"BACK_OFF\"] += 1\n>             calls.append(rebuilt)\n>             return rebuilt\n>     \n>         with mock.patch.object(M, \"build_document\", side_effect=changed_builder):\n>             M.verify(historical=True)\n>             changed = oracle._gate_check_core(**kwargs)\n>         expected = (\n>             \"known-axes-freeze-verify: FreezeError: \"\n>             \"freeze JSON \\u306e\\u5185\\u5bb9\\u304c\\u73fe\\u884c generator \\u306b\\u3088\\u308b\\u6a5f\\u68b0\\u518d\\u69cb\\u6210\\u3068\\u4e0d\\u4e00\\u81f4\")\n> >       assert [r for r in changed.refusals if r.startswith(\"known-axes-freeze-verify:\")] == [expected]\n> E       AssertionError: assert [] == ['known-axes-...\\u306b\\u3088\\u308b\\u6a5f\\u68b0\\u518d\\u69cb\\u6210\\u3068\\u4e0d\\u4e00\\u81f4']\n> E         \n> E         Right contains one more item: 'known-axes-freeze-verify: FreezeError: freeze JSON \\u306e\\u5185\\u5bb9\\u304c\\u73fe\\u884c generator \\u306b\\u3088\\u308b\\u6a5f\\u68b0\\u518d\\u69cb\\u6210\\u3068\\u4e0d\\u4e00\\u81f4'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_s1_known_axes_freeze.py:1173: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2594 retained_bytes=2594 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3569 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n"
+    }
+  },
+  "schema_version": "pegasus-dispatch-receipt/v2",
+  "state_history": [
+    {
+      "elapsed_s": 1.2662717900238931,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "QUE"
+    },
+    {
+      "elapsed_s": 6.363760464941151,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 11.475934128975496,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 16.57970451505389,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 21.67591315601021,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 26.77562469802797,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 31.876032965956256,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 36.976136061013676,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 42.07963684794959,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 47.179716087994166,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 52.27990501897875,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 57.3835035279626,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 62.48773842805531,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 67.58368406898808,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 72.68814657803159,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 77.78796198405325,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "END"
+    }
+  ],
+  "submission_dir": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/90e88248a23f0e45136b0540f960cfae",
+  "terminal_reason": "scheduler-end-state"
+}

@@ -1,0 +1,5 @@
+orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_oracle_nonadapter_reaches_current_semantics
+orchestrator/tests/test_s8b_oracle_driver.py::test_never_issued_generator_tamper_reaches_public_driver_gate_g7
+
+2 tests collected in 2.07s
+IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"serial"}

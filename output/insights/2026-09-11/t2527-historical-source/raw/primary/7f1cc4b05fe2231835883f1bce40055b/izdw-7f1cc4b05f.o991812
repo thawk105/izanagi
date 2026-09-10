@@ -1,0 +1,152 @@
+bringing up nodes...
+bringing up nodes...
+
+...F...                                                                  [100%]
+=================================== FAILURES ===================================
+____________ test_historical_real_artifact_without_live_code_reads _____________
+[gw6] linux -- Python 3.10.12 /bin/python3.10
+
+tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_historical_real_artifact_0')
+
+    def test_historical_real_artifact_without_live_code_reads(tmp_path):
+        original = M.FREEZE_PATH.read_bytes()
+        doc = json.loads(original)
+        code_paths = {
+            "orchestrator/campaign/axis_trigger_gating.py",
+            "orchestrator/campaign/s8a_trigger_sweep.py",
+            "orchestrator/campaign/genome.py",
+            "orchestrator/campaign/backoff_sweep.py",
+            "orchestrator/campaign/s6_sort_sweep.py",
+            "orchestrator/campaign/p3_s4_loop_sort.py",
+        }
+        assert {s["path"] for s in M._iter_sources(doc)
+                if s["path"].endswith(".py")} == code_paths
+        missing = tmp_path / "missing-code"
+        assert not missing.exists()
+
+        def resolver(relative):
+            return missing if relative in code_paths else M.ROOT / relative
+
+        resolve = mock.Mock(wraps=resolver)
+        with mock.patch.object(M, "_sha256", wraps=M._sha256) as sha:
+            # Both public APIs must accept the unchanged historical artifact.
+>           result = M.verify(historical=True, source_resolver=resolve)
+
+orchestrator/tests/test_s1_known_axes_freeze.py:942:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+orchestrator/campaign/s1_known_axes_freeze.py:993: in verify
+    held_checks = _verify_document(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+doc = {'what': 'S-1 既知軸基準点 + 系側構成の凍結 (D52 §2.1 の実体化)', 'frozen_at_head': '2066ce6b47c6a5d43ca2c8ab3cc7728d32336be1', 'ccbenc.../campaign/s1_known_axes_freeze.py', 'sha256': '1d4d45a3de4926c6aae76906f7b4b72d3fead51e9cdf62ff03f80a0379c364e0'}, ...}
+historical = True
+raw = b'{\n  "what": "S-1 \xe6\x97\xa2\xe7\x9f\xa5\xe8\xbb\xb8\xe5\x9f\xba\xe6\xba\x96\xe7\x82\xb9 + \xe7\xb3\xbb\xe5\x81\xb...e5\xae\x9f\xe6\xb8\xac\xe3\x81\xaf\xe5\x8f\x82\xe8\x80\x83\xe4\xbd\xb5\xe8\xa8\x98 \xe2\x80\x94 D52 \xc2\xa72.1)"\n}\n'
+source_resolver = <Mock id='22704828718464'>
+
+    def _verify_document(doc: Mapping, *, historical: bool, raw: bytes,
+                         source_resolver: Optional[Callable[[str], Path]] = None
+                        ) -> Tuple[Mapping[str, object], ...]:
+        held_checks: List[Mapping[str, object]] = []
+        # Reuse the existing root only to identify this historical document; this
+        # does not execute or release the held T-080 artifact check.
+        from .t080_freeze_migration import KNOWN_AXES_RAW_SHA256
+
+        known_historical = hashlib.sha256(raw).hexdigest() == KNOWN_AXES_RAW_SHA256
+        if not (known_historical and historical):
+            _validate_schema(doc)
+        generator_doc = doc["generator"]
+        if generator_doc["path"] != SCRIPT_REL:
+            raise FreezeError(f"generator.path 不一致: {generator_doc['path']}")
+        if not known_historical:
+            actual_generator = _sha256(ROOT / SCRIPT_REL)
+            if generator_doc["sha256"] != actual_generator:
+                raise FreezeError(
+                    f"generator sha256 不一致: recorded={generator_doc['sha256']} actual={actual_generator}")
+
+        resolver = source_resolver or (lambda rel: ROOT / rel)
+        source_count = 0
+        for source in _iter_sources(doc):
+            path_rel, expected = source.get("path"), source.get("sha256")
+            if not isinstance(path_rel, str) or not isinstance(expected, str):
+                raise FreezeError("source path/sha256 が文字列でない")
+            if False:
+                continue
+            path = resolver(path_rel)
+            if not path.is_file():
+>               raise FreezeError(f"source が存在しない: {path_rel} -> {path}")
+E               orchestrator.campaign.s1_known_axes_freeze.FreezeError: source が存在しない: orchestrator/campaign/axis_trigger_gating.py -> /tmp/pytest-of-tanab/pytest-0/popen-gw6/test_historical_real_artifact_0/missing-code
+
+orchestrator/campaign/s1_known_axes_freeze.py:913: FreezeError
+=========================== short test summary info ============================
+FAILED orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_real_artifact_without_live_code_reads
+1 failed, 6 passed in 4.72s
+IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}
+=== IZANAGI FAILURE DIGEST v1 BEGIN ===
+IZANAGI_FAILURE rank=1 category=failed when=call nodeid="orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_real_artifact_without_live_code_reads" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=4143 retained_bytes=3685 omitted_bytes=458 rendered_excerpt_bytes=4096 sha256=eb5ce65cd4809faf42228d6ad7c22fcba5b66b63e738f2ae4f678b2f1ac1efb1
+--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---
+> trator/campaign/genome.py",
+>             "orchestrator/campaign/backoff_sweep.py",
+>             "orchestrator/campaign/s6_sort_sweep.py",
+>             "orchestrator/campaign/p3_s4_loop_sort.py",
+>         }
+>         assert {s["path"] for s in M._iter_sources(doc)
+>                 if s["path"].endswith(".py")} == code_paths
+>         missing = tmp_path / "missing-code"
+>         assert not missing.exists()
+>
+>         def resolver(relative):
+>             return missing if relative in code_paths else M.ROOT / relative
+>
+>         resolve = mock.Mock(wraps=resolver)
+>         with mock.patch.object(M, "_sha256", wraps=M._sha256) as sha:
+>             # Both public APIs must accept the unchanged historical artifact.
+> >           result = M.verify(historical=True, source_resolver=resolve)
+>
+> orchestrator/tests/test_s1_known_axes_freeze.py:942:
+> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+> orchestrator/campaign/s1_known_axes_freeze.py:993: in verify
+>     held_checks = _verify_document(
+> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+>
+> doc = {'what': 'S-1 \u65e2\u77e5\u8ef8\u57fa\u6e96\u70b9 + \u7cfb\u5074\u69cb\u6210\u306e\u51cd\u7d50 (D52 \xa72.1 \u306e\u5b9f\u4f53\u5316)', 'frozen_at_head': '2066ce6b47c6a5d43ca2c8ab3cc7728d32336be1', 'ccbenc.../campaign/s1_known_axes_freeze.py', 'sha256': '1d4d45a3de4926c6aae76906f7b4b72d3fead51e9cdf62ff03f80a0379c364e0'}, ...}
+> historical = True
+> raw = b'{\x5cn  "what": "S-1 \x5cxe6\x5cx97\x5cxa2\x5cxe7\x5cx9f\x5cxa5\x5cxe8\x5cxbb\x5cxb8\x5cxe5\x5cx9f\x5cxba\x5cxe6\x5cxba\x5cx96\x5cxe7\x5cx82\x5cxb9 + \x5cxe7\x5cxb3\x5cxbb\x5cxe5\x5cx81\x5cxb...e5\x5cxae\x5cx9f\x5cxe6\x5cxb8\x5cxac\x5cxe3\x5cx81\x5cxaf\x5cxe5\x5cx8f\x5cx82\x5cxe8\x5cx80\x5cx83\x5cxe4\x5cxbd\x5cxb5\x5cxe8\x5cxa8\x5cx98 \x5cxe2\x5cx80\x5cx94 D52 \x5cxc2\x5cxa72.1)"\x5cn}\x5cn'
+> source_resolver = <Mock id='22704828718464'>
+>
+>     def _verify_document(doc: Mapping, *, historical: bool, raw: bytes,
+>                          source_resolver: Optional[Callable[[str], Path]] = None
+>                         ) -> Tuple[Mapping[str, object], ...]:
+>         held_checks: List[Mapping[str, object]] = []
+>         # Reuse the existing root only to identify this historical document; this
+>         # does not execute or release the held T-080 artifact check.
+>         from .t080_freeze_migration import KNOWN_AXES_RAW_SHA256
+>
+>         known_historical = hashlib.sha256(raw).hexdigest() == KNOWN_AXES_RAW_SHA256
+>         if not (known_historical and historical):
+>             _validate_schema(doc)
+>         generator_doc = doc["generator"]
+>         if generator_doc["path"] != SCRIPT_REL:
+>             raise FreezeError(f"generator.path \u4e0d\u4e00\u81f4: {generator_doc['path']}")
+>         if not known_historical:
+>             actual_generator = _sha256(ROOT / SCRIPT_REL)
+>             if generator_doc["sha256"] != actual_generator:
+>                 raise FreezeError(
+>                     f"generator sha256 \u4e0d\u4e00\u81f4: recorded={generator_doc['sha256']} actual={actual_generator}")
+>
+>         resolver = source_resolver or (lambda rel: ROOT / rel)
+>         source_count = 0
+>         for source in _iter_sources(doc):
+>             path_rel, expected = source.get("path"), source.get("sha256")
+>             if not isinstance(path_rel, str) or not isinstance(expected, str):
+>                 raise FreezeError("source path/sha256 \u304c\u6587\u5b57\u5217\u3067\u306a\u3044")
+>             if False:
+>                 continue
+>             path = resolver(path_rel)
+>             if not path.is_file():
+> >               raise FreezeError(f"source \u304c\u5b58\u5728\u3057\u306a\u3044: {path_rel} -> {path}")
+> E               orchestrator.campaign.s1_known_axes_freeze.FreezeError: source \u304c\u5b58\u5728\u3057\u306a\u3044: orchestrator/campaign/axis_trigger_gating.py -> /tmp/pytest-of-tanab/pytest-0/popen-gw6/test_historical_real_artifact_0/missing-code
+>
+> orchestrator/campaign/s1_known_axes_freeze.py:913: FreezeError
+--- IZANAGI FAILURE EXCERPT rank=1 END ---
+IZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=4143 retained_bytes=3685 omitted_bytes=458 budget_bytes=49152 rendered_bytes=4830 omitted_manifest_sha256=-
+=== IZANAGI FAILURE DIGEST v1 END ===

@@ -1,0 +1,45 @@
+警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+[Pegasus dispatch] job を gen_S へ投入します (izdw-e944e17017)
+Pegasus pending orphan hold を create-only で保存しました: /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2527-historical-source/output/pegasus-dispatch/orphan-holds/unknown-2032328f3fea4091516e1f05.json
+[Pegasus dispatch] request ID 991734.nqsv を受理しました
+[Pegasus dispatch] request 991734.nqsv の状態: QUE
+[Pegasus dispatch] request 991734.nqsv の状態: RUN
+[Pegasus dispatch] request 991734.nqsv の状態: END
+[Pegasus dispatch] request 991734.nqsv の成果物収集を開始します
+Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2527-historical-source/output/pegasus-dispatch/orphan-holds/unknown-2032328f3fea4091516e1f05.json
+[Pegasus dispatch] receipt を /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2527-historical-source/output/pegasus-dispatch/e944e1701782597ec2828ad5cda47ede/receipt.json へ保存しました (child rc=0)
+[Pegasus dispatch] request 991734.nqsv child stdout begin (size=4366 bytes, omitted_bytes=270)
+| _in":false}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"tracked_files","node_id":"test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root","reason":"Runs full real-repository git status snapshots before and after the action, so cost grows with tracked files.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"output_artifacts","node_id":"test_s1_known_axes_freeze.py::test_build_document_is_self_consistent_and_detects_tamper","reason":"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"output_artifacts","node_id":"test_s1_known_axes_freeze.py::test_generate_refuses_existing_freeze","reason":"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"output_artifacts","node_id":"test_s1_known_axes_freeze.py::test_generate_selects_registered_expected_points","reason":"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"output_artifacts","node_id":"test_s1_known_axes_freeze.py::test_s1b_pairing_rejects_mismatched_flags","reason":"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"output_artifacts","node_id":"test_s1_known_axes_freeze.py::test_verify_rejects_foreign_ccbench_pin","reason":"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"output_artifacts","node_id":"test_s1_known_axes_freeze.py::test_verify_rejects_generator_sha_tamper","reason":"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"output_artifacts","node_id":"test_s1_known_axes_freeze.py::test_verify_rejects_non_ancestor_head","reason":"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"output_artifacts","node_id":"test_s1_known_axes_freeze.py::test_verify_rejects_one_byte_freeze_tamper","reason":"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"output_artifacts","node_id":"test_s1_known_axes_freeze.py::test_verify_rejects_tampered_source_copy","reason":"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+|
+| 109 passed, 10 skipped in 56.19s
+| IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}
+[Pegasus dispatch] request 991734.nqsv child stdout end
+[Pegasus dispatch] request 991734.nqsv child stderr begin
+| 警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+|
+| ============================================================
+| Request ID:             991734.nqsv
+| Request Name:           izdw-e944e17017
+| Queue:                  gen_S@nqsv
+| Number of Jobs:         1
+| User Name:              tanab
+| Group Name:             SFC
+| Created Request Time:   Fri Sep 11 03:43:49 2026
+| Started Request Time:   Fri Sep 11 03:43:56 2026
+| Ended Request Time:     Fri Sep 11 03:44:53 2026
+| Resources Information:
+|   Elapse:               62S
+|   Remaining Elapse:     3538S
+| ============================================================
+[Pegasus dispatch] request 991734.nqsv child stderr end
+IZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid

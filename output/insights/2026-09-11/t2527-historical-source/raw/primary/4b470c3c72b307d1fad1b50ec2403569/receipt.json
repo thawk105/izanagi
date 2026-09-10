@@ -1,0 +1,133 @@
+{
+  "f49_compute_marker": {
+    "hostname": "bnode003",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/4b470c3c72b307d1fad1b50ec2403569/compute-visible.json",
+    "pbs_jobid": "0:991803.nqsv",
+    "present": true,
+    "valid": true
+  },
+  "f49_immediate": {
+    "qstat_succeeded": true,
+    "qstat_visible": true
+  },
+  "immediate_qstat": {
+    "returncode": 0,
+    "stderr": "",
+    "stdout": "Request ID: 991803.nqsv\n    Request Name = izdw-4b470c3c72\n    User  Name = tanab\n    Group Name = SFC\n    User  ID   = 31609\n    Group ID   = 30410\n    Current State           = Staging\n    Previous State          = Queued\n    State Transition Time   = Fri Sep 11 06:40:10 2026\n    State Transition Reason = STAGEIN\n    Queue = gen_S@nqsv (Execution Queue)\n    Job Topology = Distribute Job\n    Request Priority  = 0\n    Request Loglevel  = 0\n    Rerunable    = No\n    Holdable     = Yes\n    Hold Type    = (none)\n    Migratable   = Yes\n    Suspend Type = (none)\n    Account Code = SFC\n    Stdout = pegasus02:/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/4b470c3c72b307d1fad1b50ec2403569/izdw-4b470c3c72.o%s\n    Stderr = pegasus02:/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/4b470c3c72b307d1fad1b50ec2403569/izdw-4b470c3c72.e%s\n    Reqlog = (none)\n    Shell = (none)\n    Mail Address = tanab@pegasus02\n    Mail Option  = (none)\n    Job Condition:\n        Job NO: 0 \"\"\n    Number of Jobs = 1\n    Created Request Time = Fri Sep 11 06:40:10 2026\n    Entered Queue Time   = Fri Sep 11 06:40:10 2026\n    Planned Start Time   = (none)\n    Execute Request Time = (none)\n    Started Request Time = (none)\n    Ended Request Time   = (none)\n    Requested Start Time = (none)\n    Deadline Time        = (none)\n    UMASK = 022\n    Reservation ID      = (none)\n    qattach command = Enable\n    Attach = No\n    Cluster Type Select = NONE\n    UserPP Script = (none)\n    Exclusive = (none)\n    HCA Number = (none)\n    Accept Sigterm = No\n    Enable Cloud Bursting = No\n  Custom Resources:\n    Share           = 1\n  Execution Hosts(JSVNO):\n    bnode003(3)\n  Resources Information:\n    Memory    = 0.000000B\n    CPU Time  = 0.000000S\n    Accumulated CPU Time = 0.000000S\n    Elapse    = 0S\n    Remaining Elapse = 3600S\n    Virtual Memory = 0.000000B\n  Logical Host Resources:\n    VE Node Number        = Max:         0 Warn:       --- \n    CPU Number            = Max:        48 Warn:       --- \n    GPU Number            = Max:         0 Warn:       --- \n    CPU Time              = Max: UNLIMITED Warn: UNLIMITED \n    Memory Size           = Max: UNLIMITED Warn: UNLIMITED \n    Virtual Memory Size   = Max: UNLIMITED Warn: UNLIMITED \n    VE CPU Time           = Max: UNLIMITED Warn: UNLIMITED \n    VE Memory Size        = Max: UNLIMITED Warn: UNLIMITED \n    Stdout Size           = Max: UNLIMITED Warn: UNLIMITED \n    Stderr Size           = Max: UNLIMITED Warn: UNLIMITED \n  VE Node Resources:\n    VE CPU Time           = Max: UNLIMITED Warn: UNLIMITED \n    VE Memory Size        = Max: UNLIMITED Warn: UNLIMITED \n  Resources Limits:\n    (Per-Req) Elapse Time Limit       = Max:     3600S Warn:     3600S \n    (Per-Job) CPU Time                = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Job) CPU Number              = Max:        48 Warn:       --- \n    (Per-Job) Memory Size             = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Job) Virtual Memory Size     = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Job) GPU Number              = Max:         0 Warn:       --- \n    (Per-Prc) CPU Time                = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Open File Number        = Max:    262144 Warn:       --- \n    (Per-Prc) Virtual Memory Size     = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Data Segment Size       = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Stack Segment Size      = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Core File Size          = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Permanent File Size     = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) VE CPU Time             = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) VE Memory Size          = Max: UNLIMITED Warn: UNLIMITED \n  Kernel Parameter:\n    Resource Sharing Group     = 0\n    Nice Value                 = 0\n  User Attributes:\n    (none)\n\n"
+  },
+  "immediate_qstat_attempts": [
+    {
+      "attempt": 1,
+      "classification": "success-request-visible",
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "Request ID: 991803.nqsv\n    Request Name = izdw-4b470c3c72\n    User  Name = tanab\n    Group Name = SFC\n    User  ID   = 31609\n    Group ID   = 30410\n    Current State           = Staging\n    Previous State          = Queued\n    State Transition Time   = Fri Sep 11 06:40:10 2026\n    State Transition Reason = STAGEIN\n    Queue = gen_S@nqsv (Execution Queue)\n    Job Topology = Distribute Job\n    Request Priority  = 0\n    Request Loglevel  = 0\n    Rerunable    = No\n    Holdable     = Yes\n    Hold Type    = (none)\n    Migratable   = Yes\n    Suspend Type = (none)\n    Account Code = SFC\n    Stdout = pegasus02:/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/4b470c3c72b307d1fad1b50ec2403569/izdw-4b470c3c72.o%s\n    Stderr = pegasus02:/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/4b470c3c72b307d1fad1b50ec2403569/izdw-4b470c3c72.e%s\n    Reqlog = (none)\n    Shell = (none)\n    Mail Address = tanab@pegasus02\n    Mail Option  = (none)\n    Job Condition:\n        Job NO: 0 \"\"\n    Number of Jobs = 1\n    Created Request Time = Fri Sep 11 06:40:10 2026\n    Entered Queue Time   = Fri Sep 11 06:40:10 2026\n    Planned Start Time   = (none)\n    Execute Request Time = (none)\n    Started Request Time = (none)\n    Ended Request Time   = (none)\n    Requested Start Time = (none)\n    Deadline Time        = (none)\n    UMASK = 022\n    Reservation ID      = (none)\n    qattach command = Enable\n    Attach = No\n    Cluster Type Select = NONE\n    UserPP Script = (none)\n    Exclusive = (none)\n    HCA Number = (none)\n    Accept Sigterm = No\n    Enable Cloud Bursting = No\n  Custom Resources:\n    Share           = 1\n  Execution Hosts(JSVNO):\n    bnode003(3)\n  Resources Information:\n    Memory    = 0.000000B\n    CPU Time  = 0.000000S\n    Accumulated CPU Time = 0.000000S\n    Elapse    = 0S\n    Remaining Elapse = 3600S\n    Virtual Memory = 0.000000B\n  Logical Host Resources:\n    VE Node Number        = Max:         0 Warn:       --- \n    CPU Number            = Max:        48 Warn:       --- \n    GPU Number            = Max:         0 Warn:       --- \n    CPU Time              = Max: UNLIMITED Warn: UNLIMITED \n    Memory Size           = Max: UNLIMITED Warn: UNLIMITED \n    Virtual Memory Size   = Max: UNLIMITED Warn: UNLIMITED \n    VE CPU Time           = Max: UNLIMITED Warn: UNLIMITED \n    VE Memory Size        = Max: UNLIMITED Warn: UNLIMITED \n    Stdout Size           = Max: UNLIMITED Warn: UNLIMITED \n    Stderr Size           = Max: UNLIMITED Warn: UNLIMITED \n  VE Node Resources:\n    VE CPU Time           = Max: UNLIMITED Warn: UNLIMITED \n    VE Memory Size        = Max: UNLIMITED Warn: UNLIMITED \n  Resources Limits:\n    (Per-Req) Elapse Time Limit       = Max:     3600S Warn:     3600S \n    (Per-Job) CPU Time                = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Job) CPU Number              = Max:        48 Warn:       --- \n    (Per-Job) Memory Size             = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Job) Virtual Memory Size     = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Job) GPU Number              = Max:         0 Warn:       --- \n    (Per-Prc) CPU Time                = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Open File Number        = Max:    262144 Warn:       --- \n    (Per-Prc) Virtual Memory Size     = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Data Segment Size       = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Stack Segment Size      = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Core File Size          = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Permanent File Size     = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) VE CPU Time             = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) VE Memory Size          = Max: UNLIMITED Warn: UNLIMITED \n  Kernel Parameter:\n    Resource Sharing Group     = 0\n    Nice Value                 = 0\n  User Attributes:\n    (none)\n\n"
+    }
+  ],
+  "normalized_request_id": "991803.nqsv",
+  "outcome": {
+    "accounting_verified": true,
+    "kind": "child",
+    "rc": 0
+  },
+  "preflight": {
+    "qstat_Q": {
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "[EXECUTION QUEUE] Batch Server Host: nqsv\n=========================================\nQueueName       SCH JSVs ENA STS  PRI  TOT ARR WAI QUE PRR RUN POR EXT HLD HOL SUS MIG STG\n--------------- --- ---- ------- ---- ----------------------------------------------------\ngen_L             1  149 ENA ACT   30    0   0   0   0   0   0   0   0   0   0   0   0   0 \ngen_M             1  149 ENA ACT   30    0   0   0   0   0   0   0   0   0   0   0   0   0 \ngen_S             1  149 ENA ACT   30   45   0   0  14   0  29   0   0   2   0   0   0   0 \n--------------- --- ---- ------- ---- ----------------------------------------------------\n <TOTAL>                                45   0   0  14   0  29   0   0   2   0   0   0   0\n--------------- --- ---- ------- ---- ----------------------------------------------------\n\n[INTERACTIVE QUEUE] Batch Server Host: nqsv\n===========================================\nQueueName       SCH JSVs ENA STS  PRI  TOT ARR WAI QUE PRR RUN POR EXT HLD SUS\n--------------- --- ---- ------- ---- ----------------------------------------\ndebug             1  149 ENA ACT   60    0   0   0   0   0   0   0   0   0   0 \ninteractive       1  149 ENA ACT   20    0   0   0   0   0   0   0   0   0   0 \n--------------- --- ---- ------- ---- ----------------------------------------\n <TOTAL>                                 0   0   0   0   0   0   0   0   0   0\n--------------- --- ---- ------- ---- ----------------------------------------\n\nRouting Queue does not exist on nqsv.\n\n[NETWORK QUEUE] Batch Server Host: nqsv\n=======================================\nQueueName       StagingMachine       ENA STS PRI RLM  TOT WAI QUE RUN\n--------------- -------------------- --------------- ----------------\nDefaultNetQue    (any)               ENA ACT   0   4    0   0   0   0 \n--------------- -------------------- --------------- ----------------\n <TOTAL>                                        1000    0   0   0   0\n--------------- -------------------- --------------- ----------------\n\n"
+    }
+  },
+  "qdel": {
+    "attempted": false
+  },
+  "qsub": {
+    "returncode": 0,
+    "stderr": "",
+    "stdout": "Request 991803.nqsv submitted to queue: gen_S.\n"
+  },
+  "queue_wait_observed": true,
+  "queue_wait_s": 5.207783643039875,
+  "request": {
+    "args": [
+      "-q",
+      "-rf",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_real_artifact_is_readable",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_content_and_identifiers_are_bound",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_input_copy_sha_and_existence_remain_bound",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_current_use_rejects_single_flags_difference",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_current_use_preserves_source_key_comparison",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_measurement_and_calibration_keep_current_semantics",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_real_artifact_without_live_code_reads",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "job_name": "izdw-4b470c3c72",
+    "nodes": 1,
+    "project": "SFC",
+    "queue": "gen_S",
+    "sha256": "fd537493c7d8672460ffb71de40e108e50c0b4bc55d24182b63e83b4300753a4",
+    "task": "tests",
+    "walltime": "01:00:00"
+  },
+  "request_id": "991803.nqsv",
+  "result": {
+    "child_rc": 0,
+    "error": null,
+    "hostname": "bnode003",
+    "interpreter": "/usr/bin/python3.10",
+    "pbs_jobid": "0:991803.nqsv",
+    "request_sha256": "fd537493c7d8672460ffb71de40e108e50c0b4bc55d24182b63e83b4300753a4",
+    "schema_version": "pegasus-dispatch-result/v1",
+    "stage": "child"
+  },
+  "scheduler_logs": {
+    "accounting_present": true,
+    "stderr": {
+      "omitted_bytes": 0,
+      "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/4b470c3c72b307d1fad1b50ec2403569/izdw-4b470c3c72.e991803",
+      "size": 654,
+      "tail": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\n\n============================================================\nRequest ID:             991803.nqsv\nRequest Name:           izdw-4b470c3c72\nQueue:                  gen_S@nqsv\nNumber of Jobs:         1\nUser Name:              tanab\nGroup Name:             SFC\nCreated Request Time:   Fri Sep 11 06:40:10 2026\nStarted Request Time:   Fri Sep 11 06:40:18 2026\nEnded Request Time:     Fri Sep 11 06:40:24 2026\nResources Information:\n  Elapse:               10S\n  Remaining Elapse:     3590S\n============================================================\n"
+    },
+    "stdout": {
+      "omitted_bytes": 0,
+      "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/4b470c3c72b307d1fad1b50ec2403569/izdw-4b470c3c72.o991803",
+      "size": 208,
+      "tail": "bringing up nodes...\nbringing up nodes...\n\n.......                                                                  [100%]\n7 passed in 4.79s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n"
+    }
+  },
+  "schema_version": "pegasus-dispatch-receipt/v2",
+  "state_history": [
+    {
+      "elapsed_s": 1.2726106030168012,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "QUE"
+    },
+    {
+      "elapsed_s": 6.374668541015126,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 11.474592988961376,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 16.578652943950146,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 21.67851742194034,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "END"
+    }
+  ],
+  "submission_dir": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/4b470c3c72b307d1fad1b50ec2403569",
+  "terminal_reason": "scheduler-end-state"
+}
