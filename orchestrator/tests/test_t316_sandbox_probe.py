@@ -1523,6 +1523,72 @@ def _prepare_execution_binding_repo(
     return repo_root, repo_py, repo_pbs, runtime_pbs
 
 
+@pytest.mark.parametrize("state", ["unstaged", "staged"])
+@pytest.mark.parametrize(
+    "relative",
+    [
+        pytest.param("orchestrator/campaign/condition_meaning_gate.py", id="condition"),
+        pytest.param("tools/pegasus/probes/t316_sandbox_backend_probe.py", id="probe"),
+        pytest.param("tools/pegasus/probes/t316_sandbox_backend_probe.pbs", id="pbs"),
+        pytest.param("tools/pegasus/policies/t316_sandbox_backend_v1.json", id="sandbox-policy"),
+        pytest.param("tools/pegasus/policy.json", id="shared-policy"),
+        pytest.param("unrelated.txt", id="unrelated"),
+        pytest.param(None, id="clean"),
+    ],
+)
+def test_execution_binding_shell_dirty_gate(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    relative: str | None, state: str,
+) -> None:
+    repo_root, *_ = _prepare_execution_binding_repo(tmp_path, monkeypatch)
+    if relative is not None:
+        path = repo_root / relative
+        with path.open("ab") as handle:
+            handle.write(b"# dirty\n")
+        if state == "staged":
+            subprocess.run(
+                ["git", "-C", str(repo_root), "add", "--", relative],
+                check=True, capture_output=True, text=True, timeout=60,
+            )
+    source = (_REPO / "tools/pegasus/probes/t316_sandbox_backend_probe.pbs").read_text(
+        encoding="utf-8"
+    )
+    start = "BOUND_PATHS=(\n"
+    end = '[[ -z $DIRTY ]] || exit 3\n'
+    assert source.count(start) == source.count(end) == 1
+    begin = source.index(start)
+    finish = source.index(end, begin) + len(end)
+    # 実 PBS の検査を実 Git で実行し、下流の blob/runtime 検査による mask を避ける。
+    result = subprocess.run(
+        ["bash", "-c", 'set -euo pipefail\nREPO=$1\n' + source[begin:finish]
+         + '\nprintf "T2543_AFTER_DIRTY\\n"\n', "t2543-dirty-gate", str(repo_root)],
+        capture_output=True, text=True, timeout=60,
+    )
+    rejected = relative is not None and relative != "unrelated.txt"
+    assert (result.returncode, result.stdout) == (
+        (3, "") if rejected else (0, "T2543_AFTER_DIRTY\n")
+    ), result.stderr
+
+
+def test_execution_binding_shell_checks_precede_probe() -> None:
+    source = (_REPO / "tools/pegasus/probes/t316_sandbox_backend_probe.pbs").read_text(
+        encoding="utf-8"
+    )
+    anchors = (
+        "BOUND_PATHS=(\n",
+        'DIRTY=$(timeout --foreground --signal=TERM --kill-after=5 10s',
+        '[[ -z $DIRTY ]] || exit 3\n',
+        'RUNTIME_PBS=$(timeout --foreground --signal=TERM --kill-after=5 5s',
+        'for relative in "${BOUND_PATHS[@]}"; do\n',
+        '  [[ $LIVE_SHA == "$COMMITTED_SHA" ]] || exit 3\n',
+        '[[ $RUNTIME_PBS_SHA == "$COMMITTED_PBS_SHA" ]] || exit 3\n',
+        '  "$REPO/tools/pegasus/probes/t316_sandbox_backend_probe.py"',
+    )
+    assert all(source.count(anchor) == 1 for anchor in anchors)
+    positions = [source.index(anchor) for anchor in anchors]
+    assert positions == sorted(positions)
+
+
 def test_execution_binding_binds_runtime_spool_to_pbs(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

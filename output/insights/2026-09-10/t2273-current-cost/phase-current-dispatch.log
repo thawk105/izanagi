@@ -1,0 +1,50 @@
+[Pegasus dispatch] job を gen_S へ投入します (izdw-555ba89161)
+Pegasus pending orphan hold を create-only で保存しました: /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2273-current-cost/output/pegasus-dispatch/orphan-holds/unknown-a1dc8672df52f2dead9c1214.json
+[Pegasus dispatch] request ID 990044.nqsv を受理しました
+[Pegasus dispatch] request 990044.nqsv の状態: QUE
+[Pegasus dispatch] request 990044.nqsv の状態: RUN
+[Pegasus dispatch] request 990044.nqsv の状態: END
+[Pegasus dispatch] request 990044.nqsv の成果物収集を開始します
+Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2273-current-cost/output/pegasus-dispatch/orphan-holds/unknown-a1dc8672df52f2dead9c1214.json
+[Pegasus dispatch] receipt を /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2273-current-cost/output/pegasus-dispatch/555ba89161fc71bb4be0fa9859b16ee0/receipt.json へ保存しました (child rc=0)
+[Pegasus dispatch] request 990044.nqsv child stdout begin
+| ============================= test session starts ==============================
+| platform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0
+| rootdir: /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2273-current-cost
+| configfile: pytest.ini
+| plugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2
+| collected 5 items
+|
+| orchestrator/tests/test_s8b_oracle_driver.py .....                       [100%]
+|
+| - generated xml file: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-current-cost/phase-current-junit.xml -
+| ============================== slowest durations ===============================
+| 89.91s call     orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[known-artifact-known_axes.artifact_bytes]
+| 88.03s call     orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5
+| 19.48s call     orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[ccbench-current-known_axes.ccbench_current]
+| 5.67s call     orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[holdout-artifact-holdout.artifact_bytes]
+| 5.54s call     orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[unknownness-layer2-holdout.unknownness_layer2]
+|
+| (10 durations < 0.005s hidden.  Use -vv to show these durations.)
+| ======================== 5 passed in 210.48s (0:03:30) =========================
+| IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"serial"}
+[Pegasus dispatch] request 990044.nqsv child stdout end
+[Pegasus dispatch] request 990044.nqsv child stderr begin
+| 警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+| IZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid
+|
+| ============================================================
+| Request ID:             990044.nqsv
+| Request Name:           izdw-555ba89161
+| Queue:                  gen_S@nqsv
+| Number of Jobs:         1
+| User Name:              tanab
+| Group Name:             SFC
+| Created Request Time:   Thu Sep 10 13:00:09 2026
+| Started Request Time:   Thu Sep 10 13:05:00 2026
+| Ended Request Time:     Thu Sep 10 13:08:32 2026
+| Resources Information:
+|   Elapse:               216S
+|   Remaining Elapse:     684S
+| ============================================================
+[Pegasus dispatch] request 990044.nqsv child stderr end
