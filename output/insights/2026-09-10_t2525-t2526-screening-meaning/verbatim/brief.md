@@ -1,0 +1,17 @@
+# 段1 brief
+- 研究前進: screening の静的 backoff 要求と観測の意味を独立照合し、探索新走の記録を実態に合わせる。完了は関連経路の回帰検査・変異・受入・main land。
+- D1936項19逐語: **決定:** screeningへdriverが意図した物理量を既存方式で渡す。乱択設定を静的量へ誤変換しない。新走の未確立という古いmetadataを実態に直し、必要なcampaign/report版と追補を整合させる。
+- D1936項19逐語: **理由・採らない案:** D1859の既存方式を使い、全macroの証明基盤は新設しない。過去artifactのbytesは変えない。
+- D1859の契約: 必須 keyword backoff_fixed_physical_us: Mapping[int, int] は生値からdriverが意図した物理usの写像。期待bitsはfloat(physical)から作り符号codecを呼ばない。stock -1 と他macroは現行扱い。
+- 不変条件: 規律2/3/7、観測から期待値を逆算しない、乱択のstatic scalar化禁止、共通 condition_meaning_gate を改造しない。
+- 実アンカー: screening_driver.py:175/225/248/511 は現在 declaration=None、backoff_sweep.py:275/305/344 は要求 caller、同:88-200 は既存方式。
+- 実アンカー: backoff_extended_sweep.py:95-101/642-683/1163/1181/1288 はT2418 identity/schema/metadata。
+- 既存被覆: D1859 と worklog-phase3-0909-1402 T2525/T2526。新規の純増は screening intent 配線と新走文言の整合だけ。
+- 所有確認: T2581=p3_s4_loop/pin関連test、T2417=policy analysis/probe/registry、T2515=calibration shell/tests。主要3fileは非交差、phase3は共有docs。
+- (P1) static intent は既存 MeaningWitnessDeclaration を要求側から渡す薄い引数で足りる。scalarとrandomizedの新frameworkは作らない。未宣言の乱択にstatic witnessを与えない。
+- s1_direct_comparison.py と paper_story_a2_certification.py の現行literal格子は999以下。現行要求と一致するかを棚卸しし、未使用の将来codec一般化をしない。
+- 新走だけT2418のcampaign/report版を上げる。旧campaign/出力bytesは変更しない。producer出力は既存campaign設定/lock/WAL/receipt/reports/preflight stop、実測は本waveで追加起動しない。
+- docs/b10-backoff-static-tail-preregistration.md の既存記述は歴史文として保存し、必要な追補のみ。凍結manifest再発行なし。
+- 親はdocs/裁定/Git/実走、隔離D95 authorがcode/tests。実装は呼出鎖が小さいため1所有単位。plan1本/consult2本/review2本を使う。
+- 受入環境はPegasus02からrun_tests.pyが選定。pytest/build直打ちなし。変異は統合commitの隔離scratchで既存harnessを使用。
+- scope外: 新しい意味宣言framework、13macro witness、共通gate改造、仮想リスク検査/台帳/一般化、改善実装、次wave、push。

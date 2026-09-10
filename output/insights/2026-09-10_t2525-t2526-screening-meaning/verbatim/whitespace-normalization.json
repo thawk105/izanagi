@@ -1,0 +1,129 @@
+{
+  "restore": "Append each suffix_hex decoded bytes to the indicated 1-based line before LF.",
+  "files": [
+    {
+      "file": "consult-luna.md",
+      "original_sha256": "f9693015222e4dea8a0c01614380b25194c5a2f1f7c53f1f580b1862571b5f4c",
+      "original_bytes": 3748,
+      "normalized_sha256": "a94a15df3a1cd3edc7ba64a843c4024115f8e92a32e8fb5a41a7a443ef02a578",
+      "removed": [
+        {
+          "line": 5,
+          "suffix_hex": "2020"
+        },
+        {
+          "line": 6,
+          "suffix_hex": "2020"
+        },
+        {
+          "line": 7,
+          "suffix_hex": "2020"
+        },
+        {
+          "line": 8,
+          "suffix_hex": "2020"
+        },
+        {
+          "line": 11,
+          "suffix_hex": "2020"
+        },
+        {
+          "line": 12,
+          "suffix_hex": "2020"
+        },
+        {
+          "line": 13,
+          "suffix_hex": "2020"
+        },
+        {
+          "line": 14,
+          "suffix_hex": "2020"
+        },
+        {
+          "line": 17,
+          "suffix_hex": "2020"
+        },
+        {
+          "line": 18,
+          "suffix_hex": "2020"
+        },
+        {
+          "line": 19,
+          "suffix_hex": "2020"
+        },
+        {
+          "line": 20,
+          "suffix_hex": "2020"
+        },
+        {
+          "line": 23,
+          "suffix_hex": "2020"
+        },
+        {
+          "line": 24,
+          "suffix_hex": "2020"
+        },
+        {
+          "line": 25,
+          "suffix_hex": "2020"
+        },
+        {
+          "line": 26,
+          "suffix_hex": "2020"
+        },
+        {
+          "line": 29,
+          "suffix_hex": "2020"
+        },
+        {
+          "line": 30,
+          "suffix_hex": "2020"
+        },
+        {
+          "line": 31,
+          "suffix_hex": "2020"
+        },
+        {
+          "line": 32,
+          "suffix_hex": "2020"
+        }
+      ]
+    },
+    {
+      "file": "review-a.md",
+      "original_sha256": "7090cf1d21824f8d09d478eb63e0f13940bc33e1f236b862c003d4de5da75431",
+      "original_bytes": 2243,
+      "normalized_sha256": "fa8c7e4e5d1d9a5ffe8a0bdb58bf54cd038626e03fe4d87f477ccd1160c778b5",
+      "removed": [
+        {
+          "line": 7,
+          "suffix_hex": "2020"
+        },
+        {
+          "line": 8,
+          "suffix_hex": "2020"
+        },
+        {
+          "line": 9,
+          "suffix_hex": "2020"
+        }
+      ]
+    },
+    {
+      "file": "review-b.md",
+      "original_sha256": "65dd6b3205247c13ca79aad5d542393d3cc89b4c0673a5de01250fbbd95fb665",
+      "original_bytes": 2229,
+      "normalized_sha256": "775c093e0257e80f673d3865c7226176513a2cb63e6d3dc1bbaefc93925231a7",
+      "removed": [
+        {
+          "line": 7,
+          "suffix_hex": "2020"
+        },
+        {
+          "line": 10,
+          "suffix_hex": "2020"
+        }
+      ]
+    }
+  ]
+}
