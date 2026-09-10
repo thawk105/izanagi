@@ -14,7 +14,7 @@
    — **この 3 段目は現在 blocked かつ未実証である。** collector を login で直接実行する従来手順は
    §0 の admission により拒否され、計算ノードで実行する経路の実 artifact はまだ無い (§3)。
 
-rr80/rr20 の certification・計測・collector・登録は、**dev-wave が所有する実行**である。
+rr95/rr80/rr20/rr5 の certification・計測・collector・登録は、**dev-wave が所有する実行**である。
 `rulings` は裁定と tooling の準備・main land を担うだけで、この手順を直接 qsub しない。
 
 ## 0. 実行体と admission (機械検査対象)
@@ -124,17 +124,19 @@ smoke 実測では gcc/cmake module は存在しないため、certification は
 # admission-site: login-direct
 tools/pegasus/submit_certify.sh --rratio 80   # H1 / rr80
 tools/pegasus/submit_certify.sh --rratio 20   # H2 / rr20
+tools/pegasus/submit_certify.sh --rratio 95   # read-heavy / rr95
+tools/pegasus/submit_certify.sh --rratio 5    # write-heavy / rr5
 tools/pegasus/submit_certify.sh --protocol mocc --rratio 50
 ```
 
 この wrapper は `qstat -Q`、`pegasusinfo`、`rbudgetcheck`、`check_quota` の rc と raw output、source
 commit、job script SHA-256、queue/project/node/walltime を nonce staging に保存する。その後だけ qsub
-を実行し、応答 request ID、選択した `ycsb_rratio` (20 / 50 / 80 の固定 whitelist)、実効 protocol を
+を実行し、応答 request ID、選択した `ycsb_rratio` (5 / 20 / 50 / 80 / 95 の固定 whitelist)、実効 protocol を
 `submit-receipt.json` に追加する。job は nonce と同じ workload / protocol binding を受け取り、
 この receipt が現れるまで最大 60 秒待ってから source・script・request ID・workload・protocol を
 再照合する。
 
-`--rratio` を省略した場合は既存互換の rr50 になる。rr80/rr20 の calibration はこの引数を
+`--rratio` を省略した場合は既存互換の rr50 になる。rr95/rr80/rr20/rr5 の calibration はこの引数を
 指定すれば人間が JSON を編集・登録する必要はなく、compute-node job の certification が
 既存の schema / acquisition receipt / 自己比較 / create-only publish を通った場合だけ
 `output/env/pegasus/calibration/registered/` へ自動登録する。
@@ -166,7 +168,7 @@ certification job は 1 node・2 時間で、次の順に fail-closed で進む�
 8. build 後 profile と W0 exact `AcquisitionReceipt` を作り、calibrator 内の凍結 cooldown と
    dynamic pre-attestation を fatal gate として通す
 9. 凍結 CLI (`--certify`, `--receipt-json`, `--binary-sha256`) で
-   t48 / 選択した `skew0p9_rr{20|50|80}_rmw0` calibration を実行する
+   t48 / 選択した `skew0p9_rr{5|20|50|80|95}_rmw0` calibration を実行する
 10. 成功時だけ post-attestation を作り、calibrator の成否にかかわらず `job-result.json` を作る
 
 numactl 方針は calibrator が attestation の NUMA node 数から自動導出する (1 node はなし、複数は
