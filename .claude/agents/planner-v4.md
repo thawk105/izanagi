@@ -40,7 +40,7 @@ effort: high
     "IPC_overall": 2.1
   },
   "whiteboard": [
-    { "iteration": 1, "direction": "increase", "result": "fail" }
+    { "iteration": 1, "direction": "increase", "magnitude": "small", "result": "fail", "delta_pct": null }
   ]
 }
 ```
@@ -70,5 +70,6 @@ effort: high
 
 ## 設計根拠
 
-Planner の役割は「**leading-indicators だけから、人間の domain expert のように仮説を生成できるか**」を検証すること。
+Planner の役割は「**current_perf・leading_indicators・評価済み提案の whiteboard から、人間の domain expert のように仮説を生成できるか**」を検証すること。
+任意の `policy_hint` が与えられた場合は、入力節の範囲でそれも判断材料にする。
 答え (ケース研究・grid 知識) を読まずに方向を提案し、それが coder の合成を導けるのか。

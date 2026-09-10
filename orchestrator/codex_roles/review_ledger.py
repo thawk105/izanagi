@@ -23,15 +23,18 @@ SOURCE_FILE_SHA256 = {
     "coder": "5573a39d611ac519b2a5025e73e0e5585a79292ebf20fafdb02985306031a7e0",
     # Reviewed 2026-08-26: T-1690; suffix-free literal/value一致・1文の producer 契約を追加。
     # Reviewed 2026-09-09: T-2249; 段 4 の delta_pct≡None 不変と食い違う固定例 (-1.2) を入力例から除去。
-    "coder-v4-autonomous": "ba6c9c116fadf0d21a3e55acf1fdcaf83c412c869fcbfdf59dfad842cbfcf806",
+    # Reviewed 2026-09-11: T-2528; whiteboard 入力例を実射影の 5 field へ訂正。
+    "coder-v4-autonomous": "f8916155e8107445a618c6a47a2d0c2ed1a5813352135133457bbaa28314c546",
     # Reviewed 2026-09-02: T-2200; K2 宣言アーム用 sibling role 契約を追加。
     # Reviewed 2026-09-03: T-2246; empty-source と明示 consumer の境界を追記。
     "coder-v4-autonomous-k2": "c149f0955bdeee69edc93d52f2437122e0d533a8737d5bbb3376ef93699d67a6",
     # Reviewed 2026-08-18: T-396 A; enforcement ownership split, prohibition set unchanged.
     # Reviewed 2026-09-02: T-2145; raw C++ 合成を閉じた sort IR proposal へ縮小。
-    "coder-v4-autonomous-sort": "0d98a362d6cde3e77a407851aaace7444086ee6add33dbd5df2f586db5666772",
+    # Reviewed 2026-09-11: T-2528; whiteboard 入力例を実射影の 5 field へ訂正。
+    "coder-v4-autonomous-sort": "27a39534b4248573fccc17ab3120a858ec6bac0436430f3983eb7c154e66a8b3",
     # Reviewed 2026-08-04: stage5-agent-review.md approved the T-428 wire contract.
-    "coder-v4-autonomous-trigger-gating": "a03045c86027ec09e01d0727557eaa653c8f04d0929c007a4f129902742a2db0",
+    # Reviewed 2026-09-11: T-2528; whiteboard 入力例を実射影の 5 field へ訂正。
+    "coder-v4-autonomous-trigger-gating": "00405a9639b150372cf0881699090090cf688d4a61fa22651e0aee27e8d5279a",
     "critic": "cd1c365204fd1a68260d0454b4599bfd8cea12c5d845fb24f4e21f154733df15",
     "critic-experiment": "fc20aa7ef1bf9af45eaa2e56313b8b5221a3ff2a2413110fa333ba470ff9456e",
     # Reviewed 2026-08-19: workload-policy-hint-impl; 「## 入力」節へ optional policy_hint
@@ -40,7 +43,8 @@ SOURCE_FILE_SHA256 = {
     # input_required_fields (3 field) は不変 (hint は任意であり「常に必須」の宣言に加えない、
     # dormant Codex adapter parity は対象外)。
     # Reviewed 2026-09-09: T-2249; 段 4 の delta_pct≡None 不変と食い違う固定例 (-1.2) を入力例から除去。
-    "planner-v4": "3a3d35fafbaaeac5b63c8f36a1cd4542fba4e7cef2793c71cc59fc40884c8374",
+    # Reviewed 2026-09-11: T-2528; whiteboard 入力例を実射影の 5 field へ訂正。 current_perf・whiteboard・任意 policy_hint の入力説明も訂正。
+    "planner-v4": "1d6b1603dbbb7c776202cd20a300e60e01b9119b55068ddfcce3e83714f646da",
     "profiler": "8a3f5bc1cba31d366c7ea3f0149e04917c07fe7677aa609ce6f05f5c8decbd6d",
     "selector-8b": "23483aeb871ad7363060a183d85df6dd10b9e74b40337037a6cf6bbcc34c799c",
     "verifier": "80ce00b78832cb18a95d0ee8047124fbb8435cf2ec4d312b9d4ed2e6c7f0300f",

@@ -1,0 +1,24 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 1200,
+  "hang_timeout_seconds": 1500,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_reflux_originless_compatibility.py",
+          "old": "_extend_t2528_role_source_baseline(_PRE_WAVE_ORIGINLESS_BASELINE)\n",
+          "new": "# T2528 mutation: omit the reviewed planner source baseline migration.\n"
+        }
+      ]
+    }
+  ]
+}
