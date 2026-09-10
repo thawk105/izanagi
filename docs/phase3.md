@@ -18,6 +18,9 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 
 ## 現行チェックポイント (2026-07-25 更新)
 
+- [x] [T-2543] t316 shell の束縛対象に条件関門を追加 (2026-09-11、D1936項30)。
+  既存 dirty 検査を probe 起動・条件関門 import 前に適用し、既存契約テストで正負例と順序を確認する。
+
 - [x] [T-2514] A-1条件関門の拒否時detail保存を実装 (2026-09-10、D1936項4・D1912)。
   生成済み全arm recordとadmissionをworkload別raw_rootへ保存し、受理集合・元の拒否・成功経路を維持する。
   記録 = `output/insights/2026-09-10_t2514-a1-detail/README.md`。
