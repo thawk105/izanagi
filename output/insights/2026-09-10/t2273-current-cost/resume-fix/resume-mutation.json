@@ -1,0 +1,22 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 600,
+  "hang_timeout_seconds": 60,
+  "mutations": [
+    {
+      "id": "M1-term-success-wrong-exit",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_codex_worker_launch.py",
+          "old": "    def finish(_signum, _frame):\n        raise SystemExit(0)\n    signal.signal(signal.SIGTERM, finish)",
+          "new": "    def finish(_signum, _frame):\n        raise SystemExit(7)\n    signal.signal(signal.SIGTERM, finish)"
+        }
+      ],
+      "expected_nodes": ["orchestrator/tests/test_codex_worker_launch.py::test_limit_stop_is_never_accepted"],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
