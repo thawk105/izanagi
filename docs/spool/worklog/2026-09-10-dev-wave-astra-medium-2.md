@@ -19,5 +19,11 @@ title: land競合を最終停止と誤読した終端指示を是正し、モデ
   同SHAを専用waveへ競合なしで取り込んだ。他sessionの未commit差分は編集していない。
 - land時のlease環境指定欠落も前回ログで確認した。再投入では既定lease directoryを環境に明示する。
   自己改善の追加差分はdocsのみで、新しい機械的gateや権限を足さない。
+- 独立read-onlyレビューはblocking所見なし。rc11・処理中dirty・staleは再試行、postcondition failure・
+  裁定待ちは停止という5場面を確認した。incomingのfold receiptと削除fragmentの束縛、merge前後の
+  元wave変更6ファイルのblob一致も確認。逐語は
+  `output/insights/2026-09-10_dev-wave-astra-medium-land-review.md`。
+- Skill validator・check_docs・check_codex_agents・spool dry-runはrc=0。
+  独立レビュー時点のfull provenanceは9433件・新規違反なし (既知56件)。
 
 ## 次の一手差分
