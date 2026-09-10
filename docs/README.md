@@ -38,6 +38,15 @@
 - `backoff-counterfactual-preregistration.md` — adaptive backoff の反実仮想対照 ([T-2265]) の事前登録。
   3 値 step policy の腕、割当についての 1 窓先 ITT の定義式と符号、対称 log 等価域と TOST、
   主層と副次層、除外規則、12 seed の逐語一覧、検出力が仮定に条件付くこと、束縛と主張範囲の正本
+- `backoff-policy-performance-preregistration.md` — step policy 腕の trace 無効な性能 ([T-2417]) の
+  事前登録。3 腕の全 6 permutation で位置と一次持越しを均衡させる 18 block、対内 log 比の判定式と
+  対称等価域、標準偏差の 2 参照級にもとづく反復数の根拠、構造違反と測定欠測を分ける規則、
+  18 seed の逐語一覧、未認証であることの機械的隔離と自動撤回機構が無いことの明示、束縛の正本
+- `backoff-policy-performance-preregistration-erratum-1.md` — 上記 v1 の正誤表 1。
+  腕をまたぐ source bytes 一致と block をまたぐ binary identity 一定が、どちらも
+  step policy の source 置換と build の非再現性ゆえに成立しえないことの実測と、
+  identity 述語だけを訂正して「3 腕は互いに異なる」正の対照を足した記録。
+  推定量・等価域・判定語・欠測規則・seed・巡回・block 数は v1 のまま
 - `backoff-counterfactual-cohort2-preregistration.md` — 同じ機序を独立 cohort で測る事前登録
   ([T-2265])。時間 cap を実質無効化した count-closed 窓、割当を持たない terminal event、
   cohort 1 と推定対象が同一でないこと、terminal 非閉鎖と 0 commit の扱い、cohort 2 の 12 seed、
