@@ -619,6 +619,45 @@ def _extend_t2249_role_source_baseline(
 _extend_t2249_role_source_baseline(_PRE_WAVE_ORIGINLESS_BASELINE)
 
 
+def _extend_t2528_role_source_baseline(
+    baseline: dict[str, list[list[object]]],
+) -> None:
+    """Follow the reviewed T-2528 planner and trigger-gating source pins."""
+    old = "3a3d35fafbaaeac5b63c8f36a1cd4542fba4e7cef2793c71cc59fc40884c8374"
+    new = "1d6b1603dbbb7c776202cd20a300e60e01b9119b55068ddfcce3e83714f646da"
+    journal_rows = baseline["journals/*/*/provenance/role_file_sha256"]
+    replaced = 0
+    for row in journal_rows:
+        if row[0] == old:
+            row[0] = new
+            replaced += 1
+    assert replaced == 6
+    report_rows = baseline[
+        "reports/*/cells/*/generations/*/roles/planner/"
+        "provenance/role_file_sha256"
+    ]
+    assert report_rows == [[old, 6]]
+    report_rows[0][0] = new
+
+    old = "a03045c86027ec09e01d0727557eaa653c8f04d0929c007a4f129902742a2db0"
+    new = "00405a9639b150372cf0881699090090cf688d4a61fa22651e0aee27e8d5279a"
+    replaced = 0
+    for row in journal_rows:
+        if row[0] == old:
+            row[0] = new
+            replaced += 1
+    assert replaced == 6
+    report_rows = baseline[
+        "reports/*/cells/*/generations/*/roles/coder/"
+        "provenance/role_file_sha256"
+    ]
+    assert report_rows == [[old, 6]]
+    report_rows[0][0] = new
+
+
+_extend_t2528_role_source_baseline(_PRE_WAVE_ORIGINLESS_BASELINE)
+
+
 def _assert_same_structure(left: object, right: object, path=()) -> None:
     if type(left) is dict or type(right) is dict:
         assert type(left) is type(right) is dict, path
