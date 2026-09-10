@@ -71,3 +71,21 @@ author環境でのテストはqstat preflight失敗のrunner rc16、child_starte
 fix後の単独走の最初の試行はbounded localのMemoryMaxへ到達し、同時進行のread-only reviewの
 生artifact増加により状態比較が変化したため自動fallbackが拒否された(rc16)。本体・test・submoduleを
 照合して同じ検査をforce-dispatchへ再投入した。未完走をテスト成功・実装回帰のいずれにも数えない。
+
+## 修正後の実測
+
+- build sink単独: 44 passed / 34.84s (990073)。焦点レビューは`focus.md`、done0/出力checker0。
+- commit後consumer再走: 1204 passed / 4 skipped / 60.49s (990080、child rc0)。前の2赤は解消。
+- 実装anchor `4dc41b4c7952ee6a5e5c370939b16e7c03e767ce`の全史provenance: 9436件、新規違反なし、既知56件。
+- 変異基準走: 3 passed。3変異とも期待node完全集合と一致、復元・wrapper終端rc0。
+  rawは`mutation-result.json`、登録は`mutation-spec.json`、復元はwrapper receipt。
+- M1はharness上KILLEDだが、本記録では保存欠落のdiagnostic sensitivity pin 1件として扱う。
+  受理/拒否挙動のkillはM2/M3の2件であり、診断だけの変化をそこへ算入しない。
+- check_codex_agents/check_docs/diff-checkは実装時点で通過。性能測定・attempt投入は行っていない。
+
+## dev-wave 改善候補
+
+終端で`docs/skill-self-improvement.md`を再読しhandoffへ候補1件を記録した。
+read-only workerのrepo内artifact増加とbounded localテストを並走すると、MemoryMax後の状態比較が
+変わり自動fallbackを阻む。今回の実測に基づき、該当並走ではforce-dispatchかworker完了後へ寄せる
+DW-O18/O26の手順明確化候補とする。候補記録のみで、改善実装や次wave起動は追加しない。
