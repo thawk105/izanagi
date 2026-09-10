@@ -272,9 +272,35 @@ def _fixed_clock():
     return datetime(2026, 8, 28, 0, 0, 0, tzinfo=timezone.utc)
 
 
+class _FakeTime:
+    def __init__(self):
+        self.now = _fixed_clock()
+        self.sleeps = []
+
+    def clock(self):
+        return self.now
+
+    def sleep(self, seconds):
+        assert seconds >= 0
+        self.sleeps.append(seconds)
+        self.now += timedelta(seconds=seconds)
+
+    def advance(self, seconds):
+        self.now += timedelta(seconds=seconds)
+
+
+def _fake_limiter(fake_time, state_path=None):
+    return search.HostLimiter(
+        clock=fake_time.clock,
+        sleeper=fake_time.sleep,
+        state_path=state_path,
+    )
+
+
 @pytest.fixture(scope="module")
 def green_preflight_report(catalog, catalog_data, seal):
     transport = _dynamic_transport(catalog)
+    fake_time = _FakeTime()
     report = search.run_preflight(
         catalog,
         catalog_data,
@@ -282,7 +308,8 @@ def green_preflight_report(catalog, catalog_data, seal):
         argv=SEALED_ARGV,
         commit=COMMIT,
         transport=transport,
-        clock=_fixed_clock,
+        clock=fake_time.clock,
+        sleeper=fake_time.sleep,
         effective_argv=SEALED_ARGV,
     )
     return report, transport
@@ -732,11 +759,13 @@ def test_response_received_time_is_recorded_after_request_intent(
             SEALED_ARGV, "preflight"
         ),
     )
+    clock = lambda: next(times)
     response = search._send_with_raw_commit(
         transport,
         request,
         search.WireBudget(),
-        lambda: next(times),
+        clock,
+        limiter=search.HostLimiter(clock=clock, sleeper=lambda _seconds: None),
         writer=writer,
         pass_number=0,
         page_number=0,
@@ -755,6 +784,268 @@ def test_response_received_time_is_recorded_after_request_intent(
     assert intent["intent_at"] == "2026-08-28T00:00:00Z"
     assert response.response_received_at == raw["response_received_at"]
     assert raw["response_received_at"] == "2026-08-28T00:00:02Z"
+
+
+def test_host_pacing_uses_actual_pre_send_time_and_persists_across_limiters(
+    catalog, seal, tmp_path
+):
+    assert search.HOST_MINIMUM_INTERVAL_SECONDS == {
+        "export.arxiv.org": 3.0,
+        "api.openalex.org": 1.0,
+        "dblp.org": 45.0,
+    }
+    row = next(
+        item
+        for item in catalog["rows"]
+        if item["stream_id"] == "AX3A1-Q3-T01-F01@dblp"
+    )
+    fake_time = _FakeTime()
+
+    class DelayedBundleWriter(search.BundleWriter):
+        def begin_attempt(self, **kwargs):
+            super().begin_attempt(**kwargs)
+            fake_time.advance(10.0)
+
+    writer = DelayedBundleWriter(
+        tmp_path,
+        kind="preflight",
+        seal=seal,
+        phase_argv=search.validate_effective_phase_argv(
+            SEALED_ARGV, "preflight"
+        ),
+        defer_manifest_fold=True,
+    )
+    sent_at = []
+
+    def handler(request):
+        sent_at.append(fake_time.clock())
+        return _dynamic_response(request)
+
+    transport = search.NonProductionTransport(handler)
+    budget = search.WireBudget()
+    observations = []
+    state_path = tmp_path / "state" / "host-limiter.json"
+
+    def checked_sleep(seconds):
+        assert writer.attempt_intent is None
+        fake_time.sleep(seconds)
+
+    for _ in range(3):
+        limiter = search.HostLimiter(
+            clock=fake_time.clock,
+            sleeper=checked_sleep,
+            state_path=state_path,
+        )
+        request = search.materialize_request(row)
+        response = search._send_with_raw_commit(
+            transport,
+            request,
+            budget,
+            fake_time.clock,
+            limiter=limiter,
+            writer=writer,
+            pass_number=0,
+            page_number=0,
+            pacing_observations=observations,
+        )
+        evidence, _probe = search._validate_and_classify_response(
+            row=row,
+            request=request,
+            response=response,
+            pass_number=0,
+            page_number=0,
+            classify_preflight=True,
+        )
+        writer.commit_response(
+            evidence=evidence,
+            entity_body=response.entity_body,
+            checkpoint=None,
+        )
+
+    assert fake_time.sleeps == [45.0, 45.0]
+    assert [(right - left).total_seconds() for left, right in zip(sent_at, sent_at[1:])] == [
+        55.0,
+        55.0,
+    ]
+    assert [item["observed_interval_seconds"] for item in observations] == [
+        None,
+        55.0,
+        55.0,
+    ]
+    persisted = json.loads(state_path.read_text(encoding="utf-8"))
+    assert persisted["hosts"]["dblp.org"]["last_issued_at"] == (
+        "2026-08-28T00:02:00.000000Z"
+    )
+
+
+def test_live_session_records_issue_time_immediately_before_transport_send(
+    catalog, seal, tmp_path, monkeypatch
+):
+    row = next(
+        item
+        for item in catalog["rows"]
+        if item["stream_id"] == "AX3A1-L-ID-01@openalex"
+    )
+    request = search.materialize_request(row)
+    fake_time = _FakeTime()
+    session = search.create_live_search_session()
+    sent_at = []
+
+    def fake_live_send(_transport, outgoing):
+        sent_at.append(fake_time.clock())
+        response = _dynamic_response(outgoing)
+        return search.TransportResponse.from_mapping(
+            response, strict_transport_boundary=True
+        )
+
+    monkeypatch.setattr(search.LiveHTTPTransport, "send", fake_live_send)
+    monkeypatch.setattr(search, "_CANONICAL_LIVE_SEND", fake_live_send)
+    original_validate = search._validate_production_transport_identity
+
+    def delayed_identity_check(transport):
+        original_validate(transport)
+        fake_time.advance(7.0)
+
+    monkeypatch.setattr(
+        search, "_validate_production_transport_identity", delayed_identity_check
+    )
+    writer = session._open_writer(
+        tmp_path,
+        kind="preflight",
+        seal=seal,
+        phase_argv=search.validate_effective_phase_argv(
+            LIVE_PREFLIGHT_ARGV, "preflight"
+        ),
+        defer_manifest_fold=True,
+    )
+    state_path = tmp_path / "state" / "host-limiter.json"
+    response = search._send_with_raw_commit(
+        session,
+        request,
+        search.WireBudget(),
+        fake_time.clock,
+        limiter=search.HostLimiter(
+            clock=fake_time.clock,
+            sleeper=fake_time.sleep,
+            state_path=state_path,
+        ),
+        writer=writer,
+        pass_number=0,
+        page_number=0,
+    )
+
+    assert response.status == 200
+    assert sent_at == [
+        _fixed_clock() + timedelta(seconds=7)
+    ]
+    persisted = json.loads(state_path.read_text(encoding="utf-8"))
+    assert persisted["hosts"]["api.openalex.org"]["last_issued_at"] == (
+        "2026-08-28T00:00:07.000000Z"
+    )
+
+
+def test_wire_budget_rejection_precedes_attempt_intent(catalog, seal, tmp_path):
+    row = next(
+        item
+        for item in catalog["rows"]
+        if item["stream_id"] == "AX3A1-L-ID-01@openalex"
+    )
+    writer = search.BundleWriter(
+        tmp_path,
+        kind="preflight",
+        seal=seal,
+        phase_argv=search.validate_effective_phase_argv(
+            SEALED_ARGV, "preflight"
+        ),
+        defer_manifest_fold=True,
+    )
+    fake_time = _FakeTime()
+    budget = search.WireBudget(attempts=search.MAX_WIRE_ATTEMPTS)
+    transport = search.NonProductionTransport(_dynamic_response)
+    with pytest.raises(search.ContractError) as caught:
+        search._send_with_raw_commit(
+            transport,
+            search.materialize_request(row),
+            budget,
+            fake_time.clock,
+            limiter=_fake_limiter(
+                fake_time, tmp_path / "state" / "host-limiter.json"
+            ),
+            writer=writer,
+            pass_number=0,
+            page_number=0,
+        )
+    assert caught.value.code == "wire_budget_exceeded"
+    assert writer.attempt_intent is None
+    assert transport.calls == []
+    assert budget.attempts == search.MAX_WIRE_ATTEMPTS
+
+    expired = search.WireBudget(
+        attempts=1,
+        first_external_request_at=fake_time.clock() - timedelta(days=31),
+    )
+    with pytest.raises(search.ContractError) as caught:
+        search._send_with_raw_commit(
+            transport,
+            search.materialize_request(row),
+            expired,
+            fake_time.clock,
+            limiter=_fake_limiter(
+                fake_time, tmp_path / "state" / "host-limiter.json"
+            ),
+            writer=writer,
+            pass_number=0,
+            page_number=0,
+        )
+    assert caught.value.code == "deadline_exceeded"
+    assert writer.attempt_intent is None
+    assert transport.calls == []
+    assert expired.attempts == 1
+
+
+def test_transport_exception_materializes_pending_attempt_before_reraise(
+    catalog, seal, tmp_path
+):
+    row = next(
+        item
+        for item in catalog["rows"]
+        if item["stream_id"] == "AX3A1-L-ID-01@openalex"
+    )
+    writer = search.BundleWriter(
+        tmp_path,
+        kind="preflight",
+        seal=seal,
+        phase_argv=search.validate_effective_phase_argv(
+            SEALED_ARGV, "preflight"
+        ),
+        defer_manifest_fold=True,
+    )
+    fake_time = _FakeTime()
+
+    def fail_transport(_request):
+        raise OSError("simulated disconnect")
+
+    transport = search.NonProductionTransport(fail_transport)
+    with pytest.raises(OSError, match="simulated disconnect"):
+        search._send_with_raw_commit(
+            transport,
+            search.materialize_request(row),
+            search.WireBudget(),
+            fake_time.clock,
+            limiter=_fake_limiter(
+                fake_time, tmp_path / "state" / "host-limiter.json"
+            ),
+            writer=writer,
+            pass_number=0,
+            page_number=0,
+        )
+    manifest = search._read_bundle_manifest(tmp_path)[0]
+    assert manifest["attempt_intent"]["state"] == "pending"
+    assert (tmp_path / manifest["attempt_intent"]["intent_path"]).is_file()
+    assert len(transport.calls) == 1
+    assert search._validate_bundle_for_resume(
+        tmp_path, catalog=catalog, seal=seal
+    ) == {"pages": 0, "checkpoints": 0}
 
 
 def test_transport_mapping_requires_observed_envelope_and_exposed_entity_bytes():
@@ -993,11 +1284,13 @@ def test_raw_response_survives_parse_gate_and_pending_intent_blocks_resume(
         ),
         defer_manifest_fold=True,
     )
+    fake_time = _FakeTime()
     response = search._send_with_raw_commit(
         transport,
         request,
         search.WireBudget(),
-        _fixed_clock,
+        fake_time.clock,
+        limiter=_fake_limiter(fake_time),
         writer=writer,
         pass_number=0,
         page_number=0,
@@ -1080,16 +1373,39 @@ def test_full_catalog_preflight_report_round_trips_without_wal(
     search.validate_preflight_report(restored, catalog, seal)
     assert len(restored["rows"]) == 2122
     assert len(restored["preflight_evidence"]) == 1929
+    assert len(restored["pacing_observations"]) == 1929
+    assert [
+        observation["stream_id"]
+        for observation in restored["pacing_observations"]
+    ] == [evidence["stream_id"] for evidence in restored["preflight_evidence"]]
     assert [
         evidence["stream_id"] for evidence in restored["preflight_evidence"]
     ] == search._preflight_planned_stream_ids(catalog)
     assert restored["status_counts"]["blocked"] == 193
 
 
+def test_preflight_report_observed_interval_is_nonblocking_n3(
+    catalog, seal, green_preflight_report
+):
+    report, _transport = green_preflight_report
+    mutant = copy.deepcopy(report)
+    seen_dblp = 0
+    for observation in mutant["pacing_observations"]:
+        if observation["host"] == "dblp.org":
+            seen_dblp += 1
+            if seen_dblp == 2:
+                observation["observed_interval_seconds"] = 44.87
+                break
+    assert seen_dblp == 2
+    mutant["report_sha256"] = search._report_digest(mutant)
+    search.validate_preflight_report(mutant, catalog, seal)
+
+
 def test_preflight_200_can_be_available_but_unresolved_and_continues(
     catalog, catalog_data, seal
 ):
     transport = _unresolved_anchor_transport(catalog)
+    fake_time = _FakeTime()
     report = search.run_preflight(
         catalog,
         catalog_data,
@@ -1097,7 +1413,8 @@ def test_preflight_200_can_be_available_but_unresolved_and_continues(
         argv=SEALED_ARGV,
         commit=COMMIT,
         transport=transport,
-        clock=_fixed_clock,
+        clock=fake_time.clock,
+        sleeper=fake_time.sleep,
     )
     first = next(
         row
@@ -1137,8 +1454,13 @@ def test_run_ready_reissues_page_zero_orders_indices_and_never_completes_axis(
 
     row = ready_rows[0]
     transport = search.NonProductionTransport(_dynamic_response)
+    fake_time = _FakeTime()
     result = search._run_stream(
-        row, transport, search.WireBudget(), _fixed_clock
+        row,
+        transport,
+        search.WireBudget(),
+        fake_time.clock,
+        limiter=_fake_limiter(fake_time),
     )
     assert transport.calls[0] == search.materialize_request(row)
     assert result["stream_id"] == row["stream_id"]
@@ -1166,11 +1488,13 @@ def test_unimplemented_count_only_control_never_claims_completion(catalog):
             }
         ]
     )
+    fake_time = _FakeTime()
     result = search._run_stream(
         row,
         transport,
         search.WireBudget(),
-        _fixed_clock,
+        fake_time.clock,
+        limiter=_fake_limiter(fake_time),
     )
     assert result["complete"] is False
     assert result["reason"] == "control_evaluator_unimplemented"
@@ -1386,6 +1710,7 @@ def test_mutation_m6_openalex_429_sends_exactly_one_request_and_checkpoints(
         ]
     )
     checkpoint_path = tmp_path / "checkpoints" / "0001.json"
+    fake_time = _FakeTime()
     report = search.run_preflight(
         catalog,
         catalog_data,
@@ -1393,7 +1718,8 @@ def test_mutation_m6_openalex_429_sends_exactly_one_request_and_checkpoints(
         argv=SEALED_ARGV,
         commit=COMMIT,
         transport=transport,
-        clock=_fixed_clock,
+        clock=fake_time.clock,
+        sleeper=fake_time.sleep,
         checkpoint_path=checkpoint_path,
     )
     assert len(transport.calls) == 1
@@ -1402,6 +1728,175 @@ def test_mutation_m6_openalex_429_sends_exactly_one_request_and_checkpoints(
     assert report["stopped_after_openalex_429"] is True
     assert report["checkpoint"]["resume_action"] == "restart_branch"
     search.validate_checkpoint(json.loads(checkpoint_path.read_text(encoding="utf-8")))
+
+
+def test_preflight_retries_live_transport_and_never_retries_http_status(
+    catalog, catalog_data, seal
+):
+    fake_time = _FakeTime()
+    arxiv_stream_id = next(
+        stream_id
+        for stream_id in search._preflight_planned_stream_ids(catalog)
+        if stream_id.endswith("@arxiv")
+    )
+    dblp_stream_id = next(
+        stream_id
+        for stream_id in search._preflight_planned_stream_ids(catalog)
+        if stream_id.endswith("@dblp")
+    )
+    arxiv_failures = 0
+    dblp_responses = 0
+    sends = []
+
+    def handler(request):
+        nonlocal arxiv_failures, dblp_responses
+        sends.append((request["stream_id"], fake_time.clock()))
+        if request["stream_id"] == arxiv_stream_id and arxiv_failures < 3:
+            arxiv_failures += 1
+            raise search.ContractError("live_transport", "simulated disconnect")
+        if request["stream_id"] == dblp_stream_id:
+            dblp_responses += 1
+            return {
+                "status": 503,
+                "entity_body": b"DBLP unavailable",
+                "headers": [],
+                "endpoint": search.DBLP_ENDPOINT,
+                "final_url": request["url"],
+                "content_type": "text/plain",
+            }
+        return _dynamic_response(request)
+
+    transport = search.NonProductionTransport(handler)
+    report = search.run_preflight(
+        catalog,
+        catalog_data,
+        seal,
+        argv=SEALED_ARGV,
+        commit=COMMIT,
+        transport=transport,
+        clock=fake_time.clock,
+        sleeper=fake_time.sleep,
+    )
+
+    arxiv_sends = [sent_at for stream_id, sent_at in sends if stream_id == arxiv_stream_id]
+    assert len(arxiv_sends) == 4
+    assert [
+        (right - left).total_seconds()
+        for left, right in zip(arxiv_sends, arxiv_sends[1:])
+    ] == [3.0, 6.0, 12.0]
+    arxiv_row = next(row for row in report["rows"] if row["stream_id"] == arxiv_stream_id)
+    assert arxiv_row["status"] == "ready"
+    arxiv_offset = next(
+        offset for offset, (stream_id, _sent_at) in enumerate(sends)
+        if stream_id == arxiv_stream_id
+    )
+    assert [stream_id for stream_id, _sent_at in sends[arxiv_offset : arxiv_offset + 4]] == [
+        arxiv_stream_id
+    ] * 4
+    assert sends[arxiv_offset + 4][0] != arxiv_stream_id
+
+    assert dblp_responses == 1
+    dblp_evidence = [
+        evidence
+        for evidence in report["preflight_evidence"]
+        if evidence["stream_id"] == dblp_stream_id
+    ]
+    assert [evidence["status"] for evidence in dblp_evidence] == [503]
+    dblp_row = next(row for row in report["rows"] if row["stream_id"] == dblp_stream_id)
+    assert dblp_row["status"] == "unavailable"
+    assert dblp_row["reason"] == "http_503"
+    assert report["wire_attempt_count"] == 1932
+    assert len(transport.calls) == 1932
+    assert len(report["preflight_evidence"]) == 1929
+    assert len(report["pacing_observations"]) == 1932
+
+
+def test_preflight_exhausts_four_dblp_transport_attempts_then_cools_down(
+    catalog, catalog_data, seal
+):
+    fake_time = _FakeTime()
+    failed_stream_id = None
+    failed_attempts = 0
+    sends = []
+
+    def handler(request):
+        nonlocal failed_stream_id, failed_attempts
+        sends.append((request["stream_id"], fake_time.clock()))
+        if request["index"] == "dblp" and failed_stream_id is None:
+            failed_stream_id = request["stream_id"]
+        if request["stream_id"] == failed_stream_id and failed_attempts < 4:
+            failed_attempts += 1
+            raise search.ContractError("live_transport", "simulated DBLP disconnect")
+        return _dynamic_response(request)
+
+    transport = search.NonProductionTransport(handler)
+    report = search.run_preflight(
+        catalog,
+        catalog_data,
+        seal,
+        argv=SEALED_ARGV,
+        commit=COMMIT,
+        transport=transport,
+        clock=fake_time.clock,
+        sleeper=fake_time.sleep,
+    )
+
+    assert failed_stream_id is not None
+    failed_evidence = [
+        evidence
+        for evidence in report["preflight_evidence"]
+        if evidence["stream_id"] == failed_stream_id
+    ]
+    assert failed_evidence == []
+    assert report["wire_attempt_count"] == 1932
+    assert len(transport.calls) == 1932
+    assert search.DBLP_FAILURE_COOLDOWN_SECONDS in fake_time.sleeps
+    failure_offsets = [
+        offset
+        for offset, (stream_id, _sent_at) in enumerate(sends)
+        if stream_id == failed_stream_id
+    ]
+    assert failure_offsets == list(
+        range(failure_offsets[0], failure_offsets[0] + 4)
+    )
+    failed_send_times = [sends[offset][1] for offset in failure_offsets]
+    assert [
+        (right - left).total_seconds()
+        for left, right in zip(failed_send_times, failed_send_times[1:])
+    ] == [45.0, 45.0, 60.0]
+    last_failure_offset = failure_offsets[-1]
+    assert sends[last_failure_offset + 1][1] - sends[last_failure_offset][1] == (
+        timedelta(seconds=search.DBLP_FAILURE_COOLDOWN_SECONDS)
+    )
+    failed_row = next(
+        row for row in report["rows"] if row["stream_id"] == failed_stream_id
+    )
+    assert failed_row["status"] == "unavailable"
+    assert failed_row["reason"] == "live_transport_retry_exhausted"
+
+
+def test_preflight_does_not_swallow_non_transport_contract_errors(
+    catalog, catalog_data, seal
+):
+    transport = search.NonProductionTransport(
+        lambda _request: (_ for _ in ()).throw(
+            search.ContractError("wire_budget_exceeded", "simulated budget failure")
+        )
+    )
+    fake_time = _FakeTime()
+    with pytest.raises(search.ContractError) as caught:
+        search.run_preflight(
+            catalog,
+            catalog_data,
+            seal,
+            argv=SEALED_ARGV,
+            commit=COMMIT,
+            transport=transport,
+            clock=fake_time.clock,
+            sleeper=fake_time.sleep,
+        )
+    assert caught.value.code == "wire_budget_exceeded"
+    assert len(transport.calls) == 1
 
 
 def test_registration_seal_failure_calls_no_transport(catalog, catalog_data, seal):
@@ -1595,11 +2090,13 @@ def test_run_stream_reapplies_lookup_exact_one(catalog):
             }
         ]
     )
+    fake_time = _FakeTime()
     result = search._run_stream(
         row,
         transport,
         search.WireBudget(),
-        _fixed_clock,
+        fake_time.clock,
+        limiter=_fake_limiter(fake_time),
     )
     assert result["complete"] is False
     assert result["reason"] == "lookup_multiple_results"
@@ -1873,11 +2370,13 @@ def test_review_429_non_success_mime_is_raw_bundled_before_stop(
     )
     budget = search.WireBudget()
     request = search.materialize_request(availability)
+    fake_time = _FakeTime()
     response = search._send_with_raw_commit(
         transport,
         request,
         budget,
-        _fixed_clock,
+        fake_time.clock,
+        limiter=_fake_limiter(fake_time),
         writer=writer,
         pass_number=0,
         page_number=0,
@@ -1950,11 +2449,13 @@ def test_non_200_final_query_mismatch_is_raw_committed_then_rejected(
         ),
         defer_manifest_fold=True,
     )
+    fake_time = _FakeTime()
     response = search._send_with_raw_commit(
         transport,
         request,
         search.WireBudget(),
-        _fixed_clock,
+        fake_time.clock,
+        limiter=_fake_limiter(fake_time),
         writer=writer,
         pass_number=0,
         page_number=0,
@@ -2131,8 +2632,13 @@ def test_resume_continues_every_nonterminal_page_before_next_ready_row(
             },
         ]
     )
+    fake_time = _FakeTime()
     result = search._run_stream(
-        row, transport, search.WireBudget(), _fixed_clock
+        row,
+        transport,
+        search.WireBudget(),
+        fake_time.clock,
+        limiter=_fake_limiter(fake_time),
     )
     assert transport.calls == [first_request, second_request, third_request]
     assert result["complete"] is True
@@ -2591,13 +3097,41 @@ def test_preflight_successful_prefix_resumes_without_checkpoint(catalog):
     assert state["initial_plan_complete"] is False
 
 
+def test_preflight_wal_accepts_four_transport_attempts_and_rejects_fifth(catalog):
+    first = search._preflight_planned_stream_ids(catalog)[0]
+    four_attempts = [
+        {"stream_id": first, "transport_error": "live_transport"},
+        {"stream_id": first, "transport_error": "live_transport"},
+        {"stream_id": first, "transport_error": "live_transport"},
+        {"stream_id": first, "transport_error": "live_transport"},
+    ]
+    state = search._validate_preflight_wal_attempt_sequence(
+        catalog, four_attempts
+    )
+    assert state["current_stream_attempts"] == 4
+    assert state["retry_stream_id"] is None
+
+    with pytest.raises(search.ContractError) as caught:
+        search._validate_preflight_wal_attempt_sequence(
+            catalog,
+            [
+                *four_attempts,
+                {"stream_id": first, "transport_error": "live_transport"},
+            ],
+        )
+    assert caught.value.code == "bundle_preflight_sequence"
+
+
 def test_later_row_retry_does_not_replace_availability_evidence(
     catalog, green_preflight_report
 ):
     report, _transport = green_preflight_report
     initial = copy.deepcopy(report["preflight_evidence"])
-    failure = copy.deepcopy(initial[-1])
-    failure["status"] = 503
+    failure = {
+        "stream_id": initial[-1]["stream_id"],
+        "request": copy.deepcopy(initial[-1]["request"]),
+        "transport_error": "live_transport",
+    }
     retry = copy.deepcopy(initial[-1])
     sequence = [*initial[:-1], failure, retry]
     state = search._validate_preflight_wal_attempt_sequence(catalog, sequence)
@@ -2606,6 +3140,147 @@ def test_later_row_retry_does_not_replace_availability_evidence(
     assert sequence[0] == report["availability_evidence"]
     assert sequence[0]["stream_id"] == (
         "AX3A1-L-ID-01@openalex"
+    )
+
+
+def test_http_failure_cannot_be_followed_by_inline_success(
+    catalog, green_preflight_report
+):
+    report, _transport = green_preflight_report
+    initial = copy.deepcopy(report["preflight_evidence"])
+    failure = copy.deepcopy(initial[-1])
+    failure["status"] = 503
+    retry = copy.deepcopy(initial[-1])
+    sequence = [*initial[:-1], failure, retry]
+    with pytest.raises(search.ContractError) as caught:
+        search._validate_preflight_wal_attempt_sequence(catalog, sequence)
+    assert caught.value.code == "bundle_preflight_sequence"
+    assert sequence[0] == report["availability_evidence"]
+    assert sequence[0]["stream_id"] == (
+        "AX3A1-L-ID-01@openalex"
+    )
+
+
+def test_final_retryable_tail_remains_nonfinalizable():
+    eligibility = search._derive_finalize_eligibility(
+        kind="final",
+        ledger=[{"stream_id": "AX3A1-Q01@openalex", "status": 503}],
+        attempt_intent=None,
+        wire_attempt_count=1,
+    )
+    assert eligibility["finalize_eligible"] is False
+    assert eligibility["reason"] == "retryable_http_503"
+
+
+def test_resume_pacing_intervals_are_unmeasured_null(catalog):
+    row = next(
+        item
+        for item in catalog["rows"]
+        if item["stream_id"] == "AX3A1-L-ID-01@openalex"
+    )
+    request = search.materialize_request(row)
+    observations = search._pacing_observations_from_intents(
+        [
+            {"request": request, "intent_at": "2026-08-28T00:00:00Z"},
+            {"request": request, "intent_at": "2026-08-28T00:00:10Z"},
+        ]
+    )
+    assert [
+        observation["observed_interval_seconds"]
+        for observation in observations
+    ] == [None, None]
+
+
+def test_cooldown_and_missing_limiter_state_survive_new_instance(
+    catalog, seal, tmp_path
+):
+    fake_time = _FakeTime()
+    cooldown_state = tmp_path / "cooldown" / "host-limiter.json"
+    limiter = search.HostLimiter(
+        clock=fake_time.clock,
+        sleeper=fake_time.sleep,
+        state_path=cooldown_state,
+    )
+    limiter.acquire("dblp.org", 45.0)
+    issued_at, _observed = limiter.issue("dblp.org")
+    limiter.finish_issue("dblp.org", issued_at)
+    limiter.enter_cooldown("dblp.org", 45.0, 2700.0)
+
+    resumed_limiter = search.HostLimiter(
+        clock=fake_time.clock,
+        sleeper=fake_time.sleep,
+        state_path=cooldown_state,
+    )
+    resumed_limiter.acquire("dblp.org", 45.0)
+    resumed_limiter.release()
+    assert fake_time.sleeps == [2700.0]
+
+    bundle = tmp_path / "missing-state-bundle"
+    writer, response, evidence = _packed_preflight_attempt(
+        catalog, seal, bundle
+    )
+    writer.record_raw_response(response)
+    writer.commit_response(
+        evidence=evidence,
+        entity_body=response.entity_body,
+        checkpoint=None,
+    )
+    manifest = search._read_bundle_manifest(bundle)[0]
+    missing_state = bundle / "state" / "host-limiter.json"
+    assert not missing_state.exists()
+    fallback = search._preflight_resume_limiter_fallback(bundle, manifest)
+    resumed_time = _FakeTime()
+    recovered_limiter = search.HostLimiter(
+        clock=resumed_time.clock,
+        sleeper=resumed_time.sleep,
+        state_path=missing_state,
+        fallback_last_issued=fallback,
+    )
+    recovered_limiter.acquire("api.openalex.org", 1.0)
+    recovered_limiter.release()
+    assert resumed_time.sleeps == [1.0]
+
+
+def test_packed_wal_commits_transport_failure_without_pending_intent(
+    catalog, seal, tmp_path
+):
+    writer, response, evidence = _packed_preflight_attempt(
+        catalog, seal, tmp_path
+    )
+    writer.materialize_pending_attempt()
+    writer.commit_transport_failure("live_transport")
+    replayed = search._replay_preflight_wal(
+        tmp_path, writer._journal_descriptor(sealed=False)
+    )
+    assert replayed["attempt_intent"] is None
+    assert replayed["attempt_outcomes"] == [
+        {
+            "stream_id": "AX3A1-L-ID-01@openalex",
+            "request": replayed["attempt_intents"][0]["request"],
+            "transport_error": "live_transport",
+        }
+    ]
+    assert replayed["descriptor"]["record_count"] == 2
+    writer.begin_attempt(
+        request=evidence["request"],
+        pass_number=0,
+        page_number=0,
+        expected_wire_attempt_count=2,
+        intent_at=_fixed_clock() + timedelta(seconds=3),
+    )
+    writer.record_raw_response(response)
+    writer.commit_response(
+        evidence=evidence,
+        entity_body=response.entity_body,
+        checkpoint=None,
+    )
+    replayed = search._replay_preflight_wal(
+        tmp_path, writer._journal_descriptor(sealed=False)
+    )
+    assert len(replayed["attempt_outcomes"]) == 2
+    assert replayed["committed_intents"][0]["expected_wire_attempt_count"] == 2
+    assert replayed["ledger"][0]["raw_response_path"] == (
+        "attempts/000002.response.json"
     )
 
 

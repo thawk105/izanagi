@@ -1,0 +1,492 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2536-cicada-axis-name/output/pegasus-dispatch/c10e292fbbb3824b03068861b90b921b/izdw-c10e292fbb.o988783",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2536-cicada-axis-name/output/pegasus-dispatch/c10e292fbbb3824b03068861b90b921b/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n...............................................                          [100%]\n47 passed in 4.29s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "563ea3314b79efb7b8100ffcff8391a1367dc9b4c16612f4b5af34d1770a8b76"
+    },
+    "artifact_error": null,
+    "collection_sha256": "d98a31b684870cbf490168ac191535a790dff69086cb8462c4c85fab90cdabe9",
+    "duration_s": 27.148,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "5f30735f7796da89f737c8369e63e69880d265a82cb11599d22284ef16730946",
+    "repo_head": "49ef88bad4c8492f20c4d02c814dde7b8c105a92",
+    "runner_sha256": "decf752c5bb54c24f16ad97ff4ef2c26b002d48a3a8b64d3e34bad12025bf206",
+    "spec_sha256": "a322145fc32096fbc2d630c8cf9c42d791406f06dd29a064107c5ccb820cacf4",
+    "status": "PASSED",
+    "test_output_sha256": "563ea3314b79efb7b8100ffcff8391a1367dc9b4c16612f4b5af34d1770a8b76",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "0c69349064b7e5c36d4d8c43ce810cb54a0d2e92e149eb24e1f68356dfafdcdf"
+  },
+  "date": "2026-09-09T15:52:26.178235+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2536-cicada-axis-name/output/pegasus-dispatch/65eefee690cd41db2084120bf7ef3a20/izdw-65eefee690.o988785",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2536-cicada-axis-name/output/pegasus-dispatch/65eefee690cd41db2084120bf7ef3a20/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..................................FFFFF........                          [100%]\n=================================== FAILURES ===================================\n________________ test_cicada_receipt_rejects_generic_cache_name ________________\n[gw20] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_cicada_receipt_rejects_generic_cache_name() -> None:\n        receipt = _receipt(\"cicada\", [\n            \"-DCCBENCH_TRACE=0\",\n            \"-DCCBENCH_BACK_OFF=11\",\n            \"-DCCBENCH_INLINE_VERSION_OPT=22\",\n            \"-DCCBENCH_INLINE_VERSION_PROMOTION=33\",\n            \"-DCCBENCH_REUSE_VERSION=44\",\n            \"-DCCBENCH_WRITE_LATEST_ONLY=55\",\n        ])\n    \n>       with pytest.raises(CertificationError) as caught:\nE       Failed: DID NOT RAISE CertificationError\n\norchestrator/tests/test_pegasus_calibration_workload.py:266: Failed\n___________ test_cicada_cmake_defines_preserve_distinct_axis_values ____________\n[gw18] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_cicada_cmake_defines_preserve_distinct_axis_values() -> None:\n        genome = Genome(\"cicada\", {\n            \"BACK_OFF\": 11,\n            \"INLINE_VERSION_OPT\": 22,\n            \"INLINE_VERSION_PROMOTION\": 33,\n            \"REUSE_VERSION\": 44,\n            \"WRITE_LATEST_ONLY\": 55,\n        })\n    \n        assert genome.canonical() == (\n            \"cicada|BACK_OFF=11,INLINE_VERSION_OPT=22,\"\n            \"INLINE_VERSION_PROMOTION=33,REUSE_VERSION=44,WRITE_LATEST_ONLY=55\"\n        )\n>       assert genome.cmake_defines() == [\n            \"-DCCBENCH_BACK_OFF=11\",\n            \"-DCCBENCH_INLINE_VERSION_OPT_CICADA=22\",\n            \"-DCCBENCH_INLINE_VERSION_PROMOTION=33\",\n            \"-DCCBENCH_REUSE_VERSION=44\",\n            \"-DCCBENCH_WRITE_LATEST_ONLY=55\",\n        ]\nE       AssertionError: assert ['-DCCBENCH_B...TEST_ONLY=55'] == ['-DCCBENCH_B...TEST_ONLY=55']\nE         \nE         At index 1 diff: '-DCCBENCH_INLINE_VERSION_OPT=22' != '-DCCBENCH_INLINE_VERSION_OPT_CICADA=22'\nE         Use -v to get more diff\n\norchestrator/tests/test_pegasus_calibration_workload.py:229: AssertionError\n____ test_cicada_receipt_accepts_real_cache_name_with_distinct_axis_values _____\n[gw19] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_cicada_receipt_accepts_real_cache_name_with_distinct_axis_values() -> None:\n        receipt = _receipt(\"cicada\", [\n            \"-DCCBENCH_TRACE=0\",\n            \"-DCCBENCH_BACK_OFF=11\",\n            \"-DCCBENCH_INLINE_VERSION_OPT_CICADA=22\",\n            \"-DCCBENCH_INLINE_VERSION_PROMOTION=33\",\n            \"-DCCBENCH_REUSE_VERSION=44\",\n            \"-DCCBENCH_WRITE_LATEST_ONLY=55\",\n        ])\n    \n>       assert _canonical_genome_from_receipt(\n            receipt, \"/fixture/build/cc/cicada/ycsb_cicada.exe\",\n        ) == (\n            \"cicada|BACK_OFF=11,INLINE_VERSION_OPT=22,\"\n            \"INLINE_VERSION_PROMOTION=33,REUSE_VERSION=44,WRITE_LATEST_ONLY=55\"\n        )\n\norchestrator/tests/test_pegasus_calibration_workload.py:248: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nreceipt = {'ccbench': {'build_argv': ['cmake', '-S', '/fixture/source', '-B', '/fixture/build', '-DCCBENCH_TRACE=0', ...]}}\nbinary = '/fixture/build/cc/cicada/ycsb_cicada.exe'\n\n    def _canonical_genome_from_receipt(receipt: dict, binary: str) -> str:\n        \"\"\"Derive the build's canonical genome from a certified receipt argv.\"\"\"\n        try:\n            build_argv = receipt[\"ccbench\"][\"build_argv\"]\n        except (KeyError, TypeError) as exc:\n            raise CertificationError(\"receipt-genome-invalid\", str(exc)) from exc\n        if type(build_argv) is not list or not all(type(item) is str for item in build_argv):\n            raise CertificationError(\n                \"receipt-genome-invalid\", \"ccbench.build_argv must be a string list\",\n            )\n        separators = [index for index, token in enumerate(build_argv) if token == \"&&\"]\n        if len(separators) != 1:\n            raise CertificationError(\n                \"receipt-genome-invalid\", \"build_argv must contain exactly one &&\",\n            )\n        separator = separators[0]\n        configure_argv = build_argv[:separator]\n        build_command = build_argv[separator + 1:]\n        if not configure_argv or not build_command:\n            raise CertificationError(\n                \"receipt-genome-invalid\", \"configure and build argv must both be non-empty\",\n            )\n    \n        target_indices = [\n            index for index, token in enumerate(build_command) if token == \"--target\"\n        ]\n        if len(target_indices) != 1:\n            raise CertificationError(\n                \"receipt-genome-invalid\", \"build argv must contain exactly one --target\",\n            )\n        target_index = target_indices[0]\n        if target_index + 1 >= len(build_command):\n            raise CertificationError(\n                \"receipt-genome-invalid\", \"--target has no value\",\n            )\n        target = build_command[target_index + 1]\n        target_match = re.fullmatch(r\"ycsb_([a-z0-9][a-z0-9_-]*)\\.exe\", target)\n        if target_match is None:\n            raise CertificationError(\n                \"receipt-genome-invalid\", \"build target is not ycsb_<protocol>.exe\",\n            )\n        protocol = target_match.group(1)\n        if os.path.basename(binary) != target:\n            raise CertificationError(\n                \"receipt-genome-invalid\",\n                f\"binary basename {os.path.basename(binary)!r} does not match target {target!r}\",\n            )\n        if protocol not in SPACES:\n            raise CertificationError(\n                \"receipt-genome-invalid\", f\"protocol is not registered: {protocol!r}\",\n            )\n    \n        if any(token.startswith(\"-DCCBENCH_\") for token in build_command):\n            raise CertificationError(\n                \"receipt-genome-invalid\", \"CCBENCH define appears in build argv\",\n            )\n        define_re = re.compile(r\"-DCCBENCH_([A-Z][A-Z0-9_]*)=([+-]?[0-9]+)\")\n        flags: Dict[str, int] = {}\n        for token in configure_argv:\n            if not token.startswith(\"-DCCBENCH_\"):\n                continue\n            match = define_re.fullmatch(token)\n            if match is None:\n                raise CertificationError(\n                    \"receipt-genome-invalid\", f\"malformed CCBENCH define: {token!r}\",\n                )\n            cache_name, encoded = match.groups()\n            cache_variable = f\"CCBENCH_{cache_name}\"\n            try:\n                flag = genome_axis_from_cmake_cache_variable(\n                    protocol, cache_variable,\n                )\n            except ValueError as exc:\n                raise CertificationError(\n                    \"receipt-genome-invalid\", str(exc),\n                ) from exc\n            if flag in flags:\n                raise CertificationError(\n                    \"receipt-genome-invalid\", f\"duplicate CCBENCH define: {flag}\",\n                )\n            flags[flag] = int(encoded)\n    \n        if flags.get(\"TRACE\") != 0:\n            raise CertificationError(\n                \"receipt-genome-invalid\", \"CCBENCH_TRACE must appear exactly once with value 0\",\n            )\n        flags.pop(\"TRACE\")\n        if not flags:\n            raise CertificationError(\n                \"receipt-genome-invalid\", \"at least one non-TRACE CCBENCH define is required\",\n            )\n        missing_axes = sorted(set(space_for(protocol).axes) - set(flags))\n        if missing_axes:\n>           raise CertificationError(\n                \"receipt-genome-invalid\",\n                \"configure argv is missing protocol axes: \" + \",\".join(missing_axes),\n            )\nE           orchestrator.calibrator.cli.CertificationError: receipt-genome-invalid: configure argv is missing protocol axes: INLINE_VERSION_OPT\n\norchestrator/calibrator/cli.py:469: CertificationError\n___________ test_genome_axis_cache_table_accepts_empty_cache_default ___________\n[gw9] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_genome_axis_cache_table_a0')\n\n    def test_genome_axis_cache_table_accepts_empty_cache_default(\n        tmp_path: Path,\n    ) -> None:\n        fixture_root = _copy_ccbench_axis_cache_sources(tmp_path)\n        options_path = fixture_root / \"cmake/Options.cmake\"\n        source = options_path.read_text(encoding=\"utf-8\")\n        pattern = re.compile(\n            r\"(set\\(\\s*CCBENCH_INLINE_VERSION_OPT_CICADA\\s+)\"\n            r'(?:\"[^\"]*\"|\\S+)(\\s+CACHE\\s+STRING\\b)',\n        )\n        source, replacements = pattern.subn(r'\\1\"\"\\2', source, count=1)\n        assert replacements == 1\n        options_path.write_text(source, encoding=\"utf-8\")\n    \n>       _assert_axis_cache_table_matches_ccbench(\n            fixture_root, GENOME_AXIS_CMAKE_CACHE_VARIABLES,\n        )\n\norchestrator/tests/test_pegasus_calibration_workload.py:130: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nccbench_root = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_genome_axis_cache_table_a0/ccbench')\ndeclared = {('silo', 'BACK_OFF'): 'CCBENCH_BACK_OFF', ('silo', 'NO_WAIT_LOCKING_IN_VALIDATION'): 'CCBENCH_NO_WAIT_LOCKING_IN_VALIDATION', ('silo', 'NO_WAIT_OF_TICTOC'): 'CCBENCH_NO_WAIT_OF_TICTOC', ('silo', 'WAL'): 'CCBENCH_WAL', ...}\n\n    def _assert_axis_cache_table_matches_ccbench(\n        ccbench_root: Path,\n        declared: Mapping[tuple[str, str], str],\n    ) -> None:\n>       assert _ccbench_axis_cache_table(ccbench_root) == dict(declared)\nE       AssertionError: assert {('silo', 'BA...NCH_WAL', ...} == {('silo', 'BA...NCH_WAL', ...}\nE         \nE         Omitting 16 identical items, use -vv to show\nE         Left contains 1 more item:\nE         {('cicada', 'INLINE_VERSION_OPT'): 'CCBENCH_INLINE_VERSION_OPT_CICADA'}\nE         Use -v to get more diff\n\norchestrator/tests/test_pegasus_calibration_workload.py:68: AssertionError\n_____________ test_genome_axis_cache_table_matches_ccbench_sources _____________\n[gw7] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_genome_axis_cache_table_matches_ccbench_sources() -> None:\n>       _assert_axis_cache_table_matches_ccbench(\n            CCBENCH_ROOT, GENOME_AXIS_CMAKE_CACHE_VARIABLES,\n        )\n\norchestrator/tests/test_pegasus_calibration_workload.py:101: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nccbench_root = PosixPath('/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2536-cicada-axis-name/external/ccbench')\ndeclared = {('silo', 'BACK_OFF'): 'CCBENCH_BACK_OFF', ('silo', 'NO_WAIT_LOCKING_IN_VALIDATION'): 'CCBENCH_NO_WAIT_LOCKING_IN_VALIDATION', ('silo', 'NO_WAIT_OF_TICTOC'): 'CCBENCH_NO_WAIT_OF_TICTOC', ('silo', 'WAL'): 'CCBENCH_WAL', ...}\n\n    def _assert_axis_cache_table_matches_ccbench(\n        ccbench_root: Path,\n        declared: Mapping[tuple[str, str], str],\n    ) -> None:\n>       assert _ccbench_axis_cache_table(ccbench_root) == dict(declared)\nE       AssertionError: assert {('silo', 'BA...NCH_WAL', ...} == {('silo', 'BA...NCH_WAL', ...}\nE         \nE         Omitting 16 identical items, use -vv to show\nE         Left contains 1 more item:\nE         {('cicada', 'INLINE_VERSION_OPT'): 'CCBENCH_INLINE_VERSION_OPT_CICADA'}\nE         Use -v to get more diff\n\norchestrator/tests/test_pegasus_calibration_workload.py:68: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_receipt_rejects_generic_cache_name\nFAILED orchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_cmake_defines_preserve_distinct_axis_values\nFAILED orchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_receipt_accepts_real_cache_name_with_distinct_axis_values\nFAILED orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_accepts_empty_cache_default\nFAILED orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_matches_ccbench_sources\n5 failed, 42 passed in 4.21s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_receipt_accepts_real_cache_name_with_distinct_axis_values\" nodeid_bytes=126 nodeid_omitted_bytes=0 source_bytes=5642 retained_bytes=3914 omitted_bytes=1728 rendered_excerpt_bytes=4096 sha256=d1cd4cb92cfe2883781657943dac9db3feefe75a0e0cd12b1e0c759ead4f327f\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n>       if len(separators) != 1:\n>             raise CertificationError(\n>                 \"receipt-genome-invalid\", \"build_argv must contain exactly one &&\",\n>             )\n>         separator = separators[0]\n>         configure_argv = build_argv[:separator]\n>         build_command = build_argv[separator + 1:]\n>         if not configure_argv or not build_command:\n>             raise CertificationError(\n>                 \"receipt-genome-invalid\", \"configure and build argv must both be non-empty\",\n>             )\n>     \n>         target_indices = [\n>             index for index, token in enumerate(build_command) if token == \"--target\"\n>         ]\n>         if len(target_indices) != 1:\n>             raise CertificationError(\n>                 \"receipt-genome-invalid\", \"build argv must contain exactly one --target\",\n>             )\n>         target_index = target_indices[0]\n>         if target_index + 1 >= len(build_command):\n>             raise CertificationError(\n>                 \"receipt-genome-invalid\", \"--target has no value\",\n>             )\n>         target = build_command[target_index + 1]\n>         target_match = re.fullmatch(r\"ycsb_([a-z0-9][a-z0-9_-]*)\\x5c.exe\", target)\n>         if target_match is None:\n>             raise CertificationError(\n>                 \"receipt-genome-invalid\", \"build target is not ycsb_<protocol>.exe\",\n>             )\n>         protocol = target_match.group(1)\n>         if os.path.basename(binary) != target:\n>             raise CertificationError(\n>                 \"receipt-genome-invalid\",\n>                 f\"binary basename {os.path.basename(binary)!r} does not match target {target!r}\",\n>             )\n>         if protocol not in SPACES:\n>             raise CertificationError(\n>                 \"receipt-genome-invalid\", f\"protocol is not registered: {protocol!r}\",\n>             )\n>     \n>         if any(token.startswith(\"-DCCBENCH_\") for token in build_command):\n>             raise CertificationError(\n>                 \"receipt-genome-invalid\", \"CCBENCH define appears in build argv\",\n>             )\n>         define_re = re.compile(r\"-DCCBENCH_([A-Z][A-Z0-9_]*)=([+-]?[0-9]+)\")\n>         flags: Dict[str, int] = {}\n>         for token in configure_argv:\n>             if not token.startswith(\"-DCCBENCH_\"):\n>                 continue\n>             match = define_re.fullmatch(token)\n>             if match is None:\n>                 raise CertificationError(\n>                     \"receipt-genome-invalid\", f\"malformed CCBENCH define: {token!r}\",\n>                 )\n>             cache_name, encoded = match.groups()\n>             cache_variable = f\"CCBENCH_{cache_name}\"\n>             try:\n>                 flag = genome_axis_from_cmake_cache_variable(\n>                     protocol, cache_variable,\n>                 )\n>             except ValueError as exc:\n>                 raise CertificationError(\n>                     \"receipt-genome-invalid\", str(exc),\n>                 ) from exc\n>             if flag in flags:\n>                 raise CertificationError(\n>                     \"receipt-genome-invalid\", f\"duplicate CCBENCH define: {flag}\",\n>                 )\n>             flags[flag] = int(encoded)\n>     \n>         if flags.get(\"TRACE\") != 0:\n>             raise CertificationError(\n>                 \"receipt-genome-invalid\", \"CCBENCH_TRACE must appear exactly once with value 0\",\n>             )\n>         flags.pop(\"TRACE\")\n>         if not flags:\n>             raise CertificationError(\n>                 \"receipt-genome-invalid\", \"at least one non-TRACE CCBENCH define is required\",\n>             )\n>         missing_axes = sorted(set(space_for(protocol).axes) - set(flags))\n>         if missing_axes:\n> >           raise CertificationError(\n>                 \"receipt-genome-invalid\",\n>                 \"configure argv is missing protocol axes: \" + \",\".join(missing_axes),\n>             )\n> E           orchestrator.calibrator.cli.CertificationError: receipt-genome-invalid: configure argv is missing protocol axes: INLINE_VERSION_OPT\n> \n> orchestrator/calibrator/cli.py:469: CertificationError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_accepts_empty_cache_default\" nodeid_bytes=113 nodeid_omitted_bytes=0 source_bytes=1971 retained_bytes=1971 omitted_bytes=0 rendered_excerpt_bytes=2081 sha256=ed2310003a7c2d20177ccf9d7da708bda79a46f117f191aeb444e681cc78d822\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw9] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_genome_axis_cache_table_a0')\n> \n>     def test_genome_axis_cache_table_accepts_empty_cache_default(\n>         tmp_path: Path,\n>     ) -> None:\n>         fixture_root = _copy_ccbench_axis_cache_sources(tmp_path)\n>         options_path = fixture_root / \"cmake/Options.cmake\"\n>         source = options_path.read_text(encoding=\"utf-8\")\n>         pattern = re.compile(\n>             r\"(set\\x5c(\\x5cs*CCBENCH_INLINE_VERSION_OPT_CICADA\\x5cs+)\"\n>             r'(?:\"[^\"]*\"|\\x5cS+)(\\x5cs+CACHE\\x5cs+STRING\\x5cb)',\n>         )\n>         source, replacements = pattern.subn(r'\\x5c1\"\"\\x5c2', source, count=1)\n>         assert replacements == 1\n>         options_path.write_text(source, encoding=\"utf-8\")\n>     \n> >       _assert_axis_cache_table_matches_ccbench(\n>             fixture_root, GENOME_AXIS_CMAKE_CACHE_VARIABLES,\n>         )\n> \n> orchestrator/tests/test_pegasus_calibration_workload.py:130: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> ccbench_root = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_genome_axis_cache_table_a0/ccbench')\n> declared = {('silo', 'BACK_OFF'): 'CCBENCH_BACK_OFF', ('silo', 'NO_WAIT_LOCKING_IN_VALIDATION'): 'CCBENCH_NO_WAIT_LOCKING_IN_VALIDATION', ('silo', 'NO_WAIT_OF_TICTOC'): 'CCBENCH_NO_WAIT_OF_TICTOC', ('silo', 'WAL'): 'CCBENCH_WAL', ...}\n> \n>     def _assert_axis_cache_table_matches_ccbench(\n>         ccbench_root: Path,\n>         declared: Mapping[tuple[str, str], str],\n>     ) -> None:\n> >       assert _ccbench_axis_cache_table(ccbench_root) == dict(declared)\n> E       AssertionError: assert {('silo', 'BA...NCH_WAL', ...} == {('silo', 'BA...NCH_WAL', ...}\n> E         \n> E         Omitting 16 identical items, use -vv to show\n> E         Left contains 1 more item:\n> E         {('cicada', 'INLINE_VERSION_OPT'): 'CCBENCH_INLINE_VERSION_OPT_CICADA'}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_pegasus_calibration_workload.py:68: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_matches_ccbench_sources\" nodeid_bytes=109 nodeid_omitted_bytes=0 source_bytes=1347 retained_bytes=1347 omitted_bytes=0 rendered_excerpt_bytes=1400 sha256=765fdcef746282c96b1f0658e250e1752ebaede86acbbfa8be4ca9350f2376b4\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw7] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_genome_axis_cache_table_matches_ccbench_sources() -> None:\n> >       _assert_axis_cache_table_matches_ccbench(\n>             CCBENCH_ROOT, GENOME_AXIS_CMAKE_CACHE_VARIABLES,\n>         )\n> \n> orchestrator/tests/test_pegasus_calibration_workload.py:101: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> ccbench_root = PosixPath('/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2536-cicada-axis-name/external/ccbench')\n> declared = {('silo', 'BACK_OFF'): 'CCBENCH_BACK_OFF', ('silo', 'NO_WAIT_LOCKING_IN_VALIDATION'): 'CCBENCH_NO_WAIT_LOCKING_IN_VALIDATION', ('silo', 'NO_WAIT_OF_TICTOC'): 'CCBENCH_NO_WAIT_OF_TICTOC', ('silo', 'WAL'): 'CCBENCH_WAL', ...}\n> \n>     def _assert_axis_cache_table_matches_ccbench(\n>         ccbench_root: Path,\n>         declared: Mapping[tuple[str, str], str],\n>     ) -> None:\n> >       assert _ccbench_axis_cache_table(ccbench_root) == dict(declared)\n> E       AssertionError: assert {('silo', 'BA...NCH_WAL', ...} == {('silo', 'BA...NCH_WAL', ...}\n> E         \n> E         Omitting 16 identical items, use -vv to show\n> E         Left contains 1 more item:\n> E         {('cicada', 'INLINE_VERSION_OPT'): 'CCBENCH_INLINE_VERSION_OPT_CICADA'}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_pegasus_calibration_workload.py:68: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_cmake_defines_preserve_distinct_axis_values\" nodeid_bytes=112 nodeid_omitted_bytes=0 source_bytes=1147 retained_bytes=1147 omitted_bytes=0 rendered_excerpt_bytes=1204 sha256=1fea6d46435276aa4401b4eca569649bfd09febf9631c3f3246c5b2cf6bfbdee\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw18] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_cicada_cmake_defines_preserve_distinct_axis_values() -> None:\n>         genome = Genome(\"cicada\", {\n>             \"BACK_OFF\": 11,\n>             \"INLINE_VERSION_OPT\": 22,\n>             \"INLINE_VERSION_PROMOTION\": 33,\n>             \"REUSE_VERSION\": 44,\n>             \"WRITE_LATEST_ONLY\": 55,\n>         })\n>     \n>         assert genome.canonical() == (\n>             \"cicada|BACK_OFF=11,INLINE_VERSION_OPT=22,\"\n>             \"INLINE_VERSION_PROMOTION=33,REUSE_VERSION=44,WRITE_LATEST_ONLY=55\"\n>         )\n> >       assert genome.cmake_defines() == [\n>             \"-DCCBENCH_BACK_OFF=11\",\n>             \"-DCCBENCH_INLINE_VERSION_OPT_CICADA=22\",\n>             \"-DCCBENCH_INLINE_VERSION_PROMOTION=33\",\n>             \"-DCCBENCH_REUSE_VERSION=44\",\n>             \"-DCCBENCH_WRITE_LATEST_ONLY=55\",\n>         ]\n> E       AssertionError: assert ['-DCCBENCH_B...TEST_ONLY=55'] == ['-DCCBENCH_B...TEST_ONLY=55']\n> E         \n> E         At index 1 diff: '-DCCBENCH_INLINE_VERSION_OPT=22' != '-DCCBENCH_INLINE_VERSION_OPT_CICADA=22'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_pegasus_calibration_workload.py:229: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_receipt_rejects_generic_cache_name\" nodeid_bytes=103 nodeid_omitted_bytes=0 source_bytes=602 retained_bytes=602 omitted_bytes=0 rendered_excerpt_bytes=635 sha256=bd0017a1a278b376ac28bf41d52fac1680c4a21ca97aac34464ff6e54b65063a\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw20] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_cicada_receipt_rejects_generic_cache_name() -> None:\n>         receipt = _receipt(\"cicada\", [\n>             \"-DCCBENCH_TRACE=0\",\n>             \"-DCCBENCH_BACK_OFF=11\",\n>             \"-DCCBENCH_INLINE_VERSION_OPT=22\",\n>             \"-DCCBENCH_INLINE_VERSION_PROMOTION=33\",\n>             \"-DCCBENCH_REUSE_VERSION=44\",\n>             \"-DCCBENCH_WRITE_LATEST_ONLY=55\",\n>         ])\n>     \n> >       with pytest.raises(CertificationError) as caught:\n> E       Failed: DID NOT RAISE CertificationError\n> \n> orchestrator/tests/test_pegasus_calibration_workload.py:266: Failed\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=5 failed=5 errors=0 selected=5 omitted_failures=0 source_bytes=10709 retained_bytes=8981 omitted_bytes=1728 budget_bytes=49152 rendered_bytes=11976 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "e532643976618912ae6ab34056c90c2bdded4ed604efb00de3fb84102577880a"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "d98a31b684870cbf490168ac191535a790dff69086cb8462c4c85fab90cdabe9",
+      "duration_s": 27.454,
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_cmake_defines_preserve_distinct_axis_values",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_receipt_accepts_real_cache_name_with_distinct_axis_values",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_receipt_rejects_generic_cache_name",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_accepts_empty_cache_default",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_matches_ccbench_sources"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_receipt_rejects_generic_cache_name",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_cmake_defines_preserve_distinct_axis_values",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_receipt_accepts_real_cache_name_with_distinct_axis_values",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_accepts_empty_cache_default",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_matches_ccbench_sources"
+      ],
+      "hang_risk": false,
+      "id": "m1-drop-cicada-cache-entry",
+      "injection_diff_sha256": "c510026641a94d40588b6f6ed8392cd4a4855c847293e8e20c8c4ef1d00d1e8d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "cc56015fee626dedeae4a6128fe02919db998d212944de220b6c02c1fea7f56f",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/model.py",
+          "new": "",
+          "old": "    (\"cicada\", \"INLINE_VERSION_OPT\"): \"CCBENCH_INLINE_VERSION_OPT_CICADA\",\n"
+        }
+      ],
+      "repo_head": "49ef88bad4c8492f20c4d02c814dde7b8c105a92",
+      "runner_sha256": "decf752c5bb54c24f16ad97ff4ef2c26b002d48a3a8b64d3e34bad12025bf206",
+      "spec_sha256": "a322145fc32096fbc2d630c8cf9c42d791406f06dd29a064107c5ccb820cacf4",
+      "status": "KILLED",
+      "test_output_sha256": "e532643976618912ae6ab34056c90c2bdded4ed604efb00de3fb84102577880a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "0c69349064b7e5c36d4d8c43ce810cb54a0d2e92e149eb24e1f68356dfafdcdf"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2536-cicada-axis-name/output/pegasus-dispatch/203331d319f857d97de5c2a6bc9edc73/izdw-203331d319.o988786",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2536-cicada-axis-name/output/pegasus-dispatch/203331d319f857d97de5c2a6bc9edc73/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.................................F.............                          [100%]\n=================================== FAILURES ===================================\n________________ test_cicada_receipt_rejects_generic_cache_name ________________\n[gw20] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_cicada_receipt_rejects_generic_cache_name() -> None:\n        receipt = _receipt(\"cicada\", [\n            \"-DCCBENCH_TRACE=0\",\n            \"-DCCBENCH_BACK_OFF=11\",\n            \"-DCCBENCH_INLINE_VERSION_OPT=22\",\n            \"-DCCBENCH_INLINE_VERSION_PROMOTION=33\",\n            \"-DCCBENCH_REUSE_VERSION=44\",\n            \"-DCCBENCH_WRITE_LATEST_ONLY=55\",\n        ])\n    \n>       with pytest.raises(CertificationError) as caught:\nE       Failed: DID NOT RAISE CertificationError\n\norchestrator/tests/test_pegasus_calibration_workload.py:266: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_receipt_rejects_generic_cache_name\n1 failed, 46 passed in 4.25s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_receipt_rejects_generic_cache_name\" nodeid_bytes=103 nodeid_omitted_bytes=0 source_bytes=602 retained_bytes=602 omitted_bytes=0 rendered_excerpt_bytes=635 sha256=bd0017a1a278b376ac28bf41d52fac1680c4a21ca97aac34464ff6e54b65063a\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw20] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_cicada_receipt_rejects_generic_cache_name() -> None:\n>         receipt = _receipt(\"cicada\", [\n>             \"-DCCBENCH_TRACE=0\",\n>             \"-DCCBENCH_BACK_OFF=11\",\n>             \"-DCCBENCH_INLINE_VERSION_OPT=22\",\n>             \"-DCCBENCH_INLINE_VERSION_PROMOTION=33\",\n>             \"-DCCBENCH_REUSE_VERSION=44\",\n>             \"-DCCBENCH_WRITE_LATEST_ONLY=55\",\n>         ])\n>     \n> >       with pytest.raises(CertificationError) as caught:\n> E       Failed: DID NOT RAISE CertificationError\n> \n> orchestrator/tests/test_pegasus_calibration_workload.py:266: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=602 retained_bytes=602 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1361 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "2dc297bbea39a47227e00a9333109eecaf966d36235eba9b8f8f2b835512e266"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "d98a31b684870cbf490168ac191535a790dff69086cb8462c4c85fab90cdabe9",
+      "duration_s": 27.083,
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_receipt_rejects_generic_cache_name"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_receipt_rejects_generic_cache_name"
+      ],
+      "hang_risk": false,
+      "id": "m2-inverse-accepts-generic-name",
+      "injection_diff_sha256": "703d3814c738619619101d1eab5cf21d7ed4df3bb5ba614cebfcdbf266ffd73e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "a1798329057a4676b5f4b59adc563883f23212c30f6d790af6ed2b5c75e93655",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/model.py",
+          "new": "    if candidate == cache_variable:\n",
+          "old": "    if (candidate == cache_variable\n            or cmake_cache_variable_for_axis(\n                protocol, candidate, mapping=mapping,\n            ) != cache_variable):\n"
+        }
+      ],
+      "repo_head": "49ef88bad4c8492f20c4d02c814dde7b8c105a92",
+      "runner_sha256": "decf752c5bb54c24f16ad97ff4ef2c26b002d48a3a8b64d3e34bad12025bf206",
+      "spec_sha256": "a322145fc32096fbc2d630c8cf9c42d791406f06dd29a064107c5ccb820cacf4",
+      "status": "KILLED",
+      "test_output_sha256": "2dc297bbea39a47227e00a9333109eecaf966d36235eba9b8f8f2b835512e266",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "0c69349064b7e5c36d4d8c43ce810cb54a0d2e92e149eb24e1f68356dfafdcdf"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2536-cicada-axis-name/output/pegasus-dispatch/cc979e98e973125802623ebe3362f226/izdw-cc979e98e9.o988788",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2536-cicada-axis-name/output/pegasus-dispatch/cc979e98e973125802623ebe3362f226/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...............................F....FFF........                          [100%]\n=================================== FAILURES ===================================\n_ test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[tictoc] _\n[gw15] linux -- Python 3.10.12 /bin/python3.10\n\nprotocol = 'tictoc'\n\n    @pytest.mark.parametrize(\"protocol\", [\"silo\", \"mocc\", \"tictoc\", \"cicada\"])\n    def test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol(\n        protocol: str,\n    ) -> None:\n        mapping = dict(GENOME_AXIS_CMAKE_CACHE_VARIABLES)\n        entries = [\n            (axis, cache_variable)\n            for (entry_protocol, axis), cache_variable in mapping.items()\n            if entry_protocol == protocol\n        ]\n        assert len(entries) >= 2\n        (_first_axis, first_cache_variable), (second_axis, _second_cache_variable) = (\n            entries[:2]\n        )\n        mapping[(protocol, second_axis)] = first_cache_variable\n    \n>       with pytest.raises(ValueError, match=\"単射でない\"):\nE       Failed: DID NOT RAISE ValueError\n\norchestrator/tests/test_pegasus_calibration_workload.py:197: Failed\n_ test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[cicada] _\n[gw16] linux -- Python 3.10.12 /bin/python3.10\n\nprotocol = 'cicada'\n\n    @pytest.mark.parametrize(\"protocol\", [\"silo\", \"mocc\", \"tictoc\", \"cicada\"])\n    def test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol(\n        protocol: str,\n    ) -> None:\n        mapping = dict(GENOME_AXIS_CMAKE_CACHE_VARIABLES)\n        entries = [\n            (axis, cache_variable)\n            for (entry_protocol, axis), cache_variable in mapping.items()\n            if entry_protocol == protocol\n        ]\n        assert len(entries) >= 2\n        (_first_axis, first_cache_variable), (second_axis, _second_cache_variable) = (\n            entries[:2]\n        )\n        mapping[(protocol, second_axis)] = first_cache_variable\n    \n>       with pytest.raises(ValueError, match=\"単射でない\"):\nE       Failed: DID NOT RAISE ValueError\n\norchestrator/tests/test_pegasus_calibration_workload.py:197: Failed\n_ test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[mocc] _\n[gw14] linux -- Python 3.10.12 /bin/python3.10\n\nprotocol = 'mocc'\n\n    @pytest.mark.parametrize(\"protocol\", [\"silo\", \"mocc\", \"tictoc\", \"cicada\"])\n    def test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol(\n        protocol: str,\n    ) -> None:\n        mapping = dict(GENOME_AXIS_CMAKE_CACHE_VARIABLES)\n        entries = [\n            (axis, cache_variable)\n            for (entry_protocol, axis), cache_variable in mapping.items()\n            if entry_protocol == protocol\n        ]\n        assert len(entries) >= 2\n        (_first_axis, first_cache_variable), (second_axis, _second_cache_variable) = (\n            entries[:2]\n        )\n        mapping[(protocol, second_axis)] = first_cache_variable\n    \n>       with pytest.raises(ValueError, match=\"単射でない\"):\nE       Failed: DID NOT RAISE ValueError\n\norchestrator/tests/test_pegasus_calibration_workload.py:197: Failed\n_ test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[silo] _\n[gw13] linux -- Python 3.10.12 /bin/python3.10\n\nprotocol = 'silo'\n\n    @pytest.mark.parametrize(\"protocol\", [\"silo\", \"mocc\", \"tictoc\", \"cicada\"])\n    def test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol(\n        protocol: str,\n    ) -> None:\n        mapping = dict(GENOME_AXIS_CMAKE_CACHE_VARIABLES)\n        entries = [\n            (axis, cache_variable)\n            for (entry_protocol, axis), cache_variable in mapping.items()\n            if entry_protocol == protocol\n        ]\n        assert len(entries) >= 2\n        (_first_axis, first_cache_variable), (second_axis, _second_cache_variable) = (\n            entries[:2]\n        )\n        mapping[(protocol, second_axis)] = first_cache_variable\n    \n>       with pytest.raises(ValueError, match=\"単射でない\"):\nE       Failed: DID NOT RAISE ValueError\n\norchestrator/tests/test_pegasus_calibration_workload.py:197: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[tictoc]\nFAILED orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[cicada]\nFAILED orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[mocc]\nFAILED orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[silo]\n4 failed, 43 passed in 4.26s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[cicada]\" nodeid_bytes=141 nodeid_omitted_bytes=0 source_bytes=908 retained_bytes=908 omitted_bytes=0 rendered_excerpt_bytes=972 sha256=a458c4a8fa4597b3adf3f7d690832e9d415e0b640845f5c09591ccb0bd0fada1\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw16] linux -- Python 3.10.12 /bin/python3.10\n> \n> protocol = 'cicada'\n> \n>     @pytest.mark.parametrize(\"protocol\", [\"silo\", \"mocc\", \"tictoc\", \"cicada\"])\n>     def test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol(\n>         protocol: str,\n>     ) -> None:\n>         mapping = dict(GENOME_AXIS_CMAKE_CACHE_VARIABLES)\n>         entries = [\n>             (axis, cache_variable)\n>             for (entry_protocol, axis), cache_variable in mapping.items()\n>             if entry_protocol == protocol\n>         ]\n>         assert len(entries) >= 2\n>         (_first_axis, first_cache_variable), (second_axis, _second_cache_variable) = (\n>             entries[:2]\n>         )\n>         mapping[(protocol, second_axis)] = first_cache_variable\n>     \n> >       with pytest.raises(ValueError, match=\"\\u5358\\u5c04\\u3067\\u306a\\u3044\"):\n> E       Failed: DID NOT RAISE ValueError\n> \n> orchestrator/tests/test_pegasus_calibration_workload.py:197: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[tictoc]\" nodeid_bytes=141 nodeid_omitted_bytes=0 source_bytes=908 retained_bytes=908 omitted_bytes=0 rendered_excerpt_bytes=972 sha256=502d3e6b024ee32316e513dd54299fb0785f67f85c5af4a1c7c288ef3ffa3d59\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw15] linux -- Python 3.10.12 /bin/python3.10\n> \n> protocol = 'tictoc'\n> \n>     @pytest.mark.parametrize(\"protocol\", [\"silo\", \"mocc\", \"tictoc\", \"cicada\"])\n>     def test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol(\n>         protocol: str,\n>     ) -> None:\n>         mapping = dict(GENOME_AXIS_CMAKE_CACHE_VARIABLES)\n>         entries = [\n>             (axis, cache_variable)\n>             for (entry_protocol, axis), cache_variable in mapping.items()\n>             if entry_protocol == protocol\n>         ]\n>         assert len(entries) >= 2\n>         (_first_axis, first_cache_variable), (second_axis, _second_cache_variable) = (\n>             entries[:2]\n>         )\n>         mapping[(protocol, second_axis)] = first_cache_variable\n>     \n> >       with pytest.raises(ValueError, match=\"\\u5358\\u5c04\\u3067\\u306a\\u3044\"):\n> E       Failed: DID NOT RAISE ValueError\n> \n> orchestrator/tests/test_pegasus_calibration_workload.py:197: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[mocc]\" nodeid_bytes=139 nodeid_omitted_bytes=0 source_bytes=906 retained_bytes=906 omitted_bytes=0 rendered_excerpt_bytes=970 sha256=7525d8037d6d78896f3ba61378485e0278d0cb86ceae2b9103d0178cb4026886\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw14] linux -- Python 3.10.12 /bin/python3.10\n> \n> protocol = 'mocc'\n> \n>     @pytest.mark.parametrize(\"protocol\", [\"silo\", \"mocc\", \"tictoc\", \"cicada\"])\n>     def test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol(\n>         protocol: str,\n>     ) -> None:\n>         mapping = dict(GENOME_AXIS_CMAKE_CACHE_VARIABLES)\n>         entries = [\n>             (axis, cache_variable)\n>             for (entry_protocol, axis), cache_variable in mapping.items()\n>             if entry_protocol == protocol\n>         ]\n>         assert len(entries) >= 2\n>         (_first_axis, first_cache_variable), (second_axis, _second_cache_variable) = (\n>             entries[:2]\n>         )\n>         mapping[(protocol, second_axis)] = first_cache_variable\n>     \n> >       with pytest.raises(ValueError, match=\"\\u5358\\u5c04\\u3067\\u306a\\u3044\"):\n> E       Failed: DID NOT RAISE ValueError\n> \n> orchestrator/tests/test_pegasus_calibration_workload.py:197: Failed\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[silo]\" nodeid_bytes=139 nodeid_omitted_bytes=0 source_bytes=906 retained_bytes=906 omitted_bytes=0 rendered_excerpt_bytes=970 sha256=2520c52025ef224c0c2c79113f248be1dd855fa81abf2dcbdb928aa72fc450f0\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw13] linux -- Python 3.10.12 /bin/python3.10\n> \n> protocol = 'silo'\n> \n>     @pytest.mark.parametrize(\"protocol\", [\"silo\", \"mocc\", \"tictoc\", \"cicada\"])\n>     def test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol(\n>         protocol: str,\n>     ) -> None:\n>         mapping = dict(GENOME_AXIS_CMAKE_CACHE_VARIABLES)\n>         entries = [\n>             (axis, cache_variable)\n>             for (entry_protocol, axis), cache_variable in mapping.items()\n>             if entry_protocol == protocol\n>         ]\n>         assert len(entries) >= 2\n>         (_first_axis, first_cache_variable), (second_axis, _second_cache_variable) = (\n>             entries[:2]\n>         )\n>         mapping[(protocol, second_axis)] = first_cache_variable\n>     \n> >       with pytest.raises(ValueError, match=\"\\u5358\\u5c04\\u3067\\u306a\\u3044\"):\n> E       Failed: DID NOT RAISE ValueError\n> \n> orchestrator/tests/test_pegasus_calibration_workload.py:197: Failed\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=4 failed=4 errors=0 selected=4 omitted_failures=0 source_bytes=3628 retained_bytes=3628 omitted_bytes=0 budget_bytes=49152 rendered_bytes=6083 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "56dacac7e92dba0fa2eadb2c6be6d71ee231b317925c1c3111bb2d54fb1e8bac"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "d98a31b684870cbf490168ac191535a790dff69086cb8462c4c85fab90cdabe9",
+      "duration_s": 27.005,
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[cicada]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[mocc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[silo]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[tictoc]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[tictoc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[cicada]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[mocc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[silo]"
+      ],
+      "hang_risk": false,
+      "id": "m3-drop-injectivity-rejection",
+      "injection_diff_sha256": "a129b548b4edcf1625ef300e4119aa95ff8bb1029b3bf73cc1290388182d21d8",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "8e71fa054ea474b2fc19e926924940baa2247eb492bec448ee1e915dca980819",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/model.py",
+          "new": "    if False:\n",
+          "old": "    if len(cache_variables) != len(set(cache_variables)):\n"
+        }
+      ],
+      "repo_head": "49ef88bad4c8492f20c4d02c814dde7b8c105a92",
+      "runner_sha256": "decf752c5bb54c24f16ad97ff4ef2c26b002d48a3a8b64d3e34bad12025bf206",
+      "spec_sha256": "a322145fc32096fbc2d630c8cf9c42d791406f06dd29a064107c5ccb820cacf4",
+      "status": "KILLED",
+      "test_output_sha256": "56dacac7e92dba0fa2eadb2c6be6d71ee231b317925c1c3111bb2d54fb1e8bac",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "0c69349064b7e5c36d4d8c43ce810cb54a0d2e92e149eb24e1f68356dfafdcdf"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2536-cicada-axis-name/output/pegasus-dispatch/c58b2bc56ccdcc72f1558d44fe68c5f1/izdw-c58b2bc56c.o988791",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2536-cicada-axis-name/output/pegasus-dispatch/c58b2bc56ccdcc72f1558d44fe68c5f1/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....................................F.........                          [100%]\n=================================== FAILURES ===================================\n___________ test_cicada_cmake_defines_preserve_distinct_axis_values ____________\n[gw18] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_cicada_cmake_defines_preserve_distinct_axis_values() -> None:\n        genome = Genome(\"cicada\", {\n            \"BACK_OFF\": 11,\n            \"INLINE_VERSION_OPT\": 22,\n            \"INLINE_VERSION_PROMOTION\": 33,\n            \"REUSE_VERSION\": 44,\n            \"WRITE_LATEST_ONLY\": 55,\n        })\n    \n        assert genome.canonical() == (\n            \"cicada|BACK_OFF=11,INLINE_VERSION_OPT=22,\"\n            \"INLINE_VERSION_PROMOTION=33,REUSE_VERSION=44,WRITE_LATEST_ONLY=55\"\n        )\n>       assert genome.cmake_defines() == [\n            \"-DCCBENCH_BACK_OFF=11\",\n            \"-DCCBENCH_INLINE_VERSION_OPT_CICADA=22\",\n            \"-DCCBENCH_INLINE_VERSION_PROMOTION=33\",\n            \"-DCCBENCH_REUSE_VERSION=44\",\n            \"-DCCBENCH_WRITE_LATEST_ONLY=55\",\n        ]\nE       AssertionError: assert ['-DCCBENCH_B...TEST_ONLY=11'] == ['-DCCBENCH_B...TEST_ONLY=55']\nE         \nE         At index 1 diff: '-DCCBENCH_INLINE_VERSION_OPT_CICADA=11' != '-DCCBENCH_INLINE_VERSION_OPT_CICADA=22'\nE         Use -v to get more diff\n\norchestrator/tests/test_pegasus_calibration_workload.py:229: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_cmake_defines_preserve_distinct_axis_values\n1 failed, 46 passed in 4.27s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_cmake_defines_preserve_distinct_axis_values\" nodeid_bytes=112 nodeid_omitted_bytes=0 source_bytes=1154 retained_bytes=1154 omitted_bytes=0 rendered_excerpt_bytes=1211 sha256=a56e92256acba1926b26f2d49a31f6eff6d2fc2b018e074bcb96bcb8b43c71e7\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw18] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_cicada_cmake_defines_preserve_distinct_axis_values() -> None:\n>         genome = Genome(\"cicada\", {\n>             \"BACK_OFF\": 11,\n>             \"INLINE_VERSION_OPT\": 22,\n>             \"INLINE_VERSION_PROMOTION\": 33,\n>             \"REUSE_VERSION\": 44,\n>             \"WRITE_LATEST_ONLY\": 55,\n>         })\n>     \n>         assert genome.canonical() == (\n>             \"cicada|BACK_OFF=11,INLINE_VERSION_OPT=22,\"\n>             \"INLINE_VERSION_PROMOTION=33,REUSE_VERSION=44,WRITE_LATEST_ONLY=55\"\n>         )\n> >       assert genome.cmake_defines() == [\n>             \"-DCCBENCH_BACK_OFF=11\",\n>             \"-DCCBENCH_INLINE_VERSION_OPT_CICADA=22\",\n>             \"-DCCBENCH_INLINE_VERSION_PROMOTION=33\",\n>             \"-DCCBENCH_REUSE_VERSION=44\",\n>             \"-DCCBENCH_WRITE_LATEST_ONLY=55\",\n>         ]\n> E       AssertionError: assert ['-DCCBENCH_B...TEST_ONLY=11'] == ['-DCCBENCH_B...TEST_ONLY=55']\n> E         \n> E         At index 1 diff: '-DCCBENCH_INLINE_VERSION_OPT_CICADA=11' != '-DCCBENCH_INLINE_VERSION_OPT_CICADA=22'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_pegasus_calibration_workload.py:229: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1154 retained_bytes=1154 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1951 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "0e208abe8fda67572fcfeea773ea846ae81a0edef3ecaa2f74633248748e3902"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "d98a31b684870cbf490168ac191535a790dff69086cb8462c4c85fab90cdabe9",
+      "duration_s": 27.153,
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_cmake_defines_preserve_distinct_axis_values"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_cmake_defines_preserve_distinct_axis_values"
+      ],
+      "hang_risk": false,
+      "id": "m4-producer-takes-value-from-another-axis",
+      "injection_diff_sha256": "49627b424b54939ceff1fd68af599eb19250e142e84935e6228e86a06e604781",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "056bfc8fe0e77ec01168687211c470918cbdf00695123a0e2a2add4b158ca8fa",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/model.py",
+          "new": "            f\"-D{cmake_cache_variable_for_axis(self.protocol, axis)}=\"\n            f\"{sorted(self.flags.values())[0]}\"\n",
+          "old": "            f\"-D{cmake_cache_variable_for_axis(self.protocol, axis)}=\"\n            f\"{self.flags[axis]}\"\n"
+        }
+      ],
+      "repo_head": "49ef88bad4c8492f20c4d02c814dde7b8c105a92",
+      "runner_sha256": "decf752c5bb54c24f16ad97ff4ef2c26b002d48a3a8b64d3e34bad12025bf206",
+      "spec_sha256": "a322145fc32096fbc2d630c8cf9c42d791406f06dd29a064107c5ccb820cacf4",
+      "status": "KILLED",
+      "test_output_sha256": "0e208abe8fda67572fcfeea773ea846ae81a0edef3ecaa2f74633248748e3902",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "0c69349064b7e5c36d4d8c43ce810cb54a0d2e92e149eb24e1f68356dfafdcdf"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2536-cicada-axis-name/output/pegasus-dispatch/f6562ce99607f7e2adf59f297721d1f0/izdw-f6562ce996.o988792",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2536-cicada-axis-name/output/pegasus-dispatch/f6562ce99607f7e2adf59f297721d1f0/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....................................FF........                          [100%]\n=================================== FAILURES ===================================\n___________ test_genome_axis_cache_table_rejects_ccbench_side_rename ___________\n[gw10] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_genome_axis_cache_table_r0')\n\n    def test_genome_axis_cache_table_rejects_ccbench_side_rename(\n        tmp_path: Path,\n    ) -> None:\n        fixture_root = _copy_ccbench_axis_cache_sources(tmp_path)\n        old = \"CCBENCH_INLINE_VERSION_OPT_CICADA\"\n        new = \"CCBENCH_INLINE_VERSION_OPT_CICADA_RENAMED\"\n        for relative in (\"cmake/Options.cmake\", \"cc/cicada/CMakeLists.txt\"):\n            path = fixture_root / relative\n            source = path.read_text(encoding=\"utf-8\")\n            assert old in source\n            path.write_text(source.replace(old, new), encoding=\"utf-8\")\n    \n>       with pytest.raises(AssertionError):\nE       Failed: DID NOT RAISE AssertionError\n\norchestrator/tests/test_pegasus_calibration_workload.py:147: Failed\n_____ test_genome_axis_cache_table_rejects_non_cicada_ccbench_side_rename ______\n[gw11] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_genome_axis_cache_table_r0')\n\n    def test_genome_axis_cache_table_rejects_non_cicada_ccbench_side_rename(\n        tmp_path: Path,\n    ) -> None:\n        fixture_root = _copy_ccbench_axis_cache_sources(tmp_path)\n        old = \"CCBENCH_KEY_SORT\"\n        new = \"CCBENCH_KEY_SORT_RENAMED\"\n        for relative in (\"cmake/Options.cmake\", \"cc/mocc/CMakeLists.txt\"):\n            path = fixture_root / relative\n            source = path.read_text(encoding=\"utf-8\")\n            assert old in source\n            path.write_text(source.replace(old, new), encoding=\"utf-8\")\n    \n>       with pytest.raises(AssertionError):\nE       Failed: DID NOT RAISE AssertionError\n\norchestrator/tests/test_pegasus_calibration_workload.py:165: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_rejects_ccbench_side_rename\nFAILED orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_rejects_non_cicada_ccbench_side_rename\n2 failed, 45 passed in 4.26s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_rejects_ccbench_side_rename\" nodeid_bytes=113 nodeid_omitted_bytes=0 source_bytes=866 retained_bytes=866 omitted_bytes=0 rendered_excerpt_bytes=907 sha256=8bb042658d432fb34002e816da64ad6bff178c000cfaf8ffec3ae9a8d66b5c2d\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw10] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_genome_axis_cache_table_r0')\n> \n>     def test_genome_axis_cache_table_rejects_ccbench_side_rename(\n>         tmp_path: Path,\n>     ) -> None:\n>         fixture_root = _copy_ccbench_axis_cache_sources(tmp_path)\n>         old = \"CCBENCH_INLINE_VERSION_OPT_CICADA\"\n>         new = \"CCBENCH_INLINE_VERSION_OPT_CICADA_RENAMED\"\n>         for relative in (\"cmake/Options.cmake\", \"cc/cicada/CMakeLists.txt\"):\n>             path = fixture_root / relative\n>             source = path.read_text(encoding=\"utf-8\")\n>             assert old in source\n>             path.write_text(source.replace(old, new), encoding=\"utf-8\")\n>     \n> >       with pytest.raises(AssertionError):\n> E       Failed: DID NOT RAISE AssertionError\n> \n> orchestrator/tests/test_pegasus_calibration_workload.py:147: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_rejects_non_cicada_ccbench_side_rename\" nodeid_bytes=124 nodeid_omitted_bytes=0 source_bytes=841 retained_bytes=841 omitted_bytes=0 rendered_excerpt_bytes=882 sha256=dc37c887bc207268449decf4b6d8b08faaf22da4bec16be046666d6687725c3a\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw11] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_genome_axis_cache_table_r0')\n> \n>     def test_genome_axis_cache_table_rejects_non_cicada_ccbench_side_rename(\n>         tmp_path: Path,\n>     ) -> None:\n>         fixture_root = _copy_ccbench_axis_cache_sources(tmp_path)\n>         old = \"CCBENCH_KEY_SORT\"\n>         new = \"CCBENCH_KEY_SORT_RENAMED\"\n>         for relative in (\"cmake/Options.cmake\", \"cc/mocc/CMakeLists.txt\"):\n>             path = fixture_root / relative\n>             source = path.read_text(encoding=\"utf-8\")\n>             assert old in source\n>             path.write_text(source.replace(old, new), encoding=\"utf-8\")\n>     \n> >       with pytest.raises(AssertionError):\n> E       Failed: DID NOT RAISE AssertionError\n> \n> orchestrator/tests/test_pegasus_calibration_workload.py:165: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=1707 retained_bytes=1707 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2989 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "a8f58a02a35f92548cbb210c3f4a8dae7f5629372cd20cf9f505b93c13f2fe5d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "d98a31b684870cbf490168ac191535a790dff69086cb8462c4c85fab90cdabe9",
+      "duration_s": 27.033,
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_rejects_ccbench_side_rename",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_rejects_non_cicada_ccbench_side_rename"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_rejects_ccbench_side_rename",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_rejects_non_cicada_ccbench_side_rename"
+      ],
+      "hang_risk": false,
+      "id": "m5-drift-check-becomes-tautological",
+      "injection_diff_sha256": "28517eb615fb5bddecb6bbecbb40c5f1840693b0cf4eea6403c7262ec6e83a01",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "b2f8dd5491f71b2aef4fd3f6344d7506eefada82a8a59a4dfe2c5513c25ca5fa",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_pegasus_calibration_workload.py",
+          "new": "            table[(protocol, axis)] = GENOME_AXIS_CMAKE_CACHE_VARIABLES[(protocol, axis)]\n",
+          "old": "            table[(protocol, axis)] = f\"CCBENCH_{cache_name}\"\n"
+        }
+      ],
+      "repo_head": "49ef88bad4c8492f20c4d02c814dde7b8c105a92",
+      "runner_sha256": "decf752c5bb54c24f16ad97ff4ef2c26b002d48a3a8b64d3e34bad12025bf206",
+      "spec_sha256": "a322145fc32096fbc2d630c8cf9c42d791406f06dd29a064107c5ccb820cacf4",
+      "status": "KILLED",
+      "test_output_sha256": "a8f58a02a35f92548cbb210c3f4a8dae7f5629372cd20cf9f505b93c13f2fe5d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "0c69349064b7e5c36d4d8c43ce810cb54a0d2e92e149eb24e1f68356dfafdcdf"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2536-cicada-axis-name/output/pegasus-dispatch/7ff6bb286dca0348b9f49c21dbbb2c07/izdw-7ff6bb286d.o988754",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2536-cicada-axis-name/output/pegasus-dispatch/7ff6bb286dca0348b9f49c21dbbb2c07/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_matches_ccbench_sources\norchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_roundtrips_every_declared_entry\norchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_accepts_empty_cache_default\norchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_rejects_ccbench_side_rename\norchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_rejects_non_cicada_ccbench_side_rename\norchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_rejects_izanagi_side_rename\norchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[silo]\norchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[mocc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[tictoc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[cicada]\norchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_keeps_unknown_axis_identity_fallback\norchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_cmake_defines_preserve_distinct_axis_values\norchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_receipt_accepts_real_cache_name_with_distinct_axis_values\norchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_receipt_rejects_generic_cache_name\norchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_receipt_rejects_unmapped_cicada_suffix_alias\norchestrator/tests/test_pegasus_calibration_workload.py::test_receipt_accepts_real_cache_names_for_certification_protocols[silo]\norchestrator/tests/test_pegasus_calibration_workload.py::test_receipt_accepts_real_cache_names_for_certification_protocols[mocc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_receipt_accepts_real_cache_names_for_certification_protocols[tictoc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_exposes_only_the_calibration_whitelist\norchestrator/tests/test_pegasus_calibration_workload.py::test_job_rechecks_the_submission_workload_and_records_it\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_axes_match_independent_genome_spaces\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_defines_match_exact_values\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_axis_values_satisfy_genome_spaces\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_non_silo_defines_contain_no_axis_outsider[mocc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_non_silo_defines_contain_no_axis_outsider[tictoc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_derives_protocol_target_and_binary_path[silo]\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_derives_protocol_target_and_binary_path[mocc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_derives_protocol_target_and_binary_path[tictoc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_final_calibrate_binary_matches_built_binary[silo]\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_final_calibrate_binary_matches_built_binary[mocc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_final_calibrate_binary_matches_built_binary[tictoc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_keeps_backoff_fixed_and_condition_gate_silo_only\norchestrator/tests/test_pegasus_calibration_workload.py::test_default_silo_build_and_calibrate_argv_are_byte_compatible\norchestrator/tests/test_pegasus_calibration_workload.py::test_calibration_shell_scripts_parse\norchestrator/tests/test_pegasus_calibration_workload.py::test_cost_probe_condition_gate_dominates_first_buildcache_call\norchestrator/tests/test_pegasus_calibration_workload.py::test_cost_probe_requests_every_genome_value_and_inert_witness\norchestrator/tests/test_pegasus_calibration_workload.py::test_cost_probe_uses_factory_noinline_and_legacy_backoff_declarations\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_unregistered_protocol_before_side_effects[cicada]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_unregistered_protocol_before_side_effects[ermia]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_accepts_exact_protocol_whitelist_and_records_it[silo]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_accepts_exact_protocol_whitelist_and_records_it[mocc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_accepts_exact_protocol_whitelist_and_records_it[tictoc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_omitted_protocol_is_silo_without_changing_qsub_argv\norchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_passes_scheduler_file_paths_to_qsub\norchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_keeps_scheduler_output_outside_the_repository\norchestrator/tests/test_pegasus_calibration_workload.py::test_runbook_shows_ai_driven_h1_h2_submission_path\n\n47 tests collected in 0.60s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "a024053701dbda6dcd338c0adf3749ccf3554cd02d9cd20095dc36340c914851"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_matches_ccbench_sources",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_roundtrips_every_declared_entry",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_accepts_empty_cache_default",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_rejects_ccbench_side_rename",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_rejects_non_cicada_ccbench_side_rename",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_rejects_izanagi_side_rename",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[silo]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[mocc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[tictoc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[cicada]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_keeps_unknown_axis_identity_fallback",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_cmake_defines_preserve_distinct_axis_values",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_receipt_accepts_real_cache_name_with_distinct_axis_values",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_receipt_rejects_generic_cache_name",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_receipt_rejects_unmapped_cicada_suffix_alias",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_receipt_accepts_real_cache_names_for_certification_protocols[silo]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_receipt_accepts_real_cache_names_for_certification_protocols[mocc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_receipt_accepts_real_cache_names_for_certification_protocols[tictoc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_exposes_only_the_calibration_whitelist",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_job_rechecks_the_submission_workload_and_records_it",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_axes_match_independent_genome_spaces",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_defines_match_exact_values",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_axis_values_satisfy_genome_spaces",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_non_silo_defines_contain_no_axis_outsider[mocc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_non_silo_defines_contain_no_axis_outsider[tictoc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_derives_protocol_target_and_binary_path[silo]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_derives_protocol_target_and_binary_path[mocc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_derives_protocol_target_and_binary_path[tictoc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_final_calibrate_binary_matches_built_binary[silo]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_final_calibrate_binary_matches_built_binary[mocc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_final_calibrate_binary_matches_built_binary[tictoc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_keeps_backoff_fixed_and_condition_gate_silo_only",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_default_silo_build_and_calibrate_argv_are_byte_compatible",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_calibration_shell_scripts_parse",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_cost_probe_condition_gate_dominates_first_buildcache_call",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_cost_probe_requests_every_genome_value_and_inert_witness",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_cost_probe_uses_factory_noinline_and_legacy_backoff_declarations",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_unregistered_protocol_before_side_effects[cicada]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_unregistered_protocol_before_side_effects[ermia]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_accepts_exact_protocol_whitelist_and_records_it[silo]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_accepts_exact_protocol_whitelist_and_records_it[mocc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_accepts_exact_protocol_whitelist_and_records_it[tictoc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_omitted_protocol_is_silo_without_changing_qsub_argv",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_passes_scheduler_file_paths_to_qsub",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_keeps_scheduler_output_outside_the_repository",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_runbook_shows_ai_driven_h1_h2_submission_path"
+      ],
+      "duration_s": 445.378,
+      "rc": 0,
+      "repo_head": "49ef88bad4c8492f20c4d02c814dde7b8c105a92",
+      "runner_sha256": "decf752c5bb54c24f16ad97ff4ef2c26b002d48a3a8b64d3e34bad12025bf206",
+      "spec_sha256": "a322145fc32096fbc2d630c8cf9c42d791406f06dd29a064107c5ccb820cacf4",
+      "status": "PASSED",
+      "tool_sha256": "0c69349064b7e5c36d4d8c43ce810cb54a0d2e92e149eb24e1f68356dfafdcdf"
+    },
+    "hang_timeout_seconds": 1800.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "m1-drop-cicada-cache-entry": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_cmake_defines_preserve_distinct_axis_values",
+          "orchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_receipt_accepts_real_cache_name_with_distinct_axis_values",
+          "orchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_receipt_rejects_generic_cache_name",
+          "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_accepts_empty_cache_default",
+          "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_matches_ccbench_sources"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "c510026641a94d40588b6f6ed8392cd4a4855c847293e8e20c8c4ef1d00d1e8d",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/model.py",
+            "new": "",
+            "old": "    (\"cicada\", \"INLINE_VERSION_OPT\"): \"CCBENCH_INLINE_VERSION_OPT_CICADA\",\n"
+          }
+        ]
+      },
+      "m2-inverse-accepts-generic-name": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_receipt_rejects_generic_cache_name"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "703d3814c738619619101d1eab5cf21d7ed4df3bb5ba614cebfcdbf266ffd73e",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/model.py",
+            "new": "    if candidate == cache_variable:\n",
+            "old": "    if (candidate == cache_variable\n            or cmake_cache_variable_for_axis(\n                protocol, candidate, mapping=mapping,\n            ) != cache_variable):\n"
+          }
+        ]
+      },
+      "m3-drop-injectivity-rejection": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[cicada]",
+          "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[mocc]",
+          "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[silo]",
+          "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[tictoc]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a129b548b4edcf1625ef300e4119aa95ff8bb1029b3bf73cc1290388182d21d8",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/model.py",
+            "new": "    if False:\n",
+            "old": "    if len(cache_variables) != len(set(cache_variables)):\n"
+          }
+        ]
+      },
+      "m4-producer-takes-value-from-another-axis": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_cmake_defines_preserve_distinct_axis_values"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "49627b424b54939ceff1fd68af599eb19250e142e84935e6228e86a06e604781",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/model.py",
+            "new": "            f\"-D{cmake_cache_variable_for_axis(self.protocol, axis)}=\"\n            f\"{sorted(self.flags.values())[0]}\"\n",
+            "old": "            f\"-D{cmake_cache_variable_for_axis(self.protocol, axis)}=\"\n            f\"{self.flags[axis]}\"\n"
+          }
+        ]
+      },
+      "m5-drift-check-becomes-tautological": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_rejects_ccbench_side_rename",
+          "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_rejects_non_cicada_ccbench_side_rename"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "28517eb615fb5bddecb6bbecbb40c5f1840693b0cf4eea6403c7262ec6e83a01",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_pegasus_calibration_workload.py",
+            "new": "            table[(protocol, axis)] = GENOME_AXIS_CMAKE_CACHE_VARIABLES[(protocol, axis)]\n",
+            "old": "            table[(protocol, axis)] = f\"CCBENCH_{cache_name}\"\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "5f30735f7796da89f737c8369e63e69880d265a82cb11599d22284ef16730946",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_pegasus_calibration_workload.py",
+      "-q",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 5400.0
+  },
+  "repo_head": "49ef88bad4c8492f20c4d02c814dde7b8c105a92",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_pegasus_calibration_workload.py",
+      "-q",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2536-cicada-axis-name/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2536-cicada-axis-name/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "06b15e984a8297d6a086ad614d2b78ddb27a58ef",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "decf752c5bb54c24f16ad97ff4ef2c26b002d48a3a8b64d3e34bad12025bf206",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "a322145fc32096fbc2d630c8cf9c42d791406f06dd29a064107c5ccb820cacf4",
+  "summary": {
+    "KILLED": 5,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 5,
+    "matching": 5,
+    "recorded": 5,
+    "registered": 5
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2536-cicada-axis-name/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "0c69349064b7e5c36d4d8c43ce810cb54a0d2e92e149eb24e1f68356dfafdcdf",
+  "updated_at": "2026-09-09T15:55:41.483339+00:00"
+}

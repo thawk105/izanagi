@@ -1,0 +1,96 @@
+{
+  "estimated_run_seconds": 300,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_cmake_defines_preserve_distinct_axis_values",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_receipt_accepts_real_cache_name_with_distinct_axis_values",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_receipt_rejects_generic_cache_name",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_accepts_empty_cache_default",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_matches_ccbench_sources"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "m1-drop-cicada-cache-entry",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/model.py",
+          "new": "",
+          "old": "    (\"cicada\", \"INLINE_VERSION_OPT\"): \"CCBENCH_INLINE_VERSION_OPT_CICADA\",\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_receipt_rejects_generic_cache_name"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "m2-inverse-accepts-generic-name",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/model.py",
+          "new": "    if candidate == cache_variable:\n",
+          "old": "    if (candidate == cache_variable\n            or cmake_cache_variable_for_axis(\n                protocol, candidate, mapping=mapping,\n            ) != cache_variable):\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[cicada]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[mocc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[silo]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[tictoc]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "m3-drop-injectivity-rejection",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/model.py",
+          "new": "    if False:\n",
+          "old": "    if len(cache_variables) != len(set(cache_variables)):\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_cmake_defines_preserve_distinct_axis_values"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "m4-producer-takes-value-from-another-axis",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/model.py",
+          "new": "            f\"-D{cmake_cache_variable_for_axis(self.protocol, axis)}=\"\n            f\"{sorted(self.flags.values())[0]}\"\n",
+          "old": "            f\"-D{cmake_cache_variable_for_axis(self.protocol, axis)}=\"\n            f\"{self.flags[axis]}\"\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_rejects_ccbench_side_rename",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_rejects_non_cicada_ccbench_side_rename"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "m5-drift-check-becomes-tautological",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_pegasus_calibration_workload.py",
+          "new": "            table[(protocol, axis)] = GENOME_AXIS_CMAKE_CACHE_VARIABLES[(protocol, axis)]\n",
+          "old": "            table[(protocol, axis)] = f\"CCBENCH_{cache_name}\"\n"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 5400
+}

@@ -1,0 +1,155 @@
+{
+  "baseline_rc": 0,
+  "baseline_status": "PASSED",
+  "mutations": [
+    {
+      "duration_s": 37.216,
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_run_process_argv_detail_is_bounded_and_marks_truncation",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_run_process_real_failures_report_exact_argv_and_stderr"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_run_process_real_failures_report_exact_argv_and_stderr",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_run_process_argv_detail_is_bounded_and_marks_truncation"
+      ],
+      "id": "m01-rc-branch-drops-argv",
+      "matches_expectation": true,
+      "rc": 1,
+      "status": "KILLED"
+    },
+    {
+      "duration_s": 37.356,
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_run_process_real_failures_report_exact_argv_and_stderr"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_run_process_real_failures_report_exact_argv_and_stderr"
+      ],
+      "id": "m02-stderr-branch-drops-argv",
+      "matches_expectation": true,
+      "rc": 1,
+      "status": "KILLED"
+    },
+    {
+      "duration_s": 37.231,
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_run_process_argv_detail_failure_preserves_original_rejection"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_run_process_argv_detail_failure_preserves_original_rejection"
+      ],
+      "id": "m03-formatter-reraises",
+      "matches_expectation": true,
+      "rc": 1,
+      "status": "KILLED"
+    },
+    {
+      "duration_s": 42.315,
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_run_process_argv_detail_is_bounded_and_marks_truncation",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_run_process_truncated_argv_detail_binds_full_command_and_short_is_unchanged"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_run_process_argv_detail_is_bounded_and_marks_truncation",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_run_process_truncated_argv_detail_binds_full_command_and_short_is_unchanged"
+      ],
+      "id": "m04-truncation-drops-full-argv-sha256",
+      "matches_expectation": true,
+      "rc": 1,
+      "status": "KILLED"
+    },
+    {
+      "duration_s": 37.173,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_condition_gate_partial_temp_write_failure_leaves_no_final_or_temp",
+        "orchestrator/tests/test_p3_s4_loop.py::test_condition_gate_rejection_persists_records_by_digest_across_retry",
+        "orchestrator/tests/test_p3_s4_loop.py::test_condition_gate_serialization_failure_preserves_gate_rejection",
+        "orchestrator/tests/test_p3_s4_loop.py::test_condition_gate_unwritable_destinations_preserve_gate_rejection"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_condition_gate_unwritable_destinations_preserve_gate_rejection",
+        "orchestrator/tests/test_p3_s4_loop.py::test_condition_gate_serialization_failure_preserves_gate_rejection",
+        "orchestrator/tests/test_p3_s4_loop.py::test_condition_gate_rejection_persists_records_by_digest_across_retry",
+        "orchestrator/tests/test_p3_s4_loop.py::test_condition_gate_partial_temp_write_failure_leaves_no_final_or_temp"
+      ],
+      "id": "m05-never-persists",
+      "matches_expectation": true,
+      "rc": 1,
+      "status": "KILLED"
+    },
+    {
+      "duration_s": 41.001,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_condition_gate_partial_temp_write_failure_leaves_no_final_or_temp",
+        "orchestrator/tests/test_p3_s4_loop.py::test_condition_gate_rejection_persists_records_by_digest_across_retry",
+        "orchestrator/tests/test_p3_s4_loop.py::test_condition_gate_serialization_failure_preserves_gate_rejection",
+        "orchestrator/tests/test_p3_s4_loop.py::test_condition_gate_unwritable_destinations_preserve_gate_rejection"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_condition_gate_unwritable_destinations_preserve_gate_rejection",
+        "orchestrator/tests/test_p3_s4_loop.py::test_condition_gate_serialization_failure_preserves_gate_rejection",
+        "orchestrator/tests/test_p3_s4_loop.py::test_condition_gate_partial_temp_write_failure_leaves_no_final_or_temp",
+        "orchestrator/tests/test_p3_s4_loop.py::test_condition_gate_rejection_persists_records_by_digest_across_retry"
+      ],
+      "id": "m06-persists-supply-only",
+      "matches_expectation": true,
+      "rc": 1,
+      "status": "KILLED"
+    },
+    {
+      "duration_s": 38.948,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_condition_gate_partial_temp_write_failure_leaves_no_final_or_temp",
+        "orchestrator/tests/test_p3_s4_loop.py::test_condition_gate_rejection_persists_records_by_digest_across_retry"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_condition_gate_rejection_persists_records_by_digest_across_retry",
+        "orchestrator/tests/test_p3_s4_loop.py::test_condition_gate_partial_temp_write_failure_leaves_no_final_or_temp"
+      ],
+      "id": "m07-writes-final-name-directly",
+      "matches_expectation": true,
+      "rc": 1,
+      "status": "KILLED"
+    },
+    {
+      "duration_s": 37.33,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_condition_gate_rejection_persists_records_by_digest_across_retry"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_condition_gate_rejection_persists_records_by_digest_across_retry"
+      ],
+      "id": "m08-drops-directory-fsync",
+      "matches_expectation": true,
+      "rc": 1,
+      "status": "KILLED"
+    },
+    {
+      "duration_s": 37.296,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_condition_gate_rejection_persists_records_by_digest_across_retry"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_condition_gate_rejection_persists_records_by_digest_across_retry"
+      ],
+      "id": "m09-detail-absent-branch-emits-none",
+      "matches_expectation": true,
+      "rc": 1,
+      "status": "KILLED"
+    }
+  ],
+  "repo_head": "88f57e008904785033f8fcd65c176047afc1a216",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "2bef18c17463ab8376b67de9bb6bbaaf8a4cf562cf39cd836c2e2a1b31cc62ee",
+  "summary": {
+    "KILLED": 9,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 9,
+    "matching": 9,
+    "recorded": 9,
+    "registered": 9
+  }
+}

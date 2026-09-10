@@ -26,6 +26,12 @@
   平均を μ に固定した半幅 3 形 × 6 平均 × 3 workload × 独立 3 ブロックの grid、
   判定規則の機械可読 spec (符号反転 exact 検定・Holm・曝露 gate・欠測規則)、
   待機の物理残差の実測欄、発効条件と束縛の正本
+- `b10-backoff-static-tail-preregistration.md` — B-10 の静的 backoff 右 tail (物理値 1000 マイクロ秒超、
+  表現上限 9999) を記述的に特性化する事前登録 (D1813 第 2 段、[T-2500])。上限を起点に半オクターブで
+  刻む 7 点格子と境界参照 1 点、literal で固定した動作点と測定順、abort 率の飽和を報告する述語
+  (対数傾きの同時上下限による平坦/低下継続/判別不能の 3 分割と、上限まで続くことの要求)、
+  域内非飽和を含む排他的な結末の集合、失敗条件、第 1 段の探索の全開示、
+  本走 driver への束縛と投入前条件の正本
 - `dynamic-backoff-preregistration.md` — Silo 上の Cicada 型 adaptive backoff の 3 定数を動的化する変異
   (計数窓 / 適応刻み / 動的上限) の事前登録。7 腕、対内 log 比の判定式と等価域、H1〜H7、欠測規則、
   診断 run と認証の範囲、束縛の正本
@@ -36,6 +42,10 @@
   ([T-2265])。時間 cap を実質無効化した count-closed 窓、割当を持たない terminal event、
   cohort 1 と推定対象が同一でないこと、terminal 非閉鎖と 0 commit の扱い、cohort 2 の 12 seed、
   割当整合性検査、認証の射程が既定 seed と 48 スレッドに限られることの正本
+- `t1998-balanced-stock-inline-preregistration.md` — balanced の「無 backoff 対 静的 fixed 5 µs」
+  1 対を現行 Pegasus 環境で測り直す事前登録 ([T-1998]、認可は D1874)。gitlink・環境契約 digest・
+  job body script digest・arm 別 source digest の実値、測定時点と現行解析規則の 2 つの sha を
+  別々に pin する束縛規則、事前登録前に取れた生値を主張へ入れないことの正本
 - `b10-multinode-formal-run-design.md` — B-10 正式系列を複数ノードへ分散する設計 ([T-1905])。
   分散単位 4 案の判定、律速が正しさ検査であることと多重化が正しさ受領証の発行境界に当たる事実、
   投入前の必須修正、ユーザー裁定へ返す項目。**投入の承認ではない**

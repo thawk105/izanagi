@@ -1,0 +1,7 @@
+CMake Warning:
+  Manually-specified variables were not used by the project:
+
+    IZANAGI_GFLAGS_SRC_HEAD
+    IZANAGI_GLOG_SRC_HEAD
+
+

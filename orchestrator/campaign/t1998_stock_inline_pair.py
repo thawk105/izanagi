@@ -11,9 +11,11 @@ import hashlib
 import json
 import math
 import os
+import re
 import shlex
 import stat
 import statistics
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
@@ -63,8 +65,30 @@ TARGET_CANONICAL_GENOME = (
     "silo|BACKOFF_FIXED=5,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,"
     "NO_WAIT_OF_TICTOC=0,WAL=0"
 )
+T1998_PREREGISTRATION_PATH = (
+    "docs/t1998-balanced-stock-inline-preregistration.md"
+)
+T1998_PREREGISTRATION_SPEC_BEGIN = "<!-- IZANAGI-T1998-SPEC-BEGIN -->"
+T1998_PREREGISTRATION_SPEC_END = "<!-- IZANAGI-T1998-SPEC-END -->"
+T1998_PREREGISTRATION_SCHEMA_VERSION = (
+    "izanagi-t1998-balanced-stock-inline-preregistration/v1"
+)
+# Binds the preregistration version under which the artifacts were measured.
+MEASUREMENT_TIME_PREREGISTRATION_SHA256 = (
+    "464e3af59a1ef0f776cad022a52ab87e1fdf2709abfc2062c058203bc813719c"
+)
+# Binds the preregistration version currently supplied as the analysis rules.
+CURRENT_PREREGISTRATION_SHA256 = (
+    "464e3af59a1ef0f776cad022a52ab87e1fdf2709abfc2062c058203bc813719c"
+)
 
 _SHA256_CHARS = frozenset("0123456789abcdef")
+_T1998_PREREGISTRATION_SPEC_RE = re.compile(
+    re.escape(T1998_PREREGISTRATION_SPEC_BEGIN)
+    + r"[ \t]*\r?\n```json[ \t]*\r?\n(.*?)\r?\n```[ \t]*\r?\n"
+    + re.escape(T1998_PREREGISTRATION_SPEC_END),
+    re.DOTALL,
+)
 _PAIR_STAGES = frozenset({
     STAGE_BUILD_START,
     STAGE_BUILD_DONE,
@@ -179,6 +203,216 @@ class T1998PreregisteredIdentity:
             raise TypeError("baseline must be exact T1998ArmPreregisteredIdentity")
         if type(self.target) is not T1998ArmPreregisteredIdentity:
             raise TypeError("target must be exact T1998ArmPreregisteredIdentity")
+
+
+def _exact_object(
+    value: object,
+    keys: set[str],
+    *,
+    field: str,
+) -> dict[str, Any]:
+    if type(value) is not dict or set(value) != keys:
+        observed = sorted(value) if type(value) is dict else type(value).__name__
+        raise ValueError(f"{field} key set mismatch: {observed!r}")
+    return value
+
+
+def _parse_preregistration(raw: bytes) -> dict[str, object]:
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ValueError("preregistration document must be UTF-8") from exc
+    matches = _T1998_PREREGISTRATION_SPEC_RE.findall(text)
+    if (
+        len(matches) != 1
+        or text.count(T1998_PREREGISTRATION_SPEC_BEGIN) != 1
+        or text.count(T1998_PREREGISTRATION_SPEC_END) != 1
+    ):
+        raise ValueError("preregistration spec block must appear exactly once")
+    try:
+        value = json.loads(
+            matches[0],
+            object_pairs_hook=_reject_duplicate_keys,
+            parse_constant=_reject_json_constant,
+        )
+    except (ValueError, json.JSONDecodeError) as exc:
+        raise ValueError(f"preregistration spec must be strict JSON: {exc}") from exc
+    document = _exact_object(
+        value,
+        {"schema_version", "common", "baseline", "target"},
+        field="preregistration spec",
+    )
+    if document["schema_version"] != T1998_PREREGISTRATION_SCHEMA_VERSION:
+        raise ValueError("preregistration schema_version mismatch")
+    common = _exact_object(
+        document["common"],
+        {
+            "ccbench_gitlink_commit",
+            "environment_contract_sha256",
+            "launcher_script_sha256",
+        },
+        field="preregistration common",
+    )
+    baseline = _exact_object(
+        document["baseline"],
+        {"canonical_genome", "source_bytes_sha256"},
+        field="preregistration baseline",
+    )
+    target = _exact_object(
+        document["target"],
+        {"canonical_genome", "source_bytes_sha256"},
+        field="preregistration target",
+    )
+    for field, item in (
+        ("schema_version", document["schema_version"]),
+        ("common.ccbench_gitlink_commit", common["ccbench_gitlink_commit"]),
+        (
+            "common.environment_contract_sha256",
+            common["environment_contract_sha256"],
+        ),
+        ("common.launcher_script_sha256", common["launcher_script_sha256"]),
+        ("baseline.canonical_genome", baseline["canonical_genome"]),
+        ("baseline.source_bytes_sha256", baseline["source_bytes_sha256"]),
+        ("target.canonical_genome", target["canonical_genome"]),
+        ("target.source_bytes_sha256", target["source_bytes_sha256"]),
+    ):
+        if type(item) is not str:
+            raise ValueError(f"preregistration {field} must be an exact string")
+    if not _is_lower_hex(common["ccbench_gitlink_commit"], 40):
+        raise ValueError("preregistration common.ccbench_gitlink_commit is invalid")
+    for field, item in (
+        (
+            "common.environment_contract_sha256",
+            common["environment_contract_sha256"],
+        ),
+        ("common.launcher_script_sha256", common["launcher_script_sha256"]),
+        ("baseline.source_bytes_sha256", baseline["source_bytes_sha256"]),
+        ("target.source_bytes_sha256", target["source_bytes_sha256"]),
+    ):
+        if not _is_lower_hex(item, 64):
+            raise ValueError(f"preregistration {field} is not lowercase hex64")
+    if not baseline["canonical_genome"] or not target["canonical_genome"]:
+        raise ValueError("preregistration canonical_genome must be non-empty")
+    return {
+        "common": common,
+        "baseline": baseline,
+        "target": target,
+    }
+
+
+def _identity_from_preregistration(
+    raw: bytes,
+    repository_commit: str,
+) -> T1998PreregisteredIdentity:
+    spec = _parse_preregistration(raw)
+    common = spec["common"]
+    baseline = spec["baseline"]
+    target = spec["target"]
+    assert type(common) is dict
+    assert type(baseline) is dict
+    assert type(target) is dict
+    return T1998PreregisteredIdentity(
+        common=T1998CommonPreregisteredIdentity(
+            repository_commit=repository_commit,
+            ccbench_gitlink_commit=common["ccbench_gitlink_commit"],
+            environment_contract_sha256=common["environment_contract_sha256"],
+            launcher_script_sha256=common["launcher_script_sha256"],
+        ),
+        baseline=T1998ArmPreregisteredIdentity(
+            canonical_genome=baseline["canonical_genome"],
+            source_bytes_sha256=baseline["source_bytes_sha256"],
+        ),
+        target=T1998ArmPreregisteredIdentity(
+            canonical_genome=target["canonical_genome"],
+            source_bytes_sha256=target["source_bytes_sha256"],
+        ),
+    )
+
+
+def _read_preregistration_bytes(repo_root: Path) -> bytes:
+    path = repo_root / T1998_PREREGISTRATION_PATH
+    try:
+        info = path.lstat()
+        resolved = path.resolve(strict=True)
+    except OSError as exc:
+        raise ValueError("preregistration document is missing") from exc
+    if not stat.S_ISREG(info.st_mode) or resolved != path:
+        raise ValueError("preregistration document must be a regular non-symlink")
+    try:
+        return path.read_bytes()
+    except OSError as exc:
+        raise ValueError("preregistration document is unreadable") from exc
+
+
+def _read_only_git_env() -> dict[str, str]:
+    """Return an environment which cannot redirect read-only Git probes."""
+    env = os.environ.copy()
+    for name in (
+        "GIT_DIR",
+        "GIT_INDEX_FILE",
+        "GIT_WORK_TREE",
+        "GIT_COMMON_DIR",
+        "GIT_OBJECT_DIRECTORY",
+        "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+        "GIT_CEILING_DIRECTORIES",
+    ):
+        env.pop(name, None)
+    env["GIT_OPTIONAL_LOCKS"] = "0"
+    return env
+
+
+def _preregistration_blob(repo_root: Path, repository_commit: str) -> bytes:
+    try:
+        completed = subprocess.run(
+            [
+                "git",
+                "--no-replace-objects",
+                "-C",
+                os.fspath(repo_root),
+                "show",
+                f"{repository_commit}:{T1998_PREREGISTRATION_PATH}",
+            ],
+            check=False,
+            capture_output=True,
+            env=_read_only_git_env(),
+        )
+    except OSError as exc:
+        raise ValueError("cannot run git show for preregistration blob") from exc
+    if completed.returncode != 0:
+        raise ValueError("cannot read preregistration blob from repository commit")
+    return completed.stdout
+
+
+def load_preregistration(
+    repo_root: str | Path,
+    prereg_commit: str,
+) -> T1998PreregisteredIdentity:
+    """Load the exact committed T-1998 preregistration identity."""
+    if not _is_lower_hex(prereg_commit, 40):
+        raise ValueError("prereg_commit must be exact lowercase hex40")
+    root = Path(repo_root).resolve()
+    try:
+        ancestor = subprocess.run(
+            [
+                "git", "--no-replace-objects", "-C", os.fspath(root),
+                "merge-base", "--is-ancestor", prereg_commit, "HEAD",
+            ],
+            check=False,
+            capture_output=True,
+            env=_read_only_git_env(),
+        )
+    except OSError as exc:
+        raise ValueError("cannot check prereg_commit ancestry") from exc
+    if ancestor.returncode != 0:
+        raise ValueError("prereg_commit must be an ancestor of HEAD")
+    raw = _read_preregistration_bytes(root)
+    blob = _preregistration_blob(root, prereg_commit)
+    if raw != blob:
+        raise ValueError("working preregistration bytes differ from commit blob")
+    actual_sha256 = hashlib.sha256(raw).hexdigest()
+    if actual_sha256 != CURRENT_PREREGISTRATION_SHA256:
+        raise ValueError("working preregistration sha256 is not the current pin")
+    return _identity_from_preregistration(raw, prereg_commit)
 
 
 class T1998PairRejected(RuntimeError):
@@ -708,6 +942,7 @@ def consume_balanced_stock_inline_pair(
     producer_root: str | Path,
     *,
     preregistered: T1998PreregisteredIdentity,
+    repo_root: str | Path | None = None,
 ) -> T1998StockInlineDecision:
     """Consume the exact pre-registered balanced no-backoff/fixed-5 pair."""
     if type(preregistered) is not T1998PreregisteredIdentity:
@@ -1057,6 +1292,123 @@ def consume_balanced_stock_inline_pair(
         result.get("toolchain"), dict(baseline_toolchain),
         code="toolchain-identity-mismatch", field="result.toolchain",
     )
+
+    preregistration_repo_root = (
+        Path(__file__).resolve().parents[2]
+        if repo_root is None
+        else Path(repo_root).resolve()
+    )
+    try:
+        current_preregistration = _read_preregistration_bytes(
+            preregistration_repo_root
+        )
+    except ValueError as exc:
+        _reject(
+            "current-preregistration-sha-mismatch",
+            "preregistration.current.sha256",
+            CURRENT_PREREGISTRATION_SHA256,
+            str(exc),
+            "unknown",
+        )
+    current_preregistration_sha256 = hashlib.sha256(
+        current_preregistration
+    ).hexdigest()
+    _require_equal(
+        current_preregistration_sha256,
+        CURRENT_PREREGISTRATION_SHA256,
+        code="current-preregistration-sha-mismatch",
+        field="preregistration.current.sha256",
+        arm="unknown",
+    )
+
+    try:
+        measurement_preregistration = _preregistration_blob(
+            preregistration_repo_root,
+            common.repository_commit,
+        )
+    except ValueError as exc:
+        _reject(
+            "measurement-preregistration-sha-mismatch",
+            "preregistration.measurement.sha256",
+            MEASUREMENT_TIME_PREREGISTRATION_SHA256,
+            str(exc),
+            "unknown",
+        )
+    measurement_preregistration_sha256 = hashlib.sha256(
+        measurement_preregistration
+    ).hexdigest()
+    _require_equal(
+        measurement_preregistration_sha256,
+        MEASUREMENT_TIME_PREREGISTRATION_SHA256,
+        code="measurement-preregistration-sha-mismatch",
+        field="preregistration.measurement.sha256",
+        arm="unknown",
+    )
+
+    try:
+        documented = _identity_from_preregistration(
+            measurement_preregistration,
+            common.repository_commit,
+        )
+    except (TypeError, ValueError) as exc:
+        _reject(
+            "preregistration-identity-mismatch",
+            "preregistration.current.spec",
+            "one valid exact T-1998 preregistration identity",
+            str(exc),
+            "unknown",
+        )
+    for field, actual, expected, arm in (
+        (
+            "preregistered.common.ccbench_gitlink_commit",
+            common.ccbench_gitlink_commit,
+            documented.common.ccbench_gitlink_commit,
+            "unknown",
+        ),
+        (
+            "preregistered.common.environment_contract_sha256",
+            common.environment_contract_sha256,
+            documented.common.environment_contract_sha256,
+            "unknown",
+        ),
+        (
+            "preregistered.common.launcher_script_sha256",
+            common.launcher_script_sha256,
+            documented.common.launcher_script_sha256,
+            "unknown",
+        ),
+        (
+            "preregistered.baseline.canonical_genome",
+            preregistered.baseline.canonical_genome,
+            documented.baseline.canonical_genome,
+            "baseline",
+        ),
+        (
+            "preregistered.baseline.source_bytes_sha256",
+            preregistered.baseline.source_bytes_sha256,
+            documented.baseline.source_bytes_sha256,
+            "baseline",
+        ),
+        (
+            "preregistered.target.canonical_genome",
+            preregistered.target.canonical_genome,
+            documented.target.canonical_genome,
+            "target",
+        ),
+        (
+            "preregistered.target.source_bytes_sha256",
+            preregistered.target.source_bytes_sha256,
+            documented.target.source_bytes_sha256,
+            "target",
+        ),
+    ):
+        _require_equal(
+            actual,
+            expected,
+            code="preregistration-identity-mismatch",
+            field=field,
+            arm=arm,
+        )
 
     ratio = target.median_tps / baseline.median_tps
     improvement = (ratio - 1.0) * 100.0

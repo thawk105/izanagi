@@ -1,0 +1,92 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 300,
+  "timeout_seconds": 4500,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "m1-membership-requirement-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "    manifest_matches = tuple(\n        row for row in publication.manifest.rows\n        if row.attempt_id == attempt_id\n    )\n    if len(manifest_matches) != 1:\n        raise B4ProtocolError(\n            \"B-4 attempt id must match exactly one analysis manifest row \"\n            \"for membership\"\n        )\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[base]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[sort]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[trigger]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-membership-scanned-over-registry-vacuous",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "        row for row in publication.manifest.rows\n",
+          "new": "        row for row in publication.registry.scheduled_attempts\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[base]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[sort]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[trigger]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-membership-count-requirement-loosened",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "    if len(manifest_matches) != 1:\n",
+          "new": "    if len(manifest_matches) < 0:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[base]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[sort]",
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_registry_attempt_outside_analysis_manifest_rejects[trigger]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-non-guarantee-reverted-to-stale-text",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "    \"bootstrap 束縛は読み込んだ publication の manifest 外 attempt を拒否するが、\"\n    \"その manifest の権威性は保証しない (D1880)。\",\n",
+          "new": "    \"manifest membership は検査しない (裁定パッケージ 3)。\",\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_proposal_binding.py::test_non_guarantees_are_the_verbatim_ruling_set"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m5-membership-checked-after-hash-equivalent",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "    manifest_matches = tuple(\n        row for row in publication.manifest.rows\n        if row.attempt_id == attempt_id\n    )\n    if len(manifest_matches) != 1:\n        raise B4ProtocolError(\n            \"B-4 attempt id must match exactly one analysis manifest row \"\n            \"for membership\"\n        )\n    expected = _require_b4_registry_attempt_hash(\n        publication.registry.scheduled_attempts,\n        attempt_id,\n        driver_kind=driver_kind,\n    )\n",
+          "new": "    expected = _require_b4_registry_attempt_hash(\n        publication.registry.scheduled_attempts,\n        attempt_id,\n        driver_kind=driver_kind,\n    )\n    manifest_matches = tuple(\n        row for row in publication.manifest.rows\n        if row.attempt_id == attempt_id\n    )\n    if len(manifest_matches) != 1:\n        raise B4ProtocolError(\n            \"B-4 attempt id must match exactly one analysis manifest row \"\n            \"for membership\"\n        )\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

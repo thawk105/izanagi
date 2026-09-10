@@ -1,0 +1,171 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 200,
+  "timeout_seconds": 2700,
+  "hang_timeout_seconds": 2700,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "        NONMONOTONIC_TRACE_CELLS,\n        (\"write-heavy\",),\n        (48,),",
+          "new": "        NONMONOTONIC_TRACE_CELLS,\n        TRACE_WORKLOADS,\n        (48,),"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_backoff_trace_contract_accepts_only_four_exact_cell_literals",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_backoff_trace_mode_requires_exact_diagnostic_axes"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "    stdout: str, allow_overflow: bool = False",
+          "new": "    stdout: str, allow_overflow: bool = True"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_parse_backoff_trace_accepts_v3_without_terminal_and_pins_summary",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_parse_backoff_trace_accepts_exact_v3_terminal_contract_only",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_trace_parser_requires_exact_sequence_summary_and_computes_direction"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "            or retained != min(updates, 65_536)",
+          "new": "            or retained != retained"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_trace_parser_requires_exact_sequence_summary_and_computes_direction"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.pbs",
+          "old": "NONMONOTONIC_TRACE_CELLS_RAW='nm-step0.5:1:0.5:1000:10:0:0:0:100:100:0+",
+          "new": "NONMONOTONIC_TRACE_CELLS_RAW='nm-step0.6:1:0.5:1000:10:0:0:0:100:100:0+"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_two_layer_trace_literals_are_byte_identical"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.pbs",
+          "old": "    \"$NONMONOTONIC_TRACE_CELLS_RAW\")\n      TRACE_WORKLOADS_RAW=write-heavy\n",
+          "new": "    \"$NONMONOTONIC_TRACE_CELLS_RAW\")\n      TRACE_WORKLOADS_RAW=balanced\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_backoff_trace_contract_accepts_only_four_exact_cell_literals"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_nonmonotonicity_analysis.py",
+          "old": "        \"weighted_sum_matches_requested_us_sum\": (\n            recomputed_requested_us_sum == requested_us_sum\n        ),",
+          "new": "        \"weighted_sum_matches_requested_us_sum\": True,"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_nonmonotonicity_analysis.py::test_nonzero_bucket_breaks_weighted_sum_recheck"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_nonmonotonicity_analysis.py",
+          "old": "        recomputed = sum(pair[\"recomputed_success\"] for pair in pairs)",
+          "new": "        recomputed = stored"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_nonmonotonicity_analysis.py::test_directional_success_is_recomputed_after_saved_value_is_changed"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_nonmonotonicity_analysis.py",
+          "old": "        \"ground_truth_independent\": False,",
+          "new": "        \"ground_truth_independent\": True,"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_nonmonotonicity_analysis.py::test_directional_success_is_recomputed_after_saved_value_is_changed"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_nonmonotonicity_analysis.py",
+          "old": "        \"poisson_verdict\": \"not_adjudicated\",",
+          "new": "        \"poisson_verdict\": \"rejected\","
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_nonmonotonicity_analysis.py::test_poisson_verdict_is_not_adjudicated_for_low_and_high_dispersion"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+          "old": "        3432,",
+          "new": "        3433,"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
