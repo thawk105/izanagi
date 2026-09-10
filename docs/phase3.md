@@ -18,6 +18,10 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 
 ## 現行チェックポイント (2026-07-25 更新)
 
+- [x] [T-2514] A-1条件関門の拒否時detail保存を実装 (2026-09-10、D1936項4・D1912)。
+  生成済み全arm recordとadmissionをworkload別raw_rootへ保存し、受理集合・元の拒否・成功経路を維持する。
+  記録 = `output/insights/2026-09-10_t2514-a1-detail/README.md`。
+
 - safe variant loop、軸 onboarding、軸提案のループ内化 (8a) までは成立している。反復の駆動は
   2 種類ある — 主経路 (8a 軸の探索・S 系実験) は依然として**人間がセッション間を運ぶ
   human-supervised loop** であり、無人の進化探索ではない。一方 8c の bounded MVP
