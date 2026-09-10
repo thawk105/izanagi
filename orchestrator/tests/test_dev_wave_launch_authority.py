@@ -67,15 +67,15 @@ def _workers_with_stage_reasoning() -> str:
     text = (_ROOT / _WORKERS).read_text(encoding="utf-8")
     replacements = (
         (
-            "codex は `reasoning=xhigh`、`sandbox=workspace-write` とする。",
+            "codex は `reasoning=medium`、`sandbox=workspace-write` とする。",
             "codex は `reasoning=medium`、`sandbox=workspace-write` とする。",
         ),
         (
-            "実装 wave は異なるレンズの敵対レビューを `reasoning=xhigh` で必ず 2 本並列で行う。",
+            "実装 wave は異なるレンズの敵対レビューを `reasoning=medium` で必ず 2 本並列で行う。",
             "実装 wave は異なるレンズの敵対レビューを `reasoning=high` で必ず 2 本並列で行う。",
         ),
         (
-            "並列 fix の統合後、焦点再レビューは全体へ `reasoning=xhigh` で 1 本でよい。",
+            "並列 fix の統合後、焦点再レビューは全体へ `reasoning=medium` で 1 本でよい。",
             "並列 fix の統合後、焦点再レビューは全体へ `reasoning=low` で 1 本でよい。",
         ),
     )
@@ -258,13 +258,13 @@ def test_snapshot_and_derive_current_authority_positive(tmp_path: Path) -> None:
     assert tuple(dict.fromkeys(item[0] for item in requirements)) == STAGES
     assert snapshot.model_authority_version == "v2"
     assert {requirement.model for requirement in requirements.values()} == {
-        "gpt-5.6-sol"
+        "gpt-6-astra"
     }
     assert requirements[("review", None)].effort_authority == "docs"
     assert requirements[("focus", None)].effort_authority == "docs"
-    assert requirements[("author", None)].effort == "xhigh"
+    assert requirements[("author", None)].effort == "medium"
     assert requirements[("author", None)].effort_authority == "docs"
-    assert requirements[("fix", None)].effort == "xhigh"
+    assert requirements[("fix", None)].effort == "medium"
     assert requirements[("fix", None)].effort_authority == "docs"
     assert len(snapshot.sections) == 4
 
