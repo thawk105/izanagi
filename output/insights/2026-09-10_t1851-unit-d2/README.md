@@ -51,10 +51,19 @@ M6は余剰proof keyの見逃し。M3/M6は公開consumerで不正成果物が�
 検出し2回ともrc=125だった。1回目はmethods文書land、2回目は同sessionのhandoff削除。
 sourceのHEADとbytesは不変であり、変異結果と共有状態検査の不成立を区別して記録する。
 初回probeのMISMATCH6は失敗node集合の採取を目的とした仮登録との差であり、本走結果ではない。
+同じanchor/specを独立local cloneに置き、同じ既存wrapperで再実行した最終走は
+6/6 KILLED・期待node完全一致、child/wrapperともrc=0、shared snapshot一致・teardown成功となった。
+この最終結果は mutation/mutation-isolated.json.gz と対応wrapper receiptに収録した。
 
 最新mainを含むmerge f5652cbe9e8084cba55805e3fbdf08e4a1d0ba08で、checker合成の関連テストは
 636 passed / 3 skipped。D2本体・fixtures・所要台帳は実装anchor ce2769c329123837f9fda92cac8c90837edabe17 と同じ。
-受入全走、所要台帳更新、main landはこの記録時点では未完了である。
+受入1はmergeされたchecker2fileの著者確認でテスト開始前に停止し、D95 author合成後に再投入した。
+受入2は3 shardで開始したが、既存t1259のgit status30s timeoutが21件出た。
+同コードの単独走は51 passedだった。最後のshardは99%でログ無成長・補助process不在・長時間無応答となり、
+D676に従い受入親へTERM、残computeをqdelして終了した。成功受入とは扱わない。
+再走は同じテスト集合で既存設定を2 shard/8 workerへ抑える。受入3は並行mainのcaller一覧合成の
+著者確認でテスト開始前停止したため、D95 authorで合成して再投入する。
+所要台帳更新とmain landは、この記録時点では未完了である。
 
 ## 統合時の文書整理
 

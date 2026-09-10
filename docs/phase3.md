@@ -18,6 +18,10 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 
 ## 現行チェックポイント (2026-07-25 更新)
 
+- [x] [T-2514] A-1条件関門の拒否時detail保存を実装 (2026-09-10、D1936項4・D1912)。
+  生成済み全arm recordとadmissionをworkload別raw_rootへ保存し、受理集合・元の拒否・成功経路を維持する。
+  記録 = `output/insights/2026-09-10_t2514-a1-detail/README.md`。
+
 - safe variant loop、軸 onboarding、軸提案のループ内化 (8a) までは成立している。反復の駆動は
   2 種類ある — 主経路 (8a 軸の探索・S 系実験) は依然として**人間がセッション間を運ぶ
   human-supervised loop** であり、無人の進化探索ではない。一方 8c の bounded MVP
@@ -277,6 +281,10 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
 ---
 
 ## 後続段 (各々 ablation 点を残して投入)
+
+- [x] rulings 項1・2の人間専任解除を記録し、実行場所分類の手順を AI 担当へ整合した
+  (2026-09-10 ユーザー裁定)。T-1998 / T-2557 / T-2267 の測定本体は AI 実行待ちで、
+  担当変更は測定完了・認証範囲の拡大を意味しない。手順は `docs/pegasus-runbook.md` §7.0。
 
 - [x] 本体論文の日本語方法節草稿（2026-09-10 の新規ユーザー執筆依頼）を
   `output/insights/2026-09-10_paper-methods-ja/methods.md` と同 `implementation.md` に作成。
