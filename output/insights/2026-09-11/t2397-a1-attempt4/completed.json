@@ -1,0 +1,1 @@
+{"head": "066bc7a7c58dd425d933ce939d73f0a786076189", "host": "bnode001", "workloads": ["write-heavy", "balanced", "read-heavy"], "arms": 6, "bench": false}
