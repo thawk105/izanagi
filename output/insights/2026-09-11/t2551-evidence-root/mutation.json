@@ -1,0 +1,190 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2551-evidence-root/output/pegasus-dispatch/d61e99167bb3fe30f2da417f72c139f4/izdw-d61e99167b.o991698",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2551-evidence-root/output/pegasus-dispatch/d61e99167bb3fe30f2da417f72c139f4/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2551-evidence-root\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 2/2 workers\n2 workers [5 items]\n\n.....                                                                    [100%]\n============================== 5 passed in 2.62s ===============================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "d8fab392a6f62626ee830b7863d7149f49ce1f258a632c339188cf6e0f98bce8"
+    },
+    "artifact_error": null,
+    "collection_sha256": "4418f0cdb074f41110f9776c7365d93f3d385bf0d847ede6ab08219fcc923c56",
+    "duration_s": 27.281,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "4a6d9c4f3940f2923bc61c2a50289cf962286a06c5cfe97b0850b3ed4be540b4",
+    "repo_head": "909406b4d3690a4a3a3d659abaf8c1f4eaa7e8c9",
+    "runner_sha256": "7ac90fd0657ff276cece45b1f345691657a0dd869fefa7595ca3754f45455d9f",
+    "spec_sha256": "1f70c22f6be08381de1149bd4e9cd73c7a518fb46fe37b4c32fd43abd9d88505",
+    "status": "PASSED",
+    "test_output_sha256": "d8fab392a6f62626ee830b7863d7149f49ce1f258a632c339188cf6e0f98bce8",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "2524f371ba0cb0dcf4936411e893aef6f6d003d44d0ba1fd94d0f958ee2c8d5b"
+  },
+  "date": "2026-09-10T18:20:49.951530+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2551-evidence-root/output/pegasus-dispatch/127d30b102ca61965bde591bd90f9cf7/izdw-127d30b102.o991703",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2551-evidence-root/output/pegasus-dispatch/127d30b102ca61965bde591bd90f9cf7/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2551-evidence-root\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 2/2 workers\n2 workers [5 items]\n\n...F.                                                                    [100%]\n=================================== FAILURES ===================================\n___ test_evidence_root_reaches_actual_job_driver_as_canonical_path[relative] ___\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_evidence_root_reaches_act0')\nrelative_evidence = True\n\n    @pytest.mark.parametrize(\"relative_evidence\", [True, False], ids=[\"relative\", \"absolute\"])\n    def test_evidence_root_reaches_actual_job_driver_as_canonical_path(\n        tmp_path: Path, relative_evidence: bool,\n    ) -> None:\n>       _run_actual_job_body_through_driver(\n            tmp_path, {}, relative_evidence=relative_evidence,\n        )\n\norchestrator/tests/test_p3_s4_loop_job_contract.py:1336: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_evidence_root_reaches_act0')\nk2_environment = {}, relative_evidence = True\n\n    def _run_actual_job_body_through_driver(\n        tmp_path: Path,\n        k2_environment: dict[str, str],\n        *,\n        relative_evidence: bool = False,\n    ) -> list[str]:\n        # Scheduler/build/driver work is simulated; shell path conversion and the\n        # Python driver's environment/path observation and file write are real.\n        binary_dir = tmp_path / \"bin\"\n        repo_root = tmp_path / \"repo\"\n        evidence_root = tmp_path / \"evidence\"\n        thirdparty_root = tmp_path / \"thirdparty\"\n        gflags_source = tmp_path / \"gflags-source\"\n        glog_source = tmp_path / \"glog-source\"\n        driver_argv = tmp_path / \"driver-argv.json\"\n        for path in (\n            binary_dir,\n            repo_root / \"external/ccbench\",\n            repo_root / \"tools/pegasus\",\n            evidence_root,\n            thirdparty_root / \"masstree\",\n            thirdparty_root / \"mimalloc\",\n            thirdparty_root / \"googletest\",\n            gflags_source,\n            glog_source,\n        ):\n            path.mkdir(parents=True, exist_ok=True)\n    \n        expected_head = \"e\" * 40\n        gflags_head = \"b\" * 40\n        glog_head = \"c\" * 40\n        ccbench_head = \"511c9538e4e8efa54b45cda62e72389ed3b706ec\"\n        (repo_root / \"tools/pegasus/policy.json\").write_text(\"{}\\n\", encoding=\"utf-8\")\n    \n        _write_executable(\n            binary_dir / \"hostname\",\n            \"#!/bin/bash\\nprintf '%s\\\\n' bnode001\\n\",\n        )\n        _write_executable(binary_dir / \"timeout\", \"#!/bin/bash\\nexit 0\\n\")\n        _write_executable(binary_dir / \"gcc\", \"#!/bin/bash\\nexit 0\\n\")\n        _write_executable(binary_dir / \"g++\", \"#!/bin/bash\\nexit 0\\n\")\n        _write_executable(\n            binary_dir / \"qstat\",\n            \"#!/bin/bash\\nprintf '%s\\\\n' 'stub scheduler observation'\\n\",\n        )\n        _write_executable(\n            binary_dir / \"git\",\n            \"#!/usr/bin/python3\\n\"\n            \"import sys\\n\"\n            \"args = sys.argv[1:]\\n\"\n            \"joined = ' '.join(args)\\n\"\n            \"if '--git-common-dir' in args:\\n\"\n            f\"    print({str(repo_root / '.git')!r})\\n\"\n            \"elif 'status' in args:\\n\"\n            \"    pass\\n\"\n            \"elif 'rev-parse' in args:\\n\"\n            \"    if 'gflags-source' in joined:\\n\"\n            f\"        print({gflags_head!r})\\n\"\n            \"    elif 'glog-source' in joined:\\n\"\n            f\"        print({glog_head!r})\\n\"\n            \"    elif 'external/ccbench' in joined:\\n\"\n            f\"        print({ccbench_head!r})\\n\"\n            \"    elif 'thirdparty' in joined:\\n\"\n            \"        print('a' * 40)\\n\"\n            \"    else:\\n\"\n            f\"        print({expected_head!r})\\n\"\n            \"else:\\n\"\n            \"    raise SystemExit(99)\\n\",\n        )\n        _write_executable(\n            binary_dir / \"python3.10\",\n            \"#!/usr/bin/python3\\n\"\n            \"import json\\n\"\n            \"import os\\n\"\n            \"import sys\\n\"\n            \"from pathlib import Path\\n\"\n            \"args = sys.argv[1:]\\n\"\n            \"if '-m' in args:\\n\"\n            \"    Path(os.environ['IZANAGI_TEST_DRIVER_ARGV']).write_text(\\n\"\n            \"        json.dumps(args), encoding='utf-8')\\n\"\n            \"    root = os.environ['IZANAGI_S4_EVIDENCE_ROOT']\\n\"\n            \"    Path(root, 'driver-evidence.json').write_text(\\n\"\n            \"        json.dumps({'root': root, 'cwd': str(Path.cwd()),\\n\"\n            \"                    'resolved_root': str(Path(root).resolve())}),\\n\"\n            \"        encoding='utf-8')\\n\"\n            \"elif '-c' in args:\\n\"\n            \"    code = args[-1]\\n\"\n            \"    if 'print(os.path.realpath(sys.executable))' in code:\\n\"\n            \"        print(Path(__file__).resolve())\\n\"\n            \"    elif 'from orchestrator.campaign.p3_s4_loop import PIN' in code:\\n\"\n            \"        print('511c9538e4e8efa54b45cda62e72389ed3b706ec')\\n\"\n            \"elif args[:3] == ['-I', '-B', '-']:\\n\"\n            \"    print(os.environ['IZANAGI_TEST_GFLAGS_SOURCE'])\\n\"\n            \"    print(os.environ['IZANAGI_TEST_GFLAGS_HEAD'])\\n\"\n            \"    print(os.environ['IZANAGI_TEST_GLOG_SOURCE'])\\n\"\n            \"    print(os.environ['IZANAGI_TEST_GLOG_HEAD'])\\n\"\n            \"elif args and args[0] == '-' and len(args) == 2:\\n\"\n            \"    print('1000')\\n\"\n            \"    print('10800')\\n\"\n            \"elif args and args[0] == '-' and len(args) == 4:\\n\"\n            \"    Path(args[1]).write_text('{}\\\\n', encoding='utf-8')\\n\"\n            \"elif args and args[0] == '-' and len(args) > 4:\\n\"\n            \"    Path(args[5], 'config.h').write_text('stub\\\\n', encoding='utf-8')\\n\"\n            \"    Path(args[1]).write_text('{}\\\\n', encoding='utf-8')\\n\"\n            \"else:\\n\"\n            \"    raise SystemExit(99)\\n\",\n        )\n    \n        source = JOB.read_text(encoding=\"utf-8\")\n        bootstrap_anchor = 'export PATH=\"/usr/bin:/bin:/opt/nec/nqsv/bin:/system/tool/bin\"'\n        final_path_anchor = 'SANITIZED_PATH=\"$shim_dir:/usr/bin:/bin\"'\n        scratch_anchor = \"scratch_base=/scr/$USER/p3-s4-loop-pegasus\"\n        assert source.count(bootstrap_anchor) == 1\n        assert source.count(final_path_anchor) == 1\n        assert source.count(scratch_anchor) == 1\n        job = repo_root / \"tools/pegasus/p3_s4_loop_pegasus.sh\"\n        _write_executable(\n            job,\n            source.replace(\n                bootstrap_anchor,\n                f'export PATH=\"{binary_dir}:/usr/bin:/bin:/opt/nec/nqsv/bin:/system/tool/bin\"',\n                1,\n            ).replace(\n                final_path_anchor,\n                f'SANITIZED_PATH=\"$shim_dir:{binary_dir}:/usr/bin:/bin\"',\n                1,\n            ).replace(\n                scratch_anchor,\n                f\"scratch_base={shlex.quote(str(tmp_path / 'scratch-base'))}\",\n                1,\n            ),\n        )\n    \n        environment = dict(os.environ)\n        for name in (\n            \"IZANAGI_S4_KNOWLEDGE_MANIFEST\",\n            \"IZANAGI_S4_CODER_ROLE\",\n            \"IZANAGI_S4_KNOWLEDGE_CLASSIFICATION\",\n            \"IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM\",\n            \"IZANAGI_S4_PROPOSAL_PATH\",\n        ):\n            environment.pop(name, None)\n        environment.update({\n            \"PATH\": str(binary_dir) + os.pathsep + environment[\"PATH\"],\n            \"USER\": f\"p3-s4-k2-contract-{os.getpid()}-{tmp_path.name}\",\n            \"PBS_JOBID\": \"0:945411.nqsv\",\n            \"PBS_NODEFILE\": str(tmp_path / \"nodefile\"),\n            \"PBS_O_WORKDIR\": str(repo_root),\n            \"IZANAGI_S4_REPO_ROOT\": str(repo_root),\n            \"IZANAGI_S4_EXPECTED_HEAD\": expected_head,\n            \"IZANAGI_S4_EVIDENCE_ROOT\": str(evidence_root),\n            \"IZANAGI_S4_THIRDPARTY_SOURCE_ROOT\": str(thirdparty_root),\n            \"IZANAGI_TEST_DRIVER_ARGV\": str(driver_argv),\n            \"IZANAGI_TEST_GFLAGS_SOURCE\": str(gflags_source),\n            \"IZANAGI_TEST_GFLAGS_HEAD\": gflags_head,\n            \"IZANAGI_TEST_GLOG_SOURCE\": str(glog_source),\n            \"IZANAGI_TEST_GLOG_HEAD\": glog_head,\n            **k2_environment,\n        })\n        input_root = \"./evidence\" if relative_evidence else str(evidence_root)\n        environment[\"IZANAGI_S4_EVIDENCE_ROOT\"] = input_root\n        expected_root = (tmp_path / input_root).resolve()\n        completed = subprocess.run(\n            [str(job)], cwd=tmp_path, env=environment,\n            capture_output=True, text=True, check=False,\n        )\n>       assert completed.returncode == 0, completed.stderr\nE       AssertionError: Traceback (most recent call last):\nE           File \"/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_evidence_root_reaches_act0/bin/python3.10\", line 11, in <module>\nE             Path(root, 'driver-evidence.json').write_text(\nE           File \"/usr/lib/python3.10/pathlib.py\", line 1154, in write_text\nE             with self.open(mode='w', encoding=encoding, errors=errors, newline=newline) as f:\nE           File \"/usr/lib/python3.10/pathlib.py\", line 1119, in open\nE             return self._accessor.open(self, mode, buffering, encoding, errors,\nE         FileNotFoundError: [Errno 2] No such file or directory: 'evidence/driver-evidence.json'\nE         \nE       assert 1 == 0\nE        +  where 1 = CompletedProcess(args=['/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_evidence_root_reaches_act0/repo/tools/pegasus/p3_...ering, encoding, errors,\\nFileNotFoundError: [Errno 2] No such file or directory: \\'evidence/driver-evidence.json\\'\\n').returncode\n\norchestrator/tests/test_p3_s4_loop_job_contract.py:1320: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_s4_loop_job_contract.py::test_evidence_root_reaches_actual_job_driver_as_canonical_path[relative]\n========================= 1 failed, 4 passed in 2.72s ==========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop_job_contract.py::test_evidence_root_reaches_actual_job_driver_as_canonical_path[relative]\" nodeid_bytes=124 nodeid_omitted_bytes=0 source_bytes=9292 retained_bytes=3904 omitted_bytes=5388 rendered_excerpt_bytes=4094 sha256=05ac7a2e0f0fee723aa4f89b75d9522a99ac8fe5f5b46e46f1321af26d4f911a\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> \\x5cn', encoding='utf-8')\\x5cn\"\n>             \"    Path(args[1]).write_text('{}\\x5c\\x5cn', encoding='utf-8')\\x5cn\"\n>             \"else:\\x5cn\"\n>             \"    raise SystemExit(99)\\x5cn\",\n>         )\n>     \n>         source = JOB.read_text(encoding=\"utf-8\")\n>         bootstrap_anchor = 'export PATH=\"/usr/bin:/bin:/opt/nec/nqsv/bin:/system/tool/bin\"'\n>         final_path_anchor = 'SANITIZED_PATH=\"$shim_dir:/usr/bin:/bin\"'\n>         scratch_anchor = \"scratch_base=/scr/$USER/p3-s4-loop-pegasus\"\n>         assert source.count(bootstrap_anchor) == 1\n>         assert source.count(final_path_anchor) == 1\n>         assert source.count(scratch_anchor) == 1\n>         job = repo_root / \"tools/pegasus/p3_s4_loop_pegasus.sh\"\n>         _write_executable(\n>             job,\n>             source.replace(\n>                 bootstrap_anchor,\n>                 f'export PATH=\"{binary_dir}:/usr/bin:/bin:/opt/nec/nqsv/bin:/system/tool/bin\"',\n>                 1,\n>             ).replace(\n>                 final_path_anchor,\n>                 f'SANITIZED_PATH=\"$shim_dir:{binary_dir}:/usr/bin:/bin\"',\n>                 1,\n>             ).replace(\n>                 scratch_anchor,\n>                 f\"scratch_base={shlex.quote(str(tmp_path / 'scratch-base'))}\",\n>                 1,\n>             ),\n>         )\n>     \n>         environment = dict(os.environ)\n>         for name in (\n>             \"IZANAGI_S4_KNOWLEDGE_MANIFEST\",\n>             \"IZANAGI_S4_CODER_ROLE\",\n>             \"IZANAGI_S4_KNOWLEDGE_CLASSIFICATION\",\n>             \"IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM\",\n>             \"IZANAGI_S4_PROPOSAL_PATH\",\n>         ):\n>             environment.pop(name, None)\n>         environment.update({\n>             \"PATH\": str(binary_dir) + os.pathsep + environment[\"PATH\"],\n>             \"USER\": f\"p3-s4-k2-contract-{os.getpid()}-{tmp_path.name}\",\n>             \"PBS_JOBID\": \"0:945411.nqsv\",\n>             \"PBS_NODEFILE\": str(tmp_path / \"nodefile\"),\n>             \"PBS_O_WORKDIR\": str(repo_root),\n>             \"IZANAGI_S4_REPO_ROOT\": str(repo_root),\n>             \"IZANAGI_S4_EXPECTED_HEAD\": expected_head,\n>             \"IZANAGI_S4_EVIDENCE_ROOT\": str(evidence_root),\n>             \"IZANAGI_S4_THIRDPARTY_SOURCE_ROOT\": str(thirdparty_root),\n>             \"IZANAGI_TEST_DRIVER_ARGV\": str(driver_argv),\n>             \"IZANAGI_TEST_GFLAGS_SOURCE\": str(gflags_source),\n>             \"IZANAGI_TEST_GFLAGS_HEAD\": gflags_head,\n>             \"IZANAGI_TEST_GLOG_SOURCE\": str(glog_source),\n>             \"IZANAGI_TEST_GLOG_HEAD\": glog_head,\n>             **k2_environment,\n>         })\n>         input_root = \"./evidence\" if relative_evidence else str(evidence_root)\n>         environment[\"IZANAGI_S4_EVIDENCE_ROOT\"] = input_root\n>         expected_root = (tmp_path / input_root).resolve()\n>         completed = subprocess.run(\n>             [str(job)], cwd=tmp_path, env=environment,\n>             capture_output=True, text=True, check=False,\n>         )\n> >       assert completed.returncode == 0, completed.stderr\n> E       AssertionError: Traceback (most recent call last):\n> E           File \"/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_evidence_root_reaches_act0/bin/python3.10\", line 11, in <module>\n> E             Path(root, 'driver-evidence.json').write_text(\n> E           File \"/usr/lib/python3.10/pathlib.py\", line 1154, in write_text\n> E             with self.open(mode='w', encoding=encoding, errors=errors, newline=newline) as f:\n> E           File \"/usr/lib/python3.10/pathlib.py\", line 1119, in open\n> E             return self._accessor.open(self, mode, buffering, encoding, errors,\n> E         FileNotFoundError: [Errno 2] No such file or directory: 'evidence/driver-evidence.json'\n> E         \n> E       assert 1 == 0\n> E        +  where 1 = CompletedProcess(args=['/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_evidence_root_reaches_act0/repo/tools/pegasus/p3_...ering, encoding, errors,\\x5cnFileNotFoundError: [Errno 2] No such file or directory: \\x5c'evidence/driver-evidence.json\\x5c'\\x5cn').returncode\n> \n> orchestrator/tests/test_p3_s4_loop_job_contract.py:1320: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=9292 retained_bytes=3904 omitted_bytes=5388 budget_bytes=49152 rendered_bytes=4852 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "1461118a13e192f2624736ffe69892bf443684cd37acf19dc8f60007df759a67"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "4418f0cdb074f41110f9776c7365d93f3d385bf0d847ede6ab08219fcc923c56",
+      "duration_s": 27.84,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_evidence_root_reaches_actual_job_driver_as_canonical_path[relative]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_evidence_root_reaches_actual_job_driver_as_canonical_path[relative]"
+      ],
+      "hang_risk": false,
+      "id": "M1-remove-canonical-export",
+      "injection_diff_sha256": "2ab1c3fdf7c1026e33782c53f94b01f0f783edbaaadb3cccb6073f0c54e860dd",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "3f35f570a431b7807a2925b2575598b96b6c18dcebc16abe3a50fd5617f9b96d",
+      "replacements": [
+        {
+          "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+          "new": "",
+          "old": "export IZANAGI_S4_EVIDENCE_ROOT=\"$evidence_root\"\n"
+        }
+      ],
+      "repo_head": "909406b4d3690a4a3a3d659abaf8c1f4eaa7e8c9",
+      "runner_sha256": "7ac90fd0657ff276cece45b1f345691657a0dd869fefa7595ca3754f45455d9f",
+      "spec_sha256": "1f70c22f6be08381de1149bd4e9cd73c7a518fb46fe37b4c32fd43abd9d88505",
+      "status": "KILLED",
+      "test_output_sha256": "1461118a13e192f2624736ffe69892bf443684cd37acf19dc8f60007df759a67",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2524f371ba0cb0dcf4936411e893aef6f6d003d44d0ba1fd94d0f958ee2c8d5b"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2551-evidence-root/output/pegasus-dispatch/e7abdeab9e14ac872e84c2cf87a801b4/izdw-e7abdeab9e.o991697",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2551-evidence-root/output/pegasus-dispatch/e7abdeab9e14ac872e84c2cf87a801b4/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_evidence_root_reaches_actual_job_driver_as_canonical_path[relative]\norchestrator/tests/test_p3_s4_loop_job_contract.py::test_evidence_root_reaches_actual_job_driver_as_canonical_path[absolute]\norchestrator/tests/test_hooks.py::test_bash_pegasus_registry_schema_and_fixed_classes\norchestrator/tests/test_p3_s4_loop.py::test_condition_gate_rejection_persists_records_by_digest_across_retry\norchestrator/tests/test_p3_s4_loop.py::test_condition_gate_green_path_does_not_read_environment_or_write\n\n5 tests collected in 1.81s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "3785ceb3ab0db90049740ee33e74fa173cffb33d46e03a4c4cc64321a3e09090"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_evidence_root_reaches_actual_job_driver_as_canonical_path[relative]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_evidence_root_reaches_actual_job_driver_as_canonical_path[absolute]",
+        "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_schema_and_fixed_classes",
+        "orchestrator/tests/test_p3_s4_loop.py::test_condition_gate_rejection_persists_records_by_digest_across_retry",
+        "orchestrator/tests/test_p3_s4_loop.py::test_condition_gate_green_path_does_not_read_environment_or_write"
+      ],
+      "duration_s": 27.054,
+      "rc": 0,
+      "repo_head": "909406b4d3690a4a3a3d659abaf8c1f4eaa7e8c9",
+      "runner_sha256": "7ac90fd0657ff276cece45b1f345691657a0dd869fefa7595ca3754f45455d9f",
+      "spec_sha256": "1f70c22f6be08381de1149bd4e9cd73c7a518fb46fe37b4c32fd43abd9d88505",
+      "status": "PASSED",
+      "tool_sha256": "2524f371ba0cb0dcf4936411e893aef6f6d003d44d0ba1fd94d0f958ee2c8d5b"
+    },
+    "hang_timeout_seconds": 60.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1-remove-canonical-export": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_evidence_root_reaches_actual_job_driver_as_canonical_path[relative]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "2ab1c3fdf7c1026e33782c53f94b01f0f783edbaaadb3cccb6073f0c54e860dd",
+        "replacements": [
+          {
+            "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+            "new": "",
+            "old": "export IZANAGI_S4_EVIDENCE_ROOT=\"$evidence_root\"\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "4a6d9c4f3940f2923bc61c2a50289cf962286a06c5cfe97b0850b3ed4be540b4",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_evidence_root_reaches_actual_job_driver_as_canonical_path",
+      "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_schema_and_fixed_classes",
+      "orchestrator/tests/test_p3_s4_loop.py::test_condition_gate_rejection_persists_records_by_digest_across_retry",
+      "orchestrator/tests/test_p3_s4_loop.py::test_condition_gate_green_path_does_not_read_environment_or_write",
+      "-n",
+      "2",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 1800.0
+  },
+  "repo_head": "909406b4d3690a4a3a3d659abaf8c1f4eaa7e8c9",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_evidence_root_reaches_actual_job_driver_as_canonical_path",
+      "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_schema_and_fixed_classes",
+      "orchestrator/tests/test_p3_s4_loop.py::test_condition_gate_rejection_persists_records_by_digest_across_retry",
+      "orchestrator/tests/test_p3_s4_loop.py::test_condition_gate_green_path_does_not_read_environment_or_write",
+      "-n",
+      "2",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2551-evidence-root/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2551-evidence-root/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "a7a715012cbc12bb4b4a11493ee99e5d6bfe326a",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "7ac90fd0657ff276cece45b1f345691657a0dd869fefa7595ca3754f45455d9f",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "1f70c22f6be08381de1149bd4e9cd73c7a518fb46fe37b4c32fd43abd9d88505",
+  "summary": {
+    "KILLED": 1,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 1,
+    "matching": 1,
+    "recorded": 1,
+    "registered": 1
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2551-evidence-root/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "2524f371ba0cb0dcf4936411e893aef6f6d003d44d0ba1fd94d0f958ee2c8d5b",
+  "updated_at": "2026-09-10T18:22:07.752549+00:00"
+}
