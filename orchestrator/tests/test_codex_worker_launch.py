@@ -1472,10 +1472,14 @@ elif mode == "rollback_equal_cli":
 elif mode == "null_info":
     append_token(rollout_path, None)
     append_token(rollout_path, selected_usage)
-elif mode != "no_token":
+elif mode not in ("no_token", "term_success"):
     append_token(rollout_path, selected_usage)
 # fsync 済み rollout evidence を親の論理時計へ通知する。
-if invocation == 1 and (ready := os.environ.get("FAKE_EVIDENCE_READY")):
+if (
+    mode != "term_success"
+    and invocation == 1
+    and (ready := os.environ.get("FAKE_EVIDENCE_READY"))
+):
     Path(ready).write_text("1", encoding="ascii")
 if mode == "final_drain":
     time.sleep(0.15)
@@ -1540,10 +1544,13 @@ if mode == "cli_exact":
     emit({"type": "thread.started", "thread_id": session_id})
 elif mode == "term_success":
     def finish(_signum, _frame):
-        output.write_text(valid_output, encoding="utf-8")
-        terminal(selected_usage)
         raise SystemExit(0)
     signal.signal(signal.SIGTERM, finish)
+    # Publish the counted event only after output/terminal I/O and handler setup.
+    # SIGTERM can interrupt this append without reentering any I/O in finish.
+    append_token(rollout_path, selected_usage)
+    if invocation == 1 and (ready := os.environ.get("FAKE_EVIDENCE_READY")):
+        Path(ready).write_text("1", encoding="ascii")
     time.sleep(30)
 elif mode == "sigterm_ignore":
     child_sleep(ignore_term=True)
