@@ -11,6 +11,8 @@ import tempfile
 
 from orchestrator.campaign import paper_story_a1_paired as a1, pipeline
 from orchestrator.campaign.layout import CampaignLayout
+from orchestrator.campaign.mutation_attempt_marker import require_local_attempt_marker
+from tools.pegasus import dispatch_compute
 
 
 def test_t2397_a1_source(tmp_path, monkeypatch):
@@ -19,6 +21,12 @@ def test_t2397_a1_source(tmp_path, monkeypatch):
     job = Path("/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2397-a1-attempt4")
     expected_head = (job / "probe-head.txt").read_text().strip()
     assert a1._run_git(repo, "rev-parse", "HEAD") == expected_head
+    if "PBS_JOBID" not in os.environ:
+        binding = require_local_attempt_marker(
+            normalize_request_id=dispatch_compute._normalize_request_id,
+            is_regular_pbs_jobid=dispatch_compute._is_regular_pbs_jobid,
+        )
+        monkeypatch.setenv("PBS_JOBID", binding["pbs_jobid"])
     evidence_parent = job / "source-probe" / os.environ["PBS_JOBID"].replace(":", "_")
     evidence_parent.mkdir(parents=True, exist_ok=True)
     evidence = Path(tempfile.mkdtemp(prefix="run-", dir=evidence_parent))
