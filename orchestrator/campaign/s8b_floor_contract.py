@@ -26,8 +26,8 @@ from ..calibrator import perf_preflight as _perf_preflight
 from . import s8b_experiment_numbers as _experiment_numbers
 
 
-# protocol は凍結 v2、admission receipt を必須化した result/manifest は v4/v3。
-# result v5 は attempt registry proof を追加する前向き契約。現 producer は v4 のまま。
+# protocol は凍結 v2、admission receipt を必須化した manifest は v3。
+# registry 有効時の producer は result v5、互換用の既定 alias は v4 のまま。
 # freeze schema は v1 freeze を読むため据置。
 PROTOCOL_SCHEMA = "s8b-floor-protocol/v2"
 FREEZE_SCHEMA = "8b-holdout-freeze/v1"

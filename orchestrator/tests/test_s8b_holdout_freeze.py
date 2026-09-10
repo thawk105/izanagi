@@ -23,6 +23,7 @@ sys.path.insert(0, _HERE)
 sys.path.insert(0, os.path.dirname(_ORCH))
 
 from orchestrator.campaign import s8b_holdout_freeze as M  # noqa: E402
+from orchestrator.campaign import s8b_floor_contract as FC  # noqa: E402
 from orchestrator.campaign import t080_freeze_migration as T080  # noqa: E402
 import s8b_v2_freeze_fixture as V2FIX  # noqa: E402
 import t080_fixture_roots as FIXTURE_ROOTS  # noqa: E402
@@ -40,6 +41,32 @@ _V2_WRITER_RAW_LITERAL = (
 _V2_WRITER_SHA256_LITERAL = (
     "da5d41c6a6146af354a91ebcc640e4e2785155a2e7c1911e3a54e97ce61e790f"
 )
+
+_ATTEMPT_REGISTRY_PROOF_KEYS = (
+    "schema", "registry_schema", "freeze_sha256", "protocol_sha256",
+    "schedule_sha256", "row_count", "chain_head_sha256",
+)
+
+
+def _mutate_attempt_registry_proof(proof: dict, mutation: str) -> None:
+    if mutation == "extra-key":
+        proof["unexpected"] = True
+        return
+    operation, field = mutation.split(":", 1)
+    if operation == "missing":
+        proof.pop(field)
+        return
+    if operation != "invalid":
+        raise AssertionError(f"unknown proof mutation: {mutation}")
+    if field == "schema":
+        proof[field] = "s8b-attempt-registry-prefix-proof/unknown"
+    elif field == "registry_schema":
+        proof[field] = "s8b-attempt-registry/v999"
+    elif field == "row_count":
+        proof[field] += 1
+    else:
+        value = proof[field]
+        proof[field] = ("0" if value[0] != "0" else "1") + value[1:]
 
 
 def _axis_value(holdout_name: str, axis: str) -> str:
@@ -1811,6 +1838,9 @@ def test_v2_candidate_rejects_worktree_only_floor_protocol_master_seed_mutation(
 def test_v2_candidate_build_and_generate_synthetic_g1(tmp_path, monkeypatch):
     fixture = V2FIX.candidate_repository(tmp_path, M)
     root = fixture["root"]
+    legacy_result = json.loads((root / fixture["result_rel"]).read_bytes())
+    assert legacy_result["schema"] == FC.LEGACY_RESULT_SCHEMA
+    assert "attempt_registry" not in legacy_result
     monkeypatch.setattr(
         M, "BUDGET_APPROVAL_SHA256", fixture["approval_sha256"],
     )
@@ -1864,6 +1894,119 @@ def test_v2_candidate_build_and_generate_synthetic_g1(tmp_path, monkeypatch):
             floor_result_path=fixture["result_rel"],
             budget_path=fixture["budget_rel"],
             root=root,
+        )
+
+
+def test_v2_candidate_accepts_live_v5_registry_prefix_with_later_append(
+        tmp_path, monkeypatch):
+    fixture = V2FIX.candidate_repository(
+        tmp_path, M, result_schema=FC.RESULT_SCHEMA_V5,
+    )
+    monkeypatch.setattr(
+        M, "BUDGET_APPROVAL_SHA256", fixture["approval_sha256"],
+    )
+
+    document = M.build_v2_g1_candidate(
+        floor_result_path=fixture["result_rel"],
+        budget_path=fixture["budget_rel"], root=fixture["root"],
+    )
+
+    result = json.loads(
+        (fixture["root"] / fixture["result_rel"]).read_bytes()
+    )
+    proof = result["attempt_registry"]
+    assert document["floor_source"]["path"] == fixture["result_rel"]
+    assert result["schema"] == FC.RESULT_SCHEMA_V5
+    assert frozenset(proof) == frozenset(_ATTEMPT_REGISTRY_PROOF_KEYS)
+    assert proof["row_count"] >= 3
+    assert fixture["live_row_count"] > proof["row_count"]
+    live_lines = fixture["registry_path"].read_bytes().splitlines()
+    assert len(live_lines) == fixture["live_row_count"]
+    pinned_row = json.loads(live_lines[proof["row_count"] - 1])
+    assert pinned_row["event_sha256"] == proof["chain_head_sha256"]
+
+
+@pytest.mark.parametrize("schema", [[], {}], ids=["list", "object"])
+def test_v2_candidate_rejects_unhashable_result_schema_with_controlled_error(
+        tmp_path, monkeypatch, schema):
+    fixture = V2FIX.candidate_repository(tmp_path, M)
+    root = fixture["root"]
+    result_path = root / fixture["result_rel"]
+    result = json.loads(result_path.read_bytes())
+    result["schema"] = schema
+    result_path.write_bytes(V2FIX.canonical_bytes(result))
+    monkeypatch.setattr(
+        M, "BUDGET_APPROVAL_SHA256", fixture["approval_sha256"],
+    )
+
+    with pytest.raises(M.FreezeError, match=r"^floor result\.schema が"):
+        M.build_v2_g1_candidate(
+            floor_result_path=fixture["result_rel"],
+            budget_path=fixture["budget_rel"], root=root,
+        )
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        *(f"missing:{field}" for field in _ATTEMPT_REGISTRY_PROOF_KEYS),
+        "extra-key",
+        *(f"invalid:{field}" for field in _ATTEMPT_REGISTRY_PROOF_KEYS),
+    ],
+)
+def test_v2_candidate_rejects_invalid_v5_registry_proof(
+        tmp_path, monkeypatch, mutation):
+    fixture = V2FIX.candidate_repository(
+        tmp_path, M, result_schema=FC.RESULT_SCHEMA_V5,
+        mutate_attempt_registry=lambda proof: (
+            _mutate_attempt_registry_proof(proof, mutation)
+        ),
+    )
+    monkeypatch.setattr(
+        M, "BUDGET_APPROVAL_SHA256", fixture["approval_sha256"],
+    )
+
+    with pytest.raises(M.FreezeError):
+        M.build_v2_g1_candidate(
+            floor_result_path=fixture["result_rel"],
+            budget_path=fixture["budget_rel"], root=fixture["root"],
+        )
+
+
+@pytest.mark.parametrize(
+    ("ledger_mutation", "expected_reason"),
+    (
+        ("missing", "attempt-registry-read-unavailable"),
+        ("tampered", "attempt-registry-replay-invalid"),
+        ("shortened", "attempt-registry-prefix-too-short"),
+    ),
+)
+def test_v2_candidate_rejects_invalid_live_v5_registry(
+        tmp_path, monkeypatch, ledger_mutation, expected_reason):
+    fixture = V2FIX.candidate_repository(
+        tmp_path, M, result_schema=FC.RESULT_SCHEMA_V5,
+    )
+    registry_path = fixture["registry_path"]
+    lines = registry_path.read_bytes().splitlines()
+    if ledger_mutation == "missing":
+        registry_path.unlink()
+    elif ledger_mutation == "tampered":
+        row = json.loads(lines[1])
+        digest = row["event_sha256"]
+        row["event_sha256"] = ("0" if digest[0] != "0" else "1") + digest[1:]
+        registry_path.write_bytes(b"\n".join((
+            lines[0], V2FIX.canonical_bytes(row), *lines[2:],
+        )) + b"\n")
+    else:
+        registry_path.write_bytes(lines[0] + b"\n")
+    monkeypatch.setattr(
+        M, "BUDGET_APPROVAL_SHA256", fixture["approval_sha256"],
+    )
+
+    with pytest.raises(M.FreezeError, match=expected_reason):
+        M.build_v2_g1_candidate(
+            floor_result_path=fixture["result_rel"],
+            budget_path=fixture["budget_rel"], root=fixture["root"],
         )
 
 
