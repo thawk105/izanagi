@@ -1,0 +1,74 @@
+{
+  "plan.md": {
+    "original_bytes": 9073,
+    "original_sha256": "e6c057abe2854e0df40587d88e11c3fb58ba77682cee2419ccbbe3c6cbe50336",
+    "trailing_whitespace": [
+      [
+        53,
+        "  "
+      ],
+      [
+        56,
+        "  "
+      ],
+      [
+        59,
+        "  "
+      ],
+      [
+        62,
+        "  "
+      ],
+      [
+        65,
+        "  "
+      ]
+    ]
+  },
+  "consult-luna.md": {
+    "original_bytes": 6675,
+    "original_sha256": "e6324df4bbcc842a046fb4405a6dd70ea5c61eb05450b0926e05972d00d3656e",
+    "trailing_whitespace": [
+      [
+        3,
+        "  "
+      ],
+      [
+        4,
+        "  "
+      ],
+      [
+        7,
+        "  "
+      ],
+      [
+        8,
+        "  "
+      ],
+      [
+        11,
+        "  "
+      ],
+      [
+        12,
+        "  "
+      ],
+      [
+        15,
+        "  "
+      ],
+      [
+        16,
+        "  "
+      ],
+      [
+        19,
+        "  "
+      ],
+      [
+        20,
+        "  "
+      ]
+    ]
+  }
+}

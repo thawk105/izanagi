@@ -2652,6 +2652,26 @@ def _literal_placeholder_targets(
                 insights_complete = False
             continue
         members = sorted(directory.glob(pattern))
+        if directory == INSIGHTS_DIR:
+            # Keep the old direct members; only the new date level is added.
+            try:
+                date_dirs = sorted(
+                    p for p in directory.iterdir()
+                    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", p.name)
+                )
+                for date_dir in date_dirs:
+                    if date_dir.is_symlink() or not date_dir.is_dir():
+                        raise OSError(f"{date_dir.relative_to(REPO)}: directory でない / symlink")
+                    if not date_dir.stat().st_mode & 0o444:
+                        raise OSError(f"{date_dir.relative_to(REPO)}: directory が読取不能")
+                    # iterdir propagates read errors (glob may suppress them).
+                    members.extend(sorted(
+                        p for p in date_dir.iterdir() if p.name.endswith(".md")
+                    ))
+            except OSError as exc:
+                findings.append(f"{rel}: placeholder 日付 directory の列挙失敗: {exc}")
+                blocked.add(directory)
+                insights_complete = False
         if not members:
             findings.append(
                 f"{rel}/{pattern}: placeholder 検査の対象族に実体がない — "

@@ -278,8 +278,12 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
 
 ## 後続段 (各々 ablation 点を残して投入)
 
+- [x] insights の直下過密を日付別配置と旧名索引で解消（2026-09-10）。
+  既存資料の内容・固定参照を維持し、深部rawの分割一覧も作成。
+  検証記録は `output/insights/2026-09-10/insights-date-layout/README.md`。
+
 - [x] 本体論文の日本語方法節草稿（2026-09-10 の新規ユーザー執筆依頼）を
-  `output/insights/2026-09-10_paper-methods-ja/methods.md` と同 `implementation.md` に作成。
+  `output/insights/2026-09-10/paper-methods-ja/methods.md` と同 `implementation.md` に作成。
   生成・検証・反例還流・独立測定・選択を対応づけ、実装と評価契約を区別した文書成果であり、
   未完の実験や Phase 3 全体の完了を意味しない。
 
@@ -455,7 +459,7 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
        `orchestrator/campaign/axis_trigger_gating.py`・`auditor_gate.py`・`p3_s4_loop_trigger_gating.py`
    - **(8b 着手済み — 現在地・着手順は現行チェックポイントが正本) workload 次元のループ入力化 (次の主経路)** — 「ワークロード特化」のシステム主張に必須。
      - [x] [T-2515] rr5/rr95 の較正投入対応と条件関門の interpreter 修正、既存失敗実測を回収。
-       accepted calibration の取得自体は未完。正本 = `output/insights/2026-09-10_t2515-rr95-rr5-calibration/README.md`。
+       accepted calibration の取得自体は未完。正本 = `output/insights/2026-09-10/t2515-rr95-rr5-calibration/README.md`。
      coder / selector への入力に型付き workload descriptor (read/write 比率、競合ラベル、スケール、目的、
      正しさ制約。勝者名と実測性能値は除外) を追加し、同一 variant 集合を同一予算で比較する。
      既存 rr5/rr50/rr95 と D50/P2-4 の結果はすでに既知なので、**配線 demo または結果既知の
@@ -627,10 +631,10 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
   防壁を緩めるものではない。**正式実験で trigger 軸が certified 選択に入る時に再評価する**
 
 - [T-449] **repo 外 cache の同一 UID 敵対者 TOCTOU** — 理由: 裁定 2026-08-11 (境界外宣言): 防御境界に含めない。RP-2 (a) の既裁定と整合。再訪条件 = 信頼モデル自体の見直し (D86 系の再裁定)。
-- [T-546] **`git rm --cached` の deletion gate すり抜けと preflight 後 TOCTOU** — 理由: 裁定 2026-08-06: 残余として記録し対策実装はしない。正本 = `output/insights/2026-08-05_t450-t412-preface/README.md` §3 R2。
+- [T-546] **`git rm --cached` の deletion gate すり抜けと preflight 後 TOCTOU** — 理由: 裁定 2026-08-06: 残余として記録し対策実装はしない。正本 = `output/insights/2026-08-05/t450-t412-preface/README.md` §3 R2。
 - [T-560] **publish 済み bytes の別 process verifier + 最終 receipt 束縛** — 理由: 裁定 2026-08-06: 完全形は作らない。同一 process 内再読で足りる (プロトタイプ基準)。
 - [T-563] **certification job の immutable snapshot 拡大** — 理由: 裁定 2026-08-06: live worktree bytes 参照を容認する (自 checkout を信頼する。プロトタイプ基準)。
-- [T-605] **receipt expectation の top-level structured issue 新設** — 理由: 裁定 2026-08-07 (委任 (a)): 現状の観測経路を受容する (受理集合を変えないため)。根拠 = `output/insights/2026-08-06_t574-world-expansion/README.md` R9。
+- [T-605] **receipt expectation の top-level structured issue 新設** — 理由: 裁定 2026-08-07 (委任 (a)): 現状の観測経路を受容する (受理集合を変えないため)。根拠 = `output/insights/2026-08-06/t574-world-expansion/README.md` R9。
 - [T-608] **`generator_versions` pin の rollover 手順明文化** — 理由: 裁定 2026-08-07 (委任 (a)): 生成器 source bytes の変更が pin を動かすのは設計どおりとし明文化しない (発行済み manifest 0 件、既存受理不変)。同 README R12。
 - [T-628] **activation transition の env 集合変化用の別機構** — 理由: 裁定 2026-08-07 (a): 同一 env 集合の世代進行だけを受理し集合変化は永久拒否。別機構は設計しない。再訪条件 = 新 env を実際に追加する実需。
 - [T-644] **書込みなし hardware attestation の pre-built probe** — 理由: 裁定 2026-08-08: PBS wrapper の preflight は静的 admission までと明示し別設計は行わない。再訪条件 = 較正運用で最初の書込み前 attestation の実需。
@@ -643,14 +647,14 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
 - [T-744] **二重 namespace への実行時機構** — 理由: 裁定 2026-08-10 (c): 静的検査 ([T-720]) で足りるとする。alias / ImportError はテスト 2 本の supersede と受理集合変更を伴うため見送り (D205)。再訪条件 = 静的検査をすり抜ける再発の実害 1 件。
 - [T-751] **epoch 以前の pickaxe evidence を持ち回る恒久機構** — 理由: 裁定 2026-08-12 (同基準): 窓限定の現状を受容し checkpoint 連鎖は作らない。再訪条件 = 外部公開で監査地平の提示が必要になったとき。
 - [T-767] **可視文字列の confusable 正規化** — 理由: 裁定 2026-08-11 (c): 現状維持。攻撃は信頼済み経路の内側からしか実行できず最悪ケースは構造側で封じ済み。再訪条件 = 誤用の実測 1 件。
-- [T-781] **official 受理集合と proof chain 拡張 (Q1〜Q4)** — 理由: 裁定 2026-08-11 (全問 (a)): 実装なしで保留終端。official は空集合維持、User Attributes は認可に使わない、proof chain 拡張は先送り維持 (D86(5))、[T-139]・A 系列の後まで保留。D86 は 1 項も覆さない。再訪条件 = queue の `qattach` 無効化、または lineage を閉じる設計の登場。材料 = `output/insights/2026-08-11_t781-spool-feasibility/package.md`。
+- [T-781] **official 受理集合と proof chain 拡張 (Q1〜Q4)** — 理由: 裁定 2026-08-11 (全問 (a)): 実装なしで保留終端。official は空集合維持、User Attributes は認可に使わない、proof chain 拡張は先送り維持 (D86(5))、[T-139]・A 系列の後まで保留。D86 は 1 項も覆さない。再訪条件 = queue の `qattach` 無効化、または lineage を閉じる設計の登場。材料 = `output/insights/2026-08-11/t781-spool-feasibility/package.md`。
 - [T-802] **dry-run の no-write 検査を Git 管理 bytes へ拡大** — 理由: 裁定 2026-08-11 (b): 広げない (index stat cache 等は正当な操作でも変わり誤検知検査になる)。守るべき実体は現検査が覆う。再訪条件 = dry-run 起因の汚染の実害 1 件。
 - [T-807] **旧 writer の任意 path 受理を狭める** — 理由: 裁定 2026-08-11 (c): 狭めない。失敗様態は `namespace-dirty` の fail-closed 拒否で、原因ファイルの除去で復旧でき外部入力からは到達しない。再訪条件 = `namespace-dirty` の実発生 1 件。
 - [T-837] **`c9c1a9c` の乗せ直し** — 理由: 裁定 2026-08-12: [T-816] Q1/Q2 の裁定により乗せ直しを省略し、`pin.CURRENT_PIN` (値の正本は `orchestrator/campaign/pin.py`) が指す commit へ直接前進する。Q1 (a) の旧裁定は上書きされた。残るユーザー手番なし。2026-08-12 [T-816] 手順 4 で前進済み。
 - [T-858] **consumer pin の全称保証** — 理由: 裁定 2026-08-12 (b): 限定 AST inventory + 敵対レビューの併用を続け全称保証は主張しない。再訪条件 = loader-only sink の実増加。
 - [T-864] **blob authority (canonical decision) の機械可読 target schema 必須化** — 理由: 裁定 2026-08-12 (同基準): 必須化しない。現行 marker gate が `approved_blobs:` 形式だけを拒否できる状態のままとする。**marker gate の保証範囲の限界記録は [T-793] R4 が行う** (同項は active)。
 - [T-868] **承認 receipt の署名と外部 trust root** — 理由: 裁定 2026-08-12 (同基準): 署名方式と trust root は設けない。自己発行可能な性質は `/limitations/approval_receipt_trust_root_absent` の機械可読宣言で明示したまま受容する。再訪条件 = 外部公開時。
-- [T-871] **toolchain binding S-3 (a) — attempt 実測値の脚** — 理由: 裁定 2026-08-12 (粗い provenance 基準): S-3 (a) の attempt 実測値の脚は実装しない。再訪条件 = 外部公開で証跡提示が必要になったとき。材料 = `output/insights/2026-08-11_t783-toolchain-binding/package.md`。
+- [T-871] **toolchain binding S-3 (a) — attempt 実測値の脚** — 理由: 裁定 2026-08-12 (粗い provenance 基準): S-3 (a) の attempt 実測値の脚は実装しない。再訪条件 = 外部公開で証跡提示が必要になったとき。材料 = `output/insights/2026-08-11/t783-toolchain-binding/package.md`。
 - [T-872] **成果物への binding report** — 理由: 裁定 2026-08-12 (同基準): manifest / result に binding report は載せない。exact-key consumer の改修も行わない。
 - [T-873] **authority への cxx version / cmake path / module_list / bytes hash 追加** — 理由: 裁定 2026-08-12 (同基準): 追加せず calibration の再発行も行わない。
 - [T-874] **束縛の producer 拡大** — 理由: 裁定 2026-08-12 (同基準): floor と silo ladder のまま他 producer へ広げない。
@@ -1185,7 +1189,7 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
 - [T-544] **name<->mask 束縛の迂回** — 理由: 2026-08-15 棚卸し (陳腐化 = 所有が別 ID へ移り本項は参照のみ)。[T-531] の受入条件として同項に反映済み。再訪条件 = 所有 ID が終端し残余が宙に浮いたとき。
 - [T-569] **guided の no-build pseudo-WAL の attempt schema** — 理由: 2026-08-15 棚卸し (価値小 = 診断・体裁のみで受理集合も成果物の値も変えない)。再訪条件 = 同一ファイルを触る wave への相乗り、または実害 1 件。
 - [T-606] **v2 oracle manifest の production producer** — 理由: 2026-08-15 棚卸し (陳腐化 = 裁定が終端し残件ゼロ)。v2 manifest を要する consumer の実需が出るまで作らないと裁定済み (プロトタイプ基準 D205)。再訪条件 = v2 manifest を要する consumer が現れたとき。
-- [T-660] **末尾巻き戻し検査の検出力確認** — 理由: 2026-08-15 棚卸し (価値小 = 発火条件が成立していない、DW-G04)。chain が 1 record の間は空 chain 拒否に mask され観測できない。再訪条件 = 発火条件を満たす artifact path または計測 ID を書けるようになったとき。 2026-08-17 に旧 branch `worktree-dev-wave-t657-t660-g2-activation` を破棄した際、変異台帳 (検出力 5/5) を `output/insights/2026-08-17_t657-activation-rebuild/preserved-t657-t660/` へ保全した。再訪時は同 path を一次資料とする。
+- [T-660] **末尾巻き戻し検査の検出力確認** — 理由: 2026-08-15 棚卸し (価値小 = 発火条件が成立していない、DW-G04)。chain が 1 record の間は空 chain 拒否に mask され観測できない。再訪条件 = 発火条件を満たす artifact path または計測 ID を書けるようになったとき。 2026-08-17 に旧 branch `worktree-dev-wave-t657-t660-g2-activation` を破棄した際、変異台帳 (検出力 5/5) を `output/insights/2026-08-17/t657-activation-rebuild/preserved-t657-t660/` へ保全した。再訪時は同 path を一次資料とする。
 - [T-704] **receipt atomic create 後の例外で受理主張と実在が食い違う** — 理由: 2026-08-15 棚卸し (価値小 = 防御的堅牢化)。2026-08-12 ユーザー方針 (研究最優先・プロトタイプ基準、防御的堅牢化は既定で見送り) に従う。既存欠陥で悪化させておらず、構成が必要な稀な組合せ。再訪条件 = 同型の実害 1 件。
 - [T-705] **_atomic_publish が例外時に rollback しない** — 理由: 2026-08-15 棚卸し (価値小 = 防御的堅牢化)。2026-08-12 ユーザー方針 (研究最優先・プロトタイプ基準、防御的堅牢化は既定で見送り) に従う。同上。再訪条件 = 同型の実害 1 件。
 - [T-706] **KeyboardInterrupt / SystemExit で receipt rc と process rc が分離** — 理由: 2026-08-15 棚卸し (価値小 = 防御的堅牢化)。2026-08-12 ユーザー方針 (研究最優先・プロトタイプ基準、防御的堅牢化は既定で見送り) に従う。同上 (診断の一貫性のみ)。再訪条件 = 同型の実害 1 件。
@@ -1347,16 +1351,16 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
 - [T-317] **親が子に書かせる規律の射程** — 理由: 裁定 2026-08-10 (b): 射程は repo へ入る artifact に限る。wave 運転用の使い捨て script は repo 外に置く限り射程外で親が直接書いてよい。worktree session の Bash 複雑度制限との衝突は解消。
 - [T-454] **子起動の単一経路化 (R1)** — 理由: 裁定 2026-08-08: 現状維持。再訪条件 = 子起動由来の実害、または R8 安全前提を満たす実需。R5 は [T-577] 裁定が、R4 は [T-625]/[T-632] が解消済み。
 - [T-537] **docs-only wave の変異・受入射程と軽量版の境界** — 理由: 裁定 2026-08-06: (a) は [T-577] の優先列で扱う (所有移管)。(b) は現行慣行の追認とし規約化しない。
-- [T-545] **`DW-O11` 第 2 文の機械化 (acceptance mode + receipt + land 消費)** — 理由: 裁定 2026-08-06: 起票者推奨どおり見送り。正本 = `output/insights/2026-08-05_t450-t412-preface/README.md` §3 R1。
+- [T-545] **`DW-O11` 第 2 文の機械化 (acceptance mode + receipt + land 消費)** — 理由: 裁定 2026-08-06: 起票者推奨どおり見送り。正本 = `output/insights/2026-08-05/t450-t412-preface/README.md` §3 R1。
 - [T-555] **admission registry の `reason` / `primary_gate` の docs 投影** — 理由: 裁定 2026-08-06: 行わない (プロトタイプ基準)。`submit_silo_ladder_rung1.sh` の説明齟齬は実測時に手で直す運用のまま。
 - [T-556] **分類 claim を書ける living doc の閉集合化** — 理由: 裁定 2026-08-06: 行わない。検査対象を runbook と Pegasus README に限る現状を正とする。
-- [T-558] **`DW-M08` への kill 判定明記** — 理由: 裁定 2026-08-06 ([T-577] 傘下): 回収 207 bytes の優先列に入らないため見送り。予算の独立審査は行わない。教訓は worklog (258) と `output/insights/2026-08-06_t454-testification/ruling-package-drafts.md` が保持する。
+- [T-558] **`DW-M08` への kill 判定明記** — 理由: 裁定 2026-08-06 ([T-577] 傘下): 回収 207 bytes の優先列に入らないため見送り。予算の独立審査は行わない。教訓は worklog (258) と `output/insights/2026-08-06/t454-testification/ruling-package-drafts.md` が保持する。
 - [T-576] **dev-wave 子起動の単一経路化 (二経路の統合)** — 理由: 裁定 2026-08-06 (c): 行わず現状の二経路を受容する (プロトタイプ基準)。摩擦の最悪部は guard 解析強化が対処する。
 - [T-616] **見送り裁定と依存タスクの突き合わせの機械化** — 理由: 裁定 2026-08-07 (b): 起動読了の prompt 規律に留める。fold 時の相互参照機械化は D205 基準で不採用。都度訂正は規律の下位互換として併存。
 - [T-640] **fragment と fold の「同じ変更単位」要求** — 理由: 裁定 2026-08-08 (α): fragment が wave commit 時点の署名済み決定であり fold は採番と転記だけ、という解釈で充足と認める。不可分性は wave commit が担保する。
 - [T-641] **予算超過で撤回した恒久対応の扱い** — 理由: 裁定 2026-08-08 (c): failures 台帳と memory の記録で担う。予算の独立審査は行わず、縮約余地も尽きていると実測済み。「制度化条件を満たした改善が予算で止まる」構造は受容する。
 - [T-661] **段 8 改善 2 行の dev-wave 参照文書への本文編集** — 理由: 裁定 2026-08-08: 行わない。台帳の記録 (F169 と F112 独立 2 例目) で担う。節の削除もしない。再訪条件 = 同型失敗の再発で本文契約化の実需。
-- [T-664] **docs 予算の 2 経路審査** — 理由: 裁定 2026-08-09 (R1〜R5 全問推奨どおり): 2 経路とも予算は空かないと確定して閉じる。R4(a) の需要は [T-313] の実装へ集約済み。正本 = `output/insights/2026-08-08_t664-docs-budget/package.md`。
+- [T-664] **docs 予算の 2 経路審査** — 理由: 裁定 2026-08-09 (R1〜R5 全問推奨どおり): 2 経路とも予算は空かないと確定して閉じる。R4(a) の需要は [T-313] の実装へ集約済み。正本 = `output/insights/2026-08-08/t664-docs-budget/package.md`。
 - [T-666] **規範文 pin の強度** — 理由: 裁定 2026-08-08: 意図した設計として受容する。再訪条件 = 正当な文面改善の需要が実測で頻発したとき。
 - [T-667] **`DW-S05-A` の `high` と `DW-S06-B` への pin 拡大** — 理由: 裁定 2026-08-08: 行わない (防御的堅牢化、D205 既定。`DW-S05-A` は D207 の pin が別途ある)。再訪条件 = 当該節の drift の実測。
 - [T-668] **CR-only 改行の文書への対応** — 理由: 裁定 2026-08-08: UTF-8 / LF 契約の想定外入力として非対応とする。checker は変更せず、非対応の明示は本台帳の記録が担う。
@@ -1372,10 +1376,10 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
 - [T-743] **レビュー子の欠陥判定基準の `DW-S06-A` 統合** — 理由: 裁定 2026-08-10 (c): wave ごとに prompt へ手書きする現運用を正とする。統合は L1.5 予算 191 bytes 超過のため行わない。再訪条件 = 手書き漏れの実害 1 件、またはテスト化で 191 bytes の見込みが立ったとき。
 - [T-760] **`DW-O01` への `--sandbox` caller 必須の規範化** — 理由: 裁定 2026-08-11 ([T-786] 審査): L1.5 の残余は 2 bytes で再訪条件「余白が出たとき」は成立しない。
 - [T-774] **待ち手 rc を受入証拠と誤読させない機械化** — 理由: 裁定 2026-08-11 (b 現状維持): 誤読の実例はゼロで、受入完了の証拠規律 (成果物実在 + done marker + producer 死の 3 点照合) が別途確立しているため機械化しない。再訪条件 = 誤読の実例 1 件。
-- [T-786] **docs 予算の未入庫 6 件の棚卸し** — 理由: 裁定 2026-08-11 (審査受諾): 予算引き上げは行わない ([T-127] 既裁定と整合)。被覆項の終端化は本 wave で実施した ([T-789]、[T-788]、[T-760]、[T-738])。正本 = `output/insights/2026-08-11_t786-docs-budget/verbatim/package.md`。
+- [T-786] **docs 予算の未入庫 6 件の棚卸し** — 理由: 裁定 2026-08-11 (審査受諾): 予算引き上げは行わない ([T-127] 既裁定と整合)。被覆項の終端化は本 wave で実施した ([T-789]、[T-788]、[T-760]、[T-738])。正本 = `output/insights/2026-08-11/t786-docs-budget/verbatim/package.md`。
 - [T-788] **`DW-O02` への制御 byte 走査の入庫** — 理由: 裁定 2026-08-11 ([T-786] 審査): docs でなく機械検査で閉じるため [T-825] へ移管した。
 - [T-789] **`DW-O02` への必読 path 実在確認と正本不変の入庫** — 理由: 裁定 2026-08-11 ([T-786] 審査): (3) は `DW-O18` へ入庫済み。(1)(2) は 105 bytes 必要で入らず、既存義務が実質的に (2) を覆う。再訪条件 = 同型の空費が 2 例目に達したとき。
-- [T-813] **受入全走のノード横断分割** — 理由: 裁定 2026-08-11 (package どおり 4 点): いま入れない (2 通りの分割の両方で別々のテストが静かに消えた実測 = 「全走が緑」の意味が分割の取り方に依存する、規律 2 の面)。M0 = [T-826]、M5 = [T-827] として起票済み。再評価条件 3 つを確定。正本 = `output/insights/2026-08-11_t813-acceptance-sharding/`。 2026-08-23 に D724 で Pegasus LOGIN の受入形に限り既定有効化した (2026-08-11 の「いま入れない」判断は D711 の 6 段 gate 着地で解消済み)。
+- [T-813] **受入全走のノード横断分割** — 理由: 裁定 2026-08-11 (package どおり 4 点): いま入れない (2 通りの分割の両方で別々のテストが静かに消えた実測 = 「全走が緑」の意味が分割の取り方に依存する、規律 2 の面)。M0 = [T-826]、M5 = [T-827] として起票済み。再評価条件 3 つを確定。正本 = `output/insights/2026-08-11/t813-acceptance-sharding/`。 2026-08-23 に D724 で Pegasus LOGIN の受入形に限り既定有効化した (2026-08-11 の「いま入れない」判断は D711 の 6 段 gate 着地で解消済み)。
 
 - [T-261] **provenance scope / Codex-author epoch の per-lineage 判定** — 理由: 2026-08-15 棚卸し (価値小 = bytes 級 provenance)。2026-08-12 ユーザー方針 (論文主張に要るのは粗い provenance のみ、bytes 級の pin・署名・束縛機構の新設は既定で見送り) に従う。再訪条件 = 対外公開で当該 proof chain の提示が必要になったとき。
 - [T-262] **--message-file preflight への exact waiver 排他** — 理由: 2026-08-15 棚卸し (価値小 = bytes 級 provenance)。2026-08-12 ユーザー方針 (論文主張に要るのは粗い provenance のみ、bytes 級の pin・署名・束縛機構の新設は既定で見送り) に従う。再訪条件 = 対外公開で当該 proof chain の提示が必要になったとき。
@@ -2759,18 +2763,18 @@ mutation 8/8 を閉じたため、一括 downshift はせず、観測→制限�
   main / primary / foreign / locked / process residency / real prune / permission / push 境界を
   Codex 固有の安全側 overlay で固定した。`check_docs.py` は Skill と command の全 bytes、
   2 file 閉包、exact interface を独立 pin と負例で拒否する。材料・レビュー・変異 =
-  `output/insights/2026-07-30_t188-codex-cleanup-branches-skill-wave/`、記録 = worklog (71)。
+  `output/insights/2026-07-30/t188-codex-cleanup-branches-skill-wave/`、記録 = worklog (71)。
 - [T-187] **(完了 2026-07-30) `6b64d21` AI provenance forward-only是正** — 共有済みmerge
   commitはrewriteせず、固定target/payload・strict lineage・selected-set両commit・実欠落・
   correction自身greenを連言する一回限り`AI-Agent-Correction`でmissing findingだけを相殺する。
   mergeのD95 pathを全parentとの差分積へ統一し、O17を`--no-commit` preflight→`commit -F`→
   full-history監査へ更新。設計判断=D101、材料・レビュー・変異=
-  `output/insights/2026-07-29_ai-provenance-forward-fix-wave/`、記録=worklog (66)。
+  `output/insights/2026-07-29/ai-provenance-forward-fix-wave/`、記録=worklog (66)。
 - [T-188] **(完了 2026-07-30) dev-wave 並行 session land** — Claude command / Codex Skill が
   共有する `DW-O23` と `tools/dev_wave_land.py` を導入。別 session の handoff と
   Git admin に双方向登録された worktree container を非接触で保ち、tested SHA・ordered closure・
   common lock・SHA 指定 ff-only・stale 時の fresh-context 再受入を機械化した。設計判断=D102、
-  失敗台帳=F55、材料・逐語・変異=`output/insights/2026-07-29_dev-wave-parallel-land/`、
+  失敗台帳=F55、材料・逐語・変異=`output/insights/2026-07-29/dev-wave-parallel-land/`、
   記録=worklog (67)。**非接触例外の条件は 2026-08-01 の D109 ([T-220]) が上書きし、
   handoff は書式を問わず非接触・拒否は incoming との衝突軸だけになった。**
 - [T-145] **(完了 2026-07-29) long-path serve test の固定 join 二律背反除去** —

@@ -102,7 +102,7 @@ gate の禁止は署名で書き、通る正例を 1 つ添える。
 
 ## DW-S07 — 段 7 記録
 
-親が worklog、insights の逐語・変異台帳、decisions の設計判断を一括記録する。
+親が worklog、insights の逐語・変異台帳、decisions の設計判断を一括記録する。配置は`output/README.md` に従う。
 **worklog / decisions / failures の 3 台帳は直接編集せず、`docs/spool/README.md` の形式に従う
 fragment として書く**（insights は従来どおり直接書く）。fragment は wave branch へ commit するだけとし、
 canonical への追記・採番・ローテーションは段 9 の land が lock 内で一度だけ行う。
