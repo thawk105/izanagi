@@ -819,6 +819,7 @@ def _configure_invocation_fragment() -> str:
 
 def _run_job_copy_fragment(
     *, repo_root: Path, staging_root: Path, scratch_root: Path,
+    shell_prefix: str = "",
 ) -> tuple[subprocess.CompletedProcess[str], Path | None, Path | None]:
     attempt_dir = scratch_root / "attempt"
     command = f"""set -Eeuo pipefail
@@ -828,6 +829,7 @@ THIRD_PARTY_SOURCE_ROOT={shlex.quote(str(staging_root))}
 ATTEMPT_DIR={shlex.quote(str(attempt_dir))}
 mkdir -p "$ATTEMPT_DIR"
 write_failure() {{ printf 'failure:%s:%s\n' "$2" "$3" >&2; }}
+{shell_prefix}
 {_job_copy_fragment()}
 printf 'source-root=%s\n' "$FETCHCONTENT_SOURCE_ROOT"
 printf 'base-dir=%s\n' "$FETCHCONTENT_BASE_DIR"
@@ -1363,6 +1365,78 @@ def test_certify_job_copy_leaves_the_staging_sources_untouched_and_writable(
             if path.is_file()
         }
         assert after_tree == before_trees[name]
+
+
+@pytest.mark.parametrize("failed_name", [None, *THIRD_PARTY_NAMES])
+def test_certify_parallel_copies_overlap_and_reap_before_continuing(
+    tmp_path: Path, failed_name: str | None,
+) -> None:
+    fixture_repo, staging_root = _make_verified_third_party_fixture(tmp_path)
+    events = tmp_path / "copy-events"
+    # Start markers form a rendezvous: serial copies cannot pass it. The
+    # deadline only bounds a broken test; acceptance uses events, not duration.
+    prefix = f"""
+events={shlex.quote(str(events))}
+failed_name={shlex.quote(failed_name or '')}
+trap 'printf "exit:%s\\n" "$?" >>"$events"' EXIT
+wait() {{
+  local rc=0
+  builtin wait "$@" || rc=$?
+  printf 'wait:%s:%s\\n' "$1" "$rc" >>"$events"
+  return "$rc"
+}}
+timeout() {{
+  if [[ "$2" != cp ]]; then
+    printf 'verify\\n' >>"$events"
+    command timeout "$@"
+    return $?
+  fi
+  local name=${{4##*/}} peer rc=0 deadline=$((SECONDS + 15))
+  printf 'start:%s\\n' "$name" >>"$events"
+  touch "$events.$name.started"
+  for peer in masstree mimalloc googletest; do
+    until [[ -f "$events.$peer.started" ]]; do
+      (( SECONDS < deadline )) || return 98
+      sleep 0.01
+    done
+  done
+  if [[ "$name" == "$failed_name" ]]; then
+    # A real cp failure, with its original rc, after every copy has started.
+    set -- "$1" "$2" "$3" "$4/missing-source" "$5"
+  fi
+  command timeout "$@" || rc=$?
+  printf 'done:%s:%s\\n' "$name" "$rc" >>"$events"
+  return "$rc"
+}}
+"""
+    completed, source_root, base_dir = _run_job_copy_fragment(
+        repo_root=fixture_repo, staging_root=staging_root,
+        scratch_root=tmp_path / "scratch-parallel", shell_prefix=prefix,
+    )
+    rows = events.read_text(encoding="utf-8").splitlines()
+    assert set(rows[:3]) == {f"start:{name}" for name in THIRD_PARTY_NAMES}
+    done = [row for row in rows if row.startswith("done:")]
+    assert set(done) == {
+        f"done:{name}:{int(name == failed_name)}" for name in THIRD_PARTY_NAMES
+    }
+    waits = [row for row in rows if row.startswith("wait:")]
+    assert len(waits) == 3
+    assert len({row.split(":")[1] for row in waits}) == 3
+    assert sorted(row.split(":")[2] for row in waits) == (
+        ["0", "0", "1"] if failed_name else ["0", "0", "0"]
+    )
+    expected_rc = int(failed_name is not None)
+    assert completed.returncode == expected_rc, completed.stderr
+    assert rows[-1] == f"exit:{expected_rc}"
+    if failed_name is None:
+        assert rows.count("verify") == 1
+        assert all(rows.index(row) < rows.index("verify") for row in done + waits)
+        assert source_root is not None and base_dir is not None
+    else:
+        assert "verify" not in rows
+        assert source_root is None and base_dir is None
+        assert completed.stdout == ""
+        assert f"cannot copy pinned third-party staging source: {failed_name}" in completed.stderr
 
 
 @pytest.mark.parametrize("ignored_name", THIRD_PARTY_NAMES)
