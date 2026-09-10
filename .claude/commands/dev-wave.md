@@ -100,7 +100,7 @@ CC 合成 campaign の実行ループではない。
 | 12 | 裁定手順と実行手順が食い違った時点 | `docs/dev-wave/operations.md`: `DW-O12` |
 | 13 | gate・検証を新設する可能性が生じた時点 | `docs/dev-wave/operations.md`: `DW-O13`（最遅: 段 2 前） |
 | 14 | no-touch 対象へ monkeypatch を検討する直前 | `docs/dev-wave/operations.md`: `DW-O14` |
-| 15 | fix 後に変異を走らせる直前 | `docs/dev-wave/mutation.md`: `DW-M07` |
+| 15 | 変異を走らせる直前 | `docs/dev-wave/mutation.md`: `DW-M07` |
 | 16 | fix 後の焦点再レビューを行う直前 | `docs/dev-wave/operations.md`: `DW-O16` |
 | 17 | commit を作る直前 | `docs/dev-wave/operations.md`: `DW-O17` |
 | 18 | 親のテスト・受入前と赤処理前 | `docs/dev-wave/operations.md`: `DW-O18`, `DW-O26`, `DW-O27` |

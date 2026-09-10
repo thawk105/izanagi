@@ -1,0 +1,36 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 900,
+  "timeout_seconds": 600,
+  "hang_timeout_seconds": 60,
+  "mutations": [
+    {
+      "id": "M1-old-condition15-fixture",
+      "category": "negative",
+      "replacements": [{
+        "file": "orchestrator/tests/test_check_docs.py",
+        "old": "            f\"| {key} | {check_docs.CONDITION_TRIGGER_CONTRACT[key]} | \"",
+        "new": "            f\"| {key} | {'fix 後に変異を走らせる直前' if key == '15' else check_docs.CONDITION_TRIGGER_CONTRACT[key]} | \""
+      }],
+      "expected_nodes": ["orchestrator/tests/test_check_docs.py::test_synthetic_repo_baseline_clean"],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-old-checker-fixed-fixture",
+      "category": "both-layers",
+      "replacements": [{
+        "file": "tools/check_docs.py",
+        "old": "    \"15\": \"変異を走らせる直前\",",
+        "new": "    \"15\": \"fix 後に変異を走らせる直前\","
+      }, {
+        "file": "orchestrator/tests/test_check_docs.py",
+        "old": "            f\"| {key} | {check_docs.CONDITION_TRIGGER_CONTRACT[key]} | \"",
+        "new": "            f\"| {key} | {'変異を走らせる直前' if key == '15' else check_docs.CONDITION_TRIGGER_CONTRACT[key]} | \""
+      }],
+      "expected_nodes": ["orchestrator/tests/test_check_docs.py::test_synthetic_repo_baseline_clean"],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

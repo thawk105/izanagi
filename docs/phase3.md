@@ -282,6 +282,10 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
 
 ## 後続段 (各々 ablation 点を残して投入)
 
+- [x] T-2544: D1936項31に従いDW-M07を読む条件15を全変異走行直前へ訂正し、
+  既存checkerの文言pinと入口実byte数pinを同時整合（2026-09-11）。
+  段構成・権限・受理集合・byte予算・検査数は維持。
+
 - [x] insights の直下過密を日付別配置と旧名索引で解消（2026-09-10）。
   既存資料の内容・固定参照を維持し、深部rawの分割一覧も作成。
   検証記録は `output/insights/2026-09-10/insights-date-layout/README.md`。
