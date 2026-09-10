@@ -54,6 +54,17 @@ H1/H2/H3は記録値へ登録式を適用した条件付き結果として残し
 費用打切りの後、最新裁定の項28は追加認証の残余を見送りとした。本18 blockの認証へ転用しない。
 480 request案を新しい裁定待ちとして起票せず、未提供の自動撤回機構も今回の追加実装・新規タスクにしない。
 
+**回収時の独立レビューを2本、採用修正後の焦点レビューを1本行った。** 集約JSONへ未認証2タグを保持し、
+古いgroup fixtureをmainの前提へ追従させた。数値・入力拒否・認証範囲は不変。追加gate勧告は実18 blockで
+不一致が無いため明示scopeに従い不採用とし、限界を明記した。焦点レビューはscope内GO。
+変異本走は既存15/15 KILLED・期待node完全一致、表示感度2/2一致、baseline PASSED、wrapper rc0。
+先行probeは共有木の状態変化でwrapper rc125となり、独立cloneで本走し直した。失敗証拠は保持した。
+関連走はproducer/consumer 242 passed、周辺343 passed、hooks474 passed/1 skipped。
+記録・検査の正本はinsightの`recovery-2026-09-10.md`。
+
+**dev-wave改善候補:** merge競合をauthorへ渡す準備方法を既存leafで明確化する候補を専用handoffへ記録した。
+merge状態のmidflight拒否と未commit権威文書のlauncher拒否を実測したためである。改善実装・次wave起動は行わない。
+
 ## 次の一手差分
 
 ### 完了
