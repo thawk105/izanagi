@@ -32,6 +32,8 @@
 - 自由変数集合を空にするM1は、新集合でKILLED。失敗nodeは実sink回帰とopaque closure回帰のexact2件。
 - 同一M1は変更前から存在した44テストの集合ではSURVIVED（失敗0）。新旧とも基準走行成功・一意注入・復元をharnessが確認し、期待結果と完全一致、wrapper rc0。
 - 実装commit後provenance: 9631件、新規違反なし、known-violations 56（不可逆53・baseline後3）。
+- 統合版 `7544087a3411f8b7b9a210fb2263a132bc5b2c9c` の受入全走は23,071 passed / 68 skipped、3shardsすべてchild rc0、最終receiptはchild-green。tested mainは `7b975a735c12dc7d112d7d8953e2402b4ca0a9e4`。
+  受入中にmainが進んだため、その後の文書競合解消を含む版の受入を別走とする。
 
 初回main側の焦点走はrunnerのメモリ上限で未完走となり、再投入は既存orphan holdで子未起動だった。
 この2走を成功に数えず、他wave所有のholdを変更せず、専用worktreeの計算ノード走で確認した。

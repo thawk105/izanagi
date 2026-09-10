@@ -26,6 +26,10 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
   生成済み全arm recordとadmissionをworkload別raw_rootへ保存し、受理集合・元の拒否・成功経路を維持する。
   記録 = `output/insights/2026-09-10_t2514-a1-detail/README.md`。
 
+- [x] T-2520: D1936項18・F927の入れ子build誤分類を局所修正。
+  外側genomeを自由変数として既存入力依存判定へ渡す。実sinkの繰延べ除去による未被覆検出と
+  既存S1/S8b・局所固定入力の正例を確認。production配線・13macro witnessは変更しない。
+
 - safe variant loop、軸 onboarding、軸提案のループ内化 (8a) までは成立している。反復の駆動は
   2 種類ある — 主経路 (8a 軸の探索・S 系実験) は依然として**人間がセッション間を運ぶ
   human-supervised loop** であり、無人の進化探索ではない。一方 8c の bounded MVP
@@ -286,9 +290,9 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
 
 ## 後続段 (各々 ablation 点を残して投入)
 
-- [x] T-2520: D1936項18・F927の入れ子build誤分類を局所修正。
-  外側genomeを自由変数として既存入力依存判定へ渡す。実sinkの繰延べ除去による未被覆検出と
-  既存S1/S8b・局所固定入力の正例を確認。production配線・13macro witnessは変更しない。
+- [x] T-2544: D1936項31に従いDW-M07を読む条件15を全変異走行直前へ訂正し、
+  既存checkerの文言pinと入口実byte数pinを同時整合（2026-09-11）。
+  段構成・権限・受理集合・byte予算・検査数は維持。
 
 - [x] [T-2521] D1936項21に従い、旧 fig5 の用途制限から新 attempt 取得までという期限を外す追補を
   論文ストーリーと図表の README に追加した (2026-09-11)。採用静的 backoff の結論・図としての

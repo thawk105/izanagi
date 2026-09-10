@@ -21,6 +21,11 @@ title: [T-2520] 入れ子buildの誤分類を修正し、既存検査が見逃�
 - 実装anchorは `f5e3315b8` — Fix T-2520 nested build closure input classification。
   provenanceは新規違反なし、既知56件を分離表示した。改善実装・次wave・pushは行わない。
 - 段8で自己改善契約を再読し、改善候補なしを専用handoffへ明記した。
+- 統合版7544087a3の受入全走は23,071 passed / 68 skipped、child-green。
+  受入中のmain更新後、完了項目の同位置挿入だけが競合したため両記録を保持した。
+  T2520の完了項目は現行チェックポイントへ移し、同位置への追記競合を避けた。実装bytesは不変。
+- 終端でlauncher正常rcにもかかわらずproducer未起動を1度観測し、未起動として再投入した。
+  起動確認の明確化候補をhandoffへ追記（原因未確定）。改善実装は行っていない。
 
 ## 次の一手差分
 
