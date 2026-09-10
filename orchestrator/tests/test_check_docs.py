@@ -2516,7 +2516,7 @@ def test_dev_wave_command_budget_literal_is_exact():
 
     rel = ".claude/commands/dev-wave.md"
     assert check_docs.COMMAND_LIMITS[rel] == check_docs.TextLimit(9_520, 140)
-    assert len(_read(_REPO, rel).encode("utf-8")) == 9_517
+    assert len(_read(_REPO, rel).encode("utf-8")) == 9_507
 
     root = _build_min_repo()
     try:
