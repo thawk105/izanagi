@@ -362,17 +362,29 @@ def _load_cost_probe():
     return module
 
 
+def _rratio_gate_values(source: str, variable: str) -> list[str]:
+    comparison = f'"${variable}" != "'
+    comparison_start = source.index(comparison)
+    gate_start = source.rfind("if [[", 0, comparison_start)
+    gate_end = source.index("\nfi", comparison_start)
+    assert gate_start >= 0
+    gate = source[gate_start:gate_end]
+    return re.findall(rf'\${re.escape(variable)}" != "([^"]+)"', gate)
+
+
 def test_submitter_exposes_only_the_calibration_whitelist() -> None:
     source = SUBMIT.read_text(encoding="utf-8")
 
-    assert "[--job-script PATH] [--rratio 20|50|80]" in source
+    assert "[--job-script PATH] [--rratio 5|20|50|80|95]" in source
     assert "[--protocol silo|mocc|tictoc]" in source
     assert 'RRATIO=50' in source
     assert 'PROTOCOL=silo' in source
     assert 'PROTOCOL_EXPLICIT=0' in source
+    assert 'RRATIO" != "5"' in source
     assert 'RRATIO" != "20"' in source
     assert 'RRATIO" != "50"' in source
     assert 'RRATIO" != "80"' in source
+    assert 'RRATIO" != "95"' in source
     assert 'PROTOCOL" != "silo"' in source
     assert 'PROTOCOL" != "mocc"' in source
     assert 'PROTOCOL" != "tictoc"' in source
@@ -392,9 +404,19 @@ def test_submitter_exposes_only_the_calibration_whitelist() -> None:
     assert "':(exclude)output'" in source
 
 
-def test_job_rechecks_the_submission_workload_and_records_it() -> None:
+def test_job_rechecks_the_submission_workload_and_records_it(
+    tmp_path: Path,
+) -> None:
     source = JOB.read_text(encoding="utf-8")
+    expected_rratios = ["5", "20", "50", "80", "95"]
 
+    submit_rratios = _rratio_gate_values(
+        SUBMIT.read_text(encoding="utf-8"), "RRATIO",
+    )
+    job_rratios = _rratio_gate_values(source, "IZANAGI_CALIBRATION_RRATIO")
+    assert submit_rratios == expected_rratios
+    assert job_rratios == expected_rratios
+    assert submit_rratios == job_rratios
     assert 'CALIBRATION_RRATIO="$IZANAGI_CALIBRATION_RRATIO"' in source
     assert 'CALIBRATION_PROTOCOL=${IZANAGI_CALIBRATION_PROTOCOL-silo}' in source
     assert '"calibration_rratio": (' in source
@@ -410,6 +432,94 @@ def test_job_rechecks_the_submission_workload_and_records_it() -> None:
     assert "--use-class certified-selection" in source
     assert "-DCCBENCH_BACKOFF_FIXED=-1" in source
     assert '"-DCMAKE_CXX_FLAGS=-DBACKOFF_FIXED=-1"' not in source
+
+    fixture_repo = tmp_path / "job-repo"
+    fixture_tools = fixture_repo / "tools" / "pegasus"
+    fixture_tools.parent.mkdir(parents=True)
+    shutil.copytree(
+        ROOT / "tools" / "pegasus",
+        fixture_tools,
+        ignore=shutil.ignore_patterns("__pycache__"),
+    )
+    fake_bin = tmp_path / "fake-bin"
+    fake_bin.mkdir()
+    real_mkdir = shutil.which("mkdir")
+    assert real_mkdir is not None
+    mkdir_shim = fake_bin / "mkdir"
+    mkdir_shim.write_text(
+        "#!/bin/bash\n"
+        'if [[ "${1:-}" == /scr/* ]]; then\n'
+        "  exit 0\n"
+        "fi\n"
+        f'exec {shlex.quote(real_mkdir)} "$@"\n',
+        encoding="utf-8",
+    )
+    mkdir_shim.chmod(0o755)
+    rratio_failure = (
+        "IZANAGI_CALIBRATION_RRATIO must be exactly 5, 20, 50, 80, or 95"
+    )
+    protocol_failure = (
+        "IZANAGI_CALIBRATION_PROTOCOL must be exactly silo, mocc, or tictoc"
+    )
+    base_env = os.environ.copy()
+    base_env.update({
+        "PATH": f"{fake_bin}:{base_env['PATH']}",
+        "PBS_O_WORKDIR": str(fixture_repo),
+        "IZANAGI_SUBMISSION_NONCE": "fixture-nonce",
+        # Stop immediately after the rratio gate, before the receipt wait.
+        "IZANAGI_CALIBRATION_PROTOCOL": "invalid-fixture-protocol",
+    })
+
+    for index, rratio in enumerate(expected_rratios):
+        job_id = f"accepted-rratio-{index}"
+        env = base_env | {
+            "PBS_JOBID": job_id,
+            "IZANAGI_CALIBRATION_RRATIO": rratio,
+        }
+        completed = subprocess.run(
+            ["bash", str(fixture_tools / "certify_calibration.sh")],
+            cwd=fixture_repo,
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert completed.returncode == 2, completed.stderr
+        failure = json.loads((
+            fixture_repo
+            / "output/env/pegasus/calibration/job-staging"
+            / job_id
+            / "failure.json"
+        ).read_text(encoding="utf-8"))
+        assert (failure["stage"], failure["message"]) != (
+            "submit_binding", rratio_failure,
+        )
+        assert failure["stage"] == "submit_binding"
+        assert failure["message"] == protocol_failure
+
+    for index, rratio in enumerate(("+5", "05", " 5", "5 ", "５", "51")):
+        job_id = f"rejected-rratio-{index}"
+        env = base_env | {
+            "PBS_JOBID": job_id,
+            "IZANAGI_CALIBRATION_RRATIO": rratio,
+        }
+        completed = subprocess.run(
+            ["bash", str(fixture_tools / "certify_calibration.sh")],
+            cwd=fixture_repo,
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert completed.returncode == 2, completed.stderr
+        failure = json.loads((
+            fixture_repo
+            / "output/env/pegasus/calibration/job-staging"
+            / job_id
+            / "failure.json"
+        ).read_text(encoding="utf-8"))
+        assert failure["stage"] == "submit_binding"
+        assert failure["message"] == rratio_failure
 
 
 def _certify_protocol_define_table() -> dict[str, dict[str, str]]:
@@ -480,14 +590,17 @@ def _protocol_shell_observation(
         fixture_root = Path(raw_tmp)
         fake_bin = fixture_root / "bin"
         fake_bin.mkdir()
-        fake_python = fake_bin / "python3"
-        fake_python.write_text(
+        recording_python = fake_bin / "python3.10"
+        recording_python.write_text(
             "#!/bin/sh\n"
             ": \"${GATE_ARGV_PATH:?}\"\n"
             "printf '%s\\n' \"$@\" >\"$GATE_ARGV_PATH\"\n",
             encoding="utf-8",
         )
-        fake_python.chmod(0o755)
+        recording_python.chmod(0o755)
+        bare_python = fake_bin / "python3"
+        bare_python.write_text("#!/bin/sh\nexit 97\n", encoding="utf-8")
+        bare_python.chmod(0o755)
         attempt_dir = fixture_root / "attempt"
         attempt_dir.mkdir()
         gate_argv_path = fixture_root / "gate.argv"
@@ -507,6 +620,7 @@ CC_PATH=/bin/true
 CXX_PATH=/bin/true
 REPO_ROOT={shlex.quote(str(ROOT))}
 ATTEMPT_DIR={shlex.quote(str(attempt_dir))}
+CALIBRATE_PYTHON={shlex.quote(str(recording_python))}
 {condition_function}
 {fragment}
 printf 'binary=%s\n' "$BINARY"
@@ -881,6 +995,44 @@ def test_certify_keeps_backoff_fixed_and_condition_gate_silo_only() -> None:
     assert _protocol_shell_observation("tictoc")["gate_calls"] == 0
     source = JOB.read_text(encoding="utf-8")
     assert len(re.findall(r"(?m)^[ \t]*run_condition_gate[ \t]*$", source)) == 1
+
+
+def test_condition_gate_uses_smoke_checked_interpreter_selected_before_call() -> None:
+    source = JOB.read_text(encoding="utf-8")
+    selection_start = source.index('CALIBRATE_PYTHON=""')
+    failure_start = source.index(
+        'if [[ -z "$CALIBRATE_PYTHON" ]]; then', selection_start,
+    )
+    selection_end = source.index("\nfi", failure_start) + len("\nfi")
+    selection = source[selection_start:selection_end]
+
+    assert (
+        'if "$resolved" -I -B -c \\\n'
+        "      'import sys; raise SystemExit(0 if sys.version_info[:2] >= (3, 10) else 1)' \\\n"
+        '      >/dev/null 2>&1; then\n'
+        '    CALIBRATE_PYTHON="$resolved"'
+    ) in selection
+    assert (
+        'if [[ -z "$CALIBRATE_PYTHON" ]]; then\n'
+        '  write_failure 2 interpreter \\\n'
+        '    "no python3.10 interpreter passed smoke check '
+        '(rejected: ${calibrate_python_rejected:-none})"\n'
+        '  exit 2\n'
+        'fi'
+    ) in selection
+
+    gate_calls = list(re.finditer(r"(?m)^  run_condition_gate$", source))
+    assert len(gate_calls) == 1
+    assert (
+        source.index('ATTEMPT_DIR=')
+        < source.index("trap on_err ERR")
+        < selection_start
+    )
+    assert selection_end < gate_calls[0].start()
+    assert (
+        'local -a condition_gate_argv=("$CALIBRATE_PYTHON" -m '
+        'orchestrator.campaign.condition_meaning_gate'
+    ) in source
 
 
 def test_default_silo_build_and_calibrate_argv_match_offline_contract() -> None:
@@ -1399,23 +1551,26 @@ def test_cost_probe_uses_factory_noinline_and_legacy_backoff_declarations() -> N
     )
 
 
-def test_submitter_rejects_an_unregistered_ratio_before_side_effects(tmp_path: Path) -> None:
-    completed = subprocess.run(
-        [
-            str(SUBMIT),
-            "--rratio",
-            "95",
-            "--attempts-root",
-            str(tmp_path / "attempts"),
-        ],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        check=False,
+@pytest.mark.parametrize(
+    "rratio",
+    ["0", "51", "100", "05", "+5", " 5", "5 ", "５"],
+)
+def test_submitter_rejects_an_unregistered_ratio_before_side_effects(
+    tmp_path: Path, rratio: str,
+) -> None:
+    # Empty is intentionally omitted: `${2:?}` rejects it before this gate, and
+    # the contract does not require that earlier rejection to use the same rc.
+    _repo, _common, _output, qsub_argv, completed = (
+        _run_submit_dry_run_in_clean_fixture(
+            tmp_path,
+            rratio=rratio,
+            expected_returncode=2,
+        )
     )
 
     assert completed.returncode == 2
-    assert "--rratio must be exactly 20, 50, or 80" in completed.stderr
+    assert "--rratio must be exactly 5, 20, 50, 80, or 95" in completed.stderr
+    assert qsub_argv == []
     assert not (tmp_path / "attempts").exists()
 
 
@@ -1441,7 +1596,11 @@ def _run_submit_dry_run_in_clean_fixture(
     tmp_path: Path,
     *,
     protocol: str | None = None,
-) -> tuple[Path, Path, Path, list[str]]:
+    rratio: str | None = None,
+    expected_returncode: int = 0,
+) -> tuple[
+    Path, Path, Path, list[str], subprocess.CompletedProcess[str],
+]:
     fixture_repo = tmp_path / "repo"
     fixture_tools = fixture_repo / "tools" / "pegasus"
     fixture_tools.parent.mkdir(parents=True)
@@ -1480,19 +1639,25 @@ def _run_submit_dry_run_in_clean_fixture(
     ]
     if protocol is not None:
         command.extend(["--protocol", protocol])
+    if rratio is not None:
+        command.extend(["--rratio", rratio])
     completed = subprocess.run(
         command,
         capture_output=True,
         text=True,
         check=False,
     )
-    assert completed.returncode == 0, completed.stderr
+    assert completed.returncode == expected_returncode, completed.stderr
     command_lines = [
         line for line in completed.stdout.splitlines()
         if line.startswith("qsub command:")
     ]
-    assert len(command_lines) == 1
-    qsub_argv = shlex.split(command_lines[0].removeprefix("qsub command:"))
+    if expected_returncode == 0:
+        assert len(command_lines) == 1
+        qsub_argv = shlex.split(command_lines[0].removeprefix("qsub command:"))
+    else:
+        assert command_lines == []
+        qsub_argv = []
 
     git_common_dir = Path(subprocess.run(
         [
@@ -1512,15 +1677,21 @@ def _run_submit_dry_run_in_clean_fixture(
         / "izanagi-job-evidence"
         / "calibration-certify"
     )
-    return fixture_repo, git_common_dir.parent, expected_root, qsub_argv
+    return (
+        fixture_repo,
+        git_common_dir.parent,
+        expected_root,
+        qsub_argv,
+        completed,
+    )
 
 
 @pytest.mark.parametrize("protocol", ["silo", "mocc", "tictoc"])
 def test_submitter_accepts_exact_protocol_whitelist_and_records_it(
     tmp_path: Path, protocol: str,
 ) -> None:
-    _repo, _common, _output, qsub_argv = _run_submit_dry_run_in_clean_fixture(
-        tmp_path, protocol=protocol,
+    _repo, _common, _output, qsub_argv, _completed = (
+        _run_submit_dry_run_in_clean_fixture(tmp_path, protocol=protocol)
     )
     submissions = list((tmp_path / "attempts" / "submissions").iterdir())
     assert len(submissions) == 1
@@ -1543,7 +1714,7 @@ def test_submitter_accepts_exact_protocol_whitelist_and_records_it(
 def test_submitter_omitted_protocol_is_silo_without_changing_qsub_argv(
     tmp_path: Path,
 ) -> None:
-    fixture_repo, _common, expected_root, qsub_argv = (
+    fixture_repo, _common, expected_root, qsub_argv, _completed = (
         _run_submit_dry_run_in_clean_fixture(tmp_path)
     )
     submissions = list((tmp_path / "attempts" / "submissions").iterdir())
@@ -1568,11 +1739,30 @@ def test_submitter_omitted_protocol_is_silo_without_changing_qsub_argv(
     ]
 
 
-def test_submit_dry_run_passes_scheduler_file_paths_to_qsub(tmp_path: Path) -> None:
-    _fixture_repo, _git_common_repo, expected_root, qsub_argv = (
-        _run_submit_dry_run_in_clean_fixture(tmp_path)
+@pytest.mark.parametrize("rratio", ["5", "20", "50", "80", "95"])
+def test_submit_dry_run_passes_scheduler_file_paths_to_qsub(
+    tmp_path: Path, rratio: str,
+) -> None:
+    _fixture_repo, _git_common_repo, expected_root, qsub_argv, _completed = (
+        _run_submit_dry_run_in_clean_fixture(tmp_path, rratio=rratio)
     )
 
+    submissions = list((tmp_path / "attempts" / "submissions").iterdir())
+    assert len(submissions) == 1
+    nonce = submissions[0].name
+    pre_submit = json.loads(
+        (submissions[0] / "pre-submit.json").read_text(encoding="utf-8"),
+    )
+    receipt = json.loads(
+        (submissions[0] / "submit-receipt.json").read_text(encoding="utf-8"),
+    )
+    assert pre_submit["request"]["calibration_rratio"] == int(rratio)
+    assert receipt["calibration"]["workload"]["ycsb_rratio"] == rratio
+    export_spec = qsub_argv[qsub_argv.index("-v") + 1]
+    assert export_spec == (
+        f"IZANAGI_SUBMISSION_NONCE={nonce},"
+        f"IZANAGI_CALIBRATION_RRATIO={rratio}"
+    )
     assert qsub_argv[0] == "qsub"
     assert "-o" in qsub_argv
     assert "-e" in qsub_argv
@@ -1598,7 +1788,7 @@ def test_submit_dry_run_keeps_scheduler_output_outside_the_repository(tmp_path: 
 
     拒否: 返り先が repo root 自身またはその配下へ動いた瞬間、この検査は赤になる。
     """
-    fixture_repo, git_common_repo, _expected_root, qsub_argv = (
+    fixture_repo, git_common_repo, _expected_root, qsub_argv, _completed = (
         _run_submit_dry_run_in_clean_fixture(tmp_path)
     )
 
@@ -1618,6 +1808,10 @@ def test_runbook_shows_ai_driven_h1_h2_submission_path() -> None:
 
     assert "submit_certify.sh --rratio 80" in source
     assert "submit_certify.sh --rratio 20" in source
+    assert "submit_certify.sh --rratio 95" in source
+    assert "submit_certify.sh --rratio 5" in source
+    assert "5 / 20 / 50 / 80 / 95 の固定 whitelist" in source
+    assert "skew0p9_rr{5|20|50|80|95}_rmw0" in source
     assert "--protocol mocc" in source
     assert "silo / mocc / tictoc" in source
     assert "INLINE_VERSION_OPT" in source
