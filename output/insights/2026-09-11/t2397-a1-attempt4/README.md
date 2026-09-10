@@ -56,3 +56,10 @@ M1/M2は実依存を使うmanual probeで別に検査する。
 単体群は既存D1358のtask=mutationで計算ノード1job内に束ね、内部のrunner-mode localは
 同taskのcompute markerで認可される経路だけを使う。runnerはtools/run_tests.py。
 外側dispatchと各テスト呼出しを同じscheduler request数として数えない。
+
+初回probeはrequest991850で全6変異を実行。baseline374件が通り、各変異が予定した
+test nodeを失敗させた。ただしwrapperの共有木事後比較がfalseとなり、外側rc125。
+完了扱いにせず、観測nodeをunit-final.jsonへ固定した。生の台帳はunit-probe-out.json.gz、
+wrapperの拒否はunit-probe-wrapper.jsonに保存する。
+F785の既存手順に従い、最終走のsource-repoはmainから独立したcloneにし、
+共有木検査を弱めずに並行セッションの状態変化を分離する。

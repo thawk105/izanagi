@@ -1,0 +1,120 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 1200,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "M3-extra-source",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_v3_ccbench_tracked_clean_gate_is_real_and_reason_is_layer_specific_M10[artifact-consumer]",
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_v3_ccbench_tracked_clean_gate_is_real_and_reason_is_layer_specific_M10[driver-measurement]",
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_v3_ccbench_tracked_clean_gate_is_real_and_reason_is_layer_specific_M10[login-submit]"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_source.py",
+          "old": "        s8b_expected_materialization.assert_expected_materialization(self.root, self.expected)",
+          "new": "        return"
+        }
+      ]
+    },
+    {
+      "id": "M4-root-transfer-structural",
+      "category": "positive",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_v3_measurement_runs_one_selected_campaign_but_registers_exact_triple"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "                ccbench_dir=os.fspath(source_context.root),",
+          "new": "                ccbench_dir=os.fspath(stock_root),"
+        }
+      ]
+    },
+    {
+      "id": "M5-consumer-root",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_a1_amended_exact_configure_consumer_M5_M6[root]"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "        if source_token != amended_source_root:",
+          "new": "        if False:"
+        }
+      ]
+    },
+    {
+      "id": "M6-consumer-grammar",
+      "category": "positive",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_a1_amended_exact_configure_consumer_M5_M6[none]"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "    if len(configure_argv) != 10 + len(define_tokens) + (4 if amended_source_root is not None else 0):",
+          "new": "    if len(configure_argv) != 10 + len(define_tokens):"
+        }
+      ]
+    },
+    {
+      "id": "M7-all-records-diagnostic",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_all_records_atomic_and_idempotent",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_base_exception_propagates",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_fallback_and_could_not_run_unchanged",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_preparation_exception_is_local[admission-digest]",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_preparation_exception_is_local[admission-serialize]",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_preparation_exception_is_local[arm-digest]",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_preparation_exception_is_local[path]",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_save_exception_preserves_rejection[directory-fsync]",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_save_exception_preserves_rejection[file-fsync]",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_save_exception_preserves_rejection[replace]",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_save_exception_preserves_rejection[serialize]",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_save_exception_preserves_rejection[write]",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_success_and_omitted_root_have_no_side_effects",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_f4_v3_backoff_gate_calls_real_family_before_measurement_M11[False]",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_f4_v3_backoff_gate_calls_real_family_before_measurement_M11[True]"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "            for value in values:\n                genome = next(g for g in genomes(policy, workload) if g.flags[\"BACKOFF_FIXED\"] == value)",
+          "new": "            for value in values[:1]:\n                genome = next(g for g in genomes(policy, workload) if g.flags[\"BACKOFF_FIXED\"] == value)"
+        }
+      ]
+    },
+    {
+      "id": "M8-amendment-binding",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_a1_amendment_binding_rejects_single_changed_input_M8"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_source.py",
+          "old": "    return all(files.get(path, {}).get(\"working_sha256\") == digest",
+          "new": "    return True or all(files.get(path, {}).get(\"working_sha256\") == digest"
+        }
+      ]
+    }
+  ]
+}

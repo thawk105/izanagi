@@ -1,0 +1,40 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 300,
+  "timeout_seconds": 2400,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "M1-live-prefix",
+      "category": "positive",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/manual_probes/test_t2397_a1_source.py::test_t2397_a1_source"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "                    *([f\"-DCMAKE_PREFIX_PATH={dependency_prefix}\"] if dependency_prefix else []),",
+          "new": "                    *(),"
+        }
+      ]
+    },
+    {
+      "id": "M2-live-materialized-root",
+      "category": "positive",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/manual_probes/test_t2397_a1_source.py::test_t2397_a1_source"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "        source_root = source_root or (repo_root / \"external\" / \"ccbench\").resolve(strict=True)",
+          "new": "        source_root = (repo_root / \"external\" / \"ccbench\").resolve(strict=True)"
+        }
+      ]
+    }
+  ]
+}
