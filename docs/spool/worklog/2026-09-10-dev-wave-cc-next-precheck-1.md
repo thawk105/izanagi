@@ -27,6 +27,16 @@ title: CC次実験の最小run-cardを実装差分ゼロで照合する（新規
   新規proposal生成・dry-run campaign・性能測定は未実施。受入全走は最終commit後に既存waiterで行う。
 - 専用handoffは `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-cc-next-precheck/handoff.md`。
   dev-wave改善候補はなし。改善実装・次wave起動・pushは行わない。
+- 2026-09-10の受入は22464passed/68skipped/23error/2failed、同tip単独再走も
+  213passed/48error/1failed。T1259の実repo Git走査30秒timeoutとworker起動の時間制限で止まった。
+  赤の受領証を発行せず、未landとして保存した。
+- 2026-09-11にユーザーがlandまでの再開を指示。自分起因は修正、非帰属の問題は該当nodeidだけ
+  一時除外し裁定・次タスクへ送ることを明示した。必要なholdはD95 author契約を維持して扱う。
+- main d85bbb211のT1259修正（module snapshot化と実repo直列化）を取り込み、前回失敗した
+  2fileは991663.nqsvで262passed/20.57秒。既存修正により今回の焦点走で赤は残らず、hold追加0。
+  merge後の全史provenanceは9633件、新規0/known56、check_docs/check_codex_agentsもrc0。
+- 独立レビューはblocking所見なし。実repo走査の間接的な負荷影響まで到達不能と断定しないという
+  留保を採用した。記録と逐語は `output/insights/2026-09-11/cc-next-precheck-resume/README.md`。
 
 ## 次の一手差分
 

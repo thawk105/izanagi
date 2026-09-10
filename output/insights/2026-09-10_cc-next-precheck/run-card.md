@@ -132,7 +132,8 @@ checkpointやduplicate cacheを持ち込まない。旧treeの同campaignは非�
 
 - `docs/decisions.md` D95、D1429、D1936項1・2・8・9。
 - `docs/phase3-s4b-runbook.md` §§0–4、`docs/phase3.md` 後続段2・4・5。
-- `output/insights/2026-09-10_paper-methods-ja/implementation.md`。
+- `output/insights/2026-09-10/paper-methods-ja/implementation.md`
+  （2026-09-11再開時に、mainの資料整理後の実在pathへ追従）。
 - `output/insights/2026-09-10_t2581-k2-pin/run-card.md`、同README、worklog(1431)、指定job handoff。
 - `.claude/agents/planner-v4.md`、`coder-v4-autonomous-k2.md`、`critic.md`、`.codex/agents/README.md`。
 - `p3_s4_loop.py`: `planner_context_payload`、`load_proposal_file`、`default_cfg`、
