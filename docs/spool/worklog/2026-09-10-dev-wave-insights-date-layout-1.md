@@ -26,6 +26,7 @@ title: insights の日付別配置と全件閲覧を整備する（branch worktr
 - 変異はanchor7d1194601固定、bnode146でbaseline3pass、3件すべて期待失敗node完全一致、復元完了。
   harness初回のdetached指定漏れは未実走のrc2として残し、新しい出力先と実detachで実行した。
 - 実装commit後の全史provenanceは9444件、新規違反なし（既知台帳は維持）。文書検査とCodex agent検査も通した。
-  自己改善は次の専用commitへ分け、最終受入・local main取り込みを同wave内で継続する。
+  自己改善は {{D:recoverable-failures}} に従い既存必読節へ反映し、専用commitに分けた。
+  早計な終了は {{F:premature-recoverable-stop}}、非NFC読取ログはF728の再発として記録する。
 
 ## 次の一手差分
