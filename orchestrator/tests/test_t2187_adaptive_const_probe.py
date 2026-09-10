@@ -4549,6 +4549,11 @@ def test_policy_performance_artifact_is_rejected_by_both_group_public_paths(
         "module_sha256": {"verifier.py": "b" * 64},
     }
     identity_file_sha256 = "c" * 64
+    pairs = [
+        (workload, slot)
+        for workload in probe.CERT_WORKLOADS
+        for slot in probe.CERT_SLOTS
+    ]
     result_files = [tmp_path / f"result-{index}.json" for index in range(24)]
     with pytest.raises(probe.CertificationReject) as caught:
         probe._group_receipt_payload(
@@ -4561,6 +4566,59 @@ def test_policy_performance_artifact_is_rejected_by_both_group_public_paths(
         )
     assert caught.value.reason == "performance-artifact-contract-rejected"
 
+    cell = probe.CERT_TUNED_CELL
+    axes = probe.CertificationAxes(cell, 48, None)
+    patch_identity = probe._patch_stack_identity()
+    execution_identity = {
+        "driver_sha256": "d" * 64,
+        "pbs_sha256": "e" * 64,
+        "driver_argv": ["t2187_adaptive_const_probe.py", "--mode", "certify"],
+        "repo_status_clean": True,
+    }
+    source_evidence = {
+        "ccbench_commit": probe.CURRENT_PIN,
+        "genome_sha256": "f" * 64,
+        "src_token": "published-source",
+        "source_bytes_sha256": "1" * 64,
+    }
+    genome = probe.genome_for(cell).canonical()
+    prereg_sha256 = probe._certification_prereg_sha256(cell)
+    results = []
+    for path, (workload, slot) in zip(result_files, pairs):
+        path.write_text("{}\n", encoding="utf-8")
+        results.append(
+            {
+                "path": str(path.resolve(strict=True)),
+                "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                **probe._cell_identity(cell),
+                "cell_order": [cell.label],
+                "claim": probe._certification_claim(axes),
+                "backoff_trace": False,
+                "records": probe.CERT_RECORDS,
+                "threads": 48,
+                "extime_s": probe.CERT_EXTIME,
+                "workload": workload,
+                "workload_flags": {
+                    **probe.WORKLOADS[workload],
+                    "ycsb_tuple_num": str(probe.CERT_RECORDS),
+                    "thread_num": "48",
+                    "extime": str(probe.CERT_EXTIME),
+                },
+                "independent_run_slot": slot,
+                "repo_head": "2" * 40,
+                "prereg_sha256": prereg_sha256,
+                "ccbench_commit": probe.PIN_FULL,
+                "ccbench_head": probe.PIN_FULL,
+                **execution_identity,
+                "genome": genome,
+                "source_evidence": source_evidence,
+                "proof_surface": {
+                    "protocol": probe.CERT_PROTOCOL,
+                    "source_snapshot_identity": source_evidence,
+                },
+                **patch_identity,
+            }
+        )
     group = tmp_path / "group.json"
     group.write_text(
         json.dumps(
@@ -4571,11 +4629,31 @@ def test_policy_performance_artifact_is_rejected_by_both_group_public_paths(
                 "attempt_id": "attempt-test",
                 "verifier_identity": identity,
                 "expected_verifier_identity_file_sha256": identity_file_sha256,
-                "driver_sha256": "d" * 64,
-                "pbs_sha256": "e" * 64,
-                "driver_argv": ["probe.py", "--mode", "certify"],
-                "repo_status_clean": True,
-                **probe._cell_identity(probe.CERT_TUNED_CELL),
+                "performance_artifact": {
+                    "path": str(policy.resolve(strict=True)),
+                    "sha256": policy_sha256,
+                },
+                **probe._cell_identity(cell),
+                "cell_order": [cell.label],
+                "claim": probe._certification_claim(axes),
+                "backoff_trace": False,
+                "records": probe.CERT_RECORDS,
+                "threads": 48,
+                "extime_s": probe.CERT_EXTIME,
+                "hostname": "published-host",
+                "prereg_sha256": prereg_sha256,
+                "repo_head": "2" * 40,
+                **patch_identity,
+                "ccbench_commit": probe.PIN_FULL,
+                "ccbench_head": probe.PIN_FULL,
+                "genome": genome,
+                "source_evidence": source_evidence,
+                "proof_surface": {
+                    "protocol": probe.CERT_PROTOCOL,
+                    "source_snapshot_identity": source_evidence,
+                },
+                **execution_identity,
+                "results": results,
             }
         )
         + "\n",
@@ -4584,7 +4662,7 @@ def test_policy_performance_artifact_is_rejected_by_both_group_public_paths(
     with pytest.raises(probe.CertificationReject) as caught:
         probe._validate_published_group(
             group,
-            [],
+            result_files,
             policy,
             policy_sha256,
             "attempt-test",
