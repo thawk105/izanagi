@@ -1,0 +1,40 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 360,
+  "timeout_seconds": 600,
+  "hang_timeout_seconds": 60,
+  "mutations": [
+    {
+      "id": "M1-restore-old-pin",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "PIN = \"511c9538e4e8efa54b45cda62e72389ed3b706ec\"",
+          "new": "PIN = \"028f34d\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_campaign_projection_preserves_other_golden_and_splits_compute"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-restore-seven-digit-format",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+          "old": "if [[ ! \"$campaign_pin\" =~ ^[0-9a-f]{40}$ ]]; then",
+          "new": "if [[ ! \"$campaign_pin\" =~ ^[0-9a-f]{7}$ ]]; then"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_complete_k2_environment_reaches_actual_job_driver_argv"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

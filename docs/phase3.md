@@ -18,6 +18,10 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 
 ## 現行チェックポイント (2026-07-25 更新)
 
+- [x] [T-2514] A-1条件関門の拒否時detail保存を実装 (2026-09-10、D1936項4・D1912)。
+  生成済み全arm recordとadmissionをworkload別raw_rootへ保存し、受理集合・元の拒否・成功経路を維持する。
+  記録 = `output/insights/2026-09-10_t2514-a1-detail/README.md`。
+
 - safe variant loop、軸 onboarding、軸提案のループ内化 (8a) までは成立している。反復の駆動は
   2 種類ある — 主経路 (8a 軸の探索・S 系実験) は依然として**人間がセッション間を運ぶ
   human-supervised loop** であり、無人の進化探索ではない。一方 8c の bounded MVP
@@ -283,6 +287,10 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
   production timeout・走査範囲・判定を維持。全worker合計1回や速度改善の主張ではない。
   根拠は `output/insights/2026-09-10_t2579-recovery/README.md`。
 
+- [x] rulings 項1・2の人間専任解除を記録し、実行場所分類の手順を AI 担当へ整合した
+  (2026-09-10 ユーザー裁定)。T-1998 / T-2557 / T-2267 の測定本体は AI 実行待ちで、
+  担当変更は測定完了・認証範囲の拡大を意味しない。手順は `docs/pegasus-runbook.md` §7.0。
+
 - [x] 本体論文の日本語方法節草稿（2026-09-10 の新規ユーザー執筆依頼）を
   `output/insights/2026-09-10_paper-methods-ja/methods.md` と同 `implementation.md` に作成。
   生成・検証・反例還流・独立測定・選択を対応づけ、実装と評価契約を区別した文書成果であり、
@@ -319,6 +327,10 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
    iteration 5 は budget-walltime (3600s) 入口停止 (D39 決定 2 どおり)。**段 6 へ「未査証 (partial)」として
    inherit。** 実走手順 = `docs/phase3-s4b-runbook.md`。正本 = campaign `p3-s4-loop-s4-autonomous-0b53a387`
    の loop_state.json/whiteboard・`output/insights/2026-07-08_s4b-loopstate-audit.json`。
+   - [x] [T-2581/T-2548/T-2182] D1936項1・2の新規試行pinを完全SHAへ固定し、直接依存期待値を整合。
+     既存verifier v2でK2を1本再投入し、serializable・異常0・1 committedを取得した。
+     新campaignだけの判定で過去campaignは再ラベルしない。実測と検査は
+     `output/insights/2026-09-10_t2581-k2-pin/README.md`。
 5. **(完了 2026-07-09〜07-10) sort-strategy 軸の起動一式** — S2 verify 2 本立て pipeline 配線 (D36 決定 4、
    opt-in = `search_config["verify"]=="legacy+s2"`) / lock 経路 (cc/silo/transaction.cc) の編集面拡張
    (前提 gate = auditor live、同一コミット束ね) / git worktree 隔離 (opt-in) + C1 解消 (D40) / 起動の
