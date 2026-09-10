@@ -24,7 +24,7 @@ review 子を省ける。実装面があれば段 5 の Codex 実装子と fix �
 - 隔離worktreeのdetachは`.sh`2枚(launcher/detach)へ。直に叩くとguard拒否。
 - 複数起点は全隣接区間の異なる正値で判別。
 - 変異harnessはbaseline緑必須。既存赤は根拠を台帳へ書き`--deselect`。
-- submoduleは`python3 tools/dev_wave_submodule_init.py --worktree <ABSOLUTE_WORKTREE>`で再帰初期化する。
+- 全新規worktreeを`python3 tools/dev_wave_submodule_init.py --worktree <ABSOLUTE>`で再帰初期化する。
 - 呼出し規約変更取込は、両親の変更行が非競合でも全呼出しを数える。
 - 段6fixも受理・拒否の含意を2文に分け、通る正例を添える。
 - merge/`add`/commitは親、子は競合解決だけ。
@@ -47,7 +47,7 @@ brief は 10〜30 行で研究前進、scope、確定済みユーザー裁定、
 decisions / archive worklog まで検索し、純増だけ書く。確認前に子を起動しない。受入・実測環境を
 決める（所在=worklog、機体固有情報=runbook）。変更面は分類でなく実アンカー表で渡す。
 
-brief 前に承認済み裁定と引数の前提を実測し、覆す新事実は brief に出して段 4 で再裁定する。模擬/実の差を書き、自己 hash・
+brief 前に承認済み裁定と引数と一次資料の未了項目の前提を実測し、覆す新事実は brief に出して段 4 で再裁定する。模擬/実の差を書き、自己 hash・
 参照・pin は模擬で裁定しない（F29）。コード変更前提は monkeypatch でなく実編集し、`DW-O19` で
 即時復元する。実編集不能なら拒否と模擬差を書く。別 program 起動物は build・環境変数・
 外部 command・注入 seam の実在を棚卸しする。

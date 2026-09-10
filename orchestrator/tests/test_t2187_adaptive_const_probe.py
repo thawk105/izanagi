@@ -129,6 +129,14 @@ COUNTERFACTUAL_COHORT2_TRACE_CELLS = (
     "cw-as-dyn-c2-p1:1:1:1000:2560:10000:9223372036854775807:1:1:4:1:1,"
     "cw-as-dyn-c2-p2:1:1:1000:2560:10000:9223372036854775807:1:1:4:1:2"
 )
+NONMONOTONIC_TRACE_CELLS = (
+    "nm-step0.5:1:0.5:1000:10:0:0:0:100:100:0,"
+    "nm-step1:1:1:1000:10:0:0:0:100:100:0,"
+    "nm-step1-u2560:1:1:1000:2560:0:0:0:100:100:0,"
+    "nm-step2:1:2:1000:10:0:0:0:100:100:0,"
+    "nm-step25:1:25:1000:10:0:0:0:100:100:0,"
+    "nm-step100:1:100:1000:10:0:0:0:100:100:0"
+)
 
 
 SERIAL_TRACE = """\
@@ -2515,6 +2523,51 @@ IZANAGI_BACKOFF_TRACE_SUMMARY v=1 updates=3 retained=3 dropped=0
         with pytest.raises(ValueError):
             probe._parse_backoff_trace(mutated)
 
+    def overflow_record(seq: int) -> str:
+        return (
+            f"IZANAGI_BACKOFF_TRACE v=1 seq={seq} tsc={seq} window_us=1 "
+            "window_commits=1 trigger=0 backoff_before=1 backoff_after=1 "
+            "gradient_sign=0 step_us=1 ceiling_us=1000 ceiling_changed=0 "
+            "parity_branch=0"
+        )
+
+    overflow_stdout = "\n".join(
+        overflow_record(seq) for seq in range(1, 65_537)
+    )
+    overflow_stdout += (
+        "\nIZANAGI_BACKOFF_TRACE_SUMMARY v=1 updates=65537 "
+        "retained=65536 dropped=1\n"
+    )
+    overflow_events, overflow_summary, overflow_directional = (
+        probe._parse_backoff_trace(overflow_stdout, allow_overflow=True)
+    )
+    assert len(overflow_events) == 65_536
+    assert (overflow_events[0]["seq"], overflow_events[-1]["seq"]) == (1, 65_536)
+    assert overflow_summary == {"updates": 65_537, "retained": 65_536, "dropped": 1}
+    assert overflow_directional == {"scored": 0, "successes": 0, "rate": None}
+    del overflow_events
+
+    with pytest.raises(ValueError, match="contiguous from zero"):
+        probe._parse_backoff_trace(overflow_stdout)
+    with pytest.raises(ValueError, match="contiguous from zero"):
+        probe._parse_backoff_trace(overflow_stdout, allow_overflow=False)
+
+    count_drift_stdout = "\n".join(
+        overflow_record(seq) for seq in range(2, 65_537)
+    )
+    count_drift_stdout += (
+        "\nIZANAGI_BACKOFF_TRACE_SUMMARY v=1 updates=65537 "
+        "retained=65535 dropped=2\n"
+    )
+    with pytest.raises(ValueError, match="overflow contract failed"):
+        probe._parse_backoff_trace(count_drift_stdout, allow_overflow=True)
+
+    sequence_drift_stdout = overflow_stdout.replace(
+        "seq=32768 tsc=32768 ", "seq=32769 tsc=32768 ", 1
+    )
+    with pytest.raises(ValueError, match="overflow contract failed"):
+        probe._parse_backoff_trace(sequence_drift_stdout, allow_overflow=True)
+
 
 def test_parse_backoff_trace_accepts_v1_and_exact_v2() -> None:
     v1_record = (
@@ -3056,6 +3109,21 @@ def test_counterfactual_artifacts_record_exact_preregistration_sha_only_on_exact
         reps_per_job=1,
         extime=3,
     )
+    nonmonotonic = probe._artifact_contract_metadata(
+        backoff_trace=True,
+        cells_text=probe.NONMONOTONIC_TRACE_CELLS_TEXT,
+        workloads_text="write-heavy",
+        threads_text="48",
+        rep_index=0,
+        reps_per_job=1,
+        extime=3,
+        backoff_trace_terminal_us=0,
+    )
+    assert nonmonotonic == {
+        "schema_version": probe.TRACE_SCHEMA_VERSION,
+        "not_certified": probe.DIAGNOSTIC_NOT_CERTIFIED,
+    }
+    assert "counterfactual_preregistration" not in nonmonotonic
     for field, drift in (
         ("backoff_trace", False),
         ("cells_text", probe.COUNTERFACTUAL_TRACE_CELLS_TEXT[:-1] + "1"),
@@ -3513,14 +3581,45 @@ def test_backoff_trace_mode_requires_exact_diagnostic_axes(tmp_path: Path) -> No
                 args, cells, workloads, threads
             )
 
+    nonmonotonic_argv = list(argv)
+    for option, exact in (
+        ("--cells", NONMONOTONIC_TRACE_CELLS),
+        ("--workloads", "write-heavy"),
+        ("--threads", "48"),
+    ):
+        nonmonotonic_argv[nonmonotonic_argv.index(option) + 1] = exact
+    args = parser.parse_args(nonmonotonic_argv)
+    probe._validate_backoff_trace_contract(
+        args,
+        probe.parse_cells(args.cells),
+        probe._parse_workloads(args.workloads),
+        probe._parse_threads(args.threads),
+    )
+    for option, drift in (
+        ("--workloads", "balanced"),
+        ("--threads", "24"),
+        ("--extime", "4"),
+    ):
+        changed = list(nonmonotonic_argv)
+        changed[changed.index(option) + 1] = drift
+        args = parser.parse_args(changed)
+        with pytest.raises(ValueError, match="requires exact"):
+            probe._validate_backoff_trace_contract(
+                args,
+                probe.parse_cells(args.cells),
+                probe._parse_workloads(args.workloads),
+                probe._parse_threads(args.threads),
+            )
 
-def test_backoff_trace_contract_accepts_only_three_exact_cell_literals(
+
+def test_backoff_trace_contract_accepts_only_four_exact_cell_literals(
     tmp_path: Path,
 ) -> None:
     parser = probe._argument_parser()
 
     def inputs(
         cells_text: str,
+        workloads_text: str = "write-heavy,balanced,read-heavy",
         threads_text: str = "24,48",
         *,
         extime: int = 3,
@@ -3532,7 +3631,7 @@ def test_backoff_trace_contract_accepts_only_three_exact_cell_literals(
                 "--cells",
                 cells_text,
                 "--workloads",
-                "write-heavy,balanced,read-heavy",
+                workloads_text,
                 "--threads",
                 threads_text,
                 "--reps-per-job",
@@ -3552,13 +3651,38 @@ def test_backoff_trace_contract_accepts_only_three_exact_cell_literals(
             probe._parse_threads(args.threads),
         )
 
-    for exact, extime, terminal_us in (
-        (TRACE_CELLS, 3, 0),
-        (COUNTERFACTUAL_TRACE_CELLS, 3, 0),
-        (COUNTERFACTUAL_COHORT2_TRACE_CELLS, 6, 5_000_000),
+    assert tuple(probe.BACKOFF_TRACE_CONTRACTS) == (
+        probe.TRACE_CELLS_TEXT,
+        probe.COUNTERFACTUAL_TRACE_CELLS_TEXT,
+        probe.COUNTERFACTUAL_COHORT2_TRACE_CELLS_TEXT,
+        probe.NONMONOTONIC_TRACE_CELLS_TEXT,
+    )
+    for exact, workloads, threads, extime, terminal_us in (
+        (TRACE_CELLS, "write-heavy,balanced,read-heavy", "24,48", 3, 0),
+        (
+            COUNTERFACTUAL_TRACE_CELLS,
+            "write-heavy,balanced,read-heavy",
+            "24,48",
+            3,
+            0,
+        ),
+        (
+            COUNTERFACTUAL_COHORT2_TRACE_CELLS,
+            "write-heavy,balanced,read-heavy",
+            "24,48",
+            6,
+            5_000_000,
+        ),
+        (NONMONOTONIC_TRACE_CELLS, "write-heavy", "48", 3, 0),
     ):
         probe._validate_backoff_trace_contract(
-            *inputs(exact, extime=extime, terminal_us=terminal_us)
+            *inputs(
+                exact,
+                workloads,
+                threads,
+                extime=extime,
+                terminal_us=terminal_us,
+            )
         )
 
     counterfactual_items = COUNTERFACTUAL_TRACE_CELLS.split(",")
@@ -3566,12 +3690,21 @@ def test_backoff_trace_contract_accepts_only_three_exact_cell_literals(
         inputs(COUNTERFACTUAL_TRACE_CELLS[:-1] + "1"),
         inputs(",".join((counterfactual_items[0], counterfactual_items[2]))),
         inputs(TRACE_CELLS + "," + COUNTERFACTUAL_TRACE_CELLS),
-        inputs(COUNTERFACTUAL_TRACE_CELLS, "24"),
+        inputs(COUNTERFACTUAL_TRACE_CELLS, threads_text="24"),
         inputs(COUNTERFACTUAL_COHORT2_TRACE_CELLS, extime=3),
         inputs(
             COUNTERFACTUAL_COHORT2_TRACE_CELLS,
             extime=6,
             terminal_us=4_999_999,
+        ),
+        inputs(NONMONOTONIC_TRACE_CELLS),
+        inputs(NONMONOTONIC_TRACE_CELLS, "write-heavy", "24"),
+        inputs(NONMONOTONIC_TRACE_CELLS, "write-heavy", "48", extime=4),
+        inputs(
+            NONMONOTONIC_TRACE_CELLS,
+            "write-heavy",
+            "48",
+            terminal_us=1,
         ),
         (
             inputs(TRACE_CELLS)[0],
@@ -3585,10 +3718,54 @@ def test_backoff_trace_contract_accepts_only_three_exact_cell_literals(
             probe._validate_backoff_trace_contract(*values)
 
     pbs_text = PBS.read_text(encoding="utf-8")
-    assert '"$TRACE_CELLS_RAW"|"$COUNTERFACTUAL_TRACE_CELLS_RAW")' in pbs_text
-    assert '"$COUNTERFACTUAL_COHORT2_TRACE_CELLS_RAW")' in pbs_text
-    assert "TRACE_EXTIME=3" in pbs_text
-    assert "TRACE_EXTIME=6" in pbs_text
+    case_start = pbs_text.index('case "$CELLS_RAW" in')
+    case_block = pbs_text[case_start:pbs_text.index("  esac", case_start)]
+    pbs_contracts = {}
+    branches = re.finditer(
+        r'^    (?P<patterns>(?:"\$[A-Z0-9_]+"\|?)+)\)\n'
+        r"(?P<body>.*?)(?=^      ;;$)",
+        case_block,
+        re.MULTILINE | re.DOTALL,
+    )
+    for branch in branches:
+        names = re.findall(r'"\$([A-Z0-9_]+)"', branch.group("patterns"))
+        assignments = dict(
+            re.findall(
+                r"^      (TRACE_(?:WORKLOADS_RAW|THREADS_RAW|EXTIME))=(\S+)$",
+                branch.group("body"),
+                re.MULTILINE,
+            )
+        )
+        assert set(assignments) == {
+            "TRACE_WORKLOADS_RAW",
+            "TRACE_THREADS_RAW",
+            "TRACE_EXTIME",
+        }
+        axes = (
+            tuple(assignments["TRACE_WORKLOADS_RAW"].split("+")),
+            tuple(
+                int(value)
+                for value in assignments["TRACE_THREADS_RAW"].split("+")
+            ),
+            int(assignments["TRACE_EXTIME"]),
+        )
+        for name in names:
+            pbs_contracts[name] = axes
+
+    python_contract_by_raw = {
+        "TRACE_CELLS_RAW": probe.TRACE_CELLS_TEXT,
+        "COUNTERFACTUAL_TRACE_CELLS_RAW": probe.COUNTERFACTUAL_TRACE_CELLS_TEXT,
+        "COUNTERFACTUAL_COHORT2_TRACE_CELLS_RAW": (
+            probe.COUNTERFACTUAL_COHORT2_TRACE_CELLS_TEXT
+        ),
+        "NONMONOTONIC_TRACE_CELLS_RAW": probe.NONMONOTONIC_TRACE_CELLS_TEXT,
+    }
+    assert set(pbs_contracts) == set(python_contract_by_raw)
+    for raw_name, cells_text in python_contract_by_raw.items():
+        _cells, workloads, threads, extime, _terminal_us = (
+            probe.BACKOFF_TRACE_CONTRACTS[cells_text]
+        )
+        assert pbs_contracts[raw_name] == (workloads, threads, extime)
     assert "CCBENCH_BACKOFF_TRACE_TERMINAL_US=5000000" in pbs_text
 
 
@@ -3609,12 +3786,16 @@ def test_two_layer_trace_literals_are_byte_identical() -> None:
     assert probe.COUNTERFACTUAL_COHORT2_TRACE_CELLS_TEXT.replace(",", "+") == raw(
         "COUNTERFACTUAL_COHORT2_TRACE_CELLS_RAW"
     )
+    assert probe.NONMONOTONIC_TRACE_CELLS_TEXT.replace(",", "+") == raw(
+        "NONMONOTONIC_TRACE_CELLS_RAW"
+    )
     assert re.findall(
         r"^([A-Z0-9_]*TRACE_CELLS_RAW)=", pbs_text, re.MULTILINE
     ) == [
         "TRACE_CELLS_RAW",
         "COUNTERFACTUAL_TRACE_CELLS_RAW",
         "COUNTERFACTUAL_COHORT2_TRACE_CELLS_RAW",
+        "NONMONOTONIC_TRACE_CELLS_RAW",
     ]
 
 

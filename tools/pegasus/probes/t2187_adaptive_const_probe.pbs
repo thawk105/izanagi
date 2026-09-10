@@ -52,6 +52,7 @@ POLICY_PERFORMANCE_SEEDS=(
   13478069633953621058
 )
 COUNTERFACTUAL_COHORT2_TRACE_CELLS_RAW='cw-as-dyn-c2-p0:1:1:1000:2560:10000:9223372036854775807:1:1:4:1:0+cw-as-dyn-c2-p1:1:1:1000:2560:10000:9223372036854775807:1:1:4:1:1+cw-as-dyn-c2-p2:1:1:1000:2560:10000:9223372036854775807:1:1:4:1:2'
+NONMONOTONIC_TRACE_CELLS_RAW='nm-step0.5:1:0.5:1000:10:0:0:0:100:100:0+nm-step1:1:1:1000:10:0:0:0:100:100:0+nm-step1-u2560:1:1:1000:2560:0:0:0:100:100:0+nm-step2:1:2:1000:10:0:0:0:100:100:0+nm-step25:1:25:1000:10:0:0:0:100:100:0+nm-step100:1:100:1000:10:0:0:0:100:100:0'
 CERT_TUNED_CELL='tuned:1:1:1000:2560'
 CERT_DYNAMIC_CELL='cw-as-dyn:1:1:1000:2560:10000:10240:1:1:4:1'
 CERT_COHORT2_POLICY1_CELL='cw-as-dyn-c2-p1:1:1:1000:2560:10000:9223372036854775807:1:1:4:1:1'
@@ -218,19 +219,29 @@ fi
 if [[ "$BACKOFF_TRACE" == 1 ]]; then
   case "$CELLS_RAW" in
     "$TRACE_CELLS_RAW"|"$COUNTERFACTUAL_TRACE_CELLS_RAW")
+      TRACE_WORKLOADS_RAW=write-heavy+balanced+read-heavy
+      TRACE_THREADS_RAW=24+48
       TRACE_EXTIME=3
       ;;
     "$COUNTERFACTUAL_COHORT2_TRACE_CELLS_RAW")
+      TRACE_WORKLOADS_RAW=write-heavy+balanced+read-heavy
+      TRACE_THREADS_RAW=24+48
       TRACE_EXTIME=6
       CCBENCH_BACKOFF_TRACE_TERMINAL_US=5000000
+      ;;
+    "$NONMONOTONIC_TRACE_CELLS_RAW")
+      TRACE_WORKLOADS_RAW=write-heavy
+      TRACE_THREADS_RAW=48
+      TRACE_EXTIME=3
       ;;
     *)
       echo "backoff trace mode requires one exact diagnostic cell set" >&2
       exit 2
       ;;
   esac
-  if [[ "$WORKLOADS_RAW" != write-heavy+balanced+read-heavy ||
-        "$THREADS_RAW" != 24+48 || "$EXTIME" != "$TRACE_EXTIME" ]]; then
+  if [[ "$WORKLOADS_RAW" != "$TRACE_WORKLOADS_RAW" ||
+        "$THREADS_RAW" != "$TRACE_THREADS_RAW" ||
+        "$EXTIME" != "$TRACE_EXTIME" ]]; then
     echo "backoff trace mode requires exact axes and cell-specific extime" >&2
     exit 2
   fi

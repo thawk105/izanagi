@@ -202,7 +202,7 @@ _SYNTHETIC_DW_C01_SECTION = """## DW-C01 — 実測で是正した作法
 - 隔離worktreeのdetachは`.sh`2枚(launcher/detach)へ。直に叩くとguard拒否。
 - 複数起点は全隣接区間の異なる正値で判別。
 - 変異harnessはbaseline緑必須。既存赤は根拠を台帳へ書き`--deselect`。
-- submoduleは`python3 tools/dev_wave_submodule_init.py --worktree <ABSOLUTE_WORKTREE>`で再帰初期化する。
+- 全新規worktreeを`python3 tools/dev_wave_submodule_init.py --worktree <ABSOLUTE>`で再帰初期化する。
 - 呼出し規約変更取込は、両親の変更行が非競合でも全呼出しを数える。
 - 段6fixも受理・拒否の含意を2文に分け、通る正例を添える。
 - merge/`add`/commitは親、子は競合解決だけ。
@@ -9387,7 +9387,7 @@ def test_normative_exact_section_contract_is_handwritten_and_complete():
     assert len(_SYNTHETIC_DW_O25_SECTION.encode("utf-8")) == 648
     assert len(_SYNTHETIC_DW_O26_SECTION.encode("utf-8")) == 946
     assert len(_SYNTHETIC_DW_O28_SECTION.encode("utf-8")) == 983
-    assert len(_SYNTHETIC_DW_C01_SECTION.encode("utf-8")) == 995
+    assert len(_SYNTHETIC_DW_C01_SECTION.encode("utf-8")) == 994
     assert len("- Web検索は必要な段だけ明示して使う。\n".encode("utf-8")) == 54
     assert check_docs.DEV_WAVE_EXACT_VISIBLE_SECTIONS == {
         (".claude/commands/dev-wave.md", "入力と開始"):
@@ -9417,7 +9417,7 @@ def test_normative_exact_section_contract_is_handwritten_and_complete():
     }
     assert len(check_docs.DEV_WAVE_EXACT_VISIBLE_SECTIONS[
         ("docs/dev-wave/core.md", "DW-C01 — 実測で是正した作法")
-    ].encode("utf-8")) == 996
+    ].encode("utf-8")) == 995
 
 
 def test_dw_o18_exact_section_pin_accepts_synthetic_fixture():

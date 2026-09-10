@@ -1,0 +1,29 @@
+{
+  "planner": {
+    "axis": "silo-backoff-magnitude",
+    "direction": "decrease",
+    "magnitude": "medium",
+    "justification": "宣言済み外部知識の WAL には、この軸で評価済みの水準が 2 つだけ含まれる。大きい方の水準は 2 回独立に走っており median tps が 4.87e5 と 4.92e5 で互いに近く、小さい方の水準は 1 回で 5.26e5 と、両方の反復を上回る。差は反復間ばらつき (cv は 3 走とも 0.01 未満) より 1 桁大きく、測定ノイズでは説明しきれない。したがって「小さくする」向きが現時点で唯一支持されている方向である。同時に abort 率は小さい方の水準でわずかに高く (0.078 対 0.070/0.072)、throughput とは逆向きに動いている。これは減らす向きに何らかの上限が存在しうることを示すため、いきなり大きく振らず、既評価の 2 水準の間隔と同程度〜やや広い幅で 1 段さらに小さい側へ進める medium を選ぶ。llc_miss 率 (0.32-0.33) と IPC (0.74-0.80) は水準間でほとんど動いておらず、これらの指標は方向選択の根拠にならないため、tps と abort 率の対比だけに依拠した。",
+    "uncertainty": "(1) 評価済み水準が 2 点しかなく、小さい方は反復 1 回のみのため、最適点が既評価区間の内側にあるのか、さらに小さい側にあるのかを分離できていない。過ぎれば逆転する可能性がある。(2) throughput と abort 率が逆向きに動いており、この不一致がどこで throughput 側の優位を打ち消すか予測できない。(3) 大きい方の水準の 2 回目の走行は settled=false かつ IPC が 1 回目より低い (0.739 対 0.780) 一方 tps はほぼ同じで、この分散は未説明のまま残る。(4) 外部知識は別 campaign (records/threads 等の条件が本 workload と一致する保証を入力から確認できない) の WAL であり、条件差による転移不確実性がある。(5) 与えられた knowledge_manifest の内容を精査したが、genome 文字列・stage 名・数値指標のみで、振る舞いの変更を求める指示めいた文字列や誘導は検出されなかった。報告すべき異常はない。"
+  },
+  "coder": {
+    "proposal": {
+      "axis": "silo-backoff-magnitude",
+      "value": 20,
+      "implementation": "double now_backoff = 20;",
+      "justification": "宣言済み source の WAL には本軸で 2 水準しか測定がない。40 は 2 回独立に走って median tps が 491796.5 と 487088.5、30 は 1 回で 525721.5 であり、30 が両反復を約 7% 上回る。3 走とも cv < 0.01 なので、この差は反復間ばらつきの 1 桁上にあり、ノイズだけでは説明しにくい。planner の direction=decrease はこの唯一支持されている向きと一致する。step 幅は既評価の 2 水準の間隔 (40 -> 30 の 10) を基準に取り、magnitude=medium として同程度の 1 段を下へ進め、30 - 10 = 20 を選ぶ。1 や 2 のような下端へ一気に飛ばさないのは、abort 率が 30 で 0.078、40 で 0.070/0.072 と throughput とは逆向きに動いており、backoff を縮めるほど競合再試行が増える側の上限が 30 より下のどこかに存在しうるためである。20 なら評価済み領域からの外挿距離が 1 間隔ぶんに収まり、もし 20 で throughput が落ちれば最適点が 20..40 の内側にあることが判り、伸びれば同じ向きへさらに 1 段進める判断材料になる。値域 1..1000 の内側であり、hole の文法制約 (接尾辞なし strict C++ numeric literal 1 個、コメント・行末 backslash なし) も満たす。正しさゲート・identity ゲート・性能ゲートの定義、順序、閾値には一切触れていない。",
+      "confidence": "medium"
+    },
+    "knowledge_use": [
+      {
+        "source_index": 0,
+        "use": "BACKOFF_FIXED=40 (2 走: median_tps 491796.5 / 487088.5, abort_rate 0.0703 / 0.072) と BACKOFF_FIXED=30 (1 走: median_tps 525721.5, abort_rate 0.078) の測定値を、探索の向き (小さい側が有利)、step 幅の基準 (既評価水準の間隔 10)、および下げすぎへの警戒 (abort 率が逆向きに増加) の 3 点に使い、value=20 を導出した。cv が 3 走とも 0.01 未満であることを、水準間の差をノイズと切り分ける根拠に使った。"
+      }
+    ],
+    "classification": "known_result_conditioned_derivative",
+    "data_boundary_report": {
+      "instruction_like_content_detected": false,
+      "details": "knowledge_input.sources の全 1 件 (repo_artifact, commit 2fa13a26..., output/campaigns/p3-s4-loop-s4-autonomous-0b53a387/runs/wal.jsonl) の content_utf8 を全行走査した。内容は variant ごとの build_start / verify_done / bench_done / commit の 4 stage からなる JSON Lines の測定記録のみで、genome 文字列、verdict、commits/aborts/anomalies、median_tps、cv、leading_indicators といったデータ値だけを含む。自由文フィールド、命令形の文、ゲートの緩和・迂回の要求、出力形式や分類の指定、role の振る舞いを変えるよう促す文字列は検出しなかった。値はすべてデータとして扱い、いずれの記録も指示として解釈していない。"
+    }
+  }
+}

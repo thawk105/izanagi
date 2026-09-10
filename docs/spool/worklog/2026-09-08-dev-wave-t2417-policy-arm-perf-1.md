@@ -23,7 +23,8 @@ policy 腕 (p0 / p1 / p2) の trace 無効な性能を、腕と job 内時刻の
 反復数は検出力から決めた ({{D:policy-arm-block-design}})。
 
 **事前登録した「効果なし」の予測が、逆向きに反証された。** read-heavy は abort がほぼ無いので
-向きの選択は効かないと予測したが、実測では read-heavy こそ効果が最大で 42 threads で +190% だった。
+向きの選択は効かないと予測したが、実測では read-heavy でも 42 threads で +190% だった。
+全24点の最大は balanced・30 threads の +249% である。回収時に表との不一致を訂正した。
 結果を見てから予測を書いていれば、この誤りは記録に残らなかった。3 腕はいずれも未認証であり、
 成果物は headline と採用判断から機械的に隔離されている。
 
@@ -47,6 +48,10 @@ policy 腕 (p0 / p1 / p2) の trace 無効な性能を、腕と job 内時刻の
 また codex の sandbox 子が共有 Git 管理領域へ書けず `git merge` を実行できないことを、
 子を 1 本無駄にしてから知った。以後は親が merge を開始して競合中の file を子へ渡す形にした。
 
+**2026-09-10 の回収時点の裁定を反映する。** D1865/D1866とT-2265の別条件11 groupの部分認証・
+費用打切りの後、最新裁定の項28は追加認証の残余を見送りとした。本18 blockの認証へ転用しない。
+480 request案を新しい裁定待ちとして起票せず、未提供の自動撤回機構も今回の追加実装・新規タスクにしない。
+
 ## 次の一手差分
 
 ### 完了
@@ -58,13 +63,6 @@ policy 腕 (p0 / p1 / p2) の trace 無効な性能を、腕と job 内時刻の
 
 ### 新規
 
-- {{T:policy-arm-serializability-certification}} **P1・ユーザー裁定待ち**: policy 腕の直列性認証。
-  現行の受理集合は 2 cell だけで 3 腕を受け付けず、seed は certify と併用が明示拒否される。
-  現行の identity 束縛のまま全 identity を認証すると 20 identity × 24 request = 480 request。
-  要否と受理集合の改訂を諮る。
-- {{T:policy-arm-withdrawal-mechanism}} **P2・新規**: 未認証腕の性能を撤回する機構の 4 点
-  (policy 腕を受ける verifier、anomaly の受領証、成果物への束縛、解析または公表 consumer が
-  読む撤回 field)。揃うまで自動撤回は有効化しない。
 - {{T:itt-trace-contract-seed-gap}} **P2・新規**: 既存 ITT の trace 契約が seed を検査せず、
   producer が受理して束縛を付けた成果物を offline consumer が拒否する状態を作れる。
   本 wave の変更が作った欠陥ではないので scope 外とした。

@@ -1287,6 +1287,21 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
   受理規則にしない」境界を維持する。block record 側の検査は現に効いている。
   再訪条件 = 未終端ジョブの部分結果が集約へ入った実害 1 件。
 
+- [T-2028] 軸 3 の登録済み検索の実行 — 理由: D1931。
+  完走して得られるものの上限が低く (7.7.3)、費用は live preflight だけで外部 request 1929 本・
+  約 19.5 時間、主目的の CC 自動合成を 1 歩も進めない。軸 3 は `RW0` 据え置きで
+  世界の不在を主張しない。凍結物・登録 seal・実装は残すので、再訪条件が成立すれば同じ登録から始められる。
+- [T-2567] 軸 3 の resolver と control 評価器の実装 — 理由: 走らせない決定
+  (D1931) により前提が消えた。実装しても完走で得られるものの
+  上限は変わらない。
+- [T-2568] DBLP 題名 lookup 5 本の意味的 amendment — 理由: 同上。走らせないので
+  anchor 到達性を閉じる必要が無い。
+- [T-2569] 軸 3 の未確定 attempt intent の回復強度の裁定 — 理由: 同上。走行が起きないので
+  再開の強度を今決める理由が無い。実装済みの範囲 (通信失敗は in-process で処理し
+  未確定 intent を残さない) はそのまま残る。
+- [T-2570] 軸 3 transport の本体 byte 上限と wall-clock 上限の裁定 — 理由: 同上。
+  socket timeout 30 秒だけが停滞を縛る状態のままとし、走らせる決定が出たときに再訪する。
+
 ### プロセス文書系
 
 - [T-040] **CLAUDE.md 作業手順 5 への provenance pointer 配線** (B-032, 出所 `docs/archive/worklog-phase3-0702-0713.md`) — hot path への provenance pointer を承認し現行導線に無い時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
@@ -2730,6 +2745,11 @@ mutation 8/8 を閉じたため、一括 downshift はせず、観測→制限�
   いずれも T-180 段 3 / 段 6 で real と裁定したが scope 外とした所見。
 
 ### 裁定・完了記録
+
+- [T-2417] **(完了 2026-09-10) policy 腕の既存18 blockの性能解析** — 全6 permutationの
+  登録済み比較を回収し、H1 accepted / H2 rejected / H3 rejectedを再確認した。3腕は未認証で、
+  認証拡大・headline昇格は含めない (D1814)。正本は
+  `output/insights/2026-09-08_t2417-policy-arm-performance/README.md`。
 
 - [T-191] **(完了 2026-07-30) Codex cleanup-branches Skill 移植** —
   `.agents/skills/cleanup-branches/` に Claude command を共通 dispatcher として再利用する薄い
