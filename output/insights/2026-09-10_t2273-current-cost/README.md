@@ -118,3 +118,21 @@ pluginは親helperを包むだけで子Python内部は観測しない。上書�
 記録後の最終受入は共通launcherのreceiptを権威とする。焦点5nodeを受入全走とは呼ばない。
 稼働T-2515のhandoffとbranchを起動時に照合し、t1259/conftest・較正変更は編集していない。
 改善候補はhandoffに記録するだけで、skill改善実装・次wave起動・pushは行わない。
+
+### 最終受入の再走経緯
+
+初回投入は親の所有指定が共有docs/phase3.md全体を含んだため、mainの別節追加を
+owned-path-overlapとして実走前に拒否した。所有検査を外さず、固定mainを通常mergeして解消した。
+
+実走した次の受入（tip `70dec646b`、run `f1374cb03852013baf8dccbb20c9b301`）は
+22473passed / 68skipped / 2errorで赤だった。shard所要は548.105 / 223.316 / 236.631秒、
+shard-0の最大占有415.846秒、最後1workerのtail5.067秒。これを改善効果とは扱わない。
+2errorは所有外t1259の`test_pbs_early_ulimit_failure_emits_one_prefixed_result`と
+`test_repo_unchanged_claim_compares_target_content_digests`の共通setupで、
+`git ls-files --others --exclude-standard -z`が30秒timeoutしたものだった。
+対象test/probe/conftestはmainとbyte同一、今回の文書内容を判定するassertionにも到達していない。
+ただしrepo走査なので記録量や同時負荷の間接的影響まで否定するものではない。
+
+同tipでt1259ファイルをtools/run_tests.py経由で1回単独再走し、**51passed/rc0、484.16秒**。
+timeoutは再現しなかった。DW-O18に従い検査を変更・除外せず受入を再走する。
+その間にlandしたT-2581のmainは固定SHAで通常mergeした。t1259/conftestの編集は0のまま。
