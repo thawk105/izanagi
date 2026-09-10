@@ -1,0 +1,241 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://izanagi.invalid/schemas/axis_b5_search_live_preflight.schema.json",
+  "title": "Izanagi Axis B5 live anchor lookup preflight",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "document_type",
+    "registration_commit",
+    "registration_seal_sha256",
+    "registration_seal",
+    "transport_policy",
+    "expected_member_count",
+    "exact_member_set",
+    "lookups",
+    "passed",
+    "axis_status",
+    "may_start_run"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "izanagi-axis-b5-live-preflight/v1"
+    },
+    "document_type": {
+      "const": "live_preflight"
+    },
+    "registration_commit": {
+      "$ref": "#/definitions/commit"
+    },
+    "registration_seal_sha256": {
+      "$ref": "#/definitions/sha256"
+    },
+    "registration_seal": {
+      "$ref": "#/definitions/registration_seal"
+    },
+    "transport_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "timeout_s",
+        "user_agent",
+        "request_interval_s",
+        "redirect_policy"
+      ],
+      "properties": {
+        "timeout_s": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "user_agent": {
+          "type": "string",
+          "minLength": 1
+        },
+        "request_interval_s": {
+          "type": "number",
+          "minimum": 0
+        },
+        "redirect_policy": {
+          "const": "do-not-follow"
+        }
+      }
+    },
+    "expected_member_count": {
+      "const": 30
+    },
+    "exact_member_set": {
+      "type": "boolean"
+    },
+    "lookups": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/lookup"
+      }
+    },
+    "passed": {
+      "type": "boolean"
+    },
+    "axis_status": {
+      "enum": ["未完走", "preflight-passed"]
+    },
+    "may_start_run": {
+      "type": "boolean"
+    }
+  },
+  "definitions": {
+    "commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "nullable_string": {
+      "anyOf": [
+        {"type": "string"},
+        {"type": "null"}
+      ]
+    },
+    "header": {
+      "type": "array",
+      "items": [
+        {"type": "string", "minLength": 1},
+        {"type": "string"}
+      ],
+      "additionalItems": false,
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "git_blob", "mode", "bytes", "sha256"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+        },
+        "git_blob": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "mode": {"enum": ["100644", "100755", "120000"]},
+        "bytes": {"type": "integer", "minimum": 0},
+        "sha256": {"$ref": "#/definitions/sha256"}
+      }
+    },
+    "seal_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "provisional", "includes", "excludes", "renewal_trigger"],
+      "properties": {
+        "kind": {"const": "leaf-executor-provisional"},
+        "provisional": {"const": true},
+        "includes": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "registration-preflight",
+              "anchor-lookup-preflight",
+              "leaf-response-evaluator"
+            ]
+          },
+          "minItems": 3,
+          "maxItems": 3,
+          "uniqueItems": true
+        },
+        "excludes": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "checkpoint",
+              "resume",
+              "axis-aggregate",
+              "control-firing",
+              "supplemental-anchor-stream-execution"
+            ]
+          },
+          "minItems": 5,
+          "maxItems": 5,
+          "uniqueItems": true
+        },
+        "renewal_trigger": {"const": "runner-bytes-change-for-checkpoint-or-resume"}
+      }
+    },
+    "registration_seal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "document_type", "registration_commit", "catalog_sha256", "seal_scope", "files"],
+      "properties": {
+        "schema_version": {"const": "izanagi-axis-b5-registration-seal/v1"},
+        "document_type": {"const": "registration_seal"},
+        "registration_commit": {"$ref": "#/definitions/commit"},
+        "catalog_sha256": {"const": "7eb8385e35bd24edac8a227a72ba5bc6b568ca8bc7cac2c8250af8b4ea4c346f"},
+        "seal_scope": {"$ref": "#/definitions/seal_scope"},
+        "files": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "#/definitions/file"}
+        }
+      }
+    },
+    "observed_shape": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "arxiv_entry_count",
+        "arxiv_total_results",
+        "dblp_total",
+        "dblp_matching_doi_count",
+        "json_root_type",
+        "parse_error"
+      ],
+      "properties": {
+        "arxiv_entry_count": {"anyOf": [{"type": "integer", "minimum": 0}, {"type": "null"}]},
+        "arxiv_total_results": {"anyOf": [{"type": "integer", "minimum": 0}, {"type": "null"}]},
+        "dblp_total": {"anyOf": [{"type": "integer", "minimum": 0}, {"type": "null"}]},
+        "dblp_matching_doi_count": {"anyOf": [{"type": "integer", "minimum": 0}, {"type": "null"}]},
+        "json_root_type": {"$ref": "#/definitions/nullable_string"},
+        "parse_error": {"$ref": "#/definitions/nullable_string"}
+      }
+    },
+    "lookup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "anchor_id",
+        "index",
+        "control_id",
+        "request_url",
+        "classification",
+        "status",
+        "response_headers",
+        "content_type",
+        "response_byte_count",
+        "body_sha256",
+        "final_url",
+        "transport_error",
+        "registered_openalex_work_id",
+        "observed_index_work_id",
+        "observed_shape"
+      ],
+      "properties": {
+        "anchor_id": {"type": "string", "pattern": "^G[123]-[0-9]{2}$"},
+        "index": {"enum": ["arxiv", "openalex", "dblp"]},
+        "control_id": {"type": "string", "pattern": "^B5-ANC-G[123]-[0-9]{2}@(arxiv|openalex|dblp)$"},
+        "request_url": {"type": "string", "pattern": "^https://(export\\.arxiv\\.org|api\\.openalex\\.org|dblp\\.org)/"},
+        "classification": {"enum": ["収録", "非収録", "不達", "unclassified"]},
+        "status": {"anyOf": [{"type": "integer", "minimum": 100, "maximum": 599}, {"type": "null"}]},
+        "response_headers": {"type": "array", "items": {"$ref": "#/definitions/header"}},
+        "content_type": {"$ref": "#/definitions/nullable_string"},
+        "response_byte_count": {"type": "integer", "minimum": 0},
+        "body_sha256": {"$ref": "#/definitions/sha256"},
+        "final_url": {"$ref": "#/definitions/nullable_string"},
+        "transport_error": {"$ref": "#/definitions/nullable_string"},
+        "registered_openalex_work_id": {"$ref": "#/definitions/nullable_string"},
+        "observed_index_work_id": {"$ref": "#/definitions/nullable_string"},
+        "observed_shape": {"$ref": "#/definitions/observed_shape"}
+      }
+    }
+  }
+}

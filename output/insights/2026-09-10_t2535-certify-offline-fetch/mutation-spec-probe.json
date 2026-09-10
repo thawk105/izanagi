@@ -1,0 +1,134 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 180,
+  "timeout_seconds": 2400,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "M1-drop-fully-disconnected",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "old": "  -DFETCHCONTENT_FULLY_DISCONNECTED=ON\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-mimalloc-source-dir-points-elsewhere",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "old": "\"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=$FETCHCONTENT_SOURCE_ROOT/mimalloc-src\"",
+          "new": "\"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=$FETCHCONTENT_SOURCE_ROOT/absent-src\""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-drop-pristine-verifier-call",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "old": "_verify_pristine_floor_dependency_sources(\n    Path(sys.argv[1]), repo_root=Path(sys.argv[2]),\n)\n",
+          "new": "pass\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-copy-only-masstree",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "old": "for third_party_name in masstree mimalloc googletest; do\n  third_party_copy_rc=0",
+          "new": "for third_party_name in masstree; do\n  third_party_copy_rc=0"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-couple-source-root-into-base-dir",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "old": "FETCHCONTENT_BASE_DIR=\"$TMPDIR/fetchcontent-base\"",
+          "new": "FETCHCONTENT_BASE_DIR=\"$TMPDIR/fetchcontent-src\""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-drop-staging-root-structure-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "old": "if [[ \"$THIRD_PARTY_SOURCE_ROOT\" != /* \\\n      || ! -d \"$THIRD_PARTY_SOURCE_ROOT\" \\\n      || -L \"$THIRD_PARTY_SOURCE_ROOT\" ]]; then",
+          "new": "if false; then"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8-condition-gate-slice-skips-offline-tokens",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "old": "  for argument in \"${configure_argv[@]:5}\"; do",
+          "new": "  for argument in \"${configure_argv[@]:12}\"; do"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9-configure-use-site-truncates-argv",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "old": "timeout 900 \"${configure_argv[@]}\" >\"$ATTEMPT_DIR/configure.stdout\"",
+          "new": "timeout 900 \"${configure_argv[@]:0:7}\" >\"$ATTEMPT_DIR/configure.stdout\""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10-verifier-uses-bare-python3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "old": "timeout 120 \"$THIRD_PARTY_VERIFY_PYTHON\" - \\",
+          "new": "timeout 120 python3 - \\"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

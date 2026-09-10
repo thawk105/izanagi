@@ -1,0 +1,227 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 620,
+  "timeout_seconds": 3600,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "m01-openalex-first-cursor-encoded",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/runner.py",
+          "old": "            raw_position = \"*\"\n            encoded = \"*\"\n",
+          "new": "            raw_position = \"*\"\n            encoded = \"%2A\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_openalex_initial_cursor_is_literal_star_and_continuation_is_encoded",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m02-openalex-ast-multiplicity-dropped",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/runner.py",
+          "old": "        canonical = tuple(\n            sorted(\n                (_canonical_openalex_node(child) for child in children),\n                key=_ast_sort_key,\n            )\n        )\n",
+          "new": "        canonical = tuple(\n            sorted(\n                set(_canonical_openalex_node(child) for child in children),\n                key=_ast_sort_key,\n            )\n        )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_openalex_ast_preserves_multiplicity_but_ignores_sibling_order",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m03-live-preflight-all-to-any",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/preflight.py",
+          "old": "    all_recorded = exact_members and all(\n        result.classification == \"収録\" for result in results\n    )\n",
+          "new": "    all_recorded = exact_members and any(\n        result.classification == \"収録\" for result in results\n    )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_live_preflight_29_recorded_plus_one_unreachable_cannot_start",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_live_record_is_schema_valid_and_unclassified_is_false_side",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m05-condition3-uses-capacity-echo",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/runner.py",
+          "old": "        actual = page.parsed.actual_count\n",
+          "new": "        actual = page.parsed.capacity_echo\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_condition3_accepts_normal_partial_final_despite_capacity_echo",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_condition3_uses_actual_count_not_capacity_echo",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_condition6_accepts_media_parameter_and_rejects_wrong_type",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m06-main-run-issuance-not-fail-closed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/runner.py",
+          "old": "    raise UnregisteredRunPolicyError()\n",
+          "new": "    return None\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_main_run_issuance_fails_closed_with_all_six_unregistered_fields",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m07-seal-exact-set-to-subset",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/preflight.py",
+          "old": "        if worktree_paths != set(tree):\n",
+          "new": "        if not set(tree).issubset(worktree_paths):\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_rejects_path_module_mode_and_byte_mismatches"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m08-dblp-cutoff-dropped",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/parsers.py",
+          "old": "    return raw_value, int(text) <= _DBLP_CUTOFF_YEAR, False\n",
+          "new": "    return raw_value, True, False\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_dblp_cutoff_fields_flow_without_dropping_raw_occurrences",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal",
+        "orchestrator/tests/test_axis_b5_search_parsers.py::test_contract_5_rejects_future_year_and_routes_bad_years_to_ruling"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m09-unclassified-rounded-to-included",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/preflight.py",
+          "old": "    classification = \"unclassified\"\n",
+          "new": "    classification = \"収録\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_dblp_matching_doi_is_recorded_but_unknown_json_shape_is_unclassified",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m10-openalex-content-type-before-status",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/preflight.py",
+          "old": "        if response.status == 404:\n            classification = \"非収録\"\n        elif response.status != 200:\n            classification = \"不達\"\n        elif media_type != \"application/json\":\n            classification = \"不達\"\n",
+          "new": "        if media_type != \"application/json\":\n            classification = \"不達\"\n        elif response.status == 404:\n            classification = \"非収録\"\n        elif response.status != 200:\n            classification = \"不達\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_openalex_404_is_nonrecorded_before_content_type_check",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m11-g208-primary-key-swapped",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/anchor_registry.json",
+          "old": "      \"doi\": \"10.1137/17M1154679\",\n      \"arxiv_id\": \"1710.11258\",\n",
+          "new": "      \"doi\": \"1710.11258\",\n      \"arxiv_id\": \"10.1137/17M1154679\",\n"
+        },
+        {
+          "file": "orchestrator/axis_b5_search/preflight.py",
+          "old": "    if g208.doi != \"10.1137/17M1154679\" or g208.arxiv_id != \"1710.11258\":\n",
+          "new": "    if g208.doi != \"1710.11258\" or g208.arxiv_id != \"10.1137/17M1154679\":\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_lookup_builder_emits_only_registered_three_forms",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registry_has_frozen_members_and_g208_doi_primary_key"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m12-retry-delay-middle-changed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/runner.py",
+          "old": "RETRY_DELAYS_S = (3.0, 6.0, 12.0)\n",
+          "new": "RETRY_DELAYS_S = (3.0, 7.0, 12.0)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_retry_delays_are_the_frozen_tuple"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m13-pycache-exclusion-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/preflight.py",
+          "old": "            if dirname == \"__pycache__\":\n",
+          "new": "            if dirname == \"__never_matches__\":\n"
+        },
+        {
+          "file": "orchestrator/axis_b5_search/preflight.py",
+          "old": "            if filename.endswith(\".pyc\"):\n                continue\n",
+          "new": "            if filename.endswith(\".never-matches\"):\n                continue\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_registration_accepts_exact_commit_tree_and_returns_schema_valid_seal",
+        "orchestrator/tests/test_axis_b5_search_executor.py::test_worktree_scan_excludes_pycache_and_pyc"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

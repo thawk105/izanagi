@@ -1,0 +1,50 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 300,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "m6-projection-only-for-on-arm",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_launcher.py",
+          "old": "    if driver_kind == \"base\":\n        site = p3_s4_loop._current_site()",
+          "new": "    if driver_kind == \"base\" and context.arm == \"on\":\n        site = p3_s4_loop._current_site()"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m7-round-unadmitted-sites-to-other",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_launcher.py",
+          "old": "        site = p3_s4_loop._current_site()\n        contract = p3_s4_loop._admit_env_contract(site)",
+          "new": "        site = p3_s4_loop._current_site()\n        if site not in {\n            p3_s4_loop.site_policy.OTHER,\n            p3_s4_loop.site_policy.PEGASUS_COMPUTE,\n        }:\n            site = p3_s4_loop.site_policy.OTHER\n        contract = p3_s4_loop._admit_env_contract(site)"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m8-sort-contract-bind-only",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_launcher.py",
+          "old": "    elif driver_kind == \"trigger\":\n        site = p3_s4_loop_trigger_gating._current_site()",
+          "new": "    elif driver_kind == \"sort\":\n        site = p3_s4_loop._current_site()\n        contract = p3_s4_loop._admit_env_contract(site)\n        configs = tuple(\n            ident.bind_environment_contract(cfg, contract)\n            for cfg in configs\n        )\n    elif driver_kind == \"trigger\":\n        site = p3_s4_loop_trigger_gating._current_site()"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

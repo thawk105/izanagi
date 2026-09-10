@@ -1,0 +1,16 @@
+{
+  "result": {
+    "query": "transaction* backoff*",
+    "hits": {
+      "@total": "4",
+      "@sent": "100",
+      "@first": "0",
+      "hit": [
+        {"info": {"key": "conf/test/Included2026", "year": "2026"}},
+        {"info": {"key": "conf/test/Excluded2027", "year": "2027"}},
+        {"info": {"key": "conf/test/MissingYear"}},
+        {"info": {"key": "conf/test/InvalidYear", "year": "20X6"}}
+      ]
+    }
+  }
+}

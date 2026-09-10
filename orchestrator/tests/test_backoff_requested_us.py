@@ -747,8 +747,10 @@ def test_driver_gate_wrappers_bind_fixed_and_requested_us_macros(monkeypatch):
     )
 
     assert calls[0][1]["macro_values"] == {"BACKOFF_FIXED": (-1,)}
+    assert calls[0][1]["backoff_fixed_physical_us"] == {}
     assert calls[0][1]["stock_root"] == "/stock"
     assert calls[1][1]["macro_values"] == {"BACKOFF_REQUESTED_US": (1,)}
+    assert calls[1][1]["backoff_fixed_physical_us"] == {}
     assert calls[1][1]["stock_root"] is None
 
 

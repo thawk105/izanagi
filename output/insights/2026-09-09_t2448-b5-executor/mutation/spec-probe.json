@@ -1,0 +1,186 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 620,
+  "timeout_seconds": 3600,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "m01-openalex-first-cursor-encoded",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/runner.py",
+          "old": "            raw_position = \"*\"\n            encoded = \"*\"\n",
+          "new": "            raw_position = \"*\"\n            encoded = \"%2A\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m02-openalex-ast-multiplicity-dropped",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/runner.py",
+          "old": "        canonical = tuple(\n            sorted(\n                (_canonical_openalex_node(child) for child in children),\n                key=_ast_sort_key,\n            )\n        )\n",
+          "new": "        canonical = tuple(\n            sorted(\n                set(_canonical_openalex_node(child) for child in children),\n                key=_ast_sort_key,\n            )\n        )\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m03-live-preflight-all-to-any",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/preflight.py",
+          "old": "    all_recorded = exact_members and all(\n        result.classification == \"収録\" for result in results\n    )\n",
+          "new": "    all_recorded = exact_members and any(\n        result.classification == \"収録\" for result in results\n    )\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m05-condition3-uses-capacity-echo",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/runner.py",
+          "old": "        actual = page.parsed.actual_count\n",
+          "new": "        actual = page.parsed.capacity_echo\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m06-main-run-issuance-not-fail-closed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/runner.py",
+          "old": "    raise UnregisteredRunPolicyError()\n",
+          "new": "    return None\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m07-seal-exact-set-to-subset",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/preflight.py",
+          "old": "        if worktree_paths != set(tree):\n",
+          "new": "        if not set(tree).issubset(worktree_paths):\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m08-dblp-cutoff-dropped",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/parsers.py",
+          "old": "    return raw_value, int(text) <= _DBLP_CUTOFF_YEAR, False\n",
+          "new": "    return raw_value, True, False\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m09-unclassified-rounded-to-included",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/preflight.py",
+          "old": "    classification = \"unclassified\"\n",
+          "new": "    classification = \"収録\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m10-openalex-content-type-before-status",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/preflight.py",
+          "old": "        if response.status == 404:\n            classification = \"非収録\"\n        elif response.status != 200:\n            classification = \"不達\"\n        elif media_type != \"application/json\":\n            classification = \"不達\"\n",
+          "new": "        if media_type != \"application/json\":\n            classification = \"不達\"\n        elif response.status == 404:\n            classification = \"非収録\"\n        elif response.status != 200:\n            classification = \"不達\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m11-g208-primary-key-swapped",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/anchor_registry.json",
+          "old": "      \"doi\": \"10.1137/17M1154679\",\n      \"arxiv_id\": \"1710.11258\",\n",
+          "new": "      \"doi\": \"1710.11258\",\n      \"arxiv_id\": \"10.1137/17M1154679\",\n"
+        },
+        {
+          "file": "orchestrator/axis_b5_search/preflight.py",
+          "old": "    if g208.doi != \"10.1137/17M1154679\" or g208.arxiv_id != \"1710.11258\":\n",
+          "new": "    if g208.doi != \"1710.11258\" or g208.arxiv_id != \"10.1137/17M1154679\":\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m12-retry-delay-middle-changed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/runner.py",
+          "old": "RETRY_DELAYS_S = (3.0, 6.0, 12.0)\n",
+          "new": "RETRY_DELAYS_S = (3.0, 7.0, 12.0)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m13-pycache-exclusion-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/axis_b5_search/preflight.py",
+          "old": "            if dirname == \"__pycache__\":\n",
+          "new": "            if dirname == \"__never_matches__\":\n"
+        },
+        {
+          "file": "orchestrator/axis_b5_search/preflight.py",
+          "old": "            if filename.endswith(\".pyc\"):\n                continue\n",
+          "new": "            if filename.endswith(\".never-matches\"):\n                continue\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

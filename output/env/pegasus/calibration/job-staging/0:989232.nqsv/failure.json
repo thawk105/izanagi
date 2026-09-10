@@ -1,0 +1,8 @@
+{
+  "message": "working tree became dirty before job start",
+  "pbs_jobid": "0:989232.nqsv",
+  "rc": 2,
+  "recorded_epoch": 1788976183,
+  "schema_version": "pegasus-job-failure/v1",
+  "stage": "source_identity"
+}

@@ -54,7 +54,7 @@ policy 腕 (p0 / p1 / p2) の trace 無効な性能を、腕と job 内時刻の
 - [T-2417] 全 6 permutation × 3 の 18 block で trace 無効の性能を測り、事前登録した 3 仮説に
   判定を出した。H1 accepted、H2 と H3 rejected。
   remaining: none
-  base: 2e58725e71110985d7123da64e9670bd59cbdcdb8529ef4c35c9d5f4a8cd1f79
+  base: c309b9b55f0a7b32e40e3c084321eddb971406f8623d02e0cfffe5e7db39a3a5
 
 ### 新規
 

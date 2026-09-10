@@ -2,7 +2,10 @@ import ast
 import json
 import re
 import shlex
+import shutil
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 
@@ -11,6 +14,93 @@ JOB = REPO / "tools/pegasus/a5_second_boot_backoff_sweep.sh"
 SUBMITTER = REPO / "tools/pegasus/submit_a5_second_boot_backoff_sweep.sh"
 REGISTRY = REPO / "tools/pegasus/admission_registry.json"
 EXPECTED_WORKLOADS = ("write-heavy", "balanced")
+
+
+def _git(cwd: Path, *args: str, input_text: str | None = None) -> str:
+    completed = subprocess.run(
+        ["git", "-C", str(cwd), *args],
+        check=True,
+        capture_output=True,
+        text=True,
+        input=input_text,
+    )
+    return completed.stdout.strip()
+
+
+def _fixture_git_repository(root: Path) -> tuple[Path, str, str]:
+    repository = root / "objects.git"
+    repository.mkdir()
+    _git(repository, "init", "--bare", "--quiet")
+
+    def commit(content: str, parent: str | None = None) -> str:
+        blob = _git(repository, "hash-object", "-w", "--stdin", input_text=content)
+        tree = _git(
+            repository,
+            "mktree",
+            input_text=f"100644 blob {blob}\ttracked.txt\n",
+        )
+        argv = [
+            "-c", "user.name=A5 Test", "-c", "user.email=a5@example.invalid",
+            "commit-tree", tree,
+        ]
+        if parent is not None:
+            argv.extend(["-p", parent])
+        return _git(repository, *argv, input_text="fixture\n")
+
+    expected = commit("expected\n")
+    other = commit("other\n", expected)
+    return repository, expected, other
+
+
+def _add_detached_worktree(repository: Path, path: Path, commit: str) -> None:
+    _git(repository, "worktree", "add", "--detach", str(path), commit)
+
+
+def _shell_function(script: str, name: str) -> str:
+    start = script.index(f"{name}() {{")
+    end = script.index("\n}", start) + 2
+    return script[start:end]
+
+
+def _run_a5_cleanup_snippet(
+    job: str,
+    repo_repository: Path,
+    job_repo: Path,
+    ccbench_repository: Path,
+    job_ccbench: Path,
+    output_root: Path,
+    failure_receipt_calls: Path,
+    job_rc: int,
+) -> subprocess.CompletedProcess[str]:
+    snippet = "\n".join((
+        "set -Eeuo pipefail",
+        "WORKTREE_CLEANUP_CAP_S=30",
+        'REPO_BASE="$1"',
+        'JOB_REPO="$2"',
+        'CCBENCH_BASE="$3"',
+        'JOB_CCBENCH="$4"',
+        'OUTPUT_ROOT="$5"',
+        "OUTPUT_ROOT_READY=1",
+        'FAILURE_RECEIPT_CALLS="$6"',
+        "write_failure_receipt() {",
+        "  printf '%s %s\\n' \"$1\" \"$CURRENT_STAGE\" >>\"$FAILURE_RECEIPT_CALLS\"",
+        "}",
+        _shell_function(job, "remove_worktrees"),
+        _shell_function(job, "cleanup_worktrees"),
+        "trap cleanup_worktrees EXIT",
+        'exit "$7"',
+    ))
+    return subprocess.run(
+        [
+            "bash", "-c", snippet, "a5-cleanup-test",
+            str(repo_repository), str(job_repo),
+            str(ccbench_repository), str(job_ccbench),
+            str(output_root), str(failure_receipt_calls), str(job_rc),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
 
 
 def _shell_array(source: str, name: str) -> tuple[str, ...]:
@@ -294,8 +384,7 @@ def _assert_execution_shape(job: str, submitter: str) -> None:
     assert 'destination = base / "result.json"' in job
     assert 'fd = os.open(temporary, flags, 0o600)' in job
     assert 'os.link(temporary, destination, follow_symlinks=False)' in job
-    assert 'git -C "$CCBENCH_BASE" worktree prune --expire now' in normalized_job
-    assert "printf '%s\\nprune_rc=%s\\n'" in job
+    assert re.search(r"\bworktree\s+prune\b", normalized_job) is None
     assert 'A5_EXPECTED_HEAD=$EXPECTED_HEAD' in submitter
     assert '-o "$stdout" -e "$stderr" "$JOB_SCRIPT"' in normalized_submitter
     assert normalized_submitter.index('cd -- "$REPO_ROOT"') < normalized_submitter.index(
@@ -369,6 +458,136 @@ def test_job_body_is_registered_only_as_dispatch_required():
 
 def test_current_scripts_are_a_positive_example_of_the_complete_contract():
     _assert_current_pair_contract()
+
+
+def test_a5_job_exit_cleanup_preserves_missing_sibling_worktree_registration():
+    job = JOB.read_text(encoding="utf-8")
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        temporary = Path(temporary_directory)
+        for job_rc in (0, 23):
+            case = temporary / f"job-rc-{job_rc}"
+            repo_root = case / "repo"
+            ccbench_root = case / "ccbench"
+            repo_root.mkdir(parents=True)
+            ccbench_root.mkdir()
+            repo_repository, repo_commit, _repo_other = (
+                _fixture_git_repository(repo_root)
+            )
+            ccbench_repository, ccbench_commit, _ccbench_other = (
+                _fixture_git_repository(ccbench_root)
+            )
+            job_repo = case / "job-repo"
+            _add_detached_worktree(repo_repository, job_repo, repo_commit)
+            (job_repo / "external").mkdir()
+            job_ccbench = job_repo / "external/ccbench"
+            _add_detached_worktree(
+                ccbench_repository, job_ccbench, ccbench_commit,
+            )
+            sibling_ccbench = case / "sibling-ccbench"
+            _add_detached_worktree(
+                ccbench_repository, sibling_ccbench, ccbench_commit,
+            )
+            shutil.rmtree(sibling_ccbench)
+            ccbench_before = _git(
+                ccbench_repository, "worktree", "list", "--porcelain",
+            )
+            assert f"worktree {sibling_ccbench}" in ccbench_before
+
+            output_root = case / "output"
+            (output_root / "env").mkdir(parents=True)
+            failure_receipt_calls = output_root / "failure-receipt.calls"
+            completed = _run_a5_cleanup_snippet(
+                job,
+                repo_repository,
+                job_repo,
+                ccbench_repository,
+                job_ccbench,
+                output_root,
+                failure_receipt_calls,
+                job_rc,
+            )
+
+            assert completed.returncode == job_rc, completed.stderr
+            assert not job_ccbench.exists()
+            assert not job_repo.exists()
+            repo_after = _git(
+                repo_repository, "worktree", "list", "--porcelain",
+            )
+            ccbench_after = _git(
+                ccbench_repository, "worktree", "list", "--porcelain",
+            )
+            assert f"worktree {job_repo}" not in repo_after
+            assert f"worktree {job_ccbench}" not in ccbench_after
+            assert f"worktree {sibling_ccbench}" in ccbench_after
+            assert (output_root / "env/worktree-remove.rc").read_text() == "0\n"
+            assert not failure_receipt_calls.exists()
+
+
+def test_a5_cleanup_failure_records_remaining_paths_and_preserves_exit_precedence():
+    job = JOB.read_text(encoding="utf-8")
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        temporary = Path(temporary_directory)
+        for job_rc in (0, 23):
+            case = temporary / f"job-rc-{job_rc}"
+            repo_root = case / "repo"
+            ccbench_root = case / "ccbench"
+            repo_root.mkdir(parents=True)
+            ccbench_root.mkdir()
+            repo_repository, repo_commit, _repo_other = (
+                _fixture_git_repository(repo_root)
+            )
+            ccbench_repository, ccbench_commit, _ccbench_other = (
+                _fixture_git_repository(ccbench_root)
+            )
+            job_repo = case / "job-repo"
+            _add_detached_worktree(repo_repository, job_repo, repo_commit)
+            (job_repo / "external").mkdir()
+            job_ccbench = job_repo / "external/ccbench"
+            _add_detached_worktree(
+                ccbench_repository, job_ccbench, ccbench_commit,
+            )
+            _git(ccbench_repository, "worktree", "lock", str(job_ccbench))
+            _git(repo_repository, "worktree", "lock", str(job_repo))
+
+            output_root = case / "output"
+            (output_root / "env").mkdir(parents=True)
+            failure_receipt_calls = output_root / "failure-receipt.calls"
+            completed = _run_a5_cleanup_snippet(
+                job,
+                repo_repository,
+                job_repo,
+                ccbench_repository,
+                job_ccbench,
+                output_root,
+                failure_receipt_calls,
+                job_rc,
+            )
+
+            receipt_lines = (
+                output_root / "env/worktree-remove.rc"
+            ).read_text().splitlines()
+            cleanup_rc = int(receipt_lines[0])
+            assert cleanup_rc != 0
+            assert receipt_lines[1:] == [
+                f"remaining_ccbench_path={job_ccbench}",
+                f"remaining_repo_path={job_repo}",
+            ]
+            assert job_ccbench.is_dir()
+            assert job_repo.is_dir()
+            assert f"worktree {job_ccbench}" in _git(
+                ccbench_repository, "worktree", "list", "--porcelain",
+            )
+            assert f"worktree {job_repo}" in _git(
+                repo_repository, "worktree", "list", "--porcelain",
+            )
+            if job_rc == 0:
+                assert completed.returncode == cleanup_rc, completed.stderr
+                assert failure_receipt_calls.read_text() == (
+                    f"{cleanup_rc} worktree_cleanup\n"
+                )
+            else:
+                assert completed.returncode == job_rc, completed.stderr
+                assert not failure_receipt_calls.exists()
 
 
 def _run() -> int:
