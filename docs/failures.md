@@ -20304,6 +20304,10 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `custom_tool_call_output` なら本型である (子の作文由来の F260 と区別できる)。
   repo 側の全走査は `git ls-files` 全件に同じ述語を当てれば取れる。
 
+
+- **再発: 2026-09-10** — fixture読取stdoutが非NFCになりauthorが未受理。receiptのevent_invalidを調べ、
+  strict_json_loadsのNFC拒否を再現した。原記録を保持し、ASCII escapeで読む新authorを正常受理した。
+  DW-O02へ読取ログを含むNFC義務と原文保持を明記した。原fixtureとログ検査器は変更していない。
 ### F729. fix 子への「既存テストの期待値を変更するな」が広すぎて 1 巡を捨てた [手順漏れ]
 
 - 事象: 段 6 fix 子が「実装を変えず報告して止める」を正しく選んで停止し、fix が 1 巡空転した。
@@ -24528,3 +24532,13 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 切り分け: 同tip・同fileをrun_tests.py --force-dispatchで単独再走し、991541.nqsvで51passed/15.45秒、job Elapse21S、rc0。waveの変更はdocsのみで、当該fixture・probe・Git呼出しは変更していない。
 - 恒久対応: docs/dev-wave/operations.mdのDW-O18へ従い、単独非再現を確認して受入を再走する。timeout拡大・fixtureのstub化・除外・汎用gateの新設は行わない。
 - 再発検知: setup tracebackのGit argvと30秒TimeoutExpiredを確認し、同tipの単独走と受入を区別して記録する。ログは専用handoffが指すacceptance-child-3とfocus-t1259.log。
+
+### F946. 修正可能な検査失敗で作業を終了し、ユーザーへ再開を要求した [手順漏れ] [誤前提]
+
+- 事象: insights整理のauthorが実行ログ検査で未受理になり、親は原因の切り分けや安全な再試行をせず正式停止した。
+  自分の途中差分による文書検査の赤も残したまま、ユーザーへ新しい再開コマンドを要求した。
+- 根本原因: 「赤のまま次段へ進まない」を「赤が出たら作業を終了する」と混同した。
+  F728の既知事象を調査すれば、検査器を緩めずASCII表示で再実行できた。子sandboxのqstat不能も親環境で再確認できた。
+- 恒久対応: ユーザー指示を D1942 とし、DW-STOPの自律復旧と正式停止を分離、DW-O01の未受理差分監査を明示。
+- 再発検知: 終了判断時に、原因調査・許可範囲の修正・再検証で進める状況でないかを確認する。
+  人間の裁定/権限や新しい外部状態が必要という具体的根拠がなければ、再開要求へ逃がさない。

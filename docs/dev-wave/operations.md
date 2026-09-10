@@ -14,13 +14,14 @@ wait側`--receipt-file`はworker launcher receiptと別pathにする（同path�
 採用は`tools/check_codex_output.py` rc=0（promptに`## 総括`必須、F43）。
 `<model>`: 全段 `gpt-6-astra` (段 3 の 2 本も同じ)。
 `--artifact-root`は先に作る。出力は`<root>/<wave>/`だけ、不在はrc=2。
-`--max-*`は非権威で増量可。重い巡はcall/tokenを見積もる。中断子は未完了と記し次の子に監査させる。
+`--max-*`は非権威で増量可。重い巡はcall/tokenを見積もる。未受理は未完了と記し次の子に監査させる。
 
 ## DW-O02 — job artifact
 
-prompt・log・patch は wave 専用 subdirectory に置き、job tmp 直下や過去 wave と共有せず、確保不能なら止める。親 brief と前段の子成果物も同 dir へ置き、全文複製せず絶対パスで読ませる。prompt に読めなければ即停止と書き、context 無しの子出力を結果と数えない。
+prompt・log・patch・親brief・前段の子成果物はwave専用dirへ置き、job tmp直下や過去waveと共有しない。
+確保不能なら停止。全文複製せず絶対パスで読ませ、promptに「読めなければ即停止」と書く。context欠落の出力は採用しない。
 必読資料と既裁定は逐語を job dir へ出す。repo 内 path は worktree の遅れで fail-closed。**prompt の repo path は投入先 worktree のもの**にする（親側だと子は書けず空成功、F819）。
-出力へ結合文字 U+0300〜U+036F を使わせない。
+出力・読取ログはNFC。U+0300〜U+036F禁止。非NFC資料はASCII escape表示、原文保持。
 prompt 先頭は AGENTS.md の単独段例外と同形式。
 
 ## DW-O03 — 防護パスを含む file

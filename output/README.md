@@ -70,7 +70,7 @@ output/
 探索中に CCBench 自体の問題を見つけたら、ここに構造化レポートを吐く。例:
 
 ```
-output/insights/YYYY-MM-DD_<topic>.md
+output/insights/YYYY-MM-DD/<topic>.md
   - 発見: 何が
   - 再現条件: thread/records/workload/seed
   - 該当コード: ccbench の file:line
@@ -79,12 +79,17 @@ output/insights/YYYY-MM-DD_<topic>.md
   - 還元判断: ユーザー確認待ち
 ```
 
+新規の資料は日付ディレクトリにまとめる。複数ファイルなら
+`output/insights/YYYY-MM-DD/<topic>/` とし、子名に日付を重ねない。
+入口は `output/insights/README.md`。旧配置の資料は日付別の移動対応表から探せる。
+既存の凍結資料・固定パスを使う実験の継続出力は旧位置を維持し、一括置換しない。
+
 **CCBench のバグ等を還元する判断には必ず「還元判断: ユーザー確認待ち」を付ける。** AI は発見を構造化するところまで。上流 CCBench へ PR を出すかは人間 (ユーザー) が判断する。誤検出 (verifier のバグを CCBench のバグと誤認) を防ぐ関所。
 
 insights には CCBench 還元候補だけでなく、**探索の妥当性文書**も置く (calibrator のレコード数決定根拠、ケーススタディの機序分析・敵対的検証、measurement 汚染インシデント等)。「なぜそのレコード数/floor/結論か」を査読に先回りで答える材料。加えて、**プロセス監査・ユーザー裁定用の凍結スナップショット** (相談・監査の逐語凍結、裁定パッケージ) も置いてよい — その場合は冒頭に `authority: none` / `default_effect: no-state-change` を明示し、可変状態の正本 (worklog 末尾・現行 phase doc) にはしない。
 
 文献検索の実行記録は、凍結物本体を `docs/related-work/claim-survey/` に置き、頁ごと・record ごとの
-機械可読な取得証拠を `output/insights/<日付>_<topic>/` の sidecar として置いてよい。sidecar は
+機械可読な取得証拠を `output/insights/<日付>/<topic>/` の sidecar として置いてよい。sidecar は
 `manifest.json` と `MANIFEST.sha256` で digest を束縛し、凍結物側が `manifest.json` の SHA-256 を
 参照する。**HTTP 応答本文の全文は保存しない** — 保存するのは契約が要求する構造化台帳だけである。
 

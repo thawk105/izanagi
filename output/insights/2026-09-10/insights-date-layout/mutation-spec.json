@@ -1,0 +1,32 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 360,
+  "timeout_seconds": 600,
+  "hang_timeout_seconds": 60,
+  "mutations": [
+    {
+      "id": "M1-drop-date-markdown-enumeration",
+      "category": "negative",
+      "replacements": [{"file": "tools/check_docs.py", "old": "for date_dir in date_dirs:", "new": "for date_dir in []:"}],
+      "expected_nodes": ["orchestrator/tests/test_check_docs.py::test_placeholder_guard_date_layout_preserves_old_targets_and_shallow_scope"],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-drop-preflight-collision-rejection",
+      "category": "positive",
+      "replacements": [{"file": "tools/insights_date_layout.py", "old": "if os.path.lexists(path):", "new": "if False:"}],
+      "expected_nodes": ["orchestrator/tests/test_insights_date_layout.py::test_destination_collision_preflights_before_any_move"],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-drop-last-partial-index-page",
+      "category": "negative",
+      "replacements": [{"file": "tools/insights_date_layout.py", "old": "range(0, len(leaves), 500)", "new": "range(0, len(leaves) // 500 * 500, 500)"}],
+      "expected_nodes": ["orchestrator/tests/test_insights_date_layout.py::test_raw_pages_cover_all_git_leaves_including_partial_page"],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

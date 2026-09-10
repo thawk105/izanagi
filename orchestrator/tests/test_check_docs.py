@@ -5140,6 +5140,46 @@ def test_placeholder_guard_each_literal_independently_fires():
             shutil.rmtree(root, ignore_errors=True)
 
 
+def test_placeholder_guard_date_layout_preserves_old_targets_and_shallow_scope():
+    root = _build_min_repo()
+    try:
+        module = _load_fixture_checker(root)
+        old, _, _, _ = module._literal_placeholder_targets([])
+        _write(root, "output/insights/2026-09-10/report.md", "# complete report\n")
+        _write(root, "output/insights/2026-09-10/topic/verbatim.md", "<反映>\n")
+        module = _load_fixture_checker(root)
+        findings = []
+        new, _, _, complete = module._literal_placeholder_targets(findings)
+        assert complete and not findings, findings
+        assert set(old) < set(new)
+        assert {str(p.relative_to(module.REPO)) for p in set(new) - set(old)} == {
+            "output/insights/2026-09-10/report.md"
+        }
+        assert _placeholder_findings(root) == []
+        _write(root, "output/insights/2026-09-10/report.md", "<反映>\n")
+        _assert_placeholder_violation(root, "2026-09-10/report.md", "未許可のリテラル placeholder")
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_placeholder_guard_date_directory_rejects_symlink_and_non_directory():
+    for kind in ("symlink", "file", "unreadable"):
+        root = _build_min_repo()
+        try:
+            path = os.path.join(root, "output/insights/2026-09-10")
+            if kind == "symlink":
+                os.symlink("missing", path)
+            elif kind == "unreadable":
+                os.mkdir(path, 0o000)
+            else:
+                _write(root, "output/insights/2026-09-10", "file\n")
+            _assert_placeholder_violation(root, "日付 directory の列挙失敗")
+        finally:
+            if kind == "unreadable":
+                os.chmod(path, 0o700)
+            shutil.rmtree(root, ignore_errors=True)
+
+
 def test_placeholder_guard_main_propagates_finding_to_rc():
     root = _build_min_repo()
     try:
