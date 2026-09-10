@@ -78,6 +78,9 @@ generic taskを通し、計算ノード内でtools/run_tests.pyを実行した�
 - [JUnit](phase-current-junit.xml)、[dispatchログ](phase-current-dispatch.log)、[receipt](phase-receipt.json)、
   [親processの観測JSONL（gzip）](phase-current.jsonl.gz)。
   解凍bytesのSHA-256は`7e0f6350b53dfce576b2c7507656f75f95f58df593c18192b5c40f3e0d3676ec`。
+- dispatchログは末尾空白検査のため、内容が`| `だけの4行を`|`へ正規化した。
+  復元は内容が`|`だけの各行の末尾へASCII spaceを1個足す。原文3618bytes、SHA-256
+  `62593a610fdd08adfd91e0f48a6350f5c314ce66e23f041c1e135c833b0a1327`。表示文字は不変。
 
 | 直接観測した処理 | 発火数 | 包含時間（秒） |
 |---|---:|---|
