@@ -1,0 +1,106 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 180,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1200,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/screening_driver.py",
+          "old": "                    backoff_fixed_declaration\n                    if request.macro == \"BACKOFF_FIXED\" else None",
+          "new": "                    None\n                    if request.macro == \"BACKOFF_FIXED\" else None"
+        }
+      ]
+    },
+    {
+      "id": "M2",
+      "category": "positive",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_sweep.py",
+          "old": "canonical_float64_bits(float(physical))",
+          "new": "canonical_float64_bits(float(raw))"
+        }
+      ]
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/screening_driver.py",
+          "old": "        cmake=resolved_cmake,\n        expected_toolchain_manifest=expected_toolchain_manifest,\n        backoff_fixed_declaration=backoff_fixed_declaration,",
+          "new": "        cmake=resolved_cmake,\n        expected_toolchain_manifest=expected_toolchain_manifest,\n        backoff_fixed_declaration=None,"
+        }
+      ]
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/screening_driver.py",
+          "old": "            source_root, genome, stock_root=stock_root, cxx=cxx, cmake=cmake,\n            expected_toolchain_manifest=expected_toolchain_manifest,\n            backoff_fixed_declaration=backoff_fixed_declaration,",
+          "new": "            source_root, genome, stock_root=stock_root, cxx=cxx, cmake=cmake,\n            expected_toolchain_manifest=expected_toolchain_manifest,\n            backoff_fixed_declaration=None,"
+        }
+      ]
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_sweep.py",
+          "old": "                genome.flags[\"BACKOFF_FIXED\"],\n            ),",
+          "new": "                -1,\n            ),"
+        }
+      ]
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "old": "spec_slug=f\"t2418-backoff-static-explore-v2-silo-{tag}\",",
+          "new": "spec_slug=f\"t2418-backoff-static-explore-v1-silo-{tag}\","
+        }
+      ]
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "old": "\"driver_declared_static_backoff_physical_us\"",
+          "new": "\"unestablished_for_positive_backoff_fixed_as_in_existing_sweep\""
+        }
+      ]
+    }
+  ]
+}

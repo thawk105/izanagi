@@ -496,6 +496,10 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
      D58 の対象外で、別設計・別裁定のまま据え置く。将来採用しても偵察 sweep / 8b の opt-in に限り、
      S-1 の事前登録済みサンプル設計には適用せず、採否判定の between-run floor 丸め
      (roadmap §3.6(4)) は変えない。
+     - [x] T-2525 / T-2526 (2026-09-10): D1859・D1936 項19に従い、要求側の静的物理量宣言を
+       screening へ転送し、T-2418 新走の campaign/report を v2 に整合した。乱択を静的量へ
+       変換せず、過去 artifact は保持する。適用範囲は
+       `docs/b10-backoff-static-tail-preregistration.md` の 2026-09-10 追補を参照。
    - **(8c bounded MVP 実装済み 2026-07-29、正式実験・resume は未完) 駆動の
      セッション非依存化** — ユーザーの優先度変更を受け、汎用 daemon を先に作らず
      **unattended runner + workload-conditioned generation + 固定 stop + 全件 report** を
