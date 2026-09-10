@@ -558,7 +558,7 @@ def test_t2418_exact_grid_identity_order_and_disclosure_are_literal_pinned():
     assert M.T2418_REQUESTED_US == (2000, 4000, 9999)
     assert M.T2418_REALIZED_US == (2000, 4000, 9999)
     assert M.T2418_UNREALIZED == {}
-    assert M.T2418_REPORT_SCHEMA == "t2418-backoff-static-explore-report/v1"
+    assert M.T2418_REPORT_SCHEMA == "t2418-backoff-static-explore-report/v2"
     assert M.T2418_CLAIM_SCOPE == (
         "exploratory_backoff_tail_only_not_formal_series"
     )
@@ -567,7 +567,7 @@ def test_t2418_exact_grid_identity_order_and_disclosure_are_literal_pinned():
         "not_defined_in_this_wave"
     )
     assert M.T2418_MEANING_WITNESS_STATUS == (
-        "unestablished_for_positive_backoff_fixed_as_in_existing_sweep"
+        "driver_declared_static_backoff_physical_us"
     )
     assert p2_2.REPS == 5
     assert p2_2.EXTIME == 3
@@ -597,10 +597,10 @@ def test_t2418_exact_grid_identity_order_and_disclosure_are_literal_pinned():
         assert len({genome.canonical() for genome in M.t2418_genomes(tag)}) == 5
 
     cfg = M.t2418_config_for("balanced", M.WORKLOAD_BY_TAG["balanced"])
-    assert cfg.spec_slug == "t2418-backoff-static-explore-v1-silo-balanced"
+    assert cfg.spec_slug == "t2418-backoff-static-explore-v2-silo-balanced"
     assert cfg.search_tag == "sweep"
-    assert cfg.trial == "t2418-backoff-static-explore-v1"
-    assert cfg.search_config["scale"] == "t2418-backoff-static-explore-v1"
+    assert cfg.trial == "t2418-backoff-static-explore-v2"
+    assert cfg.search_config["scale"] == "t2418-backoff-static-explore-v2"
     assert cfg.spec_content == (
         "T-2418 exploratory static-backoff right-tail measurement; "
         "not a formal series; workload=balanced"
@@ -628,7 +628,7 @@ def test_t2418_exact_grid_identity_order_and_disclosure_are_literal_pinned():
         "formal_grid_status": "not_selected_in_this_wave",
         "formal_stopping_criterion_status": "not_defined_in_this_wave",
         "meaning_witness_status": (
-            "unestablished_for_positive_backoff_fixed_as_in_existing_sweep"
+            "driver_declared_static_backoff_physical_us"
         ),
         "reps": 5,
         "extime_s": 3,
@@ -709,6 +709,49 @@ def test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep(
     assert '"correctness_verified":true' in dat
 
 
+def test_t2418_v2_discovery_does_not_select_v1(tmp_path, monkeypatch):
+    """Real filesystem discovery; admitted WAL view supplied at the read boundary."""
+    from dataclasses import replace
+    from orchestrator.campaign import replay
+
+    capture = M._T2418RepCapture()
+    with capture.installed():
+        for point_index in range(5):
+            _measure_t2418_round(capture, point_index)
+    view = _t2418_certified_view(tmp_path, capture)
+    old_root = tmp_path / "campaigns" / (
+        "t2418-backoff-static-explore-v1-silo-balanced-sweep-old"
+    )
+    (old_root / "runs").mkdir(parents=True)
+    (old_root / "runs" / "wal.jsonl").write_text("", encoding="utf-8")
+    selected = []
+
+    def admitted(layout, *, purpose):
+        selected.append(layout.root)
+        assert purpose is M.CampaignReadPurpose.CERTIFIED_ACCEPTANCE
+        assert Path(layout.root) == new_root
+        return replace(
+            view, layout=layout,
+            _certification_token=artifact_admission._CERTIFIED_VIEW_TOKEN,
+        )
+
+    monkeypatch.setattr(replay, "require_admitted_campaign", admitted)
+    with pytest.raises(FileNotFoundError, match="0 個"):
+        M._load_t2418_report_points("balanced", str(tmp_path), capture)
+    assert selected == []
+    new_root = tmp_path / "campaigns" / (
+        "t2418-backoff-static-explore-v2-silo-balanced-sweep-new"
+    )
+    (new_root / "runs").mkdir(parents=True)
+    (new_root / "runs" / "wal.jsonl").write_text("", encoding="utf-8")
+    campaign_id, points = M._load_t2418_report_points(
+        "balanced", str(tmp_path), capture,
+    )
+    assert selected == [str(new_root)]
+    assert campaign_id == new_root.name and len(points) == 5
+    assert (old_root / "runs" / "wal.jsonl").read_bytes() == b""
+
+
 def test_t2418_frozen_wal_view_flows_through_capture_loader_and_reports(
         tmp_path, monkeypatch):
     capture = M._T2418RepCapture()
@@ -729,7 +772,7 @@ def test_t2418_frozen_wal_view_flows_through_capture_loader_and_reports(
     ] == [MappingProxyType] * 5
 
     def discover(slug, search_tag, output_root, *, purpose):
-        assert slug == "t2418-backoff-static-explore-v1-silo-balanced"
+        assert slug == "t2418-backoff-static-explore-v2-silo-balanced"
         assert search_tag == "sweep"
         assert output_root == str(tmp_path)
         assert purpose is M.CampaignReadPurpose.CERTIFIED_ACCEPTANCE
@@ -766,7 +809,7 @@ def test_t2418_frozen_wal_view_flows_through_capture_loader_and_reports(
         "formal_grid_status": "not_selected_in_this_wave",
         "formal_stopping_criterion_status": "not_defined_in_this_wave",
         "meaning_witness_status": (
-            "unestablished_for_positive_backoff_fixed_as_in_existing_sweep"
+            "driver_declared_static_backoff_physical_us"
         ),
         "reps": 5,
         "extime_s": 3,
@@ -774,7 +817,7 @@ def test_t2418_frozen_wal_view_flows_through_capture_loader_and_reports(
         "threads": 48,
     }
     assert document["schema_version"] == (
-        "t2418-backoff-static-explore-report/v1"
+        "t2418-backoff-static-explore-report/v2"
     )
     assert {key: document[key] for key in disclosure_keys} == expected_disclosure
     assert document["campaign_id"] == "t2418-fixture-campaign"
@@ -1459,10 +1502,10 @@ def test_t2418_run_path_uses_exact_five_genomes_and_shared_campaign_call(
 
     cfg = campaign_event[1][0]
     perf = campaign_event[1][2]
-    assert cfg.spec_slug == "t2418-backoff-static-explore-v1-silo-balanced"
+    assert cfg.spec_slug == "t2418-backoff-static-explore-v2-silo-balanced"
     assert cfg.search_config["run_kind"] == "t2418-explore"
-    assert cfg.search_config["scale"] == "t2418-backoff-static-explore-v1"
-    assert cfg.trial == "t2418-backoff-static-explore-v1"
+    assert cfg.search_config["scale"] == "t2418-backoff-static-explore-v2"
+    assert cfg.trial == "t2418-backoff-static-explore-v2"
     assert perf.reps == 5
     assert perf.extime == 3
     assert perf.records == 1_000_000

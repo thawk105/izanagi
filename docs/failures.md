@@ -14003,6 +14003,10 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   が赤になった。原因は別ユーザー (`makiart`) が 2026-09-07 に作った空の `/tmp/.git` で、
   `/tmp` 配下の一時 root が repository 内と判定されるため。同じ commit を計算ノードで走らせると
   `190 passed` で緑になり、変更へ帰属しないことを確認した。
+
+- **再発: 2026-09-10** — T-2525/T-2526のbaselineで10件が一時出力の祖先.git判定により失敗。
+  /tmp/.gitは他ユーザー所有で非接触。dev-wave-jobsにも.gitがあったため、祖先に.gitのない
+  専用TMPDIRで108 passedを確認した。製品gate・期待値は変更していない。
 ### F458. T-181/T-1434の既存test群がreal codex execの実ネットワーク経路を一度も検証していなかった [テスト代表性]
 
 - 事象: T-189 stage2-plan-replayer実装のsmoke gate (DW-G01) で、`tools/codex_reasoning_ab.py`

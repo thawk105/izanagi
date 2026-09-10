@@ -1,0 +1,61 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 600,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 120,
+  "mutations": [
+    {
+      "id": "M1-positive-detached",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_t1259_qsub_env_delivery_probe.py",
+          "old": "    snapshot[\"detached\"] = True\n    snapshot[\"tracked_status\"] = \"\"\n    snapshot[\"untracked_paths\"] = []",
+          "new": "    snapshot[\"detached\"] = False\n    snapshot[\"tracked_status\"] = \"\"\n    snapshot[\"untracked_paths\"] = []"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t1259_qsub_env_delivery_probe.py::test_r1_binds_all_three_explicit_values_and_skips_real_driver"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-detached-rejection-bypassed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t1259_qsub_env_delivery_probe.py",
+          "old": "    if repo_snapshot[\"detached\"] is not True:\n        raise ProbeError(\"job repository HEAD is not detached\")",
+          "new": "    if False:\n        raise ProbeError(\"job repository HEAD is not detached\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t1259_qsub_env_delivery_probe.py::test_job_start_requires_manifest_head_detached_and_clean_repository[detached-False]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-registration-omitted",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "    # T1259 probe test は module fixture で親 working tree の HEAD、tracked status、\n    # untracked paths、source digest を一度取得し、全 consumer がその template を読む。\n    \"test_t1259_qsub_env_delivery_probe.py::test_r1_binds_all_three_explicit_values_and_skips_real_driver\",\n",
+          "new": "    # T1259 probe test は module fixture で親 working tree の HEAD、tracked status、\n    # untracked paths、source digest を一度取得し、全 consumer がその template を読む。\n"
+        },
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "_REAL_REPO_PARENT_ONLY_NODES = frozenset({\n    \"test_s8b_protocol_builder.py::test_build_and_write_leave_repo_tree_unchanged\",\n    \"test_t1259_qsub_env_delivery_probe.py::test_r1_binds_all_three_explicit_values_and_skips_real_driver\",\n",
+          "new": "_REAL_REPO_PARENT_ONLY_NODES = frozenset({\n    \"test_s8b_protocol_builder.py::test_build_and_write_leave_repo_tree_unchanged\",\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

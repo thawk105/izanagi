@@ -282,9 +282,19 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
 
 ## 後続段 (各々 ablation 点を残して投入)
 
+- [x] 本体論文の日本語結果・考察草稿（2026-09-10の新規ユーザー執筆依頼）を
+  `output/insights/2026-09-10/paper-results-ja/results-discussion.md` に作成。
+  取得済みの性能標本・別走行の正しさ・非LLM対照・反例還流の未取得効果を本文と3表で分離した。
+  文書成果の完了であり、未landの実験や新規CC合成、Phase 3全体の完了を意味しない。
+
 - [x] rulings 項1・2の人間専任解除を記録し、実行場所分類の手順を AI 担当へ整合した
   (2026-09-10 ユーザー裁定)。T-1998 / T-2557 / T-2267 の測定本体は AI 実行待ちで、
   担当変更は測定完了・認証範囲の拡大を意味しない。手順は `docs/pegasus-runbook.md` §7.0。
+
+- [x] T-2579: D1936項43の限定変更を回収。T1259の実repo snapshotをmodule fixtureへ移し、
+  各testへ独立copyを渡し、既存inventory・parent-only・goldenへ登録した。
+  production timeout・走査範囲・判定を維持。全worker合計1回や速度改善の主張ではない。
+  根拠は `output/insights/2026-09-10_t2579-recovery/README.md`。
 
 - [x] 本体論文の日本語方法節草稿（2026-09-10 の新規ユーザー執筆依頼）を
   `output/insights/2026-09-10_paper-methods-ja/methods.md` と同 `implementation.md` に作成。
@@ -494,6 +504,10 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
      - [x] 床値 result v5 の prefix proof を holdout/ratified consumer へ結線する単位 D2 を実装
        ([T-1851]、2026-09-10)。既存v4受理・凍結23件・FORMULA_IDを維持。実測と統合記録は
        `output/insights/2026-09-10_t1851-unit-d2/README.md`。official実値域の取得は後続C3cに残る。
+     - [x] T-2525 / T-2526 (2026-09-10): D1859・D1936 項19に従い、要求側の静的物理量宣言を
+       screening へ転送し、T-2418 新走の campaign/report を v2 に整合した。乱択を静的量へ
+       変換せず、過去 artifact は保持する。適用範囲は
+       `docs/b10-backoff-static-tail-preregistration.md` の 2026-09-10 追補を参照。
    - **(8c bounded MVP 実装済み 2026-07-29、正式実験・resume は未完) 駆動の
      セッション非依存化** — ユーザーの優先度変更を受け、汎用 daemon を先に作らず
      **unattended runner + workload-conditioned generation + 固定 stop + 全件 report** を
