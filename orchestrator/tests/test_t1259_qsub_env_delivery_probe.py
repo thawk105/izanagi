@@ -70,14 +70,24 @@ def _sha256(path: Path) -> str:
 EXECUTING_PBS_SHA256 = _sha256(REPO_ROOT / PBS_PATH)
 
 
-@pytest.fixture(autouse=True)
-def _clean_detached_source_snapshot(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Unit tests model the clean detached submit-tree used by the PBS job."""
-    original = probe._repo_snapshot
-    snapshot = original(REPO_ROOT)
+@pytest.fixture(scope="module")
+def _clean_detached_source_snapshot_template() -> dict[str, object]:
+    """Capture the real submit-tree identity once, before modelling cleanliness."""
+    snapshot = probe._repo_snapshot(REPO_ROOT)
     snapshot["detached"] = True
     snapshot["tracked_status"] = ""
     snapshot["untracked_paths"] = []
+    return snapshot
+
+
+@pytest.fixture(autouse=True)
+def _clean_detached_source_snapshot(
+    monkeypatch: pytest.MonkeyPatch,
+    _clean_detached_source_snapshot_template: dict[str, object],
+) -> None:
+    """Give every test an isolated clean detached submit-tree snapshot."""
+    original = probe._repo_snapshot
+    snapshot = copy.deepcopy(_clean_detached_source_snapshot_template)
 
     def clean_snapshot(root: Path) -> dict[str, object]:
         if Path(root) == REPO_ROOT:

@@ -1,0 +1,57 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 180,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 120,
+  "mutations": [
+    {
+      "id": "M1-diagnostic-save-omitted",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "                        _persist_v3_condition_gate_record(\n                            output_path, record.canonical_json().encode(\"ascii\"),\n                        )",
+          "new": "                        pass"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_all_records_atomic_and_idempotent",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_save_exception_preserves_rejection[serialize]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-save-exception-escapes",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "                    except Exception as exc:\n                        failures.append(f\"{label}[{index}]:{type(exc).__name__}\")",
+          "new": "                    except OSError as exc:\n                        failures.append(f\"{label}[{index}]:{type(exc).__name__}\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_save_exception_preserves_rejection[serialize]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-admitted-rejected",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "    if not admission.admitted:\n        rejected = \",\".join(",
+          "new": "    if True:\n        rejected = \",\".join("
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_success_and_omitted_root_have_no_side_effects"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

@@ -18,6 +18,10 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 
 ## 現行チェックポイント (2026-07-25 更新)
 
+- [x] [T-2514] A-1条件関門の拒否時detail保存を実装 (2026-09-10、D1936項4・D1912)。
+  生成済み全arm recordとadmissionをworkload別raw_rootへ保存し、受理集合・元の拒否・成功経路を維持する。
+  記録 = `output/insights/2026-09-10_t2514-a1-detail/README.md`。
+
 - safe variant loop、軸 onboarding、軸提案のループ内化 (8a) までは成立している。反復の駆動は
   2 種類ある — 主経路 (8a 軸の探索・S 系実験) は依然として**人間がセッション間を運ぶ
   human-supervised loop** であり、無人の進化探索ではない。一方 8c の bounded MVP
@@ -282,10 +286,28 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
   既存資料の内容・固定参照を維持し、深部rawの分割一覧も作成。
   検証記録は `output/insights/2026-09-10/insights-date-layout/README.md`。
 
+- [x] 本体論文の日本語結果・考察草稿（2026-09-10の新規ユーザー執筆依頼）を
+  `output/insights/2026-09-10/paper-results-ja/results-discussion.md` に作成。
+  取得済みの性能標本・別走行の正しさ・非LLM対照・反例還流の未取得効果を本文と3表で分離した。
+  文書成果の完了であり、未landの実験や新規CC合成、Phase 3全体の完了を意味しない。
+
+- [x] rulings 項1・2の人間専任解除を記録し、実行場所分類の手順を AI 担当へ整合した
+  (2026-09-10 ユーザー裁定)。T-1998 / T-2557 / T-2267 の測定本体は AI 実行待ちで、
+  担当変更は測定完了・認証範囲の拡大を意味しない。手順は `docs/pegasus-runbook.md` §7.0。
+
+- [x] T-2579: D1936項43の限定変更を回収。T1259の実repo snapshotをmodule fixtureへ移し、
+  各testへ独立copyを渡し、既存inventory・parent-only・goldenへ登録した。
+  production timeout・走査範囲・判定を維持。全worker合計1回や速度改善の主張ではない。
+  根拠は `output/insights/2026-09-10_t2579-recovery/README.md`。
+
 - [x] 本体論文の日本語方法節草稿（2026-09-10 の新規ユーザー執筆依頼）を
   `output/insights/2026-09-10/paper-methods-ja/methods.md` と同 `implementation.md` に作成。
   生成・検証・反例還流・独立測定・選択を対応づけ、実装と評価契約を区別した文書成果であり、
   未完の実験や Phase 3 全体の完了を意味しない。
+
+- [x] [T-2340] backoff 単独論文の日本語ストーリーを既着地正典全体から再導出し、
+  `docs/paper-story-backoff/2026-09-10.md` に追加した。機序の直接観測・動的化の結果・認証の限定を
+  反映した文書成果であり、旧版不変、新規測定・追加認証・本体論文との図表の二重新規利用はない。
 
 **段 1〜5 は完了 (2026-07-06〜07-10)。完了記録の詳細 (実装内訳・敵対レビュー・実測値・実機検証手順)
 は `docs/archive/phase3-kickoff-stages1-5.md` へ分離 (2026-07-10)** — ここには完了サマリ + 現役情報
@@ -318,6 +340,10 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
    iteration 5 は budget-walltime (3600s) 入口停止 (D39 決定 2 どおり)。**段 6 へ「未査証 (partial)」として
    inherit。** 実走手順 = `docs/phase3-s4b-runbook.md`。正本 = campaign `p3-s4-loop-s4-autonomous-0b53a387`
    の loop_state.json/whiteboard・`output/insights/2026-07-08_s4b-loopstate-audit.json`。
+   - [x] [T-2581/T-2548/T-2182] D1936項1・2の新規試行pinを完全SHAへ固定し、直接依存期待値を整合。
+     既存verifier v2でK2を1本再投入し、serializable・異常0・1 committedを取得した。
+     新campaignだけの判定で過去campaignは再ラベルしない。実測と検査は
+     `output/insights/2026-09-10_t2581-k2-pin/README.md`。
 5. **(完了 2026-07-09〜07-10) sort-strategy 軸の起動一式** — S2 verify 2 本立て pipeline 配線 (D36 決定 4、
    opt-in = `search_config["verify"]=="legacy+s2"`) / lock 経路 (cc/silo/transaction.cc) の編集面拡張
    (前提 gate = auditor live、同一コミット束ね) / git worktree 隔離 (opt-in) + C1 解消 (D40) / 起動の
@@ -483,6 +509,10 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
      D58 の対象外で、別設計・別裁定のまま据え置く。将来採用しても偵察 sweep / 8b の opt-in に限り、
      S-1 の事前登録済みサンプル設計には適用せず、採否判定の between-run floor 丸め
      (roadmap §3.6(4)) は変えない。
+     - [x] T-2525 / T-2526 (2026-09-10): D1859・D1936 項19に従い、要求側の静的物理量宣言を
+       screening へ転送し、T-2418 新走の campaign/report を v2 に整合した。乱択を静的量へ
+       変換せず、過去 artifact は保持する。適用範囲は
+       `docs/b10-backoff-static-tail-preregistration.md` の 2026-09-10 追補を参照。
    - **(8c bounded MVP 実装済み 2026-07-29、正式実験・resume は未完) 駆動の
      セッション非依存化** — ユーザーの優先度変更を受け、汎用 daemon を先に作らず
      **unattended runner + workload-conditioned generation + 固定 stop + 全件 report** を
@@ -2756,6 +2786,11 @@ mutation 8/8 を閉じたため、一括 downshift はせず、観測→制限�
   いずれも T-180 段 3 / 段 6 で real と裁定したが scope 外とした所見。
 
 ### 裁定・完了記録
+
+- [T-2417] **(完了 2026-09-10) policy 腕の既存18 blockの性能解析** — 全6 permutationの
+  記録値への登録式の適用を再確認した (H1 accepted / H2 rejected / H3 rejected)。compiler完全identityは
+  未確認の条件付き結果であり、集約出力も未認証を明示する。認証拡大・headline昇格は含めない (D1814)。正本は
+  `output/insights/2026-09-08_t2417-policy-arm-performance/README.md`。
 
 - [T-191] **(完了 2026-07-30) Codex cleanup-branches Skill 移植** —
   `.agents/skills/cleanup-branches/` に Claude command を共通 dispatcher として再利用する薄い

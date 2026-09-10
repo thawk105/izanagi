@@ -587,7 +587,7 @@ def test_base_campaign_projection_preserves_other_golden_and_splits_compute():
     assert compute.bound_environment_contract is pegasus_contract
     assert "measurement_env" not in other.search_config
     assert str(ident.campaign_id(other)) == (
-        "p3-s4-loop-s4-autonomous-8ee68c0c"
+        "p3-s4-loop-s4-autonomous-8cf3efb9"
     )
     assert ident.campaign_id(compute) != ident.campaign_id(other)
     assert compute.search_config["measurement_env"] == "pegasus"
@@ -600,7 +600,7 @@ def test_base_campaign_projection_preserves_other_golden_and_splits_compute():
     assert other_off.bound_environment_contract is linux_contract
     assert "measurement_env" not in other_off.search_config
     assert str(ident.campaign_id(other_off)) == (
-        "p3-s4-loop-s4-autonomous-95a32c3e"
+        "p3-s4-loop-s4-autonomous-93d98106"
     )
 
 
@@ -5075,10 +5075,10 @@ def test_b4_protocol_marker_is_exact_and_ordinary_identity_stays_unmarked():
     )
     assert ordinary == explicit_false
     assert str(ident.campaign_id(ordinary)) == (
-        "p3-s4-loop-s4-autonomous-8ee68c0c"
+        "p3-s4-loop-s4-autonomous-8cf3efb9"
     )
     assert str(ident.campaign_id(L.default_cfg(reflux=False))) == (
-        "p3-s4-loop-s4-autonomous-95a32c3e"
+        "p3-s4-loop-s4-autonomous-93d98106"
     )
     assert L.B4_PROTOCOL_KEY not in ordinary.search_config
     assert L.b4_reflux_ablation_mode(ordinary) is False
@@ -6444,7 +6444,7 @@ def test_planner_context_payload_rejects_non_string_policy_hint(hint):
 
 @pytest.mark.parametrize(
     ("reflux", "expected_hash"),
-    ((True, "8ee68c0c"), (False, "95a32c3e")),
+    ((True, "8cf3efb9"), (False, "93d98106")),
 )
 def test_knowledge_manifest_absence_preserves_exact_cfg_hashes(
     reflux, expected_hash, tmp_path, monkeypatch,

@@ -1177,7 +1177,7 @@ def _run_actual_job_body_through_driver(
     expected_head = "e" * 40
     gflags_head = "b" * 40
     glog_head = "c" * 40
-    ccbench_head = "028f34d" + "d" * 33
+    ccbench_head = "511c9538e4e8efa54b45cda62e72389ed3b706ec"
     (repo_root / "tools/pegasus/policy.json").write_text("{}\n", encoding="utf-8")
 
     _write_executable(
@@ -1231,7 +1231,7 @@ def _run_actual_job_body_through_driver(
         "    if 'print(os.path.realpath(sys.executable))' in code:\n"
         "        print(Path(__file__).resolve())\n"
         "    elif 'from orchestrator.campaign.p3_s4_loop import PIN' in code:\n"
-        "        print('028f34d')\n"
+        "        print('511c9538e4e8efa54b45cda62e72389ed3b706ec')\n"
         "elif args[:3] == ['-I', '-B', '-']:\n"
         "    print(os.environ['IZANAGI_TEST_GFLAGS_SOURCE'])\n"
         "    print(os.environ['IZANAGI_TEST_GFLAGS_HEAD'])\n"

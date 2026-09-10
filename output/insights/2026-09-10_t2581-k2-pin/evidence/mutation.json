@@ -1,0 +1,244 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2581-k2-pin/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/20d8e30a37bd3a3bdc16b669b6092999/izdw-20d8e30a37.o990047",
+      "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2581-k2-pin/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/20d8e30a37bd3a3bdc16b669b6092999/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n..                                                                       [100%]\n2 passed in 5.67s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "054f99c124dbc4654399971d9ea4360e9ff6ace52edc2fbd163fdfb8606e472a"
+    },
+    "artifact_error": null,
+    "collection_sha256": "d07c5711e9cbf9d66b46c3fab5cbea82911c8b42d97b579cf932149745502b29",
+    "duration_s": 27.298,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "1f8d9701c19e976b61aa963072276f1f8ea14d8451c10116f5d6de51eca0e3bd",
+    "repo_head": "55d0f239945d34eaf39de500f076f332dc7e20b3",
+    "runner_sha256": "245af4e9a5835ee9e0407c132ba173f69bccce294630aac78993194057561da1",
+    "spec_sha256": "70b30bb5bd6e2c68c2c1aad26d78048752d5b6159f57e7b1cf1d440838471116",
+    "status": "PASSED",
+    "test_output_sha256": "054f99c124dbc4654399971d9ea4360e9ff6ace52edc2fbd163fdfb8606e472a",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "55207ae1b40f11bde733f7485bd7ddaf7347d01a808c6ddb35924e0774c2002d"
+  },
+  "date": "2026-09-10T04:00:57.358193+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2581-k2-pin/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/92be259387163cd0c01d18476994501d/izdw-92be259387.o990048",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2581-k2-pin/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/92be259387163cd0c01d18476994501d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\nF.                                                                       [100%]\n=================================== FAILURES ===================================\n___ test_base_campaign_projection_preserves_other_golden_and_splits_compute ____\n[gw1] linux -- Python 3.10.12 /bin/python3.10\norchestrator/tests/test_p3_s4_loop.py:589: in test_base_campaign_projection_preserves_other_golden_and_splits_compute\n    assert str(ident.campaign_id(other)) == (\nE   AssertionError: assert 'p3-s4-loop-s...mous-8ee68c0c' == 'p3-s4-loop-s...mous-8cf3efb9'\nE     \nE     - p3-s4-loop-s4-autonomous-8cf3efb9\nE     ?                            ^^^^^^\nE     + p3-s4-loop-s4-autonomous-8ee68c0c\nE     ?                           ++++ ^^\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_s4_loop.py::test_base_campaign_projection_preserves_other_golden_and_splits_compute\n1 failed, 1 passed in 5.65s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop.py::test_base_campaign_projection_preserves_other_golden_and_splits_compute\" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=476 retained_bytes=476 omitted_bytes=0 rendered_excerpt_bytes=495 sha256=1b0703e71355452c3c8e5b61017e82ec09a4fe77ca6599fc0e6f45ffd5dbbd59\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> orchestrator/tests/test_p3_s4_loop.py:589: in test_base_campaign_projection_preserves_other_golden_and_splits_compute\n>     assert str(ident.campaign_id(other)) == (\n> E   AssertionError: assert 'p3-s4-loop-s...mous-8ee68c0c' == 'p3-s4-loop-s...mous-8cf3efb9'\n> E     \n> E     - p3-s4-loop-s4-autonomous-8cf3efb9\n> E     ?                            ^^^^^^\n> E     + p3-s4-loop-s4-autonomous-8ee68c0c\n> E     ?                           ++++ ^^\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=476 retained_bytes=476 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1228 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "0c709f1fb155f1d6c256ab41bf5cab8a2fa1aebe71a5000c39abef9d55d53519"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "d07c5711e9cbf9d66b46c3fab5cbea82911c8b42d97b579cf932149745502b29",
+      "duration_s": 27.143,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_campaign_projection_preserves_other_golden_and_splits_compute"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_campaign_projection_preserves_other_golden_and_splits_compute"
+      ],
+      "hang_risk": false,
+      "id": "M1-restore-old-pin",
+      "injection_diff_sha256": "d246d5c33b547fa100c7233fdf9887359da813e9e01fae2232cb5b3602bcc953",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "8d0091b98de51a887321b7f6955edb64a40f737253f530d01b380f7bb2485838",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "new": "PIN = \"028f34d\"",
+          "old": "PIN = \"511c9538e4e8efa54b45cda62e72389ed3b706ec\""
+        }
+      ],
+      "repo_head": "55d0f239945d34eaf39de500f076f332dc7e20b3",
+      "runner_sha256": "245af4e9a5835ee9e0407c132ba173f69bccce294630aac78993194057561da1",
+      "spec_sha256": "70b30bb5bd6e2c68c2c1aad26d78048752d5b6159f57e7b1cf1d440838471116",
+      "status": "KILLED",
+      "test_output_sha256": "0c709f1fb155f1d6c256ab41bf5cab8a2fa1aebe71a5000c39abef9d55d53519",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "55207ae1b40f11bde733f7485bd7ddaf7347d01a808c6ddb35924e0774c2002d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2581-k2-pin/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/99b651ac8aedd53bc857a3505e0302d0/izdw-99b651ac8a.o990050",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2581-k2-pin/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/99b651ac8aedd53bc857a3505e0302d0/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.F                                                                       [100%]\n=================================== FAILURES ===================================\n_________ test_complete_k2_environment_reaches_actual_job_driver_argv __________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\norchestrator/tests/test_p3_s4_loop_job_contract.py:1317: in test_complete_k2_environment_reaches_actual_job_driver_argv\n    argv = _run_actual_job_body_through_driver(\norchestrator/tests/test_p3_s4_loop_job_contract.py:1307: in _run_actual_job_body_through_driver\n    assert completed.returncode == 0, completed.stderr\nE   AssertionError: p3 S4 loop job refused: P3 S4 campaign pin must be a full lowercase commit\nE     \nE   assert 2 == 0\nE    +  where 2 = CompletedProcess(args=['/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_complete_k2_environment_r0/repo/tools/pegasus/p3_...s.sh'], returncode=2, stdout='', stderr='p3 S4 loop job refused: P3 S4 campaign pin must be a full lowercase commit\\n').returncode\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_s4_loop_job_contract.py::test_complete_k2_environment_reaches_actual_job_driver_argv\n1 failed, 1 passed in 5.48s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop_job_contract.py::test_complete_k2_environment_reaches_actual_job_driver_argv\" nodeid_bytes=111 nodeid_omitted_bytes=0 source_bytes=754 retained_bytes=754 omitted_bytes=0 rendered_excerpt_bytes=776 sha256=945078213ded0e450463f2cc2e033a9dff76f3858716cc1ca713a942cb663671\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> orchestrator/tests/test_p3_s4_loop_job_contract.py:1317: in test_complete_k2_environment_reaches_actual_job_driver_argv\n>     argv = _run_actual_job_body_through_driver(\n> orchestrator/tests/test_p3_s4_loop_job_contract.py:1307: in _run_actual_job_body_through_driver\n>     assert completed.returncode == 0, completed.stderr\n> E   AssertionError: p3 S4 loop job refused: P3 S4 campaign pin must be a full lowercase commit\n> E     \n> E   assert 2 == 0\n> E    +  where 2 = CompletedProcess(args=['/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_complete_k2_environment_r0/repo/tools/pegasus/p3_...s.sh'], returncode=2, stdout='', stderr='p3 S4 loop job refused: P3 S4 campaign pin must be a full lowercase commit\\x5cn').returncode\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=754 retained_bytes=754 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1510 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "292b544cdd710ab04b2f4735e949645c1e2ccc9630448da1cecf0583ba4f1bd3"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "d07c5711e9cbf9d66b46c3fab5cbea82911c8b42d97b579cf932149745502b29",
+      "duration_s": 27.175,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_complete_k2_environment_reaches_actual_job_driver_argv"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_complete_k2_environment_reaches_actual_job_driver_argv"
+      ],
+      "hang_risk": false,
+      "id": "M2-restore-seven-digit-format",
+      "injection_diff_sha256": "4294c36acde3796f8d4f55e8f2964b4c83890851971cb26360d78f2b0d8b577f",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "d3fb98175b90b21be51d450e5ffa3fea1df4983d510c9195980651b5d43ba071",
+      "replacements": [
+        {
+          "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+          "new": "if [[ ! \"$campaign_pin\" =~ ^[0-9a-f]{7}$ ]]; then",
+          "old": "if [[ ! \"$campaign_pin\" =~ ^[0-9a-f]{40}$ ]]; then"
+        }
+      ],
+      "repo_head": "55d0f239945d34eaf39de500f076f332dc7e20b3",
+      "runner_sha256": "245af4e9a5835ee9e0407c132ba173f69bccce294630aac78993194057561da1",
+      "spec_sha256": "70b30bb5bd6e2c68c2c1aad26d78048752d5b6159f57e7b1cf1d440838471116",
+      "status": "KILLED",
+      "test_output_sha256": "292b544cdd710ab04b2f4735e949645c1e2ccc9630448da1cecf0583ba4f1bd3",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "55207ae1b40f11bde733f7485bd7ddaf7347d01a808c6ddb35924e0774c2002d"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2581-k2-pin/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/49e8d5c47925e7afd51baaeb05177f21/izdw-49e8d5c479.o990045",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2581-k2-pin/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/49e8d5c47925e7afd51baaeb05177f21/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_p3_s4_loop.py::test_base_campaign_projection_preserves_other_golden_and_splits_compute\norchestrator/tests/test_p3_s4_loop_job_contract.py::test_complete_k2_environment_reaches_actual_job_driver_argv\n\n2 tests collected in 1.58s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "7094348c6f4747cefe51cad1ace45773116cb1c01ec3bf145e7fba250ca8ce74"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_campaign_projection_preserves_other_golden_and_splits_compute",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_complete_k2_environment_reaches_actual_job_driver_argv"
+      ],
+      "duration_s": 21.849,
+      "rc": 0,
+      "repo_head": "55d0f239945d34eaf39de500f076f332dc7e20b3",
+      "runner_sha256": "245af4e9a5835ee9e0407c132ba173f69bccce294630aac78993194057561da1",
+      "spec_sha256": "70b30bb5bd6e2c68c2c1aad26d78048752d5b6159f57e7b1cf1d440838471116",
+      "status": "PASSED",
+      "tool_sha256": "55207ae1b40f11bde733f7485bd7ddaf7347d01a808c6ddb35924e0774c2002d"
+    },
+    "hang_timeout_seconds": 60.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1-restore-old-pin": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_s4_loop.py::test_base_campaign_projection_preserves_other_golden_and_splits_compute"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d246d5c33b547fa100c7233fdf9887359da813e9e01fae2232cb5b3602bcc953",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_s4_loop.py",
+            "new": "PIN = \"028f34d\"",
+            "old": "PIN = \"511c9538e4e8efa54b45cda62e72389ed3b706ec\""
+          }
+        ]
+      },
+      "M2-restore-seven-digit-format": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_complete_k2_environment_reaches_actual_job_driver_argv"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "4294c36acde3796f8d4f55e8f2964b4c83890851971cb26360d78f2b0d8b577f",
+        "replacements": [
+          {
+            "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+            "new": "if [[ ! \"$campaign_pin\" =~ ^[0-9a-f]{7}$ ]]; then",
+            "old": "if [[ ! \"$campaign_pin\" =~ ^[0-9a-f]{40}$ ]]; then"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "1f8d9701c19e976b61aa963072276f1f8ea14d8451c10116f5d6de51eca0e3bd",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_p3_s4_loop.py::test_base_campaign_projection_preserves_other_golden_and_splits_compute",
+      "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_complete_k2_environment_reaches_actual_job_driver_argv",
+      "-q",
+      "-rf",
+      "--tb=short",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 600.0
+  },
+  "repo_head": "55d0f239945d34eaf39de500f076f332dc7e20b3",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_p3_s4_loop.py::test_base_campaign_projection_preserves_other_golden_and_splits_compute",
+      "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_complete_k2_environment_reaches_actual_job_driver_argv",
+      "-q",
+      "-rf",
+      "--tb=short",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2581-k2-pin/mutation-scratch/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2581-k2-pin/mutation-scratch/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "e9d6071e02123b10eb9ba84d435f637141e4b3a5",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "245af4e9a5835ee9e0407c132ba173f69bccce294630aac78993194057561da1",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "70b30bb5bd6e2c68c2c1aad26d78048752d5b6159f57e7b1cf1d440838471116",
+  "summary": {
+    "KILLED": 2,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 2,
+    "matching": 2,
+    "recorded": 2,
+    "registered": 2
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2581-k2-pin/mutation-scratch/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "55207ae1b40f11bde733f7485bd7ddaf7347d01a808c6ddb35924e0774c2002d",
+  "updated_at": "2026-09-10T04:02:40.986371+00:00"
+}

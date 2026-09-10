@@ -21,8 +21,8 @@ spawn し、機械部分 (`orchestrator/campaign/p3_s4_loop.py`) に proposal �
 2. **計測層が single-tenant** — `pgrep -a -f 'ccbench|silo|bench'` で他ユーザー/孤児ベンチが
    無いこと (load avg は EMA ゆえ遅延しがちで pgrep が正、規律4)。段 4b は各 iteration で
    build/verify/bench を実走するため、他者の計測と相互汚染しない窓を要する。
-3. **submodule が pinned-clean** — `git -C external/ccbench rev-parse --short HEAD` が `028f34d`
-   (= `p3_s4_loop.PIN`)、`git -C external/ccbench status --porcelain` が空。
+3. **submodule が pinned-clean** — `git -C external/ccbench rev-parse HEAD` が `p3_s4_loop.PIN`
+   (D1936項1で固定した完全SHA)、`git -C external/ccbench status --porcelain` が空。
 4. **test 緑** — `python3 -m pytest orchestrator/tests/ -q` が all pass。
 5. **calibration の確認** — 段 4 の `default_perf` は配線規模 (records=100k/threads=4/extime=1/reps=2、
    有意性を主張しない、D39 残存リスク c)。**headline 性能主張はしない段** — headline は段 6。

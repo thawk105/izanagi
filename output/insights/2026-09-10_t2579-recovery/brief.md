@@ -1,0 +1,19 @@
+# T-2579 段1 brief
+- 研究前進: 受入setupの実測済み重複repo走査に対し、D1936項43で承認された既存fixture変更を回収する。timeout解消や速度改善は未証明。CC合成の開始条件は増やさない。
+- 完了判定: 指定3fileだけの実装回収、現行main後続変更保持、独立レビュー、規定変異・関連検査・正式受入・local main land。
+- 基準main: c68d08d9e452138c383e9b92076bf91451912700。
+- 回収元: 559bcbc29cfa27412f103b608e8ac708dcfae6b9。旧worktreeの途中mergeは触らず、差分を内容監査して選択する。
+- 正本: D1936項43（D1877をこのfixtureに限定変更）と裁定README。取得処理はsiteを読まないため新しいsite偽装を課さない。
+- アンカー1: orchestrator/tests/test_t1259_qsub_env_delivery_probe.py の _clean_detached_source_snapshot。実snapshot取得をmodule fixtureへ移し、function fixtureへ独立deep copyを渡す。
+- アンカー2: orchestrator/tests/conftest.py の _REAL_REPO_NODE_INVENTORY と _REAL_REPO_PARENT_ONLY_NODES。対象consumer全件を既存集合へ登録。
+- アンカー3: orchestrator/tests/test_real_repo_serialization.py の対応する独立golden二集合へ同じ登録。
+- 不変条件: production timeout・走査範囲・判定内容・各testの正負期待を維持。fixtureがモデル化するclean/detached値とdeep copy境界を維持。
+- scope外: 較正変更、patch materialize、新gate/検査/台帳/一般化、無関係裁定fragment、性能主張、次wave。
+- 所有: 上記3fileを単一Codex authorへ。親は実装編集せずdocs/統合commit/全実走を担当。
+- 起動時照合: T-2273はt1259/conftestを明示所有外、T-2525/2526はbackoff/screening、T-2581はp3_s4_loop、T-2514はA-1、T-2515回収は完了。他waveの共有docsは現行main統合で保持する。
+- (P1) 旧30関数・展開後51nodeの列挙は現行mainでも過不足なしという親の暫定判断。plan/consultで現行collection経路を独立監査する。
+- DW-G01〜04: 新探索軸・大型機構・条件機能なし、承認済み局所回収のみ。
+- DW-G05: 登録漏れは既存shard分類とparent reader契約からconsumerを落とす。同一worker集約やreader間の直列化は現行schedulerの保証ではない。対象の受理/拒否内容は変更しない。
+- 検査環境: Pegasus、全テストはtools/run_tests.py経由。性能測定は行わず、未測定の速度改善は主張しない。
+- レビュー攻撃面: failures型タグの恒真ゲート・ドリフト・権限逸脱、copy別名共有、consumer登録漏れ、旧差分によるmain後続巻戻し。
+- 新gate・凍結成果物bytes・oracle/proof productionへの編集はない。既存test集合の登録は既存検査の整合追従に限定。

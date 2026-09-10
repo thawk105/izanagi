@@ -231,8 +231,8 @@ fi
 campaign_pin=$(
   "$PY" -B -c 'from orchestrator.campaign.p3_s4_loop import PIN; print(PIN)'
 )
-if [[ ! "$campaign_pin" =~ ^[0-9a-f]{7}$ ]]; then
-  refuse "P3 S4 campaign pin must be a short lowercase commit"
+if [[ ! "$campaign_pin" =~ ^[0-9a-f]{40}$ ]]; then
+  refuse "P3 S4 campaign pin must be a full lowercase commit"
 fi
 if ! ccbench_full_head=$(
   git -C "$ccbench_dir" rev-parse --verify 'HEAD^{commit}'

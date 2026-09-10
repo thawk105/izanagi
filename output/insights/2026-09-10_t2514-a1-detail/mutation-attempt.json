@@ -1,0 +1,110 @@
+{
+  "attempts": [
+    {
+      "artifact_error": null,
+      "console_sha256": "4c45ea22f0df4c768ec2015cab19fa73a8f9e546c9882392f23bb4f65540fe99",
+      "finished_at": "2026-09-10T11:05:44.790797+00:00",
+      "mutation_id": null,
+      "phase": "collection",
+      "rc": 0,
+      "request": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2514-a1-detail/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/99449fea37a52383540420c306b3f90a/izdw-99449fea37.o991335",
+        "outcome_rc": 0,
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2514-a1-detail/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/99449fea37a52383540420c306b3f90a/receipt.json",
+        "request_id": "991335.nqsv",
+        "submission_dir": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2514-a1-detail/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/99449fea37a52383540420c306b3f90a"
+      },
+      "run_attempt_ordinal": 1,
+      "started_at": "2026-09-10T11:05:17.583626+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 1
+    },
+    {
+      "artifact_error": null,
+      "console_sha256": "0dc2da4fec0a1bd80b946d3732e51828f3fe013e39f495fa7005bdf725326719",
+      "finished_at": "2026-09-10T11:06:29.278160+00:00",
+      "mutation_id": null,
+      "phase": "baseline",
+      "rc": 0,
+      "request": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2514-a1-detail/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/ab14e7faa50551297ceaf2cf184a0d12/izdw-ab14e7faa5.o991337",
+        "outcome_rc": 0,
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2514-a1-detail/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/ab14e7faa50551297ceaf2cf184a0d12/receipt.json",
+        "request_id": "991337.nqsv",
+        "submission_dir": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2514-a1-detail/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/ab14e7faa50551297ceaf2cf184a0d12"
+      },
+      "run_attempt_ordinal": 2,
+      "started_at": "2026-09-10T11:05:56.689236+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 1
+    },
+    {
+      "artifact_error": null,
+      "console_sha256": "2c8857812b77116fcb4dd86b3dc3c05073f6c1dc3005ec62ecd7030aeb761bec",
+      "finished_at": "2026-09-10T11:07:05.083767+00:00",
+      "mutation_id": "M1-diagnostic-save-omitted",
+      "phase": "mutation",
+      "rc": 1,
+      "request": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2514-a1-detail/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/90bf6956afdbcc1cb55227ae8b726aba/izdw-90bf6956af.o991341",
+        "outcome_rc": 1,
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2514-a1-detail/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/90bf6956afdbcc1cb55227ae8b726aba/receipt.json",
+        "request_id": "991341.nqsv",
+        "submission_dir": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2514-a1-detail/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/90bf6956afdbcc1cb55227ae8b726aba"
+      },
+      "run_attempt_ordinal": 3,
+      "started_at": "2026-09-10T11:06:37.936402+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 1
+    },
+    {
+      "artifact_error": null,
+      "console_sha256": "fe0a4435ab168bce866b3215c662ba159101922a4315596d07cd1346393927dc",
+      "finished_at": "2026-09-10T11:07:38.349253+00:00",
+      "mutation_id": "M2-save-exception-escapes",
+      "phase": "mutation",
+      "rc": 1,
+      "request": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2514-a1-detail/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/9a08dc6e129671fbd02a22390b69cadb/izdw-9a08dc6e12.o991345",
+        "outcome_rc": 1,
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2514-a1-detail/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/9a08dc6e129671fbd02a22390b69cadb/receipt.json",
+        "request_id": "991345.nqsv",
+        "submission_dir": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2514-a1-detail/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/9a08dc6e129671fbd02a22390b69cadb"
+      },
+      "run_attempt_ordinal": 4,
+      "started_at": "2026-09-10T11:07:11.062252+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 1
+    },
+    {
+      "artifact_error": null,
+      "console_sha256": "fbfc071735f415f26e58889dd2be1f199749df5296672159f03a317f0e6b9652",
+      "finished_at": "2026-09-10T11:08:12.650883+00:00",
+      "mutation_id": "M3-admitted-rejected",
+      "phase": "mutation",
+      "rc": 1,
+      "request": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2514-a1-detail/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/1169225e38e5424283e3c96be3ce069d/izdw-1169225e38.o991349",
+        "outcome_rc": 1,
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2514-a1-detail/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/1169225e38e5424283e3c96be3ce069d/receipt.json",
+        "request_id": "991349.nqsv",
+        "submission_dir": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2514-a1-detail/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/1169225e38e5424283e3c96be3ce069d"
+      },
+      "run_attempt_ordinal": 5,
+      "started_at": "2026-09-10T11:07:43.938677+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 1
+    }
+  ],
+  "expected_initial_requests": 5,
+  "repo_head": "4dc41b4c7952ee6a5e5c370939b16e7c03e767ce",
+  "runner_sha256": "8c67ed5403ed8259b2bd808ae3b671ef1004e1901cfed307a25645e8bf67d0d2",
+  "schema": "izanagi-dev-wave-mutation-attempts/v1",
+  "spec_sha256": "e4a1a182073d0d28136309012885245d546ea3366c869239215c9ea6e7833f40",
+  "tool_sha256": "0ce702872813ad740fb27c0e5365b023ffa2135ed4cac5d961215d1d5f8b17ff"
+}
