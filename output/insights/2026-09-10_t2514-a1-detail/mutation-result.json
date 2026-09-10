@@ -1,0 +1,309 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2514-a1-detail/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/ab14e7faa50551297ceaf2cf184a0d12/izdw-ab14e7faa5.o991337",
+      "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2514-a1-detail/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/ab14e7faa50551297ceaf2cf184a0d12/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n...                                                                      [100%]\n3 passed in 4.96s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "52cd838bf22aa6f03b4ec197eb0228a6bcda761c73562e1cb84d68fcdfd81e22"
+    },
+    "artifact_error": null,
+    "collection_sha256": "e115a412b76bf720654f970fd2cb25d99f4fad0b4f8f39cead46debe3eaca67e",
+    "duration_s": 32.586,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "8b6dcbf1ef5808305aed467a4a8602bb13b575775eab1b8dfad357d6a976371d",
+    "repo_head": "4dc41b4c7952ee6a5e5c370939b16e7c03e767ce",
+    "runner_sha256": "8c67ed5403ed8259b2bd808ae3b671ef1004e1901cfed307a25645e8bf67d0d2",
+    "spec_sha256": "e4a1a182073d0d28136309012885245d546ea3366c869239215c9ea6e7833f40",
+    "status": "PASSED",
+    "test_output_sha256": "52cd838bf22aa6f03b4ec197eb0228a6bcda761c73562e1cb84d68fcdfd81e22",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "0ce702872813ad740fb27c0e5365b023ffa2135ed4cac5d961215d1d5f8b17ff"
+  },
+  "date": "2026-09-10T11:05:44.915426+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2514-a1-detail/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/90bf6956afdbcc1cb55227ae8b726aba/izdw-90bf6956af.o991341",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2514-a1-detail/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/90bf6956afdbcc1cb55227ae8b726aba/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.FF                                                                      [100%]\n=================================== FAILURES ===================================\n_______________ test_a1_detail_all_records_atomic_and_idempotent _______________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\na1_detail_gate = namespace(records=[ConditionArmRecord(record_id='condition-gate/supply-effectuation/a80eaf8a881d616e8c9f18b14fdb258cf7...rement: supply-effectuation:preprocess-failed,supply-effectuation:preprocess-failed,runtime-meaning:preprocess-failed')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14ec82eeadd0>\n\n    def test_a1_detail_all_records_atomic_and_idempotent(a1_detail_gate, monkeypatch):\n        state = a1_detail_gate\n        expected = _a1_detail_expected(state)\n        events, temporary_names = [], []\n        real_fsync, real_replace = os.fsync, os.replace\n    \n        def fsync(fd):\n            import stat\n            events.append(\"directory\" if stat.S_ISDIR(os.fstat(fd).st_mode) else \"file\")\n            return real_fsync(fd)\n    \n        def publish(source, destination):\n            assert source.parent == destination.parent == state.root\n            assert source.name.startswith(f\".{destination.name}.tmp-\")\n            assert source.read_bytes() == expected[destination.name]\n            temporary_names.append(source.name)\n            events.append(\"replace\")\n            return real_replace(source, destination)\n    \n        monkeypatch.setattr(os, \"fsync\", fsync)\n        monkeypatch.setattr(os, \"replace\", publish)\n        for _ in range(2):\n            with pytest.raises(paired.PaperStoryError) as caught:\n                state.invoke(evidence_root=state.root)\n            assert str(caught.value) == state.rejection\n>           assert {p.name: p.read_bytes() for p in state.root.iterdir()} == expected\nE           assert {'condition-g...ss\":\"paper\"}'} == {'condition-g...green\"}', ...}\nE             \nE             Omitting 1 identical items, use -vv to show\nE             Right contains 4 more items:\nE             {'condition-gate-runtime-meaning-5f52ae1115b621b47e36d3a26244522eb3b9d1f10b1fc4096da665896f6c133e.json': b'{\"ar'\nE                                                                                                                      b'm\":\"'\nE                                                                                                                      b'runt'\nE                                                                                                                      b'ime-'...\nE             \nE             ...Full output truncated (532 lines hidden), use '-vv' to show\n\norchestrator/tests/test_paper_story_a1_paired.py:4289: AssertionError\n_________ test_a1_detail_save_exception_preserves_rejection[serialize] _________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\na1_detail_gate = namespace(records=[ConditionArmRecord(record_id='condition-gate/supply-effectuation/a80eaf8a881d616e8c9f18b14fdb258cf7...rement: supply-effectuation:preprocess-failed,supply-effectuation:preprocess-failed,runtime-meaning:preprocess-failed')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14f3775a2dd0>\nfailure = 'serialize'\n\n    @pytest.mark.parametrize(\"failure\", (\"serialize\", \"write\", \"replace\", \"file-fsync\", \"directory-fsync\"))\n    def test_a1_detail_save_exception_preserves_rejection(a1_detail_gate, monkeypatch, failure):\n        state = a1_detail_gate\n        expected = _a1_detail_expected(state)\n        first_name = next(iter(expected))\n    \n        class SaveFailure(ValueError):\n            def __str__(self):\n                raise AssertionError(\"exception text must not be inspected\")\n    \n        real_open, real_replace, real_fsync = Path.open, os.replace, os.fsync\n        triggered = False\n    \n        def fail_once():\n            nonlocal triggered\n            if not triggered:\n                triggered = True\n                raise SaveFailure()\n    \n        if failure == \"serialize\":\n            original = type(state.records[0]).canonical_json\n    \n            def serialize(record):\n                if record is state.records[0]:\n                    fail_once()\n                return original(record)\n    \n            monkeypatch.setattr(type(state.records[0]), \"canonical_json\", serialize)\n        elif failure == \"write\":\n            @contextmanager\n            def partial_open(path, mode=\"r\", *args, **kwargs):\n                with real_open(path, mode, *args, **kwargs) as output:\n                    if mode == \"xb\" and not triggered:\n                        def write(data):\n                            output.write(data[:7])\n                            output.flush()\n                            fail_once()\n                        yield SimpleNamespace(write=write, flush=output.flush, fileno=output.fileno)\n                    else:\n                        yield output\n    \n            monkeypatch.setattr(Path, \"open\", partial_open)\n        elif failure == \"replace\":\n            def publish(source, destination):\n                fail_once()\n                return real_replace(source, destination)\n    \n            monkeypatch.setattr(os, \"replace\", publish)\n        else:\n            def fsync(fd):\n                import stat\n                is_directory = stat.S_ISDIR(os.fstat(fd).st_mode)\n                if is_directory == (failure == \"directory-fsync\"):\n                    fail_once()\n                return real_fsync(fd)\n    \n            monkeypatch.setattr(os, \"fsync\", fsync)\n        with pytest.raises(paired.PaperStoryError) as caught:\n            state.invoke(evidence_root=state.root)\n>       assert triggered\nE       assert False\n\norchestrator/tests/test_paper_story_a1_paired.py:4375: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_all_records_atomic_and_idempotent\nFAILED orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_save_exception_preserves_rejection[serialize]\n2 failed, 1 passed in 4.98s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_save_exception_preserves_rejection[serialize]\" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=2935 retained_bytes=2935 omitted_bytes=0 rendered_excerpt_bytes=3074 sha256=077e9d7b1ccbd96758e424abe145dde16ea56f9eb93e3215916a6b6b17e94197\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n> a1_detail_gate = namespace(records=[ConditionArmRecord(record_id='condition-gate/supply-effectuation/a80eaf8a881d616e8c9f18b14fdb258cf7...rement: supply-effectuation:preprocess-failed,supply-effectuation:preprocess-failed,runtime-meaning:preprocess-failed')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14f3775a2dd0>\n> failure = 'serialize'\n> \n>     @pytest.mark.parametrize(\"failure\", (\"serialize\", \"write\", \"replace\", \"file-fsync\", \"directory-fsync\"))\n>     def test_a1_detail_save_exception_preserves_rejection(a1_detail_gate, monkeypatch, failure):\n>         state = a1_detail_gate\n>         expected = _a1_detail_expected(state)\n>         first_name = next(iter(expected))\n>     \n>         class SaveFailure(ValueError):\n>             def __str__(self):\n>                 raise AssertionError(\"exception text must not be inspected\")\n>     \n>         real_open, real_replace, real_fsync = Path.open, os.replace, os.fsync\n>         triggered = False\n>     \n>         def fail_once():\n>             nonlocal triggered\n>             if not triggered:\n>                 triggered = True\n>                 raise SaveFailure()\n>     \n>         if failure == \"serialize\":\n>             original = type(state.records[0]).canonical_json\n>     \n>             def serialize(record):\n>                 if record is state.records[0]:\n>                     fail_once()\n>                 return original(record)\n>     \n>             monkeypatch.setattr(type(state.records[0]), \"canonical_json\", serialize)\n>         elif failure == \"write\":\n>             @contextmanager\n>             def partial_open(path, mode=\"r\", *args, **kwargs):\n>                 with real_open(path, mode, *args, **kwargs) as output:\n>                     if mode == \"xb\" and not triggered:\n>                         def write(data):\n>                             output.write(data[:7])\n>                             output.flush()\n>                             fail_once()\n>                         yield SimpleNamespace(write=write, flush=output.flush, fileno=output.fileno)\n>                     else:\n>                         yield output\n>     \n>             monkeypatch.setattr(Path, \"open\", partial_open)\n>         elif failure == \"replace\":\n>             def publish(source, destination):\n>                 fail_once()\n>                 return real_replace(source, destination)\n>     \n>             monkeypatch.setattr(os, \"replace\", publish)\n>         else:\n>             def fsync(fd):\n>                 import stat\n>                 is_directory = stat.S_ISDIR(os.fstat(fd).st_mode)\n>                 if is_directory == (failure == \"directory-fsync\"):\n>                     fail_once()\n>                 return real_fsync(fd)\n>     \n>             monkeypatch.setattr(os, \"fsync\", fsync)\n>         with pytest.raises(paired.PaperStoryError) as caught:\n>             state.invoke(evidence_root=state.root)\n> >       assert triggered\n> E       assert False\n> \n> orchestrator/tests/test_paper_story_a1_paired.py:4375: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_all_records_atomic_and_idempotent\" nodeid_bytes=98 nodeid_omitted_bytes=0 source_bytes=2477 retained_bytes=2477 omitted_bytes=0 rendered_excerpt_bytes=2564 sha256=bfd67633b009943e09ad59ddbc3d94666bfc63f8551e4b8ade10fc9c950bf926\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> a1_detail_gate = namespace(records=[ConditionArmRecord(record_id='condition-gate/supply-effectuation/a80eaf8a881d616e8c9f18b14fdb258cf7...rement: supply-effectuation:preprocess-failed,supply-effectuation:preprocess-failed,runtime-meaning:preprocess-failed')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14ec82eeadd0>\n> \n>     def test_a1_detail_all_records_atomic_and_idempotent(a1_detail_gate, monkeypatch):\n>         state = a1_detail_gate\n>         expected = _a1_detail_expected(state)\n>         events, temporary_names = [], []\n>         real_fsync, real_replace = os.fsync, os.replace\n>     \n>         def fsync(fd):\n>             import stat\n>             events.append(\"directory\" if stat.S_ISDIR(os.fstat(fd).st_mode) else \"file\")\n>             return real_fsync(fd)\n>     \n>         def publish(source, destination):\n>             assert source.parent == destination.parent == state.root\n>             assert source.name.startswith(f\".{destination.name}.tmp-\")\n>             assert source.read_bytes() == expected[destination.name]\n>             temporary_names.append(source.name)\n>             events.append(\"replace\")\n>             return real_replace(source, destination)\n>     \n>         monkeypatch.setattr(os, \"fsync\", fsync)\n>         monkeypatch.setattr(os, \"replace\", publish)\n>         for _ in range(2):\n>             with pytest.raises(paired.PaperStoryError) as caught:\n>                 state.invoke(evidence_root=state.root)\n>             assert str(caught.value) == state.rejection\n> >           assert {p.name: p.read_bytes() for p in state.root.iterdir()} == expected\n> E           assert {'condition-g...ss\":\"paper\"}'} == {'condition-g...green\"}', ...}\n> E             \n> E             Omitting 1 identical items, use -vv to show\n> E             Right contains 4 more items:\n> E             {'condition-gate-runtime-meaning-5f52ae1115b621b47e36d3a26244522eb3b9d1f10b1fc4096da665896f6c133e.json': b'{\"ar'\n> E                                                                                                                      b'm\":\"'\n> E                                                                                                                      b'runt'\n> E                                                                                                                      b'ime-'...\n> E             \n> E             ...Full output truncated (532 lines hidden), use '-vv' to show\n> \n> orchestrator/tests/test_paper_story_a1_paired.py:4289: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=5412 retained_bytes=5412 omitted_bytes=0 budget_bytes=49152 rendered_bytes=6814 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "39bf565da57d3f702f42c23163283657e05f4179f2553bdd18d705953c2defff"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e115a412b76bf720654f970fd2cb25d99f4fad0b4f8f39cead46debe3eaca67e",
+      "duration_s": 27.145,
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_all_records_atomic_and_idempotent",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_save_exception_preserves_rejection[serialize]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_all_records_atomic_and_idempotent",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_save_exception_preserves_rejection[serialize]"
+      ],
+      "hang_risk": false,
+      "id": "M1-diagnostic-save-omitted",
+      "injection_diff_sha256": "ec9788830c80ee8b214dfd2273d69ba2995e9ac0bd1d1a40256aa3aafcd440b9",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "82b8e95352c970b188ef58ba2187d0c38389db6ebce8c71593f4c5324b6ae213",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "new": "                        pass",
+          "old": "                        _persist_v3_condition_gate_record(\n                            output_path, record.canonical_json().encode(\"ascii\"),\n                        )"
+        }
+      ],
+      "repo_head": "4dc41b4c7952ee6a5e5c370939b16e7c03e767ce",
+      "runner_sha256": "8c67ed5403ed8259b2bd808ae3b671ef1004e1901cfed307a25645e8bf67d0d2",
+      "spec_sha256": "e4a1a182073d0d28136309012885245d546ea3366c869239215c9ea6e7833f40",
+      "status": "KILLED",
+      "test_output_sha256": "39bf565da57d3f702f42c23163283657e05f4179f2553bdd18d705953c2defff",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "0ce702872813ad740fb27c0e5365b023ffa2135ed4cac5d961215d1d5f8b17ff"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2514-a1-detail/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/9a08dc6e129671fbd02a22390b69cadb/izdw-9a08dc6e12.o991345",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2514-a1-detail/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/9a08dc6e129671fbd02a22390b69cadb/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..F                                                                      [100%]\n=================================== FAILURES ===================================\n_________ test_a1_detail_save_exception_preserves_rejection[serialize] _________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\na1_detail_gate = namespace(records=[ConditionArmRecord(record_id='condition-gate/supply-effectuation/a80eaf8a881d616e8c9f18b14fdb258cf7...rement: supply-effectuation:preprocess-failed,supply-effectuation:preprocess-failed,runtime-meaning:preprocess-failed')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x149310987970>\nfailure = 'serialize'\n\n    @pytest.mark.parametrize(\"failure\", (\"serialize\", \"write\", \"replace\", \"file-fsync\", \"directory-fsync\"))\n    def test_a1_detail_save_exception_preserves_rejection(a1_detail_gate, monkeypatch, failure):\n        state = a1_detail_gate\n        expected = _a1_detail_expected(state)\n        first_name = next(iter(expected))\n    \n        class SaveFailure(ValueError):\n            def __str__(self):\n                raise AssertionError(\"exception text must not be inspected\")\n    \n        real_open, real_replace, real_fsync = Path.open, os.replace, os.fsync\n        triggered = False\n    \n        def fail_once():\n            nonlocal triggered\n            if not triggered:\n                triggered = True\n                raise SaveFailure()\n    \n        if failure == \"serialize\":\n            original = type(state.records[0]).canonical_json\n    \n            def serialize(record):\n                if record is state.records[0]:\n                    fail_once()\n                return original(record)\n    \n            monkeypatch.setattr(type(state.records[0]), \"canonical_json\", serialize)\n        elif failure == \"write\":\n            @contextmanager\n            def partial_open(path, mode=\"r\", *args, **kwargs):\n                with real_open(path, mode, *args, **kwargs) as output:\n                    if mode == \"xb\" and not triggered:\n                        def write(data):\n                            output.write(data[:7])\n                            output.flush()\n                            fail_once()\n                        yield SimpleNamespace(write=write, flush=output.flush, fileno=output.fileno)\n                    else:\n                        yield output\n    \n            monkeypatch.setattr(Path, \"open\", partial_open)\n        elif failure == \"replace\":\n            def publish(source, destination):\n                fail_once()\n                return real_replace(source, destination)\n    \n            monkeypatch.setattr(os, \"replace\", publish)\n        else:\n            def fsync(fd):\n                import stat\n                is_directory = stat.S_ISDIR(os.fstat(fd).st_mode)\n                if is_directory == (failure == \"directory-fsync\"):\n                    fail_once()\n                return real_fsync(fd)\n    \n            monkeypatch.setattr(os, \"fsync\", fsync)\n        with pytest.raises(paired.PaperStoryError) as caught:\n>           state.invoke(evidence_root=state.root)\n\norchestrator/tests/test_paper_story_a1_paired.py:4374: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_paper_story_a1_paired.py:4239: in invoke\n    paired._require_v3_backoff_fixed_condition_gate(\norchestrator/campaign/paper_story_a1_paired.py:6825: in _require_v3_backoff_fixed_condition_gate\n    output_path, record.canonical_json().encode(\"ascii\"),\norchestrator/tests/test_paper_story_a1_paired.py:4340: in serialize\n    fail_once()\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\n    def fail_once():\n        nonlocal triggered\n        if not triggered:\n            triggered = True\n>           raise SaveFailure()\nE           test_paper_story_a1_paired.test_a1_detail_save_exception_preserves_rejection.<locals>.SaveFailure: <exception str() failed>\n\norchestrator/tests/test_paper_story_a1_paired.py:4333: SaveFailure\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_save_exception_preserves_rejection[serialize]\n1 failed, 2 passed in 5.03s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_save_exception_preserves_rejection[serialize]\" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=3734 retained_bytes=3734 omitted_bytes=0 rendered_excerpt_bytes=3903 sha256=8f11d5b22fdbd78b7ff2f6279675c1b4328406a1104d639aca3ce52853ccd4f7\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n> a1_detail_gate = namespace(records=[ConditionArmRecord(record_id='condition-gate/supply-effectuation/a80eaf8a881d616e8c9f18b14fdb258cf7...rement: supply-effectuation:preprocess-failed,supply-effectuation:preprocess-failed,runtime-meaning:preprocess-failed')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x149310987970>\n> failure = 'serialize'\n> \n>     @pytest.mark.parametrize(\"failure\", (\"serialize\", \"write\", \"replace\", \"file-fsync\", \"directory-fsync\"))\n>     def test_a1_detail_save_exception_preserves_rejection(a1_detail_gate, monkeypatch, failure):\n>         state = a1_detail_gate\n>         expected = _a1_detail_expected(state)\n>         first_name = next(iter(expected))\n>     \n>         class SaveFailure(ValueError):\n>             def __str__(self):\n>                 raise AssertionError(\"exception text must not be inspected\")\n>     \n>         real_open, real_replace, real_fsync = Path.open, os.replace, os.fsync\n>         triggered = False\n>     \n>         def fail_once():\n>             nonlocal triggered\n>             if not triggered:\n>                 triggered = True\n>                 raise SaveFailure()\n>     \n>         if failure == \"serialize\":\n>             original = type(state.records[0]).canonical_json\n>     \n>             def serialize(record):\n>                 if record is state.records[0]:\n>                     fail_once()\n>                 return original(record)\n>     \n>             monkeypatch.setattr(type(state.records[0]), \"canonical_json\", serialize)\n>         elif failure == \"write\":\n>             @contextmanager\n>             def partial_open(path, mode=\"r\", *args, **kwargs):\n>                 with real_open(path, mode, *args, **kwargs) as output:\n>                     if mode == \"xb\" and not triggered:\n>                         def write(data):\n>                             output.write(data[:7])\n>                             output.flush()\n>                             fail_once()\n>                         yield SimpleNamespace(write=write, flush=output.flush, fileno=output.fileno)\n>                     else:\n>                         yield output\n>     \n>             monkeypatch.setattr(Path, \"open\", partial_open)\n>         elif failure == \"replace\":\n>             def publish(source, destination):\n>                 fail_once()\n>                 return real_replace(source, destination)\n>     \n>             monkeypatch.setattr(os, \"replace\", publish)\n>         else:\n>             def fsync(fd):\n>                 import stat\n>                 is_directory = stat.S_ISDIR(os.fstat(fd).st_mode)\n>                 if is_directory == (failure == \"directory-fsync\"):\n>                     fail_once()\n>                 return real_fsync(fd)\n>     \n>             monkeypatch.setattr(os, \"fsync\", fsync)\n>         with pytest.raises(paired.PaperStoryError) as caught:\n> >           state.invoke(evidence_root=state.root)\n> \n> orchestrator/tests/test_paper_story_a1_paired.py:4374: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_paper_story_a1_paired.py:4239: in invoke\n>     paired._require_v3_backoff_fixed_condition_gate(\n> orchestrator/campaign/paper_story_a1_paired.py:6825: in _require_v3_backoff_fixed_condition_gate\n>     output_path, record.canonical_json().encode(\"ascii\"),\n> orchestrator/tests/test_paper_story_a1_paired.py:4340: in serialize\n>     fail_once()\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n>     def fail_once():\n>         nonlocal triggered\n>         if not triggered:\n>             triggered = True\n> >           raise SaveFailure()\n> E           test_paper_story_a1_paired.test_a1_detail_save_exception_preserves_rejection.<locals>.SaveFailure: <exception str() failed>\n> \n> orchestrator/tests/test_paper_story_a1_paired.py:4333: SaveFailure\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=3734 retained_bytes=3734 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4641 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "678202c81c3b953cd2495f6aa0ea0f8481afaed8cec8a9115b4d60710591ef86"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e115a412b76bf720654f970fd2cb25d99f4fad0b4f8f39cead46debe3eaca67e",
+      "duration_s": 27.28,
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_save_exception_preserves_rejection[serialize]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_save_exception_preserves_rejection[serialize]"
+      ],
+      "hang_risk": false,
+      "id": "M2-save-exception-escapes",
+      "injection_diff_sha256": "9def9fcee9dfab7086146c7507e3919f55dfeca6b26166be9bc9c200c2414265",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "829971677c70e54b259b66e7d7c8e256bc3c7c08413a68465015325a897ecc27",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "new": "                    except OSError as exc:\n                        failures.append(f\"{label}[{index}]:{type(exc).__name__}\")",
+          "old": "                    except Exception as exc:\n                        failures.append(f\"{label}[{index}]:{type(exc).__name__}\")"
+        }
+      ],
+      "repo_head": "4dc41b4c7952ee6a5e5c370939b16e7c03e767ce",
+      "runner_sha256": "8c67ed5403ed8259b2bd808ae3b671ef1004e1901cfed307a25645e8bf67d0d2",
+      "spec_sha256": "e4a1a182073d0d28136309012885245d546ea3366c869239215c9ea6e7833f40",
+      "status": "KILLED",
+      "test_output_sha256": "678202c81c3b953cd2495f6aa0ea0f8481afaed8cec8a9115b4d60710591ef86",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "0ce702872813ad740fb27c0e5365b023ffa2135ed4cac5d961215d1d5f8b17ff"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2514-a1-detail/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/1169225e38e5424283e3c96be3ce069d/izdw-1169225e38.o991349",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2514-a1-detail/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/1169225e38e5424283e3c96be3ce069d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..F                                                                      [100%]\n=================================== FAILURES ===================================\n_________ test_a1_detail_success_and_omitted_root_have_no_side_effects _________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\na1_detail_gate = namespace(records=[ConditionArmRecord(record_id='condition-gate/supply-effectuation/a80eaf8a881d616e8c9f18b14fdb258cf7...rement: supply-effectuation:preprocess-failed,supply-effectuation:preprocess-failed,runtime-meaning:preprocess-failed')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1467b902edd0>\n\n    def test_a1_detail_success_and_omitted_root_have_no_side_effects(a1_detail_gate, monkeypatch):\n        state = a1_detail_gate\n    \n        def forbidden(*_args, **_kwargs):\n            raise AssertionError(\"successful or rootless gate must not serialize or persist\")\n    \n        monkeypatch.setattr(paired, \"_persist_v3_condition_gate_record\", forbidden)\n        monkeypatch.setattr(type(state.records[0]), \"canonical_json\", forbidden)\n        monkeypatch.setattr(type(state.admission), \"canonical_json\", forbidden)\n        with pytest.raises(paired.PaperStoryError) as caught:\n            state.invoke()\n        assert str(caught.value) == state.rejection\n        state.admission = replace(state.admission, admitted=True)\n>       assert state.invoke(evidence_root=state.root / \"not-created\") is None\n\norchestrator/tests/test_paper_story_a1_paired.py:4433: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_paper_story_a1_paired.py:4239: in invoke\n    paired._require_v3_backoff_fixed_condition_gate(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nrepo_root = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_a1_detail_success_and_omi0/repo')\npolicy = {'authority': {'formal': False, 'promotion_prohibited': True, 'result_authority': 'pilot-sizing-input-only'}, 'campaig... 'bench_lock_scope': 'all-balanced-five-rep-blocks-after-both-arms-build-and-verify', 'bench_max_rounds': 1, ...}, ...}\nworkload = 'balanced', cxx = 'g++'\nevidence_root = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_a1_detail_success_and_omi0/raw/not-created')\n\n    def _require_v3_backoff_fixed_condition_gate(\n        *,\n        repo_root: Path,\n        policy: Mapping[str, object],\n        workload: str,\n        cxx: str,\n        evidence_root: Path | None = None,\n    ) -> None:\n        \"\"\"Require live supply and meaning records for every v3 fixed-backoff arm.\"\"\"\n        values = tuple(dict.fromkeys(\n            genome.flags[\"BACKOFF_FIXED\"]\n            for genome in genomes(policy, workload)\n        ))\n        try:\n            source_root = (repo_root / \"external\" / \"ccbench\").resolve(strict=True)\n            with patchharness.checkout(\n                CANONICAL_CCBENCH_OID, base_dir=os.fspath(source_root),\n            ) as stock_root:\n                captured = condition_meaning_gate.capture_define_inputs(\n                    source_root, stock_root=stock_root,\n                )\n                supply_records = []\n                meaning_records = []\n                for value in values:\n                    request = condition_meaning_gate.make_define_request(\n                        driver_id=(\n                            \"orchestrator.campaign.paper_story_a1_paired:\"\n                            f\"v3-{workload}\"\n                        ),\n                        macro=\"BACKOFF_FIXED\",\n                        requested_value=value,\n                        default_value=-1,\n                        stock_comparison=value == -1,\n                    )\n                    if value == -1:\n                        meaning_case = condition_meaning_gate.MeaningCase(\n                            -1,\n                            None,\n                            expected_selected_branch=(\n                                condition_meaning_gate.STOCK_ADAPTIVE_BRANCH\n                            ),\n                        )\n                    else:\n                        bits = struct.pack(\">d\", float(value)).hex()\n                        meaning_case = condition_meaning_gate.MeaningCase(\n                            value, (bits, bits),\n                        )\n                    declaration = condition_meaning_gate.MeaningWitnessDeclaration(\n                        \"BACKOFF_FIXED\", (meaning_case,),\n                    )\n                    supply_records.append(\n                        condition_meaning_gate.evaluate_define_supply_effectuation(\n                            captured, request=request, cxx=cxx, cmake=\"cmake\",\n                        )\n                    )\n                    meaning_records.append(\n                        condition_meaning_gate.evaluate_define_runtime_meaning(\n                            captured,\n                            request=request,\n                            declaration=declaration,\n                            cxx=cxx,\n                        )\n                    )\n                admission = condition_meaning_gate.require_condition_gate_family(\n                    supply_records, meaning_records, use_class=\"paper\",\n                )\n        except (OSError, RuntimeError) as exc:\n            raise PaperStoryError(\n                f\"v3 BACKOFF_FIXED condition gate could not run: {exc}\"\n            ) from exc\n        if True:\n            rejected = \",\".join(\n                f\"{record.arm}:{record.reason_code}\"\n                for record in (*supply_records, *meaning_records)\n                if record.terminal_status != \"green\"\n            )\n            rejection = (\n                \"v3 BACKOFF_FIXED condition gate rejected measurement: \"\n                f\"{rejected or 'admission-not-granted'}\"\n            )\n            if evidence_root is not None:\n                failures = []\n                for label, records in (\n                    (\"supply\", supply_records), (\"meaning\", meaning_records),\n                ):\n                    for index, record in enumerate(records):\n                        try:\n                            output_path = evidence_root / (\n                                f\"condition-gate-{record.arm}-{record.record_digest}.json\"\n                            )\n                            _persist_v3_condition_gate_record(\n                                output_path, record.canonical_json().encode(\"ascii\"),\n                            )\n                        except Exception as exc:\n                            failures.append(f\"{label}[{index}]:{type(exc).__name__}\")\n                try:\n                    output_path = evidence_root / (\n                        f\"condition-gate-admission-{admission.admission_digest}.json\"\n                    )\n                    _persist_v3_condition_gate_record(\n                        output_path, admission.canonical_json().encode(\"ascii\"),\n                    )\n                except Exception as exc:\n                    failures.append(f\"admission:{type(exc).__name__}\")\n                if failures:\n                    rejection += \"; evidence_write_failures=\" + \",\".join(failures)\n>           raise PaperStoryError(rejection)\nE           orchestrator.campaign.paper_story_a1_paired.PaperStoryError: v3 BACKOFF_FIXED condition gate rejected measurement: supply-effectuation:preprocess-failed,supply-effectuation:preprocess-failed,runtime-meaning:preprocess-failed; evidence_write_failures=supply[0]:AssertionError,supply[1]:AssertionError,meaning[0]:AssertionError,meaning[1]:AssertionError,admission:AssertionError\n\norchestrator/campaign/paper_story_a1_paired.py:6840: PaperStoryError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_success_and_omitted_root_have_no_side_effects\n1 failed, 2 passed in 5.05s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_success_and_omitted_root_have_no_side_effects\" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=7433 retained_bytes=3945 omitted_bytes=3488 rendered_excerpt_bytes=4096 sha256=c9dd8b0f8498e8a693805aa41ab872b401452c42abdf8944f5e89ef28fd8d963\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n>                 meaning_case = condition_meaning_gate.MeaningCase(\n>                             -1,\n>                             None,\n>                             expected_selected_branch=(\n>                                 condition_meaning_gate.STOCK_ADAPTIVE_BRANCH\n>                             ),\n>                         )\n>                     else:\n>                         bits = struct.pack(\">d\", float(value)).hex()\n>                         meaning_case = condition_meaning_gate.MeaningCase(\n>                             value, (bits, bits),\n>                         )\n>                     declaration = condition_meaning_gate.MeaningWitnessDeclaration(\n>                         \"BACKOFF_FIXED\", (meaning_case,),\n>                     )\n>                     supply_records.append(\n>                         condition_meaning_gate.evaluate_define_supply_effectuation(\n>                             captured, request=request, cxx=cxx, cmake=\"cmake\",\n>                         )\n>                     )\n>                     meaning_records.append(\n>                         condition_meaning_gate.evaluate_define_runtime_meaning(\n>                             captured,\n>                             request=request,\n>                             declaration=declaration,\n>                             cxx=cxx,\n>                         )\n>                     )\n>                 admission = condition_meaning_gate.require_condition_gate_family(\n>                     supply_records, meaning_records, use_class=\"paper\",\n>                 )\n>         except (OSError, RuntimeError) as exc:\n>             raise PaperStoryError(\n>                 f\"v3 BACKOFF_FIXED condition gate could not run: {exc}\"\n>             ) from exc\n>         if True:\n>             rejected = \",\".join(\n>                 f\"{record.arm}:{record.reason_code}\"\n>                 for record in (*supply_records, *meaning_records)\n>                 if record.terminal_status != \"green\"\n>             )\n>             rejection = (\n>                 \"v3 BACKOFF_FIXED condition gate rejected measurement: \"\n>                 f\"{rejected or 'admission-not-granted'}\"\n>             )\n>             if evidence_root is not None:\n>                 failures = []\n>                 for label, records in (\n>                     (\"supply\", supply_records), (\"meaning\", meaning_records),\n>                 ):\n>                     for index, record in enumerate(records):\n>                         try:\n>                             output_path = evidence_root / (\n>                                 f\"condition-gate-{record.arm}-{record.record_digest}.json\"\n>                             )\n>                             _persist_v3_condition_gate_record(\n>                                 output_path, record.canonical_json().encode(\"ascii\"),\n>                             )\n>                         except Exception as exc:\n>                             failures.append(f\"{label}[{index}]:{type(exc).__name__}\")\n>                 try:\n>                     output_path = evidence_root / (\n>                         f\"condition-gate-admission-{admission.admission_digest}.json\"\n>                     )\n>                     _persist_v3_condition_gate_record(\n>                         output_path, admission.canonical_json().encode(\"ascii\"),\n>                     )\n>                 except Exception as exc:\n>                     failures.append(f\"admission:{type(exc).__name__}\")\n>                 if failures:\n>                     rejection += \"; evidence_write_failures=\" + \",\".join(failures)\n> >           raise PaperStoryError(rejection)\n> E           orchestrator.campaign.paper_story_a1_paired.PaperStoryError: v3 BACKOFF_FIXED condition gate rejected measurement: supply-effectuation:preprocess-failed,supply-effectuation:preprocess-failed,runtime-meaning:preprocess-failed; evidence_write_failures=supply[0]:AssertionError,supply[1]:AssertionError,meaning[0]:AssertionError,meaning[1]:AssertionError,admission:AssertionError\n> \n> orchestrator/campaign/paper_story_a1_paired.py:6840: PaperStoryError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=7433 retained_bytes=3945 omitted_bytes=3488 budget_bytes=49152 rendered_bytes=4840 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "239ca37e60babe360e913e0fa143fac331e21d5ee19488b75aecd77bcf44905d"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "e115a412b76bf720654f970fd2cb25d99f4fad0b4f8f39cead46debe3eaca67e",
+      "duration_s": 28.685,
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_success_and_omitted_root_have_no_side_effects"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_success_and_omitted_root_have_no_side_effects"
+      ],
+      "hang_risk": false,
+      "id": "M3-admitted-rejected",
+      "injection_diff_sha256": "6d1d8c0f8ec4aa90420cc6302183a4000af840ed3e622036715163267bbae677",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "9492b25e264325375b03d3bcd5f591ecccc6a6b832ff0dcc7cbf6257bcbab3f3",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "new": "    if True:\n        rejected = \",\".join(",
+          "old": "    if not admission.admitted:\n        rejected = \",\".join("
+        }
+      ],
+      "repo_head": "4dc41b4c7952ee6a5e5c370939b16e7c03e767ce",
+      "runner_sha256": "8c67ed5403ed8259b2bd808ae3b671ef1004e1901cfed307a25645e8bf67d0d2",
+      "spec_sha256": "e4a1a182073d0d28136309012885245d546ea3366c869239215c9ea6e7833f40",
+      "status": "KILLED",
+      "test_output_sha256": "239ca37e60babe360e913e0fa143fac331e21d5ee19488b75aecd77bcf44905d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "0ce702872813ad740fb27c0e5365b023ffa2135ed4cac5d961215d1d5f8b17ff"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2514-a1-detail/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/99449fea37a52383540420c306b3f90a/izdw-99449fea37.o991335",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2514-a1-detail/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/99449fea37a52383540420c306b3f90a/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_all_records_atomic_and_idempotent\norchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_save_exception_preserves_rejection[serialize]\norchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_success_and_omitted_root_have_no_side_effects\n\n3 tests collected in 1.34s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "ee2d3d48b5841d9503fd9a4d25cddf6de0892b0caf1f981e65fa75f8860fab3f"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_all_records_atomic_and_idempotent",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_save_exception_preserves_rejection[serialize]",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_success_and_omitted_root_have_no_side_effects"
+      ],
+      "duration_s": 27.164,
+      "rc": 0,
+      "repo_head": "4dc41b4c7952ee6a5e5c370939b16e7c03e767ce",
+      "runner_sha256": "8c67ed5403ed8259b2bd808ae3b671ef1004e1901cfed307a25645e8bf67d0d2",
+      "spec_sha256": "e4a1a182073d0d28136309012885245d546ea3366c869239215c9ea6e7833f40",
+      "status": "PASSED",
+      "tool_sha256": "0ce702872813ad740fb27c0e5365b023ffa2135ed4cac5d961215d1d5f8b17ff"
+    },
+    "hang_timeout_seconds": 120.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1-diagnostic-save-omitted": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_all_records_atomic_and_idempotent",
+          "orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_save_exception_preserves_rejection[serialize]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ec9788830c80ee8b214dfd2273d69ba2995e9ac0bd1d1a40256aa3aafcd440b9",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/paper_story_a1_paired.py",
+            "new": "                        pass",
+            "old": "                        _persist_v3_condition_gate_record(\n                            output_path, record.canonical_json().encode(\"ascii\"),\n                        )"
+          }
+        ]
+      },
+      "M2-save-exception-escapes": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_save_exception_preserves_rejection[serialize]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "9def9fcee9dfab7086146c7507e3919f55dfeca6b26166be9bc9c200c2414265",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/paper_story_a1_paired.py",
+            "new": "                    except OSError as exc:\n                        failures.append(f\"{label}[{index}]:{type(exc).__name__}\")",
+            "old": "                    except Exception as exc:\n                        failures.append(f\"{label}[{index}]:{type(exc).__name__}\")"
+          }
+        ]
+      },
+      "M3-admitted-rejected": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_success_and_omitted_root_have_no_side_effects"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "6d1d8c0f8ec4aa90420cc6302183a4000af840ed3e622036715163267bbae677",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/paper_story_a1_paired.py",
+            "new": "    if True:\n        rejected = \",\".join(",
+            "old": "    if not admission.admitted:\n        rejected = \",\".join("
+          }
+        ]
+      }
+    },
+    "registration_sha256": "8b6dcbf1ef5808305aed467a4a8602bb13b575775eab1b8dfad357d6a976371d",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_all_records_atomic_and_idempotent",
+      "orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_save_exception_preserves_rejection[serialize]",
+      "orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_success_and_omitted_root_have_no_side_effects",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 1800.0
+  },
+  "repo_head": "4dc41b4c7952ee6a5e5c370939b16e7c03e767ce",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_all_records_atomic_and_idempotent",
+      "orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_save_exception_preserves_rejection[serialize]",
+      "orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_success_and_omitted_root_have_no_side_effects",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2514-a1-detail/mutation-scratch/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2514-a1-detail/mutation-scratch/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "bd10215d1c77ec03787c633d504dc61a75cba5be",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "8c67ed5403ed8259b2bd808ae3b671ef1004e1901cfed307a25645e8bf67d0d2",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "e4a1a182073d0d28136309012885245d546ea3366c869239215c9ea6e7833f40",
+  "summary": {
+    "KILLED": 3,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 3,
+    "matching": 3,
+    "recorded": 3,
+    "registered": 3
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2514-a1-detail/mutation-scratch/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "0ce702872813ad740fb27c0e5365b023ffa2135ed4cac5d961215d1d5f8b17ff",
+  "updated_at": "2026-09-10T11:08:12.976796+00:00"
+}
