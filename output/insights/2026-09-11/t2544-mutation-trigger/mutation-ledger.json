@@ -1,0 +1,255 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/t2544-mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/3718ec93d0b49ff750edae8a15120f86/izdw-3718ec93d0.o991709",
+      "receipt_path": "/work/1/SFC/tanab/t2544-mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/3718ec93d0b49ff750edae8a15120f86/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": ".                                                                        [100%]\n1 passed in 1.70s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+      "stdout_sha256": "c5cc36b61b798702d04af249aaa3e4d1ce7c4fb366c3fbd2ed2afb36894f955d"
+    },
+    "artifact_error": null,
+    "collection_sha256": "6561c594b0728841153fec83d56d17b6d9235efc534ea046fcf530fd8a0c0589",
+    "duration_s": 548.741,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "0685473b95ef122d5920a265d7ed6751e7f5b92a85cfbdd1c131dc79b655de4c",
+    "repo_head": "3293e2bd89aa837c9bf5385828829d93df02f2a5",
+    "runner_sha256": "d18bf2dc1876d97a8e304a18e36ac9ffe31aea5b662783e881e8403663f6e463",
+    "spec_sha256": "61028719a3812270132dd01d7482a53e1fe5c547a1f8817d33a7873970adb5a2",
+    "status": "PASSED",
+    "test_output_sha256": "c5cc36b61b798702d04af249aaa3e4d1ce7c4fb366c3fbd2ed2afb36894f955d",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "93a134957c1bff37fdfe8ccbbd26330bedb43a8de0bf98ad94dbb77f648a968c"
+  },
+  "date": "2026-09-10T18:22:37.064751+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/t2544-mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/110b6f1f6c452193d9a468ad69d0276e/izdw-110b6f1f6c.o991722",
+        "receipt_path": "/work/1/SFC/tanab/t2544-mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/110b6f1f6c452193d9a468ad69d0276e/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "F                                                                        [100%]\n=================================== FAILURES ===================================\n______________________ test_synthetic_repo_baseline_clean ______________________\n\n    def test_synthetic_repo_baseline_clean():\n        root = _build_min_repo()\n        try:\n            res = _run_check(root)\n>           assert res.returncode == 0, f\"baseline が違反ありになった:\\n{res.stdout}\\n{res.stderr}\"\nE           AssertionError: baseline が違反ありになった:\nE             check_docs: 1 件の違反\nE               - .claude/commands/dev-wave.md: 条件 dispatch '15' が契約と不一致 — rows=1, triggers=['fix 後に変異を走らせる直前'], missing=[], extra=[]\nE             \nE             \nE           assert 1 == 0\nE            +  where 1 = CompletedProcess(args=['/bin/python3.10', '/tmp/izanagi_checkdocs_e6v9zei6/tools/check_docs.py'], returncode=1, stdout...mands/dev-wave.md: 条件 dispatch '15' が契約と不一致 — rows=1, triggers=['fix 後に変異を走らせる直前'], missing=[], extra=[]\\n\", stderr='').returncode\n\norchestrator/tests/test_check_docs.py:1603: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_check_docs.py::test_synthetic_repo_baseline_clean\n1 failed in 1.58s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_check_docs.py::test_synthetic_repo_baseline_clean\" nodeid_bytes=73 nodeid_omitted_bytes=0 source_bytes=950 retained_bytes=950 omitted_bytes=0 rendered_excerpt_bytes=1180 sha256=70e5da7ab8a1308603b85fa9914cadc4ffe1bd7a68ee02efb6395e3a4dd7219a\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> def test_synthetic_repo_baseline_clean():\n>         root = _build_min_repo()\n>         try:\n>             res = _run_check(root)\n> >           assert res.returncode == 0, f\"baseline \\u304c\\u9055\\u53cd\\u3042\\u308a\\u306b\\u306a\\u3063\\u305f:\\x5cn{res.stdout}\\x5cn{res.stderr}\"\n> E           AssertionError: baseline \\u304c\\u9055\\u53cd\\u3042\\u308a\\u306b\\u306a\\u3063\\u305f:\n> E             check_docs: 1 \\u4ef6\\u306e\\u9055\\u53cd\n> E               - .claude/commands/dev-wave.md: \\u6761\\u4ef6 dispatch '15' \\u304c\\u5951\\u7d04\\u3068\\u4e0d\\u4e00\\u81f4 \\u2014 rows=1, triggers=['fix \\u5f8c\\u306b\\u5909\\u7570\\u3092\\u8d70\\u3089\\u305b\\u308b\\u76f4\\u524d'], missing=[], extra=[]\n> E             \n> E             \n> E           assert 1 == 0\n> E            +  where 1 = CompletedProcess(args=['/bin/python3.10', '/tmp/izanagi_checkdocs_e6v9zei6/tools/check_docs.py'], returncode=1, stdout...mands/dev-wave.md: \\u6761\\u4ef6 dispatch '15' \\u304c\\u5951\\u7d04\\u3068\\u4e0d\\u4e00\\u81f4 \\u2014 rows=1, triggers=['fix \\u5f8c\\u306b\\u5909\\u7570\\u3092\\u8d70\\u3089\\u305b\\u308b\\u76f4\\u524d'], missing=[], extra=[]\\x5cn\", stderr='').returncode\n> \n> orchestrator/tests/test_check_docs.py:1603: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=950 retained_bytes=950 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1876 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "483ed7b3342931842d72f1bc872a16df5450d6da74ccbe3c0363d36bfb4f7841"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "6561c594b0728841153fec83d56d17b6d9235efc534ea046fcf530fd8a0c0589",
+      "duration_s": 221.064,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_synthetic_repo_baseline_clean"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_synthetic_repo_baseline_clean"
+      ],
+      "hang_risk": false,
+      "id": "M1-old-condition15-fixture",
+      "injection_diff_sha256": "f72985aaf85497811450744e7ed77a87c9624173b9389b695dbcf847d6c8f6c4",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "19afef2200e5cfab093a0a0e702cfde81988872ce6dfe6c19d7a800a6d20d57d",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_check_docs.py",
+          "new": "            f\"| {key} | {'fix 後に変異を走らせる直前' if key == '15' else check_docs.CONDITION_TRIGGER_CONTRACT[key]} | \"",
+          "old": "            f\"| {key} | {check_docs.CONDITION_TRIGGER_CONTRACT[key]} | \""
+        }
+      ],
+      "repo_head": "3293e2bd89aa837c9bf5385828829d93df02f2a5",
+      "runner_sha256": "d18bf2dc1876d97a8e304a18e36ac9ffe31aea5b662783e881e8403663f6e463",
+      "spec_sha256": "61028719a3812270132dd01d7482a53e1fe5c547a1f8817d33a7873970adb5a2",
+      "status": "KILLED",
+      "test_output_sha256": "483ed7b3342931842d72f1bc872a16df5450d6da74ccbe3c0363d36bfb4f7841",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "93a134957c1bff37fdfe8ccbbd26330bedb43a8de0bf98ad94dbb77f648a968c"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/t2544-mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/f4f3584c6464bb69f1ff6557b2611f14/izdw-f4f3584c64.o991729",
+        "receipt_path": "/work/1/SFC/tanab/t2544-mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/f4f3584c6464bb69f1ff6557b2611f14/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "F                                                                        [100%]\n=================================== FAILURES ===================================\n______________________ test_synthetic_repo_baseline_clean ______________________\n\n    def test_synthetic_repo_baseline_clean():\n        root = _build_min_repo()\n        try:\n            res = _run_check(root)\n>           assert res.returncode == 0, f\"baseline が違反ありになった:\\n{res.stdout}\\n{res.stderr}\"\nE           AssertionError: baseline が違反ありになった:\nE             check_docs: 1 件の違反\nE               - .claude/commands/dev-wave.md: 条件 dispatch '15' が契約と不一致 — rows=1, triggers=['変異を走らせる直前'], missing=[], extra=[]\nE             \nE             \nE           assert 1 == 0\nE            +  where 1 = CompletedProcess(args=['/bin/python3.10', '/tmp/izanagi_checkdocs_zlcb_9q0/tools/check_docs.py'], returncode=1, stdout...de/commands/dev-wave.md: 条件 dispatch '15' が契約と不一致 — rows=1, triggers=['変異を走らせる直前'], missing=[], extra=[]\\n\", stderr='').returncode\n\norchestrator/tests/test_check_docs.py:1603: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_check_docs.py::test_synthetic_repo_baseline_clean\n1 failed in 1.33s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_check_docs.py::test_synthetic_repo_baseline_clean\" nodeid_bytes=73 nodeid_omitted_bytes=0 source_bytes=936 retained_bytes=936 omitted_bytes=0 rendered_excerpt_bytes=1154 sha256=b0caa788d308503a61f1f7699e1eeee2bec72b67de13ce23d64e3d82b4797c26\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> def test_synthetic_repo_baseline_clean():\n>         root = _build_min_repo()\n>         try:\n>             res = _run_check(root)\n> >           assert res.returncode == 0, f\"baseline \\u304c\\u9055\\u53cd\\u3042\\u308a\\u306b\\u306a\\u3063\\u305f:\\x5cn{res.stdout}\\x5cn{res.stderr}\"\n> E           AssertionError: baseline \\u304c\\u9055\\u53cd\\u3042\\u308a\\u306b\\u306a\\u3063\\u305f:\n> E             check_docs: 1 \\u4ef6\\u306e\\u9055\\u53cd\n> E               - .claude/commands/dev-wave.md: \\u6761\\u4ef6 dispatch '15' \\u304c\\u5951\\u7d04\\u3068\\u4e0d\\u4e00\\u81f4 \\u2014 rows=1, triggers=['\\u5909\\u7570\\u3092\\u8d70\\u3089\\u305b\\u308b\\u76f4\\u524d'], missing=[], extra=[]\n> E             \n> E             \n> E           assert 1 == 0\n> E            +  where 1 = CompletedProcess(args=['/bin/python3.10', '/tmp/izanagi_checkdocs_zlcb_9q0/tools/check_docs.py'], returncode=1, stdout...de/commands/dev-wave.md: \\u6761\\u4ef6 dispatch '15' \\u304c\\u5951\\u7d04\\u3068\\u4e0d\\u4e00\\u81f4 \\u2014 rows=1, triggers=['\\u5909\\u7570\\u3092\\u8d70\\u3089\\u305b\\u308b\\u76f4\\u524d'], missing=[], extra=[]\\x5cn\", stderr='').returncode\n> \n> orchestrator/tests/test_check_docs.py:1603: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=936 retained_bytes=936 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1850 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "04bd3284a0461dddf692c5be92195d6bab82f4ccc23711706422536e5da14b3a"
+      },
+      "artifact_error": null,
+      "category": "both-layers",
+      "collection_sha256": "6561c594b0728841153fec83d56d17b6d9235efc534ea046fcf530fd8a0c0589",
+      "duration_s": 32.183,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_synthetic_repo_baseline_clean"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_synthetic_repo_baseline_clean"
+      ],
+      "hang_risk": false,
+      "id": "M2-old-checker-fixed-fixture",
+      "injection_diff_sha256": "d3f6485288802baf376e4690f3c7ab47613adc72db83e4fee4c80c561c6f8e09",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "b29df703a247f99ba2a5c8d6eaff88c512333684a515531303f96fb93a706810",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "new": "    \"15\": \"fix 後に変異を走らせる直前\",",
+          "old": "    \"15\": \"変異を走らせる直前\","
+        },
+        {
+          "file": "orchestrator/tests/test_check_docs.py",
+          "new": "            f\"| {key} | {'変異を走らせる直前' if key == '15' else check_docs.CONDITION_TRIGGER_CONTRACT[key]} | \"",
+          "old": "            f\"| {key} | {check_docs.CONDITION_TRIGGER_CONTRACT[key]} | \""
+        }
+      ],
+      "repo_head": "3293e2bd89aa837c9bf5385828829d93df02f2a5",
+      "runner_sha256": "d18bf2dc1876d97a8e304a18e36ac9ffe31aea5b662783e881e8403663f6e463",
+      "spec_sha256": "61028719a3812270132dd01d7482a53e1fe5c547a1f8817d33a7873970adb5a2",
+      "status": "KILLED",
+      "test_output_sha256": "04bd3284a0461dddf692c5be92195d6bab82f4ccc23711706422536e5da14b3a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "93a134957c1bff37fdfe8ccbbd26330bedb43a8de0bf98ad94dbb77f648a968c"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/t2544-mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/08f381e77b6c54647225ef3dce4fae52/izdw-08f381e77b.o991705",
+        "receipt_path": "/work/1/SFC/tanab/t2544-mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/08f381e77b6c54647225ef3dce4fae52/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_check_docs.py::test_synthetic_repo_baseline_clean\n\n1 test collected in 1.06s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "48553aa0d5b6774f61627e107595305d77b5eadc00969337b75fff67837116a6"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_synthetic_repo_baseline_clean"
+      ],
+      "duration_s": 21.845,
+      "rc": 0,
+      "repo_head": "3293e2bd89aa837c9bf5385828829d93df02f2a5",
+      "runner_sha256": "d18bf2dc1876d97a8e304a18e36ac9ffe31aea5b662783e881e8403663f6e463",
+      "spec_sha256": "61028719a3812270132dd01d7482a53e1fe5c547a1f8817d33a7873970adb5a2",
+      "status": "PASSED",
+      "tool_sha256": "93a134957c1bff37fdfe8ccbbd26330bedb43a8de0bf98ad94dbb77f648a968c"
+    },
+    "hang_timeout_seconds": 60.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1-old-condition15-fixture": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_check_docs.py::test_synthetic_repo_baseline_clean"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f72985aaf85497811450744e7ed77a87c9624173b9389b695dbcf847d6c8f6c4",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_check_docs.py",
+            "new": "            f\"| {key} | {'fix 後に変異を走らせる直前' if key == '15' else check_docs.CONDITION_TRIGGER_CONTRACT[key]} | \"",
+            "old": "            f\"| {key} | {check_docs.CONDITION_TRIGGER_CONTRACT[key]} | \""
+          }
+        ]
+      },
+      "M2-old-checker-fixed-fixture": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_check_docs.py::test_synthetic_repo_baseline_clean"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d3f6485288802baf376e4690f3c7ab47613adc72db83e4fee4c80c561c6f8e09",
+        "replacements": [
+          {
+            "file": "tools/check_docs.py",
+            "new": "    \"15\": \"fix 後に変異を走らせる直前\",",
+            "old": "    \"15\": \"変異を走らせる直前\","
+          },
+          {
+            "file": "orchestrator/tests/test_check_docs.py",
+            "new": "            f\"| {key} | {'変異を走らせる直前' if key == '15' else check_docs.CONDITION_TRIGGER_CONTRACT[key]} | \"",
+            "old": "            f\"| {key} | {check_docs.CONDITION_TRIGGER_CONTRACT[key]} | \""
+          }
+        ]
+      }
+    },
+    "registration_sha256": "0685473b95ef122d5920a265d7ed6751e7f5b92a85cfbdd1c131dc79b655de4c",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_check_docs.py::test_synthetic_repo_baseline_clean",
+      "-n",
+      "0",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 600.0
+  },
+  "repo_head": "3293e2bd89aa837c9bf5385828829d93df02f2a5",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_check_docs.py::test_synthetic_repo_baseline_clean",
+      "-n",
+      "0",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/t2544-mutation-scratch/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/t2544-mutation-scratch/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "0bd53aa3b3c066a99657acc2ecb8e62fdb1bc596",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "d18bf2dc1876d97a8e304a18e36ac9ffe31aea5b662783e881e8403663f6e463",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "61028719a3812270132dd01d7482a53e1fe5c547a1f8817d33a7873970adb5a2",
+  "summary": {
+    "KILLED": 2,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 2,
+    "matching": 2,
+    "recorded": 2,
+    "registered": 2
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/t2544-mutation-scratch/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "93a134957c1bff37fdfe8ccbbd26330bedb43a8de0bf98ad94dbb77f648a968c",
+  "updated_at": "2026-09-10T18:36:24.203039+00:00"
+}
