@@ -1,0 +1,23 @@
+{
+  "args": [
+    "/usr/bin/env",
+    "PYTHONDONTWRITEBYTECODE=1",
+    "PYTHONPATH=/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2298-certified-evidence-lock/measure",
+    "IZ_PHASE_OUT=/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-current-cost/phase-current.jsonl",
+    "/usr/bin/python3",
+    "tools/run_tests.py",
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5",
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5",
+    "-n",
+    "0",
+    "-p",
+    "phase_plugin",
+    "--durations=0",
+    "--junitxml=/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-current-cost/phase-current-junit.xml"
+  ],
+  "environment": {},
+  "repo_root": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2273-current-cost",
+  "request_binding": "sha256-job-script/v1",
+  "schema_version": "pegasus-dispatch-request/v2",
+  "task": "generic"
+}

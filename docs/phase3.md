@@ -2746,6 +2746,10 @@ mutation 8/8 を閉じたため、一括 downshift はせず、観測→制限�
 
 ### 裁定・完了記録
 
+- [x] [T-2273] / [T-2559] **(診断完了 2026-09-10)** 最新shard占有と非重複tailを分解し、
+  計算ノードで局所コピー費用を観測した。有効変更は未採用、300秒目標とprewarm Pは未達・未測定。
+  `output/insights/2026-09-10_t2273-current-cost/README.md`。実装差分0、規律2は維持。
+
 - [T-191] **(完了 2026-07-30) Codex cleanup-branches Skill 移植** —
   `.agents/skills/cleanup-branches/` に Claude command を共通 dispatcher として再利用する薄い
   Codex adapter と生成済み UI metadata を追加。明示 `$cleanup-branches` 専用とし、
