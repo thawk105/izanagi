@@ -282,6 +282,10 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
 
 ## 後続段 (各々 ablation 点を残して投入)
 
+- [x] [T-2521] D1936項21に従い、旧 fig5 の用途制限から新 attempt 取得までという期限を外す追補を
+  論文ストーリーと図表の README に追加した (2026-09-11)。採用静的 backoff の結論・図としての
+  使用制限は期限なし。旧画像・provenance・統計・凍結稿は保持し、新たな比較・新規性の主張は加えない。
+
 - [x] insights の直下過密を日付別配置と旧名索引で解消（2026-09-10）。
   既存資料の内容・固定参照を維持し、深部rawの分割一覧も作成。
   検証記録は `output/insights/2026-09-10/insights-date-layout/README.md`。

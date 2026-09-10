@@ -20,6 +20,10 @@
 | `fig5_a2_certification_reject.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_a2_certification.py` | A-2 正式 certification (outer `reject`) の**結果図**。既存図の後継ではなく独立した新図。判定は凍結 `certification.json` から読み、生成器は再計算しない。**測定条件の記述に erratum あり (同節の Erratum)。測ったのは採用静的 backoff ではなく `BACK_OFF` の有効/無効であり、取り直しまで論文の A-2 の結論にも図にも使わない (D1645)** |
 | `fig6_a2_certification_observed_positive.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_a2_certification.py` | A-2 正式 certification (outer `observed-positive`) の**結果図**。D1644 の pin + patch 束縛 src_token で identity を計算する driver で取り直した attempt `t2364-20260907b` を描く。`fig5_` の後継ではなく、**別の条件を測った別の attempt** の独立した図である (絶対規律 7)。判定は `certification.json` から読み、生成器は再計算しない |
 
+**fig5 の用途制限の追補 (2026-09-11、D1936項21・T-2521):** 一覧の「取り直しまで」という期限は
+当該旧図には適用しない。採用静的 backoff に関する A-2 の結論・図として使えない制限は期限なしである。
+適用範囲は fig5 節の「追補 — 旧 fig5 の用途制限に期限を設けない」を参照する。
+
 ## 調整済み adaptive の実対照 (論文図へ未昇格)
 
 D1506 は「backoff 機構の性能比較は、無 backoff と**調整済み adaptive** (刻み 1 µs /
@@ -426,6 +430,18 @@ compile definition へ転送されず build の条件にならなかった (F707
 
 条件の正しい記述と現行の統制稿は `docs/paper-story/results/2026-09-07-a2-certification-reject.md` にある。
 論文素材からは、正しい identity で取り直した attempt が出るまで A-2 の結論を外す (D1645)。
+
+## 追補 — 旧 fig5 の用途制限に期限を設けない (2026-09-11、D1936項21・T-2521)
+
+D1936項21に従い、上の Erratum と一覧に残る D1645 の「正しい identity で取り直した attempt が
+出るまで」「取り直しまで」という期限を、当該旧 fig5 について外す。**採用静的 backoff に関する
+A-2 の結論にも、その結果を示す図にも、この旧図を期限なしで使わない。** 新 attempt が得られても、
+旧 attempt `t2022-20260828c` が比較したのは `BACK_OFF` の有効/無効という事実は変わらない。
+
+旧図が示す範囲は、上の Erratum が訂正した当時の測定対象と判定に限る。要求 genome の名である
+`fixed10` / `fixed5` を、実際に効いた静的 backoff の条件として引用してはならない。
+旧画像・PDF・provenance JSON・統計・凍結稿・キャプション正文と outer `reject` は保持する。
+本追補は用途制限の期限だけを当該旧図について改め、測定や判定を更新しない。
 
 ## 何を示す図か
 
