@@ -3084,8 +3084,8 @@ def test_public_b4_receipt_gate_requires_exact_protocol_marker():
         (
             "base",
             (
-                "p3-s4-loop-s4-autonomous-4e54b9ea",
-                "p3-s4-loop-s4-autonomous-7a8e044f",
+                "p3-s4-loop-s4-autonomous-47062c3f",
+                "p3-s4-loop-s4-autonomous-6e844e5b",
             ),
         ),
         (

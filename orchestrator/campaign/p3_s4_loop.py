@@ -108,8 +108,8 @@ from ..critic.identity_projection import IdentityProjection          # noqa: E40
 
 
 # ---- campaign 定数 (p3_s4_red 様式。実走前に pin/env を確認する) -----------------
-PIN = "028f34d"                       # 段4/D38 時点で凍結した pin (当時の submodule HEAD、
-                                       # 現行 pin の正本は pin.CURRENT_PIN だが歴史的 campaign 凍結のため literal 保持)
+# D1936: 新規試行は承認済みの完全40桁 pin に固定する。
+PIN = "511c9538e4e8efa54b45cda62e72389ed3b706ec"
 DECLARED_USE_CLASS = "exploration"
 ENV_TAG = "linux-baremetal"           # 計測層タグ (規律: 計測層以外の数値を混ぜない)
 CLK = 1800
