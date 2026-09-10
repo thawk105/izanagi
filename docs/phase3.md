@@ -18,6 +18,10 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 
 ## 現行チェックポイント (2026-07-25 更新)
 
+- [x] [T-2518] 実装差分ゼロの既存経路 precheck を記録 (2026-09-11、D1936項17)。
+  依存供給と A+B+C／clean stock の CLI 比較をつなぐ既存入口を確認できず、実測は未実施。
+  inert の緑／赤は未判定。記録 = `output/insights/2026-09-11/t2518-inert-precheck/README.md`。
+
 - [x] [T-2514] A-1条件関門の拒否時detail保存を実装 (2026-09-10、D1936項4・D1912)。
   生成済み全arm recordとadmissionをworkload別raw_rootへ保存し、受理集合・元の拒否・成功経路を維持する。
   記録 = `output/insights/2026-09-10_t2514-a1-detail/README.md`。
@@ -281,6 +285,10 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
 ---
 
 ## 後続段 (各々 ablation 点を残して投入)
+
+- [x] [T-2521] D1936項21に従い、旧 fig5 の用途制限から新 attempt 取得までという期限を外す追補を
+  論文ストーリーと図表の README に追加した (2026-09-11)。採用静的 backoff の結論・図としての
+  使用制限は期限なし。旧画像・provenance・統計・凍結稿は保持し、新たな比較・新規性の主張は加えない。
 
 - [x] insights の直下過密を日付別配置と旧名索引で解消（2026-09-10）。
   既存資料の内容・固定参照を維持し、深部rawの分割一覧も作成。
@@ -2795,6 +2803,12 @@ mutation 8/8 を閉じたため、一括 downshift はせず、観測→制限�
   いずれも T-180 段 3 / 段 6 で real と裁定したが scope 外とした所見。
 
 ### 裁定・完了記録
+
+- [x] [T-2273] / [T-2559] **(診断完了 2026-09-10)** 最新shard占有と非重複tailを分解し、
+  計算ノードで局所コピー費用を観測した。有効変更は未採用、300秒目標とprewarm Pは未達・未測定。
+  `output/insights/2026-09-10/t2273-current-cost/README.md`。実装差分0、規律2は維持。
+  2026-09-11の着地再開では受入fixtureの実在競合だけをCodex authorが修正し、
+  上限停止の期待値を保った（term_successのhandler準備後にcount evidenceを公開）。
 
 - [T-2417] **(完了 2026-09-10) policy 腕の既存18 blockの性能解析** — 全6 permutationの
   記録値への登録式の適用を再確認した (H1 accepted / H2 rejected / H3 rejected)。compiler完全identityは

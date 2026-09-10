@@ -4165,3 +4165,10 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:cc-next-run":"[T-2588]"},"authored":"2026-09-10","base":"d85bbb21196f503440ef9641e3dec095e3b43844","content_sha256":"fbf0f98f4b595527063769187a1a19bc6b579065d23e77d42e8740ddff25a17e","seq":1,"tested_tip":"133383bc20f924e68b5d7c6402fd77673401e6e2","wave":"dev-wave-cc-next-precheck","wave_ref":"refs/heads/worktree-dev-wave-cc-next-precheck"}
 - {"allocations":{},"authored":"2026-09-11","base":"d85bbb21196f503440ef9641e3dec095e3b43844","content_sha256":"870f694e548550059f4ecdb1e565f104e31edc10bdac32ddeca6ab1868504d90","seq":1,"tested_tip":"133383bc20f924e68b5d7c6402fd77673401e6e2","wave":"dev-wave-cc-next-precheck","wave_ref":"refs/heads/worktree-dev-wave-cc-next-precheck"}
+
+- {"allocations":{},"authored":"2026-09-11","base":"8d3127699fdfa1467ce5324ed2b934c9a552dcaf","content_sha256":"3c6e3937d228067666f176331541a815a45c5ee478f9a3f4eb078fc2c67c2ef2","seq":1,"tested_tip":"59ee46763b768b62b2d61fa7162172ecc8953f13","wave":"dev-wave-t2518-inert-precheck","wave_ref":"refs/heads/worktree-dev-wave-t2518-inert-precheck"}
+
+- {"allocations":{},"authored":"2026-09-10","base":"ef8256e33c220dc27c81fb40197be95ec4c01231","content_sha256":"56ddfd462b6a0ed0b98a36c59d29e90d7be39dd9429495e94cb1bcf20614b6e8","seq":1,"tested_tip":"e192ba50f7d90b601876cd3a08f3d40c3d97ac68","wave":"dev-wave-t2273-current-cost","wave_ref":"refs/heads/worktree-dev-wave-t2273-current-cost"}
+- {"allocations":{},"authored":"2026-09-11","base":"ef8256e33c220dc27c81fb40197be95ec4c01231","content_sha256":"412110f022c8c4512025acfdcf81231692b220e6b84efbf9f4054d8f670fb20e","seq":1,"tested_tip":"e192ba50f7d90b601876cd3a08f3d40c3d97ac68","wave":"dev-wave-t2273-current-cost","wave_ref":"refs/heads/worktree-dev-wave-t2273-current-cost"}
+
+- {"allocations":{},"authored":"2026-09-11","base":"34a6644c417bb5c3fd100224143d8c8e51c31ccc","content_sha256":"e37e1532181bba91626174f12da7caffde26364b933e94bf9ecc0fd2d1ffd87c","seq":1,"tested_tip":"3d0d64bbe2001dc8ccc3f15aaa60d9c0bbf37880","wave":"dev-wave-t2521-fig5-usage","wave_ref":"refs/heads/worktree-dev-wave-t2521-fig5-usage"}
