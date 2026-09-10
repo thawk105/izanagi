@@ -282,6 +282,10 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
 
 ## 後続段 (各々 ablation 点を残して投入)
 
+- [x] T-2520: D1936項18・F927の入れ子build誤分類を局所修正。
+  外側genomeを自由変数として既存入力依存判定へ渡す。実sinkの繰延べ除去による未被覆検出と
+  既存S1/S8b・局所固定入力の正例を確認。production配線・13macro witnessは変更しない。
+
 - [x] insights の直下過密を日付別配置と旧名索引で解消（2026-09-10）。
   既存資料の内容・固定参照を維持し、深部rawの分割一覧も作成。
   検証記録は `output/insights/2026-09-10/insights-date-layout/README.md`。

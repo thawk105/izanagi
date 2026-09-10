@@ -7,6 +7,7 @@ from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 import re
+import symtable
 import sys
 
 import pytest
@@ -2330,10 +2331,25 @@ def _sink_configuration_expression(
 
 
 def _expression_depends_on_scope_parameter(
-    body: ast.AST, expression: ast.AST, *, before_line: int,
+    body: ast.AST, expression: ast.AST, *, before_line: int, source: str,
 ) -> bool:
     parameters: set[str] = set()
+    free_variables: set[str] = set()
     if isinstance(body, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        # Resolve this function's lexical inputs, not every unbound/global name.
+        pending = [symtable.symtable(source, "<sink-source>", "exec")]
+        matches = []
+        while pending:
+            table = pending.pop()
+            if (
+                table.get_type() == "function"
+                and table.get_name() == body.name
+                and table.get_lineno() == body.lineno
+            ):
+                matches.append(table)
+            pending.extend(table.get_children())
+        assert len(matches) == 1
+        free_variables = set(matches[0].get_frees())
         parameters = {
             argument.arg
             for argument in (
@@ -2375,7 +2391,7 @@ def _expression_depends_on_scope_parameter(
 
     def depends(node: ast.AST, visiting: frozenset[str] = frozenset()) -> bool:
         if isinstance(node, ast.Name):
-            if node.id in parameters:
+            if node.id in parameters or node.id in free_variables:
                 return True
             if node.id in visiting:
                 return True
@@ -2483,7 +2499,7 @@ def _sink_macro_inventory(
     if explicit:
         return explicit
     if _expression_depends_on_scope_parameter(
-        body, expression, before_line=sink.lineno,
+        body, expression, before_line=sink.lineno, source=source,
     ):
         return source_macros
     return frozenset()
@@ -2517,7 +2533,7 @@ def _sink_macro_reachability(
         return "unresolved"
     body, expression = configuration
     if _expression_depends_on_scope_parameter(
-        body, expression, before_line=sink.lineno,
+        body, expression, before_line=sink.lineno, source=source,
     ):
         return "unresolved"
     return "proven-unreachable"
@@ -2928,6 +2944,82 @@ def test_define_sink_cross_product_classifies_t2155_production_sinks_exactly():
     })
     # Patch-derived define interfaces are covered by the s8b sink.
     assert classifications[s8b_sink] == Counter({"covered": 38})
+    assert failures == []
+
+
+def test_define_sink_cross_product_t2520_certify_entry_removal(monkeypatch):
+    sources = _production_build_sources()
+    patch_sources, _non_tu_interfaces = _patch_added_define_interfaces()
+    patch_macros = frozenset(patch_sources)
+    target = _BuildSink(
+        "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+        "<module>._certify_main._build_trace_binary", 3910, "buildcache",
+    )
+    assert target in _benchmark_build_sinks(sources)
+    member = _deferred_member(target)
+    assert member is not None
+    # The existing source inventory is independent of the new closure check.
+    expected_macros = _source_macro_tokens(
+        target.relative_path, sources[target.relative_path], patch_macros, sources,
+    )
+    assert len(expected_macros) == 14
+    before, failures = _define_sink_cross_product_classification(
+        sources, patch_macros,
+    )
+    assert failures == []
+    assert before[target] == Counter({"deferred": 14, "proven-unreachable": 24})
+    remaining = tuple(item for item in _DEFERRED_GATE_MEMBERS if item != member)
+    assert len(remaining) == len(_DEFERRED_GATE_MEMBERS) - 1
+    monkeypatch.setattr(sys.modules[__name__], "_DEFERRED_GATE_MEMBERS", remaining)
+    after, failures = _define_sink_cross_product_classification(
+        sources, patch_macros,
+    )
+    assert failures == [(macro, target, "reachable") for macro in sorted(expected_macros)]
+    assert after[target] == Counter({
+        "failure-reachable": 14, "proven-unreachable": 24,
+    })
+    assert {sink: counts for sink, counts in after.items() if sink != target} == {
+        sink: counts for sink, counts in before.items() if sink != target
+    }
+
+
+def test_define_sink_cross_product_t2520_opaque_closure_is_unresolved():
+    relative = "orchestrator/campaign/synthetic_t2520_opaque_closure.py"
+    sources = {relative: (
+        "from orchestrator.campaign import buildcache\n"
+        "def outer(genome):\n"
+        "    def build():\n"
+        "        return buildcache.build(genome)\n"
+        "    return build()\n"
+    )}
+    target = _BuildSink(relative, "<module>.outer.build", 4, "buildcache")
+    assert "BACKOFF_FIXED" not in sources[relative]
+    assert _benchmark_build_sinks(sources) == {target}
+    classifications, failures = _define_sink_cross_product_classification(
+        sources, frozenset({"BACKOFF_FIXED"}),
+    )
+    assert classifications == {target: Counter({"failure-unresolved": 1})}
+    assert failures == [("BACKOFF_FIXED", target, "unresolved")]
+
+
+def test_define_sink_cross_product_t2520_local_fixed_shadow_is_unreachable():
+    relative = "orchestrator/campaign/synthetic_t2520_local_fixed_shadow.py"
+    sources = {relative: (
+        "from orchestrator.campaign import buildcache\n"
+        "from orchestrator.campaign.model import Genome\n"
+        "def outer(genome):\n"
+        "    def build():\n"
+        "        genome = Genome(protocol='silo', flags={})\n"
+        "        return buildcache.build(genome)\n"
+        "    return build()\n"
+    )}
+    target = _BuildSink(relative, "<module>.outer.build", 6, "buildcache")
+    assert "BACKOFF_FIXED" not in sources[relative]
+    assert _benchmark_build_sinks(sources) == {target}
+    classifications, failures = _define_sink_cross_product_classification(
+        sources, frozenset({"BACKOFF_FIXED"}),
+    )
+    assert classifications == {target: Counter({"proven-unreachable": 1})}
     assert failures == []
 
 
