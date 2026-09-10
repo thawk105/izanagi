@@ -22,7 +22,9 @@ title: [T-2579] 承認済みmodule fixtureと既存reader登録を限定回収�
 - 固定実装anchorで既存harnessを走らせ、baseline緑、3変異すべてKILLED・期待1node一致。
   R1拒否・detached負例受理・登録1件欠落の失敗本文を確認し、production含む復元とclean状態を確認した。
 - 証拠は `output/insights/2026-09-10_t2579-recovery/README.md`。check_docs/check_codex_agents rc0。
-  anchor全史provenanceは9444件新規違反なし（既知56件）。この記録時点の正式受入は未実施。
+  anchor全史provenanceは9444件新規違反なし（既知56件）。記録後再走は52passed。
+  正式acceptance-3は22591passed/68skipped・child-green。受領証は同insightのacceptance-3.json。
+  その後の並行main前進を保持し、文書競合を親が解消したため、最終統合状態の受入は再走する。
 - dev-wave改善候補は、file単独走の既存site中立化とimport順序をDW-O18で明確にする案。
   専用handoffへ記録し、改善実装・次wave起動は行わない。pushは人間手番。
 

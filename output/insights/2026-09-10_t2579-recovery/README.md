@@ -64,6 +64,15 @@ R1 evidenceの拒否、detached負例evidenceの受理、r1登録欠落だけの
 
 anchorのprovenance全史監査は9444件、新規違反なし、rc0（既知56件は別枠）。
 
+記録後のT1259全件と集合meta-test再走は52 passed、rc0。
+正式acceptance-3はtested main `e4e5fe053a16d9f454f88904679f79f40ce42465`、
+tested tip `79cc9fc0635a38b78e32389aeff63ad656175a23` で22591 passed / 68 skipped、
+child-greenとなった。受領証は `acceptance-3.json`。
+受入前の2回は文書merge競合とmain前進で本走前に停止した。
+その後も並行landが進み、T2525/T2526は無競合で保持統合したが、日本語結果・考察文書との
+phase3追記競合は親が両方保持で解消した。無競合mergeだけの受領証再利用条件を超えるため、
+最終統合状態の正式受入は取り直す。実装3fileとproduction probeはこの処理で変更しない。
+
 ## 逐語の可逆正規化
 
 git diff --checkが拒否した行末ASCII space 2字だけを除去した。可視文字・行数は不変。
