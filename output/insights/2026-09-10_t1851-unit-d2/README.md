@@ -44,7 +44,17 @@ C3b の registry 側実値域は未取得のまま残し、新規 official campa
 frozenset membershipによるunhashable schemaのTypeError回帰も、非hash比較で旧来の管理された拒否へ戻した。
 
 独立レビュー2本と焦点再レビューは完了し、既知2件はclosed、追加real所見は無かった。
-受入全走、所要台帳更新、変異の実測結果、main landはこの記録時点では未完了である。
+変異本走は2回とも baseline成功、6/6 KILLED・期待失敗node完全一致となった。
+M1/M2はv5 keyのv4固定、M3は独立proofの自己照合、M4は現在末尾との比較、M5はv4の過剰拒否、
+M6は余剰proof keyの見逃し。M3/M6は公開consumerで不正成果物が誤受理されることを実測した。
+隔離テストのchild rcは0、復元・後片付けも成功したが、外側wrapperは並行mainの状態変化を
+検出し2回ともrc=125だった。1回目はmethods文書land、2回目は同sessionのhandoff削除。
+sourceのHEADとbytesは不変であり、変異結果と共有状態検査の不成立を区別して記録する。
+初回probeのMISMATCH6は失敗node集合の採取を目的とした仮登録との差であり、本走結果ではない。
+
+最新mainを含むmerge f5652cbe9e8084cba55805e3fbdf08e4a1d0ba08で、checker合成の関連テストは
+636 passed / 3 skipped。D2本体・fixtures・所要台帳は実装anchor ce2769c329123837f9fda92cac8c90837edabe17 と同じ。
+受入全走、所要台帳更新、main landはこの記録時点では未完了である。
 
 ## 統合時の文書整理
 
@@ -53,4 +63,11 @@ C3bの保全fragmentと後続rulingsが同じT-1851の次手を更新する衝�
 spool foldのdry-runはplannedとなった。
 
 起動時のmain未包含で作業全体を終了した判断は誤りだった。ユーザー指示を受け、認可範囲内の
-復旧可能な赤は修復して再検査し、継続した。自己改善用プロンプトは記録段で収録する。
+復旧可能な赤は修復して再検査し、継続した。自己改善用プロンプトは self-improvement-prompt.md に収録した。
+
+## 収録物
+
+- verbatim/: brief、plan、敵対相談、裁定、author、review、fix、focusの逐語をgzipで無損失保存。
+- mutation/: probe、本走spec、2回の本走とwrapper結果をgzipで無損失保存。
+- ruling-package.md: 旧10件を現行裁定と今回の直接指示へ照合した持ち越し整理。
+- self-improvement-prompt.md: 誤停止を防ぐ自己改善用プロンプト。改善実装や次waveは起動していない。
