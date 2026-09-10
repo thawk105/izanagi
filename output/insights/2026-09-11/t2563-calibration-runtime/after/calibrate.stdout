@@ -1,0 +1,14 @@
+[calibrate] L3 総量検出: 105 MB
+[calibrate] 倍々スイープ開始
+  [sweep] records=1,000,000 threads=48 reps=3 ...
+          miss_rate=14.722% median_tps=824,282 wall=3.5s maxrss=640MB
+  [sweep] records=2,000,000 threads=48 reps=3 ...
+          miss_rate=18.650% median_tps=849,858 wall=3.9s maxrss=1268MB
+  [sweep] records=4,000,000 threads=48 reps=3 ...
+          miss_rate=23.451% median_tps=912,198 wall=4.8s maxrss=2446MB
+  [sweep] 下限基準を充足 (records=1,000,000, working set ≥ L3×4) → スイープ打ち切り
+[calibrate] 飽和: NO (下限基準) → records=1,000,000
+[calibrate] noise floor: records=1,000,000 を 10 回 ...
+[calibrate] noise floor CV = 1.11%
+wrote /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2563-calibration-runtime/output/env/pegasus/calibration/attempts/0_991727.nqsv/calibration.json
+published /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2563-calibration-runtime/output/env/pegasus/calibration/registered/calibration-b45a9311a05cbbdd.json via link-unlink

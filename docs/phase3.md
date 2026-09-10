@@ -29,6 +29,10 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
   生成済み全arm recordとadmissionをworkload別raw_rootへ保存し、受理集合・元の拒否・成功経路を維持する。
   記録 = `output/insights/2026-09-10_t2514-a1-detail/README.md`。
 
+- [x] T-2520: D1936項18・F927の入れ子build誤分類を局所修正。
+  外側genomeを自由変数として既存入力依存判定へ渡す。実sinkの繰延べ除去による未被覆検出と
+  既存S1/S8b・局所固定入力の正例を確認。production配線・13macro witnessは変更しない。
+
 - safe variant loop、軸 onboarding、軸提案のループ内化 (8a) までは成立している。反復の駆動は
   2 種類ある — 主経路 (8a 軸の探索・S 系実験) は依然として**人間がセッション間を運ぶ
   human-supervised loop** であり、無人の進化探索ではない。一方 8c の bounded MVP
@@ -355,6 +359,9 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
    iteration 5 は budget-walltime (3600s) 入口停止 (D39 決定 2 どおり)。**段 6 へ「未査証 (partial)」として
    inherit。** 実走手順 = `docs/phase3-s4b-runbook.md`。正本 = campaign `p3-s4-loop-s4-autonomous-0b53a387`
    の loop_state.json/whiteboard・`output/insights/2026-07-08_s4b-loopstate-audit.json`。
+   - [x] [T-2528] D1936項23・25に従い、coder3種とplannerのwhiteboard例を実射影の5fieldへ訂正。
+     plannerの説明もcurrent_perf・leading_indicators・whiteboardと任意policy_hintに整合。
+     既存source pin・互換baseline・static adapterだけを追随し、実装の受理集合とruntime blockedを維持。
    - [x] [T-2551] D1936項5に従い、段4jobがcanonical化した証拠保存先を環境変数へ再exportする。
      shellとPythonの保存先を揃え、既存job契約と絶対path指定の正常系を維持する。
    - [x] 2026-09-10新規依頼の次実験precheckを実装差分ゼロで実施。
@@ -510,6 +517,9 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
    - **(8b 着手済み — 現在地・着手順は現行チェックポイントが正本) workload 次元のループ入力化 (次の主経路)** — 「ワークロード特化」のシステム主張に必須。
      - [x] [T-2515] rr5/rr95 の較正投入対応と条件関門の interpreter 修正、既存失敗実測を回収。
        accepted calibration の取得自体は未完。正本 = `output/insights/2026-09-10/t2515-rr95-rr5-calibration/README.md`。
+     - [x] 認定較正jobの3依存コピー並行化を1対比較し、効果帰属不能として候補を全撤回。
+       186→182秒だが未変更工程に3秒差、コピー周辺は約1秒のまま。時間式再凍結は未完。
+       記録 = `output/insights/2026-09-11/t2563-calibration-runtime/README.md`。
      coder / selector への入力に型付き workload descriptor (read/write 比率、競合ラベル、スケール、目的、
      正しさ制約。勝者名と実測性能値は除外) を追加し、同一 variant 集合を同一予算で比較する。
      既存 rr5/rr50/rr95 と D50/P2-4 の結果はすでに既知なので、**配線 demo または結果既知の

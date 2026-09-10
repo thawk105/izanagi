@@ -1,0 +1,1500 @@
+{
+  "observed_epoch": 1789065734,
+  "ok": true,
+  "profile": {
+    "cache_topology": [
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          0
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          1
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          2
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          3
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          4
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          5
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          6
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          7
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          8
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          9
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          10
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          11
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          12
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          13
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          14
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          15
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          16
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          17
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          18
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          19
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          20
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          21
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          22
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          23
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          24
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          25
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          26
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          27
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          28
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          29
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          30
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          31
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          32
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          33
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          34
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          35
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          36
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          37
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          38
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          39
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          40
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          41
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          42
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          43
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          44
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          45
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          46
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 49152,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          47
+        ],
+        "type": "Data"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          0
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          1
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          2
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          3
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          4
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          5
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          6
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          7
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          8
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          9
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          10
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          11
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          12
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          13
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          14
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          15
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          16
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          17
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          18
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          19
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          20
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          21
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          22
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          23
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          24
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          25
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          26
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          27
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          28
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          29
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          30
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          31
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          32
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          33
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          34
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          35
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          36
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          37
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          38
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          39
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          40
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          41
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          42
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          43
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          44
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          45
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          46
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 32768,
+        "level": 1,
+        "line": 64,
+        "shared_cpus": [
+          47
+        ],
+        "type": "Instruction"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          0
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          1
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          2
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          3
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          4
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          5
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          6
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          7
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          8
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          9
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          10
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          11
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          12
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          13
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          14
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          15
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          16
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          17
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          18
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          19
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          20
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          21
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          22
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          23
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          24
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          25
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          26
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          27
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          28
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          29
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          30
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          31
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          32
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          33
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          34
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          35
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          36
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          37
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          38
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          39
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          40
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          41
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          42
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          43
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          44
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          45
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          46
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 2097152,
+        "level": 2,
+        "line": 64,
+        "shared_cpus": [
+          47
+        ],
+        "type": "Unified"
+      },
+      {
+        "bytes": 110100480,
+        "level": 3,
+        "line": 64,
+        "shared_cpus": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26,
+          27,
+          28,
+          29,
+          30,
+          31,
+          32,
+          33,
+          34,
+          35,
+          36,
+          37,
+          38,
+          39,
+          40,
+          41,
+          42,
+          43,
+          44,
+          45,
+          46,
+          47
+        ],
+        "type": "Unified"
+      }
+    ],
+    "cores": {
+      "affinity_visible": 48,
+      "logical": 48,
+      "physical": 48,
+      "smt_active": false
+    },
+    "cpu": {
+      "family": 6,
+      "model": 143,
+      "model_name_normalized": "Intel Xeon Platinum 8468",
+      "model_name_raw": "Intel(R) Xeon(R) Platinum 8468",
+      "vendor": "GenuineIntel"
+    },
+    "effective_clock": {
+      "governor": "performance",
+      "method": "proc-cpuinfo-rotating-min/k5/interval-ns50000000/sysfs-affinity-intersection-evenly-spaced-v1",
+      "samples_mhz": [
+        2101.0,
+        2101.0,
+        2101.0,
+        2101.0,
+        2101.0,
+        2101.0,
+        2101.0,
+        2101.0,
+        2101.0,
+        2101.0,
+        2101.0,
+        2101.0,
+        2101.0,
+        2101.0,
+        2101.0,
+        2101.0,
+        2101.0,
+        2101.0,
+        2101.0,
+        2101.0,
+        2101.0,
+        2101.0,
+        2101.0,
+        2101.0,
+        2101.0,
+        2101.0,
+        2101.0,
+        2101.0,
+        2101.0,
+        2101.0,
+        2101.0,
+        2101.0,
+        2101.0,
+        2101.0,
+        2101.0,
+        2101.0,
+        2101.0,
+        2101.0,
+        2101.0,
+        2101.0,
+        2101.0,
+        2101.0,
+        2101.0,
+        2101.0,
+        2101.0,
+        2101.0,
+        2101.0,
+        2101.0
+      ]
+    },
+    "numa": [
+      {
+        "cpulist": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26,
+          27,
+          28,
+          29,
+          30,
+          31,
+          32,
+          33,
+          34,
+          35,
+          36,
+          37,
+          38,
+          39,
+          40,
+          41,
+          42,
+          43,
+          44,
+          45,
+          46,
+          47
+        ],
+        "node_id": 0
+      }
+    ],
+    "tsc": {
+      "clocks_per_us_int": 2100,
+      "median_mhz": 2099.980872,
+      "raw_samples_mhz": [
+        2099.980853,
+        2099.980883,
+        2099.980831,
+        2099.980872,
+        2099.980876
+      ],
+      "source": "clock_gettime-monotonic/rdtscp"
+    },
+    "visibility": {
+      "hidepid": "0",
+      "pid_ns_method": "proc2-kthreadd",
+      "pid_ns_shared_with_host": true
+    }
+  },
+  "schema_version": "pegasus-probe-output/v2"
+}

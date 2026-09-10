@@ -1,0 +1,177 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2528-role-input/output/pegasus-dispatch/a9245be9e79b1d82fe7df4b6d46a48f9/izdw-a9245be9e7.o991711",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2528-role-input/output/pegasus-dispatch/a9245be9e79b1d82fe7df4b6d46a48f9/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2528-role-input\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [2 items]\n\n..                                                                       [100%]\n============================== 2 passed in 14.56s ==============================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "4e0f54004cafde0a3d4692b9d33374a4a00a0a6f5b764dc94a6c65e7a88b85ae"
+    },
+    "artifact_error": null,
+    "collection_sha256": "6cb46e27765e6f03635f028e30c80214fe563d20b43fb9e292ab479926431eb9",
+    "duration_s": 38.361,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "da016c18201817b20bf0c850bf4ea9fb1fb2e3b24cbc554a310335f76d524219",
+    "repo_head": "7f537f45f603d506b4effe49daa0e114366a49d7",
+    "runner_sha256": "6f7e55112fca9c067654f6db6047c3095094aa06040174c33a48a68b564c5fe1",
+    "spec_sha256": "bab4a4a4a8a0c70abee166b191cf0ba5a4c8c2f7583b5d23541f11b40478be11",
+    "status": "PASSED",
+    "test_output_sha256": "4e0f54004cafde0a3d4692b9d33374a4a00a0a6f5b764dc94a6c65e7a88b85ae",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "d7ff4b686ff1e750c5cebdca59c486c23c864f537504f2d478acc9a551156d9d"
+  },
+  "date": "2026-09-10T18:23:39.919387+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2528-role-input/output/pegasus-dispatch/36a6cbca74aa4445102f77ef13faf7c1/izdw-36a6cbca74.o991712",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2528-role-input/output/pegasus-dispatch/36a6cbca74aa4445102f77ef13faf7c1/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2528-role-input\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [2 items]\n\n.F                                                                       [100%]\n=================================== FAILURES ===================================\n_ test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set __\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_originless_default_preser0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14d6619cd690>\n\n    def test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        _pin_fixture_commit_dates(monkeypatch)\n        bundle_root = _fixed_width_bundle_root(tmp_path, \"originless\")\n        omitted = _bundle(bundle_root, monkeypatch, explicit_none=False)\n        shutil.rmtree(bundle_root)\n        explicit_none = _bundle(bundle_root, monkeypatch, explicit_none=True)\n        origin_enabled = _origin_enabled_bundle(\n            _fixed_width_bundle_root(tmp_path, \"origin-enabled\"), monkeypatch\n        )\n        _assert_generation_two_matches(omitted, explicit_none)\n        _assert_generation_two_matches(omitted, origin_enabled)\n        generation_two_mutant = copy.deepcopy(origin_enabled)\n        generation_two_mutant[\"reports\"][0][\"cells\"][0][\"generations\"][1][\"roles\"][\n            \"planner\"\n        ][\"parsed\"][\"magnitude\"] = \"generation-two-mutant\"\n        generation_two_planner = next(\n            event\n            for event in generation_two_mutant[\"journals\"][0]\n            if event.get(\"generation\") == 2 and event.get(\"role\") == \"planner\"\n        )\n        generation_two_planner[\"parsed\"][\"magnitude\"] = \"generation-two-mutant\"\n        with pytest.raises(AssertionError):\n            _assert_generation_two_matches(omitted, generation_two_mutant)\n        receipt_binding_mutant = copy.deepcopy(omitted)\n        receipt_binding_mutant[\"acceptance\"][\"trials\"][0][\"arm_execution\"][\n            \"content_digest_sha256\"\n        ] = \"f\" * 64\n        with pytest.raises(AssertionError):\n            _project_t1749_receipt_v4_to_v1(receipt_binding_mutant)\n        run_start_mutant = copy.deepcopy(omitted)\n        start = next(\n            event for event in run_start_mutant[\"journals\"][0]\n            if event[\"event\"] == \"run-start\"\n        )\n        start[\"arm_execution\"][\"content_digest_sha256\"] = \"e\" * 64\n        with pytest.raises(AssertionError):\n            _project_t1749_receipt_v4_to_v1(run_start_mutant)\n        input_schema_mutant = copy.deepcopy(omitted)\n        receipt_trial = input_schema_mutant[\"acceptance\"][\"trials\"][0]\n        trial_id = receipt_trial[\"trial_id\"]\n        report = next(\n            item for item in input_schema_mutant[\"reports\"]\n            if item[\"trial_id\"] == trial_id\n        )\n        run_start = next(\n            event\n            for journal in input_schema_mutant[\"journals\"]\n            for event in journal\n            if event.get(\"event\") == \"run-start\" and event[\"trial_id\"] == trial_id\n        )\n        for arm_execution in (\n            receipt_trial[\"arm_execution\"],\n            report[\"arm_execution\"],\n            run_start[\"arm_execution\"],\n        ):\n            arm_execution[\"input_schema_version\"] = \"8b-mutant\"\n        with pytest.raises(AssertionError):\n            _project_t244_additions_to_pre_wave(input_schema_mutant)\n        report_schema_mutant = copy.deepcopy(omitted)\n        report_schema_mutant[\"reports\"][0][\"arm_execution\"][\n            \"input_schema_version\"\n        ] = \"8b-mutant\"\n        with pytest.raises(AssertionError):\n            _project_t1311_arm_authority_to_pre_wave(report_schema_mutant)\n        run_start_schema_mutant = copy.deepcopy(omitted)\n        run_start = next(\n            event for event in run_start_schema_mutant[\"journals\"][0]\n            if event[\"event\"] == \"run-start\"\n        )\n        run_start[\"arm_execution\"][\"input_schema_version\"] = \"8b-mutant\"\n        with pytest.raises(AssertionError):\n            _project_t1311_arm_authority_to_pre_wave(run_start_schema_mutant)\n>       assert _baseline_structure(\n            _project_t244_additions_to_pre_wave(omitted)\n        ) == _PRE_WAVE_ORIGINLESS_BASELINE\nE       AssertionError: assert {'$': [[{'dic...lse, 1]], ...} == {'$': [[{'dic...lse, 1]], ...}\nE         \nE         Omitting 383 identical items, use -vv to show\nE         Differing items:\nE         {'reports/*/cells/*/generations/*/roles/planner/provenance/role_file_sha256': [['1d6b1603dbbb7c776202cd20a300e60e01b9119b55068ddfcce3e83714f646da', 6]]} != {'reports/*/cells/*/generations/*/roles/planner/provenance/role_file_sha256': [['3a3d35fafbaaeac5b63c8f36a1cd4542fba4e7cef2793c71cc59fc40884c8374', 6]]}\nE         {'reports/*/cells/*/generations/*/roles/coder/provenance/role_file_sha256': [['00405a9639b150372cf0881699090090cf688d4a61fa22651e0aee27e8d5279a', 6]]} != {'reports/*/cells/*/generations/*/roles/coder/provena...\nE         \nE         ...Full output truncated (3 lines hidden), use '-vv' to show\n\norchestrator/tests/test_reflux_originless_compatibility.py:1327: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set\n========================= 1 failed, 1 passed in 14.68s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set\" nodeid_bytes=135 nodeid_omitted_bytes=0 source_bytes=4847 retained_bytes=3945 omitted_bytes=902 rendered_excerpt_bytes=4096 sha256=31f71f977a001bbd382911a165a5067e4a7af910daef258863696a32b09e1f9e\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> generation_two_matches(omitted, origin_enabled)\n>         generation_two_mutant = copy.deepcopy(origin_enabled)\n>         generation_two_mutant[\"reports\"][0][\"cells\"][0][\"generations\"][1][\"roles\"][\n>             \"planner\"\n>         ][\"parsed\"][\"magnitude\"] = \"generation-two-mutant\"\n>         generation_two_planner = next(\n>             event\n>             for event in generation_two_mutant[\"journals\"][0]\n>             if event.get(\"generation\") == 2 and event.get(\"role\") == \"planner\"\n>         )\n>         generation_two_planner[\"parsed\"][\"magnitude\"] = \"generation-two-mutant\"\n>         with pytest.raises(AssertionError):\n>             _assert_generation_two_matches(omitted, generation_two_mutant)\n>         receipt_binding_mutant = copy.deepcopy(omitted)\n>         receipt_binding_mutant[\"acceptance\"][\"trials\"][0][\"arm_execution\"][\n>             \"content_digest_sha256\"\n>         ] = \"f\" * 64\n>         with pytest.raises(AssertionError):\n>             _project_t1749_receipt_v4_to_v1(receipt_binding_mutant)\n>         run_start_mutant = copy.deepcopy(omitted)\n>         start = next(\n>             event for event in run_start_mutant[\"journals\"][0]\n>             if event[\"event\"] == \"run-start\"\n>         )\n>         start[\"arm_execution\"][\"content_digest_sha256\"] = \"e\" * 64\n>         with pytest.raises(AssertionError):\n>             _project_t1749_receipt_v4_to_v1(run_start_mutant)\n>         input_schema_mutant = copy.deepcopy(omitted)\n>         receipt_trial = input_schema_mutant[\"acceptance\"][\"trials\"][0]\n>         trial_id = receipt_trial[\"trial_id\"]\n>         report = next(\n>             item for item in input_schema_mutant[\"reports\"]\n>             if item[\"trial_id\"] == trial_id\n>         )\n>         run_start = next(\n>             event\n>             for journal in input_schema_mutant[\"journals\"]\n>             for event in journal\n>             if event.get(\"event\") == \"run-start\" and event[\"trial_id\"] == trial_id\n>         )\n>         for arm_execution in (\n>             receipt_trial[\"arm_execution\"],\n>             report[\"arm_execution\"],\n>             run_start[\"arm_execution\"],\n>         ):\n>             arm_execution[\"input_schema_version\"] = \"8b-mutant\"\n>         with pytest.raises(AssertionError):\n>             _project_t244_additions_to_pre_wave(input_schema_mutant)\n>         report_schema_mutant = copy.deepcopy(omitted)\n>         report_schema_mutant[\"reports\"][0][\"arm_execution\"][\n>             \"input_schema_version\"\n>         ] = \"8b-mutant\"\n>         with pytest.raises(AssertionError):\n>             _project_t1311_arm_authority_to_pre_wave(report_schema_mutant)\n>         run_start_schema_mutant = copy.deepcopy(omitted)\n>         run_start = next(\n>             event for event in run_start_schema_mutant[\"journals\"][0]\n>             if event[\"event\"] == \"run-start\"\n>         )\n>         run_start[\"arm_execution\"][\"input_schema_version\"] = \"8b-mutant\"\n>         with pytest.raises(AssertionError):\n>             _project_t1311_arm_authority_to_pre_wave(run_start_schema_mutant)\n> >       assert _baseline_structure(\n>             _project_t244_additions_to_pre_wave(omitted)\n>         ) == _PRE_WAVE_ORIGINLESS_BASELINE\n> E       AssertionError: assert {'$': [[{'dic...lse, 1]], ...} == {'$': [[{'dic...lse, 1]], ...}\n> E         \n> E         Omitting 383 identical items, use -vv to show\n> E         Differing items:\n> E         {'reports/*/cells/*/generations/*/roles/planner/provenance/role_file_sha256': [['1d6b1603dbbb7c776202cd20a300e60e01b9119b55068ddfcce3e83714f646da', 6]]} != {'reports/*/cells/*/generations/*/roles/planner/provenance/role_file_sha256': [['3a3d35fafbaaeac5b63c8f36a1cd4542fba4e7cef2793c71cc59fc40884c8374', 6]]}\n> E         {'reports/*/cells/*/generations/*/roles/coder/provenance/role_file_sha256': [['00405a9639b150372cf0881699090090cf688d4a61fa22651e0aee27e8d5279a', 6]]} != {'reports/*/cells/*/generations/*/roles/coder/provena...\n> E         \n> E         ...Full output truncated (3 lines hidden), use '-vv' to show\n> \n> orchestrator/tests/test_reflux_originless_compatibility.py:1327: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=4847 retained_bytes=3945 omitted_bytes=902 budget_bytes=49152 rendered_bytes=4863 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "0cd788e857c0f69e7fb86ab7fb265ba15e45d729e4bd5c94bef09e71bd288bb1"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "6cb46e27765e6f03635f028e30c80214fe563d20b43fb9e292ab479926431eb9",
+      "duration_s": 37.833,
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set"
+      ],
+      "hang_risk": false,
+      "id": "M1",
+      "injection_diff_sha256": "34c7122fb2c964c95492012ceb0abf7d2bc3944ba04dd8c83d5f4e8b096058fa",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "14dd6777dd692997787609eee0975fc131a96a42b1b79b2ab5f470d5f9bcdf8b",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_reflux_originless_compatibility.py",
+          "new": "# T2528 mutation: omit the reviewed planner source baseline migration.\n",
+          "old": "_extend_t2528_role_source_baseline(_PRE_WAVE_ORIGINLESS_BASELINE)\n"
+        }
+      ],
+      "repo_head": "7f537f45f603d506b4effe49daa0e114366a49d7",
+      "runner_sha256": "6f7e55112fca9c067654f6db6047c3095094aa06040174c33a48a68b564c5fe1",
+      "spec_sha256": "bab4a4a4a8a0c70abee166b191cf0ba5a4c8c2f7583b5d23541f11b40478be11",
+      "status": "KILLED",
+      "test_output_sha256": "0cd788e857c0f69e7fb86ab7fb265ba15e45d729e4bd5c94bef09e71bd288bb1",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "d7ff4b686ff1e750c5cebdca59c486c23c864f537504f2d478acc9a551156d9d"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2528-role-input/output/pegasus-dispatch/3097be7de38ed3a305bcf888764a9a89/izdw-3097be7de3.o991710",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2528-role-input/output/pegasus-dispatch/3097be7de38ed3a305bcf888764a9a89/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_harness_rebuild_is_deterministic_control\norchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set\n\n2 tests collected in 1.54s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "f553c14b8ecee4fdafc24400b99bd1ec37468b5e02c6e1bd19d49dc50ac455ff"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_harness_rebuild_is_deterministic_control",
+        "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set"
+      ],
+      "duration_s": 21.853,
+      "rc": 0,
+      "repo_head": "7f537f45f603d506b4effe49daa0e114366a49d7",
+      "runner_sha256": "6f7e55112fca9c067654f6db6047c3095094aa06040174c33a48a68b564c5fe1",
+      "spec_sha256": "bab4a4a4a8a0c70abee166b191cf0ba5a4c8c2f7583b5d23541f11b40478be11",
+      "status": "PASSED",
+      "tool_sha256": "d7ff4b686ff1e750c5cebdca59c486c23c864f537504f2d478acc9a551156d9d"
+    },
+    "hang_timeout_seconds": 1500.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "34c7122fb2c964c95492012ceb0abf7d2bc3944ba04dd8c83d5f4e8b096058fa",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_reflux_originless_compatibility.py",
+            "new": "# T2528 mutation: omit the reviewed planner source baseline migration.\n",
+            "old": "_extend_t2528_role_source_baseline(_PRE_WAVE_ORIGINLESS_BASELINE)\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "da016c18201817b20bf0c850bf4ea9fb1fb2e3b24cbc554a310335f76d524219",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_reflux_originless_compatibility.py",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 1200.0
+  },
+  "repo_head": "7f537f45f603d506b4effe49daa0e114366a49d7",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_reflux_originless_compatibility.py",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2528-role-input/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2528-role-input/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "19b69a5c966500895884506c49e5599f1cf67186",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "6f7e55112fca9c067654f6db6047c3095094aa06040174c33a48a68b564c5fe1",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "bab4a4a4a8a0c70abee166b191cf0ba5a4c8c2f7583b5d23541f11b40478be11",
+  "summary": {
+    "KILLED": 1,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 1,
+    "matching": 1,
+    "recorded": 1,
+    "registered": 1
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2528-role-input/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "d7ff4b686ff1e750c5cebdca59c486c23c864f537504f2d478acc9a551156d9d",
+  "updated_at": "2026-09-10T18:25:17.825996+00:00"
+}
