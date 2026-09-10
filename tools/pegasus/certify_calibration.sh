@@ -152,10 +152,13 @@ if [[ -z "${IZANAGI_SUBMISSION_NONCE:-}" || ! "$IZANAGI_SUBMISSION_NONCE" =~ ^[A
   exit 2
 fi
 if [[ -z "${IZANAGI_CALIBRATION_RRATIO:-}" \
-      || "$IZANAGI_CALIBRATION_RRATIO" != "20" \
+      || "$IZANAGI_CALIBRATION_RRATIO" != "5" \
+      && "$IZANAGI_CALIBRATION_RRATIO" != "20" \
       && "$IZANAGI_CALIBRATION_RRATIO" != "50" \
-      && "$IZANAGI_CALIBRATION_RRATIO" != "80" ]]; then
-  write_failure 2 submit_binding "IZANAGI_CALIBRATION_RRATIO must be exactly 20, 50, or 80"
+      && "$IZANAGI_CALIBRATION_RRATIO" != "80" \
+      && "$IZANAGI_CALIBRATION_RRATIO" != "95" ]]; then
+  write_failure 2 submit_binding \
+    "IZANAGI_CALIBRATION_RRATIO must be exactly 5, 20, 50, 80, or 95"
   exit 2
 fi
 CALIBRATION_RRATIO="$IZANAGI_CALIBRATION_RRATIO"
@@ -402,8 +405,30 @@ realpath "$CC_PATH" >"$ATTEMPT_DIR/compiler.path"
 realpath "$NM_PATH" >"$ATTEMPT_DIR/nm.path"
 "$NM_PATH" --version >"$ATTEMPT_DIR/nm.version" 2>&1
 
+# calibrator は Python 3.10 構文を使う。候補自身で版数 smoke check を通し、
+# 選んだ interpreter を argv に固定する。PATH shim は calibrator の子 process が
+# python3 を拾う場合にも同じ interpreter のディレクトリを優先させる。
+CALIBRATE_PYTHON=""
+calibrate_python_rejected=""
+for candidate in python3.10 /usr/bin/python3.10 /bin/python3.10; do
+  resolved=$(command -v "$candidate" 2>/dev/null || true)
+  [[ -n "$resolved" ]] || continue
+  if "$resolved" -I -B -c \
+      'import sys; raise SystemExit(0 if sys.version_info[:2] >= (3, 10) else 1)' \
+      >/dev/null 2>&1; then
+    CALIBRATE_PYTHON="$resolved"
+    break
+  fi
+  calibrate_python_rejected+="${calibrate_python_rejected:+ }$candidate=$resolved"
+done
+if [[ -z "$CALIBRATE_PYTHON" ]]; then
+  write_failure 2 interpreter \
+    "no python3.10 interpreter passed smoke check (rejected: ${calibrate_python_rejected:-none})"
+  exit 2
+fi
+
 run_condition_gate() {
-  local -a condition_gate_argv=(python3 -m orchestrator.campaign.condition_meaning_gate
+  local -a condition_gate_argv=("$CALIBRATE_PYTHON" -m orchestrator.campaign.condition_meaning_gate
     --source-root "$BUILD_SOURCE" --stock-root "$CCBENCH_BASE"
     --driver-id tools.pegasus.certify_calibration
     --macro BACKOFF_FIXED --requested-value=-1 --stock-comparison
@@ -554,8 +579,7 @@ FETCHCONTENT_BASE_DIR="$TMPDIR/fetchcontent-base"
 mkdir -p "$FETCHCONTENT_SOURCE_ROOT" "$FETCHCONTENT_BASE_DIR"
 
 # The pristine-source verifier imports Python 3.10-only runtime APIs. Resolve
-# its interpreter independently because the calibrator resolver below cannot
-# run until after the perf candidate has been selected.
+# its interpreter independently from the calibrator interpreter selected above.
 THIRD_PARTY_VERIFY_PYTHON=""
 third_party_verify_python_rejected=""
 for candidate in python3.10 /usr/bin/python3.10 /bin/python3.10; do
@@ -897,27 +921,6 @@ mkdir "$TMPDIR/bin"
 ln -s "$PERF_SELECTED_REAL" "$TMPDIR/bin/perf"
 CALIBRATE_PATH="$TMPDIR/bin:$PATH"
 
-# calibrator は Python 3.10 構文を使う。候補自身で版数 smoke check を通し、
-# 選んだ interpreter を argv に固定する。PATH shim は calibrator の子 process が
-# python3 を拾う場合にも同じ interpreter のディレクトリを優先させる。
-CALIBRATE_PYTHON=""
-calibrate_python_rejected=""
-for candidate in python3.10 /usr/bin/python3.10 /bin/python3.10; do
-  resolved=$(command -v "$candidate" 2>/dev/null || true)
-  [[ -n "$resolved" ]] || continue
-  if "$resolved" -I -B -c \
-      'import sys; raise SystemExit(0 if sys.version_info[:2] >= (3, 10) else 1)' \
-      >/dev/null 2>&1; then
-    CALIBRATE_PYTHON="$resolved"
-    break
-  fi
-  calibrate_python_rejected+="${calibrate_python_rejected:+ }$candidate=$resolved"
-done
-if [[ -z "$CALIBRATE_PYTHON" ]]; then
-  write_failure 2 interpreter \
-    "no python3.10 interpreter passed smoke check (rejected: ${calibrate_python_rejected:-none})"
-  exit 2
-fi
 CALIBRATE_PATH="$TMPDIR/bin:$(dirname "$CALIBRATE_PYTHON"):$PATH"
 
 # CLI 名は L4 と凍結共有。override/fallback 用 --clocks-per-us は渡さない。

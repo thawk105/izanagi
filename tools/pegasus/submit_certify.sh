@@ -5,7 +5,7 @@ set -Eeuo pipefail
 usage() {
   cat <<'EOF'
 usage: submit_certify.sh [--dry-run] [--repo-root PATH] [--attempts-root PATH]
-                         [--job-script PATH] [--rratio 20|50|80]
+                         [--job-script PATH] [--rratio 5|20|50|80|95]
                          [--protocol silo|mocc|tictoc]
 EOF
 }
@@ -37,8 +37,9 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ "$RRATIO" != "20" && "$RRATIO" != "50" && "$RRATIO" != "80" ]]; then
-  echo "--rratio must be exactly 20, 50, or 80" >&2
+if [[ "$RRATIO" != "5" && "$RRATIO" != "20" && "$RRATIO" != "50" \
+      && "$RRATIO" != "80" && "$RRATIO" != "95" ]]; then
+  echo "--rratio must be exactly 5, 20, 50, 80, or 95" >&2
   exit 2
 fi
 if [[ "$PROTOCOL" != "silo" \
