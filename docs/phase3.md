@@ -2747,8 +2747,8 @@ mutation 8/8 を閉じたため、一括 downshift はせず、観測→制限�
 ### 裁定・完了記録
 
 - [T-2417] **(完了 2026-09-10) policy 腕の既存18 blockの性能解析** — 全6 permutationの
-  登録済み比較を回収し、H1 accepted / H2 rejected / H3 rejectedを再確認した。3腕は未認証で、
-  認証拡大・headline昇格は含めない (D1814)。正本は
+  記録値への登録式の適用を再確認した (H1 accepted / H2 rejected / H3 rejected)。compiler完全identityは
+  未確認の条件付き結果であり、集約出力も未認証を明示する。認証拡大・headline昇格は含めない (D1814)。正本は
   `output/insights/2026-09-08_t2417-policy-arm-performance/README.md`。
 
 - [T-191] **(完了 2026-07-30) Codex cleanup-branches Skill 移植** —

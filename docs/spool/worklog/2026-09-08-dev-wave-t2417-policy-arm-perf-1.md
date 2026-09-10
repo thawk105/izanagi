@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-09-08
 wave: dev-wave-t2417-policy-arm-perf
 seq: 1
-title: [T-2417] policy 腕の trace 無効な性能を 6 permutation の 18 block で測った — 事前登録した「効果なし」の予測が逆向きに反証された (コード + 計測 + docs、branch worktree-dev-wave-t2417-policy-arm-perf、変異 baseline PASSED・KILLED 15・SURVIVED 0・MISMATCH 0・期待 node 完全一致 15/15)
+title: [T-2417] policy 腕の既存18 blockを回収し、登録式による条件付き結果と未認証の射程を記録した (コード + 既存測定・解析 + docs、branch worktree-dev-wave-t2417-policy-arm-perf)
 ---
 
 ## 本文
@@ -22,11 +22,13 @@ policy 腕 (p0 / p1 / p2) の trace 無効な性能を、腕と job 内時刻の
 だった。全 6 permutation × 3 = 18 block では 6 通りが各 213 回、各腕が各位置に各 6 回になる。
 反復数は検出力から決めた ({{D:policy-arm-block-design}})。
 
-**事前登録した「効果なし」の予測が、逆向きに反証された。** read-heavy は abort がほぼ無いので
-向きの選択は効かないと予測したが、実測では read-heavy でも 42 threads で +190% だった。
+**事前登録したread-heavyの等価予測に反した。** abortが少ないという想定で等価を予測したが、
+記録値ではread-heavyでも42 threadsで+190%だった。実際のabortは非ゼロ (p0で1.91〜15.40%)なので、
+無abort域の機序を反証したとはしない。
 全24点の最大は balanced・30 threads の +249% である。回収時に表との不一致を訂正した。
 結果を見てから予測を書いていれば、この誤りは記録に残らなかった。3 腕はいずれも未認証であり、
-成果物は headline と採用判断から機械的に隔離されている。
+headlineと採用判断には使わない。compilerの記録は要求名が中心で、本体の完全identity一致は確定できない。
+H1/H2/H3は記録値へ登録式を適用した条件付き結果として残し、登録条件への完全適合を主張しない。
 
 **事前登録 v1 に、満たしえない identity 要求が 2 件あった**
 ({{F:preregistered-byte-identity-unsatisfiable}})。測定完走の直後、解析の 1 回目が構造検査で
@@ -56,10 +58,11 @@ policy 腕 (p0 / p1 / p2) の trace 無効な性能を、腕と job 内時刻の
 
 ### 完了
 
-- [T-2417] 全 6 permutation × 3 の 18 block で trace 無効の性能を測り、事前登録した 3 仮説に
-  判定を出した。H1 accepted、H2 と H3 rejected。
+- [T-2417] 全6 permutation×3の既存18 blockを回収した。記録値へ登録式を適用した結果は
+  H1 accepted、H2/H3 rejected。compiler完全identity未確認・未認証の条件付き結果として保持し、
+  追加認証の残余は見送りとする。
   remaining: none
-  base: c309b9b55f0a7b32e40e3c084321eddb971406f8623d02e0cfffe5e7db39a3a5
+  base: 14ade7f74ca53c8e98474256da9378a1baf645ed19ee233013862404ff17e855
 
 ### 新規
 

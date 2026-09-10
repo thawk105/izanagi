@@ -450,6 +450,8 @@ def test_public_analysis_accepts_real_identity_shape_and_uses_frozen_ci(
         100.0 * math.expm1(expected_mean)
     )
     assert result["analysis_status"] == "complete"
+    assert result["headline_eligible"] is False
+    assert result["correctness_status"] == "uncertified"
     assert result["blocks"]["present_rep_indices"] == list(range(18))
     assert result["preregistration_erratum_1"]["sha256"] == (
         PREREGISTRATION_ERRATUM_1_SHA256
@@ -1043,6 +1045,8 @@ def test_input_type_contract_and_empty_explicit_input(tmp_path: Path) -> None:
         [], PREREGISTRATION, PREREGISTRATION_ERRATUM_1
     )
     assert result["analysis_status"] == "incomplete-analysis"
+    assert result["headline_eligible"] is False
+    assert result["correctness_status"] == "uncertified"
     assert result["blocks"]["missing_rep_indices"] == list(range(18))
     assert all(
         hypothesis["decision"] == "inconclusive"

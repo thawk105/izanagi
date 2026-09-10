@@ -839,6 +839,8 @@ def analyze_policy_performance(
     return {
         "analysis_version": ANALYSIS_VERSION,
         "analysis_status": "incomplete-analysis" if incomplete else "complete",
+        "headline_eligible": False,
+        "correctness_status": "uncertified",
         "reason_codes": ["incomplete-analysis"] if incomplete else [],
         "preregistration": {
             "path": str(preregistration),

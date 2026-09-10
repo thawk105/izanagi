@@ -4,6 +4,9 @@
 測定の実行体 `deb1f0643`。事前登録 `docs/backoff-policy-performance-preregistration.md` (v1) と
 その正誤表 `docs/backoff-policy-performance-preregistration-erratum-1.md`。
 
+2026-09-10の回収時の集約物は `analysis-result-tagged.json`。未認証・headline非適格の2タグを持ち、
+それらを除いた全fieldは旧 `analysis-result.json` と完全一致する。旧出力は当時の未タグ記録として保持する。
+
 ## 0. この wave が主張すること・しないこと
 
 **主張する:**
@@ -11,14 +14,17 @@
 1. **事前登録を、3 腕の trace 無効な throughput を 1 つも見る前に凍結した**
    (v1、sha256 `2f5170c99dda9dd70647a611bff798b6e54c5e29b60e872cd755e5b8515cc25c`、commit `0fa42d809`)。
 2. **18 block の実測を完走した。** 18 job すべてが別ノードで走り、欠測はゼロ、各 block 72 座標。
-3. **事前登録した推定量を当てた結果、H1 は accepted、H2 と H3 は rejected である。**
-   とくに **H3 (「abort が少ない read-heavy では向きの選択が効かない」という「効果なし」の予測) は
-   逆向きに反証された。**
+3. **記録値へ事前登録した推定式を当てた計算結果は、H1 accepted、H2/H3 rejectedである。**
+   H3の操作的定義はread-heavy 8点でのp0/p1等価であり、その予測に反した。
+   **compiler完全identityの一致は既存証拠から確定できないため、登録条件への完全適合を主張しない。
+   仮説判定はこの未確認条件を残す条件付き結果である。** 回収時の確認範囲は
+   `recovery-review-ruling.md` に記録した。
 
 **主張しない:**
 
-- **3 腕はいずれも未認証である。正しさを主張しない。** 成果物は `headline_eligible=false` と
-  `correctness_status="uncertified"` を記録し、headline・採用判断・fitness から機械的に隔離される。
+- **3 腕はいずれも未認証である。正しさを主張しない。** 元の性能成果物は `headline_eligible=false` と
+  `correctness_status="uncertified"` を記録し、既存認証経路はこの性能契約を拒否する。
+  headline・採用判断・fitnessには使わない。タグ自体を任意consumerへの強制や真正性の証明とはしない。
   **自動撤回機構は存在しない** (v1 §1)。
 - **機構の採否を決めない。** 決めたのは 3 対比の CI と判定語だけである。
 - 単一環境・単一 protocol・単一 record 数の結果であり、推定対象は実現した 18 block-node 上の
@@ -58,14 +64,18 @@ driver は washout を置かないので、この均衡が持越しへの唯一�
 - attempt `t2417a02`、job `982986`〜`983003`。**18 件を 1 本の detached checkout から連続 qsub し、
   18 ノードすべてが別 (bnode008〜032)。**
 - 成果物 `/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/perf/t2417-policy/t2417a02/`
-- 束縛は 18 block で単一値: `repo_head` `deb1f0643`、`driver_sha256`、`pbs_sha256`、
-  patch stack、compiler、`records=1,000,000`、`extime_s=3`、`reps_per_job=1`、`stage=1`。
+- 記録上18 blockで単一値: `repo_head` `deb1f0643`、`driver_sha256`、`pbs_sha256`、
+  patch stack、compiler要求名 (`gcc` / `g++`)、`records=1,000,000`、`extime_s=3`、`reps_per_job=1`、`stage=1`。
+  同時点の全18 scheduler stdoutには依存buildのGNU C++11.4.0と同じpathがあるが、
+  本体compiler実体の完全同一性まで示す記録ではない。
 - **trace 無効の証拠は三重**: 全行 `backoff_trace=false`、`build_trace_enabled=false`、
   診断 symbol 数と文字列数がともに 0、build cache key が `_t0` 終端 (絶対規律 1)。
 
 ## 3. 判定
 
-等価域は対称な ±ln(1.03) = ±3.00%。正の値は左の腕が速い。
+以下はすべて未認証・headline非適格の観測値であり、上記compiler前提は未確認である。
+等価域はlog尺度で対称な ±ln(1.03)、比では `[1/1.03, 1.03]` (−2.9126%〜+3.00%)。
+正の値は左の腕が速い。
 
 ### 主点 (write-heavy, 48 threads)
 
@@ -107,26 +117,25 @@ driver は washout を置かないので、この均衡が持越しへの唯一�
 |---|---|---|
 | H1 向きの効果 (主点で p0/p1 が実用優越) | **accepted** | 主点 +46.6%、CI 下端 +45.0% |
 | H2 用量反応 (24 点すべてで p0/p2 と p2/p1 が非劣性) | **rejected** | p0/p1 と p0/p2 は 24/24 で実用優越。p2/p1 は 23 点で実用優越だが (write-heavy, 42) で **実用劣化 −10.7% [−17.4%, −3.5%]** |
-| H3 abort 不要域の予測 (read-heavy 8 点で p0/p1 が等価) | **rejected** | 8 点すべて実用優越。**+35% 〜 +190%** |
+| H3 read-heavyでの等価予測 (8 点で p0/p1 が等価) | **rejected** | 8 点すべて実用優越。**+35% 〜 +190%** |
 
-## 4. H3 の反証が本 wave のいちばんの収穫である
+## 4. read-heavyの等価予測に反した結果と、機序解釈の限界
 
-**事前登録は「abort がほぼ無い read-heavy では向きの選択が実用差を生まない」と予測した。
-実測は逆で、read-heavy でも大きな差が出た** (42 threads で +190%、48 threads で +185%)。
+**事前登録はread-heavyでの等価を予測したが、記録値には大きな差があった**
+(42 threadsで+190%、48 threadsで+185%)。
 全24点の最大は balanced・30 threads の +249% である (2026-09-10 回収時の表との照合で訂正)。
 
-予測の根拠は「backoff は abort を抑えるための機構だから、abort が少なければ効かない」だった。
-**この予測は反証された。** 機序の候補は、常に推奨と逆へ進む腕が backoff を上限側へ追い込み、
-**abort が少ない regime ほど「本来ゼロ近傍であるべき待ち時間」からの乖離が大きくなる**
-という説明である。これは ITT の生死確認の clamp 領域への移動と整合するが、
-今回の trace 無効な throughput だけでその機序を同定したとはしない。
+予測はabortが少ないという想定を根拠にしていた。しかし既存JSONのread-heavyのabort率は、
+p0で1.91〜15.40%、p1で1.36〜5.56%、p2で1.57〜12.23%であり、無abort域ではない。
+したがって「無abort条件でも向きが効く」という機序の反証にはしない。棄却されたのは、
+事前登録したread-heavy 8点の等価という操作的予測である。
+反転腕のclamp領域への移動はITTの生死確認と整合する機序候補だが、今回のthroughputだけでは同定しない。
 
 **事前登録した負の対照が、その役割を果たした。** 結果を見てから予測を書いていたら、
 この誤りは記録に残らなかった。
 
-効果の大きさ (最大 +249%) は「p1 が最適解より少し劣る」ではなく
-**「常に逆へ進むのは破滅的である」**ことを意味する。この非対称性は、
-制御器の向きの選択が単なる微調整ではないことの証拠である。
+最大の差+249%はbalanced・30 threadsでのp0/p1の観測である。
+本18 blockの各条件では常時反転p1のthroughputがp0を下回ったが、最適性や他条件への一般化は主張しない。
 
 ## 5. 事前登録 v1 の誤り 2 件と正誤表
 
