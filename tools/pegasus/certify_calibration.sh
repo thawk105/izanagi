@@ -599,34 +599,18 @@ if [[ -z "$THIRD_PARTY_VERIFY_PYTHON" ]]; then
   exit 2
 fi
 
-third_party_copy_pids=()
-third_party_copy_names=()
 for third_party_name in masstree mimalloc googletest; do
+  third_party_copy_rc=0
   timeout 120 cp -a \
     "$THIRD_PARTY_SOURCE_ROOT/$third_party_name" \
-    "$FETCHCONTENT_SOURCE_ROOT/${third_party_name}-src" &
-  third_party_copy_pids+=("$!")
-  third_party_copy_names+=("$third_party_name")
-done
-# Reap every started copy before reporting the first failure in source order.
-third_party_copy_rc=0
-third_party_copy_failed_name=""
-for third_party_copy_index in "${!third_party_copy_pids[@]}"; do
-  if wait "${third_party_copy_pids[$third_party_copy_index]}"; then
-    :
-  else
-    third_party_wait_rc=$?
-    if [[ "$third_party_copy_rc" -eq 0 ]]; then
-      third_party_copy_rc=$third_party_wait_rc
-      third_party_copy_failed_name=${third_party_copy_names[$third_party_copy_index]}
-    fi
+    "$FETCHCONTENT_SOURCE_ROOT/${third_party_name}-src" \
+    || third_party_copy_rc=$?
+  if [[ "$third_party_copy_rc" -ne 0 ]]; then
+    write_failure 2 third_party_source \
+      "cannot copy pinned third-party staging source: $third_party_name"
+    exit 2
   fi
 done
-if [[ "$third_party_copy_rc" -ne 0 ]]; then
-  write_failure "$third_party_copy_rc" third_party_source \
-    "cannot copy pinned third-party staging source: $third_party_copy_failed_name"
-  exit "$third_party_copy_rc"
-fi
 third_party_verify_rc=0
 (cd "$REPO_ROOT" && timeout 120 "$THIRD_PARTY_VERIFY_PYTHON" - \
   "$FETCHCONTENT_SOURCE_ROOT" "$REPO_ROOT" <<'PY'
