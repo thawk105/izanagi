@@ -92,12 +92,12 @@ T2266_CLAIM_SCOPE = "descriptive_backoff_shape_only"
 T2418_REQUESTED_US = (2000, 4000, 9999)
 T2418_REALIZED_US = (2000, 4000, 9999)
 T2418_UNREALIZED: dict[int, str] = {}
-T2418_REPORT_SCHEMA = "t2418-backoff-static-explore-report/v1"
+T2418_REPORT_SCHEMA = "t2418-backoff-static-explore-report/v2"
 T2418_CLAIM_SCOPE = "exploratory_backoff_tail_only_not_formal_series"
 T2418_FORMAL_GRID_STATUS = "not_selected_in_this_wave"
 T2418_FORMAL_STOPPING_CRITERION_STATUS = "not_defined_in_this_wave"
 T2418_MEANING_WITNESS_STATUS = (
-    "unestablished_for_positive_backoff_fixed_as_in_existing_sweep"
+    "driver_declared_static_backoff_physical_us"
 )
 
 # The literals are an oracle independent of labels and of the legacy sweep.
@@ -640,7 +640,7 @@ def t2418_config_for(
         )
     points = _t2418_points(tag)
     search_config = {
-        "scale": "t2418-backoff-static-explore-v1",
+        "scale": "t2418-backoff-static-explore-v2",
         "run_kind": T2418_RUN_KIND,
         "claim_scope": T2418_CLAIM_SCOPE,
         "exploratory": True,
@@ -672,7 +672,7 @@ def t2418_config_for(
         "measurement_order": t2418_measurement_order(tag),
     }
     cfg = CampaignConfig(
-        spec_slug=f"t2418-backoff-static-explore-v1-silo-{tag}",
+        spec_slug=f"t2418-backoff-static-explore-v2-silo-{tag}",
         search_tag="sweep",
         spec_content=(
             "T-2418 exploratory static-backoff right-tail measurement; "
@@ -680,7 +680,7 @@ def t2418_config_for(
         ),
         ccbench_commit=pin.CURRENT_PIN,
         search_config=search_config,
-        trial="t2418-backoff-static-explore-v1",
+        trial="t2418-backoff-static-explore-v2",
     )
     if contract is None:
         contract = p2_2._legacy_linux_contract()

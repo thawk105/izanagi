@@ -112,6 +112,90 @@ def _stub_run_workload_dependencies(monkeypatch, captured):
     )
 
 
+@pytest.mark.parametrize("baseline_raw", [-1, 5])
+def test_backoff_screened_caller_forwards_intent_to_real_gate(monkeypatch, baseline_raw):
+    """Caller spy runs real condition arms; campaign/performance setup is simulated."""
+    driver = backoff_sweep.screening_driver
+    source = _condition_fixture("supplied")
+    cxx = _available_executable("g++-13", "g++-12", "g++")
+    cmake = _available_executable("cmake")
+    gs = [backoff_sweep.Genome("silo", {"BACKOFF_FIXED": raw})
+          for raw in (baseline_raw, 5, 3000)]
+    cfg = backoff_sweep.config_for("balanced", backoff_sweep.WORKLOADS[1][1])
+    build_context = backoff_sweep.build_run_context(
+        generator_id=backoff_sweep.GeneratorId.BACKOFF_SWEEP,
+    )
+    cfg = backoff_sweep.ident.bind_admission_policy(cfg, build_context.policy)
+    contract = cfg.bound_environment_contract
+    monkeypatch.setattr(backoff_sweep, "_compilers_for_current_site",
+                        lambda: (cxx, cxx))
+    monkeypatch.setattr(backoff_sweep.source_digest, "resolve",
+                        lambda *args, **kwargs: "fixture-source")
+    monkeypatch.setattr(backoff_sweep, "_assert_single_tenant", lambda: None)
+    monkeypatch.setattr(driver, "attest_runtime_contract",
+                        lambda *args, **kwargs: (None, None))
+
+    @contextmanager
+    def checkout(*args, **kwargs):
+        yield str(source / "stock")
+
+    monkeypatch.setattr(driver.patchharness, "checkout", checkout)
+
+    def prepare(cfg, workload, baseline_ref, measure_baseline, **kwargs):
+        layout = SimpleNamespace(root="fixture-screening")
+        measure_baseline(cfg, layout)
+        return SimpleNamespace(cfg=cfg, layout=layout, screening=None)
+
+    monkeypatch.setattr(driver, "prepare_screening_campaign", prepare)
+    observed = []
+
+    def evaluate(cfg, layout, genome, *args, **kwargs):
+        declaration = kwargs.get("backoff_fixed_declaration")
+        run = driver._require_condition_gate_before_evaluation(
+            str(source), cfg.ccbench_commit, genome, cxx=cxx, cmake=cmake,
+            backoff_fixed_declaration=declaration,
+        )
+        raw = genome.flags["BACKOFF_FIXED"]
+        assert run.admission.admitted
+        assert [r.terminal_status for r in run.meaning_records] == [
+            "unestablished" if raw == -1 else "green",
+        ]
+        assert (declaration is None) == (raw == -1)
+        observed.append(raw)
+        return SimpleNamespace(aborted=False, certified=True)
+
+    monkeypatch.setattr(driver, "evaluate_candidate", evaluate)
+    summary = backoff_sweep._run_screened_workload(
+        cfg, gs, None, backoff_sweep.WORKLOADS[1][1], "", lambda *args: None,
+        backoff_fixed_physical_us={5: 5, 3000: 1000},
+        build_context=build_context,
+        capability_resolver=None, runtime_contract=contract,
+        authorization_contract=object(),
+    )
+    assert observed == [baseline_raw, 5, 3000]
+    assert summary.evaluated == 3
+
+
+def test_run_workload_shares_physical_mapping_with_screened_caller(monkeypatch):
+    """Outer workflow wiring only; real screening meaning is tested separately."""
+    captured = {}
+    _stub_run_workload_dependencies(monkeypatch, captured)
+    screened = []
+
+    def run_screened(*args, **kwargs):
+        screened.append(kwargs["backoff_fixed_physical_us"])
+        return SimpleNamespace(results=[], committed=0, aborted=0)
+
+    monkeypatch.setattr(backoff_sweep, "_run_screened_workload", run_screened)
+    backoff_sweep.run_workload(
+        "balanced", backoff_sweep.WORKLOADS[1][1],
+        screening_enabled=True, log=lambda *args: None,
+    )
+    outer = captured["condition_gate_calls"][0][1]["backoff_fixed_physical_us"]
+    assert outer == {5: 5}
+    assert len(screened) == 1 and screened[0] is outer
+
+
 def _condition_fixture(name: str) -> Path:
     return (
         Path(__file__).parent / "fixtures" / "condition_meaning_gate" / name

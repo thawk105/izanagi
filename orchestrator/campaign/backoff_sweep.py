@@ -85,6 +85,52 @@ _CONDITION_GATE_DEFAULTS = {
 }
 
 
+def _backoff_fixed_declarations(
+        requested_values: Sequence[int],
+        backoff_fixed_physical_us: Mapping[int, int],
+) -> dict[int, condition_meaning_gate.MeaningWitnessDeclaration]:
+    """Declare the driver physical intent independently of the backoff codec."""
+    if not isinstance(backoff_fixed_physical_us, Mapping):
+        raise RuntimeError("BACKOFF_FIXED physical intent must be a mapping")
+    physical_rows = tuple(backoff_fixed_physical_us.items())
+    if any(type(raw) is not int for raw, _physical in physical_rows):
+        raise RuntimeError("BACKOFF_FIXED physical intent keys must be exact integers")
+    requested_nonnegative = {
+        value
+        for value in requested_values
+        if value >= 0
+    }
+    supplied_nonnegative = {raw for raw, _physical in physical_rows}
+    if supplied_nonnegative != requested_nonnegative:
+        raise RuntimeError(
+            "BACKOFF_FIXED physical intent key mismatch: "
+            f"missing={sorted(requested_nonnegative - supplied_nonnegative)!r}, "
+            f"extra={sorted(supplied_nonnegative - requested_nonnegative)!r}"
+        )
+    if any(
+            type(physical) is not int or physical < 0
+            for _raw, physical in physical_rows
+    ):
+        raise RuntimeError(
+            "BACKOFF_FIXED physical intent values must be non-negative exact integers"
+        )
+
+    fixed_declarations = {}
+    for raw, physical in physical_rows:
+        try:
+            bits = condition_meaning_gate.canonical_float64_bits(float(physical))
+        except (OverflowError, ValueError) as exc:
+            raise RuntimeError(
+                "BACKOFF_FIXED physical intent is not finite binary64"
+            ) from exc
+        fixed_declarations[raw] = condition_meaning_gate.MeaningWitnessDeclaration(
+            "BACKOFF_FIXED",
+            (condition_meaning_gate.MeaningCase(raw, (bits, bits)),),
+        )
+
+    return fixed_declarations
+
+
 def _require_backoff_condition_gate(
         source_root: str, *, stock_root: Optional[str], driver_id: str,
         macro_values: Mapping[str, Sequence[int]],
@@ -115,43 +161,9 @@ def _require_backoff_condition_gate(
             )
         reviewed_values[macro] = tuple(dict.fromkeys(values))
 
-    if not isinstance(backoff_fixed_physical_us, Mapping):
-        raise RuntimeError("BACKOFF_FIXED physical intent must be a mapping")
-    physical_rows = tuple(backoff_fixed_physical_us.items())
-    if any(type(raw) is not int for raw, _physical in physical_rows):
-        raise RuntimeError("BACKOFF_FIXED physical intent keys must be exact integers")
-    requested_nonnegative = {
-        value
-        for value in reviewed_values.get("BACKOFF_FIXED", ())
-        if value >= 0
-    }
-    supplied_nonnegative = {raw for raw, _physical in physical_rows}
-    if supplied_nonnegative != requested_nonnegative:
-        raise RuntimeError(
-            "BACKOFF_FIXED physical intent key mismatch: "
-            f"missing={sorted(requested_nonnegative - supplied_nonnegative)!r}, "
-            f"extra={sorted(supplied_nonnegative - requested_nonnegative)!r}"
-        )
-    if any(
-            type(physical) is not int or physical < 0
-            for _raw, physical in physical_rows
-    ):
-        raise RuntimeError(
-            "BACKOFF_FIXED physical intent values must be non-negative exact integers"
-        )
-
-    fixed_declarations = {}
-    for raw, physical in physical_rows:
-        try:
-            bits = condition_meaning_gate.canonical_float64_bits(float(physical))
-        except (OverflowError, ValueError) as exc:
-            raise RuntimeError(
-                "BACKOFF_FIXED physical intent is not finite binary64"
-            ) from exc
-        fixed_declarations[raw] = condition_meaning_gate.MeaningWitnessDeclaration(
-            "BACKOFF_FIXED",
-            (condition_meaning_gate.MeaningCase(raw, (bits, bits)),),
-        )
+    fixed_declarations = _backoff_fixed_declarations(
+        reviewed_values.get("BACKOFF_FIXED", ()), backoff_fixed_physical_us,
+    )
 
     captured = condition_meaning_gate.capture_define_inputs(
         source_root, stock_root=stock_root, configure_args=configure_args,
@@ -273,6 +285,7 @@ def config_for(tag: str, workload: dict, *,
 
 
 def _run_screened_workload(cfg, gs, perf, workload, calibration_dir, log, *,
+                           backoff_fixed_physical_us: Mapping[int, int],
                            build_context: BuildRunContext,
                            capability_resolver,
                            runtime_contract,
@@ -280,6 +293,10 @@ def _run_screened_workload(cfg, gs, perf, workload, calibration_dir, log, *,
                            expected_toolchain_manifest=None,
                            confirm_each_candidate=False,
                            verified_calibration=None):
+    fixed_declarations = _backoff_fixed_declarations(
+        tuple(genome.flags["BACKOFF_FIXED"] for genome in gs),
+        backoff_fixed_physical_us,
+    )
     baseline = gs[0]
     if expected_toolchain_manifest is None:
         _, resolved_cxx = _compilers_for_current_site()
@@ -305,6 +322,9 @@ def _run_screened_workload(cfg, gs, perf, workload, calibration_dir, log, *,
         measured.append(screening_driver.evaluate_candidate(
             screen_cfg, layout, baseline, perf,
             runtime_contract.env_tag, runtime_contract.clocks_per_us,
+            backoff_fixed_declaration=fixed_declarations.get(
+                baseline.flags["BACKOFF_FIXED"],
+            ),
             authorization_contract=authorization_contract,
             env_contract=execution_contract,
             expected_toolchain_manifest=expected_toolchain_manifest,
@@ -344,6 +364,9 @@ def _run_screened_workload(cfg, gs, perf, workload, calibration_dir, log, *,
         results.append(screening_driver.evaluate_candidate(
             prepared.cfg, prepared.layout, genome, perf,
             runtime_contract.env_tag, runtime_contract.clocks_per_us,
+            backoff_fixed_declaration=fixed_declarations.get(
+                genome.flags["BACKOFF_FIXED"],
+            ),
             authorization_contract=authorization_contract,
             env_contract=execution_contract,
             expected_toolchain_manifest=expected_toolchain_manifest,
@@ -403,6 +426,10 @@ def run_workload(tag: str, workload: dict, log=print, *,
     perf = PerfConfig(records=RECORDS, threads=THREADS, workload=workload,
                       extime=EXTIME, reps=REPS)
     log(f"\n=== backoff sweep  workload={tag}  ({workload})  {len(gs)} genome ===")
+    backoff_fixed_physical_us = {
+        amount: amount for amount in SWEEP_US
+        if any(genome.flags["BACKOFF_FIXED"] == amount for genome in gs)
+    }
     ccbench_dir = buildcache._ccbench_dir()
     patch_path = os.fspath(
         Path(__file__).resolve().parents[2] / "patches/silo-backoff-fixed.patch"
@@ -431,14 +458,7 @@ def run_workload(tag: str, workload: dict, log=print, *,
                             genome.flags["BACKOFF_FIXED"] for genome in gs
                         ),
                     },
-                    backoff_fixed_physical_us={
-                        amount: amount
-                        for amount in SWEEP_US
-                        if any(
-                            genome.flags["BACKOFF_FIXED"] == amount
-                            for genome in gs
-                        )
-                    },
+                    backoff_fixed_physical_us=backoff_fixed_physical_us,
                     cxx=resolved_cxx,
                     use_class="raw-measurement",
                     configure_args=(
@@ -448,6 +468,7 @@ def run_workload(tag: str, workload: dict, log=print, *,
             if screening_enabled:
                 s = _run_screened_workload(
                     cfg, gs, perf, workload, calibration_dir, log,
+                    backoff_fixed_physical_us=backoff_fixed_physical_us,
                     build_context=build_context,
                     capability_resolver=capability_resolver,
                     runtime_contract=contract,

@@ -1077,3 +1077,24 @@ valid にも invalid にもなる。
 - **性能の認証。** 本走は trace 無効の性能測定であり、認証されるのは正しさだけである。
 - **他環境への転移。** 本書が固定するのは Pegasus 計算ノード 48 スレッド・YCSB 3 workload・
   silo protocol の条件下の測定である。
+
+## 2026-09-10 追補 — 静的物理量の意味宣言と T-2418 新走の v2
+
+D1859・D1936 項19に従い、既存 driver が要求する静的物理量を既存の意味宣言へ渡す。
+期待値は要求側の物理マイクロ秒から作り、捕捉した C++ の観測値や符号の decoder から逆算しない。
+screening でも同じ宣言を転送し、乱択設定を静的 scalar と宣言しない。共通 gate の判定式は変更しない。
+
+この変更後の `t2418-explore` 新走は `scale` / `trial` を
+`t2418-backoff-static-explore-v2`、`spec_slug` を
+`t2418-backoff-static-explore-v2-silo-<workload>`、JSON report schema を
+`t2418-backoff-static-explore-report/v2` とする。campaign 設定・JSON report・DAT provenance の
+`meaning_witness_status` は `driver_declared_static_backoff_physical_us` に揃える。
+これは要求側が静的物理量を宣言することを表し、全 macro の意味確立や性能認証を表さない。
+新走の loader は v2 の campaign を選び、v1 への fallback は設けない。
+
+§5 の本格系列 spec は変更対象外として保持し、T-2418 新走の status は本追補に従う。
+§9 の「未確立」は本追補前の記述として保持する。
+§8.2 の既存系列不変更は過去 artifact に適用し、今回の新走版には本追補を適用する。
+旧 campaign の lock・WAL・report と記録された測定事実は変更せず、現行 gate の結果で
+過去の意味状態を遡及的に昇格させない。§5 の本格系列 spec の bytes、格子・反復数・測定順・
+停止基準は本追補で変更しない。
