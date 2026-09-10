@@ -110,6 +110,7 @@ repo=$(cd -- "$IZANAGI_S4_REPO_ROOT" && pwd -P) \
   || refuse "cannot resolve repository root"
 evidence_root=$(cd -- "$IZANAGI_S4_EVIDENCE_ROOT" && pwd -P) \
   || refuse "cannot resolve evidence root"
+export IZANAGI_S4_EVIDENCE_ROOT="$evidence_root"
 thirdparty_root=$(cd -- "$IZANAGI_S4_THIRDPARTY_SOURCE_ROOT" && pwd -P) \
   || refuse "cannot resolve third-party source root"
 case "$repo/" in
