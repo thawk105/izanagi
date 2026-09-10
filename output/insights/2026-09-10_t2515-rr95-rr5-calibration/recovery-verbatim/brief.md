@@ -1,0 +1,22 @@
+# 段1 brief — T-2515 必要差分の回収
+- 研究前進: B-4のrr5/rr95校正を止めた投入経路の不足とinterpreter不整合の修正をmainで利用可能にし、失敗実測を保存する。
+- 完了判定: 現行mainの後続修正を保った局所合成、独立2レンズレビュー、変異・関連検査・受入を通してlocal main land。
+- 正本: T-2515 archive worklog、D15/D1641/D1877、指定handoffと参照branchのinsight README。
+- 参照tip: 559bcbc29cfa27412f103b608e8ac708dcfae6b9。候補ad002de1b、bcfd2b931、3dbf7ea1d、18704ae18、ec17af5dc。
+- scope: shell投入とjob bodyへexact rr5/rr95追加、既存smoke済みPython3.10選定を条件関門前へ移す、既存consumer testの整合、失敗実測記録。
+- 不変: 正しさ関門のmacro・意味・timeout・呼出条件を緩めず、accepted calibrationの取得済みを主張しない。
+- 除外: 559bcbc29のfixture共有化と裁定fragment、新規測定、patch materialize、receipt schema拡張、仮想リスク向けgate・台帳・一般化。
+- D1877: fixture共有範囲を変更しない。今回の回収対象に当該fixtureは含めない。
+- 変更アンカー: tools/pegasus/submit_certify.sh のusage/rratio述語。
+- 変更アンカー: tools/pegasus/certify_calibration.sh のrratio述語、CALIBRATE_PYTHON選定、run_condition_gate argv。
+- 変更アンカー: orchestrator/tests/test_pegasus_calibration_workload.py の投入正負例・関門interpreter検査。
+- 変更アンカー: orchestrator/tests/test_pegasus_tools.py の_calibrate_interpreter_fragment と実起動consumer。
+- docs: tools/pegasus/README.md のrratio記述、既存失敗job-evidence、当時の検査と今回の検査を分けるinsight、spool fragment。
+- (P1) mainのT-2535は同jobのoffline依存供給とverifier interpreterを変更済み。旧file全置換は不可。Codex authorが差分を合成する。
+- T-1851 D2はprefix proof consumers/fixtures、T-2417はadaptive probe/所要台帳等。現在の所有と対象4実装fileの重複0。
+- 実装単位は依存する4fileを1 Codex authorへ。親はdocs・裁定・検査・Gitのみ。レビューは別read-only subprocess2本。
+- 実行場所pegasus02。pytest/buildはrun_tests.py。性能測定を新規起動しない。
+- 現main e618883c2から専用worktreeを作成、submodule再帰初期化・fresh startup rc=0。
+- 受理: sanctioned shellのrratio exact集合を{20,50,80}から{5,20,50,80,95}へ。拒否: +5/05/空白/全角/51は維持。
+- 正例はrr5とrr95の既存mock qsub実起動、負例は副作用前拒否。実機の当時の到達証拠は988706/988708、accepted生成0。
+- 変異は参照branch既存8変異を現行合成へ再照合して段4で登録。規律2の関門そのものへの新しい防壁は足さない。

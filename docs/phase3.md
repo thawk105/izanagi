@@ -278,6 +278,11 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
 
 ## 後続段 (各々 ablation 点を残して投入)
 
+- [x] 本体論文の日本語方法節草稿（2026-09-10 の新規ユーザー執筆依頼）を
+  `output/insights/2026-09-10_paper-methods-ja/methods.md` と同 `implementation.md` に作成。
+  生成・検証・反例還流・独立測定・選択を対応づけ、実装と評価契約を区別した文書成果であり、
+  未完の実験や Phase 3 全体の完了を意味しない。
+
 **段 1〜5 は完了 (2026-07-06〜07-10)。完了記録の詳細 (実装内訳・敵対レビュー・実測値・実機検証手順)
 は `docs/archive/phase3-kickoff-stages1-5.md` へ分離 (2026-07-10)** — ここには完了サマリ + 現役情報
 (ablation 点・残課題・発火条件) + 正本ポインタのみ残す (完了/未了の正本は本リスト、番号は分離前と不変)。
@@ -449,6 +454,8 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
        `p3-s8a-trigger-loop-s8a-trigger-autonomous-3f72ecd5` (最終成果物)・
        `orchestrator/campaign/axis_trigger_gating.py`・`auditor_gate.py`・`p3_s4_loop_trigger_gating.py`
    - **(8b 着手済み — 現在地・着手順は現行チェックポイントが正本) workload 次元のループ入力化 (次の主経路)** — 「ワークロード特化」のシステム主張に必須。
+     - [x] [T-2515] rr5/rr95 の較正投入対応と条件関門の interpreter 修正、既存失敗実測を回収。
+       accepted calibration の取得自体は未完。正本 = `output/insights/2026-09-10_t2515-rr95-rr5-calibration/README.md`。
      coder / selector への入力に型付き workload descriptor (read/write 比率、競合ラベル、スケール、目的、
      正しさ制約。勝者名と実測性能値は除外) を追加し、同一 variant 集合を同一予算で比較する。
      既存 rr5/rr50/rr95 と D50/P2-4 の結果はすでに既知なので、**配線 demo または結果既知の
