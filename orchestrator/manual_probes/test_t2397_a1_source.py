@@ -19,8 +19,9 @@ def test_t2397_a1_source(tmp_path, monkeypatch):
     job = Path("/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2397-a1-attempt4")
     expected_head = (job / "probe-head.txt").read_text().strip()
     assert a1._run_git(repo, "rev-parse", "HEAD") == expected_head
-    evidence = job / "source-probe" / os.environ["PBS_JOBID"].replace(":", "_")
-    evidence.mkdir(parents=True, exist_ok=False)
+    evidence_parent = job / "source-probe" / os.environ["PBS_JOBID"].replace(":", "_")
+    evidence_parent.mkdir(parents=True, exist_ok=True)
+    evidence = Path(tempfile.mkdtemp(prefix="run-", dir=evidence_parent))
     scratch = Path(tempfile.mkdtemp(prefix="t2397-", dir="/scr"))
     source = scratch / "ccbench"
     subprocess.run(["git", "clone", "--quiet", str(repo / "external/ccbench"), str(source)], check=True)
