@@ -1,0 +1,182 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2273-current-cost/output/pegasus-dispatch/232030f3c7846907858a558fa62297d8/izdw-232030f3c7.o991682",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2273-current-cost/output/pegasus-dispatch/232030f3c7846907858a558fa62297d8/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": ".                                                                        [100%]\n1 passed in 1.19s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+      "stdout_sha256": "290f4cfd180dbc9dcc512abef2c5976f31a3251a4a313656e523649b25ad4da4"
+    },
+    "artifact_error": null,
+    "collection_sha256": "550e0f755a13c80eb53435513dd43261a9411cb951be1d8d436606840c7e6a00",
+    "duration_s": 22.131,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "7a81d33bb51d8fcb127196a17315b4cf272c972898cea61f67ba853018f9dd4c",
+    "repo_head": "5171867a601a384980c5e5464f5a28294f97e0a4",
+    "runner_sha256": "d74df80616a4e52caa375d345e9391ad3ab4d1f5bda9fe9f80f00d69b4356ab4",
+    "spec_sha256": "1837b3f0dd473a51810d7b01549229c585028699682ee016f85b6e16c55a99e7",
+    "status": "PASSED",
+    "test_output_sha256": "290f4cfd180dbc9dcc512abef2c5976f31a3251a4a313656e523649b25ad4da4",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "2e7eb9f97d020f902b61ea2944eca7245067bc0fa7ae459042e0786a5ed94150"
+  },
+  "date": "2026-09-10T18:08:50.559730+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2273-current-cost/output/pegasus-dispatch/944851726ead84cf3de58269b08edb25/izdw-944851726e.o991684",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2273-current-cost/output/pegasus-dispatch/944851726ead84cf3de58269b08edb25/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "F                                                                        [100%]\n=================================== FAILURES ===================================\n______________________ test_limit_stop_is_never_accepted _______________________\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/test_limit_stop_is_never_accep0')\n\n    def test_limit_stop_is_never_accepted(tmp_path: Path) -> None:\n        completed, receipt, paths = _run_case(\n            tmp_path,\n            \"term_success\",\n            expected_returncode=1,\n            max_calls=1,\n            max_tokens=100000,\n            max_wall=\"11\",\n        )\n    \n        assert receipt is not None\n        assert receipt[\"stop_reason\"] == \"max_model_calls\"\n        assert receipt[\"actuals\"][\"attempt_count\"] == 1\n        assert receipt[\"attempts\"][0][\"limit_trigger\"] == \"max_model_calls\"\n>       assert receipt[\"attempts\"][0][\"codex_exit_code\"] == 0\nE       assert 7 == 0\n\norchestrator/tests/test_codex_worker_launch.py:4259: AssertionError\n------------------- Captured launcher-failure-artifact call --------------------\narchive_status=complete bundle=/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2273-current-cost/output/runs/pytest-launcher-failures/0-991684.nqsv--bnode031/main/ca902baa9d47488d--pid2608701--1789063798571940394--gmqe3zmv\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_codex_worker_launch.py::test_limit_stop_is_never_accepted\n1 failed in 1.45s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_codex_worker_launch.py::test_limit_stop_is_never_accepted\" nodeid_bytes=81 nodeid_omitted_bytes=0 source_bytes=762 retained_bytes=762 omitted_bytes=0 rendered_excerpt_bytes=803 sha256=e5433ddb933fe298042cf11d537bd5a6a10014e2c1803d9353456e8cda21bec3\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/test_limit_stop_is_never_accep0')\n> \n>     def test_limit_stop_is_never_accepted(tmp_path: Path) -> None:\n>         completed, receipt, paths = _run_case(\n>             tmp_path,\n>             \"term_success\",\n>             expected_returncode=1,\n>             max_calls=1,\n>             max_tokens=100000,\n>             max_wall=\"11\",\n>         )\n>     \n>         assert receipt is not None\n>         assert receipt[\"stop_reason\"] == \"max_model_calls\"\n>         assert receipt[\"actuals\"][\"attempt_count\"] == 1\n>         assert receipt[\"attempts\"][0][\"limit_trigger\"] == \"max_model_calls\"\n> >       assert receipt[\"attempts\"][0][\"codex_exit_code\"] == 0\n> E       assert 7 == 0\n> \n> orchestrator/tests/test_codex_worker_launch.py:4259: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=762 retained_bytes=762 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1506 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "f37b84a5200b75a9168e2b5c34828caebb123eb94bc7a2c67c6938321090aaa4"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "550e0f755a13c80eb53435513dd43261a9411cb951be1d8d436606840c7e6a00",
+      "duration_s": 22.348,
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_limit_stop_is_never_accepted"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_limit_stop_is_never_accepted"
+      ],
+      "hang_risk": false,
+      "id": "M1-term-success-wrong-exit",
+      "injection_diff_sha256": "a4f9c311fc8e3127842d0536db318f53c9886aa95e4d4eb47775f8f0b25ba221",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "efc0e59a5a0b26538496289058664de12007dfa674a33c2713076b9a08b02016",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_codex_worker_launch.py",
+          "new": "    def finish(_signum, _frame):\n        raise SystemExit(7)\n    signal.signal(signal.SIGTERM, finish)",
+          "old": "    def finish(_signum, _frame):\n        raise SystemExit(0)\n    signal.signal(signal.SIGTERM, finish)"
+        }
+      ],
+      "repo_head": "5171867a601a384980c5e5464f5a28294f97e0a4",
+      "runner_sha256": "d74df80616a4e52caa375d345e9391ad3ab4d1f5bda9fe9f80f00d69b4356ab4",
+      "spec_sha256": "1837b3f0dd473a51810d7b01549229c585028699682ee016f85b6e16c55a99e7",
+      "status": "KILLED",
+      "test_output_sha256": "f37b84a5200b75a9168e2b5c34828caebb123eb94bc7a2c67c6938321090aaa4",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2e7eb9f97d020f902b61ea2944eca7245067bc0fa7ae459042e0786a5ed94150"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2273-current-cost/output/pegasus-dispatch/d26121098b8cfaa9d4dd5ca20271bcd5/izdw-d26121098b.o991676",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2273-current-cost/output/pegasus-dispatch/d26121098b8cfaa9d4dd5ca20271bcd5/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_codex_worker_launch.py::test_limit_stop_is_never_accepted\n\n1 test collected in 0.65s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "55ac04b17878f165d4bc9e02f8b73416f69288f49abcac154605b8213ba51160"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_limit_stop_is_never_accepted"
+      ],
+      "duration_s": 563.282,
+      "rc": 0,
+      "repo_head": "5171867a601a384980c5e5464f5a28294f97e0a4",
+      "runner_sha256": "d74df80616a4e52caa375d345e9391ad3ab4d1f5bda9fe9f80f00d69b4356ab4",
+      "spec_sha256": "1837b3f0dd473a51810d7b01549229c585028699682ee016f85b6e16c55a99e7",
+      "status": "PASSED",
+      "tool_sha256": "2e7eb9f97d020f902b61ea2944eca7245067bc0fa7ae459042e0786a5ed94150"
+    },
+    "hang_timeout_seconds": 60.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1-term-success-wrong-exit": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_codex_worker_launch.py::test_limit_stop_is_never_accepted"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a4f9c311fc8e3127842d0536db318f53c9886aa95e4d4eb47775f8f0b25ba221",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_codex_worker_launch.py",
+            "new": "    def finish(_signum, _frame):\n        raise SystemExit(7)\n    signal.signal(signal.SIGTERM, finish)",
+            "old": "    def finish(_signum, _frame):\n        raise SystemExit(0)\n    signal.signal(signal.SIGTERM, finish)"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "7a81d33bb51d8fcb127196a17315b4cf272c972898cea61f67ba853018f9dd4c",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "/usr/bin/python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_codex_worker_launch.py::test_limit_stop_is_never_accepted",
+      "-n",
+      "0",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 600.0
+  },
+  "repo_head": "5171867a601a384980c5e5464f5a28294f97e0a4",
+  "runner_identity": {
+    "command": [
+      "/usr/bin/python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_codex_worker_launch.py::test_limit_stop_is_never_accepted",
+      "-n",
+      "0",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2273-current-cost/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2273-current-cost/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "44dc12768d615c5bfdc2fc07965cf3e7fd7bcd39",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "d74df80616a4e52caa375d345e9391ad3ab4d1f5bda9fe9f80f00d69b4356ab4",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "1837b3f0dd473a51810d7b01549229c585028699682ee016f85b6e16c55a99e7",
+  "summary": {
+    "KILLED": 1,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 1,
+    "matching": 1,
+    "recorded": 1,
+    "registered": 1
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2273-current-cost/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "2e7eb9f97d020f902b61ea2944eca7245067bc0fa7ae459042e0786a5ed94150",
+  "updated_at": "2026-09-10T18:10:10.158622+00:00"
+}
