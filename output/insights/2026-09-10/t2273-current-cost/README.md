@@ -136,3 +136,12 @@ shard-0の最大占有415.846秒、最後1workerのtail5.067秒。これを改�
 同tipでt1259ファイルをtools/run_tests.py経由で1回単独再走し、**51passed/rc0、484.16秒**。
 timeoutは再現しなかった。DW-O18に従い検査を変更・除外せず受入を再走する。
 その間にlandしたT-2581のmainは固定SHAで通常mergeした。t1259/conftestの編集は0のまま。
+
+### 2026-09-11の再開
+
+続く受入は22464passed/68skipped/6failed/5errorで、t1259の同timeout、s8c snapshotの
+git archive timeout、launcherの時間制限に掛かった。親は非帰属赤の処置をscope外と解釈して停止したが、
+ユーザーがmain landまでの続行を指示したため、この停止判断を撤回して同じwaveを再開した。
+mainには`e28a62d26`のmodule snapshot化とreader登録が着地済みで、各testは独立copyを受け取る。
+固定main `d85bbb211`を通常mergeし、今回の診断実装やholdを追加せず修正済みの受入を使う。
+資料配置は現行output/README.mdに合わせた。計測日時・source・raw bytesは元の記録を維持する。
